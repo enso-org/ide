@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::backend::webgl;
-use crate::dirty::Dirty;
+use crate::dirty::SharedSimple;
 use crate::system::web;
 use crate::system::web::fmt;
 use crate::system::web::resize_observer::ResizeObserver;
@@ -42,7 +42,13 @@ pub struct Listeners {
 }
 
 impl Workspace {
-    pub fn new(id: ID, dom: &str, sup_logger: &Logger, sup_dirty: &Dirty) -> Result<Self, Error> {
+    pub fn new(
+        id: ID,
+        dom: &str,
+        sup_logger: &Logger,
+        sup_dirty: &SharedSimple,
+    ) -> Result<Self, Error>
+    {
         let data = Rc::new(WorkspaceData::new(id, dom, sup_logger, sup_dirty)?);
         let listeners = Self::new_listeners(&data);
         data.logger.trace("Initialized.");
@@ -139,11 +145,17 @@ pub struct WorkspaceData {
     pub canvas:  web_sys::HtmlCanvasElement,
     pub context: WebGlRenderingContext,
     pub logger:  Logger,
-    pub dirty:   Dirty,
+    pub dirty:   SharedSimple,
 }
 
 impl WorkspaceData {
-    pub fn new(id: ID, dom: &str, sup_logger: &Logger, sup_dirty: &Dirty) -> Result<Self, Error> {
+    pub fn new(
+        id: ID,
+        dom: &str,
+        sup_logger: &Logger,
+        sup_dirty: &SharedSimple,
+    ) -> Result<Self, Error>
+    {
         let logger = sup_logger.sub(id.to_string());
         logger.trace("Initializing.");
         let canvas = web::get_canvas(dom)?;

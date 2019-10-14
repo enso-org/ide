@@ -74,6 +74,7 @@ impl Logger {
         Self { path }
     }
 
+    // FIXME: Default
     pub fn new_() -> Self {
         Self::new("")
     }
@@ -118,6 +119,12 @@ impl Logger {
     }
 }
 
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
+
 // ====================
 // === Logger Utils ===
 // ====================
@@ -127,27 +134,43 @@ macro_rules! fmt {
     ($($arg:tt)*) => (||(format!($($arg)*)))
 }
 
+#[macro_export]
+macro_rules! group {
+    ($logger:expr, $message:expr, $body:tt) => {{
+        $logger.group_begin(|| $message);
+        let out = $body;
+        $logger.group_end();
+        out
+    }};
+}
+
 // ===================
 // === DOM Helpers ===
 // ===================
+
 pub fn window() -> Result<web_sys::Window> {
     web_sys::window().ok_or_else(|| Error::missing("window"))
 }
+
 pub fn document() -> Result<web_sys::Document> {
     window()?.document().ok_or_else(|| Error::missing("document"))
 }
+
 pub fn get_element_by_id(id: &str) -> Result<web_sys::Element> {
     document()?.get_element_by_id(id).ok_or_else(|| Error::missing(id))
 }
+
 pub fn get_element_by_id_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
     let elem = get_element_by_id(id)?;
-    let expected = type_name::<T>();
-    let got = format!("{:?}", elem);
+    let expected = type_name::<T>(); // fixme
+    let got = format!("{:?}", elem); // fixme
     elem.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
 }
+
 pub fn get_canvas(id: &str) -> Result<web_sys::HtmlCanvasElement> {
     get_element_by_id_as(id)
 }
+
 pub fn get_webgl_context(
     canvas: &HtmlCanvasElement,
     version: u32,
@@ -159,6 +182,7 @@ pub fn get_webgl_context(
     let context = canvas.get_context(name).map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
     context.dyn_into().map_err(|_| no_webgl())
 }
+
 pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
     let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))

@@ -21,6 +21,7 @@ derive_more          = { version = "0.15.0" }
 shrinkwraprs         = { version = "0.2.1"  }
 itertools            = { version = "0.8"    }
 nalgebra             = { version = "0.18.1" }
+bit_field            = { version = "0.10.0" }
 
 # TODO: disable for release
 console_error_panic_hook = { version = "0.1.1", optional = true }

@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::data::opt_vec::OptVec;
-use crate::dirty::Dirty;
+use crate::dirty::SharedSimple;
 use crate::display::workspace;
 use crate::display::workspace::Workspace;
 use crate::system::web;
@@ -29,9 +29,9 @@ pub struct World {
 
 impl Default for World {
     fn default() -> Self {
-        let data = Rc::new(RefCell::new(WorldData::new()));
-        let on_every_frame = Rc::new(RefCell::new(None));
-        let data_local = data.clone();
+        let data                 = Rc::new(RefCell::new(WorldData::new()));
+        let on_every_frame       = Rc::new(RefCell::new(None));
+        let data_local           = data.clone();
         let on_every_frame_local = on_every_frame.clone();
         *on_every_frame.borrow_mut() = Some(Closure::wrap(Box::new(move || {
             let data_local = data_local.borrow();
@@ -90,7 +90,7 @@ impl World {
 #[derive(Debug)]
 pub struct WorldData {
     pub workspaces: OptVec<Workspace>,
-    pub dirty:      Dirty,
+    pub dirty:      SharedSimple,
     pub logger:     Logger,
     pub started:    bool,
 }
@@ -98,9 +98,9 @@ pub struct WorldData {
 impl Default for WorldData {
     fn default() -> Self {
         let workspaces = OptVec::new();
-        let logger = Logger::new("world");
-        let dirty = Dirty::new(&logger);
-        let started = false;
+        let logger     = Logger::new("world");
+        let dirty      = SharedSimple::new(&logger);
+        let started    = false;
         Self { workspaces, dirty, logger, started }
     }
 }
@@ -112,7 +112,7 @@ impl WorldData {
 
     pub fn add_workspace(&mut self, name: &str) -> workspace::ID {
         let logger = &self.logger;
-        let dirty = &self.dirty;
+        let dirty  = &self.dirty;
         self.workspaces.insert(|id| {
             logger.group(fmt!("Adding workspace {} ({}).", id, name), || {
                 dirty.set();
@@ -123,7 +123,7 @@ impl WorldData {
 
     pub fn drop_workspace(&mut self, id: workspace::ID) {
         let logger = &self.logger;
-        let item = self.workspaces.remove(id);
+        let item   = self.workspaces.remove(id);
         match item {
             None => logger.warning("Trying to delete non-existing workspace."),
             Some(item) => logger.group(fmt!("Dropping workspace {}.", id), || {

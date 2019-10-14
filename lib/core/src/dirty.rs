@@ -1,14 +1,27 @@
 use crate::prelude::*;
 
 use crate::system::web::fmt;
+use crate::system::web::group;
 use crate::system::web::Logger;
-use std::ops::Range;
+use std::ops;
+
+use crate::data::function::callback::*;
+
+trait Builder {
+    type Config: Default;
+
+    fn new(cfg: Self::Config) -> Self;
+}
+
+trait DirtyCheck {
+    fn is_set(&self) -> bool;
+}
 
 // ============================
 // === TO BE REFACTORED OUT ===
 // ============================
 
-trait When {
+pub trait When {
     fn when<F: FnOnce() -> T, T>(&self, f: F);
 }
 
@@ -20,27 +33,265 @@ impl When for bool {
     }
 }
 
-// ===================
-// === RangedDirty ===
-// ===================
+// =================================================================================================
+// === Range =======================================================================================
+// =================================================================================================
 
-pub struct RangedDirty<T> {
-    pub native: Dirty,
-    pub range:  Option<Range<T>>,
+// =============
+// === Range ===
+// =============
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = "Ix:Debug"))]
+pub struct Range<Ix = usize, OnSet = NoCallback> {
+    pub range:  Option<ops::Range<Ix>>,
+    pub on_set: Callback<OnSet>,
+    pub logger: Logger,
 }
 
-// =============
-// === Dirty ===
-// =============
+pub trait RangeIx = PartialOrd + Copy + Debug;
+
+// === API ===
+
+impl<Ix, OnSet> Range<Ix, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let range = None;
+        Self { range, on_set, logger }
+    }
+}
+
+impl<Ix: RangeIx, OnSet: Callback0> Range<Ix, OnSet> {
+    /// This is an semantically unsafe function as it breaks the contract of a
+    /// dirty flag. Dirty flags should not either be set to track new items, or
+    /// should be cleared. Arbitrary reshape could be a potential hard-to-track
+    /// error.
+    fn unsafe_replace_range(&mut self, range: ops::Range<Ix>) {
+        group!(self.logger, format!("Setting dirty range to {:?}.", range), {
+            self.range = Some(range);
+        })
+    }
+
+    pub fn set(&mut self, ix: Ix) {
+        let new_range = match &self.range {
+            None => {
+                self.on_set.call();
+                ix .. ix
+            },
+            Some(r) => {
+                if      ix < r.start { ix .. r.end   }
+                else if ix > r.end   { r.start .. ix }
+                else                 { r.clone()     }
+            }
+        };
+        self.unsafe_replace_range(new_range);
+    }
+
+    pub fn set_range(&mut self, start: Ix, end: Ix) {
+        self.set(start);
+        self.set(end);
+    }
+}
+
+impl<Ix, OnSet> DirtyCheck for Range<Ix, OnSet> {
+    fn is_set(&self) -> bool {
+        self.range.is_some()
+    }
+}
+
+// ===================
+// === SharedRange ===
+// ===================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound = "Ix:Debug"))]
+pub struct SharedRange<Ix = usize, OnSet = NoCallback> {
+    pub data: Rc<RefCell<Range<Ix, OnSet>>>,
+}
+
+// === API ===
+
+impl<Ix, OnSet> SharedRange<Ix, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let base = Range::new_raw(on_set, logger);
+        let data = Rc::new(RefCell::new(base));
+        Self { data }
+    }
+}
+
+impl<Ix: RangeIx, OnSet: Callback0> SharedRange<Ix, OnSet> {
+    pub fn set(&self, ix: Ix) {
+        self.data.borrow_mut().set(ix);
+    }
+}
+
+// ====================
+// === RangeBuilder ===
+// ====================
+
+// TODO: This section could be auto-generated with macros. It is intentionally
+// written without syntax sugar to mimic a possible shape of the codegen.
+
+pub struct RangeBuilder<_Builder_, OnSet = NoCallback> {
+    _builder_:   _Builder_,
+    pub _on_set: Option<Callback<OnSet>>,
+    pub _logger: Option<Logger>,
+}
+
+impl<_Builder_, OnSet> RangeBuilder<_Builder_, OnSet> {
+    pub fn new(builder: _Builder_) -> Self {
+        Self { _builder_: builder, _on_set: None, _logger: None }
+    }
+
+    pub fn on_set(self, val: OnSet) -> RangeBuilder<_Builder_, OnSet> {
+        RangeBuilder {
+            _builder_: self._builder_,
+            _on_set:   Some(Callback(val)),
+            _logger:   self._logger,
+        }
+    }
+
+    pub fn logger(self, val: Logger) -> RangeBuilder<_Builder_, OnSet> {
+        RangeBuilder { _builder_: self._builder_, _on_set: self._on_set, _logger: Some(val) }
+    }
+}
+
+impl<OnSet, _Builder_: Fn(Callback<OnSet>, Logger) -> T, T> RangeBuilder<_Builder_, OnSet>
+where Callback<OnSet>: Default
+{
+    pub fn build(self) -> T {
+        let on_set = self._on_set.unwrap_or_else(|| Default::default());
+        let logger = self._logger.unwrap_or_else(|| Default::default());
+        (self._builder_)(on_set, logger)
+    }
+}
+
+// === Instances ===
+
+impl<Ix: RangeIx, OnSet> Range<Ix, OnSet> {
+    pub fn builder() -> RangeBuilder<fn(Callback<OnSet>, Logger) -> Range<Ix, OnSet>, OnSet> {
+        RangeBuilder::new(Self::new_raw)
+    }
+}
+
+impl<Ix: RangeIx, OnSet> SharedRange<Ix, OnSet> {
+    pub fn builder() -> RangeBuilder<fn(Callback<OnSet>, Logger) -> SharedRange<Ix, OnSet>, OnSet> {
+        RangeBuilder::new(Self::new_raw)
+    }
+}
+
+// =================================================================================================
+// === BitField ====================================================================================
+// =================================================================================================
+
+use bit_field::BitField as BF;
+use std::ops::RangeBounds;
+
+// ================
+// === BitField ===
+// ================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:Debug"))]
+pub struct BitField<T = u32, OnSet = NoCallback> {
+    pub bits:   T,
+    pub on_set: Callback<OnSet>,
+    pub logger: Logger,
+}
+
+pub trait BitFieldBase = Default + PartialEq + Copy + From<u32> + BF;
+//
+// === API ===
+
+impl<T: BitFieldBase, OnSet> BitField<T, OnSet> {
+    pub fn new(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let bits = Default::default();
+        Self { bits, on_set, logger }
+    }
+}
+
+impl<T: BitFieldBase, OnSet: Callback0> BitField<T, OnSet> {
+    pub fn set(&mut self, ix: usize) {
+        if self.bits == Default::default() {
+            self.on_set.call();
+        }
+        self.bits.set_bit(ix, true);
+    }
+
+    pub fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
+        self.bits.set_bits(range, From::from(1:u32));
+    }
+}
+
+impl<T: BitFieldBase, OnSet> DirtyCheck for BitField<T, OnSet> {
+    fn is_set(&self) -> bool {
+        self.bits == Default::default()
+    }
+}
+
+// ======================
+// === SharedBitField ===
+// ======================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound="T:Debug"))]
+pub struct SharedBitField<T = u32, OnSet = NoCallback> {
+    pub data: Rc<RefCell<BitField<T, OnSet>>>,
+}
+
+// === API ===
+
+impl<T: BitFieldBase, OnSet> SharedBitField<T, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let base = BitField::new(on_set, logger);
+        let data = Rc::new(RefCell::new(base));
+        Self { data }
+    }
+}
+
+impl<T: BitFieldBase, OnSet: Callback0> SharedBitField<T, OnSet> {
+    pub fn set(&self, ix: usize) {
+        self.data.borrow_mut().set(ix);
+    }
+}
+
+// =================================================================================================
+// === Simple ======================================================================================
+// =================================================================================================
+
+// ====================
+// === SharedSimple ===
+// ====================
 
 #[derive(Clone, Debug)]
-pub struct Dirty {
-    pub data: Rc<RefCell<DirtyData>>,
+pub struct SharedSimple {
+    pub data: Rc<RefCell<Simple>>,
 }
 
-impl Dirty {
+impl SharedSimple {
     pub fn new(logger: &Logger) -> Self {
-        let data = Rc::new(RefCell::new(DirtyData::new(logger)));
+        let data = Rc::new(RefCell::new(Simple::new(logger)));
         Self { data }
     }
 
@@ -50,7 +301,7 @@ impl Dirty {
         child
     }
 
-    pub fn set_parent(&self, new_parent: Option<Dirty>) {
+    pub fn set_parent(&self, new_parent: Option<SharedSimple>) {
         self.data.borrow_mut().parent = new_parent;
     }
 
@@ -71,18 +322,18 @@ impl Dirty {
     }
 }
 
-// =================
-// === DirtyData ===
-// =================
+// ==============
+// === Simple ===
+// ==============
 
 #[derive(Clone, Debug)]
-pub struct DirtyData {
+pub struct Simple {
     state:  bool,
-    parent: Option<Dirty>,
+    parent: Option<SharedSimple>,
     logger: Logger,
 }
 
-impl DirtyData {
+impl Simple {
     pub fn new(logger: &Logger) -> Self {
         Self { state: false, parent: None, logger: logger.clone() }
     }
