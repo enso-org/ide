@@ -54,9 +54,9 @@ impl LogMsg for &str {
     }
 }
 
-impl<F: Fn() -> String> LogMsg for F {
+impl<F: Fn() -> S, S: AsRef<str>> LogMsg for F {
     fn with_log_msg<G: FnOnce(&str) -> T, T>(&self, f: G) -> T {
-        f(self().as_str())
+        f(self().as_ref())
     }
 }
 

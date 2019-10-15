@@ -32,14 +32,14 @@ pub mod system {
 use display::world::World;
 use wasm_bindgen::prelude::*;
 
-use display::symbol::attribute::SharedAttribute;
+use display::symbol::attr::SharedAttr;
 use system::web::Logger;
 use system::web::fmt;
 
 use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
-use crate::display::symbol::attribute;
-use crate::display::symbol::attribute::Attribute;
+use crate::display::symbol::attr;
+use crate::display::symbol::attr::Attr;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -47,16 +47,17 @@ pub fn start() {
     world.add_workspace("canvas");
     world.start();
 
-    let logger = Logger::new("test");
-
-    let pos: attribute::Builder<f32> = Attribute::builder();
-
-    let pos: SharedAttribute<f32> = SharedAttribute::new(logger,());
+//    let logger = Logger::new("test");
+//
+//    let pos: attribute::Builder<f32> = Attribute::builder();
+//
+//    let pos: SharedAttribute<f32> = SharedAttribute::new(logger,());
 
     let logger = Logger::new("point");
-    let point_scope: Scope = Scope::new(logger,());
+    let mut point_scope: Scope = Scope::new(logger,());
+    point_scope.add("position", Attr::builder());
 
-    let logger = Logger::new("local");
-
-    logger.info(fmt!("{:#?}",point_scope));
+//    let logger = Logger::new("local");
+//
+//    logger.info(fmt!("{:#?}",point_scope));
 }

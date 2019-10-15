@@ -54,7 +54,7 @@ impl<T, OnSet: Callback0> IndexMut<usize> for ObservableVec<T, OnSet> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound="Item:Debug"))]
-pub struct Attribute <Item = f32, OnDirty = NoCallback> {
+pub struct Attr<Item = f32, OnDirty = NoCallback> {
     pub buffer : Buffer <Item, OnDirty>,
     pub dirty  : Dirty  <OnDirty>,
     pub logger : Logger,
@@ -74,7 +74,7 @@ fn buffer_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>) -> OnBufferChang
     move |ix| dirty.set(ix)
 }
 
-impl<Item, OnDirty: Callback0> Attribute<Item, OnDirty> {
+impl<Item, OnDirty: Callback0> Attr<Item, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
@@ -94,7 +94,7 @@ impl<Item, OnDirty: Callback0> Attribute<Item, OnDirty> {
     }
 }
 
-impl<Item> Attribute<Item> {
+impl<Item> Attr<Item> {
     pub fn builder() -> Builder<Item> {
         Default::default()
     }
@@ -109,27 +109,27 @@ impl<Item> Attribute<Item> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound="Item:Debug"))]
-pub struct SharedAttribute <Item = f32, OnDirty = NoCallback> {
-    pub data: Rc<RefCell<Attribute<Item, OnDirty>>>
+pub struct SharedAttr<Item = f32, OnDirty = NoCallback> {
+    pub data: Rc<RefCell<Attr<Item, OnDirty>>>
 }
 
-impl<Item, OnDirty: Callback0> SharedAttribute<Item, OnDirty> {
+impl<Item, OnDirty: Callback0> SharedAttr<Item, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
 
     pub fn new_from(buffer: Vec<Item>, logger: Logger, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attribute::new_from(buffer, logger, on_dirty)));
+        let data = Rc::new(RefCell::new(Attr::new_from(buffer, logger, on_dirty)));
         Self { data }
     }
 
     pub fn build(builder: Builder<Item>, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attribute::build(builder, on_dirty)));
+        let data = Rc::new(RefCell::new(Attr::build(builder, on_dirty)));
         Self { data }
     }
 }
 
-impl<Item, OnDirty> SharedAttribute<Item, OnDirty> {
+impl<Item, OnDirty> SharedAttr<Item, OnDirty> {
     pub fn new_ref(&self) -> Self {
         Self { data: Rc::clone(&self.data) }
     }

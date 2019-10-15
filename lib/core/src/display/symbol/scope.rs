@@ -3,9 +3,10 @@ use crate::prelude::*;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
-use crate::display::symbol::attribute;
-use crate::display::symbol::attribute::SharedAttribute;
+use crate::display::symbol::attr;
+use crate::display::symbol::attr::SharedAttr;
 use crate::system::web::Logger;
+use crate::system::web::group;
 use crate::system::web::fmt;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
@@ -29,15 +30,15 @@ pub struct Scope <OnDirty = NoCallback> {
 type AttrName               = String;
 type AttrIndex              = usize;
 type Dirty        <OnDirty> = dirty::SharedBitField<u64, OnDirty>;
-type Attribute    <OnDirty> = SharedAttribute<f32, OnAttrChange<OnDirty>>;
+type Attribute    <OnDirty> = SharedAttr<f32, OnAttrChange<OnDirty>>;
 type AttrReg      <OnDirty> = Vec<Attribute<OnDirty>>;
-type OnAttrChange <OnDirty> = impl Fn(usize);
+type OnAttrChange <OnDirty> = impl Fn();
 
 // === Implementation ===
 
-fn buffer_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>) -> OnAttrChange<OnDirty> {
+fn attr_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>, ix: usize) -> OnAttrChange<OnDirty> {
     let dirty = dirty.clone();
-    move |ix| dirty.set(ix)
+    move || dirty.set(ix)
 }
 
 impl<OnDirty> Scope<OnDirty> {
@@ -52,14 +53,31 @@ impl<OnDirty> Scope<OnDirty> {
 }
 
 impl<OnDirty: Callback0> Scope<OnDirty> {
-    pub fn add<Name: AsRef<str>>(&mut self, name: Name, attr: attribute::Builder<f32>) -> AttrIndex
-    where OnAttrChange<OnDirty>: Callback0 {
+    pub fn add<Name: AsRef<str>>(&mut self, name: Name, attr_bldr: attr::Builder<f32>) -> AttrIndex
+    {
         let name  = name.as_ref().to_string();
-        let attr  = Attribute::build(attr, buffer_on_change(&self.dirty));
         let index = self.attrs.len();
-        self.logger.info(fmt!("Adding attribute '{}' at index {}.", name, index));
-        self.attrs.push(attr);
-        self.name_map.insert(name, index);
-        index
+        group!(self.logger, format!("Adding attribute '{}' at index {}.", name, index), {
+            let attr_bldr = attr_bldr.logger(self.logger.sub(&name));
+            let attr      = Attribute::build(attr_bldr, attr_on_change(&self.dirty, index));
+            self.attrs.push(attr);
+            self.name_map.insert(name, index);
+            index
+        })
     }
 }
+
+//type Closure = impl Fn(i32);
+//fn mk_closure() -> Closure {
+//    move |i| {}
+//}
+//
+//
+//
+//pub fn test() -> i32
+//    where Closure: FnMut(i8) {
+//    5
+//}
+//
+
+
