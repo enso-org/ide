@@ -3,6 +3,7 @@
 #![cfg_attr(test, allow(dead_code))]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
+#![feature(proc_macro_hygiene)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -40,6 +41,7 @@ use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
 use crate::display::symbol::attr;
 use crate::display::symbol::attr::Attr;
+use crate::display::symbol::geo::Geo;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -56,6 +58,9 @@ pub fn start() {
     let logger = Logger::new("point");
     let mut point_scope: Scope = Scope::new(logger,());
     point_scope.add("position", Attr::builder());
+
+    let logger = Logger::new("geo1");
+    let geo1 = Geo::new(logger, ());
 
 //    let logger = Logger::new("local");
 //

@@ -8,8 +8,10 @@ use crate::display::symbol::attr::SharedAttr;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
-use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
+use crate::display::symbol::nested::Nested;
+use crate::display::symbol::nested::OnChildChange;
+use crate::display::symbol::nested;
 
 // =============
 // === Scope ===
@@ -17,67 +19,39 @@ use std::slice::SliceIndex;
 
 // === Definition ===
 
-#[derive(Debug)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
 pub struct Scope <OnDirty = NoCallback> {
-    pub attrs    : AttrReg <OnDirty>,
+    #[shrinkwrap(main_field)]
+    pub reg      : Nested  <Attr<OnDirty>, OnDirty>,
     pub name_map : HashMap <AttrName, AttrIndex>,
-    pub dirty    : Dirty   <OnDirty>,
-    pub logger   : Logger,
 }
 
 // === Types ===
 
-type AttrName               = String;
-type AttrIndex              = usize;
-type Dirty        <OnDirty> = dirty::SharedBitField<u64, OnDirty>;
-type Attribute    <OnDirty> = SharedAttr<f32, OnAttrChange<OnDirty>>;
-type AttrReg      <OnDirty> = Vec<Attribute<OnDirty>>;
-type OnAttrChange <OnDirty> = impl Fn();
+type AttrName      = String;
+type AttrIndex     = nested::Index;
+type AttrBlr       = attr::Builder<f32>;
+type Attr<OnDirty> = SharedAttr<f32, OnChildChange<OnDirty>>;
 
 // === Implementation ===
 
-fn attr_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>, ix: usize) -> OnAttrChange<OnDirty> {
-    let dirty = dirty.clone();
-    move || dirty.set(ix)
-}
-
 impl<OnDirty> Scope<OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
-        logger.info("Creating new scope.");
-        let dirty_logger = logger.sub("dirty");
-        let dirty        = Dirty::new(on_dirty, dirty_logger);
-        let name_map     = HashMap::new();
-        let attrs        = Vec::new();
-        Self { attrs, name_map, dirty, logger }
+        let reg      = Nested::new(logger, on_dirty);
+        let name_map = default();
+        Self { reg, name_map }
     }
 }
 
 impl<OnDirty: Callback0> Scope<OnDirty> {
-    pub fn add<Name: AsRef<str>>(&mut self, name: Name, attr_bldr: attr::Builder<f32>) -> AttrIndex
-    {
-        let name  = name.as_ref().to_string();
-        let index = self.attrs.len();
-        group!(self.logger, format!("Adding attribute '{}' at index {}.", name, index), {
-            let attr_bldr = attr_bldr.logger(self.logger.sub(&name));
-            let attr      = Attribute::build(attr_bldr, attr_on_change(&self.dirty, index));
-            self.attrs.push(attr);
-            self.name_map.insert(name, index);
-            index
+    pub fn add<Name: Str>(&mut self, name: Name, bldr: AttrBlr) -> AttrIndex {
+        let name = name.as_ref().to_string();
+        let bldr = bldr.logger(self.logger.sub(&name));
+        group!(self.logger, format!("Adding attribute '{}'", name), {
+            self.reg.add(|callback| Attr::build(bldr, callback))
         })
     }
 }
-
-//type Closure = impl Fn(i32);
-//fn mk_closure() -> Closure {
-//    move |i| {}
-//}
-//
-//
-//
-//pub fn test() -> i32
-//    where Closure: FnMut(i8) {
-//    5
-//}
-//
-
-

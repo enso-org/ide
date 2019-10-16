@@ -276,6 +276,84 @@ impl<T: BitFieldBase, OnSet: Callback0> SharedBitField<T, OnSet> {
     }
 }
 
+// =============================================================================
+// === Custom ==================================================================
+// =============================================================================
+
+// ==============
+// === Custom ===
+// ==============
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:Debug"))]
+pub struct Custom<T, OnSet = NoCallback> {
+    pub data     : T,
+    pub is_dirty : bool,
+    pub on_set   : Callback<OnSet>,
+    pub logger   : Logger,
+}
+
+// === API ===
+
+impl<T: Default, OnSet> Custom<T, OnSet> {
+    pub fn new(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let data     = Default::default();
+        let is_dirty = false;
+        Self { data, is_dirty, on_set, logger }
+    }
+}
+
+impl<T, OnSet: Callback0> Custom<T, OnSet> {
+    pub fn set(&mut self, f: fn(&mut T)) {
+        if !self.is_dirty {
+            self.on_set.call();
+            self.is_dirty = true;
+        }
+        f(&mut self.data);
+    }
+}
+
+impl<T: BitFieldBase, OnSet> DirtyCheck for Custom<T, OnSet> {
+    fn is_set(&self) -> bool {
+        self.is_dirty
+    }
+}
+
+// ====================
+// === SharedCustom ===
+// ====================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound="T:Debug"))]
+pub struct SharedCustom<T = u32, OnSet = NoCallback> {
+    pub data: Rc<RefCell<Custom<T, OnSet>>>,
+}
+
+// === API ===
+
+impl<T: Default, OnSet> SharedCustom<T, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let base = Custom::new(on_set, logger);
+        let data = Rc::new(RefCell::new(base));
+        Self { data }
+    }
+}
+
+impl<T, OnSet: Callback0> SharedCustom<T, OnSet> {
+    pub fn set(&self, f: fn(&mut T)) {
+        self.data.borrow_mut().set(f);
+    }
+}
+
 // =================================================================================================
 // === Simple ======================================================================================
 // =================================================================================================

@@ -1,3 +1,5 @@
+#![feature(trait_alias)]
+
 pub use core::any::type_name;
 pub use core::fmt::Debug;
 pub use derivative::Derivative;
@@ -10,3 +12,9 @@ pub use std::collections::HashMap;
 pub use std::fmt::Display;
 pub use std::ops::Deref;
 pub use std::rc::Rc;
+
+pub trait Str = AsRef<str>;
+
+pub fn default<T: Default>() -> T {
+    Default::default()
+}
