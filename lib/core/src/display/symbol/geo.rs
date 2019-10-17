@@ -9,7 +9,6 @@ use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
 use std::slice::SliceIndex;
-use crate::display::symbol::nested::Nested;
 use crate::display::symbol::nested::OnChildChange;
 use crate::display::symbol::nested;
 use paste;
@@ -33,7 +32,7 @@ pub struct ScopesDirtyStatus {
 }
 
 pub type Dirty         <OnDirty> = SharedCustom<ScopesDirtyStatus, OnDirty>;
-pub type OnScopeChange <OnDirty> = impl Fn();
+pub type OnScopeChange <OnDirty> = impl Fn() + Clone;
 
 pub fn scope_on_change<OnDirty: Callback0>(
     dirty  : &Dirty<OnDirty>,

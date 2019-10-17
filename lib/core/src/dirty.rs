@@ -33,6 +33,83 @@ impl When for bool {
     }
 }
 
+// =============================================================================
+// === Bool ==================================================================
+// =============================================================================
+
+// ==============
+// === Bool ===
+// ==============
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub struct Bool<OnSet = NoCallback> {
+    pub is_dirty : bool,
+    pub on_set   : Callback<OnSet>,
+    pub logger   : Logger,
+}
+
+// === API ===
+
+impl<OnSet> Bool<OnSet> {
+    pub fn new(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let is_dirty = false;
+        Self { is_dirty, on_set, logger }
+    }
+}
+
+impl<OnSet: Callback0> Bool<OnSet> {
+    pub fn set(&mut self) {
+        if !self.is_dirty {
+            group!(self.logger, "Setting.", {
+                self.on_set.call();
+                self.is_dirty = true;
+            })
+        }
+    }
+}
+
+impl<OnSet> DirtyCheck for Bool<OnSet> {
+    fn is_set(&self) -> bool {
+        self.is_dirty
+    }
+}
+
+// ====================
+// === SharedBool ===
+// ====================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound = ""))]
+pub struct SharedBool<OnSet = NoCallback> {
+    pub data: Rc<RefCell<Bool<OnSet>>>,
+}
+
+// === API ===
+
+impl<OnSet> SharedBool<OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let base = Bool::new(on_set, logger);
+        let data = Rc::new(RefCell::new(base));
+        Self { data }
+    }
+}
+
+impl<OnSet: Callback0> SharedBool<OnSet> {
+    pub fn set(&self) {
+        self.data.borrow_mut().set();
+    }
+}
+
 // =================================================================================================
 // === Range =======================================================================================
 // =================================================================================================
@@ -307,15 +384,17 @@ impl<T: Default, OnSet> Custom<T, OnSet> {
 
 impl<T, OnSet: Callback0> Custom<T, OnSet> {
     pub fn set(&mut self, f: fn(&mut T)) {
-        if !self.is_dirty {
-            self.on_set.call();
-            self.is_dirty = true;
-        }
-        f(&mut self.data);
+        group!(self.logger, "Setting.", {
+            if !self.is_dirty {
+                self.on_set.call();
+                self.is_dirty = true;
+            }
+            f(&mut self.data);
+        })
     }
 }
 
-impl<T: BitFieldBase, OnSet> DirtyCheck for Custom<T, OnSet> {
+impl<T, OnSet> DirtyCheck for Custom<T, OnSet> {
     fn is_set(&self) -> bool {
         self.is_dirty
     }

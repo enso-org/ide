@@ -7,13 +7,37 @@ use crate::system::web::fmt;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
 
+use nalgebra::dimension::Dim;
+use nalgebra::dimension::U1;
+use nalgebra::dimension::DimName;
+
+
+pub trait Shape {
+    type Item;
+    type Dim: DimName;
+
+    fn item_count() -> usize {
+        <Self::Dim as DimName>::dim()
+    }
+}
+
+impl Shape for f32 {
+    type Item = Self;
+    type Dim  = nalgebra::dimension::U1;
+}
+
+// fn foo<I,T: Shape<Item=I>>() -> <T as Shape>::Item 
+//     where <T as Shape>::Item : Default {
+//     Default::default()
+// }
+
 // =====================
 // === ObservableVec ===
 // =====================
 
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-struct ObservableVec<T, OnSet = NoCallback> {
+pub struct ObservableVec<T, OnSet = NoCallback> {
     pub vec:    Vec<T>,
     pub on_set: Callback<OnSet>,
 }
@@ -53,19 +77,20 @@ impl<T, OnSet: Callback0> IndexMut<usize> for ObservableVec<T, OnSet> {
 // === Definition ===
 
 #[derive(Derivative)]
-#[derivative(Debug(bound="Item:Debug"))]
-pub struct Attr<Item = f32, OnDirty = NoCallback> {
-    pub buffer : Buffer <Item, OnDirty>,
-    pub dirty  : Dirty  <OnDirty>,
+#[derivative(Debug(bound="<T as Shape>::Item:Debug"))]
+pub struct Attr<T: Shape = f32, OnItemMod = NoCallback> {
+    pub buffer : Buffer <T, OnItemMod>,
+    pub dirty  : Dirty  <OnItemMod>,
     pub logger : Logger,
 }
 
 // === Types ===
 
-pub type DirtyType      <Ix, OnDirty>   = dirty::SharedRange<Ix, OnDirty>;
-pub type Dirty          <OnDirty>       = DirtyType<usize, OnDirty>;
-pub type Buffer         <Item, OnDirty> = ObservableVec<Item, OnBufferChange<OnDirty>>;
-pub type OnBufferChange <OnDirty>       = impl Fn(usize);
+pub type DirtyType      <Ix, OnDirty> = dirty::SharedRange<Ix, OnDirty>;
+pub type Dirty          <OnDirty>     = DirtyType<usize, OnDirty>;
+pub type Buffer         <T, OnDirty>  = ObservableVec<<T as Shape>::Item, OnBufferChange<OnDirty>>;
+pub type RawBuffer      <T>           = Vec<<T as Shape>::Item>;
+pub type OnBufferChange <OnDirty>     = impl Fn(usize);
 
 // === Implementation ===
 
@@ -74,28 +99,45 @@ fn buffer_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>) -> OnBufferChang
     move |ix| dirty.set(ix)
 }
 
-impl<Item, OnDirty: Callback0> Attr<Item, OnDirty> {
+impl<T: Shape, OnDirty: Callback0> Attr<T, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
 
-    pub fn new_from(buffer: Vec<Item>, logger: Logger, on_dirty: OnDirty) -> Self {
-        logger.info(fmt!("Creating new {} attribute.", type_name::<Item>()));
+    pub fn new_from(buffer: RawBuffer<T>, logger: Logger, on_dirty: OnDirty) -> Self {
+        logger.info(fmt!("Creating new {} attribute.", type_name::<T>()));
         let dirty_logger = logger.sub("dirty");
         let dirty        = Dirty::new(on_dirty, dirty_logger);
         let buffer       = ObservableVec::new_from(buffer, buffer_on_change(&dirty));
         Self { buffer, dirty, logger }
     }
 
-    pub fn build(builder: Builder<Item>, on_dirty: OnDirty) -> Self {
+    pub fn build(builder: Builder<T>, on_dirty: OnDirty) -> Self {
         let buffer = builder._buffer.unwrap_or_else(Default::default);
         let logger = builder._logger.unwrap_or_else(Default::default);
         Self::new_from(buffer, logger, on_dirty)
     }
 }
 
-impl<Item> Attr<Item> {
-    pub fn builder() -> Builder<Item> {
+impl<T: Shape, OnDirty> Attr<T, OnDirty> {
+    pub fn len(&self) -> usize {
+        self.buffer.vec.len()
+    }
+}
+
+impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> Attr<T, OnDirty> {
+    pub fn add_element(&mut self) {
+        self.add_elements(1);
+    }
+
+    pub fn add_elements(&mut self, elem_count: usize) {
+        let item_count = elem_count * <T as Shape>::item_count();
+        self.buffer.vec.extend(iter::repeat(default()).take(item_count));
+    }
+}
+
+impl<T: Shape> Attr<T> {
+    pub fn builder() -> Builder<T> {
         Default::default()
     }
 }
@@ -108,30 +150,41 @@ impl<Item> Attr<Item> {
 // === Definition ===
 
 #[derive(Derivative)]
-#[derivative(Debug(bound="Item:Debug"))]
-pub struct SharedAttr<Item = f32, OnDirty = NoCallback> {
-    pub data: Rc<RefCell<Attr<Item, OnDirty>>>
+#[derivative(Debug(bound="<T as Shape>::Item:Debug"))]
+#[derivative(Clone(bound=""))]
+pub struct SharedAttr<T: Shape = f32, OnDirty = NoCallback> {
+    pub data: Rc<RefCell<Attr<T, OnDirty>>>
 }
 
-impl<Item, OnDirty: Callback0> SharedAttr<Item, OnDirty> {
+impl<T: Shape, OnDirty: Callback0> SharedAttr<T, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
 
-    pub fn new_from(buffer: Vec<Item>, logger: Logger, on_dirty: OnDirty) -> Self {
+    pub fn new_from(buffer: RawBuffer<T>, logger: Logger, on_dirty: OnDirty) -> Self {
         let data = Rc::new(RefCell::new(Attr::new_from(buffer, logger, on_dirty)));
         Self { data }
     }
 
-    pub fn build(builder: Builder<Item>, on_dirty: OnDirty) -> Self {
+    pub fn build(builder: Builder<T>, on_dirty: OnDirty) -> Self {
         let data = Rc::new(RefCell::new(Attr::build(builder, on_dirty)));
         Self { data }
     }
 }
 
-impl<Item, OnDirty> SharedAttr<Item, OnDirty> {
+impl<T: Shape, OnDirty> SharedAttr<T, OnDirty> {
     pub fn new_ref(&self) -> Self {
         Self { data: Rc::clone(&self.data) }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.borrow().len()
+    }
+}
+
+impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> SharedAttr<T, OnDirty> {
+    pub fn add_element(&self) {
+        self.data.borrow_mut().add_element()
     }
 }
 
@@ -141,17 +194,17 @@ impl<Item, OnDirty> SharedAttr<Item, OnDirty> {
 
 #[derive(Derivative)]
 #[derivative(Default(bound = ""))]
-pub struct Builder<Item> {
-    pub _buffer : Option <Vec <Item>>,
+pub struct Builder<T: Shape> {
+    pub _buffer : Option <RawBuffer <T>>,
     pub _logger : Option <Logger>
 }
 
-impl<Item> Builder<Item> {
+impl<T: Shape> Builder<T> {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn buffer(self, val: Vec <Item>) -> Self {
+    pub fn buffer(self, val: RawBuffer <T>) -> Self {
         Self { _buffer: Some(val), _logger: self._logger }
     }
 

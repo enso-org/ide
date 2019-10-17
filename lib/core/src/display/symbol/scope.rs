@@ -9,7 +9,7 @@ use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
 use std::slice::SliceIndex;
-use crate::display::symbol::nested::Nested;
+use crate::display::symbol::nested::Seq;
 use crate::display::symbol::nested::OnChildChange;
 use crate::display::symbol::nested;
 
@@ -19,14 +19,13 @@ use crate::display::symbol::nested;
 
 // === Definition ===
 
-#[derive(Shrinkwrap)]
-#[shrinkwrap(mutable)]
+// #[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scope <OnDirty = NoCallback> {
-    #[shrinkwrap(main_field)]
-    pub reg      : Nested  <Attr<OnDirty>, OnDirty>,
+    pub seq      : Seq <Attr<OnDirty>, OnDirty>,
     pub name_map : HashMap <AttrName, AttrIndex>,
+    pub logger   : Logger,
 }
 
 // === Types ===
@@ -38,20 +37,27 @@ type Attr<OnDirty> = SharedAttr<f32, OnChildChange<OnDirty>>;
 
 // === Implementation ===
 
-impl<OnDirty> Scope<OnDirty> {
+impl<OnDirty: Clone> Scope<OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
-        let reg      = Nested::new(logger, on_dirty);
+        let seq      = Seq::new(logger.clone(), on_dirty);
         let name_map = default();
-        Self { reg, name_map }
+        Self { seq, name_map, logger }
     }
 }
 
 impl<OnDirty: Callback0> Scope<OnDirty> {
-    pub fn add<Name: Str>(&mut self, name: Name, bldr: AttrBlr) -> AttrIndex {
+    pub fn add_attribute<Name: Str>(&mut self, name: Name, bldr: AttrBlr) -> Attr<OnDirty> {
         let name = name.as_ref().to_string();
         let bldr = bldr.logger(self.logger.sub(&name));
-        group!(self.logger, format!("Adding attribute '{}'", name), {
-            self.reg.add(|callback| Attr::build(bldr, callback))
+        group!(self.logger, format!("Adding attribute '{}'.", name), {
+            self.seq.add_and_clone(|callback| Attr::build(bldr, callback))
         })
+    }
+
+    pub fn add_instance(&mut self) {
+        self.seq.children.iter_mut().for_each(|attr| attr.add_element());
+        let max_size = self.seq.children.iter().fold(0, |s, t| s + t.len());
+        self.logger.info("!!!");
+        self.logger.info(fmt!("{}", max_size));
     }
 }

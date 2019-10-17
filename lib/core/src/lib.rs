@@ -42,6 +42,7 @@ use crate::display::symbol::scope::Scope;
 use crate::display::symbol::attr;
 use crate::display::symbol::attr::Attr;
 use crate::display::symbol::geo::Geo;
+use nalgebra;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -55,12 +56,18 @@ pub fn start() {
 //
 //    let pos: SharedAttribute<f32> = SharedAttribute::new(logger,());
 
-    let logger = Logger::new("point");
-    let mut point_scope: Scope = Scope::new(logger,());
-    point_scope.add("position", Attr::builder());
+    // let logger = Logger::new("point");
+    // let mut point_scope: Scope = Scope::new(logger,());
+    // point_scope.add("position", Attr::builder());
 
     let logger = Logger::new("geo1");
-    let geo1 = Geo::new(logger, ());
+    let mut geo1 = Geo::new(logger, ());
+
+    let position = geo1.scopes.point.add_attribute("position", Attr::builder());
+    geo1.scopes.point.add_instance();
+
+    let v = nalgebra::Vector3::new(0,0,0);
+    // geo1.scopes.point
 
 //    let logger = Logger::new("local");
 //
