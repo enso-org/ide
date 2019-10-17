@@ -188,6 +188,14 @@ impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> SharedAttr<T, OnDirty> {
     }
 }
 
+// ==========================
+// === AnySharedAttribute ===
+// ==========================
+
+trait Dyn {}
+
+struct Any(dyn Dyn);
+
 // ===============
 // === Builder ===
 // ===============
