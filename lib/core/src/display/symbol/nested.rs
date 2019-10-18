@@ -74,12 +74,11 @@ impl<Child, OnDirty: Callback0> Seq<Child, OnDirty> {
     }
 }
 
-impl<Child: Clone, OnDirty: Callback0> Seq<Child, OnDirty> {
-    pub fn add_and_clone<F: ChildBuilder<OnDirty, Child>>(&mut self, bldr: F) -> Child {
+impl<Child, OnDirty: Callback0> Seq<Child, OnDirty> {
+    pub fn add_and_clone<F: ChildBuilder<OnDirty, (Child, T)>, T>(&mut self, bldr: F) -> T {
         let index = self.children.len();
         self.logger.info(fmt!("Registering at index {}.", index));
-        let attr = bldr(child_on_change(&self.dirty, index));
-        let out  = attr.clone();
+        let (attr, out) = bldr(child_on_change(&self.dirty, index));
         self.children.push(attr);
         self.shape_dirty.set();
         out

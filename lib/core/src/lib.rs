@@ -63,7 +63,7 @@ pub fn start() {
     let logger = Logger::new("geo1");
     let mut geo1 = Geo::new(logger, ());
 
-    let position = geo1.scopes.point.add_attribute("position", Attr::builder());
+    let position: attr::SharedAttr<f32, _> = geo1.scopes.point.add_attribute("position", Attr::builder());
     geo1.scopes.point.add_instance();
 
     let v = nalgebra::Vector3::new(0,0,0);

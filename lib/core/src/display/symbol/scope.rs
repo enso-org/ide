@@ -4,7 +4,9 @@ use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::display::symbol::attr;
+use crate::display::symbol::attr::Shape;
 use crate::display::symbol::attr::SharedAttr;
+use crate::display::symbol::attr::AnyAttribute;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
@@ -23,7 +25,7 @@ use crate::display::symbol::nested;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scope <OnDirty = NoCallback> {
-    pub seq      : Seq <Attr<OnDirty>, OnDirty>,
+    pub seq      : Seq <AnyAttribute<OnChildChange<OnDirty>>, OnDirty>,
     pub name_map : HashMap <AttrName, AttrIndex>,
     pub logger   : Logger,
 }
@@ -32,8 +34,8 @@ pub struct Scope <OnDirty = NoCallback> {
 
 type AttrName      = String;
 type AttrIndex     = nested::Index;
-type AttrBlr       = attr::Builder<f32>;
-type Attr<OnDirty> = SharedAttr<f32, OnChildChange<OnDirty>>;
+type AttrBlr<T>    = attr::Builder<T>;
+type Attr<T, OnDirty> = SharedAttr<T, OnChildChange<OnDirty>>;
 
 // === Implementation ===
 
@@ -45,12 +47,16 @@ impl<OnDirty: Clone> Scope<OnDirty> {
     }
 }
 
-impl<OnDirty: Callback0> Scope<OnDirty> {
-    pub fn add_attribute<Name: Str>(&mut self, name: Name, bldr: AttrBlr) -> Attr<OnDirty> {
+impl<OnDirty: Callback0+ 'static> Scope<OnDirty> {
+    pub fn add_attribute<Name: Str, T: attr::IsAttributeCtx + 'static>(&mut self, name: Name, bldr: AttrBlr<T>) -> Attr<T, OnDirty> {
         let name = name.as_ref().to_string();
         let bldr = bldr.logger(self.logger.sub(&name));
         group!(self.logger, format!("Adding attribute '{}'.", name), {
-            self.seq.add_and_clone(|callback| Attr::build(bldr, callback))
+            self.seq.add_and_clone(|callback| {
+                let out = Attr::build(bldr, callback);
+                let out2 = out.clone();
+                (AnyAttribute(Box::new(out2)),out)
+            })
         })
     }
 

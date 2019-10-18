@@ -10,6 +10,9 @@ use std::slice::SliceIndex;
 use nalgebra::dimension::Dim;
 use nalgebra::dimension::U1;
 use nalgebra::dimension::DimName;
+use nalgebra::Vector2;
+use nalgebra::Vector3;
+use nalgebra::Vector4;
 
 
 pub trait Shape {
@@ -125,7 +128,9 @@ impl<T: Shape, OnDirty> Attr<T, OnDirty> {
     }
 }
 
-impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> Attr<T, OnDirty> {
+pub trait AddElementCtx = Shape where <Self as Shape>::Item: Default + Clone;
+
+impl<T: AddElementCtx, OnDirty> Attr<T, OnDirty> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
@@ -182,7 +187,7 @@ impl<T: Shape, OnDirty> SharedAttr<T, OnDirty> {
     }
 }
 
-impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> SharedAttr<T, OnDirty> {
+impl<T: AddElementCtx, OnDirty> SharedAttr<T, OnDirty> {
     pub fn add_element(&self) {
         self.data.borrow_mut().add_element()
     }
@@ -192,9 +197,37 @@ impl<T: Shape<Item=I>, I: Default + Clone, OnDirty> SharedAttr<T, OnDirty> {
 // === AnySharedAttribute ===
 // ==========================
 
-trait Dyn {}
+pub trait IsAttribute<OnDirty> {
+    fn add_element(&self);
+    fn len(&self) -> usize;
+}
 
-struct Any(dyn Dyn);
+pub struct AnyAttribute<OnDirty> (pub Box<dyn IsAttribute<OnDirty>>);
+
+pub trait IsAttributeCtx = AddElementCtx;
+impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttr<T, OnDirty> {
+    fn add_element(&self) {
+        self.add_element()
+    }
+    fn len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<T> std::fmt::Debug for AnyAttribute<T> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(fmt, "AnyAttribute")
+    }
+}
+
+impl<OnDirty> AnyAttribute<OnDirty> {
+    pub fn add_element(&self) {
+        self.0.add_element()
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
 
 // ===============
 // === Builder ===
