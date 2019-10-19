@@ -14,6 +14,7 @@ use std::slice::SliceIndex;
 use crate::display::symbol::nested::Seq;
 use crate::display::symbol::nested::OnChildChange;
 use crate::display::symbol::nested;
+use crate::display::symbol::attr::IsAttribute;
 
 // =============
 // === Scope ===
@@ -36,6 +37,7 @@ type AttrName      = String;
 type AttrIndex     = nested::Index;
 type AttrBlr<T>    = attr::Builder<T>;
 type Attr<T, OnDirty> = SharedAttr<T, OnChildChange<OnDirty>>;
+type AnyAttr<OnDirty> = AnyAttribute<OnChildChange<OnDirty>>;
 
 // === Implementation ===
 
@@ -48,14 +50,15 @@ impl<OnDirty: Clone> Scope<OnDirty> {
 }
 
 impl<OnDirty: Callback0+ 'static> Scope<OnDirty> {
-    pub fn add_attribute<Name: Str, T: attr::IsAttributeCtx + 'static>(&mut self, name: Name, bldr: AttrBlr<T>) -> Attr<T, OnDirty> {
+    pub fn add_attribute<Name: Str, T: Shape>(&mut self, name: Name, bldr: AttrBlr<T>) -> Attr<T, OnDirty> where 
+    AnyAttr<OnDirty>: From<Attr<T, OnDirty>>{
         let name = name.as_ref().to_string();
         let bldr = bldr.logger(self.logger.sub(&name));
         group!(self.logger, format!("Adding attribute '{}'.", name), {
             self.seq.add_and_clone(|callback| {
                 let out = Attr::build(bldr, callback);
                 let out2 = out.clone();
-                (AnyAttribute(Box::new(out2)),out)
+                (AnyAttribute::from(out2),out)
             })
         })
     }

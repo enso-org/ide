@@ -29,6 +29,16 @@ impl Shape for f32 {
     type Dim  = nalgebra::dimension::U1;
 }
 
+impl Shape for Vector2<f32> {
+    type Item = f32;
+    type Dim  = nalgebra::dimension::U2;
+}
+
+impl Shape for Vector3<f32> {
+    type Item = f32;
+    type Dim  = nalgebra::dimension::U3;
+}
+
 // fn foo<I,T: Shape<Item=I>>() -> <T as Shape>::Item 
 //     where <T as Shape>::Item : Default {
 //     Default::default()
@@ -197,37 +207,102 @@ impl<T: AddElementCtx, OnDirty> SharedAttr<T, OnDirty> {
 // === AnySharedAttribute ===
 // ==========================
 
+use enum_dispatch::*;
+
+
+macro_rules! cartesian_impl {
+    ($out:tt [] $b:tt $init_b:tt, $f:ident) => {
+        $f!{ $out }
+    };
+    ($out:tt [$a:ident, $($at:tt)*] [] $init_b:tt, $f:ident) => {
+        cartesian_impl!{ $out [$($at)*] $init_b $init_b, $f }
+    };
+    ([$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt 
+    ,$f:ident) => {
+        cartesian_impl!{ 
+            [$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b, $f 
+        }
+    };
+}
+
+macro_rules! cartesian {
+    ([$($a:tt)*], [$($b:tt)*], $f:ident) => {
+        cartesian_impl!{ [] [$($a)*,] [$($b)*,] [$($b)*,], $f }
+    };
+}
+
+macro_rules! mk_any_shape_impl {
+    ([$(($base:ident, $param:ident)),*,]) => {
+        paste::item! {
+            #[enum_dispatch(IsAttribute)]
+            #[derive(Derivative)]
+            #[derivative(Debug(bound=""))]
+            pub enum AnyAttribute<OnDirty> {
+                $([<Variant $base For $param>](SharedAttr<$base<$param>, OnDirty>),)*
+            } 
+        }
+    }
+}
+
+macro_rules! mk_any_shape {
+    ($bases:tt, $params:tt) => {
+        cartesian!($bases, $params, mk_any_shape_impl);
+    }
+}
+
+mk_any_shape!([Vector2, Vector3], [f32]);
+
+
+
+#[enum_dispatch]
 pub trait IsAttribute<OnDirty> {
     fn add_element(&self);
     fn len(&self) -> usize;
 }
 
-pub struct AnyAttribute<OnDirty> (pub Box<dyn IsAttribute<OnDirty>>);
 
-pub trait IsAttributeCtx = AddElementCtx;
-impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttr<T, OnDirty> {
-    fn add_element(&self) {
-        self.add_element()
-    }
-    fn len(&self) -> usize {
-        self.len()
-    }
-}
+// impl IsShape for Vector2<f32>{}
+// impl IsShape for Vector3<f32>{}
 
-impl<T> std::fmt::Debug for AnyAttribute<T> {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "AnyAttribute")
-    }
-}
 
-impl<OnDirty> AnyAttribute<OnDirty> {
-    pub fn add_element(&self) {
-        self.0.add_element()
-    }
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
+
+
+
+
+
+// // mk_any_shape!([(Vector2,f32),(Vector3,f32),]);
+
+// pub trait IsAttribute<OnDirty> {
+//     fn add_element(&self);
+//     fn len(&self) -> usize;
+// }
+
+// pub struct AnyAttribute<OnDirty> (pub Box<dyn IsAttribute<OnDirty>>);
+
+// pub trait IsAttributeCtx = AddElementCtx;
+// impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttr<T, OnDirty> {
+//     fn add_element(&self) {
+//         self.add_element()
+//     }
+//     fn len(&self) -> usize {
+//         self.len()
+//     }
+// }
+
+// impl<T> std::fmt::Debug for AnyAttribute<T> {
+//     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+//         write!(fmt, "AnyAttribute")
+//     }
+// }
+
+// impl<OnDirty> AnyAttribute<OnDirty> {
+//     pub fn add_element(&self) {
+//         self.0.add_element()
+//     }
+//     pub fn len(&self) -> usize {
+//         self.0.len()
+//     }
+// }
 
 // ===============
 // === Builder ===

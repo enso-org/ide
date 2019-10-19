@@ -43,6 +43,28 @@ use crate::display::symbol::attr;
 use crate::display::symbol::attr::Attr;
 use crate::display::symbol::geo::Geo;
 use nalgebra;
+use nalgebra::Vector2;
+use nalgebra::Vector3;
+use nalgebra::Vector4;
+
+macro_rules! cartesian_impl {
+    ($out:tt [] $b:tt $init_b:tt) => {
+        $out
+    };
+    ($out:tt [$a:ident, $($at:tt)*] [] $init_b:tt) => {
+        cartesian_impl!{$out [$($at)*] $init_b $init_b}
+    };
+    ([$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt) => {
+        cartesian_impl!{[$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b}
+    };
+}
+
+macro_rules! cartesian {
+    ([$($a:tt)*], [$($b:tt)*]) => {
+        cartesian_impl!{[] [$($a)*,] [$($b)*,] [$($b)*,]}
+    };
+}
+
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -63,10 +85,18 @@ pub fn start() {
     let logger = Logger::new("geo1");
     let mut geo1 = Geo::new(logger, ());
 
-    let position: attr::SharedAttr<f32, _> = geo1.scopes.point.add_attribute("position", Attr::builder());
+    let position: attr::SharedAttr<Vector2<f32>, _> = geo1.scopes.point.add_attribute("position", Attr::builder());
     geo1.scopes.point.add_instance();
 
     let v = nalgebra::Vector3::new(0,0,0);
+
+    let logger = Logger::new("root");
+
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    logger.info(||format!("{:?}", cartesian!([a],[b,c])));
+
     // geo1.scopes.point
 
 //    let logger = Logger::new("local");
