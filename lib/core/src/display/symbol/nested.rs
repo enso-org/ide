@@ -1,14 +1,9 @@
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
-use crate::data::opt_vec::OptVec;
 use crate::dirty;
-use crate::display::symbol::attr;
-use crate::display::symbol::attr::SharedAttr;
-use crate::system::web::Logger;
-use crate::system::web::group;
 use crate::system::web::fmt;
-use std::slice::SliceIndex;
+use crate::system::web::Logger;
 
 // =============
 // === Scope ===

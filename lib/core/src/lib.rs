@@ -33,37 +33,23 @@ pub mod system {
 use display::world::World;
 use wasm_bindgen::prelude::*;
 
-use display::symbol::attr::SharedAttr;
+use display::symbol::attribute::SharedAttribute;
 use system::web::Logger;
 use system::web::fmt;
 
 use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
-use crate::display::symbol::attr;
-use crate::display::symbol::attr::Attr;
-use crate::display::symbol::geo::Geo;
+use crate::display::symbol::attribute;
+use crate::display::symbol::attribute::Attribute;
+use crate::display::symbol::geometry::Geo;
 use nalgebra;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use nalgebra::Matrix;
+use nalgebra::base::dimension::U1;
+use nalgebra::base::dimension::U2;
 
-macro_rules! cartesian_impl {
-    ($out:tt [] $b:tt $init_b:tt) => {
-        $out
-    };
-    ($out:tt [$a:ident, $($at:tt)*] [] $init_b:tt) => {
-        cartesian_impl!{$out [$($at)*] $init_b $init_b}
-    };
-    ([$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt) => {
-        cartesian_impl!{[$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b}
-    };
-}
-
-macro_rules! cartesian {
-    ([$($a:tt)*], [$($b:tt)*]) => {
-        cartesian_impl!{[] [$($a)*,] [$($b)*,] [$($b)*,]}
-    };
-}
 
 
 #[wasm_bindgen(start)]
@@ -76,7 +62,7 @@ pub fn start() {
 //
 //    let pos: attribute::Builder<f32> = Attribute::builder();
 //
-//    let pos: SharedAttribute<f32> = SharedAttribute::new(logger,());
+//    let pos: SharedAttributeibute<f32> = SharedAttributeibute::new(logger,());
 
     // let logger = Logger::new("point");
     // let mut point_scope: Scope = Scope::new(logger,());
@@ -85,21 +71,27 @@ pub fn start() {
     let logger = Logger::new("geo1");
     let mut geo1 = Geo::new(logger, ());
 
-    let position: attr::SharedAttr<Vector2<f32>, _> = geo1.scopes.point.add_attribute("position", Attr::builder());
+    let position: attribute::SharedAttribute<Vector2<f32>, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
     geo1.scopes.point.add_instance();
 
     let v = nalgebra::Vector3::new(0,0,0);
+
+
 
     let logger = Logger::new("root");
 
     let a = 1;
     let b = 2;
     let c = 3;
-    logger.info(||format!("{:?}", cartesian!([a],[b,c])));
 
     // geo1.scopes.point
 
 //    let logger = Logger::new("local");
 //
-//    logger.info(fmt!("{:#?}",point_scope));
+//    logger.info(fmt!("{:#?}",position.data.borrow().index(0)));
+    let mut v: Vec<f32> = vec![0.0,1.0,2.0,3.0];
+    let m6: Vector2<f32> = Vector2::from_iterator(v);
+    let m7: Matrix<f32, U2, U1, nalgebra::ArrayStorage<f32, U2, U1>> = m6;
+    // v[0] = 7.0;
 }
+

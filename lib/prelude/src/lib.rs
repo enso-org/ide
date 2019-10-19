@@ -13,6 +13,8 @@ pub use std::fmt::Display;
 pub use std::ops::Deref;
 pub use std::rc::Rc;
 pub use std::iter;
+pub use std::iter::FromIterator;
+pub use num::Num;
 
 pub trait Str = AsRef<str>;
 

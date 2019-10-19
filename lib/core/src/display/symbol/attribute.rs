@@ -7,13 +7,22 @@ use crate::system::web::fmt;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
 
+use nalgebra;
 use nalgebra::dimension::Dim;
-use nalgebra::dimension::U1;
+use nalgebra::dimension::{U1, U2, U3};
 use nalgebra::dimension::DimName;
+use nalgebra::Scalar;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use nalgebra::Matrix;
 
+
+// =============
+// === Shape ===
+// =============
+
+// === Definition === 
 
 pub trait Shape {
     type Item;
@@ -24,25 +33,18 @@ pub trait Shape {
     }
 }
 
+// === Instances === 
+
 impl Shape for f32 {
     type Item = Self;
-    type Dim  = nalgebra::dimension::U1;
+    type Dim  = U1;
 }
 
-impl Shape for Vector2<f32> {
-    type Item = f32;
-    type Dim  = nalgebra::dimension::U2;
+impl<T: Scalar, R: Dim + DimName, C: Dim, S> Shape for Matrix<T, R, C, S> {
+    type Item = T;
+    type Dim  = R;
 }
 
-impl Shape for Vector3<f32> {
-    type Item = f32;
-    type Dim  = nalgebra::dimension::U3;
-}
-
-// fn foo<I,T: Shape<Item=I>>() -> <T as Shape>::Item 
-//     where <T as Shape>::Item : Default {
-//     Default::default()
-// }
 
 // =====================
 // === ObservableVec ===
@@ -91,7 +93,7 @@ impl<T, OnSet: Callback0> IndexMut<usize> for ObservableVec<T, OnSet> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound="<T as Shape>::Item:Debug"))]
-pub struct Attr<T: Shape = f32, OnItemMod = NoCallback> {
+pub struct Attribute<T: Shape, OnItemMod = NoCallback> {
     pub buffer : Buffer <T, OnItemMod>,
     pub dirty  : Dirty  <OnItemMod>,
     pub logger : Logger,
@@ -112,7 +114,7 @@ fn buffer_on_change<OnDirty: Callback0>(dirty: &Dirty<OnDirty>) -> OnBufferChang
     move |ix| dirty.set(ix)
 }
 
-impl<T: Shape, OnDirty: Callback0> Attr<T, OnDirty> {
+impl<T: Shape, OnDirty: Callback0> Attribute<T, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
@@ -132,15 +134,14 @@ impl<T: Shape, OnDirty: Callback0> Attr<T, OnDirty> {
     }
 }
 
-impl<T: Shape, OnDirty> Attr<T, OnDirty> {
+impl<T: Shape, OnDirty> Attribute<T, OnDirty> {
     pub fn len(&self) -> usize {
         self.buffer.vec.len()
     }
 }
 
 pub trait AddElementCtx = Shape where <Self as Shape>::Item: Default + Clone;
-
-impl<T: AddElementCtx, OnDirty> Attr<T, OnDirty> {
+impl<T: AddElementCtx, OnDirty> Attribute<T, OnDirty> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
@@ -151,9 +152,37 @@ impl<T: AddElementCtx, OnDirty> Attr<T, OnDirty> {
     }
 }
 
-impl<T: Shape> Attr<T> {
+impl<T: Shape> Attribute<T> {
     pub fn builder() -> Builder<T> {
         Default::default()
+    }
+}
+
+// impl<T: Shape, OnSet, I: SliceIndex<[<T as Shape>::Item]>> Index<I> 
+//         for Attribute<T, OnSet> {
+//     type Output = I::Output;
+
+//     #[inline]
+//     fn index(&self, index: I) -> &Self::Output {
+//         &self.buffer[index]
+//     }
+// }
+
+// impl<T: Shape + FromIterator<<T as Shape>::Item>, OnSet, I> Index<I> 
+//         for Attribute<T, OnSet> {
+//     type Output = T;
+
+//     #[inline]
+//     fn index(&self, index: I) -> &Self::Output {
+//         &(T::from_iter(self.buffer.vec))
+//     }
+// }
+
+impl<T: Shape + FromIterator<<T as Shape>::Item>, OnSet> Attribute<T, OnSet> 
+    where <T as Shape>::Item: Clone {
+
+    pub fn index(&self, index: usize) -> T {
+        T::from_iter(self.buffer.vec.iter().cloned())
     }
 }
 
@@ -167,27 +196,27 @@ impl<T: Shape> Attr<T> {
 #[derive(Derivative)]
 #[derivative(Debug(bound="<T as Shape>::Item:Debug"))]
 #[derivative(Clone(bound=""))]
-pub struct SharedAttr<T: Shape = f32, OnDirty = NoCallback> {
-    pub data: Rc<RefCell<Attr<T, OnDirty>>>
+pub struct SharedAttribute<T: Shape, OnDirty = NoCallback> {
+    pub data: Rc<RefCell<Attribute<T, OnDirty>>>
 }
 
-impl<T: Shape, OnDirty: Callback0> SharedAttr<T, OnDirty> {
+impl<T: Shape, OnDirty: Callback0> SharedAttribute<T, OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         Self::new_from(Default::default(), logger, on_dirty)
     }
 
     pub fn new_from(buffer: RawBuffer<T>, logger: Logger, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attr::new_from(buffer, logger, on_dirty)));
+        let data = Rc::new(RefCell::new(Attribute::new_from(buffer, logger, on_dirty)));
         Self { data }
     }
 
     pub fn build(builder: Builder<T>, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attr::build(builder, on_dirty)));
+        let data = Rc::new(RefCell::new(Attribute::build(builder, on_dirty)));
         Self { data }
     }
 }
 
-impl<T: Shape, OnDirty> SharedAttr<T, OnDirty> {
+impl<T: Shape, OnDirty> SharedAttribute<T, OnDirty> {
     pub fn new_ref(&self) -> Self {
         Self { data: Rc::clone(&self.data) }
     }
@@ -197,14 +226,14 @@ impl<T: Shape, OnDirty> SharedAttr<T, OnDirty> {
     }
 }
 
-impl<T: AddElementCtx, OnDirty> SharedAttr<T, OnDirty> {
+impl<T: AddElementCtx, OnDirty> SharedAttribute<T, OnDirty> {
     pub fn add_element(&self) {
         self.data.borrow_mut().add_element()
     }
 }
 
 // ==========================
-// === AnySharedAttribute ===
+// === AnySharedAttributeibute ===
 // ==========================
 
 use enum_dispatch::*;
@@ -238,7 +267,7 @@ macro_rules! mk_any_shape_impl {
             #[derive(Derivative)]
             #[derivative(Debug(bound=""))]
             pub enum AnyAttribute<OnDirty> {
-                $([<Variant $base For $param>](SharedAttr<$base<$param>, OnDirty>),)*
+                $([<Variant $base For $param>](SharedAttribute<$base<$param>, OnDirty>),)*
             } 
         }
     }
@@ -250,7 +279,8 @@ macro_rules! mk_any_shape {
     }
 }
 
-mk_any_shape!([Vector2, Vector3], [f32]);
+type Identity<T> = T;
+mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32]);
 
 
 
@@ -280,7 +310,7 @@ pub trait IsAttribute<OnDirty> {
 // pub struct AnyAttribute<OnDirty> (pub Box<dyn IsAttribute<OnDirty>>);
 
 // pub trait IsAttributeCtx = AddElementCtx;
-// impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttr<T, OnDirty> {
+// impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttribute<T, OnDirty> {
 //     fn add_element(&self) {
 //         self.add_element()
 //     }
