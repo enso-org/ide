@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
+use crate::data::shared::Shared;
 use crate::dirty;
 use crate::system::web::Logger;
 use crate::system::web::fmt;
@@ -16,6 +17,21 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
 use nalgebra::Matrix;
+use nalgebra::MatrixMN;
+
+
+
+pub trait TypeDebugName {
+    fn type_debug_name() -> String; 
+}
+
+impl<T> TypeDebugName for T {
+    default fn type_debug_name() -> String {
+        type_name::<Self>().to_string()
+    }
+}
+
+
 
 
 // =============
@@ -24,27 +40,64 @@ use nalgebra::Matrix;
 
 // === Definition === 
 
-pub trait Shape {
+pub trait Shape: TypeDebugName {
     type Item;
     type Dim: DimName;
 
     fn item_count() -> usize {
         <Self::Dim as DimName>::dim()
     }
+
+    fn from_buffer(buffer: &[Self::Item]) -> &[Self] 
+        where Self: std::marker::Sized;
+
+    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self] 
+        where Self: std::marker::Sized;
 }
+
 
 // === Instances === 
 
 impl Shape for f32 {
     type Item = Self;
     type Dim  = U1;
+
+    fn from_buffer     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn from_buffer_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
 }
 
-impl<T: Scalar, R: Dim + DimName, C: Dim, S> Shape for Matrix<T, R, C, S> {
+impl<T: Scalar, R: DimName, C: DimName> Shape for MatrixMN<T, R, C> where 
+        nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C> {
     type Item = T;
     type Dim  = R;
+
+    fn from_buffer(buffer: &[Self::Item]) -> &[Self] {
+        unsafe {
+            let len = buffer.len() / Self::item_count();
+            std::slice::from_raw_parts(buffer.as_ptr().cast(), len)
+        } 
+    }
+
+    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
+        unsafe {
+            let len = buffer.len() / Self::item_count();
+            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
+        } 
+    }
 }
 
+impl <T: Scalar, R: DimName, C: DimName> TypeDebugName for MatrixMN<T, R, C> where 
+        nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C> {
+    fn type_debug_name() -> String {
+        let col  = <C as DimName>::dim();
+        let row  = <R as DimName>::dim();
+        let item = type_name::<T>();
+        match col {
+            1 => format!("Vector{}<{}>", row, item),
+            _ => format!("Matrix{}x{}<{}>", row, col, item)
+        }
+    }
+}
 
 // =====================
 // === ObservableVec ===
@@ -120,7 +173,7 @@ impl<T: Shape, OnDirty: Callback0> Attribute<T, OnDirty> {
     }
 
     pub fn new_from(buffer: RawBuffer<T>, logger: Logger, on_dirty: OnDirty) -> Self {
-        logger.info(fmt!("Creating new {} attribute.", type_name::<T>()));
+        logger.info(fmt!("Creating new {} attribute.", T::type_debug_name()));
         let dirty_logger = logger.sub("dirty");
         let dirty        = Dirty::new(on_dirty, dirty_logger);
         let buffer       = ObservableVec::new_from(buffer, buffer_on_change(&dirty));
@@ -158,33 +211,22 @@ impl<T: Shape> Attribute<T> {
     }
 }
 
-// impl<T: Shape, OnSet, I: SliceIndex<[<T as Shape>::Item]>> Index<I> 
-//         for Attribute<T, OnSet> {
-//     type Output = I::Output;
-
-//     #[inline]
-//     fn index(&self, index: I) -> &Self::Output {
-//         &self.buffer[index]
-//     }
-// }
-
-// impl<T: Shape + FromIterator<<T as Shape>::Item>, OnSet, I> Index<I> 
-//         for Attribute<T, OnSet> {
-//     type Output = T;
-
-//     #[inline]
-//     fn index(&self, index: I) -> &Self::Output {
-//         &(T::from_iter(self.buffer.vec))
-//     }
-// }
-
-impl<T: Shape + FromIterator<<T as Shape>::Item>, OnSet> Attribute<T, OnSet> 
-    where <T as Shape>::Item: Clone {
-
-    pub fn index(&self, index: usize) -> T {
-        T::from_iter(self.buffer.vec.iter().cloned())
+impl<T: Shape, OnSet, I: SliceIndex<[T]>> Index<I> for Attribute<T, OnSet> {
+    type Output = I::Output;
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &T::from_buffer(&self.buffer.vec)[index]
     }
 }
+
+impl<T: Shape, OnSet, I: SliceIndex<[T]>> IndexMut<I> for Attribute<T, OnSet> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut T::from_buffer_mut(&mut self.buffer.vec)[index]
+    }
+}
+
+
 
 
 // =======================
@@ -193,11 +235,11 @@ impl<T: Shape + FromIterator<<T as Shape>::Item>, OnSet> Attribute<T, OnSet>
 
 // === Definition ===
 
+#[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug(bound="<T as Shape>::Item:Debug"))]
-#[derivative(Clone(bound=""))]
 pub struct SharedAttribute<T: Shape, OnDirty = NoCallback> {
-    pub data: Rc<RefCell<Attribute<T, OnDirty>>>
+    pub data: Shared<Attribute<T, OnDirty>>
 }
 
 impl<T: Shape, OnDirty: Callback0> SharedAttribute<T, OnDirty> {
@@ -206,19 +248,19 @@ impl<T: Shape, OnDirty: Callback0> SharedAttribute<T, OnDirty> {
     }
 
     pub fn new_from(buffer: RawBuffer<T>, logger: Logger, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attribute::new_from(buffer, logger, on_dirty)));
+        let data = Shared::new(Attribute::new_from(buffer, logger, on_dirty));
         Self { data }
     }
 
     pub fn build(builder: Builder<T>, on_dirty: OnDirty) -> Self {
-        let data = Rc::new(RefCell::new(Attribute::build(builder, on_dirty)));
+        let data = Shared::new(Attribute::build(builder, on_dirty));
         Self { data }
     }
 }
 
 impl<T: Shape, OnDirty> SharedAttribute<T, OnDirty> {
-    pub fn new_ref(&self) -> Self {
-        Self { data: Rc::clone(&self.data) }
+    pub fn clone_ref(&self) -> Self {
+        Self { data: self.data.clone_ref() }
     }
 
     pub fn len(&self) -> usize {
@@ -231,6 +273,53 @@ impl<T: AddElementCtx, OnDirty> SharedAttribute<T, OnDirty> {
         self.data.borrow_mut().add_element()
     }
 }
+
+impl<T: Shape, OnDirty, I: SliceIndex<[T]>> Index<I> for SharedAttribute<T, OnDirty> {
+    type Output = I::Output;
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+// impl<T: Shape, OnDirty> Deref for SharedAttribute<T, OnDirty> {
+//     type Target = Ref<Attribute<T, OnDirty>>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.data.borrow()
+//     }
+// }
+
+
+
+// struct FooGuard<'t, T, OnDirty> {
+//     guard: Ref<'t, Attribute<T, OnDirty>>,
+// }
+
+// impl<'t, T, OnDirty> Deref for FooGuard<'t, T, OnDirty> {
+//     type Target = Vec<i32>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.guard
+//     }
+// }
+
+// impl Foo {
+//     pub fn get_items(&self) -> FooGuard {
+//         FooGuard {
+//             guard: self.interior.borrow(),
+//         }
+//     }
+// }
+
+// impl<T: Shape, OnSet, I: SliceIndex<[T]>> Index<I> 
+//         for SharedAttribute<T, OnSet> {
+//     type Output = I::Output;
+//     #[inline]
+//     fn index(&self, index: I) -> &Self::Output {
+//         &self.data.borrow()[index]
+//     }
+// }
 
 // ==========================
 // === AnySharedAttributeibute ===

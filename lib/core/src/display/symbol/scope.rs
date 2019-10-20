@@ -57,7 +57,7 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
         group!(self.logger, format!("Adding attribute '{}'.", name), {
             self.seq.add_and_clone(|callback| {
                 let out = Attribute::build(bldr, callback);
-                let out2 = out.clone();
+                let out2 = out.clone_ref();
                 (AnyAttribute::from(out2), out)
             })
         })

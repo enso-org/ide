@@ -4,6 +4,7 @@
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(proc_macro_hygiene)]
+#![feature(specialization)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -51,6 +52,58 @@ use nalgebra::base::dimension::U1;
 use nalgebra::base::dimension::U2;
 
 
+macro_rules! map {
+    ($f:ident, $args:tt) => {
+        map_impl!{ [], $f, $args }
+     };
+}
+
+macro_rules! map_impl {
+    ($out:tt       , $f:ident, []) => { $out };
+    ([$($out:tt)*] , $f:ident, [$t1:tt]) => { 
+        map_impl!([$($out)* $f!($t1)], $f, []);
+    };        
+    ([$($out:tt)*], $f:ident, [$t1:tt, $($ts:tt)*]) => { 
+        map_impl!([$($out)* $f!($t1),], $f, [$($ts)*]);
+    }
+}
+
+macro_rules! length {
+    ([]) => { 0 };
+    ([$t1:tt]) => { 1 };
+    ([$t1:tt,$t2:tt]) => { 2 };
+    ([$t1:tt,$t2:tt,$t3:tt]) => { 3 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt]) => { 4 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt,$t5:tt]) => { 5 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt,$t5:tt,$t6:tt]) => { 6 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt,$t5:tt,$t6:tt,$t7:tt]) => { 7 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt,$t5:tt,$t6:tt,$t7:tt,$t8:tt]) => { 8 };
+    ([$t1:tt,$t2:tt,$t3:tt,$t4:tt,$t5:tt,$t6:tt,$t7:tt,$t8:tt,$t9:tt]) => { 9 };
+}
+
+macro_rules! decrement {
+    (1) => { 0 };
+    (2) => { 1 };
+    (3) => { 2 };
+    (4) => { 3 };
+    (5) => { 4 };
+    (6) => { 5 };
+    (7) => { 6 };
+    (8) => { 7 };
+    (9) => { 8 };
+}
+
+
+
+pub fn test<'t>(vp:&'t[f32]) -> &'t [Vector3<f32>] {
+    unsafe {
+        std::slice::from_raw_parts(vp.as_ptr().cast(), vp.len() / 3)
+    } 
+}
+
+
+use std::ops::Index;
+
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -74,7 +127,8 @@ pub fn start() {
     let position: attribute::SharedAttribute<Vector2<f32>, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
     geo1.scopes.point.add_instance();
 
-    let v = nalgebra::Vector3::new(0,0,0);
+    let mut v = nalgebra::Vector3::new(0,0,0);
+    v.x += 7;
 
 
 
@@ -88,10 +142,31 @@ pub fn start() {
 
 //    let logger = Logger::new("local");
 //
-//    logger.info(fmt!("{:#?}",position.data.borrow().index(0)));
-    let mut v: Vec<f32> = vec![0.0,1.0,2.0,3.0];
-    let m6: Vector2<f32> = Vector2::from_iterator(v);
-    let m7: Matrix<f32, U2, U1, nalgebra::ArrayStorage<f32, U2, U1>> = m6;
-    // v[0] = 7.0;
+
+    // logger.info("changing");
+    
+    // let p1 = position[0];
+    // let p2 = position[0];
+    // position.borrow_mut()[0].x = 8.0;
+    // logger.info(fmt!("{:#?}",position[0]));
+    // logger.info(fmt!("{:#?}",position[0]));
+    // logger.info(fmt!("{:#?}",position[0]));
+    // logger.info(fmt!("{:#?}",position[0]));
+    // logger.info(fmt!("{:#?}",position[0]));
+    // logger.info(fmt!("{:#?}",p1 == p2));
+
+    // logger.info(fmt!("{:#?}",position.index(0)));
+
+    // let mut v: Vec<f32> = vec![0.0,1.0,2.0,3.0];
+    // // let m6: Vector2<f32> = Vector2::from_iterator(v);
+    // let vr: &[f32] = &v;
+    // let vr2 = test(vr);
+    // // let ii: f32 = v.iter().collect();
+    // // let m7: Matrix<f32, U2, U1, nalgebra::ArrayStorage<f32, U2, U1>> = m6;
+    // // v[0] = 7.0;
+
+    // // logger.info(fmt!("{:#?}",map_impl!([],decrement,[1])));
+    // logger.info(fmt!("{:#?}",vr2[1]));
+
 }
 
