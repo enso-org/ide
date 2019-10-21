@@ -7,9 +7,9 @@ use crate::system::web::Logger;
 use crate::system::web::fmt;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
+use crate::tp::debug::TypeDebugName;
 
 use nalgebra;
-use nalgebra::dimension::Dim;
 use nalgebra::dimension::{U1, U2, U3};
 use nalgebra::dimension::DimName;
 use nalgebra::Scalar;
@@ -19,20 +19,38 @@ use nalgebra::Vector4;
 use nalgebra::Matrix;
 use nalgebra::MatrixMN;
 
-
-
-pub trait TypeDebugName {
-    fn type_debug_name() -> String; 
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
+struct Buf<T: Shape> {
+    raw_data: Vec<T::Item>
 }
 
-impl<T> TypeDebugName for T {
-    default fn type_debug_name() -> String {
-        type_name::<Self>().to_string()
+
+
+
+impl<T: Shape> AsRef<[Item<T>]> for Buf<T> {
+    // This is safe, as we are casting between item and container, and we 
+    // update the slice length accordingly. The container knows it's item 
+    // count, like `Vector2<Item>`.
+    fn as_ref(&self) -> &[Item<T>] {
+        unsafe {
+            let len = self.len() / T::item_count();
+            std::slice::from_raw_parts(self.as_ptr().cast(), len)
+        } 
     }
 }
 
-
-
+impl<T: Shape> AsMut<[Item<T>]> for Buf<T> {
+    // This is safe, as we are casting between item and container, and we 
+    // update the slice length accordingly. The container knows it's item 
+    // count, like `Vector2<Item>`.
+    fn as_mut(&mut self) -> &mut [Item<T>] {
+        unsafe {
+            let len = self.len() / T::item_count();
+            std::slice::from_raw_parts_mut(self.as_mut_ptr().cast(), len)
+        } 
+    }
+}
 
 // =============
 // === Shape ===
@@ -55,8 +73,12 @@ pub trait Shape: TypeDebugName {
         where Self: std::marker::Sized;
 }
 
+// === Type Families ===
 
-// === Instances === 
+type Item <T> = <T as Shape>::Item;
+type Dim  <T> = <T as Shape>::Dim;
+
+// === Shapes for numbers === 
 
 impl Shape for f32 {
     type Item = Self;
@@ -66,8 +88,13 @@ impl Shape for f32 {
     fn from_buffer_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
 }
 
-impl<T: Scalar, R: DimName, C: DimName> Shape for MatrixMN<T, R, C> where 
-        nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C> {
+// === Shapes for matrixes === 
+
+pub trait AllocatorCtx<T: Scalar, R: DimName, C: DimName> = where 
+    nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C>;
+
+impl<T: Scalar, R: DimName, C: DimName> 
+Shape for MatrixMN<T, R, C> where Self: AllocatorCtx<T, R, C> {
     type Item = T;
     type Dim  = R;
 
@@ -86,8 +113,8 @@ impl<T: Scalar, R: DimName, C: DimName> Shape for MatrixMN<T, R, C> where
     }
 }
 
-impl <T: Scalar, R: DimName, C: DimName> TypeDebugName for MatrixMN<T, R, C> where 
-        nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C> {
+impl <T: Scalar, R: DimName, C: DimName> 
+TypeDebugName for MatrixMN<T, R, C> where Self: AllocatorCtx<T, R, C> {
     fn type_debug_name() -> String {
         let col  = <C as DimName>::dim();
         let row  = <R as DimName>::dim();
@@ -126,7 +153,7 @@ impl<T, OnSet, I: SliceIndex<[T]>> Index<I> for ObservableVec<T, OnSet> {
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        &self.vec.index(index)
+        &self.vec[index]
     }
 }
 
@@ -134,7 +161,7 @@ impl<T, OnSet: Callback0> IndexMut<usize> for ObservableVec<T, OnSet> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.on_set.call();
-        self.vec.index_mut(index)
+        &mut self.vec[index]
     }
 }
 
