@@ -51,6 +51,8 @@ pub struct Bool<OnSet = NoCallback> {
     pub logger   : Logger,
 }
 
+pub trait BoolCtx<OnSet> = where OnSet: Callback0;
+
 // === API ===
 
 impl<OnSet> Bool<OnSet> {
@@ -60,7 +62,7 @@ impl<OnSet> Bool<OnSet> {
     }
 }
 
-impl<OnSet: Callback0> Bool<OnSet> {
+impl<OnSet> Bool<OnSet> where (): BoolCtx<OnSet> {
     pub fn set(&mut self) {
         if !self.is_dirty {
             group!(self.logger, "Setting.", {
@@ -128,7 +130,8 @@ pub struct Range<Ix = usize, OnSet = NoCallback> {
     pub logger: Logger,
 }
 
-pub trait RangeIx = PartialOrd + Copy + Debug;
+pub trait RangeCtx<OnSet> = where OnSet: Callback0;
+pub trait RangeIx         = PartialOrd + Copy + Debug;
 
 // === API ===
 
@@ -143,30 +146,28 @@ impl<Ix, OnSet> Range<Ix, OnSet> {
     }
 }
 
-impl<Ix: RangeIx, OnSet: Callback0> Range<Ix, OnSet> {
+impl<Ix: RangeIx, OnSet> Range<Ix, OnSet> where Self: RangeCtx<OnSet> {
     /// This is an semantically unsafe function as it breaks the contract of a
     /// dirty flag. Dirty flags should not either be set to track new items, or
     /// should be cleared. Arbitrary reshape could be a potential hard-to-track
     /// error.
     fn unsafe_replace_range(&mut self, range: ops::Range<Ix>) {
-        group!(self.logger, format!("Setting dirty range to {:?}.", range), {
-            self.range = Some(range);
-        })
+        self.range = Some(range);
     }
 
     pub fn set(&mut self, ix: Ix) {
-        let new_range = match &self.range {
-            None => {
-                self.on_set.call();
-                ix .. ix
-            },
+        let range = match &self.range {
+            None    => { ix .. ix },
             Some(r) => {
                 if      ix < r.start { ix .. r.end   }
                 else if ix > r.end   { r.start .. ix }
                 else                 { r.clone()     }
             }
         };
-        self.unsafe_replace_range(new_range);
+        group!(self.logger, format!("Setting dirty range to [{:?}].", range), {
+            if !self.is_set() { self.on_set.call(); }
+            self.unsafe_replace_range(range);
+        })
     }
 
     pub fn set_range(&mut self, start: Ix, end: Ix) {
@@ -208,7 +209,7 @@ impl<Ix, OnSet> SharedRange<Ix, OnSet> {
     }
 }
 
-impl<Ix: RangeIx, OnSet: Callback0> SharedRange<Ix, OnSet> {
+impl<Ix: RangeIx, OnSet> SharedRange<Ix, OnSet> where Self: RangeCtx<OnSet> {
     pub fn set(&self, ix: Ix) {
         self.data.borrow_mut().set(ix);
     }

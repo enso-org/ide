@@ -15,7 +15,7 @@ use crate::system::web::Logger;
 #[derivative(Debug(bound = "Child:Debug"))]
 pub struct Seq<Child, OnDirty = NoCallback> {
     pub children    : Vec<Child>,
-    pub dirty       : Dirty<OnDirty>,
+    pub item_dirty  : Dirty<OnDirty>,
     pub shape_dirty : ShapeDirty<OnDirty>,
     pub logger      : Logger,
 }
@@ -25,7 +25,7 @@ pub struct Seq<Child, OnDirty = NoCallback> {
 pub type  Index                      = usize;
 pub type  Dirty         <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
 pub type  ShapeDirty    <OnDirty>    = dirty::SharedBool <OnDirty>;
-pub type  OnChildChange <OnDirty>    = impl Fn();
+pub type  OnChildChange <OnDirty>    = impl Fn() + Clone;
 pub trait ChildBuilder  <OnDirty, T> = FnOnce(OnChildChange<OnDirty>) -> T;
 
 // === Implementation ===
@@ -43,10 +43,10 @@ impl<Child, OnDirty: Clone> Seq<Child, OnDirty> {
         logger.info("Initializing.");
         let dirty_logger = logger.sub("dirty");
         let shape_dirty_logger = logger.sub("shape_dirty");
-        let dirty        = Dirty::new(on_dirty.clone(), dirty_logger);
+        let item_dirty   = Dirty::new(on_dirty.clone(), dirty_logger);
         let shape_dirty  = ShapeDirty::new(on_dirty, shape_dirty_logger);
         let children     = Vec::new();
-        Self { children, dirty, shape_dirty, logger }
+        Self { children, item_dirty, shape_dirty, logger }
     }
 
     pub fn child_by_ix(&self, ix: Index) -> &Child {
@@ -62,7 +62,7 @@ impl<Child, OnDirty: Callback0> Seq<Child, OnDirty> {
     pub fn add<F: ChildBuilder<OnDirty, Child>>(&mut self, bldr: F) -> Index {
         let index = self.children.len();
         self.logger.info(fmt!("Registering at index {}.", index));
-        let attr = bldr(child_on_change(&self.dirty, index));
+        let attr = bldr(child_on_change(&self.item_dirty, index));
         self.children.push(attr);
         self.shape_dirty.set();
         index
@@ -73,7 +73,7 @@ impl<Child, OnDirty: Callback0> Seq<Child, OnDirty> {
     pub fn add_and_clone<F: ChildBuilder<OnDirty, (Child, T)>, T>(&mut self, bldr: F) -> T {
         let index = self.children.len();
         self.logger.info(fmt!("Registering at index {}.", index));
-        let (attr, out) = bldr(child_on_change(&self.dirty, index));
+        let (attr, out) = bldr(child_on_change(&self.item_dirty, index));
         self.children.push(attr);
         self.shape_dirty.set();
         out

@@ -106,6 +106,7 @@ pub fn test<'t>(vp:&'t[f32]) -> &'t [Vector3<f32>] {
 use std::ops::Index;
 
 
+
 #[wasm_bindgen(start)]
 pub fn start() {
     let world = World::new();
@@ -125,7 +126,10 @@ pub fn start() {
     let logger = Logger::new("geo1");
     let mut geo1 = Geo::new(logger, ());
 
-    let position: attribute::SharedAttribute<Vector2<f32>, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
+    let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
+    geo1.scopes.point.add_instance();
+    geo1.scopes.point.add_instance();
+    geo1.scopes.point.add_instance();
     geo1.scopes.point.add_instance();
 
     let mut v = nalgebra::Vector3::new(0,0,0);
@@ -146,15 +150,18 @@ pub fn start() {
 
     // logger.info("changing");
     
-    // let p1 = position[0];
-    // let p2 = position[0];
-    // position.borrow_mut()[0].x = 8.0;
+    logger.info("-------");
+
+    let p1 = position[0];
+    let p2 = position[0];
+    position.borrow_mut()[0].x = 8.0;
+    position.borrow_mut()[3].x = 8.0;
     // logger.info(fmt!("{:#?}",position[0]));
     // logger.info(fmt!("{:#?}",position[0]));
     // logger.info(fmt!("{:#?}",position[0]));
     // logger.info(fmt!("{:#?}",position[0]));
     // logger.info(fmt!("{:#?}",position[0]));
-    // logger.info(fmt!("{:#?}",p1 == p2));
+    logger.info(fmt!("{:#?}",p1 == p2));
 
     // logger.info(fmt!("{:#?}",position.index(0)));
 
@@ -168,6 +175,5 @@ pub fn start() {
 
     // // logger.info(fmt!("{:#?}",map_impl!([],decrement,[1])));
     // logger.info(fmt!("{:#?}",vr2[1]));
-
 }
 
