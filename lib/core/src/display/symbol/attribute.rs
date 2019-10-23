@@ -20,6 +20,8 @@ use nalgebra::Vector4;
 use nalgebra::Matrix;
 use nalgebra::MatrixMN;
 
+use crate::closure;
+
 
 
 macro_rules! type_family { 
@@ -217,6 +219,11 @@ Extend<S> for Observable<T, OnSet, OnResize> {
     }
 }
 
+
+//////////////////////////////////////////////////////
+
+
+
 // =================
 // === Attribute ===
 // =================
@@ -241,50 +248,35 @@ pub trait SetDirtyCtx    <Callback> = dirty::RangeCtx<Callback>;
 pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx<Callback>;
 pub type  SetDirty       <Callback> = dirty::SharedRange<usize, Callback>;
 pub type  ResizeDirty    <Callback> = dirty::SharedBool<Callback>;
+
 pub type  Buffer <T, OnSet, OnResize> = Observable
-    < Vec           <T>
-    , OnSetDirty    <OnSet>
-    , OnResizeDirty <OnResize>
+    < Vec<T>
+    , Closure_buffer_on_set_handler    <OnSet>
+    , Closure_buffer_on_resize_handler <OnResize>
     >;
 
 // === Callbacks ===
 
-macro_rules! mk_callback_bind {
-    ($n:ident, $nn:ident, {$($arg:ident)*}) => { paste::item! {
+closure!(buffer_on_resize_handler<Callback: Callback0>
+    (dirty: ResizeDirty<Callback>) || { dirty.set() });
 
-        pub type [<On $n Dirty>] <Callback> = impl Fn($($arg)*);
-
-        fn [<on_ $nn _dirty>]<Callback> 
-        ( logger   : &Logger
-        , callback : Callback
-        ) -> ([<$n Dirty>]<Callback>, [<On $n Dirty>]<Callback>) 
-        where (): [<$n DirtyCtx>]<Callback> {  
-            let logger      = logger.sub(stringify!([<$nn _dirty>]));
-            let dirty       = [<$n Dirty>]::new(callback, logger);
-            let local_dirty = dirty.clone();
-            (dirty, move |$($arg)*| local_dirty.set($($arg)*))
-        }
-
-    }};
-}
-
-mk_callback_bind!(Resize , resize , {});
-mk_callback_bind!(Set    , set    , {usize});
+closure!(buffer_on_set_handler<Callback: Callback0>
+    (dirty: SetDirty<Callback>) |ix: usize| { dirty.set(ix) });
 
 // === Instances ===
 
 impl<T: Shape, OnSet: Callback0, OnResize: Callback0> 
 Attribute<T, OnSet, OnResize> {
     pub fn new_from
-    ( buffer    : Vec<T>
-    , logger    : Logger
-    , on_set    : OnSet
-    , on_resize : OnResize
-    ) -> Self {
+    (vec: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
         logger.info(fmt!("Creating new {} attribute.", T::type_debug_name()));
-        let (set_dirty    , on_set)    = on_set_dirty    (&logger, on_set);
-        let (resize_dirty , on_resize) = on_resize_dirty (&logger, on_resize);
-        let buffer = Buffer::new_from(buffer, on_set, on_resize);
+        let set_logger     = logger.sub("set_dirty");
+        let resize_logger  = logger.sub("resize_dirty");
+        let set_dirty      = SetDirty::new(on_set, set_logger);
+        let resize_dirty   = ResizeDirty::new(on_resize, resize_logger);
+        let buff_on_resize = buffer_on_resize_handler(resize_dirty.clone());
+        let buff_on_set    = buffer_on_set_handler(set_dirty.clone());
+        let buffer         = Buffer::new_from(vec, buff_on_set, buff_on_resize);
         Self { buffer, set_dirty, resize_dirty, logger }
     }
 
@@ -299,14 +291,16 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
-impl<T: Shape, OnSet, OnResize> Attribute<T, OnSet, OnResize> {
+impl<T: Shape, OnSet, OnResize> 
+Attribute<T, OnSet, OnResize> {
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
 }
 
 pub trait AddElementCtx = Shape + Clone;
-impl<T: AddElementCtx, OnSet, OnResize> Attribute<T, OnSet, OnResize> {
+impl<T: AddElementCtx, OnSet, OnResize> 
+Attribute<T, OnSet, OnResize> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
@@ -316,7 +310,8 @@ impl<T: AddElementCtx, OnSet, OnResize> Attribute<T, OnSet, OnResize> {
     }
 }
 
-impl<T: Shape> Attribute<T, NoCallback, NoCallback> {
+impl<T: Shape> 
+Attribute<T, NoCallback, NoCallback> {
     pub fn builder() -> Builder<T> {
         default()
     }
