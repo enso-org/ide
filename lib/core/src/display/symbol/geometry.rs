@@ -26,20 +26,20 @@ use paste;
 #[derivative(Debug(bound=""))]
 pub struct Geometry<OnDirty> {
     #[shrinkwrap(main_field)]
-    pub scopes       : Scopes <OnDirty>,
-    pub scopes_dirty : ScopesDirty  <OnDirty>,
+    pub scopes       : Scopes      <OnDirty>,
+    pub scopes_dirty : ScopesDirty <OnDirty>,
     pub logger       : Logger,
 }
 
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scopes<OnDirty> {
-    pub point     : AttributeScope     <OnDirty>,
-    pub vertex    : AttributeScope     <OnDirty>,
-    pub primitive : AttributeScope     <OnDirty>,
-    pub instance  : AttributeScope     <OnDirty>,
-    pub object    : UniformScope       <OnDirty>,
-    pub global    : SharedUniformScope <OnDirty>,
+    pub point     : AttributeScope <OnDirty>,
+    pub vertex    : AttributeScope <OnDirty>,
+    pub primitive : AttributeScope <OnDirty>,
+    pub instance  : AttributeScope <OnDirty>,
+    pub object    : UniformScope   <OnDirty>,
+    pub global    : GlobalScope    <OnDirty>,
 }
 
 #[derive(Derivative)]
@@ -56,10 +56,10 @@ pub struct ScopesDirtyStatus {
 
 // === Types ===
 
-pub type ScopesDirty        <Cb> = SharedCustom<ScopesDirtyStatus, Cb>;
-pub type AttributeScope     <Cb> = Scope<Closure_scope_on_change<Cb>>;
-pub type UniformScope       <Cb> = Scope<Closure_scope_on_change<Cb>>; // FIXME
-pub type SharedUniformScope <Cb> = Scope<Closure_scope_on_change<Cb>>; // FIXME
+pub type ScopesDirty    <Callback> = SharedCustom<ScopesDirtyStatus, Callback>;
+pub type AttributeScope <Callback> = Scope<Closure_scope_on_change<Callback>>;
+pub type UniformScope   <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
+pub type GlobalScope    <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
 
 // === Callbacks ===
 
