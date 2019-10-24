@@ -23,24 +23,24 @@ type Callback = Rc<RefCell<Option<Closure<dyn FnMut()>>>>;
 /// It is responsible for updating the system on every animation frame.
 #[derive(Debug)]
 pub struct World {
-    pub data:           Rc<RefCell<WorldData>>,
-    pub on_every_frame: Callback,
+    pub data     : Rc<RefCell<WorldData>>,
+    pub on_frame : Callback,
 }
 
 impl Default for World {
     fn default() -> Self {
-        let data                 = Rc::new(RefCell::new(WorldData::new()));
-        let on_every_frame       = Rc::new(RefCell::new(None));
-        let data_local           = data.clone();
-        let on_every_frame_local = on_every_frame.clone();
-        *on_every_frame.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        let data           = Rc::new(RefCell::new(WorldData::new()));
+        let on_frame       = Rc::new(RefCell::new(None));
+        let data_local     = data.clone();
+        let on_frame_local = on_frame.clone();
+        *on_frame.borrow_mut() = Some(Closure::wrap(Box::new(move || {
             let data_local = data_local.borrow();
             if data_local.started {
                 data_local.refresh();
-                Self::request_callback(&on_every_frame_local);
+                Self::request_callback(&on_frame_local);
             }
         }) as Box<dyn FnMut()>));
-        Self { data, on_every_frame }
+        Self { data, on_frame }
     }
 }
 
@@ -56,7 +56,7 @@ impl World {
     pub fn start(&self) {
         if !self.started() {
             self.data.borrow_mut().started = true;
-            Self::request_callback(&self.on_every_frame);
+            Self::request_callback(&self.on_frame);
         }
     }
 

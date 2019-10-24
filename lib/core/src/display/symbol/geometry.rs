@@ -64,8 +64,8 @@ pub type GlobalScope    <Callback> = Scope<Closure_scope_on_change<Callback>>; /
 // === Callbacks ===
 
 closure!(scope_on_change<Callback: Callback0>
-    (scopes_dirty: ScopesDirty<Callback>, action: fn(&mut ScopesDirtyStatus)) 
-        || { scopes_dirty.set(action) });
+    (dirty: ScopesDirty<Callback>, action: fn(&mut ScopesDirtyStatus)) 
+        || { dirty.set(action) });
 
 // === Implementation ===
 
