@@ -43,7 +43,7 @@ use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
 use crate::display::symbol::attribute;
 use crate::display::symbol::attribute::Attribute;
-use crate::display::symbol::geometry::Geo;
+use crate::display::symbol::geometry::Geometry;
 use nalgebra;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -124,7 +124,7 @@ pub fn start() {
     // point_scope.add("position", Attr::builder());
 
     let logger = Logger::new("geo1");
-    let mut geo1 = Geo::new(logger, ());
+    let mut geo1 = Geometry::new(logger, ());
 
     let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
     geo1.scopes.point.add_instance();
