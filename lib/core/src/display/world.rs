@@ -116,7 +116,7 @@ impl WorldData {
         self.workspaces.insert(|id| {
             logger.group(fmt!("Adding workspace {} ({}).", id, name), || {
                 dirty.set();
-                Workspace::new(id, name, logger, dirty).unwrap()
+                Workspace::new(name, logger.sub(id.to_string()), dirty).unwrap()
             })
         })
     }

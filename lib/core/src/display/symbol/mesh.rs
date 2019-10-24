@@ -41,8 +41,7 @@ pub type Geometry      <Callback> = geometry::Geometry
 // === Callbacks ===
 
 closure!(geometry_on_change<Callback: Callback0>
-    (dirty: GeometryDirty<Callback>) 
-        || { dirty.set() });
+    (dirty: GeometryDirty<Callback>) || { dirty.set() });
 
 // === Implementation ===
 

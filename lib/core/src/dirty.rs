@@ -4,6 +4,8 @@ use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use std::ops;
+use rustc_hash::FxHashSet;
+use std::hash::Hash;
 
 use crate::data::function::callback::*;
 
@@ -34,7 +36,7 @@ impl When for bool {
 }
 
 // =============================================================================
-// === Bool ==================================================================
+// === Bool ====================================================================
 // =============================================================================
 
 // ==============
@@ -112,9 +114,9 @@ impl<OnSet: Callback0> SharedBool<OnSet> {
     }
 }
 
-// =================================================================================================
-// === Range =======================================================================================
-// =================================================================================================
+// =============================================================================
+// === Range ===================================================================
+// =============================================================================
 
 // =============
 // === Range ===
@@ -212,6 +214,94 @@ impl<Ix, OnSet> SharedRange<Ix, OnSet> {
 impl<Ix: RangeIx, OnSet> SharedRange<Ix, OnSet> where Self: RangeCtx<OnSet> {
     pub fn set(&self, ix: Ix) {
         self.data.borrow_mut().set(ix);
+    }
+}
+
+// =============================================================================
+// === Set =====================================================================
+// =============================================================================
+
+// ===========
+// === Set ===
+// ===========
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = "Item:Debug"))]
+pub struct Set<Item, OnSet = NoCallback> where (): SetCtx<Item, OnSet> {
+    pub set    : FxHashSet<Item>,
+    pub on_set : Callback<OnSet>,
+    pub logger : Logger,
+}
+
+pub trait SetCtx<Item, OnSet> = where 
+    Item  : Eq + Hash + Debug,
+    OnSet : Callback0;
+
+// === API ===
+
+impl<Item, OnSet> Set<Item, OnSet> where (): SetCtx<Item, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let set = default();
+        Self { set, on_set, logger }
+    }
+}
+
+impl<Item, OnSet> Set<Item, OnSet> where (): SetCtx<Item, OnSet> {
+    pub fn set(&mut self, item: Item) {
+        if !self.set.contains(&item) {
+            group!(self.logger, format!("Setting dirty item {:?}.", item), {
+                if !self.is_set() {
+                    self.on_set.call();
+                }
+                self.set.insert(item);
+            })
+        }
+    }
+}
+
+impl<Item, OnSet> DirtyCheck for Set<Item, OnSet> 
+where (): SetCtx<Item, OnSet> {
+    fn is_set(&self) -> bool {
+        !self.set.is_empty()
+    }
+}
+
+// =================
+// === SharedSet ===
+// =================
+
+// === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound = "Item:Debug"))]
+pub struct SharedSet<Item, OnSet = NoCallback> where (): SetCtx<Item, OnSet> {
+    pub data: Rc<RefCell<Set<Item, OnSet>>>,
+}
+
+// === API ===
+
+impl<Item, OnSet> SharedSet<Item, OnSet> where (): SetCtx<Item, OnSet> {
+    pub fn new(on_set: OnSet, logger: Logger) -> Self {
+        Self::new_raw(Callback(on_set), logger)
+    }
+
+    pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
+        let base = Set::new_raw(on_set, logger);
+        let data = Rc::new(RefCell::new(base));
+        Self { data }
+    }
+}
+
+impl<Item, OnSet> SharedSet<Item, OnSet> where (): SetCtx<Item, OnSet> {
+    pub fn set(&self, item: Item) {
+        self.data.borrow_mut().set(item);
     }
 }
 
