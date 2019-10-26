@@ -279,6 +279,7 @@ mod example_02 {
     use crate::display::shape::text::TextComponentBuilder;
     use crate::display::shape::text::TextComponentProperties;
 
+
     #[wasm_bindgen]
     #[allow(dead_code)]
     pub fn run_example_text() {
@@ -354,6 +355,93 @@ mod example_02 {
             editor.scroll(Vector2::new(0.0, -0.01));
         }
         world.workspace_dirty.set(workspace_id);
+    }
+}
+
+// ==================
+// === Example 04 ===
+// ==================
+mod example_04 {
+    use wasm_bindgen::prelude::*;
+    use basegl_system_web::keyboard_engine::KeyboardEngine;
+    use basegl_system_web::{window};
+    use web_sys::KeyEvent;
+
+    #[wasm_bindgen(start)]
+    pub fn run_example_keyboard_management() {
+        init_keyboard_engine();
+    }
+
+    /// Init keyboard handlers on Window with the specific combinations
+    ///
+    /// Combinations:
+    ///  - a
+    ///  - Shift-a
+    ///  - Control-Shift-a
+    ///  - Control-Space
+    ///  - Alt-Space
+    fn init_keyboard_engine() {
+        let keyboard_engine = KeyboardEngine::new(&window().unwrap());
+        let handle1 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_A
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Key pressed: a".into());
+            })
+        );
+        std::mem::forget(handle1);
+        let handle2 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_A,
+                KeyEvent::DOM_VK_SHIFT
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Key pressed: Shift-a".into());
+            })
+        );
+        std::mem::forget(handle2);
+        let handle3 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_A,
+                KeyEvent::DOM_VK_SHIFT,
+                KeyEvent::DOM_VK_CONTROL
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Key pressed: Control-Shift-a".into());
+            })
+        );
+        std::mem::forget(handle3);
+        let handle4 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_SPACE,
+                KeyEvent::DOM_VK_CONTROL
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Key pressed: Control-Space".into());
+            })
+        );
+        std::mem::forget(handle4);
+        let handle5 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_SPACE,
+                KeyEvent::DOM_VK_ALT
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Key pressed: Alt-Space".into());
+            })
+        );
+        std::mem::forget(handle5);
+        let handle6 = keyboard_engine.capture(
+            vec![
+                KeyEvent::DOM_VK_SPACE,
+                KeyEvent::DOM_VK_ALT
+            ],
+            Box::new(|| {
+                web_sys::console::log_1(&"Roger that! Key pressed: Alt-Space".into());
+            })
+        );
+        std::mem::forget(handle6);
     }
 }
 

@@ -1,5 +1,6 @@
 #![feature(trait_alias)]
 
+pub mod keyboard_engine;
 pub mod resize_observer;
 pub mod animation_frame_loop;
 

@@ -14,6 +14,7 @@ basegl-prelude = { version = "0.1.0"  , path = "../../prelude" }
 js-sys         = { version = "0.3.28" }
 wasm-bindgen   = { version = "^0.2"   , features = ["nightly"] }
 failure        = { version = "0.1.5"  }
+bigint         = { version = "4.4.1" }
 
 console_error_panic_hook = { version = "0.1.1", optional = true }
 
@@ -26,6 +27,12 @@ features = [
   'HtmlElement',
   'HtmlCollection',
   'CssStyleDeclaration',
+  'Event',
+  'EventTarget',
+  'KeyEvent',
+  'KeyboardEvent',
+  'KeyboardEventInit',
+  'Node',
   'HtmlCanvasElement',
   'WebGlBuffer',
   'WebGlRenderingContext',
@@ -38,4 +45,6 @@ features = [
 ]
 
 [dev-dependencies]
-wasm-bindgen-test = "0.2"
+wasm-bindgen-test = "0.3.4"
+wasm-bindgen-futures = "0.4.4"
+futures = "0.3.1"

@@ -82,3 +82,7 @@ this repository:
 #### Linting 
 Please be sure to fix all errors reported by `scripts/lint.sh` before creating a
 pull request to this repository.
+
+#### Testing
+
+`wasm-pack test --chrome --headless`
