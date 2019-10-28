@@ -4,11 +4,17 @@ use crate::dirty;
 use crate::backend::webgl;
 use crate::dirty::SharedSimple;
 use crate::system::web;
+use crate::system::web::group;
 use crate::system::web::fmt;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::Logger;
 use wasm_bindgen::prelude::Closure;
 use web_sys::WebGlRenderingContext;
+use crate::closure;
+use crate::data::function::callback::*;
+use crate::display::mesh_registry;
+
+pub use crate::display::mesh_registry::MeshID;
 
 // =============
 // === Error ===
@@ -30,44 +36,112 @@ pub type ID = usize;
 // === Workspace ===
 // =================
 
-#[derive(Debug, Shrinkwrap)]
-pub struct Workspace {
+#[derive(Shrinkwrap)]
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct Workspace<OnDirty> {
     #[shrinkwrap(main_field)]
-    pub data: Rc<WorkspaceData>,
+    // pub data: Rc<WorkspaceData>,
+    pub canvas:  web_sys::HtmlCanvasElement,
+    pub context: WebGlRenderingContext,
+    pub mesh_registry       : MeshRegistry<OnDirty>,
+    pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>, 
+    pub shape_dirty         : ShapeDirty<OnDirty>,
+    pub logger:  Logger,
     pub listeners: Listeners,
 }
+
+#[derive(Default)]
+#[derive(Debug)]
+pub struct WorkspaceShape {
+    pub width  : i32,
+    pub height : i32,
+}
+
+pub type WorkspaceShapeDirtyState = WorkspaceShape;
+
+// === Types ===
+
+pub type ShapeDirty        <Callback> = dirty::SharedCustom<WorkspaceShapeDirtyState, Callback>;
+pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
+
+pub type Mesh           <Callback> = mesh_registry::Mesh           <Closure_mesh_registry_on_dirty<Callback>>;
+pub type Geometry       <Callback> = mesh_registry::Geometry       <Closure_mesh_registry_on_dirty<Callback>>;
+pub type Scopes         <Callback> = mesh_registry::Scopes         <Closure_mesh_registry_on_dirty<Callback>>;
+pub type AttributeScope <Callback> = mesh_registry::AttributeScope <Closure_mesh_registry_on_dirty<Callback>>;
+pub type UniformScope   <Callback> = mesh_registry::UniformScope   <Closure_mesh_registry_on_dirty<Callback>>;
+pub type GlobalScope    <Callback> = mesh_registry::GlobalScope    <Closure_mesh_registry_on_dirty<Callback>>;
+pub type Attribute   <T, Callback> = mesh_registry::Attribute   <T, Closure_mesh_registry_on_dirty<Callback>>;
+pub type MeshRegistry   <Callback> = mesh_registry::MeshRegistry   <Closure_mesh_registry_on_dirty<Callback>>;
+
+// === Callbacks ===
+
+closure!(mesh_registry_on_dirty<Callback: Callback0>
+    (dirty: MeshRegistryDirty<Callback>) || { dirty.set() });
+
+// === Implementation ===
 
 #[derive(Debug)]
 pub struct Listeners {
     resize: ResizeObserver,
 }
 
-impl Workspace {
-    pub fn new(
-        dom: &str,
-        logger: Logger,
-        sup_dirty: &SharedSimple,
-    ) -> Result<Self, Error>
-    {
-        let data = Rc::new(WorkspaceData::new(dom, logger, sup_dirty)?);
-        let listeners = Self::new_listeners(&data);
-        data.logger.trace("Initialized.");
-        Ok(Self { data, listeners })
+impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
+    pub fn new
+    (dom: &str, logger: Logger, on_dirty: OnDirty) -> Result<Self, Error> {
+        logger.trace("Initializing.");
+        let canvas = web::get_canvas(dom)?;
+        let context = web::get_webgl_context(&canvas, 1)?;
+
+        let shape_dirty_logger = logger.sub("shape_dirty");
+        let shape_dirty        = ShapeDirty::new(on_dirty.clone(), shape_dirty_logger);
+
+        let mesh_registry_dirty_logger = logger.sub("mesh_registry_dirty");
+        let mesh_registry_dirty = MeshRegistryDirty::new(on_dirty, mesh_registry_dirty_logger);
+
+        let mesh_registry_on_dirty = mesh_registry_on_dirty(mesh_registry_dirty.clone());
+        let mesh_registry_logger = logger.sub("mesh_registry");
+        let mesh_registry        = MeshRegistry::new(mesh_registry_logger, mesh_registry_on_dirty);
+
+        let listeners = Self::new_listeners(&canvas, &shape_dirty);
+        Ok(Self { canvas, context, mesh_registry, mesh_registry_dirty, shape_dirty, logger, listeners })
     }
 
-    pub fn new_listeners(data: &Rc<WorkspaceData>) -> Listeners {
-        let data_weak = Rc::downgrade(&data);
-        let resize = Closure::new(move |width, height| {
-            data_weak.upgrade().map(|data| data.resize(width, height));
+    pub fn new_listeners(canvas: &web_sys::HtmlCanvasElement, dirty: &ShapeDirty<OnDirty>) -> Listeners {
+        let dirty = dirty.clone();
+        let on_resize = Closure::new(move |width, height| {
+            dirty.set_to(WorkspaceShape { width, height });
         });
-        let resize = ResizeObserver::new(&data.canvas, resize);
+        let resize = ResizeObserver::new(canvas, on_resize);
         Listeners { resize }
     }
 
+    pub fn new_mesh(&mut self) -> MeshID {
+        self.mesh_registry.new_mesh()
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.shape_dirty.is_set()
+    }
+
+    fn resize_canvas(&self, shape: &WorkspaceShape) {
+        let width  = shape.width;
+        let height = shape.height;
+        self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
+            self.canvas.set_attribute("width", &width.to_string()).unwrap();
+            self.canvas.set_attribute("height", &height.to_string()).unwrap();
+            self.context.viewport(0, 0, width, height);
+        });
+    }
+
     pub fn refresh(&self) {
-        if self.dirty.is_set() {
-            self.logger.group("Refresh.", || {
-                self.dirty.unset();
+        if self.is_dirty() {
+            group!(self.logger, "Refresh.", {
+                if self.shape_dirty.is_set() {
+                    self.resize_canvas(&self.shape_dirty.data());
+                    self.shape_dirty.unset();
+                }
+            
                 let vert_shader = webgl::compile_shader(
                     &self.context,
                     webgl::Context::VERTEX_SHADER,
@@ -130,43 +204,86 @@ impl Workspace {
                 self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
 
                 self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
-            });
+    })
         }
     }
 }
 
-// =====================
-// === WorkspaceData ===
-// =====================
 
-#[derive(Debug)]
-pub struct WorkspaceData {
-    pub canvas:  web_sys::HtmlCanvasElement,
-    pub context: WebGlRenderingContext,
-    pub logger:  Logger,
-    pub dirty:   SharedSimple,
-}
-
-impl WorkspaceData {
-    pub fn new(
-        dom: &str,
-        logger: Logger,
-        sup_dirty: &SharedSimple,
-    ) -> Result<Self, Error>
-    {
-        logger.trace("Initializing.");
-        let canvas = web::get_canvas(dom)?;
-        let context = web::get_webgl_context(&canvas, 1)?;
-        let dirty = sup_dirty.new_child(&logger);
-        Ok(Self { canvas, context, logger, dirty })
-    }
-
-    pub fn resize(&self, width: i32, height: i32) {
-        self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
-            self.canvas.set_attribute("width", &width.to_string()).unwrap();
-            self.canvas.set_attribute("height", &height.to_string()).unwrap();
-            self.context.viewport(0, 0, width, height);
-            self.dirty.set();
-        });
+impl<OnDirty> Index<usize> for Workspace<OnDirty> {
+    type Output = Mesh<OnDirty>;
+    fn index(&self, ix: usize) -> &Self::Output {
+        self.mesh_registry.index(ix)
     }
 }
+
+impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
+    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
+        self.mesh_registry.index_mut(ix)
+    }
+}
+
+
+
+// // =====================
+// // === WorkspaceData ===
+// // =====================
+
+// // === Definition ===
+
+// #[derive(Debug)]
+// pub struct WorkspaceData<OnDirty> {
+//     pub canvas:  web_sys::HtmlCanvasElement,
+//     pub context: WebGlRenderingContext,
+//     pub shape_dirty : ShapeDirty<OnDirty>,
+//     pub logger:  Logger,
+//     pub dirty:   SharedSimple,
+// }
+
+// #[derive(Default)]
+// pub struct WorkspaceShape {
+//     pub width  : f32,
+//     pub height : f32,
+// }
+
+// pub type WorkspaceShapeDirtyState = WorkspaceShape;
+
+// // === Types ===
+
+// pub type ShapeDirty <Callback> = dirty::SharedCustom<WorkspaceShapeDirtyState, Callback>;
+
+// // === Callbacks ===
+
+// // closure!(shape_on_change<Callback: Callback0>
+// //     (dirty: ShapeDirty<Callback>, action: fn(&mut WorkspaceShapeDirtyState)) 
+// //         || { dirty.set(action) });
+
+// // === Implementation ===
+
+// impl<OnDirty> WorkspaceData<OnDirty> {
+//     pub fn new(
+//         dom: &str,
+//         logger: Logger,
+//         sup_dirty: &SharedSimple,
+//         on_dirty: OnDirty,
+//     ) -> Result<Self, Error>
+//     {
+//         logger.trace("Initializing.");
+//         let canvas = web::get_canvas(dom)?;
+//         let context = web::get_webgl_context(&canvas, 1)?;
+//         let dirty = sup_dirty.new_child(&logger);
+
+//         let shape_dirty_logger = logger.sub("shape_dirty");
+//         let shape_dirty        = ShapeDirty::new(on_dirty, shape_dirty_logger);
+//         Ok(Self { canvas, context, shape_dirty, logger, dirty })
+//     }
+
+//     pub fn resize(&self, width: i32, height: i32) {
+//         self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
+//             self.canvas.set_attribute("width", &width.to_string()).unwrap();
+//             self.canvas.set_attribute("height", &height.to_string()).unwrap();
+//             self.context.viewport(0, 0, width, height);
+//             self.dirty.set();
+//         });
+//     }
+// }

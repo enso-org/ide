@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::rc::Rc;
+use std::rc::Weak;
 
 // ==============
 // === Shared ===
@@ -36,6 +37,10 @@ impl <T> Shared<T> {
 
     pub fn as_ptr(&self) -> *mut T {
         self.v.as_ptr()
+    }
+
+    pub fn downgrade(&self) -> WeakShared<T> {
+        WeakShared { raw: Rc::downgrade(&self.v) }
     }
 }
 
@@ -69,6 +74,28 @@ impl <T> DerefMut for Shared<T> {
     }
 }
 
+
+
+// ==================
+// === WeakShared ===
+// ==================
+
+pub struct WeakShared<T> {
+    raw: Weak<RefCell<T>>
+}
+
+impl<T> WeakShared<T> {
+    pub fn upgrade(&self) -> Option<Shared<T>> {
+        let opt_raw = self.raw.upgrade();
+        opt_raw.map(|v| Shared { v })
+    }
+}
+
+impl <T: fmt::Debug> fmt::Debug for WeakShared<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.deref())
+    }
+}
 
 // fn split (s: Shared<String>) -> Vec<String> {
 //     s.split_whitespace().map(|s| s.to_string()).collect()

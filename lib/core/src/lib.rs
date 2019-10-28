@@ -5,6 +5,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(proc_macro_hygiene)]
 #![feature(specialization)]
+#![feature(weak_into_raw)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -32,7 +33,7 @@ pub mod tp;
 // === Main ===
 // ============
 
-use display::world::World;
+use display::world::*;
 use wasm_bindgen::prelude::*;
 
 use display::symbol::attribute::SharedAttribute;
@@ -42,9 +43,8 @@ use system::web::fmt;
 use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
 use crate::display::symbol::attribute;
-use crate::display::symbol::attribute::Attribute;
-use crate::display::symbol::geometry::Geometry;
-use crate::display::symbol::mesh::Mesh;
+use crate::display::symbol::geometry;
+use crate::display::symbol::mesh;
 use nalgebra;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -52,6 +52,7 @@ use nalgebra::Vector4;
 use nalgebra::Matrix;
 use nalgebra::base::dimension::U1;
 use nalgebra::base::dimension::U2;
+use prelude::*;
 
 
 macro_rules! map {
@@ -105,14 +106,24 @@ pub fn test<'t>(vp:&'t[f32]) -> &'t [Vector3<f32>] {
 
 
 use std::ops::Index;
-
-
+use rustc_hash::FxHashSet;
+use std::collections::HashSet;
+use crate::display::mesh_registry::MeshRegistry;
 
 #[wasm_bindgen(start)]
 pub fn start() {
-    let world = World::new();
-    world.add_workspace("canvas");
-    world.start();
+    let logger = Logger::new("root");
+
+    let world        : World               = World::new();
+    let workspace_id : WorkspaceID         = world.add_workspace("canvas");
+    let workspace    : &mut Workspace      = &mut world.data.borrow_mut()[workspace_id];
+    let mesh_id      : MeshID              = workspace.new_mesh();
+    let mesh         : &mut Mesh           = &mut workspace[mesh_id];
+    let geo          : &mut Geometry       = &mut mesh.geometry;
+    let scopes       : &mut Scopes         = &mut geo.scopes;
+    let pointScope   : &mut AttributeScope = &mut scopes.point;
+    let position     : Attribute<Vector2<f32>> = pointScope.add_attribute("position", Attribute::builder());
+
 
 //    let logger = Logger::new("test");
 //
@@ -123,15 +134,20 @@ pub fn start() {
     // let logger = Logger::new("point");
     // let mut point_scope: Scope = Scope::new(logger,());
     // point_scope.add("position", Attr::builder());
+    let logger = Logger::new("mesh_registry");
+
+
+    let mut mesh_registry = MeshRegistry::new(logger, ());
+    let mesh1_ix = mesh_registry.new_mesh();
 
     let logger = Logger::new("mesh1");
-    let mut mesh1 = Mesh::new(logger, ());
+    let mut mesh1 = mesh::Mesh::new(logger, ());
 
     // let logger = Logger::new("geo1");
     // let mut geo1 = Geometry::new(logger, ());
     let geo1 = &mut mesh1.geometry;
 
-    let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", Attribute::builder());
+    let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", attribute::Attribute::builder());
     geo1.scopes.point.add_instance();
     geo1.scopes.point.add_instance();
     geo1.scopes.point.add_instance();
@@ -143,6 +159,8 @@ pub fn start() {
 
 
     let logger = Logger::new("root");
+
+    
 
     let a = 1;
     let b = 2;
@@ -157,6 +175,14 @@ pub fn start() {
     
     logger.info("-------");
 
+    let rc1 = Rc::new("foo".to_string());
+    let rc1w1 = Rc::downgrade(&rc1);
+    let rc1w2 = rc1w1.clone();
+
+    logger.info(fmt!("{}",rc1w1.ptr_eq(&rc1w2)));
+ 
+
+    // let hs: FxHashSet<Weak<i32>> = default();
     let p1 = position[0];
     let p2 = position[0];
     position.borrow_mut()[0].x = 8.0;

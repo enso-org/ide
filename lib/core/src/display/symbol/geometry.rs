@@ -60,6 +60,8 @@ pub type ScopesDirty    <Callback> = SharedCustom<ScopesDirtyStatus, Callback>;
 pub type AttributeScope <Callback> = Scope<Closure_scope_on_change<Callback>>;
 pub type UniformScope   <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
 pub type GlobalScope    <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
+pub type AnyAttribute   <Callback> = scope::AnyAttribute<Closure_scope_on_change<Callback>>;
+pub type Attribute      <T, Callback> = scope::Attribute<T, Closure_scope_on_change<Callback>>;
 
 // === Callbacks ===
 

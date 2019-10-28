@@ -345,6 +345,10 @@ impl<T: Shape, OnSet: Callback0, OnResize: Callback0> SharedAttribute<T, OnSet, 
         let data = Shared::new(Attribute::build(builder, on_set, on_resize));
         Self { data }
     }
+
+    pub fn builder() -> Builder<T> {
+        default()
+    }
 }
 
 impl<T: Shape, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {

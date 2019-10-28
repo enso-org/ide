@@ -229,7 +229,7 @@ impl<Ix: RangeIx, OnSet> SharedRange<Ix, OnSet> where Self: RangeCtx<OnSet> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "Item:Debug"))]
-pub struct Set<Item, OnSet = NoCallback> where (): SetCtx<Item, OnSet> {
+pub struct Set<Item: Eq + Hash + Debug, OnSet = NoCallback> {
     pub set    : FxHashSet<Item>,
     pub on_set : Callback<OnSet>,
     pub logger : Logger,
@@ -255,13 +255,18 @@ impl<Item, OnSet> Set<Item, OnSet> where (): SetCtx<Item, OnSet> {
 impl<Item, OnSet> Set<Item, OnSet> where (): SetCtx<Item, OnSet> {
     pub fn set(&mut self, item: Item) {
         if !self.set.contains(&item) {
-            group!(self.logger, format!("Setting dirty item {:?}.", item), {
+            group!(self.logger, format!("Setting item {:?}.", item), {
                 if !self.is_set() {
                     self.on_set.call();
                 }
                 self.set.insert(item);
             })
         }
+    }
+
+    pub fn unset(&mut self) {
+        self.logger.info("Unsetting.");
+        self.set.clear()
     }
 }
 
@@ -281,7 +286,7 @@ where (): SetCtx<Item, OnSet> {
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 #[derivative(Debug(bound = "Item:Debug"))]
-pub struct SharedSet<Item, OnSet = NoCallback> where (): SetCtx<Item, OnSet> {
+pub struct SharedSet<Item: Eq + Hash + Debug, OnSet = NoCallback> {
     pub data: Rc<RefCell<Set<Item, OnSet>>>,
 }
 
@@ -302,6 +307,14 @@ impl<Item, OnSet> SharedSet<Item, OnSet> where (): SetCtx<Item, OnSet> {
 impl<Item, OnSet> SharedSet<Item, OnSet> where (): SetCtx<Item, OnSet> {
     pub fn set(&self, item: Item) {
         self.data.borrow_mut().set(item);
+    }
+
+    pub fn is_set(&self) -> bool {
+        self.data.borrow().is_set()
+    }
+
+    pub fn unset(&self) {
+        self.data.borrow_mut().unset()
     }
 }
 
@@ -473,7 +486,7 @@ impl<T: Default, OnSet> Custom<T, OnSet> {
     }
 }
 
-impl<T, OnSet: Callback0> Custom<T, OnSet> {
+impl<T: Default, OnSet: Callback0> Custom<T, OnSet> {
     pub fn set(&mut self, f: fn(&mut T)) {
         group!(self.logger, "Setting.", {
             if !self.is_dirty {
@@ -482,6 +495,22 @@ impl<T, OnSet: Callback0> Custom<T, OnSet> {
             }
             f(&mut self.data);
         })
+    }
+
+    pub fn set_to(&mut self, t: T) {
+        group!(self.logger, "Setting.", {
+            if !self.is_dirty {
+                self.on_set.call();
+                self.is_dirty = true;
+            }
+            self.data = t;
+        })
+    }
+
+    pub fn unset(&mut self) {
+        self.logger.info("Unsetting.");
+        self.data     = default();
+        self.is_dirty = false;
     }
 }
 
@@ -501,7 +530,7 @@ impl<T, OnSet> DirtyCheck for Custom<T, OnSet> {
 #[derivative(Clone(bound = ""))]
 #[derivative(Debug(bound="T:Debug"))]
 pub struct SharedCustom<T = u32, OnSet = NoCallback> {
-    pub data: Rc<RefCell<Custom<T, OnSet>>>,
+    pub data_ref: Rc<RefCell<Custom<T, OnSet>>>,
 }
 
 // === API ===
@@ -512,15 +541,40 @@ impl<T: Default, OnSet> SharedCustom<T, OnSet> {
     }
 
     pub fn new_raw(on_set: Callback<OnSet>, logger: Logger) -> Self {
-        let base = Custom::new(on_set, logger);
-        let data = Rc::new(RefCell::new(base));
-        Self { data }
+        let base     = Custom::new(on_set, logger);
+        let data_ref = Rc::new(RefCell::new(base));
+        Self { data_ref }
     }
 }
 
-impl<T, OnSet: Callback0> SharedCustom<T, OnSet> {
+impl<T: Default, OnSet: Callback0> SharedCustom<T, OnSet> {
     pub fn set(&self, f: fn(&mut T)) {
-        self.data.borrow_mut().set(f);
+        self.data_ref.borrow_mut().set(f);
+    }
+
+    pub fn set_to(&self, t: T) {
+        self.data_ref.borrow_mut().set_to(t);
+    }
+
+    pub fn is_set(&self) -> bool {
+        self.data_ref.borrow().is_set()
+    }
+
+    pub fn unset(&self) {
+        self.data_ref.borrow_mut().unset()
+    }
+
+    pub fn data(&self) -> SharedCustomDataGuard<'_, T, OnSet> {
+        SharedCustomDataGuard(self.data_ref.borrow())
+    }
+}
+
+pub struct SharedCustomDataGuard<'t, T, OnSet> (Ref<'t, Custom<T, OnSet>>);
+
+impl<'t, T, OnSet> Deref for SharedCustomDataGuard<'t, T, OnSet> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0.data
     }
 }
 
@@ -604,6 +658,7 @@ impl Simple {
     }
 
     pub fn unset(&mut self) {
+        self.logger.info("Unsetting.");
         self.change(false)
     }
 }

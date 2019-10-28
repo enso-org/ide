@@ -88,7 +88,9 @@ impl Logger {
     }
 
     pub fn info<M: LogMsg>(&self, msg: M) {
-        console::info_1(&self.format(msg));
+        // console::info_1(&self.format(msg));
+        console::group_1(&self.format(msg));
+        console::group_end();
     }
 
     pub fn warning<M: LogMsg>(&self, msg: M) {

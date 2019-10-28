@@ -10,6 +10,8 @@ use crate::display::symbol::geometry;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
+use crate::data::shared::Shared;
+use crate::data::shared::WeakShared;
 use std::slice::SliceIndex;
 use crate::closure;
 use paste;
@@ -34,9 +36,13 @@ pub struct Mesh<OnDirty> {
 
 // === Types ===
 
-pub type GeometryDirty <Callback> = SharedBool<Callback>;
-pub type Geometry      <Callback> = geometry::Geometry
-    <Closure_geometry_on_change<Callback>>;
+pub type GeometryDirty  <Callback> = SharedBool<Callback>;
+pub type Geometry       <Callback> = geometry::Geometry       <Closure_geometry_on_change<Callback>>;
+pub type Scopes         <Callback> = geometry::Scopes         <Closure_geometry_on_change<Callback>>;
+pub type AttributeScope <Callback> = geometry::AttributeScope <Closure_geometry_on_change<Callback>>;
+pub type UniformScope   <Callback> = geometry::UniformScope   <Closure_geometry_on_change<Callback>>;
+pub type GlobalScope    <Callback> = geometry::GlobalScope    <Closure_geometry_on_change<Callback>>;
+pub type Attribute      <T, Callback> = geometry::Attribute<T, Closure_geometry_on_change<Callback>>;
 
 // === Callbacks ===
 
@@ -57,5 +63,21 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
     }
 }
 
+// ==================
+// === SharedMesh ===
+// ==================
 
+#[derive(Shrinkwrap)]
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct SharedMesh<OnDirty> {
+    pub raw: RefCell<Mesh<OnDirty>>
+}
+
+impl<OnDirty: Callback0> SharedMesh<OnDirty> {
+    pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
+        let raw = RefCell::new(Mesh::new(logger, on_dirty));
+        Self { raw }
+    }
+}
 
