@@ -5,11 +5,25 @@ use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
 use crate::display::symbol::attribute::IsAttribute;
 use crate::display::symbol::attribute::Shape;
-use crate::display::symbol::attribute::SharedAttribute;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::closure;
+use crate::data::opt_vec::OptVec;
+
+#[derive(Derivative)]
+#[derivative(Debug(bound="Ix: Debug"))]
+pub struct TypedIndex<Ix, T> { 
+    pub ix  : Ix,
+    phantom : PhantomData<T>
+}
+
+impl<Ix, T> TypedIndex<Ix, T> {
+    pub fn unsafe_new(ix: Ix) -> Self {
+        let phantom = PhantomData;
+        Self { ix, phantom }
+    }
+}
 
 // =============
 // === Scope ===
@@ -20,21 +34,23 @@ use crate::closure;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scope <OnDirty> {
-    pub attributes      : Vec<AnyAttribute<OnDirty>>,
+    pub attributes      : OptVec<AnyAttribute<OnDirty>>,
     pub attribute_dirty : AttributeDirty<OnDirty>,
     pub shape_dirty     : ShapeDirty<OnDirty>,
-    pub name_map        : HashMap <AttributeName, AttributeIndex>,
+    pub name_map        : HashMap <AttributeName, AnyAttributeIndex>,
     pub logger          : Logger,
 }
 
 // === Types ===
 
-pub type AttributeName            = String;
-pub type AttributeIndex           = usize;
-pub type AttributeDirty <OnDirty> = dirty::SharedBitField<u64, OnDirty>;
-pub type ShapeDirty     <OnDirty> = dirty::SharedBool<OnDirty>;
 
-pub type Attribute<T, OnDirty> = attr::SharedAttribute
+pub type AnyAttributeIndex           = usize;
+pub type AttributeIndex <T, OnDirty> = TypedIndex<usize, Attribute<T, OnDirty>>;
+pub type AttributeName               = String;
+pub type AttributeDirty <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
+pub type ShapeDirty     <OnDirty>    = dirty::SharedBool<OnDirty>;
+
+pub type Attribute<T, OnDirty> = attr::Attribute
     < T
     , Closure_attribute_on_set_handler<OnDirty>
     , Closure_attribute_on_resize_handler<OnDirty>
@@ -48,11 +64,10 @@ pub type AnyAttribute<OnDirty> = attr::AnyAttribute
 // === Callbacks ===
 
 closure!(attribute_on_set_handler<Callback: Callback0>
-    (dirty: AttributeDirty<Callback>, ix: AttributeIndex) || { dirty.set(ix) });
+    (dirty: AttributeDirty<Callback>, ix: usize) || { dirty.set(ix) });
 
 closure!(attribute_on_resize_handler<Callback: Callback0>
     (dirty: ShapeDirty<Callback>) || { dirty.set() });
-
 
 // === Implementation ===
 
@@ -64,7 +79,7 @@ impl<OnDirty: Clone> Scope<OnDirty> {
         let shape_logger    = logger.sub("shape_dirty");
         let attribute_dirty = AttributeDirty::new(on_dirty2, attr_logger);
         let shape_dirty     = ShapeDirty::new(on_dirty, shape_logger);
-        let attributes      = Vec::new();
+        let attributes      = default();
         let name_map        = default();
         Self { attributes, attribute_dirty, shape_dirty, name_map, logger }
     }
@@ -75,31 +90,70 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
     ( &mut self
     , name: Name
     , bldr: attr::Builder<T>
-    ) -> Attribute<T, OnDirty>
+    ) -> AttributeIndex<T, OnDirty>
     where AnyAttribute<OnDirty>: From<Attribute<T, OnDirty>> {
-        let name = name.as_ref().to_string();
-        let bldr = bldr.logger(self.logger.sub(&name));
-        let ix   = self.attributes.len();
-        let msg  = || format!("Adding attribute '{}' at index {}.", name, ix);
-        group!(self.logger, msg(), {
-            let attr_dirty  = self.attribute_dirty.clone();
-            let shape_dirty = self.shape_dirty.clone();
-            let on_set      = attribute_on_set_handler(attr_dirty, ix);
-            let on_resize   = attribute_on_resize_handler(shape_dirty);
-            let attr        = Attribute::build(bldr, on_set, on_resize);
-            let any_attr    = AnyAttribute::from(attr.clone_ref());
-            self.attributes.push(any_attr);
-            self.name_map.insert(name, ix);
-            self.shape_dirty.set();
-            attr
-        })
+        let ix = self._add_attribute(name, bldr);
+        AttributeIndex::<T, OnDirty>::unsafe_new(ix)
+    }
+
+    fn _add_attribute<Name: Str, T: Shape>
+    (&mut self, name: Name, bldr: attr::Builder<T>) -> AnyAttributeIndex
+    where AnyAttribute<OnDirty>: From<Attribute<T, OnDirty>> {
+        let name        = name.as_ref().to_string();
+        let bldr        = bldr.logger(self.logger.sub(&name));
+        let ix          = self.attributes.len();
+        let attr_dirty  = self.attribute_dirty.clone();
+        let shape_dirty = self.shape_dirty.clone();
+        let logger      = &self.logger;
+        let ix          = self.attributes.insert_with_ix(|ix| {
+            group!(logger, format!("Adding attribute '{}' at index {}.", name, ix), {
+                let on_set    = attribute_on_set_handler(attr_dirty, ix);
+                let on_resize = attribute_on_resize_handler(shape_dirty);
+                let attr      = Attribute::build(bldr, on_set, on_resize);
+                AnyAttribute::from(attr)
+            })
+        });
+        self.name_map.insert(name, ix);   
+        self.shape_dirty.set();
+        ix
     }
 
     pub fn add_instance(&mut self) {
-        self.attributes.iter_mut().for_each(|attr| attr.add_element());
-        let max_size = self.attributes.iter().fold(0, |s, t| s + t.len());
-        // self.logger.info("!!!");
-        // self.logger.info(fmt!("{}", max_size));
+        // self.attributes.iter_mut().for_each(|attr| attr.add_element());
+        // let max_size = self.attributes.iter().fold(0, |s, t| s + t.len());
+        unimplemented!()
     }
 }
 
+
+// impl<T, OnDirty> Index<AttributeIndex<T, OnDirty>> for Scope<OnDirty> {
+//     type Output = Attribute<T, OnDirty>;
+//     fn index(&self, ix: AttributeIndex<T, OnDirty>) -> &Self::Output {
+//         unimplemented!()
+//         // self.attributes.index(ix)
+//     }
+// }
+
+impl<T, OnDirty> 
+Index<TypedIndex<usize, T>> for Scope<OnDirty> 
+where for<'t> &'t T: TryFrom<&'t AnyAttribute<OnDirty>> { 
+    type Output = T;
+    fn index(&self, t: TypedIndex<usize, T>) -> &Self::Output {
+        self.attributes.index(t.ix).try_into().ok().unwrap()
+    }
+}
+
+impl<T, OnDirty> 
+IndexMut<TypedIndex<usize, T>> for Scope<OnDirty> 
+where for<'t> &'t     T: TryFrom<&'t     AnyAttribute<OnDirty>>,
+      for<'t> &'t mut T: TryFrom<&'t mut AnyAttribute<OnDirty>> { 
+    fn index_mut(&mut self, t: TypedIndex<usize, T>) -> &mut Self::Output {
+        self.attributes.index_mut(t.ix).try_into().ok().unwrap()
+    }
+}
+
+// impl IndexMut<usize> for WorldData {
+//     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
+//         self.workspaces.index_mut(ix)
+//     }
+// }

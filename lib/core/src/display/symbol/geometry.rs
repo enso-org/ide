@@ -56,6 +56,7 @@ pub struct ScopesDirtyStatus {
 
 // === Types ===
 
+pub type AttributeIndex <T, Callback> = scope::AttributeIndex<T, Closure_scope_on_change<Callback>>;
 pub type ScopesDirty    <Callback> = SharedCustom<ScopesDirtyStatus, Callback>;
 pub type AttributeScope <Callback> = Scope<Closure_scope_on_change<Callback>>;
 pub type UniformScope   <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME

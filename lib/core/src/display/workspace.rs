@@ -65,6 +65,7 @@ pub type WorkspaceShapeDirtyState = WorkspaceShape;
 pub type ShapeDirty        <Callback> = dirty::SharedCustom<WorkspaceShapeDirtyState, Callback>;
 pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
 
+pub type AttributeIndex <T, Callback> = mesh_registry::AttributeIndex<T, Closure_mesh_registry_on_dirty<Callback>>;
 pub type Mesh           <Callback> = mesh_registry::Mesh           <Closure_mesh_registry_on_dirty<Callback>>;
 pub type Geometry       <Callback> = mesh_registry::Geometry       <Closure_mesh_registry_on_dirty<Callback>>;
 pub type Scopes         <Callback> = mesh_registry::Scopes         <Closure_mesh_registry_on_dirty<Callback>>;

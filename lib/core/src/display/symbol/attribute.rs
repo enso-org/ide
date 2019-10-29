@@ -113,6 +113,15 @@ type Dim  <T> = <T as Shape>::Dim;
 
 // === Shapes for numbers === 
 
+impl Shape for i32 {
+    type Item = Self;
+    type Dim  = U1;
+
+    fn empty           ()                          -> Self        { 0 }
+    fn from_buffer     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn from_buffer_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+}
+
 impl Shape for f32 {
     type Item = Self;
     type Dim  = U1;
@@ -289,6 +298,10 @@ Attribute<T, OnSet, OnResize> {
         let logger = bldr._logger.unwrap_or_else(default);
         Self::new_from(buffer, logger, on_set, on_resize)
     }
+
+    pub fn builder() -> Builder<T> {
+        default()
+    }
 }
 
 impl<T: Shape, OnSet, OnResize> 
@@ -310,70 +323,64 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
-impl<T: Shape> 
-Attribute<T, NoCallback, NoCallback> {
-    pub fn builder() -> Builder<T> {
-        default()
-    }
-}
 
 
-// =======================
-// === SharedAttribute ===
-// =======================
+// // =======================
+// // === SharedAttribute ===
+// // =======================
 
-// === Definition ===
+// // === Definition ===
 
-#[derive(Shrinkwrap)]
-#[derive(Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
-pub struct SharedAttribute<T: Shape, OnSet, OnResize> {
-    pub data: Shared<Attribute<T, OnSet, OnResize>>
-}
+// #[derive(Shrinkwrap)]
+// #[derive(Derivative)]
+// #[derivative(Debug(bound="T:Debug"))]
+// pub struct SharedAttribute<T: Shape, OnSet, OnResize> {
+//     pub data: Shared<Attribute<T, OnSet, OnResize>>
+// }
 
-impl<T: Shape, OnSet: Callback0, OnResize: Callback0> SharedAttribute<T, OnSet, OnResize> {
-    pub fn new(logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
-        Self::new_from(default(), logger, on_set, on_resize)
-    }
+// impl<T: Shape, OnSet: Callback0, OnResize: Callback0> SharedAttribute<T, OnSet, OnResize> {
+//     pub fn new(logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
+//         Self::new_from(default(), logger, on_set, on_resize)
+//     }
 
-    pub fn new_from(buffer: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
-        let data = Shared::new(Attribute::new_from(buffer, logger, on_set, on_resize));
-        Self { data }
-    }
+//     pub fn new_from(buffer: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
+//         let data = Shared::new(Attribute::new_from(buffer, logger, on_set, on_resize));
+//         Self { data }
+//     }
 
-    pub fn build(builder: Builder<T>, on_set: OnSet, on_resize: OnResize) -> Self {
-        let data = Shared::new(Attribute::build(builder, on_set, on_resize));
-        Self { data }
-    }
+//     pub fn build(builder: Builder<T>, on_set: OnSet, on_resize: OnResize) -> Self {
+//         let data = Shared::new(Attribute::build(builder, on_set, on_resize));
+//         Self { data }
+//     }
 
-    pub fn builder() -> Builder<T> {
-        default()
-    }
-}
+//     pub fn builder() -> Builder<T> {
+//         default()
+//     }
+// }
 
-impl<T: Shape, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
-    pub fn clone_ref(&self) -> Self {
-        Self { data: self.data.clone_ref() }
-    }
+// impl<T: Shape, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
+//     pub fn clone_ref(&self) -> Self {
+//         Self { data: self.data.clone_ref() }
+//     }
 
-    pub fn len(&self) -> usize {
-        self.data.borrow().len()
-    }
-}
+//     pub fn len(&self) -> usize {
+//         self.data.borrow().len()
+//     }
+// }
 
-impl<T: AddElementCtx, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
-    pub fn add_element(&self) {
-        self.data.borrow_mut().add_element()
-    }
-}
+// impl<T: AddElementCtx, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
+//     pub fn add_element(&self) {
+//         self.data.borrow_mut().add_element()
+//     }
+// }
 
-impl<T: Shape, OnSet, OnResize, I: SliceIndex<[T]>> Index<I> for SharedAttribute<T, OnSet, OnResize> {
-    type Output = I::Output;
-    #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        &self.data[index]
-    }
-}
+// impl<T: Shape, OnSet, OnResize, I: SliceIndex<[T]>> Index<I> for SharedAttribute<T, OnSet, OnResize> {
+//     type Output = I::Output;
+//     #[inline]
+//     fn index(&self, index: I) -> &Self::Output {
+//         &self.data[index]
+//     }
+// }
 
 // impl<T: Shape, OnDirty> Deref for SharedAttribute<T, OnDirty> {
 //     type Target = Ref<Attribute<T, OnDirty>>;
@@ -420,6 +427,9 @@ impl<T: Shape, OnSet, OnResize, I: SliceIndex<[T]>> Index<I> for SharedAttribute
 
 use enum_dispatch::*;
 
+#[derive(Debug)]
+pub struct BadVariant;
+
 
 macro_rules! cartesian_impl {
     ($out:tt [] $b:tt $init_b:tt, $f:ident) => {
@@ -443,17 +453,47 @@ macro_rules! cartesian {
 }
 
 macro_rules! mk_any_shape_impl {
-    ([$(($base:ident, $param:ident)),*,]) => {
-        paste::item! {
-            #[enum_dispatch(IsAttribute)]
-            #[derive(Derivative)]
-            #[derivative(Debug(bound=""))]
-            pub enum AnyAttribute<OnSet, OnResize> {
-                $([<Variant $base For $param>](SharedAttribute<$base<$param>, OnSet, OnResize>),)*
-            } 
+    ([$(($base:ident, $param:ident)),*,]) => { paste::item! {
+        #[enum_dispatch(IsAttribute)]
+        #[derive(Derivative)]
+        #[derivative(Debug(bound=""))]
+        pub enum AnyAttribute<OnSet, OnResize> {
+            $(  [<Variant $base For $param>]
+                    (Attribute<$base<$param>, OnSet, OnResize>),
+            )*
+        } 
+
+        $( /////////////////////////////////////////////////////////////////////
+
+        impl<'t, T, S> 
+        TryFrom<&'t AnyAttribute<T, S>> 
+        for &'t Attribute<$base<$param>, T, S> {
+            type Error = BadVariant;
+            fn try_from(v: &'t AnyAttribute<T, S>) 
+            -> Result <&'t Attribute<$base<$param>, T, S>, Self::Error> { 
+                match v {
+                    AnyAttribute::[<Variant $base For $param>](a) => Ok(a),
+                    _ => Err(BadVariant)
+                }
+            }
         }
+        
+        impl<'t, T, S> 
+        TryFrom<&'t mut AnyAttribute<T, S>> 
+        for &'t mut Attribute<$base<$param>, T, S> {
+            type Error = BadVariant;
+            fn try_from(v: &'t mut AnyAttribute<T, S>) 
+            -> Result <&'t mut Attribute<$base<$param>, T, S>, Self::Error> { 
+                match v {
+                    AnyAttribute::[<Variant $base For $param>](a) => Ok(a),
+                    _ => Err(BadVariant)
+                }
+            }
+        }
+
+        )* /////////////////////////////////////////////////////////////////////
     }
-}
+}}
 
 macro_rules! mk_any_shape {
     ($bases:tt, $params:tt) => {
@@ -462,19 +502,18 @@ macro_rules! mk_any_shape {
 }
 
 type Identity<T> = T;
-mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32]);
+mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
+
+
 
 
 
 #[enum_dispatch]
 pub trait IsAttribute<OnSet, OnResize> {
-    fn add_element(&self);
+    fn add_element(&mut self);
     fn len(&self) -> usize;
 }
 
-
-// impl IsShape for Vector2<f32>{}
-// impl IsShape for Vector3<f32>{}
 
 
 

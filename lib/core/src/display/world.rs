@@ -129,6 +129,7 @@ impl Default for WorldData {
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedSet<WorkspaceID, ()>;
 
+pub type AttributeIndex <T> = workspace::AttributeIndex<T, Closure_workspace_on_change_handler>;
 pub type Mesh           = workspace::Mesh           <Closure_workspace_on_change_handler>;
 pub type Geometry       = workspace::Geometry       <Closure_workspace_on_change_handler>;
 pub type Scopes         = workspace::Scopes         <Closure_workspace_on_change_handler>;

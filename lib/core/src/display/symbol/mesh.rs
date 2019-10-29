@@ -36,6 +36,7 @@ pub struct Mesh<OnDirty> {
 
 // === Types ===
 
+pub type AttributeIndex <T, Callback> = geometry::AttributeIndex<T, Closure_geometry_on_change<Callback>>;
 pub type GeometryDirty  <Callback> = SharedBool<Callback>;
 pub type Geometry       <Callback> = geometry::Geometry       <Closure_geometry_on_change<Callback>>;
 pub type Scopes         <Callback> = geometry::Scopes         <Closure_geometry_on_change<Callback>>;

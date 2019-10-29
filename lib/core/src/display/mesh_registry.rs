@@ -5,7 +5,6 @@ use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
 use crate::display::symbol::attribute::IsAttribute;
 use crate::display::symbol::attribute::Shape;
-use crate::display::symbol::attribute::SharedAttribute;
 use crate::display::symbol::mesh;
 use crate::system::web::fmt;
 use crate::system::web::group;
@@ -491,6 +490,7 @@ pub struct MeshRegistry <OnDirty> {
 pub type MeshID              = usize;
 pub type MeshDirty <OnDirty> = dirty::SharedSet<MeshID, OnDirty>;
 
+pub type AttributeIndex <T, Callback> = mesh::AttributeIndex<T, Closure_mesh_on_dirty<Callback>>;
 pub type Mesh           <OnDirty> = mesh::Mesh           <Closure_mesh_on_dirty<OnDirty>>;
 pub type Geometry       <OnDirty> = mesh::Geometry       <Closure_mesh_on_dirty<OnDirty>>;
 pub type Scopes         <OnDirty> = mesh::Scopes         <Closure_mesh_on_dirty<OnDirty>>;
