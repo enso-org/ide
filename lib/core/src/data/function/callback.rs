@@ -29,7 +29,7 @@ impl<Func> fmt::Debug for Callback<Func> {
 // === Callback Interface ===
 // ==========================
 
-pub trait Callback0 {
+pub trait Callback0: 'static {
     fn call(&mut self);
 }
 
@@ -81,7 +81,14 @@ impl<Arg1, Arg2, Arg3, Arg4, Arg5> Callback5<Arg1, Arg2, Arg3, Arg4, Arg5> for (
 
 // === FnMut Implementations ===
 
-impl<F: FnMut() -> T, T> Callback0 for F {
+// FIXME: How to make it more generic?
+impl<T: 'static, P: 'static> Callback0 for WithPhantomType<Rc<Fn() -> T>, P> {
+    fn call(&mut self) {
+        (self.t)();
+    }
+}
+
+impl<F: FnMut() -> T + 'static, T> Callback0 for F {
     fn call(&mut self) {
         self();
     }

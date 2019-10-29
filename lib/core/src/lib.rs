@@ -108,10 +108,16 @@ use std::ops::Index;
 use rustc_hash::FxHashSet;
 use std::collections::HashSet;
 use crate::display::mesh_registry::MeshRegistry;
+use console_error_panic_hook;
 
 #[wasm_bindgen(start)]
 pub fn start() {
+    console_error_panic_hook::set_once();
+
     let logger = Logger::new("root");
+
+    type PositionID = AttributeIndex<Vector2<f32>>;
+    type Position   = Attribute<Vector2<f32>>;
 
     let world     : World               = World::new();
     let wspace_id : WorkspaceID         = world.add_workspace("canvas");
@@ -121,9 +127,8 @@ pub fn start() {
     let geo       : &mut Geometry       = &mut mesh.geometry;
     let scopes    : &mut Scopes         = &mut geo.scopes;
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
-    let pos_id    : AttributeIndex<Vector2<f32>> = pt_scope.add_attribute("position", Attribute::builder());
-    let pos_id    : AttributeIndex<Vector2<i32>> = AttributeIndex::unsafe_new(0);
-    let pos       : &mut Attribute<Vector2<i32>> = &mut pt_scope[pos_id];
+    let pos_id    : PositionID          = pt_scope.add_attribute("position", Attribute::builder());
+    let pos       : &mut Position       = &mut pt_scope[pos_id];
 
 //    let logger = Logger::new("test");
 //
@@ -134,7 +139,7 @@ pub fn start() {
     // let logger = Logger::new("point");
     // let mut point_scope: Scope = Scope::new(logger,());
     // point_scope.add("position", Attr::builder());
-    let logger = Logger::new("mesh_registryxxx");
+    let logger = Logger::new("mesh_registry");
 
 
     let mut mesh_registry = MeshRegistry::new(logger, ());

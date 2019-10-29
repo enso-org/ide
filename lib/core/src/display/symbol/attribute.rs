@@ -258,10 +258,18 @@ pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx<Callback>;
 pub type  SetDirty       <Callback> = dirty::SharedRange<usize, Callback>;
 pub type  ResizeDirty    <Callback> = dirty::SharedBool<Callback>;
 
+// pub type  Buffer <T, OnSet, OnResize> = Observable
+//     < Vec<T>
+//     , Closure_buffer_on_set_handler    <OnSet>
+//     , Closure_buffer_on_resize_handler <OnResize>
+//     >;
+
+
+
 pub type  Buffer <T, OnSet, OnResize> = Observable
     < Vec<T>
-    , Closure_buffer_on_set_handler    <OnSet>
-    , Closure_buffer_on_resize_handler <OnResize>
+    , Closure_buffer_on_set_handler<OnSet>
+    , Closure_buffer_on_resize_handler<OnResize>
     >;
 
 // === Callbacks ===
@@ -272,9 +280,17 @@ closure!(buffer_on_resize_handler<Callback: Callback0>
 closure!(buffer_on_set_handler<Callback: Callback0>
     (dirty: SetDirty<Callback>) |ix: usize| { dirty.set(ix) });
 
+// pub type Closure_buffer_on_set_handler<Callback> = impl Fn(usize) + Clone;
+// pub fn buffer_on_set_handler<Callback: Callback0>
+// (dirty: SetDirty<Callback>) -> Closure_buffer_on_set_handler<Callback> {
+//     move |ix| { dirty.set(ix) }
+// }
+
+// pub type Closure_buffer_on_set_handler<Callback> = impl Fn(usize) + Clone;
+
 // === Instances ===
 
-impl<T: Shape, OnSet: Callback0, OnResize: Callback0> 
+impl<T: Shape, OnSet: Callback0 + 'static, OnResize: Callback0 + 'static> 
 Attribute<T, OnSet, OnResize> {
     pub fn new_from
     (vec: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
@@ -319,7 +335,8 @@ Attribute<T, OnSet, OnResize> {
     }
 
     pub fn add_elements(&mut self, elem_count: usize) {
-        self.extend(iter::repeat(T::empty()).take(elem_count));
+        unimplemented!()
+        // self.extend(iter::repeat(T::empty()).take(elem_count));
     }
 }
 
@@ -503,9 +520,6 @@ macro_rules! mk_any_shape {
 
 type Identity<T> = T;
 mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
-
-
-
 
 
 #[enum_dispatch]

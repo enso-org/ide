@@ -126,20 +126,15 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
 }
 
 
-// impl<T, OnDirty> Index<AttributeIndex<T, OnDirty>> for Scope<OnDirty> {
-//     type Output = Attribute<T, OnDirty>;
-//     fn index(&self, ix: AttributeIndex<T, OnDirty>) -> &Self::Output {
-//         unimplemented!()
-//         // self.attributes.index(ix)
-//     }
-// }
-
 impl<T, OnDirty> 
 Index<TypedIndex<usize, T>> for Scope<OnDirty> 
 where for<'t> &'t T: TryFrom<&'t AnyAttribute<OnDirty>> { 
     type Output = T;
     fn index(&self, t: TypedIndex<usize, T>) -> &Self::Output {
-        self.attributes.index(t.ix).try_into().ok().unwrap()
+        match self.attributes.index(t.ix).try_into() {
+            Ok(t) => t,
+            _     => panic!("Unmatched types for given index.")
+        }
     }
 }
 
@@ -148,7 +143,10 @@ IndexMut<TypedIndex<usize, T>> for Scope<OnDirty>
 where for<'t> &'t     T: TryFrom<&'t     AnyAttribute<OnDirty>>,
       for<'t> &'t mut T: TryFrom<&'t mut AnyAttribute<OnDirty>> { 
     fn index_mut(&mut self, t: TypedIndex<usize, T>) -> &mut Self::Output {
-        self.attributes.index_mut(t.ix).try_into().ok().unwrap()
+        match self.attributes.index_mut(t.ix).try_into() {
+            Ok(t) => t,
+            _     => panic!("Unmatched types for given index.")
+        }
     }
 }
 

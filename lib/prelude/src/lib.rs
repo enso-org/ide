@@ -32,3 +32,20 @@ pub trait Str = AsRef<str>;
 pub fn default<T: Default>() -> T {
     Default::default()
 }
+
+#[derive(Derivative)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
+#[derivative(Clone(bound="T: Clone"))]
+pub struct WithPhantomType<T, P=()> {
+    #[shrinkwrap(main_field)]
+    pub t: T,
+    phantom: PhantomData<P>
+}
+
+impl<T, P> WithPhantomType<T, P> {
+    pub fn new(t: T) -> Self {
+        let phantom = PhantomData;
+        Self { t, phantom }
+    }
+}
