@@ -88,10 +88,11 @@ pub struct Listeners {
 }
 
 impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
-    pub fn new
-    (dom: &str, logger: Logger, on_dirty: OnDirty) -> Result<Self, Error> {
+    pub fn new <Dom: Str>
+    (dom: Dom, logger: Logger, on_dirty: OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
-        let canvas = web::get_canvas(dom)?;
+        let dom     = dom.as_ref();
+        let canvas  = web::get_canvas(dom)?;
         let context = web::get_webgl_context(&canvas, 1)?;
 
         let shape_dirty_logger = logger.sub("shape_dirty");
@@ -106,6 +107,11 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
 
         let listeners = Self::new_listeners(&canvas, &shape_dirty);
         Ok(Self { canvas, context, mesh_registry, mesh_registry_dirty, shape_dirty, logger, listeners })
+    }
+
+    pub fn build<Name: Into<String>> (name: Name) -> WorkspaceBuilder {
+        let name = name.into();
+        WorkspaceBuilder { name }
     }
 
     pub fn new_listeners(canvas: &web_sys::HtmlCanvasElement, dirty: &ShapeDirty<OnDirty>) -> Listeners {
@@ -225,6 +231,13 @@ impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
 }
 
 
+// ========================
+// === WorkspaceBuilder ===
+// ========================
+
+pub struct WorkspaceBuilder {
+    pub name: String 
+}
 
 // // =====================
 // // === WorkspaceData ===

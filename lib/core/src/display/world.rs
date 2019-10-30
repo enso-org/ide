@@ -15,6 +15,18 @@ use std::collections::HashMap;
 
 pub use crate::display::workspace::MeshID;
 
+
+// ===========
+// === Add ===
+// ===========
+
+pub trait Add<T> {
+    type Result = ();
+    fn add(&mut self, component: T) -> Self::Result;
+}
+
+type AddResult<T,S> = <T as Add<S>>::Result;
+
 // =============
 // === Types ===
 // =============
@@ -34,24 +46,23 @@ type Callback = Rc<RefCell<Option<Closure<dyn FnMut()>>>>;
 #[derive(Debug)]
 pub struct World {
     pub data     : Rc<RefCell<WorldData>>,
-    pub on_frame : Callback,
+    pub main_loop : Callback,
 }
 
 impl Default for World {
     fn default() -> Self {
         let data           = Rc::new(RefCell::new(WorldData::new()));
-        let on_frame       = Rc::new(RefCell::new(None));
+        let main_loop       = Rc::new(RefCell::new(None));
         let data_local     = data.clone();
-        let on_frame_local = on_frame.clone();
-        *on_frame.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        let main_loop_local = main_loop.clone();
+        *main_loop.borrow_mut() = Some(Closure::wrap(Box::new(move || {
             let data_local = data_local.borrow();
             if data_local.started {
-                // data_local.
                 data_local.refresh();
-                Self::request_callback(&on_frame_local);
+                Self::request_callback(&main_loop_local);
             }
         }) as Box<dyn FnMut()>));
-        Self { data, on_frame }
+        Self { data, main_loop }
     }
 }
 
@@ -69,7 +80,7 @@ impl World {
     pub fn start(&self) {
         if !self.started() {
             self.data.borrow_mut().started = true;
-            Self::request_callback(&self.on_frame);
+            Self::request_callback(&self.main_loop);
         }
     }
 
@@ -93,6 +104,14 @@ impl World {
         callback.borrow().as_ref().iter().for_each(|f| {
             web::request_animation_frame(f).unwrap();
         });
+    }
+}
+
+impl<T> Add<T> 
+for World where WorldData: Add<T> {
+    type Result = AddResult<WorldData,T>;
+    fn add(&mut self, t: T) -> Self::Result {
+        self.data.borrow_mut().add(t)
     }
 }
 
@@ -188,12 +207,23 @@ impl WorldData {
         }
     }
 
-    fn xindex_mut(&mut self, ix: usize) {
-        let w: &mut OptVec<Workspace> = &mut self.workspaces;
-        // let a: &mut Option<Workspace> = self.workspaces.index_mut(ix);
-        // self.workspaces.index_mut(ix).as_mut().unwrap()
-    }
+}
 
+
+impl Add<workspace::WorkspaceBuilder> for WorldData {
+    type Result = WorkspaceID;
+    fn add(&mut self, bldr: workspace::WorkspaceBuilder) -> Self::Result {
+        let name   = bldr.name;
+        let logger = &self.logger;
+        let dirty  = &self.workspace_dirty;
+        self.workspaces.insert_with_ix(|ix| {
+            group!(logger, format!("Adding workspace {} ({}).", ix, name), {
+                let on_change = workspace_on_change_handler(dirty.clone(), ix);
+                let wspace_logger = logger.sub(ix.to_string());
+                Workspace::new(name, wspace_logger, on_change).unwrap() // FIXME
+            })
+        })
+    }
 }
 
 impl Index<usize> for WorldData {
@@ -208,3 +238,4 @@ impl IndexMut<usize> for WorldData {
         self.workspaces.index_mut(ix)
     }
 }
+

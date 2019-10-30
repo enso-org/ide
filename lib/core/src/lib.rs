@@ -6,6 +6,7 @@
 #![feature(proc_macro_hygiene)]
 #![feature(specialization)]
 #![feature(weak_into_raw)]
+#![feature(associated_type_defaults)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -119,8 +120,9 @@ pub fn start() {
     type PositionID = AttributeIndex<Vector2<f32>>;
     type Position   = Attribute<Vector2<f32>>;
 
-    let world     : World               = World::new();
-    let wspace_id : WorkspaceID         = world.add_workspace("canvas");
+    let mut world : World               = World::new();
+    let wspace_id : WorkspaceID         = world.add(Workspace::build("canvas"));
+    // let wspace_id : WorkspaceID         = world.add_workspace("canvas");
     let workspace : &mut Workspace      = &mut world.data.borrow_mut()[wspace_id];
     let mesh_id   : MeshID              = workspace.new_mesh();
     let mesh      : &mut Mesh           = &mut workspace[mesh_id];
