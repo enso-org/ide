@@ -189,3 +189,8 @@ pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
     let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))
 }
+
+pub fn cancel_animation_frame(id: i32) -> Result<()> {
+    let req = window()?.cancel_animation_frame(id);
+    req.map_err(|_| Error::missing("cancel_animation_frame"))
+}

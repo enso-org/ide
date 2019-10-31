@@ -20,7 +20,9 @@ pub struct OptVec<T> {
 
 pub type Ix             = usize;
 pub type Iter<'t, T>    = FilterMap<slice::Iter<'t, Option<T>>, OptionAsRef<T>>;
+pub type IterMut<'t, T> = FilterMap<slice::IterMut<'t, Option<T>>, OptionAsRefMut<T>>;
 pub type OptionAsRef<T> = for<'r> fn(&'r Option<T>) -> Option<&'r T>;
+pub type OptionAsRefMut<T> = for<'r> fn(&'r mut Option<T>) -> Option<&'r mut T>;
 
 impl<T> OptVec<T> {
     /// Constructs a new, empty `Vec<T>`. It will not allocate until elements
@@ -37,6 +39,10 @@ impl<T> OptVec<T> {
 
     pub fn iter(&self) -> Iter<T> {
         self.vec.iter().filter_map(Option::as_ref)
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        self.vec.iter_mut().filter_map(Option::as_mut)
     }
 
     /// Finds a free index and inserts the element. The index is re-used in case

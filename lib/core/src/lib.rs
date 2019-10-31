@@ -7,6 +7,7 @@
 #![feature(specialization)]
 #![feature(weak_into_raw)]
 #![feature(associated_type_defaults)]
+#![feature(set_stdio)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -114,6 +115,7 @@ use console_error_panic_hook;
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
+    set_stdout();
 
     let logger = Logger::new("root");
 
@@ -121,6 +123,7 @@ pub fn start() {
     type Position   = Attribute<Vector2<f32>>;
 
     let mut world : World               = World::new();
+    {
     let wspace_id : WorkspaceID         = world.add(Workspace::build("canvas"));
     // let wspace_id : WorkspaceID         = world.add_workspace("canvas");
     let workspace : &mut Workspace      = &mut world.data.borrow_mut()[wspace_id];
@@ -153,6 +156,10 @@ pub fn start() {
     // let logger = Logger::new("geo1");
     // let mut geo1 = Geometry::new(logger, ());
     let geo1 = &mut mesh1.geometry;
+
+    }
+    // std::mem::forget(world);
+
 
 //     let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", attribute::Attribute::builder());
 //     geo1.scopes.point.add_instance();
@@ -213,5 +220,76 @@ pub fn start() {
 
     // // logger.info(fmt!("{:#?}",map_impl!([],decrement,[1])));
     // logger.info(fmt!("{:#?}",vr2[1]));
+
 }
 
+////////////////////////////////////////////////
+////////////////////////////////////////////////
+
+type PrintFn = fn(&str) -> std::io::Result<()>;
+
+struct Printer {
+    printfn: PrintFn,
+    buffer: String,
+    is_buffered: bool,
+}
+
+impl Printer {
+    fn new(printfn: PrintFn, is_buffered: bool) -> Printer {
+        Printer {
+            buffer: String::new(),
+            printfn,
+            is_buffered,
+        }
+    }
+}
+
+impl std::io::Write for Printer {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.buffer.push_str(&String::from_utf8_lossy(buf));
+
+        if !self.is_buffered {
+            (self.printfn)(&self.buffer)?;
+            self.buffer.clear();
+
+            return Ok(buf.len());
+        }
+
+        if let Some(i) = self.buffer.rfind('\n') {
+            let buffered = {
+                let (first, last) = self.buffer.split_at(i);
+                (self.printfn)(first)?;
+
+                String::from(&last[1..])
+            };
+
+            self.buffer.clear();
+            self.buffer.push_str(&buffered);
+        }
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        (self.printfn)(&self.buffer)?;
+        self.buffer.clear();
+
+        Ok(())
+    }
+}
+
+fn _print(msg: &str) -> std::io::Result<()> {
+    web_sys::console::info_1(&msg.to_string().into());
+    Ok(())
+}
+
+
+pub fn set_stdout() {
+    let printer = Printer::new(_print, true);
+    std::io::set_print(Some(Box::new(printer)));
+}
+
+pub fn set_stdout_unbuffered() {
+    let printer = Printer::new(_print, false);
+    std::io::set_print(Some(Box::new(printer)));
+}

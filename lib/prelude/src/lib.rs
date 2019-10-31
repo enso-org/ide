@@ -11,6 +11,7 @@ pub use shrinkwraprs::Shrinkwrap;
 pub use std::cell::Ref;
 pub use std::cell::RefCell;
 pub use std::collections::HashMap;
+pub use std::collections::HashSet;
 pub use std::convert::identity;
 pub use std::convert::TryFrom;
 pub use std::convert::TryInto;
