@@ -33,20 +33,29 @@ type AddResult<T,S> = <T as Add<S>>::Result;
 
 // === Types ===
 
-pub trait DynCallback = FnMut() + 'static;
+pub trait Callback = FnMut() + 'static;
 
 // === Handle ===
 
 #[derive(Derivative)]
-#[derivative(Debug)]
-pub struct CallbackHandle {
-    pub id       : usize,
-    pub registry : CallbackRegistry
+#[derivative(Debug, Default)]
+pub struct CallbackHandle (Rc<()>);
+
+impl CallbackHandle {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn guard(&self) -> Guard {
+        Guard(Rc::downgrade(&self.0))
+    }
 }
 
-impl Drop for CallbackHandle {
-    fn drop(&mut self) {
-        self.registry.raw.borrow_mut().remove(self.id);
+pub struct Guard (Weak<()>);
+
+impl Guard {
+    pub fn exists(&self) -> bool {
+        self.0.upgrade().is_some()
     }
 }
 
@@ -56,24 +65,21 @@ impl Drop for CallbackHandle {
 #[derivative(Debug, Default)]
 pub struct CallbackRegistry {
     #[derivative(Debug="ignore")]
-    pub raw: Rc<RefCell<OptVec<Box<dyn FnMut()>>>>
+    pub list: Vec<(Guard, Box<dyn FnMut()>)>
 }
 
 impl CallbackRegistry {
-    pub fn clone_ref(&self) -> Self {
-        let raw = Rc::clone(&self.raw);
-        Self { raw }
-    }
-
-    pub fn add<F: DynCallback>(&self, callback: F) -> CallbackHandle {
+    pub fn add<F: Callback>(&mut self, callback: F) -> CallbackHandle {
         let callback = Box::new(callback) as Box<dyn FnMut()>;
-        let registry = self.clone_ref();
-        let id       = self.raw.borrow_mut().insert(callback);
-        CallbackHandle { id, registry }
+        let handle   = CallbackHandle::new();
+        let guard    = handle.guard();
+        self.list.push((guard, callback));
+        handle
     }
 
-    pub fn run_all(&self) {
-        self.raw.borrow_mut().iter_mut().for_each(|f| f());
+    pub fn run_all(&mut self) {
+        self.list.retain(|(guard,_)| guard.exists());
+        self.list.iter_mut().for_each(|(_, callback)| callback());
     }
 }
 
@@ -83,11 +89,50 @@ impl CallbackRegistry {
 
 // === Definition === 
 
+#[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct EventLoop {
     pub rc: Rc<RefCell<EventLoopData>>,
 }
+
+impl EventLoop {
+    pub fn new() -> Self {
+        Self::default().init()
+    }
+
+    fn init(self) -> Self {
+        let data = Rc::downgrade(&self.rc);
+        let main = move || { data.upgrade().map(|t| t.borrow_mut().run()); };
+        with(self.borrow_mut(), |mut data| {
+            data.main = Some(Closure::new(main));
+            data.run();
+        });
+        self
+    }
+
+    pub fn add_callback<F: Callback>(&self, callback: F) -> CallbackHandle {
+        self.borrow_mut().callbacks.add(callback)
+    }
+
+    pub fn clone_ref(&self) -> Self {
+        let rc = Rc::clone(&self.rc);
+        Self { rc }
+    }
+}
+
+impl EventLoopData {
+    pub fn run(&mut self) {
+        let callbacks   = &mut self.callbacks;
+        let callback_id = self.main.as_ref().map_or(default(), |main| {
+            callbacks.run_all();
+            web::request_animation_frame(main).unwrap()
+        });
+        self.main_id = callback_id;
+    }
+}
+
+// === EventLoopData ===
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -97,45 +142,9 @@ pub struct EventLoopData {
     pub callbacks : CallbackRegistry,
 }
 
-impl EventLoop {
-    pub fn new() -> Self {
-        let event_loop      = Self::default();
-        let event_loop_weak = Rc::downgrade(&event_loop.rc);
-        event_loop.set_main(move || {
-            event_loop_weak.upgrade().map(|t| t.borrow_mut().run());
-        });
-        event_loop.rc.borrow_mut().run();
-        event_loop
-    }
-
-    pub fn add_callback<F: DynCallback>(&self, callback: F) -> CallbackHandle {
-        self.rc.borrow().callbacks.add(callback)
-    }
-
-    pub fn clone_ref(&self) -> Self {
-        let rc = Rc::clone(&self.rc);
-        Self { rc }
-    }
-
-    fn set_main<F: DynCallback>(&self, main: F) {
-        let main = Closure::wrap(Box::new(main) as Box<dyn FnMut()>);
-        self.rc.borrow_mut().main = Some(main);
-    }
-}
-
-impl EventLoopData {
-    pub fn run(&mut self) {
-        let callback_id = self.main.as_ref().map_or(default(), |main| {
-            self.callbacks.run_all();
-            web::request_animation_frame(main).unwrap()
-        });
-        self.main_id = callback_id;
-    }
-}
-
 impl Drop for EventLoopData {
     fn drop(&mut self) {
-        web::cancel_animation_frame(self.main_id);
+        web::cancel_animation_frame(self.main_id).ok();
     }
 }
 
@@ -145,70 +154,50 @@ impl Drop for EventLoopData {
 // === World ===
 // =============
 
-// fn testme() {
-//     let a:HashMap<fn()> = default();
-// }
-
 /// World is the top-level structure managing several instances of [Workspace].
 /// It is responsible for updating the system on every animation frame.
 #[derive(Debug)]
 pub struct World {
     pub data           : Rc<RefCell<WorldData>>,
     pub event_loop     : EventLoop,
-    pub refresh_handle : CallbackHandle
+    pub refresh_handle : CallbackHandle,
+    pub explicit_drop  : bool
 }
 
 impl Default for World {
     fn default() -> Self {
         let data           = Rc::new(RefCell::new(WorldData::new()));
-        let mut event_loop = EventLoop::new();
+        let event_loop     = EventLoop::new();
         let local_data     = Rc::clone(&data);
+        let explicit_drop  = false;
         let refresh_handle = event_loop.add_callback(move || {
             local_data.borrow().refresh();
         });
-        Self { data, event_loop, refresh_handle }
+        Self { data, event_loop, refresh_handle, explicit_drop }
     }
 }
 
 impl World {
     pub fn new() -> Self {
-        let out: Self = Default::default();
-        // out.start();
-        out
+        default()
     }
 
     pub fn started(&self) -> bool {
         self.data.borrow().started
     }
 
-    // pub fn start(&self) {
-    //     if !self.started() {
-    //         self.data.borrow_mut().started = true;
-    //         self.event_loop.run();
-    //     }
-    // }
-
-    // pub fn stop(&self) {
-    //     self.data.borrow_mut().started = false;
-    // }
-
     pub fn add_workspace(&self, name: &str) -> WorkspaceID {
         self.data.borrow_mut().add_workspace(name)
     }
 
-    // pub fn drop_workspace(&self, id: workspace::ID) {
-    //     self.data.borrow_mut().drop_workspace(id)
-    // }
+    pub fn drop(mut self) {
+        self.explicit_drop = true;
+        drop(self);
+    }
 
-    // pub fn refresh(&self) {
-    //     self.data.borrow().refresh()
-    // }
-
-    // fn request_callback(callback: &EventLoop) {
-    //     callback.main.borrow().as_ref().iter().for_each(|f| {
-    //         web::request_animation_frame(f).unwrap();
-    //     });
-    // }
+    pub fn keep_alive(self) {
+        std::mem::forget(self);
+    }
 }
 
 impl<T> Add<T> 
@@ -216,6 +205,19 @@ for World where WorldData: Add<T> {
     type Result = AddResult<WorldData,T>;
     fn add(&mut self, t: T) -> Self::Result {
         self.data.borrow_mut().add(t)
+    }
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        let logger = &self.data.borrow().logger;
+        logger.info("Dropping.");
+        if !self.explicit_drop {
+            logger.warning
+                ("World was dropped. This might not be intended. Use the \
+                  `keep_alive` method to prevent it. If you do want to drop \
+                  the world, use the `drop` method explicitly.");
+        }
     }
 }
 

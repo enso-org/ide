@@ -50,3 +50,7 @@ impl<T, P> WithPhantomType<T, P> {
         Self { t, phantom }
     }
 }
+
+pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out {
+    f(t)
+}

@@ -158,7 +158,7 @@ pub fn start() {
     let geo1 = &mut mesh1.geometry;
 
     }
-    // std::mem::forget(world);
+    world.keep_alive();
 
 
 //     let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", attribute::Attribute::builder());
