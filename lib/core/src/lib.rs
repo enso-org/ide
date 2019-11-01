@@ -158,69 +158,14 @@ pub fn start() {
     let geo1 = &mut mesh1.geometry;
 
     }
-    world.keep_alive();
 
+    let world_local = world.clone_ref();
 
-//     let position: attribute::SharedAttribute<Vector2<f32>, _, _> = geo1.scopes.point.add_attribute("position", attribute::Attribute::builder());
-//     geo1.scopes.point.add_instance();
-//     geo1.scopes.point.add_instance();
-//     geo1.scopes.point.add_instance();
-//     geo1.scopes.point.add_instance();
+    world.on_frame(on_frame).forget();
+}
 
-//     let mut v = nalgebra::Vector3::new(0,0,0);
-//     v.x += 7;
-
-
-
-//     let logger = Logger::new("root");
-
-    
-
-//     let a = 1;
-//     let b = 2;
-//     let c = 3;
-
-//     // geo1.scopes.point
-
-// //    let logger = Logger::new("local");
-// //
-
-//     // logger.info("changing");
-    
-//     logger.info("-------");
-
-//     let rc1 = Rc::new("foo".to_string());
-//     let rc1w1 = Rc::downgrade(&rc1);
-//     let rc1w2 = rc1w1.clone();
-
-//     logger.info(fmt!("{}",rc1w1.ptr_eq(&rc1w2)));
- 
-
-//     // let hs: FxHashSet<Weak<i32>> = default();
-//     let p1 = position[0];
-//     let p2 = position[0];
-//     position.borrow_mut()[0].x = 8.0;
-//     position.borrow_mut()[3].x = 8.0;
-//     // logger.info(fmt!("{:#?}",position[0]));
-//     // logger.info(fmt!("{:#?}",position[0]));
-//     // logger.info(fmt!("{:#?}",position[0]));
-//     // logger.info(fmt!("{:#?}",position[0]));
-//     // logger.info(fmt!("{:#?}",position[0]));
-//     logger.info(fmt!("{:#?}",p1 == p2));
-
-    // logger.info(fmt!("{:#?}",position.index(0)));
-
-    // let mut v: Vec<f32> = vec![0.0,1.0,2.0,3.0];
-    // // let m6: Vector2<f32> = Vector2::from_iterator(v);
-    // let vr: &[f32] = &v;
-    // let vr2 = test(vr);
-    // // let ii: f32 = v.iter().collect();
-    // // let m7: Matrix<f32, U2, U1, nalgebra::ArrayStorage<f32, U2, U1>> = m6;
-    // // v[0] = 7.0;
-
-    // // logger.info(fmt!("{:#?}",map_impl!([],decrement,[1])));
-    // logger.info(fmt!("{:#?}",vr2[1]));
-
+fn on_frame(world: &mut WorldData) {
+    println!("hi")
 }
 
 ////////////////////////////////////////////////

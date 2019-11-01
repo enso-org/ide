@@ -9,9 +9,6 @@ use crate::system::web::Logger;
 use wasm_bindgen::prelude::Closure;
 use crate::closure;
 use crate::dirty;
-use crate::data::function::callback::*;
-
-use std::collections::HashMap;
 
 pub use crate::display::workspace::MeshID;
 
@@ -48,6 +45,10 @@ impl CallbackHandle {
 
     pub fn guard(&self) -> Guard {
         Guard(Rc::downgrade(&self.0))
+    }
+
+    pub fn forget(self) {
+        std::mem::forget(self)
     }
 }
 
@@ -156,68 +157,55 @@ impl Drop for EventLoopData {
 
 /// World is the top-level structure managing several instances of [Workspace].
 /// It is responsible for updating the system on every animation frame.
+#[derive(Shrinkwrap)]
 #[derive(Debug)]
 pub struct World {
-    pub data           : Rc<RefCell<WorldData>>,
-    pub event_loop     : EventLoop,
-    pub refresh_handle : CallbackHandle,
-    pub explicit_drop  : bool
-}
-
-impl Default for World {
-    fn default() -> Self {
-        let data           = Rc::new(RefCell::new(WorldData::new()));
-        let event_loop     = EventLoop::new();
-        let local_data     = Rc::clone(&data);
-        let explicit_drop  = false;
-        let refresh_handle = event_loop.add_callback(move || {
-            local_data.borrow().refresh();
-        });
-        Self { data, event_loop, refresh_handle, explicit_drop }
-    }
+    pub data: Rc<RefCell<WorldData>>,
 }
 
 impl World {
+    fn init(self) -> Self {
+        let this = self.clone_ref();
+        with(self.borrow_mut(), |mut data| {
+            let refresh         = move || this.borrow().refresh();
+            let refresh_handle  = data.event_loop.add_callback(refresh);
+            data.refresh_handle = Some(refresh_handle);
+        });
+        self
+    }
+    
     pub fn new() -> Self {
-        default()
+        Self { data: default() } . init()
     }
 
-    pub fn started(&self) -> bool {
-        self.data.borrow().started
+    pub fn clone_ref(&self) -> Self {
+        let data = Rc::clone(&self.data);
+        Self { data }
     }
 
     pub fn add_workspace(&self, name: &str) -> WorkspaceID {
-        self.data.borrow_mut().add_workspace(name)
+        self.borrow_mut().add_workspace(name)
     }
 
-    pub fn drop(mut self) {
-        self.explicit_drop = true;
-        drop(self);
+    pub fn on_frame<F: FnMut(&mut WorldData) + 'static>
+    (&self, mut callback: F) -> CallbackHandle { 
+        let this = self.clone_ref();
+        self.borrow_mut().on_frame(move || callback(&mut this.borrow_mut()))
     }
 
-    pub fn keep_alive(self) {
-        std::mem::forget(self);
+    pub fn dispose(&self) {
+        self.borrow_mut().dispose()
     }
 }
 
-impl<T> Add<T> 
-for World where WorldData: Add<T> {
+impl Default for World {
+    fn default() -> Self { Self::new() }
+}
+
+impl<T> Add<T> for World where WorldData: Add<T> {
     type Result = AddResult<WorldData,T>;
     fn add(&mut self, t: T) -> Self::Result {
-        self.data.borrow_mut().add(t)
-    }
-}
-
-impl Drop for World {
-    fn drop(&mut self) {
-        let logger = &self.data.borrow().logger;
-        logger.info("Dropping.");
-        if !self.explicit_drop {
-            logger.warning
-                ("World was dropped. This might not be intended. Use the \
-                  `keep_alive` method to prevent it. If you do want to drop \
-                  the world, use the `drop` method explicitly.");
-        }
+        self.borrow_mut().add(t)
     }
 }
 
@@ -233,8 +221,8 @@ pub struct WorldData {
     pub workspaces      : OptVec<Workspace>,
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
-    pub started         : bool,
-    // pub on_frame_fns    : HashMap<usize, Box<dyn FnMut()>>
+    pub event_loop      : EventLoop,
+    pub refresh_handle  : Option<CallbackHandle>,
 }
 
 impl Default for WorldData {
@@ -243,9 +231,9 @@ impl Default for WorldData {
         let logger           = Logger::new("world");
         let workspace_logger = logger.sub("workspace_dirty");
         let workspace_dirty  = WorkspaceDirty::new((), workspace_logger);
-        let started          = false;
-        // let on_frame_fns     = default();
-        Self { workspaces, workspace_dirty, logger, started}//, on_frame_fns }
+        let event_loop       = EventLoop::new();
+        let refresh_handle   = None;
+        Self { workspaces, workspace_dirty, logger, event_loop, refresh_handle}
     }
 }
 
@@ -289,8 +277,7 @@ impl WorldData {
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name, wspace_logger, on_change).unwrap() // FIXME
             })
-        })
-        
+        })   
     }
 
     pub fn drop_workspace(&mut self, id: WorkspaceID) {
@@ -304,6 +291,10 @@ impl WorldData {
         }
     }
 
+    pub fn on_frame<F: Callback>(&mut self, callback: F) -> CallbackHandle { 
+        self.event_loop.add_callback(callback)
+    }
+
     pub fn refresh(&self) {
         if self.is_dirty() {
             group!(self.logger, "Refresh.", {
@@ -313,6 +304,9 @@ impl WorldData {
         }
     }
 
+    pub fn dispose(&mut self) {
+        self.refresh_handle = None;
+    }
 }
 
 
@@ -345,3 +339,8 @@ impl IndexMut<usize> for WorldData {
     }
 }
 
+impl Drop for WorldData {
+    fn drop(&mut self) {
+        self.logger.info("Dropping.");
+    }
+}
