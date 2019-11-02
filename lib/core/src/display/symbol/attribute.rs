@@ -266,7 +266,7 @@ pub type  ResizeDirty    <Callback> = dirty::SharedBool<Callback>;
 
 
 
-pub type  Buffer <T, OnSet, OnResize> = Observable
+pub type Buffer <T, OnSet, OnResize> = Observable
     < Vec<T>
     , Closure_buffer_on_set_handler<OnSet>
     , Closure_buffer_on_resize_handler<OnResize>
@@ -328,15 +328,14 @@ Attribute<T, OnSet, OnResize> {
 }
 
 pub trait AddElementCtx = Shape + Clone;
-impl<T: AddElementCtx, OnSet, OnResize> 
+impl<T: AddElementCtx, OnSet, OnResize: Callback0> 
 Attribute<T, OnSet, OnResize> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
 
     pub fn add_elements(&mut self, elem_count: usize) {
-        unimplemented!()
-        // self.extend(iter::repeat(T::empty()).take(elem_count));
+        self.extend(iter::repeat(T::empty()).take(elem_count));
     }
 }
 
@@ -523,7 +522,7 @@ mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 
 
 #[enum_dispatch]
-pub trait IsAttribute<OnSet, OnResize> {
+pub trait IsAttribute<OnSet, OnResize: Callback0> {
     fn add_element(&mut self);
     fn len(&self) -> usize;
 }

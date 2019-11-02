@@ -112,21 +112,23 @@ use std::collections::HashSet;
 use crate::display::mesh_registry::MeshRegistry;
 use console_error_panic_hook;
 
+type PositionID = AttributeIndex<Vector2<f32>>;
+type Position   = Attribute<Vector2<f32>>;
+
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
     set_stdout();
 
+    init(&mut World::new().borrow_mut());
+}
+
+fn init(world: &mut World) {
     let logger = Logger::new("root");
 
-    type PositionID = AttributeIndex<Vector2<f32>>;
-    type Position   = Attribute<Vector2<f32>>;
-
-    let mut world : World               = World::new();
-    {
     let wspace_id : WorkspaceID         = world.add(Workspace::build("canvas"));
     // let wspace_id : WorkspaceID         = world.add_workspace("canvas");
-    let workspace : &mut Workspace      = &mut world.data.borrow_mut()[wspace_id];
+    let workspace : &mut Workspace      = &mut world[wspace_id];
     let mesh_id   : MeshID              = workspace.new_mesh();
     let mesh      : &mut Mesh           = &mut workspace[mesh_id];
     let geo       : &mut Geometry       = &mut mesh.geometry;
@@ -135,15 +137,6 @@ pub fn start() {
     let pos_id    : PositionID          = pt_scope.add_attribute("position", Attribute::builder());
     let pos       : &mut Position       = &mut pt_scope[pos_id];
 
-//    let logger = Logger::new("test");
-//
-//    let pos: attribute::Builder<f32> = Attribute::builder();
-//
-//    let pos: SharedAttributeibute<f32> = SharedAttributeibute::new(logger,());
-
-    // let logger = Logger::new("point");
-    // let mut point_scope: Scope = Scope::new(logger,());
-    // point_scope.add("position", Attr::builder());
     let logger = Logger::new("mesh_registry");
 
 
@@ -157,15 +150,22 @@ pub fn start() {
     // let mut geo1 = Geometry::new(logger, ());
     let geo1 = &mut mesh1.geometry;
 
-    }
+    println!("----");
+    pt_scope.add_instance();
 
-    let world_local = world.clone_ref();
-
-    world.on_frame(on_frame).forget();
+    world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id)).forget();
 }
 
-fn on_frame(world: &mut WorldData) {
-    println!("hi")
+pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID) {
+    let workspace : &mut Workspace      = &mut world[wspace_id];
+    let mesh      : &mut Mesh           = &mut workspace[mesh_id];
+    let geo       : &mut Geometry       = &mut mesh.geometry;
+    let scopes    : &mut Scopes         = &mut geo.scopes;
+    let pt_scope  : &mut AttributeScope = &mut scopes.point;
+    let pos       : &mut Position       = &mut pt_scope[pos_id];
+
+    pos[0].x += 1.0;
+
 }
 
 ////////////////////////////////////////////////

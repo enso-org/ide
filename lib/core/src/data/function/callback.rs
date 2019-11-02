@@ -88,6 +88,13 @@ impl<T: 'static, P: 'static> Callback0 for WithPhantomType<Rc<Fn() -> T>, P> {
     }
 }
 
+// FIXME: How to make it more generic?
+impl<Arg1, T: 'static, P: 'static> Callback1<Arg1> for WithPhantomType<Rc<Fn(Arg1) -> T>, P> {
+    fn call(&mut self, arg1: Arg1) {
+        (self.t)(arg1);
+    }
+}
+
 impl<F: FnMut() -> T + 'static, T> Callback0 for F {
     fn call(&mut self) {
         self();

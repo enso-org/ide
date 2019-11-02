@@ -151,91 +151,11 @@ impl Drop for EventLoopData {
 
 
 
+
+
 // =============
 // === World ===
 // =============
-
-/// World is the top-level structure managing several instances of [Workspace].
-/// It is responsible for updating the system on every animation frame.
-#[derive(Shrinkwrap)]
-#[derive(Debug)]
-pub struct World {
-    pub data: Rc<RefCell<WorldData>>,
-}
-
-impl World {
-    fn init(self) -> Self {
-        let this = self.clone_ref();
-        with(self.borrow_mut(), |mut data| {
-            let refresh         = move || this.borrow().refresh();
-            let refresh_handle  = data.event_loop.add_callback(refresh);
-            data.refresh_handle = Some(refresh_handle);
-        });
-        self
-    }
-    
-    pub fn new() -> Self {
-        Self { data: default() } . init()
-    }
-
-    pub fn clone_ref(&self) -> Self {
-        let data = Rc::clone(&self.data);
-        Self { data }
-    }
-
-    pub fn add_workspace(&self, name: &str) -> WorkspaceID {
-        self.borrow_mut().add_workspace(name)
-    }
-
-    pub fn on_frame<F: FnMut(&mut WorldData) + 'static>
-    (&self, mut callback: F) -> CallbackHandle { 
-        let this = self.clone_ref();
-        self.borrow_mut().on_frame(move || callback(&mut this.borrow_mut()))
-    }
-
-    pub fn dispose(&self) {
-        self.borrow_mut().dispose()
-    }
-}
-
-impl Default for World {
-    fn default() -> Self { Self::new() }
-}
-
-impl<T> Add<T> for World where WorldData: Add<T> {
-    type Result = AddResult<WorldData,T>;
-    fn add(&mut self, t: T) -> Self::Result {
-        self.borrow_mut().add(t)
-    }
-}
-
-// =================
-// === WorldData ===
-// =================
-
-// === Definition === 
-
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
-pub struct WorldData {
-    pub workspaces      : OptVec<Workspace>,
-    pub workspace_dirty : WorkspaceDirty,
-    pub logger          : Logger,
-    pub event_loop      : EventLoop,
-    pub refresh_handle  : Option<CallbackHandle>,
-}
-
-impl Default for WorldData {
-    fn default() -> Self {
-        let workspaces       = default();
-        let logger           = Logger::new("world");
-        let workspace_logger = logger.sub("workspace_dirty");
-        let workspace_dirty  = WorkspaceDirty::new((), workspace_logger);
-        let event_loop       = EventLoop::new();
-        let refresh_handle   = None;
-        Self { workspaces, workspace_dirty, logger, event_loop, refresh_handle}
-    }
-}
 
 // === Types ===
 
@@ -257,11 +177,45 @@ pub type Workspace      = workspace::Workspace      <Closure_workspace_on_change
 closure!(workspace_on_change_handler<>
     (dirty: WorkspaceDirty, ix: WorkspaceID) || { dirty.set(ix) });
 
+// === Definition === 
+
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct World {
+    pub workspaces      : OptVec<Workspace>,
+    pub workspace_dirty : WorkspaceDirty,
+    pub logger          : Logger,
+    pub event_loop      : EventLoop,
+    pub update_handle  : Option<CallbackHandle>,
+    pub self_reference  : Option<WorldRef>
+}
+
 // === Implementation ===
 
-impl WorldData {
-    pub fn new() -> Self {
-        Default::default()
+impl World {
+    pub fn new() -> WorldRef {
+        let data       = Rc::new(RefCell::new(Self::new_uninitialized()));
+        let world_ref  = WorldRef { data };
+        let world_ref2 = world_ref.clone_ref();
+        let world_ref3 = world_ref.clone_ref();
+        with(world_ref.borrow_mut(), |mut data| {
+            let update         = move || world_ref2.borrow().update();
+            let update_handle  = data.event_loop.add_callback(update);
+            data.update_handle = Some(update_handle);
+            data.self_reference = Some(world_ref3);
+        });
+        world_ref
+    }
+
+    pub fn new_uninitialized() -> Self {
+        let workspaces       = default();
+        let logger           = Logger::new("world");
+        let workspace_logger = logger.sub("workspace_dirty");
+        let workspace_dirty  = WorkspaceDirty::new((), workspace_logger);
+        let event_loop       = EventLoop::new();
+        let update_handle   = None;
+        let self_reference   = None;
+        Self { workspaces, workspace_dirty, logger, event_loop, update_handle, self_reference}
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -291,26 +245,28 @@ impl WorldData {
         }
     }
 
-    pub fn on_frame<F: Callback>(&mut self, callback: F) -> CallbackHandle { 
-        self.event_loop.add_callback(callback)
+    pub fn on_frame<F: FnMut(&mut World) + 'static>(&mut self, mut callback: F) -> CallbackHandle { 
+        let this = self.self_reference.as_ref().unwrap().clone_ref();
+        let func = move || callback(&mut this.borrow_mut());
+        self.event_loop.add_callback(func)
     }
 
-    pub fn refresh(&self) {
+    pub fn update(&self) {
         if self.is_dirty() {
-            group!(self.logger, "Refresh.", {
+            group!(self.logger, "Update.", {
                 self.workspace_dirty.unset();
-                self.workspaces.iter().for_each(|t| t.refresh());
+                self.workspaces.iter().for_each(|t| t.update());
             });
         }
     }
 
     pub fn dispose(&mut self) {
-        self.refresh_handle = None;
+        self.update_handle = None;
     }
 }
 
 
-impl Add<workspace::WorkspaceBuilder> for WorldData {
+impl Add<workspace::WorkspaceBuilder> for World {
     type Result = WorkspaceID;
     fn add(&mut self, bldr: workspace::WorkspaceBuilder) -> Self::Result {
         let name   = bldr.name;
@@ -326,21 +282,51 @@ impl Add<workspace::WorkspaceBuilder> for WorldData {
     }
 }
 
-impl Index<usize> for WorldData {
+impl Index<usize> for World {
     type Output = Workspace;
     fn index(&self, ix: usize) -> &Self::Output {
         self.workspaces.index(ix)
     }
 }
 
-impl IndexMut<usize> for WorldData {
+impl IndexMut<usize> for World {
     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
         self.workspaces.index_mut(ix)
     }
 }
 
-impl Drop for WorldData {
+impl Drop for World {
     fn drop(&mut self) {
         self.logger.info("Dropping.");
+    }
+}
+
+// ================
+// === WorldRef ===
+// ================
+
+/// World is the top-level structure managing several instances of [Workspace].
+/// It is responsible for updating the system on every animation frame.
+#[derive(Shrinkwrap)]
+#[derive(Debug)]
+pub struct WorldRef {
+    pub data: Rc<RefCell<World>>,
+}
+
+impl WorldRef {
+    pub fn clone_ref(&self) -> Self {
+        let data = Rc::clone(&self.data);
+        Self { data }
+    }
+
+    pub fn dispose(&self) {
+        self.borrow_mut().dispose()
+    }
+}
+
+impl<T> Add<T> for WorldRef where World: Add<T> {
+    type Result = AddResult<World,T>;
+    fn add(&mut self, t: T) -> Self::Result {
+        self.borrow_mut().add(t)
     }
 }

@@ -66,6 +66,7 @@ pub type Attribute      <T, Callback> = scope::Attribute<T, Closure_scope_on_cha
 
 // === Callbacks ===
 
+
 closure!(scope_on_change<Callback: Callback0>
     (dirty: ScopesDirty<Callback>, action: fn(&mut ScopesDirtyStatus)) 
         || { dirty.set(action) });
@@ -80,7 +81,7 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = |x: &mut ScopesDirtyStatus| { x.$name = true };
-                let scs_dirty  = scopes_dirty.clone()
+                let scs_dirty  = scopes_dirty.clone();
                 let callback   = scope_on_change(scs_dirty, status_mod);
                 let $name      = $cls::new(sub_logger, callback);
             )*}}

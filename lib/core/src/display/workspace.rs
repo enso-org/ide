@@ -141,9 +141,9 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         });
     }
 
-    pub fn refresh(&self) {
+    pub fn update(&self) {
         if self.is_dirty() {
-            group!(self.logger, "Refresh.", {
+            group!(self.logger, "Update.", {
                 if self.shape_dirty.is_set() {
                     self.resize_canvas(&self.shape_dirty.data());
                     self.shape_dirty.unset();

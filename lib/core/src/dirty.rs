@@ -159,17 +159,19 @@ impl<Ix: RangeIx, OnSet> Range<Ix, OnSet> where Self: RangeCtx<OnSet> {
 
     pub fn set(&mut self, ix: Ix) {
         let range = match &self.range {
-            None    => { ix .. ix },
+            None    => Some(ix .. ix),
             Some(r) => {
-                if      ix < r.start { ix .. r.end   }
-                else if ix > r.end   { r.start .. ix }
-                else                 { r.clone()     }
+                if      ix < r.start { Some (ix .. r.end)   }
+                else if ix > r.end   { Some (r.start .. ix) }
+                else                 { None                 }
             }
         };
-        group!(self.logger, format!("Setting dirty range to [{:?}].", range), {
-            if !self.is_set() { self.on_set.call(); }
-            self.unsafe_replace_range(range);
-        })
+        range.map(|r| {
+            group!(self.logger, format!("Setting dirty range to [{:?}].", r), {
+                if !self.is_set() { self.on_set.call(); }
+                self.range = Some(r);
+            })
+        });
     }
 
     pub fn set_range(&mut self, start: Ix, end: Ix) {

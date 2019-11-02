@@ -12,7 +12,7 @@ use crate::closure;
 use crate::data::opt_vec::OptVec;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound="Ix: Debug"))]
+#[derivative(Copy, Clone, Debug(bound="Ix: Debug"))]
 pub struct TypedIndex<Ix, T> { 
     pub ix  : Ix,
     phantom : PhantomData<T>
@@ -119,9 +119,7 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
     }
 
     pub fn add_instance(&mut self) {
-        // self.attributes.iter_mut().for_each(|attr| attr.add_element());
-        // let max_size = self.attributes.iter().fold(0, |s, t| s + t.len());
-        unimplemented!()
+        self.attributes.iter_mut().for_each(|attr| attr.add_element());
     }
 }
 
