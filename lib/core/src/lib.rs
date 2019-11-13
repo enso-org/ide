@@ -25,12 +25,32 @@ pub mod system {
 // === Main ===
 // ============
 
+use wasm_bindgen::prelude::*;
 use display::world::World;
+use display::scene::{HTMLScene, HTMLObject};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
 pub fn start() {
-    let world = World::new();
-    world.add_workspace("canvas");
-    world.start();
+    let scene = HTMLScene::new("app");
+    match scene {
+        Ok(mut scene) => {
+            for i in (0..100) {
+                let mut object = HTMLObject::new("div").unwrap();
+                object.set_position(js_sys::Math::random() as f32 * 600.0 - 300.0, js_sys::Math::random() as f32 * 600.0 - 300.0, js_sys::Math::random() as f32 * 800.0 - 600.0);
+                object.set_rotation(js_sys::Math::random() as f32, js_sys::Math::random() as f32, js_sys::Math::random() as f32);
+                object.set_inner_html("I'm an editable text!");
+                object.set_attribute("contenteditable", "");
+                {
+                    let mut style = object.style();
+                    style.set_property("background-color", &format!("rgba({}, {}, {}, {})", (js_sys::Math::random() * 255.0) as u8, (js_sys::Math::random() * 255.0), (js_sys::Math::random() * 255.0), 1.0));
+                    style.set_property("width", "100px");
+                    style.set_property("height", "100px");
+                }
+                scene.add(object);
+            }
+            scene.update();
+        },
+        Err(_) => panic!()
+    }
 }

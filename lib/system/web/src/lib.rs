@@ -16,7 +16,7 @@ pub use web_sys::console;
 // === Error ===
 // =============
 
-type Result<A> = std::result::Result<A, Error>;
+pub type Result<A> = std::result::Result<A, Error>;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -141,6 +141,18 @@ pub fn get_element_by_id(id: &str) -> Result<web_sys::Element> {
 }
 pub fn get_element_by_id_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
     let elem = get_element_by_id(id)?;
+    let expected = type_name::<T>();
+    let got = format!("{:?}", elem);
+    elem.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
+}
+pub fn create_element(id: &str) -> Result<web_sys::Element> {
+    match document()?.create_element(id) {
+        Ok(element) => Ok(element),
+        Err(_) => Err(Error::missing(id))
+    }
+}
+pub fn create_element_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
+    let elem = create_element(id)?;
     let expected = type_name::<T>();
     let got = format!("{:?}", elem);
     elem.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
