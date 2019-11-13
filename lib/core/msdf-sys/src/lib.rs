@@ -1,41 +1,47 @@
+extern crate js_sys;
 extern crate wasm_bindgen;
+extern crate vector2d;
 
 mod internal;
 
 use internal::{
     ccall,
-    getValue,
     _msdfgen_generateMSDF,
     _msdfgen_freeFont,
     emscripten_data_types
 };
-use wasm_bindgen::JsValue;
 use js_sys::Uint8Array;
+use wasm_bindgen::JsValue;
+use vector2d::Vector2D;
+use crate::internal::copy_f32_data_from_msdfgen_memory;
 
-// ==================
-// === FontHandle ===
-// ==================
+// ============
+// === Font ===
+// ============
 
-pub struct FontHandle {
+pub struct Font {
     handle: JsValue
 }
 
-pub fn load_font_memory(data: &[u8]) -> FontHandle {
-
-    let param_types = js_sys::Array::new_with_length(2);
-    param_types.set(0, JsValue::from_str(emscripten_data_types::ARRAY));
-    param_types.set(1, emscripten_data_types::NUMBER.into());
-    let params = js_sys::Array::new_with_length(2);
-    unsafe { // Note [Usage of Uint8Array::view
-        params.set(0, JsValue::from(Uint8Array::view(data)));
+impl Font {
+    pub fn load_from_memory(data: &[u8]) -> Self {
+        let param_types = js_sys::Array::of2(
+            &JsValue::from_str(emscripten_data_types::ARRAY),
+            &JsValue::from_str(emscripten_data_types::NUMBER)
+        );
+        unsafe { // Note [Usage of Uint8Array::view]
+            let params = js_sys::Array::of2(
+                &JsValue::from(Uint8Array::view(data)),
+                &JsValue::from_f64(data.len() as f64)
+            );
+            let handle = ccall(
+                "msdfgen_loadFontMemory",
+                emscripten_data_types::NUMBER,
+                param_types,
+                params);
+            Font { handle }
+        }
     }
-    params.set(1, JsValue::from_f64(data.len() as f64));
-    let handle = ccall(
-        "msdfgen_loadFontMemory",
-        emscripten_data_types::NUMBER,
-        param_types,
-        params);
-    FontHandle { handle }
 }
 
 /*
@@ -46,7 +52,7 @@ pub fn load_font_memory(data: &[u8]) -> FontHandle {
  * scope, so does not excess lifetime of data
  */
 
-impl Drop for FontHandle {
+impl Drop for Font {
     fn drop(&mut self) {
         _msdfgen_freeFont(self.handle.clone())
     }
@@ -67,8 +73,8 @@ pub struct MSDFParameters {
     pub height                        : usize,
     pub edge_coloring_angle_threshold : f64,
     pub range                         : f64,
-    pub scale                         : (f64, f64),
-    pub translate                     : (f64, f64),
+    pub scale                         : Vector2D<f64>,
+    pub translate                     : Vector2D<f64>,
     pub edge_threshold                : f64,
     pub overlap_support               : bool
 }
@@ -80,7 +86,7 @@ impl MutlichannelSignedDistanceField {
         Self::CHANNELS_COUNT;
 
     pub fn generate(
-        font    : &FontHandle,
+        font    : &Font,
         unicode : u32,
         params  : MSDFParameters
     ) -> MutlichannelSignedDistanceField {
@@ -94,26 +100,20 @@ impl MutlichannelSignedDistanceField {
             unicode,
             params.edge_coloring_angle_threshold,
             params.range,
-            params.scale.0,
-            params.scale.1,
-            params.translate.0,
-            params.translate.1,
+            params.scale.x,
+            params.scale.y,
+            params.translate.x,
+            params.translate.y,
             params.edge_threshold,
             params.overlap_support
         );
         let mut data : [f32; Self::MAX_DATA_SIZE] = [0.0; Self::MAX_DATA_SIZE];
         let data_size = params.width*params.height*Self::CHANNELS_COUNT;
-
-        for (i, data_element) in
-            data.iter_mut().enumerate().take(data_size) {
-
-            let offset = i * emscripten_data_types::FLOAT_SIZE_IN_BYTES;
-            *data_element = getValue(
-                output_address + offset,
-                emscripten_data_types::FLOAT
-            ).as_f64().unwrap() as f32;
-        }
-
+        copy_f32_data_from_msdfgen_memory(
+            output_address,
+            &mut data,
+            data_size
+        );
         MutlichannelSignedDistanceField {
             width: params.width,
             height: params.height,
@@ -138,14 +138,14 @@ mod tests {
         // given
         let test_font : &[u8] = include_bytes!("DejaVuSansMono-Bold.ttf");
         let expected_output_raw : &[u8] = include_bytes!("output.bin");
-        let font = load_font_memory(test_font);
+        let font = Font::load_from_memory(test_font);
         let params = MSDFParameters {
             width: 32,
             height: 32,
             edge_coloring_angle_threshold: 3.0,
             range: 2.0,
-            scale: (1.0, 1.0),
-            translate: (0.0, 0.0),
+            scale: Vector2D { x: 1.0, y: 1.0 },
+            translate: Vector2D { x: 0.0, y: 0.0 },
             edge_threshold: 1.001,
             overlap_support: true
         };
