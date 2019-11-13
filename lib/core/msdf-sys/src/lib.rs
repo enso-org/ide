@@ -1,89 +1,50 @@
 extern crate wasm_bindgen;
-#[macro_use] extern crate slice_as_array;
 
-use wasm_bindgen::prelude::*;
-use js_sys::*;
+mod internal;
 
-const MAX_MSDF_SIZE : usize = 32;
-pub const MSDF_CHANNELS_COUNT : usize = 3;
-const MSDF_DATA_SIZE : usize = MAX_MSDF_SIZE*MAX_MSDF_SIZE*MSDF_CHANNELS_COUNT;
+use internal::{
+    ccall,
+    getValue,
+    _msdfgen_generateMSDF,
+    _msdfgen_freeFont,
+    emscripten_data_types
+};
+use wasm_bindgen::JsValue;
+use js_sys::Uint8Array;
+
+// ==================
+// === FontHandle ===
+// ==================
 
 pub struct FontHandle {
     handle: JsValue
 }
 
-pub struct MSDF {
-    pub width  : usize,
-    pub height : usize,
-    pub data   : [f32;MSDF_DATA_SIZE]
-}
-
-pub struct MSDFParameters {
-    width                         : usize,
-    height                        : usize,
-    edge_coloring_angle_threshold : f64,
-    range                         : f64,
-    scale                         : (f64, f64),
-    translate                     : (f64, f64),
-    edge_threshold                : f64,
-    overlap_support               : bool
-}
-
-#[wasm_bindgen(module = "msdfgen_wasm.js")]
-extern {
-
-fn ccall(
-    name        : &str,
-    return_type : &str,
-    types       : js_sys::Array,
-    values      : js_sys::Array
-) -> JsValue;
-
-fn getValue(address: usize, a_type: &str) -> JsValue;
-
-fn _msdfgen_maxMSDFSize() -> usize;
-
-fn _msdfgen_generateMSDF(
-    width                           : usize,
-    height                          : usize,
-    font_handle                     : JsValue,
-    unicode                         : u32,
-    edge_coloring_angle_threshold   : f64,
-    range                           : f64,
-    scale_x                         : f64,
-    scale_y                         : f64,
-    translate_x                     : f64,
-    translate_y                     : f64,
-    edge_threshold                  : f64,
-    overlap_support                 : bool
-) -> usize;
-
-fn _msdfgen_freeFont(font_handle: JsValue);
-
-}
-
-fn make_js_array_from_data_view(data: &[u8]) -> Uint8Array {
-    unsafe {
-        return Uint8Array::view(data)
-    }
-}
-
 pub fn load_font_memory(data: &[u8]) -> FontHandle {
 
     let param_types = js_sys::Array::new_with_length(2);
-    param_types.set(0, JsValue::from_str("array"));
-    param_types.set(1, JsValue::from_str("number"));
+    param_types.set(0, JsValue::from_str(emscripten_data_types::ARRAY));
+    param_types.set(1, emscripten_data_types::NUMBER.into());
     let params = js_sys::Array::new_with_length(2);
-    params.set(0, JsValue::from(make_js_array_from_data_view(data)));
+    unsafe { // Note [Usage of Uint8Array::view
+        params.set(0, JsValue::from(Uint8Array::view(data)));
+    }
     params.set(1, JsValue::from_f64(data.len() as f64));
     let handle = ccall(
         "msdfgen_loadFontMemory",
-        "number",
+        emscripten_data_types::NUMBER,
         param_types,
         params);
     FontHandle { handle }
-
 }
+
+/*
+ * Note [Usage of Uint8Array::view]
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * We use view in this place to avoid copying font data. This is the only way
+ * to do it with js_sys structures. The Uint8Array does not leave function
+ * scope, so does not excess lifetime of data
+ */
 
 impl Drop for FontHandle {
     fn drop(&mut self) {
@@ -91,46 +52,90 @@ impl Drop for FontHandle {
     }
 }
 
-pub fn generate_msdf(
-    font    : &FontHandle,
-    unicode : u32,
-    params  : MSDFParameters
-) -> MSDF {
-    assert!(params.width <= MAX_MSDF_SIZE);
-    assert!(params.height <= MAX_MSDF_SIZE);
+// =======================================
+// === MutlichannelSignedDistanceField ===
+// =======================================
 
-    let output_address = _msdfgen_generateMSDF(
-        params.width,
-        params.height,
-        font.handle.clone(),
-        unicode,
-        params.edge_coloring_angle_threshold,
-        params.range,
-        params.scale.0,
-        params.scale.1,
-        params.translate.0,
-        params.translate.1,
-        params.edge_threshold,
-        params.overlap_support
-    );
-    let mut data : [f32;MSDF_DATA_SIZE] = [0.0;MSDF_DATA_SIZE];
-    for i in 0..params.width*params.height*MSDF_CHANNELS_COUNT {
-        data[i] = getValue(output_address + i*4, "float")
-            .as_f64()
-            .unwrap() as f32
-    }
-
-    MSDF { width: params.width, height: params.height, data }
+pub struct MutlichannelSignedDistanceField {
+    pub width  : usize,
+    pub height : usize,
+    pub data   : [f32; Self::MAX_DATA_SIZE]
 }
+
+pub struct MSDFParameters {
+    pub width                         : usize,
+    pub height                        : usize,
+    pub edge_coloring_angle_threshold : f64,
+    pub range                         : f64,
+    pub scale                         : (f64, f64),
+    pub translate                     : (f64, f64),
+    pub edge_threshold                : f64,
+    pub overlap_support               : bool
+}
+
+impl MutlichannelSignedDistanceField {
+    pub const MAX_SIZE       : usize = 32;
+    pub const CHANNELS_COUNT : usize = 3;
+    pub const MAX_DATA_SIZE  : usize = Self::MAX_SIZE * Self::MAX_SIZE *
+        Self::CHANNELS_COUNT;
+
+    pub fn generate(
+        font    : &FontHandle,
+        unicode : u32,
+        params  : MSDFParameters
+    ) -> MutlichannelSignedDistanceField {
+        assert!(params.width  <= Self::MAX_SIZE);
+        assert!(params.height <= Self::MAX_SIZE);
+
+        let output_address = _msdfgen_generateMSDF(
+            params.width,
+            params.height,
+            font.handle.clone(),
+            unicode,
+            params.edge_coloring_angle_threshold,
+            params.range,
+            params.scale.0,
+            params.scale.1,
+            params.translate.0,
+            params.translate.1,
+            params.edge_threshold,
+            params.overlap_support
+        );
+        let mut data : [f32; Self::MAX_DATA_SIZE] = [0.0; Self::MAX_DATA_SIZE];
+        let data_size = params.width*params.height*Self::CHANNELS_COUNT;
+
+        for (i, data_element) in
+            data.iter_mut().enumerate().take(data_size) {
+
+            let offset = i * emscripten_data_types::FLOAT_SIZE_IN_BYTES;
+            *data_element = getValue(
+                output_address + offset,
+                emscripten_data_types::FLOAT
+            ).as_f64().unwrap() as f32;
+        }
+
+        MutlichannelSignedDistanceField {
+            width: params.width,
+            height: params.height,
+            data
+        }
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {
     extern crate wasm_bindgen_test;
-    use wasm_bindgen_test::*;
+    extern crate slice_as_array;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use slice_as_array::slice_to_array_clone;
+    use internal::_msdfgen_maxMSDFSize;
     use crate::*;
 
     #[wasm_bindgen_test]
     fn generate_msdf_for_capital_a() {
+        // given
         let test_font : &[u8] = include_bytes!("DejaVuSansMono-Bold.ttf");
         let expected_output_raw : &[u8] = include_bytes!("output.bin");
         let font = load_font_memory(test_font);
@@ -144,7 +149,13 @@ mod tests {
             edge_threshold: 1.001,
             overlap_support: true
         };
-        let msdf = generate_msdf(&font, 'A' as u32, params);
+        // when
+        let msdf = MutlichannelSignedDistanceField::generate(
+            &font,
+            'A' as u32,
+            params
+        );
+        // then
         for i in 0..(32*32*3) {
             let expected_f = f32::from_le_bytes(
                 slice_to_array_clone!(
@@ -158,6 +169,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn msdf_data_limits() {
-        assert!(MAX_MSDF_SIZE < _msdfgen_maxMSDFSize());
+        assert!(MutlichannelSignedDistanceField::MAX_SIZE <
+            _msdfgen_maxMSDFSize());
     }
 }
