@@ -24,6 +24,10 @@ pub struct Font {
 }
 
 impl Font {
+    // Loading font from memory
+    //
+    // Loads font from a any format which freetype library can handle.
+    // See https://www.freetype.org/freetype2/docs/index.html for reference
     pub fn load_from_memory(data: &[u8]) -> Self {
         let param_types = js_sys::Array::of2(
             &JsValue::from_str(emscripten_data_types::ARRAY),
@@ -62,19 +66,23 @@ impl Drop for Font {
 // === MutlichannelSignedDistanceField ===
 // =======================================
 
+// Mutlichannel Signed Distance Field for one glyph
+//
+// For more information about MSDF see https://github.com/Chlumsky/msdfgen
 pub struct MutlichannelSignedDistanceField {
     pub width  : usize,
     pub height : usize,
     pub data   : [f32; Self::MAX_DATA_SIZE]
 }
 
+// Parameters of MSDF generation
+//
+// The structure gathering MSDF generation parameters meant to be same for all rendered glyphs
 pub struct MSDFParameters {
     pub width                         : usize,
     pub height                        : usize,
     pub edge_coloring_angle_threshold : f64,
     pub range                         : f64,
-    pub scale                         : Vector2D<f64>,
-    pub translate                     : Vector2D<f64>,
     pub edge_threshold                : f64,
     pub overlap_support               : bool
 }
@@ -86,9 +94,11 @@ impl MutlichannelSignedDistanceField {
         Self::CHANNELS_COUNT;
 
     pub fn generate(
-        font    : &Font,
-        unicode : u32,
-        params  : MSDFParameters
+        font      : &Font,
+        unicode   : u32,
+        params    : MSDFParameters,
+        scale     : Vector2D<f64>,
+        translate : Vector2D<f64>,
     ) -> MutlichannelSignedDistanceField {
         assert!(params.width  <= Self::MAX_SIZE);
         assert!(params.height <= Self::MAX_SIZE);
@@ -100,10 +110,10 @@ impl MutlichannelSignedDistanceField {
             unicode,
             params.edge_coloring_angle_threshold,
             params.range,
-            params.scale.x,
-            params.scale.y,
-            params.translate.x,
-            params.translate.y,
+            scale.x,
+            scale.y,
+            translate.x,
+            translate.y,
             params.edge_threshold,
             params.overlap_support
         );
@@ -144,8 +154,6 @@ mod tests {
             height: 32,
             edge_coloring_angle_threshold: 3.0,
             range: 2.0,
-            scale: Vector2D { x: 1.0, y: 1.0 },
-            translate: Vector2D { x: 0.0, y: 0.0 },
             edge_threshold: 1.001,
             overlap_support: true
         };
@@ -153,7 +161,9 @@ mod tests {
         let msdf = MutlichannelSignedDistanceField::generate(
             &font,
             'A' as u32,
-            params
+            params,
+            Vector2D { x: 1.0, y: 1.0 },
+            Vector2D { x: 0.0, y: 0.0 }
         );
         // then
         for i in 0..(32*32*3) {
