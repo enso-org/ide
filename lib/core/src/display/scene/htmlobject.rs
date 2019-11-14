@@ -1,37 +1,41 @@
-use crate::system::web::{Result, Error, document, create_element_as};
+use crate::system::web::{Result, Error, create_element_as};
 use web_sys::HtmlElement;
-use std::ops::Deref;
-use nalgebra::{Vector3, UnitQuaternion, Translation};
+use super::Object;
+use nalgebra::{Vector3};
 
-impl Deref for HTMLObject {
-    type Target = HtmlElement;
-    fn deref(&self) -> &Self::Target {
-        &self.element
-    }
-}
-
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 pub struct HTMLObject {
-    element : HtmlElement,
-    position : Vector3<f32>,
-    rotation : UnitQuaternion<f32>
+    #[shrinkwrap(main_field)]
+    pub object : Object,
+    pub element : HtmlElement,
+    pub dimension : Vector3<f32>
 }
 
 impl HTMLObject {
     pub fn new(name : &str) -> Result<Self> {
-        let element = create_element_as(name);
+        let element = create_element_as::<HtmlElement>(name);
         match element {
-            Ok(element) => Ok(Self { element, position : Vector3::new(0.0, 0.0, 0.0), rotation : UnitQuaternion::identity() }),
+            Ok(element) => {
+                let style = element.style();
+                style.set_property("transform-style", "preserve-3d").unwrap();
+                style.set_property("position", "absolute").unwrap();
+                style.set_property("width", "0px").unwrap();
+                style.set_property("height", "0px").unwrap();
+                Ok(Self { object: Object::new(), element, dimension : Vector3::new(0.0, 0.0, 0.0) })
+            },
             Err(_) => Result::Err(Error::missing("element"))
         }
     }
-    pub fn set_position(&mut self, x : f32, y : f32, z : f32) {
-        self.position = Vector3::new(x, y, z);
+
+    pub fn set_dimension(&mut self, width: f32, height: f32) {
+        self.dimension = Vector3::new(width, height, 0.0);
+        let style = self.element.style();
+        style.set_property("width", &format!("{}px", width)).unwrap();
+        style.set_property("height", &format!("{}px", height)).unwrap();
     }
-    pub fn set_rotation(&mut self, roll : f32, pitch : f32, yaw : f32) {
-        self.rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
-    }
-    pub fn update(&mut self) {
-        let transform = self.rotation.to_homogeneous() * Translation::from_vector(self.position).to_homogeneous();
-        self.style().set_property("transform", &format!("perspective(400px) matrix3d({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})", transform[0], transform[1], transform[2], transform[3], transform[4], transform[5], transform[6], transform[7], transform[8], transform[9], transform[10], transform[11], transform[12], transform[13], transform[14], transform[15]));
+
+    pub fn get_dimension(&mut self) -> &Vector3<f32> {
+        &self.dimension
     }
 }

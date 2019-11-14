@@ -1,44 +1,35 @@
 use crate::system::web::{Result, Error};
-use web_sys::{Element};
 use super::Scene;
-use std::ops::Deref;
-use crate::display::scene::HTMLObject;
+use super::HTMLObject;
+use crate::data::opt_vec::OptVec;
 
-impl Deref for HTMLScene {
-    type Target = Scene;
-    fn deref(&self) -> &Self::Target {
-        &self.scene
-    }
-}
-
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 pub struct HTMLScene {
-    scene : Scene,
-    div : HTMLObject,
-    objects : Vec<HTMLObject>
+    #[shrinkwrap(main_field)]
+    pub scene : Scene,
+    pub div : HTMLObject,
+    pub objects : OptVec<HTMLObject>
 }
 
 impl HTMLScene {
     pub fn new(id : &str) -> Result<Self> {
         let scene = Scene::new(id)?;
-
         let div = HTMLObject::new("div")?;
-        let objects = Vec::new();
+        let objects = OptVec::new();
 
-        match scene.container.append_child(&div) {
+        match scene.container.append_child(&div.element) {
             Ok(_) => Ok(Self {scene, div, objects}),
             Err(_) => Err(Error::missing("div"))
         }
     }
 
-    pub fn add(&mut self, object: HTMLObject) {
-        object.style().set_property("position", "absolute");
-        self.div.append_child(&object).unwrap();
-        self.objects.push(object);
+    pub fn add(&mut self, object: HTMLObject) -> usize {
+        self.div.element.append_child(&object.element).unwrap();
+        self.objects.insert(|_| object)
     }
 
-    pub fn update(&mut self) {
-        for object in &mut self.objects {
-            object.update();
-        }
+    pub fn remove(&mut self, index: usize) {
+        self.objects.remove(index);
     }
 }

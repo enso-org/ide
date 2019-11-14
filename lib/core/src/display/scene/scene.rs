@@ -11,7 +11,11 @@ impl Scene {
         let container = document.get_element_by_id(id).ok_or(Error::missing(id));
         match container {
             Ok(container) => Ok(Self { container }),
-            Error => Result::Err(Error::missing(id))
+            _error => Result::Err(Error::missing(id))
         }
+    }
+
+    pub fn get_dimension(&self) -> (f32, f32) {
+        (self.container.client_width() as f32, self.container.client_height() as f32)
     }
 }
