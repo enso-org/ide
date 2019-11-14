@@ -1,25 +1,24 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
-#[wasm_bindgen(module = "msdfgen_wasm.js")]
+#[wasm_bindgen(module = "/msdfgen_wasm.js")]
 extern {
-    // Function provided by emscripten sdk,
-    // for details, search for "emscripten call c from js"
-    pub fn ccall( // Note [extern function names]
+    #[wasm_bindgen(js_name="ccall")]
+    pub fn emscripten_call_function(
         name        : &str,
         return_type : &str,
         types       : js_sys::Array,
         values      : js_sys::Array
     ) -> JsValue;
 
-    // function provided by emscripten sdk,
-    // for details, search for "emscripten call c from js"
-    pub fn getValue(address: usize, a_type: &str) -> JsValue;
-    // Note [extern function names]
+    #[wasm_bindgen(js_name="getValue")]
+    pub fn emscripten_get_value_from_memory(address: usize, a_type: &str) -> JsValue;
 
-    pub fn _msdfgen_maxMSDFSize() -> usize; // Note [extern function names]
+    #[wasm_bindgen(js_name="_msdfgen_maxMSDFSize")]
+    pub fn msdfgen_max_msdf_size() -> usize;
 
-    pub fn _msdfgen_generateMSDF( // Note [extern function names]
+    #[wasm_bindgen(js_name="_msdfgen_generateMSDF")]
+    pub fn msdfgen_generate_msdf(
         width                           : usize,
         height                          : usize,
         font_handle                     : JsValue,
@@ -34,14 +33,9 @@ extern {
         overlap_support                 : bool
     ) -> usize;
 
-    pub fn _msdfgen_freeFont(font_handle: JsValue);
-    // Note [extern function names]
+    #[wasm_bindgen(js_name="_msdfgen_freeFont")]
+    pub fn msdfgen_free_font(font_handle: JsValue);
 
-    /* Note [extern function names]
-     * Functions declared in this module are exported directly from
-     * c library or from emscripten sdk. Therefore, they does not fulfill
-     * the rust function naming guidelines
-     */
 }
 
 pub mod emscripten_data_types {
@@ -61,7 +55,7 @@ pub fn copy_f32_data_from_msdfgen_memory(
         output.iter_mut().enumerate().take(elements_count) {
 
         let offset = i * emscripten_data_types::FLOAT_SIZE_IN_BYTES;
-        *element = getValue(
+        *element = emscripten_get_value_from_memory(
             address + offset,
             emscripten_data_types::FLOAT
         ).as_f64().unwrap() as f32;

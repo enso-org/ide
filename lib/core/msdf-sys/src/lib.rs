@@ -5,9 +5,9 @@ extern crate vector2d;
 mod internal;
 
 use internal::{
-    ccall,
-    _msdfgen_generateMSDF,
-    _msdfgen_freeFont,
+    emscripten_call_function,
+    msdfgen_generate_msdf,
+    msdfgen_free_font,
     emscripten_data_types
 };
 use js_sys::Uint8Array;
@@ -34,7 +34,7 @@ impl Font {
                 &JsValue::from(Uint8Array::view(data)),
                 &JsValue::from_f64(data.len() as f64)
             );
-            let handle = ccall(
+            let handle = emscripten_call_function(
                 "msdfgen_loadFontMemory",
                 emscripten_data_types::NUMBER,
                 param_types,
@@ -54,7 +54,7 @@ impl Font {
 
 impl Drop for Font {
     fn drop(&mut self) {
-        _msdfgen_freeFont(self.handle.clone())
+        msdfgen_free_font(self.handle.clone())
     }
 }
 
@@ -93,7 +93,7 @@ impl MutlichannelSignedDistanceField {
         assert!(params.width  <= Self::MAX_SIZE);
         assert!(params.height <= Self::MAX_SIZE);
 
-        let output_address = _msdfgen_generateMSDF(
+        let output_address = msdfgen_generate_msdf(
             params.width,
             params.height,
             font.handle.clone(),
@@ -130,7 +130,7 @@ mod tests {
     extern crate slice_as_array;
     use wasm_bindgen_test::wasm_bindgen_test;
     use slice_as_array::slice_to_array_clone;
-    use internal::_msdfgen_maxMSDFSize;
+    use internal::msdfgen_max_msdf_size;
     use crate::*;
 
     #[wasm_bindgen_test]
@@ -169,7 +169,6 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn msdf_data_limits() {
-        assert!(MutlichannelSignedDistanceField::MAX_SIZE <
-            _msdfgen_maxMSDFSize());
+        assert!(MutlichannelSignedDistanceField::MAX_SIZE < msdfgen_max_msdf_size());
     }
 }
