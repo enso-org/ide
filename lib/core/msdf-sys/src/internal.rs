@@ -12,7 +12,10 @@ extern {
     ) -> JsValue;
 
     #[wasm_bindgen(js_name="getValue")]
-    pub fn emscripten_get_value_from_memory(address: usize, a_type: &str) -> JsValue;
+    pub fn emscripten_get_value_from_memory(
+        address: usize,
+        a_type: &str
+    ) -> JsValue;
 
     #[wasm_bindgen(js_name="_msdfgen_maxMSDFSize")]
     pub fn msdfgen_max_msdf_size() -> usize;
@@ -35,7 +38,6 @@ extern {
 
     #[wasm_bindgen(js_name="_msdfgen_freeFont")]
     pub fn msdfgen_free_font(font_handle: JsValue);
-
 }
 
 pub mod emscripten_data_types {

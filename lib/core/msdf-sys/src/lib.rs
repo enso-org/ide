@@ -1,7 +1,3 @@
-extern crate js_sys;
-extern crate wasm_bindgen;
-extern crate vector2d;
-
 mod internal;
 
 use internal::{
@@ -24,10 +20,10 @@ pub struct Font {
 }
 
 impl Font {
-    // Loading font from memory
-    //
-    // Loads font from a any format which freetype library can handle.
-    // See https://www.freetype.org/freetype2/docs/index.html for reference
+    /// Loading font from memory
+    ///
+    /// Loads font from a any format which freetype library can handle.
+    /// See [https://www.freetype.org/freetype2/docs/index.html] for reference.
     pub fn load_from_memory(data: &[u8]) -> Self {
         let param_types = js_sys::Array::of2(
             &JsValue::from_str(emscripten_data_types::ARRAY),
@@ -66,18 +62,19 @@ impl Drop for Font {
 // === MutlichannelSignedDistanceField ===
 // =======================================
 
-// Mutlichannel Signed Distance Field for one glyph
-//
-// For more information about MSDF see https://github.com/Chlumsky/msdfgen
+/// Mutlichannel Signed Distance Field for one glyph
+///
+/// For more information about MSDF see [https://github.com/Chlumsky/msdfgen].
 pub struct MutlichannelSignedDistanceField {
     pub width  : usize,
     pub height : usize,
     pub data   : [f32; Self::MAX_DATA_SIZE]
 }
 
-// Parameters of MSDF generation
-//
-// The structure gathering MSDF generation parameters meant to be same for all rendered glyphs
+/// Parameters of MSDF generation
+///
+/// The structure gathering MSDF generation parameters meant to be same for all
+/// rendered glyphs
 pub struct MSDFParameters {
     pub width                         : usize,
     pub height                        : usize,
@@ -96,7 +93,7 @@ impl MutlichannelSignedDistanceField {
     pub fn generate(
         font      : &Font,
         unicode   : u32,
-        params    : MSDFParameters,
+        params    : &MSDFParameters,
         scale     : Vector2D<f64>,
         translate : Vector2D<f64>,
     ) -> MutlichannelSignedDistanceField {
@@ -118,7 +115,8 @@ impl MutlichannelSignedDistanceField {
             params.overlap_support
         );
         let mut data : [f32; Self::MAX_DATA_SIZE] = [0.0; Self::MAX_DATA_SIZE];
-        let data_size = params.width*params.height*Self::CHANNELS_COUNT;
+        let data_size = params.width * params.height *
+            Self::CHANNELS_COUNT;
         copy_f32_data_from_msdfgen_memory(
             output_address,
             &mut data,
@@ -136,10 +134,7 @@ impl MutlichannelSignedDistanceField {
 
 #[cfg(test)]
 mod tests {
-    extern crate wasm_bindgen_test;
-    extern crate slice_as_array;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use slice_as_array::slice_to_array_clone;
     use internal::msdfgen_max_msdf_size;
     use crate::*;
 
@@ -147,7 +142,6 @@ mod tests {
     fn generate_msdf_for_capital_a() {
         // given
         let test_font : &[u8] = include_bytes!("DejaVuSansMono-Bold.ttf");
-        let expected_output_raw : &[u8] = include_bytes!("output.bin");
         let font = Font::load_from_memory(test_font);
         let params = MSDFParameters {
             width: 32,
@@ -161,24 +155,27 @@ mod tests {
         let msdf = MutlichannelSignedDistanceField::generate(
             &font,
             'A' as u32,
-            params,
+            &params,
             Vector2D { x: 1.0, y: 1.0 },
             Vector2D { x: 0.0, y: 0.0 }
         );
         // then
-        for i in 0..(32*32*3) {
-            let expected_f = f32::from_le_bytes(
-                slice_to_array_clone!(
-                    &expected_output_raw[i*4..(i+1)*4],
-                    [u8; 4]
-                ).unwrap()
-            );
-            assert_eq!(expected_f, msdf.data[i], "Index {}", i);
-        }
+        // Note [asserts]
+        assert_eq!(0.42730755, msdf.data[0]);
+        assert_eq!(0.75, msdf.data[10]);
+        assert_eq!(-9.759168, msdf.data[params.width * params.height *
+            MutlichannelSignedDistanceField::CHANNELS_COUNT - 1]);
     }
+
+    /* Note [asserts]
+     *
+     * we're checking rust - js interface only, so there is no need to check
+     * all values
+     */
 
     #[wasm_bindgen_test]
     fn msdf_data_limits() {
-        assert!(MutlichannelSignedDistanceField::MAX_SIZE < msdfgen_max_msdf_size());
+        assert!(MutlichannelSignedDistanceField::MAX_SIZE
+            < msdfgen_max_msdf_size());
     }
 }

@@ -2,13 +2,15 @@ extern crate download_lp;
 
 mod msdfgen_wasm {
 
-    pub const VERSION  : &str = "v1.0";
-    pub const FILENAME : &str = "msdfgen_wasm.js";
+    pub const VERSION     : &str = "v1.0";
+    pub const FILENAME    : &str = "msdfgen_wasm.js";
+    pub const PROJECT_URL : &str = "https://github.com/luna/msdfgen-wasm";
 
     pub fn download() {
         let url = format!(
-            "https://github.com/luna/msdf/releases/download/{version}/{filename}",
-            version = VERSION,
+            "{project}/releases/download/{version}/{filename}",
+            project  = PROJECT_URL,
+            version  = VERSION,
             filename = FILENAME
         );
 
