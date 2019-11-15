@@ -97,7 +97,7 @@ mod tests {
     extern crate wasm_bindgen_test;
 
     use wasm_bindgen_test::wasm_bindgen_test;
-    
+
     #[wasm_bindgen_test]
     fn test_add() {
         let mut v = OptVec::new();

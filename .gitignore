@@ -1,9 +1,8 @@
 # Rust
 /target
-/script/run-all-tests/target/
+/script/rust/target/
 **/*.rs.bk
 Cargo.lock
-bin/
 pkg/
 wasm-pack.log
 

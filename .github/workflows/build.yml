@@ -42,8 +42,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --manifest-path=script/run-all-tests/Cargo.toml -- --node --chrome --firefox
+          args: >
+            --manifest-path=script/rust/Cargo.toml
+            --bin test-all
+            -- --node --chrome --firefox
 
+# TODO[AO] formatter does not work
 #  fmt:
 #    name: Formatter
 #    runs-on: ubuntu-latest
@@ -93,7 +97,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --manifest-path=script/run-all-tests/Cargo.toml -- --node --chrome --firefox -- --all-features --no-fail-fast
+          args: >
+            --manifest-path=script/rust/Cargo.toml
+            --bin test-all
+            -- --node --chrome --firefox
         env:
           'CARGO_INCREMENTAL': '0'
           'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
