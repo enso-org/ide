@@ -98,7 +98,7 @@ mod tests {
 
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    #[wasm_bindgen_test]
+    #[test]
     fn test_add() {
         let mut v = OptVec::new();
         assert!(v.is_empty(), "OptVec should be created empty");
