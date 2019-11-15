@@ -1,4 +1,4 @@
-use crate::system::web::{Result, Error};
+use crate::system::web::{Result};
 use super::Scene;
 use super::HTMLObject;
 use crate::data::opt_vec::OptVec;
@@ -9,27 +9,39 @@ pub struct HTMLScene {
     #[shrinkwrap(main_field)]
     pub scene : Scene,
     pub div : HTMLObject,
+    pub camera : HTMLObject,
     pub objects : OptVec<HTMLObject>
 }
 
 impl HTMLScene {
     pub fn new(id : &str) -> Result<Self> {
         let scene = Scene::new(id)?;
+        scene.container.style().set_property("overflow", "hidden").expect("overflow: hidden");
+
         let div = HTMLObject::new("div")?;
+        scene.container.append_child(&div.element).expect("append div");
+
+        let camera = HTMLObject::new("div")?;
+        camera.element.style().set_property("width", "100%").expect("set width");
+        camera.element.style().set_property("height", "100%").expect("set height");
+        div.element.append_child(&camera.element).expect("append camera");
         let objects = OptVec::new();
 
-        match scene.container.append_child(&div.element) {
-            Ok(_) => Ok(Self {scene, div, objects}),
-            Err(_) => Err(Error::missing("div"))
-        }
+        Ok(Self {scene, div, camera, objects})
     }
 
     pub fn add(&mut self, object: HTMLObject) -> usize {
-        self.div.element.append_child(&object.element).unwrap();
+        self.camera.element.append_child(&object.element).expect("append child");
         self.objects.insert(|_| object)
     }
 
     pub fn remove(&mut self, index: usize) {
-        self.objects.remove(index);
+        if let Some(object) = self.objects.remove(index) {
+            self.camera.element.remove_child(&object.element).expect("remove child");
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.objects.len()
     }
 }

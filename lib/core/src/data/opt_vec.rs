@@ -47,6 +47,10 @@ impl<T> OptVec<T> {
         item.iter().for_each(|_| self.free_ixs.push(ix));
         item
     }
+
+    pub fn len(&self) -> usize {
+        self.items.len() - self.free_ixs.len()
+    }
 }
 
 #[cfg(test)]
