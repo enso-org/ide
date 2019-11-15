@@ -1,5 +1,6 @@
 # Rust
 /target
+/script/run-all-tests/target/
 **/*.rs.bk
 Cargo.lock
 bin/

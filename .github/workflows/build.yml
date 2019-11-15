@@ -39,12 +39,10 @@ jobs:
           command: install
           args: wasm-pack
       - name: Run tests
-        run: |
-          wasm-pack test "lib/prelude"        --node --firefox --chrome #--safari
-          wasm-pack test "lib/core"           --node --firefox --chrome #--safari
-          wasm-pack test "lib/core/msdf-sys"  --node --firefox --chrome #--safari
-          wasm-pack test "lib/backend/webgl"  --node --firefox --chrome #--safari
-          wasm-pack test "lib/system/web"     --node --firefox --chrome #--safari
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --manifest-path=script/run-all-tests/Cargo.toml -- --node --chrome --firefox
 
 #  fmt:
 #    name: Formatter
