@@ -94,8 +94,11 @@ impl<'a, T> IntoIterator for &'a OptVec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    extern crate wasm_bindgen_test;
 
-    #[test]
+    use wasm_bindgen_test::wasm_bindgen_test;
+    
+    #[wasm_bindgen_test]
     fn test_add() {
         let mut v = OptVec::new();
         assert!(v.is_empty(), "OptVec should be created empty");
