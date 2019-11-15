@@ -33,24 +33,33 @@ jobs:
         with:
           toolchain: nightly-2019-11-04
           override: true
-      - uses: actions-rs/cargo@v1
+      - name: Install wasm-pack
+        uses: actions-rs/cargo@v1
         with:
-          command: test
+          command: install
+          args: wasm-pack
+      - name: Run tests
+        run: |
+          wasm-pack test "lib/prelude"        --node --firefox --chrome #--safari
+          wasm-pack test "lib/core"           --node --firefox --chrome #--safari
+          wasm-pack test "lib/core/msdf-sys"  --node --firefox --chrome #--safari
+          wasm-pack test "lib/backend/webgl"  --node --firefox --chrome #--safari
+          wasm-pack test "lib/system/web"     --node --firefox --chrome #--safari
 
-#   fmt:
-#     name: Formatter
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v1
-#       - uses: actions-rs/toolchain@v1
-#         with:
-#           toolchain: nightly-2019-11-04
-#           override: true
-#       - run: rustup component add rustfmt
-#       - uses: actions-rs/cargo@v1
-#         with:
-#           command: fmt
-#           args: --all -- --check
+#  fmt:
+#    name: Formatter
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v1
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: nightly-2019-11-04
+#          override: true
+#      - run: rustup component add rustfmt
+#      - uses: actions-rs/cargo@v1
+#        with:
+#          command: fmt
+#          args: --all -- --check
 
   clippy:
     name: Linter
