@@ -1,18 +1,24 @@
 use basegl::display::scene::{HTMLObject};
-use basegl::system::web::{document};
+use basegl::system::web::{document, get_element_by_id_as, create_element_as};
 use web_sys::HtmlElement;
 
-// to be implemented
-// pub struct TestGroup {
-//     div : HTMLObject
-// }
-//
-// impl TestGroup {
-//     pub fn new() -> Self {
-//         let mut div = HTMLObject::new("div").expect("div");
-//
-//     }
-// }
+pub struct TestGroup {
+    pub div : HtmlElement
+}
+
+impl TestGroup {
+    pub fn new() -> Self {
+        let div = match get_element_by_id_as::<HtmlElement>("testgroup") {
+            Ok(div) => div,
+            Err(_) => create_element_as::<HtmlElement>("div").expect("div")
+        };
+        div.set_attribute("id", "testgroup").expect("id = testgroup");
+        div.style().set_property("display", "flex").expect("flexbox");
+        div.style().set_property("flex-wrap", "wrap").expect("wrap");
+        document().expect("document").body().expect("body").append_child(&div).expect("appended div");
+        Self { div }
+    }
+}
 
 pub struct TestContainer {
     div : HTMLObject
@@ -38,7 +44,7 @@ impl TestContainer {
         container.element.style().set_property("position", "relative").expect("relative");
         div.element.append_child(&container.element).expect("appende container");
 
-        document().expect("document").body().expect("body").append_child(&div.element).expect("appended div");
+        TestGroup::new().div.append_child(&div.element).expect("appended div");
         Self { div }
     }
 

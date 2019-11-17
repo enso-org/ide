@@ -27,6 +27,7 @@ impl HTMLObject {
         Self { object: Object::new(), element, dimension : Vector3::new(0.0, 0.0, 0.0) }
     }
 
+    // We need to validate html. We can use Result<Node, Error> from element.children[0]. 
     pub fn from_html_string(html : &str) -> Result<Self> {
         let element = create_element_as::<HtmlElement>("div")?;
         element.set_inner_html(html);

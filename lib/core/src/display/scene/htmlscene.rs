@@ -17,13 +17,16 @@ impl HTMLScene {
     pub fn new(id : &str) -> Result<Self> {
         let scene = Scene::new(id)?;
         scene.container.style().set_property("overflow", "hidden").expect("overflow: hidden");
+        let (width, height) = scene.get_dimension();
 
         let div = HTMLObject::new("div")?;
+        div.element.style().set_property("width", &format!("{}px", width)).expect("set width");
+        div.element.style().set_property("height", &format!("{}px", height)).expect("set width");
         scene.container.append_child(&div.element).expect("append div");
 
         let camera = HTMLObject::new("div")?;
-        camera.element.style().set_property("width", "100%").expect("set width");
-        camera.element.style().set_property("height", "100%").expect("set height");
+        camera.element.style().set_property("width", &format!("{}px", width)).expect("set width");
+        camera.element.style().set_property("height", &format!("{}px", height)).expect("set width");
         div.element.append_child(&camera.element).expect("append camera");
         let objects = OptVec::new();
 

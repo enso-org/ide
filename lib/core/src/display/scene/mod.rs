@@ -2,11 +2,13 @@ mod scene;
 mod object;
 mod renderer;
 mod camera;
+mod transform;
 
 mod htmlscene;
 mod htmlobject;
 mod htmlrenderer;
 
+pub use transform::Transform;
 pub use scene::Scene;
 pub use object::Object;
 pub use camera::Camera;
