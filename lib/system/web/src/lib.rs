@@ -130,6 +130,13 @@ macro_rules! fmt {
 // ===================
 // === DOM Helpers ===
 // ===================
+
+pub fn dyn_into<T : wasm_bindgen::JsCast + std::fmt::Debug, U : wasm_bindgen::JsCast>(obj : T) -> Result<U> {
+    let expected = type_name::<T>();
+    let got = format!("{:?}", obj);
+    obj.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
+}
+
 pub fn window() -> Result<web_sys::Window> {
     web_sys::window().ok_or_else(|| Error::missing("window"))
 }
@@ -139,11 +146,10 @@ pub fn document() -> Result<web_sys::Document> {
 pub fn get_element_by_id(id: &str) -> Result<web_sys::Element> {
     document()?.get_element_by_id(id).ok_or_else(|| Error::missing(id))
 }
+#[deprecated(note = "Use get_element_by_id with dyn_into instead")]
 pub fn get_element_by_id_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
     let elem = get_element_by_id(id)?;
-    let expected = type_name::<T>();
-    let got = format!("{:?}", elem);
-    elem.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
+    dyn_into(elem)
 }
 pub fn create_element(id: &str) -> Result<web_sys::Element> {
     match document()?.create_element(id) {
@@ -151,14 +157,8 @@ pub fn create_element(id: &str) -> Result<web_sys::Element> {
         Err(_) => Err(Error::missing(id)),
     }
 }
-pub fn create_element_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
-    let elem = create_element(id)?;
-    let expected = type_name::<T>();
-    let got = format!("{:?}", elem);
-    elem.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
-}
 pub fn get_canvas(id: &str) -> Result<web_sys::HtmlCanvasElement> {
-    get_element_by_id_as(id)
+    dyn_into(get_element_by_id(id)?)
 }
 pub fn get_webgl_context(
     canvas: &HtmlCanvasElement,

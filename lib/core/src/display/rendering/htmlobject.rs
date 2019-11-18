@@ -1,7 +1,11 @@
 use super::Object;
-use crate::system::web::{create_element_as, Result};
+use crate::system::web::create_element;
+use crate::system::web::dyn_into;
+use crate::system::web::Result;
+use crate::system::web::Error;
 use nalgebra::Vector3;
 use web_sys::HtmlElement;
+
 
 /// A structure for representing a 3D HTMLElement in a `HTMLScene`
 #[derive(Shrinkwrap)]
@@ -10,7 +14,7 @@ pub struct HTMLObject {
     #[shrinkwrap(main_field)]
     pub object: Object,
     pub element: HtmlElement,
-    pub dimension: Vector3<f32>,
+    pub dimensions: Vector3<f32>,
 }
 
 impl HTMLObject {
@@ -21,7 +25,7 @@ impl HTMLObject {
     /// let object = HTMLObject::new("div");
     /// ```
     pub fn new(name: &str) -> Result<Self> {
-        let element = create_element_as::<HtmlElement>(name)?;
+        let element = dyn_into(create_element(name)?)?;
         Ok(Self::from_element(element))
     }
 
@@ -32,7 +36,7 @@ impl HTMLObject {
         style.set_property("position", "absolute").expect("position: absolute");
         style.set_property("width", "0px").expect("width: 0px");
         style.set_property("height", "0px").expect("height: 0px");
-        Self { object: Object::new(), element, dimension: Vector3::new(0.0, 0.0, 0.0) }
+        Self { object: Default::default(), element, dimensions: Vector3::new(0.0, 0.0, 0.0) }
     }
 
     /// Creates a HTMLObject from a HTML string
@@ -43,25 +47,25 @@ impl HTMLObject {
     /// let object = HTMLObject::from_html_string(html_string).expect("valid object");
     /// assert_eq!(object.element.inner_html(), html_string);
     /// ```
-    // We need to validate html. We can use Result<Node, Error> from
-    // element.children[0].
     pub fn from_html_string(html: &str) -> Result<Self> {
-        let element = create_element_as::<HtmlElement>("div")?;
+        let element = create_element("div")?;
         element.set_inner_html(html);
-
-        Ok(Self::from_element(element))
+        match element.children().item(0) {
+            Some(element) => Ok(Self::from_element(dyn_into(element)?)),
+            None => Err(Error::missing("valid HTML")),
+        }
     }
 
     /// Sets the underlying HtmlElement dimension
-    pub fn set_dimension(&mut self, width: f32, height: f32) {
-        self.dimension = Vector3::new(width, height, 0.0);
+    pub fn set_dimensions(&mut self, width: f32, height: f32) {
+        self.dimensions = Vector3::new(width, height, 0.0);
         let style = self.element.style();
         style.set_property("width", &format!("{}px", width)).expect("set width");
         style.set_property("height", &format!("{}px", height)).expect("set height");
     }
 
     /// Gets the underlying HtmlElement dimension
-    pub fn get_dimension(&mut self) -> &Vector3<f32> {
-        &self.dimension
+    pub fn get_dimensions(&mut self) -> &Vector3<f32> {
+        &self.dimensions
     }
 }

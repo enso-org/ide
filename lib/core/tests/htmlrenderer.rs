@@ -41,7 +41,7 @@ mod tests {
                 random() as f32 * TAU,
                 random() as f32 * TAU,
             );
-            object.set_dimension(50.0, 50.0);
+            object.set_dimensions(50.0, 50.0);
             object
                 .element
                 .style()
@@ -71,7 +71,8 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn rhs_coordinates() {
-        // Expected result: https://jsfiddle.net/zx6k7jt4/4/
+        // Note [rhs expected result]
+        // https://jsfiddle.net/zx6k7jt4/4/
         let _container = TestContainer::new("rhs_coordinates", 320.0, 240.0);
         let mut scene = HTMLScene::new("rhs_coordinates").expect("HTMLScene");
         assert_eq!(scene.len(), 0);
@@ -87,7 +88,7 @@ mod tests {
                 let mut object = HTMLObject::new("div").unwrap();
                 object.set_position(x as f32, y as f32, z as f32);
                 object.set_rotation(1.0, 1.0, 1.0);
-                object.set_dimension(1.0, 1.0);
+                object.set_dimensions(1.0, 1.0);
                 let (r, g, b) = (x as f32 * 25.5, y as f32 * 25.5, z as f32 * 25.5);
                 object
                     .element
@@ -127,7 +128,7 @@ mod tests {
                 let mut object = HTMLObject::new("div").unwrap();
                 object.set_position(x as f32, y as f32, z as f32);
                 object.set_rotation(0.5, 0.5, 0.5);
-                object.set_dimension(1.0, 1.0);
+                object.set_dimensions(1.0, 1.0);
                 let (r, g, b) = (x as f32 * 25.5, y as f32 * 25.5, z as f32 * 25.5);
                 object
                     .element
@@ -161,7 +162,7 @@ mod tests {
         let mut object = HTMLObject::new("div").unwrap();
         object.set_position(0.0, 0.0, 0.0);
         object.element.style().set_property("background-color", "rgb(0, 0, 0)").expect("black bg");
-        object.set_dimension(100.0, 100.0);
+        object.set_dimensions(100.0, 100.0);
         scene.add(object);
 
         let mut camera = Camera::perspective(45.0, width / height, 1.0, 2000.0);

@@ -32,6 +32,7 @@ features = [
   'Node',
   'Element',
   'HtmlElement',
+  'HtmlCollection',
   'CssStyleDeclaration',
   'HtmlCanvasElement',
   'WebGlBuffer',

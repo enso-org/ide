@@ -29,6 +29,6 @@ impl Camera {
     /// ```
     pub fn perspective(fov: f32, aspect: f32, znear: f32, zfar: f32) -> Self {
         let projection = *Perspective3::new(aspect, fov / 180.0 * PI, znear, zfar).as_matrix();
-        Self { object: Object::new(), projection }
+        Self { object: Default::default(), projection }
     }
 }

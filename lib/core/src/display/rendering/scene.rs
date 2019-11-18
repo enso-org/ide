@@ -1,4 +1,4 @@
-use crate::system::web::{get_element_by_id_as, Result};
+use crate::system::web::{get_element_by_id, dyn_into, Result};
 use web_sys::HtmlElement;
 
 /// A collection for holding 3D `Object`s
@@ -12,7 +12,7 @@ impl Scene {
     /// # Arguments
     /// * id - the HtmlElement container's id
     pub fn new(id: &str) -> Result<Self> {
-        let container = get_element_by_id_as::<HtmlElement>(id)?;
+        let container = dyn_into(get_element_by_id(id)?)?;
         Ok(Self { container })
     }
 

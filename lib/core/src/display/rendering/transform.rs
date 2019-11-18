@@ -54,7 +54,8 @@ impl Transform {
     /// roll, yaw)
     // Note [Transform to Matrix4 composition]
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // based on https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
+    // based on
+    // https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
     pub fn to_homogeneous(&self) -> Matrix4<f32> {
         let (x, y, z, w) = (
             self.rotation.coords.x,
