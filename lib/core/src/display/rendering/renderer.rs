@@ -1,5 +1,6 @@
 // use super::Camera;
 
+/// Base structure for our Renderers
 #[derive(Default)]
 pub struct Renderer {}
 

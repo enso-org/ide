@@ -8,14 +8,17 @@ fn eps(value: f32) -> f32 {
     }
 }
 
+/// A renderer for `HTMLObject`s
 #[derive(Default)]
 pub struct HTMLRenderer {}
 
 impl HTMLRenderer {
+    /// Creates a HTMLRenderer
     pub fn new() -> Self {
         Default::default()
     }
 
+    /// Renders the `Scene` from `Camera`'s point of view
     pub fn render(&self, camera: &mut Camera, scene: &HTMLScene) {
         let (view_width, view_height) = scene.get_dimension();
         let fov = camera.projection[5] * view_height / 2.0;

@@ -18,42 +18,49 @@ fn from_euler_angles_pry(roll: f32, pitch: f32, yaw: f32) -> UnitQuaternion<f32>
     ))
 }
 
+/// A structure representing 3D Position, Rotation and Scale
 pub struct Transform {
-    pub position:   Vector3<f32>,
-    pub quaternion: UnitQuaternion<f32>,
-    pub scale:      Vector3<f32>,
+    pub translation: Vector3<f32>,
+    pub rotation:    UnitQuaternion<f32>,
+    pub scale:       Vector3<f32>,
 }
 
 impl Transform {
+    /// Creates an identity transform
     pub fn identity() -> Self {
         Self {
-            position:   Vector3::new(0.0, 0.0, 0.0),
-            quaternion: UnitQuaternion::identity(),
-            scale:      Vector3::new(1.0, 1.0, 1.0),
+            translation: Vector3::new(0.0, 0.0, 0.0),
+            rotation:    UnitQuaternion::identity(),
+            scale:       Vector3::new(1.0, 1.0, 1.0),
         }
     }
 
-    pub fn set_position(&mut self, x: f32, y: f32, z: f32) {
-        self.position = Vector3::new(x, y, z);
+    /// Sets Transform's translation
+    pub fn set_translation(&mut self, x: f32, y: f32, z: f32) {
+        self.translation = Vector3::new(x, y, z);
     }
 
+    /// Set Transform's scale
     pub fn set_scale(&mut self, x: f32, y: f32, z: f32) {
         self.scale = Vector3::new(x, y, z);
     }
 
+    /// Set Transform's rotation from Euler angles in radians
     pub fn set_rotation(&mut self, roll: f32, pitch: f32, yaw: f32) {
-        self.quaternion = from_euler_angles_pry(roll, pitch, yaw);
+        self.rotation = from_euler_angles_pry(roll, pitch, yaw);
     }
 
+    /// Gets a homogeneous transform Matrix4. The rotation order is YXZ (pitch,
+    /// roll, yaw)
     // Note [Transform to Matrix4 composition]
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // based on https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
     pub fn to_homogeneous(&self) -> Matrix4<f32> {
         let (x, y, z, w) = (
-            self.quaternion.coords.x,
-            self.quaternion.coords.y,
-            self.quaternion.coords.z,
-            self.quaternion.coords.w,
+            self.rotation.coords.x,
+            self.rotation.coords.y,
+            self.rotation.coords.z,
+            self.rotation.coords.w,
         );
         let (x2, y2, z2) = (x + x, y + y, z + z);
         let (xx, xy, xz) = (x * x2, x * y2, x * z2);
@@ -77,7 +84,7 @@ impl Transform {
         let m22 = (1.0 - (xx + yy)) * sz;
         let m32 = 0.0;
 
-        let (m03, m13, m23) = (self.position.x, self.position.y, self.position.z);
+        let (m03, m13, m23) = (self.translation.x, self.translation.y, self.translation.z);
         let m33 = 1.0;
         Matrix4::new(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
     }
