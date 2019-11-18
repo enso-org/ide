@@ -6,8 +6,6 @@
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
 
-#[macro_use] extern crate shrinkwraprs;
-
 // =================================
 // === Module Structure Reexport ===
 // =================================
@@ -27,6 +25,12 @@ pub mod system {
 // === Main ===
 // ============
 
+use display::world::World;
 use wasm_bindgen::prelude::*;
+
 #[wasm_bindgen(start)]
-pub fn start() {}
+pub fn start() {
+    let world = World::new();
+    world.add_workspace("canvas");
+    world.start();
+}
