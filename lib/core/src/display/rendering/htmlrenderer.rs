@@ -17,27 +17,28 @@ impl HTMLRenderer {
     pub fn render(&self, camera: &mut Camera, scene: &HTMLScene) {
         let (view_width, view_height) = scene.get_dimension();
         // Note [fov from projection matrix]
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        // https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L275
         let fov = camera.projection[5] * view_height / 2.0;
 
-        let transform = camera.transform.to_homogeneous().try_inverse().expect("inverse");
         scene.div
             .element
             .set_property_or_panic("perspective", &format!("{}px", fov));
 
         // Note [CSS Matrix3D from Camera]
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        // https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L100
+        let t = camera
+                    .transform
+                    .to_homogeneous()
+                    .try_inverse()
+                    .expect("inverse");
+
         let matrix3d = format!(
             "matrix3d({}, {}, {}, {},
                       {}, {}, {}, {},
                       {}, {}, {}, {},
                       {}, {}, {}, {})",
-                      eps(transform[ 0]), eps(-transform[ 1]), eps(transform[ 2]), eps(transform[ 3]),
-                      eps(transform[ 4]), eps(-transform[ 5]), eps(transform[ 6]), eps(transform[ 7]),
-                      eps(transform[ 8]), eps(-transform[ 9]), eps(transform[10]), eps(transform[11]),
-                      eps(transform[12]), eps(-transform[13]), eps(transform[14]), eps(transform[15]));
+                      eps(t[ 0]), eps(-t[ 1]), eps(t[ 2]), eps(t[ 3]),
+                      eps(t[ 4]), eps(-t[ 5]), eps(t[ 6]), eps(t[ 7]),
+                      eps(t[ 8]), eps(-t[ 9]), eps(t[10]), eps(t[11]),
+                      eps(t[12]), eps(-t[13]), eps(t[14]), eps(t[15]));
         scene.camera.element.set_property_or_panic("transform",
                 &format!("translateZ({}px) {} translate({}px, {}px)",
                     fov,
@@ -50,19 +51,19 @@ impl HTMLRenderer {
         for object in &scene.objects.items {
             match object {
                 Some(object) => {
-                    let transform = object.transform.to_homogeneous();
+                    let t = object.transform.to_homogeneous();
                     // Note [CSS Matrix3D from Object]
-                    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    // https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L125
                     let matrix3d = format!(
-                        "matrix3d({}, {}, {}, {},
-                                  {}, {}, {}, {},
-                                  {}, {}, {}, {},
-                                  {}, {}, {}, {})",
-                                  eps( transform[ 0]), eps( transform[ 1]), eps( transform[ 2]), eps( transform[ 3]),
-                                  eps(-transform[ 4]), eps(-transform[ 5]), eps(-transform[ 6]), eps(-transform[ 7]),
-                                  eps( transform[ 8]), eps( transform[ 9]), eps( transform[10]), eps( transform[11]),
-                                  eps( transform[12]), eps( transform[13]), eps( transform[14]), eps( transform[15]));
+                        "matrix3d(
+                        {}, {}, {}, {},
+                        {}, {}, {}, {},
+                        {}, {}, {}, {},
+                        {}, {}, {}, {}
+                        )",
+                        eps( t[ 0]), eps( t[ 1]), eps( t[ 2]), eps( t[ 3]),
+                        eps(-t[ 4]), eps(-t[ 5]), eps(-t[ 6]), eps(-t[ 7]),
+                        eps( t[ 8]), eps( t[ 9]), eps( t[10]), eps( t[11]),
+                        eps( t[12]), eps( t[13]), eps( t[14]), eps( t[15]));
                     object.element
                         .set_property_or_panic("transform",
                             &format!("translate(-50%, -50%) {}", matrix3d)
@@ -73,3 +74,15 @@ impl HTMLRenderer {
         }
     }
 }
+
+// Note [CSS Matrix3D from Object]
+// ===============================
+// https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L125
+
+// Note [CSS Matrix3D from Camera]
+// ===============================
+// https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L100
+
+// Note [fov from projection matrix]
+// =================================
+// https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L275

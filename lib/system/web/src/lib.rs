@@ -9,6 +9,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 use web_sys::WebGlRenderingContext;
+use std::fmt::Debug;
 
 pub use web_sys::console;
 
@@ -131,7 +132,10 @@ macro_rules! fmt {
 // === DOM Helpers ===
 // ===================
 
-pub fn dyn_into<T : wasm_bindgen::JsCast + std::fmt::Debug, U : wasm_bindgen::JsCast>(obj : T) -> Result<U> {
+pub fn dyn_into<T, U>(obj : T) -> Result<U>
+where T : wasm_bindgen::JsCast + Debug,
+      U : wasm_bindgen::JsCast
+{
     let expected = type_name::<T>();
     let got = format!("{:?}", obj);
     obj.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
@@ -186,7 +190,14 @@ pub trait AttributeSetter {
 
 impl AttributeSetter for web_sys::HtmlElement {
     fn set_attribute_or_panic(&self, name : &str, value : &str) {
-        self.set_attribute(name, value).expect(&format!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"", name, value, self));
+        self.set_attribute(name, value)
+            .unwrap_or_else(|_|
+                panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
+                        name,
+                        value,
+                        self
+                )
+            );
     }
 }
 
@@ -196,6 +207,14 @@ pub trait StyleSetter {
 
 impl StyleSetter for web_sys::HtmlElement {
     fn set_property_or_panic(&self, name : &str, value : &str) {
-        self.style().set_property(name, value).expect(&format!("Failed to set css property \"{}\" = \"{}\" on \"{:?}\"", name, value, self));
+        self.style()
+            .set_property(name, value)
+            .unwrap_or_else(|_|
+                panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
+                        name,
+                        value,
+                        self
+                )
+            );
     }
 }

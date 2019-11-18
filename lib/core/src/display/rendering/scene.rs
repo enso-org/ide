@@ -18,6 +18,7 @@ impl Scene {
 
     /// Gets the HtmlElement container's dimensions
     pub fn get_dimension(&self) -> (f32, f32) {
-        (self.container.client_width() as f32, self.container.client_height() as f32)
+        (self.container.client_width() as f32,
+        self.container.client_height() as f32)
     }
 }

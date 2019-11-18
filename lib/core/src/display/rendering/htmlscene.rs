@@ -26,14 +26,34 @@ impl HTMLScene {
         let (width, height) = scene.get_dimension();
 
         let div = HTMLObject::new("div")?;
-        div.element.set_property_or_panic("width", &format!("{}px", width));
-        div.element.set_property_or_panic("height", &format!("{}px", height));
-        scene.container.append_child(&div.element).expect("append div");
+
+        div
+            .element
+            .set_property_or_panic("width", &format!("{}px", width));
+
+        div
+            .element
+            .set_property_or_panic("height", &format!("{}px", height));
+
+        scene
+            .container
+            .append_child(&div.element).expect("Failed to append div");
 
         let camera = HTMLObject::new("div")?;
-        camera.element.set_property_or_panic("width", &format!("{}px", width));
-        camera.element.set_property_or_panic("height", &format!("{}px", height));
-        div.element.append_child(&camera.element).expect("append camera");
+
+        camera
+            .element
+            .set_property_or_panic("width", &format!("{}px", width));
+
+        camera
+            .element
+            .set_property_or_panic("height", &format!("{}px", height));
+
+        div
+            .element
+            .append_child(&camera.element)
+            .expect("Failed to append camera to HTMLScene");
+
         let objects = OptVec::new();
 
         Ok(Self { scene, div, camera, objects })
@@ -41,15 +61,23 @@ impl HTMLScene {
 
     /// Moves a HTMLObject to the Scene and returns an index to it
     pub fn add(&mut self, object: HTMLObject) -> usize {
-        self.camera.element.append_child(&object.element).expect("append child");
-        self.objects.insert(|_| object)
+        self
+            .camera
+            .element
+            .append_child(&object.element)
+            .expect("append child");
+
+        self
+            .objects
+            .insert(|_| object)
     }
 
     /// Removes and retrieves a HTMLObject based on the index provided by
     /// HTMLScene::add # Example
     /// ```rust,no_run
     /// use basegl::display::rendering::{HTMLScene, HTMLObject};
-    /// let mut scene = HTMLScene::new("an_existing_html_element_id").expect("scene");
+    /// let mut scene = HTMLScene::new("an_existing_html_element_id")
+    //                           .expect("scene");
     /// let object = HTMLObject::new("code").expect("html <code> tag");
     /// let object_id = scene.add(object);
     /// match scene.remove(object_id) {
@@ -59,7 +87,11 @@ impl HTMLScene {
     /// ```
     pub fn remove(&mut self, index: usize) -> Option<HTMLObject> {
         if let Some(object) = self.objects.remove(index) {
-            self.camera.element.remove_child(&object.element).expect("remove child");
+            self
+                .camera
+                .element
+                .remove_child(&object.element)
+                .expect("remove child");
             Some(object)
         } else {
             None

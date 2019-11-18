@@ -4,7 +4,7 @@ use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
 use crate::system::web::StyleSetter;
-use nalgebra::Vector3;
+use nalgebra::Vector2;
 use web_sys::HtmlElement;
 
 
@@ -15,7 +15,7 @@ pub struct HTMLObject {
     #[shrinkwrap(main_field)]
     pub object : Object,
     pub element : HtmlElement,
-    pub dimensions : Vector3<f32>,
+    pub dimensions : Vector2<f32>,
 }
 
 impl HTMLObject {
@@ -37,7 +37,11 @@ impl HTMLObject {
         element.set_property_or_panic("width", "0px");
         element.set_property_or_panic("height", "0px");
 
-        Self { object: Default::default(), element, dimensions: Vector3::new(0.0, 0.0, 0.0) }
+        Self {
+            object: Default::default(),
+            element,
+            dimensions: Vector2::new(0.0, 0.0)
+        }
     }
 
     /// Creates a HTMLObject from a HTML string
@@ -45,7 +49,8 @@ impl HTMLObject {
     /// ```rust,no_run
     /// use basegl::display::rendering::HTMLObject;
     /// let html_string = "<b>hello</b>";
-    /// let object = HTMLObject::from_html_string(html_string).expect("valid object");
+    /// let object = HTMLObject::from_html_string(html_string)
+    ///                         .expect("valid object");
     /// assert_eq!(object.element.inner_html(), html_string);
     /// ```
     pub fn from_html_string(html: &str) -> Result<Self> {
@@ -59,13 +64,13 @@ impl HTMLObject {
 
     /// Sets the underlying HtmlElement dimension
     pub fn set_dimensions(&mut self, width: f32, height: f32) {
-        self.dimensions = Vector3::new(width, height, 0.0);
+        self.dimensions = Vector2::new(width, height);
         self.element.set_property_or_panic("width", &format!("{}px", width));
         self.element.set_property_or_panic("height", &format!("{}px", height));
     }
 
     /// Gets the underlying HtmlElement dimension
-    pub fn get_dimensions(&mut self) -> &Vector3<f32> {
+    pub fn get_dimensions(&self) -> &Vector2<f32> {
         &self.dimensions
     }
 }
