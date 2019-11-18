@@ -17,4 +17,4 @@ wasm-bindgen-test = "0.3.3"
 
 [build-dependencies]
 download-lp = "0.2.0"
-failure = "0.1"
+zip = { version = "0.5" }

@@ -141,7 +141,9 @@ mod tests {
     #[wasm_bindgen_test]
     fn generate_msdf_for_capital_a() {
         // given
-        let test_font : &[u8] = include_bytes!("DejaVuSansMono-Bold.ttf");
+        let test_font : &[u8] = include_bytes!(
+            concat!(env!("OUT_DIR"), "/DejaVuSansMono-Bold.ttf")
+        );
         let font = Font::load_from_memory(test_font);
         let params = MSDFParameters {
             width: 32,
