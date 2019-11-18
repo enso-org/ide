@@ -1,6 +1,10 @@
 use nalgebra::{Vector3, UnitQuaternion, Quaternion, Matrix4};
 
-// To comply with Threejs impl, we generate a Quaternion applying rotation in the order: pitch -> roll -> yaw, instead of roll -> pitch -> yaw
+/* Note [Quaternion YXZ Euler angles]
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * To comply with Threejs impl, we generate a Quaternion applying rotation in the order: pitch -> roll -> yaw, instead of roll -> pitch -> yaw
+ * based on https://github.com/mrdoob/three.js/blob/master/src/math/Quaternion.js#L199
+ */
 fn from_euler_angles_pry(roll : f32, pitch : f32, yaw : f32) -> UnitQuaternion<f32> {
     let (s1, c1) : (f32, f32) = (roll * 0.5 as f32).sin_cos();
     let (s2, c2) : (f32, f32) = (pitch * 0.5 as f32).sin_cos();
@@ -41,6 +45,10 @@ impl Transform {
         self.quaternion = from_euler_angles_pry(roll, pitch, yaw);
     }
 
+    /* Note [Transform to Matrix4 composition]
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * based on https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
+     */
     pub fn to_homogeneous(&self) -> Matrix4<f32> {
         let (x, y, z, w) = (self.quaternion.coords.x, self.quaternion.coords.y, self.quaternion.coords.z, self.quaternion.coords.w);
 		let (x2, y2, z2) = (x + x, y + y, z + z);

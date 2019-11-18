@@ -50,6 +50,7 @@ mod tests {
 
 	#[wasm_bindgen_test]
 	fn rhs_coordinates() {
+		// Expected result: https://jsfiddle.net/zx6k7jt4/4/
 		let _container = TestContainer::new("rhs_coordinates", 320.0, 240.0);
 		let mut scene = HTMLScene::new("rhs_coordinates").expect("HTMLScene");
 		assert_eq!(scene.len(), 0);
