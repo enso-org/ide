@@ -61,10 +61,15 @@ mod tests {
     fn test_add() {
         let mut v = OptVec::new();
         let ix1 = v.insert(|_| 1);
+        assert_eq!(v.len(), 1);
         let ix2 = v.insert(|_| 2);
+        assert_eq!(v.len(), 2);
         v.remove(ix1);
+        assert_eq!(v.len(), 1);
         let ix3 = v.insert(|_| 3);
+        assert_eq!(v.len(), 2);
         let ix4 = v.insert(|_| 4);
+        assert_eq!(v.len(), 3);
         assert_eq!(ix1, 0);
         assert_eq!(ix2, 1);
         assert_eq!(ix3, 0);
