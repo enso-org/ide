@@ -1,12 +1,12 @@
-use crate::system::web::{ Result, get_element_by_id_as };
+use crate::system::web::{get_element_by_id_as, Result};
 use web_sys::HtmlElement;
 
 pub struct Scene {
-    pub container : HtmlElement
+    pub container: HtmlElement,
 }
 
 impl Scene {
-    pub fn new(id : &str) -> Result<Self> {
+    pub fn new(id: &str) -> Result<Self> {
         let container = get_element_by_id_as::<HtmlElement>(id)?;
         Ok(Self { container })
     }

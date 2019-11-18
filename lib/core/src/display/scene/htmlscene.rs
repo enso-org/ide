@@ -1,20 +1,20 @@
-use crate::system::web::{Result};
-use super::Scene;
 use super::HTMLObject;
+use super::Scene;
 use crate::data::opt_vec::OptVec;
+use crate::system::web::Result;
 
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct HTMLScene {
     #[shrinkwrap(main_field)]
-    pub scene : Scene,
-    pub div : HTMLObject,
-    pub camera : HTMLObject,
-    pub objects : OptVec<HTMLObject>
+    pub scene: Scene,
+    pub div: HTMLObject,
+    pub camera: HTMLObject,
+    pub objects: OptVec<HTMLObject>,
 }
 
 impl HTMLScene {
-    pub fn new(id : &str) -> Result<Self> {
+    pub fn new(id: &str) -> Result<Self> {
         let scene = Scene::new(id)?;
         scene.container.style().set_property("overflow", "hidden").expect("overflow: hidden");
         let (width, height) = scene.get_dimension();
@@ -30,7 +30,7 @@ impl HTMLScene {
         div.element.append_child(&camera.element).expect("append camera");
         let objects = OptVec::new();
 
-        Ok(Self {scene, div, camera, objects})
+        Ok(Self { scene, div, camera, objects })
     }
 
     pub fn add(&mut self, object: HTMLObject) -> usize {

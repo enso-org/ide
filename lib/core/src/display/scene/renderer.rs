@@ -1,8 +1,6 @@
 // use super::Camera;
 
-pub struct Renderer {
-
-}
+pub struct Renderer {}
 
 impl Renderer {
     pub fn new() -> Self {

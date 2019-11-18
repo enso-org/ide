@@ -1,40 +1,50 @@
-use basegl::display::scene::{HTMLObject};
-use basegl::system::web::{document, get_element_by_id_as, create_element_as};
+use basegl::display::scene::HTMLObject;
+use basegl::system::web::{create_element_as, document, get_element_by_id_as};
 use web_sys::HtmlElement;
 
 pub struct TestGroup {
-    pub div : HtmlElement
+    pub div: HtmlElement,
 }
 
 impl TestGroup {
     pub fn new() -> Self {
         let div = match get_element_by_id_as::<HtmlElement>("testgroup") {
             Ok(div) => div,
-            Err(_) => create_element_as::<HtmlElement>("div").expect("div")
+            Err(_) => create_element_as::<HtmlElement>("div").expect("div"),
         };
         div.set_attribute("id", "testgroup").expect("id = testgroup");
         div.style().set_property("display", "flex").expect("flexbox");
         div.style().set_property("flex-wrap", "wrap").expect("wrap");
-        document().expect("document").body().expect("body").append_child(&div).expect("appended div");
+        document()
+            .expect("document")
+            .body()
+            .expect("body")
+            .append_child(&div)
+            .expect("appended div");
         Self { div }
     }
 }
 
 pub struct TestContainer {
-    div : HTMLObject
+    div: HTMLObject,
 }
 
 impl TestContainer {
-    pub fn new(name : &str, width: f32, height: f32) -> Self {
+    pub fn new(name: &str, width: f32, height: f32) -> Self {
         let mut div = HTMLObject::new("div").expect("div");
         div.set_dimension(width, height + 16.0);
         div.element.style().set_property("border", "1px solid black").expect("black border");
         div.element.style().set_property("position", "relative").expect("relative");
         div.element.style().set_property("margin", "10px").expect("10px margin");
 
-        let mut header = HTMLObject::from_html_string(&format!("<center>{}</center>", name)).expect("header");
+        let mut header =
+            HTMLObject::from_html_string(&format!("<center>{}</center>", name)).expect("header");
         header.set_dimension(width, 16.0);
-        header.element.style().set_property("border-bottom", "1px solid black").expect("black border");
+        header
+            .element
+            .style()
+            .set_property("border-bottom", "1px solid black")
+            .expect("black border");
         header.element.style().set_property("position", "relative").expect("relative");
         div.element.append_child(&header.element).expect("appended header");
 
@@ -48,7 +58,7 @@ impl TestContainer {
         Self { div }
     }
 
-    pub fn append_child(&mut self, element : &HtmlElement) {
+    pub fn append_child(&mut self, element: &HtmlElement) {
         self.div.element.append_child(&element).expect("appended element");
     }
 }
