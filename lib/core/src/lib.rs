@@ -10,6 +10,8 @@
 // === Module Structure Reexport ===
 // =================================
 
+#[macro_use] extern crate shrinkwraprs;
+
 pub mod data;
 pub mod dirty;
 pub mod display;
