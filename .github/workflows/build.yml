@@ -92,27 +92,11 @@ jobs:
         with:
           toolchain: nightly-2019-11-04
           override: true
-      - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack
       - name: Generate test profile
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
-        env:
-          'CARGO_INCREMENTAL': '0'
-          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
-      - name: Generate test profile - wasm-pack tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: >
-            --manifest-path=script/rust/Cargo.toml
-            --bin test-all
-            -- --node --chrome --firefox -- --all-features --no-fail-fast
         env:
           'CARGO_INCREMENTAL': '0'
           'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'

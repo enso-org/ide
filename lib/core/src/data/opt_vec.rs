@@ -94,9 +94,6 @@ impl<'a, T> IntoIterator for &'a OptVec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    extern crate wasm_bindgen_test;
-
-    use wasm_bindgen_test::wasm_bindgen_test;
 
     #[test]
     fn test_add() {
