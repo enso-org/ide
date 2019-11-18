@@ -20,18 +20,18 @@ fn from_euler_angles_pry(roll: f32, pitch: f32, yaw: f32) -> UnitQuaternion<f32>
 
 /// A structure representing 3D Position, Rotation and Scale
 pub struct Transform {
-    pub translation: Vector3<f32>,
-    pub rotation:    UnitQuaternion<f32>,
-    pub scale:       Vector3<f32>,
+    pub translation : Vector3<f32>,
+    pub rotation :    UnitQuaternion<f32>,
+    pub scale :       Vector3<f32>,
 }
 
 impl Transform {
     /// Creates an identity transform
     pub fn identity() -> Self {
         Self {
-            translation: Vector3::new(0.0, 0.0, 0.0),
-            rotation:    UnitQuaternion::identity(),
-            scale:       Vector3::new(1.0, 1.0, 1.0),
+            translation : Vector3::new(0.0, 0.0, 0.0),
+            rotation :    UnitQuaternion::identity(),
+            scale :       Vector3::new(1.0, 1.0, 1.0),
         }
     }
 

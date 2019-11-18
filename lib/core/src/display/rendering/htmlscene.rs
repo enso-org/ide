@@ -2,16 +2,17 @@ use super::HTMLObject;
 use super::Scene;
 use crate::data::opt_vec::OptVec;
 use crate::system::web::Result;
+use crate::system::web::StyleSetter;
 
 /// A collection for holding 3D `HTMLObject`s
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct HTMLScene {
     #[shrinkwrap(main_field)]
-    pub scene: Scene,
-    pub div: HTMLObject,
-    pub camera: HTMLObject,
-    pub objects: OptVec<HTMLObject>,
+    pub scene : Scene,
+    pub div : HTMLObject,
+    pub camera : HTMLObject,
+    pub objects : OptVec<HTMLObject>,
 }
 
 impl HTMLScene {
@@ -21,17 +22,17 @@ impl HTMLScene {
     /// * id - the HtmlElement container's id
     pub fn new(id: &str) -> Result<Self> {
         let scene = Scene::new(id)?;
-        scene.container.style().set_property("overflow", "hidden").expect("overflow: hidden");
+        scene.container.set_property_or_panic("overflow", "hidden");
         let (width, height) = scene.get_dimension();
 
         let div = HTMLObject::new("div")?;
-        div.element.style().set_property("width", &format!("{}px", width)).expect("set width");
-        div.element.style().set_property("height", &format!("{}px", height)).expect("set width");
+        div.element.set_property_or_panic("width", &format!("{}px", width));
+        div.element.set_property_or_panic("height", &format!("{}px", height));
         scene.container.append_child(&div.element).expect("append div");
 
         let camera = HTMLObject::new("div")?;
-        camera.element.style().set_property("width", &format!("{}px", width)).expect("set width");
-        camera.element.style().set_property("height", &format!("{}px", height)).expect("set width");
+        camera.element.set_property_or_panic("width", &format!("{}px", width));
+        camera.element.set_property_or_panic("height", &format!("{}px", height));
         div.element.append_child(&camera.element).expect("append camera");
         let objects = OptVec::new();
 

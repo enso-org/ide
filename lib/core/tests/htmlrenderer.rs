@@ -13,6 +13,7 @@ pub mod common;
 mod tests {
     use crate::common::TestContainer;
     use basegl::display::rendering::*;
+    use basegl::system::web::StyleSetter;
     use js_sys::Math::random;
     use wasm_bindgen_test::*;
 
@@ -21,7 +22,7 @@ mod tests {
         use std::f32::consts::PI;
 
         let _container = TestContainer::new("usage", 320.0, 240.0);
-        let mut scene = HTMLScene::new("usage").expect("HTMLScene");
+        let mut scene = HTMLScene::new("usage").expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0);
 
         let (width, height) = scene.get_dimension();
@@ -44,8 +45,7 @@ mod tests {
             object.set_dimensions(50.0, 50.0);
             object
                 .element
-                .style()
-                .set_property(
+                .set_property_or_panic(
                     "background-color",
                     &format!(
                         "rgba({}, {}, {}, {})",
@@ -54,8 +54,7 @@ mod tests {
                         (random() * 255.0),
                         1.0
                     ),
-                )
-                .expect("set background-color");
+                );
             scene.add(object);
         }
         assert_eq!(scene.len(), 51);
@@ -74,10 +73,12 @@ mod tests {
         // Note [rhs expected result]
         // https://jsfiddle.net/zx6k7jt4/4/
         let _container = TestContainer::new("rhs_coordinates", 320.0, 240.0);
-        let mut scene = HTMLScene::new("rhs_coordinates").expect("HTMLScene");
+        let mut scene = HTMLScene::new("rhs_coordinates").expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0);
 
-        scene.container.style().set_property("background-color", "black").expect("black bg");
+        scene
+            .container
+            .set_property_or_panic("background-color", "black");
 
         let (width, height) = scene.get_dimension();
         assert_eq!((width, height), (320.0, 240.0));
@@ -92,12 +93,10 @@ mod tests {
                 let (r, g, b) = (x as f32 * 25.5, y as f32 * 25.5, z as f32 * 25.5);
                 object
                     .element
-                    .style()
-                    .set_property(
+                    .set_property_or_panic(
                         "background-color",
                         &format!("rgba({}, {}, {}, {})", r as u8, g as u8, b as u8, 1.0),
-                    )
-                    .expect("set background-color");
+                    );
                 scene.add(object);
             }
         }
@@ -114,10 +113,13 @@ mod tests {
         use std::f32::consts::PI;
 
         let _container = TestContainer::new("rhs_coordinates_from_back", 320.0, 240.0);
-        let mut scene = HTMLScene::new("rhs_coordinates_from_back").expect("HTMLScene");
+        let mut scene = HTMLScene::new("rhs_coordinates_from_back")
+                                  .expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0);
 
-        scene.container.style().set_property("background-color", "black").expect("black bg");
+        scene
+            .container
+            .set_property_or_panic("background-color", "black");
 
         let (width, height) = scene.get_dimension();
         assert_eq!((width, height), (320.0, 240.0));
@@ -132,12 +134,10 @@ mod tests {
                 let (r, g, b) = (x as f32 * 25.5, y as f32 * 25.5, z as f32 * 25.5);
                 object
                     .element
-                    .style()
-                    .set_property(
+                    .set_property_or_panic(
                         "background-color",
                         &format!("rgba({}, {}, {}, {})", r as u8, g as u8, b as u8, 1.0),
-                    )
-                    .expect("set background-color");
+                    );
                 scene.add(object);
             }
         }
@@ -153,7 +153,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn object_behind_camera() {
         let _container = TestContainer::new("object_behind_camera", 320.0, 240.0);
-        let mut scene = HTMLScene::new("object_behind_camera").expect("HTMLScene");
+        let mut scene = HTMLScene::new("object_behind_camera").expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0);
 
         let (width, height) = scene.get_dimension();
@@ -161,7 +161,7 @@ mod tests {
 
         let mut object = HTMLObject::new("div").unwrap();
         object.set_position(0.0, 0.0, 0.0);
-        object.element.style().set_property("background-color", "rgb(0, 0, 0)").expect("black bg");
+        object.element.set_property_or_panic("background-color", "rgb(0, 0, 0)");
         object.set_dimensions(100.0, 100.0);
         scene.add(object);
 

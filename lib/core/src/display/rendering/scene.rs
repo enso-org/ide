@@ -3,7 +3,7 @@ use web_sys::HtmlElement;
 
 /// A collection for holding 3D `Object`s
 pub struct Scene {
-    pub container: HtmlElement,
+    pub container : HtmlElement,
 }
 
 impl Scene {

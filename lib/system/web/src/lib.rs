@@ -175,3 +175,27 @@ pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
     let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))
 }
+
+// ===================
+// === Other Helpers ===
+// ===================
+
+pub trait AttributeSetter {
+    fn set_attribute_or_panic(&self, name : &str, value : &str);
+}
+
+impl AttributeSetter for web_sys::HtmlElement {
+    fn set_attribute_or_panic(&self, name : &str, value : &str) {
+        self.set_attribute(name, value).expect(&format!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"", name, value, self));
+    }
+}
+
+pub trait StyleSetter {
+    fn set_property_or_panic(&self, name : &str, value : &str);
+}
+
+impl StyleSetter for web_sys::HtmlElement {
+    fn set_property_or_panic(&self, name : &str, value : &str) {
+        self.style().set_property(name, value).expect(&format!("Failed to set css property \"{}\" = \"{}\" on \"{:?}\"", name, value, self));
+    }
+}

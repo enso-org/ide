@@ -2,7 +2,7 @@ use super::Transform;
 
 /// Base structure for representing a 3D object in a `Scene`
 pub struct Object {
-    pub transform: Transform,
+    pub transform : Transform,
 }
 
 impl Default for Object {

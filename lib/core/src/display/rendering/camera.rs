@@ -8,8 +8,8 @@ use std::f32::consts::PI;
 #[shrinkwrap(mutable)]
 pub struct Camera {
     #[shrinkwrap(main_field)]
-    pub object: Object,
-    pub projection: Matrix4<f32>,
+    pub object : Object,
+    pub projection : Matrix4<f32>,
 }
 
 impl Camera {

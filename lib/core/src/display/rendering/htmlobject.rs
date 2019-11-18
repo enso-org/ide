@@ -3,6 +3,7 @@ use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
+use crate::system::web::StyleSetter;
 use nalgebra::Vector3;
 use web_sys::HtmlElement;
 
@@ -12,9 +13,9 @@ use web_sys::HtmlElement;
 #[shrinkwrap(mutable)]
 pub struct HTMLObject {
     #[shrinkwrap(main_field)]
-    pub object: Object,
-    pub element: HtmlElement,
-    pub dimensions: Vector3<f32>,
+    pub object : Object,
+    pub element : HtmlElement,
+    pub dimensions : Vector3<f32>,
 }
 
 impl HTMLObject {
@@ -31,11 +32,11 @@ impl HTMLObject {
 
     /// Creates a HTMLObject from a web_sys::HtmlElement
     pub fn from_element(element: HtmlElement) -> Self {
-        let style = element.style();
-        style.set_property("transform-style", "preserve-3d").expect("transform-style: preserve-3d");
-        style.set_property("position", "absolute").expect("position: absolute");
-        style.set_property("width", "0px").expect("width: 0px");
-        style.set_property("height", "0px").expect("height: 0px");
+        element.set_property_or_panic("transform-style", "preserve-3d");
+        element.set_property_or_panic("position", "absolute");
+        element.set_property_or_panic("width", "0px");
+        element.set_property_or_panic("height", "0px");
+
         Self { object: Default::default(), element, dimensions: Vector3::new(0.0, 0.0, 0.0) }
     }
 
@@ -59,9 +60,8 @@ impl HTMLObject {
     /// Sets the underlying HtmlElement dimension
     pub fn set_dimensions(&mut self, width: f32, height: f32) {
         self.dimensions = Vector3::new(width, height, 0.0);
-        let style = self.element.style();
-        style.set_property("width", &format!("{}px", width)).expect("set width");
-        style.set_property("height", &format!("{}px", height)).expect("set height");
+        self.element.set_property_or_panic("width", &format!("{}px", width));
+        self.element.set_property_or_panic("height", &format!("{}px", height));
     }
 
     /// Gets the underlying HtmlElement dimension

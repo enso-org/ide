@@ -1,4 +1,5 @@
 use super::{Camera, HTMLScene};
+use crate::system::web::StyleSetter;
 
 fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
@@ -23,9 +24,7 @@ impl HTMLRenderer {
         let transform = camera.transform.to_homogeneous().try_inverse().expect("inverse");
         scene.div
             .element
-            .style()
-            .set_property("perspective", &format!("{}px", fov))
-            .expect("set perspective");
+            .set_property_or_panic("perspective", &format!("{}px", fov));
 
         // Note [CSS Matrix3D from Camera]
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,15 +38,14 @@ impl HTMLRenderer {
                       eps(transform[ 4]), eps(-transform[ 5]), eps(transform[ 6]), eps(transform[ 7]),
                       eps(transform[ 8]), eps(-transform[ 9]), eps(transform[10]), eps(transform[11]),
                       eps(transform[12]), eps(-transform[13]), eps(transform[14]), eps(transform[15]));
-        scene.camera.element.style().set_property("transform",
+        scene.camera.element.set_property_or_panic("transform",
                 &format!("translateZ({}px) {} translate({}px, {}px)",
                     fov,
                     matrix3d,
                     view_width / 2.0,
                     view_height / 2.0
                 ),
-            )
-            .expect("set camera transform");
+            );
 
         for object in &scene.objects.items {
             match object {
@@ -65,10 +63,10 @@ impl HTMLRenderer {
                                   eps(-transform[ 4]), eps(-transform[ 5]), eps(-transform[ 6]), eps(-transform[ 7]),
                                   eps( transform[ 8]), eps( transform[ 9]), eps( transform[10]), eps( transform[11]),
                                   eps( transform[12]), eps( transform[13]), eps( transform[14]), eps( transform[15]));
-                    object.element.style()
-                        .set_property("transform",
+                    object.element
+                        .set_property_or_panic("transform",
                             &format!("translate(-50%, -50%) {}", matrix3d)
-                        ).expect("set object transform");
+                        );
                 }
                 None => (),
             }
