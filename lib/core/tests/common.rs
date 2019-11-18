@@ -1,4 +1,4 @@
-use basegl::display::scene::HTMLObject;
+use basegl::display::rendering::HTMLObject;
 use basegl::system::web::{create_element_as, document, get_element_by_id_as};
 use web_sys::HtmlElement;
 

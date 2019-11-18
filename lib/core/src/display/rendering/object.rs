@@ -4,9 +4,15 @@ pub struct Object {
     pub transform: Transform,
 }
 
+impl Default for Object {
+    fn default() -> Self {
+        Self { transform: Transform::identity() }
+    }
+}
+
 impl Object {
     pub fn new() -> Object {
-        Self { transform: Transform::identity() }
+        Default::default()
     }
 
     pub fn set_position(&mut self, x: f32, y: f32, z: f32) {

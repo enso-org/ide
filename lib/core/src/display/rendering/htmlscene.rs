@@ -47,4 +47,8 @@ impl HTMLScene {
     pub fn len(&self) -> usize {
         self.objects.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.objects.len() == 0
+    }
 }

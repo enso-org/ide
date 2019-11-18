@@ -12,7 +12,7 @@ pub mod common;
 #[cfg(test)]
 mod tests {
     use crate::common::TestContainer;
-    use basegl::display::scene::*;
+    use basegl::display::rendering::*;
     use js_sys::Math::random;
     use wasm_bindgen_test::*;
 

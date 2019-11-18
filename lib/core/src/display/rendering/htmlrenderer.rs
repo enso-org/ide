@@ -8,11 +8,12 @@ fn eps(value: f32) -> f32 {
     }
 }
 
+#[derive(Default)]
 pub struct HTMLRenderer {}
 
 impl HTMLRenderer {
     pub fn new() -> Self {
-        Self {}
+        Default::default()
     }
 
     pub fn render(&self, camera: &mut Camera, scene: &HTMLScene) {

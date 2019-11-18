@@ -148,7 +148,7 @@ pub fn get_element_by_id_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {
 pub fn create_element(id: &str) -> Result<web_sys::Element> {
     match document()?.create_element(id) {
         Ok(element) => Ok(element),
-        Err(_) => Err(Error::missing(id))
+        Err(_) => Err(Error::missing(id)),
     }
 }
 pub fn create_element_as<T: wasm_bindgen::JsCast>(id: &str) -> Result<T> {

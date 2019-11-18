@@ -48,8 +48,13 @@ impl<T> OptVec<T> {
         item
     }
 
+    /// Gets the amount of items as Some(element)
     pub fn len(&self) -> usize {
         self.items.len() - self.free_ixs.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.len() == self.free_ixs.len()
     }
 }
 
@@ -60,19 +65,30 @@ mod tests {
     #[test]
     fn test_add() {
         let mut v = OptVec::new();
+        assert!(v.is_empty());
+
         let ix1 = v.insert(|_| 1);
         assert_eq!(v.len(), 1);
+
         let ix2 = v.insert(|_| 2);
         assert_eq!(v.len(), 2);
+
         v.remove(ix1);
         assert_eq!(v.len(), 1);
+
+        v.remove(ix2);
+        assert_eq!(v.len(), 0);
+        assert!(v.is_empty());
+
         let ix3 = v.insert(|_| 3);
-        assert_eq!(v.len(), 2);
+        assert_eq!(v.len(), 1);
+
         let ix4 = v.insert(|_| 4);
-        assert_eq!(v.len(), 3);
+        assert_eq!(v.len(), 2);
+
         assert_eq!(ix1, 0);
         assert_eq!(ix2, 1);
-        assert_eq!(ix3, 0);
-        assert_eq!(ix4, 2);
+        assert_eq!(ix3, 1);
+        assert_eq!(ix4, 0);
     }
 }
