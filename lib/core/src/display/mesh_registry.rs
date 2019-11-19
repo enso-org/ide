@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use crate::dirty;
+use crate::dirty::traits::*;
 use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
 use crate::display::symbol::attribute::IsAttribute;
@@ -182,171 +183,6 @@ use std::cell;
 // }
 
 
-// ===============
-// === WeakMap ===
-// ===============
-
-// === Definition ===
-
-pub type WeakRef <Key, Val> = Weak<ValueGuard<Key, Val>>;
-pub type Map     <Key, Val> = FxHashMap<Key, WeakRef<Key, Val>>;
-
-pub trait KeyCtx = Copy + Eq + std::hash::Hash;
-
-#[derive(Shrinkwrap)]
-#[derive(Derivative)]
-#[derivative(Debug(bound="Key: KeyCtx + Debug, Val: Debug"))]
-pub struct WeakMap<Key: KeyCtx, Val> { 
-    data: Rc<RefCell<Map<Key, Val>>> 
-}
-
-impl<Key: KeyCtx, Val> 
-WeakMap<Key, Val> {
-    pub fn key_of(t: &Rc<ValueGuard<Key, Val>>) -> usize {
-        let t = Rc::downgrade(t);
-        t.as_raw() as usize
-    }
-
-    pub fn key_of_weak(t: &Weak<ValueGuard<Key, Val>>) -> usize {
-        t.as_raw() as usize
-    }
-
-    pub fn clone_ref(&self) -> Self {
-        let data = Rc::clone(&self.data);
-        Self { data }
-    }
-
-    pub fn len(&self) -> usize {
-        self.borrow().len()
-    }
-
-    pub fn iter(&self) -> Iter<Key, Val> {
-        let borrow = self.borrow();
-        let values = borrow.values();
-        let values = unsafe { Self::cast_values_lifetime(values) };
-        Iter { values, borrow }
-    }
-
-    pub fn insert(&self, key:Key, t: &Rc<ValueGuard<Key, Val>>) {
-        let val = Rc::downgrade(t);
-        self.data.borrow_mut().insert(key, val);
-    }
-
-    pub fn rc(&self, key:Key, val:Val) -> Rc<ValueGuard<Key, Val>> {
-        let map   = self.clone_ref();
-        let guard = ValueGuard { key, val, map };
-        let rc    = Rc::new(guard);
-        self.insert(key, &rc);
-        rc
-    }
-
-    unsafe fn cast_values_lifetime<'t1, 't2, A, B>
-    (t: hash_map::Values<'t1, A, B>) -> hash_map::Values<'t2, A, B> { 
-        std::mem::transmute(t) 
-    }
-}
-
-impl<Key: KeyCtx, Val> Default for WeakMap<Key, Val> {
-    fn default() -> Self {
-        let data = Rc::new(RefCell::new(default()));
-        Self { data }
-    }
-}
-
-impl<'t, Key: KeyCtx, Val> IntoIterator for &'t WeakMap<Key, Val> {
-    type Item     = Rc<ValueGuard<Key, Val>>;
-    type IntoIter = Iter<'t, Key, Val> ;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-// === ValueGuard ===
-
-#[derive(Derivative)]
-#[derivative(Debug(bound="Key: KeyCtx + Debug, Val: Debug"))]
-pub struct ValueGuard<Key: KeyCtx, Val> {
-    pub key : Key,
-    pub val : Val,
-    pub map : WeakMap<Key, Val>,  
-}
-
-impl<Key:KeyCtx, Val> Deref for ValueGuard<Key, Val> {
-    type Target = Val;
-    fn deref(&self) -> &Self::Target {
-        &self.val
-    }
-}
-
-impl<Key:KeyCtx, Val> DerefMut for ValueGuard<Key, Val> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.val
-    }
-}
-
-impl<Key:KeyCtx, Val> Drop for ValueGuard<Key, Val> {
-    fn drop(&mut self) {
-        self.map.borrow_mut().remove(&self.key);
-    }
-}
-
-// === Iter ===
-
-pub struct Iter<'t, Key: KeyCtx, Val> {
-    values: hash_map::Values<'t, Key, WeakRef<Key, Val>>,
-    borrow: cell::Ref<'t, Map<Key, Val>>
-}
-
-impl<'t, Key: KeyCtx, Val> Deref for Iter<'t, Key, Val> {
-    type Target = hash_map::Values<'t, Key, WeakRef<Key, Val>>;
-    fn deref(&self) -> &Self::Target {
-        &self.values
-    }
-}
-
-impl<'t, Key: KeyCtx, Val> DerefMut for Iter<'t, Key, Val> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.values
-    }
-}
-
-impl<'t, Key: KeyCtx, Val> Iterator for Iter<'t, Key, Val> {
-    type Item =  Rc<ValueGuard<Key, Val>>;
-
-    fn next(&mut self) -> Option<(Self::Item)> {
-        self.values.next().and_then(|t| t.upgrade())
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.values.size_hint()
-    }
-}
-
-// =============
-// === Tests ===
-// =============
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_weak_set() {
-        let set: WeakMap<String> = default();
-        assert_eq!(set.len(), 0);
-        let s1 = set.rc("s1".to_string());
-        let s2 = set.rc("s3".to_string());
-        let s3 = set.rc("s2".to_string());
-        assert_eq!(set.len(), 3);
-        {
-            let st1 = set.rc("s1".to_string());
-            assert_eq!(set.len(), 4);
-        }
-        assert_eq!(set.len(), 3);
-    }
-}
-
 // ============
 // === Pool ===
 // ============
@@ -510,7 +346,7 @@ impl<OnDirty: Callback0> MeshRegistry<OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         logger.info("Initializing.");
         let mesh_logger = logger.sub("mesh_dirty");
-        let mesh_dirty  = MeshDirty::new(on_dirty, mesh_logger);
+        let mesh_dirty  = MeshDirty::new(mesh_logger,on_dirty);
         let meshes      = default();
         Self { meshes, mesh_dirty, logger }
     }
@@ -525,10 +361,14 @@ impl<OnDirty: Callback0> MeshRegistry<OnDirty> {
         })
     }
 
-    // pub fn update(&self) {
-    //     for mesh in self.meshes.iter() {
-    //     }
-    // }
+    pub fn update(&mut self) {
+        group!(self.logger, "Updating.", {
+            for mesh_id in self.mesh_dirty.iter() {
+                self.meshes[*mesh_id].update()
+            }
+            self.mesh_dirty.unset();
+        })
+    }
 }
 
 impl<OnDirty> Index<usize> for MeshRegistry<OnDirty> {

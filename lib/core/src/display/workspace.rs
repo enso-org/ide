@@ -13,6 +13,7 @@ use web_sys::WebGlRenderingContext;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::display::mesh_registry;
+use crate::dirty::traits::*;
 
 pub use crate::display::mesh_registry::MeshID;
 
@@ -36,19 +37,17 @@ pub type ID = usize;
 // === Workspace ===
 // =================
 
-#[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Workspace<OnDirty> {
-    #[shrinkwrap(main_field)]
-    // pub data: Rc<WorkspaceData>,
-    pub canvas:  web_sys::HtmlCanvasElement,
-    pub context: WebGlRenderingContext,
+    pub canvas              : web_sys::HtmlCanvasElement,
+    pub context             : WebGlRenderingContext,
     pub mesh_registry       : MeshRegistry<OnDirty>,
-    pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>, 
+    pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
+    pub shape               : Rc<RefCell<WorkspaceShape>>,
     pub shape_dirty         : ShapeDirty<OnDirty>,
-    pub logger:  Logger,
-    pub listeners: Listeners,
+    pub logger              : Logger,
+    pub listeners           : Listeners,
 }
 
 #[derive(Default)]
@@ -62,7 +61,7 @@ pub type WorkspaceShapeDirtyState = WorkspaceShape;
 
 // === Types ===
 
-pub type ShapeDirty        <Callback> = dirty::SharedCustom<WorkspaceShapeDirtyState, Callback>;
+pub type ShapeDirty        <Callback> = dirty::SharedBool<Callback>;
 pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
 
 pub type AttributeIndex <T, Callback> = mesh_registry::AttributeIndex<T, Closure_mesh_registry_on_dirty<Callback>>;
@@ -96,17 +95,18 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let context = web::get_webgl_context(&canvas, 1)?;
 
         let shape_dirty_logger = logger.sub("shape_dirty");
-        let shape_dirty        = ShapeDirty::new(on_dirty.clone(), shape_dirty_logger);
+        let shape_dirty        = ShapeDirty::new(shape_dirty_logger, on_dirty.clone());
 
         let mesh_registry_dirty_logger = logger.sub("mesh_registry_dirty");
-        let mesh_registry_dirty = MeshRegistryDirty::new(on_dirty, mesh_registry_dirty_logger);
+        let mesh_registry_dirty = MeshRegistryDirty::new(mesh_registry_dirty_logger, on_dirty);
 
         let mesh_registry_on_dirty = mesh_registry_on_dirty(mesh_registry_dirty.clone());
         let mesh_registry_logger = logger.sub("mesh_registry");
         let mesh_registry        = MeshRegistry::new(mesh_registry_logger, mesh_registry_on_dirty);
 
-        let listeners = Self::new_listeners(&canvas, &shape_dirty);
-        Ok(Self { canvas, context, mesh_registry, mesh_registry_dirty, shape_dirty, logger, listeners })
+        let shape     = default();
+        let listeners = Self::new_listeners(&canvas, &shape, &shape_dirty);
+        Ok(Self { canvas, context, mesh_registry, mesh_registry_dirty, shape, shape_dirty, logger, listeners })
     }
 
     pub fn build<Name: Into<String>> (name: Name) -> WorkspaceBuilder {
@@ -114,10 +114,12 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         WorkspaceBuilder { name }
     }
 
-    pub fn new_listeners(canvas: &web_sys::HtmlCanvasElement, dirty: &ShapeDirty<OnDirty>) -> Listeners {
+    pub fn new_listeners(canvas: &web_sys::HtmlCanvasElement, shape: &Rc<RefCell<WorkspaceShape>>, dirty: &ShapeDirty<OnDirty>) -> Listeners {
+        let shape = shape.clone();
         let dirty = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
-            dirty.set_to(WorkspaceShape { width, height });
+            *shape.borrow_mut() = WorkspaceShape { width, height };
+            dirty.set();
         });
         let resize = ResizeObserver::new(canvas, on_resize);
         Listeners { resize }
@@ -128,7 +130,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.shape_dirty.is_set()
+        self.shape_dirty.check() || self.mesh_registry_dirty.check()
     }
 
     fn resize_canvas(&self, shape: &WorkspaceShape) {
@@ -141,78 +143,80 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         });
     }
 
-    pub fn update(&self) {
-        if self.is_dirty() {
-            group!(self.logger, "Update.", {
-                if self.shape_dirty.is_set() {
-                    self.resize_canvas(&self.shape_dirty.data());
-                    self.shape_dirty.unset();
-                }
-            
-                let vert_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::VERTEX_SHADER,
-                    r#"
-        attribute vec4 position;
-        void main() {
-            gl_Position = position;
-        }
-    "#,
-                )
-                .unwrap();
-                let frag_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::FRAGMENT_SHADER,
-                    r#"
-        void main() {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-        }
-    "#,
-                )
-                .unwrap();
-                let program =
-                    webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
-                self.context.use_program(Some(&program));
+    pub fn update(&mut self) {
+        group!(self.logger, "Updating.", {
+            if self.shape_dirty.check() {
+                self.resize_canvas(&self.shape.borrow());
+                self.shape_dirty.unset();
+            }
+            if self.mesh_registry_dirty.check() {
+                self.mesh_registry.update();
+                self.mesh_registry_dirty.unset();
+            }
+        
+            let vert_shader = webgl::compile_shader(
+                &self.context,
+                webgl::Context::VERTEX_SHADER,
+                r#"
+    attribute vec4 position;
+    void main() {
+        gl_Position = position;
+    }
+"#,
+            )
+            .unwrap();
+            let frag_shader = webgl::compile_shader(
+                &self.context,
+                webgl::Context::FRAGMENT_SHADER,
+                r#"
+    void main() {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+"#,
+            )
+            .unwrap();
+            let program =
+                webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
+            self.context.use_program(Some(&program));
 
-                let vertices: [f32; 9] = [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0];
+            let vertices: [f32; 9] = [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0];
 
-                let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
-                self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
+            let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
+            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
 
-                // Note that `Float32Array::view` is somewhat dangerous (hence the
-                // `unsafe`!). This is creating a raw view into our module's
-                // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
-                // (aka do a memory allocation in Rust) it'll cause the buffer to change,
-                // causing the `Float32Array` to be invalid.
-                //
-                // As a result, after `Float32Array::view` we have to be very careful not to
-                // do any memory allocations before it's dropped.
-                unsafe {
-                    let vert_array = js_sys::Float32Array::view(&vertices);
+            // Note that `Float32Array::view` is somewhat dangerous (hence the
+            // `unsafe`!). This is creating a raw view into our module's
+            // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
+            // (aka do a memory allocation in Rust) it'll cause the buffer to change,
+            // causing the `Float32Array` to be invalid.
+            //
+            // As a result, after `Float32Array::view` we have to be very careful not to
+            // do any memory allocations before it's dropped.
+            unsafe {
+                let vert_array = js_sys::Float32Array::view(&vertices);
 
-                    self.context.buffer_data_with_array_buffer_view(
-                        webgl::Context::ARRAY_BUFFER,
-                        &vert_array,
-                        webgl::Context::STATIC_DRAW,
-                    );
-                }
-
-                self.context.vertex_attrib_pointer_with_i32(
-                    0,
-                    3,
-                    webgl::Context::FLOAT,
-                    false,
-                    0,
-                    0,
+                self.context.buffer_data_with_array_buffer_view(
+                    webgl::Context::ARRAY_BUFFER,
+                    &vert_array,
+                    webgl::Context::STATIC_DRAW,
                 );
-                self.context.enable_vertex_attrib_array(0);
+            }
 
-                self.context.clear_color(0.0, 0.0, 0.0, 1.0);
-                self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
+            self.context.vertex_attrib_pointer_with_i32(
+                0,
+                3,
+                webgl::Context::FLOAT,
+                false,
+                0,
+                0,
+            );
+            self.context.enable_vertex_attrib_array(0);
 
-                self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
-    })
-        }
+            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
+            self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
+
+            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
+})
     }
 }
 

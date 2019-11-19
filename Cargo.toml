@@ -2,6 +2,9 @@
 
 members = [
     "lib/core",
+    "lib/shapely/impl",
+    "lib/shapely/macros",
+    "lib/optics"
 ]
 
 [profile.release]

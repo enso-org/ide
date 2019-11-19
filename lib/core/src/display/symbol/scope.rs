@@ -10,6 +10,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::closure;
 use crate::data::opt_vec::OptVec;
+use crate::dirty::traits::*;
 
 #[derive(Derivative)]
 #[derivative(Copy, Clone, Debug(bound="Ix: Debug"))]
@@ -77,8 +78,8 @@ impl<OnDirty: Clone> Scope<OnDirty> {
         let on_dirty2       = on_dirty.clone();
         let attr_logger     = logger.sub("attr_dirty");
         let shape_logger    = logger.sub("shape_dirty");
-        let attribute_dirty = AttributeDirty::new(on_dirty2, attr_logger);
-        let shape_dirty     = ShapeDirty::new(on_dirty, shape_logger);
+        let attribute_dirty = AttributeDirty::new(attr_logger,on_dirty2);
+        let shape_dirty     = ShapeDirty::new(shape_logger, on_dirty);
         let attributes      = default();
         let name_map        = default();
         Self { attributes, attribute_dirty, shape_dirty, name_map, logger }

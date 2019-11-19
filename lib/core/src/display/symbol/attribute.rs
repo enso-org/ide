@@ -3,12 +3,14 @@ use crate::prelude::*;
 use crate::data::function::callback::*;
 use crate::data::shared::Shared;
 use crate::dirty;
+use crate::dirty::traits::*;
 use crate::system::web::Logger;
 use crate::system::web::fmt;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
 use crate::tp::debug::TypeDebugName;
 use std::iter::Extend;
+use crate::dirty::traits::*;
 
 use nalgebra;
 use nalgebra::dimension::{U1, U2, U3};
@@ -210,7 +212,7 @@ Index<I> for Observable<T, OnSet, OnResize> {
     }
 }
 
-impl<T: IndexMut<I>, OnSet: Callback1<I>, OnResize, I: Copy> 
+impl<T: IndexMut<I>, OnSet: Callback1<I>, OnResize, I: Copy>
 IndexMut<I> for Observable<T, OnSet, OnResize> {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -297,8 +299,8 @@ Attribute<T, OnSet, OnResize> {
         logger.info(fmt!("Creating new {} attribute.", T::type_debug_name()));
         let set_logger     = logger.sub("set_dirty");
         let resize_logger  = logger.sub("resize_dirty");
-        let set_dirty      = SetDirty::new(on_set, set_logger);
-        let resize_dirty   = ResizeDirty::new(on_resize, resize_logger);
+        let set_dirty      = SetDirty::new(set_logger,on_set);
+        let resize_dirty   = ResizeDirty::new(resize_logger, on_resize);
         let buff_on_resize = buffer_on_resize_handler(resize_dirty.clone());
         let buff_on_set    = buffer_on_set_handler(set_dirty.clone());
         let buffer         = Buffer::new_from(vec, buff_on_set, buff_on_resize);

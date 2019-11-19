@@ -3,7 +3,7 @@ use crate::prelude::*;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
-use crate::dirty::SharedBool;
+use crate::dirty::traits::*;
 use crate::display::symbol::scope;
 use crate::display::symbol::scope::Scope;
 use crate::display::symbol::geometry;
@@ -37,7 +37,7 @@ pub struct Mesh<OnDirty> {
 // === Types ===
 
 pub type AttributeIndex <T, Callback> = geometry::AttributeIndex<T, Closure_geometry_on_change<Callback>>;
-pub type GeometryDirty  <Callback> = SharedBool<Callback>;
+pub type GeometryDirty  <Callback> = dirty::SharedBool<Callback>;
 pub type Geometry       <Callback> = geometry::Geometry       <Closure_geometry_on_change<Callback>>;
 pub type Scopes         <Callback> = geometry::Scopes         <Closure_geometry_on_change<Callback>>;
 pub type AttributeScope <Callback> = geometry::AttributeScope <Closure_geometry_on_change<Callback>>;
@@ -55,12 +55,26 @@ closure!(geometry_on_change<Callback: Callback0>
 impl<OnDirty: Callback0> Mesh<OnDirty> {
     pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
         let geometry_logger = logger.sub("geometry_dirty");
-        let geometry_dirty  = GeometryDirty::new(on_dirty, geometry_logger);
+        let geometry_dirty  = GeometryDirty::new(geometry_logger, on_dirty);
         let geo_on_change   = geometry_on_change(geometry_dirty.clone());
         let geometry        = group!(logger, "Initializing.", {
             Geometry::new(logger.sub("geometry"), geo_on_change)
         });
         Mesh { geometry, geometry_dirty, logger }
+    }
+
+    pub fn update(&mut self) {
+        if self.check_dirty() {
+            group!(self.logger, "Updating.", {
+                if self.geometry_dirty.check_and_unset() {
+                    self.geometry.update()
+                }
+            })
+        }
+    }
+
+    pub fn check_dirty(&self) -> bool {
+        self.geometry_dirty.check()
     }
 }
 

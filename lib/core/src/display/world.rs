@@ -9,6 +9,7 @@ use crate::system::web::Logger;
 use wasm_bindgen::prelude::Closure;
 use crate::closure;
 use crate::dirty;
+use crate::dirty::traits::*;
 
 pub use crate::display::workspace::MeshID;
 
@@ -199,7 +200,7 @@ impl World {
         let world_ref2 = world_ref.clone_ref();
         let world_ref3 = world_ref.clone_ref();
         with(world_ref.borrow_mut(), |mut data| {
-            let update         = move || world_ref2.borrow().update();
+            let update         = move || world_ref2.borrow_mut().update();
             let update_handle  = data.event_loop.add_callback(update);
             data.update_handle = Some(update_handle);
             data.self_reference = Some(world_ref3);
@@ -211,15 +212,11 @@ impl World {
         let workspaces       = default();
         let logger           = Logger::new("world");
         let workspace_logger = logger.sub("workspace_dirty");
-        let workspace_dirty  = WorkspaceDirty::new((), workspace_logger);
+        let workspace_dirty  = WorkspaceDirty::new(workspace_logger,());
         let event_loop       = EventLoop::new();
         let update_handle   = None;
         let self_reference   = None;
         Self { workspaces, workspace_dirty, logger, event_loop, update_handle, self_reference}
-    }
-
-    pub fn is_dirty(&self) -> bool {
-        self.workspace_dirty.is_set()
     }
 
     pub fn add_workspace(&mut self, name: &str) -> WorkspaceID {
@@ -251,11 +248,11 @@ impl World {
         self.event_loop.add_callback(func)
     }
 
-    pub fn update(&self) {
-        if self.is_dirty() {
-            group!(self.logger, "Update.", {
+    pub fn update(&mut self) {
+        if self.workspace_dirty.check() {
+            group!(self.logger, "Updating.", {
                 self.workspace_dirty.unset();
-                self.workspaces.iter().for_each(|t| t.update());
+                self.workspaces.iter_mut().for_each(|t| t.update());
             });
         }
     }

@@ -8,6 +8,7 @@
 #![feature(weak_into_raw)]
 #![feature(associated_type_defaults)]
 #![feature(set_stdio)]
+#![feature(overlapping_marker_traits)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
@@ -54,6 +55,8 @@ use nalgebra::Matrix;
 use nalgebra::base::dimension::U1;
 use nalgebra::base::dimension::U2;
 use prelude::*;
+
+use optics;
 
 
 macro_rules! map {
@@ -139,21 +142,24 @@ fn init(world: &mut World) {
 
     let logger = Logger::new("mesh_registry");
 
+//
+//
+//    let mut mesh_registry = MeshRegistry::new(logger, ());
+//    let mesh1_ix = mesh_registry.new_mesh();
+//
+//    let logger = Logger::new("mesh1");
+//    let mut mesh1 = mesh::Mesh::new(logger, ());
+//
+//    // let logger = Logger::new("geo1");
+//    // let mut geo1 = Geometry::new(logger, ());
+//    let geo1 = &mut mesh1.geometry;
 
-    let mut mesh_registry = MeshRegistry::new(logger, ());
-    let mesh1_ix = mesh_registry.new_mesh();
-
-    let logger = Logger::new("mesh1");
-    let mut mesh1 = mesh::Mesh::new(logger, ());
-
-    // let logger = Logger::new("geo1");
-    // let mut geo1 = Geometry::new(logger, ());
-    let geo1 = &mut mesh1.geometry;
-
-    println!("----");
+    println!("---- 1");
     pt_scope.add_instance();
+    println!("---- 2");
 
     world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id)).forget();
+
 }
 
 pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID) {

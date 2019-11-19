@@ -13,8 +13,10 @@ no_unboxed_callbacks = []
 
 [dependencies]
 basegl-prelude           = { version = "0.1.0"  , path = "../prelude"       }
+optics                   = { version = "0.1.0"  , path = "../optics"       }
 basegl-system-web        = { version = "0.1.0"  , path = "../system/web"    }
 basegl-backend-webgl     = { version = "0.1.0"  , path = "../backend/webgl" }
+shapely                  = { version = "0.1.0"  , path = "../shapely/impl"  }
 wasm-bindgen             = { version = "^0.2"   , features = ["nightly"]    }
 js-sys                   = { version = "0.3.28"  }
 failure                  = { version = "0.1.5"   }
@@ -28,6 +30,7 @@ enum_dispatch            = { version = "= 0.1.3" } # https://gitlab.com/antonok/
 typenum                  = { version = "1.11.2"  }
 rustc-hash               = { version = "1.0.1"   }
 console_error_panic_hook = { version = "0.1.6"   }
+num_enum                 = { version = "0.4.2"   }
 
 [dependencies.web-sys]
 version = "0.3.4"
