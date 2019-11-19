@@ -82,16 +82,16 @@ impl<Arg1, Arg2, Arg3, Arg4, Arg5> Callback5<Arg1, Arg2, Arg3, Arg4, Arg5> for (
 // === FnMut Implementations ===
 
 // FIXME: How to make it more generic?
-impl<T: 'static, P: 'static> Callback0 for WithPhantomType<Rc<Fn() -> T>, P> {
+impl<T: 'static, P: 'static> Callback0 for WithPhantom<Rc<Fn() -> T>, P> {
     fn call(&mut self) {
-        (self.t)();
+        (self)();
     }
 }
 
 // FIXME: How to make it more generic?
-impl<Arg1, T: 'static, P: 'static> Callback1<Arg1> for WithPhantomType<Rc<Fn(Arg1) -> T>, P> {
+impl<Arg1, T: 'static, P: 'static> Callback1<Arg1> for WithPhantom<Rc<Fn(Arg1) -> T>, P> {
     fn call(&mut self, arg1: Arg1) {
-        (self.t)(arg1);
+        (self)(arg1);
     }
 }
 

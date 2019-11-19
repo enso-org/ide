@@ -71,13 +71,13 @@ macro_rules! closure {
 
         #[cfg(feature = "no_unboxed_callbacks")]
         pub type [<Closure_ $name>]<$($param),*> = 
-            WithPhantomType<Rc<dyn Fn($($larg_type),*)>, $($param),*>;
+            WithPhantom<Rc<dyn Fn($($larg_type),*)>, $($param),*>;
 
         #[cfg(feature = "no_unboxed_callbacks")]        
         pub fn $name<$($param:$param_type),*>
         ($($arg:$arg_type),*) 
-        -> WithPhantomType<Rc<dyn Fn($($larg_type),*)>, $($param),*> {
-            WithPhantomType::new(Rc::new(move |$($larg),*| $body))
+        -> WithPhantom<Rc<dyn Fn($($larg_type),*)>, $($param),*> {
+            WithPhantom::new(Rc::new(move |$($larg),*| $body))
         }
     }};
 }

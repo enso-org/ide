@@ -1,16 +1,19 @@
+//! This module contains implementation of various dirty flags. A dirty flag is
+//! a structure which remembers that something was changed, but not updated yet.
+//! For example, dirty flags are useful when defining OpenGL buffer management.
+//! When a data in CPU-buffer changes, dirty flags can keep a set of changed
+//! indexes and bulk-update the GPU-buffers every animation frame. You can think
+//! of dirty flags like about a way to introduce laziness to the program
+//! evaluation mechanisms.
+
 use crate::prelude::*;
 
-use crate::system::web::fmt;
+use crate::data::function::callback::*;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use std::ops;
 use rustc_hash::FxHashSet;
 use std::hash::Hash;
-use std::collections::hash_set;
-
-use crate::data::function::callback::*;
-
-use shapely::*;
+use std::ops;
 
 
 // ================
@@ -20,13 +23,19 @@ use shapely::*;
 
 // === Logger Wrapper ===
 
+/// Struct-wrapper adding a logger to the underlying structure. See the
+/// documentation of `shapely` to learn more about struct-wrappers.
 #[derive(Shrinkwrap,Debug)]
 #[shrinkwrap(mutable)]
-pub struct WithLogger<T> (pub Logger, #[shrinkwrap(main_field)] pub T);
+pub struct WithLogger<T>
+    ( pub Logger
+    , #[shrinkwrap(main_field)] pub T
+    );
 
 pub trait HasLogger {
     fn logger(&self) -> &Logger;
 }
+
 impl<T> HasLogger for WithLogger<T> {
     fn logger(&self) -> &Logger {
         &self.0
@@ -35,10 +44,15 @@ impl<T> HasLogger for WithLogger<T> {
 
 // === OnSet Wrapper ===
 
+/// Struct-wrapper adding a callback to the underlying structure. See the
+/// documentation of `shapely` to learn more about struct-wrappers.
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Debug(bound = "T:Debug"))]
 #[shrinkwrap(mutable)]
-pub struct WithOnSet<OnSet, T> (pub Callback<OnSet>, #[shrinkwrap(main_field)] pub T);
+pub struct WithOnSet<OnSet, T>
+    ( pub Callback<OnSet>
+    , #[shrinkwrap(main_field)] pub T
+    );
 
 pub trait HasOnSet<OnSet> {
    fn on_set(&mut self) -> &mut Callback<OnSet>;
@@ -56,63 +70,13 @@ impl<OnSet, T:HasOnSet<OnSet>> HasOnSet<OnSet> for WithLogger<T> {
     }
 }
 
+// =====================
+// === Smart Setters ===
+// =====================
 
-// =============
-// === Other ===
-// =============
-
-
-
-trait Builder {
-    type Config: Default;
-
-    fn new(cfg: Self::Config) -> Self;
-}
-
-pub trait DirtyFlagOld: HasLogger {
-    fn check(&self) -> bool;
-    fn unset_raw(&mut self);
-
-    fn unset(&mut self) {
-        if self.check() {
-            group!(self.logger(), "Unsetting.", { self.unset_raw() })
-        }
-    }
-
-    fn check_and_unset(&mut self) -> bool{
-        let is_set = self.check();
-        self.unset();
-        is_set
-    }
-}
-
-
-type SetArgs<T> = <T as DirtyFlagData>::SetArgs;
-
-pub trait DirtyFlagData: Display {
-    type SetArgs;
-    fn raw_check(&self) -> bool;
-    fn raw_check_for(&self, args: &Self::SetArgs) -> bool;
-    fn raw_set(&mut self, args: Self::SetArgs);
-    fn raw_unset(&mut self);
-}
-
-// ============================
-// === TO BE REFACTORED OUT ===
-// ============================
-
-pub trait When {
-    fn when<F: FnOnce() -> T, T>(&self, f: F);
-}
-
-impl When for bool {
-    fn when<F: FnOnce() -> T, T>(&self, f: F) {
-        if *self {
-            f();
-        }
-    }
-}
-
+/// All of these smart setters implement the same method but in different
+/// variants depending on the super-constraint. We cannot automatically import
+/// it, so the users of this module need to manually import all `traits::*`.
 pub mod traits {
     pub trait Setter0           { fn set(&mut self); }
     pub trait Setter1<A1>       { fn set(&mut self, a1:A1); }
@@ -127,12 +91,34 @@ pub mod traits {
 
 use traits::*;
 
+
+// =====================
+// === DirtyFlagData ===
+// =====================
+
+/// The abstraction for dirty flag underlying structure. You would rather not
+/// need to ever access these methods directly. They are used to implement
+/// high-level methods in `DirtyFlag` and `SharedDirtyFlag` wrappers.
+pub trait DirtyFlagData: Display {
+    type SetArgs;
+    fn raw_check(&self) -> bool;
+    fn raw_check_for(&self, args: &Self::SetArgs) -> bool;
+    fn raw_set(&mut self, args: Self::SetArgs);
+    fn raw_unset(&mut self);
+}
+
+type SetArgs<T> = <T as DirtyFlagData>::SetArgs;
+
+
 // =================
 // === DirtyFlag ===
 // =================
 
 // === Definition ===
 
+/// Abstraction for every dirty flag implementation. It is a smart struct adding
+/// logging and callback utilities to the underlying data. Moreover, it
+/// implements public API for working with dirty flags.
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Debug(bound = "T:Debug"))]
 #[shrinkwrap(mutable)]
@@ -151,6 +137,11 @@ impl<OnSet,T: Default> DirtyFlag<T,OnSet> {
 }
 
 impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
+
+    /// Sets the dirty flag by providing explicit parameters in a tuple. You
+    /// should rather not need to use this function explicitly. You can use the
+    /// smart setters instead. They are just `set` function which accepts as
+    /// many parameters as really needed.
     pub fn set_with(&mut self, args: SetArgs<T>) {
         let first_set  = !self.check();
         let is_set_for = self.check_for(&args);
@@ -162,6 +153,8 @@ impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
         }
     }
 
+    /// Unset the dirty flag. This function resets the state of the flag, so it
+    /// is exactly as it was after fresh flag creation.
     pub fn unset(&mut self) {
         if self.check() {
             group!(self.logger(), "Unsetting.", {
@@ -170,16 +163,19 @@ impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
         }
     }
 
+    /// Check if the flag was dirty, unset it, and result the check status.
     pub fn check_and_unset(&mut self) -> bool {
         let is_set = self.check();
         self.unset();
         is_set
     }
 
+    /// Check if the flag is dirty.
     pub fn check(&self) -> bool {
         self.raw_check()
     }
 
+    /// Check if the flag is dirty for a specific input argument.
     pub fn check_for(&self, args: &SetArgs<T>) -> bool {
         self.raw_check_for(args)
     }
@@ -229,6 +225,8 @@ impl<T,OnSet,A1,A2,A3> Setter3<A1,A2,A3> for DirtyFlag<T,OnSet>
 
 // === Definition ===
 
+/// A version of `DirtyFlag` which uses internal mutability pattern. It is meant
+/// to expose the same API but without requiring `self` reference to be mutable.
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Debug(bound = "T:Debug"))]
 #[derivative(Clone(bound = ""))]
@@ -237,6 +235,7 @@ pub struct SharedDirtyFlag<T,OnSet> {
 }
 
 // === API ===
+
 impl<T: Default, OnSet> SharedDirtyFlag<T,OnSet> {
     pub fn new(logger: Logger, on_set: OnSet) -> Self {
         let callback = Callback(on_set);
@@ -295,24 +294,24 @@ impl<T,OnSet,A1,A2,A3> SharedSetter3<A1,A2,A3> for SharedDirtyFlag<T,OnSet>
 
 // FIXME: This is very error prone. Fix it after this gets resolved:
 // https://github.com/rust-lang/rust/issues/66505
+/// Please refer to `Prelude::drop_lifetime` docs to learn why it is safe to
+/// use it here.
 impl<T, OnSet> SharedDirtyFlag<T,OnSet>
 where for<'t> &'t T: IntoIterator {
     pub fn iter(&self) -> SharedDirtyFlagIter<T, OnSet> {
-        let borrow    = self.data.borrow();
-        let reference = unsafe { drop_lifetime(&borrow) };
+        let _borrow   = self.data.borrow();
+        let reference = unsafe { drop_lifetime(&_borrow) };
         let iter      = reference.into_iter();
-        SharedDirtyFlagIter { iter, borrow }
+        SharedDirtyFlagIter { iter, _borrow }
     }
 }
 
-unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
-    std::mem::transmute(t)
-}
-
+/// Iterator guard for SharedDirtyFlag. It exposes the iterator of original
+/// structure behind the shared reference.
 pub struct SharedDirtyFlagIter<'t,T,OnSet>
 where &'t T: IntoIterator {
     pub iter : <&'t T as IntoIterator>::IntoIter,
-    borrow   : Ref<'t,DirtyFlag<T,OnSet>>
+    _borrow  : Ref<'t,DirtyFlag<T,OnSet>>
 }
 
 impl<'t,T,OnSet> Deref for SharedDirtyFlagIter<'t,T,OnSet>
@@ -347,6 +346,9 @@ where &'t T: IntoIterator {
 // === Bool ===
 // ============
 
+/// The on / off dirty flag. If you need a simple dirty / clean switch, this one
+/// is the right choice.
+
 pub type  Bool       <OnSet> = DirtyFlag       <BoolData,OnSet>;
 pub type  SharedBool <OnSet> = SharedDirtyFlag <BoolData,OnSet>;
 pub trait BoolCtx    <OnSet> = where OnSet: Callback0;
@@ -355,16 +357,20 @@ pub trait BoolCtx    <OnSet> = where OnSet: Callback0;
 pub struct BoolData { is_dirty: bool }
 impl DirtyFlagData for BoolData {
     type SetArgs = ();
-    fn raw_check(&self) -> bool        { self.is_dirty }
-    fn raw_check_for(&self, _:&()) -> bool { self.is_dirty }
-    fn raw_set(&mut self, _:())      { self.is_dirty = true  }
-    fn raw_unset(&mut self)            { self.is_dirty = false }
+    fn raw_check     (&self) -> bool        { self.is_dirty }
+    fn raw_check_for (&self, _:&()) -> bool { self.is_dirty }
+    fn raw_set       (&mut self, _:())      { self.is_dirty = true  }
+    fn raw_unset     (&mut self)            { self.is_dirty = false }
 }
 
 
 // =============
 // === Range ===
 // =============
+
+/// Dirty flag which keeps information about a range of dirty items. It does not
+/// track items separately, nor you are allowed to keep multiple ranges in it.
+/// Just a single value range.
 
 pub type  Range       <Ix,OnSet> = DirtyFlag       <RangeData<Ix>,OnSet>;
 pub type  SharedRange <Ix,OnSet> = SharedDirtyFlag <RangeData<Ix>,OnSet>;
@@ -413,6 +419,10 @@ impl<Ix:RangeIx> Display for RangeData<Ix> {
 // === Set ===
 // ===========
 
+/// Dirty flag which keeps a set of dirty values. The `HashSet` dirty flag
+/// counterpart. Please note that it uses `FxHashSet` under the hood, so there
+/// are no guarantees regarding attack-proof hashing algorithm here.
+
 pub type Set       <Ix,OnSet> = DirtyFlag       <SetData<Ix>,OnSet>;
 pub type SharedSet <Ix,OnSet> = SharedDirtyFlag <SetData<Ix>,OnSet>;
 pub trait SetCtx      <OnSet> = where OnSet: Callback0;
@@ -422,10 +432,21 @@ pub trait SetItem             = Eq + Hash + Debug;
 pub struct SetData<Item:SetItem> { pub set: FxHashSet<Item> }
 impl<Item:SetItem> DirtyFlagData for SetData<Item> {
     type SetArgs = (Item,);
-    fn raw_check     (&self) -> bool                       { !self.set.is_empty()  }
-    fn raw_unset     (&mut self)                           { self.set.clear();     }
-    fn raw_check_for (&self, (a,): &Self::SetArgs) -> bool { self.set.contains(a)  }
-    fn raw_set       (&mut self, (a,): Self::SetArgs)      { self.set.insert(a);   }
+    fn raw_check (&self) -> bool {
+        !self.set.is_empty()
+    }
+
+    fn raw_unset (&mut self) {
+        self.set.clear();
+    }
+
+    fn raw_check_for (&self, (a,): &Self::SetArgs) -> bool {
+        self.set.contains(a)
+    }
+
+    fn raw_set (&mut self, (a,): Self::SetArgs) {
+        self.set.insert(a);
+    }
 }
 
 impl<Ix:SetItem> Display for SetData<Ix> {
@@ -449,10 +470,16 @@ impl<'t,Item:SetItem> IntoIterator for &'t SetData<Item> {
 
 use bit_field::BitField as BF;
 
+/// Dirty flag which keeps information about a set of enumerator values. The
+/// items must be a plain enumerator implementing `Into<usize>`. The data is
+/// stored as an efficient `BitField` under the hood.
+
 pub type  Enum       <Prim,T,OnSet> = DirtyFlag       <EnumData<Prim,T>,OnSet>;
 pub type  SharedEnum <Prim,T,OnSet> = SharedDirtyFlag <EnumData<Prim,T>,OnSet>;
 pub trait EnumCtx           <OnSet> = where OnSet: Callback0;
 pub trait EnumBase                  = Default + PartialEq + Copy + BF;
+
+/// Dirty flag which keeps dirty indexes in a `BitField` under the hood.
 
 pub type  BitField        <Prim,OnSet> = Enum       <Prim,usize,OnSet>;
 pub type  SharedBitField  <Prim,OnSet> = SharedEnum <Prim,usize,OnSet>;
@@ -461,7 +488,11 @@ pub type  SharedBitField  <Prim,OnSet> = SharedEnum <Prim,usize,OnSet>;
 #[derive(Derivative)]
 #[derivative(Debug(bound="Prim:Debug"))]
 #[derivative(Default(bound="Prim:Default"))]
-pub struct EnumData<Prim=u32,T=usize> { pub bits: Prim, phantom: PhantomData<T> }
+pub struct EnumData<Prim=u32,T=usize> {
+    pub bits : Prim,
+    phantom  : PhantomData<T>
+}
+
 impl<Prim:EnumBase,T:Copy+Into<usize>> DirtyFlagData for EnumData<Prim,T> {
     type SetArgs = (T,);
     fn raw_unset(&mut self) {
@@ -484,90 +515,5 @@ impl<Prim:EnumBase,T:Copy+Into<usize>> DirtyFlagData for EnumData<Prim,T> {
 impl<Prim:EnumBase,T:Copy+Into<usize>> Display for EnumData<Prim,T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.raw_check())
-    }
-}
-
-// =================================================================================================
-// === Simple ======================================================================================
-// =================================================================================================
-
-// ====================
-// === SharedSimple ===
-// ====================
-
-#[derive(Clone, Debug)]
-pub struct SharedSimple {
-    pub data: Rc<RefCell<Simple>>,
-}
-
-impl SharedSimple {
-    pub fn new(logger: &Logger) -> Self {
-        let data = Rc::new(RefCell::new(Simple::new(logger)));
-        Self { data }
-    }
-
-    pub fn new_child(&self, logger: &Logger) -> Self {
-        let child = Self::new(logger);
-        child.set_parent(Some(self.clone()));
-        child
-    }
-
-    pub fn set_parent(&self, new_parent: Option<SharedSimple>) {
-        self.data.borrow_mut().parent = new_parent;
-    }
-
-    pub fn check(&self) -> bool {
-        self.data.borrow().check()
-    }
-
-    pub fn change(&self, new_state: bool) {
-        self.data.borrow_mut().change(new_state)
-    }
-
-    pub fn set(&self) {
-        self.change(true)
-    }
-
-    pub fn unset(&self) {
-        self.change(false)
-    }
-}
-
-// ==============
-// === Simple ===
-// ==============
-
-#[derive(Clone, Debug)]
-pub struct Simple {
-    state:  bool,
-    parent: Option<SharedSimple>,
-    logger: Logger,
-}
-
-impl Simple {
-    pub fn new(logger: &Logger) -> Self {
-        Self { state: false, parent: None, logger: logger.clone() }
-    }
-
-    pub fn check(&self) -> bool {
-        self.state
-    }
-
-    pub fn change(&mut self, new_state: bool) {
-        if self.state != new_state {
-            self.state = new_state;
-            self.logger.group(fmt!("Setting dirty to {}.", new_state), || {
-                new_state.when(|| self.parent.iter().for_each(|p| p.set()))
-            });
-        }
-    }
-
-    pub fn set(&mut self) {
-        self.change(true)
-    }
-
-    pub fn unset(&mut self) {
-        self.logger.info("Unsetting.");
-        self.change(false)
     }
 }

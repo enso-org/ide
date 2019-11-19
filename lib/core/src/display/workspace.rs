@@ -2,7 +2,6 @@ use crate::prelude::*;
 
 use crate::dirty;
 use crate::backend::webgl;
-use crate::dirty::SharedSimple;
 use crate::system::web;
 use crate::system::web::group;
 use crate::system::web::fmt;
@@ -14,7 +13,6 @@ use crate::closure;
 use crate::data::function::callback::*;
 use crate::display::mesh_registry;
 use crate::dirty::traits::*;
-
 pub use crate::display::mesh_registry::MeshID;
 
 // =============
