@@ -14,6 +14,8 @@ pub mod data;
 pub mod math;
 pub mod dirty;
 pub mod display;
+pub mod font_base;
+pub mod text;
 pub use basegl_prelude as prelude;
 pub mod backend {
     pub use basegl_backend_webgl as webgl;

@@ -11,16 +11,18 @@ crate-type = ["rlib", "cdylib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-basegl-prelude       = { version = "0.1.0"  , path = "../prelude"       }
-basegl-system-web    = { version = "0.1.0"  , path = "../system/web"    }
-basegl-backend-webgl = { version = "0.1.0"  , path = "../backend/webgl" }
-wasm-bindgen         = { version = "^0.2"   , features = ["nightly"]    }
-js-sys               = { version = "0.3.28" }
-failure              = { version = "0.1.5"  }
-derive_more          = { version = "0.15.0" }
-shrinkwraprs         = { version = "0.2.1"  }
-itertools            = { version = "0.8"    }
-nalgebra             = { version = "0.18.1" }
+basegl-prelude         = { version = "0.1.0"  , path = "../prelude"       }
+basegl-system-web      = { version = "0.1.0"  , path = "../system/web"    }
+basegl-backend-webgl   = { version = "0.1.0"  , path = "../backend/webgl" }
+basegl-core-msdf-sys   = { version = "0.1.0"  , path = "msdf-sys"         }
+basegl-core-fonts-base = { version = "0.1.0"  , path = "fonts-base"       }
+wasm-bindgen           = { version = "^0.2"   , features = ["nightly"]    }
+js-sys                 = { version = "0.3.28" }
+failure                = { version = "0.1.5"  }
+derive_more            = { version = "0.15.0" }
+shrinkwraprs           = { version = "0.2.1"  }
+itertools              = { version = "0.8"    }
+nalgebra               = { version = "0.18.1" }
 
 # TODO: disable for release
 console_error_panic_hook = { version = "0.1.1", optional = true }

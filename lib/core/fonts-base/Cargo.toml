@@ -1,0 +1,17 @@
+[package]
+name = "basegl-core-fonts-base"
+version = "0.1.0"
+authors = ["Adam Obuchowicz <adam.obuchowicz@luna-lang.org>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+basegl-prelude         = { version = "0.1.0", path="../../prelude"}
+
+[build-dependencies]
+basegl-build-utilities = { version = "0.1.0", path="../../../build-utilities" }
+zip         = "0.5"

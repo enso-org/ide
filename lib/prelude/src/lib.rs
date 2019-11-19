@@ -144,3 +144,4 @@ impl<T, P> WithPhantom<T, P> {
         Self { without_phantom, phantom }
     }
 }
+

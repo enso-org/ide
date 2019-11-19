@@ -137,14 +137,15 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
     use internal::msdfgen_max_msdf_size;
     use crate::*;
+    use basegl_core_fonts_base::FontsBase;
 
     #[wasm_bindgen_test]
     fn generate_msdf_for_capital_a() {
         // given
-        let test_font : &[u8] = include_bytes!(
-            concat!(env!("OUT_DIR"), "/DejaVuSansMono-Bold.ttf")
+        let font_base = FontsBase::new();
+        let font = Font::load_from_memory(
+            font_base.fonts_by_name.get("DejaVuSansMono-Bold").unwrap()
         );
-        let font = Font::load_from_memory(test_font);
         let params = MSDFParameters {
             width: 32,
             height: 32,

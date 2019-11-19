@@ -1,8 +1,10 @@
 [workspace]
 
 members = [
+    "build-utilities",
     "lib/prelude",
     "lib/core",
+    "lib/core/fonts-base",
     "lib/core/msdf-sys",
     "lib/backend/webgl",
     "lib/system/web",
