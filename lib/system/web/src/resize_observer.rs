@@ -39,8 +39,8 @@ pub struct ResizeObserver {
 impl ResizeObserver {
     pub fn new(target: &JsValue, listener: Listener) -> Self {
         let target = target.clone();
-        let observer_id = resize_observe(&target, &listener);
-        Self { target, listener, observer_id }
+//        let observer_id = resize_observe(&target, &listener);
+        Self { target, listener, observer_id: 0 }
     }
 }
 

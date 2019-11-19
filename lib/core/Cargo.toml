@@ -14,8 +14,8 @@ default = ["console_error_panic_hook"]
 basegl-prelude         = { version = "0.1.0"  , path = "../prelude"       }
 basegl-system-web      = { version = "0.1.0"  , path = "../system/web"    }
 basegl-backend-webgl   = { version = "0.1.0"  , path = "../backend/webgl" }
-basegl-core-msdf-sys   = { version = "0.1.0"  , path = "msdf-sys"         }
 basegl-core-fonts-base = { version = "0.1.0"  , path = "fonts-base"       }
+basegl-core-msdf-sys   = { version = "0.1.0"  , path = "msdf-sys"         }
 wasm-bindgen           = { version = "^0.2"   , features = ["nightly"]    }
 js-sys                 = { version = "0.3.28" }
 failure                = { version = "0.1.5"  }
@@ -41,6 +41,8 @@ features = [
   'WebGlRenderingContext',
   'WebGlProgram',
   'WebGlShader',
+  'WebGlUniformLocation',
+  'WebGlTexture',
   'Window',
   'console'
 ]

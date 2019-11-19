@@ -59,73 +59,74 @@ impl Workspace {
     }
 
     pub fn refresh(&self) {
-        if self.dirty.is_set() {
-            self.logger.group("Refresh.", || {
-                self.dirty.unset();
-                let vert_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::VERTEX_SHADER,
-                    r#"
-        attribute vec4 position;
-        void main() {
-            gl_Position = position;
-        }
-    "#,
-                )
-                .unwrap();
-                let frag_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::FRAGMENT_SHADER,
-                    r#"
-        void main() {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-        }
-    "#,
-                )
-                .unwrap();
-                let program =
-                    webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
-                self.context.use_program(Some(&program));
-
-                let vertices: [f32; 9] = [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0];
-
-                let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
-                self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
-
-                // Note that `Float32Array::view` is somewhat dangerous (hence the
-                // `unsafe`!). This is creating a raw view into our module's
-                // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
-                // (aka do a memory allocation in Rust) it'll cause the buffer to change,
-                // causing the `Float32Array` to be invalid.
-                //
-                // As a result, after `Float32Array::view` we have to be very careful not to
-                // do any memory allocations before it's dropped.
-                unsafe {
-                    let vert_array = js_sys::Float32Array::view(&vertices);
-
-                    self.context.buffer_data_with_array_buffer_view(
-                        webgl::Context::ARRAY_BUFFER,
-                        &vert_array,
-                        webgl::Context::STATIC_DRAW,
-                    );
-                }
-
-                self.context.vertex_attrib_pointer_with_i32(
-                    0,
-                    3,
-                    webgl::Context::FLOAT,
-                    false,
-                    0,
-                    0,
-                );
-                self.context.enable_vertex_attrib_array(0);
-
-                self.context.clear_color(0.0, 0.0, 0.0, 1.0);
-                self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
-
-                self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
-            });
-        }
+        crate::text::print_line(&self.context, "G", &self.logger);
+//        if self.dirty.is_set() {
+//            self.logger.group("Refresh.", || {
+//                self.dirty.unset();
+//                let vert_shader = webgl::compile_shader(
+//                    &self.context,
+//                    webgl::Context::VERTEX_SHADER,
+//                    r#"
+//        attribute vec4 position;
+//        void main() {
+//            gl_Position = position;
+//        }
+//    "#,
+//                )
+//                .unwrap();
+//                let frag_shader = webgl::compile_shader(
+//                    &self.context,
+//                    webgl::Context::FRAGMENT_SHADER,
+//                    r#"
+//        void main() {
+//            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+//        }
+//    "#,
+//                )
+//                .unwrap();
+//                let program =
+//                    webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
+//                self.context.use_program(Some(&program));
+//
+//                let vertices: [f32; 9] = [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0];
+//
+//                let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
+//                self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
+//
+//                // Note that `Float32Array::view` is somewhat dangerous (hence the
+//                // `unsafe`!). This is creating a raw view into our module's
+//                // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
+//                // (aka do a memory allocation in Rust) it'll cause the buffer to change,
+//                // causing the `Float32Array` to be invalid.
+//                //
+//                // As a result, after `Float32Array::view` we have to be very careful not to
+//                // do any memory allocations before it's dropped.
+//                unsafe {
+//                    let vert_array = js_sys::Float32Array::view(&vertices);
+//
+//                    self.context.buffer_data_with_array_buffer_view(
+//                        webgl::Context::ARRAY_BUFFER,
+//                        &vert_array,
+//                        webgl::Context::STATIC_DRAW,
+//                    );
+//                }
+//
+//                self.context.vertex_attrib_pointer_with_i32(
+//                    0,
+//                    3,
+//                    webgl::Context::FLOAT,
+//                    false,
+//                    0,
+//                    0,
+//                );
+//                self.context.enable_vertex_attrib_array(0);
+//
+//                self.context.clear_color(0.0, 0.0, 0.0, 1.0);
+//                self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
+//
+//                self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
+//            });
+//        }
     }
 }
 

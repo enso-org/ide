@@ -1,53 +1,40 @@
-
 use basegl_backend_webgl::{Context, compile_shader, link_program};
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_fonts_base::FontsBase;
 
-use wasm_bindgen::prelude::*;
 use web_sys::WebGlRenderingContext;
+use basegl_system_web::Logger;
 
-pub fn print_line(context : &Context, text : &str)
+pub fn print_line(context : &Context, text : &str, logger : &Logger)
 {
     let vert_shader = compile_shader(
         &context,
         WebGlRenderingContext::VERTEX_SHADER,
-        r#"
-        attribute vec4 position;
-        void main() {
-            gl_Position = position;
-        }
-    "#,
+        include_str!("msdf_vert.glsl")
     ).unwrap();
+//    logger.trace(|| format!("{:?}", vert_shader.as_ref().expect_err("No error?")));
+    context.get_extension("OES_standard_derivatives").unwrap();
     let frag_shader = compile_shader(
         &context,
         WebGlRenderingContext::FRAGMENT_SHADER,
         include_str!("msdf_frag.glsl")
     ).unwrap();
+//    logger.trace(|| format!("{:?}", frag_shader.as_ref().expect_err("No error?")));
     let program = link_program(&context, &vert_shader, &frag_shader).unwrap();
     context.use_program(Some(&program));
 
-    let msdf_location = context.get_uniform(program, "msdf");
-    let bg_color_location = context.get_uniform(program, "bgColor");
-    let fg_color_location = context.get_uniform(program, "fgColor");
-    let px_range_location = context.get_uniform(program, "pxRange");
-
-    let vertices= [
-        -0.5, -0.5, 0.0,
-        -0.5,  0.5, 0.0,
-         0.5,  0.5, 0.0,
-         0.5, -0.5, 0.0
-    ];
-
-    let buffer = context.create_buffer().unwrap();
-    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+    let msdf_location = context.get_uniform_location(&program, "msdf");
+    let msdf_size_location = context.get_uniform_location(&program, "msdf_size");
+    let bg_color_location = context.get_uniform_location(&program, "bgColor");
+    let fg_color_location = context.get_uniform_location(&program, "fgColor");
+    let px_range_location = context.get_uniform_location(&program, "pxRange");
 
     let font_base = FontsBase::new();
-    let font = msdf_sys::Font::load_from_memory(
-        font_base.fonts_by_name.get("DejaVuSansMono-Bold").unwrap()
-    );
+    let mfont = font_base.fonts_by_name.get("DejaVuSansMono-Bold").unwrap();
+    let font = msdf_sys::Font::load_from_memory(mfont);
     let params = msdf_sys::MSDFParameters {
-        width: 16,
-        height: 16,
+        width: 32,
+        height: 32,
         edge_coloring_angle_threshold: 3.0,
         range: 2.0,
         edge_threshold: 1.001,
@@ -56,30 +43,51 @@ pub fn print_line(context : &Context, text : &str)
     // when
     let msdf = msdf_sys::MutlichannelSignedDistanceField::generate(
         &font,
-        text[0],
+        text.chars().next().unwrap() as u32,
         &params,
-        Vector2D { x: 1.0, y: 1.0 },
-        Vector2D { x: 0.0, y: 0.0 }
+        msdf_sys::Vector2D { x: 1.0, y: 1.0 },
+        msdf_sys::Vector2D { x: 4.0, y: 4.0 }
     );
+
+    let u8msdf = msdf.data[0..32*32*3].iter().map(|f| nalgebra::clamp(f*255.0, 0.0, 255.0) as u8).collect::<Vec<u8>>();
+//    logger.trace(|| format!("{:?}", (msdf.data[0..16*16*3].to_vec())));
+//    logger.trace(|| format!("{:?}", u8msdf));
 
     let msdf_texture = context.create_texture();
-    context.bind_texture(context.TEXTURE_2D, msdf_texture.as_ref());
-    context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view(
+//    context.active_texture(Context::TEXTURE0);
+    context.bind_texture(Context::TEXTURE_2D, msdf_texture.as_ref());
+    let res = context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
         Context::TEXTURE_2D,
         0,
-        Context::RGB32F,
-        16,
-        16,
+        Context::RGB as i32,
+        32,
+        32,
         0,
-        Context::RGB32F,
-        gl.FLOAT,
-        js_sys::Float32Array::view(&vertices[0..16*16*3])
+        Context::RGB,
+        Context::UNSIGNED_BYTE,
+        Some(&u8msdf)
     );
+    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
+    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
+    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
+//    logger.trace(|| format!("{:?}", res.as_ref().expect_err("No error?")));
+    context.uniform1i(msdf_location.as_ref(), 0);
+    context.uniform1i(msdf_size_location.as_ref(), 16);
+    context.uniform4f(bg_color_location.as_ref(), 0.0, 0.0, 0.0, 1.0);
+    context.uniform4f(fg_color_location.as_ref(), 255.0, 255.0, 255.0, 1.0);
+    context.uniform1f(px_range_location.as_ref(), 1.0);
 
-    context.uniform1i(msdf_location, 0);
-    context.uniform4f(bg_color_location, 0.0, 0.0, 0.0, 0.0);
-    context.uniform4f(fg_color_location, 255.0, 255.0, 255.0, 0.0);
-    context.uniform1f(px_range_location, 1.0);
+    let vertices= [
+        -1.0, -1.0, 0.0,
+        -1.0,  1.0, 0.0,
+         1.0,  1.0, 0.0,
+         1.0,  1.0, 0.0,
+         1.0, -1.0, 0.0,
+        -1.0, -1.0, 0.0
+    ];
+
+    let buffer = context.create_buffer().unwrap();
+    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
 
     // Note that `Float32Array::view` is somewhat dangerous (hence the
     // `unsafe`!). This is creating a raw view into our module's

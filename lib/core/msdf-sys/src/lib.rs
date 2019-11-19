@@ -8,8 +8,10 @@ use internal::{
 };
 use js_sys::Uint8Array;
 use wasm_bindgen::JsValue;
-use vector2d::Vector2D;
+pub use vector2d::Vector2D;
 use crate::internal::copy_f32_data_from_msdfgen_memory;
+
+pub use internal::msdfgen_max_msdf_size;
 
 // ============
 // === Font ===

@@ -23,6 +23,7 @@ pub mod backend {
 pub mod system {
     pub use basegl_system_web as web;
 }
+pub mod utils;
 
 // ============
 // === Main ===
@@ -33,6 +34,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
 pub fn start() {
+    utils::set_panic_hook();
     let world = World::new();
     world.add_workspace("canvas");
     world.start();
