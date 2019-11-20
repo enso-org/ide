@@ -41,6 +41,15 @@ impl Error {
     }
 }
 
+// ===================
+// === JS Bindings ===
+// ===================
+
+#[macro_export]
+macro_rules! console_log {
+    ($($t:tt)*) => ($crate::console::log_1(&format_args!($($t)*).to_string().into()))
+}
+
 // ==============
 // === LogMsg ===
 // ==============
@@ -185,16 +194,20 @@ pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
 // ===================
 
 pub trait AttributeSetter {
-    fn set_attribute_or_panic(&self, name : &str, value : &str);
+    fn set_attribute_or_panic<T, U>(&self, name : T, value : U)
+            where T : AsRef<str>,
+                  U : AsRef<str>;
 }
 
 impl AttributeSetter for web_sys::HtmlElement {
-    fn set_attribute_or_panic(&self, name : &str, value : &str) {
-        self.set_attribute(name, value)
+    fn set_attribute_or_panic<T, U>(&self, name : T, value : U)
+            where T : AsRef<str>,
+                  U : AsRef<str> {
+        self.set_attribute(name.as_ref(), value.as_ref())
             .unwrap_or_else(|_|
                 panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
-                        name,
-                        value,
+                        name.as_ref(),
+                        value.as_ref(),
                         self
                 )
             );
@@ -202,17 +215,21 @@ impl AttributeSetter for web_sys::HtmlElement {
 }
 
 pub trait StyleSetter {
-    fn set_property_or_panic(&self, name : &str, value : &str);
+    fn set_property_or_panic<T, U>(&self, name : T, value : U)
+            where T : AsRef<str>,
+                  U : AsRef<str>;
 }
 
 impl StyleSetter for web_sys::HtmlElement {
-    fn set_property_or_panic(&self, name : &str, value : &str) {
+    fn set_property_or_panic<T, U>(&self, name : T, value : U)
+            where T : AsRef<str>,
+                  U : AsRef<str> {
         self.style()
-            .set_property(name, value)
+            .set_property(name.as_ref(), value.as_ref())
             .unwrap_or_else(|_|
                 panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
-                        name,
-                        value,
+                        name.as_ref(),
+                        value.as_ref(),
                         self
                 )
             );

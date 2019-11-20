@@ -48,11 +48,12 @@ impl<T> OptVec<T> {
         item
     }
 
-    /// Gets the amount of items as Some(element)
+    /// Returns the number of elements in the vector, also referred to as its 'length'.
     pub fn len(&self) -> usize {
         self.items.len() - self.free_ixs.len()
     }
 
+    /// Returns true if vector contains no element.
     pub fn is_empty(&self) -> bool {
         self.items.len() == self.free_ixs.len()
     }
@@ -69,6 +70,7 @@ mod tests {
 
         let ix1 = v.insert(|_| 1);
         assert_eq!(v.len(), 1);
+        assert!(!v.is_empty());
 
         let ix2 = v.insert(|_| 2);
         assert_eq!(v.len(), 2);
