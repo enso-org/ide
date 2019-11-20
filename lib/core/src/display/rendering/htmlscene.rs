@@ -3,6 +3,7 @@ use super::Scene;
 use crate::data::opt_vec::OptVec;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
+use crate::prelude::*;
 
 /// A collection for holding 3D `HTMLObject`s.
 #[derive(Shrinkwrap)]

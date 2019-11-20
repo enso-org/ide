@@ -1,16 +1,17 @@
-use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3};
+use nalgebra::Matrix4;
+use nalgebra::Quaternion;
+use nalgebra::UnitQuaternion;
+use nalgebra::Vector3;
+use nalgebra::RealField;
 
 // To comply with Threejs impl, we generate a Quaternion applying rotation in
 // the order: pitch -> roll -> yaw, instead of roll -> pitch -> yaw based on
 // https://github.com/mrdoob/three.js/blob/master/src/math/Quaternion.js#L199
-fn from_euler_angles_pry(
-        roll  : f32,
-        pitch : f32,
-        yaw   : f32
-    ) -> UnitQuaternion<f32> {
-    let (s1, c1): (f32, f32) = (roll * 0.5 as f32).sin_cos();
-    let (s2, c2): (f32, f32) = (pitch * 0.5 as f32).sin_cos();
-    let (s3, c3): (f32, f32) = (yaw * 0.5 as f32).sin_cos();
+fn from_euler_angles_pry
+(roll : f32, pitch : f32, yaw : f32) -> UnitQuaternion<f32> {
+    let (s1, c1) : (f32, f32) = (roll  * 0.5 as f32).sin_cos();
+    let (s2, c2) : (f32, f32) = (pitch * 0.5 as f32).sin_cos();
+    let (s3, c3) : (f32, f32) = (yaw   * 0.5 as f32).sin_cos();
 
     UnitQuaternion::from_quaternion(Quaternion::new(
         c1 * c2 * c3 - s1 * s2 * s3,
@@ -34,11 +35,10 @@ pub struct Transform {
 impl Transform {
     /// Creates an identity transform.
     pub fn identity() -> Self {
-        Self {
-            translation : Vector3::new(0.0, 0.0, 0.0),
-            rotation    : UnitQuaternion::identity(),
-            scale       : Vector3::new(1.0, 1.0, 1.0),
-        }
+        let translation = Vector3::new(0.0, 0.0, 0.0);
+        let rotation    = UnitQuaternion::identity();
+        let scale       = Vector3::new(1.0, 1.0, 1.0);
+        Self { translation, rotation, scale }
     }
 
     /// Sets Transform's translation.
@@ -109,7 +109,7 @@ pub trait IntoCSSMatrix {
     fn into_css_matrix(&self) -> String;
 }
 
-impl IntoCSSMatrix for Matrix4<f32> {
+impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
     fn into_css_matrix(&self) -> String {
         let mut iter = self.iter();
         let item = iter.next().expect("Matrix4 should have the first item");

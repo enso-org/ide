@@ -203,14 +203,11 @@ impl AttributeSetter for web_sys::HtmlElement {
     fn set_attribute_or_panic<T, U>(&self, name : T, value : U)
             where T : AsRef<str>,
                   U : AsRef<str> {
-        self.set_attribute(name.as_ref(), value.as_ref())
-            .unwrap_or_else(|_|
-                panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
-                        name.as_ref(),
-                        value.as_ref(),
-                        self
-                )
-            );
+        let name  = name.as_ref();
+        let value = value.as_ref();
+        let values = format!("\"{}\" = \"{}\" on \"{:?}\"", name, value, self);
+        self.set_attribute(name, value)
+            .unwrap_or_else(|_| panic!("Failed to set attribute {}", values));
     }
 }
 
@@ -224,14 +221,10 @@ impl StyleSetter for web_sys::HtmlElement {
     fn set_property_or_panic<T, U>(&self, name : T, value : U)
             where T : AsRef<str>,
                   U : AsRef<str> {
-        self.style()
-            .set_property(name.as_ref(), value.as_ref())
-            .unwrap_or_else(|_|
-                panic!("Failed to set attribute \"{}\" = \"{}\" on \"{:?}\"",
-                        name.as_ref(),
-                        value.as_ref(),
-                        self
-                )
-            );
+        let name  = name.as_ref();
+        let value = value.as_ref();
+        let values = format!("\"{}\" = \"{}\" on \"{:?}\"", name, value, self);
+        self.style().set_property(name, value)
+            .unwrap_or_else(|_| panic!("Failed to set style {}", values));
     }
 }

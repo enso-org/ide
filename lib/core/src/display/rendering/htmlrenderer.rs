@@ -3,10 +3,27 @@ use super::HTMLScene;
 use super::IntoCSSMatrix;
 use crate::system::web::StyleSetter;
 use crate::prelude::*;
+use nalgebra::Matrix4;
+use nalgebra::RealField;
 
+// ====================
+// === Math Helpers ===
+// ====================
+
+// eps is used to round very small values to 0.0 for numerical stability
 fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
 }
+
+fn invert_y<T : RealField>(matrix : &mut Matrix4<T>) {
+    // Negating the second column to invert Y.
+    // Equivalent to scaling by (1.0, -1.0, 1.0).
+    matrix.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+}
+
+// ====================
+// === HTMLRenderer ===
+// ====================
 
 /// A renderer for `HTMLObject`s.
 #[derive(Default)]
@@ -31,9 +48,7 @@ impl HTMLRenderer {
                       .expect("Render couldn't get camera's matrix inverse")
                       .map(|a| eps(a));
 
-        // Negating the second column to invert Y.
-        // Equivalent to scaling by (1.0, -1.0, 1.0).
-        transform.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+        invert_y(&mut transform);
 
         let translatez = format!("translateZ({})", near);
         let matrix3d = transform.into_css_matrix();
