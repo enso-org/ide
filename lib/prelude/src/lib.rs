@@ -1,3 +1,8 @@
+//! This module re-exports a lot of useful stuff. It is not meant to be used
+//! by libraries, but it is definitely usefull for bigger projects. It also
+//! defines several aliases and utils which may find their place in new
+//! libraries in the future.
+
 #![feature(trait_alias)]
 
 pub use boolinator::Boolinator;
@@ -17,8 +22,8 @@ pub use std::collections::HashSet;
 pub use std::convert::identity;
 pub use std::convert::TryFrom;
 pub use std::convert::TryInto;
-pub use std::fmt::Display;
 pub use std::fmt;
+pub use std::fmt::Display;
 pub use std::hash::Hash;
 pub use std::iter;
 pub use std::iter::FromIterator;
@@ -32,12 +37,19 @@ pub use std::rc::Weak;
 pub use std::slice;
 pub use std::slice::SliceIndex;
 
+/// Abstraction for any kind of string as an argument. Functions defined as
+/// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`,
+/// and `&str` without requiring caller to know the implementation details.
 pub trait Str = AsRef<str>;
 
+/// Alias for `Default::default()`.
 pub fn default<T: Default>() -> T {
     Default::default()
 }
 
+/// The following `PhantomData` implementations allow each argument to be non
+/// Sized. Unfortunately, this is not equivalent to `PhantomData<(T1,T2,...)>`,
+/// as tuple requires each arg to implement `Sized`.
 pub type PhantomData2<T1,T2>                      = PhantomData<(PhantomData <T1>,                      PhantomData<T2>)>;
 pub type PhantomData3<T1,T2,T3>                   = PhantomData2<PhantomData2<T1,T2>,                   PhantomData<T3>>;
 pub type PhantomData4<T1,T2,T3,T4>                = PhantomData2<PhantomData3<T1,T2,T3>,                PhantomData<T4>>;
@@ -46,8 +58,6 @@ pub type PhantomData6<T1,T2,T3,T4,T5,T6>          = PhantomData2<PhantomData5<T1
 pub type PhantomData7<T1,T2,T3,T4,T5,T6,T7>       = PhantomData2<PhantomData6<T1,T2,T3,T4,T5,T6>,       PhantomData<T7>>;
 pub type PhantomData8<T1,T2,T3,T4,T5,T6,T7,T8>    = PhantomData2<PhantomData7<T1,T2,T3,T4,T5,T6,T7>,    PhantomData<T8>>;
 pub type PhantomData9<T1,T2,T3,T4,T5,T6,T7,T8,T9> = PhantomData2<PhantomData8<T1,T2,T3,T4,T5,T6,T7,T8>, PhantomData<T9>>;
-
-
 
 /// Surprisingly useful function. Consider the following code:
 ///

@@ -44,7 +44,6 @@ pub struct Scope <OnDirty> {
 
 // === Types ===
 
-
 pub type AnyAttributeIndex           = usize;
 pub type AttributeIndex <T, OnDirty> = TypedIndex<usize, Attribute<T, OnDirty>>;
 pub type AttributeName               = String;
@@ -102,25 +101,33 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
     where AnyAttribute<OnDirty>: From<Attribute<T, OnDirty>> {
         let name        = name.as_ref().to_string();
         let bldr        = bldr.logger(self.logger.sub(&name));
-        let ix          = self.attributes.len();
         let attr_dirty  = self.attribute_dirty.clone();
         let shape_dirty = self.shape_dirty.clone();
-        let logger      = &self.logger;
-        let ix          = self.attributes.insert_with_ix(|ix| {
-            group!(logger, format!("Adding attribute '{}' at index {}.", name, ix), {
-                let on_set    = attribute_on_set_handler(attr_dirty, ix);
-                let on_resize = attribute_on_resize_handler(shape_dirty);
-                let attr      = Attribute::build(bldr, on_set, on_resize);
-                AnyAttribute::from(attr)
-            })
-        });
-        self.name_map.insert(name, ix);   
-        self.shape_dirty.set();
-        ix
+        let ix          = self.attributes.reserve_ix();
+        group!(self.logger, "Adding attribute '{}' at index {}.", name, ix, {
+            let on_set    = attribute_on_set_handler(attr_dirty, ix);
+            let on_resize = attribute_on_resize_handler(shape_dirty);
+            let attr      = Attribute::build(bldr, on_set, on_resize);
+            self.attributes.set(ix, AnyAttribute::from(attr));
+            self.name_map.insert(name, ix);
+            self.shape_dirty.set();
+            ix
+        })
     }
 
     pub fn add_instance(&mut self) {
         self.attributes.iter_mut().for_each(|attr| attr.add_element());
+    }
+
+    pub fn update(&mut self) {
+        group!(self.logger, "Updating.", {
+            for i in 0..self.attributes.len() {
+                if self.attribute_dirty.check_for(&(i, )) {
+                    self.attributes[i].update()
+                }
+            }
+            self.attribute_dirty.unset()
+        })
     }
 }
 
@@ -148,9 +155,3 @@ where for<'t> &'t     T: TryFrom<&'t     AnyAttribute<OnDirty>>,
         }
     }
 }
-
-// impl IndexMut<usize> for WorldData {
-//     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
-//         self.workspaces.index_mut(ix)
-//     }
-// }

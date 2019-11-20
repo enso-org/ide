@@ -23,6 +23,8 @@ use nalgebra::Matrix;
 use nalgebra::MatrixMN;
 
 use crate::closure;
+use crate::system::web::group;
+
 
 
 
@@ -322,12 +324,24 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
-impl<T: Shape, OnSet, OnResize> 
+impl<T: Shape, OnSet, OnResize>
 Attribute<T, OnSet, OnResize> {
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
 }
+
+impl<T: Shape, OnSet: Callback0, OnResize: Callback0>
+Attribute<T, OnSet, OnResize> {
+    pub fn update(&mut self) {
+        group!(self.logger, "Updating.", {
+            self.set_dirty.unset();
+            self.resize_dirty.unset();
+//            TODO
+        })
+    }
+}
+
 
 pub trait AddElementCtx = Shape + Clone;
 impl<T: AddElementCtx, OnSet, OnResize: Callback0> 
@@ -524,9 +538,10 @@ mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 
 
 #[enum_dispatch]
-pub trait IsAttribute<OnSet, OnResize: Callback0> {
+pub trait IsAttribute<OnSet: Callback0, OnResize: Callback0> {
     fn add_element(&mut self);
     fn len(&self) -> usize;
+    fn update(&mut self);
 }
 
 

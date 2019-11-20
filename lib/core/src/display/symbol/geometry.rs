@@ -43,18 +43,6 @@ pub struct Scopes<OnDirty> {
     pub global    : GlobalScope    <OnDirty>,
 }
 
-//#[derive(Derivative)]
-//#[derivative(Debug)]
-//#[derivative(Default)]
-//pub struct ScopesDirtyStatus {
-//    pub point     : bool,
-//    pub vertex    : bool,
-//    pub primitive : bool,
-//    pub instance  : bool,
-//    pub object    : bool,
-//    pub global    : bool,
-//}
-
 #[derive(Copy,Clone,Debug,IntoPrimitive)]
 #[repr(u8)]
 pub enum ScopesDirtyStatus {
@@ -71,7 +59,6 @@ impl From<ScopesDirtyStatus> for usize {
         Into::<u8>::into(t).into()
     }
 }
-
 
 // === Types ===
 
@@ -115,18 +102,31 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
     }
 
     pub fn update(&mut self) {
-//        if self.check_dirty() {
-//            group!(self.logger, "Updating.", {
-//                if self.geometry_dirty.check_and_unset() {
-//                    self.geometry.update()
-//                }
-//            })
-//        }
+        group!(self.logger, "Updating.", {
+            if self.scopes_dirty.check() {
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::point,)) {
+                    self.scopes.point.update()
+                }
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::vertex,)) {
+                    self.scopes.vertex.update()
+                }
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::primitive,)) {
+                    self.scopes.primitive.update()
+                }
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::instance,)) {
+                    self.scopes.instance.update()
+                }
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::object,)) {
+                    self.scopes.object.update()
+                }
+                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::global,)) {
+                    self.scopes.global.update()
+                }
+                self.scopes_dirty.unset()
+            }
+        })
     }
 
-    pub fn check_dirty(&self) -> bool {
-        self.scopes_dirty.check()
-    }
 }
 
 

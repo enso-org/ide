@@ -170,7 +170,7 @@ pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
     let pos       : &mut Position       = &mut pt_scope[pos_id];
 
-    pos[0].x += 1.0;
+//    pos[0].x += 1.0;
 
 }
 

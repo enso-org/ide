@@ -144,6 +144,15 @@ macro_rules! group {
         $logger.group_end();
         out
     }};
+    ($logger:expr, $str:expr, $a1:expr, $body:tt) => {{
+        group!($logger, format!($str,$a1), $body)
+    }};
+    ($logger:expr, $str:expr, $a1:expr, $a2:expr, $body:tt) => {{
+        group!($logger, format!($str,$a1,$a2), $body)
+    }};
+    ($logger:expr, $str:expr, $a1:expr, $a2:expr, $a3:expr, $body:tt) => {{
+        group!($logger, format!($str,$a1,$a2,$a3), $body)
+    }};
 }
 
 // ===================

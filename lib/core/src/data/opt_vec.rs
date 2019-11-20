@@ -61,6 +61,18 @@ impl<T> OptVec<T> {
         }
     }
 
+    pub fn reserve_ix(&mut self) -> Ix {
+        self.free.pop().unwrap_or_else(|| {
+            let ix = self.vec.len();
+            self.vec.push(None);
+            ix
+        })
+    }
+
+    pub fn set(&mut self, ix:Ix, t:T) {
+        self.vec[ix] = Some(t);
+    }
+
     /// Removes the element at provided index and marks the index to be reused.
     /// Does nothing if the index was already empty. Panics if the index was out
     /// of bounds.
@@ -69,6 +81,13 @@ impl<T> OptVec<T> {
         item.iter().for_each(|_| self.free.push(ix));
         item
     }
+
+    /// Returns the number of elements in the vector, also referred to as its
+    /// 'length'.
+    pub fn len(&self) -> usize {
+        self.vec.len() - self.free.len()
+    }
+
 }
 
 impl<T> Index<usize> for OptVec<T> {

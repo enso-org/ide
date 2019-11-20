@@ -64,17 +64,11 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
     }
 
     pub fn update(&mut self) {
-        if self.check_dirty() {
-            group!(self.logger, "Updating.", {
-                if self.geometry_dirty.check_and_unset() {
-                    self.geometry.update()
-                }
-            })
-        }
-    }
-
-    pub fn check_dirty(&self) -> bool {
-        self.geometry_dirty.check()
+        group!(self.logger, "Updating.", {
+            if self.geometry_dirty.check_and_unset() {
+                self.geometry.update()
+            }
+        })
     }
 }
 

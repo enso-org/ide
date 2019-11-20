@@ -127,7 +127,7 @@ pub struct DirtyFlag<T,OnSet> (pub WithLogger<WithOnSet<OnSet,T>>);
 // === API ===
 
 impl<OnSet,T> DirtyFlag<T,OnSet> {
-    pub fn raw(&self) -> &T { self }
+    pub fn data(&self) -> &T { self }
 }
 
 impl<OnSet,T: Default> DirtyFlag<T,OnSet> {
@@ -147,7 +147,7 @@ impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
         let is_set_for = self.check_for(&args);
         if !is_set_for {
             self.raw_set(args);
-            group!(self.logger(), format!("Setting to {}.", self.raw()), {
+            group!(self.logger(), format!("Setting to {}.", self.data()), {
                 if first_set { self.on_set().call() }
             })
         }
@@ -231,38 +231,44 @@ impl<T,OnSet,A1,A2,A3> Setter3<A1,A2,A3> for DirtyFlag<T,OnSet>
 #[derivative(Debug(bound = "T:Debug"))]
 #[derivative(Clone(bound = ""))]
 pub struct SharedDirtyFlag<T,OnSet> {
-    data: Rc<RefCell<DirtyFlag<T,OnSet>>>
+    rc: Rc<RefCell<DirtyFlag<T,OnSet>>>
 }
 
 // === API ===
 
+impl<T:Copy, OnSet> SharedDirtyFlag<T,OnSet> {
+    pub fn data(&self) -> T {
+        *self.rc.borrow().data()
+    }
+}
+
 impl<T: Default, OnSet> SharedDirtyFlag<T,OnSet> {
     pub fn new(logger: Logger, on_set: OnSet) -> Self {
         let callback = Callback(on_set);
-        let data = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
-        Self { data }
+        let rc       = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
+        Self { rc }
     }
 }
 
 impl<T:DirtyFlagData, OnSet:Callback0> SharedDirtyFlag<T,OnSet> {
     pub fn set_with(&self, args: SetArgs<T>) {
-        self.data.borrow_mut().set_with(args)
+        self.rc.borrow_mut().set_with(args)
     }
 
     pub fn unset(&mut self) {
-        self.data.borrow_mut().unset()
+        self.rc.borrow_mut().unset()
     }
 
     pub fn check_and_unset(&mut self) -> bool {
-        self.data.borrow_mut().check_and_unset()
+        self.rc.borrow_mut().check_and_unset()
     }
 
     pub fn check(&self) -> bool {
-        self.data.borrow().check()
+        self.rc.borrow().check()
     }
 
     pub fn check_for(&self, args: &SetArgs<T>) -> bool {
-        self.data.borrow().check_for(args)
+        self.rc.borrow().check_for(args)
     }
 }
 
@@ -270,23 +276,23 @@ impl<T:DirtyFlagData, OnSet:Callback0> SharedDirtyFlag<T,OnSet> {
 
 impl<T,OnSet> SharedSetter0 for SharedDirtyFlag<T,OnSet>
     where T: DirtyFlagData<SetArgs=()>, OnSet:Callback0 {
-    fn set(&self) { self.data.borrow_mut().set_with(()) }
+    fn set(&self) { self.rc.borrow_mut().set_with(()) }
 }
 
 impl<T,OnSet,A1> SharedSetter1<A1> for SharedDirtyFlag<T,OnSet>
     where T: DirtyFlagData<SetArgs=(A1,)>, OnSet:Callback0 {
-    fn set(&self, a1:A1) { self.data.borrow_mut().set_with((a1,)) }
+    fn set(&self, a1:A1) { self.rc.borrow_mut().set_with((a1,)) }
 }
 
 impl<T,OnSet,A1,A2> SharedSetter2<A1,A2> for SharedDirtyFlag<T,OnSet>
     where T: DirtyFlagData<SetArgs=(A1,A2)>, OnSet:Callback0 {
-    fn set(&self, a1:A1, a2:A2) { self.data.borrow_mut().set_with((a1,a2)) }
+    fn set(&self, a1:A1, a2:A2) { self.rc.borrow_mut().set_with((a1, a2)) }
 }
 
 impl<T,OnSet,A1,A2,A3> SharedSetter3<A1,A2,A3> for SharedDirtyFlag<T,OnSet>
     where T: DirtyFlagData<SetArgs=(A1,A2,A3)>, OnSet:Callback0 {
     fn set(&self, a1:A1, a2:A2, a3:A3) {
-        self.data.borrow_mut().set_with((a1,a2,a3))
+        self.rc.borrow_mut().set_with((a1, a2, a3))
     }
 }
 
@@ -294,13 +300,14 @@ impl<T,OnSet,A1,A2,A3> SharedSetter3<A1,A2,A3> for SharedDirtyFlag<T,OnSet>
 
 // FIXME: This is very error prone. Fix it after this gets resolved:
 // https://github.com/rust-lang/rust/issues/66505
-/// Please refer to `Prelude::drop_lifetime` docs to learn why it is safe to
-/// use it here.
+
+// [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe to
+// use it here.
 impl<T, OnSet> SharedDirtyFlag<T,OnSet>
 where for<'t> &'t T: IntoIterator {
     pub fn iter(&self) -> SharedDirtyFlagIter<T, OnSet> {
-        let _borrow   = self.data.borrow();
-        let reference = unsafe { drop_lifetime(&_borrow) };
+        let _borrow   = self.rc.borrow();
+        let reference = unsafe { drop_lifetime(&_borrow) }; // [1]
         let iter      = reference.into_iter();
         SharedDirtyFlagIter { iter, _borrow }
     }
@@ -500,7 +507,7 @@ impl<Prim:EnumBase,T:Copy+Into<usize>> DirtyFlagData for EnumData<Prim,T> {
     }
 
     fn raw_check(&self) -> bool {
-        self.bits == default()
+        self.bits != default()
     }
 
     fn raw_check_for(&self, (t,): &Self::SetArgs) -> bool {
