@@ -1,4 +1,7 @@
+use crate::prelude::*;
+
 use super::Object;
+
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
@@ -6,7 +9,10 @@ use crate::system::web::Error;
 use crate::system::web::StyleSetter;
 use nalgebra::Vector2;
 use web_sys::HtmlElement;
-use crate::prelude::*;
+
+// ==================
+// === HTMLObject ===
+// ==================
 
 /// A structure for representing a 3D HTMLElement in a `HTMLScene`.
 #[derive(Shrinkwrap)]
@@ -20,37 +26,23 @@ pub struct HTMLObject {
 
 impl HTMLObject {
     /// Creates a HTMLObject from element name.
-    /// # Example
-    /// ```rust,no_run
-    /// use basegl::display::rendering::HTMLObject;
-    /// let object = HTMLObject::new("div");
-    /// ```
-    pub fn new(name: &str) -> Result<Self> {
-        let element = dyn_into(create_element(name)?)?;
+    pub fn new(dom_name: &str) -> Result<Self> {
+        let element = dyn_into(create_element(dom_name)?)?;
         Ok(Self::from_element(element))
     }
 
     /// Creates a HTMLObject from a web_sys::HtmlElement.
     pub fn from_element(element: HtmlElement) -> Self {
         element.set_property_or_panic("transform-style", "preserve-3d");
-        element.set_property_or_panic("position", "absolute");
-        element.set_property_or_panic("width", "0px");
-        element.set_property_or_panic("height", "0px");
-
-        let object = default();
+        element.set_property_or_panic("position"       , "absolute");
+        element.set_property_or_panic("width"          , "0px");
+        element.set_property_or_panic("height"         , "0px");
+        let object     = default();
         let dimensions = Vector2::new(0.0, 0.0);
         Self { object, element, dimensions }
     }
 
     /// Creates a HTMLObject from a HTML string.
-    /// # Example
-    /// ```rust,no_run
-    /// use basegl::display::rendering::HTMLObject;
-    /// let html_string = "<b>hello</b>";
-    /// let object = HTMLObject::from_html_string(html_string)
-    ///                         .expect("valid object");
-    /// assert_eq!(object.element.inner_html(), html_string);
-    /// ```
     pub fn from_html_string(html: &str) -> Result<Self> {
         let element = create_element("div")?;
         element.set_inner_html(html);

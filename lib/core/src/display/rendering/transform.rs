@@ -1,17 +1,23 @@
+use crate::prelude::*;
+
 use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3};
+
+
+// =============
+// === Utils ===
+// =============
+
+// FIXME: I don't really like the fact that we refer to ThreeJS so much. 
+// We can definitely write about the order, but it should not be dictated
+// by a design in Three.js.
 
 // To comply with Threejs impl, we generate a Quaternion applying rotation in
 // the order: pitch -> roll -> yaw, instead of roll -> pitch -> yaw based on
 // https://github.com/mrdoob/three.js/blob/master/src/math/Quaternion.js#L199
-fn from_euler_angles_pry(
-        roll  : f32,
-        pitch : f32,
-        yaw   : f32
-    ) -> UnitQuaternion<f32> {
-    let (s1, c1): (f32, f32) = (roll * 0.5 as f32).sin_cos();
+fn from_euler_angles_pry(roll:f32, pitch:f32, yaw:f32) -> UnitQuaternion<f32> {
+    let (s1, c1): (f32, f32) = (roll  * 0.5 as f32).sin_cos();
     let (s2, c2): (f32, f32) = (pitch * 0.5 as f32).sin_cos();
-    let (s3, c3): (f32, f32) = (yaw * 0.5 as f32).sin_cos();
-
+    let (s3, c3): (f32, f32) = (yaw   * 0.5 as f32).sin_cos();
     UnitQuaternion::from_quaternion(Quaternion::new(
         c1 * c2 * c3 - s1 * s2 * s3,
         s1 * c2 * c3 + c1 * s2 * s3,
@@ -20,9 +26,9 @@ fn from_euler_angles_pry(
     ))
 }
 
-// ===================
+// =================
 // === Transform ===
-// ===================
+// =================
 
 /// A structure representing 3D Position, Rotation and Scale.
 pub struct Transform {
@@ -31,15 +37,18 @@ pub struct Transform {
     pub scale       : Vector3<f32>,
 }
 
+impl Default for Transform {
+    fn default() -> Self {
+        let translation = Vector3::new(0.0, 0.0, 0.0);
+        let rotation    = UnitQuaternion::identity();
+        let scale       = Vector3::new(1.0, 1.0, 1.0);
+        Self { translation, rotation, scale }
+    }
+}
+
 impl Transform {
     /// Creates an identity transform.
-    pub fn identity() -> Self {
-        Self {
-            translation : Vector3::new(0.0, 0.0, 0.0),
-            rotation    : UnitQuaternion::identity(),
-            scale       : Vector3::new(1.0, 1.0, 1.0),
-        }
-    }
+    pub fn identity() -> Self { default() }
 
     /// Sets Transform's translation.
     pub fn set_translation(&mut self, x: f32, y: f32, z: f32) {
@@ -57,23 +66,18 @@ impl Transform {
     }
 
     /// Gets a homogeneous transform Matrix4. The rotation order is YXZ (pitch,
-    /// roll, yaw).
-    // Note [Transform to Matrix4 composition]
-    // =======================================
-    // based on
+    /// roll, yaw). Based on:
     // https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
     pub fn to_homogeneous(&self) -> Matrix4<f32> {
-        let (x, y, z, w) = (
-            self.rotation.coords.x,
-            self.rotation.coords.y,
-            self.rotation.coords.z,
-            self.rotation.coords.w,
-        );
-        let (x2, y2, z2) = (x + x, y + y, z + z);
-        let (xx, xy, xz) = (x * x2, x * y2, x * z2);
-        let (yy, yz, zz) = (y * y2, y * z2, z * z2);
-        let (wx, wy, wz) = (w * x2, w * y2, w * z2);
+        let x = self.rotation.coords.x; // FIXME if `x` refers to rotation it should be named `rx`
+        let y = self.rotation.coords.y;
+        let z = self.rotation.coords.z;
+        let w = self.rotation.coords.w;
 
+        let (x2, y2, z2) = (x + x  , y + y  , z + z );
+        let (xx, xy, xz) = (x * x2 , x * y2 , x * z2);
+        let (yy, yz, zz) = (y * y2 , y * z2 , z * z2);
+        let (wx, wy, wz) = (w * x2 , w * y2 , w * z2);
         let (sx, sy, sz) = (self.scale.x, self.scale.y, self.scale.z);
 
         let m00 = (1.0 - (yy + zz)) * sx;
@@ -91,20 +95,25 @@ impl Transform {
         let m22 = (1.0 - (xx + yy)) * sz;
         let m23 = 0.0;
 
-        let (m30, m31, m32) = (self.translation.x,
-                               self.translation.y,
-                               self.translation.z);
+        let m30 = self.translation.x;
+        let m31 = self.translation.y;
+        let m32 = self.translation.z;
         let m33 = 1.0;
-        Matrix4::new(m00, m10, m20, m30,
-                     m01, m11, m21, m31,
-                     m02, m12, m22, m32,
-                     m03, m13, m23, m33)
+
+        Matrix4::new
+            ( m00, m10, m20, m30
+            , m01, m11, m21, m31
+            , m02, m12, m22, m32
+            , m03, m13, m23, m33
+            )
     }
 }
 
+// FIXME: Why matrix printer is in transform.rs file?
 // ======================
 // === Matrix Printer ===
 // ======================
+
 pub trait IntoCSSMatrix {
     fn into_css_matrix(&self) -> String;
 }
@@ -120,6 +129,10 @@ impl IntoCSSMatrix for Matrix4<f32> {
     }
 }
 
+// =============
+// === Tests ===
+// =============
+
 #[cfg(test)]
 mod test {
     #[test]
@@ -127,12 +140,13 @@ mod test {
         use nalgebra::Matrix4;
         use super::IntoCSSMatrix;
 
-        let matrix = Matrix4::new( 1.0, 5.0,  9.0, 13.0,
-                                   2.0, 6.0, 10.0, 14.0,
-                                   3.0, 7.0, 11.0, 15.0,
-                                   4.0, 8.0, 12.0, 16.0);
+        let matrix = Matrix4::new
+            ( 1.0, 5.0,  9.0, 13.0
+            , 2.0, 6.0, 10.0, 14.0
+            , 3.0, 7.0, 11.0, 15.0
+            , 4.0, 8.0, 12.0, 16.0 );
         let column_major = matrix.into_css_matrix();
-        let expected = "matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)";
+        let expected     = "matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)"; // FIXME > 80 chars
         assert_eq!(column_major, expected);
     }
 
@@ -163,10 +177,11 @@ mod test {
         assert_eq!(transform.translation, Vector3::new(1.0, 2.0, 3.0));
         assert_eq!(transform.scale, Vector3::new(3.0, 2.0, 1.0));
 
-        let expected = Quaternion::new(0.00000009272586,
-                                      -0.7071068,
-                                      -0.7071068,
-                                      -0.000000030908623);
+        let expected = Quaternion::new
+            ( 0.00000009272586
+            , -0.7071068
+            , -0.7071068
+            , -0.000000030908623 );
         assert_eq!(*transform.rotation.quaternion(), expected);
     }
 }
