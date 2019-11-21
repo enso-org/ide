@@ -2,7 +2,6 @@ use crate::prelude::*;
 
 use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3};
 
-
 // =============
 // === Utils ===
 // =============
@@ -118,14 +117,13 @@ pub trait IntoCSSMatrix {
     fn into_css_matrix(&self) -> String;
 }
 
-impl IntoCSSMatrix for Matrix4<f32> {
+impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
     fn into_css_matrix(&self) -> String {
         let mut iter = self.iter();
         let item = iter.next().expect("Matrix4 should have the first item");
-        let acc = format!("matrix3d({}", item);
-        let mut ret = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
-        ret.push(')');
-        ret
+        let acc = format!("{}", item);
+        let acc = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
+        format!("matrix3d({})", acc)
     }
 }
 

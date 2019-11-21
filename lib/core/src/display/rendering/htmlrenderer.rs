@@ -11,6 +11,16 @@ use nalgebra::Matrix4;
 // === HTMLRenderer ===
 // ====================
 
+fn invert_y<T : RealField>(matrix : &mut Matrix4<T>) {
+    // Negating the second column to invert Y.
+    // Equivalent to scaling by (1.0, -1.0, 1.0).
+    matrix.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+}
+
+// ====================
+// === HTMLRenderer ===
+// ====================
+
 /// A renderer for `HTMLObject`s.
 #[derive(Default)]
 pub struct HTMLRenderer {}
