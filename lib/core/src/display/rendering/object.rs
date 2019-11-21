@@ -50,9 +50,9 @@ mod test {
         assert_eq!(object.transform.scale, Vector3::new(3.0, 2.0, 1.0));
 
         let expected = Quaternion::new
-            ( 0.00000009272586,
-            , -0.7071068,
-            , -0.7071068,
+            ( 0.00000009272586
+            , -0.7071068
+            , -0.7071068
             , -0.000000030908623 );
         assert_eq!(*object.transform.rotation.quaternion(), expected);
     }

@@ -9,6 +9,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 use web_sys::WebGlRenderingContext;
+use web_sys::Node;
 use std::fmt::Debug;
 
 pub use web_sys::console;
@@ -231,6 +232,38 @@ impl StyleSetter for web_sys::HtmlElement {
                         name.as_ref(),
                         value.as_ref(),
                         self
+                )
+            );
+    }
+}
+
+pub trait NodeAppender {
+    fn append_child_or_panic(&self, node : &Node);
+}
+
+impl NodeAppender for Node {
+    fn append_child_or_panic(&self, node : &Node) {
+        self.append_child(node)
+            .unwrap_or_else(|_|
+                panic!("Failed to append child \"{:?}\" to \"{:?}\"",
+                       node,
+                       self
+                )
+            );
+    }
+}
+
+pub trait NodeRemover {
+    fn remove_child_or_panic(&self, node : &Node);
+}
+
+impl NodeRemover for Node {
+    fn remove_child_or_panic(&self, node : &Node) {
+        self.remove_child(node)
+            .unwrap_or_else(|_|
+                panic!("Failed to remove child \"{:?}\" from \"{:?}\"",
+                       node,
+                       self
                 )
             );
     }

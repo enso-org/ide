@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::Camera;
 use super::HTMLScene;
-use super::IntoCSSMatrix;
+use crate::math::utils::IntoCSSMatrix;
 
 use crate::system::web::StyleSetter;
 use nalgebra::Matrix4;
@@ -37,15 +37,13 @@ impl HTMLRenderer {
         scene.div   .element.set_property_or_panic("perspective", near);
         scene.camera.element.set_property_or_panic("transform"  , css);
 
-        let existing_objs = scene.objects.items.iter().filter(|t| t.is_some());
-        let something     = existing_objs.map(|a| a.as_ref().unwrap()); // FIXME: change the name + handle unwrap
-        something.for_each(|object| {
+        for object in &scene.objects {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
             let matrix3d = transform.into_css_matrix();
             let css      = format!("translate(-50%, -50%) {}", matrix3d);
             object.element.set_property_or_panic("transform", css);
-        });
+        }
     }
 }
 
@@ -53,13 +51,15 @@ impl HTMLRenderer {
 // === Utils ===
 // =============
 
-// FIXME: docs
+// eps is used to round very small values to 0.0 for numerical stability
 fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
 }
 
-// FIXME: docs
+// Inverts Matrix Y coordinates.
+// It's equivalent to scaling by (1.0, -1.0, 1.0).
 fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
+    // Negating the second column to invert Y.
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m
 }

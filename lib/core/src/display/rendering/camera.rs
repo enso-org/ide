@@ -23,6 +23,7 @@ pub struct Camera {
 impl Camera {
     /// Creates a Camera with perspective projection.
     pub fn perspective(fov: f32, aspect: f32, z_near: f32, z_far: f32) -> Self {
+        let fov = fov / 180.0 * PI;
         let projection = Perspective3::new(aspect, fov, z_near, z_far);
         let projection = *projection.as_matrix();
         let object     = default();
