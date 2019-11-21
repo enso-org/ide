@@ -43,9 +43,10 @@ impl HTMLObject {
     }
 
     /// Creates a HTMLObject from a HTML string.
-    pub fn from_html_string(html: &str) -> Result<Self> {
+    pub fn from_html_string<T>(html_string: T) -> Result<Self>
+        where T : AsRef<str> {
         let element = create_element("div")?;
-        element.set_inner_html(html);
+        element.set_inner_html(html_string.as_ref());
         match element.first_element_child() {
             Some(element) => Ok(Self::from_element(dyn_into(element)?)),
             None          => Err(Error::missing("valid HTML")),
