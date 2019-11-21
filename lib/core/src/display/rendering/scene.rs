@@ -9,17 +9,15 @@ pub struct Scene {
 
 impl Scene {
     /// Searches for a HtmlElement identified by id and appends to it.
-    ///
-    /// # Arguments
-    /// * id - the HtmlElement container's id
-    pub fn new(id: &str) -> Result<Self> {
-        let container = dyn_into(get_element_by_id(id)?)?;
+    pub fn new(dom_id: &str) -> Result<Self> {
+        let container = dyn_into(get_element_by_id(dom_id)?)?;
         Ok(Self { container })
     }
 
     /// Gets the HtmlElement container's dimensions.
     pub fn get_dimensions(&self) -> Vector2<f32> {
-        Vector2::new(self.container.client_width()  as f32,
-                     self.container.client_height() as f32)
+        let width  = self.container.client_width()  as f32;
+        let height = self.container.client_height() as f32;
+        Vector2::new(width, height)
     }
 }

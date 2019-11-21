@@ -1,19 +1,15 @@
+use crate::prelude::*;
+
 use super::Camera;
 use super::HTMLScene;
 use super::IntoCSSMatrix;
+
 use crate::system::web::StyleSetter;
-use crate::prelude::*;
 use nalgebra::Matrix4;
-use nalgebra::RealField;
 
 // ====================
-// === Math Helpers ===
+// === HTMLRenderer ===
 // ====================
-
-// eps is used to round very small values to 0.0 for numerical stability
-fn eps(value: f32) -> f32 {
-    if value.abs() < 1e-10 { 0.0 } else { value }
-}
 
 fn invert_y<T : RealField>(matrix : &mut Matrix4<T>) {
     // Negating the second column to invert Y.
@@ -35,42 +31,47 @@ impl HTMLRenderer {
 
     /// Renders the `Scene` from `Camera`'s point of view.
     pub fn render(&self, camera: &mut Camera, scene: &HTMLScene) {
-        let half_d = scene.get_dimensions() / 2.0;
         // Note [znear from projection matrix]
-        let expr = camera.projection[(1, 1)]; // expr = 2.0 * near / (height)
-        let near = expr * half_d.y;
+        let half_dim  = scene.get_dimensions() / 2.0;
+        let expr      = camera.projection[(1, 1)];
+        let near      = format!("{}px", expr * half_dim.y);
+        let trans_cam = camera.transform.to_homogeneous().try_inverse();
+        let trans_cam = trans_cam.expect("Camera's matrix is not invertible.");
+        let trans_cam = trans_cam.map(|a| eps(a));
+        let trans_cam = invert_y(trans_cam);
+        let trans_z   = format!("translateZ({})", near);
+        let matrix3d  = trans_cam.into_css_matrix();
+        let trans     = format!("translate({}px,{}px)", half_dim.x, half_dim.y);
+        let css       = format!("{} {} {}", trans_z, matrix3d, trans);
 
-        let near = format!("{}px", near);
-        scene.div.element.set_property_or_panic("perspective", &near);
+        scene.div   .element.set_property_or_panic("perspective", near);
+        scene.camera.element.set_property_or_panic("transform"  , css);
 
-        let mut transform = camera
-                      .transform.to_homogeneous().try_inverse()
-                      .expect("Render couldn't get camera's matrix inverse")
-                      .map(|a| eps(a));
-
-        invert_y(&mut transform);
-
-        let translatez = format!("translateZ({})", near);
-        let matrix3d = transform.into_css_matrix();
-        let translate = format!("translate({}px, {}px)", half_d.x, half_d.y);
-        let css = format!("{} {} {}", translatez, matrix3d, translate);
-        scene.camera.element.set_property_or_panic("transform", css);
-
-        scene
-            .objects
-            .items
-            .iter()
-            .filter(|object| object.is_some())
-            .map(|a| a.as_ref().unwrap())
-            .for_each(|object| {
-                let mut transform = object.transform.to_homogeneous();
-                transform.iter_mut().for_each(|a| *a = eps(*a));
-
-                let matrix3d = transform.into_css_matrix();
-                let css = format!("translate(-50%, -50%) {}", matrix3d);
-                object.element.set_property_or_panic("transform", css);
-            });
+        let existing_objs = scene.objects.items.iter().filter(|t| t.is_some());
+        let something     = existing_objs.map(|a| a.as_ref().unwrap()); // FIXME: change the name + handle unwrap
+        something.for_each(|object| {
+            let mut transform = object.transform.to_homogeneous();
+            transform.iter_mut().for_each(|a| *a = eps(*a));
+            let matrix3d = transform.into_css_matrix();
+            let css      = format!("translate(-50%, -50%) {}", matrix3d);
+            object.element.set_property_or_panic("transform", css);
+        });
     }
+}
+
+// =============
+// === Utils ===
+// =============
+
+// FIXME: docs
+fn eps(value: f32) -> f32 {
+    if value.abs() < 1e-10 { 0.0 } else { value }
+}
+
+// FIXME: docs
+fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
+    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+    m
 }
 
 // Note [znear from projection matrix]

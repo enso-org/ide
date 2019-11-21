@@ -6,7 +6,5 @@ use crate::prelude::*;
 pub struct Renderer {}
 
 impl Renderer {
-    pub fn new() -> Self {
-        default()
-    }
+    pub fn new() -> Self { default() }
 }
