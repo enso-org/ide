@@ -58,6 +58,7 @@ impl World {
             self.data.borrow_mut().started = true;
             Self::request_callback(&self.on_every_frame);
         }
+        self.data.borrow().logger.info("STARTED!");
     }
 
     pub fn stop(&self) {
