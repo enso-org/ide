@@ -61,8 +61,6 @@ mod tests {
                 let mut object = HTMLObject::new("div").unwrap();
                 object.set_dimensions(1.0, 1.0);
 
-                basegl::system::web::console_log!("{}", i);
-
                 // Using axis for masking.
                 // For instance, the axis (0, 1, 0) creates:
                 // (x, y, z) = (0, 0, 0) .. (0, 9, 0)
