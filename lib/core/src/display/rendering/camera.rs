@@ -12,7 +12,7 @@ use std::f32::consts::PI;
 
 /// A 3D camera representation with its own 3D `Transform` and
 /// projection matrix.
-#[derive(Shrinkwrap)]
+#[derive(Shrinkwrap, Debug)]
 #[shrinkwrap(mutable)]
 pub struct Camera {
     #[shrinkwrap(main_field)]

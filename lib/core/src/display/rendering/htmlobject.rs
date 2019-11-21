@@ -15,7 +15,7 @@ use web_sys::HtmlElement;
 // ==================
 
 /// A structure for representing a 3D HTMLElement in a `HTMLScene`.
-#[derive(Shrinkwrap)]
+#[derive(Shrinkwrap, Debug)]
 #[shrinkwrap(mutable)]
 pub struct HTMLObject {
     #[shrinkwrap(main_field)]

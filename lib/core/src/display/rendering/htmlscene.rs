@@ -14,7 +14,7 @@ use crate::data::types::Index;
 // =================
 
 /// A collection for holding 3D `HTMLObject`s.
-#[derive(Shrinkwrap)]
+#[derive(Shrinkwrap, Debug)]
 #[shrinkwrap(mutable)]
 pub struct HTMLScene {
     #[shrinkwrap(main_field)]

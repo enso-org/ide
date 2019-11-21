@@ -7,7 +7,7 @@ use crate::prelude::*;
 
 // FIXME: You should derive Debug on every structure whenever its possible.
 /// Base structure for representing a 3D object in a `Scene`.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Object {
     pub transform : Transform,
 }

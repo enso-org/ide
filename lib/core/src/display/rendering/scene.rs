@@ -3,6 +3,7 @@ use web_sys::HtmlElement;
 use nalgebra::Vector2;
 
 /// A collection for holding 3D `Object`s.
+#[derive(Debug)]
 pub struct Scene {
     pub container : HtmlElement,
 }

@@ -27,6 +27,7 @@ fn from_euler_angles_pry(roll:f32, pitch:f32, yaw:f32) -> UnitQuaternion<f32> {
 // =================
 
 /// A structure representing 3D Position, Rotation and Scale.
+#[derive(Debug)]
 pub struct Transform {
     pub translation : Vector3<f32>,
     pub rotation    : UnitQuaternion<f32>,

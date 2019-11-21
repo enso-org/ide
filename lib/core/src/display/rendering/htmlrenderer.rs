@@ -12,7 +12,7 @@ use nalgebra::Matrix4;
 // ====================
 
 /// A renderer for `HTMLObject`s.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HTMLRenderer {}
 
 impl HTMLRenderer {
