@@ -13,7 +13,6 @@ pub use object::Object;
 pub use renderer::Renderer;
 pub use scene::Scene;
 pub use transform::Transform;
-pub use transform::IntoCSSMatrix;
 
 pub use htmlobject::HTMLObject;
 pub use htmlrenderer::HTMLRenderer;

@@ -5,14 +5,16 @@ use super::Scene;
 use crate::data::opt_vec::OptVec;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
-use crate::prelude::*;
+use crate::system::web::NodeAppender;
+use crate::system::web::NodeRemover;
+use crate::data::types::Index;
 
 // =================
 // === HTMLScene ===
 // =================
 
 /// A collection for holding 3D `HTMLObject`s.
-#[derive(Shrinkwrap)]
+#[derive(Shrinkwrap, Debug)]
 #[shrinkwrap(mutable)]
 pub struct HTMLScene {
     #[shrinkwrap(main_field)]
@@ -31,11 +33,11 @@ impl HTMLScene {
         let height   = format!("{}px", view_dim.y);
         let div      = HTMLObject::new("div")?;
         let camera   = HTMLObject::new("div")?;
-        let objects  = OptVec::new(); // FIXME: use default()
+        let objects  = default();
 
         scene.container.set_property_or_panic("overflow", "hidden");
-        scene.container.append_child(&div.element).expect("Failed to append div"); // FIXME: change to append_child_or_panic
-        div.element.append_child(&camera.element).expect("Failed to append camera to HTMLScene"); // FIXME: change to append_child_or_panic
+        scene.container.append_child_or_panic(&div.element);
+        div.element.append_child_or_panic(&camera.element);
         div   .element.set_property_or_panic("width"  , &width);
         div   .element.set_property_or_panic("height" , &height);
         camera.element.set_property_or_panic("width"  , &width);
@@ -45,8 +47,8 @@ impl HTMLScene {
     }
 
     /// Moves a HTMLObject to the Scene and returns an index to it.
-    pub fn add(&mut self, object: HTMLObject) -> usize { // FIXME: change usize to a newtype Index
-        self.camera.element.append_child(&object.element).expect("append child"); // FIXME: change to append_child_or_panic
+    pub fn add(&mut self, object: HTMLObject) -> Index {
+        self.camera.element.append_child_or_panic(&object.element);
         self.objects.insert(|_| object)
     }
 
@@ -54,18 +56,19 @@ impl HTMLScene {
     pub fn remove(&mut self, index: usize) -> Option<HTMLObject> {
         let result = self.objects.remove(index);
         result.iter().for_each(|object| {
-            self.camera.element.remove_child(&object.element).expect("remove child"); // FIXME: change to remove_child_or_panic
+            self.camera.element.remove_child_or_panic(&object.element);
         });
         result
     }
-    
-    // FIXME: docs
+
+    /// Returns the number of `Object`s in the Scene,
+    /// also referred to as its 'length'.
     pub fn len(&self) -> usize {
         self.objects.len()
     }
 
-    // FIXME: docs
+    /// Returns true if the Scene contains no `Object`s.
     pub fn is_empty(&self) -> bool {
-        self.objects.len() == 0 // FIXME: OptVec should have method is_empty
+        self.objects.is_empty()
     }
 }

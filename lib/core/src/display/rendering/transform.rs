@@ -1,18 +1,15 @@
 use crate::prelude::*;
 
-use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3};
+use nalgebra::Matrix4;
+use nalgebra::Quaternion;
+use nalgebra::UnitQuaternion;
+use nalgebra::Vector3;
 
 // =============
 // === Utils ===
 // =============
 
-// FIXME: I don't really like the fact that we refer to ThreeJS so much. 
-// We can definitely write about the order, but it should not be dictated
-// by a design in Three.js.
-
-// To comply with Threejs impl, we generate a Quaternion applying rotation in
-// the order: pitch -> roll -> yaw, instead of roll -> pitch -> yaw based on
-// https://github.com/mrdoob/three.js/blob/master/src/math/Quaternion.js#L199
+// This constructs a Quaternion with rotation order Pitch -> Roll -> Yaw:
 fn from_euler_angles_pry(roll:f32, pitch:f32, yaw:f32) -> UnitQuaternion<f32> {
     let (s1, c1): (f32, f32) = (roll  * 0.5 as f32).sin_cos();
     let (s2, c2): (f32, f32) = (pitch * 0.5 as f32).sin_cos();
@@ -30,6 +27,7 @@ fn from_euler_angles_pry(roll:f32, pitch:f32, yaw:f32) -> UnitQuaternion<f32> {
 // =================
 
 /// A structure representing 3D Position, Rotation and Scale.
+#[derive(Debug)]
 pub struct Transform {
     pub translation : Vector3<f32>,
     pub rotation    : UnitQuaternion<f32>,
@@ -68,15 +66,15 @@ impl Transform {
     /// roll, yaw). Based on:
     // https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js#L732
     pub fn to_homogeneous(&self) -> Matrix4<f32> {
-        let x = self.rotation.coords.x; // FIXME if `x` refers to rotation it should be named `rx`
-        let y = self.rotation.coords.y;
-        let z = self.rotation.coords.z;
-        let w = self.rotation.coords.w;
+        let rx = self.rotation.coords.x;
+        let ry = self.rotation.coords.y;
+        let rz = self.rotation.coords.z;
+        let rw = self.rotation.coords.w;
 
-        let (x2, y2, z2) = (x + x  , y + y  , z + z );
-        let (xx, xy, xz) = (x * x2 , x * y2 , x * z2);
-        let (yy, yz, zz) = (y * y2 , y * z2 , z * z2);
-        let (wx, wy, wz) = (w * x2 , w * y2 , w * z2);
+        let (x2, y2, z2) = (rx + rx , ry + ry , rz + rz);
+        let (xx, xy, xz) = (rx * x2 , rx * y2 , rx * z2);
+        let (yy, yz, zz) = (ry * y2 , ry * z2 , rz * z2);
+        let (wx, wy, wz) = (rw * x2 , rw * y2 , rw * z2);
         let (sx, sy, sz) = (self.scale.x, self.scale.y, self.scale.z);
 
         let m00 = (1.0 - (yy + zz)) * sx;
@@ -108,46 +106,12 @@ impl Transform {
     }
 }
 
-// FIXME: Why matrix printer is in transform.rs file?
-// ======================
-// === Matrix Printer ===
-// ======================
-
-pub trait IntoCSSMatrix {
-    fn into_css_matrix(&self) -> String;
-}
-
-impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
-    fn into_css_matrix(&self) -> String {
-        let mut iter = self.iter();
-        let item = iter.next().expect("Matrix4 should have the first item");
-        let acc = format!("{}", item);
-        let acc = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
-        format!("matrix3d({})", acc)
-    }
-}
-
 // =============
 // === Tests ===
 // =============
 
 #[cfg(test)]
 mod test {
-    #[test]
-    fn into_css_matrix() {
-        use nalgebra::Matrix4;
-        use super::IntoCSSMatrix;
-
-        let matrix = Matrix4::new
-            ( 1.0, 5.0,  9.0, 13.0
-            , 2.0, 6.0, 10.0, 14.0
-            , 3.0, 7.0, 11.0, 15.0
-            , 4.0, 8.0, 12.0, 16.0 );
-        let column_major = matrix.into_css_matrix();
-        let expected     = "matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)"; // FIXME > 80 chars
-        assert_eq!(column_major, expected);
-    }
-
     #[test]
     fn identity() {
         use super::Transform;

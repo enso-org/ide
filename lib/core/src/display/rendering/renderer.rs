@@ -2,7 +2,7 @@
 use crate::prelude::*;
 
 /// Base structure for our Renderers.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Renderer {}
 
 impl Renderer {
