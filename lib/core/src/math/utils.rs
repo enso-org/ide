@@ -45,13 +45,13 @@ mod tests {
 // =============
 
 // eps is used to round very small values to 0.0 for numerical stability
-fn eps(value: f32) -> f32 {
+pub fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
 }
 
 // Inverts Matrix Y coordinates.
 // It's equivalent to scaling by (1.0, -1.0, 1.0).
-fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
+pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
     // Negating the second column to invert Y.
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m

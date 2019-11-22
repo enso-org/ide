@@ -3,9 +3,10 @@ use crate::prelude::*;
 use super::Camera;
 use super::HTMLScene;
 use crate::math::utils::IntoCSSMatrix;
+use crate::math::utils::eps;
+use crate::math::utils::invert_y;
 
 use crate::system::web::StyleSetter;
-use nalgebra::Matrix4;
 
 // ====================
 // === HTMLRenderer ===
