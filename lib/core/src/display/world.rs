@@ -171,6 +171,7 @@ pub type AttributeScope = workspace::AttributeScope <Closure_workspace_on_change
 pub type UniformScope   = workspace::UniformScope   <Closure_workspace_on_change_handler>;
 pub type GlobalScope    = workspace::GlobalScope    <Closure_workspace_on_change_handler>;
 pub type Attribute  <T> = workspace::Attribute   <T, Closure_workspace_on_change_handler>;
+pub type View       <T> = workspace::View        <T, Closure_workspace_on_change_handler>;
 pub type Workspace      = workspace::Workspace      <Closure_workspace_on_change_handler>;
 
 // === Callbacks ===

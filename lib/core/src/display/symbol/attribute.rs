@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
-use crate::data::shared::Shared;
+//use crate::data::shared::Shared;
 use crate::dirty;
 use crate::dirty::traits::*;
 use crate::system::web::Logger;
@@ -196,7 +196,10 @@ Observable<T, OnSet, OnResize> {
     pub fn new(on_set: OnSet, on_resize: OnResize) -> Self {
         Self::new_from(default(), on_set, on_resize)
     }
+}
 
+impl<T,OnSet,OnResize>
+Observable<T,OnSet,OnResize> {
     pub fn new_from(data: T, on_set: OnSet, on_resize: OnResize) -> Self {
         let on_set    = Callback(on_set);
         let on_resize = Callback(on_resize);
@@ -232,6 +235,70 @@ Extend<S> for Observable<T, OnSet, OnResize> {
     }
 }
 
+//// =============
+//// === Shared===
+//// =============
+
+#[derive(Debug, Shrinkwrap)]
+pub struct Shared<T> {
+    rc: Rc<RefCell<T>>
+}
+
+impl<T>
+Shared<T> {
+    pub fn new(data: T) -> Self {
+        let rc = Rc::new(RefCell::new(data));
+        Self { rc }
+    }
+
+    pub fn clone_ref(&self) -> Self {
+        let rc = Rc::clone(&self.rc);
+        Self { rc }
+    }
+}
+
+
+
+pub struct View<T,OnSet,OnResize> {
+    index  : usize,
+    buffer : SharedBuffer <T, OnSet, OnResize>
+}
+
+impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
+    pub fn get(&self) -> IndexGuard<Buffer <T, OnSet, OnResize>> {
+        let _borrow = self.buffer.borrow();
+        let target  = _borrow.index(self.index);
+        let target  = unsafe { drop_lifetime(target) };
+        IndexGuard { target, _borrow }
+    }
+
+    pub fn get_mut(&self) -> IndexGuardMut<Buffer <T, OnSet, OnResize>> {
+        let mut _borrow = self.buffer.borrow_mut();
+        let target      = _borrow.index_mut(self.index);
+        let target      = unsafe { drop_lifetime_mut(target) };
+        IndexGuardMut { target, _borrow }
+    }
+
+    pub fn modify<F: FnOnce(&mut T)>(&self, f:F) {
+        f(&mut self.buffer.borrow_mut()[self.index]);
+    }
+}
+
+#[derive(Shrinkwrap)]
+pub struct IndexGuard<'t, T> where
+    T:Index<usize> {
+    #[shrinkwrap(main_field)]
+    pub target : &'t <T as Index<usize>>::Output,
+    _borrow    : Ref<'t,T>
+}
+
+#[derive(Shrinkwrap)]
+pub struct IndexGuardMut<'t, T> where
+    T:Index<usize> {
+    #[shrinkwrap(main_field)]
+    pub target : &'t mut <T as Index<usize>>::Output,
+    _borrow    : RefMut<'t,T>
+}
 
 //////////////////////////////////////////////////////
 
@@ -249,9 +316,9 @@ Extend<S> for Observable<T, OnSet, OnResize> {
 #[derivative(Debug(bound="T:Debug"))]
 pub struct Attribute<T: Shape, OnSet, OnResize> {
     #[shrinkwrap(main_field)]
-    pub buffer       : Buffer      <T, OnSet, OnResize>,
-    pub set_dirty    : SetDirty    <OnSet>,
-    pub resize_dirty : ResizeDirty <OnResize>,
+    pub buffer       : SharedBuffer <T, OnSet, OnResize>,
+    pub set_dirty    : SetDirty     <OnSet>,
+    pub resize_dirty : ResizeDirty  <OnResize>,
     pub logger       : Logger,
 }
 
@@ -276,6 +343,14 @@ pub type Buffer <T, OnSet, OnResize> = Observable
     , Closure_buffer_on_resize_handler<OnResize>
     >;
 
+
+pub type SharedBuffer <T, OnSet, OnResize> = Shared<Observable
+< Vec<T>
+    , Closure_buffer_on_set_handler<OnSet>
+    , Closure_buffer_on_resize_handler<OnResize>
+>>;
+
+
 // === Callbacks ===
 
 closure!(buffer_on_resize_handler<Callback: Callback0>
@@ -294,7 +369,7 @@ closure!(buffer_on_set_handler<Callback: Callback0>
 
 // === Instances ===
 
-impl<T: Shape, OnSet: Callback0 + 'static, OnResize: Callback0 + 'static> 
+impl<T: Shape, OnSet: Callback0, OnResize: Callback0>
 Attribute<T, OnSet, OnResize> {
     pub fn new_from
     (vec: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
@@ -306,6 +381,7 @@ Attribute<T, OnSet, OnResize> {
         let buff_on_resize = buffer_on_resize_handler(resize_dirty.clone());
         let buff_on_set    = buffer_on_set_handler(set_dirty.clone());
         let buffer         = Buffer::new_from(vec, buff_on_set, buff_on_resize);
+        let buffer         = Shared::new(buffer);
         Self { buffer, set_dirty, resize_dirty, logger }
     }
 
@@ -324,10 +400,17 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
+impl<T:Shape,OnSet,OnResize>
+Attribute<T, OnSet, OnResize> {
+    pub fn view(&self, index:usize) -> View<T,OnSet,OnResize> {
+        View { index, buffer: self.buffer.clone_ref() }
+    }
+}
+
 impl<T: Shape, OnSet, OnResize>
 Attribute<T, OnSet, OnResize> {
     pub fn len(&self) -> usize {
-        self.buffer.len()
+        self.buffer.borrow().len()
     }
 }
 
@@ -351,7 +434,7 @@ Attribute<T, OnSet, OnResize> {
     }
 
     pub fn add_elements(&mut self, elem_count: usize) {
-        self.extend(iter::repeat(T::empty()).take(elem_count));
+        self.borrow_mut().extend(iter::repeat(T::empty()).take(elem_count));
     }
 }
 

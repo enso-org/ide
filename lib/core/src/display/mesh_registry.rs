@@ -334,6 +334,7 @@ pub type AttributeScope <OnDirty> = mesh::AttributeScope <Closure_mesh_on_dirty<
 pub type UniformScope   <OnDirty> = mesh::UniformScope   <Closure_mesh_on_dirty<OnDirty>>;
 pub type GlobalScope    <OnDirty> = mesh::GlobalScope    <Closure_mesh_on_dirty<OnDirty>>;
 pub type Attribute <T, OnDirty> = mesh::Attribute <T, Closure_mesh_on_dirty<OnDirty>>;
+pub type View      <T, OnDirty> = mesh::View      <T, Closure_mesh_on_dirty<OnDirty>>;
 
 // === Callbacks ===
 

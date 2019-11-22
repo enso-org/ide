@@ -138,7 +138,6 @@ fn init(world: &mut World) {
     let scopes    : &mut Scopes         = &mut geo.scopes;
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
     let pos_id    : PositionID          = pt_scope.add_attribute("position", Attribute::builder());
-    let pos       : &mut Position       = &mut pt_scope[pos_id];
 
     let logger = Logger::new("mesh_registry");
 
@@ -155,14 +154,19 @@ fn init(world: &mut World) {
 //    let geo1 = &mut mesh1.geometry;
 
     println!("---- 1");
-    pt_scope.add_instance();
-    println!("---- 2");
+    let inst_ix = pt_scope.add_instance();
+    println!("---- ix: {} ", inst_ix);
 
-    world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id)).forget();
+    let pos       : &Position            = &pt_scope[pos_id];
+
+
+    let pos_view: View<Vector2<f32>> = pos.view(inst_ix);
+
+    world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id, &pos_view)).forget();
 
 }
 
-pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID) {
+pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID, pos_view: &View<Vector2<f32>>) {
     let workspace : &mut Workspace      = &mut world[wspace_id];
     let mesh      : &mut Mesh           = &mut workspace[mesh_id];
     let geo       : &mut Geometry       = &mut mesh.geometry;
@@ -170,7 +174,7 @@ pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
     let pos       : &mut Position       = &mut pt_scope[pos_id];
 
-//    pos[0].x += 1.0;
+//    pos_view.modify(|p| p.x += 1.0)
 
 }
 

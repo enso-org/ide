@@ -40,9 +40,30 @@ pub struct Scope <OnDirty> {
     pub shape_dirty     : ShapeDirty<OnDirty>,
     pub name_map        : HashMap <AttributeName, AnyAttributeIndex>,
     pub logger          : Logger,
+    instance_count      : usize
 }
 
 // === Types ===
+
+macro_rules! promote {
+    (<$($closure:ident),*> $module:ident :: $name:ident<$($param:ty),*>) => {
+    paste::item! {
+        pub type $name<$($param),*,Callback> = $module :: $name
+            < $($param),*
+            , $([<Closure_ $closure _handler>]<Callback>),*
+            >;
+    }};
+    (<$($closure:ident),*> $module:ident :: $name:ident) => {
+    paste::item! {
+        pub type $name<Callback> = $module :: $name
+            < $([<Closure_ $closure _handler>]<Callback>),* >;
+    }};
+    ($foo:tt $module:ident {$($target:ident),*}) => {
+//        $(promote!($gens $module :: $target ));*
+
+    }
+}
+
 
 pub type AnyAttributeIndex           = usize;
 pub type AttributeIndex <T, OnDirty> = TypedIndex<usize, Attribute<T, OnDirty>>;
@@ -50,16 +71,22 @@ pub type AttributeName               = String;
 pub type AttributeDirty <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
 pub type ShapeDirty     <OnDirty>    = dirty::SharedBool<OnDirty>;
 
-pub type Attribute<T, OnDirty> = attr::Attribute
-    < T
-    , Closure_attribute_on_set_handler<OnDirty>
-    , Closure_attribute_on_resize_handler<OnDirty>
-    >;
+promote!(<attribute_on_set, attribute_on_resize> attr::View<T>);
+promote!(<attribute_on_set, attribute_on_resize> attr::Attribute<T>);
+promote!(<attribute_on_set, attribute_on_resize> attr::AnyAttribute);
+promote!([attribute_on_set, attribute_on_resize] attr {AnyAttribute});
+//promote!(<attribute_on_set, attribute_on_resize> attr::{View<T>,Attribute});
 
-pub type AnyAttribute<OnDirty> = attr::AnyAttribute
-    < Closure_attribute_on_set_handler<OnDirty>
-    , Closure_attribute_on_resize_handler<OnDirty>
-    >;
+//pub type View<T, Callback> = attr::View
+//    < T
+//    , Closure_attribute_on_set_handler<Callback>
+//    , Closure_attribute_on_resize_handler<Callback>
+//    >;
+
+//pub type AnyAttribute<OnDirty> = attr::AnyAttribute
+//    < Closure_attribute_on_set_handler<OnDirty>
+//    , Closure_attribute_on_resize_handler<OnDirty>
+//    >;
 
 // === Callbacks ===
 
@@ -81,7 +108,8 @@ impl<OnDirty: Clone> Scope<OnDirty> {
         let shape_dirty     = ShapeDirty::new(shape_logger, on_dirty);
         let attributes      = default();
         let name_map        = default();
-        Self { attributes, attribute_dirty, shape_dirty, name_map, logger }
+        let instance_count  = 0;
+        Self { attributes, attribute_dirty, shape_dirty, name_map, logger, instance_count }
     }
 }
 
@@ -115,8 +143,11 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
         })
     }
 
-    pub fn add_instance(&mut self) {
+    pub fn add_instance(&mut self) -> usize {
+        let ix = self.instance_count;
+        self.instance_count += 1;
         self.attributes.iter_mut().for_each(|attr| attr.add_element());
+        ix
     }
 
     pub fn update(&mut self) {

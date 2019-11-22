@@ -10,8 +10,6 @@ use crate::display::symbol::geometry;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
-use crate::data::shared::Shared;
-use crate::data::shared::WeakShared;
 use std::slice::SliceIndex;
 use crate::closure;
 use paste;
@@ -44,6 +42,7 @@ pub type AttributeScope <Callback> = geometry::AttributeScope <Closure_geometry_
 pub type UniformScope   <Callback> = geometry::UniformScope   <Closure_geometry_on_change<Callback>>;
 pub type GlobalScope    <Callback> = geometry::GlobalScope    <Closure_geometry_on_change<Callback>>;
 pub type Attribute      <T, Callback> = geometry::Attribute<T, Closure_geometry_on_change<Callback>>;
+pub type View           <T, Callback> = geometry::View<T, Closure_geometry_on_change<Callback>>;
 
 // === Callbacks ===
 

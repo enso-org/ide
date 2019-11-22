@@ -16,6 +16,7 @@ pub use num::Num;
 pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use std::cell::Ref;
+pub use std::cell::RefMut;
 pub use std::cell::RefCell;
 pub use std::collections::HashMap;
 pub use std::collections::HashSet;
@@ -127,6 +128,10 @@ pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 ///    }
 ///    ```
 pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
+    std::mem::transmute(t)
+}
+
+pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
     std::mem::transmute(t)
 }
 

@@ -70,6 +70,7 @@ pub type AttributeScope <Callback> = mesh_registry::AttributeScope <Closure_mesh
 pub type UniformScope   <Callback> = mesh_registry::UniformScope   <Closure_mesh_registry_on_dirty<Callback>>;
 pub type GlobalScope    <Callback> = mesh_registry::GlobalScope    <Closure_mesh_registry_on_dirty<Callback>>;
 pub type Attribute   <T, Callback> = mesh_registry::Attribute   <T, Closure_mesh_registry_on_dirty<Callback>>;
+pub type View        <T, Callback> = mesh_registry::View        <T, Closure_mesh_registry_on_dirty<Callback>>;
 pub type MeshRegistry   <Callback> = mesh_registry::MeshRegistry   <Closure_mesh_registry_on_dirty<Callback>>;
 
 // === Callbacks ===
