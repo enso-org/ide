@@ -1,4 +1,6 @@
 use super::Transform;
+use crate::math::UnitQuaternion;
+use crate::math::Vector3;
 use crate::prelude::*;
 
 // ==============
@@ -21,14 +23,29 @@ impl Object {
         self.transform.set_translation(x, y, z)
     }
 
+    /// Gets the object's position.
+    pub fn get_position(&self) -> &Vector3<f32> {
+        self.transform.get_translation()
+    }
+
     /// Sets the object's rotation in YXZ (yaw -> roll -> pitch) order.
     pub fn set_rotation(&mut self, roll: f32, pitch: f32, yaw: f32) {
         self.transform.set_rotation(roll, pitch, yaw)
     }
 
+    /// Gets the object's rotation UnitQuaternion.
+    pub fn get_rotation(&self) -> &UnitQuaternion<f32> {
+        self.transform.get_rotation()
+    }
+
     /// Sets the object's scale.
     pub fn set_scale(&mut self, x: f32, y: f32, z: f32) {
         self.transform.set_scale(x, y, z);
+    }
+
+    /// Gets the object's scale.
+    pub fn get_scale(&self) -> &Vector3<f32> {
+        self.transform.get_scale()
     }
 }
 
@@ -46,14 +63,14 @@ mod test {
         object.set_scale(3.0, 2.0, 1.0);
         object.set_rotation(PI * 2.0, PI, PI / 2.0);
 
-        assert_eq!(object.transform.translation, Vector3::new(1.0, 2.0, 3.0));
-        assert_eq!(object.transform.scale, Vector3::new(3.0, 2.0, 1.0));
+        assert_eq!(*object.get_position(), Vector3::new(1.0, 2.0, 3.0));
+        assert_eq!(*object.get_scale()   , Vector3::new(3.0, 2.0, 1.0));
 
         let expected = Quaternion::new
             ( 0.00000009272586
             , -0.7071068
             , -0.7071068
             , -0.000000030908623 );
-        assert_eq!(*object.transform.rotation.quaternion(), expected);
+        assert_eq!(*object.get_rotation().quaternion(), expected);
     }
 }

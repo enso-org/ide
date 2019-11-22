@@ -91,6 +91,32 @@ impl<'a, T> IntoIterator for &'a OptVec<T> {
     }
 }
 
+// ===============
+// === IterMut ===
+// ===============
+
+pub struct IterMut<'a, T> {
+    iter : std::slice::IterMut<'a, Option<T>>
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(opt_item) = self.iter.next() {
+            // If opt_item has some item, we return it, else we try the next one
+            if let Some(item) = opt_item { Some(item) } else { self.next() }
+        } else { None }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut OptVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut { iter : self.items.iter_mut() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,6 +169,25 @@ mod tests {
         for (i, value) in v.into_iter().enumerate() {
             // we add + 1, because the fisrt item is 1 now.
             assert_eq!(i + 1, *value);
+        }
+    }
+
+    #[test]
+    fn test_iter_mut() {
+        let mut v = OptVec::new();
+
+        let _ix1 = v.insert(|_| 0);
+        let _ix2 = v.insert(|_| 1);
+        let _ix3 = v.insert(|_| 2);
+
+        assert_eq!(v.len(), 3, "OptVec should have 3 items");
+
+        for value in &mut v {
+            *value *= 2;
+        }
+
+        for (i, value) in v.into_iter().enumerate() {
+            assert_eq!(i * 2, *value);
         }
     }
 }
