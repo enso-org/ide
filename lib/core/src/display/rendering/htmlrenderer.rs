@@ -27,7 +27,7 @@ impl HTMLRenderer {
         let near      = format!("{}px", expr * half_dim.y);
         let trans_cam = camera.transform.to_homogeneous().try_inverse();
         let trans_cam = trans_cam.expect("Camera's matrix is not invertible.");
-        let trans_cam = trans_cam.map(|a| eps(a));
+        let trans_cam = trans_cam.map(eps);
         let trans_cam = invert_y(trans_cam);
         let trans_z   = format!("translateZ({})", near);
         let matrix3d  = trans_cam.into_css_matrix();
@@ -45,23 +45,6 @@ impl HTMLRenderer {
             object.element.set_property_or_panic("transform", css);
         }
     }
-}
-
-// =============
-// === Utils ===
-// =============
-
-// eps is used to round very small values to 0.0 for numerical stability
-fn eps(value: f32) -> f32 {
-    if value.abs() < 1e-10 { 0.0 } else { value }
-}
-
-// Inverts Matrix Y coordinates.
-// It's equivalent to scaling by (1.0, -1.0, 1.0).
-fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
-    // Negating the second column to invert Y.
-    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
-    m
 }
 
 // Note [znear from projection matrix]

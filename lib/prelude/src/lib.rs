@@ -115,9 +115,11 @@ pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 ///        borrow   : Ref<'t,T>
 ///    }
 ///    ```
-pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
-    std::mem::transmute(t)
-}
+
+// from clippy: error: unsafe function's docs miss `# Safety` section
+// pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
+//     std::mem::transmute(t)
+// }
 
 
 // ===================

@@ -87,7 +87,7 @@ impl<'a, T> IntoIterator for &'a OptVec<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
     fn into_iter(self) -> Self::IntoIter {
-        Iter { iter : (&self.items).into_iter() }
+        Iter { iter : (&self.items).iter() }
     }
 }
 
