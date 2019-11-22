@@ -33,6 +33,9 @@ jobs:
         with:
           toolchain: nightly-2019-11-04
           override: true
+      - uses: nanasess/setup-chromedriver@master
+        with:
+          chromedriver-version: '78.0.3904.105'
       - name: Install wasm-pack
         uses: actions-rs/cargo@v1
         with:
@@ -49,7 +52,7 @@ jobs:
           args: >
             --manifest-path=script/rust/Cargo.toml
             --bin test-all
-            -- --node --chrome --firefox --headless
+            -- --node --chrome --headless
 
 # TODO[AO] formatter does not work
 #  fmt:
