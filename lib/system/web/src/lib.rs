@@ -1,6 +1,8 @@
 #![feature(trait_alias)]
 
 pub mod resize_observer;
+mod animationframeloop;
+pub use animationframeloop::AnimationFrameLoop;
 
 use basegl_prelude::*;
 
