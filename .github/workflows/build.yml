@@ -49,7 +49,7 @@ jobs:
           args: >
             --manifest-path=script/rust/Cargo.toml
             --bin test-all
-            -- --node --chrome --firefox
+            -- --node --chrome --firefox --headless
 
 # TODO[AO] formatter does not work
 #  fmt:
