@@ -46,24 +46,134 @@ pub struct Scope <OnDirty> {
 // === Types ===
 
 macro_rules! promote {
-    (<$($closure:ident),*> $module:ident :: $name:ident<$($param:ty),*>) => {
+    ([$($closure:ident),*] $module:ident [$name:ident<$($param:ty),*>]) => {
     paste::item! {
         pub type $name<$($param),*,Callback> = $module :: $name
             < $($param),*
             , $([<Closure_ $closure _handler>]<Callback>),*
             >;
     }};
-    (<$($closure:ident),*> $module:ident :: $name:ident) => {
+    ([$($closure:ident),*] $module:ident [$name:ident]) => {
     paste::item! {
         pub type $name<Callback> = $module :: $name
             < $([<Closure_ $closure _handler>]<Callback>),* >;
     }};
-    ($foo:tt $module:ident {$($target:ident),*}) => {
-//        $(promote!($gens $module :: $target ));*
+    ($gens:tt $module:ident :: { $($targets:tt)* }) => {
+        // FIXME The following line should be rewritten to something like the
+        // FIXME commented one. However, we generate too deeply nested structs
+        // FIXME in the `resolve` macro now. To be investigated and fixed.
+        split_comma!{[promote_all [$gens $module] []] $($targets)*}
+        // resolve!{ promote_all($gens,$module,split_comma($($targets)*)) }
+    };
 
-    }
 }
 
+//[promote_all $gens $module [[split_comma $targets]] ]
+
+
+
+macro_rules! drop {($($toks:tt)*) => {}}
+
+
+
+
+macro_rules! split_comma {
+    ($f:tt $($rest:tt)*) => {
+        split_comma_internal!{$f [] [] [] $($rest)*}
+    };
+}
+
+macro_rules! split_comma_internal {
+    ($f:tt [] [$($items:tt)*] $this:tt , $($rest:tt)*) => {
+        split_comma_internal!{$f [] [$($items)* $this] [] $($rest)*}
+    };
+    ($f:tt [$($depth:tt)*] $items:tt [$($this:tt)*] < $($rest:tt)*) => {
+        split_comma_internal!{$f [. $($depth)*] $items [$($this)* <] $($rest)*}
+    };
+    ($f:tt [$($depth:tt)*] $items:tt [$($this:tt)*] << $($rest:tt)*) => {
+        split_comma_internal!{$f [. . $($depth)*] $items [$($this)* <<] $($rest)*}
+    };
+    ($f:tt [$($depth:tt)*] $items:tt [$($this:tt)*] <<< $($rest:tt)*) => {
+        split_comma_internal!{$f [. . . $($depth)*] $items [$($this)* <<<] $($rest)*}
+    };
+    ($f:tt [$($depth:tt)*] $items:tt [$($this:tt)*] <<<< $($rest:tt)*) => {
+        split_comma_internal!{$f [. . . . $($depth)*] $items [$($this)* <<<<] $($rest)*}
+    };
+    ($f:tt [$($depth:tt)*] $items:tt [$($this:tt)*] <<<<< $($rest:tt)*) => {
+        split_comma_internal!{$f [. . . . . $($depth)*] $items [$($this)* <<<<<] $($rest)*}
+    };
+    ($f:tt [. $($depth:tt)*] $items:tt [$($this:tt)*] > $($rest:tt)*) => {
+        split_comma_internal!{$f [$($depth)*] $items [$($this)* >] $($rest)*}
+    };
+    ($f:tt [. . $($depth:tt)*] $items:tt [$($this:tt)*] >> $($rest:tt)*) => {
+        split_comma_internal!{$f [$($depth)*] $items [$($this)* >>] $($rest)*}
+    };
+    ($f:tt [. . . $($depth:tt)*] $items:tt [$($this:tt)*] >>> $($rest:tt)*) => {
+        split_comma_internal!{$f [$($depth)*] $items [$($this)* >>>] $($rest)*}
+    };
+    ($f:tt [. . . . $($depth:tt)*] $items:tt [$($this:tt)*] >>>> $($rest:tt)*) => {
+        split_comma_internal!{$f [$($depth)*] $items [$($this)* >>>>] $($rest)*}
+    };
+    ($f:tt [. . . . . $($depth:tt)*] $items:tt [$($this:tt)*] >>>>> $($rest:tt)*) => {
+        split_comma_internal!{$f [$($depth)*] $items [$($this)* >>>>>] $($rest)*}
+    };
+    ($f:tt $depth:tt $items:tt [$($this:tt)*] , $($rest:tt)*) => {
+        split_comma_internal!{$f $depth $items [$($this)* ,] $($rest)*}
+    };
+    ($f:tt $depth:tt $items:tt [$($this:tt)*] $new:tt $($rest:tt)*) => {
+        split_comma_internal!{$f $depth $items [$($this)* $new] $($rest)*}
+    };
+    ($f:tt [] $result:tt []) => {
+        apply_result!{$f,$result}
+    };
+    ($f:tt $depth:tt $items:tt $this:tt) => {
+        split_comma_internal!{$f $depth $items $this,}
+    };
+}
+
+macro_rules! resolve_step {
+    ($name:ident $resolved_args:tt [ [$f:ident($($f_args:tt)*)] $($unresolved_args:tt)* ]) => {
+        $f!{[ $name $resolved_args [$($unresolved_args)*] ] $($f_args)*}
+    };
+    ($name:ident [$($resolved_args:tt)*] [$arg:tt $($remaining_args:tt)*]) => {
+        resolve_step!{$name [$($resolved_args)* $arg] [$($remaining_args)*]}
+    };
+    ($name:ident [$($resolved_args:tt)*] []) => {
+        $name! {$($resolved_args)*}
+    };
+}
+
+macro_rules! resolve_tt {
+    ($name:ident [$($args:tt)*]) => {
+        resolve_step!{$name [] [$($args)*]}
+    };
+}
+
+macro_rules! resolve {
+    ($name:ident($($args:tt)*)) => {
+        resolve_tt! { resolve_tt [$name [split_comma($($args)*)]] }
+    };
+}
+
+macro_rules! apply_result {
+    ([$name:ident [$($resolved_args:tt)*] $unresolved_args:tt], $result:tt) => {
+        resolve_step!{$name [$($resolved_args)* $result] $unresolved_args}
+    };
+}
+
+resolve!{ drop(1,split_comma(a,b,c),3) }
+
+
+
+macro_rules! promote_all {
+    ($gens:tt $module:ident [$($target:tt)*]) => {
+        $(promote!($gens $module $target);)*
+    };
+}
+
+
+//split_comma!([drop [] []] [AnyAttribute,View<T,<<S,M> >>,Bar]);
+//split_comma!([] [] [] AnyAttribute<>);
 
 pub type AnyAttributeIndex           = usize;
 pub type AttributeIndex <T, OnDirty> = TypedIndex<usize, Attribute<T, OnDirty>>;
@@ -71,22 +181,10 @@ pub type AttributeName               = String;
 pub type AttributeDirty <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
 pub type ShapeDirty     <OnDirty>    = dirty::SharedBool<OnDirty>;
 
-promote!(<attribute_on_set, attribute_on_resize> attr::View<T>);
-promote!(<attribute_on_set, attribute_on_resize> attr::Attribute<T>);
-promote!(<attribute_on_set, attribute_on_resize> attr::AnyAttribute);
-promote!([attribute_on_set, attribute_on_resize] attr {AnyAttribute});
-//promote!(<attribute_on_set, attribute_on_resize> attr::{View<T>,Attribute});
-
-//pub type View<T, Callback> = attr::View
-//    < T
-//    , Closure_attribute_on_set_handler<Callback>
-//    , Closure_attribute_on_resize_handler<Callback>
-//    >;
-
-//pub type AnyAttribute<OnDirty> = attr::AnyAttribute
-//    < Closure_attribute_on_set_handler<OnDirty>
-//    , Closure_attribute_on_resize_handler<OnDirty>
-//    >;
+promote! {
+    [attribute_on_set, attribute_on_resize]
+    attr::{ View<T>, Attribute<T>, AnyAttribute }
+}
 
 // === Callbacks ===
 

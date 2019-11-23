@@ -11,8 +11,12 @@
 #![feature(overlapping_marker_traits)]
 //#![warn(missing_docs)]
 
+
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
+#![feature(trace_macros)]
+#![recursion_limit="256"]
+trace_macros!(true);
 
 // TODO: remove unstable features unless one will get stabilized soon
 
