@@ -158,3 +158,36 @@ impl<T, P> WithPhantom<T, P> {
         Self { without_phantom, phantom }
     }
 }
+
+
+// =====================
+// === Rc Extensions ===
+// =====================
+
+/// Using `clone` for structures which are newtype-wrappers over `Rc` is error
+/// prone and hides the real intention. Cloning should always be considered
+/// pricey. This trait adds `clone_rc` method to every such wrapper.
+pub trait IsRc {
+    fn clone_rc(&self) -> Self;
+}
+
+impl<T,S> IsRc for T
+    where T: From<Rc<S>>, T:Deref<Target=Rc<S>> {
+    fn clone_rc(&self) -> Self {
+        Rc::clone(self).into()
+    }
+}
+
+/// See the documentation of `IsRc`. Unfortunately, it's not easy to merge
+/// these two traits together in current Rust version, so `clone_rc` method
+/// for `Rc<S>` is provided separately.
+pub trait RcOps {
+    fn clone_rc(&self) -> Self;
+}
+
+impl<T> RcOps for Rc<T> {
+    fn clone_rc(&self) -> Self {
+        Rc::clone(self)
+    }
+}
+

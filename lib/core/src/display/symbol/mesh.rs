@@ -36,7 +36,7 @@ pub struct Mesh<OnDirty> {
 
 pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
 
-promote_geometry_types!{ [Closure_geometry_on_change] geometry }
+promote_geometry_types!{ [OnGeometryChange] geometry }
 #[macro_export]
 macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_geometry_types! { $($args)* }
@@ -45,8 +45,10 @@ macro_rules! promote_mesh_types { ($($args:tt)*) => {
 
 // === Callbacks ===
 
-closure!(geometry_on_change<Callback: Callback0>
-    (dirty: GeometryDirty<Callback>) || { dirty.set() });
+closure! {
+fn geometry_on_change<C:Callback0>(dirty:GeometryDirty<C>) ->
+    OnGeometryChange { || dirty.set() }
+}
 
 // === Implementation ===
 

@@ -63,11 +63,11 @@ impl From<ScopesDirtyStatus> for usize {
 // === Types ===
 
 pub type ScopesDirty    <Callback> = dirty::SharedEnum<u8,ScopesDirtyStatus, Callback>;
-pub type AttributeScope <Callback> = scope::Scope<Closure_scope_on_change<Callback>>;
-pub type UniformScope   <Callback> = scope::Scope<Closure_scope_on_change<Callback>>; // FIXME
-pub type GlobalScope    <Callback> = scope::Scope<Closure_scope_on_change<Callback>>; // FIXME
+pub type AttributeScope <Callback> = scope::Scope<ScopeOnChange<Callback>>;
+pub type UniformScope   <Callback> = scope::Scope<ScopeOnChange<Callback>>; // FIXME
+pub type GlobalScope    <Callback> = scope::Scope<ScopeOnChange<Callback>>; // FIXME
 
-promote_scope_types!{ [Closure_scope_on_change] scope }
+promote_scope_types!{ [ScopeOnChange] scope }
 #[macro_export]
 macro_rules! promote_geometry_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
@@ -78,10 +78,10 @@ macro_rules! promote_geometry_types { ($($args:tt)*) => {
 
 // === Callbacks ===
 
-
-closure!(scope_on_change<Callback: Callback0>
-    (dirty: ScopesDirty<Callback>, item: ScopesDirtyStatus)
-        || { dirty.set_with((item,)) });
+closure! {
+fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) ->
+    ScopeOnChange { || dirty.set_with((item,)) }
+}
 
 // === Implementation ===
 

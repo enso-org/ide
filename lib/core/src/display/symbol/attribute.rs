@@ -1,3 +1,5 @@
+pub mod item;
+
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
@@ -11,6 +13,7 @@ use std::slice::SliceIndex;
 use crate::tp::debug::TypeDebugName;
 use std::iter::Extend;
 use crate::dirty::traits::*;
+use crate::data::seq::observable::Observable;
 
 use nalgebra;
 use nalgebra::dimension::{U1, U2, U3};
@@ -24,6 +27,8 @@ use nalgebra::MatrixMN;
 
 use crate::closure;
 use crate::system::web::group;
+use item::Item;
+
 
 
 
@@ -73,255 +78,66 @@ macro_rules! promote_all {
 
 ///////////////////////////////////////
 
+// =================
+// === Callbacks ===
+// =================
 
-macro_rules! type_family { 
-    ($name:ident) => {
-        paste::item! {
-            trait [<Has $name>] { type $name; }
-            type $name<T> = <T as [<Has $name>]>::$name;
-        }
-    };
+pub type SetDirty    <Callback> = dirty::SharedRange<usize, Callback>;
+pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
+
+closure! {
+fn buffer_on_resize<C:Callback0> (dirty: ResizeDirty<C>) ->
+    BufferOnResize { || dirty.set() }
 }
 
-macro_rules! type_instance { 
-    ($name:ident<$param:ident> = $expr:expr) => {
-        paste::item! {
-            impl [<Has $name>] for $param { 
-                type $name = $expr; 
-            }
-        }
-    };
+closure! {
+fn buffer_on_set<C:Callback0> (dirty: SetDirty<C>) ->
+    BufferOnSet { |ix: usize| dirty.set(ix) }
 }
 
 
-// type_family!(OnSet);
-// type_family!(OnResize);
+// ==============
+// === Buffer ===
+// ==============
 
-// type_instance!(OnSet<i32> = String);
+/// Vector with attached callbacks listening for changes.
+pub type Buffer<T,OnSet,OnResize> =
+    Observable<Vec<T>, BufferOnSet<OnSet>, BufferOnResize<OnResize>>;
 
-
-// #[derive(Shrinkwrap)]
-// #[shrinkwrap(mutable)]
-// struct Buf<T: Shape> {
-//     raw_data: Vec<T::Item>
-// }
-
-
+/// The `Buffer` behind a shared reference with internal mutability.
+pub type SharedBuffer<T,OnSet,OnResize> =
+    Rc<RefCell<Buffer<T,OnSet,OnResize>>>;
 
 
-// impl<T: Shape> AsRef<[Item<T>]> for Buf<T> {
-//     // This is safe, as we are casting between item and container, and we 
-//     // update the slice length accordingly. The container knows it's item 
-//     // count, like `Vector2<Item>`.
-//     fn as_ref(&self) -> &[Item<T>] {
-//         unsafe {
-//             let len = self.len() / T::item_count();
-//             std::slice::from_raw_parts(self.as_ptr().cast(), len)
-//         } 
-//     }
-// }
+// ============
+// === View ===
+// ============
 
-// impl<T: Shape> AsMut<[Item<T>]> for Buf<T> {
-//     // This is safe, as we are casting between item and container, and we 
-//     // update the slice length accordingly. The container knows it's item 
-//     // count, like `Vector2<Item>`.
-//     fn as_mut(&mut self) -> &mut [Item<T>] {
-//         unsafe {
-//             let len = self.len() / T::item_count();
-//             std::slice::from_raw_parts_mut(self.as_mut_ptr().cast(), len)
-//         } 
-//     }
-// }
-
-// =============
-// === Shape ===
-// =============
-
-// === Definition === 
-
-pub trait Shape: TypeDebugName {
-    type Item;
-    type Dim: DimName;
-
-    fn item_count() -> usize {
-        <Self::Dim as DimName>::dim()
-    }
-
-    fn empty() -> Self;
-
-    fn from_buffer(buffer: &[Self::Item]) -> &[Self] 
-        where Self: std::marker::Sized;
-
-    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self] 
-        where Self: std::marker::Sized;
-}
-
-// === Type Families ===
-
-type Item <T> = <T as Shape>::Item;
-type Dim  <T> = <T as Shape>::Dim;
-
-// === Shapes for numbers === 
-
-impl Shape for i32 {
-    type Item = Self;
-    type Dim  = U1;
-
-    fn empty           ()                          -> Self        { 0 }
-    fn from_buffer     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
-    fn from_buffer_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
-}
-
-impl Shape for f32 {
-    type Item = Self;
-    type Dim  = U1;
-
-    fn empty           ()                          -> Self        { 0.0 }
-    fn from_buffer     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
-    fn from_buffer_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
-}
-
-// === Shapes for matrixes === 
-
-pub trait AllocatorCtx<T: Scalar, R: DimName, C: DimName> = where 
-    nalgebra::DefaultAllocator : nalgebra::allocator::Allocator<T, R, C>;
-
-impl<T: Scalar + Default, R: DimName, C: DimName> 
-Shape for MatrixMN<T, R, C> where Self: AllocatorCtx<T, R, C> {
-    type Item = T;
-    type Dim  = R;
-
-    fn empty() -> Self {
-        Self::repeat(default())
-    }
-
-    fn from_buffer(buffer: &[Self::Item]) -> &[Self] {
-        unsafe {
-            let len = buffer.len() / Self::item_count();
-            std::slice::from_raw_parts(buffer.as_ptr().cast(), len)
-        } 
-    }
-
-    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
-        unsafe {
-            let len = buffer.len() / Self::item_count();
-            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        } 
-    }
-}
-
-impl <T: Scalar, R: DimName, C: DimName> 
-TypeDebugName for MatrixMN<T, R, C> where Self: AllocatorCtx<T, R, C> {
-    fn type_debug_name() -> String {
-        let col  = <C as DimName>::dim();
-        let row  = <R as DimName>::dim();
-        let item = type_name::<T>();
-        match col {
-            1 => format!("Vector{}<{}>", row, item),
-            _ => format!("Matrix{}x{}<{}>", row, col, item)
-        }
-    }
-}
-
-// ==================
-// === Observable ===
-// ==================
-
-#[derive(Shrinkwrap)]
-#[derive(Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
-pub struct Observable<T, OnSet, OnResize> {
-    #[shrinkwrap(main_field)]
-    pub data      : T,
-    pub on_set    : Callback<OnSet>,
-    pub on_resize : Callback<OnResize>,
-}
-
-impl<T: Default, OnSet, OnResize>
-Observable<T, OnSet, OnResize> {
-    pub fn new(on_set: OnSet, on_resize: OnResize) -> Self {
-        Self::new_from(default(), on_set, on_resize)
-    }
-}
-
-impl<T,OnSet,OnResize>
-Observable<T,OnSet,OnResize> {
-    pub fn new_from(data: T, on_set: OnSet, on_resize: OnResize) -> Self {
-        let on_set    = Callback(on_set);
-        let on_resize = Callback(on_resize);
-        Self { data, on_set, on_resize }
-    }
-}
-
-impl<T: Index<I>, OnSet, OnResize, I> 
-Index<I> for Observable<T, OnSet, OnResize> {
-    type Output = <T as Index<I>>::Output;
-
-    #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        &self.data[index]
-    }
-}
-
-impl<T: IndexMut<I>, OnSet: Callback1<I>, OnResize, I: Copy>
-IndexMut<I> for Observable<T, OnSet, OnResize> {
-    #[inline]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.on_set.call(index);
-        &mut self.data[index]
-    }
-}
-
-impl <T: Extend<S>, S, OnSet, OnResize: Callback0> 
-Extend<S> for Observable<T, OnSet, OnResize> {
-    #[inline]
-    fn extend<I: IntoIterator<Item = S>>(&mut self, iter: I) {
-        self.on_resize.call();
-        self.data.extend(iter)
-    }
-}
-
-//// =============
-//// === Shared===
-//// =============
-
-#[derive(Debug, Shrinkwrap)]
-pub struct Shared<T> {
-    rc: Rc<RefCell<T>>
-}
-
-impl<T>
-Shared<T> {
-    pub fn new(data: T) -> Self {
-        let rc = Rc::new(RefCell::new(data));
-        Self { rc }
-    }
-
-    pub fn clone_ref(&self) -> Self {
-        let rc = Rc::clone(&self.rc);
-        Self { rc }
-    }
-}
-
-
-
+/// View for a particular attribute. Allows reading and writing attribute data
+/// via the internal mutability pattern. It is implemented as a view on
+/// a selected `SharedBuffer` element under the hood.
 pub struct View<T,OnSet,OnResize> {
     index  : usize,
     buffer : SharedBuffer <T, OnSet, OnResize>
 }
 
 impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
+
+    // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
+    // to use it here.
     pub fn get(&self) -> IndexGuard<Buffer <T, OnSet, OnResize>> {
         let _borrow = self.buffer.borrow();
         let target  = _borrow.index(self.index);
-        let target  = unsafe { drop_lifetime(target) };
+        let target  = unsafe { drop_lifetime(target) }; // [1]
         IndexGuard { target, _borrow }
     }
 
+    // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
+    // to use it here.
     pub fn get_mut(&self) -> IndexGuardMut<Buffer <T, OnSet, OnResize>> {
         let mut _borrow = self.buffer.borrow_mut();
         let target      = _borrow.index_mut(self.index);
-        let target      = unsafe { drop_lifetime_mut(target) };
+        let target      = unsafe { drop_lifetime_mut(target) }; // [1]
         IndexGuardMut { target, _borrow }
     }
 
@@ -360,7 +176,7 @@ pub struct IndexGuardMut<'t, T> where
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Attribute<T: Shape, OnSet, OnResize> {
+pub struct Attribute<T: Item, OnSet, OnResize> {
     #[shrinkwrap(main_field)]
     pub buffer       : SharedBuffer <T, OnSet, OnResize>,
     pub set_dirty    : SetDirty     <OnSet>,
@@ -372,50 +188,16 @@ pub struct Attribute<T: Shape, OnSet, OnResize> {
 
 pub trait SetDirtyCtx    <Callback> = dirty::RangeCtx<Callback>;
 pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx<Callback>;
-pub type  SetDirty       <Callback> = dirty::SharedRange<usize, Callback>;
-pub type  ResizeDirty    <Callback> = dirty::SharedBool<Callback>;
-
-// pub type  Buffer <T, OnSet, OnResize> = Observable
-//     < Vec<T>
-//     , Closure_buffer_on_set_handler    <OnSet>
-//     , Closure_buffer_on_resize_handler <OnResize>
-//     >;
-
-
-
-pub type Buffer <T, OnSet, OnResize> = Observable
-    < Vec<T>
-    , Closure_buffer_on_set_handler<OnSet>
-    , Closure_buffer_on_resize_handler<OnResize>
-    >;
-
-
-pub type SharedBuffer <T, OnSet, OnResize> = Shared<Observable
-< Vec<T>
-    , Closure_buffer_on_set_handler<OnSet>
-    , Closure_buffer_on_resize_handler<OnResize>
->>;
 
 
 // === Callbacks ===
 
-closure!(buffer_on_resize_handler<Callback: Callback0>
-    (dirty: ResizeDirty<Callback>) || { dirty.set() });
 
-closure!(buffer_on_set_handler<Callback: Callback0>
-    (dirty: SetDirty<Callback>) |ix: usize| { dirty.set(ix) });
 
-// pub type Closure_buffer_on_set_handler<Callback> = impl Fn(usize) + Clone;
-// pub fn buffer_on_set_handler<Callback: Callback0>
-// (dirty: SetDirty<Callback>) -> Closure_buffer_on_set_handler<Callback> {
-//     move |ix| { dirty.set(ix) }
-// }
-
-// pub type Closure_buffer_on_set_handler<Callback> = impl Fn(usize) + Clone;
 
 // === Instances ===
 
-impl<T: Shape, OnSet: Callback0, OnResize: Callback0>
+impl<T: Item, OnSet: Callback0, OnResize: Callback0>
 Attribute<T, OnSet, OnResize> {
     pub fn new_from
     (vec: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
@@ -424,10 +206,10 @@ Attribute<T, OnSet, OnResize> {
         let resize_logger  = logger.sub("resize_dirty");
         let set_dirty      = SetDirty::new(set_logger,on_set);
         let resize_dirty   = ResizeDirty::new(resize_logger, on_resize);
-        let buff_on_resize = buffer_on_resize_handler(resize_dirty.clone());
-        let buff_on_set    = buffer_on_set_handler(set_dirty.clone());
+        let buff_on_resize = buffer_on_resize(resize_dirty.clone());
+        let buff_on_set    = buffer_on_set(set_dirty.clone());
         let buffer         = Buffer::new_from(vec, buff_on_set, buff_on_resize);
-        let buffer         = Shared::new(buffer);
+        let buffer         = Rc::new(RefCell::new(buffer));
         Self { buffer, set_dirty, resize_dirty, logger }
     }
 
@@ -446,21 +228,30 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
-impl<T:Shape,OnSet,OnResize>
+
+
+
+
+
+
+
+impl<T: Item,OnSet,OnResize>
 Attribute<T, OnSet, OnResize> {
     pub fn view(&self, index:usize) -> View<T,OnSet,OnResize> {
-        View { index, buffer: self.buffer.clone_ref() }
+        View { index, buffer: self.buffer.clone_rc() }
     }
 }
 
-impl<T: Shape, OnSet, OnResize>
+
+
+impl<T: Item, OnSet, OnResize>
 Attribute<T, OnSet, OnResize> {
     pub fn len(&self) -> usize {
         self.buffer.borrow().len()
     }
 }
 
-impl<T: Shape, OnSet: Callback0, OnResize: Callback0>
+impl<T: Item, OnSet: Callback0, OnResize: Callback0>
 Attribute<T, OnSet, OnResize> {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -472,7 +263,7 @@ Attribute<T, OnSet, OnResize> {
 }
 
 
-pub trait AddElementCtx = Shape + Clone;
+pub trait AddElementCtx = Item + Clone;
 impl<T: AddElementCtx, OnSet, OnResize: Callback0> 
 Attribute<T, OnSet, OnResize> {
     pub fn add_element(&mut self) {
@@ -727,12 +518,12 @@ pub trait IsAttribute<OnSet: Callback0, OnResize: Callback0> {
 
 #[derive(Derivative)]
 #[derivative(Default(bound = ""))]
-pub struct Builder<T: Shape> {
+pub struct Builder<T: Item> {
     pub _buffer : Option <Vec <T>>,
     pub _logger : Option <Logger>
 }
 
-impl<T: Shape> Builder<T> {
+impl<T: Item> Builder<T> {
     pub fn new() -> Self {
         default()
     }

@@ -4,7 +4,7 @@ use crate::dirty;
 use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
 use crate::display::symbol::attribute::IsAttribute;
-use crate::display::symbol::attribute::Shape;
+use crate::display::symbol::attribute::item::Item;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -13,10 +13,6 @@ use crate::data::opt_vec::OptVec;
 use crate::dirty::traits::*;
 use eval_tt::*;
 use crate::{promote, promote_all, promote_attribute_types};
-
-
-
-
 
 
 
@@ -59,7 +55,7 @@ pub type AttributeName               = String;
 pub type AttributeDirty <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
 pub type ShapeDirty     <OnDirty>    = dirty::SharedBool<OnDirty>;
 
-promote_attribute_types! {[Closure_attribute_on_set, Closure_attribute_on_resize] attr}
+promote_attribute_types! {[AttributeOnSet, AttributeOnResize] attr}
 #[macro_export]
 macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
     crate::promote_attribute_types! { $callbacks $module }
@@ -68,11 +64,15 @@ macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
 
 // === Callbacks ===
 
-closure!(attribute_on_set<Callback: Callback0>
-    (dirty: AttributeDirty<Callback>, ix: usize) || { dirty.set(ix) });
+closure! {
+fn attribute_on_set<C:Callback0> (dirty:AttributeDirty<C>, ix: usize) ->
+    AttributeOnSet { || dirty.set(ix) }
+}
 
-closure!(attribute_on_resize<Callback: Callback0>
-    (dirty: ShapeDirty<Callback>) || { dirty.set() });
+closure! {
+fn attribute_on_resize<C:Callback0> (dirty:ShapeDirty<C>) ->
+    AttributeOnResize { || dirty.set() }
+}
 
 // === Implementation ===
 
@@ -92,7 +92,7 @@ impl<OnDirty: Clone> Scope<OnDirty> {
 }
 
 impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
-    pub fn add_attribute<Name: Str, T: Shape>
+    pub fn add_attribute<Name: Str, T: Item>
     ( &mut self
     , name: Name
     , bldr: attr::Builder<T>
@@ -102,7 +102,7 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
         AttributeIndex::<T, OnDirty>::unsafe_new(ix)
     }
 
-    fn _add_attribute<Name: Str, T: Shape>
+    fn _add_attribute<Name: Str, T: Item>
     (&mut self, name: Name, bldr: attr::Builder<T>) -> AnyAttributeIndex
     where AnyAttribute<OnDirty>: From<Attribute<T, OnDirty>> {
         let name        = name.as_ref().to_string();

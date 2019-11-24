@@ -5,7 +5,7 @@ use crate::dirty::traits::*;
 use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
 use crate::display::symbol::attribute::IsAttribute;
-use crate::display::symbol::attribute::Shape;
+use crate::display::symbol::attribute::item::Item;
 use crate::display::symbol::mesh;
 use crate::system::web::fmt;
 use crate::system::web::group;
@@ -273,7 +273,7 @@ Drop for PoolGuard<Item, T> {
 // pub type MeshID           = usize;
 // pub type Ref       <T>       = Rc<ValueGuard<MeshID, T>>;
 // pub type MeshDirty <OnDirty> = dirty::SharedSet<MeshID, OnDirty>;
-// pub type Mesh      <OnDirty> = mesh::SharedMesh<Closure_mesh_on_change<OnDirty>>;
+// pub type Mesh      <OnDirty> = mesh::SharedMesh<OnMeshChange<OnDirty>>;
 
 // // === Callbacks ===
 
@@ -329,7 +329,7 @@ pub struct MeshRegistry <OnDirty> {
 pub type MeshID              = usize;
 pub type MeshDirty <OnDirty> = dirty::SharedSet<MeshID, OnDirty>;
 
-promote_mesh_types!{ [Closure_mesh_on_change] mesh }
+promote_mesh_types!{ [OnMeshChange] mesh }
 #[macro_export]
 macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
     crate::promote_mesh_types! { $($args)* }
@@ -338,8 +338,11 @@ macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
 
 // === Callbacks ===
 
-closure!(mesh_on_change<Callback: Callback0>
-    (dirty: MeshDirty<Callback>, ix: MeshID) || { dirty.set(ix) });
+closure! {
+fn mesh_on_change<C:Callback0>
+(dirty:MeshDirty<C>, ix:MeshID) -> OnMeshChange {
+    || dirty.set(ix)
+}}
 
 // === Implementation ===
 

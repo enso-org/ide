@@ -64,7 +64,7 @@ pub type WorkspaceShapeDirtyState = WorkspaceShape;
 pub type ShapeDirty        <Callback> = dirty::SharedBool<Callback>;
 pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
 
-promote_mesh_registry_types!{ [Closure_mesh_registry_on_dirty] mesh_registry }
+promote_mesh_registry_types!{ [OnMeshRegistryChange] mesh_registry }
 #[macro_export]
 macro_rules! promote_workspace_types { ($($args:tt)*) => {
     crate::promote_mesh_registry_types! { $($args)* }
@@ -73,8 +73,11 @@ macro_rules! promote_workspace_types { ($($args:tt)*) => {
 
 // === Callbacks ===
 
-closure!(mesh_registry_on_dirty<Callback: Callback0>
-    (dirty: MeshRegistryDirty<Callback>) || { dirty.set() });
+closure! {
+fn mesh_registry_on_change<C:Callback0>
+(dirty:MeshRegistryDirty<C>) -> OnMeshRegistryChange {
+    || dirty.set()
+}}
 
 // === Implementation ===
 
@@ -97,9 +100,9 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let mesh_registry_dirty_logger = logger.sub("mesh_registry_dirty");
         let mesh_registry_dirty = MeshRegistryDirty::new(mesh_registry_dirty_logger, on_dirty);
 
-        let mesh_registry_on_dirty = mesh_registry_on_dirty(mesh_registry_dirty.clone());
+        let mesh_registry_on_change = mesh_registry_on_change(mesh_registry_dirty.clone());
         let mesh_registry_logger = logger.sub("mesh_registry");
-        let mesh_registry        = MeshRegistry::new(mesh_registry_logger, mesh_registry_on_dirty);
+        let mesh_registry        = MeshRegistry::new(mesh_registry_logger, mesh_registry_on_change);
 
         let shape     = default();
         let listeners = Self::new_listeners(&canvas, &shape, &shape_dirty);

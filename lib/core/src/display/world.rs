@@ -164,13 +164,15 @@ impl Drop for EventLoopData {
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedSet<WorkspaceID, ()>;
 
-// FIXME Remove manual macro expansion when IntelliJ bug gets fixed
-promote_workspace_types!{ [[Closure_workspace_on_change]] workspace }
+promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
 
 // === Callbacks ===
 
-closure!(workspace_on_change<>
-    (dirty: WorkspaceDirty, ix: WorkspaceID) || { dirty.set(ix) });
+closure! {
+fn workspace_on_change
+(dirty:WorkspaceDirty, ix:WorkspaceID) -> WorkspaceOnChange {
+    || dirty.set(ix)
+}}
 
 // === Definition === 
 
@@ -181,7 +183,7 @@ pub struct World {
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
     pub event_loop      : EventLoop,
-    pub update_handle  : Option<CallbackHandle>,
+    pub update_handle   : Option<CallbackHandle>,
     pub self_reference  : Option<WorldRef>
 }
 
