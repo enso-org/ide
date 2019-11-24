@@ -13,7 +13,8 @@ no_unboxed_callbacks = []
 
 [dependencies]
 basegl-prelude           = { version = "0.1.0"  , path = "../prelude"       }
-optics                   = { version = "0.1.0"  , path = "../optics"       }
+eval-tt                  = { version = "0.1.0"  , path = "../eval-tt"       }
+optics                   = { version = "0.1.0"  , path = "../optics"        }
 basegl-system-web        = { version = "0.1.0"  , path = "../system/web"    }
 basegl-backend-webgl     = { version = "0.1.0"  , path = "../backend/webgl" }
 shapely                  = { version = "0.1.0"  , path = "../shapely/impl"  }

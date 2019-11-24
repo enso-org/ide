@@ -12,7 +12,8 @@ use crate::dirty;
 use crate::dirty::traits::*;
 
 pub use crate::display::workspace::MeshID;
-
+use crate::{promote, promote_all, promote_workspace_types};
+use eval_tt::*;
 
 // ===========
 // === Add ===
@@ -163,20 +164,12 @@ impl Drop for EventLoopData {
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedSet<WorkspaceID, ()>;
 
-pub type AttributeIndex <T> = workspace::AttributeIndex<T, Closure_workspace_on_change_handler>;
-pub type Mesh           = workspace::Mesh           <Closure_workspace_on_change_handler>;
-pub type Geometry       = workspace::Geometry       <Closure_workspace_on_change_handler>;
-pub type Scopes         = workspace::Scopes         <Closure_workspace_on_change_handler>;
-pub type AttributeScope = workspace::AttributeScope <Closure_workspace_on_change_handler>;
-pub type UniformScope   = workspace::UniformScope   <Closure_workspace_on_change_handler>;
-pub type GlobalScope    = workspace::GlobalScope    <Closure_workspace_on_change_handler>;
-pub type Attribute  <T> = workspace::Attribute   <T, Closure_workspace_on_change_handler>;
-pub type View       <T> = workspace::View        <T, Closure_workspace_on_change_handler>;
-pub type Workspace      = workspace::Workspace      <Closure_workspace_on_change_handler>;
+// FIXME Remove manual macro expansion when IntelliJ bug gets fixed
+promote_workspace_types!{ [[Closure_workspace_on_change]] workspace }
 
 // === Callbacks ===
 
-closure!(workspace_on_change_handler<>
+closure!(workspace_on_change<>
     (dirty: WorkspaceDirty, ix: WorkspaceID) || { dirty.set(ix) });
 
 // === Definition === 
@@ -225,7 +218,7 @@ impl World {
         let dirty  = &self.workspace_dirty;
         self.workspaces.insert_with_ix(|ix| {
             group!(logger, format!("Adding workspace {} ({}).", ix, name), {
-                let on_change = workspace_on_change_handler(dirty.clone(), ix);
+                let on_change = workspace_on_change(dirty.clone(), ix);
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name, wspace_logger, on_change).unwrap() // FIXME
             })
@@ -272,7 +265,7 @@ impl Add<workspace::WorkspaceBuilder> for World {
         let dirty  = &self.workspace_dirty;
         self.workspaces.insert_with_ix(|ix| {
             group!(logger, format!("Adding workspace {} ({}).", ix, name), {
-                let on_change = workspace_on_change_handler(dirty.clone(), ix);
+                let on_change = workspace_on_change(dirty.clone(), ix);
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name, wspace_logger, on_change).unwrap() // FIXME
             })

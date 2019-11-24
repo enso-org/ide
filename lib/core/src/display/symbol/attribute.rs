@@ -27,6 +27,52 @@ use crate::system::web::group;
 
 
 
+#[macro_export]
+macro_rules! promote {
+    
+    // === Final expansion, closure names provided in double braces. ===
+
+    ( [[ $($closure:ident),* ]] $module:ident [$name:ident<$($param:ident),*>]) => {
+        pub type $name<$($param),*> = $module :: $name
+            < $($param),*
+            , $($closure),*
+            >;
+    };
+    ( [[ $($closure:ident),* ]] $module:ident [$name:ident]) => {
+        pub type $name = $module :: $name
+            < $($closure),* >;
+    };
+    
+    // === Intermediate expansion. ===
+    
+    ( [ $($closure:ident),* ] $module:ident [$name:ident<$($param:ident),*>]) => {
+        pub type $name<$($param),*,Callback> = $module :: $name
+            < $($param),*
+            , $($closure<Callback>),*
+            >;
+    };
+    ( [ $($closure:ident),* ] $module:ident [$name:ident]) => {
+        pub type $name<Callback> = $module :: $name
+            < $($closure<Callback>),* >;
+    };
+
+    // === Mapped promotion ===
+
+    ($gens:tt $module:ident [ $($targets:tt)* ]) => {
+        eval_tt::eval!{ promote_all($gens,$module,split_comma([$($targets)*])) }
+    };
+}
+
+#[macro_export]
+macro_rules! promote_all {
+    ([$gens:tt] [$module:ident] [$($target:tt)*]) => {
+        $(promote!{$gens $module $target})*
+    };
+}
+
+
+///////////////////////////////////////
+
 
 macro_rules! type_family { 
     ($name:ident) => {
@@ -438,7 +484,14 @@ Attribute<T, OnSet, OnResize> {
     }
 }
 
+// =================
+// === Promotion ===
+// =================
 
+#[macro_export]
+macro_rules! promote_attribute_types { ($callbacks:tt $module:ident) => {
+    promote! { $callbacks $module [View<T>,Attribute<T>,AnyAttribute] }
+};}
 
 // // =======================
 // // === SharedAttribute ===

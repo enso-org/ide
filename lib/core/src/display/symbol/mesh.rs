@@ -5,7 +5,6 @@ use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
 use crate::display::symbol::scope;
-use crate::display::symbol::scope::Scope;
 use crate::display::symbol::geometry;
 use crate::system::web::Logger;
 use crate::system::web::group;
@@ -13,7 +12,8 @@ use crate::system::web::fmt;
 use std::slice::SliceIndex;
 use crate::closure;
 use paste;
-
+use crate::{promote, promote_all, promote_geometry_types};
+use eval_tt::*;
 
 // ============
 // === Mesh ===
@@ -34,15 +34,14 @@ pub struct Mesh<OnDirty> {
 
 // === Types ===
 
-pub type AttributeIndex <T, Callback> = geometry::AttributeIndex<T, Closure_geometry_on_change<Callback>>;
-pub type GeometryDirty  <Callback> = dirty::SharedBool<Callback>;
-pub type Geometry       <Callback> = geometry::Geometry       <Closure_geometry_on_change<Callback>>;
-pub type Scopes         <Callback> = geometry::Scopes         <Closure_geometry_on_change<Callback>>;
-pub type AttributeScope <Callback> = geometry::AttributeScope <Closure_geometry_on_change<Callback>>;
-pub type UniformScope   <Callback> = geometry::UniformScope   <Closure_geometry_on_change<Callback>>;
-pub type GlobalScope    <Callback> = geometry::GlobalScope    <Closure_geometry_on_change<Callback>>;
-pub type Attribute      <T, Callback> = geometry::Attribute<T, Closure_geometry_on_change<Callback>>;
-pub type View           <T, Callback> = geometry::View<T, Closure_geometry_on_change<Callback>>;
+pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
+
+promote_geometry_types!{ [Closure_geometry_on_change] geometry }
+#[macro_export]
+macro_rules! promote_mesh_types { ($($args:tt)*) => {
+    crate::promote_geometry_types! { $($args)* }
+    promote! { $($args)* [Mesh] }
+};}
 
 // === Callbacks ===
 

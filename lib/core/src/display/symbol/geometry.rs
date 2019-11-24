@@ -5,7 +5,6 @@ use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
 use crate::display::symbol::scope;
-use crate::display::symbol::scope::Scope;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use crate::system::web::fmt;
@@ -13,7 +12,8 @@ use std::slice::SliceIndex;
 use crate::closure;
 use paste;
 use num_enum::IntoPrimitive;
-
+use crate::{promote, promote_all, promote_scope_types};
+use eval_tt::*;
 
 // ================
 // === Geometry ===
@@ -62,14 +62,19 @@ impl From<ScopesDirtyStatus> for usize {
 
 // === Types ===
 
-pub type AttributeIndex <T, Callback> = scope::AttributeIndex<T, Closure_scope_on_change<Callback>>;
 pub type ScopesDirty    <Callback> = dirty::SharedEnum<u8,ScopesDirtyStatus, Callback>;
-pub type AttributeScope <Callback> = Scope<Closure_scope_on_change<Callback>>;
-pub type UniformScope   <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
-pub type GlobalScope    <Callback> = Scope<Closure_scope_on_change<Callback>>; // FIXME
-pub type AnyAttribute   <Callback> = scope::AnyAttribute<Closure_scope_on_change<Callback>>;
-pub type Attribute      <T, Callback> = scope::Attribute<T, Closure_scope_on_change<Callback>>;
-pub type View           <T, Callback> = scope::View<T, Closure_scope_on_change<Callback>>;
+pub type AttributeScope <Callback> = scope::Scope<Closure_scope_on_change<Callback>>;
+pub type UniformScope   <Callback> = scope::Scope<Closure_scope_on_change<Callback>>; // FIXME
+pub type GlobalScope    <Callback> = scope::Scope<Closure_scope_on_change<Callback>>; // FIXME
+
+promote_scope_types!{ [Closure_scope_on_change] scope }
+#[macro_export]
+macro_rules! promote_geometry_types { ($($args:tt)*) => {
+    crate::promote_scope_types! { $($args)* }
+    promote! { $($args)*
+        [Geometry,Scopes,AttributeScope,UniformScope,GlobalScope]
+    }
+};}
 
 // === Callbacks ===
 

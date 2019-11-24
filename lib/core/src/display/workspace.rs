@@ -14,6 +14,8 @@ use crate::data::function::callback::*;
 use crate::display::mesh_registry;
 use crate::dirty::traits::*;
 pub use crate::display::mesh_registry::MeshID;
+use crate::{promote, promote_all, promote_mesh_registry_types};
+use eval_tt::*;
 
 // =============
 // === Error ===
@@ -62,16 +64,12 @@ pub type WorkspaceShapeDirtyState = WorkspaceShape;
 pub type ShapeDirty        <Callback> = dirty::SharedBool<Callback>;
 pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
 
-pub type AttributeIndex <T, Callback> = mesh_registry::AttributeIndex<T, Closure_mesh_registry_on_dirty<Callback>>;
-pub type Mesh           <Callback> = mesh_registry::Mesh           <Closure_mesh_registry_on_dirty<Callback>>;
-pub type Geometry       <Callback> = mesh_registry::Geometry       <Closure_mesh_registry_on_dirty<Callback>>;
-pub type Scopes         <Callback> = mesh_registry::Scopes         <Closure_mesh_registry_on_dirty<Callback>>;
-pub type AttributeScope <Callback> = mesh_registry::AttributeScope <Closure_mesh_registry_on_dirty<Callback>>;
-pub type UniformScope   <Callback> = mesh_registry::UniformScope   <Closure_mesh_registry_on_dirty<Callback>>;
-pub type GlobalScope    <Callback> = mesh_registry::GlobalScope    <Closure_mesh_registry_on_dirty<Callback>>;
-pub type Attribute   <T, Callback> = mesh_registry::Attribute   <T, Closure_mesh_registry_on_dirty<Callback>>;
-pub type View        <T, Callback> = mesh_registry::View        <T, Closure_mesh_registry_on_dirty<Callback>>;
-pub type MeshRegistry   <Callback> = mesh_registry::MeshRegistry   <Closure_mesh_registry_on_dirty<Callback>>;
+promote_mesh_registry_types!{ [Closure_mesh_registry_on_dirty] mesh_registry }
+#[macro_export]
+macro_rules! promote_workspace_types { ($($args:tt)*) => {
+    crate::promote_mesh_registry_types! { $($args)* }
+    promote! { $($args)* [Workspace] }
+};}
 
 // === Callbacks ===
 
