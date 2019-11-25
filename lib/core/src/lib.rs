@@ -26,6 +26,7 @@
 
 pub mod control;
 pub mod data;
+pub mod math;
 pub mod dirty;
 pub mod display;
 pub use basegl_prelude as prelude;

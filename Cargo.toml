@@ -1,11 +1,15 @@
 [workspace]
 
 members = [
+    "lib/backend/webgl",
     "lib/core",
+    "lib/core/msdf-sys",
+    "lib/eval-tt",
+    "lib/optics",
+    "lib/prelude",
     "lib/shapely/impl",
     "lib/shapely/macros",
-    "lib/optics",
-    "lib/eval-tt"
+    "lib/system/web",
 ]
 
 [profile.release]

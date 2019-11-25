@@ -62,7 +62,7 @@ pub type PhantomData9<T1,T2,T3,T4,T5,T6,T7,T8,T9> = PhantomData2<PhantomData8<T1
 
 /// Surprisingly useful function. Consider the following code:
 ///
-/// ```
+/// ```compile_fail
 /// fn init(self) -> Self {
 ///    let mut data = self.borrow_mut();
 ///    ...
@@ -76,7 +76,7 @@ pub type PhantomData9<T1,T2,T3,T4,T5,T6,T7,T8,T9> = PhantomData2<PhantomData8<T1
 /// We can usethis function to narrow-down the lifetimes. The following code
 /// compiles just fine:
 ///
-/// ```
+/// ```compile_fail
 /// fn init(self) -> Self {
 ///    with(self.borrow_mut(), |mut data| {
 ///        ...
@@ -99,7 +99,7 @@ pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 ///    useful when defining iterators for wrappers keeping containers behind
 ///    a shared `Rc<Refcell<...>>` gate. An example:
 ///
-///    ```
+///    ```compile_fail
 ///    use std::rc::Rc;
 ///    use core::cell::RefCell;
 ///    use core::cell::Ref;
@@ -190,4 +190,3 @@ impl<T> RcOps for Rc<T> {
         Rc::clone(self)
     }
 }
-

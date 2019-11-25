@@ -5,7 +5,7 @@ authors = ["Wojciech Danilo <wojciech.danilo@gmail.com>"]
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["rlib", "cdylib"]
 
 [features]
 default = ["no_unboxed_callbacks"]
@@ -37,7 +37,11 @@ num_enum                 = { version = "0.4.2"   }
 version = "0.3.4"
 features = [
   'Document',
+  'Node',
   'Element',
+  'HtmlElement',
+  'HtmlCollection',
+  'CssStyleDeclaration',
   'HtmlCanvasElement',
   'WebGlBuffer',
   'WebGlRenderingContext',
