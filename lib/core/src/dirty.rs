@@ -58,13 +58,13 @@ pub trait HasOnSet<OnSet> {
    fn on_set(&mut self) -> &mut Callback<OnSet>;
 }
 
-impl<OnSet, T> HasOnSet<OnSet> for WithOnSet<OnSet, T> {
+impl<OnSet,T> HasOnSet<OnSet> for WithOnSet<OnSet, T> {
     fn on_set(&mut self) -> &mut Callback<OnSet> {
         &mut self.0
     }
 }
 
-impl<OnSet, T:HasOnSet<OnSet>> HasOnSet<OnSet> for WithLogger<T> {
+impl<OnSet,T:HasOnSet<OnSet>> HasOnSet<OnSet> for WithLogger<T> {
     fn on_set(&mut self) -> &mut Callback<OnSet> {
         self.deref_mut().on_set()
     }
@@ -126,24 +126,26 @@ pub struct DirtyFlag<T,OnSet> (pub WithLogger<WithOnSet<OnSet,T>>);
 
 // === API ===
 
-impl<OnSet,T> DirtyFlag<T,OnSet> {
+impl<OnSet,T>
+DirtyFlag<T,OnSet> {
     pub fn data(&self) -> &T { self }
 }
 
-impl<OnSet,T: Default> DirtyFlag<T,OnSet> {
+impl<OnSet,T:Default>
+DirtyFlag<T,OnSet> {
     pub fn new(logger: Logger, on_set:Callback<OnSet>) -> Self {
         DirtyFlag(WithLogger(logger, WithOnSet(on_set, default())))
     }
 }
 
-impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
-
+impl<T:DirtyFlagData, OnSet:Callback0>
+DirtyFlag<T,OnSet> {
     /// Sets the dirty flag by providing explicit parameters in a tuple. You
     /// should rather not need to use this function explicitly. You can use the
     /// smart setters instead. They are just `set` function which accepts as
     /// many parameters as really needed.
     pub fn set_with(&mut self, args: SetArgs<T>) {
-        let first_set  = !self.check();
+        let first_set = !self.check();
         let is_set_for = self.check_for(&args);
         if !is_set_for {
             self.raw_set(args);
@@ -152,7 +154,10 @@ impl<T:DirtyFlagData, OnSet:Callback0> DirtyFlag<T,OnSet> {
             })
         }
     }
+}
 
+impl<T:DirtyFlagData,OnSet>
+DirtyFlag<T,OnSet> {
     /// Unset the dirty flag. This function resets the state of the flag, so it
     /// is exactly as it was after fresh flag creation.
     pub fn unset(&mut self) {
@@ -236,13 +241,15 @@ pub struct SharedDirtyFlag<T,OnSet> {
 
 // === API ===
 
-impl<T:Copy, OnSet> SharedDirtyFlag<T,OnSet> {
+impl<T:Copy,OnSet>
+SharedDirtyFlag<T,OnSet> {
     pub fn data(&self) -> T {
         *self.rc.borrow().data()
     }
 }
 
-impl<T: Default, OnSet> SharedDirtyFlag<T,OnSet> {
+impl<T:Default,OnSet>
+SharedDirtyFlag<T,OnSet> {
     pub fn new(logger: Logger, on_set: OnSet) -> Self {
         let callback = Callback(on_set);
         let rc       = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
@@ -250,11 +257,15 @@ impl<T: Default, OnSet> SharedDirtyFlag<T,OnSet> {
     }
 }
 
-impl<T:DirtyFlagData, OnSet:Callback0> SharedDirtyFlag<T,OnSet> {
+impl<T:DirtyFlagData, OnSet:Callback0>
+SharedDirtyFlag<T,OnSet> {
     pub fn set_with(&self, args: SetArgs<T>) {
         self.rc.borrow_mut().set_with(args)
     }
+}
 
+impl<T:DirtyFlagData,OnSet>
+SharedDirtyFlag<T,OnSet> {
     pub fn unset(&mut self) {
         self.rc.borrow_mut().unset()
     }
@@ -271,6 +282,14 @@ impl<T:DirtyFlagData, OnSet:Callback0> SharedDirtyFlag<T,OnSet> {
         self.rc.borrow().check_for(args)
     }
 }
+
+impl<T,OnSet>
+From<Rc<RefCell<DirtyFlag<T,OnSet>>>> for SharedDirtyFlag<T,OnSet> {
+    fn from(rc: Rc<RefCell<DirtyFlag<T,OnSet>>>) -> Self {
+        Self {rc}
+    }
+}
+
 
 // === Smart Setters ===
 

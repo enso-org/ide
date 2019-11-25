@@ -17,6 +17,7 @@ pub trait MatrixCtx<T,R,C> = where
 // === Empty ===
 // =============
 
+/// Trait for types which have empty value.
 pub trait Empty {
     fn empty() -> Self;
 }
@@ -36,7 +37,6 @@ impl<T,R,C> Empty for MatrixMN<T,R,C> where T:Default, Self:MatrixCtx<T,R,C> {
 
 /// Class for attribute items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
-
 pub trait Item: Empty {
     type Prim;
     type Dim: DimName;

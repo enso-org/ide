@@ -3,7 +3,6 @@ pub mod item;
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
-//use crate::data::shared::Shared;
 use crate::dirty;
 use crate::dirty::traits::*;
 use crate::system::web::Logger;
@@ -30,68 +29,20 @@ use crate::system::web::group;
 use item::Item;
 
 
-
-
-#[macro_export]
-macro_rules! promote {
-    
-    // === Final expansion, closure names provided in double braces. ===
-
-    ( [[ $($closure:ident),* ]] $module:ident [$name:ident<$($param:ident),*>]) => {
-        pub type $name<$($param),*> = $module :: $name
-            < $($param),*
-            , $($closure),*
-            >;
-    };
-    ( [[ $($closure:ident),* ]] $module:ident [$name:ident]) => {
-        pub type $name = $module :: $name
-            < $($closure),* >;
-    };
-    
-    // === Intermediate expansion. ===
-    
-    ( [ $($closure:ident),* ] $module:ident [$name:ident<$($param:ident),*>]) => {
-        pub type $name<$($param),*,Callback> = $module :: $name
-            < $($param),*
-            , $($closure<Callback>),*
-            >;
-    };
-    ( [ $($closure:ident),* ] $module:ident [$name:ident]) => {
-        pub type $name<Callback> = $module :: $name
-            < $($closure<Callback>),* >;
-    };
-
-    // === Mapped promotion ===
-
-    ($gens:tt $module:ident [ $($targets:tt)* ]) => {
-        eval_tt::eval!{ promote_all($gens,$module,split_comma([$($targets)*])) }
-    };
-}
-
-#[macro_export]
-macro_rules! promote_all {
-    ([$gens:tt] [$module:ident] [$($target:tt)*]) => {
-        $(promote!{$gens $module $target})*
-    };
-}
-
-
-///////////////////////////////////////
-
 // =================
 // === Callbacks ===
 // =================
 
-pub type SetDirty    <Callback> = dirty::SharedRange<usize, Callback>;
+pub type SetDirty    <Callback> = dirty::SharedRange<usize,Callback>;
 pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
 
 closure! {
-fn buffer_on_resize<C:Callback0> (dirty: ResizeDirty<C>) ->
+fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) ->
     BufferOnResize { || dirty.set() }
 }
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty: SetDirty<C>) ->
+fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
     BufferOnSet { |ix: usize| dirty.set(ix) }
 }
 
@@ -118,14 +69,14 @@ pub type SharedBuffer<T,OnSet,OnResize> =
 /// a selected `SharedBuffer` element under the hood.
 pub struct View<T,OnSet,OnResize> {
     index  : usize,
-    buffer : SharedBuffer <T, OnSet, OnResize>
+    buffer : SharedBuffer <T,OnSet,OnResize>
 }
 
 impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
 
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
-    pub fn get(&self) -> IndexGuard<Buffer <T, OnSet, OnResize>> {
+    pub fn get(&self) -> IndexGuard<Buffer<T,OnSet,OnResize>> {
         let _borrow = self.buffer.borrow();
         let target  = _borrow.index(self.index);
         let target  = unsafe { drop_lifetime(target) }; // [1]
@@ -134,7 +85,7 @@ impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
 
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
-    pub fn get_mut(&self) -> IndexGuardMut<Buffer <T, OnSet, OnResize>> {
+    pub fn get_mut(&self) -> IndexGuardMut<Buffer<T,OnSet,OnResize>> {
         let mut _borrow = self.buffer.borrow_mut();
         let target      = _borrow.index_mut(self.index);
         let target      = unsafe { drop_lifetime_mut(target) }; // [1]
@@ -147,7 +98,7 @@ impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
 }
 
 #[derive(Shrinkwrap)]
-pub struct IndexGuard<'t, T> where
+pub struct IndexGuard<'t,T> where
     T:Index<usize> {
     #[shrinkwrap(main_field)]
     pub target : &'t <T as Index<usize>>::Output,
@@ -155,15 +106,12 @@ pub struct IndexGuard<'t, T> where
 }
 
 #[derive(Shrinkwrap)]
-pub struct IndexGuardMut<'t, T> where
+pub struct IndexGuardMut<'t,T> where
     T:Index<usize> {
     #[shrinkwrap(main_field)]
     pub target : &'t mut <T as Index<usize>>::Output,
     _borrow    : RefMut<'t,T>
 }
-
-//////////////////////////////////////////////////////
-
 
 
 // =================
@@ -172,82 +120,75 @@ pub struct IndexGuardMut<'t, T> where
 
 // === Definition ===
 
-#[derive(Shrinkwrap)]
+/// Please refer to the 'Buffer management pipeline' doc to learn more about
+/// attributes, scopes, geometries, meshes, scenes, and other relevant concepts.
+///
+/// Attributes are values stored in geometry. Under the hood they are stored in
+/// vectors and are synchronised with GPU buffers on demand.
+#[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-#[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Attribute<T: Item, OnSet, OnResize> {
+pub struct Attribute<T:Item,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
     pub buffer       : SharedBuffer <T, OnSet, OnResize>,
     pub set_dirty    : SetDirty     <OnSet>,
     pub resize_dirty : ResizeDirty  <OnResize>,
-    pub logger       : Logger,
+    pub logger       : Logger
 }
 
 // === Types ===
 
-pub trait SetDirtyCtx    <Callback> = dirty::RangeCtx<Callback>;
-pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx<Callback>;
-
-
-// === Callbacks ===
-
-
-
+pub trait SetDirtyCtx    <Callback> = dirty::RangeCtx <Callback>;
+pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx  <Callback>;
 
 // === Instances ===
 
-impl<T: Item, OnSet: Callback0, OnResize: Callback0>
-Attribute<T, OnSet, OnResize> {
+impl<T:Item, OnSet:Callback0, OnResize:Callback0>
+Attribute<T,OnSet,OnResize> {
+
+    /// Creates new attribute by providing explicit buffer object.
     pub fn new_from
-    (vec: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
+    (vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
         logger.info(fmt!("Creating new {} attribute.", T::type_debug_name()));
         let set_logger     = logger.sub("set_dirty");
         let resize_logger  = logger.sub("resize_dirty");
         let set_dirty      = SetDirty::new(set_logger,on_set);
-        let resize_dirty   = ResizeDirty::new(resize_logger, on_resize);
-        let buff_on_resize = buffer_on_resize(resize_dirty.clone());
-        let buff_on_set    = buffer_on_set(set_dirty.clone());
-        let buffer         = Buffer::new_from(vec, buff_on_set, buff_on_resize);
+        let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
+        let buff_on_resize = buffer_on_resize(resize_dirty.clone_rc());
+        let buff_on_set    = buffer_on_set(set_dirty.clone_rc());
+        let buffer         = Buffer::new_from(vec,buff_on_set,buff_on_resize);
         let buffer         = Rc::new(RefCell::new(buffer));
-        Self { buffer, set_dirty, resize_dirty, logger }
+        Self {buffer,set_dirty,resize_dirty,logger}
     }
 
-    pub fn new(logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
-        Self::new_from(default(), logger, on_set, on_resize)
+    /// Creates a new empty attribute.
+    pub fn new(logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
+        Self::new_from(default(),logger,on_set,on_resize)
     }
 
-    pub fn build(bldr: Builder<T>, on_set: OnSet, on_resize: OnResize) -> Self {
+    /// Build the attribute based on the provider configuration builder.
+    pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
         let buffer = bldr._buffer.unwrap_or_else(default);
         let logger = bldr._logger.unwrap_or_else(default);
-        Self::new_from(buffer, logger, on_set, on_resize)
+        Self::new_from(buffer,logger,on_set,on_resize)
     }
+}
 
+impl<T:Item,OnSet,OnResize>
+Attribute<T,OnSet,OnResize> {
+    /// Returns a new attribute `Builder` object.
     pub fn builder() -> Builder<T> {
         default()
     }
-}
 
-
-
-
-
-
-
-
-impl<T: Item,OnSet,OnResize>
-Attribute<T, OnSet, OnResize> {
-    pub fn view(&self, index:usize) -> View<T,OnSet,OnResize> {
-        View { index, buffer: self.buffer.clone_rc() }
-    }
-}
-
-
-
-impl<T: Item, OnSet, OnResize>
-Attribute<T, OnSet, OnResize> {
+    /// Returns the number of elements in the attribute buffer.
     pub fn len(&self) -> usize {
         self.buffer.borrow().len()
+    }
+
+    pub fn view(&self, index:usize) -> View<T,OnSet,OnResize> {
+        let buffer = self.buffer.clone_rc();
+        View {index,buffer}
     }
 }
 
@@ -257,7 +198,7 @@ Attribute<T, OnSet, OnResize> {
         group!(self.logger, "Updating.", {
             self.set_dirty.unset();
             self.resize_dirty.unset();
-//            TODO
+            // TODO finish
         })
     }
 }
@@ -284,105 +225,9 @@ macro_rules! promote_attribute_types { ($callbacks:tt $module:ident) => {
     promote! { $callbacks $module [View<T>,Attribute<T>,AnyAttribute] }
 };}
 
-// // =======================
-// // === SharedAttribute ===
-// // =======================
-
-// // === Definition ===
-
-// #[derive(Shrinkwrap)]
-// #[derive(Derivative)]
-// #[derivative(Debug(bound="T:Debug"))]
-// pub struct SharedAttribute<T: Shape, OnSet, OnResize> {
-//     pub data: Shared<Attribute<T, OnSet, OnResize>>
-// }
-
-// impl<T: Shape, OnSet: Callback0, OnResize: Callback0> SharedAttribute<T, OnSet, OnResize> {
-//     pub fn new(logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
-//         Self::new_from(default(), logger, on_set, on_resize)
-//     }
-
-//     pub fn new_from(buffer: Vec<T>, logger: Logger, on_set: OnSet, on_resize: OnResize) -> Self {
-//         let data = Shared::new(Attribute::new_from(buffer, logger, on_set, on_resize));
-//         Self { data }
-//     }
-
-//     pub fn build(builder: Builder<T>, on_set: OnSet, on_resize: OnResize) -> Self {
-//         let data = Shared::new(Attribute::build(builder, on_set, on_resize));
-//         Self { data }
-//     }
-
-//     pub fn builder() -> Builder<T> {
-//         default()
-//     }
-// }
-
-// impl<T: Shape, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
-//     pub fn clone_ref(&self) -> Self {
-//         Self { data: self.data.clone_ref() }
-//     }
-
-//     pub fn len(&self) -> usize {
-//         self.data.borrow().len()
-//     }
-// }
-
-// impl<T: AddElementCtx, OnSet, OnResize> SharedAttribute<T, OnSet, OnResize> {
-//     pub fn add_element(&self) {
-//         self.data.borrow_mut().add_element()
-//     }
-// }
-
-// impl<T: Shape, OnSet, OnResize, I: SliceIndex<[T]>> Index<I> for SharedAttribute<T, OnSet, OnResize> {
-//     type Output = I::Output;
-//     #[inline]
-//     fn index(&self, index: I) -> &Self::Output {
-//         &self.data[index]
-//     }
-// }
-
-// impl<T: Shape, OnDirty> Deref for SharedAttribute<T, OnDirty> {
-//     type Target = Ref<Attribute<T, OnDirty>>;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.data.borrow()
-//     }
-// }
-
-
-
-// struct FooGuard<'t, T, OnDirty> {
-//     guard: Ref<'t, Attribute<T, OnDirty>>,
-// }
-
-// impl<'t, T, OnDirty> Deref for FooGuard<'t, T, OnDirty> {
-//     type Target = Vec<i32>;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.guard
-//     }
-// }
-
-// impl Foo {
-//     pub fn get_items(&self) -> FooGuard {
-//         FooGuard {
-//             guard: self.interior.borrow(),
-//         }
-//     }
-// }
-
-// impl<T: Shape, OnSet, I: SliceIndex<[T]>> Index<I> 
-//         for SharedAttribute<T, OnSet> {
-//     type Output = I::Output;
-//     #[inline]
-//     fn index(&self, index: I) -> &Self::Output {
-//         &self.data.borrow()[index]
-//     }
-// }
-
-// ==========================
-// === AnySharedAttributeibute ===
-// ==========================
+// ====================
+// === AnyAttribute ===
+// ====================
 
 use enum_dispatch::*;
 
