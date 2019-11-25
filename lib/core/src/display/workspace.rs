@@ -1,21 +1,25 @@
 use crate::prelude::*;
 
-use crate::dirty;
+pub use crate::display::mesh_registry::MeshID;
+
 use crate::backend::webgl;
-use crate::system::web;
-use crate::system::web::group;
-use crate::system::web::fmt;
-use crate::system::web::resize_observer::ResizeObserver;
-use crate::system::web::Logger;
-use wasm_bindgen::prelude::Closure;
-use web_sys::WebGlRenderingContext;
 use crate::closure;
 use crate::data::function::callback::*;
-use crate::display::mesh_registry;
+use crate::dirty;
 use crate::dirty::traits::*;
-pub use crate::display::mesh_registry::MeshID;
-use crate::{promote, promote_all, promote_mesh_registry_types};
+use crate::display::mesh_registry;
+use crate::promote_all;
+use crate::promote_mesh_registry_types;
+use crate::promote; 
+use crate::system::web;
+use crate::system::web::fmt;
+use crate::system::web::group;
+use crate::system::web::Logger;
+use crate::system::web::resize_observer::ResizeObserver;
 use eval_tt::*;
+use wasm_bindgen::prelude::Closure;
+use web_sys::WebGlRenderingContext;
+
 
 // =============
 // === Error ===
@@ -26,12 +30,6 @@ pub enum Error {
     #[fail(display = "Web Platform error: {}", error)]
     WebError { error: web::Error },
 }
-
-// =============
-// === Types ===
-// =============
-
-pub type ID = usize;
 
 // =================
 // === Workspace ===
@@ -63,8 +61,8 @@ pub type WorkspaceShapeDirtyState = WorkspaceShape;
 
 pub type ShapeDirty        <Callback> = dirty::SharedBool<Callback>;
 pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
-
 promote_mesh_registry_types!{ [OnMeshRegistryChange] mesh_registry }
+
 #[macro_export]
 macro_rules! promote_workspace_types { ($($args:tt)*) => {
     crate::promote_mesh_registry_types! { $($args)* }
@@ -74,10 +72,9 @@ macro_rules! promote_workspace_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn mesh_registry_on_change<C:Callback0>
-(dirty:MeshRegistryDirty<C>) -> OnMeshRegistryChange {
-    || dirty.set()
-}}
+fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) -> 
+    OnMeshRegistryChange { || dirty.set() }
+}
 
 // === Implementation ===
 
@@ -87,53 +84,55 @@ pub struct Listeners {
 }
 
 impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
-    pub fn new <Dom: Str>
-    (dom: Dom, logger: Logger, on_dirty: OnDirty) -> Result<Self, Error> {
+    /// Create new instance with the provided on-dirty callback.
+    pub fn new<Dom: Str>
+    (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
-        let dom     = dom.as_ref();
-        let canvas  = web::get_canvas(dom)?;
-        let context = web::get_webgl_context(&canvas, 1)?;
-
-        let shape_dirty_logger = logger.sub("shape_dirty");
-        let shape_dirty        = ShapeDirty::new(shape_dirty_logger, on_dirty.clone());
-
-        let mesh_registry_dirty_logger = logger.sub("mesh_registry_dirty");
-        let mesh_registry_dirty = MeshRegistryDirty::new(mesh_registry_dirty_logger, on_dirty);
-
-        let mesh_registry_on_change = mesh_registry_on_change(mesh_registry_dirty.clone());
-        let mesh_registry_logger = logger.sub("mesh_registry");
-        let mesh_registry        = MeshRegistry::new(mesh_registry_logger, mesh_registry_on_change);
-
-        let shape     = default();
-        let listeners = Self::new_listeners(&canvas, &shape, &shape_dirty);
-        Ok(Self { canvas, context, mesh_registry, mesh_registry_dirty, shape, shape_dirty, logger, listeners })
+        let dom           = dom.as_ref();
+        let canvas        = web::get_canvas(dom)?;
+        let context       = web::get_webgl_context(&canvas,1)?;
+        let sub_logger    = logger.sub("shape_dirty");
+        let shape_dirty   = ShapeDirty::new(sub_logger,on_dirty.clone());
+        let sub_logger    = logger.sub("mesh_registry_dirty");
+        let dirty_flag    = MeshRegistryDirty::new(sub_logger, on_dirty);
+        let on_change     = mesh_registry_on_change(dirty_flag.clone_rc());
+        let sub_logger    = logger.sub("mesh_registry");
+        let mesh_registry = MeshRegistry::new(sub_logger, on_change);
+        let shape         = default();
+        let listeners     = Self::init_listeners(&canvas,&shape,&shape_dirty);
+        let mesh_registry_dirty = dirty_flag;
+        let this = Self {canvas,context,mesh_registry,mesh_registry_dirty
+                        ,shape,shape_dirty,logger,listeners};
+        Ok(this)
     }
-
-    pub fn build<Name: Into<String>> (name: Name) -> WorkspaceBuilder {
-        let name = name.into();
-        WorkspaceBuilder { name }
-    }
-
-    pub fn new_listeners(canvas: &web_sys::HtmlCanvasElement, shape: &Rc<RefCell<WorkspaceShape>>, dirty: &ShapeDirty<OnDirty>) -> Listeners {
+    /// Initialize all listeners and attach them to DOM elements.
+    fn init_listeners
+    ( canvas : &web_sys::HtmlCanvasElement
+    , shape  : &Rc<RefCell<WorkspaceShape>>
+    , dirty  : &ShapeDirty<OnDirty>
+    ) -> Listeners {
         let shape = shape.clone();
         let dirty = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
-            *shape.borrow_mut() = WorkspaceShape { width, height };
+            *shape.borrow_mut() = WorkspaceShape {width,height};
             dirty.set();
         });
-        let resize = ResizeObserver::new(canvas, on_resize);
-        Listeners { resize }
+        let resize = ResizeObserver::new(canvas,on_resize);
+        Listeners {resize}
     }
-
+    /// Build new instance with the provided builder object.
+    pub fn build<Name:Into<String>> (name:Name) -> WorkspaceBuilder {
+        let name = name.into();
+        WorkspaceBuilder {name}
+    }
+    /// Create a new mesh instance.
     pub fn new_mesh(&mut self) -> MeshID {
         self.mesh_registry.new_mesh()
     }
-
-    pub fn is_dirty(&self) -> bool {
-        self.shape_dirty.check() || self.mesh_registry_dirty.check()
-    }
-
-    fn resize_canvas(&self, shape: &WorkspaceShape) {
+    /// Resize the underlying canvas. This function should rather not be called
+    /// directly. If you want to change the canvas size, modify the `shape` and
+    /// set the dirty flag.
+    fn resize_canvas(&self, shape:&WorkspaceShape) {
         let width  = shape.width;
         let height = shape.height;
         self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
@@ -143,6 +142,10 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         });
     }
 
+    // TODO TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO 
+    // THIS FUNCTION WILL BE REFACTORED IN THE NEAR FUTURE. IT IS A ROUGH
+    // MOCK NOW. DO NOT REVIEW IT.
+    /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.shape_dirty.check() {
@@ -243,65 +246,3 @@ pub struct WorkspaceBuilder {
     pub name: String 
 }
 
-// // =====================
-// // === WorkspaceData ===
-// // =====================
-
-// // === Definition ===
-
-// #[derive(Debug)]
-// pub struct WorkspaceData<OnDirty> {
-//     pub canvas:  web_sys::HtmlCanvasElement,
-//     pub context: WebGlRenderingContext,
-//     pub shape_dirty : ShapeDirty<OnDirty>,
-//     pub logger:  Logger,
-//     pub dirty:   SharedSimple,
-// }
-
-// #[derive(Default)]
-// pub struct WorkspaceShape {
-//     pub width  : f32,
-//     pub height : f32,
-// }
-
-// pub type WorkspaceShapeDirtyState = WorkspaceShape;
-
-// // === Types ===
-
-// pub type ShapeDirty <Callback> = dirty::SharedCustom<WorkspaceShapeDirtyState, Callback>;
-
-// // === Callbacks ===
-
-// // closure!(shape_on_change<Callback: Callback0>
-// //     (dirty: ShapeDirty<Callback>, action: fn(&mut WorkspaceShapeDirtyState)) 
-// //         || { dirty.set(action) });
-
-// // === Implementation ===
-
-// impl<OnDirty> WorkspaceData<OnDirty> {
-//     pub fn new(
-//         dom: &str,
-//         logger: Logger,
-//         sup_dirty: &SharedSimple,
-//         on_dirty: OnDirty,
-//     ) -> Result<Self, Error>
-//     {
-//         logger.trace("Initializing.");
-//         let canvas = web::get_canvas(dom)?;
-//         let context = web::get_webgl_context(&canvas, 1)?;
-//         let dirty = sup_dirty.new_child(&logger);
-
-//         let shape_dirty_logger = logger.sub("shape_dirty");
-//         let shape_dirty        = ShapeDirty::new(on_dirty, shape_dirty_logger);
-//         Ok(Self { canvas, context, shape_dirty, logger, dirty })
-//     }
-
-//     pub fn resize(&self, width: i32, height: i32) {
-//         self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
-//             self.canvas.set_attribute("width", &width.to_string()).unwrap();
-//             self.canvas.set_attribute("height", &height.to_string()).unwrap();
-//             self.context.viewport(0, 0, width, height);
-//             self.dirty.set();
-//         });
-//     }
-// }

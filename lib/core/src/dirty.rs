@@ -449,8 +449,8 @@ impl<Ix:RangeIx> Display for RangeData<Ix> {
 /// counterpart. Please note that it uses `FxHashSet` under the hood, so there
 /// are no guarantees regarding attack-proof hashing algorithm here.
 
-pub type Set       <Ix,OnSet> = DirtyFlag       <SetData<Ix>,OnSet>;
-pub type SharedSet <Ix,OnSet> = SharedDirtyFlag <SetData<Ix>,OnSet>;
+pub type Set       <Ix,OnSet=()> = DirtyFlag       <SetData<Ix>,OnSet>;
+pub type SharedSet <Ix,OnSet=()> = SharedDirtyFlag <SetData<Ix>,OnSet>;
 pub trait SetCtx      <OnSet> = where OnSet: Callback0;
 pub trait SetItem             = Eq + Hash + Debug;
 

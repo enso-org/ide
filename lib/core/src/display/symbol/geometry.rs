@@ -148,6 +148,3 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
         })
     }
 }
-
-
-
