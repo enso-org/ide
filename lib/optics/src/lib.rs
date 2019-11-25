@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 #![allow(unused_macros)]
+#![allow(clippy::option_map_unit_fn)]
 
 use basegl_prelude::*;
 
@@ -226,7 +227,7 @@ impl<'t,Src,Tgt,Path> BoundOptLens<'t,Src,Tgt,Path> {
 }
 
 impl<'t,Src:Clone,Tgt,Path> BoundOptLens<'t,Src,Tgt,Path> {
-    pub fn write(&self, val: NestedField<Src, Path>) -> ()
+    pub fn write(&self, val: NestedField<Src, Path>)
     where for<'a> Path: OptResolver<Src>,
           OptLens<Src,Tgt,Path>: Copy {
         let mut a = (*self.target).clone();
@@ -524,7 +525,7 @@ pub fn main() {
 
     val.lens_mut().Some().Some().set(10);
     let lens1 = val.lens().Some().Some();
-    let mut val2 = (*lens1.target).clone();
+    let mut val2 = *lens1.target;
     let lm = val2.lens_mut();
     let mut lm2 = BoundOptLensMut {
         target: lm.target,

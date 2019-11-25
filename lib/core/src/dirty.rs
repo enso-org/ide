@@ -416,8 +416,7 @@ impl<Ix:RangeIx> DirtyFlagData for RangeData<Ix> {
     }
 
     fn raw_check_for(&self, (ix,): &Self::SetArgs) -> bool {
-        let out = self.range.as_ref().map(|r| r.contains(ix)) == Some(true);
-        out
+        self.range.as_ref().map(|r| r.contains(ix)) == Some(true)
     }
 
     fn raw_set(&mut self, (ix,): Self::SetArgs) {
@@ -485,7 +484,7 @@ impl<'t,Item:SetItem> IntoIterator for &'t SetData<Item> {
     type Item = &'t Item;
     type IntoIter = <&'t FxHashSet<Item> as IntoIterator>::IntoIter;
     fn into_iter(self) -> Self::IntoIter {
-        (&self.set).into_iter()
+        (&self.set).iter()
     }
 }
 

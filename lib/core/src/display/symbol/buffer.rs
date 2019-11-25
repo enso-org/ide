@@ -103,6 +103,10 @@ Buffer<T,OnSet,OnResize> {
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
+    /// Checks if the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -184,6 +188,10 @@ SharedBuffer<T,OnSet,OnResize> {
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.borrow().len()
+    }
+    /// Checks if the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.borrow().is_empty()
     }
 }
 
@@ -394,5 +402,6 @@ mk_any_buffer!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
     fn add_element(&self);
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool;
     fn update(&self);
 }

@@ -87,6 +87,7 @@ pub type PhantomData9<T1,T2,T3,T4,T5,T6,T7,T8,T9> = PhantomData2<PhantomData8<T1
 pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 
 
+/// # Safety
 /// This is a very unsafe function, use it with caution please. There are few
 /// legitimate use cases listed below. You are not allowed to use this function
 /// for any other use case. If you discover a new possibly legitimate case,
@@ -131,6 +132,8 @@ pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
     std::mem::transmute(t)
 }
 
+/// # Safety
+/// Please see the `drop_lifetime` docs.
 pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
     std::mem::transmute(t)
 }

@@ -4,7 +4,7 @@
 //! writing macros like they were macro-level functions. Example is always worth
 //! more than 1000 words, so let's consider the following code:
 //!
-//! ```
+//! ```compile_fail
 //! eval!{ drop(1,split_comma([a,b,c]),3) }
 //! ```
 //!

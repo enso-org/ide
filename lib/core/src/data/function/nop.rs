@@ -7,9 +7,7 @@ pub trait NOP {
 }
 
 impl NOP for () {
-    fn nop() -> Self {
-        ()
-    }
+    fn nop() -> Self {}
 }
 
 impl<T1> NOP for fn(T1) {

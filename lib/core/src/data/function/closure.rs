@@ -99,7 +99,7 @@ macro_rules! closure {
 
 /// Promotion of closures is a complex topic. Consider the following code:
 ///
-/// ```
+/// ```compile_fail
 /// pub type Buffer<T,OnResize> = Observable<Vec<T>, BufferOnSet<OnSet>>;
 ///
 /// closure! {
@@ -114,7 +114,7 @@ macro_rules! closure {
 ///
 /// In another file we've got:
 ///
-/// ```
+/// ```compile_fail
 /// closure! {
 ///     fn attribute_on_set<C:Callback0> (dirty:AttributeDirty<C>, ix: usize) ->
 ///         AttributeOnSet { || dirty.set(ix) }
@@ -123,7 +123,7 @@ macro_rules! closure {
 ///
 /// And we would like to promote the `Buffer` type:
 ///
-/// ```
+/// ```compile_fail
 /// pub type Buffer<T,C> = file1::Buffer<T,AttributeOnSet<C>>;
 /// ```
 ///

@@ -26,6 +26,7 @@ pub fn derive_iterator
     }
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn derive_iterator_for
 ( decl         : &syn::DeriveInput
 , target_param : &syn::GenericParam
@@ -357,7 +358,7 @@ pub fn overlappable
 //        Ident::new(&format!("MarketCtx_{}", repr(ident)) , Span::call_site());
 //    });
 
-    let mut marker_ctx_impl = decl.clone();
+    let mut marker_ctx_impl = decl;
     let mut trait_ = marker_ctx_impl.trait_.as_mut();
     trait_.iter_mut().for_each(|t| {
         let path = &mut t.1;

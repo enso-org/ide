@@ -38,12 +38,12 @@ where G: Generator<Return = ()> + Unpin {
 // === EmptyGenerator ===
 // ======================
 
+#[derive(Derivative)]
+#[derivative(Default(bound=""))]
 pub struct EmptyGenerator<T>(PhantomData<T>);
 
 impl<T> EmptyGenerator<T> {
-    pub fn new() -> Self {
-        Self(PhantomData)
-    }
+    pub fn new() -> Self { default() }
 }
 
 impl<T> Iterator for EmptyGenerator<T> {
