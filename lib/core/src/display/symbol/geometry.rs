@@ -1,19 +1,17 @@
 use crate::prelude::*;
 
-use crate::data::function::callback::*;
-use crate::data::opt_vec::OptVec;
-use crate::dirty;
-use crate::dirty::traits::*;
-use crate::display::symbol::scope;
-use crate::system::web::Logger;
-use crate::system::web::group;
-use crate::system::web::fmt;
-use std::slice::SliceIndex;
 use crate::closure;
-use paste;
+use crate::data::function::callback::*;
+use crate::dirty;
+use crate::display::symbol::scope;
+use crate::system::web::group;
+use crate::system::web::Logger;
+use crate::promote;
+use crate::promote_all;
+use crate::promote_scope_types;
 use num_enum::IntoPrimitive;
-use crate::{promote, promote_all, promote_scope_types};
 use eval_tt::*;
+
 
 // ================
 // === Geometry ===
@@ -21,6 +19,40 @@ use eval_tt::*;
 
 // === Definition ===
 
+/// Geometry describes the shape of the display element. It consist of several
+/// scopes containing sets of variables.
+/// 
+///   - Point Scope
+///     A point is simply a point in space. Points are often assigned with such 
+///     variables as 'position' or 'color'.
+/// 
+///   - Vertex Scope
+///     A vertex is a reference to a point. Primitives use vertices to reference 
+///     points. For example, the corners of a polygon, the center of a sphere, 
+///     or a control vertex of a spline curve. Primitives can share points, 
+///     while vertices are unique to a primitive.
+/// 
+///   - Primitive Scope
+///     Primitives refer to a unit of geometry, lower-level than an object but
+///     above points. There are several different types of primitives, including
+///     polygon faces or Bezier/NURBS surfaces.
+/// 
+///   - Instance Scope
+///     Instances are virtual copies of the same geometry. They share point,
+///     vertex, and primitive variables.
+/// 
+///   - Object Scope
+///     Object refers to the whole geometry with all of its instances.
+/// 
+///   - Global Scope
+///     Global scope is shared by all objects and it contains some universal
+///     global variables, like the current 'time' counter.
+/// 
+/// Each scope can contain named attributes which can be accessed from within 
+/// materials. If the same name was defined in various scopes, it gets resolved
+/// to the var defined in the most specific scope. For example, if var 'color'
+/// was defined in both 'instance' and 'point' scope, the 'point' definition 
+/// overlapps the other one. 
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
@@ -35,23 +67,19 @@ pub struct Geometry<OnDirty> {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scopes<OnDirty> {
-    pub point     : AttributeScope <OnDirty>,
-    pub vertex    : AttributeScope <OnDirty>,
-    pub primitive : AttributeScope <OnDirty>,
-    pub instance  : AttributeScope <OnDirty>,
-    pub object    : UniformScope   <OnDirty>,
-    pub global    : GlobalScope    <OnDirty>,
+    pub point     : VarScope     <OnDirty>,
+    pub vertex    : VarScope     <OnDirty>,
+    pub primitive : VarScope     <OnDirty>,
+    pub instance  : VarScope     <OnDirty>,
+    pub object    : UniformScope <OnDirty>,
+    pub global    : GlobalScope  <OnDirty>,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Copy,Clone,Debug,IntoPrimitive)]
 #[repr(u8)]
 pub enum ScopesDirtyStatus {
-    point,
-    vertex,
-    primitive,
-    instance,
-    object,
-    global,
+    point, vertex, primitive, instance, object, global
 }
 
 impl From<ScopesDirtyStatus> for usize {
@@ -62,18 +90,16 @@ impl From<ScopesDirtyStatus> for usize {
 
 // === Types ===
 
-pub type ScopesDirty    <Callback> = dirty::SharedEnum<u8,ScopesDirtyStatus, Callback>;
-pub type AttributeScope <Callback> = scope::Scope<ScopeOnChange<Callback>>;
-pub type UniformScope   <Callback> = scope::Scope<ScopeOnChange<Callback>>; // FIXME
-pub type GlobalScope    <Callback> = scope::Scope<ScopeOnChange<Callback>>; // FIXME
-
+pub type ScopesDirty  <F> = dirty::SharedEnum<u8,ScopesDirtyStatus, F>;
+pub type VarScope     <F> = scope::Scope<ScopeOnChange<F>>;
+pub type UniformScope <F> = scope::Scope<ScopeOnChange<F>>; // FIXME mock
+pub type GlobalScope  <F> = scope::Scope<ScopeOnChange<F>>; // FIXME mock
 promote_scope_types!{ [ScopeOnChange] scope }
+
 #[macro_export]
 macro_rules! promote_geometry_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
-    promote! { $($args)*
-        [Geometry,Scopes,AttributeScope,UniformScope,GlobalScope]
-    }
+    promote! {$($args)* [Geometry,Scopes,VarScope,UniformScope,GlobalScope]}
 };}
 
 // === Callbacks ===
@@ -85,54 +111,42 @@ fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) ->
 
 // === Implementation ===
 
+macro_rules! update_scopes { ($self:ident . {$($name:ident),*}) => {$(
+    if $self.scopes_dirty.check_for(&(ScopesDirtyStatus::$name,)) {
+        $self.scopes.$name.update()
+    }
+)*}}
+
 impl<OnDirty: Callback0> Geometry<OnDirty> {
-    pub fn new(logger: Logger, on_dirty: OnDirty) -> Self {
+    /// Creates new geometry with attached dirty callback.
+    pub fn new(logger:Logger, on_dirty:OnDirty) -> Self {
         let scopes_logger = logger.sub("scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,on_dirty);
         let scopes        = group!(logger, "Initializing.", {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = ScopesDirtyStatus::$name;
-                let scs_dirty  = scopes_dirty.clone();
+                let scs_dirty  = scopes_dirty.clone_rc();
                 let callback   = scope_on_change(scs_dirty, status_mod);
                 let $name      = $cls::new(sub_logger, callback);
             )*}}
-
-            new_scope!(AttributeScope { point, vertex, primitive, instance });
-            new_scope!(AttributeScope { object });
-            new_scope!(AttributeScope { global });
-
-            Scopes { point, vertex, primitive, instance, object, global }
+            new_scope!(VarScope {point,vertex,primitive,instance});
+            new_scope!(VarScope {object});
+            new_scope!(VarScope {global});
+            Scopes {point,vertex,primitive,instance,object,global}
         });
-        Self { scopes, scopes_dirty, logger }
+        Self {scopes,scopes_dirty,logger}
     }
-
+    /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.scopes_dirty.check() {
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::point,)) {
-                    self.scopes.point.update()
-                }
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::vertex,)) {
-                    self.scopes.vertex.update()
-                }
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::primitive,)) {
-                    self.scopes.primitive.update()
-                }
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::instance,)) {
-                    self.scopes.instance.update()
-                }
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::object,)) {
-                    self.scopes.object.update()
-                }
-                if self.scopes_dirty.check_for(&(ScopesDirtyStatus::global,)) {
-                    self.scopes.global.update()
-                }
+                update_scopes!(self.{point,vertex,primitive,instance});
+                update_scopes!(self.{object,global});
                 self.scopes_dirty.unset()
             }
         })
     }
-
 }
 
 

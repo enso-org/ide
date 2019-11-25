@@ -12,7 +12,6 @@ use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::tp::debug::TypeDebugName;
 use item::Item;
-use nalgebra;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
@@ -69,7 +68,6 @@ fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
 
 impl<T,OnSet:Callback0, OnResize:Callback0>
 Buffer<T,OnSet,OnResize> {
-
     /// Creates new buffer from provided explicit buffer object.
     pub fn new_from
     (vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
@@ -83,12 +81,10 @@ Buffer<T,OnSet,OnResize> {
         let buffer         = Data::new_from(vec, buff_on_set, buff_on_resize);
         Self {buffer,set_dirty,resize_dirty,logger}
     }
-
     /// Creates a new empty buffer.
     pub fn new(logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
         Self::new_from(default(),logger,on_set,on_resize)
     }
-
     /// Build the buffer from the provider configuration builder.
     pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
         let buffer = bldr._buffer.unwrap_or_else(default);
@@ -103,12 +99,10 @@ Buffer<T,OnSet,OnResize> {
     pub fn builder() -> Builder<T> {
         default()
     }
-
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
-
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -129,7 +123,6 @@ Buffer<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
-
     /// Adds multiple new elements initialized to default values.
     pub fn add_elements(&mut self, elem_count: usize) {
         self.extend(iter::repeat(T::empty()).take(elem_count));
@@ -166,6 +159,11 @@ pub struct SharedBuffer<T,OnSet,OnResize> {
 
 impl<T, OnSet:Callback0, OnResize:Callback0>
 SharedBuffer<T,OnSet,OnResize> {
+    /// Creates a new empty buffer.
+    pub fn new(logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
+        let rc = Rc::new(RefCell::new(Buffer::new(logger,on_set,on_resize)));
+        Self {rc}
+    }
     /// Build the buffer from the provider configuration builder.
     pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
         let rc = Rc::new(RefCell::new(Buffer::build(bldr,on_set,on_resize)));
@@ -179,12 +177,10 @@ SharedBuffer<T,OnSet,OnResize> {
     pub fn update(&self) {
         self.borrow_mut().update()
     }
-
     /// Get the variable by given index.
     pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
         Var::new(index,self.clone_rc())
     }
-
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.borrow().len()
@@ -225,7 +221,6 @@ Var<T,OnSet,OnResize> {
     pub fn new(index:usize, buffer: SharedBuffer<T,OnSet,OnResize>) -> Self {
         Self {index, buffer}
     }
-
     /// Gets immutable reference to the underlying data.
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
@@ -239,7 +234,6 @@ Var<T,OnSet,OnResize> {
 
 impl<T,OnSet:Callback0,OnResize>
 Var<T,OnSet,OnResize> {
-
     /// Gets mutable reference to the underlying data.
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
@@ -249,7 +243,6 @@ Var<T,OnSet,OnResize> {
         let target      = unsafe { drop_lifetime_mut(target) }; // [1]
         IndexGuardMut {target,_borrow}
     }
-
     /// Modifies the underlying data by using the provided function.
     pub fn modify<F: FnOnce(&mut T)>(&self, f:F) {
         f(&mut self.buffer.borrow_mut()[self.index]);
@@ -257,16 +250,14 @@ Var<T,OnSet,OnResize> {
 }
 
 #[derive(Shrinkwrap)]
-pub struct IndexGuard<'t,T> where
-    T:Index<usize> {
+pub struct IndexGuard<'t,T> where T:Index<usize> {
     #[shrinkwrap(main_field)]
     pub target : &'t <T as Index<usize>>::Output,
     _borrow    : Ref<'t,T>
 }
 
 #[derive(Shrinkwrap)]
-pub struct IndexGuardMut<'t,T> where
-    T:Index<usize> {
+pub struct IndexGuardMut<'t,T> where T:Index<usize> {
     #[shrinkwrap(main_field)]
     pub target : &'t mut <T as Index<usize>>::Output,
     _borrow    : RefMut<'t,T>
@@ -286,14 +277,15 @@ pub struct Builder<T> {
 }
 
 impl<T> Builder<T> {
+    /// Creates a new builder object.
     pub fn new() -> Self {
         default()
     }
-
+    /// Sets the underlying buffer data.
     pub fn buffer(self, val: Vec <T>) -> Self {
         Self { _buffer: Some(val), _logger: self._logger }
     }
-
+    /// Sets the logger.
     pub fn logger(self, val: Logger) -> Self {
         Self { _buffer: self._buffer, _logger: Some(val) }
     }

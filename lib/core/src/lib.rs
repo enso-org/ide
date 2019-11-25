@@ -132,15 +132,14 @@ pub fn start() {
 fn init(world: &mut World) {
     let logger = Logger::new("root");
 
-    let wspace_id : WorkspaceID         = world.add(Workspace::build("canvas"));
-    // let wspace_id : WorkspaceID         = world.add_workspace("canvas");
-    let workspace : &mut Workspace      = &mut world[wspace_id];
-    let mesh_id   : MeshID              = workspace.new_mesh();
-    let mesh      : &mut Mesh           = &mut workspace[mesh_id];
-    let geo       : &mut Geometry       = &mut mesh.geometry;
-    let scopes    : &mut Scopes         = &mut geo.scopes;
-    let pt_scope  : &mut AttributeScope = &mut scopes.point;
-    let pos       : Position          = pt_scope.add_attribute("position", Buffer::builder());
+    let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
+    let workspace : &mut Workspace = &mut world[wspace_id];
+    let mesh_id   : MeshID         = workspace.new_mesh();
+    let mesh      : &mut Mesh      = &mut workspace[mesh_id];
+    let geo       : &mut Geometry  = &mut mesh.geometry;
+    let scopes    : &mut Scopes    = &mut geo.scopes;
+    let pt_scope  : &mut VarScope  = &mut scopes.point;
+    let pos       : Position       = pt_scope.add_buffer("position");
 
     let logger = Logger::new("mesh_registry");
 
