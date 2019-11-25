@@ -119,7 +119,6 @@ use std::collections::HashSet;
 use crate::display::mesh_registry::MeshRegistry;
 use console_error_panic_hook;
 
-type PositionID = BufferIndex<Vector2<f32>>;
 type Position   = SharedBuffer<Vector2<f32>>;
 
 #[wasm_bindgen(start)]

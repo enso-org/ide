@@ -33,7 +33,7 @@ use std::iter::Extend;
 #[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Buffer<T:Item,OnSet,OnResize> {
+pub struct Buffer<T,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
     pub buffer       : Data        <T,OnSet,OnResize>,
     pub set_dirty    : SetDirty    <OnSet>,
@@ -67,7 +67,7 @@ fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
 
 // === Instances ===
 
-impl<T:Item, OnSet:Callback0, OnResize:Callback0>
+impl<T,OnSet:Callback0, OnResize:Callback0>
 Buffer<T,OnSet,OnResize> {
 
     /// Creates new buffer from provided explicit buffer object.
@@ -97,14 +97,14 @@ Buffer<T,OnSet,OnResize> {
     }
 }
 
-impl<T:Item,OnSet,OnResize>
+impl<T,OnSet,OnResize>
 Buffer<T,OnSet,OnResize> {
     /// Returns a new buffer `Builder` object.
     pub fn builder() -> Builder<T> {
         default()
     }
 
-    /// Returns the number of elements in the buffer buffer.
+    /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
@@ -136,7 +136,7 @@ Buffer<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
     }
 }
 
-impl<T:Item,OnSet,OnResize>
+impl<T,OnSet,OnResize>
 Index<usize> for Buffer<T,OnSet,OnResize> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
@@ -144,7 +144,7 @@ Index<usize> for Buffer<T,OnSet,OnResize> {
     }
 }
 
-impl<T:Item,OnSet:Callback0,OnResize>
+impl<T,OnSet:Callback0,OnResize>
 IndexMut<usize> for Buffer<T,OnSet,OnResize> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.buffer.index_mut(index)
@@ -160,11 +160,11 @@ IndexMut<usize> for Buffer<T,OnSet,OnResize> {
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
-pub struct SharedBuffer<T:Item,OnSet,OnResize> {
+pub struct SharedBuffer<T,OnSet,OnResize> {
     pub rc: Rc<RefCell<Buffer<T,OnSet,OnResize>>>
 }
 
-impl<T:Item, OnSet:Callback0, OnResize:Callback0>
+impl<T, OnSet:Callback0, OnResize:Callback0>
 SharedBuffer<T,OnSet,OnResize> {
     /// Build the buffer from the provider configuration builder.
     pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
@@ -173,7 +173,7 @@ SharedBuffer<T,OnSet,OnResize> {
     }
 }
 
-impl<T:Item,OnSet,OnResize>
+impl<T,OnSet,OnResize>
 SharedBuffer<T,OnSet,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
@@ -182,15 +182,27 @@ SharedBuffer<T,OnSet,OnResize> {
 
     /// Get the variable by given index.
     pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
-        Var::new(index,self.clone())
+        Var::new(index,self.clone_rc())
+    }
+
+    /// Returns the number of elements in the buffer.
+    pub fn len(&self) -> usize {
+        self.borrow().len()
     }
 }
 
-impl<T:Item,OnSet,OnResize>
+impl<T,OnSet,OnResize>
 SharedBuffer<T,OnSet,OnResize> where (): AddElementCtx<T,OnResize> {
     /// Adds a single new element initialized to default value.
     pub fn add_element(&self){
         self.borrow_mut().add_element()
+    }
+}
+
+impl <T,OnSet,OnResize>
+From<Rc<RefCell<Buffer<T,OnSet,OnResize>>>> for SharedBuffer<T,OnSet,OnResize> {
+    fn from(rc: Rc<RefCell<Buffer<T, OnSet, OnResize>>>) -> Self {
+        Self {rc}
     }
 }
 
@@ -202,12 +214,12 @@ SharedBuffer<T,OnSet,OnResize> where (): AddElementCtx<T,OnResize> {
 /// View for a particular buffer. Allows reading and writing buffer data
 /// via the internal mutability pattern. It is implemented as a view on
 /// a selected `SharedBuffer` element under the hood.
-pub struct Var<T:Item,OnSet,OnResize> {
+pub struct Var<T,OnSet,OnResize> {
     index  : usize,
     buffer : SharedBuffer<T,OnSet,OnResize>
 }
 
-impl<T:Item,OnSet,OnResize>
+impl<T,OnSet,OnResize>
 Var<T,OnSet,OnResize> {
     /// Creates a new variable as an indexed view over provided buffer.
     pub fn new(index:usize, buffer: SharedBuffer<T,OnSet,OnResize>) -> Self {
@@ -225,7 +237,7 @@ Var<T,OnSet,OnResize> {
     }
 }
 
-impl<T:Item,OnSet:Callback0,OnResize>
+impl<T,OnSet:Callback0,OnResize>
 Var<T,OnSet,OnResize> {
 
     /// Gets mutable reference to the underlying data.
@@ -268,12 +280,12 @@ pub struct IndexGuardMut<'t,T> where
 /// Buffer builder.
 #[derive(Derivative)]
 #[derivative(Default(bound=""))]
-pub struct Builder<T: Item> {
+pub struct Builder<T> {
     pub _buffer : Option <Vec<T>>,
     pub _logger : Option <Logger>
 }
 
-impl<T: Item> Builder<T> {
+impl<T> Builder<T> {
     pub fn new() -> Self {
         default()
     }
@@ -389,6 +401,6 @@ mk_any_buffer!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 #[enum_dispatch]
 pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
     fn add_element(&self);
-//    fn len(&self) -> usize;
+    fn len(&self) -> usize;
     fn update(&self);
 }
