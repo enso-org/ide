@@ -19,7 +19,6 @@ use syn;
 pub fn derive_iterator
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let decl   = syn::parse_macro_input!(input as syn::DeriveInput);
-    let data   = &decl.data;
     let params = &decl.generics.params.iter().collect::<Vec<_>>();
     match params.last() {
         Some(last_param) => derive_iterator_for(&decl, &last_param),
@@ -161,14 +160,14 @@ fn fields_list(fields: &syn::Fields) -> Vec<&syn::Field> {
     }
 }
 
-fn field_type(field: &syn::Field) -> String {
+fn _field_type(field: &syn::Field) -> String {
     let tp = &field.ty;
     quote!(#tp).to_string()
 }
 
 #[proc_macro_derive(AstNode)]
 pub fn derive_ast_node
-(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expanded  = quote! {
         #[derive(Debug)] 
     };
@@ -285,7 +284,6 @@ fn gen_from_impls
     let variant_label = &variant.ident;
     let sum_params = &decl.generics.params.iter().cloned().collect::<Vec<_>>();
     let variant_params = &variant.generics.params.iter().cloned().collect::<Vec<_>>();
-    ;
     quote! {
         // impl<T> From<App<T>> for Shape<T> {
         //     fn from(t: App<T>) -> Self { Shape::App(t) }
@@ -352,7 +350,7 @@ pub fn overlappable
 ( attrs : proc_macro::TokenStream
 , input : proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
-    let attrs: TokenStream = attrs.into();
+    let _attrs: TokenStream = attrs.into();
     let decl     = syn::parse_macro_input!(input as syn::ItemImpl);
 //    let mut path = decl.trait_.unwrap().1.clone();
 //    let path     = path.segments.last_mut().iter().map(|ident| {
@@ -383,13 +381,13 @@ pub fn overlappable
 //    };
 
 
-    let output_tmp = quote! {
+    let _output_tmp = quote! {
         #marker_ctx_impl
     };
     let output = quote! {
 
     };
-    println!("------------------");
-    println!("{}", output_tmp);
+//    println!("------------------");
+//    println!("{}", output_tmp);
     output.into()
 }

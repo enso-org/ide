@@ -58,7 +58,6 @@ impl<T> Iterator for EmptyGenerator<T> {
 ////////////////////////////////////////////////////////////////////////////////
 
 use std::ops::Deref;
-use std::ops::DerefMut;
 
 macro_rules! extension_struct {
     ($name:ident { $($field:ident : $field_type:ty),* }) => { paste::item! {
@@ -253,6 +252,7 @@ impl<T: MarkerCtx_HasID> HasID for T {
 
 // === MarkerCtx_HasID ===
 
+#[allow(non_camel_case_types)]
 pub trait MarkerCtx_HasID {}
 
 impl<T> MarkerCtx_HasID for T
@@ -260,6 +260,7 @@ impl<T> MarkerCtx_HasID for T
 
 // === VariantOrAny_HasID ===
 
+#[allow(non_camel_case_types)]
 trait VariantOrAny_HasID {
     fn id(&self) -> &i32;
 }
@@ -272,6 +273,7 @@ impl<T: MarkerCtx_HasID> VariantOrAny_HasID for T {
 
 // === DerefOrAny_HasID ===
 
+#[allow(non_camel_case_types)]
 trait DerefOrAny_HasID {
     fn id(&self) -> &i32;
 }
@@ -345,18 +347,18 @@ impl<T> VariantOrAny_HasID for WithID<T> {
 // === Usage ===
 // =============
 
-struct A(i32);
+struct _A(i32);
 
-type X = WithLabel<WithID<A>>;
+type _X = WithLabel<WithID<_A>>;
 
-fn test<T: HasID + HasLabel> (t: T) {
+fn _test<T: HasID + HasLabel> (t: T) {
     println!("{:?}", t.label());
     println!("{:?}", t.id());
 }
 
-fn main() {
-    let v1 = WithLabel("label1".to_string(), WithID(0, A(1)));
-    test(v1); // THIS IS EXAMPLE USE CASE WHICH DOES NOT COMPILE
+fn _main() {
+    let v1 = WithLabel("label1".to_string(), WithID(0, _A(1)));
+    _test(v1); // THIS IS EXAMPLE USE CASE WHICH DOES NOT COMPILE
 
 //    println!("{}", 7.foo());
 }

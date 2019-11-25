@@ -1,5 +1,8 @@
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
+#![allow(unused_macros)]
 
-use std::marker::PhantomData;
 use basegl_prelude::*;
 
 // ================
@@ -455,6 +458,7 @@ macro_rules! lens_mut {
         $base.lens_mut().$($seg()).*
     }
 }
+
 
 mk_lenses_for!(Option<T>::Some{val: T});
 
