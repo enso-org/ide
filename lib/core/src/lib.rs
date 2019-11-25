@@ -14,9 +14,9 @@
 
 // Lints. To be refactored after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
-#![feature(trace_macros)]
-#![recursion_limit="256"]
-trace_macros!(true);
+//#![feature(trace_macros)]
+//#![recursion_limit="256"]
+//trace_macros!(true);
 
 // TODO: remove unstable features unless one will get stabilized soon
 
@@ -48,7 +48,7 @@ use system::web::fmt;
 
 use bit_field::BitField;
 use crate::display::symbol::scope::Scope;
-use crate::display::symbol::attribute;
+use crate::display::symbol::buffer;
 use crate::display::symbol::geometry;
 use crate::display::symbol::mesh;
 use nalgebra;
@@ -164,13 +164,13 @@ fn init(world: &mut World) {
     let pos       : &Position            = &pt_scope[pos_id];
 
 
-    let pos_view: View<Vector2<f32>> = pos.view(inst_ix);
+    let pos_view: Var<Vector2<f32>> = pos.get(inst_ix);
 
     world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id, &pos_view)).forget();
 
 }
 
-pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID, pos_view: &View<Vector2<f32>>) {
+pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID, pos_view: &Var<Vector2<f32>>) {
     let workspace : &mut Workspace      = &mut world[wspace_id];
     let mesh      : &mut Mesh           = &mut workspace[mesh_id];
     let geo       : &mut Geometry       = &mut mesh.geometry;

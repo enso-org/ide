@@ -35,27 +35,34 @@ impl<T,R,C> Empty for MatrixMN<T,R,C> where T:Default, Self:MatrixCtx<T,R,C> {
 
 // === Definition ===
 
-/// Class for attribute items, like `f32` or `Vector<f32>`. It defines utils
+/// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
 pub trait Item: Empty {
     type Prim;
     type Dim: DimName;
 
+    /// Count of primitives of the item. For example, `Vector3<f32>` contains
+    /// three primitives (`f32` values).
     fn item_count() -> usize {
         <Self::Dim as DimName>::dim()
     }
 
+    /// Conversion from slice of a buffer to the item. Buffers contain primitive
+    /// values only, so two `Vector3<f32>` are represented there as six `f32`
+    /// values. This allows us to view the buffers using desired types.
     fn from_buffer(buffer: &[Self::Prim]) -> &[Self]
         where Self: std::marker::Sized;
 
+    /// Mutable conversion from slice of a buffer to the item. See the docs for
+    /// `from_buffer` to learn more.
     fn from_buffer_mut(buffer: &mut [Self::Prim]) -> &mut [Self]
         where Self: std::marker::Sized;
 }
 
 // === Type Families ===
 
-type Prim <T> = <T as Item>::Prim;
-type Dim  <T> = <T as Item>::Dim;
+pub type Prim <T> = <T as Item>::Prim;
+pub type Dim  <T> = <T as Item>::Dim;
 
 // === Instances ===
 

@@ -2,8 +2,8 @@ use crate::prelude::*;
 
 use crate::dirty;
 use crate::data::function::callback::*;
-use crate::display::symbol::attribute as attr;
-use crate::display::symbol::attribute::item::Item;
+use crate::display::symbol::buffer as attr;
+use crate::display::symbol::buffer::item::Item;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -11,13 +11,13 @@ use crate::closure;
 use crate::data::opt_vec::OptVec;
 use crate::dirty::traits::*;
 use eval_tt::*;
-use crate::{promote, promote_all, promote_attribute_types};
-use crate::display::symbol::attribute::IsBuffer;
+use crate::{promote, promote_all, promote_buffer_types};
+use crate::display::symbol::buffer::IsBuffer;
 
 
 #[derive(Derivative)]
 #[derivative(Copy, Clone, Debug(bound="Ix: Debug"))]
-pub struct TypedIndex<Ix, T> { 
+pub struct TypedIndex<Ix, T> {
     pub ix  : Ix,
     phantom : PhantomData<T>
 }
@@ -54,10 +54,10 @@ pub type BufferName               = String;
 pub type BufferDirty <OnDirty>    = dirty::SharedBitField<u64, OnDirty>;
 pub type ShapeDirty     <OnDirty>    = dirty::SharedBool<OnDirty>;
 
-promote_attribute_types! {[BufferOnSet, BufferOnResize] attr}
+promote_buffer_types! {[BufferOnSet, BufferOnResize] attr}
 #[macro_export]
 macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
-    crate::promote_attribute_types! { $callbacks $module }
+    crate::promote_buffer_types! { $callbacks $module }
     promote! { $callbacks $module [Scope,BufferIndex<T>] }
 };}
 
@@ -109,7 +109,7 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
         let attr_dirty  = self.attribute_dirty.clone();
         let shape_dirty = self.shape_dirty.clone();
         let ix          = self.attributes.reserve_ix();
-        group!(self.logger, "Adding attribute '{}' at index {}.", name, ix, {
+        group!(self.logger, "Adding buffer '{}' at index {}.", name, ix, {
             let on_set    = attribute_on_set(attr_dirty, ix);
             let on_resize = attribute_on_resize(shape_dirty);
             let attr      = Buffer::build(bldr, on_set, on_resize);
@@ -140,8 +140,8 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
 }
 
 
-impl<T, OnDirty> 
-Index<TypedIndex<usize, T>> for Scope<OnDirty> 
+impl<T, OnDirty>
+Index<TypedIndex<usize, T>> for Scope<OnDirty>
 where for<'t> &'t T: TryFrom<&'t AnyBuffer<OnDirty>> {
     type Output = T;
     fn index(&self, t: TypedIndex<usize, T>) -> &Self::Output {
@@ -152,8 +152,8 @@ where for<'t> &'t T: TryFrom<&'t AnyBuffer<OnDirty>> {
     }
 }
 
-impl<T, OnDirty> 
-IndexMut<TypedIndex<usize, T>> for Scope<OnDirty> 
+impl<T, OnDirty>
+IndexMut<TypedIndex<usize, T>> for Scope<OnDirty>
 where for<'t> &'t     T: TryFrom<&'t     AnyBuffer<OnDirty>>,
       for<'t> &'t mut T: TryFrom<&'t mut AnyBuffer<OnDirty>> {
     fn index_mut(&mut self, t: TypedIndex<usize, T>) -> &mut Self::Output {
