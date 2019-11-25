@@ -1,158 +1,21 @@
 use crate::prelude::*;
 
-use crate::data::opt_vec::OptVec;
-use crate::display::workspace;
-use crate::system::web;
-use crate::system::web::fmt;
-use crate::system::web::group;
-use crate::system::web::Logger;
-use wasm_bindgen::prelude::Closure;
+pub use crate::data::container::*;
+pub use crate::display::workspace::MeshID;
+
 use crate::closure;
+use crate::control::callback::CallbackHandle;
+use crate::control::event_loop::EventLoop;
+use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
-
-pub use crate::display::workspace::MeshID;
-use crate::{promote, promote_all, promote_workspace_types};
+use crate::display::workspace;
+use crate::promote_all;
+use crate::promote_workspace_types;
+use crate::promote;
+use crate::system::web::group;
+use crate::system::web::Logger;
 use eval_tt::*;
-
-// ===========
-// === Add ===
-// ===========
-
-pub trait Add<T> {
-    type Result = ();
-    fn add(&mut self, component: T) -> Self::Result;
-}
-
-type AddResult<T,S> = <T as Add<S>>::Result;
-
-// ========================
-// === CallbackRegistry ===
-// ========================
-
-// === Types ===
-
-pub trait Callback = FnMut() + 'static;
-
-// === Handle ===
-
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct CallbackHandle (Rc<()>);
-
-impl CallbackHandle {
-    pub fn new() -> Self {
-        default()
-    }
-
-    pub fn guard(&self) -> Guard {
-        Guard(Rc::downgrade(&self.0))
-    }
-
-    pub fn forget(self) {
-        std::mem::forget(self)
-    }
-}
-
-pub struct Guard (Weak<()>);
-
-impl Guard {
-    pub fn exists(&self) -> bool {
-        self.0.upgrade().is_some()
-    }
-}
-
-// === Definition ===
-
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct CallbackRegistry {
-    #[derivative(Debug="ignore")]
-    pub list: Vec<(Guard, Box<dyn FnMut()>)>
-}
-
-impl CallbackRegistry {
-    pub fn add<F: Callback>(&mut self, callback: F) -> CallbackHandle {
-        let callback = Box::new(callback) as Box<dyn FnMut()>;
-        let handle   = CallbackHandle::new();
-        let guard    = handle.guard();
-        self.list.push((guard, callback));
-        handle
-    }
-
-    pub fn run_all(&mut self) {
-        self.list.retain(|(guard,_)| guard.exists());
-        self.list.iter_mut().for_each(|(_,callback)| callback());
-    }
-}
-
-// =================
-// === EventLoop ===
-// =================
-
-// === Definition === 
-
-#[derive(Shrinkwrap)]
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct EventLoop {
-    pub rc: Rc<RefCell<EventLoopData>>,
-}
-
-impl EventLoop {
-    pub fn new() -> Self {
-        Self::default().init()
-    }
-
-    fn init(self) -> Self {
-        let data = Rc::downgrade(&self.rc);
-        let main = move || { data.upgrade().map(|t| t.borrow_mut().run()); };
-        with(self.borrow_mut(), |mut data| {
-            data.main = Some(Closure::new(main));
-            data.run();
-        });
-        self
-    }
-
-    pub fn add_callback<F: Callback>(&self, callback: F) -> CallbackHandle {
-        self.borrow_mut().callbacks.add(callback)
-    }
-
-    pub fn clone_ref(&self) -> Self {
-        let rc = Rc::clone(&self.rc);
-        Self { rc }
-    }
-}
-
-impl EventLoopData {
-    pub fn run(&mut self) {
-        let callbacks   = &mut self.callbacks;
-        let callback_id = self.main.as_ref().map_or(default(), |main| {
-            callbacks.run_all();
-            web::request_animation_frame(main).unwrap()
-        });
-        self.main_id = callback_id;
-    }
-}
-
-// === EventLoopData ===
-
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct EventLoopData {
-    pub main      : Option<Closure<dyn FnMut()>>,
-    pub main_id   : i32,
-    pub callbacks : CallbackRegistry,
-}
-
-impl Drop for EventLoopData {
-    fn drop(&mut self) {
-        web::cancel_animation_frame(self.main_id).ok();
-    }
-}
-
-
-
 
 
 // =============
