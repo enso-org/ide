@@ -217,7 +217,6 @@ fn repr<T: quote::ToTokens>(t: &T) -> String {
 
 
 use syn::visit::{self, Visit};
-use syn::{File, ItemFn};
 
 struct TypeGather {
     pub types: Vec<String>
