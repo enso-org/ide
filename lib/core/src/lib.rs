@@ -119,8 +119,8 @@ use std::collections::HashSet;
 use crate::display::mesh_registry::MeshRegistry;
 use console_error_panic_hook;
 
-type PositionID = AttributeIndex<Vector2<f32>>;
-type Position   = Attribute<Vector2<f32>>;
+type PositionID = BufferIndex<Vector2<f32>>;
+type Position   = Buffer<Vector2<f32>>;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -141,7 +141,7 @@ fn init(world: &mut World) {
     let geo       : &mut Geometry       = &mut mesh.geometry;
     let scopes    : &mut Scopes         = &mut geo.scopes;
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
-    let pos_id    : PositionID          = pt_scope.add_attribute("position", Attribute::builder());
+    let pos_id    : PositionID          = pt_scope.add_attribute("position", Buffer::builder());
 
     let logger = Logger::new("mesh_registry");
 

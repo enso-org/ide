@@ -52,12 +52,12 @@ fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
 // ==============
 
 /// Vector with attached callbacks listening for changes.
-pub type Buffer<T,OnSet,OnResize> =
+pub type RawBuffer<T,OnSet,OnResize> =
     Observable<Vec<T>, BufferOnSet<OnSet>, BufferOnResize<OnResize>>;
 
 /// The `Buffer` behind a shared reference with internal mutability.
-pub type SharedBuffer<T,OnSet,OnResize> =
-    Rc<RefCell<Buffer<T,OnSet,OnResize>>>;
+pub type SharedRawBuffer<T,OnSet,OnResize> =
+    Rc<RefCell<RawBuffer<T,OnSet,OnResize>>>;
 
 
 // ============
@@ -69,14 +69,14 @@ pub type SharedBuffer<T,OnSet,OnResize> =
 /// a selected `SharedBuffer` element under the hood.
 pub struct View<T,OnSet,OnResize> {
     index  : usize,
-    buffer : SharedBuffer <T,OnSet,OnResize>
+    buffer : SharedRawBuffer<T,OnSet,OnResize>
 }
 
 impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
 
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
-    pub fn get(&self) -> IndexGuard<Buffer<T,OnSet,OnResize>> {
+    pub fn get(&self) -> IndexGuard<RawBuffer<T,OnSet,OnResize>> {
         let _borrow = self.buffer.borrow();
         let target  = _borrow.index(self.index);
         let target  = unsafe { drop_lifetime(target) }; // [1]
@@ -85,7 +85,7 @@ impl<T,OnSet:'static,OnResize> View<T,OnSet,OnResize> {
 
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
-    pub fn get_mut(&self) -> IndexGuardMut<Buffer<T,OnSet,OnResize>> {
+    pub fn get_mut(&self) -> IndexGuardMut<RawBuffer<T,OnSet,OnResize>> {
         let mut _borrow = self.buffer.borrow_mut();
         let target      = _borrow.index_mut(self.index);
         let target      = unsafe { drop_lifetime_mut(target) }; // [1]
@@ -115,7 +115,7 @@ pub struct IndexGuardMut<'t,T> where
 
 
 // =================
-// === Attribute ===
+// === Buffer ===
 // =================
 
 // === Definition ===
@@ -123,14 +123,14 @@ pub struct IndexGuardMut<'t,T> where
 /// Please refer to the 'Buffer management pipeline' doc to learn more about
 /// attributes, scopes, geometries, meshes, scenes, and other relevant concepts.
 ///
-/// Attributes are values stored in geometry. Under the hood they are stored in
+/// Buffers are values stored in geometry. Under the hood they are stored in
 /// vectors and are synchronised with GPU buffers on demand.
 #[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Attribute<T:Item,OnSet,OnResize> {
+pub struct Buffer<T:Item,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
-    pub buffer       : SharedBuffer <T, OnSet, OnResize>,
+    pub buffer       : SharedRawBuffer<T, OnSet, OnResize>,
     pub set_dirty    : SetDirty     <OnSet>,
     pub resize_dirty : ResizeDirty  <OnResize>,
     pub logger       : Logger
@@ -144,7 +144,7 @@ pub trait ResizeDirtyCtx <Callback> = dirty::BoolCtx  <Callback>;
 // === Instances ===
 
 impl<T:Item, OnSet:Callback0, OnResize:Callback0>
-Attribute<T,OnSet,OnResize> {
+Buffer<T,OnSet,OnResize> {
 
     /// Creates new attribute by providing explicit buffer object.
     pub fn new_from
@@ -156,7 +156,7 @@ Attribute<T,OnSet,OnResize> {
         let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
         let buff_on_resize = buffer_on_resize(resize_dirty.clone_rc());
         let buff_on_set    = buffer_on_set(set_dirty.clone_rc());
-        let buffer         = Buffer::new_from(vec,buff_on_set,buff_on_resize);
+        let buffer         = RawBuffer::new_from(vec, buff_on_set, buff_on_resize);
         let buffer         = Rc::new(RefCell::new(buffer));
         Self {buffer,set_dirty,resize_dirty,logger}
     }
@@ -175,7 +175,7 @@ Attribute<T,OnSet,OnResize> {
 }
 
 impl<T:Item,OnSet,OnResize>
-Attribute<T,OnSet,OnResize> {
+Buffer<T,OnSet,OnResize> {
     /// Returns a new attribute `Builder` object.
     pub fn builder() -> Builder<T> {
         default()
@@ -193,7 +193,7 @@ Attribute<T,OnSet,OnResize> {
 }
 
 impl<T: Item, OnSet: Callback0, OnResize: Callback0>
-Attribute<T, OnSet, OnResize> {
+Buffer<T, OnSet, OnResize> {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             self.set_dirty.unset();
@@ -206,7 +206,7 @@ Attribute<T, OnSet, OnResize> {
 
 pub trait AddElementCtx = Item + Clone;
 impl<T: AddElementCtx, OnSet, OnResize: Callback0> 
-Attribute<T, OnSet, OnResize> {
+Buffer<T, OnSet, OnResize> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
@@ -222,11 +222,11 @@ Attribute<T, OnSet, OnResize> {
 
 #[macro_export]
 macro_rules! promote_attribute_types { ($callbacks:tt $module:ident) => {
-    promote! { $callbacks $module [View<T>,Attribute<T>,AnyAttribute] }
+    promote! { $callbacks $module [View<T>,Buffer<T>,AnyBuffer] }
 };}
 
 // ====================
-// === AnyAttribute ===
+// === AnyBuffer ===
 // ====================
 
 use enum_dispatch::*;
@@ -258,38 +258,38 @@ macro_rules! cartesian {
 
 macro_rules! mk_any_shape_impl {
     ([$(($base:ident, $param:ident)),*,]) => { paste::item! {
-        #[enum_dispatch(IsAttribute)]
+        #[enum_dispatch(IsBuffer)]
         #[derive(Derivative)]
         #[derivative(Debug(bound=""))]
-        pub enum AnyAttribute<OnSet, OnResize> {
+        pub enum AnyBuffer<OnSet, OnResize> {
             $(  [<Variant $base For $param>]
-                    (Attribute<$base<$param>, OnSet, OnResize>),
+                    (Buffer<$base<$param>, OnSet, OnResize>),
             )*
         } 
 
         $( /////////////////////////////////////////////////////////////////////
 
         impl<'t, T, S> 
-        TryFrom<&'t AnyAttribute<T, S>> 
-        for &'t Attribute<$base<$param>, T, S> {
+        TryFrom<&'t AnyBuffer<T, S>>
+        for &'t Buffer<$base<$param>, T, S> {
             type Error = BadVariant;
-            fn try_from(v: &'t AnyAttribute<T, S>) 
-            -> Result <&'t Attribute<$base<$param>, T, S>, Self::Error> { 
+            fn try_from(v: &'t AnyBuffer<T, S>)
+            -> Result <&'t Buffer<$base<$param>, T, S>, Self::Error> {
                 match v {
-                    AnyAttribute::[<Variant $base For $param>](a) => Ok(a),
+                    AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                     _ => Err(BadVariant)
                 }
             }
         }
         
         impl<'t, T, S> 
-        TryFrom<&'t mut AnyAttribute<T, S>> 
-        for &'t mut Attribute<$base<$param>, T, S> {
+        TryFrom<&'t mut AnyBuffer<T, S>>
+        for &'t mut Buffer<$base<$param>, T, S> {
             type Error = BadVariant;
-            fn try_from(v: &'t mut AnyAttribute<T, S>) 
-            -> Result <&'t mut Attribute<$base<$param>, T, S>, Self::Error> { 
+            fn try_from(v: &'t mut AnyBuffer<T, S>)
+            -> Result <&'t mut Buffer<$base<$param>, T, S>, Self::Error> {
                 match v {
-                    AnyAttribute::[<Variant $base For $param>](a) => Ok(a),
+                    AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                     _ => Err(BadVariant)
                 }
             }
@@ -310,7 +310,7 @@ mk_any_shape!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 
 
 #[enum_dispatch]
-pub trait IsAttribute<OnSet: Callback0, OnResize: Callback0> {
+pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
     fn add_element(&mut self);
     fn len(&self) -> usize;
     fn update(&mut self);
@@ -325,15 +325,15 @@ pub trait IsAttribute<OnSet: Callback0, OnResize: Callback0> {
 
 // // mk_any_shape!([(Vector2,f32),(Vector3,f32),]);
 
-// pub trait IsAttribute<OnDirty> {
+// pub trait IsBuffer<OnDirty> {
 //     fn add_element(&self);
 //     fn len(&self) -> usize;
 // }
 
-// pub struct AnyAttribute<OnDirty> (pub Box<dyn IsAttribute<OnDirty>>);
+// pub struct AnyBuffer<OnDirty> (pub Box<dyn IsBuffer<OnDirty>>);
 
-// pub trait IsAttributeCtx = AddElementCtx;
-// impl<T: IsAttributeCtx, OnDirty> IsAttribute<OnDirty> for SharedAttribute<T, OnDirty> {
+// pub trait IsBufferCtx = AddElementCtx;
+// impl<T: IsBufferCtx, OnDirty> IsBuffer<OnDirty> for SharedBuffer<T, OnDirty> {
 //     fn add_element(&self) {
 //         self.add_element()
 //     }
@@ -342,13 +342,13 @@ pub trait IsAttribute<OnSet: Callback0, OnResize: Callback0> {
 //     }
 // }
 
-// impl<T> std::fmt::Debug for AnyAttribute<T> {
+// impl<T> std::fmt::Debug for AnyBuffer<T> {
 //     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-//         write!(fmt, "AnyAttribute")
+//         write!(fmt, "AnyBuffer")
 //     }
 // }
 
-// impl<OnDirty> AnyAttribute<OnDirty> {
+// impl<OnDirty> AnyBuffer<OnDirty> {
 //     pub fn add_element(&self) {
 //         self.0.add_element()
 //     }

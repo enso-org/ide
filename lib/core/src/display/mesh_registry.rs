@@ -4,7 +4,6 @@ use crate::dirty;
 use crate::dirty::traits::*;
 use crate::data::function::callback::*;
 use crate::display::symbol::attribute as attr;
-use crate::display::symbol::attribute::IsAttribute;
 use crate::display::symbol::attribute::item::Item;
 use crate::display::symbol::mesh;
 use crate::system::web::fmt;
