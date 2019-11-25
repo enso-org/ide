@@ -1,6 +1,5 @@
 pub mod item;
 pub mod data;
-pub mod var;
 
 use crate::prelude::*;
 
@@ -36,7 +35,7 @@ use std::iter::Extend;
 #[derivative(Debug(bound="T:Debug"))]
 pub struct Buffer<T:Item,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
-    pub buffer       : SharedData  <T,OnSet,OnResize>,
+    pub buffer       : Data        <T,OnSet,OnResize>,
     pub set_dirty    : SetDirty    <OnSet>,
     pub resize_dirty : ResizeDirty <OnResize>,
     pub logger       : Logger
@@ -44,13 +43,11 @@ pub struct Buffer<T:Item,OnSet,OnResize> {
 
 // === Types ===
 
-pub type Var        <T,S,R> = var ::Var        <T,DataOnSet<S>,DataOnResize<R>>;
-pub type Data       <T,S,R> = data::Data       <T,DataOnSet<S>,DataOnResize<R>>;
-pub type SharedData <T,S,R> = data::SharedData <T,DataOnSet<S>,DataOnResize<R>>;
+pub type Data <T,S,R> = data::Data <T,DataOnSet<S>,DataOnResize<R>>;
 
 #[macro_export]
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
-    promote! { $callbacks $module [Var<T>,Buffer<T>,AnyBuffer] }
+    promote! { $callbacks $module [Var<T>,Buffer<T>,SharedBuffer<T>,AnyBuffer] }
 };}
 
 // === Callbacks ===
@@ -73,7 +70,7 @@ fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
 impl<T:Item, OnSet:Callback0, OnResize:Callback0>
 Buffer<T,OnSet,OnResize> {
 
-    /// Creates new buffer by providing explicit buffer object.
+    /// Creates new buffer from provided explicit buffer object.
     pub fn new_from
     (vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_debug_name()));
@@ -84,7 +81,6 @@ Buffer<T,OnSet,OnResize> {
         let buff_on_resize = buffer_on_resize(resize_dirty.clone_rc());
         let buff_on_set    = buffer_on_set(set_dirty.clone_rc());
         let buffer         = Data::new_from(vec, buff_on_set, buff_on_resize);
-        let buffer         = Rc::new(RefCell::new(buffer));
         Self {buffer,set_dirty,resize_dirty,logger}
     }
 
@@ -93,7 +89,7 @@ Buffer<T,OnSet,OnResize> {
         Self::new_from(default(),logger,on_set,on_resize)
     }
 
-    /// Build the buffer based on the provider configuration builder.
+    /// Build the buffer from the provider configuration builder.
     pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
         let buffer = bldr._buffer.unwrap_or_else(default);
         let logger = bldr._logger.unwrap_or_else(default);
@@ -110,12 +106,7 @@ Buffer<T,OnSet,OnResize> {
 
     /// Returns the number of elements in the buffer buffer.
     pub fn len(&self) -> usize {
-        self.buffer.borrow().len()
-    }
-
-    /// Get the variable by given index.
-    pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
-        Var::new(index,self.buffer.clone_rc())
+        self.buffer.len()
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -141,9 +132,134 @@ Buffer<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
 
     /// Adds multiple new elements initialized to default values.
     pub fn add_elements(&mut self, elem_count: usize) {
-        self.borrow_mut().extend(iter::repeat(T::empty()).take(elem_count));
+        self.extend(iter::repeat(T::empty()).take(elem_count));
     }
 }
+
+impl<T:Item,OnSet,OnResize>
+Index<usize> for Buffer<T,OnSet,OnResize> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.buffer.index(index)
+    }
+}
+
+impl<T:Item,OnSet:Callback0,OnResize>
+IndexMut<usize> for Buffer<T,OnSet,OnResize> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.buffer.index_mut(index)
+    }
+}
+
+
+// ====================
+// === SharedBuffer ===
+// ====================
+
+/// Shared view for `Buffer`.
+#[derive(Derivative,Shrinkwrap)]
+#[derivative(Debug(bound="T:Debug"))]
+#[derivative(Clone(bound=""))]
+pub struct SharedBuffer<T:Item,OnSet,OnResize> {
+    pub rc: Rc<RefCell<Buffer<T,OnSet,OnResize>>>
+}
+
+impl<T:Item, OnSet:Callback0, OnResize:Callback0>
+SharedBuffer<T,OnSet,OnResize> {
+    /// Build the buffer from the provider configuration builder.
+    pub fn build(bldr:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
+        let rc = Rc::new(RefCell::new(Buffer::build(bldr,on_set,on_resize)));
+        Self {rc}
+    }
+}
+
+impl<T:Item,OnSet,OnResize>
+SharedBuffer<T,OnSet,OnResize> {
+    /// Check dirty flags and update the state accordingly.
+    pub fn update(&self) {
+        self.borrow_mut().update()
+    }
+
+    /// Get the variable by given index.
+    pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
+        Var::new(index,self.clone())
+    }
+}
+
+impl<T:Item,OnSet,OnResize>
+SharedBuffer<T,OnSet,OnResize> where (): AddElementCtx<T,OnResize> {
+    /// Adds a single new element initialized to default value.
+    pub fn add_element(&self){
+        self.borrow_mut().add_element()
+    }
+}
+
+
+// ===========
+// === Var ===
+// ===========
+
+/// View for a particular buffer. Allows reading and writing buffer data
+/// via the internal mutability pattern. It is implemented as a view on
+/// a selected `SharedBuffer` element under the hood.
+pub struct Var<T:Item,OnSet,OnResize> {
+    index  : usize,
+    buffer : SharedBuffer<T,OnSet,OnResize>
+}
+
+impl<T:Item,OnSet,OnResize>
+Var<T,OnSet,OnResize> {
+    /// Creates a new variable as an indexed view over provided buffer.
+    pub fn new(index:usize, buffer: SharedBuffer<T,OnSet,OnResize>) -> Self {
+        Self {index, buffer}
+    }
+
+    /// Gets immutable reference to the underlying data.
+    // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
+    // to use it here.
+    pub fn get(&self) -> IndexGuard<Buffer<T,OnSet,OnResize>> {
+        let _borrow = self.buffer.borrow();
+        let target  = _borrow.index(self.index);
+        let target  = unsafe { drop_lifetime(target) }; // [1]
+        IndexGuard {target,_borrow}
+    }
+}
+
+impl<T:Item,OnSet:Callback0,OnResize>
+Var<T,OnSet,OnResize> {
+
+    /// Gets mutable reference to the underlying data.
+    // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
+    // to use it here.
+    pub fn get_mut(&self) -> IndexGuardMut<Buffer<T,OnSet,OnResize>> {
+        let mut _borrow = self.buffer.borrow_mut();
+        let target      = _borrow.index_mut(self.index);
+        let target      = unsafe { drop_lifetime_mut(target) }; // [1]
+        IndexGuardMut {target,_borrow}
+    }
+
+    /// Modifies the underlying data by using the provided function.
+    pub fn modify<F: FnOnce(&mut T)>(&self, f:F) {
+        f(&mut self.buffer.borrow_mut()[self.index]);
+    }
+}
+
+#[derive(Shrinkwrap)]
+pub struct IndexGuard<'t,T> where
+    T:Index<usize> {
+    #[shrinkwrap(main_field)]
+    pub target : &'t <T as Index<usize>>::Output,
+    _borrow    : Ref<'t,T>
+}
+
+#[derive(Shrinkwrap)]
+pub struct IndexGuardMut<'t,T> where
+    T:Index<usize> {
+    #[shrinkwrap(main_field)]
+    pub target : &'t mut <T as Index<usize>>::Output,
+    _borrow    : RefMut<'t,T>
+}
+
 
 // ===============
 // === Builder ===
@@ -222,7 +338,7 @@ macro_rules! mk_any_buffer_impl {
     #[derivative(Debug(bound=""))]
     pub enum AnyBuffer<OnSet, OnResize> {
         $(  [<Variant $base For $param>]
-                (Buffer<$base<$param>, OnSet, OnResize>),
+                (SharedBuffer<$base<$param>, OnSet, OnResize>),
         )*
     }
 
@@ -230,10 +346,10 @@ macro_rules! mk_any_buffer_impl {
 
     impl<'t, T, S>
     TryFrom<&'t AnyBuffer<T, S>>
-    for &'t Buffer<$base<$param>, T, S> {
+    for &'t SharedBuffer<$base<$param>, T, S> {
         type Error = BadVariant;
         fn try_from(v: &'t AnyBuffer<T, S>)
-        -> Result <&'t Buffer<$base<$param>, T, S>, Self::Error> {
+        -> Result <&'t SharedBuffer<$base<$param>, T, S>, Self::Error> {
             match v {
                 AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                 _ => Err(BadVariant)
@@ -243,10 +359,10 @@ macro_rules! mk_any_buffer_impl {
 
     impl<'t, T, S>
     TryFrom<&'t mut AnyBuffer<T, S>>
-    for &'t mut Buffer<$base<$param>, T, S> {
+    for &'t mut SharedBuffer<$base<$param>, T, S> {
         type Error = BadVariant;
         fn try_from(v: &'t mut AnyBuffer<T, S>)
-        -> Result <&'t mut Buffer<$base<$param>, T, S>, Self::Error> {
+        -> Result <&'t mut SharedBuffer<$base<$param>, T, S>, Self::Error> {
             match v {
                 AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                 _ => Err(BadVariant)
@@ -272,7 +388,7 @@ mk_any_buffer!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]
 pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
-    fn add_element(&mut self);
-    fn len(&self) -> usize;
-    fn update(&mut self);
+    fn add_element(&self);
+//    fn len(&self) -> usize;
+    fn update(&self);
 }

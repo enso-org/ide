@@ -91,19 +91,19 @@ impl<OnDirty: Clone> Scope<OnDirty> {
 }
 
 impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
-    pub fn add_attribute<Name: Str, T: Item>
-    ( &mut self
-    , name: Name
-    , bldr: attr::Builder<T>
-    ) -> BufferIndex<T, OnDirty>
-    where AnyBuffer<OnDirty>: From<Buffer<T, OnDirty>> {
-        let ix = self._add_attribute(name, bldr);
-        BufferIndex::<T, OnDirty>::unsafe_new(ix)
-    }
+//    pub fn add_attribute<Name: Str, T: Item>
+//    ( &mut self
+//    , name: Name
+//    , bldr: attr::Builder<T>
+//    ) -> BufferIndex<T, OnDirty>
+//    where AnyBuffer<OnDirty>: From<Buffer<T, OnDirty>> {
+//        let ix = self._add_attribute(name, bldr);
+//        BufferIndex::<T, OnDirty>::unsafe_new(ix)
+//    }
 
-    fn _add_attribute<Name: Str, T: Item>
-    (&mut self, name: Name, bldr: attr::Builder<T>) -> AnyBufferIndex
-    where AnyBuffer<OnDirty>: From<Buffer<T, OnDirty>> {
+    pub fn add_attribute<Name: Str, T: Item>
+    (&mut self, name: Name, bldr: attr::Builder<T>) -> SharedBuffer<T,OnDirty>
+    where AnyBuffer<OnDirty>: From<SharedBuffer<T,OnDirty>> {
         let name        = name.as_ref().to_string();
         let bldr        = bldr.logger(self.logger.sub(&name));
         let attr_dirty  = self.attribute_dirty.clone();
@@ -112,11 +112,12 @@ impl<OnDirty: Callback0 + 'static> Scope<OnDirty> {
         group!(self.logger, "Adding buffer '{}' at index {}.", name, ix, {
             let on_set    = attribute_on_set(attr_dirty, ix);
             let on_resize = attribute_on_resize(shape_dirty);
-            let attr      = Buffer::build(bldr, on_set, on_resize);
+            let attr      = SharedBuffer::build(bldr, on_set, on_resize);
+            let attr2     = attr.clone();
             self.attributes.set(ix, AnyBuffer::from(attr));
             self.name_map.insert(name, ix);
             self.shape_dirty.set();
-            ix
+            attr2
         })
     }
 

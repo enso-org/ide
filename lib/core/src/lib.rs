@@ -120,7 +120,7 @@ use crate::display::mesh_registry::MeshRegistry;
 use console_error_panic_hook;
 
 type PositionID = BufferIndex<Vector2<f32>>;
-type Position   = Buffer<Vector2<f32>>;
+type Position   = SharedBuffer<Vector2<f32>>;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -141,7 +141,7 @@ fn init(world: &mut World) {
     let geo       : &mut Geometry       = &mut mesh.geometry;
     let scopes    : &mut Scopes         = &mut geo.scopes;
     let pt_scope  : &mut AttributeScope = &mut scopes.point;
-    let pos_id    : PositionID          = pt_scope.add_attribute("position", Buffer::builder());
+    let pos       : Position          = pt_scope.add_attribute("position", Buffer::builder());
 
     let logger = Logger::new("mesh_registry");
 
@@ -161,22 +161,22 @@ fn init(world: &mut World) {
     let inst_ix = pt_scope.add_instance();
     println!("---- ix: {} ", inst_ix);
 
-    let pos       : &Position            = &pt_scope[pos_id];
+//    let pos       : &Position            = &pt_scope[pos_id];
 
 
     let pos_view: Var<Vector2<f32>> = pos.get(inst_ix);
-
-    world.on_frame(move |w| on_frame(w, wspace_id, mesh_id, pos_id, &pos_view)).forget();
+//
+    world.on_frame(move |w| on_frame(&pos_view)).forget();
 
 }
 
-pub fn on_frame(world: &mut World, wspace_id: WorkspaceID, mesh_id: MeshID, pos_id: PositionID, pos_view: &Var<Vector2<f32>>) {
-    let workspace : &mut Workspace      = &mut world[wspace_id];
-    let mesh      : &mut Mesh           = &mut workspace[mesh_id];
-    let geo       : &mut Geometry       = &mut mesh.geometry;
-    let scopes    : &mut Scopes         = &mut geo.scopes;
-    let pt_scope  : &mut AttributeScope = &mut scopes.point;
-    let pos       : &mut Position       = &mut pt_scope[pos_id];
+pub fn on_frame(pos_view: &Var<Vector2<f32>>) {
+//    let workspace : &mut Workspace      = &mut world[wspace_id];
+//    let mesh      : &mut Mesh           = &mut workspace[mesh_id];
+//    let geo       : &mut Geometry       = &mut mesh.geometry;
+//    let scopes    : &mut Scopes         = &mut geo.scopes;
+//    let pt_scope  : &mut AttributeScope = &mut scopes.point;
+//    let pos       : &mut Position       = &mut pt_scope[pos_id];
 
     pos_view.modify(|p| p.x += 1.0)
 
