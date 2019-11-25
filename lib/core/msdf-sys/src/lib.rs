@@ -18,7 +18,11 @@ pub use vector2d::Vector2D;
 // === Initialization ===
 // ======================
 
-pub fn set_library_initialized_callback<F>(callback : F)
+/// Add initialization callback
+///
+/// The callback passed as argument will be called once the msdfgen libirary
+/// will be initialized.
+pub fn run_once_initialized<F>(callback : F)
 where F : 'static + FnOnce() {
     if is_emscripten_runtime_initialized() {
         callback()
@@ -128,65 +132,74 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
     use internal::msdfgen_max_msdf_size;
     use crate::*;
-    use basegl_core_fonts_base::FontsBase;
+    use basegl_core_embedded_fonts::EmbeddedFonts;
 
     use std::future::Future;
     use std::pin::Pin;
     use std::task::{Context, Poll};
 
-    struct InitializationFuture<F : Fn()> {
-        initialized : F
+    /// The future for running test after initialization
+    struct TestAfterInit<F : Fn()> {
+        test : F
     }
 
-    impl<F : Fn()> Future for InitializationFuture<F> {
+    impl<F: Fn()> TestAfterInit<F> {
+        fn schedule(test : F) -> TestAfterInit<F> {
+            TestAfterInit { test }
+        }
+    }
+
+    impl<F : Fn()> Future for TestAfterInit<F> {
+
         type Output = ();
 
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>)
+            -> Poll<Self::Output> {
+
             if is_emscripten_runtime_initialized() {
-                (self.initialized)();
+                (self.test)();
                 Poll::Ready(())
             } else {
                 let waker = cx.waker().clone();
-                set_library_initialized_callback(move || waker.wake());
+                run_once_initialized(move || waker.wake());
                 Poll::Pending
             }
         }
     }
 
+
     #[wasm_bindgen_test(async)]
     fn generate_msdf_for_capital_a() -> impl Future<Output=()>{
-        InitializationFuture {
-            initialized : || {
-                // given
-                let font_base = FontsBase::new();
-                let font = Font::load_from_memory(
-                    font_base.fonts_by_name.get("DejaVuSansMono-Bold").unwrap()
-                );
-                let params = MSDFParameters {
-                    width: 32,
-                    height: 32,
-                    edge_coloring_angle_threshold: 3.0,
-                    range: 2.0,
-                    edge_threshold: 1.001,
-                    overlap_support: true
-                };
-                // when
-                let mut msdf = Vec::<f32>::new();
-                generate_msdf(
-                    &mut msdf,
-                    &font,
-                    'A' as u32,
-                    &params,
-                    Vector2D { x: 1.0, y: 1.0 },
-                    Vector2D { x: 0.0, y: 0.0 }
-                );
-                // then
-                // Note [asserts]
-                assert_eq!(0.42730755, msdf[0]);
-                assert_eq!(0.75, msdf[10]);
-                assert_eq!(-9.759168, msdf[msdf.len()-1]);
-            }
-        }
+        TestAfterInit::schedule(|| {
+            // given
+            let font_base = EmbeddedFonts::create_and_fill();
+            let font = Font::load_from_memory(
+                font_base.font_data_by_name.get("DejaVuSansMono-Bold").unwrap()
+            );
+            let params = MSDFParameters {
+                width: 32,
+                height: 32,
+                edge_coloring_angle_threshold: 3.0,
+                range: 2.0,
+                edge_threshold: 1.001,
+                overlap_support: true
+            };
+            // when
+            let mut msdf = Vec::<f32>::new();
+            generate_msdf(
+                &mut msdf,
+                &font,
+                'A' as u32,
+                &params,
+                Vector2D { x: 1.0, y: 1.0 },
+                Vector2D { x: 0.0, y: 0.0 }
+            );
+            // then
+            // Note [asserts]
+            assert_eq!(0.42730755, msdf[0]);
+            assert_eq!(0.75, msdf[10]);
+            assert_eq!(-9.759168, msdf[msdf.len()-1]);
+        })
     }
 
     /* Note [asserts]
@@ -197,14 +210,8 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     fn msdf_data_limits() -> impl Future<Output=()> {
-        InitializationFuture {
-            initialized: || {
-                assert!(MAX_MSDF_SIZE <= msdfgen_max_msdf_size());
-            }
-        }
-    }
-    #[wasm_bindgen_test]
-    fn test() {
-        assert!(true)
+        TestAfterInit::schedule(|| {
+            assert!(MAX_MSDF_SIZE <= msdfgen_max_msdf_size());
+        })
     }
 }

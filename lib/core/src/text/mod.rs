@@ -1,4 +1,4 @@
-use basegl_backend_webgl::{Context, compile_shader, link_program, Program, Shader};
+use basegl_backend_webgl::{Context, compile_shader, link_program, Program, };
 
 use web_sys::{WebGlRenderingContext, WebGlBuffer, WebGlTexture};
 use crate::prelude::*;
@@ -19,13 +19,6 @@ pub struct Color {
 }
 
 #[derive(Debug)]
-struct TextShaders {
-    vert_shader : Shader,
-    frag_shader : Shader,
-    program     : Program
-}
-
-#[derive(Debug)]
 pub struct TextComponent {
     pub text             : String,
     pub x                : f32,
@@ -35,7 +28,7 @@ pub struct TextComponent {
     pub background_color : Color,
 
     workspace        : Rc<WorkspaceData>,
-    gl_shaders       : TextShaders,
+    gl_program       : Program,
     gl_vertex_buf    : WebGlBuffer,
     gl_tex_coord_buf : WebGlBuffer,
     gl_msdf_texture  : WebGlTexture
@@ -52,7 +45,7 @@ impl TextComponent {
         color            : Color,
         background_color : Color,
     ) -> TextComponent {
-        let gl_shaders = Self::create_shaders(&workspace.context);
+        let gl_program = Self::create_program(&workspace.context);
         let gl_vertex_buf = Self::create_vertex_buf(
             &workspace.context,
             text.as_str(),
@@ -67,37 +60,66 @@ impl TextComponent {
         );
         let gl_msdf_texture = Self::create_msdf_texture(
             &workspace.context,
-            &gl_shaders.program,
+            &gl_program,
             font
         );
 
         let component = TextComponent {
             text, x, y, size, workspace, color, background_color,
-            gl_shaders, gl_vertex_buf, gl_tex_coord_buf, gl_msdf_texture
+            gl_program, gl_vertex_buf, gl_tex_coord_buf, gl_msdf_texture
         };
         component.setup_uniforms();
         component
     }
 
-    fn create_shaders(gl_context : &Context) -> TextShaders {
+    fn create_program(gl_context : &Context) -> Program {
         gl_context.get_extension("OES_standard_derivatives")
             .unwrap().unwrap();
+
         let vert_shader = compile_shader(
             &gl_context,
             WebGlRenderingContext::VERTEX_SHADER,
             include_str!("msdf_vert.glsl")
         ).unwrap();
+
         let frag_shader = compile_shader(
             &gl_context,
             WebGlRenderingContext::FRAGMENT_SHADER,
             include_str!("msdf_frag.glsl")
         ).unwrap();
 
-        let program = link_program(&gl_context, &vert_shader, &frag_shader)
-            .unwrap();
-
-        TextShaders { vert_shader, frag_shader, program}
+        link_program(&gl_context, &vert_shader, &frag_shader).unwrap()
     }
+
+    fn create_buffer(
+        gl_context : &Context,
+        vertices   : &[f32]
+    ) -> WebGlBuffer {
+        let buffer = gl_context.create_buffer().unwrap();
+        gl_context.bind_buffer(
+            WebGlRenderingContext::ARRAY_BUFFER,
+            Some(&buffer)
+        );
+
+        unsafe { // Note [unsafe buffer_data]
+            let float_32_array = Float32Array::view(&vertices);
+            gl_context.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &float_32_array,
+                WebGlRenderingContext::STATIC_DRAW,
+            );
+        }
+
+        buffer
+    }
+
+    /* Note [unsafe buffer_data]
+     *
+     * The Float32Array::view is safe as long there are no allocations done
+     * until it is destroyed. This way of creating buffers were taken from
+     * wasm-bindgen examples
+     * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
+     */
 
     fn create_vertex_buf(
         gl_context : &Context,
@@ -115,20 +137,7 @@ impl TextComponent {
                 y, ix, y_max, ix_max, y_max]
         }).flatten().collect::<Box<[f32]>>();
 
-        let buffer = gl_context.create_buffer().unwrap();
-        gl_context.bind_buffer(
-            WebGlRenderingContext::ARRAY_BUFFER,
-            Some(&buffer)
-        );
-        unsafe {
-            let float_32_array = Float32Array::view(&vertices);
-            gl_context.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &float_32_array,
-                WebGlRenderingContext::STATIC_DRAW,
-            );
-        }
-        buffer
+        Self::create_buffer(gl_context, vertices.as_ref())
     }
 
     fn create_tex_coord_buf(
@@ -137,28 +146,18 @@ impl TextComponent {
         font : &mut FontRenderInfo,
     ) -> WebGlBuffer {
         for ch in text.chars() {
-            font.get_char_info(ch);
+            font.get_or_create_char_info(ch);
         }
         let vertices = text.chars().map(|c| {
             let msdf_rows = font.msdf_texture.rows() as f32;
-            let info = font.get_char_info(c);
+            let info = font.get_or_create_char_info(c);
             let y_min = info.msdf_texture_rows.start as f32 / msdf_rows;
             let y_max = info.msdf_texture_rows.end as f32 / msdf_rows;
             vec![0.0, y_min, 0.0, y_max, 1.0, y_min,
                 1.0, y_min, 0.0, y_max, 1.0, y_max]
         }).flatten().collect::<Box<[f32]>>();
 
-        let buffer = gl_context.create_buffer().unwrap();
-        gl_context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-        unsafe {
-            let float_32_array = Float32Array::view(&vertices);
-            gl_context.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &float_32_array,
-                WebGlRenderingContext::STATIC_DRAW,
-            );
-        }
-        buffer
+        Self::create_buffer(gl_context, vertices.as_ref())
     }
 
     fn create_msdf_texture(
@@ -214,7 +213,7 @@ impl TextComponent {
 
     fn setup_uniforms(&self) {
         let gl = &self.workspace.context;
-        let program = &self.gl_shaders.program;
+        let program = &self.gl_program;
         let bg_color_location = gl.get_uniform_location(program, "bgColor");
         let fg_color_location = gl.get_uniform_location(program, "fgColor");
         let px_range_location = gl.get_uniform_location(program, "pxRange");
@@ -242,9 +241,9 @@ impl TextComponent {
 
     pub fn display(&self) {
         let gl = &self.workspace.context;
-        let program = &self.gl_shaders.program;
+        let program = &self.gl_program;
 
-        gl.use_program(Some(&self.gl_shaders.program));
+        gl.use_program(Some(&self.gl_program));
 
         let position_location = gl.get_attrib_location(program, "position");
         gl.enable_vertex_attrib_array(position_location as u32);
@@ -279,8 +278,6 @@ impl TextComponent {
             0
         );
 
-//        gl.clear_color(0.0, 0.0, 0.0, 1.0);
-//        gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
 
         gl.draw_arrays(
             WebGlRenderingContext::TRIANGLES,
@@ -289,68 +286,3 @@ impl TextComponent {
         );
     }
 }
-//
-//pub fn print_line(
-//    context : &Context,
-//    text : &str,
-//
-//    logger : &Logger
-//)
-//{
-//
-//    context.use_program(Some(&program));
-//
-//    // when
-//
-//    context.bind_texture(Context::TEXTURE_2D, msdf_texture.as_ref());
-//    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
-//    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
-//    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
-////    logger.trace(|| format!("{:?}", res.as_ref().expect_err("No error?")));
-//    context.uniform1i(msdf_location.as_ref(), 0);
-//    context.uniform1i(msdf_size_location.as_ref(), 16);
-//
-//
-//    let y_max = y + size;
-//    let vertices= (0..text.len()).map[
-//        -1.0, -1.0, 0.0,
-//        -1.0,  1.0, 0.0,
-//         1.0,  1.0, 0.0,
-//         1.0,  1.0, 0.0,
-//         1.0, -1.0, 0.0,
-//        -1.0, -1.0, 0.0
-//    ];
-//
-//    let buffer = context.create_buffer().unwrap();
-//    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-//
-//    // Note that `Float32Array::view` is somewhat dangerous (hence the
-//    // `unsafe`!). This is creating a raw view into our module's
-//    // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
-//    // (aka do a memory allocation in Rust) it'll cause the buffer to change,
-//    // causing the `Float32Array` to be invalid.
-//    //
-//    // As a result, after `Float32Array::view` we have to be very careful not to
-//    // do any memory allocations before it's dropped.
-//    unsafe {
-//        let vert_array = js_sys::Float32Array::view(&vertices);
-//
-//        context.buffer_data_with_array_buffer_view(
-//            WebGlRenderingContext::ARRAY_BUFFER,
-//            &vert_array,
-//            WebGlRenderingContext::STATIC_DRAW,
-//        );
-//    }
-//
-//    context.vertex_attrib_pointer_with_i32(0, 3, WebGlRenderingContext::FLOAT, false, 0, 0);
-//    context.enable_vertex_attrib_array(0);
-//
-//    context.clear_color(0.0, 0.0, 0.0, 1.0);
-//    context.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-//
-//    context.draw_arrays(
-//        WebGlRenderingContext::TRIANGLES,
-//        0,
-//        (vertices.len() / 3) as i32,
-//    );
-//}

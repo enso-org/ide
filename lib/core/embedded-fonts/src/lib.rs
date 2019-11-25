@@ -24,3 +24,17 @@ impl EmbeddedFonts {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::EmbeddedFonts;
+
+    #[test]
+    fn loading_embedded_fonts() {
+        let fonts = EmbeddedFonts::create_and_fill();
+        let example_font = fonts.font_data_by_name.get("DejaVuSans").unwrap();
+        assert_eq!(0x00, example_font[0]);
+        assert_eq!(0x01, example_font[1]);
+        assert_eq!(0x1d, example_font[example_font.len()-1]);
+    }
+}

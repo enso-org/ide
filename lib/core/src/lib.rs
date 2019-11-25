@@ -37,7 +37,7 @@ use itertools::iproduct;
 #[wasm_bindgen(start)]
 pub fn start() {
     utils::set_panic_hook();
-    basegl_core_msdf_sys::set_library_initialized_callback(|| {
+    basegl_core_msdf_sys::run_once_initialized(|| {
         let world = World::new();
         let workspace_id = world.add_workspace("canvas");
 
@@ -47,13 +47,13 @@ pub fn start() {
 
             let font_base = EmbeddedFonts::create_and_fill();
             let mut fonts = [
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSans".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Bold".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Oblique".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSansCondensed".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSerif".to_string()),
-                FontRenderInfo::from_embedded(&font_base, "DejaVuSerifCondensed".to_string()),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSans"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Bold"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Oblique"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansCondensed"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSerif"),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSerifCondensed"),
             ];
             let sizes = [0.024, 0.032, 0.048, 0.064];
 
