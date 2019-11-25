@@ -1,7 +1,7 @@
 [package]
 name    = "optics"
 version = "0.1.0"
-authors = ["Wojciech Danilo <wojciech.danilo@gmail.com>"]
+authors = ["Enso Team <contact@luna-lang.org>"]
 edition = "2018"
 
 [lib]
@@ -9,4 +9,4 @@ edition = "2018"
 [features]
 
 [dependencies]
-basegl-prelude           = { version = "0.1.0"  , path = "../prelude"       }
+basegl-prelude = { version = "0.1.0", path = "../prelude" }

@@ -56,7 +56,7 @@ impl From<Rc<RefCell<EventLoopData>>> for EventLoop {
 // === EventLoopData ===
 // =====================
 
-/// The internal state of the `EventLoop`
+/// The internal state of the `EventLoop`.
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct EventLoopData {

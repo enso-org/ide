@@ -1,3 +1,10 @@
+// README README README README README README README README README README README 
+// README README README README README README README README README README README 
+// README README README README README README README README README README README 
+
+// This library is in a very early stage. It will be refactored and improved 
+// soon. It should not be reviewed now.
+
 #![feature(generators, generator_trait)]
 #![feature(specialization)]
 #![feature(overlapping_marker_traits)]

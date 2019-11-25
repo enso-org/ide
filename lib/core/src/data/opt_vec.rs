@@ -103,85 +103,70 @@ impl<T> IndexMut<usize> for OptVec<T> {
     }
 }
 
-//// ============
-//// === Iter ===
-//// ============
-//
-///// We can use Iter to iterate over OptVec<T> similarly to Vec<T>.
-//pub struct Iter<'a, T> {
-//    iter : std::slice::Iter<'a, Option<T>>
-//}
-//
-//impl<'a, T> Iterator for Iter<'a, T> {
-//    type Item = &'a T;
-//    fn next(&mut self) -> Option<Self::Item> {
-//        if let Some(opt_item) = self.iter.next() {
-//            // If opt_item has some item, we return it, else we try the next one
-//            if let Some(item) = opt_item { Some(item) } else { self.next() }
-//        } else { None }
-//    }
-//}
-//
-//impl<'a, T> IntoIterator for &'a OptVec<T> {
-//    type Item = &'a T;
-//    type IntoIter = Iter<'a, T>;
-//    fn into_iter(self) -> Self::IntoIter {
-//        Iter { iter : (&self.items).iter() }
-//    }
-//}
+// ============
+// === Iter ===
+// ============
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//    #[test]
-//    fn test_add() {
-//        let mut v = OptVec::new();
-//        assert!(v.is_empty(), "OptVec should be created empty");
-//
-//        let ix1 = v.insert(|_| 1);
-//        assert_eq!(ix1, 0, "ix1 should be indexed at 0");
-//        assert_eq!(v.len(), 1, "OptVec should have 1 item now");
-//        assert!(!v.is_empty(), "OptVec is no longer empty now");
-//
-//        let ix2 = v.insert(|_| 2);
-//        assert_eq!(ix2, 1, "ix2 should be indexed at 1");
-//        assert_eq!(v.len(), 2);
-//
-//        v.remove(ix1); // remove ix1 (0) and make 0 index free
-//        assert_eq!(v.len(), 1); // removing should decrease len by 1
-//
-//        v.remove(ix2); // remove ix2 (1) and make 1 index free
-//        assert_eq!(v.len(), 0);
-//        assert!(v.is_empty(), "OptVec should be empty now");
-//
-//        let ix3 = v.insert(|_| 3);
-//        assert_eq!(v.len(), 1);
-//        let ix4 = v.insert(|_| 4);
-//        assert_eq!(ix3, 1, "ix3 should be the first freed index");
-//        assert_eq!(ix4, 0, "ix4 should be the second freed index");
-//        assert_eq!(v.len(), 2);
-//    }
-//
-//    #[test]
-//    fn test_iter() {
-//        let mut v = OptVec::new();
-//
-//        let  ix1 = v.insert(|_| 0);
-//        let _ix2 = v.insert(|_| 1);
-//        let _ix3 = v.insert(|_| 2);
-//
-//        assert_eq!(v.len(), 3, "OptVec should have 3 items");
-//
-//        for (i, value) in v.into_iter().enumerate() {
-//            assert_eq!(i, *value);
-//        }
-//
-//        v.remove(ix1);
-//        assert_eq!(v.len(), 2, "OptVec should have 2 items");
-//        for (i, value) in v.into_iter().enumerate() {
-//            // we add + 1, because the fisrt item is 1 now.
-//            assert_eq!(i + 1, *value);
-//        }
-//    }
-//}
+impl<'a, T> IntoIterator for &'a OptVec<T> {
+   type Item     = &'a T;
+   type IntoIter = Iter<'a, T>;
+   fn into_iter(self) -> Self::IntoIter {
+       self.iter()
+   }
+}
+
+#[cfg(test)]
+mod tests {
+   use super::*;
+
+   #[test]
+   fn test_add() {
+       let mut v = OptVec::new();
+       assert!(v.is_empty(), "OptVec should be created empty");
+
+       let ix1 = v.insert(1);
+       assert_eq!(ix1, 0, "ix1 should be indexed at 0");
+       assert_eq!(v.len(), 1, "OptVec should have 1 item now");
+       assert!(!v.is_empty(), "OptVec is no longer empty now");
+
+       let ix2 = v.insert(2);
+       assert_eq!(ix2, 1, "ix2 should be indexed at 1");
+       assert_eq!(v.len(), 2);
+
+       v.remove(ix1); // remove ix1 (0) and make 0 index free
+       assert_eq!(v.len(), 1); // removing should decrease len by 1
+
+       v.remove(ix2); // remove ix2 (1) and make 1 index free
+       assert_eq!(v.len(), 0);
+       assert!(v.is_empty(), "OptVec should be empty now");
+
+       let ix3 = v.insert(3);
+       assert_eq!(v.len(), 1);
+       let ix4 = v.insert(4);
+       assert_eq!(ix3, 1, "ix3 should be the first freed index");
+       assert_eq!(ix4, 0, "ix4 should be the second freed index");
+       assert_eq!(v.len(), 2);
+   }
+
+   #[test]
+   fn test_iter() {
+       let mut v = OptVec::new();
+
+       let  ix1 = v.insert(0);
+       let _ix2 = v.insert(1);
+       let _ix3 = v.insert(2);
+
+       assert_eq!(v.len(), 3, "OptVec should have 3 items");
+
+       for (i, value) in v.into_iter().enumerate() {
+           assert_eq!(i, *value);
+       }
+
+       v.remove(ix1);
+       assert_eq!(v.len(), 2, "OptVec should have 2 items");
+       for (i, value) in v.into_iter().enumerate() {
+           // we add + 1, because the fisrt item is 1 now.
+           assert_eq!(i + 1, *value);
+       }
+   }
+}

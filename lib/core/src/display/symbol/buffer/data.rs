@@ -1,5 +1,3 @@
-use crate::prelude::*;
-
 use crate::data::seq::observable::Observable;
 
 /// Vector with attached callbacks listening for changes.
