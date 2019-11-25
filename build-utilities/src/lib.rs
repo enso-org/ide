@@ -1,6 +1,8 @@
 use std::{fs, path};
 
 /// Download the release package from github
+///
+/// The project_url should be a project's main page on github.
 pub fn github_download(
     project_url     : &str,
     version         : &str,

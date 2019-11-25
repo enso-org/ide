@@ -15,7 +15,7 @@ vector2d = "2.2.0"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.3"
 futures = ""
-basegl-core-fonts-base = { version = "0.1.0", path="../fonts-base" }
+basegl-core-embedded-fonts = { version = "0.1.0", path="../embedded-fonts" }
 
 [build-dependencies]
 basegl-build-utilities = { version = "0.1.0", path="../../../build-utilities" }

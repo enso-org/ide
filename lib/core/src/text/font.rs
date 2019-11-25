@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use basegl_core_msdf_sys as msdf_sys;
-use basegl_core_fonts_base::FontsBase;
+use basegl_core_embedded_fonts::EmbeddedFonts;
 
 pub struct MsdfTexture {
     pub data : Vec<u8>
@@ -56,10 +56,10 @@ impl FontRenderInfo {
     }
 
     pub fn from_embedded(
-        base : &FontsBase,
+        base : &EmbeddedFonts,
         name : String
     ) -> FontRenderInfo {
-        let mfont = base.fonts_by_name.get(name.as_str()).unwrap();
+        let mfont = base.font_data_by_name.get(name.as_str()).unwrap();
         crate::text::font::FontRenderInfo::new(
             name, mfont
         )
@@ -82,7 +82,7 @@ impl CharInfo {
             ch as u32,
             &FontRenderInfo::MSDF_PARAMS,
             msdf_sys::Vector2D{ x : 1.0, y : 1.0 },
-            msdf_sys::Vector2D{ x : 2.4, y : 2.4 }
+            msdf_sys::Vector2D{ x : 2.0, y : 2.25 }
         );
         let msdf_texture_rows_end = msdf_texture.rows();
         CharInfo {

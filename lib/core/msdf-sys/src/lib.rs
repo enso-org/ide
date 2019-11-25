@@ -82,8 +82,8 @@ pub struct MSDFParameters {
     pub overlap_support               : bool
 }
 
-pub const MAX_MSDF_SIZE: usize = 64;
-pub const MSDF_CHANNELS_COUNT: usize = 3;
+pub const MAX_MSDF_SIZE       : usize = 64;
+pub const MSDF_CHANNELS_COUNT : usize = 3;
 
 ///// Generate Mutlichannel Signed Distance Field (MSDF) for one glyph
 /////

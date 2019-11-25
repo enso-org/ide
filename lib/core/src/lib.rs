@@ -30,7 +30,7 @@ pub mod utils;
 
 use display::world::World;
 use wasm_bindgen::prelude::*;
-use basegl_core_fonts_base::FontsBase;
+use basegl_core_embedded_fonts::EmbeddedFonts;
 use crate::text::font::FontRenderInfo;
 use itertools::iproduct;
 
@@ -45,19 +45,24 @@ pub fn start() {
             let mut world_data = world.data.borrow_mut();
             let workspace = world_data.workspaces.items[workspace_id].as_mut().unwrap();
 
-            let font_base = FontsBase::new();
+            let font_base = EmbeddedFonts::create_and_fill();
             let mut fonts = [
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSans".to_string()),
                 FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono".to_string()),
                 FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Bold".to_string()),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansMono-Oblique".to_string()),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSansCondensed".to_string()),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSerif".to_string()),
+                FontRenderInfo::from_embedded(&font_base, "DejaVuSerifCondensed".to_string()),
             ];
-            let sizes = [0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1];
+            let sizes = [0.024, 0.032, 0.048, 0.064];
 
             for (i, (font, size)) in iproduct!(0..fonts.len(), sizes.iter()).enumerate() {
                 let text_compnent = crate::text::TextComponent::new(
                     workspace.data.clone(),
-                    "abcdefghijklmnopqrstuvwxyz1234567890!ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%^&*()-=_+,./<>?;\':[]{}żźć„”ńµąśðæŋ’ə…łπœę©ß←↓→óþ²³¢€½§·«»–ş".to_string(),
+                    "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them.".to_string(),
                     -0.95,
-                    0.9 - 0.1*(i as f32),
+                    0.9 - 0.064*(i as f32),
                     *size,
                     &mut fonts[font],
                     text::Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
