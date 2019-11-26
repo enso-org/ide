@@ -8,7 +8,6 @@ members = [
     "lib/optics",
     "lib/prelude",
     "lib/shapely/impl",
-    "lib/shapely/macros",
     "lib/system/web",
 ]
 
