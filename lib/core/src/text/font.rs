@@ -128,11 +128,13 @@ impl FontRenderInfo {
 
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::text::font::{MsdfTexture, FontRenderInfo};
     use basegl_core_msdf_sys as msdf_sys;
     use basegl_core_embedded_fonts::EmbeddedFonts;
-    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+    use msdf_sys::test_utils::TestAfterInit;
+    use std::future::Future;
 
     const TEST_FONT_NAME : &str = "DejaVuSansMono-Bold";
 
@@ -156,53 +158,61 @@ mod test {
         assert_eq!([0, 0, 63, 127, 191, 255, 255], texture.data.as_slice());
     }
 
-    #[wasm_bindgen_test]
-    fn empty_font_render_info() {
-        let font_render_info = create_test_font_render_info();
+    wasm_bindgen_test_configure!(run_in_browser);
 
-        assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(0, font_render_info.msdf_texture.data.len());
-        assert_eq!(0, font_render_info.chars.len());
+    #[wasm_bindgen_test(async)]
+    fn empty_font_render_info() -> impl Future<Output=()> {
+        TestAfterInit::schedule(||{
+            let font_render_info = create_test_font_render_info();
+
+            assert_eq!(TEST_FONT_NAME, font_render_info.name);
+            assert_eq!(0, font_render_info.msdf_texture.data.len());
+            assert_eq!(0, font_render_info.chars.len());
+        })
     }
 
+    #[wasm_bindgen_test(async)]
+    fn loading_chars() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font_render_info = create_test_font_render_info();
 
-    #[wasm_bindgen_test]
-    fn loading_chars() {
-        let mut font_render_info = create_test_font_render_info();
+            font_render_info.load_char('A');
+            font_render_info.load_char('B');
 
-        font_render_info.load_char('A');
-        font_render_info.load_char('B');
+            let expected_texture_size = MsdfTexture::WIDTH * MsdfTexture::WIDTH
+                * msdf_sys::MSDF_CHANNELS_COUNT * 2;
 
-        let expected_texture_size = MsdfTexture::WIDTH * MsdfTexture::WIDTH *
-            msdf_sys::MAX_MSDF_SIZE * msdf_sys::MSDF_CHANNELS_COUNT * 2;
+            assert_eq!(MsdfTexture::WIDTH * 2,
+                font_render_info.msdf_texture.rows());
+            assert_eq!(expected_texture_size,
+                font_render_info.msdf_texture.data.len());
+            assert_eq!(2, font_render_info.chars.len());
 
-        assert_eq!(MsdfTexture::WIDTH*2, font_render_info.msdf_texture.rows());
-        assert_eq!(expected_texture_size,
-            font_render_info.msdf_texture.data.len());
-        assert_eq!(2, font_render_info.chars.len());
+            let first_char = font_render_info.chars.get(&'A').unwrap();
+            let second_char = font_render_info.chars.get(&'B').unwrap();
 
-        let first_char = font_render_info.chars.get(&'A').unwrap();
-        let second_char = font_render_info.chars.get(&'B').unwrap();
-
-        assert_eq!(0..MsdfTexture::WIDTH, first_char.msdf_texture_rows);
-        assert_eq!(MsdfTexture::WIDTH..2*MsdfTexture::WIDTH,
-            second_char.msdf_texture_rows);
+            assert_eq!(0..MsdfTexture::WIDTH, first_char.msdf_texture_rows);
+            assert_eq!(MsdfTexture::WIDTH..2 * MsdfTexture::WIDTH,
+                second_char.msdf_texture_rows);
+        })
     }
 
-    #[wasm_bindgen_test]
-    fn getting_or_creating_char() {
-        let mut font_render_info = create_test_font_render_info();
+    #[wasm_bindgen_test(async)]
+    fn getting_or_creating_char() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font_render_info = create_test_font_render_info();
 
-        {
-            let char_info = font_render_info.get_or_create_char_info('A');
-            assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
-        }
-        assert_eq!(1, font_render_info.chars.len());
+            {
+                let char_info = font_render_info.get_or_create_char_info('A');
+                assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
+            }
+            assert_eq!(1, font_render_info.chars.len());
 
-        {
-            let char_info = font_render_info.get_or_create_char_info('A');
-            assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
-        }
-        assert_eq!(1, font_render_info.chars.len());
+            {
+                let char_info = font_render_info.get_or_create_char_info('A');
+                assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
+            }
+            assert_eq!(1, font_render_info.chars.len());
+        })
     }
 }

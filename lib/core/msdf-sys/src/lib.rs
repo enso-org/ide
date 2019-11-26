@@ -1,4 +1,5 @@
 mod internal;
+pub mod test_utils;
 
 use internal::{
     on_emscripten_runtime_initialized,
@@ -129,47 +130,17 @@ pub fn generate_msdf<Output : Extend<f32>>(
 
 #[cfg(test)]
 mod tests {
-    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
     use internal::msdfgen_max_msdf_size;
     use crate::*;
     use basegl_core_embedded_fonts::EmbeddedFonts;
-
     use std::future::Future;
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
+    use test_utils::TestAfterInit;
 
-    /// The future for running test after initialization
-    struct TestAfterInit<F : Fn()> {
-        test : F
-    }
-
-    impl<F: Fn()> TestAfterInit<F> {
-        fn schedule(test : F) -> TestAfterInit<F> {
-            TestAfterInit { test }
-        }
-    }
-
-    impl<F : Fn()> Future for TestAfterInit<F> {
-
-        type Output = ();
-
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>)
-            -> Poll<Self::Output> {
-
-            if is_emscripten_runtime_initialized() {
-                (self.test)();
-                Poll::Ready(())
-            } else {
-                let waker = cx.waker().clone();
-                run_once_initialized(move || waker.wake());
-                Poll::Pending
-            }
-        }
-    }
-
+    wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test(async)]
-    fn generate_msdf_for_capital_a() -> impl Future<Output=()>{
+    fn generate_msdf_for_capital_a() -> impl Future<Output=()> {
         TestAfterInit::schedule(|| {
             // given
             let font_base = EmbeddedFonts::create_and_fill();

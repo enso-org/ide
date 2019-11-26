@@ -2,7 +2,8 @@ use basegl_build_utilities::github_download;
 
 mod msdfgen_wasm {
     use crate::github_download;
-    use std::path;
+    use std::{path, fs};
+    use std::io::Write;
 
     pub const VERSION     : &str = "v1.0.1";
     pub const FILENAME    : &str = "msdfgen_wasm.js";
@@ -28,9 +29,16 @@ mod msdfgen_wasm {
      * If you find and implement a better way to downloading js snippets, please
      * remember to remove msdfgen_wasm.js entry from .gitignore
      */
+
+    pub fn patch_for_wasm_bindgen_test() {
+        let path = path::Path::new(FILENAME);
+        let mut file = fs::OpenOptions::new().append(true).open(path).unwrap();
+        file.write("; export { ccall, getValue, _msdfgen_maxMSDFSize, _msdfgen_generateMSDF, _msdfgen_freeFont, addInitializationCb, isInitialized }".as_bytes()).unwrap();
+    }
 }
 
 fn main() {
     msdfgen_wasm::download();
+    msdfgen_wasm::patch_for_wasm_bindgen_test();
     println!("cargo:rerun-if-changed=build.rs");
 }
