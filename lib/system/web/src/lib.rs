@@ -183,6 +183,11 @@ pub fn window() -> Result<web_sys::Window> {
     web_sys::window().ok_or_else(|| Error::missing("window"))
 }
 
+pub fn device_pixel_ratio() -> Result<f64> {
+    let win = window()?;
+    Ok(win.device_pixel_ratio())
+}
+
 pub fn document() -> Result<web_sys::Document> {
     window()?.document().ok_or_else(|| Error::missing("document"))
 }

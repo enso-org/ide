@@ -40,6 +40,7 @@ pub enum Error {
 pub struct Workspace<OnDirty> {
     pub canvas              : web_sys::HtmlCanvasElement,
     pub context             : WebGlRenderingContext,
+    pub pixel_ratio         : f64,
     pub mesh_registry       : MeshRegistry<OnDirty>,
     pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
     pub shape               : Rc<RefCell<WorkspaceShape>>,
@@ -91,6 +92,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let dom           = dom.as_ref();
         let canvas        = web::get_canvas(dom)?;
         let context       = web::get_webgl_context(&canvas,1)?;
+        let pixel_ratio   = web::device_pixel_ratio()?;
         let sub_logger    = logger.sub("shape_dirty");
         let shape_dirty   = ShapeDirty::new(sub_logger,on_dirty.clone());
         let sub_logger    = logger.sub("mesh_registry_dirty");
@@ -101,8 +103,9 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let shape         = default();
         let listeners     = Self::init_listeners(&canvas,&shape,&shape_dirty);
         let mesh_registry_dirty = dirty_flag;
-        let this = Self {canvas,context,mesh_registry,mesh_registry_dirty
-                        ,shape,shape_dirty,logger,listeners};
+        let this = Self
+            {canvas,context,pixel_ratio,mesh_registry,mesh_registry_dirty
+            ,shape,shape_dirty,logger,listeners};
         Ok(this)
     }
     /// Initialize all listeners and attach them to DOM elements.
@@ -133,10 +136,11 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     /// directly. If you want to change the canvas size, modify the `shape` and
     /// set the dirty flag.
     fn resize_canvas(&self, shape:&WorkspaceShape) {
-        let width  = shape.width;
-        let height = shape.height;
+        let ratio  = self.pixel_ratio.floor() as i32;
+        let width  = ratio * shape.width;
+        let height = ratio * shape.height;
         self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
-            self.canvas.set_attribute("width", &width.to_string()).unwrap();
+            self.canvas.set_attribute("width",  &width.to_string()).unwrap();
             self.canvas.set_attribute("height", &height.to_string()).unwrap();
             self.context.viewport(0, 0, width, height);
         });
@@ -180,9 +184,17 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
             .unwrap();
             let program =
                 webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
-            self.context.use_program(Some(&program));
 
-            let vertices: [f32; 9] = [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0];
+            let pos_loc = self.context.get_attrib_location(&program, "position");
+            let pos_loc = pos_loc as u32;
+
+            println!("pos_loc: {}", pos_loc);
+
+            let vertices: [f32; 9] = 
+                 [ -1.0, -1.0, 0.0
+                 ,  1.0, -1.0, 0.0
+                 ,  0.0,  1.0, 0.0
+                 ];
 
             let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
             self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
@@ -205,18 +217,31 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
                 );
             }
 
-            self.context.vertex_attrib_pointer_with_i32(
-                0,
-                3,
-                webgl::Context::FLOAT,
-                false,
-                0,
-                0,
-            );
-            self.context.enable_vertex_attrib_array(0);
+            // =================
+            // === Rendering ===
+            // =================
 
+            // Clear
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
+
+
+            self.context.use_program(Some(&program));
+
+            self.context.enable_vertex_attrib_array(pos_loc);
+            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
+
+            // hidden part: binds ARRAY_BUFFER to the attribute
+            self.context.vertex_attrib_pointer_with_i32(
+                pos_loc,
+                3,                     // size - 3 components per iteration
+                webgl::Context::FLOAT, // type
+                false,                 // normalize
+                0,                     // stride
+                0,                     // offset
+            );
+
+
 
             self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
 })

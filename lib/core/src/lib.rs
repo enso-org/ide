@@ -42,15 +42,23 @@ use console_error_panic_hook;
 use display::world::*;
 use nalgebra;
 use nalgebra::Vector2;
+use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
 type Position = SharedBuffer<Vector2<f32>>;
+type Color    = SharedBuffer<Vector3<f32>>;
 
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
     set_stdout();
     init(&mut World::new().borrow_mut());
+}
+
+#[derive(Debug)]
+pub struct Rect {
+    position : Var<Vector2<f32>>,
+    color    : Var<Vector3<f32>>,
 }
 
 fn init(world: &mut World) {
@@ -62,14 +70,20 @@ fn init(world: &mut World) {
     let scopes    : &mut Scopes    = &mut geo.scopes;
     let pt_scope  : &mut VarScope  = &mut scopes.point;
     let pos       : Position       = pt_scope.add_buffer("position");
+    let color     : Color          = pt_scope.add_buffer("color");
 
     let inst_ix = pt_scope.add_instance();
-    let pos_view: Var<Vector2<f32>> = pos.get(inst_ix);
-    world.on_frame(move |_| on_frame(&pos_view)).forget();
+
+    let rect = Rect {
+        position : pos.get(inst_ix),
+        color    : color.get(inst_ix)
+    };
+
+    world.on_frame(move |_| on_frame(&rect)).forget();
 }
 
-pub fn on_frame(pos_view: &Var<Vector2<f32>>) {
-    pos_view.modify(|p| p.x += 1.0)
+pub fn on_frame(rect: &Rect) {
+     rect.position.modify(|p| p.x += 1.0)
 }
 
 ////////////////////////////////////////////////

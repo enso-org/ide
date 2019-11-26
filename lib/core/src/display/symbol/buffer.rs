@@ -218,6 +218,8 @@ From<Rc<RefCell<Buffer<T,OnSet,OnResize>>>> for SharedBuffer<T,OnSet,OnResize> {
 /// View for a particular buffer. Allows reading and writing buffer data
 /// via the internal mutability pattern. It is implemented as a view on
 /// a selected `SharedBuffer` element under the hood.
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:Debug"))]
 pub struct Var<T,OnSet,OnResize> {
     index  : usize,
     buffer : SharedBuffer<T,OnSet,OnResize>

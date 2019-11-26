@@ -38,7 +38,7 @@ impl HTMLRenderer {
         scene.div   .element.set_property_or_panic("perspective", near);
         scene.camera.element.set_property_or_panic("transform"  , css);
 
-        for object in scene.objects.iter() {
+        for object in &scene.objects {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
             let matrix3d = transform.into_css_matrix();
