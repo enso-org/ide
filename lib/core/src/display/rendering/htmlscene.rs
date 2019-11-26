@@ -5,7 +5,7 @@ use super::Scene;
 use crate::data::opt_vec::OptVec;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
-use crate::system::web::NodeAppender;
+use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
 use crate::data::types::Index;
 

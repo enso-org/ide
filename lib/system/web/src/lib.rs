@@ -1,6 +1,8 @@
 #![feature(trait_alias)]
 
 pub mod resize_observer;
+mod animationframeloop;
+pub use animationframeloop::AnimationFrameLoop;
 
 use basegl_prelude::*;
 
@@ -9,6 +11,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 use web_sys::WebGlRenderingContext;
+use web_sys::Performance;
 use web_sys::Node;
 use std::fmt::Debug;
 
@@ -48,7 +51,8 @@ impl Error {
 
 #[macro_export]
 macro_rules! console_log {
-    ($($t:tt)*) => ($crate::console::log_1(&format_args!($($t)*).to_string().into()))
+    ($($t:tt)*) => ($crate::console::log_1(&format_args!($($t)*)
+                                    .to_string().into()))
 }
 
 // ==============
@@ -180,14 +184,23 @@ pub fn get_webgl_context(
 ) -> Result<WebGlRenderingContext>
 {
     let no_webgl = || Error::NoWebGL { version };
-    let name_sfx = if version == 1 { "".to_string() } else { version.to_string() };
+    let name_sfx = if version == 1 {
+        "".to_string()
+    } else {
+        version.to_string()
+    };
     let name = &format!("webgl{}", &name_sfx);
-    let context = canvas.get_context(name).map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
+    let context = canvas.get_context(name)
+                        .map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
     context.dyn_into().map_err(|_| no_webgl())
 }
 pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
     let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))
+}
+
+pub fn get_performance() -> Result<Performance> {
+    window()?.performance().ok_or_else(|| Error::missing("performance"))
 }
 
 // ===================
@@ -230,17 +243,39 @@ impl StyleSetter for web_sys::HtmlElement {
     }
 }
 
-pub trait NodeAppender {
+pub trait NodeInserter {
     fn append_child_or_panic(&self, node : &Node);
+    fn prepend_or_panic(&self, node : &Node);
+    fn insert_before_or_panic(&self, node : &Node, reference_node : &Node);
 }
 
-impl NodeAppender for Node {
+impl NodeInserter for Node {
     fn append_child_or_panic(&self, node : &Node) {
         self.append_child(node)
             .unwrap_or_else(|_|
                 panic!("Failed to append child \"{:?}\" to \"{:?}\"",
                        node,
                        self
+                )
+            );
+    }
+
+    fn prepend_or_panic(&self, node : &Node) {
+        self.insert_before(node, self.first_child().as_ref())
+            .unwrap_or_else(|_|
+                panic!("Failed to prepend child \"{:?}\" to \"{:?}\"",
+                       node,
+                       self
+                )
+            );
+    }
+    fn insert_before_or_panic(&self, node : &Node, reference_node : &Node) {
+        self.insert_before(node, Some(reference_node))
+            .unwrap_or_else(|_|
+                panic!("Failed to insert {:?} before {:?} on {:?}",
+                        node,
+                        reference_node,
+                        self
                 )
             );
     }
