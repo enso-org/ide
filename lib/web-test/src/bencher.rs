@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use super::BenchContainer;
 
+/// Cell, used to hold Bencher's data
 pub struct BencherCell {
     func       : Box<dyn FnMut()>,
     container  : BenchContainer,
@@ -24,6 +25,7 @@ impl BencherCell {
         Self { func, container, iterations, total_time, anim_loop }
     }
 
+    /// Adds the duration of the next iteration and updates the UI.
     pub fn add_iteration_time(&mut self, time : f64) {
         self.iterations += 1;
         self.total_time += time;
@@ -46,6 +48,7 @@ impl BencherData {
         Rc::new(Self { cell })
     }
 
+    /// Starts the benchmarking loop.
     fn start(self : &Rc<Self>) {
         let data_clone = self.clone();
         let performance = get_performance().expect("Performance object");
@@ -61,20 +64,24 @@ impl BencherData {
         self.borrow_mut().anim_loop = Some(anim_loop);
     }
 
+    /// Stops the benchmarking loop.
     fn stop(self : &Rc<Self>) {
         self.borrow_mut().anim_loop = None;
     }
 
+    /// Check if the loop is running.
     fn is_running(self : &Rc<Self>) -> bool {
         self.borrow().anim_loop.is_some()
     }
 }
 
+/// The Bencher struct with an API compatible to Rust's test Bencher.
 pub struct Bencher {
     data : Rc<BencherData>
 }
 
 impl Bencher {
+    /// Creates a Bencher with a html test container.
     pub fn new(container : BenchContainer) -> Self {
         let func = Box::new(|| ());
         let data = BencherData::new(func, container);
@@ -95,6 +102,7 @@ impl Bencher {
         Self { data }
     }
 
+    /// Callback for benchmark functions to run in their body.
     pub fn iter<T, F : FnMut() -> T + 'static>(&mut self, mut func : F) {
         self.data.borrow_mut().func = Box::new(move || { func(); });
     }

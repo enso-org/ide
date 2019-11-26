@@ -7,6 +7,7 @@ use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
 use web_sys::HtmlElement;
 
+/// Helper to group test containers
 pub struct Group {
     pub div : HtmlElement,
 }

@@ -7,6 +7,7 @@ use web_sys::HtmlElement;
 
 use super::Group;
 
+/// A container to hold tests in `wasm-pack test`.
 pub struct Container {
     pub div: HtmlElement,
     pub header: HtmlElement,
@@ -14,6 +15,7 @@ pub struct Container {
 }
 
 impl Container {
+    /// Creates an identificable container with provided dimensions.
     pub fn new(group : &str, name: &str, width: f32, height: f32) -> Self {
         let div = create_element("div").expect("div");
         let div : HtmlElement = dyn_into(div).expect("HtmlElement");

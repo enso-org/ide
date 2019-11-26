@@ -6,6 +6,7 @@ use crate::system::web::StyleSetter;
 use web_sys::HtmlElement;
 use super::Container;
 
+/// Html benchmark container.
 #[derive(Shrinkwrap)]
 pub struct BenchContainer {
     #[shrinkwrap(main_field)]
@@ -17,6 +18,7 @@ pub struct BenchContainer {
 }
 
 impl BenchContainer {
+    /// Creates an identificable container with provided dimensions.
     pub fn new(name: &str, width: f32, height: f32) -> Self {
         let div = create_element("div").expect("div");
         let div : HtmlElement = dyn_into(div).expect("HtmlElement");
