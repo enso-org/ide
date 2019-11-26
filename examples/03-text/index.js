@@ -1,6 +1,2 @@
- var Module = {
-    onRuntimeInitialized: function() {
-      console.log("Wojtas");
-    }
-  };
 import * as wasm from "basegl";
+wasm.run_03_text()

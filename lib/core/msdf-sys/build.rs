@@ -30,10 +30,18 @@ mod msdfgen_wasm {
      * remember to remove msdfgen_wasm.js entry from .gitignore
      */
 
+    const PATCH_LINE : &str = "; export { ccall, getValue, \
+        _msdfgen_maxMSDFSize, _msdfgen_generateMSDF, _msdfgen_freeFont, \
+        addInitializationCb, isInitialized }";
+
+    /// Patches downloaded msdfgen_wasm.js file
+    ///
+    /// For some reason, for wasm-bindgen test on browsers the function must
+    /// be explicitly exported. Examples works without this line perfectly.
     pub fn patch_for_wasm_bindgen_test() {
         let path = path::Path::new(FILENAME);
         let mut file = fs::OpenOptions::new().append(true).open(path).unwrap();
-        file.write("; export { ccall, getValue, _msdfgen_maxMSDFSize, _msdfgen_generateMSDF, _msdfgen_freeFont, addInitializationCb, isInitialized }".as_bytes()).unwrap();
+        file.write(PATCH_LINE.as_bytes()).unwrap();
     }
 }
 

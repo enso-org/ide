@@ -129,6 +129,9 @@ impl Workspace {
                     );
                     self.context.enable_vertex_attrib_array(0);
 
+                    self.context.clear_color(0.0, 0.0, 0.0, 1.0);
+                    self.context.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+
                     self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
                 }
             })

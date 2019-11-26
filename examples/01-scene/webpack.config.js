@@ -9,6 +9,9 @@ module.exports = {
     filename: "bootstrap.js",
   },
   mode: "development",
+  node: {
+      fs: 'empty'
+    },
   plugins: [
     new CopyWebpackPlugin(['index.html']),
 //    new HtmlWebpackPlugin({template: 'index.html'}),

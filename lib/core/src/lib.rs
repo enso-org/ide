@@ -34,8 +34,16 @@ use basegl_core_embedded_fonts::EmbeddedFonts;
 use crate::text::font::FontRenderInfo;
 use itertools::iproduct;
 
-#[wasm_bindgen(start)]
-pub fn start() {
+#[wasm_bindgen]
+pub fn run_01_example() {
+    utils::set_panic_hook();
+    let world = World::new();
+    world.add_workspace("canvas");
+    world.start();
+}
+
+#[wasm_bindgen]
+pub fn run_03_text() {
     utils::set_panic_hook();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world = World::new();
