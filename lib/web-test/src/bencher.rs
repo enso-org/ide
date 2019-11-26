@@ -59,7 +59,7 @@ impl BencherData {
             let t1 = performance.now();
             let dt = t1 - t0;
             t0 = t1;
-            &data.add_iteration_time(dt);
+            data.add_iteration_time(dt);
         }));
         self.borrow_mut().anim_loop = Some(anim_loop);
     }

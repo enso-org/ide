@@ -29,7 +29,7 @@ impl Container {
 
         let header = create_element("center").expect("div");
         let header : HtmlElement = dyn_into(header).expect("HtmlElement");
-        header.set_inner_html(&format!("{}", name));
+        header.set_inner_html(name);
         header.set_property_or_panic("width" , &width);
         header.set_property_or_panic("height", format!("{}px", 16.0));
         header.set_property_or_panic("border-bottom", "1px solid black");
