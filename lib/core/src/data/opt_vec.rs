@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use smallvec::SmallVec;
 use std::iter::FilterMap;
 use std::slice;
 
@@ -15,7 +16,7 @@ use std::slice;
 pub struct OptVec<T> {
     #[shrinkwrap(main_field)]
     pub items: Vec<Option<T>>,
-    pub free_ixs: Vec<Ix>,
+    pub free_ixs: SmallVec<[Ix; 128]>,
 }
 
 pub type Ix             = usize;

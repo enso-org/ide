@@ -13,8 +13,13 @@ use wasm_bindgen::prelude::Closure;
 
 // === Definition ===
 
-/// Event loop system. It allows registering callbacks and firing them on
-/// demand.
+/// Event loop system.
+///
+/// It allows registering callbacks and firing them on demand. After a callback
+/// is registered, a `CallbackHandle` is returned. The callback is automatically
+/// removed as soon as the handle is dropped. You can also use the `forget`
+/// method on the handle to make the callback registered forever, but beware
+/// that it can easily lead to memory leaks.
 #[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug, Default)]

@@ -124,7 +124,8 @@ impl World {
     }
     /// Dispose the world object, cancel all handlers and events.
     pub fn dispose(&mut self) {
-        self.update_handle = None;
+        self.self_reference = None;
+        self.update_handle  = None;
     }
 }
 
@@ -142,6 +143,13 @@ impl Add<workspace::WorkspaceBuilder> for World {
                 Workspace::new(name, wspace_logger, on_change).unwrap() // FIXME
             })
         })
+    }
+}
+
+impl Extend<workspace::WorkspaceBuilder> for World {
+    fn extend<T: IntoIterator<Item=workspace::WorkspaceBuilder>>
+    (&mut self, iter: T) {
+        iter.into_iter().for_each(|t| { self.add(t); });
     }
 }
 
