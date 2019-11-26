@@ -1,8 +1,8 @@
-use basegl::prelude::*;
-use basegl::system::web::create_element;
-use basegl::system::web::dyn_into;
-use basegl::system::web::NodeInserter;
-use basegl::system::web::StyleSetter;
+use crate::prelude::*;
+use crate::system::web::create_element;
+use crate::system::web::dyn_into;
+use crate::system::web::NodeInserter;
+use crate::system::web::StyleSetter;
 use web_sys::HtmlElement;
 use super::Container;
 
@@ -38,7 +38,7 @@ impl BenchContainer {
 
         let time   : HtmlElement = dyn_into(time).expect("time HtmlElement");
         let iter   : HtmlElement = dyn_into(iter).expect("iter HtmlElement");
-        let button : HtmlElement = dyn_into(button).expect("button HtmlElement");
+        let button : HtmlElement = dyn_into(button).expect("buttn HtmlElement");
 
         let container = Container::new("Benchmarks", name, width, height);
         let header_height = 17.0;

@@ -1,8 +1,8 @@
-use basegl::prelude::*;
 use std::rc::Rc;
 use std::cell::RefCell;
-pub use basegl::system::web::get_performance;
-pub use basegl::system::web::AnimationFrameLoop;
+use crate::prelude::*;
+pub use crate::system::web::get_performance;
+pub use crate::system::web::AnimationFrameLoop;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use super::BenchContainer;
@@ -88,7 +88,8 @@ impl Bencher {
             }
         }) as Box<dyn FnMut()>;
         let closure = Closure::wrap(closure);
-        data.cell.borrow().container.measurement.set_onclick(Some(closure.as_ref().unchecked_ref()));
+        data.cell.borrow().container.measurement
+                          .set_onclick(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
 
         Self { data }

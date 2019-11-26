@@ -45,3 +45,4 @@ features = [
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2"
+web-test          = { version = "0.1.0"  , path = "../web-test" }

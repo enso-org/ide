@@ -1,32 +1,25 @@
 //! Test suite for the Web and headless browsers.
-#![feature(arbitrary_self_types)]
 #![cfg(target_arch = "wasm32")]
 
-extern crate wasm_bindgen_test;
-use wasm_bindgen_test::*;
-
-wasm_bindgen_test_configure!(run_in_browser);
-
-pub mod test;
+use web_test::web_configure;
+web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
-    use crate::test::*;
     use basegl::display::rendering::*;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
-    use wasm_bindgen_test::*;
+    use web_test::*;
     use web_sys::Performance;
 
-    #[wasm_bindgen_test]
+    #[web_test(no_container)]
     fn invalid_container() {
         let scene = HTMLScene::new("nonexistent_id");
         assert!(scene.is_err(), "nonexistent_id should not exist");
     }
 
-    #[wasm_bindgen_test]
+    #[web_test]
     fn object_behind_camera() {
-        Container::new("Tests", "object_behind_camera", 320.0, 240.0);
         let mut scene = HTMLScene::new("object_behind_camera")
                                   .expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0, "Scene should be empty");
@@ -85,9 +78,8 @@ mod tests {
         scene
     }
 
-    #[wasm_bindgen_test]
+    #[web_test]
     fn rhs_coordinates() {
-        Container::new("Tests", "rhs_coordinates", 320.0, 240.0);
         let scene = create_scene("rhs_coordinates");
 
         let view_dim = scene.get_dimensions();
@@ -103,11 +95,9 @@ mod tests {
         renderer.render(&mut camera, &scene);
     }
 
-    #[wasm_bindgen_test]
+    #[web_test]
     fn rhs_coordinates_from_back() {
         use std::f32::consts::PI;
-
-        Container::new("Tests", "rhs_coordinates_from_back", 320.0, 240.0);
         let scene = create_scene("rhs_coordinates_from_back");
 
         let view_dim = scene.get_dimensions();
@@ -126,14 +116,7 @@ mod tests {
         renderer.render(&mut camera, &scene);
     }
 
-    use crate::test::Bencher;
-    #[wasm_bindgen_test]
-    fn camera_movement_benchmark() {
-        let container = BenchContainer::new("camera_movement", 320.0, 240.0);
-        let mut b = Bencher::new(container);
-        camera_movement(&mut b);
-    }
-
+    #[web_bench]
     fn camera_movement(b: &mut Bencher) {
         let scene = create_scene("camera_movement");
 
@@ -184,13 +167,7 @@ mod tests {
         }
     }
 
-    #[wasm_bindgen_test]
-    fn object_x200_benchmark() {
-        let container = BenchContainer::new("object_x200", 320.0, 240.0);
-        let mut b = Bencher::new(container);
-        object_x200(&mut b);
-    }
-
+    #[web_bench]
     fn object_x200(b: &mut Bencher) {
         let mut scene = HTMLScene::new("object_x200")
                                   .expect("Failed to create scene");
@@ -223,13 +200,7 @@ mod tests {
         })
     }
 
-    #[wasm_bindgen_test]
-    fn object_x200_update_benchmark() {
-        let container = BenchContainer::new("object_x200_update", 320.0, 240.0);
-        let mut b = Bencher::new(container);
-        object_x200_update(&mut b);
-    }
-
+    #[web_bench]
     fn object_x200_update(b: &mut Bencher) {
         let mut scene = HTMLScene::new("object_x200_update")
                                   .expect("Failed to create scene");

@@ -1,10 +1,10 @@
-use basegl::system::web::document;
-use basegl::system::web::dyn_into;
-use basegl::system::web::create_element;
-use basegl::system::web::get_element_by_id;
-use basegl::system::web::AttributeSetter;
-use basegl::system::web::StyleSetter;
-use basegl::system::web::NodeInserter;
+use crate::system::web::document;
+use crate::system::web::dyn_into;
+use crate::system::web::create_element;
+use crate::system::web::get_element_by_id;
+use crate::system::web::AttributeSetter;
+use crate::system::web::StyleSetter;
+use crate::system::web::NodeInserter;
 use web_sys::HtmlElement;
 
 pub struct Group {

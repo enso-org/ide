@@ -1,8 +1,8 @@
-use basegl::system::web::create_element;
-use basegl::system::web::dyn_into;
-use basegl::system::web::AttributeSetter;
-use basegl::system::web::StyleSetter;
-use basegl::system::web::NodeInserter;
+use crate::system::web::create_element;
+use crate::system::web::dyn_into;
+use crate::system::web::AttributeSetter;
+use crate::system::web::StyleSetter;
+use crate::system::web::NodeInserter;
 use web_sys::HtmlElement;
 
 use super::Group;
