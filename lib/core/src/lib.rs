@@ -92,11 +92,13 @@ fn init(world: &mut World) {
 
     println!("{:?}",pos);
     println!("{:?}",pos.borrow().as_prim());
+
+//    world.on_frame(move |_| on_frame(&p6)).forget();
 }
 
-//pub fn on_frame(rect: &Rect) {
-//     rect.position.modify(|p| p.x += 1.0)
-//}
+pub fn on_frame(p: &Var<Vector3<f32>>) {
+     p.modify(|t| t.x += 0.01)
+}
 
 ////////////////////////////////////////////////
 ////////////////////////////////////////////////
