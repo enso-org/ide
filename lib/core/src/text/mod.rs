@@ -1,15 +1,16 @@
-use basegl_backend_webgl::{Context, compile_shader, link_program, Program, };
-
-use web_sys::{WebGlRenderingContext, WebGlBuffer, WebGlTexture};
-use crate::prelude::*;
-use crate::Color;
-
 pub mod font;
 
-use font::FontRenderInfo;
+use crate::prelude::*;
+
+use crate::Color;
 use crate::text::font::MsdfTexture;
-use js_sys::Float32Array;
 use crate::display::world::Workspace;
+use basegl_backend_webgl::{Context, compile_shader, link_program, Program, };
+use web_sys::{WebGlRenderingContext, WebGlBuffer, WebGlTexture};
+use font::FontRenderInfo;
+use js_sys::Float32Array;
+use nalgebra::{Vector2, Point2};
+
 
 pub struct TextComponentBuilder<'a> {
     pub text             : String,
@@ -18,7 +19,6 @@ pub struct TextComponentBuilder<'a> {
     pub y                : f32,
     pub size             : f32,
     pub color            : Color<f32>,
-    pub background_color : Color<f32>,
 }
 
 #[derive(Debug)]
@@ -101,30 +101,40 @@ impl<'a> TextComponentBuilder<'a> {
      * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
      */
 
-    fn create_vertex_buf(&self, gl_context : &Context) -> WebGlBuffer {
-        let y_max = self.y  + self.size;
-        let x_step = self.size;
-        let vertices = (0..self.text.len()).map(|i| {
-            let ix      = self.x + (i as f32) * x_step;
-            let ix_max  = ix + x_step;
-            vec![ix, self.y, ix, y_max, ix_max, self.y, ix_max,
-                 self.y, ix, y_max, ix_max, y_max] // Note [The ugly code]
+    const BASE_GLYPH_VERTICES_LAYOUT : &'static[(f32, f32)] = &[
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 0.0),
+        (1.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+    ];
+
+    fn create_vertex_buf(&mut self, gl_context : &Context) -> WebGlBuffer {
+        let to_window = nalgebra::Similarity2::new(
+            Vector2::new(self.x, self.y),
+            0.0,
+            self.size
+        );
+        let mut position = nalgebra::Translation2::new(0.0, 0.0);
+        let font = &mut self.font;
+        let vertices = self.text.chars().map(|ch| {
+            let ch_info = font.get_or_create_char_info(ch);
+            let transformation = to_window*position*ch_info.points_transformation;
+            position = nalgebra::Translation2::new(ch_info.advance, 0.0)*position;
+            Self::BASE_GLYPH_VERTICES_LAYOUT.iter()
+                .map(|(x, y)| Point2::new(*x, *y))
+                .map(|p| transformation.transform_point(&p))
+                .map(|p| p.iter().cloned().collect::<Vec<f32>>())
+                .flatten().collect::<Vec<f32>>()
         }).flatten().collect::<Box<[f32]>>();
 
         Self::create_buffer(gl_context, vertices.as_ref())
     }
 
-    /* Note [The ugly code]
-     *
-     * I have already refactored this function on branch
-     * wip/ao/letter-alignment. Please be patient
-     */
 
     fn create_tex_coord_buf(&mut self, gl_context : &Context) -> WebGlBuffer {
         let font = &mut self.font;
-        for ch in self.text.chars() {
-            font.get_or_create_char_info(ch);
-        }
         let vertices = self.text.chars().map(|c| {
             let msdf_rows = font.msdf_texture.rows() as f32;
             let info = font.get_or_create_char_info(c);
@@ -187,21 +197,12 @@ impl<'a> TextComponentBuilder<'a> {
     }
 
     fn setup_uniforms(&self, gl_context : &Context, gl_program : &Program) {
-        let bg_color_loc =
-            gl_context.get_uniform_location(gl_program, "bgColor");
         let fg_color_loc =
             gl_context.get_uniform_location(gl_program, "fgColor");
         let px_range_loc =
             gl_context.get_uniform_location(gl_program, "pxRange");
 
         gl_context.use_program(Some(gl_program));
-        gl_context.uniform4f(
-            bg_color_loc.as_ref(),
-            self.background_color.r,
-            self.background_color.g,
-            self.background_color.b,
-            self.background_color.a
-        );
         gl_context.uniform4f(
             fg_color_loc.as_ref(),
             self.color.r,
@@ -257,6 +258,13 @@ impl TextComponent {
             0
         );
 
+        gl.enable(Context::BLEND);
+        gl.blend_func_separate(
+            Context::SRC_ALPHA,
+            Context::ONE_MINUS_SRC_ALPHA,
+            Context::ZERO,
+            Context::ONE
+        );
 
         gl.draw_arrays(
             WebGlRenderingContext::TRIANGLES,

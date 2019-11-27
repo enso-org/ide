@@ -14,7 +14,6 @@ use internal::{
 use js_sys::Uint8Array;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-pub use vector2d::Vector2D;
 
 // ======================
 // === Initialization ===
@@ -99,13 +98,11 @@ pub fn generate_msdf<Output : Extend<f32>>(
     font      : &Font,
     unicode   : u32,
     params    : &MSDFParameters,
-    scale     : Vector2D<f64>,
-    translate : Vector2D<f64>,
-) {
+) -> (nalgebra::Projective2<f32>, f32) {
     assert!(params.width  <= MAX_MSDF_SIZE);
     assert!(params.height <= MAX_MSDF_SIZE);
 
-    let output_size = params.width * params.height * MSDF_CHANNELS_COUNT;
+    let output_size = params.width * params.height * MSDF_CHANNELS_COUNT + 4;
     let output_address = msdfgen_generate_msdf(
         params.width,
         params.height,
@@ -113,16 +110,20 @@ pub fn generate_msdf<Output : Extend<f32>>(
         unicode,
         params.edge_coloring_angle_threshold,
         params.range,
-        scale.x,
-        scale.y,
-        translate.x,
-        translate.y,
         params.edge_threshold,
         params.overlap_support
     );
-    let view = F32ArrayMemoryView::new(output_address, output_size);
+    let mut output_iter = F32ArrayMemoryView::new(output_address, output_size)
+        .iter();
+    let translation = nalgebra::Vector2::new(
+        output_iter.next().unwrap()/params.width as f32,
+        output_iter.next().unwrap()/params.height as f32
+    );
+    let scale = output_iter.next().unwrap();
+    let advance = output_iter.next().unwrap();
+    output.extend(output_iter); // Note [Output variable]
 
-    output.extend(view); // Note [Output variable]
+    (nalgebra::convert(nalgebra::Similarity2::new(translation, 0.0, scale)), advance)
 }
 
 // =============
@@ -163,8 +164,6 @@ mod tests {
                 &font,
                 'A' as u32,
                 &params,
-                Vector2D { x: 1.0, y: 1.0 },
-                Vector2D { x: 0.0, y: 0.0 }
             );
             // then
             // Note [asserts]

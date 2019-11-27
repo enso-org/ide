@@ -45,11 +45,10 @@ impl Extend<f32> for MsdfTexture {
 // =================
 
 /// A single character data used for rendering
-///
-/// For now it has only information which fragment of `MsdfTexture` keeps MSDF
-/// of this character
 pub struct CharRenderInfo {
-    pub msdf_texture_rows : std::ops::Range<usize>,
+    pub msdf_texture_rows     : std::ops::Range<usize>,
+    pub points_transformation : nalgebra::Projective2<f32>,
+    pub advance               : f32
 }
 
 /// A single font data used for rendering
@@ -100,19 +99,17 @@ impl FontRenderInfo {
     /// Load char render info
     pub fn load_char(&mut self, ch : char) {
         let msdf_texture_rows_begin = self.msdf_texture.rows();
-        msdf_sys::generate_msdf(
+        let (transformation, advance) = msdf_sys::generate_msdf(
             &mut self.msdf_texture,
             &self.msdf_sys_handle,
             ch as u32,
             &FontRenderInfo::MSDF_PARAMS,
-            // TODO [AO] should be soon loaded from font info
-            msdf_sys::Vector2D{ x : 1.0, y : 1.0 },
-            // TODO [AO] should be soon loaded from font info
-            msdf_sys::Vector2D{ x : 2.0, y : 2.25 }
         );
         let msdf_texture_rows_end = self.msdf_texture.rows();
         let char_info = CharRenderInfo {
-            msdf_texture_rows : msdf_texture_rows_begin..msdf_texture_rows_end
+            msdf_texture_rows : msdf_texture_rows_begin..msdf_texture_rows_end,
+            points_transformation: transformation.inverse(),
+            advance: advance/MsdfTexture::WIDTH as f32
         };
         self.chars.insert(ch, char_info);
     }

@@ -28,7 +28,7 @@ extern {
     #[wasm_bindgen(js_name="_msdfgen_maxMSDFSize")]
     pub fn msdfgen_max_msdf_size() -> usize;
 
-    #[wasm_bindgen(js_name="_msdfgen_generateMSDF")]
+    #[wasm_bindgen(js_name="_msdfgen_generateAutoscaledMSDF")]
     pub fn msdfgen_generate_msdf(
         width                           : usize,
         height                          : usize,
@@ -36,10 +36,6 @@ extern {
         unicode                         : u32,
         edge_coloring_angle_threshold   : f64,
         range                           : f64,
-        scale_x                         : f64,
-        scale_y                         : f64,
-        translate_x                     : f64,
-        translate_y                     : f64,
         edge_threshold                  : f64,
         overlap_support                 : bool
     ) -> usize;

@@ -127,7 +127,7 @@ mod example_03 {
             let mut fonts : Box<[FontRenderInfo]> = font_names.iter().map(
                 |name| FontRenderInfo::from_embedded(&font_base, name)
             ).collect();
-            let sizes = [0.024, 0.032, 0.048, 0.064];
+            let sizes = [0.016, 0.024, 0.032, 0.048, 0.064];
 
             for (i, (font, size)) in
                 iproduct!(0..fonts.len(), sizes.iter()).enumerate() {
@@ -144,7 +144,6 @@ mod example_03 {
                     y                : 0.9 - 0.064*(i as f32),
                     size             : *size,
                     color            : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
-                    background_color : Color {r: 0.0, g: 0.0, b: 0.0, a: 1.0}
                 }.build(workspace);
                 workspace.text_components.push(text_compnent);
             }
