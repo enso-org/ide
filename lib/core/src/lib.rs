@@ -45,7 +45,6 @@ use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
 type Position = SharedBuffer<Vector3<f32>>;
-//type Color    = SharedBuffer<Vector3<f32>>;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -72,23 +71,27 @@ fn init(world: &mut World) {
     let p1_ix = pt_scope.add_instance();
     let p2_ix = pt_scope.add_instance();
     let p3_ix = pt_scope.add_instance();
+    let p4_ix = pt_scope.add_instance();
+    let p5_ix = pt_scope.add_instance();
+    let p6_ix = pt_scope.add_instance();
 
     let p1 = pos.get(p1_ix);
     let p2 = pos.get(p2_ix);
     let p3 = pos.get(p3_ix);
+    let p4 = pos.get(p4_ix);
+    let p5 = pos.get(p5_ix);
+    let p6 = pos.get(p6_ix);
 
     p1.set(Vector3::new(-1.0, -1.0, 0.0));
     p2.set(Vector3::new( 1.0, -1.0, 0.0));
     p3.set(Vector3::new( 0.0,  1.0, 0.0));
 
+    p4.set(Vector3::new(-1.0, -1.0, 0.0));
+    p5.set(Vector3::new( 0.8, -1.0, 0.0));
+    p6.set(Vector3::new( 0.8,  0.6, 0.0));
+
     println!("{:?}",pos);
     println!("{:?}",pos.borrow().as_prim());
-//    let rect = Rect {
-//        x : pos.get(inst_ix),
-//    };
-
-
-//    world.on_frame(move |_| on_frame(&rect)).forget();
 }
 
 //pub fn on_frame(rect: &Rect) {

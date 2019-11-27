@@ -3,6 +3,7 @@ pub mod data;
 
 use crate::prelude::*;
 
+use crate::backend::webgl;
 use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
@@ -142,6 +143,18 @@ Buffer<T,OnSet,OnResize> {
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
         }
     }
+    /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
+    /// attribute of the current vertex buffer object and specifies its layout.
+    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
+    pub fn vertex_attrib_pointer(&self, index: u32) {
+        let size      = <T as Item>::item_count() as i32;
+        let prim_type = <T as Item>::gl_prim_type();
+        let normalize = false;
+        let stride    = 0;
+        let offset    = 0;
+        self.context.vertex_attrib_pointer_with_i32
+            (index,size,prim_type,normalize,stride,offset);
+    }
 }
 
 impl<T,OnSet,OnResize>
@@ -241,6 +254,12 @@ SharedBuffer<T,OnSet,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         self.borrow_mut().update()
+    }
+    /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
+    /// attribute of the current vertex buffer object and specifies its layout.
+    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
+    pub fn vertex_attrib_pointer(&self, index: u32) {
+        self.borrow().vertex_attrib_pointer(index)
     }
 }
 
@@ -482,4 +501,5 @@ pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
     fn is_empty(&self) -> bool;
     fn update(&self);
     fn bind(&self, target:u32);
+    fn vertex_attrib_pointer(&self, index: u32);
 }

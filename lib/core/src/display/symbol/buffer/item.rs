@@ -49,6 +49,8 @@ pub trait Item: Empty {
         <Self::Dim as DimName>::dim()
     }
 
+    fn gl_prim_type() -> u32;
+
     /// Conversion from slice of a buffer to the item. Buffers contain primitive
     /// values only, so two `Vector3<f32>` are represented there as six `f32`
     /// values. This allows us to view the buffers using desired types.
@@ -99,8 +101,9 @@ impl Item for i32 {
     type Prim = Self;
     type Dim  = U1;
 
-    fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
-    fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
+    fn gl_prim_type       () -> u32 { Context::INT }
+    fn from_buffer        (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
+    fn from_buffer_mut    (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
     fn to_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
     unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
@@ -112,6 +115,7 @@ impl Item for f32 {
     type Prim = Self;
     type Dim  = U1;
 
+    fn gl_prim_type       () -> u32 { Context::FLOAT }
     fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
@@ -126,6 +130,10 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
 
     type Prim = T;
     type Dim  = R;
+
+    fn gl_prim_type() -> u32 {
+        <T as Item>::gl_prim_type()
+    }
 
     fn from_buffer(buffer: &[Self::Prim]) -> &[Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`

@@ -112,19 +112,11 @@ impl<OnDirty:Callback0> Mesh<OnDirty> {
             self.context.use_program(Some(&program));
 
             self.context.enable_vertex_attrib_array(pos_loc);
-            self.geometry.scopes.point.buffers[0].bind(webgl::Context::ARRAY_BUFFER);
+            let buffer = &self.geometry.scopes.point.buffers[0];
+            buffer.bind(webgl::Context::ARRAY_BUFFER);
+            buffer.vertex_attrib_pointer(pos_loc);
 
-            // hidden part: binds ARRAY_BUFFER to the attribute
-            self.context.vertex_attrib_pointer_with_i32(
-                pos_loc,
-                3,                     // size - 3 components per iteration
-                webgl::Context::FLOAT, // type
-                false,                 // normalize
-                0,                     // stride
-                0,                     // offset
-            );
-
-            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (3) as i32);
+            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, buffer.len() as i32);
 
             println!("{:?}",&self.geometry.scopes.point.buffers[0]);
         })
