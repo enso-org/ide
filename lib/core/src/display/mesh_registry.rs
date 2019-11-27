@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
@@ -27,6 +28,7 @@ pub struct MeshRegistry <OnDirty> {
     pub meshes     : OptVec<Mesh<OnDirty>>,
     pub mesh_dirty : MeshDirty<OnDirty>,
     pub logger     : Logger,
+    context        : Context
 }
 
 // === Types ===
@@ -52,21 +54,23 @@ fn mesh_on_change<C:Callback0> (dirty:MeshDirty<C>, ix:MeshID) ->
 
 impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         logger.info("Initializing.");
         let mesh_logger = logger.sub("mesh_dirty");
         let mesh_dirty  = MeshDirty::new(mesh_logger,on_dirty);
         let meshes      = default();
-        Self {meshes,mesh_dirty,logger}
+        let context     = context.clone();
+        Self {meshes,mesh_dirty,logger,context}
     }
     /// Creates a new mesh instance.
     pub fn new_mesh(&mut self) -> MeshID {
         let mesh_dirty = self.mesh_dirty.clone();
         let logger     = &self.logger;
+        let context    = &self.context;
         self.meshes.insert_with_ix(|ix| {
             let on_dirty   = mesh_on_change(mesh_dirty, ix);
             let logger     = logger.sub(format!("mesh{}",ix));
-            Mesh::new(logger,on_dirty)
+            Mesh::new(context,logger,on_dirty)
         })
     }
     /// Check dirty flags and update the state accordingly.
@@ -76,6 +80,14 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
                 self.meshes[*mesh_id].update()
             }
             self.mesh_dirty.unset();
+        })
+    }
+
+    pub fn render(&self) {
+        group!(self.logger, "Rendering.", {
+            for mesh in &self.meshes {
+                mesh.render();
+            }
         })
     }
 }

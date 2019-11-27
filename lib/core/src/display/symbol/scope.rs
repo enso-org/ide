@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
@@ -33,7 +34,8 @@ pub struct Scope <OnDirty> {
     pub shape_dirty  : ShapeDirty<OnDirty>,
     pub name_map     : HashMap<BufferName, BufferIndex>,
     pub logger       : Logger,
-    instance_count   : usize
+    instance_count   : usize,
+    context          : Context
 }
 
 // === Types ===
@@ -66,7 +68,7 @@ fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) ->
 
 impl<OnDirty: Clone> Scope<OnDirty> {
     /// Create a new scope with the provided dirty callback.
-    pub fn new(logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         logger.info("Initializing.");
         let buffer_logger  = logger.sub("buffer_dirty");
         let shape_logger   = logger.sub("shape_dirty");
@@ -75,7 +77,9 @@ impl<OnDirty: Clone> Scope<OnDirty> {
         let buffers        = default();
         let name_map       = default();
         let instance_count = default();
-        Self {buffers,buffer_dirty,shape_dirty,name_map,logger,instance_count}
+        let context        = context.clone();
+        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger
+             ,instance_count}
     }
 }
 
@@ -92,7 +96,8 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
             let on_set     = buffer_on_set(buffer_dirty, ix);
             let on_resize  = buffer_on_resize(shape_dirty);
             let logger     = self.logger.sub(&name);
-            let buffer     = SharedBuffer::new(logger,on_set,on_resize);
+            let context    = &self.context;
+            let buffer     = SharedBuffer::new(context,logger,on_set,on_resize);
             let buffer_ref = buffer.clone();
             self.buffers.set(ix, AnyBuffer::from(buffer));
             self.name_map.insert(name, ix);

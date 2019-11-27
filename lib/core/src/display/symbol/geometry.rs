@@ -1,16 +1,17 @@
 use crate::prelude::*;
 
+use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
 use crate::display::symbol::scope;
-use crate::system::web::group;
-use crate::system::web::Logger;
-use crate::promote;
 use crate::promote_all;
 use crate::promote_scope_types;
-use num_enum::IntoPrimitive;
+use crate::promote;
+use crate::system::web::group;
+use crate::system::web::Logger;
 use eval_tt::*;
+use num_enum::IntoPrimitive;
 
 
 // ================
@@ -62,6 +63,7 @@ pub struct Geometry<OnDirty> {
     pub scopes       : Scopes      <OnDirty>,
     pub scopes_dirty : ScopesDirty <OnDirty>,
     pub logger       : Logger,
+    context          : Context
 }
 
 #[derive(Derivative)]
@@ -119,23 +121,24 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*}) => {$(
 
 impl<OnDirty: Callback0> Geometry<OnDirty> {
     /// Creates new geometry with attached dirty callback.
-    pub fn new(logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         let scopes_logger = logger.sub("scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,on_dirty);
+        let context       = context.clone();
         let scopes        = group!(logger, "Initializing.", {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = ScopesDirtyStatus::$name;
                 let scs_dirty  = scopes_dirty.clone_rc();
                 let callback   = scope_on_change(scs_dirty, status_mod);
-                let $name      = $cls::new(sub_logger, callback);
+                let $name      = $cls::new(&context,sub_logger, callback);
             )*}}
             new_scope!(VarScope {point,vertex,primitive,instance});
             new_scope!(VarScope {object});
             new_scope!(VarScope {global});
             Scopes {point,vertex,primitive,instance,object,global}
         });
-        Self {scopes,scopes_dirty,logger}
+        Self {context,scopes,scopes_dirty,logger}
     }
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {

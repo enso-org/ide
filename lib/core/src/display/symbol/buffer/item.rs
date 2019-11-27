@@ -1,7 +1,9 @@
 use crate::prelude::*;
 
+use crate::backend::webgl::Context;
 use crate::tp::debug::TypeDebugName;
 use nalgebra::*;
+use web_sys::WebGlBuffer;
 
 
 // =============
@@ -57,6 +59,33 @@ pub trait Item: Empty {
     /// `from_buffer` to learn more.
     fn from_buffer_mut(buffer: &mut [Self::Prim]) -> &mut [Self]
         where Self: std::marker::Sized;
+
+    fn to_prim_buffer(buffer: &[Self]) -> &[Self::Prim]
+        where Self: std::marker::Sized;
+
+    fn to_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Prim]
+        where Self: std::marker::Sized;
+
+    /// Creates a JS typed array which is a view into wasm's linear
+    /// memory at the slice specified.
+    ///
+    /// This function returns a new typed array which is a view into
+    /// wasm's memory. This view does not copy the underlying data.
+    ///
+    /// # Unsafety
+    ///
+    /// Views into WebAssembly memory are only valid so long as the
+    /// backing buffer isn't resized in JS. Once this function is called
+    /// any future calls to `Box::new` (or malloc of any form) may cause
+    /// the returned value here to be invalidated. Use with caution!
+    ///
+    /// Additionally the returned object can be safely mutated but the
+    /// input slice isn't guaranteed to be mutable.
+    ///
+    /// Finally, the returned object is disconnected from the input
+    /// slice's lifetime, so there's no guarantee that the data is read
+    /// at the right time.
+    unsafe fn js_buffer_view(rust: &[Self::Prim]) -> js_sys::Object;
 }
 
 // === Type Families ===
@@ -72,6 +101,11 @@ impl Item for i32 {
 
     fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
+    fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
+    fn to_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
+    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
+        js_sys::Int32Array::view(&data).into()
+    }
 }
 
 impl Item for f32 {
@@ -80,9 +114,14 @@ impl Item for f32 {
 
     fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
+    fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
+    fn to_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
+    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
+        js_sys::Float32Array::view(&data).into()
+    }
 }
 
-impl<T,R,C> Item for MatrixMN<T,R,C>
+impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
     where T:Default, Self:MatrixCtx<T,R,C> {
 
     type Prim = T;
@@ -107,6 +146,31 @@ impl<T,R,C> Item for MatrixMN<T,R,C>
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
         }
     }
+
+    fn to_prim_buffer(buffer: &[Self]) -> &[Self::Prim] {
+        // This code casts slice to matrix. This is safe because `MatrixMN`
+        // uses `nalgebra::Owned` allocator, which resolves to array defined as
+        // `#[repr(C)]` under the hood.
+        unsafe {
+            let len = buffer.len() * Self::item_count();
+            std::slice::from_raw_parts(buffer.as_ptr().cast(), len)
+        }
+    }
+
+    fn to_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Prim] {
+        // This code casts slice to matrix. This is safe because `MatrixMN`
+        // uses `nalgebra::Owned` allocator, which resolves to array defined as
+        // `#[repr(C)]` under the hood.
+        unsafe {
+            let len = buffer.len() * Self::item_count();
+            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
+        }
+    }
+
+    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
+        <T as Item>::js_buffer_view(data)
+    }
+
 }
 
 impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {
@@ -120,3 +184,4 @@ impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {
         }
     }
 }
+

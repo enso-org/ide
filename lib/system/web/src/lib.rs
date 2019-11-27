@@ -14,6 +14,7 @@ use std::fmt::Debug;
 
 pub use web_sys::console;
 
+
 // =============
 // === Error ===
 // =============

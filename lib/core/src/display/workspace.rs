@@ -18,7 +18,6 @@ use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
-use web_sys::WebGlRenderingContext;
 
 
 // =============
@@ -39,7 +38,7 @@ pub enum Error {
 #[derivative(Debug(bound=""))]
 pub struct Workspace<OnDirty> {
     pub canvas              : web_sys::HtmlCanvasElement,
-    pub context             : WebGlRenderingContext,
+    pub context             : webgl::Context,
     pub pixel_ratio         : f64,
     pub mesh_registry       : MeshRegistry<OnDirty>,
     pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
@@ -99,9 +98,10 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let dirty_flag    = MeshRegistryDirty::new(sub_logger, on_dirty);
         let on_change     = mesh_registry_on_change(dirty_flag.clone_rc());
         let sub_logger    = logger.sub("mesh_registry");
-        let mesh_registry = MeshRegistry::new(sub_logger, on_change);
+        let mesh_registry = MeshRegistry::new(&context,sub_logger, on_change);
         let shape         = default();
-        let listeners     = Self::init_listeners(&canvas,&shape,&shape_dirty);
+        let listeners     = Self::init_listeners
+                            (&logger,&canvas,&shape,&shape_dirty);
         let mesh_registry_dirty = dirty_flag;
         let this = Self
             {canvas,context,pixel_ratio,mesh_registry,mesh_registry_dirty
@@ -110,15 +110,19 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     }
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
-    ( canvas : &web_sys::HtmlCanvasElement
+    ( logger : &Logger
+    , canvas : &web_sys::HtmlCanvasElement
     , shape  : &Rc<RefCell<WorkspaceShape>>
     , dirty  : &ShapeDirty<OnDirty>
     ) -> Listeners {
-        let shape = shape.clone();
-        let dirty = dirty.clone();
+        let logger = logger.clone();
+        let shape  = shape.clone();
+        let dirty  = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
-            *shape.borrow_mut() = WorkspaceShape {width,height};
-            dirty.set();
+            group!(logger, "Resize observer event.", {
+                *shape.borrow_mut() = WorkspaceShape {width,height};
+                dirty.set();
+            })
         });
         let resize = ResizeObserver::new(canvas,on_resize);
         Listeners {resize}
@@ -145,10 +149,6 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
             self.context.viewport(0, 0, width, height);
         });
     }
-
-    // TODO TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO  TODO 
-    // THIS FUNCTION WILL BE REFACTORED IN THE NEAR FUTURE. IT IS A ROUGH
-    // MOCK NOW. DO NOT REVIEW IT.
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -160,91 +160,13 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
                 self.mesh_registry.update();
                 self.mesh_registry_dirty.unset();
             }
-        
-            let vert_shader = webgl::compile_shader(
-                &self.context,
-                webgl::Context::VERTEX_SHADER,
-                r#"
-    attribute vec4 position;
-    void main() {
-        gl_Position = position;
-    }
-"#,
-            )
-            .unwrap();
-            let frag_shader = webgl::compile_shader(
-                &self.context,
-                webgl::Context::FRAGMENT_SHADER,
-                r#"
-    void main() {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-    }
-"#,
-            )
-            .unwrap();
-            let program =
-                webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
 
-            let pos_loc = self.context.get_attrib_location(&program, "position");
-            let pos_loc = pos_loc as u32;
-
-            println!("pos_loc: {}", pos_loc);
-
-            let vertices: [f32; 9] = 
-                 [ -1.0, -1.0, 0.0
-                 ,  1.0, -1.0, 0.0
-                 ,  0.0,  1.0, 0.0
-                 ];
-
-            let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
-            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
-
-            // Note that `Float32Array::view` is somewhat dangerous (hence the
-            // `unsafe`!). This is creating a raw view into our module's
-            // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
-            // (aka do a memory allocation in Rust) it'll cause the buffer to change,
-            // causing the `Float32Array` to be invalid.
-            //
-            // As a result, after `Float32Array::view` we have to be very careful not to
-            // do any memory allocations before it's dropped.
-            unsafe {
-                let vert_array = js_sys::Float32Array::view(&vertices);
-
-                self.context.buffer_data_with_array_buffer_view(
-                    webgl::Context::ARRAY_BUFFER,
-                    &vert_array,
-                    webgl::Context::STATIC_DRAW,
-                );
-            }
-
-            // =================
-            // === Rendering ===
-            // =================
-
-            // Clear
+            self.logger.info("Clearing the scene.");
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
-
-
-            self.context.use_program(Some(&program));
-
-            self.context.enable_vertex_attrib_array(pos_loc);
-            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
-
-            // hidden part: binds ARRAY_BUFFER to the attribute
-            self.context.vertex_attrib_pointer_with_i32(
-                pos_loc,
-                3,                     // size - 3 components per iteration
-                webgl::Context::FLOAT, // type
-                false,                 // normalize
-                0,                     // stride
-                0,                     // offset
-            );
-
-
-
-            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
-})
+            self.logger.info("Rendering meshes.");
+            self.mesh_registry.render();
+        })
     }
 }
 

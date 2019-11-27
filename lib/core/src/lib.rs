@@ -41,12 +41,11 @@ pub mod tp;
 use console_error_panic_hook;
 use display::world::*;
 use nalgebra;
-use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
-type Position = SharedBuffer<Vector2<f32>>;
-type Color    = SharedBuffer<Vector3<f32>>;
+type Position = SharedBuffer<Vector3<f32>>;
+//type Color    = SharedBuffer<Vector3<f32>>;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -55,11 +54,10 @@ pub fn start() {
     init(&mut World::new().borrow_mut());
 }
 
-#[derive(Debug)]
-pub struct Rect {
-    position : Var<Vector2<f32>>,
-    color    : Var<Vector3<f32>>,
-}
+//#[derive(Debug)]
+//pub struct Rect {
+//    position : Var<Vector3<f32>>,
+//}
 
 fn init(world: &mut World) {
     let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
@@ -70,21 +68,32 @@ fn init(world: &mut World) {
     let scopes    : &mut Scopes    = &mut geo.scopes;
     let pt_scope  : &mut VarScope  = &mut scopes.point;
     let pos       : Position       = pt_scope.add_buffer("position");
-    let color     : Color          = pt_scope.add_buffer("color");
 
-    let inst_ix = pt_scope.add_instance();
+    let p1_ix = pt_scope.add_instance();
+    let p2_ix = pt_scope.add_instance();
+    let p3_ix = pt_scope.add_instance();
 
-    let rect = Rect {
-        position : pos.get(inst_ix),
-        color    : color.get(inst_ix)
-    };
+    let p1 = pos.get(p1_ix);
+    let p2 = pos.get(p2_ix);
+    let p3 = pos.get(p3_ix);
 
-    world.on_frame(move |_| on_frame(&rect)).forget();
+    p1.set(Vector3::new(-1.0, -1.0, 0.0));
+    p2.set(Vector3::new( 1.0, -1.0, 0.0));
+    p3.set(Vector3::new( 0.0,  1.0, 0.0));
+
+    println!("{:?}",pos);
+    println!("{:?}",pos.borrow().as_prim());
+//    let rect = Rect {
+//        x : pos.get(inst_ix),
+//    };
+
+
+//    world.on_frame(move |_| on_frame(&rect)).forget();
 }
 
-pub fn on_frame(rect: &Rect) {
-     rect.position.modify(|p| p.x += 1.0)
-}
+//pub fn on_frame(rect: &Rect) {
+//     rect.position.modify(|p| p.x += 1.0)
+//}
 
 ////////////////////////////////////////////////
 ////////////////////////////////////////////////
