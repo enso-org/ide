@@ -33,7 +33,6 @@ impl HTMLObject {
 
     /// Creates a HTMLObject from a web_sys::HtmlElement.
     pub fn from_element(element: HtmlElement) -> Self {
-        element.set_property_or_panic("transform-style", "preserve-3d");
         element.set_property_or_panic("position"       , "absolute");
         element.set_property_or_panic("width"          , "0px");
         element.set_property_or_panic("height"         , "0px");

@@ -37,11 +37,14 @@ impl HTMLScene {
 
         scene.container.set_property_or_panic("overflow", "hidden");
         scene.container.append_child_or_panic(&div.element);
-        div.element.append_child_or_panic(&camera.element);
-        div   .element.set_property_or_panic("width"  , &width);
-        div   .element.set_property_or_panic("height" , &height);
-        camera.element.set_property_or_panic("width"  , &width);
-        camera.element.set_property_or_panic("height" , &height);
+
+        div   .element.append_child_or_panic(&camera.element);
+        div   .element.set_property_or_panic("width"          , &width);
+        div   .element.set_property_or_panic("height"         , &height);
+
+        camera.element.set_property_or_panic("width"          , &width);
+        camera.element.set_property_or_panic("height"         , &height);
+        camera.element.set_property_or_panic("transform-style", "preserve-3d");
 
         Ok(Self { scene, div, camera, objects })
     }

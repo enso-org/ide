@@ -4,6 +4,18 @@
 use web_test::web_configure;
 web_configure!(run_in_browser);
 
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
+
+#[wasm_bindgen(module = "/tests/bench_test.js")]
+extern "C" {
+    fn set_gradient_bg(
+        dom           : &JsValue,
+        red           : &JsValue,
+        green         : &JsValue,
+        blue          : &JsValue);
+}
+
 #[cfg(test)]
 mod tests {
     use basegl::display::rendering::*;
@@ -139,6 +151,8 @@ mod tests {
     }
 
     fn make_sphere(scene : &mut HTMLScene, performance : &Performance) {
+        use super::set_gradient_bg;
+
         let t = (performance.now() / 1000.0) as f32;
         let length = scene.len() as f32;
         for (i, object) in (&mut scene.objects).into_iter().enumerate() {
@@ -156,24 +170,20 @@ mod tests {
             object.set_position(x * 5.0, y * 5.0, z * 5.0);
 
             let faster_t = t * 100.0;
-            let r = (i +   0.0 + faster_t) as u8;
-            let g = (i +  85.0 + faster_t) as u8;
-            let b = (i + 170.0 + faster_t) as u8;
-            let components = format!("{}, {}, {}", r, g, b);
-            let rgb = format!("rgb({})", components);
-            let rgba = format!("rgb({}, 0.0)", components);
-            let grad = format!("radial-gradient({} 50%, {})", rgb, rgba);
-            object.element.set_property_or_panic("background-image", grad);
+            let r = (i +   0.0 + faster_t) as u8 % 255;
+            let g = (i +  85.0 + faster_t) as u8 % 255;
+            let b = (i + 170.0 + faster_t) as u8 % 255;
+            set_gradient_bg(&object.element, &r.into(), &g.into(), &b.into());
         }
     }
 
     #[web_bench]
-    fn object_x200(b: &mut Bencher) {
-        let mut scene = HTMLScene::new("object_x200")
+    fn object_x1000(b: &mut Bencher) {
+        let mut scene = HTMLScene::new("object_x1000")
                                   .expect("Failed to create scene");
         scene.container.set_property_or_panic("background-color", "black");
 
-        for _ in 0..200 {
+        for _ in 0..1000 {
             let mut object = HTMLObject::new("div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
@@ -201,12 +211,12 @@ mod tests {
     }
 
     #[web_bench]
-    fn object_x200_update(b: &mut Bencher) {
-        let mut scene = HTMLScene::new("object_x200_update")
+    fn object_x400_update(b: &mut Bencher) {
+        let mut scene = HTMLScene::new("object_x400_update")
                                   .expect("Failed to create scene");
         scene.container.set_property_or_panic("background-color", "black");
 
-        for _ in 0..200 {
+        for _ in 0..400 {
             let mut object = HTMLObject::new("div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);

@@ -1,5 +1,6 @@
 use nalgebra::Matrix4;
 use nalgebra::RealField;
+use js_sys::Float32Array;
 
 // ======================
 // === Matrix Printer ===
@@ -16,6 +17,21 @@ impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
         let acc = format!("{}", item);
         let ret = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
         format!("matrix3d({})", ret)
+    }
+}
+
+pub trait IntoFloat32Array {
+    fn into_float32array(&self) -> Float32Array;
+}
+
+impl IntoFloat32Array for Matrix4<f32> {
+    fn into_float32array(&self) -> Float32Array {
+        // Note [2D array to 1D array]
+        unsafe {
+            use std::mem::transmute;
+            let matrix = self.as_ref();
+            Float32Array::view(transmute::<&[[f32; 4]; 4], &[f32; 16]>(matrix))
+        }
     }
 }
 
@@ -40,9 +56,9 @@ mod tests {
     }
 }
 
-// =============
+// ============
 // === Misc ===
-// =============
+// ============
 
 // eps is used to round very small values to 0.0 for numerical stability
 pub fn eps(value: f32) -> f32 {
@@ -56,3 +72,8 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m
 }
+
+// Note [2D array to 1D array]
+// ===========================
+// We need to interpret [[f32; 4]; 4] as [f32; 16] to view as Float32Array.
+// The memory layout is the same, so this operation is safe.
