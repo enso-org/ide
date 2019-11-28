@@ -59,7 +59,7 @@ mod tests {
                                   .expect("Failed to create HTMLScene");
         assert_eq!(scene.len(), 0);
 
-        scene.container.set_property_or_panic("background-color", "black");
+        scene.dom.set_property_or_panic("background-color", "black");
 
         // Iterate over 3 axes.
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
@@ -181,7 +181,7 @@ mod tests {
     fn object_x1000(b: &mut Bencher) {
         let mut scene = HTMLScene::new("object_x1000")
                                   .expect("Failed to create scene");
-        scene.container.set_property_or_panic("background-color", "black");
+        scene.dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..1000 {
             let mut object = HTMLObject::new("div")
@@ -214,7 +214,7 @@ mod tests {
     fn object_x400_update(b: &mut Bencher) {
         let mut scene = HTMLScene::new("object_x400_update")
                                   .expect("Failed to create scene");
-        scene.container.set_property_or_panic("background-color", "black");
+        scene.dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {
             let mut object = HTMLObject::new("div")

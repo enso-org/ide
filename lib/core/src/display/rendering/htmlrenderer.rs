@@ -48,9 +48,9 @@ impl HTMLRenderer {
         let half_height = half_dim.y.into();
 
         let matrix_array = trans_cam.into_float32array();
-        setup_perspective(&scene.div.element, &near);
+        setup_perspective(&scene.html_data.div.element, &near);
         setup_camera_transform(
-            &scene.camera.element,
+            &scene.html_data.camera.element,
             &near,
             &half_width,
             &half_height,

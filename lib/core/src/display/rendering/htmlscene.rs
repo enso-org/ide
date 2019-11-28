@@ -8,6 +8,33 @@ use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
 use crate::data::types::Index;
+use crate::math::Vector2;
+use std::rc::Rc;
+
+// =====================
+// === HTMLSceneData ===
+// =====================
+
+#[derive(Debug)]
+pub struct HTMLSceneData {
+    pub div    : HTMLObject,
+    pub camera : HTMLObject
+}
+
+impl HTMLSceneData {
+    pub fn new(div : HTMLObject, camera : HTMLObject) -> Self {
+        Self { div, camera }
+    }
+
+    pub fn set_dimensions(&self, dimensions : &Vector2<f32>) {
+        let width  = format!("{}px", dimensions.x);
+        let height = format!("{}px", dimensions.y);
+        self.div   .element.set_property_or_panic("width" , &width);
+        self.div   .element.set_property_or_panic("height", &height);
+        self.camera.element.set_property_or_panic("width" , &width);
+        self.camera.element.set_property_or_panic("height", &height);
+    }
+}
 
 // =================
 // === HTMLScene ===
@@ -18,40 +45,45 @@ use crate::data::types::Index;
 #[shrinkwrap(mutable)]
 pub struct HTMLScene {
     #[shrinkwrap(main_field)]
-    pub scene   : Scene,
-    pub div     : HTMLObject,
-    pub camera  : HTMLObject,
-    pub objects : OptVec<HTMLObject>,
+    pub scene     : Scene,
+    pub html_data : Rc<HTMLSceneData>,
+    pub objects   : OptVec<HTMLObject>,
 }
 
 impl HTMLScene {
     /// Searches for a HtmlElement identified by id and appends to it.
     pub fn new(dom_id: &str) -> Result<Self> {
-        let scene    = Scene::new(dom_id)?;
-        let view_dim = scene.get_dimensions();
-        let width    = format!("{}px", view_dim.x);
-        let height   = format!("{}px", view_dim.y);
-        let div      = HTMLObject::new("div")?;
-        let camera   = HTMLObject::new("div")?;
-        let objects  = default();
+        let mut scene = Scene::new(dom_id)?;
+        let div       = HTMLObject::new("div")?;
+        let camera    = HTMLObject::new("div")?;
+        let objects   = default();
 
-        scene.container.set_property_or_panic("overflow", "hidden");
-        scene.container.append_child_or_panic(&div.element);
-
+        scene .dom    .append_child_or_panic(&div.element);
         div   .element.append_child_or_panic(&camera.element);
-        div   .element.set_property_or_panic("width"          , &width);
-        div   .element.set_property_or_panic("height"         , &height);
-
-        camera.element.set_property_or_panic("width"          , &width);
-        camera.element.set_property_or_panic("height"         , &height);
         camera.element.set_property_or_panic("transform-style", "preserve-3d");
 
-        Ok(Self { scene, div, camera, objects })
+        let html_data = Rc::new(HTMLSceneData::new(div, camera));
+
+        let html_data_clone = html_data.clone();
+        scene.add_resize_callback(Box::new(move |dimensions| {
+            html_data_clone.set_dimensions(&dimensions);
+        }));
+
+        let dimensions = scene.get_dimensions().clone();
+        let mut htmlscene = Self { scene, html_data, objects };
+        htmlscene.set_dimensions(dimensions);
+        Ok(htmlscene)
+    }
+
+    /// Sets the HTMLScene DOM's dimensions.
+    pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
+        self.html_data.set_dimensions(&dimensions);
+        self.scene.set_dimensions(dimensions);
     }
 
     /// Moves a HTMLObject to the Scene and returns an index to it.
     pub fn add(&mut self, object: HTMLObject) -> Index {
-        self.camera.element.append_child_or_panic(&object.element);
+        self.html_data.camera.element.append_child_or_panic(&object.element);
         self.objects.insert(|_| object)
     }
 
@@ -59,7 +91,7 @@ impl HTMLScene {
     pub fn remove(&mut self, index: usize) -> Option<HTMLObject> {
         let result = self.objects.remove(index);
         result.iter().for_each(|object| {
-            self.camera.element.remove_child_or_panic(&object.element);
+           self.html_data.camera.element.remove_child_or_panic(&object.element);
         });
         result
     }
