@@ -38,7 +38,7 @@ impl IntoFloat32Array for Matrix4<f32> {
 mod tests {
     #[test]
     fn into_css_matrix() {
-        use nalgebra::Matrix4;
+        use super::Matrix4;
         use super::IntoCSSMatrix;
 
         let matrix = Matrix4::new
@@ -52,6 +52,23 @@ mod tests {
                                  9, 10, 11, 12, \
                                 13, 14, 15, 16)";
         assert_eq!(column_major, expected);
+    }
+
+    #[test]
+    fn matrix4_memory_layout() {
+        use super::Matrix4;
+        let matrix = Matrix4::<f32>::new
+            ( 1.0, 5.0,  9.0, 13.0
+            , 2.0, 6.0, 10.0, 14.0
+            , 3.0, 7.0, 11.0, 15.0
+            , 4.0, 8.0, 12.0, 16.0 );
+        let matrix = matrix.as_ref();
+        unsafe {
+            let layout = &*(matrix as *const [[f32; 4]; 4] as *const [f32; 16]);
+            for (i, n) in layout.iter().enumerate() {
+                assert_eq!((i + 1) as f32, *n);
+            }
+        }
     }
 }
 
