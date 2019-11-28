@@ -176,18 +176,22 @@ mod tests {
     fn test_iter_mut() {
         let mut v = OptVec::new();
 
-        let _ix1 = v.insert(|_| 0);
+        let  ix1 = v.insert(|_| 0);
         let _ix2 = v.insert(|_| 1);
         let _ix3 = v.insert(|_| 2);
 
         assert_eq!(v.len(), 3, "OptVec should have 3 items");
+
+        v.remove(ix1);
+
+        assert_eq!(v.len(), 2, "OptVec should have 2 items");
 
         for value in &mut v {
             *value *= 2;
         }
 
         for (i, value) in v.into_iter().enumerate() {
-            assert_eq!(i * 2, *value);
+            assert_eq!((i + 1) * 2, *value);
         }
     }
 }
