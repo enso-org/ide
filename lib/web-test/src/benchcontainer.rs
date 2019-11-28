@@ -6,7 +6,7 @@ use crate::system::web::StyleSetter;
 use web_sys::HtmlElement;
 use super::Container;
 
-/// Html benchmark container.
+/// Html container displaying benchmark results.
 #[derive(Shrinkwrap)]
 pub struct BenchContainer {
     #[shrinkwrap(main_field)]

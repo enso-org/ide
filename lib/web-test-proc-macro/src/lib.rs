@@ -4,6 +4,8 @@ use proc_macro::TokenStream;
 use syn::*;
 use quote::quote;
 
+/// #[web_test] creates a [320.0, 240.0] div with id = fn_name and appends it
+/// into the document.
 #[proc_macro_attribute]
 pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
     if let Ok(mut parsed) = syn::parse::<ItemFn>(input.clone()) {
@@ -12,6 +14,8 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
                            fn_string);
 
         if let Ok(stmt) = parse_str::<Stmt>(&code) {
+            // We insert Container::new("Tests", fn_name, 320.0, 240.0)
+            // at the beginning of the function block.
             parsed.block.stmts.insert(0, stmt);
 
             let output = quote! {
@@ -27,6 +31,7 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
+/// #[web_bench] creates a benchmark div with a toggle button.
 #[proc_macro_attribute]
 pub fn web_bench(_args: TokenStream, input: TokenStream) -> TokenStream {
 
