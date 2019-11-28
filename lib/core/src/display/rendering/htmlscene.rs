@@ -26,7 +26,7 @@ impl HTMLSceneData {
         Self { div, camera }
     }
 
-    pub fn set_dimensions(&self, dimensions : &Vector2<f32>) {
+    pub fn set_dimensions(&self, dimensions : Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
         self.div   .element.set_property_or_panic("width" , &width);
@@ -66,10 +66,10 @@ impl HTMLScene {
 
         let html_data_clone = html_data.clone();
         scene.add_resize_callback(Box::new(move |dimensions| {
-            html_data_clone.set_dimensions(&dimensions);
+            html_data_clone.set_dimensions(*dimensions);
         }));
 
-        let dimensions = scene.get_dimensions().clone();
+        let dimensions = scene.get_dimensions();
         let mut htmlscene = Self { scene, html_data, objects };
         htmlscene.set_dimensions(dimensions);
         Ok(htmlscene)
@@ -77,7 +77,7 @@ impl HTMLScene {
 
     /// Sets the HTMLScene DOM's dimensions.
     pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
-        self.html_data.set_dimensions(&dimensions);
+        self.html_data.set_dimensions(dimensions);
         self.scene.set_dimensions(dimensions);
     }
 

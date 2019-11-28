@@ -28,9 +28,8 @@ impl IntoFloat32Array for Matrix4<f32> {
     fn into_float32array(&self) -> Float32Array {
         // Note [2D array to 1D array]
         unsafe {
-            use std::mem::transmute;
             let matrix = self.as_ref();
-            Float32Array::view(transmute::<&[[f32; 4]; 4], &[f32; 16]>(matrix))
+            Float32Array::view(&*(matrix as *const [[f32; 4]; 4] as *const [f32; 16]))
         }
     }
 }
