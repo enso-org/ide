@@ -26,13 +26,13 @@ pub type ResizeCallback = Box<dyn Fn(&Vector2<f32>)>;
 struct SceneData {
     dimensions : Vector2<f32>,
     #[derivative(Debug="ignore")]
-    callbacks : Vec<ResizeCallback>
+    resize_callbacks : Vec<ResizeCallback>
 }
 
 impl SceneData {
     pub fn new(dimensions : Vector2<f32>) -> Self {
-        let callbacks = default();
-        Self { dimensions, callbacks }
+        let resize_callbacks = default();
+        Self { dimensions, resize_callbacks }
     }
 }
 
@@ -43,15 +43,15 @@ impl SceneData {
 /// A collection for holding 3D `Object`s.
 //#[derive(Debug)]
 pub struct Scene {
-    pub dom : HtmlElement,
-    _resize : ResizeObserver,
-    data : Rc<RefCell<SceneData>>
+    pub dom          : HtmlElement,
+    _resize_observer : ResizeObserver,
+    data             : Rc<RefCell<SceneData>>
 }
 
 impl fmt::Debug for Scene {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.dom)?;
-        write!(f, "{:?}", self._resize)?;
+        write!(f, "{:?}", self._resize_observer)?;
         write!(f, "{:?}", self.data.borrow())
     }
 }
@@ -68,16 +68,16 @@ impl Scene {
         let data = Rc::new(RefCell::new(SceneData::new(dimensions)));
 
         let data_clone = data.clone();
-        let resize = Closure::new(move |width, height| {
+        let resize_closure = Closure::new(move |width, height| {
             let mut data = data_clone.borrow_mut();
             data.dimensions = Vector2::new(width as f32, height as f32);
-            for callback in &data.callbacks {
+            for callback in &data.resize_callbacks {
                 callback(&data.dimensions);
             }
         });
-        let _resize = ResizeObserver::new(&dom, resize);
+        let _resize_observer = ResizeObserver::new(&dom, resize_closure);
 
-        Ok(Self { dom, _resize, data })
+        Ok(Self { dom, _resize_observer, data })
     }
 
     /// Sets the Scene DOM's dimensions.
@@ -94,6 +94,6 @@ impl Scene {
 
     /// Adds a ResizeCallback.
     pub fn add_resize_callback(&mut self, callback : ResizeCallback) {
-        self.data.borrow_mut().callbacks.push(callback);
+        self.data.borrow_mut().resize_callbacks.push(callback);
     }
 }
