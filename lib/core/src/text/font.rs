@@ -23,7 +23,7 @@ impl MsdfTexture {
 
     /// Number of rows in texture
     pub fn rows(&self) -> usize {
-        self.data.len()/(msdf_sys::MSDF_CHANNELS_COUNT*Self::WIDTH)
+        self.data.len()/(msdf_sys::MultichannelSignedDistanceField::CHANNELS_COUNT*Self::WIDTH)
     }
 
     fn convert_cell_from_f32(value : f32) -> u8 {
@@ -55,15 +55,16 @@ pub struct CharRenderInfo {
 ///
 /// The data for individual characters are load on demand
 pub struct FontRenderInfo {
-    pub name            : String,
-    pub msdf_sys_handle : msdf_sys::Font,
-    pub msdf_texture    : MsdfTexture,
-    chars               : HashMap<char, CharRenderInfo>
+    pub name          : String,
+    pub msdf_sys_font : msdf_sys::Font,
+    pub msdf_texture  : MsdfTexture,
+    chars             : HashMap<char, CharRenderInfo>,
+    kerning           : HashMap<(char, char), f32>
 }
 
 impl FontRenderInfo {
-    pub const MSDF_PARAMS : msdf_sys::MSDFParameters =
-        msdf_sys::MSDFParameters {
+    pub const MSDF_PARAMS : msdf_sys::MsdfParameters =
+        msdf_sys::MsdfParameters {
         width                         : MsdfTexture::WIDTH,
         height                        : MsdfTexture::WIDTH,
         edge_coloring_angle_threshold : 3.0,
@@ -79,9 +80,10 @@ impl FontRenderInfo {
     ) -> FontRenderInfo {
         FontRenderInfo {
             name,
-            msdf_sys_handle : msdf_sys::Font::load_from_memory(font_data),
+            msdf_sys_font: msdf_sys::Font::load_from_memory(font_data),
             msdf_texture    : MsdfTexture { data : Vec::new() },
-            chars           : HashMap::new()
+            chars           : HashMap::new(),
+            kerning         : HashMap::new()
         }
     }
 
@@ -98,18 +100,27 @@ impl FontRenderInfo {
 
     /// Load char render info
     pub fn load_char(&mut self, ch : char) {
-        let msdf_texture_rows_begin = self.msdf_texture.rows();
-        let (transformation, advance) = msdf_sys::generate_msdf(
-            &mut self.msdf_texture,
-            &self.msdf_sys_handle,
+        let msdf = msdf_sys::MultichannelSignedDistanceField::generate(
+            &self.msdf_sys_font,
             ch as u32,
             &FontRenderInfo::MSDF_PARAMS,
         );
+
+        let msdf_texture_rows_begin = self.msdf_texture.rows();
+        self.msdf_texture.extend(msdf.data.iter());
         let msdf_texture_rows_end = self.msdf_texture.rows();
+
+        let msdf_tranformation_matrix = nalgebra::Matrix3::new(
+            msdf.scale[0] as f32, 0.0,                  msdf.translation[0] as f32/MsdfTexture::WIDTH as f32*msdf.scale[0] as f32,
+            0.0,                  msdf.scale[1] as f32, msdf.translation[1] as f32/MsdfTexture::WIDTH as f32*msdf.scale[0] as f32,
+            0.0,                  0.0,                  1.0
+        );
+        let msdf_transformation : nalgebra::Projective2<f32> = nalgebra::Projective2::from_matrix_unchecked(msdf_tranformation_matrix);
+
         let char_info = CharRenderInfo {
             msdf_texture_rows : msdf_texture_rows_begin..msdf_texture_rows_end,
-            points_transformation: transformation.inverse(),
-            advance: advance/MsdfTexture::WIDTH as f32
+            points_transformation: msdf_transformation.inverse(),
+            advance: msdf.advance as f32 / MsdfTexture::WIDTH as f32
         };
         self.chars.insert(ch, char_info);
     }
@@ -120,6 +131,18 @@ impl FontRenderInfo {
             self.load_char(ch);
         }
         self.chars.get(&ch).unwrap()
+    }
+
+    pub fn get_or_retrieve_kerning(&mut self, left : char, right : char)
+        -> f32 {
+        if !self.kerning.contains_key(&(left, right)) {
+            let kerning =
+                self.msdf_sys_font.retrieve_kerning(left, right) as f32 / MsdfTexture::WIDTH as f32;
+            self.kerning.insert((left, right), kerning);
+            kerning
+        } else {
+            *self.kerning.get(&(left, right)).unwrap()
+        }
     }
 }
 

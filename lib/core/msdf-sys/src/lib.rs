@@ -1,4 +1,5 @@
 mod internal;
+pub mod emscripten_data;
 pub mod test_utils;
 pub use basegl_prelude as prelude;
 
@@ -8,12 +9,18 @@ use internal::{
     emscripten_call_function,
     msdfgen_generate_msdf,
     msdfgen_free_font,
-    emscripten_data_types,
-    F32ArrayMemoryView,
+    msdfgen_result_get_msdf_data,
+    msdfgen_result_get_translation,
+    msdfgen_result_get_advance,
+    msdfgen_result_get_scale,
+    msdfgen_free_result,
+    ccall_types
 };
+use emscripten_data::ArrayMemoryView;
 use js_sys::Uint8Array;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
+use crate::internal::msdfgen_get_kerning;
 
 // ======================
 // === Initialization ===
@@ -48,8 +55,8 @@ impl Font {
     /// See [https://www.freetype.org/freetype2/docs/index.html] for reference.
     pub fn load_from_memory(data: &[u8]) -> Self {
         let param_types = js_sys::Array::of2(
-            &JsValue::from_str(emscripten_data_types::ARRAY),
-            &JsValue::from_str(emscripten_data_types::NUMBER)
+            &JsValue::from_str(ccall_types::ARRAY),
+            &JsValue::from_str(ccall_types::NUMBER)
         );
         let params = js_sys::Array::of2(
             &JsValue::from(Uint8Array::from(data)),
@@ -57,10 +64,14 @@ impl Font {
         );
         let handle = emscripten_call_function(
             "msdfgen_loadFontMemory",
-            emscripten_data_types::NUMBER,
+            ccall_types::NUMBER,
             param_types,
             params);
         Font { handle }
+    }
+
+    pub fn retrieve_kerning(&self, left : char, right : char) -> f64 {
+        msdfgen_get_kerning(self.handle.clone(), left as u32, right as u32)
     }
 }
 
@@ -78,7 +89,7 @@ impl Drop for Font {
 ///
 /// The structure gathering MSDF generation parameters meant to be same for all
 /// rendered glyphs
-pub struct MSDFParameters {
+pub struct MsdfParameters {
     pub width                         : usize,
     pub height                        : usize,
     pub edge_coloring_angle_threshold : f64,
@@ -87,43 +98,76 @@ pub struct MSDFParameters {
     pub overlap_support               : bool
 }
 
-pub const MAX_MSDF_SIZE       : usize = 64;
-pub const MSDF_CHANNELS_COUNT : usize = 3;
+pub struct MultichannelSignedDistanceField {
+    handle : JsValue,
+    pub advance     : f64,
+    pub translation : nalgebra::Vector2<f64>,
+    pub scale       : nalgebra::Vector2<f64>,
+    pub data        : ArrayMemoryView<f32>
+}
 
-///// Generate Mutlichannel Signed Distance Field (MSDF) for one glyph
-/////
-///// For more information about MSDF see [https://github.com/Chlumsky/msdfgen].
-pub fn generate_msdf<Output : Extend<f32>>(
-    output    : &mut Output,
-    font      : &Font,
-    unicode   : u32,
-    params    : &MSDFParameters,
-) -> (nalgebra::Projective2<f32>, f32) {
-    assert!(params.width  <= MAX_MSDF_SIZE);
-    assert!(params.height <= MAX_MSDF_SIZE);
+impl MultichannelSignedDistanceField {
+    pub const CHANNELS_COUNT : usize = 3;
 
-    let output_size = params.width * params.height * MSDF_CHANNELS_COUNT + 4;
-    let output_address = msdfgen_generate_msdf(
-        params.width,
-        params.height,
-        font.handle.clone(),
-        unicode,
-        params.edge_coloring_angle_threshold,
-        params.range,
-        params.edge_threshold,
-        params.overlap_support
-    );
-    let mut output_iter = F32ArrayMemoryView::new(output_address, output_size)
-        .iter();
-    let translation = nalgebra::Vector2::new(
-        output_iter.next().unwrap()/params.width as f32,
-        output_iter.next().unwrap()/params.height as f32
-    );
-    let scale = output_iter.next().unwrap();
-    let advance = output_iter.next().unwrap();
-    output.extend(output_iter); // Note [Output variable]
+    ///// Generate Mutlichannel Signed Distance Field (MSDF) for one glyph
+    /////
+    ///// For more information about MSDF see [https://github.com/Chlumsky/msdfgen].
+    pub fn generate(
+        font      : &Font,
+        unicode   : u32,
+        params    : &MsdfParameters,
+    ) -> MultichannelSignedDistanceField {
+        let handle = msdfgen_generate_msdf(
+            params.width,
+            params.height,
+            font.handle.clone(),
+            unicode,
+            params.edge_coloring_angle_threshold,
+            params.range,
+            params.edge_threshold,
+            params.overlap_support
+        );
+        let advance = msdfgen_result_get_advance(handle.clone());
+        let translation = Self::translation(&handle);
+        let scale = Self::scale(&handle);
 
-    (nalgebra::convert(nalgebra::Similarity2::new(translation, 0.0, scale)), advance)
+        let data_adress = msdfgen_result_get_msdf_data(handle.clone());
+        let data_size = params.width * params.height * Self::CHANNELS_COUNT;
+        let data = ArrayMemoryView::<f32>::new(data_adress, data_size);
+
+        MultichannelSignedDistanceField {
+            handle, advance, translation, scale, data
+        }
+    }
+
+    const TRANSLATION_DIMS : usize = 2;
+    const SCALE_DIMS       : usize = 2;
+
+    fn translation(handle : &JsValue) -> nalgebra::Vector2<f64> {
+        let address = msdfgen_result_get_translation(handle.clone());
+        let view =  ArrayMemoryView::<f64>::new(
+            address,
+            Self::TRANSLATION_DIMS
+        );
+        let mut iter = view.iter();
+        nalgebra::Vector2::new(iter.next().unwrap(), iter.next().unwrap())
+    }
+
+    fn scale(handle : &JsValue) -> nalgebra::Vector2<f64> {
+        let address = msdfgen_result_get_scale(handle.clone());
+        let view = ArrayMemoryView::<f64>::new(
+            address,
+            Self::SCALE_DIMS
+        );
+        let mut iter = view.iter();
+        nalgebra::Vector2::new(iter.next().unwrap(), iter.next().unwrap())
+    }
+}
+
+impl Drop for MultichannelSignedDistanceField {
+    fn drop(&mut self) {
+        msdfgen_free_result(self.handle.clone());
+    }
 }
 
 // =============
@@ -149,7 +193,7 @@ mod tests {
             let font = Font::load_from_memory(
                 font_base.font_data_by_name.get("DejaVuSansMono-Bold").unwrap()
             );
-            let params = MSDFParameters {
+            let params = MsdfParameters {
                 width: 32,
                 height: 32,
                 edge_coloring_angle_threshold: 3.0,

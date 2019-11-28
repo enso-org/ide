@@ -11,6 +11,39 @@ use font::FontRenderInfo;
 use js_sys::Float32Array;
 use nalgebra::{Vector2, Point2};
 
+struct CachingIterator<T:Clone, It:Iterator<Item=T>> {
+    last : Option<T>,
+    iter : It
+}
+
+impl<T:Clone, It:Iterator<Item=T>> Iterator for CachingIterator<T, It> {
+    type Item = (Option<T>, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|value| {
+            let new_last = Some(value.clone());
+            let old_last = std::mem::replace(&mut self.last, new_last);
+            (old_last, value)
+        })
+    }
+}
+
+trait IntoCachingIterator {
+    type Item : Clone;
+    type Iter : Iterator<Item = Self::Item>;
+    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter>;
+}
+
+impl<T : Clone, It : Iterator<Item=T>> IntoCachingIterator for It {
+    type Item = T;
+    type Iter = Self;
+
+    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter> {
+        CachingIterator { last : None, iter : self }
+    }
+}
+
+
 
 pub struct TextComponentBuilder<'a> {
     pub text             : String,
@@ -35,6 +68,11 @@ impl<'a> TextComponentBuilder<'a> {
     pub fn build(mut self, workspace  : &Workspace) -> TextComponent {
         let gl_context       = workspace.context.clone();
         let gl_program       = self.create_program(&gl_context);
+
+        for ch in self.text.chars() {
+            self.font.get_or_create_char_info(ch);
+        }
+
         let gl_vertex_buf    = self.create_vertex_buf(&gl_context);
         let gl_tex_coord_buf = self.create_tex_coord_buf(&gl_context);
         let gl_msdf_texture  =
@@ -118,10 +156,12 @@ impl<'a> TextComponentBuilder<'a> {
         );
         let mut position = nalgebra::Translation2::new(0.0, 0.0);
         let font = &mut self.font;
-        let vertices = self.text.chars().map(|ch| {
+        let vertices = self.text.chars().cache_last_value().map(|(last_ch, ch)| {
+            let kerning = last_ch.map(|lc| font.get_or_retrieve_kerning(lc, ch) ).unwrap_or(0.0);
             let ch_info = font.get_or_create_char_info(ch);
-            let transformation = to_window*position*ch_info.points_transformation;
-            position = nalgebra::Translation2::new(ch_info.advance, 0.0)*position;
+            let kerning_trans = nalgebra::Translation2::new(kerning, 0.0);
+            let transformation = to_window*position*ch_info.points_transformation*kerning_trans;
+            position = nalgebra::Translation2::new(ch_info.advance+kerning, 0.0)*position;
             Self::BASE_GLYPH_VERTICES_LAYOUT.iter()
                 .map(|(x, y)| Point2::new(*x, *y))
                 .map(|p| transformation.transform_point(&p))
