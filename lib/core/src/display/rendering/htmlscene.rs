@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::HTMLObject;
 use super::Scene;
-use crate::data::opt_vec::OptVec;
+use crate::data::opt_vec::*;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
@@ -47,7 +47,7 @@ pub struct HTMLScene {
     #[shrinkwrap(main_field)]
     pub scene     : Scene,
     pub html_data : Rc<HTMLSceneData>,
-    pub objects   : OptVec<HTMLObject>,
+    objects       : OptVec<HTMLObject>,
 }
 
 impl HTMLScene {
@@ -105,5 +105,21 @@ impl HTMLScene {
     /// Returns true if the Scene contains no `Object`s.
     pub fn is_empty(&self) -> bool {
         self.objects.is_empty()
+    }
+}
+
+impl<'a> IntoIterator for &'a HTMLScene {
+    type Item = &'a HTMLObject;
+    type IntoIter = Iter<'a, HTMLObject>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.objects.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut HTMLScene {
+    type Item = &'a mut HTMLObject;
+    type IntoIter = IterMut<'a, HTMLObject>;
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.objects).into_iter()
     }
 }

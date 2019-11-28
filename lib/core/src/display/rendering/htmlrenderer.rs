@@ -40,14 +40,15 @@ impl HTMLRenderer {
         let trans_cam = invert_y(trans_cam);
 
         // Note [znear from projection matrix]
-        let half_dim  = scene.get_dimensions() / 2.0;
-        let expr      = camera.projection[(1, 1)];
-        let near = (expr * half_dim.y).into();
+        let half_dim     = scene.get_dimensions() / 2.0;
+        let expr         = camera.projection[(1, 1)];
+        let near         = (expr * half_dim.y).into();
 
-        let half_width = half_dim.x.into();
-        let half_height = half_dim.y.into();
+        let half_width   = half_dim.x.into();
+        let half_height  = half_dim.y.into();
 
         let matrix_array = trans_cam.into_float32array();
+
         setup_perspective(&scene.html_data.div.element, &near);
         setup_camera_transform(
             &scene.html_data.camera.element,
@@ -57,7 +58,7 @@ impl HTMLRenderer {
             &matrix_array
         );
 
-        for object in &scene.objects {
+        for object in scene {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
 

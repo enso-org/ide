@@ -155,7 +155,7 @@ mod tests {
 
         let t = (performance.now() / 1000.0) as f32;
         let length = scene.len() as f32;
-        for (i, object) in (&mut scene.objects).into_iter().enumerate() {
+        for (i, object) in scene.into_iter().enumerate() {
             let i = i as f32;
             let d = (i / length - 0.5) * 2.0;
 
