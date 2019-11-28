@@ -1,6 +1,8 @@
+use crate::prelude::*;
 use nalgebra::Matrix4;
 use nalgebra::RealField;
 use js_sys::Float32Array;
+use std::marker::PhantomData;
 
 // ======================
 // === Matrix Printer ===
@@ -20,16 +22,26 @@ impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
     }
 }
 
+#[derive(Shrinkwrap)]
+pub struct Float32ArrayView<'a> {
+    #[shrinkwrap(main_field)]
+    array   : Float32Array,
+    phantom : PhantomData<&'a Float32Array>
+}
+
 pub trait IntoFloat32Array {
-    fn into_float32array(&self) -> Float32Array;
+    fn into_float32array<'a>(&'a self) -> Float32ArrayView<'a>;
 }
 
 impl IntoFloat32Array for Matrix4<f32> {
-    fn into_float32array(&self) -> Float32Array {
+    fn into_float32array<'a>(&'a self) -> Float32ArrayView<'a> {
         // Note [2D array to 1D array]
         unsafe {
             let matrix = self.as_ref();
-            Float32Array::view(&*(matrix as *const [[f32; 4]; 4] as *const [f32; 16]))
+            let matrix = matrix as *const [[f32; 4]; 4];
+            let array = Float32Array::view(&*(matrix as *const [f32; 16]));
+            let phantom = PhantomData;
+            Float32ArrayView { array, phantom }
         }
     }
 }
