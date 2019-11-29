@@ -8,7 +8,7 @@ pub mod font;
 use font::FontRenderInfo;
 use crate::text::font::MsdfTexture;
 use js_sys::Float32Array;
-use crate::display::workspace::WorkspaceData;
+use crate::display::world::Workspace;
 
 #[derive(Debug)]
 pub struct Color {
@@ -27,7 +27,8 @@ pub struct TextComponent {
     pub color            : Color,
     pub background_color : Color,
 
-    workspace        : Rc<WorkspaceData>,
+    // TODO Split structure to component data and rendering separately
+    gl_context       : WebGlRenderingContext,
     gl_program       : Program,
     gl_vertex_buf    : WebGlBuffer,
     gl_tex_coord_buf : WebGlBuffer,
@@ -36,7 +37,7 @@ pub struct TextComponent {
 
 impl TextComponent {
     pub fn new(
-        workspace        : Rc<WorkspaceData>,
+        workspace        : &Workspace,
         text             : String,
         x                : f32,
         y                : f32,
@@ -45,27 +46,28 @@ impl TextComponent {
         color            : Color,
         background_color : Color,
     ) -> TextComponent {
-        let gl_program = Self::create_program(&workspace.context);
+        let gl_context = workspace.context.clone();
+        let gl_program = Self::create_program(&gl_context);
         let gl_vertex_buf = Self::create_vertex_buf(
-            &workspace.context,
+            &gl_context,
             text.as_str(),
             x,
             y,
             size,
         );
         let gl_tex_coord_buf = Self::create_tex_coord_buf(
-            &workspace.context,
+            &gl_context,
             text.as_str(),
             font,
         );
         let gl_msdf_texture = Self::create_msdf_texture(
-            &workspace.context,
+            &gl_context,
             &gl_program,
             font
         );
 
         let component = TextComponent {
-            text, x, y, size, workspace, color, background_color,
+            text, x, y, size, color, background_color, gl_context,
             gl_program, gl_vertex_buf, gl_tex_coord_buf, gl_msdf_texture
         };
         component.setup_uniforms();
@@ -212,7 +214,7 @@ impl TextComponent {
     }
 
     fn setup_uniforms(&self) {
-        let gl = &self.workspace.context;
+        let gl = &self.gl_context;
         let program = &self.gl_program;
         let bg_color_location = gl.get_uniform_location(program, "bgColor");
         let fg_color_location = gl.get_uniform_location(program, "fgColor");
@@ -240,7 +242,7 @@ impl TextComponent {
     }
 
     pub fn display(&self) {
-        let gl = &self.workspace.context;
+        let gl = &self.gl_context;
         let program = &self.gl_program;
 
         gl.use_program(Some(&self.gl_program));

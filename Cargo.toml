@@ -2,11 +2,14 @@
 
 members = [
     "build-utilities",
-    "lib/prelude",
+    "lib/backend/webgl",
     "lib/core",
     "lib/core/embedded-fonts",
     "lib/core/msdf-sys",
-    "lib/backend/webgl",
+    "lib/eval-tt",
+    "lib/optics",
+    "lib/prelude",
+    "lib/shapely/impl",
     "lib/system/web",
 ]
 
