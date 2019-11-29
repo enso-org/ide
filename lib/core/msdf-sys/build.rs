@@ -30,8 +30,10 @@ mod msdfgen_wasm {
      * remember to remove msdfgen_wasm.js entry from .gitignore
      */
 
-    const PATCH_LINE : &str = "; export { ccall, getValue, \
-        _msdfgen_maxMSDFSize, _msdfgen_generateMSDF, _msdfgen_freeFont, \
+    const PATCH_LINE : &str = "; export { ccall, getValue, _msdfgen_getKerning,\
+        _msdfgen_generateAutoscaledMSDF, _msdfgen_result_getMSDFData,\
+        _msdfgen_result_getAdvance, _msdfgen_result_getTranslation,\
+        _msdfgen_result_getScale, _msdfgen_freeResult, _msdfgen_freeFont,\
         addInitializationCb, isInitialized }";
 
     /// Patches downloaded msdfgen_wasm.js file

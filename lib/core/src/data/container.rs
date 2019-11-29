@@ -59,5 +59,22 @@ impl<T : Clone, It : Iterator<Item=T>> IntoCachingIterator for It {
 
 #[cfg(test)]
 mod tests {
-    
+    use crate::data::container::IntoCachingIterator;
+
+    #[test]
+    fn caching_iterator_on_empty() {
+        let data   = Vec::<i32>::new();
+        let result = data.iter().cache_last_value().next();
+        assert_eq!(None, result);
+    }
+
+    #[test]
+    fn caching_iterator() {
+        let data                 = vec![2, 3, 5];
+        let mut caching_iterator = data.iter().cloned().cache_last_value();
+        assert_eq!(Some((None   , 2)), caching_iterator.next());
+        assert_eq!(Some((Some(2), 3)), caching_iterator.next());
+        assert_eq!(Some((Some(3), 5)), caching_iterator.next());
+        assert_eq!(None,                caching_iterator.next());
+    }
 }

@@ -200,7 +200,7 @@ mod tests {
             font_render_info.load_char('B');
 
             let expected_texture_size = MsdfTexture::WIDTH * MsdfTexture::WIDTH
-                * msdf_sys::MSDF_CHANNELS_COUNT * 2;
+                * msdf_sys::MultichannelSignedDistanceField::CHANNELS_COUNT * 2;
 
             assert_eq!(MsdfTexture::WIDTH * 2,
                 font_render_info.msdf_texture.rows());

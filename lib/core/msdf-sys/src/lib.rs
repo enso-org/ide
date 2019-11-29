@@ -176,12 +176,12 @@ impl Drop for MultichannelSignedDistanceField {
 
 #[cfg(test)]
 mod tests {
-    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
-    use internal::msdfgen_max_msdf_size;
     use crate::*;
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
     use basegl_core_embedded_fonts::EmbeddedFonts;
     use std::future::Future;
     use test_utils::TestAfterInit;
+    use nalgebra::Vector2;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -194,26 +194,28 @@ mod tests {
                 font_base.font_data_by_name.get("DejaVuSansMono-Bold").unwrap()
             );
             let params = MsdfParameters {
-                width: 32,
-                height: 32,
-                edge_coloring_angle_threshold: 3.0,
-                range: 2.0,
-                edge_threshold: 1.001,
-                overlap_support: true
+                width                         : 32,
+                height                        : 32,
+                edge_coloring_angle_threshold : 3.0,
+                range                         : 2.0,
+                edge_threshold                : 1.001,
+                overlap_support               : true
             };
             // when
-            let mut msdf = Vec::<f32>::new();
-            generate_msdf(
-                &mut msdf,
+            let msdf = MultichannelSignedDistanceField::generate(
                 &font,
                 'A' as u32,
                 &params,
             );
             // then
+            let data : Vec<f32> = msdf.data.iter().collect();
             // Note [asserts]
-            assert_eq!(0.42730755, msdf[0]);
-            assert_eq!(0.75, msdf[10]);
-            assert_eq!(-9.759168, msdf[msdf.len()-1]);
+            assert_eq!(-0.9408906,                 data[0]);
+            assert_eq!(0.2,                        data[10]);
+            assert_eq!(-4.3035655,                 data[data.len()-1]);
+            assert_eq!(Vector2::new(3.03125, 1.0), msdf.translation);
+            assert_eq!(Vector2::new(1.25, 1.25),   msdf.scale);
+            assert_eq!(19.265625,                  msdf.advance);
         })
     }
 
@@ -222,11 +224,4 @@ mod tests {
      * we're checking rust - js interface only, so there is no need to check
      * all values
      */
-
-    #[wasm_bindgen_test(async)]
-    fn msdf_data_limits() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            assert!(MAX_MSDF_SIZE <= msdfgen_max_msdf_size());
-        })
-    }
 }
