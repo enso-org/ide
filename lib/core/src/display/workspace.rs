@@ -175,89 +175,95 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
             }
 
             if self.text_components.is_empty() {
-                let vert_shader = webgl::compile_shader(
+            // Note [broken indentation]
+            let vert_shader = webgl::compile_shader(
+            &self.context,
+            webgl::Context::VERTEX_SHADER,
+            r#"
+attribute vec4 position;
+void main() {
+    gl_Position = position;
+}
+"#,
+            )
+            .unwrap();
+            let frag_shader = webgl::compile_shader(
                 &self.context,
-                webgl::Context::VERTEX_SHADER,
+                webgl::Context::FRAGMENT_SHADER,
                 r#"
-    attribute vec4 position;
     void main() {
-        gl_Position = position;
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
 "#,
-                )
-                .unwrap();
-                let frag_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::FRAGMENT_SHADER,
-                    r#"
-        void main() {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-        }
-    "#,
-                )
-                .unwrap();
-                let program =
-                    webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
+            )
+            .unwrap();
+            let program =
+                webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
 
-                let pos_loc = self.context.get_attrib_location(&program, "position");
-                let pos_loc = pos_loc as u32;
+            let pos_loc = self.context.get_attrib_location(&program, "position");
+            let pos_loc = pos_loc as u32;
 
-                println!("pos_loc: {}", pos_loc);
+            println!("pos_loc: {}", pos_loc);
 
-                let vertices: [f32; 9] =
-                     [ -1.0, -1.0, 0.0
-                     ,  1.0, -1.0, 0.0
-                     ,  0.0,  1.0, 0.0
-                     ];
+            let vertices: [f32; 9] =
+                 [ -1.0, -1.0, 0.0
+                 ,  1.0, -1.0, 0.0
+                 ,  0.0,  1.0, 0.0
+                 ];
 
-                let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
-                self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
+            let buffer = self.context.create_buffer().ok_or("failed to create buffer").unwrap();
+            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
 
-                // Note that `Float32Array::view` is somewhat dangerous (hence the
-                // `unsafe`!). This is creating a raw view into our module's
-                // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
-                // (aka do a memory allocation in Rust) it'll cause the buffer to change,
-                // causing the `Float32Array` to be invalid.
-                //
-                // As a result, after `Float32Array::view` we have to be very careful not to
-                // do any memory allocations before it's dropped.
-                unsafe {
-                    let vert_array = js_sys::Float32Array::view(&vertices);
+            // Note that `Float32Array::view` is somewhat dangerous (hence the
+            // `unsafe`!). This is creating a raw view into our module's
+            // `WebAssembly.Memory` buffer, but if we allocate more pages for ourself
+            // (aka do a memory allocation in Rust) it'll cause the buffer to change,
+            // causing the `Float32Array` to be invalid.
+            //
+            // As a result, after `Float32Array::view` we have to be very careful not to
+            // do any memory allocations before it's dropped.
+            unsafe {
+                let vert_array = js_sys::Float32Array::view(&vertices);
 
-                    self.context.buffer_data_with_array_buffer_view(
-                        webgl::Context::ARRAY_BUFFER,
-                        &vert_array,
-                        webgl::Context::STATIC_DRAW,
-                    );
-                }
-
-                // =================
-                // === Rendering ===
-                // =================
-
-                self.context.use_program(Some(&program));
-
-                self.context.enable_vertex_attrib_array(pos_loc);
-                self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
-
-                // hidden part: binds ARRAY_BUFFER to the attribute
-                self.context.vertex_attrib_pointer_with_i32(
-                    pos_loc,
-                    3,                     // size - 3 components per iteration
-                    webgl::Context::FLOAT, // type
-                    false,                 // normalize
-                    0,                     // stride
-                    0,                     // offset
+                self.context.buffer_data_with_array_buffer_view(
+                    webgl::Context::ARRAY_BUFFER,
+                    &vert_array,
+                    webgl::Context::STATIC_DRAW,
                 );
+            }
+
+            // =================
+            // === Rendering ===
+            // =================
+
+            self.context.use_program(Some(&program));
+
+            self.context.enable_vertex_attrib_array(pos_loc);
+            self.context.bind_buffer(webgl::Context::ARRAY_BUFFER, Some(&buffer));
+
+            // hidden part: binds ARRAY_BUFFER to the attribute
+            self.context.vertex_attrib_pointer_with_i32(
+                pos_loc,
+                3,                     // size - 3 components per iteration
+                webgl::Context::FLOAT, // type
+                false,                 // normalize
+                0,                     // stride
+                0,                     // offset
+            );
 
 
 
-                self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
+            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, (vertices.len() / 3) as i32);
             }
 })
     }
 }
 
+/* Note [broken indentation]
+ *
+ * This code is refactored on another branch, so is left as it is to avoid
+ * heavy merge/rebase conflicts
+ */
 
 impl<OnDirty> Index<usize> for Workspace<OnDirty> {
     type Output = Mesh<OnDirty>;

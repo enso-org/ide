@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
+use crate::prelude::*;
 
 #[wasm_bindgen(module = "/msdfgen_wasm.js")]
 extern {
@@ -100,15 +101,13 @@ impl Iterator for F32ArrayMemoryViewIterator {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_read_address < self.end_address {
+        let has_element = self.next_read_address < self.end_address;
+        has_element.and_option_from(|| {
             let ret_val = emscripten_get_value_from_memory(
                 self.next_read_address,
-                emscripten_data_types::FLOAT
-            );
+                emscripten_data_types::FLOAT);
             self.next_read_address += emscripten_data_types::FLOAT_SIZE_IN_BYTES;
             Some(ret_val.as_f64().unwrap() as f32)
-        } else {
-            None
-        }
+        })
     }
 }

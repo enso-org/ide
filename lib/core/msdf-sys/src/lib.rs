@@ -1,5 +1,6 @@
 mod internal;
 pub mod test_utils;
+pub use basegl_prelude as prelude;
 
 use internal::{
     on_emscripten_runtime_initialized,
