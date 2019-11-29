@@ -5,45 +5,12 @@ use crate::prelude::*;
 use crate::Color;
 use crate::text::font::MsdfTexture;
 use crate::display::world::Workspace;
+use crate::data::container::IntoCachingIterator;
 use basegl_backend_webgl::{Context, compile_shader, link_program, Program, };
 use web_sys::{WebGlRenderingContext, WebGlBuffer, WebGlTexture};
 use font::FontRenderInfo;
 use js_sys::Float32Array;
 use nalgebra::{Vector2, Point2};
-
-struct CachingIterator<T:Clone, It:Iterator<Item=T>> {
-    last : Option<T>,
-    iter : It
-}
-
-impl<T:Clone, It:Iterator<Item=T>> Iterator for CachingIterator<T, It> {
-    type Item = (Option<T>, T);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|value| {
-            let new_last = Some(value.clone());
-            let old_last = std::mem::replace(&mut self.last, new_last);
-            (old_last, value)
-        })
-    }
-}
-
-trait IntoCachingIterator {
-    type Item : Clone;
-    type Iter : Iterator<Item = Self::Item>;
-    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter>;
-}
-
-impl<T : Clone, It : Iterator<Item=T>> IntoCachingIterator for It {
-    type Item = T;
-    type Iter = Self;
-
-    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter> {
-        CachingIterator { last : None, iter : self }
-    }
-}
-
-
 
 pub struct TextComponentBuilder<'a> {
     pub text             : String,
@@ -237,14 +204,13 @@ impl<'a> TextComponentBuilder<'a> {
     }
 
     fn setup_uniforms(&self, gl_context : &Context, gl_program : &Program) {
-        let fg_color_loc =
-            gl_context.get_uniform_location(gl_program, "fgColor");
+        let color_loc    = gl_context.get_uniform_location(gl_program, "color");
         let px_range_loc =
             gl_context.get_uniform_location(gl_program, "pxRange");
 
         gl_context.use_program(Some(gl_program));
         gl_context.uniform4f(
-            fg_color_loc.as_ref(),
+            color_loc.as_ref(),
             self.color.r,
             self.color.g,
             self.color.b,
