@@ -1,3 +1,7 @@
+// ======================
+// === ResizeCallback ===
+// ======================
+
 use wasm_bindgen::prelude::Closure;
 use crate::prelude::*;
 use crate::system::web::get_element_by_id;
@@ -9,63 +13,48 @@ use web_sys::HtmlElement;
 use nalgebra::Vector2;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::fmt;
-
-// ======================
-// === ResizeCallback ===
-// ======================
 
 pub type ResizeCallback = Box<dyn Fn(&Vector2<f32>)>;
 
-// =================
-// === SceneData ===
-// =================
-
 #[derive(Derivative)]
 #[derivative(Debug)]
-struct SceneData {
+pub struct DOMContainerData {
     dimensions : Vector2<f32>,
     #[derivative(Debug="ignore")]
     resize_callbacks : Vec<ResizeCallback>
 }
 
-impl SceneData {
+// ========================
+// === DOMContainerData ===
+// ========================
+
+impl DOMContainerData {
     pub fn new(dimensions : Vector2<f32>) -> Self {
         let resize_callbacks = default();
         Self { dimensions, resize_callbacks }
     }
 }
 
-// =============
-// === Scene ===
-// =============
+// ====================
+// === DOMContainer ===
+// ====================
 
 /// A collection for holding 3D `Object`s.
-//#[derive(Debug)]
-pub struct Scene {
+pub struct DOMContainer {
     pub dom          : HtmlElement,
     _resize_observer : ResizeObserver,
-    data             : Rc<RefCell<SceneData>>
+    data             : Rc<RefCell<DOMContainerData>>,
 }
 
-impl fmt::Debug for Scene {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.dom)?;
-        write!(f, "{:?}", self._resize_observer)?;
-        write!(f, "{:?}", self.data.borrow())
-    }
-}
 
-impl Scene {
-    /// Searches for a HtmlElement identified by id and appends to it.
-    pub fn new(dom_id: &str) -> Result<Self> {
+impl DOMContainer {
+    pub fn new(dom_id : &str) -> Result<Self> {
         let dom : HtmlElement = dyn_into(get_element_by_id(dom_id)?)?;
-        dom.set_property_or_panic("overflow", "hidden");
 
         let width  = dom.client_width()  as f32;
         let height = dom.client_height() as f32;
         let dimensions = Vector2::new(width, height);
-        let data = Rc::new(RefCell::new(SceneData::new(dimensions)));
+        let data = Rc::new(RefCell::new(DOMContainerData::new(dimensions)));
 
         let data_clone = data.clone();
         let resize_closure = Closure::new(move |width, height| {
@@ -95,5 +84,13 @@ impl Scene {
     /// Adds a ResizeCallback.
     pub fn add_resize_callback(&mut self, callback : ResizeCallback) {
         self.data.borrow_mut().resize_callbacks.push(callback);
+    }
+}
+
+impl fmt::Debug for DOMContainer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.dom)?;
+        write!(f, "{:?}", self._resize_observer)?;
+        write!(f, "{:?}", self.data.borrow())
     }
 }

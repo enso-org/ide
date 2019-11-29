@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
-use super::Object;
+use crate::renderers;
+use renderers::*;
 
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
@@ -20,15 +21,15 @@ use web_sys::HtmlElement;
 pub struct HTMLObject {
     #[shrinkwrap(main_field)]
     pub object     : Object,
-    pub element    : HtmlElement,
+    pub dom    : HtmlElement,
     pub dimensions : Vector2<f32>,
 }
 
 impl HTMLObject {
     /// Creates a HTMLObject from element name.
     pub fn new(dom_name: &str) -> Result<Self> {
-        let element = dyn_into(create_element(dom_name)?)?;
-        Ok(Self::from_element(element))
+        let dom = dyn_into(create_element(dom_name)?)?;
+        Ok(Self::from_element(dom))
     }
 
     /// Creates a HTMLObject from a web_sys::HtmlElement.
@@ -36,9 +37,10 @@ impl HTMLObject {
         element.set_property_or_panic("position"       , "absolute");
         element.set_property_or_panic("width"          , "0px");
         element.set_property_or_panic("height"         , "0px");
-        let object     = default();
+        let dom = element;
+        let object = default();
         let dimensions = Vector2::new(0.0, 0.0);
-        Self { object, element, dimensions }
+        Self { object, dom, dimensions }
     }
 
     /// Creates a HTMLObject from a HTML string.
@@ -55,8 +57,8 @@ impl HTMLObject {
     /// Sets the underlying HtmlElement dimension.
     pub fn set_dimensions(&mut self, width: f32, height: f32) {
         self.dimensions = Vector2::new(width, height);
-        self.element.set_property_or_panic("width",  format!("{}px", width));
-        self.element.set_property_or_panic("height", format!("{}px", height));
+        self.dom.set_property_or_panic("width",  format!("{}px", width));
+        self.dom.set_property_or_panic("height", format!("{}px", height));
     }
 
     /// Gets the underlying HtmlElement dimension.
