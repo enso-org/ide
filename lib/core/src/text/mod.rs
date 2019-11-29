@@ -2,6 +2,7 @@ use basegl_backend_webgl::{Context, compile_shader, link_program, Program, };
 
 use web_sys::{WebGlRenderingContext, WebGlBuffer, WebGlTexture};
 use crate::prelude::*;
+use crate::Color;
 
 pub mod font;
 
@@ -10,71 +11,48 @@ use crate::text::font::MsdfTexture;
 use js_sys::Float32Array;
 use crate::display::world::Workspace;
 
-#[derive(Debug)]
-pub struct Color {
-    pub r : f32,
-    pub g : f32,
-    pub b : f32,
-    pub a : f32
+pub struct TextComponentBuilder<'a> {
+    pub text             : String,
+    pub font             : &'a mut FontRenderInfo,
+    pub x                : f32,
+    pub y                : f32,
+    pub size             : f32,
+    pub color            : Color<f32>,
+    pub background_color : Color<f32>,
 }
 
 #[derive(Debug)]
 pub struct TextComponent {
-    pub text             : String,
-    pub x                : f32,
-    pub y                : f32,
-    pub size             : f32,
-    pub color            : Color,
-    pub background_color : Color,
-
-    // TODO Split structure to component data and rendering separately
     gl_context       : WebGlRenderingContext,
     gl_program       : Program,
     gl_vertex_buf    : WebGlBuffer,
     gl_tex_coord_buf : WebGlBuffer,
-    gl_msdf_texture  : WebGlTexture
+    gl_msdf_texture  : WebGlTexture,
+    buffers_size     : usize,
 }
 
-impl TextComponent {
-    pub fn new(
-        workspace        : &Workspace,
-        text             : String,
-        x                : f32,
-        y                : f32,
-        size             : f32,
-        font             : &mut FontRenderInfo,
-        color            : Color,
-        background_color : Color,
-    ) -> TextComponent {
-        let gl_context = workspace.context.clone();
-        let gl_program = Self::create_program(&gl_context);
-        let gl_vertex_buf = Self::create_vertex_buf(
-            &gl_context,
-            text.as_str(),
-            x,
-            y,
-            size,
-        );
-        let gl_tex_coord_buf = Self::create_tex_coord_buf(
-            &gl_context,
-            text.as_str(),
-            font,
-        );
-        let gl_msdf_texture = Self::create_msdf_texture(
-            &gl_context,
-            &gl_program,
-            font
-        );
+impl<'a> TextComponentBuilder<'a> {
+    pub fn build(mut self, workspace  : &Workspace) -> TextComponent {
+        let gl_context       = workspace.context.clone();
+        let gl_program       = self.create_program(&gl_context);
+        let gl_vertex_buf    = self.create_vertex_buf(&gl_context);
+        let gl_tex_coord_buf = self.create_tex_coord_buf(&gl_context);
+        let gl_msdf_texture  =
+            self.create_msdf_texture(&gl_context, &gl_program);
 
-        let component = TextComponent {
-            text, x, y, size, color, background_color, gl_context,
-            gl_program, gl_vertex_buf, gl_tex_coord_buf, gl_msdf_texture
-        };
-        component.setup_uniforms();
-        component
+        self.setup_uniforms(&gl_context, &gl_program);
+
+        TextComponent {
+            gl_context,
+            gl_program,
+            gl_vertex_buf,
+            gl_tex_coord_buf,
+            gl_msdf_texture,
+            buffers_size: self.text.len()
+        }
     }
 
-    fn create_program(gl_context : &Context) -> Program {
+    fn create_program(&self, gl_context : &Context) -> Program {
         gl_context.get_extension("OES_standard_derivatives")
             .unwrap().unwrap();
 
@@ -123,50 +101,45 @@ impl TextComponent {
      * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
      */
 
-    fn create_vertex_buf(
-        gl_context : &Context,
-        text : &str,
-        x : f32,
-        y : f32,
-        size : f32
-    ) -> WebGlBuffer {
-        let y_max = y  + size;
-        let x_step = size;
-        let vertices = (0..text.len()).map(|i| {
-            let ix      = x + (i as f32) * x_step;
+    fn create_vertex_buf(&self, gl_context : &Context) -> WebGlBuffer {
+        let y_max = self.y  + self.size;
+        let x_step = self.size;
+        let vertices = (0..self.text.len()).map(|i| {
+            let ix      = self.x + (i as f32) * x_step;
             let ix_max  = ix + x_step;
-            vec![ix, y, ix, y_max, ix_max, y, ix_max,
-                y, ix, y_max, ix_max, y_max]
+            vec![ix, self.y, ix, y_max, ix_max, self.y, ix_max,
+                 self.y, ix, y_max, ix_max, y_max] // Note [The ugly code]
         }).flatten().collect::<Box<[f32]>>();
 
         Self::create_buffer(gl_context, vertices.as_ref())
     }
 
-    fn create_tex_coord_buf(
-        gl_context : &Context,
-        text : &str,
-        font : &mut FontRenderInfo,
-    ) -> WebGlBuffer {
-        for ch in text.chars() {
+    /* Note [The ugly code]
+     *
+     * I have already refactored this function on branch
+     * wip/ao/letter-alignment. Please be patient
+     */
+
+    fn create_tex_coord_buf(&mut self, gl_context : &Context) -> WebGlBuffer {
+        let font = &mut self.font;
+        for ch in self.text.chars() {
             font.get_or_create_char_info(ch);
         }
-        let vertices = text.chars().map(|c| {
+        let vertices = self.text.chars().map(|c| {
             let msdf_rows = font.msdf_texture.rows() as f32;
             let info = font.get_or_create_char_info(c);
             let y_min = info.msdf_texture_rows.start as f32 / msdf_rows;
             let y_max = info.msdf_texture_rows.end as f32 / msdf_rows;
             vec![0.0, y_min, 0.0, y_max, 1.0, y_min,
-                1.0, y_min, 0.0, y_max, 1.0, y_max]
+                 1.0, y_min, 0.0, y_max, 1.0, y_max]
         }).flatten().collect::<Box<[f32]>>();
 
         Self::create_buffer(gl_context, vertices.as_ref())
     }
 
-    fn create_msdf_texture(
-        gl_context : &Context,
-        gl_program : &Program,
-        font : &FontRenderInfo
-    ) -> WebGlTexture {
+    fn create_msdf_texture(&self, gl_context : &Context, gl_program : &Program)
+        -> WebGlTexture {
+
         let msdf_texture = gl_context.create_texture().unwrap();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&msdf_texture));
 
@@ -191,11 +164,11 @@ impl TextComponent {
             0,
             Context::RGB as i32,
             MsdfTexture::WIDTH as i32,
-            font.msdf_texture.rows() as i32,
+            self.font.msdf_texture.rows() as i32,
             0,
             Context::RGB,
             Context::UNSIGNED_BYTE,
-            Some(font.msdf_texture.data.as_slice())
+            Some(self.font.msdf_texture.data.as_slice())
         ).unwrap();
 
         let msdf_loc = gl_context.get_uniform_location(gl_program, "msdf");
@@ -207,39 +180,43 @@ impl TextComponent {
         gl_context.uniform2f(
             msdf_size_loc.as_ref(),
             MsdfTexture::WIDTH as f32,
-            font.msdf_texture.rows() as f32
+            self.font.msdf_texture.rows() as f32
         );
 
         msdf_texture
     }
 
-    fn setup_uniforms(&self) {
-        let gl = &self.gl_context;
-        let program = &self.gl_program;
-        let bg_color_location = gl.get_uniform_location(program, "bgColor");
-        let fg_color_location = gl.get_uniform_location(program, "fgColor");
-        let px_range_location = gl.get_uniform_location(program, "pxRange");
+    fn setup_uniforms(&self, gl_context : &Context, gl_program : &Program) {
+        let bg_color_loc =
+            gl_context.get_uniform_location(gl_program, "bgColor");
+        let fg_color_loc =
+            gl_context.get_uniform_location(gl_program, "fgColor");
+        let px_range_loc =
+            gl_context.get_uniform_location(gl_program, "pxRange");
 
-        gl.use_program(Some(program));
-        gl.uniform4f(
-            bg_color_location.as_ref(),
+        gl_context.use_program(Some(gl_program));
+        gl_context.uniform4f(
+            bg_color_loc.as_ref(),
             self.background_color.r,
             self.background_color.g,
             self.background_color.b,
             self.background_color.a
         );
-        gl.uniform4f(
-            fg_color_location.as_ref(),
+        gl_context.uniform4f(
+            fg_color_loc.as_ref(),
             self.color.r,
             self.color.g,
             self.color.b,
             self.color.a,
         );
-        gl.uniform1f(
-            px_range_location.as_ref(),
+        gl_context.uniform1f(
+            px_range_loc.as_ref(),
             FontRenderInfo::MSDF_PARAMS.range as f32
         );
     }
+}
+
+impl TextComponent {
 
     pub fn display(&self) {
         let gl = &self.gl_context;
@@ -284,7 +261,7 @@ impl TextComponent {
         gl.draw_arrays(
             WebGlRenderingContext::TRIANGLES,
             0,
-            (self.text.chars().count()*6) as i32,
+            (self.buffers_size*6) as i32,
         );
     }
 }

@@ -1,4 +1,7 @@
+#![feature(option_unwrap_none)]
+
 use std::{fs, path};
+use std::io::ErrorKind;
 
 /// Download the release package from github
 ///
@@ -19,9 +22,10 @@ pub fn github_download(
     let destination_file = path::Path::new(destination_dir)
         .join(filename);
 
-    if destination_file.exists() {
-        fs::remove_file(&destination_file).unwrap();
-    }
+    let rm_error = fs::remove_file(&destination_file).err();
+    let fatal_rm_error =
+        rm_error.filter(|err| err.kind() != ErrorKind::NotFound);
+    fatal_rm_error.unwrap_none();
 
     download_lp::download(
         url.as_str(),
