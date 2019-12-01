@@ -1,5 +1,7 @@
 use crate::prelude::*;
-use super::types::Index;
+use smallvec::SmallVec;
+use std::iter::FilterMap;
+use std::slice;
 
 // ==============
 // === OptVec ===
@@ -8,29 +10,41 @@ use super::types::Index;
 /// A contiguous growable sparse array type. Similar to `Vec<T>`, but allowing
 /// missing values. After a value is removed, it remembers the index for reuse
 /// in the future.
+#[derive(Derivative)]
+#[derivative(Default(bound = ""))]
 #[derive(Clone, Debug, Shrinkwrap)]
 pub struct OptVec<T> {
     #[shrinkwrap(main_field)]
     pub items: Vec<Option<T>>,
-    pub free_ixs: Vec<Index>,
+    pub free_ixs: SmallVec<[Ix; 128]>,
 }
 
-impl<T> Default for OptVec<T> {
-    fn default() -> Self {
-        let items = Default::default();
-        let free_ixs = Default::default();
-        Self { items, free_ixs }
-    }
-}
+pub type Ix             = usize;
+pub type Iter<'t, T>    = FilterMap<slice::Iter<'t, Option<T>>, OptionAsRef<T>>;
+pub type IterMut<'t, T> = FilterMap<slice::IterMut<'t, Option<T>>, OptionAsRefMut<T>>;
+pub type OptionAsRef<T> = for<'r> fn(&'r Option<T>) -> Option<&'r T>;
+pub type OptionAsRefMut<T> = for<'r> fn(&'r mut Option<T>) -> Option<&'r mut T>;
 
 impl<T> OptVec<T> {
     /// Constructs a new, empty `Vec<T>`. It will not allocate until elements
     /// are pushed onto it.
     pub fn new() -> Self { default() }
 
+    pub fn insert(&mut self, item: T) -> Ix {
+        self.insert_with_ix(|_| item)
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        self.items.iter().filter_map(Option::as_ref)
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        self.items.iter_mut().filter_map(Option::as_mut)
+    }
+
     /// Finds a free index and inserts the element. The index is re-used in case
     /// the array is sparse or is added in case of no free places.
-    pub fn insert<F: FnOnce(usize) -> T>(&mut self, f: F) -> Index {
+    pub fn insert_with_ix<F: FnOnce(Ix) -> T>(&mut self, f: F) -> Ix {
         match self.free_ixs.pop() {
             None => {
                 let ix = self.items.len();
@@ -44,16 +58,29 @@ impl<T> OptVec<T> {
         }
     }
 
+    pub fn reserve_ix(&mut self) -> Ix {
+        self.free_ixs.pop().unwrap_or_else(|| {
+            let ix = self.items.len();
+            self.items.push(None);
+            ix
+        })
+    }
+
+    pub fn set(&mut self, ix:Ix, t:T) {
+        self.items[ix] = Some(t);
+    }
+
     /// Removes the element at provided index and marks the index to be reused.
     /// Does nothing if the index was already empty. Panics if the index was out
     /// of bounds.
-    pub fn remove(&mut self, ix: Index) -> Option<T> {
+    pub fn remove(&mut self, ix: Ix) -> Option<T> {
         let item = self.items[ix].take();
         item.iter().for_each(|_| self.free_ixs.push(ix));
         item
     }
 
-    /// Returns the number of elements in the vector, also referred to as its 'length'.
+    /// Returns the number of elements in the vector, also referred to as its
+    /// 'length'.
     pub fn len(&self) -> usize {
         self.items.len() - self.free_ixs.len()
     }
@@ -64,31 +91,29 @@ impl<T> OptVec<T> {
     }
 }
 
+impl<T> Index<usize> for OptVec<T> {
+    type Output = T;
+    fn index(&self, ix: usize) -> &Self::Output {
+        self.items.index(ix).as_ref().unwrap()
+    }
+}
+
+impl<T> IndexMut<usize> for OptVec<T> {
+    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
+        self.items.index_mut(ix).as_mut().unwrap()
+    }
+}
+
 // ============
 // === Iter ===
 // ============
 
-/// We can use Iter to iterate over OptVec<T> similarly to Vec<T>.
-pub struct Iter<'a, T> {
-    iter : std::slice::Iter<'a, Option<T>>
-}
-
-impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(opt_item) = self.iter.next() {
-            // If opt_item has some item, we return it, else we try the next one
-            if let Some(item) = opt_item { Some(item) } else { self.next() }
-        } else { None }
-    }
-}
-
 impl<'a, T> IntoIterator for &'a OptVec<T> {
-    type Item = &'a T;
-    type IntoIter = Iter<'a, T>;
-    fn into_iter(self) -> Self::IntoIter {
-        Iter { iter : (&self.items).iter() }
-    }
+   type Item     = &'a T;
+   type IntoIter = Iter<'a, T>;
+   fn into_iter(self) -> Self::IntoIter {
+       self.iter()
+   }
 }
 
 // ===============
