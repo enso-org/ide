@@ -7,9 +7,10 @@ use crate::system::web::Result;
 use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
-use crate::data::types::Index;
 use crate::math::Vector2;
 use std::rc::Rc;
+
+pub type Index = usize;
 
 // =====================
 // === HTMLSceneData ===
@@ -50,8 +51,6 @@ pub struct HTMLScene {
     objects       : OptVec<HTMLObject>,
 }
 
-pub type Index = usize;
-
 impl HTMLScene {
     /// Searches for a HtmlElement identified by id and appends to it.
     pub fn new(dom_id: &str) -> Result<Self> {
@@ -85,7 +84,7 @@ impl HTMLScene {
 
     /// Moves a HTMLObject to the Scene and returns an index to it.
     pub fn add(&mut self, object: HTMLObject) -> Index {
-        self.camera.element.append_child_or_panic(&object.element);
+        self.html_data.camera.element.append_child_or_panic(&object.element);
         self.objects.insert(object)
     }
 

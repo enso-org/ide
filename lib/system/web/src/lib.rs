@@ -238,13 +238,13 @@ pub fn request_animation_frame(f: &Closure<dyn FnMut()>) -> Result<i32> {
     req.map_err(|_| Error::missing("requestAnimationFrame"))
 }
 
-pub fn get_performance() -> Result<Performance> {
-    window()?.performance().ok_or_else(|| Error::missing("performance"))
-}
-
 pub fn cancel_animation_frame(id: i32) -> Result<()> {
     let req = window()?.cancel_animation_frame(id);
     req.map_err(|_| Error::missing("cancel_animation_frame"))
+}
+
+pub fn get_performance() -> Result<Performance> {
+    window()?.performance().ok_or_else(|| Error::missing("performance"))
 }
 
 // =====================
