@@ -30,11 +30,11 @@ pub struct Float32ArrayView<'a> {
 }
 
 pub trait IntoFloat32Array {
-    fn into_float32array<'a>(&'a self) -> Float32ArrayView<'a>;
+    fn into_float32_array_view(&self) -> Float32ArrayView<'_>;
 }
 
 impl IntoFloat32Array for Matrix4<f32> {
-    fn into_float32array<'a>(&'a self) -> Float32ArrayView<'a> {
+    fn into_float32_array_view(&self) -> Float32ArrayView<'_> {
         // Note [2D array to 1D array]
         unsafe {
             let matrix = self.as_ref();

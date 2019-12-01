@@ -47,7 +47,7 @@ impl HTMLRenderer {
         let half_width   = half_dim.x.into();
         let half_height  = half_dim.y.into();
 
-        let matrix_array = trans_cam.into_float32array();
+        let matrix_array = trans_cam.into_float32_array_view();
 
         setup_perspective(&scene.html_data.div.element, &near);
         setup_camera_transform(
@@ -62,7 +62,7 @@ impl HTMLRenderer {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
 
-            let matrix_array = transform.into_float32array();
+            let matrix_array = transform.into_float32_array_view();
             set_object_transform(&object.element, &matrix_array);
         }
     }
