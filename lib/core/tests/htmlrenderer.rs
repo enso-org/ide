@@ -10,10 +10,10 @@ use wasm_bindgen::JsValue;
 #[wasm_bindgen(module = "/tests/bench_test.js")]
 extern "C" {
     fn set_gradient_bg(
-        dom           : &JsValue,
-        red           : &JsValue,
-        green         : &JsValue,
-        blue          : &JsValue);
+        dom   : &JsValue,
+        red   : &JsValue,
+        green : &JsValue,
+        blue  : &JsValue);
 }
 
 #[cfg(test)]

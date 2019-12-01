@@ -41,18 +41,19 @@ impl HTMLRenderer {
 
         // Note [znear from projection matrix]
         let half_dim     = scene.get_dimensions() / 2.0;
-        let expr         = camera.projection[(1, 1)];
-        let near         = (expr * half_dim.y).into();
-
+        let y_scale      = camera.get_y_scale();
+        let near         = (y_scale * half_dim.y).into();
         let half_width   = half_dim.x.into();
         let half_height  = half_dim.y.into();
+        let scene_dom    = &scene.html_data.div.element;
+        let camera_dom   = &scene.html_data.camera.element;
 
         // Note [Unsafe Float32ArrayView]
         let matrix_array = unsafe { trans_cam.into_float32_array_view() };
 
-        setup_perspective(&scene.html_data.div.element, &near);
+        setup_perspective(&scene_dom, &near);
         setup_camera_transform(
-            &scene.html_data.camera.element,
+            &camera_dom,
             &near,
             &half_width,
             &half_height,

@@ -29,6 +29,8 @@ impl Camera {
         let object     = default();
         Self { object, projection }
     }
+
+    pub fn get_y_scale(&self) -> f32 { self.projection.m11 }
 }
 
 #[cfg(test)]
