@@ -6,6 +6,20 @@ use quote::quote;
 
 /// #[web_test] creates a [320.0, 240.0] div with id = fn_name and appends it
 /// into the document.
+/// # Example
+/// ```rust,no_run
+/// use web_test::web_test;
+/// use web_test::web_configure;
+/// use basegl::system::web::get_element_by_id;
+///
+/// web_configure!(run_in_browser);
+///
+/// #[web_test]
+/// fn get_identified_element() {
+///     // #[web_test] creates a <div id="get_identified_element"></div>
+///     assert!(get_element_by_id("get_identified_element").is_ok());
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
     if let Ok(mut parsed) = syn::parse::<ItemFn>(input.clone()) {
@@ -32,6 +46,28 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// #[web_bench] creates a benchmark div with a toggle button.
+/// # Example
+/// ```rust,no_run
+/// use web_test::web_bench;
+/// use web_test::web_configure;
+/// use basegl::system::web::get_element_by_id;
+/// use basegl::system::web::dyn_into;
+/// use web_sys::HtmlElement;
+///
+/// web_configure!(run_in_browser);
+///
+/// #[web_bench]
+/// fn test_performance(b: &mut Bencher) {
+///     let element = get_element_by_id("test_performance").expect("div");
+///     let element : HtmlElement = dyn_into(element).expect("HtmlElement");
+///
+///     let numbers : Vec<_> = (1 ..= 1000).collect();
+///     b.iter(move || {
+///         let ans = numbers.iter().fold(0, |acc, x| acc + x);
+///         element.set_inner_html(&format!("Answer: {}", ans));
+///     })
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn web_bench(_args: TokenStream, input: TokenStream) -> TokenStream {
 
