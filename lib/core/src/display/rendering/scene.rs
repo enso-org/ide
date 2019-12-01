@@ -93,7 +93,8 @@ impl Scene {
     }
 
     /// Adds a ResizeCallback.
-    pub fn add_resize_callback(&mut self, callback : ResizeCallback) {
-        self.data.borrow_mut().resize_callbacks.push(callback);
+    pub fn add_resize_callback<T>(&mut self, callback : T)
+        where T : Fn(&Vector2<f32>) + 'static {
+        self.data.borrow_mut().resize_callbacks.push(Box::new(callback));
     }
 }

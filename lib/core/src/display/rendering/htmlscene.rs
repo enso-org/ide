@@ -2,7 +2,9 @@ use crate::prelude::*;
 
 use super::HTMLObject;
 use super::Scene;
-use crate::data::opt_vec::*;
+use crate::data::opt_vec::OptVec;
+use crate::data::opt_vec::Iter;
+use crate::data::opt_vec::IterMut;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
@@ -66,9 +68,9 @@ impl HTMLScene {
         let html_data = Rc::new(HTMLSceneData::new(div, camera));
 
         let html_data_clone = html_data.clone();
-        scene.add_resize_callback(Box::new(move |dimensions| {
+        scene.add_resize_callback(move |dimensions| {
             html_data_clone.set_dimensions(*dimensions);
-        }));
+        });
 
         let dimensions = scene.get_dimensions();
         let mut htmlscene = Self { scene, html_data, objects };
