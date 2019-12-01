@@ -22,6 +22,7 @@ impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
     }
 }
 
+/// A Float32Array view created from `IntoFloat32ArrayView`.
 #[derive(Shrinkwrap)]
 pub struct Float32ArrayView<'a> {
     #[shrinkwrap(main_field)]
@@ -29,20 +30,24 @@ pub struct Float32ArrayView<'a> {
     phantom : PhantomData<&'a Float32Array>
 }
 
-pub trait IntoFloat32Array {
-    fn into_float32_array_view(&self) -> Float32ArrayView<'_>;
+pub trait IntoFloat32ArrayView {
+    /// # Unsafety
+    /// Views into WebAssembly memory are only valid so long as the backing buffer isn't resized in JS. Once this function is called any future calls to Box::new (or malloc of any form) may cause the returned value here to be invalidated. Use with caution!
+    ///
+    /// Additionally the returned object can be safely mutated but the input slice isn't guaranteed to be mutable.
+    ///
+    /// Finally, the returned object is disconnected from the input slice's lifetime, so there's no guarantee that the data is read at the right time.
+    unsafe fn into_float32_array_view(&self) -> Float32ArrayView<'_>;
 }
 
-impl IntoFloat32Array for Matrix4<f32> {
-    fn into_float32_array_view(&self) -> Float32ArrayView<'_> {
+impl IntoFloat32ArrayView for Matrix4<f32> {
+    unsafe fn into_float32_array_view(&self) -> Float32ArrayView<'_> {
         // Note [2D array to 1D array]
-        unsafe {
-            let matrix = self.as_ref();
-            let matrix = matrix as *const [[f32; 4]; 4];
-            let array = Float32Array::view(&*(matrix as *const [f32; 16]));
-            let phantom = PhantomData;
-            Float32ArrayView { array, phantom }
-        }
+        let matrix = self.as_ref();
+        let matrix = matrix as *const [[f32; 4]; 4];
+        let array = Float32Array::view(&*(matrix as *const [f32; 16]));
+        let phantom = PhantomData;
+        Float32ArrayView { array, phantom }
     }
 }
 

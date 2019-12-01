@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::Camera;
 use super::HTMLScene;
-use crate::math::utils::IntoFloat32Array;
+use crate::math::utils::IntoFloat32ArrayView;
 use crate::math::utils::eps;
 use crate::math::utils::invert_y;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -47,7 +47,8 @@ impl HTMLRenderer {
         let half_width   = half_dim.x.into();
         let half_height  = half_dim.y.into();
 
-        let matrix_array = trans_cam.into_float32_array_view();
+        // Note [Unsafe Float32ArrayView]
+        let matrix_array = unsafe { trans_cam.into_float32_array_view() };
 
         setup_perspective(&scene.html_data.div.element, &near);
         setup_camera_transform(
@@ -62,11 +63,17 @@ impl HTMLRenderer {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
 
-            let matrix_array = transform.into_float32_array_view();
+            // Note [Unsafe Float32ArrayView]
+            let matrix_array = unsafe { transform.into_float32_array_view() };
             set_object_transform(&object.element, &matrix_array);
         }
     }
 }
+
+// Note [Unsafe Float32ArrayView]
+// ==============================
+// Views to WASM memory are only valid as long the backing bufer isn't resized.
+// Check documentation of IntoFloat32ArrayView trait for more details.
 
 // Note [znear from projection matrix]
 // ===================================
