@@ -33,9 +33,9 @@ impl HTMLObject {
 
     /// Creates a HTMLObject from a web_sys::HtmlElement.
     pub fn from_element(element: HtmlElement) -> Self {
-        element.set_property_or_panic("position"       , "absolute");
-        element.set_property_or_panic("width"          , "0px");
-        element.set_property_or_panic("height"         , "0px");
+        element.set_property_or_panic("position", "absolute");
+        element.set_property_or_panic("width"   , "0px");
+        element.set_property_or_panic("height"  , "0px");
         let object     = default();
         let dimensions = Vector2::new(0.0, 0.0);
         Self { object, element, dimensions }
