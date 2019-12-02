@@ -70,7 +70,7 @@ For example:
 
 /// Defines the order in which particular axis coordinates are processed. Used
 /// for example to define the rotation order in `DisplayObject`.
-pub enum AxisOrder { XYZ, XZY, YXZ, YZX, ZXY, ZYX }
+pub enum AxisOrder {XYZ,XZY,YXZ,YZX,ZXY,ZYX}
 
 impl Default for AxisOrder {
     fn default() -> Self {Self::XYZ}
@@ -208,7 +208,7 @@ impl Printer for GlobalVarStorage {
         match self {
             Self::ConstStorage      => build!(builder,"const"),
             Self::UniformStorage    => build!(builder,"uniform"),
-            Self::InStorage  (qual) => build!(builder,"in",qual),
+            Self::InStorage  (qual) => build!(builder,"in" ,qual),
             Self::OutStorage (qual) => build!(builder,"out",qual),
         }
     }
