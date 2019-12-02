@@ -221,7 +221,7 @@ impl Printer for GlobalVarStorage {
 - Commas between comples expressions (including arg list) are spaced.
 - Commas between simple elements are not spaced: `Result<Self,Error>`.
 - Arguments to functions are not spaced: `build(builder,"out",qual)`.
-
+- Operators are always spaced: `let foo = a + b * c;`.
 
 ### Function definitions
 The following examples show proper function styles:
