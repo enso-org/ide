@@ -227,20 +227,20 @@ impl Printer for GlobalVarStorage {
 The following examples show proper function styles:
 
 ```rust
-pub fn new<Dom: Str>(dom:Dom, logger:Logger) -> Result<Self,Error> {
+pub fn new<Dom:Str>(dom:Dom, logger:Logger) -> Result<Self,Error> {
     ...
 }
 ```
 
 ```rust
-pub fn new<Dom: Str>
+pub fn new<Dom:Str>
 (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self,Error> {
     ...
 }
 ```
 
 ```rust
-pub fn new<Dom: Str>
+pub fn new<Dom:Str>
 (dom:Dom, logger:Logger, on_dirty:OnDirty, on_remove:OnRemove) 
 -> Result<Self,Error> {
     ...
@@ -248,7 +248,7 @@ pub fn new<Dom: Str>
 ```
 
 ```rust
-pub fn new<Dom: Str>
+pub fn new<Dom:Str>
 ( dom        : Dom
 , logger     : Logger
 , on_dirty   : OnDirty
