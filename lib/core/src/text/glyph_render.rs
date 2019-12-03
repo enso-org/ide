@@ -9,7 +9,7 @@ use nalgebra::{Point2,Transform2,Translation2,Affine2,Matrix3,Scalar};
 // === Base vertices layout ===
 // ============================
 
-pub const GLYPH_SQUARE_VERTICES_BASE_LAYOUT: &'static[(f64, f64)] = &
+pub const GLYPH_SQUARE_VERTICES_BASE_LAYOUT: &[(f64, f64)] = &
     [ (0.0, 0.0)
     , (0.0, 1.0)
     , (1.0, 0.0)

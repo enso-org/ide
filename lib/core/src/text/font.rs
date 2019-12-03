@@ -5,6 +5,7 @@ use crate::text::msdf::
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_embedded_fonts::EmbeddedFonts;
 use msdf_sys::{MsdfParameters,MultichannelSignedDistanceField};
+use std::collections::hash_map::Entry::{Occupied,Vacant};
 
 // ========================
 // === Font render info ===
@@ -118,13 +119,13 @@ impl FontRenderInfo {
 
     /// Get kerning between two characters
     pub fn get_kerning(&mut self, left : char, right : char) -> f64 {
-        if !self.kerning.contains_key(&(left, right)) {
-            let msdf_val   = self.msdf_sys_font.retrieve_kerning(left, right);
-            let normalized = x_distance_from_msdf_value(msdf_val);
-            self.kerning.insert((left, right), normalized);
-            normalized
-        } else {
-            *self.kerning.get(&(left, right)).unwrap()
+        match self.kerning.entry((left,right)) {
+            Occupied(entry) => *entry.get(),
+            Vacant(entry)   => {
+                let msdf_val   = self.msdf_sys_font.retrieve_kerning(left, right);
+                let normalized = x_distance_from_msdf_value(msdf_val);
+                *entry.insert(normalized)
+            }
         }
     }
 
