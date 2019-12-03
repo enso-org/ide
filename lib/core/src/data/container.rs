@@ -45,15 +45,18 @@ pub trait IntoCachingIterator {
     type Item : Clone;
     type Iter : Iterator<Item = Self::Item>;
 
-    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter>;
+    fn cache_last_value(self) -> CachingIterator<Self::Item,Self::Iter>;
 }
 
 impl<T : Clone, It : Iterator<Item=T>> IntoCachingIterator for It {
     type Item = T;
     type Iter = Self;
 
-    fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter> {
-        CachingIterator { last : None, iter : self }
+    fn cache_last_value(self) -> CachingIterator<Self::Item,Self::Iter> {
+        CachingIterator {
+            last : None,
+            iter : self
+        }
     }
 }
 
@@ -72,9 +75,9 @@ mod tests {
     fn caching_iterator() {
         let data                 = vec![2, 3, 5];
         let mut caching_iterator = data.iter().cloned().cache_last_value();
-        assert_eq!(Some((None   , 2)), caching_iterator.next());
-        assert_eq!(Some((Some(2), 3)), caching_iterator.next());
-        assert_eq!(Some((Some(3), 5)), caching_iterator.next());
-        assert_eq!(None,                caching_iterator.next());
+        assert_eq!(Some((None   ,2)), caching_iterator.next());
+        assert_eq!(Some((Some(2),3)), caching_iterator.next());
+        assert_eq!(Some((Some(3),5)), caching_iterator.next());
+        assert_eq!(None             , caching_iterator.next());
     }
 }

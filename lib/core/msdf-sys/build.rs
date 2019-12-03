@@ -1,21 +1,20 @@
-use basegl_build_utilities::github_download;
 
 mod msdfgen_wasm {
-    use crate::github_download;
-    use std::{path, fs};
+    use basegl_build_utilities::GithubRelease;
+
+    use std::{path,fs};
     use std::io::Write;
 
-    pub const VERSION     : &str = "v1.0.1";
-    pub const FILENAME    : &str = "msdfgen_wasm.js";
-    pub const PROJECT_URL : &str = "https://github.com/luna/msdfgen-wasm";
+    pub const PACKAGE : GithubRelease = GithubRelease {
+        project_url : "https://github.com/luna/msdfgen-wasm",
+        version     : "v1.1",
+        filename    : "msdfgen_wasm.js"
+    };
+
+    pub const FILENAME : &str = PACKAGE.filename;
 
     pub fn download() {
-        github_download(
-            PROJECT_URL,
-            VERSION,
-            FILENAME,
-            path::Path::new(".") // Note [Downloading to src dir]
-        )
+        PACKAGE.download(path::Path::new(".")) // Note [Downloading to src dir]
     }
 
     /* Note [Downloading to src dir]
@@ -31,7 +30,7 @@ mod msdfgen_wasm {
      */
 
     const PATCH_LINE : &str = "; export { ccall, getValue, _msdfgen_getKerning,\
-        _msdfgen_generateAutoscaledMSDF, _msdfgen_result_getMSDFData,\
+        _msdfgen_generateAutoframedMSDF, _msdfgen_result_getMSDFData,\
         _msdfgen_result_getAdvance, _msdfgen_result_getTranslation,\
         _msdfgen_result_getScale, _msdfgen_freeResult, _msdfgen_freeFont,\
         addInitializationCb, isInitialized }";
@@ -42,7 +41,11 @@ mod msdfgen_wasm {
     /// be explicitly exported. Examples works without this line perfectly.
     pub fn patch_for_wasm_bindgen_test() {
         let path = path::Path::new(FILENAME);
-        let mut file = fs::OpenOptions::new().append(true).open(path).unwrap();
+
+        let mut open_options = fs::OpenOptions::new();
+        open_options.append(true);
+
+        let mut file = open_options.open(path).unwrap();
         file.write(PATCH_LINE.as_bytes()).unwrap();
     }
 }

@@ -13,10 +13,7 @@ pub trait EmscriptenRepresentation : Sized {
     fn from_js_value(js_value : JsValue) -> Option<Self>;
 
     fn read_from_emscripten_memory(address : usize) -> Option<Self> {
-        let js_value = emscripten_get_value_from_memory(
-            address,
-            Self::EMSCRIPTEN_TYPE_NAME
-        );
+        let js_value = emscripten_get_value_from_memory(address,Self::EMSCRIPTEN_TYPE_NAME);
         Self::from_js_value(js_value)
     }
 }
@@ -58,11 +55,18 @@ pub struct ArrayMemoryViewIterator<'a, F : EmscriptenRepresentation> {
 impl<F : EmscriptenRepresentation>
 ArrayMemoryView<F> {
     pub fn new(address : usize, size : usize) -> ArrayMemoryView<F> {
-        let size_in_bytes =
-            size * F::EMSCRIPTEN_SIZE_IN_BYTES;
+        let size_in_bytes = size * F::EMSCRIPTEN_SIZE_IN_BYTES;
         ArrayMemoryView {
             begin_address : address,
             end_address   : address + size_in_bytes,
+            type_marker   : std::marker::PhantomData
+        }
+    }
+
+    pub fn empty() -> ArrayMemoryView<F> {
+        ArrayMemoryView {
+            begin_address : 0,
+            end_address   : 0,
             type_marker   : std::marker::PhantomData
         }
     }
@@ -83,10 +87,10 @@ Iterator for ArrayMemoryViewIterator<'a, F> {
     fn next(&mut self) -> Option<Self::Item> {
         let has_element = self.next_read_address < self.end_address;
         has_element.and_option_from(|| {
-            let ret_val =
-                F::read_from_emscripten_memory(self.next_read_address).unwrap();
+            let current_value = F::read_from_emscripten_memory(self.next_read_address).unwrap();
+
             self.next_read_address += F::EMSCRIPTEN_SIZE_IN_BYTES;
-            Some(ret_val)
+            Some(current_value)
         })
     }
 }
