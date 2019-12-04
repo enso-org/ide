@@ -5,7 +5,7 @@
 The docs of rustfmt state that "formatting code is a mostly mechanical task 
 which takes both time and mental effort. By using an automatic formatting tool, 
 a programmer is relieved of this task and can concentrate on more important 
-things.". While in many cases it is true, if the uthor of code does not take 
+things.". While in many cases it is true, if the author of code does not take 
 extra effort to make his code pretty by refactoring long lines to variables, 
 moving code to specific modules, or sections, the formatting tool will result in
 a code which is hard to read and hard to write. Thus, it is important to take 
@@ -287,5 +287,4 @@ where T: Printer {
     ...
 }
 ```
-
 
