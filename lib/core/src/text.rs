@@ -86,7 +86,7 @@ impl<'a> TextComponentBuilder<'a> {
 
         let buffer = gl_context.create_buffer().unwrap();
         gl_context.bind_buffer(target,Some(&buffer));
-        Self::set_binded_buffer_data(gl_context,target,vertices);
+        Self::set_bound_buffer_data(gl_context,target,vertices);
         buffer
     }
 
