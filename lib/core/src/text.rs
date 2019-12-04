@@ -90,7 +90,7 @@ impl<'a> TextComponentBuilder<'a> {
         buffer
     }
 
-    fn set_binded_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
+    fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
         let usage  = WebGlRenderingContext::STATIC_DRAW;
         unsafe { // Note [unsafe buffer_data]
             let float_32_array = Float32Array::view(&data);
