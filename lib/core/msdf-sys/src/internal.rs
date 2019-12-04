@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
+use crate::prelude::*;
 
 #[wasm_bindgen(module = "/msdfgen_wasm.js")]
 extern {

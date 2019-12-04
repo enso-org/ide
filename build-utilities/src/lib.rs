@@ -3,7 +3,6 @@
 use std::{fs, path};
 use std::io::ErrorKind;
 
-
 /// A structure describing a concrete release package on github.
 pub struct GithubRelease<Str:AsRef<str>> {
     pub project_url : Str,

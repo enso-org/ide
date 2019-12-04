@@ -1,8 +1,8 @@
 mod internal;
 pub mod emscripten_data;
 pub mod test_utils;
-pub use basegl_prelude as prelude;
 
+pub use basegl_prelude as prelude;
 use internal::*;
 
 use emscripten_data::ArrayMemoryView;
@@ -33,7 +33,7 @@ where F : 'static + FnOnce() {
 // ============
 
 pub struct Font {
-    handle: JsValue
+    pub handle: JsValue
 }
 
 impl Font {
@@ -166,6 +166,7 @@ impl Drop for MultichannelSignedDistanceField {
         msdfgen_free_result(self.handle.clone());
     }
 }
+
 
 // =============
 // === Tests ===
