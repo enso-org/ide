@@ -59,23 +59,20 @@ impl<'a> GylphSquareVerticesBuilder<'a> {
     pub fn build_for_next_glyph(&mut self, ch:char) -> GlyphSquareVertices {
         let apply_kerning            = self.translation_by_kerning_value(ch);
         let to_pen_position          = self.translation_by_pen_position();
-
         let glyph_info               = self.font.get_glyph_info(ch);
         let glyph_specific_transform = &glyph_info.from_base_layout;
         let to_window                = &self.to_window;
-
         let advance_pen              = Translation2::new(glyph_info.advance, 0.0);
         let pen_transformation       = apply_kerning * advance_pen;
 
+        self.pen_position            = pen_transformation * self.pen_position;
+        self.previous_char           = Some(ch);
         let plain_base               = GLYPH_SQUARE_VERTICES_BASE_LAYOUT.iter();
         let base                     = plain_base           .map(|(x, y)| Point2::new(*x, *y));
         let glyph_fixed              = base                 .map(|p| glyph_specific_transform * p);
         let moved_to_pen_position    = glyph_fixed          .map(|p| to_pen_position * p);
         let kerning_applied          = moved_to_pen_position.map(|p| apply_kerning * p);
         let mapped_to_window         = kerning_applied      .map(|p| to_window * p);
-
-        self.pen_position  = pen_transformation * self.pen_position;
-        self.previous_char = Some(ch);
         mapped_to_window.map(point_to_iterable).flatten().collect()
     }
 
@@ -119,7 +116,6 @@ impl<'a> GlyphSquareTextureCoordinatesBuilder<'a> {
         let base                = plain_base       .map(|(x,y)| Point2::new(*x, *y));
         let aligned_to_border   = base             .map(|p| border_align * p);
         let transformed         = aligned_to_border.map(|p| to_proper_fragment * p);
-
         transformed.map(point_to_iterable).flatten().collect()
     }
 
@@ -138,16 +134,13 @@ impl<'a> GlyphSquareTextureCoordinatesBuilder<'a> {
 
         let translation_x = column_size / 2.0;
         let translation_y = row_size    / 2.0;
-
         let scale_x       = 1.0 - column_size;
         let scale_y       = 1.0 - row_size;
-
         let matrix = Matrix3::new
         ( scale_x, 0.0    , translation_x
         , 0.0    , scale_y, translation_y
         , 0.0    , 0.0    , 1.0
         );
-
         Affine2::from_matrix_unchecked(matrix)
     }
 
@@ -160,6 +153,7 @@ impl<'a> GlyphSquareTextureCoordinatesBuilder<'a> {
     pub fn glyph_texture_fragment_transform(&mut self, ch:char) -> Affine2<f64> {
         let one_glyph_rows = MsdfTexture::ONE_GLYPH_HEIGHT as f64;
         let all_rows       = self.font.msdf_texture.rows() as f64;
+
         let fraction       = one_glyph_rows / all_rows;
         let glyph_info     = self.font.get_glyph_info(ch);
         let offset         = glyph_info.msdf_texture_rows.start as f64 / all_rows;

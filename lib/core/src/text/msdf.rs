@@ -17,10 +17,8 @@ pub struct MsdfTexture {
 
 impl MsdfTexture {
     pub const CHANNELS_COUNT   : usize = MultichannelSignedDistanceField::CHANNELS_COUNT;
-
     pub const WIDTH            : usize = 32;
     pub const ROW_SIZE         : usize = Self::CHANNELS_COUNT * Self::WIDTH;
-
     pub const ONE_GLYPH_HEIGHT : usize = 32;
     pub const ONE_GLYPH_SIZE   : usize = Self::ROW_SIZE * Self::ONE_GLYPH_HEIGHT;
 
@@ -33,9 +31,8 @@ impl MsdfTexture {
         const UNSIGNED_BYTE_MIN : f32 = 0.0;
         const UNSIGNED_BYTE_MAX : f32 = 255.0;
 
-        let scaled_to_byte            = value * 255.0;
+        let scaled_to_byte            = value * UNSIGNED_BYTE_MAX;
         let clamped_to_byte           = clamp(scaled_to_byte,UNSIGNED_BYTE_MIN,UNSIGNED_BYTE_MAX);
-
         clamped_to_byte as u8
     }
 }
@@ -83,16 +80,13 @@ pub fn convert_msdf_transformation(msdf:&MultichannelSignedDistanceField)
 -> nalgebra::Projective2<f64> {
     let translate_converted_x = x_distance_from_msdf_value(msdf.translation.x);
     let translate_converted_y = y_distance_from_msdf_value(msdf.translation.y);
-
     let translate_scaled_x    = translate_converted_x * msdf.scale.x;
     let translate_scaled_y    = translate_converted_y * msdf.scale.y;
-
     let msdf_transformation_matrix = nalgebra::Matrix3::new(
         msdf.scale.x, 0.0,          translate_scaled_x,
         0.0,          msdf.scale.y, translate_scaled_y,
         0.0,          0.0,          1.0
     );
-
     nalgebra::Projective2::from_matrix_unchecked(msdf_transformation_matrix)
 }
 

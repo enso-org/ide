@@ -91,20 +91,17 @@ impl FontRenderInfo {
         let unicode             = ch as u32;
         let params              = Self::MSDF_PARAMS;
         let msdf_height         = MsdfTexture::ONE_GLYPH_HEIGHT;
-
-        let msdf                = MultichannelSignedDistanceField::generate(handle,unicode,&params);
         let msdf_tex_rows_begin = self.msdf_texture.rows();
         let msdf_tex_rows_end   = msdf_tex_rows_begin + msdf_height;
+
+        let msdf                = MultichannelSignedDistanceField::generate(handle,unicode,&params);
         let msdf_transformation = convert_msdf_transformation(&msdf);
-
         let advance             = x_distance_from_msdf_value(msdf.advance);
-
         let glyph_info = GlyphRenderInfo {
             msdf_texture_rows     : msdf_tex_rows_begin..msdf_tex_rows_end,
             from_base_layout      : msdf_transformation.inverse(),
             advance
         };
-
         self.msdf_texture.extend(msdf.data.iter());
         self.glyphs.insert(ch, glyph_info);
     }
@@ -153,7 +150,6 @@ impl FontRenderInfo {
             from_base_layout      : nalgebra::Transform::identity(),
             advance               : 0.0
         };
-
         self.msdf_texture.extend(msdf_data);
         self.glyphs.insert(ch, char_info);
         self.glyphs.get_mut(&ch).unwrap()

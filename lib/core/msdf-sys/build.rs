@@ -5,7 +5,7 @@ mod msdfgen_wasm {
     use std::{path,fs};
     use std::io::Write;
 
-    pub const PACKAGE : GithubRelease = GithubRelease {
+    pub const PACKAGE : GithubRelease<&str> = GithubRelease {
         project_url : "https://github.com/luna/msdfgen-wasm",
         version     : "v1.1",
         filename    : "msdfgen_wasm.js"

@@ -112,18 +112,21 @@ impl MultichannelSignedDistanceField {
     pub fn generate(font:&Font, unicode:u32, params:&MsdfParameters)
     -> MultichannelSignedDistanceField {
         let handle = msdfgen_generate_msdf
-        (params.width,params.height,font.handle.clone(),unicode,
-        params.edge_coloring_angle_threshold,params.range,params.max_scale,params.edge_threshold,
-        params.overlap_support);
-
+            ( params.width
+            , params.height
+            , font.handle.clone()
+            , unicode
+            , params.edge_coloring_angle_threshold
+            , params.range,params.max_scale
+            , params.edge_threshold
+            , params.overlap_support
+            );
         let advance     = msdfgen_result_get_advance(handle.clone());
         let translation = Self::translation(&handle);
         let scale       = Self::scale(&handle);
-
         let data_adress = msdfgen_result_get_msdf_data(handle.clone());
         let data_size   = params.width * params.height * Self::CHANNELS_COUNT;
-        let data        = ArrayMemoryView::<f32>::new(data_adress,data_size);
-
+        let data        = ArrayMemoryView::new(data_adress,data_size);
         MultichannelSignedDistanceField{handle,advance,translation,scale,data}
     }
 
@@ -131,7 +134,7 @@ impl MultichannelSignedDistanceField {
 
     fn translation(handle : &JsValue) -> nalgebra::Vector2<f64> {
         let address     = msdfgen_result_get_translation(handle.clone());
-        let view        =  ArrayMemoryView::<f64>::new(address,Self::DIMENSIONS);
+        let view        = ArrayMemoryView::new(address,Self::DIMENSIONS);
         let mut iter    = view.iter();
         let translate_x = iter.next().unwrap();
         let translate_y = iter.next().unwrap();
@@ -140,7 +143,7 @@ impl MultichannelSignedDistanceField {
 
     fn scale(handle : &JsValue) -> nalgebra::Vector2<f64> {
         let address  = msdfgen_result_get_scale(handle.clone());
-        let view     = ArrayMemoryView::<f64>::new(address,Self::DIMENSIONS);
+        let view     = ArrayMemoryView::new(address,Self::DIMENSIONS);
         let mut iter = view.iter();
         let scale_x  = iter.next().unwrap();
         let scale_y  = iter.next().unwrap();

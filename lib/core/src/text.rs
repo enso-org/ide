@@ -25,12 +25,12 @@ pub struct TextComponentBuilder<'a> {
 
 #[derive(Debug)]
 pub struct TextComponent {
-    gl_context       : WebGlRenderingContext,
-    gl_program       : Program,
-    gl_vertex_buf    : WebGlBuffer,
-    gl_tex_coord_buf : WebGlBuffer,
-    gl_msdf_texture  : WebGlTexture,
-    buffers_size     : usize,
+    gl_context                    : WebGlRenderingContext,
+    gl_program                    : Program,
+    gl_vertex_buffer              : WebGlBuffer,
+    gl_texture_coordinates_buffer : WebGlBuffer,
+    gl_msdf_texture               : WebGlTexture,
+    buffers_size                  : usize,
 }
 
 impl<'a> TextComponentBuilder<'a> {
@@ -38,16 +38,20 @@ impl<'a> TextComponentBuilder<'a> {
         self.load_all_chars();
         let gl_context           = workspace.context.clone();
         let gl_program           = self.create_program(&gl_context);
-        let gl_vertex_buf        = self.create_vertex_buf(&gl_context);
-        let gl_tex_coord_buf     = self.create_tex_coord_buf(&gl_context);
+        let gl_vertex_buffer     = self.create_vertex_bufffer(&gl_context);
+        let gl_tex_coord_buffer  = self.create_texture_coordinates_buffer(&gl_context);
         let gl_msdf_texture      = self.create_msdf_texture(&gl_context);
         let glyph_vertices_count = glyph_render::GLYPH_SQUARE_VERTICES_BASE_LAYOUT.len();
         let buffers_size         = self.text.len() * glyph_vertices_count;
-
         self.setup_uniforms(&gl_context, &gl_program);
-
-        TextComponent
-        {gl_context,gl_program,gl_vertex_buf,gl_tex_coord_buf,gl_msdf_texture,buffers_size}
+        TextComponent {
+            gl_context,
+            gl_program,
+            gl_vertex_buffer,
+            gl_texture_coordinates_buffer : gl_tex_coord_buffer,
+            gl_msdf_texture,
+            buffers_size
+        }
     }
 
     fn load_all_chars(&mut self) {
@@ -58,10 +62,8 @@ impl<'a> TextComponentBuilder<'a> {
 
     fn create_program(&self, gl_context:&Context) -> Program {
         gl_context.get_extension("OES_standard_derivatives").unwrap().unwrap();
-
         let vert_shader = self.create_vertex_shader(gl_context);
         let frag_shader = self.create_fragment_shader(gl_context);
-
         link_program(&gl_context, &vert_shader, &frag_shader).unwrap()
     }
 
@@ -80,17 +82,20 @@ impl<'a> TextComponentBuilder<'a> {
     }
 
     fn create_buffer(gl_context:&Context, vertices:&[f32]) -> WebGlBuffer {
-        let buffer = gl_context.create_buffer().unwrap();
         let target = WebGlRenderingContext::ARRAY_BUFFER;
-        let usage  = WebGlRenderingContext::STATIC_DRAW;
-        gl_context.bind_buffer(target,Some(&buffer));
 
+        let buffer = gl_context.create_buffer().unwrap();
+        gl_context.bind_buffer(target,Some(&buffer));
+        Self::set_binded_buffer_data(gl_context,target,vertices);
+        buffer
+    }
+
+    fn set_binded_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
+        let usage  = WebGlRenderingContext::STATIC_DRAW;
         unsafe { // Note [unsafe buffer_data]
-            let float_32_array = Float32Array::view(&vertices);
+            let float_32_array = Float32Array::view(&data);
             gl_context.buffer_data_with_array_buffer_view(target,&float_32_array,usage);
         }
-
-        buffer
     }
 
     /* Note [unsafe buffer_data]
@@ -101,16 +106,15 @@ impl<'a> TextComponentBuilder<'a> {
      * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
      */
 
-    fn create_vertex_buf(&mut self, gl_context:&Context) -> WebGlBuffer {
+    fn create_vertex_bufffer(&mut self, gl_context:&Context) -> WebGlBuffer {
         let to_window            = self.to_window_transform();
         let font                 = &mut self.font;
+
         let mut vertices_builder = GylphSquareVerticesBuilder::new(font,to_window);
         let char_to_vertices     = |ch| vertices_builder.build_for_next_glyph(ch);
-
         let grouped_vertices     = self.text.chars().map(char_to_vertices);
         let vertices             = grouped_vertices.flatten();
         let buffer_data          = vertices.map(|f| f as f32).collect::<SmallVec<[f32;32]>>();
-
         Self::create_buffer(gl_context,buffer_data.as_ref())
     }
 
@@ -120,16 +124,15 @@ impl<'a> TextComponentBuilder<'a> {
         nalgebra::convert(similarity)
     }
 
-    fn create_tex_coord_buf(&mut self, gl_context:&Context) -> WebGlBuffer {
+    fn create_texture_coordinates_buffer(&mut self, gl_context:&Context) -> WebGlBuffer {
         let font                            = &mut self.font;
+
         let mut texture_coordinates_builder = GlyphSquareTextureCoordinatesBuilder::new(font);
         let char_to_texture_coordinates     = |ch| texture_coordinates_builder.build_for_next_glyph(ch);
-
         let grouped_texture_coordinates     = self.text.chars().map(char_to_texture_coordinates);
         let texture_coordinates             = grouped_texture_coordinates.flatten();
         let converted_data                  = texture_coordinates.map(|f| f as f32);
         let buffer_data                     = converted_data.collect::<SmallVec<[f32;32]>>();
-
         Self::create_buffer(gl_context,buffer_data.as_ref())
     }
 
@@ -149,30 +152,34 @@ impl<'a> TextComponentBuilder<'a> {
         let data         = Some(self.font.msdf_texture.data.as_slice());
 
         gl_ctx.bind_texture(target,Some(&msdf_texture));
-
         gl_ctx.tex_parameteri(target,Context::TEXTURE_WRAP_S,wrap);
         gl_ctx.tex_parameteri(target,Context::TEXTURE_WRAP_T,wrap);
         gl_ctx.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,min_filter);
-
         let tex_image_result =
-        gl_ctx.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-        (target,tex_level,internal_fmt,width,height,border,format,tex_type,data);
-
+            gl_ctx.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+            ( target
+            , tex_level
+            , internal_fmt
+            , width
+            , height
+            , border
+            , format
+            , tex_type
+            , data
+            );
         tex_image_result.unwrap();
-
         msdf_texture
     }
 
     fn setup_uniforms(&self, gl_context:&Context, gl_program:&Program) {
+        let color         = &self.color;
+        let range         = FontRenderInfo::MSDF_PARAMS.range as f32;
+        let msdf_width    = MsdfTexture::WIDTH as f32;
+        let msdf_height   = self.font.msdf_texture.rows() as f32;
         let color_loc     = gl_context.get_uniform_location(gl_program,"color");
         let range_loc     = gl_context.get_uniform_location(gl_program,"range");
         let msdf_loc      = gl_context.get_uniform_location(gl_program,"msdf");
         let msdf_size_loc = gl_context.get_uniform_location(gl_program,"msdfSize");
-
-        let color       = &self.color;
-        let range = FontRenderInfo::MSDF_PARAMS.range as f32;
-        let msdf_width  = MsdfTexture::WIDTH as f32;
-        let msdf_height = self.font.msdf_texture.rows() as f32;
 
         gl_context.use_program(Some(gl_program));
         gl_context.uniform4f(color_loc.as_ref(),color.r,color.g,color.b,color.a);
@@ -188,13 +195,10 @@ impl TextComponent {
         let gl_context = &self.gl_context;
 
         gl_context.use_program(Some(&self.gl_program));
-
-        self.bind_buffer_to_attribute("position",&self.gl_vertex_buf);
-        self.bind_buffer_to_attribute("texCoord",&self.gl_tex_coord_buf);
+        self.bind_buffer_to_attribute("position",&self.gl_vertex_buffer);
+        self.bind_buffer_to_attribute("texCoord",&self.gl_texture_coordinates_buffer);
         self.setup_blending();
-
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
-
         gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,self.buffers_size as i32);
     }
 
@@ -211,9 +215,14 @@ impl TextComponent {
 
         gl_context.enable_vertex_attrib_array(location);
         gl_context.bind_buffer(target,Some(buffer));
-
         gl_context.vertex_attrib_pointer_with_i32
-        (location,item_size,item_type,normalized,stride,offset);
+            ( location
+            , item_size
+            , item_type
+            , normalized
+            , stride
+            , offset
+            );
     }
 
     fn setup_blending(&self) {

@@ -40,7 +40,7 @@ mod deja_vu {
     use std::path;
     use basegl_build_utilities::GithubRelease;
 
-    pub const PACKAGE : GithubRelease = GithubRelease {
+    pub const PACKAGE : GithubRelease<&str> = GithubRelease {
         project_url : "https://github.com/dejavu-fonts/dejavu-fonts/",
         version     : "version_2_37",
         filename    : "dejavu-fonts-ttf-2.37.zip"
@@ -58,7 +58,7 @@ mod deja_vu {
         let package_dir          = package_path.parent().unwrap();
         let output_path          = package_dir.join(font_file);
 
-        let archive_file     = std::fs::File::open(package_path).unwrap();
+        let archive_file         = std::fs::File::open(package_path).unwrap();
         let mut archive          = zip::ZipArchive::new(archive_file).unwrap();
         let mut input_stream     = archive.by_name(font_in_package_path.as_str()).unwrap();
         let mut output_stream    = std::fs::File::create(output_path).unwrap();

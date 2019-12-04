@@ -8,13 +8,13 @@ pub struct TestAfterInit<F:Fn()> {
     test : F
 }
 
-impl<F: Fn()> TestAfterInit<F> {
+impl<F:Fn()> TestAfterInit<F> {
     pub fn schedule(test:F) -> TestAfterInit<F> {
         TestAfterInit{test}
     }
 }
 
-impl<F : Fn()> Future for TestAfterInit<F> {
+impl<F:Fn()> Future for TestAfterInit<F> {
 
     type Output = ();
 
