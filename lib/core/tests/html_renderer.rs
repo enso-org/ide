@@ -40,7 +40,7 @@ mod tests {
                                     .expect("Renderer couldn't be created");
         assert_eq!(scene.len(), 0, "Scene should be empty");
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let mut object = HTMLObject::new("div").unwrap();
@@ -98,7 +98,7 @@ mod tests {
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let aspect_ratio = view_dim.x / view_dim.y;
@@ -118,7 +118,7 @@ mod tests {
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let aspect_ratio = view_dim.x / view_dim.y;
@@ -139,7 +139,7 @@ mod tests {
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let aspect_ratio = view_dim.x / view_dim.y;
@@ -199,7 +199,7 @@ mod tests {
             scene.add(object);
         }
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let aspect_ratio = view_dim.x / view_dim.y;
@@ -232,7 +232,7 @@ mod tests {
             scene.add(object);
         }
 
-        let view_dim = renderer.get_dimensions();
+        let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let aspect_ratio = view_dim.x / view_dim.y;

@@ -21,7 +21,7 @@ pub struct HTMLObject {
     #[shrinkwrap(main_field)]
     pub object     : Object,
     pub dom        : HtmlElement,
-    pub dimensions : Vector2<f32>,
+    dimensions     : Vector2<f32>,
 }
 
 impl HTMLObject {
@@ -61,7 +61,7 @@ impl HTMLObject {
     }
 
     /// Gets the underlying HtmlElement dimension.
-    pub fn get_dimensions(&self) -> &Vector2<f32> {
+    pub fn dimensions(&self) -> &Vector2<f32> {
         &self.dimensions
     }
 }

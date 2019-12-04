@@ -1,12 +1,13 @@
 use super::request_animation_frame;
-use wasm_bindgen::prelude::Closure;
+
 use std::rc::Rc;
 use std::cell::RefCell;
+use wasm_bindgen::prelude::Closure;
 
 
-// ============================
-// === Animation Frame Data ===
-// ============================
+// ==========================
+// === AnimationFrameData ===
+// ==========================
 
 struct AnimationFrameData {
     run : bool
@@ -17,33 +18,32 @@ pub struct AnimationFrameLoop {
     data   : Rc<RefCell<AnimationFrameData>>
 }
 
-// ============================
-// === Animation Frame Loop ===
-// ============================
+
+// ==========================
+// === AnimationFrameLoop ===
+// ==========================
 
 impl AnimationFrameLoop {
-    pub fn new(mut func : Box<dyn FnMut()>) -> Self {
-        let nop_func    = Box::new(|| ()) as Box<dyn FnMut()>;
-        let nop_closure = Closure::wrap(nop_func);
-        let callback    = Rc::new(RefCell::new(nop_closure));
-
-        let run  = true;
-        let data = Rc::new(RefCell::new(AnimationFrameData { run }));
-
+    pub fn new(mut func:Box<dyn FnMut()>) -> Self {
+        let nop_func       = Box::new(|| ()) as Box<dyn FnMut()>;
+        let nop_closure    = Closure::once(nop_func);
+        let callback       = Rc::new(RefCell::new(nop_closure));
+        let run            = true;
+        let data           = Rc::new(RefCell::new(AnimationFrameData { run }));
         let callback_clone = callback.clone();
         let data_clone     = data.clone();
 
         *callback.borrow_mut() = Closure::wrap(Box::new(move || {
             if data_clone.borrow().run {
                 func();
-                request_animation_frame(&callback_clone.borrow())
-                                       .expect("Request Animation Frame");
+                let clb = &callback_clone.borrow();
+                request_animation_frame(&clb).expect("Request Animation Frame");
             }
         }) as Box<dyn FnMut()>);
         request_animation_frame(&callback.borrow()).unwrap();
 
         let forget = false;
-        AnimationFrameLoop { forget, data }
+        AnimationFrameLoop{forget,data}
     }
 
     pub fn forget(mut self) {
@@ -54,7 +54,7 @@ impl AnimationFrameLoop {
 impl Drop for AnimationFrameLoop {
     fn drop(&mut self) {
         if !self.forget {
-            self.data.borrow_mut().run = false
+            self.data.borrow_mut().run = false;
         }
     }
 }

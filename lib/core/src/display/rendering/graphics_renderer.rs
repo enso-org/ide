@@ -4,7 +4,12 @@ use super::DOMContainer;
 use super::ResizeCallback;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
-use crate::math::Vector2;
+
+use nalgebra::Vector2;
+
+// ========================
+// === GraphicsRenderer ===
+// ========================
 
 /// Base structure for our Renderers.
 #[derive(Debug)]
@@ -25,8 +30,8 @@ impl GraphicsRenderer {
     }
 
     /// Gets the Scene Renderer's dimensions.
-    pub fn get_dimensions(&self) -> Vector2<f32> {
-        self.container.get_dimensions()
+    pub fn dimensions(&self) -> Vector2<f32> {
+        self.container.dimensions()
     }
 
     /// Adds a ResizeCallback.

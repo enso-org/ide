@@ -4,6 +4,14 @@ use proc_macro::TokenStream;
 use syn::*;
 use quote::quote;
 
+// FIXME: Parse proc_macro args to read the following info:
+// #[web_test(dimensions(320.0, 240.0)) and
+// #[web_test(no_container)].
+
+// ===================
+// === #[web_test] ===
+// ===================
+
 /// #[web_test] creates a [320.0, 240.0] div with id = fn_name and appends it
 /// into the document.
 /// # Example
@@ -21,7 +29,7 @@ use quote::quote;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn web_test(_args:TokenStream, input:TokenStream) -> TokenStream {
     if let Ok(mut parsed) = syn::parse::<ItemFn>(input.clone()) {
         let fn_string = format!("{}", parsed.sig.ident);
         let code = format!("Container::new(\"Tests\", \"{}\", 320.0, 240.0);",
@@ -44,6 +52,11 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
         input
     }
 }
+
+
+// ====================
+// === #[web_bench] ===
+// ====================
 
 /// #[web_bench] creates a benchmark div with a toggle button.
 /// # Example
@@ -69,7 +82,7 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn web_bench(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn web_bench(_args:TokenStream, input:TokenStream) -> TokenStream {
 
     if let Ok(parsed) = parse::<ItemFn>(input.clone()) {
         use proc_macro2::*;

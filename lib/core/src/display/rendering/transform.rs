@@ -2,8 +2,8 @@ use crate::prelude::*;
 
 use nalgebra::Matrix4;
 use nalgebra::Quaternion;
-pub use crate::math::UnitQuaternion;
-pub use crate::math::Vector3;
+use nalgebra::UnitQuaternion;
+use nalgebra::Vector3;
 
 // =============
 // === Utils ===
@@ -48,32 +48,32 @@ impl Transform {
     pub fn identity() -> Self { default() }
 
     /// Sets Transform's translation.
-    pub fn set_translation(&mut self, x: f32, y: f32, z: f32) {
+    pub fn set_translation(&mut self, x:f32, y:f32, z:f32) {
         self.translation = Vector3::new(x, y, z);
     }
 
     /// Gets Transform's translation.
-    pub fn get_translation(&self) -> &Vector3<f32> {
+    pub fn translation(&self) -> &Vector3<f32> {
         &self.translation
     }
 
     /// Sets Transform's scale.
-    pub fn set_scale(&mut self, x: f32, y: f32, z: f32) {
+    pub fn set_scale(&mut self, x:f32, y:f32, z:f32) {
         self.scale = Vector3::new(x, y, z);
     }
 
     /// Gets Transform's scale.
-    pub fn get_scale(&self) -> &Vector3<f32> {
+    pub fn scale(&self) -> &Vector3<f32> {
         &self.scale
     }
 
     /// Sets Transform's rotation from Euler angles in radians.
-    pub fn set_rotation(&mut self, roll: f32, pitch: f32, yaw: f32) {
+    pub fn set_rotation(&mut self, roll:f32, pitch:f32, yaw:f32) {
         self.rotation = from_euler_angles_pry(roll, pitch, yaw);
     }
 
     /// Gets Transform's rotation UnitQuaternion
-    pub fn get_rotation(&self) -> &UnitQuaternion<f32> {
+    pub fn rotation(&self) -> &UnitQuaternion<f32> {
         &self.rotation
     }
 
@@ -134,9 +134,9 @@ mod test {
         use nalgebra::UnitQuaternion;
 
         let transform = Transform::identity();
-        assert_eq!(*transform.get_translation(), Vector3::new(0.0, 0.0, 0.0));
-        assert_eq!(*transform.get_scale()      , Vector3::new(1.0, 1.0, 1.0));
-        assert_eq!(*transform.get_rotation()   , UnitQuaternion::identity());
+        assert_eq!(*transform.translation(), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(*transform.scale(), Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(*transform.rotation(), UnitQuaternion::identity());
     }
 
     #[test]
@@ -151,14 +151,14 @@ mod test {
         transform.set_scale(3.0, 2.0, 1.0);
         transform.set_rotation(PI * 2.0, PI, PI / 2.0);
 
-        assert_eq!(*transform.get_translation(), Vector3::new(1.0, 2.0, 3.0));
-        assert_eq!(*transform.get_scale(), Vector3::new(3.0, 2.0, 1.0));
+        assert_eq!(*transform.translation(), Vector3::new(1.0, 2.0, 3.0));
+        assert_eq!(*transform.scale(), Vector3::new(3.0, 2.0, 1.0));
 
         let expected = Quaternion::new
             ( 0.00000009272586
             , -0.7071068
             , -0.7071068
             , -0.000000030908623 );
-        assert_eq!(*transform.get_rotation().quaternion(), expected);
+        assert_eq!(*transform.rotation().quaternion(), expected);
     }
 }

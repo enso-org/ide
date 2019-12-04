@@ -8,26 +8,61 @@ use crate::math::utils::IntoFloat32ArrayView;
 use crate::math::utils::eps;
 use crate::math::utils::invert_y;
 use crate::system::web::Result;
-use crate::math::Vector2;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 
+use nalgebra::Vector2;
+use nalgebra::Matrix4;
+
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
-#[wasm_bindgen(module = "/js/htmlrenderer.js")]
-extern "C" {
-    fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
-    fn setup_perspective(dom: &JsValue, znear : &JsValue);
-    fn setup_camera_transform(
-        dom          : &JsValue,
-        znear        : &JsValue,
-        half_width   : &JsValue,
-        half_height  : &JsValue,
-        matrix_array : &JsValue);
+mod js {
+    use super::*;
+    #[wasm_bindgen(module = "/js/html_renderer.js")]
+    extern "C" {
+        pub fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
+        pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
+        pub fn setup_camera_transform
+        ( dom          : &JsValue
+        , znear        : &JsValue
+        , half_width   : &JsValue
+        , half_height  : &JsValue
+        , matrix_array : &JsValue
+        );
+    }
+}
+
+fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
+    // Note [Unsafe Float32ArrayView]
+    unsafe {
+        let matrix_array =  matrix.into_float32_array_view();
+        js::set_object_transform(&dom, &matrix_array);
+    }
+}
+
+fn setup_camera_transform
+( dom         : &JsValue
+, near        : f32
+, half_width  : f32
+, half_height : f32
+, matrix      : &Matrix4<f32>
+) {
+
+    // Note [Unsafe Float32ArrayView]
+    unsafe {
+        let matrix_array = matrix.into_float32_array_view();
+        js::setup_camera_transform(
+            &dom,
+            &near.into(),
+            &half_width.into(),
+            &half_height.into(),
+            &matrix_array
+        )
+    }
 }
 
 // ========================
@@ -70,71 +105,67 @@ pub struct HTMLRenderer {
 impl HTMLRenderer {
     /// Creates a HTMLRenderer.
     pub fn new(dom_id: &str) -> Result<Self> {
-        let mut renderer = GraphicsRenderer::new(dom_id)?;
-
+        let renderer             = GraphicsRenderer::new(dom_id)?;
         let div    : HtmlElement = dyn_into(create_element("div")?)?;
         let camera : HtmlElement = dyn_into(create_element("div")?)?;
-        div   .set_property_or_panic("width", "100%");
-        div   .set_property_or_panic("height", "100%");
-        camera.set_property_or_panic("width", "100%");
-        camera.set_property_or_panic("height", "100%");
+
+        div   .set_property_or_panic("width"          , "100%");
+        div   .set_property_or_panic("height"         , "100%");
+        camera.set_property_or_panic("width"          , "100%");
+        camera.set_property_or_panic("height"         , "100%");
         camera.set_property_or_panic("transform-style", "preserve-3d");
 
-        renderer.container.dom.append_child_or_panic(&div);
-        div                   .append_child_or_panic(&camera);
+        renderer.container.dom.append_or_panic(&div);
+        div                   .append_or_panic(&camera);
 
-        let data = Rc::new(HTMLRendererData::new(div, camera));
-
-        let data_clone = data.clone();
-        renderer.add_resize_callback(Box::new(move |dimensions| {
-            data_clone.set_dimensions(*dimensions);
-        }));
-
-        let dimensions = renderer.get_dimensions();
+        let data       = Rc::new(HTMLRendererData::new(div, camera));
         let mut htmlrenderer = Self { renderer, data };
-        htmlrenderer.set_dimensions(dimensions);
+
+        htmlrenderer.init_listeners();
         Ok(htmlrenderer)
+    }
+
+    fn init_listeners(&mut self) {
+        let dimensions = self.renderer.dimensions();
+        let data = self.data.clone();
+        self.renderer.add_resize_callback(Box::new(move |dimensions| {
+            data.set_dimensions(*dimensions);
+        }));
+        self.set_dimensions(dimensions);
     }
 
     /// Renders the `Scene` from `Camera`'s point of view.
     pub fn render(&self, camera: &mut Camera, scene: &Scene<HTMLObject>) {
-        let trans_cam = camera.transform.to_homogeneous().try_inverse();
-        let trans_cam = trans_cam.expect("Camera's matrix is not invertible.");
-        let trans_cam = trans_cam.map(eps);
-        let trans_cam = invert_y(trans_cam);
+        let trans_cam    = camera.transform.to_homogeneous().try_inverse();
+        let trans_cam    = trans_cam.expect("Camera's matrix is not invertible.");
+        let trans_cam    = trans_cam.map(eps);
+        let trans_cam    = invert_y(trans_cam);
 
         // Note [znear from projection matrix]
-        let half_dim     = self.renderer.container.get_dimensions() / 2.0;
+        let half_dim     = self.renderer.container.dimensions() / 2.0;
         let y_scale      = camera.get_y_scale();
-        let near         = (y_scale * half_dim.y).into();
-        let half_width   = half_dim.x.into();
-        let half_height  = half_dim.y.into();
+        let near         = y_scale * half_dim.y;
 
-        // Note [Unsafe Float32ArrayView]
-        let matrix_array = unsafe { trans_cam.into_float32_array_view() };
-
-        setup_perspective(&self.data.div, &near);
+        js::setup_perspective(&self.data.div, &near.into());
         setup_camera_transform(
             &self.data.camera,
-            &near,
-            &half_width,
-            &half_height,
-            &matrix_array
+            near,
+            half_dim.x,
+            half_dim.y,
+            &trans_cam
         );
 
         let scene : &Scene<HTMLObject> = &scene;
         for object in &mut scene.into_iter() {
             let mut transform = object.transform.to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
-            // Note [Unsafe Float32ArrayView]
-            let matrix_array = unsafe { transform.into_float32_array_view() };
 
             let parent_node  = object.dom.parent_node();
             if !self.data.camera.is_same_node(parent_node.as_ref()) {
-                self.data.camera.append_child_or_panic(&object.dom);
+                self.data.camera.append_or_panic(&object.dom);
             }
 
-            set_object_transform(&object.dom, &matrix_array);
+            set_object_transform(&object.dom, &transform);
         }
     }
 

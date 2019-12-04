@@ -1,12 +1,14 @@
 use crate::prelude::*;
+
 use nalgebra::Matrix4;
 use nalgebra::RealField;
 use js_sys::Float32Array;
 use std::marker::PhantomData;
 
-// ======================
-// === Matrix Printer ===
-// ======================
+
+// =====================
+// === IntoCSSMatrix ===
+// =====================
 
 pub trait IntoCSSMatrix {
     fn into_css_matrix(&self) -> String;
@@ -15,12 +17,17 @@ pub trait IntoCSSMatrix {
 impl<T : RealField> IntoCSSMatrix for Matrix4<T> {
     fn into_css_matrix(&self) -> String {
         let mut iter = self.iter();
-        let item = iter.next().expect("Matrix4 should have the first item");
-        let acc = format!("{}", item);
-        let ret = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
+        let item     = iter.next().expect("Matrix4 should have the first item");
+        let acc      = format!("{}", item);
+        let ret      = iter.fold(acc, |acc, item| format!("{}, {}", acc, item));
         format!("matrix3d({})", ret)
     }
 }
+
+
+// ========================
+// === Float32ArrayView ===
+// ========================
 
 /// A Float32Array view created from `IntoFloat32ArrayView`.
 #[derive(Shrinkwrap)]
