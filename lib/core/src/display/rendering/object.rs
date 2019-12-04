@@ -1,17 +1,12 @@
-use super::Transform;
+use crate::display::rendering::Transform;
 use crate::math::UnitQuaternion;
 use crate::math::Vector3;
 use crate::prelude::*;
 
-// ==============
-// === Object ===
-// ==============
-
-// FIXME: You should derive Debug on every structure whenever its possible.
 /// Base structure for representing a 3D object in a `Scene`.
 #[derive(Default, Debug)]
 pub struct Object {
-    pub transform : Transform,
+    pub transform : Transform
 }
 
 impl Object {

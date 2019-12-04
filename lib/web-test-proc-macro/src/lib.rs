@@ -7,7 +7,7 @@ use quote::quote;
 /// #[web_test] creates a [320.0, 240.0] div with id = fn_name and appends it
 /// into the document.
 /// # Example
-/// ```rust,no_run
+/// ```rust,compile_fail
 /// use web_test::web_test;
 /// use web_test::web_configure;
 /// use basegl::system::web::get_element_by_id;
@@ -47,7 +47,7 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// #[web_bench] creates a benchmark div with a toggle button.
 /// # Example
-/// ```rust,no_run
+/// ```rust,compile_fail
 /// use web_test::web_bench;
 /// use web_test::web_configure;
 /// use basegl::system::web::get_element_by_id;
