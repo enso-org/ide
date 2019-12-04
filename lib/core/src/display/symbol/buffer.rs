@@ -306,7 +306,7 @@ impl<T> Builder<T> {
 // ========================
 
 // TODO The following code should be refactored to use the new macro `eval-tt`
-// TODO rendering. Some utils, like `cartesian` macro should also be refactored
+// TODO engine. Some utils, like `cartesian` macro should also be refactored
 // TODO out.
 
 macro_rules! cartesian_impl {

@@ -128,9 +128,9 @@ impl HTMLRenderer {
     fn init_listeners(&mut self) {
         let dimensions = self.renderer.dimensions();
         let data = self.data.clone();
-        self.renderer.add_resize_callback(Box::new(move |dimensions| {
+        self.renderer.add_resize_callback(move |dimensions:&Vector2<f32>| {
             data.set_dimensions(*dimensions);
-        }));
+        });
         self.set_dimensions(dimensions);
     }
 

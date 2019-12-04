@@ -39,20 +39,19 @@ pub struct Float32ArrayView<'a> {
 
 pub trait IntoFloat32ArrayView {
     /// # Safety
-    /// Views into WebAssembly memory are only valid so long as the backing buffer isn't resized in JS. Once this function is called any future calls to Box::new (or malloc of any form) may cause the returned value here to be invalidated. Use with caution!
+    /// Views into WebAssembly memory are only valid so long as the backing buffer isn't resized in
+    /// JS. Once this function is called any future calls to Box::new (or malloc of any form) may
+    /// cause the returned value here to be invalidated. Use with caution!
     ///
-    /// Additionally the returned object can be safely mutated but the input slice isn't guaranteed to be mutable.
-    ///
-    /// Finally, the returned object is disconnected from the input slice's lifetime, so there's no guarantee that the data is read at the right time.
+    /// Additionally the returned object can be safely mutated but the input slice isn't guaranteed
+    /// to be mutable.
     unsafe fn into_float32_array_view(&self) -> Float32ArrayView<'_>;
 }
 
 impl IntoFloat32ArrayView for Matrix4<f32> {
     unsafe fn into_float32_array_view(&self) -> Float32ArrayView<'_> {
-        // Note [2D array to 1D array]
-        let matrix = self.as_ref();
-        let matrix = matrix as *const [[f32; 4]; 4];
-        let array = Float32Array::view(&*(matrix as *const [f32; 16]));
+        let matrix = matrix4_to_array(&self);
+        let array = Float32Array::view(matrix);
         let phantom = PhantomData;
         Float32ArrayView { array, phantom }
     }
@@ -81,17 +80,17 @@ mod tests {
     #[test]
     fn matrix4_memory_layout() {
         use super::Matrix4;
+        use super::matrix4_to_array;
+
         let matrix = Matrix4::<f32>::new
             ( 1.0, 5.0,  9.0, 13.0
             , 2.0, 6.0, 10.0, 14.0
             , 3.0, 7.0, 11.0, 15.0
             , 4.0, 8.0, 12.0, 16.0 );
-        let matrix = matrix.as_ref();
-        unsafe {
-            let layout = &*(matrix as *const [[f32; 4]; 4] as *const [f32; 16]);
-            for (i, n) in layout.iter().enumerate() {
-                assert_eq!((i + 1) as f32, *n);
-            }
+
+        let layout = matrix4_to_array(&matrix);
+        for (i, n) in layout.iter().enumerate() {
+            assert_eq!((i + 1) as f32, *n);
         }
     }
 }
@@ -99,6 +98,14 @@ mod tests {
 // ============
 // === Misc ===
 // ============
+
+pub fn matrix4_to_array(matrix:&Matrix4<f32>) -> &[f32; 16] {
+    // To interpret [[f32; 4]; 4] as [f32; 16].
+    // The memory layout is the same, so this operation is safe.
+    unsafe {
+        &*(matrix.as_ref() as *const [[f32; 4]; 4] as *const [f32; 16])
+    }
+}
 
 // eps is used to round very small values to 0.0 for numerical stability
 pub fn eps(value: f32) -> f32 {
@@ -112,8 +119,3 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m
 }
-
-// Note [2D array to 1D array]
-// ===========================
-// We need to interpret [[f32; 4]; 4] as [f32; 16] to view as Float32Array.
-// The memory layout is the same, so this operation is safe.

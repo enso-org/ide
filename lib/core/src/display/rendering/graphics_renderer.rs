@@ -1,7 +1,7 @@
 // use super::Camera;
 use crate::prelude::*;
 use super::DOMContainer;
-use super::ResizeCallback;
+use super::ResizeCallbackFn;
 use crate::system::web::Result;
 use crate::system::web::StyleSetter;
 
@@ -35,7 +35,8 @@ impl GraphicsRenderer {
     }
 
     /// Adds a ResizeCallback.
-    pub fn add_resize_callback(&mut self, callback : ResizeCallback) {
+    pub fn add_resize_callback<T>(&mut self, callback : T)
+    where T : ResizeCallbackFn {
         self.container.add_resize_callback(callback);
     }
 }

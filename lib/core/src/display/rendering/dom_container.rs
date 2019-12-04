@@ -17,8 +17,8 @@ use std::rc::Rc;
 // === ResizeCallback ===
 // ======================
 
-pub type ResizeCallback = Box<dyn Fn(&Vector2<f32>)>;
-
+type ResizeCallback = Box<dyn Fn(&Vector2<f32>)>;
+pub trait ResizeCallbackFn = where Self: Fn(&Vector2<f32>) + 'static;
 
 // ========================
 // === DOMContainerData ===
@@ -45,12 +45,12 @@ impl DOMContainerData {
 // ====================
 
 /// A collection for holding 3D `Object`s.
+#[derive(Debug)]
 pub struct DOMContainer {
     pub dom          : HtmlElement,
     resize_observer  : Option<ResizeObserver>,
     data             : Rc<RefCell<DOMContainerData>>,
 }
-
 
 impl DOMContainer {
     pub fn new(dom_id:&str) -> Result<Self> {
@@ -93,15 +93,7 @@ impl DOMContainer {
 
     /// Adds a ResizeCallback.
     pub fn add_resize_callback<T>(&mut self, callback:T)
-        where T : Fn(&Vector2<f32>) + 'static {
+        where T : ResizeCallbackFn {
         self.data.borrow_mut().resize_callbacks.push(Box::new(callback));
-    }
-}
-
-impl fmt::Debug for DOMContainer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.dom)?;
-        write!(f, "{:?}", self.resize_observer)?;
-        write!(f, "{:?}", self.data.borrow())
     }
 }
