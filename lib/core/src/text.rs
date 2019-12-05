@@ -1,12 +1,13 @@
 pub mod font;
-pub mod glyph_render;
+pub mod buffer;
 pub mod msdf;
 
 use crate::prelude::*;
 
 use crate::Color;
 use crate::display::world::Workspace;
-use crate::text::glyph_render::{GylphSquareVerticesBuilder, GlyphSquareTextureCoordinatesBuilder};
+use crate::text::buffer::glyph_square::
+{GylphSquareVerticesBuilder,GlyphSquareTextureCoordinatesBuilder,GLYPH_SQUARE_VERTICES_BASE_LAYOUT};
 use crate::text::msdf::MsdfTexture;
 
 use font::FontRenderInfo;
@@ -41,7 +42,7 @@ impl<'a> TextComponentBuilder<'a> {
         let gl_vertex_buffer     = self.create_vertex_bufffer(&gl_context);
         let gl_tex_coord_buffer  = self.create_texture_coordinates_buffer(&gl_context);
         let gl_msdf_texture      = self.create_msdf_texture(&gl_context);
-        let glyph_vertices_count = glyph_render::GLYPH_SQUARE_VERTICES_BASE_LAYOUT.len();
+        let glyph_vertices_count = GLYPH_SQUARE_VERTICES_BASE_LAYOUT.len();
         let buffers_size         = self.text.len() * glyph_vertices_count;
         self.setup_uniforms(&gl_context, &gl_program);
         TextComponent {
