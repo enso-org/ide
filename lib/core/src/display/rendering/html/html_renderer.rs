@@ -37,7 +37,9 @@ mod js {
 }
 
 fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
-    // Note [Unsafe Float32ArrayView]
+    // Views to WASM memory are only valid as long the backing buffer isn't
+    // resized. Check documentation of IntoFloat32ArrayView trait for more
+    // details.
     unsafe {
         let matrix_array =  matrix.into_float32_array_view();
         js::set_object_transform(&dom, &matrix_array);
@@ -52,7 +54,9 @@ fn setup_camera_transform
 , matrix      : &Matrix4<f32>
 ) {
 
-    // Note [Unsafe Float32ArrayView]
+    // Views to WASM memory are only valid as long the backing buffer isn't
+    // resized. Check documentation of IntoFloat32ArrayView trait for more
+    // details.
     unsafe {
         let matrix_array = matrix.into_float32_array_view();
         js::setup_camera_transform(
@@ -174,11 +178,6 @@ impl HTMLRenderer {
         self.data.set_dimensions(dimensions);
     }
 }
-
-// Note [Unsafe Float32ArrayView]
-// ==============================
-// Views to WASM memory are only valid as long the backing bufer isn't resized.
-// Check documentation of IntoFloat32ArrayView trait for more details.
 
 // Note [znear from projection matrix]
 // ===================================
