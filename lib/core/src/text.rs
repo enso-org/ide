@@ -14,14 +14,15 @@ use basegl_backend_webgl::{Context,compile_shader,link_program,Program,Shader};
 use nalgebra::{Vector2,Similarity2,Transform2};
 use web_sys::{WebGlRenderingContext,WebGlBuffer,WebGlTexture};
 
-pub struct TextComponentBuilder<'a, Str:AsRef<str>> {
-    pub text     : Str,
-    pub font     : &'a mut FontRenderInfo,
-    pub position : Vector2<f64>,
-    pub size     : f64,
-    pub color    : Color<f32>,
-}
 
+// =====================
+// === TextComponent ===
+// =====================
+
+/// Component rendering text
+///
+/// This component is under heavy construction, so the api may easily changed in few future
+/// commits
 #[derive(Debug)]
 pub struct TextComponent {
     gl_context      : WebGlRenderingContext,
@@ -37,7 +38,72 @@ pub struct Line {
     pub content                  : String,
 }
 
+impl TextComponent {
+
+    /// Render text
+    pub fn display(&self) {
+        let gl_context = &self.gl_context;
+
+        gl_context.use_program(Some(&self.gl_program));
+        self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
+        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coordinates);
+        self.setup_blending();
+        gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
+        gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,self.buffers.vertices_count() as i32);
+    }
+
+    fn bind_buffer_to_attribute(&self, attribute_name:&str, buffer:&WebGlBuffer) {
+        let gl_context = &self.gl_context;
+        let gl_program = &self.gl_program;
+        let location   = gl_context.get_attrib_location(gl_program,attribute_name) as u32;
+        let target     = WebGlRenderingContext::ARRAY_BUFFER;
+        let item_size  = 2;
+        let item_type  = WebGlRenderingContext::FLOAT;
+        let normalized = false;
+        let stride     = 0;
+        let offset     = 0;
+
+        gl_context.enable_vertex_attrib_array(location);
+        gl_context.bind_buffer(target,Some(buffer));
+        gl_context.vertex_attrib_pointer_with_i32
+        ( location
+            , item_size
+            , item_type
+            , normalized
+            , stride
+            , offset
+        );
+    }
+
+    fn setup_blending(&self) {
+        let gl_context        = &self.gl_context;
+        let rgb_source        = Context::SRC_ALPHA;
+        let alpha_source      = Context::ZERO;
+        let rgb_destination   = Context::ONE_MINUS_SRC_ALPHA;
+        let alhpa_destination = Context::ONE;
+
+        gl_context.enable(Context::BLEND);
+        gl_context.blend_func_separate(rgb_source,rgb_destination,alpha_source,alhpa_destination);
+    }
+}
+
+
+// ============================
+// === TextComponentBuilder ===
+// ============================
+
+/// Text component builder
+pub struct TextComponentBuilder<'a, Str:AsRef<str>> {
+    pub text     : Str,
+    pub font     : &'a mut FontRenderInfo,
+    pub position : Vector2<f64>,
+    pub size     : f64,
+    pub color    : Color<f32>,
+}
+
 impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
+
+    /// Build a new text component rendering on given workspace
     pub fn build(mut self, workspace : &Workspace) -> TextComponent {
         self.load_all_chars();
         let displayed_lines   = 100; // TODO[AO] replace with actual component size
@@ -107,7 +173,7 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
     }
 
     fn create_msdf_texture(&self, gl_ctx:&Context)
-    -> WebGlTexture {
+        -> WebGlTexture {
         let msdf_texture = gl_ctx.create_texture().unwrap();
         let target       = Context::TEXTURE_2D;
         let wrap         = Context::CLAMP_TO_EDGE as i32;
@@ -128,14 +194,14 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
         let tex_image_result =
             gl_ctx.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
             ( target
-            , tex_level
-            , internal_fmt
-            , width
-            , height
-            , border
-            , format
-            , tex_type
-            , data
+                , tex_level
+                , internal_fmt
+                , width
+                , height
+                , border
+                , format
+                , tex_type
+                , data
             );
         tex_image_result.unwrap();
         msdf_texture
@@ -156,61 +222,5 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
         gl_context.uniform1f(range_loc.as_ref(),range);
         gl_context.uniform1i(msdf_loc.as_ref(),0);
         gl_context.uniform2f(msdf_size_loc.as_ref(),msdf_width,msdf_height);
-    }
-}
-
-impl TextComponent {
-
-    /* Note [unsafe buffer_data]
-     *
-     * The Float32Array::view is safe as long there are no allocations done
-     * until it is destroyed. This way of creating buffers were taken from
-     * wasm-bindgen examples
-     * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
-     */
-
-    pub fn display(&self) {
-        let gl_context = &self.gl_context;
-
-        gl_context.use_program(Some(&self.gl_program));
-        self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
-        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coordinates);
-        self.setup_blending();
-        gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
-        gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,self.buffers.vertices_count() as i32);
-    }
-
-    fn bind_buffer_to_attribute(&self, attribute_name:&str, buffer:&WebGlBuffer) {
-        let gl_context = &self.gl_context;
-        let gl_program = &self.gl_program;
-        let location   = gl_context.get_attrib_location(gl_program,attribute_name) as u32;
-        let target     = WebGlRenderingContext::ARRAY_BUFFER;
-        let item_size  = 2;
-        let item_type  = WebGlRenderingContext::FLOAT;
-        let normalized = false;
-        let stride     = 0;
-        let offset     = 0;
-
-        gl_context.enable_vertex_attrib_array(location);
-        gl_context.bind_buffer(target,Some(buffer));
-        gl_context.vertex_attrib_pointer_with_i32
-            ( location
-            , item_size
-            , item_type
-            , normalized
-            , stride
-            , offset
-            );
-    }
-
-    fn setup_blending(&self) {
-        let gl_context        = &self.gl_context;
-        let rgb_source        = Context::SRC_ALPHA;
-        let alpha_source      = Context::ZERO;
-        let rgb_destination   = Context::ONE_MINUS_SRC_ALPHA;
-        let alhpa_destination = Context::ONE;
-
-        gl_context.enable(Context::BLEND);
-        gl_context.blend_func_separate(rgb_source,rgb_destination,alpha_source,alhpa_destination);
     }
 }

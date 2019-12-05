@@ -139,6 +139,14 @@ impl TextComponentBuffers {
         }
     }
 
+    /* Note [unsafe buffer_data]
+     *
+     * The Float32Array::view is safe as long there are no allocations done
+     * until it is destroyed. This way of creating buffers were taken from
+     * wasm-bindgen examples
+     * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
+     */
+
     pub fn vertices_count(&self) -> usize {
         BASE_LAYOUT_SIZE * self.displayed_lines * self.displayed_columns
     }

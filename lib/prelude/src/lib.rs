@@ -194,6 +194,3 @@ impl<T> RcOps for Rc<T> {
         Rc::clone(self)
     }
 }
-
-// =================================
-// === Mutable reference wrapper ===
