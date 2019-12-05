@@ -68,7 +68,7 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
     }
 
     fn split_lines(&self) -> Vec<Line> {
-        let lines_text = self.text.as_ref().split("\n");
+        let lines_text = self.text.as_ref().split('\n');
         let lines_iter = lines_text.map(Self::initialize_line);
         lines_iter.collect()
     }
@@ -173,8 +173,8 @@ impl TextComponent {
         let gl_context = &self.gl_context;
 
         gl_context.use_program(Some(&self.gl_program));
-        self.bind_buffer_to_attribute("position",&self.buffers.vertex_position.gl_handle);
-        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coordinates.gl_handle);
+        self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
+        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coordinates);
         self.setup_blending();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
         gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,self.buffers.vertices_count() as i32);
