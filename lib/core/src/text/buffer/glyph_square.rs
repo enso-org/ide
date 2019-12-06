@@ -123,15 +123,15 @@ impl<'a> GlyphAttributeBuilder for GlyphVertexPositionBuilder<'a> {
 // ======================================
 
 /// Builder for glyph MSDF texture coordinates
-pub struct GlyphTextureCoordinatesBuilder<'a> {
+pub struct GlyphTextureCoordsBuilder<'a> {
     pub font : &'a mut FontRenderInfo
 }
 
-impl<'a> GlyphTextureCoordinatesBuilder<'a> {
+impl<'a> GlyphTextureCoordsBuilder<'a> {
 
     /// Create new builder using given font.
-    pub fn new(font:&'a mut FontRenderInfo) -> GlyphTextureCoordinatesBuilder<'a> {
-        GlyphTextureCoordinatesBuilder {font}
+    pub fn new(font:&'a mut FontRenderInfo) -> GlyphTextureCoordsBuilder<'a> {
+        GlyphTextureCoordsBuilder {font}
     }
 
     /// Transformation aligning borders to MSDF cell center
@@ -181,7 +181,7 @@ impl<'a> GlyphTextureCoordinatesBuilder<'a> {
     }
 }
 
-impl<'a> GlyphAttributeBuilder for GlyphTextureCoordinatesBuilder<'a> {
+impl<'a> GlyphAttributeBuilder for GlyphTextureCoordsBuilder<'a> {
 
     const OUTPUT_SIZE : usize = BASE_LAYOUT_SIZE * 2;
 
@@ -268,17 +268,17 @@ mod tests {
     }
 
     #[wasm_bindgen_test(async)]
-    fn build_texture_coordinates_for_glyph_square() -> impl Future<Output=()> {
+    fn build_texture_coords_for_glyph_square() -> impl Future<Output=()> {
         TestAfterInit::schedule(|| {
             let mut font = FontRenderInfo::mock_font("Test font".to_string());
             font.mock_char_info('A');
             font.mock_char_info('W');
 
-            let mut builder           = GlyphTextureCoordinatesBuilder::new(&mut font);
-            let a_texture_coordinates = builder.build_for_next_glyph('A');
-            let w_texture_coordinates = builder.build_for_next_glyph('W');
+            let mut builder      = GlyphTextureCoordsBuilder::new(&mut font);
+            let a_texture_coords = builder.build_for_next_glyph('A');
+            let w_texture_coords = builder.build_for_next_glyph('W');
 
-            let expected_a_coordinates = &
+            let expected_a_coords = &
                 [  1./64. ,  1./128.
                 ,  1./64. , 63./128.
                 , 63./64. ,  1./128.
@@ -286,7 +286,7 @@ mod tests {
                 ,  1./64. , 63./128.
                 , 63./64. , 63./128.
                 ];
-            let expected_w_coordinates = &
+            let expected_w_coords = &
                 [  1./64. ,  65./128.
                 ,  1./64. , 127./128.
                 , 63./64. ,  65./128.
@@ -295,8 +295,8 @@ mod tests {
                 , 63./64. , 127./128.
                 ];
 
-            assert_eq!(expected_a_coordinates, a_texture_coordinates.as_ref());
-            assert_eq!(expected_w_coordinates, w_texture_coordinates.as_ref());
+            assert_eq!(expected_a_coords, a_texture_coords.as_ref());
+            assert_eq!(expected_w_coords, w_texture_coords.as_ref());
         })
     }
 

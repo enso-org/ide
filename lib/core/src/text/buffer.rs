@@ -3,7 +3,8 @@ pub mod line;
 
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::{GlyphVertexPositionBuilder, GlyphTextureCoordinatesBuilder, GlyphAttributeBuilder, BASE_LAYOUT_SIZE};
+use crate::text::buffer::glyph_square::
+{GlyphVertexPositionBuilder, GlyphTextureCoordsBuilder, GlyphAttributeBuilder, BASE_LAYOUT_SIZE};
 use crate::text::buffer::line::LineAttributeBuilder;
 use crate::text::Line;
 use crate::text::font::FontRenderInfo;
@@ -25,7 +26,7 @@ use web_sys::WebGlBuffer;
 #[derive(Debug)]
 pub struct TextComponentBuffers {
     pub vertex_position     : WebGlBuffer,
-    pub texture_coordinates : WebGlBuffer,
+    pub texture_coords: WebGlBuffer,
     fragments               : Vec<BufferFragment>,
     pub displayed_lines     : usize,
     pub displayed_columns   : usize,
@@ -44,9 +45,9 @@ impl TextComponentBuffers {
     pub fn new(gl_context:&Context, displayed_lines:usize, displayed_columns:usize)
     -> TextComponentBuffers {
         TextComponentBuffers {
-            vertex_position     : gl_context.create_buffer().unwrap(),
-            texture_coordinates : gl_context.create_buffer().unwrap(),
-            fragments           : Self::build_fragments(displayed_lines),
+            vertex_position   : gl_context.create_buffer().unwrap(),
+            texture_coords    : gl_context.create_buffer().unwrap(),
+            fragments         : Self::build_fragments(displayed_lines),
             displayed_lines,
             displayed_columns,
         }
@@ -59,7 +60,13 @@ impl TextComponentBuffers {
     }
 
     /// Refresh the whole buffers making them display the given lines.
-    pub fn refresh_all<'a>(&mut self, gl_context:&Context, lines:&[Line], font:&'a mut FontRenderInfo, to_window:&Transform2<f64>) {
+    pub fn refresh_all<'a>
+    ( &mut self
+    , gl_context:&Context
+    , lines:&[Line]
+    , font:&'a mut FontRenderInfo
+    , to_window:&Transform2<f64>
+    ) {
         self.assign_fragments(lines.len());
 
         let content_from_index = |index : Option<usize>| index.map_or("", |i| lines[i].content.as_str());
@@ -69,8 +76,8 @@ impl TextComponentBuffers {
         let line_indexes       = assigned_lines.map(|index| index.unwrap_or(0));
         let content_with_index = content.clone().zip(line_indexes);
 
-        self.refresh_vertex_position_buffer(gl_context, content_with_index,font,to_window);
-        self.refresh_texture_coordinates_buffer(gl_context, content,font);
+        self.refresh_vertex_position_buffer(gl_context,content_with_index,font,to_window);
+        self.refresh_texture_coords_buffer (gl_context,content           ,font);
     }
 
     fn refresh_vertex_position_buffer<'a, Iter>
@@ -79,8 +86,7 @@ impl TextComponentBuffers {
     , content_with_index:Iter
     , font:&mut FontRenderInfo
     , to_window:&Transform2<f64>
-    ) where Iter : ExactSizeIterator<Item=(&'a str,usize)>
-    {
+    ) where Iter : ExactSizeIterator<Item=(&'a str,usize)> {
         let one_glyph_data_size = GlyphVertexPositionBuilder::OUTPUT_SIZE;
         let mut data            = Vec::new();
         let lines_count         = content_with_index.len();
@@ -97,11 +103,11 @@ impl TextComponentBuffers {
         self.set_buffer_data(gl_context,&self.vertex_position,data.as_ref());
     }
 
-    fn refresh_texture_coordinates_buffer<'a, Iter>
+    fn refresh_texture_coords_buffer<'a, Iter>
     (&self, gl_context:&Context, content:Iter, font:&mut FontRenderInfo)
     where Iter : ExactSizeIterator<Item=&'a str>
     {
-        let one_glyph_data_size = GlyphTextureCoordinatesBuilder::OUTPUT_SIZE;
+        let one_glyph_data_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE;
         let mut data            = Vec::new();
         let lines_count         = content.len();
         let line_length         = self.displayed_columns;
@@ -109,12 +115,12 @@ impl TextComponentBuffers {
 
         data.reserve(data_size);
         for line in content {
-            let glyph_buider = GlyphTextureCoordinatesBuilder::new(font);
+            let glyph_buider = GlyphTextureCoordsBuilder::new(font);
             let builder      = LineAttributeBuilder::new(line,glyph_buider,line_length);
             data.extend(builder.flatten().map(|f| f as f32));
         }
 
-        self.set_buffer_data(gl_context,&self.texture_coordinates,data.as_ref());
+        self.set_buffer_data(gl_context,&self.texture_coords,data.as_ref());
     }
 
     fn assign_fragments(&mut self, lines_count:usize) {

@@ -42,14 +42,15 @@ impl TextComponent {
 
     /// Render text
     pub fn display(&self) {
-        let gl_context = &self.gl_context;
+        let gl_context     = &self.gl_context;
+        let vertices_count = self.buffers.vertices_count() as i32;
 
         gl_context.use_program(Some(&self.gl_program));
         self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
-        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coordinates);
+        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coords);
         self.setup_blending();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
-        gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,self.buffers.vertices_count() as i32);
+        gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,vertices_count);
     }
 
     fn bind_buffer_to_attribute(&self, attribute_name:&str, buffer:&WebGlBuffer) {
@@ -173,7 +174,7 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
     }
 
     fn create_msdf_texture(&self, gl_ctx:&Context)
-        -> WebGlTexture {
+    -> WebGlTexture {
         let msdf_texture = gl_ctx.create_texture().unwrap();
         let target       = Context::TEXTURE_2D;
         let wrap         = Context::CLAMP_TO_EDGE as i32;
@@ -194,14 +195,14 @@ impl<'a,Str:AsRef<str>> TextComponentBuilder<'a,Str> {
         let tex_image_result =
             gl_ctx.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
             ( target
-                , tex_level
-                , internal_fmt
-                , width
-                , height
-                , border
-                , format
-                , tex_type
-                , data
+            , tex_level
+            , internal_fmt
+            , width
+            , height
+            , border
+            , format
+            , tex_type
+            , data
             );
         tex_image_result.unwrap();
         msdf_texture

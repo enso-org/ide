@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::text::buffer::glyph_square::
-{GlyphAttributeBuilder,GlyphVertexPositionBuilder,GlyphTextureCoordinatesBuilder};
+{GlyphAttributeBuilder,GlyphVertexPositionBuilder,GlyphTextureCoordsBuilder};
 
 
 // ============================
@@ -21,10 +21,8 @@ pub struct LineAttributeBuilder<'a,GlyphBuilder:GlyphAttributeBuilder> {
     chars_iterator   : Option<std::str::Chars<'a>>,
 }
 
-pub type
-LineVerticesBuilder<'a,'b>           = LineAttributeBuilder<'a,GlyphVertexPositionBuilder<'b>>;
-pub type
-LineTextureCoordinatesBuilder<'a,'b> = LineAttributeBuilder<'a,GlyphTextureCoordinatesBuilder<'b>>;
+pub type LineVerticesBuilder<'a,'b>      = LineAttributeBuilder<'a,GlyphVertexPositionBuilder<'b>>;
+pub type LineTextureCoordsBuilder<'a,'b> = LineAttributeBuilder<'a,GlyphTextureCoordsBuilder<'b>>;
 
 impl<'a,GlyphBuilder: GlyphAttributeBuilder> LineAttributeBuilder<'a,GlyphBuilder> {
     /// Create new LineAttributeBuilder based on `glyph_builder`
