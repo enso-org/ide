@@ -1,10 +1,11 @@
 # Rust Style Guide
 
-## Motivation - why not to completely rely a formatting tool?
+## Motivation - why not rely on a formatting tool for code style?
 
-The docs of rustfmt state that "formatting code is a mostly mechanical task 
-which takes both time and mental effort. By using an automatic formatting tool, 
-a programmer is relieved of this task and can concentrate on more important 
+The code style is way more then just formatting. In many cases formatting can
+be automated. According to rustfmt docs: "formatting code is a mostly mechanical 
+task which takes both time and mental effort. By using an automatic formatting 
+tool, a programmer is relieved of this task and can concentrate on more important 
 things.". While in many cases it is true, if the author of code does not take 
 extra effort to make his code pretty by refactoring long lines to variables, 
 moving code to specific modules, or sections, the formatting tool will result in
@@ -218,13 +219,19 @@ impl Printer for GlobalVarStorage {
 
 ### Spaces 
 - Type operator is not spaced: `fn test(foo:String, bar:Int) { ... }`.
-- Commas between comples expressions (including arg list) are spaced.
+- Commas between complex expressions (including arg list) are spaced.
 - Commas between simple elements are not spaced: `Result<Self,Error>`.
 - Arguments to functions are not spaced: `build(builder,"out",qual)`.
 - Operators are always spaced: `let foo = a + b * c;`.
 
 ### Function definitions
 The following examples show proper function styles:
+
+```rust
+pub fn new<Dom:Str>(dom:Dom, logger:Logger) -> Result<Self,Error> {
+    ...
+}
+```
 
 ```rust
 pub fn new<Dom:Str>(dom:Dom, logger:Logger) -> Result<Self,Error> {
@@ -259,10 +266,31 @@ pub fn new<Dom:Str>
 }
 ```
 
+Long `where` clauses are formatted this way:
+
+```rust
+pub fn new<D,L>(dom:D, logger:L) -> Result<Self,Error> 
+where D:AsRef<str>, L:IsLogger {
+    ...
+}
+```
+
+Or, in case they are really long, this way:
+
+```rust
+pub fn new<D,L>(dom:D, logger:L) -> Result<Self,Error> 
+where D:AsRef<str>
+      L:IsLogger 
+      ... {
+    ...
+}
+```
+
 
 ### Impl definitions
 Sometimes when browsing code it is hard to understand where is the header of 
 an impl declaration. Thus the following style allows for such a fast discovery. 
+The `where` block should be placed after a linebreak.
 All of the following codes are correct:
 
 ```rust
@@ -288,3 +316,22 @@ where T: Printer {
 }
 ```
 
+### Getters and Setters
+Getters do not have the `get_` prefix, while setters do. If a setter is 
+provided (method with the `set_` prefix), a `mut` accessor should be 
+provided as well. The correct way of definning getters and setters is 
+presented below:
+
+```rust
+fn field(&self) -> &Type { 
+    &self.field 
+}
+
+fn field_mut(&mut self) -> &mut Type { 
+    &mut self.field 
+}
+
+fn set_field(&mut self, val:Type) {
+    *self.field_mut = val;
+}
+```
