@@ -99,7 +99,7 @@ mod example_03 {
     use crate::utils;
     use crate::display::world::{World,Workspace,Add};
     use crate::text::font::FontRenderInfo;
-    use crate::Color;
+    use crate::{Area,Color};
 
     use crate::dirty::traits::SharedSetter1;
     use basegl_core_embedded_fonts::EmbeddedFonts;
@@ -134,6 +134,12 @@ mod example_03 {
 
                 let x = -0.95 + 0.6 * (size as f64);
                 let y = 0.90 - 0.45 * (font as f64);
+                let area = Area {
+                    left   : x,
+                    right  : x + 0.5,
+                    top    : y + 0.1,
+                    bottom : y - 0.2
+                };
                 let line_position = nalgebra::Vector2::new(x,y);
                 let text_compnent = crate::text::TextComponentBuilder {
                     text : "To be, or not to be, that is the question:\n\
@@ -146,6 +152,7 @@ mod example_03 {
                     position : line_position,
                     size     : SIZES[size],
                     color    : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
+                    area
                 }.build(workspace);
                 workspace.text_components.push(text_compnent);
             }
@@ -164,9 +171,16 @@ pub struct Color<T> {
     pub r : T,
     pub g : T,
     pub b : T,
-    pub a : T
+    pub a : T,
 }
 
+#[derive(Debug)]
+pub struct Area<T> {
+    pub left   : T,
+    pub right  : T,
+    pub top    : T,
+    pub bottom : T,
+}
 
 // ===============
 // === Printer ===
