@@ -1,5 +1,7 @@
 #![feature(type_ascription)]
 
+pub mod glsl;
+
 use basegl_prelude::*;
 
 use web_sys::WebGlProgram;

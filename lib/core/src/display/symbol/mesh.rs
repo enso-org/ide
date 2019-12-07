@@ -7,9 +7,11 @@ use crate::data::function::callback::*;
 use crate::dirty;
 use crate::dirty::traits::*;
 use crate::display::symbol::geometry;
+use crate::display::symbol::material;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_geometry_types;
+use crate::promote_material_types;
 use crate::system::web::Logger;
 use crate::system::web::group;
 use eval_tt::*;
@@ -30,7 +32,9 @@ use crate::display::symbol::buffer::IsBuffer;
 pub struct Mesh<OnDirty> {
     #[shrinkwrap(main_field)]
     pub geometry       : Geometry      <OnDirty>,
+    pub material       : Material      <OnDirty>,
     pub geometry_dirty : GeometryDirty <OnDirty>,
+    pub material_dirty : MaterialDirty <OnDirty>,
     pub logger         : Logger,
     context            : Context
 }
@@ -38,11 +42,14 @@ pub struct Mesh<OnDirty> {
 // === Types ===
 
 pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
+pub type MaterialDirty<Callback> = dirty::SharedBool<Callback>;
 promote_geometry_types!{ [OnGeometryChange] geometry }
+promote_material_types!{ [OnGeometryChange] material }
 
 #[macro_export]
 macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_geometry_types! {$($args)*}
+    crate::promote_material_types! {$($args)*}
     promote! {$($args)* [Mesh]}
 };}
 
@@ -53,24 +60,37 @@ fn geometry_on_change<C:Callback0>(dirty:GeometryDirty<C>) ->
     OnGeometryChange { || dirty.set() }
 }
 
+closure! {
+fn material_on_change<C:Callback0>(dirty:MaterialDirty<C>) ->
+    OnMaterialChange { || dirty.set() }
+}
+
 // === Implementation ===
 
-impl<OnDirty:Callback0> Mesh<OnDirty> {
+impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
-        let geometry_logger = logger.sub("geometry_dirty");
-        let geometry_dirty  = GeometryDirty::new(geometry_logger,on_dirty);
-        let geo_on_change   = geometry_on_change(geometry_dirty.clone_rc());
-        let context         = context.clone();
-        let geometry        = group!(logger, "Initializing.", {
-            Geometry::new(&context,logger.sub("geometry"),geo_on_change)
-        });
-        Mesh {geometry,geometry_dirty,logger,context}
+    pub fn new(ctx:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
+        let init_logger = logger.clone();
+        group!(init_logger, "Initializing.", {
+            let context         = ctx.clone();
+            let on_dirty2       = on_dirty.clone();
+            let geo_logger      = logger.sub("geometry");
+            let mat_logger      = logger.sub("material");
+            let geo_dirt_logger = logger.sub("geometry_dirty");
+            let mat_dirt_logger = logger.sub("material_dirty");
+            let geometry_dirty  = GeometryDirty::new(geo_dirt_logger,on_dirty2);
+            let material_dirty  = MaterialDirty::new(mat_dirt_logger,on_dirty);
+            let geo_on_change   = geometry_on_change(geometry_dirty.clone_rc());
+            let mat_on_change   = material_on_change(material_dirty.clone_rc());
+            let material        = Material::new(ctx,mat_logger,mat_on_change);
+            let geometry        = Geometry::new(ctx,geo_logger,geo_on_change);
+            Self{geometry,material,geometry_dirty,material_dirty,logger,context}
+        })
     }
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            if self.geometry_dirty.check_and_unset() {
+            if self.geometry_dirty.check_and_unset_all() {
                 self.geometry.update()
             }
         })
@@ -105,7 +125,7 @@ impl<OnDirty:Callback0> Mesh<OnDirty> {
             let pos_loc = self.context.get_attrib_location(&program, "position");
             let pos_loc = pos_loc as u32;
 
-            println!("-----------");
+//            println!("-----------");
 
             // === Rendering ==
 
@@ -118,7 +138,7 @@ impl<OnDirty:Callback0> Mesh<OnDirty> {
 
             self.context.draw_arrays(webgl::Context::TRIANGLES, 0, buffer.len() as i32);
 
-            println!("{:?}",&self.geometry.scopes.point.buffers[0]);
+//            println!("{:?}",&self.geometry.scopes.point.buffers[0]);
         })
     }
 }
@@ -135,7 +155,7 @@ pub struct SharedMesh<OnDirty> {
     pub raw: RefCell<Mesh<OnDirty>>
 }
 
-impl<OnDirty:Callback0> SharedMesh<OnDirty> {
+impl<OnDirty:Callback0+Clone> SharedMesh<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
     pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         let raw = RefCell::new(Mesh::new(context,logger, on_dirty));

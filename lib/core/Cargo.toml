@@ -18,6 +18,7 @@ optics                   = { version = "0.1.0"  , path = "../optics"        }
 basegl-system-web        = { version = "0.1.0"  , path = "../system/web"    }
 basegl-backend-webgl     = { version = "0.1.0"  , path = "../backend/webgl" }
 shapely                  = { version = "0.1.0"  , path = "../shapely/impl"  }
+code-builder             = { version = "0.1.0"  , path = "../code-builder"  }
 wasm-bindgen             = { version = "^0.2"   , features = ["nightly"]    }
 js-sys                   = { version = "0.3.28"  }
 failure                  = { version = "0.1.5"   }
@@ -33,6 +34,8 @@ rustc-hash               = { version = "1.0.1"   }
 console_error_panic_hook = { version = "0.1.6"   }
 num_enum                 = { version = "0.4.2"   }
 smallvec                 = { version = "1.0.0"   }
+
+#glsl = "3.0.0"
 
 [dependencies.web-sys]
 version = "0.3.4"

@@ -152,13 +152,13 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            if self.shape_dirty.check() {
+            if self.shape_dirty.check_all() {
                 self.resize_canvas(&self.shape.borrow());
-                self.shape_dirty.unset();
+                self.shape_dirty.unset_all();
             }
-            if self.mesh_registry_dirty.check() {
+            if self.mesh_registry_dirty.check_all() {
                 self.mesh_registry.update();
-                self.mesh_registry_dirty.unset();
+                self.mesh_registry_dirty.unset_all();
             }
 
             self.logger.info("Clearing the scene.");

@@ -118,9 +118,8 @@ Buffer<T,OnSet,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            self.set_dirty.unset();
-            self.resize_dirty.unset();
-            println!("UPDATE!!!!!");
+            self.set_dirty.unset_all();
+            self.resize_dirty.unset_all();
             let data = self.as_prim();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
             Self::buffer_data(&self.context,data);

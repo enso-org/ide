@@ -118,11 +118,11 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             for i in 0..self.buffers.len() {
-                if self.buffer_dirty.check_for(&(i, )) {
+                if self.buffer_dirty.check_args(&(i, )) {
                     self.buffers[i].update()
                 }
             }
-            self.buffer_dirty.unset()
+            self.buffer_dirty.unset_all()
         })
     }
 }

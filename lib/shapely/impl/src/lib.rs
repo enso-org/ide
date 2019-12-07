@@ -16,6 +16,20 @@ use std::ops::GeneratorState;
 use std::pin::Pin;
 use basegl_prelude::*;
 
+
+#[macro_export]
+macro_rules! derive_clone_plus {
+    ($name:ident) => {
+        impl<T:Clone+Into<$name>> From<&T> for $name {
+            fn from(t: &T) -> Self {
+                t.clone().into()
+            }
+        }
+    }
+}
+
+
+
 // ========================
 // === IterForGenerator ===
 // ========================

@@ -114,7 +114,7 @@ fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) ->
 // === Implementation ===
 
 macro_rules! update_scopes { ($self:ident . {$($name:ident),*}) => {$(
-    if $self.scopes_dirty.check_for(&(ScopesDirtyStatus::$name,)) {
+    if $self.scopes_dirty.check_args(&(ScopesDirtyStatus::$name,)) {
         $self.scopes.$name.update()
     }
 )*}}
@@ -143,10 +143,10 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            if self.scopes_dirty.check() {
+            if self.scopes_dirty.check_all() {
                 update_scopes!(self.{point,vertex,primitive,instance});
                 update_scopes!(self.{object,global});
-                self.scopes_dirty.unset()
+                self.scopes_dirty.unset_all()
             }
         })
     }

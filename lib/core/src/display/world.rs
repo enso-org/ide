@@ -115,9 +115,9 @@ impl World {
     }
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        if self.workspace_dirty.check() {
+        if self.workspace_dirty.check_all() {
             group!(self.logger, "Updating.", {
-                self.workspace_dirty.unset();
+                self.workspace_dirty.unset_all();
                 self.workspaces.iter_mut().for_each(|t| t.update());
             });
         }

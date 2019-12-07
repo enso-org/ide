@@ -79,7 +79,7 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
             for mesh_id in self.mesh_dirty.iter() {
                 self.meshes[*mesh_id].update()
             }
-            self.mesh_dirty.unset();
+            self.mesh_dirty.unset_all();
         })
     }
 

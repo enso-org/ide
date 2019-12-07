@@ -44,7 +44,11 @@ use nalgebra;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
+use display::symbol::material::shader;
+
 type Position = SharedBuffer<Vector3<f32>>;
+
+use basegl_prelude::IsRc;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -57,6 +61,9 @@ pub fn start() {
 //pub struct Rect {
 //    position : Var<Vector3<f32>>,
 //}
+
+use display::symbol::display_object::*;
+use basegl_system_web::Logger;
 
 fn init(world: &mut World) {
     let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
@@ -90,10 +97,44 @@ fn init(world: &mut World) {
     p5.set(Vector3::new( 0.8, -1.0, 0.0));
     p6.set(Vector3::new( 0.8,  0.6, 0.0));
 
-    println!("{:?}",pos);
-    println!("{:?}",pos.borrow().as_prim());
+//    println!("{:?}",pos);
+//    println!("{:?}",pos.borrow().as_prim());
 
 //    world.on_frame(move |_| on_frame(&p6)).forget();
+
+
+    shader::main();
+
+    println!("------------ 1");
+    let obj1 = DisplayObject::new(Logger::new("obj1"));
+    let obj2 = DisplayObject::new(Logger::new("obj2"));
+    let obj3 = DisplayObject::new(Logger::new("obj3"));
+    obj1.add_child(&obj2);
+    obj1.add_child(&obj3);
+    println!("------------ y");
+    obj1.add_child(&obj3);
+    println!("------------ x");
+
+    obj2.add_child(&obj3);
+    obj1.update();
+//    println!("------------ 2");
+//    obj1.update();
+//    println!("------------ 3");
+//    obj2.mod_position(|t| t.y += 5.0);
+//
+//    obj1.mod_rotation(|t| t.z += 90.0);
+////    obj1.mod_rotation(|t| t.y += 3.0);
+//    obj1.update();
+//    println!(">>> {:?}", obj2.global_position());
+//    println!(">>> {:?}", obj1.matrix());
+//    println!("------------ 4");
+//    obj1.update();
+//    println!(">>> {:?}", obj2.global_position());
+//    println!(">>> {:?}", obj2.matrix());
+//
+//
+//    println!("============");
+
 }
 
 pub fn on_frame(p: &Var<Vector3<f32>>) {
@@ -170,3 +211,7 @@ pub fn set_stdout_unbuffered() {
     let printer = Printer::new(_print, false);
     std::io::set_print(Some(Box::new(printer)));
 }
+
+
+
+

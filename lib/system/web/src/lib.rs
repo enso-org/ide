@@ -76,31 +76,40 @@ impl<F: Fn() -> S, S: AsRef<str>> LogMsg for F {
 // === Logger ===
 // ==============
 
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug,Default)]
 pub struct Logger {
     pub path: String,
 }
+
 impl Logger {
     pub fn new<T: AsRef<str>>(path: T) -> Self {
         let path = path.as_ref().to_string();
         Self { path }
     }
 
-    // FIXME: Default
-    pub fn new_() -> Self {
-        Self::new("")
-    }
-
     pub fn sub<T: AsRef<str>>(&self, path: T) -> Self {
         Self::new(format!("{}.{}", self.path, path.as_ref()))
     }
 
+    pub fn group<M: LogMsg, T, F: FnOnce() -> T>(&self, msg: M, f: F) -> T {
+        self.group_begin(msg);
+        let out = f();
+        self.group_end();
+        out
+    }
+
+    fn format<M: LogMsg>(&self, msg: M) -> JsValue {
+        msg.with_log_msg(|s| format!("[{}] {}", self.path, s)).into()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Logger {
     pub fn trace<M: LogMsg>(&self, msg: M) {
         console::debug_1(&self.format(msg));
     }
 
     pub fn info<M: LogMsg>(&self, msg: M) {
-        // console::info_1(&self.format(msg));
         console::group_1(&self.format(msg));
         console::group_end();
     }
@@ -120,24 +129,19 @@ impl Logger {
     pub fn group_end(&self) {
         console::group_end();
     }
-
-    pub fn group<M: LogMsg, T, F: FnOnce() -> T>(&self, msg: M, f: F) -> T {
-        self.group_begin(msg);
-        let out = f();
-        self.group_end();
-        out
-    }
-
-    fn format<M: LogMsg>(&self, msg: M) -> JsValue {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s)).into()
-    }
 }
 
-impl Default for Logger {
-    fn default() -> Self {
-        Self::new("")
-    }
+// FIXME: Add the non-wasm impl
+#[cfg(not(target_arch = "wasm32"))]
+impl Logger {
+    pub fn trace<M: LogMsg>(&self, msg: M) {}
+    pub fn info<M: LogMsg>(&self, msg: M) {}
+    pub fn warning<M: LogMsg>(&self, msg: M) {}
+    pub fn error<M: LogMsg>(&self, msg: M) {}
+    pub fn group_begin<M: LogMsg>(&self, msg: M) {}
+    pub fn group_end(&self) {}
 }
+
 
 // ====================
 // === Logger Utils ===
