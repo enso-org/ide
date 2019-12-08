@@ -90,8 +90,9 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            if self.geometry_dirty.check_and_unset_all() {
-                self.geometry.update()
+            if self.geometry_dirty.check_all() {
+                self.geometry.update();
+                self.geometry_dirty.unset_all();
             }
         })
     }

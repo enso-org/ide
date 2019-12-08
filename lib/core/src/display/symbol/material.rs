@@ -6,6 +6,7 @@ use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
+use crate::dirty::traits::*;
 use crate::display::symbol::scope;
 use crate::promote_all;
 use crate::promote_scope_types;

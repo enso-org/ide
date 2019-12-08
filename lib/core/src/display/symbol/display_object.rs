@@ -486,8 +486,8 @@ impl DisplayObjectData {
         group!(self.logger, "Removing child at index {}.", index, {
             let opt_child = self.children.remove(index);
             opt_child.iter().for_each(|t| t.set_parent(None));
-            self.child_dirty.unset(index);
-            self.new_child_dirty.unset(index);
+            self.child_dirty.unset(&index);
+            self.new_child_dirty.unset(&index);
         })
     }
 

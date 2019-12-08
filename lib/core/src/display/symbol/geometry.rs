@@ -4,6 +4,7 @@ use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
+use crate::dirty::traits::*;
 use crate::display::symbol::scope;
 use crate::promote_all;
 use crate::promote_scope_types;
@@ -12,6 +13,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use eval_tt::*;
 use num_enum::IntoPrimitive;
+use failure::_core::fmt::{Formatter, Error};
 
 
 // ================
@@ -90,6 +92,12 @@ impl From<ScopesDirtyStatus> for usize {
     }
 }
 
+impl Display for ScopesDirtyStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{:?}",self)
+    }
+}
+
 // === Types ===
 
 pub type ScopesDirty  <F> = dirty::SharedEnum<u8,ScopesDirtyStatus, F>;
@@ -108,13 +116,13 @@ macro_rules! promote_geometry_types { ($($args:tt)*) => {
 
 closure! {
 fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) ->
-    ScopeOnChange { || dirty.set_with((item,)) }
+    ScopeOnChange { || dirty.set(item) }
 }
 
 // === Implementation ===
 
 macro_rules! update_scopes { ($self:ident . {$($name:ident),*}) => {$(
-    if $self.scopes_dirty.check_args(&(ScopesDirtyStatus::$name,)) {
+    if $self.scopes_dirty.check(&ScopesDirtyStatus::$name) {
         $self.scopes.$name.update()
     }
 )*}}
