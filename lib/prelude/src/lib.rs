@@ -88,57 +88,6 @@ pub type PhantomData9<T1,T2,T3,T4,T5,T6,T7,T8,T9> = PhantomData2<PhantomData8<T1
 pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 
 
-/// # Safety
-/// This is a very unsafe function, use it with caution please. There are few
-/// legitimate use cases listed below. You are not allowed to use this function
-/// for any other use case. If you discover a new possibly legitimate case,
-/// confirm it with Luna Rust Core team and add its description below.
-///
-/// In long-run, the below use cases should be replaced with safe-versions
-/// implemented as macros.
-///
-/// 1. Keeping mutually connected fields in a single structure. Especially
-///    useful when defining iterators for wrappers keeping containers behind
-///    a shared `Rc<Refcell<...>>` gate. An example:
-///
-///    ```compile_fail
-///    use std::rc::Rc;
-///    use core::cell::RefCell;
-///    use core::cell::Ref;
-///
-///    pub struct SharedDirtyFlag<T> {
-///        data: Rc<RefCell<T>>
-///    }
-///
-///    impl<T> SharedDirtyFlag<T>
-///    where for<'t> &'t T: IntoIterator {
-///        pub fn iter(&self) -> SharedDirtyFlagIter<T> {
-///            let borrow    = self.data.borrow();
-///            let reference = unsafe { drop_lifetime(&borrow) };
-///            let iter      = reference.into_iter();
-///            SharedDirtyFlagIter { iter, borrow }
-///        }
-///    }
-///
-///    // CAUTION !!!
-///    // Please keep the fields in the correct order. They will be dropped
-///    // in order. Moreover, keep the borrow field private.
-///    pub struct SharedDirtyFlagIter<'t,T>
-///    where &'t T: IntoIterator {
-///        pub iter : <&'t T as IntoIterator>::IntoIter,
-///        borrow   : Ref<'t,T>
-///    }
-///    ```
-pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
-    std::mem::transmute(t)
-}
-
-/// # Safety
-/// Please see the `drop_lifetime` docs.
-pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
-    std::mem::transmute(t)
-}
-
 
 // ===================
 // === WithPhantom ===
@@ -194,3 +143,93 @@ impl<T> RcOps for Rc<T> {
         Rc::clone(self)
     }
 }
+
+
+
+// ==========================
+// === RefCell Management ===
+// ==========================
+
+// === RefGuard ===
+
+pub struct RefGuard<'t,Base,Data> {
+    data   : &'t Data,
+    borrow : Ref<'t,Base>,
+}
+
+impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
+    type Target = Data;
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+
+impl<'t,Base,Data> RefGuard<'t,Base,Data> {
+    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
+        let borrow    = base.borrow();
+        let reference = unsafe { drop_lifetime(&borrow) };
+        let data      = f(reference);
+        RefGuard {data,borrow}
+    }
+}
+
+impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+
+// === Unsafe Utils ===
+
+/// # Safety
+/// This is a very unsafe function, use it with caution please. There are few
+/// legitimate use cases listed below. You are not allowed to use this function
+/// for any other use case. If you discover a new possibly legitimate case,
+/// confirm it with Luna Rust Core team and add its description below.
+///
+/// In long-run, the below use cases should be replaced with safe-versions
+/// implemented as macros.
+///
+/// 1. Keeping mutually connected fields in a single structure. Especially
+///    useful when defining iterators for wrappers keeping containers behind
+///    a shared `Rc<Refcell<...>>` gate. An example:
+///
+///    ```compile_fail
+///    use std::rc::Rc;
+///    use core::cell::RefCell;
+///    use core::cell::Ref;
+///
+///    pub struct SharedDirtyFlag<T> {
+///        data: Rc<RefCell<T>>
+///    }
+///
+///    impl<T> SharedDirtyFlag<T>
+///    where for<'t> &'t T: IntoIterator {
+///        pub fn iter(&self) -> SharedDirtyFlagIter<T> {
+///            let borrow    = self.data.borrow();
+///            let reference = unsafe { drop_lifetime(&borrow) };
+///            let iter      = reference.into_iter();
+///            SharedDirtyFlagIter { iter, borrow }
+///        }
+///    }
+///
+///    // CAUTION !!!
+///    // Please keep the fields in the correct order. They will be dropped
+///    // in order. Moreover, keep the borrow field private.
+///    pub struct SharedDirtyFlagIter<'t,T>
+///    where &'t T: IntoIterator {
+///        pub iter : <&'t T as IntoIterator>::IntoIter,
+///        borrow   : Ref<'t,T>
+///    }
+///    ```
+pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
+    std::mem::transmute(t)
+}
+
+/// # Safety
+/// Please see the `drop_lifetime` docs.
+pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
+    std::mem::transmute(t)
+}
+

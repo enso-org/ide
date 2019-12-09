@@ -14,34 +14,6 @@ use failure::_core::fmt::{Formatter, Error};
 
 
 
-pub struct RefGuard<'t,Base,Data> {
-    data   : &'t Data,
-    borrow : Ref<'t,Base>,
-}
-
-impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
-    type Target = Data;
-    fn deref(&self) -> &Self::Target {
-        self.data
-    }
-}
-
-impl<'t,Base,Data> RefGuard<'t,Base,Data> {
-    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
-        let borrow    = base.borrow();
-        let reference = unsafe { drop_lifetime(&borrow) };
-        let data      = f(reference);
-        RefGuard {data,borrow}
-    }
-}
-
-impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.data.fmt(f)
-    }
-}
-
-
 // =================
 // === AxisOrder ===
 // =================
@@ -53,6 +25,7 @@ pub enum AxisOrder { XYZ, XZY, YXZ, YZX, ZXY, ZYX }
 impl Default for AxisOrder {
     fn default() -> Self { Self::XYZ }
 }
+
 
 
 // =================
@@ -73,6 +46,7 @@ pub enum TransformOrder {
 impl Default for TransformOrder {
     fn default() -> Self { Self::ScaleRotateTranslate }
 }
+
 
 
 // =================
@@ -178,7 +152,7 @@ impl Transform {
 // =============================
 
 pub struct HierarchicalTransform<OnChange> {
-    pub transform        : Transform,
+    transform        : Transform,
     transform_matrix : Matrix4<f32>,
     origin           : Matrix4<f32>,
     matrix           : Matrix4<f32>,
