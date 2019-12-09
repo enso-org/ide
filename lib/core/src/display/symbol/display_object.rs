@@ -714,3 +714,20 @@ mod tests {
         assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
     }
 }
+
+
+// ==============
+// === Camera ===
+// ==============
+
+#[derive(Shrinkwrap)]
+pub struct Camera {
+    pub display_object: DisplayObject
+}
+
+impl Camera {
+    pub fn new(logger: Logger) -> Self {
+        let display_object = DisplayObject::new(logger);
+        Self {display_object}
+    }
+}

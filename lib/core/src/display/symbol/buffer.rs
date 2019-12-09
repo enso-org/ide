@@ -18,6 +18,7 @@ use item::Prim;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use nalgebra::Matrix4;
 use std::iter::Extend;
 use web_sys::WebGlBuffer;
 
@@ -490,7 +491,7 @@ macro_rules! mk_any_buffer {
 // === Definition ===
 
 type Identity<T> = T;
-mk_any_buffer!([Identity, Vector2, Vector3, Vector4], [f32, i32]);
+mk_any_buffer!([Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]

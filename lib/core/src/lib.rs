@@ -42,11 +42,13 @@ use console_error_panic_hook;
 use display::world::*;
 use nalgebra;
 use nalgebra::Vector3;
+use nalgebra::Matrix4;
 use wasm_bindgen::prelude::*;
 
 use display::symbol::material::shader;
 
 type Position = SharedBuffer<Vector3<f32>>;
+type ModelMatrix = SharedBuffer<Matrix4<f32>>;
 
 use basegl_prelude::IsRc;
 
@@ -74,6 +76,7 @@ fn init(world: &mut World) {
     let scopes    : &mut Scopes    = &mut geo.scopes;
     let pt_scope  : &mut VarScope  = &mut scopes.point;
     let pos       : Position       = pt_scope.add_buffer("position");
+    let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
 
     let p1_ix = pt_scope.add_instance();
     let p2_ix = pt_scope.add_instance();
@@ -96,6 +99,22 @@ fn init(world: &mut World) {
     p4.set(Vector3::new(-1.0, -1.0, 0.0));
     p5.set(Vector3::new( 0.8, -1.0, 0.0));
     p6.set(Vector3::new( 0.8,  0.6, 0.0));
+
+
+    let mm1 = model_matrix.get(p1_ix);
+    let mm2 = model_matrix.get(p2_ix);
+    let mm3 = model_matrix.get(p3_ix);
+    let mm4 = model_matrix.get(p4_ix);
+    let mm5 = model_matrix.get(p5_ix);
+    let mm6 = model_matrix.get(p6_ix);
+
+    mm1.modify(|t| {t.append_translation(&Vector3::new(-1.0, -1.0, 0.0));});
+    mm2.modify(|t| {t.append_translation(&Vector3::new( 1.0, -1.0, 0.0));});
+    mm3.modify(|t| {t.append_translation(&Vector3::new( 0.0, -1.0, 0.0));});
+
+    mm4.modify(|t| {t.append_translation(&Vector3::new(-1.0, -1.0, 0.0));});
+    mm5.modify(|t| {t.append_translation(&Vector3::new( 0.8, -1.0, 0.0));});
+    mm6.modify(|t| {t.append_translation(&Vector3::new( 0.8,  0.6, 0.0));});
 
 //    println!("{:?}",pos);
 //    println!("{:?}",pos.borrow().as_prim());

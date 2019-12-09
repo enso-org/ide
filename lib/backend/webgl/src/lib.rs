@@ -13,7 +13,7 @@ use web_sys::WebGlShader;
 // =============
 
 pub type Context = WebGlRenderingContext;
-pub type Shader = WebGlShader;
+pub type Shader  = WebGlShader;
 pub type Program = WebGlProgram;
 
 // =============

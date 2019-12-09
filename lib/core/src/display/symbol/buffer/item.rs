@@ -24,12 +24,15 @@ pub trait Empty {
     fn empty() -> Self;
 }
 
-impl Empty for i32 { fn empty() -> Self { 0 } }
-impl Empty for f32 { fn empty() -> Self { 0.0 } }
-impl<T,R,C> Empty for MatrixMN<T,R,C> where T:Default, Self:MatrixCtx<T,R,C> {
-    fn empty() -> Self { Self::repeat(default()) }
-}
-
+impl Empty for i32          { fn empty() -> Self { 0   } }
+impl Empty for f32          { fn empty() -> Self { 0.0 } }
+impl Empty for Vector2<f32> { fn empty() -> Self { Self::new(0.0,0.0)         } }
+impl Empty for Vector3<f32> { fn empty() -> Self { Self::new(0.0,0.0,0.0)     } }
+impl Empty for Vector4<f32> { fn empty() -> Self { Self::new(0.0,0.0,0.0,1.0) } }
+impl Empty for Matrix4<f32> { fn empty() -> Self { Self::identity()           } }
+//impl<T,R,C> Empty for MatrixMN<T,R,C> where T:Default, Self:MatrixCtx<T,R,C> {
+//    fn empty() -> Self { Self::repeat(default()) }
+//}
 
 // ============
 // === Item ===
@@ -126,7 +129,7 @@ impl Item for f32 {
 }
 
 impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
-    where T:Default, Self:MatrixCtx<T,R,C> {
+    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
 
     type Prim = T;
     type Dim  = R;
