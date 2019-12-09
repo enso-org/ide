@@ -90,7 +90,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         logger.trace("Initializing.");
         let dom           = dom.as_ref();
         let canvas        = web::get_canvas(dom)?;
-        let context       = web::get_webgl_context(&canvas,1)?;
+        let context       = web::get_webgl2_context(&canvas)?;
         let pixel_ratio   = web::device_pixel_ratio()?;
         let sub_logger    = logger.sub("shape_dirty");
         let shape_dirty   = ShapeDirty::new(sub_logger,on_dirty.clone());

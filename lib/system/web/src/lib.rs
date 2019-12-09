@@ -9,6 +9,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 use web_sys::WebGlRenderingContext;
+use web_sys::WebGl2RenderingContext;
 use web_sys::Node;
 use std::fmt::Debug;
 
@@ -217,15 +218,19 @@ pub fn get_canvas(id: &str) -> Result<web_sys::HtmlCanvasElement> {
     dyn_into(get_element_by_id(id)?)
 }
 
-pub fn get_webgl_context(
-    canvas: &HtmlCanvasElement,
-    version: u32,
-) -> Result<WebGlRenderingContext>
-{
+pub fn get_webgl_context
+(canvas:&HtmlCanvasElement, version:u32) -> Result<WebGlRenderingContext> {
     let no_webgl = || Error::NoWebGL { version };
     let name_sfx = if version == 1 { "".to_string() } else { version.to_string() };
     let name = &format!("webgl{}", &name_sfx);
     let context = canvas.get_context(name).map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
+    context.dyn_into().map_err(|_| no_webgl())
+}
+
+pub fn get_webgl2_context
+(canvas:&HtmlCanvasElement) -> Result<WebGl2RenderingContext> {
+    let no_webgl = || Error::NoWebGL { version:2 };
+    let context = canvas.get_context("webgl2").map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
     context.dyn_into().map_err(|_| no_webgl())
 }
 

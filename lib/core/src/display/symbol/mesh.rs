@@ -102,8 +102,12 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let vert_shader = webgl::compile_shader(
                 &self.context,
                 webgl::Context::VERTEX_SHADER,
-                r#"
-    attribute vec4 position;
+                r#"#version 300 es
+
+    precision highp float;
+    precision highp int;
+
+    in vec4 position;
     void main() {
         gl_Position = position;
     }
@@ -113,9 +117,14 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let frag_shader = webgl::compile_shader(
                 &self.context,
                 webgl::Context::FRAGMENT_SHADER,
-                r#"
+                r#"#version 300 es
+
+    precision highp float;
+    precision highp int;
+
+    out vec4 out_color;
     void main() {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        out_color = vec4(1.0, 1.0, 1.0, 1.0);
     }
 "#,
             )
