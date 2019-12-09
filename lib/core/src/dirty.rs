@@ -23,10 +23,9 @@ use std::ops;
 pub mod traits {
     use super::*;
 
-    /// Trait describing dirty flags which consume argument to set / check dirty data.
+    // === Arg ===
     pub trait HasArg { type Arg; }
     pub type Arg<T> = <T as HasArg>::Arg;
-
 
     // === Global Operations ===
     pub trait HasCheckAll { fn check_all (&self) -> bool; }
@@ -283,8 +282,6 @@ SharedHasUnset1 for SharedDirtyFlag<T,OnSet> where Arg<T>:Display {
 }
 
 
-
-
 // === Iterators ===
 
 // FIXME: This is very error prone. Fix it after this gets resolved:
@@ -486,12 +483,12 @@ pub type  Enum       <Prim,T,OnSet> = DirtyFlag       <EnumData<Prim,T>,OnSet>;
 pub type  SharedEnum <Prim,T,OnSet> = SharedDirtyFlag <EnumData<Prim,T>,OnSet>;
 pub trait EnumCtx           <OnSet> = where OnSet: Callback0;
 pub trait EnumBase                  = Default + PartialEq + Copy + BF;
+pub trait EnumElem                  = Copy+Into<usize>;
 
 /// Dirty flag which keeps dirty indexes in a `BitField` under the hood.
 
 pub type  BitField        <Prim,OnSet> = Enum       <Prim,usize,OnSet>;
 pub type  SharedBitField  <Prim,OnSet> = SharedEnum <Prim,usize,OnSet>;
-
 
 #[derive(Derivative)]
 #[derivative(Debug(bound="Prim:Debug"))]
@@ -517,25 +514,25 @@ impl<Prim:EnumBase,T> HasUnsetAll for EnumData<Prim,T> {
     }
 }
 
-impl<Prim:EnumBase,T:Copy+Into<usize>> HasCheck1 for EnumData<Prim,T> {
+impl<Prim:EnumBase,T:EnumElem> HasCheck1 for EnumData<Prim,T> {
     fn check(&self, t:&T) -> bool {
         self.bits.get_bit((*t).into())
     }
 }
 
-impl<Prim:EnumBase,T:Copy+Into<usize>> HasSet1 for EnumData<Prim,T> {
+impl<Prim:EnumBase,T:EnumElem> HasSet1 for EnumData<Prim,T> {
     fn set(&mut self, t:T) {
         self.bits.set_bit(t.into(), true);
     }
 }
 
-impl<Prim:EnumBase,T:Copy+Into<usize>> HasUnset1 for EnumData<Prim,T> {
+impl<Prim:EnumBase,T:EnumElem> HasUnset1 for EnumData<Prim,T> {
     fn unset(&mut self, t:&T) {
         self.bits.set_bit((*t).into(), false);
     }
 }
 
-impl<Prim:EnumBase,T:Copy+Into<usize>> Display for EnumData<Prim,T> {
+impl<Prim:EnumBase,T:EnumElem> Display for EnumData<Prim,T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"{}",self.check_all())
     }

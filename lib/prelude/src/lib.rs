@@ -37,6 +37,7 @@ pub use std::rc::Rc;
 pub use std::rc::Weak;
 pub use std::slice;
 pub use std::slice::SliceIndex;
+pub use lazy_static::lazy_static;
 
 /// Abstraction for any kind of string as an argument. Functions defined as
 /// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`,

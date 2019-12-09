@@ -13,6 +13,35 @@ use crate::display::symbol::material::shader::glsl::PrimType::Mat2;
 use failure::_core::fmt::{Formatter, Error};
 
 
+
+pub struct RefGuard<'t,Base,Data> {
+    data   : &'t Data,
+    borrow : Ref<'t,Base>,
+}
+
+impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
+    type Target = Data;
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+
+impl<'t,Base,Data> RefGuard<'t,Base,Data> {
+    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
+        let borrow    = base.borrow();
+        let reference = unsafe { drop_lifetime(&borrow) };
+        let data      = f(reference);
+        RefGuard {data,borrow}
+    }
+}
+
+impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+
 // =================
 // === AxisOrder ===
 // =================
@@ -143,6 +172,7 @@ impl Transform {
 }
 
 
+
 // =============================
 // === HierarchicalTransform ===
 // =============================
@@ -174,7 +204,6 @@ impl<OnChange> HierarchicalTransform<OnChange> {
         if changed {
             group!(self.logger, "Update.", {
                 if is_dirty {
-                    println!(">>");
                     self.transform_matrix = self.transform.matrix();
                     self.dirty.unset_all();
                 }
@@ -185,6 +214,7 @@ impl<OnChange> HierarchicalTransform<OnChange> {
         changed
     }
 }
+
 
 // === Getters ===
 
@@ -209,6 +239,7 @@ impl<OnChange> HierarchicalTransform<OnChange> {
         (self.matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz()
     }
 }
+
 
 // === Setters ===
 
@@ -254,147 +285,156 @@ impl<OnChange:Callback0> HierarchicalTransform<OnChange> {
 }
 
 
+
 // =====================
 // === DisplayObject ===
 // =====================
 
-pub struct ParentBind {
-    pub parent : DisplayObject,
-    pub index  : usize
-}
-
-impl ParentBind {
-    pub fn dispose(&self) {
-        self.parent.remove_child(self.index);
-    }
-}
-
-#[derive(Clone)]
+/// A hierarchical representation of object containing a position, a scale and a rotation.
+///
+/// # Safety
+/// Please note that you will get runtime crash when running the `update` function if your object
+/// hierarchy forms a loop, for example, `obj2` is child of `obj1`, while `obj1` is child of `obj2`.
+/// It is not easy to discover such situations, but maybe it will be worth to add some additional
+/// safety on top of that in the future.
+#[derive(Clone,Shrinkwrap)]
 pub struct DisplayObject {
     rc: Rc<RefCell<DisplayObjectData>>,
 }
 
 impl DisplayObject {
+    /// Creates a new object instance.
     pub fn new(logger:Logger) -> Self {
         let data = DisplayObjectData::new(logger);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 
+    /// Set callback which will be fired after the object gets dirty for the first time.
     pub fn set_on_change_callback(&self, callback:Option<OnChange>) {
-        self.rc.borrow_mut().set_on_change_callback(callback);
+        self.borrow_mut().set_on_change_callback(callback);
     }
 
-    pub fn update_with(&self, new_origin:Option<&Matrix4<f32>>) {
-        self.rc.borrow_mut().update_with(new_origin);
-    }
-
+    /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self) {
-        self.rc.borrow_mut().update();
+        self.borrow_mut().update();
     }
 
+    /// Updates object transformations by providing a new origin location. See docs of `update` to
+    /// learn more.
+    pub fn update_with(&self, new_origin:&Matrix4<f32>, force:bool) {
+        self.borrow_mut().update_with(new_origin,force);
+    }
+
+    /// Gets a reference to a parent object, if exists.
+    pub fn parent(&self) -> Option<DisplayObject> {
+        self.borrow().parent().map(|t| t.clone_rc())
+    }
+
+    /// Gets index at which the object was registered in its parent object.
+    pub fn index(&self) -> Option<usize> {
+        self.parent_bind().map(|t| t.index)
+    }
+
+    /// Gets a reference to a parent bind description, if exists.
+    pub fn parent_bind(&self) -> Option<ParentBind> {
+        self.borrow().parent_bind.clone()
+    }
+
+    /// Set parent of the object. If the object already has a parent, the parent would be replaced.
     pub fn set_parent(&self, parent:Option<ParentBind>) {
-        self.rc.borrow_mut().set_parent(parent);
+        self.borrow_mut().set_parent(parent);
     }
 
-    pub fn remove_parent_bind(&self) -> Option<ParentBind> {
-        self.rc.borrow_mut().remove_parent_bind()
-    }
-
+    /// Adds a new `DisplayObject` as a child to the current one.
     pub fn add_child(&self, child:&DisplayObject) {
-        let index = self.rc.borrow_mut().insert_child_raw(child);
-        group!(self.rc.borrow().logger, "Adding child at index {}.", index, {
+        group!(self.borrow().logger, "Adding child.", {
+            let child_bind = child.remove_parent_bind();
+            child_bind.iter().for_each(|t| t.dispose());
+            let index = self.borrow_mut().insert_child_raw(child);
+            self.borrow().logger.info(|| format!("Child index is {}.", index));
             let parent      = self.clone();
             let parent_bind = ParentBind {parent,index};
-            let child_bind  = child.remove_parent_bind();
-            child_bind.iter().for_each(|t| t.dispose());
             child.set_parent(Some(parent_bind));
         })
     }
 
-    pub fn remove_child(&self, index:usize) {
-        let opt_child = self.rc.borrow_mut().remove_child(index);
+    /// Removes the provided object reference from child list of this object. Does nothing if the
+    /// reference was not a child of this object.
+    pub fn remove_child(&self, child:&DisplayObject) {
+        child.parent_bind().iter().for_each(|bind| {
+            if self == &bind.parent { self.remove_child_by_index(bind.index) }
+        })
+    }
+
+    /// Removes child by a given index. Does nothing if the index was incorrect. Please use the
+    /// `remove_child` method unless you are 100% sure that the index is correct.
+    pub fn remove_child_by_index(&self, index:usize) {
+        let opt_child = self.borrow_mut().remove_child(index);
+    }
+
+
+    // === Private API ===
+
+    fn remove_parent_bind(&self) -> Option<ParentBind> {
+        self.borrow_mut().remove_parent_bind()
     }
 }
+
 
 // === Getters ===
 
 impl DisplayObject {
     pub fn global_position(&self) -> Vector3<f32> {
-        self.rc.borrow().global_position()
+        self.borrow().global_position()
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.rc.borrow().position().clone()
+        self.borrow().position().clone()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.rc.borrow().scale().clone()
+        self.borrow().scale().clone()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.rc.borrow().rotation().clone()
+        self.borrow().rotation().clone()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.rc.borrow().matrix().clone()
+        self.borrow().matrix().clone()
     }
 }
 
-pub struct RefGuard<'t,Base,Data> {
-    data   : &'t Data,
-    borrow : Ref<'t,Base>,
-}
-
-impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
-    type Target = Data;
-    fn deref(&self) -> &Self::Target {
-        self.data
-    }
-}
-
-impl<'t,Base,Data> RefGuard<'t,Base,Data> {
-    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
-        let borrow    = base.borrow();
-        let reference = unsafe { drop_lifetime(&borrow) };
-        let data      = f(reference);
-        RefGuard {data,borrow}
-    }
-}
-
-impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.data.fmt(f)
-    }
-}
 
 // === Setters ===
 
 impl DisplayObject {
     pub fn set_position(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_position(t);
+        self.borrow_mut().set_position(t);
     }
 
     pub fn set_scale(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_scale(t);
+        self.borrow_mut().set_scale(t);
     }
 
     pub fn set_rotation(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_rotation(t);
+        self.borrow_mut().set_rotation(t);
     }
 
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_position(f)
+        self.borrow_mut().mod_position(f)
     }
 
     pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_rotation(f)
+        self.borrow_mut().mod_rotation(f)
     }
 
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_scale(f)
+        self.borrow_mut().mod_scale(f)
     }
 }
+
 
 // === Instances ===
 
@@ -404,25 +444,49 @@ impl From<Rc<RefCell<DisplayObjectData>>> for DisplayObject {
     }
 }
 
+impl PartialEq for DisplayObject {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.rc,&other.rc)
+    }
+}
+
+
+// === ParentBind ===
+
+#[derive(Clone)]
+pub struct ParentBind {
+    pub parent : DisplayObject,
+    pub index  : usize
+}
+
+impl ParentBind {
+    pub fn dispose(&self) {
+        self.parent.remove_child_by_index(self.index);
+    }
+}
+
+
 
 // =========================
 // === DisplayObjectData ===
 // =========================
 
 pub struct DisplayObjectData {
-    pub parent_bind     : Option<ParentBind>,
-    pub children        : OptVec<DisplayObject>,
-    pub transform       : HierarchicalTransform<Option<OnChange>>,
-    pub child_dirty     : ChildDirty,
-    pub new_child_dirty : NewChildDirty,
-    pub logger          : Logger,
+    pub parent_bind      : Option<ParentBind>,
+    pub children         : OptVec<DisplayObject>,
+    pub transform        : HierarchicalTransform<Option<OnChange>>,
+    pub child_dirty      : ChildDirty,
+    pub new_parent_dirty : NewParentDirty,
+    pub logger           : Logger,
 }
+
 
 // === Types ===
 
 pub type ChildDirty     = dirty::SharedSet<usize,Option<OnChange>>;
-pub type NewChildDirty  = dirty::SharedSet<usize,Option<OnChange>>;
+pub type NewParentDirty = dirty::SharedBool<()>;
 pub type TransformDirty = dirty::SharedBool<Option<OnChange>>;
+
 
 // === Callbacks ===
 
@@ -430,16 +494,17 @@ closure! {
 fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 }
 
+
 // === API ===
 
 impl DisplayObjectData {
     pub fn new(logger:Logger) -> Self {
-        let parent_bind     = default();
-        let children        = default();
-        let transform       = HierarchicalTransform::new(logger.sub("transform"),None);
-        let child_dirty     = ChildDirty::new(logger.sub("child_dirty"),None);
-        let new_child_dirty = NewChildDirty::new(logger.sub("child_dirty"),None);
-        Self {parent_bind,children,transform,child_dirty,new_child_dirty,logger}
+        let parent_bind      = default();
+        let children         = default();
+        let transform        = HierarchicalTransform::new(logger.sub("transform"),None);
+        let child_dirty      = ChildDirty::new(logger.sub("child_dirty"),None);
+        let new_parent_dirty = NewParentDirty::new(logger.sub("new_parent_dirty"),());
+        Self {parent_bind,children,transform,child_dirty,new_parent_dirty,logger}
     }
 
     fn set_on_change_callback(&mut self, callback:Option<OnChange>) {
@@ -447,11 +512,11 @@ impl DisplayObjectData {
         self.child_dirty.set_callback(callback);
     }
 
+    pub fn parent(&self) -> Option<&DisplayObject> {
+        self.parent_bind.as_ref().map(|ref t| &t.parent)
+    }
+
     pub fn set_parent(&mut self, parent:Option<ParentBind>) {
-        println!("set parent borrowed");
-
-//        self.parent_bind.iter().for_each(|t| t.dispose());
-
         match parent {
             None => {
                 self.logger.info("Removing parent bind.");
@@ -464,11 +529,13 @@ impl DisplayObjectData {
                 self.set_on_change_callback(Some(on_change));
             }
         }
+        self.new_parent_dirty.set();
         self.parent_bind = parent;
     }
 
     pub fn update(&mut self) {
-        self.update_with(None)
+        let origin0 = Matrix4::identity();
+        self.update_with(&origin0,false)
     }
 
     pub fn remove_parent_bind(&mut self) -> Option<ParentBind> {
@@ -478,7 +545,7 @@ impl DisplayObjectData {
     pub fn insert_child_raw(&mut self, child:&DisplayObject) -> usize {
         let child_rc = child.clone();
         let index    = self.children.insert(child_rc);
-        self.new_child_dirty.set(index);
+        self.child_dirty.set(index);
         index
     }
 
@@ -487,12 +554,13 @@ impl DisplayObjectData {
             let opt_child = self.children.remove(index);
             opt_child.iter().for_each(|t| t.set_parent(None));
             self.child_dirty.unset(&index);
-            self.new_child_dirty.unset(&index);
         })
     }
 
-    pub fn update_with(&mut self, new_origin:Option<&Matrix4<f32>>) {
-        let msg = match new_origin {
+    pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
+        let use_origin = force || self.new_parent_dirty.check();
+        let new_origin = use_origin.as_some(parent_origin);
+        let msg        = match new_origin {
             Some(_) => "Update with new parent origin.",
             None    => "Update with old parent origin."
         };
@@ -504,7 +572,7 @@ impl DisplayObjectData {
                 if !self.children.is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.iter().for_each(|child| {
-                            child.update_with(Some(origin));
+                            child.update_with(origin,true);
                         });
                     })
                 }
@@ -513,25 +581,17 @@ impl DisplayObjectData {
                 if self.child_dirty.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.child_dirty.iter().for_each(|ix| {
-                            self.children[*ix].update_with(None)
-                        });
-                    })
-                }
-                if self.new_child_dirty.check_all() {
-                    group!(self.logger, "Updating new children", {
-                        self.new_child_dirty.iter().for_each(|ix| {
-                            self.children[*ix].update_with(Some(origin))
+                            self.children[*ix].update_with(origin,false)
                         });
                     })
                 }
             }
             self.child_dirty.unset_all();
-            self.new_child_dirty.unset_all();
-        })
+        });
+        self.new_parent_dirty.unset();
     }
-
-
 }
+
 
 // === Getters ===
 
@@ -556,6 +616,7 @@ impl DisplayObjectData {
         self.transform.matrix()
     }
 }
+
 
 // === Setters ===
 
@@ -599,12 +660,34 @@ impl DisplayObjectData {
 
 use std::f32::consts::{PI};
 
+
+
+// =============
+// === Tests ===
+// =============
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn hierarchy_test() {
+        let obj1 = DisplayObject::new(Logger::new("obj1"));
+        let obj2 = DisplayObject::new(Logger::new("obj2"));
+        let obj3 = DisplayObject::new(Logger::new("obj3"));
+
+        obj1.add_child(&obj2);
+        assert_eq!(obj2.index(), Some(0));
+        obj1.add_child(&obj2);
+        assert_eq!(obj2.index(), Some(0));
+        obj1.add_child(&obj3);
+        assert_eq!(obj3.index(), Some(1));
+        obj1.remove_child(&obj3);
+        assert_eq!(obj3.index(), None);
+    }
+
+    #[test]
+    fn transformation_test() {
         let obj1 = DisplayObject::new(Logger::new("obj1"));
         let obj2 = DisplayObject::new(Logger::new("obj2"));
         let obj3 = DisplayObject::new(Logger::new("obj3"));
@@ -646,8 +729,14 @@ mod tests {
         assert_eq!(obj1.global_position() , Vector3::new(7.0,0.0,0.0));
         assert_eq!(obj2.global_position() , Vector3::new(7.0,5.0,0.0));
         assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
-
-
-        // remove child
+        obj1.add_child(&obj3);
+        obj1.update();
+        assert_eq!(obj3.global_position() , Vector3::new(8.0,0.0,0.0));
+        obj1.remove_child(&obj3);
+        obj3.update();
+        assert_eq!(obj3.global_position() , Vector3::new(1.0,0.0,0.0));
+        obj2.add_child(&obj3);
+        obj1.update();
+        assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
     }
 }

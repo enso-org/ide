@@ -110,16 +110,15 @@ fn init(world: &mut World) {
     let obj2 = DisplayObject::new(Logger::new("obj2"));
     let obj3 = DisplayObject::new(Logger::new("obj3"));
     obj1.add_child(&obj2);
-    obj1.add_child(&obj3);
-    println!("------------ y");
-    obj1.add_child(&obj3);
-    println!("------------ x");
-
-    obj2.add_child(&obj3);
     obj1.update();
-//    println!("------------ 2");
-//    obj1.update();
-//    println!("------------ 3");
+    println!("------------ 2");
+    obj1.mod_position(|t| t.x += 5.0);
+    obj2.mod_position(|t| t.y += 6.0);
+    obj1.update();
+    println!("------------ 3");
+    obj1.remove_child(&obj2);
+    obj2.update();
+    println!("{:?}",obj2.global_position());
 //    obj2.mod_position(|t| t.y += 5.0);
 //
 //    obj1.mod_rotation(|t| t.z += 90.0);
