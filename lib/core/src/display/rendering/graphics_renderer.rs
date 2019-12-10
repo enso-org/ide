@@ -19,7 +19,7 @@ pub struct GraphicsRenderer {
 
 impl GraphicsRenderer {
     pub fn new(dom_id: &str) -> Result<Self> {
-        let container = DOMContainer::new(dom_id)?;
+        let container = DOMContainer::from_id(dom_id)?;
         container.dom.set_property_or_panic("overflow", "hidden");
         Ok(Self { container })
     }

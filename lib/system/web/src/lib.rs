@@ -1,6 +1,7 @@
 #![feature(trait_alias)]
 
 pub mod resize_observer;
+pub mod intersection_observer;
 mod animationframeloop;
 pub use animationframeloop::AnimationFrameLoop;
 

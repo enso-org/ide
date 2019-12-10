@@ -3,6 +3,8 @@
 use crate::system::web::document;
 use crate::system::web::dyn_into;
 
+use crate::display::rendering::DOMContainer;
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use js_sys::Function;
@@ -11,6 +13,8 @@ use web_sys::EventTarget;
 use std::rc::Rc;
 use std::cell::RefCell;
 use nalgebra::Vector2;
+
+use crate::system::web::console_log;
 
 // ============
 // === Zoom ===
@@ -49,6 +53,7 @@ impl ZoomingData {
 // ===============
 
 pub struct Zooming {
+    dom  : DOMContainer,
     data : RefCell<Option<ZoomingData>>
 }
 
@@ -57,27 +62,34 @@ const MMB : i16 = 1; // MMB for middle mouse button? :P
 const RMB : i16 = 2;
 
 impl Zooming {
-    pub fn new() -> Rc<Self> {
-        let data = RefCell::new(None);
-        let zooming = Rc::new(Zooming { data });
+    pub fn new(dom:&DOMContainer) -> Rc<Self> {
+        let data    = RefCell::new(None);
+        let dom     = dom.clone();
+        let zooming = Rc::new(Zooming { dom, data });
 
-        let document = document().expect("document");
-        let target : EventTarget = dyn_into(document).unwrap();
+        let target : EventTarget = dyn_into(zooming.dom.dom.clone()).unwrap();
 
         let zooming_clone = zooming.clone();
-        let closure = move |event:MouseEvent| -> bool {
-            if event.button() == LMB {
+        let closure = move |event:MouseEvent| {
+            if event.button() == RMB {
                 event.prevent_default();
+            }
+        };
+        let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
+        let callback : &Function = closure.as_ref().unchecked_ref();
+        target.add_event_listener_with_callback("contextmenu", callback);
+        closure.forget();
+
+        let zooming_clone = zooming.clone();
+        let closure = move |event:MouseEvent| {
+            if event.button() == RMB {
                 let mut zooming = zooming_clone.data.borrow_mut();
                 let focus = Vector2::new(event.x() as f32, event.y() as f32);
                 let start = focus.y;
                 *zooming = Some(ZoomingData::start(focus, start));
-                false
-            } else {
-                false
             }
         };
-        let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent) -> bool>);
+        let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
         let callback : &Function = closure.as_ref().unchecked_ref();
         target.add_event_listener_with_callback("mousedown", callback);
         closure.forget();
@@ -105,6 +117,16 @@ impl Zooming {
         target.add_event_listener_with_callback("mouseup", callback);
         closure.forget();
 
+        let zooming_clone = zooming.clone();
+        let closure = move |_:MouseEvent| {
+            let mut zooming = zooming_clone.data.borrow_mut();
+            *zooming = None;
+        };
+        let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
+        let callback : &Function = closure.as_ref().unchecked_ref();
+        target.add_event_listener_with_callback("mouseleave", callback);
+        closure.forget();
+
         zooming
     }
 
@@ -123,12 +145,10 @@ impl Zooming {
                 1.0
             };
 
-            // hardcoded values
-            let offset = Vector2::new(21.0, 185.0);
-            let dimension = Vector2::new(320.0, 240.0);
-            let center = dimension / 2.0;
-
-            let point       = zooming.focus - offset;
+            let position    = self.dom.position();
+            let dimension   = self.dom.dimensions();
+            let center      = dimension / 2.0;
+            let point       = zooming.focus - position;
             let delta       = point - center;
             let new_delta   = delta * amount;
             let mut panning = delta - new_delta;

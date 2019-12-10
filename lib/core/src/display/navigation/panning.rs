@@ -11,6 +11,9 @@ use web_sys::EventTarget;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
+use crate::display::rendering::DOMContainer;
+
+use crate::system::web::console_log;
 
 // ===================
 // === PanningData ===
@@ -41,14 +44,11 @@ pub struct Panning {
 }
 
 impl Panning {
-    pub fn new() -> Rc<Self> {
+    pub fn new(dom:&DOMContainer) -> Rc<Self> {
         let data = RefCell::new(None);
         let panning = Rc::new(Panning { data });
 
-        let document = document().expect("document");
-        let target : EventTarget = dyn_into(document).unwrap();
-
-        use crate::system::web::console_log;
+        let target : EventTarget = dyn_into(dom.dom.clone()).unwrap();
 
         let panning_clone = panning.clone();
         let closure = move |event:MouseEvent| {
@@ -84,6 +84,16 @@ impl Panning {
         let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
         let callback : &Function = closure.as_ref().unchecked_ref();
         target.add_event_listener_with_callback("mouseup", callback);
+        closure.forget();
+
+        let panning_clone = panning.clone();
+        let closure = move |_:MouseEvent| {
+            let mut panning = panning_clone.data.borrow_mut();
+            *panning = None;
+        };
+        let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
+        let callback : &Function = closure.as_ref().unchecked_ref();
+        target.add_event_listener_with_callback("mouseleave", callback);
         closure.forget();
 
         panning

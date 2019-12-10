@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use nalgebra::{Vector3, Vector2, clamp};
 
-use crate::display::rendering::Camera;
+use crate::display::rendering::{Camera, DOMContainer};
 
 // ==================
 // === Navigation ===
@@ -21,9 +21,9 @@ pub struct Navigation {
 }
 
 impl Navigation {
-    pub fn new() -> Self {
-        let panning = Panning::new();
-        let zooming = Zooming::new();
+    pub fn new(dom:&DOMContainer) -> Self {
+        let panning = Panning::new(dom);
+        let zooming = Zooming::new(dom);
         Navigation { panning, zooming }
     }
 
@@ -35,8 +35,6 @@ impl Navigation {
     }
 
     fn zoom(&self, camera:&mut Camera, zooming:Zoom) {
-        //*scale = Vector3::new(scale.x.max(0.1), scale.y.max(0.1), scale.z.max(0.1));
-        // partial max here?
         self.pan(camera, zooming.panning);
 
         let scale = camera.transform_mut().scale_mut();

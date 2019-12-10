@@ -55,7 +55,8 @@ features = [
   'console',
   'EventTarget',
   'Event',
-  'MouseEvent'
+  'MouseEvent',
+  'DomRect'
 ]
 
 [dev-dependencies]
