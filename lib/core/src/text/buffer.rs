@@ -92,7 +92,8 @@ impl TextComponentBuffers {
         }
     }
 
-    fn create_fragments_data_builder(&self, font:&mut FontRenderInfo) -> FragmentsDataBuilder {
+    fn create_fragments_data_builder<'a>(&self, font:&'a mut FontRenderInfo)
+    -> FragmentsDataBuilder<'a> {
         FragmentsDataBuilder {
             vertex_position_data : Vec::new(),
             texture_coords_data  : Vec::new(),
