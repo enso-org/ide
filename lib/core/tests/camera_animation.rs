@@ -14,7 +14,7 @@ mod tests {
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
     use web_test::*;
-    use basegl::display::navigation::Navigation;
+    use basegl::display::navigation::Navigator;
 
     use nalgebra::Vector3;
 
@@ -61,7 +61,7 @@ mod tests {
 
         let scene = create_scene();
 
-        let navigation = Navigation::new(&renderer.container);
+        let navigator = Navigator::new(&renderer.container);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -75,7 +75,7 @@ mod tests {
 
         let mut _t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {
-            navigation.navigate(&mut camera);
+            navigator.navigate(&mut camera);
             renderer.render(&mut camera, &scene);
         })
     }
@@ -88,7 +88,7 @@ mod tests {
 
         let scene = create_scene();
 
-        let navigation = Navigation::new(&renderer.container);
+        let navigator = Navigator::new(&renderer.container);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -102,7 +102,7 @@ mod tests {
 
         let mut _t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {
-            navigation.navigate(&mut camera);
+            navigator.navigate(&mut camera);
             renderer.render(&mut camera, &scene);
         })
     }
