@@ -16,5 +16,5 @@ void main() {
     vClipDistance.w = clipUpper.y - positionOnWindow.y;
 
     vTexCoord = texCoord;
-    gl_Position = vec4(position, 0.0, 1.0);
+    gl_Position = vec4(positionOnWindow.xy, 0.0, positionOnWindow.z);
 }

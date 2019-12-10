@@ -137,10 +137,9 @@ mod example_03 {
                 let area = Area {
                     left   : x,
                     right  : x + 0.5,
-                    top    : y + 0.1,
+                    top    : y,
                     bottom : y - 0.2
                 };
-                let line_position = nalgebra::Vector2::new(x,y);
                 let text_compnent = crate::text::TextComponentBuilder {
                     text : "To be, or not to be, that is the question:\n\
                         Whether 'tis nobler in the mind to suffer\n\
@@ -149,7 +148,7 @@ mod example_03 {
                         And by opposing end them."
                         .to_string(),
                     font     : &mut fonts[font],
-                    position : line_position,
+                    scroll_position: nalgebra::Vector2::new(0.0, 0.05),
                     size     : SIZES[size],
                     color    : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
                     area
@@ -180,6 +179,16 @@ pub struct Area<T> {
     pub right  : T,
     pub top    : T,
     pub bottom : T,
+}
+
+impl<T:std::ops::Sub+Clone> Area<T> {
+    pub fn width(&self) -> T::Output {
+        self.right.clone() - self.left.clone()
+    }
+
+    pub fn height(&self) -> T::Output {
+        self.top.clone() - self.bottom.clone()
+    }
 }
 
 // ===============
