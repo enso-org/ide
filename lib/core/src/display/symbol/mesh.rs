@@ -107,9 +107,47 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     precision highp float;
     precision highp int;
 
-    in vec4 position;
+    in vec4 vertex_position;
+    out vec4 _position;
+
+    in mat4 vertex_model_matrix;
+    out mat4 model_matrix;
+    in vec2 vertex_bbox;
+    out vec2 bbox;
+    in float vertex_symbol_id;
+    out float symbol_id;
+    in float vertex_symbol_family_id;
+    out float symbolFamilyID;
+    in vec2 vertex_uv;
+    out vec2 uv;
+
+    out vec3 local;
+
+    uniform mediump mat4 view_matrix;
+    uniform mediump mat4 projection_matrix;
+    uniform mediump float zoom;
+
     void main() {
-        gl_Position = position;
+        model_matrix   = vertex_model_matrix;
+        bbox           = vertex_bbox;
+        symbol_id      = vertex_symbol_id;
+        symbolFamilyID = vertex_symbol_family_id;
+        uv             = vertex_uv;
+
+        vec4 position2 = model_matrix * vec4(0.0,0.0,0.0,1.0);
+
+        _position = vertex_position;
+
+
+        local                   = vec3((uv - 0.5) * bbox, 0.0);
+//        mat4 model_view_matrix  = view_matrix * model_matrix;
+//        vec4 eyeT               = model_view_matrix * vec4(local,1.0);
+//        gl_Position             = projection_matrix * eyeT;
+//        world                   = gl_Position.xyz;
+//        eye                     = eyeT.xyz;
+//        eye.z                   = -eye.z;
+
+        gl_Position = position2;
     }
 "#,
             )
@@ -123,8 +161,21 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     precision highp int;
 
     out vec4 out_color;
+    in mat4 model_matrix;
+    in vec4 _position;
+    in vec2 uv;
+
+    in vec3 local;
+
     void main() {
-        out_color = vec4(1.0, 1.0, 1.0, 1.0);
+        if(_position.xyz == vec3(0.0,0.0,0.0)) {
+            out_color = vec4(1.0, 1.0, 1.0, 1.0);
+        } else {
+            out_color = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+//        out_color = vec4(1.0, 1.0, 1.0, 1.0);
+        out_color = vec4(uv.x, uv.y, 0.0, 1.0);
+        out_color = vec4(local, 1.0);
     }
 "#,
             )
@@ -132,21 +183,40 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let program =
                 webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
 
-            let pos_loc = self.context.get_attrib_location(&program, "position");
-            let pos_loc = pos_loc as u32;
+            let position_location = self.context.get_attrib_location(&program, "position");
 
-//            println!("-----------");
+            let model_matrix_location = self.context.get_attrib_location(&program, "vertex_model_matrix");
+
+            let uv_location = self.context.get_attrib_location(&program, "vertex_uv");
+
+
+            let position_location = position_location as u32;
+            let model_matrix_location = model_matrix_location as u32;
+            let uv_location = uv_location as u32;
 
             // === Rendering ==
 
             self.context.use_program(Some(&program));
 
-            self.context.enable_vertex_attrib_array(pos_loc);
-            let buffer = &self.geometry.scopes.point.buffers[0];
-            buffer.bind(webgl::Context::ARRAY_BUFFER);
-            buffer.vertex_attrib_pointer(pos_loc);
 
-            self.context.draw_arrays(webgl::Context::TRIANGLES, 0, buffer.len() as i32);
+            self.geometry.scopes.point.name_map.keys().for_each(|name| {
+                println!(">>> {}",name);
+                let vtx_name = format!("vertex_{}",name);
+                let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
+                // TODO handle missing location
+                let buffer = &self.geometry.scopes.point.buffer(name).unwrap();
+                buffer.bind(webgl::Context::ARRAY_BUFFER);
+                buffer.vertex_attrib_pointer(location);
+            });
+
+
+            println!("!! 3");
+
+
+
+
+            let pts = self.geometry.scopes.point.size();
+            self.context.draw_arrays(webgl::Context::TRIANGLE_STRIP, 0, pts as i32);
 
 //            println!("{:?}",&self.geometry.scopes.point.buffers[0]);
         })

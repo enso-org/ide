@@ -84,6 +84,7 @@ impl<OnDirty: Clone> Scope<OnDirty> {
 }
 
 impl<OnDirty: Callback0> Scope<OnDirty> {
+
     /// Adds a new named buffer to the scope.
     pub fn add_buffer<Name: Str, T: Item>
     (&mut self, name:Name) -> SharedBuffer<T,OnDirty>
@@ -105,6 +106,11 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
             buffer_ref
         })
     }
+
+    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer<OnDirty>> {
+        self.name_map.get(name).map(|i| &self.buffers[*i])
+    }
+
     /// Adds a new instance to every buffer in the scope.
     pub fn add_instance(&mut self) -> usize {
         group!(self.logger, "Adding {} instance(s).", 1, {
@@ -114,6 +120,7 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
             ix
         })
     }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -124,6 +131,10 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
             }
             self.buffer_dirty.unset_all()
         })
+    }
+
+    pub fn size(&self) -> usize {
+        self.instance_count
     }
 }
 

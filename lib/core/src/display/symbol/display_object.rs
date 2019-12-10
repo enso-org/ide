@@ -7,7 +7,7 @@ use crate::dirty;
 use crate::dirty::traits::*;
 use crate::system::web::group;
 
-use nalgebra::{Vector3, Vector4, Matrix4};
+use nalgebra::{Vector3, Vector4, Matrix4, Perspective3};
 use basegl_system_web::Logger;
 use crate::display::symbol::material::shader::glsl::PrimType::Mat2;
 use failure::_core::fmt::{Formatter, Error};
@@ -720,14 +720,112 @@ mod tests {
 // === Camera ===
 // ==============
 
+pub enum Projection {
+    Perspective  (Perspective),
+    Orthographic (Orthographic)
+}
+
+pub struct Perspective  {
+    pub aspect : f32,
+    pub fov    : f32
+}
+
+pub struct Orthographic {
+    pub left   : f32,
+    pub right  : f32,
+    pub top    : f32,
+    pub bottom : f32
+}
+
+impl Default for Perspective {
+    fn default() -> Self {
+        let aspect = 1.0;
+        let fov    = 45.0;
+        Self {aspect,fov}
+    }
+}
+
+impl Default for Orthographic {
+    fn default() -> Self {
+        let left   = -100.0;
+        let right  =  100.0;
+        let top    =  100.0;
+        let bottom = -100.0;
+        Self {left,right,top,bottom}
+    }
+}
+
+impl Default for Projection {
+    fn default() -> Self {
+        Self::Perspective(default())
+    }
+}
+
+pub struct Clipping {
+    pub near : f32,
+    pub far  : f32
+}
+
+impl Default for Clipping {
+    fn default() -> Self {
+        let near = 0.0;
+        let far  = 1000.0;
+        Self {near,far}
+    }
+}
+
 #[derive(Shrinkwrap)]
 pub struct Camera {
-    pub display_object: DisplayObject
+    #[shrinkwrap(main_field)]
+    pub object        : DisplayObject,
+    projection        : Projection,
+    clipping          : Clipping,
+    projection_matrix : Matrix4<f32>,
+    view_matrix       : Matrix4<f32>
 }
 
 impl Camera {
     pub fn new(logger: Logger) -> Self {
-        let display_object = DisplayObject::new(logger);
-        Self {display_object}
+        let mut object        = DisplayObject::new(logger);
+        let projection        = default();
+        let clipping          = default();
+        let projection_matrix = Matrix4::identity();
+        let view_matrix       = Matrix4::identity();
+        object.mod_position(|t| t.z = 1.0);
+        Self {object,projection,clipping,projection_matrix,view_matrix}
+    }
+
+    pub fn update_projection(&mut self) {
+        let projection  = match &self.projection {
+            Projection::Perspective(p) => {
+                let fov_radians = p.fov * std::f32::consts::PI / 180.0;
+                let near        = self.clipping.near;
+                let far         = self.clipping.far;
+                *Perspective3::new(p.aspect,fov_radians,near,far).as_matrix()
+            }
+            _ => unimplemented!()
+        };
+        self.projection_matrix = projection;
     }
 }
+
+// === Getters ===
+
+//impl Camera {
+//    pub fn aspect     (&self) -> &f32          { &self.aspect     }
+//    pub fn fov        (&self) -> &f32          { &self.fov        }
+//    pub fn near       (&self) -> &f32          { &self.near       }
+//    pub fn far        (&self) -> &f32          { &self.far        }
+//    pub fn projection (&self) -> &Matrix4<f32> { &self.projection }
+//    pub fn view       (&self) -> &Matrix4<f32> { &self.view       }
+//}
+
+// === Setters ===
+
+//impl Camera {
+//    pub fn aspect_mut(&mut self) -> &mut f32 {
+//
+//    }
+//}
+
+//ar viewMatrix = m4.inverse(cameraMatrix);

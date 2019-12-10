@@ -112,7 +112,7 @@ Buffer<T,OnSet,OnResize> {
 }
 
 impl<T:Item,OnSet,OnResize>
-Buffer<T,OnSet,OnResize> {
+Buffer<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
     pub fn as_prim(&self) -> &[Prim<T>] {
         <T as Item>::to_prim_buffer(&self.buffer.data)
     }
@@ -129,6 +129,7 @@ Buffer<T,OnSet,OnResize> {
     }
 
     fn buffer_data(context:&Context, data:&[T::Prim]) {
+        println!("BUFFER DATA: {:?}", data);
         // Note that `js_buffer_view` is somewhat dangerous (hence the
         // `unsafe`!). This is creating a raw view into our module's
         // `WebAssembly.Memory` buffer, but if we allocate more pages for
@@ -143,17 +144,26 @@ Buffer<T,OnSet,OnResize> {
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
         }
     }
-    /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
-    /// attribute of the current vertex buffer object and specifies its layout.
+    /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
+    /// current vertex buffer object and specifies its layout. Please note that this function is
+    /// more complex that a raw call to `WebGLRenderingContext.vertexAttribPointer`, as it correctly
+    /// handles complex data types like `mat4`. See the following links to learn more:
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
-    pub fn vertex_attrib_pointer(&self, index: u32) {
-        let size      = <T as Item>::item_count() as i32;
-        let prim_type = <T as Item>::gl_prim_type();
+    /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
+    pub fn vertex_attrib_pointer(&self, loc:u32) {
+        let item_size = <T as Item>::gl_item_byte_size() as i32;
+        let item_type = <T as Item>::gl_item_type();
+        let rows      = <T as Item>::rows() as i32;
+        let cols      = <T as Item>::cols() as i32;
+        let col_size  = item_size * rows;
+        let stride    = col_size  * cols;
         let normalize = false;
-        let stride    = 0;
-        let offset    = 0;
-        self.context.vertex_attrib_pointer_with_i32
-            (index,size,prim_type,normalize,stride,offset);
+        for col in 0..cols {
+            let lloc = loc + col as u32;
+            let off  = col * col_size;
+            self.context.enable_vertex_attrib_array(lloc);
+            self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
+        }
     }
 }
 
@@ -250,7 +260,7 @@ SharedBuffer<T,OnSet,OnResize> {
 }
 
 impl<T:Item,OnSet,OnResize>
-SharedBuffer<T,OnSet,OnResize> {
+SharedBuffer<T,OnSet,OnResize> where Prim<T>: Debug { // TODO: remove Prim<T>: Debug
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         self.borrow_mut().update()

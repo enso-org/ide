@@ -42,6 +42,7 @@ use console_error_panic_hook;
 use display::world::*;
 use nalgebra;
 use nalgebra::Vector3;
+use nalgebra::Vector2;
 use nalgebra::Matrix4;
 use wasm_bindgen::prelude::*;
 
@@ -77,44 +78,68 @@ fn init(world: &mut World) {
     let pt_scope  : &mut VarScope  = &mut scopes.point;
     let pos       : Position       = pt_scope.add_buffer("position");
     let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
+    let uv           : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("uv");
+    let bbox         : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
 
     let p1_ix = pt_scope.add_instance();
     let p2_ix = pt_scope.add_instance();
     let p3_ix = pt_scope.add_instance();
     let p4_ix = pt_scope.add_instance();
-    let p5_ix = pt_scope.add_instance();
-    let p6_ix = pt_scope.add_instance();
 
     let p1 = pos.get(p1_ix);
     let p2 = pos.get(p2_ix);
     let p3 = pos.get(p3_ix);
     let p4 = pos.get(p4_ix);
-    let p5 = pos.get(p5_ix);
-    let p6 = pos.get(p6_ix);
 
-    p1.set(Vector3::new(-1.0, -1.0, 0.0));
-    p2.set(Vector3::new( 1.0, -1.0, 0.0));
-    p3.set(Vector3::new( 0.0,  1.0, 0.0));
 
-    p4.set(Vector3::new(-1.0, -1.0, 0.0));
-    p5.set(Vector3::new( 0.8, -1.0, 0.0));
-    p6.set(Vector3::new( 0.8,  0.6, 0.0));
+    p1.set(Vector3::new(-0.0, -0.0, 0.0));
+    p2.set(Vector3::new( 0.0, -0.0, 0.0));
+    p3.set(Vector3::new( 0.0,  0.0, 0.0));
+    p4.set(Vector3::new( 0.0,  0.0, 0.0));
+
+
+    let uv1 = uv.get(p1_ix);
+    let uv2 = uv.get(p2_ix);
+    let uv3 = uv.get(p3_ix);
+    let uv4 = uv.get(p4_ix);
+
+    uv1.set(Vector2::new(0.0, 0.0));
+    uv2.set(Vector2::new(0.0, 1.0));
+    uv3.set(Vector2::new(1.0, 0.0));
+    uv4.set(Vector2::new(1.0, 1.0));
+
+    let bbox1 = bbox.get(p1_ix);
+    let bbox2 = bbox.get(p2_ix);
+    let bbox3 = bbox.get(p3_ix);
+    let bbox4 = bbox.get(p4_ix);
+
+    bbox1.set(Vector2::new(0.5, 0.5));
+    bbox2.set(Vector2::new(0.5, 0.5));
+    bbox3.set(Vector2::new(0.5, 0.5));
+    bbox4.set(Vector2::new(0.5, 0.5));
 
 
     let mm1 = model_matrix.get(p1_ix);
     let mm2 = model_matrix.get(p2_ix);
     let mm3 = model_matrix.get(p3_ix);
     let mm4 = model_matrix.get(p4_ix);
-    let mm5 = model_matrix.get(p5_ix);
-    let mm6 = model_matrix.get(p6_ix);
 
-    mm1.modify(|t| {t.append_translation(&Vector3::new(-1.0, -1.0, 0.0));});
-    mm2.modify(|t| {t.append_translation(&Vector3::new( 1.0, -1.0, 0.0));});
-    mm3.modify(|t| {t.append_translation(&Vector3::new( 0.0, -1.0, 0.0));});
+    mm1.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
+    mm2.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
+    mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0, -1.0, 0.0));});
+    mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  1.0, 0.0));});
+//    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
+//    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
+//
+//    mm1.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm2.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm3.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//
+//    mm4.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm5.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm6.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
 
-    mm4.modify(|t| {t.append_translation(&Vector3::new(-1.0, -1.0, 0.0));});
-    mm5.modify(|t| {t.append_translation(&Vector3::new( 0.8, -1.0, 0.0));});
-    mm6.modify(|t| {t.append_translation(&Vector3::new( 0.8,  0.6, 0.0));});
+    println!("---------- {:?}", *mm1.get());
 
 //    println!("{:?}",pos);
 //    println!("{:?}",pos.borrow().as_prim());

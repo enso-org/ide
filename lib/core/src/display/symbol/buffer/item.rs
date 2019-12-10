@@ -44,15 +44,26 @@ impl Empty for Matrix4<f32> { fn empty() -> Self { Self::identity()           } 
 /// for mapping the item to WebGL buffer and vice versa.
 pub trait Item: Empty {
     type Prim;
-    type Dim: DimName;
+    type Rows: DimName;
+    type Cols: DimName;
+
+    fn rows() -> usize {
+        <Self::Rows as DimName>::dim()
+    }
+
+    fn cols() -> usize {
+        <Self::Cols as DimName>::dim()
+    }
+
+    fn gl_item_byte_size() -> usize;
 
     /// Count of primitives of the item. For example, `Vector3<f32>` contains
     /// three primitives (`f32` values).
     fn item_count() -> usize {
-        <Self::Dim as DimName>::dim()
+        Self::rows() * Self::cols()
     }
 
-    fn gl_prim_type() -> u32;
+    fn gl_item_type() -> u32;
 
     /// Conversion from slice of a buffer to the item. Buffers contain primitive
     /// values only, so two `Vector3<f32>` are represented there as six `f32`
@@ -96,15 +107,18 @@ pub trait Item: Empty {
 // === Type Families ===
 
 pub type Prim <T> = <T as Item>::Prim;
-pub type Dim  <T> = <T as Item>::Dim;
+pub type Rows <T> = <T as Item>::Rows;
+pub type Cols <T> = <T as Item>::Cols;
 
 // === Instances ===
 
 impl Item for i32 {
     type Prim = Self;
-    type Dim  = U1;
+    type Rows = U1;
+    type Cols = U1;
 
-    fn gl_prim_type       () -> u32 { Context::INT }
+    fn gl_item_byte_size  () -> usize { 4 }
+    fn gl_item_type       () -> u32 { Context::INT }
     fn from_buffer        (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut    (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
@@ -116,9 +130,11 @@ impl Item for i32 {
 
 impl Item for f32 {
     type Prim = Self;
-    type Dim  = U1;
+    type Rows = U1;
+    type Cols = U1;
 
-    fn gl_prim_type       () -> u32 { Context::FLOAT }
+    fn gl_item_byte_size  () -> usize { 4 }
+    fn gl_item_type       () -> u32 { Context::FLOAT }
     fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
@@ -129,13 +145,17 @@ impl Item for f32 {
 }
 
 impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
-    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
-
+where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
     type Prim = T;
-    type Dim  = R;
+    type Rows = R;
+    type Cols = C;
 
-    fn gl_prim_type() -> u32 {
-        <T as Item>::gl_prim_type()
+    fn gl_item_byte_size() -> usize {
+        <T as Item>::gl_item_byte_size()
+    }
+
+    fn gl_item_type() -> u32 {
+        <T as Item>::gl_item_type()
     }
 
     fn from_buffer(buffer: &[Self::Prim]) -> &[Self] {
@@ -186,12 +206,12 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
 
 impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {
     fn type_debug_name() -> String {
-        let col  = <C as DimName>::dim();
-        let row  = <R as DimName>::dim();
+        let cols = <C as DimName>::dim();
+        let rows = <R as DimName>::dim();
         let item = type_name::<T>();
-        match col {
-            1 => format!("Vector{}<{}>"    , row, item),
-            _ => format!("Matrix{}x{}<{}>" , row, col, item)
+        match cols {
+            1 => format!("Vector{}<{}>"    , rows, item),
+            _ => format!("Matrix{}x{}<{}>" , rows, cols, item)
         }
     }
 }
