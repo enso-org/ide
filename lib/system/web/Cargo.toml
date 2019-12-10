@@ -33,7 +33,9 @@ features = [
   'WebGlShader',
   'Window',
   'console',
-  'Performance'
+  'Performance',
+  'KeyboardEvent',
+  'KeyEvent'
 ]
 
 [dev-dependencies]

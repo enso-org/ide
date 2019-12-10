@@ -52,7 +52,10 @@ features = [
   'WebGlUniformLocation',
   'WebGlTexture',
   'Window',
-  'console'
+  'console',
+  'EventTarget',
+  'Event',
+  'MouseEvent'
 ]
 
 [dev-dependencies]

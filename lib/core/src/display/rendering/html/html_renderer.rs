@@ -22,11 +22,22 @@ use web_sys::HtmlElement;
 
 mod js {
     use super::*;
+    use wasm_bindgen::JsValue;
+
     #[wasm_bindgen(module = "/js/html_renderer.js")]
     extern "C" {
         pub fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
-        pub fn setup_camera_transform
+        pub fn setup_camera_orthographic(
+          dom          : &JsValue
+        , znear        : &JsValue
+        , left         : &JsValue
+        , right        : &JsValue
+        , bottom       : &JsValue
+        , top          : &JsValue
+        , matrix_array : &JsValue
+        );
+        pub fn setup_camera_perspective
         ( dom          : &JsValue
         , znear        : &JsValue
         , half_width   : &JsValue
@@ -46,20 +57,19 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
     }
 }
 
-fn setup_camera_transform
+fn setup_camera_perspective
 ( dom         : &JsValue
 , near        : f32
 , half_width  : f32
 , half_height : f32
 , matrix      : &Matrix4<f32>
 ) {
-
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
         let matrix_array = matrix.into_float32_array_view();
-        js::setup_camera_transform(
+        js::setup_camera_perspective(
             &dom,
             &near.into(),
             &half_width.into(),
@@ -69,6 +79,31 @@ fn setup_camera_transform
     }
 }
 
+fn setup_camera_orthographic
+( dom      : &JsValue
+, znear    : f32
+, left     : f32
+, right    : f32
+, bottom   : f32
+, top      : f32
+, matrix   : &Matrix4<f32>
+) {
+    // Views to WASM memory are only valid as long the backing buffer isn't
+    // resized. Check documentation of IntoFloat32ArrayView trait for more
+    // details.
+    unsafe {
+        let matrix_array = matrix.into_float32_array_view();
+        js::setup_camera_orthographic(
+            &dom,
+            &znear.into(),
+            &left.into(),
+            &right.into(),
+            &bottom.into(),
+            &top.into(),
+            &matrix_array
+        )
+    }
+}
 // ========================
 // === HTMLRendererData ===
 // ========================
@@ -140,7 +175,7 @@ impl HTMLRenderer {
 
     /// Renders the `Scene` from `Camera`'s point of view.
     pub fn render(&self, camera: &mut Camera, scene: &Scene<HTMLObject>) {
-        let trans_cam    = camera.transform.to_homogeneous().try_inverse();
+        let trans_cam    = camera.transform().to_homogeneous().try_inverse();
         let trans_cam    = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam    = trans_cam.map(eps);
         let trans_cam    = invert_y(trans_cam);
@@ -150,14 +185,29 @@ impl HTMLRenderer {
         let y_scale      = camera.get_y_scale();
         let near         = y_scale * half_dim.y;
 
-        js::setup_perspective(&self.data.div, &near.into());
-        setup_camera_transform(
-            &self.data.camera,
-            near,
-            half_dim.x,
-            half_dim.y,
-            &trans_cam
-        );
+        match camera {
+            Camera::Perspective(_) => {
+                js::setup_perspective(&self.data.div, &near.into());
+                setup_camera_perspective(
+                    &self.data.camera,
+                    near,
+                    half_dim.x,
+                    half_dim.y,
+                    &trans_cam
+                );
+            },
+            Camera::Orthographic(camera) => {
+                setup_camera_orthographic(
+                    &self.data.camera,
+                    near,
+                    camera.left,
+                    camera.right,
+                    camera.bottom,
+                    camera.top,
+                    &trans_cam
+                );
+            }
+        }
 
         let scene : &Scene<HTMLObject> = &scene;
         for object in &mut scene.into_iter() {

@@ -24,9 +24,14 @@ impl Object {
         self.transform.set_translation(x, y, z)
     }
 
-    /// Gets the object's position.
+    /// Gets object's position.
     pub fn position(&self) -> &Vector3<f32> {
         self.transform.translation()
+    }
+
+    /// Gets mutable object's position.
+    pub fn position_mut(&mut self) -> &mut Vector3<f32> {
+        self.transform.translation_mut()
     }
 
     /// Sets the object's rotation in YXZ (yaw -> roll -> pitch) order.
@@ -37,6 +42,11 @@ impl Object {
     /// Gets the object's rotation UnitQuaternion.
     pub fn rotation(&self) -> &UnitQuaternion<f32> {
         self.transform.rotation()
+    }
+
+    /// Gets the object's rotation UnitQuaternion.
+    pub fn rotation_mut(&mut self) -> &mut UnitQuaternion<f32> {
+        self.transform.rotation_mut()
     }
 
     /// Sets the object's scale.
