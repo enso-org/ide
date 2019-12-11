@@ -27,8 +27,8 @@ mod js {
 
     #[wasm_bindgen(module = "/js/html_renderer.js")]
     extern "C" {
-        pub fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
-        pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
+        pub fn set_object_transform(dom:&JsValue, matrix_array:&JsValue);
+        pub fn setup_perspective(dom:&JsValue, y_scale:&JsValue);
         pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
         pub fn setup_camera_perspective
         ( dom          : &JsValue
@@ -157,7 +157,6 @@ impl HTMLRenderer {
         let trans_cam    = trans_cam.map(eps);
         let trans_cam    = invert_y(trans_cam);
 
-        // Note [znear from projection matrix]
         let half_dim     = self.renderer.container.dimensions() / 2.0;
         let y_scale      = camera.get_y_scale();
         let y_scale      = y_scale * half_dim.y;
@@ -198,7 +197,3 @@ impl HTMLRenderer {
         self.data.set_dimensions(dimensions);
     }
 }
-
-// Note [znear from projection matrix]
-// ===================================
-// https://github.com/mrdoob/three.js/blob/22ed6755399fa180ede84bf18ff6cea0ad66f6c0/examples/js/renderers/CSS3DRenderer.js#L275
