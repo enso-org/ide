@@ -829,3 +829,22 @@ impl Camera {
 //}
 
 //ar viewMatrix = m4.inverse(cameraMatrix);
+
+
+
+pub trait WidgetData {
+    type Value;
+
+    fn value     (&    self) -> &    Self::Value;
+    fn value_mut (&mut self) -> &mut Self::Value;
+
+    fn draw(&self);
+}
+
+struct Slider {
+
+}
+
+impl Slider {
+
+}
