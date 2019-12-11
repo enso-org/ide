@@ -151,6 +151,14 @@ mod example_03 {
                 workspace.text_components.push(text_compnent);
             }
             world.workspace_dirty.set(workspace_id);
+
+            world.on_frame(move |w| {
+                let space = &mut w.workspaces[workspace_id];
+                for text_component in &mut space.text_components {
+                    text_component.scroll(Vector2::new(0.0,0.00001));
+                }
+                w.workspace_dirty.set(workspace_id);
+            }).forget();
         });
     }
 }

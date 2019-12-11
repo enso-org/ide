@@ -16,10 +16,11 @@ use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
+use crate::text;
+use crate::text::font::Fonts;
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 use web_sys::WebGlRenderingContext;
-use crate::text;
 
 
 // =============
@@ -155,7 +156,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     // THIS FUNCTION WILL BE REFACTORED IN THE NEAR FUTURE. IT IS A ROUGH
     // MOCK NOW. DO NOT REVIEW IT.
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
+    pub fn update(&mut self, fonts:&mut Fonts) {
         group!(self.logger, "Updating.", {
             if self.shape_dirty.check() {
                 self.resize_canvas(&self.shape.borrow());
@@ -170,8 +171,8 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
 
-            for text_component in &self.text_components {
-                text_component.display()
+            for text_component in &mut self.text_components {
+                text_component.display(fonts);
             }
 
             if self.text_components.is_empty() {

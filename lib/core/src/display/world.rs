@@ -122,7 +122,8 @@ impl World {
         if self.workspace_dirty.check() {
             group!(self.logger, "Updating.", {
                 self.workspace_dirty.unset();
-                self.workspaces.iter_mut().for_each(|t| t.update());
+                let fonts = &mut self.fonts;
+                self.workspaces.iter_mut().for_each(|t| t.update(fonts));
             });
         }
     }

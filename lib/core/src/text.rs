@@ -38,12 +38,19 @@ pub struct TextComponent {
 }
 
 impl TextComponent {
+    pub fn scroll(&mut self, offset:Vector2<f64>) {
+        self.buffers.scroll(offset);
+    }
 
     /// Render text
-    pub fn display(&self) {
+    pub fn display(&mut self, fonts:&mut Fonts) {
         let gl_context     = &self.gl_context;
         let vertices_count = self.buffers.vertices_count() as i32;
+        let lines          = &mut self.lines;
+        let font           = fonts.get_render_info(self.font);
+        let content_ref    = ContentRef{lines,font};
 
+        self.buffers.refresh(gl_context,content_ref);
         gl_context.use_program(Some(&self.gl_program));
         self.update_uniforms();
         self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);

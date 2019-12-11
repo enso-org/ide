@@ -18,20 +18,22 @@ use std::ops::Range;
 /// quickly replace line with another during scrolling.
 #[derive(Debug)]
 pub struct BufferFragment {
-    pub assigned_line     : Option<usize>,
-    pub rendered_fragment : Option<RenderedFragment>
+    pub assigned_line : Option<usize>,
+    pub rendered      : Option<RenderedFragment>,
+    pub dirty         : bool,
 }
 
 /// Information what is currently rendered on screen for some specific _buffer fragment_.
 #[derive(Debug)]
 pub struct RenderedFragment {
-    pub first_char : RenderedChar,
-    pub last_char  : RenderedChar,
+    pub first_char          : RenderedChar,
+    pub last_char           : RenderedChar,
 }
 
 /// The rendered char position in line and on screen.
 #[derive(Debug)]
 pub struct RenderedChar {
+    pub index       : usize,
     pub byte_offset : usize,
     pub pen         : Pen
 }
@@ -41,7 +43,8 @@ impl BufferFragment {
     pub fn unassigned() -> BufferFragment {
         BufferFragment {
             assigned_line     : None,
-            rendered_fragment : None
+            rendered: None,
+            dirty             : false,
         }
     }
 }
@@ -94,7 +97,7 @@ impl<'a> FragmentsDataBuilder<'a> {
             let byte_offset = offset;
             let visible     = pen.is_in_x_range(line_clip);
             let rendered    = visible || index >= always_render_index;
-            rendered.and_option_from(|| Some(RenderedChar{byte_offset,pen}))
+            rendered.and_option_from(|| Some(RenderedChar{index,byte_offset,pen}))
         })
     }
 
@@ -104,11 +107,13 @@ impl<'a> FragmentsDataBuilder<'a> {
         let mut pen               = first_char.pen.clone();
         let rendered_chars_iter   = rendered_text.char_indices().take(self.max_displayed_chars);
         let (last_char_offset, _) = rendered_chars_iter.clone().last()?;
-        let byte_offset = first_char.byte_offset + last_char_offset;
+        let last_char_index       = self.max_displayed_chars.min(rendered_text.len())-1;
+        let byte_offset           = first_char.byte_offset + last_char_offset;
+        let index                 = first_char.index + last_char_index;
         for (_, ch) in rendered_chars_iter.skip(1) {
             pen.next_char(ch, &mut self.font);
         }
-        Some(RenderedChar { byte_offset, pen })
+        Some(RenderedChar { index, byte_offset, pen })
     }
 
     /// Extend vertex position data with a new line's.
