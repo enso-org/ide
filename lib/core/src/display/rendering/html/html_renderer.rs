@@ -21,6 +21,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
+// ===================
+// === Js Bindings ===
+// ===================
+
 mod js {
     use super::*;
     use wasm_bindgen::JsValue;

@@ -17,6 +17,7 @@ mod tests {
     use basegl::display::navigation::Navigator;
 
     use nalgebra::Vector3;
+    use std::f32::consts::PI;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -53,15 +54,12 @@ mod tests {
         scene
     }
 
-    #[web_bench]
-    fn perspective_camera(b: &mut Bencher) {
-        let renderer = HTMLRenderer::new("perspective_camera")
+    fn perspective_camera(b: &mut Bencher, name:&str) {
+        let renderer = HTMLRenderer::new(name)
             .expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
         let scene = create_scene();
-
-        let navigator = Navigator::new(&renderer.container);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -70,40 +68,31 @@ mod tests {
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
-        *camera.position_mut() = Vector3::new(0.0, 0.0, 1000.0);
-        *camera.transform_mut().scale_mut() = Vector3::new(2.0, 2.0, 2.0);
+        let dimensions = renderer.dimensions();
+        let x = dimensions.x / 2.0;
+        let y = dimensions.y / 2.0;
+        let z = y * camera.get_y_scale();
+        *camera.position_mut() = Vector3::new(x, y, z);
 
-        let mut _t0 = (performance.now() / 1000.0) as f32;
+        let mut navigator = Navigator::new(&renderer.container, &camera);
+
+        let mut t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {
-            navigator.navigate(&mut camera);
+            let t1 = (performance.now() / 1000.0) as f32;
+            let dt = t1 - t0;
+            t0 = t1;
+            navigator.navigate(&mut camera, dt);
             renderer.render(&mut camera, &scene);
         })
     }
 
     #[web_bench]
-    fn orthographic_camera(b: &mut Bencher) {
-        let renderer = HTMLRenderer::new("orthographic_camera")
-            .expect("Renderer couldn't be created");
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+    fn perspective_camera_1(b: &mut Bencher) {
+        perspective_camera(b, "perspective_camera_1")
+    }
 
-        let scene = create_scene();
-
-        let navigator = Navigator::new(&renderer.container);
-
-        let view_dim = renderer.dimensions();
-        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
-
-        let mut camera  = Camera::orthographic(0.0, 320.0, 0.0, 240.0, -100.0, 100.0);
-        let performance = get_performance()
-            .expect("Couldn't get performance obj");
-
-        *camera.position_mut() = Vector3::new(0.0, 0.0, 0.0);
-        *camera.transform_mut().scale_mut() = Vector3::new(2.0, 2.0, 2.0);
-
-        let mut _t0 = (performance.now() / 1000.0) as f32;
-        b.iter(move || {
-            navigator.navigate(&mut camera);
-            renderer.render(&mut camera, &scene);
-        })
+    #[web_bench]
+    fn perspective_camera_2(b: &mut Bencher) {
+        perspective_camera(b, "perspective_camera_2")
     }
 }
