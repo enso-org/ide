@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::display::rendering::GraphicsRenderer;
 use crate::display::rendering::Scene;
 use crate::display::rendering::Camera;
+use crate::display::rendering::CameraType;
 use crate::display::rendering::html::HTMLObject;
 use crate::math::utils::IntoFloat32ArrayView;
 use crate::math::utils::eps;
@@ -28,18 +29,10 @@ mod js {
     extern "C" {
         pub fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
-        pub fn setup_camera_orthographic(
-          dom          : &JsValue
-        , znear        : &JsValue
-        , left         : &JsValue
-        , right        : &JsValue
-        , bottom       : &JsValue
-        , top          : &JsValue
-        , matrix_array : &JsValue
-        );
+        pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
         pub fn setup_camera_perspective
         ( dom          : &JsValue
-        , znear        : &JsValue
+        , y_scale      : &JsValue
         , half_width   : &JsValue
         , half_height  : &JsValue
         , matrix_array : &JsValue
@@ -59,7 +52,7 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
 
 fn setup_camera_perspective
 ( dom         : &JsValue
-, near        : f32
+, y_scale     : f32
 , half_width  : f32
 , half_height : f32
 , matrix      : &Matrix4<f32>
@@ -71,7 +64,7 @@ fn setup_camera_perspective
         let matrix_array = matrix.into_float32_array_view();
         js::setup_camera_perspective(
             &dom,
-            &near.into(),
+            &y_scale.into(),
             &half_width.into(),
             &half_height.into(),
             &matrix_array
@@ -79,29 +72,13 @@ fn setup_camera_perspective
     }
 }
 
-fn setup_camera_orthographic
-( dom      : &JsValue
-, znear    : f32
-, left     : f32
-, right    : f32
-, bottom   : f32
-, top      : f32
-, matrix   : &Matrix4<f32>
-) {
+fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
         let matrix_array = matrix.into_float32_array_view();
-        js::setup_camera_orthographic(
-            &dom,
-            &znear.into(),
-            &left.into(),
-            &right.into(),
-            &bottom.into(),
-            &top.into(),
-            &matrix_array
-        )
+        js::setup_camera_orthographic(&dom, &matrix_array)
     }
 }
 // ========================
@@ -183,35 +160,28 @@ impl HTMLRenderer {
         // Note [znear from projection matrix]
         let half_dim     = self.renderer.container.dimensions() / 2.0;
         let y_scale      = camera.get_y_scale();
-        let near         = y_scale * half_dim.y;
+        let y_scale      = y_scale * half_dim.y;
 
-        match camera {
-            Camera::Perspective(_) => {
-                js::setup_perspective(&self.data.div, &near.into());
+        match camera.camera_type() {
+            CameraType::Perspective(_) => {
+                js::setup_perspective(&self.data.div, &y_scale.into());
                 setup_camera_perspective(
                     &self.data.camera,
-                    near,
+                    y_scale,
                     half_dim.x,
                     half_dim.y,
                     &trans_cam
                 );
             },
-            Camera::Orthographic(camera) => {
+            CameraType::Orthographic(_) => {
                 setup_camera_orthographic(
-                    &self.data.camera,
-                    near,
-                    camera.left,
-                    camera.right,
-                    camera.bottom,
-                    camera.top,
-                    &trans_cam
-                );
+                    &self.data.camera, &trans_cam);
             }
         }
 
         let scene : &Scene<HTMLObject> = &scene;
         for object in &mut scene.into_iter() {
-            let mut transform = object.transform.to_homogeneous();
+            let mut transform = object.transform().to_homogeneous();
             transform.iter_mut().for_each(|a| *a = eps(*a));
 
             let parent_node  = object.dom.parent_node();

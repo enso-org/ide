@@ -12,14 +12,20 @@ use nalgebra::Vector3;
 /// Base structure for representing a 3D object in a `Scene`.
 #[derive(Default, Debug)]
 pub struct Object {
-    pub transform : Transform
+    transform : Transform
 }
 
 impl Object {
     /// Creates a Default Object.
     pub fn new() -> Object { default() }
 
-    /// Sets the object's position.
+    /// Gets object's transform.
+    pub fn transform(&self) -> &Transform { &self.transform }
+
+    /// Gets mutable object's transform.
+    pub fn transform_mut(&mut self) -> &mut Transform { &mut self.transform }
+
+    /// Sets object's position.
     pub fn set_position(&mut self, x:f32, y:f32, z:f32) {
         self.transform.set_translation(x, y, z)
     }

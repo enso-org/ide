@@ -1,83 +1,127 @@
-// FIXME: This enum design is super dirty, I will clean it up.
+use crate::prelude::*;
 
-use crate::display::rendering::CameraPerspective;
-use crate::display::rendering::CameraOrthographic;
 use crate::display::rendering::Transform;
+use super::Object;
 
 use nalgebra::base::Matrix4;
-use nalgebra::{Vector3, UnitQuaternion};
+use nalgebra::Vector3;
+use nalgebra::UnitQuaternion;
+use nalgebra::geometry::Perspective3;
+use nalgebra::geometry::Orthographic3;
+use std::f32::consts::PI;
+
+// ===================
+// === Perspective ===
+// ===================
+
+/// Perspective projection properties.
+#[derive(Debug)]
+pub struct Perspective {
+    pub fov    : f32,
+    pub aspect : f32,
+    pub near   : f32,
+    pub far    : f32
+}
+
+// ====================
+// === Orthographic ===
+// ====================
+
+/// Orthographic projection properties.
+#[derive(Debug)]
+pub struct Orthographic {
+    pub left   : f32,
+    pub right  : f32,
+    pub top    : f32,
+    pub bottom : f32,
+    pub near   : f32,
+    pub far    : f32
+}
+
+// ==================
+// === CameraType ===
+// ==================
+
+/// CameraType enum.
+#[derive(Debug)]
+pub enum CameraType {
+    Perspective(Perspective),
+    Orthographic(Orthographic)
+}
 
 // ==============
 // === Camera ===
 // ==============
 
-pub enum Camera {
-    Perspective(CameraPerspective),
-    Orthographic(CameraOrthographic)
+/// A 3D camera representation with its own 3D Transform and projection matrix.
+#[derive(Shrinkwrap, Debug)]
+#[shrinkwrap(mutable)]
+pub struct Camera {
+    #[shrinkwrap(main_field)]
+    pub object  : Object,
+    camera_type : CameraType,
+    projection  : Matrix4<f32>
 }
 
 impl Camera {
-    pub fn get_y_scale(&self) -> f32 {
-        match self {
-            Camera::Perspective (camera) => camera.projection.m11,
-            Camera::Orthographic(camera) => camera.projection.m11
-        }
+    /// Creates a perspective projection Camera.
+    pub fn perspective(fov:f32, aspect:f32, near:f32, far:f32) -> Self {
+        let fov = fov / 180.0 * PI;
+        let projection  = Perspective3::new(aspect, fov, near, far);
+        let projection  = *projection.as_matrix();
+        let object      = default();
+        let camera_type = Perspective { fov, aspect, near, far };
+        let camera_type = CameraType::Perspective(camera_type);
+        Self { object, projection, camera_type }
     }
 
-    pub fn projection(&self) -> &Matrix4<f32> {
-        match self {
-            Camera::Perspective (camera) => &camera.projection,
-            Camera::Orthographic(camera) => &camera.projection
-        }
-    }
-
-    pub fn transform(&self) -> &Transform {
-        match self {
-            Camera::Perspective (camera) => &camera.transform,
-            Camera::Orthographic(camera) => &camera.transform
-        }
-    }
-
-    pub fn transform_mut(&mut self) -> &mut Transform {
-        match self {
-            Camera::Perspective (camera) => &mut camera.transform,
-            Camera::Orthographic(camera) => &mut camera.transform
-        }
-    }
-
-    pub fn perspective(fov:f32, aspect:f32, z_near:f32, z_far:f32) -> Self {
-        Camera::Perspective(CameraPerspective::new(fov, aspect, z_near, z_far))
-    }
-
+    /// Creates an orthographic projection Camera.
     pub fn orthographic(left   : f32,
                         right  : f32,
                         bottom : f32,
                         top    : f32,
                         near   : f32,
                         far    : f32) -> Self {
-        Camera::Orthographic(
-            CameraOrthographic::new(left, right, bottom, top, near, far)
-        )
+        let projection  = Orthographic3::new(left, right, bottom, top, near, far);
+        let projection  = *projection.as_matrix();
+        let object      = default();
+        let camera_type = Orthographic { left, right, bottom, top, near, far };
+        let camera_type = CameraType::Orthographic(camera_type);
+        Self { object, projection, camera_type }
     }
 
-    pub fn position_mut(&mut self) -> &mut Vector3<f32> {
-        match self {
-            Camera::Perspective (camera) => camera.transform.translation_mut(),
-            Camera::Orthographic(camera) => camera.transform.translation_mut()
-        }
-    }
+    /// Gets CameraType.
+    pub fn camera_type(&self) -> &CameraType { &self.camera_type }
 
-    pub fn rotation_mut(&mut self) -> &mut UnitQuaternion<f32> {
-        match self {
-            Camera::Perspective (camera) => camera.transform.rotation_mut(),
-            Camera::Orthographic(camera) => camera.transform.rotation_mut()
-        }
-    }
+    /// Gets projection's y scaling.
+    pub fn get_y_scale(&self) -> f32 { self.projection.m11 }
 
-    pub fn set_rotation(&mut self, roll:f32, pitch:f32, yaw:f32) {
-        match self {
-            Camera::Perspective (camera) => camera.set_rotation(roll, pitch, yaw),
-            Camera::Orthographic(camera) => camera.set_rotation(roll, pitch, yaw)
-        }
+    /// Gets Camera's projection matrix.
+    pub fn projection(&self) -> &Matrix4<f32> { &self.projection }
+
+    /// Gets mutable Camera's projection matrix.
+    pub fn projection_mut(&mut self) -> &mut Matrix4<f32> {
+        &mut self.projection
+    }
+}
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn perspective() {
+        use super::Camera;
+        use nalgebra::Matrix4;
+        let camera   = Camera::perspective(45.0, 1920.0 / 1080.0, 1.0, 1000.0);
+        let expected = Matrix4::new
+            ( 1.357995,       0.0,       0.0,       0.0
+              , 0.0     , 2.4142134,       0.0,       0.0
+              , 0.0     ,       0.0, -1.002002, -2.002002
+              , 0.0     ,       0.0,      -1.0,       0.0
+            );
+        assert_eq!(*camera.projection(), expected);
     }
 }
