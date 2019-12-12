@@ -213,7 +213,7 @@ impl EventHandler {
             MouseEventX::Start(_)         => Event::Start,
             MouseEventX::Move(mouse_move) => {
                 if let Some(start) = &mouse_move.start {
-                    let event = match start.button {
+                    match start.button {
                         MMB => {
                             let mut movement   =  mouse_move.current;
                                     movement  -=  mouse_move.previous;
@@ -227,8 +227,7 @@ impl EventHandler {
                             Event::Zoom(ZoomEvent { focus, amount })
                         },
                         _ => Event::None
-                    };
-                    event
+                    }
                 } else {
                     Event::None
                 }
