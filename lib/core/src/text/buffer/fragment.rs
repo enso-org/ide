@@ -32,6 +32,7 @@ pub struct RenderedFragment {
 
 /// The rendered char position in line and on screen.
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct RenderedChar {
     pub index       : usize,
     pub byte_offset : usize,
@@ -73,7 +74,8 @@ impl RenderedFragment {
     pub fn should_be_updated(&self, displayed_range:&RangeInclusive<f64>, line:&str)
      -> bool {
         let front_rendered  = self.first_char.index == 0;
-        let back_rendered   = self.last_char.index == line.len()-1;
+        let back_char_size  = self.last_char.pen.current_char.map(|ch| ch.len_utf8()).unwrap_or(0);
+        let back_rendered   = self.last_char.byte_offset == line.len() - back_char_size;
         let range           = self.x_range();
 
         let has_on_left     = !front_rendered && displayed_range.start() < range.start();
@@ -184,6 +186,83 @@ mod tests {
     use std::future::Future;
     use wasm_bindgen_test::wasm_bindgen_test;
 
+    #[test]
+    fn fragment_reassignments() {
+        fn assigned_buffer(line:usize) -> BufferFragment {
+            BufferFragment {
+                assigned_line : Some(line),
+                rendered      : None,
+                dirty         : true,
+            }
+        }
+        let lines_range = 4..=6;
+
+        assert!( assigned_buffer(2)          .can_be_reassigned(&lines_range));
+        assert!(!assigned_buffer(4)          .can_be_reassigned(&lines_range));
+        assert!(!assigned_buffer(6)          .can_be_reassigned(&lines_range));
+        assert!( assigned_buffer(7)          .can_be_reassigned(&lines_range));
+        assert!( BufferFragment::unassigned().can_be_reassigned(&lines_range));
+    }
+
+    #[test]
+    fn rendered_fragment_updating() {
+        let line     = "AAAĘĘĘ";
+        let left_pen = Pen {
+            position: Point2::new(1.0, -1.0),
+            current_char: Some('A'),
+            next_advance: 0.6,
+        };
+        let right_pen = Pen {
+            position: Point2::new(12.0, -1.0),
+            current_char: Some('Ę'),
+            next_advance: 0.8,
+        };
+        let front_char = RenderedChar {
+            index: 0,
+            byte_offset: 0,
+            pen: left_pen.clone(),
+        };
+        let back_char = RenderedChar {
+            index:5,
+            byte_offset:7,
+            pen: right_pen.clone()
+        };
+        let some_char1 = RenderedChar {
+            index: 2,
+            byte_offset: 2,
+            pen: left_pen.clone(),
+        };
+        let some_char2 = RenderedChar {
+            index:4,
+            byte_offset: 5,
+            pen: right_pen.clone()
+        };
+        let rendered_front = RenderedFragment {
+            first_char : front_char,
+            last_char  : some_char2.clone(),
+        };
+        let rendered_middle = RenderedFragment {
+            first_char : some_char1.clone(),
+            last_char  : some_char2,
+        };
+        let rendered_back = RenderedFragment {
+            first_char : some_char1,
+            last_char  : back_char
+        };
+        let not_scrolled   = 1.1..=12.7;
+        let scrolled_left  = 0.9..=12.0;
+        let scrolled_right = 2.0..=13.0;
+
+        assert!(!rendered_middle.should_be_updated(&not_scrolled  ,line));
+        assert!( rendered_middle.should_be_updated(&scrolled_left ,line));
+        assert!( rendered_middle.should_be_updated(&scrolled_right,line));
+        assert!(!rendered_front .should_be_updated(&not_scrolled  ,line));
+        assert!(!rendered_front .should_be_updated(&scrolled_left ,line));
+        assert!( rendered_front .should_be_updated(&scrolled_right,line));
+        assert!(!rendered_back  .should_be_updated(&not_scrolled  ,line));
+        assert!( rendered_back  .should_be_updated(&scrolled_left ,line));
+        assert!(!rendered_back  .should_be_updated(&scrolled_right,line));
+    }
 
     #[wasm_bindgen_test(async)]
     fn build_data_for_empty_line() -> impl Future<Output=()> {
