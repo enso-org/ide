@@ -4,8 +4,9 @@ pub mod line;
 
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::{BASE_LAYOUT_SIZE, GlyphAttributeBuilder, GlyphVertexPositionBuilder, GlyphTextureCoordsBuilder};
-use crate::text::buffer::fragment::{BufferFragment, FragmentsDataBuilder, RenderedFragment};
+use crate::text::buffer::glyph_square::
+{BASE_LAYOUT_SIZE,GlyphAttributeBuilder,GlyphVertexPositionBuilder, GlyphTextureCoordsBuilder};
+use crate::text::buffer::fragment::{BufferFragment,FragmentsDataBuilder};
 use crate::text::font::FontRenderInfo;
 
 use basegl_backend_webgl::Context;
@@ -36,6 +37,7 @@ pub struct TextComponentBuffers {
     scrolled_y          : bool,
 }
 
+/// References to all needed stuff for generating buffer's data.
 pub struct ContentRef<'a, 'b> {
     pub lines : &'a[String],
     pub font  : &'b mut FontRenderInfo,
@@ -51,9 +53,33 @@ impl TextComponentBuffers {
         buffers
     }
 
+    /// Change scrolling by given offset and marks appropriate dirties.
+    ///
+    /// The offset is in "text" space, where each line has height of 1.0
+    pub fn scroll(&mut self, offset:Vector2<f64>) {
+        self.scroll_offset += offset;
+        self.scrolled_x    |= offset.x != 0.0;
+        self.scrolled_y    |= offset.y != 0.0;
+    }
+
+    /// Refresh the whole buffers data.
+    pub fn refresh(&mut self, gl_context:&Context, content:ContentRef) {
+        if self.scrolled_y {
+            self.reassign_after_y_scrolling(content.lines);
+        }
+        if self.scrolled_x {
+            self.mark_dirty_after_x_scrolling(content.lines);
+        }
+        if self.scrolled_x || self.scrolled_y {
+            self.refresh_dirty_fragments(gl_context,content);
+        }
+    }
+
+    // === Initialize
+
     fn create_uninitialized(gl_context:&Context, display_size:Vector2<f64>, content:&mut ContentRef)
     -> TextComponentBuffers {
-        let displayed_lines     = display_size.y.ceil() as usize;
+        let displayed_lines     = (display_size.y.ceil() as usize) + 2;
         let space_width         = content.font.get_glyph_info(' ').advance;
         let max_displayed_chars = (display_size.x.ceil() / space_width) as usize;
         TextComponentBuffers {display_size,max_displayed_chars,
@@ -73,53 +99,17 @@ impl TextComponentBuffers {
         fragments.collect()
     }
 
-    fn setup_buffers(&mut self, gl_context:&Context, content:ContentRef) {
-        self.reassign_fragments(content.lines.len());
-        let all_fragments        = 0..self.fragments.len();
-        let builder              = self.build_buffer_data_for_fragments(all_fragments,content);
-        let vertex_position_data = builder.vertex_position_data.as_ref();
-        let texture_coords_data  = builder.texture_coords_data.as_ref();
-        self.set_buffer_data(gl_context,&self.vertex_position, vertex_position_data);
-        self.set_buffer_data(gl_context,&self.texture_coords , texture_coords_data);
-    }
+    // === Reassigning after y scrolling
 
-    pub fn scroll(&mut self, offset:Vector2<f64>) {
-        self.scroll_offset += offset;
-        self.scrolled_x    |= offset.x != 0.0;
-        self.scrolled_y    |= offset.y != 0.0;
-    }
-
-    /// Refresh the whole buffers making them display the given lines.
-    pub fn refresh<'a>
-    (&mut self, gl_context:&Context, content:ContentRef) {
-        if self.scrolled_x {
-            self.reassign_after_x_scrolling(content.lines);
-        }
-        if self.scrolled_y {
-            self.mark_dirty_after_y_scrolling(content.lines);
-        }
-        let dirty_indices = self.fragments.iter().enumerate().filter_map(|(i,f)| f.dirty.and_option_from(|| Some(i)));
-        let first_dirty   = dirty_indices.clone().min();
-        let last_dirty    = dirty_indices.clone().max();
-        match (first_dirty,last_dirty) {
-            (Some(first),Some(last)) => {
-                let builder = self.build_buffer_data_for_fragments(first..=last, content);
-                self.set_vertex_position_buffer_subdata(gl_context,first,&builder);
-                self.set_texture_coords_buffer_subdata (gl_context,first,&builder);
-            }
-            _ => {}
-        }
-    }
-
-    fn reassign_after_x_scrolling(&mut self, lines:&[String]) {
-        let displayed_lines       = self.displayed_lines(lines.len());
-        let current_assignment    = &self.assigned_lines;
-        let new_on_left           = *displayed_lines.start()  .. *current_assignment.start();
-        let new_on_right          = current_assignment.end()+1..=*displayed_lines.end();
-        let mut new_lines         = new_on_left.chain(new_on_right);
+    fn reassign_after_y_scrolling(&mut self, lines:&[String]) {
+        let displayed_lines    = self.displayed_lines(lines.len());
+        let current_assignment = &self.assigned_lines;
+        let new_on_top         = *displayed_lines.start()  .. *current_assignment.start();
+        let new_on_bottom      = current_assignment.end()+1..=*displayed_lines.end();
+        let mut new_lines      = new_on_top.chain(new_on_bottom);
 
         for fragment in &mut self.fragments {
-            if Self::fragment_should_be_reassigned(fragment,&displayed_lines) {
+            if fragment.can_be_reassigned(&displayed_lines) {
                 fragment.assigned_line = new_lines.next();
                 fragment.dirty         = true;
             }
@@ -127,51 +117,25 @@ impl TextComponentBuffers {
         self.assigned_lines = displayed_lines;
     }
 
-    fn fragment_should_be_reassigned
-    (fragment:&BufferFragment, displayed_lines:&RangeInclusive<usize>) -> bool {
-        match fragment.assigned_line {
-            Some(index) => !displayed_lines.contains(&index),
-            None        => true
+    // === Marking dirty after x scrolling
+
+    fn mark_dirty_after_x_scrolling(&mut self, lines:&[String]) {
+        let displayed_x   = self.displayed_x_range();
+        let not_yet_dirty = self.fragments.iter_mut().filter(|f| !f.dirty);
+        for fragment in not_yet_dirty {
+            fragment.dirty = fragment.should_be_dirty(&displayed_x,lines);
         }
     }
 
-    fn mark_dirty_after_y_scrolling(&mut self, lines:&[String]) {
-        let displayed_range = self.displayed_y_range();
-        for fragment in self.fragments.iter_mut().filter(|f| !f.dirty) {
-            let new_dirty = match (&fragment.assigned_line,&fragment.rendered) {
-                (Some(_),Some(ren)) => Self::rendered_line_should_render_new_content(&displayed_range,lines.len(), ren),
-                (Some(_),None     ) => true,
-                (None   ,_        ) => false
-            };
-            fragment.dirty = new_dirty;
-        }
-    }
-
-    fn rendered_line_should_render_new_content(displayed_range:&RangeInclusive<f64>, line_len:usize, rendered:&RenderedFragment) -> bool {
-        let front_rendered  = rendered.first_char.index == 0;
-        let back_rendered   = rendered.last_char.index == line_len-1;
-        let rendered_range  = Self::rendered_y_range(rendered);
-
-        let has_on_left     = !front_rendered && displayed_range.start() < rendered_range.start();
-        let has_on_right    = !back_rendered  && displayed_range.end()   > rendered_range.end();
-        has_on_left || has_on_right
-    }
-
-    fn displayed_y_range(&self) -> RangeInclusive<f64> {
+    fn displayed_x_range(&self) -> RangeInclusive<f64> {
         let begin = self.scroll_offset.x;
         let end   = begin + self.display_size.x;
         begin..=end
     }
 
-    fn rendered_y_range(rendered:&RenderedFragment) -> RangeInclusive<f64> {
-        let begin = rendered.first_char.pen.position.x;
-        let end   = rendered.last_char.pen.position.x + rendered.last_char.pen.next_advance;
-        begin..=end
-    }
-
     fn displayed_lines(&self, lines_count:usize) -> RangeInclusive<usize> {
         let top                      = self.scroll_offset.y;
-        let bottom                   = self.scroll_offset.y + self.display_size.y;
+        let bottom                   = self.scroll_offset.y - self.display_size.y;
         let top_line_clipped         = Self::line_at_y_position(top,lines_count);
         let bottom_line_clipped      = Self::line_at_y_position(bottom,lines_count);
         let first_line_index         = top_line_clipped.unwrap_or(0);
@@ -180,7 +144,7 @@ impl TextComponentBuffers {
     }
 
     fn line_at_y_position(y:f64, lines_count:usize) -> Option<usize> {
-        let index    = -y.floor();
+        let index    = -y.ceil();
         let is_valid = index >= 0.0 && index < lines_count as f64;
         is_valid.and_option_from(|| Some(index as usize))
     }
@@ -196,6 +160,38 @@ impl TextComponentBuffers {
             fragment.assigned_line = new_assignment;
         }
         self.assigned_lines = displayed_lines;
+    }
+
+    // === Creating and refreshing buffer data
+
+    fn setup_buffers(&mut self, gl_context:&Context, content:ContentRef) {
+        self.reassign_fragments(content.lines.len());
+        let all_fragments        = 0..self.fragments.len();
+        let builder              = self.build_buffer_data_for_fragments(all_fragments,content);
+        let vertex_position_data = builder.vertex_position_data.as_ref();
+        let texture_coords_data  = builder.texture_coords_data.as_ref();
+        self.set_buffer_data(gl_context,&self.vertex_position, vertex_position_data);
+        self.set_buffer_data(gl_context,&self.texture_coords , texture_coords_data);
+    }
+
+    fn refresh_dirty_fragments(&mut self, gl_context:&Context, content:ContentRef) {
+        let fragments     = self.fragments.iter().enumerate();
+        let dirty_indices = fragments.filter_map(|(i,f)| f.dirty.and_option_from(|| Some(i)));
+        let first_dirty   = dirty_indices.clone().min();
+        let last_dirty    = dirty_indices.clone().max();
+        if let (Some(first),Some(last)) = (first_dirty,last_dirty) {
+             self.refresh_fragments(gl_context,first..=last, content);
+        }
+        self.scrolled_x = false;
+        self.scrolled_y = false;
+    }
+
+    fn refresh_fragments
+    (&mut self, gl_context:&Context, indexes:RangeInclusive<usize>, content:ContentRef) {
+        let ofsset  = *indexes.start();
+        let builder = self.build_buffer_data_for_fragments(indexes,content);
+        self.set_vertex_position_buffer_subdata(gl_context,ofsset,&builder);
+        self.set_texture_coords_buffer_subdata (gl_context,ofsset,&builder);
     }
 
     fn build_buffer_data_for_fragments<'a, Indexes>
@@ -231,7 +227,7 @@ impl TextComponentBuffers {
 
     fn set_vertex_position_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
-        let fragment_size = GlyphVertexPositionBuilder::OUTPUT_SIZE * self.max_displayed_chars;
+        let fragment_size = GlyphVertexPositionBuilder::OUTPUT_SIZE * self.max_displayed_chars * 4;
         let offset        = fragment_size * fragment_offset;
         let data          = builder.vertex_position_data.as_ref();
         self.set_buffer_subdata(gl_context,&self.vertex_position,offset,data);
@@ -239,7 +235,7 @@ impl TextComponentBuffers {
 
     fn set_texture_coords_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
-        let fragment_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE * self.max_displayed_chars;
+        let fragment_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE * self.max_displayed_chars * 4;
         let offset        = fragment_size * fragment_offset;
         let data          = builder.texture_coords_data.as_ref();
         self.set_buffer_subdata(gl_context,&self.texture_coords,offset,data);

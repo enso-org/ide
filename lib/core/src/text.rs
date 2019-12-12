@@ -71,7 +71,10 @@ impl TextComponent {
 
     fn create_to_window(&self) -> SmallVec<[f32;9]> {
         const ROTATION : f64  = 0.0;
-        let translate         = self.position.coords + Vector2::new(0.0, self.size.y) - (self.buffers.scroll_offset / self.text_size);
+        let window_offset     = Vector2::new(self.buffers.scroll_offset.x*self.text_size, self
+            .buffers.scroll_offset.y*self.text_size);
+        let translate         = self.position.coords + Vector2::new(0.0, self.size.y) -
+            window_offset;
         let scale             = self.text_size;
         let similarity        = Similarity2::new(translate,ROTATION,scale);
         let to_window :  Projective2<f64> = nalgebra::convert(similarity);

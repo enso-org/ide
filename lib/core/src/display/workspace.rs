@@ -91,7 +91,7 @@ pub struct Listeners {
 
 impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
-    pub fn new<Dom: Str>
+    pub fn new<Dom:Str>
     (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
         let dom           = dom.as_ref();

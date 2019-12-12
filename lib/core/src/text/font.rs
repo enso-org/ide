@@ -209,6 +209,11 @@ impl Fonts {
     }
 }
 
+impl Default for Fonts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(test)]
 mod tests {

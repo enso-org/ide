@@ -29,7 +29,7 @@ void main() {
         highp vec3  msdfSample    = texture2D(msdf, vTexCoord).rgb;
         highp float sigDist       = median(msdfSample) - 0.5;
         highp float sigDistPx     = sigDist * avgMsdfUnitPx;
-        highp float opacity       = 0.5 + sigDistPx + dpiDilate*0.1;
+        highp float opacity       = 0.5 + sigDistPx + dpiDilate*0.08;
         gl_FragColor = vec4(color.xyz, color.w * clamp(opacity, 0.0, 1.0));
     }
 }

@@ -5,7 +5,7 @@ use crate::text::buffer::line::LineAttributeBuilder;
 use crate::text::font::FontRenderInfo;
 
 use nalgebra::geometry::Point2;
-use std::ops::Range;
+use std::ops::{Range,RangeInclusive};
 
 // ======================
 // === BufferFragment ===
@@ -43,9 +43,49 @@ impl BufferFragment {
     pub fn unassigned() -> BufferFragment {
         BufferFragment {
             assigned_line     : None,
-            rendered: None,
+            rendered          : None,
             dirty             : false,
         }
+    }
+
+    /// Basing of list of current displayed lines, this function tells if the fragment can be
+    /// assigned to another line.
+    pub fn can_be_reassigned(&self,displayed_lines:&RangeInclusive<usize>) -> bool {
+        match self.assigned_line {
+            Some(index) => !displayed_lines.contains(&index),
+            None        => true
+        }
+    }
+
+    /// Tells if fragment's data should be updated.
+    pub fn should_be_dirty(&self, displayed_x:&RangeInclusive<f64>, lines:&[String]) -> bool {
+        match (&self.assigned_line,&self.rendered) {
+            (Some(line),Some(ren)) => ren.should_be_updated(&displayed_x,lines[*line].as_str()),
+            (Some(_)   ,None     ) => true,
+            (None      ,_        ) => false
+        }
+    }
+}
+
+impl RenderedFragment {
+    /// Tells if fragment needs to be updated because currently rendered content does not covers
+    /// all displayed part of line.
+    pub fn should_be_updated(&self, displayed_range:&RangeInclusive<f64>, line:&str)
+     -> bool {
+        let front_rendered  = self.first_char.index == 0;
+        let back_rendered   = self.last_char.index == line.len()-1;
+        let range           = self.x_range();
+
+        let has_on_left     = !front_rendered && displayed_range.start() < range.start();
+        let has_on_right    = !back_rendered  && displayed_range.end()   > range.end();
+        has_on_left || has_on_right
+    }
+
+    /// X range of rendered line's fragment
+    pub fn x_range(&self) -> RangeInclusive<f64> {
+        let begin = self.first_char.pen.position.x;
+        let end   = self.last_char.pen.position.x + self.last_char.pen.next_advance;
+        begin..=end
     }
 }
 
