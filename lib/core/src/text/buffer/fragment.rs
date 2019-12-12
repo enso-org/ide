@@ -175,6 +175,73 @@ impl<'a> FragmentsDataBuilder<'a> {
 }
 
 
+// =======================
+// === BufferFragments ===
+// =======================
+
+#[derive(Debug)]
+pub struct BufferFragments {
+    pub fragments      : Vec<BufferFragment>,
+    pub assigned_lines : RangeInclusive<usize>,
+}
+
+impl BufferFragments {
+    pub fn new(displayed_lines:usize) -> BufferFragments {
+        let indexes              = 0..displayed_lines;
+        let unassigned_fragments = indexes.map(|_| BufferFragment::unassigned());
+        BufferFragments {
+            fragments      : unassigned_fragments.collect(),
+            assigned_lines : 1..=0,
+        }
+    }
+
+    pub fn reassign_fragments(&mut self, displayed_lines:RangeInclusive<usize>) {
+        let current_assignment = &self.assigned_lines;
+        let new_on_top         = *displayed_lines.start()  .. *current_assignment.start();
+        let new_on_bottom      = current_assignment.end()+1..=*displayed_lines.end();
+        let mut new_lines      = new_on_top.chain(new_on_bottom);
+
+        for fragment in &mut self.fragments {
+            if fragment.can_be_reassigned(&displayed_lines) {
+                fragment.assigned_line = new_lines.next();
+                fragment.dirty         = true;
+            }
+        }
+        self.assigned_lines = displayed_lines;
+    }
+
+    pub fn mark_dirty_after_x_scrolling
+    (&mut self, displayed_x_range:RangeInclusive<f64>, lines:&[String]) {
+        let not_yet_dirty = self.fragments.iter_mut().filter(|f| !f.dirty);
+        for fragment in not_yet_dirty {
+            fragment.dirty = fragment.should_be_dirty(&displayed_x_range,lines);
+        }
+    }
+
+    pub fn minimum_fragments_range_with_all_dirties(&self) -> Option<RangeInclusive<usize>> {
+        let fragments     = self.fragments.iter().enumerate();
+        let dirty_indices = fragments.filter_map(|(i,f)| f.dirty.and_option_from(|| Some(i)));
+        let first_dirty   = dirty_indices.clone().min();
+        let last_dirty    = dirty_indices.clone().max();
+        match (first_dirty,last_dirty) {
+            (Some(first),Some(last)) => Some(first..=last),
+            _                        => None,
+        }
+    }
+
+    pub fn build_buffer_data_for_fragments<Indexes>
+    (&mut self, fragments:Indexes, builder:&mut FragmentsDataBuilder, lines:&[String])
+    where Indexes : Iterator<Item=usize> {
+        for fragment_id in fragments {
+            let fragment      = &mut self.fragments[fragment_id];
+            let index         = fragment.assigned_line.unwrap_or(0);
+            let line          = fragment.assigned_line.map_or("", |i| lines[i].as_str());
+            fragment.rendered = builder.build_for_line(index, line);
+            fragment.dirty    = false;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,47 +275,26 @@ mod tests {
     fn rendered_fragment_updating() {
         let line     = "AAAĘĘĘ";
         let left_pen = Pen {
-            position: Point2::new(1.0, -1.0),
-            current_char: Some('A'),
-            next_advance: 0.6,
+            position     : Point2::new(1.0, -1.0),
+            current_char : Some('A'),
+            next_advance : 0.6,
         };
         let right_pen = Pen {
-            position: Point2::new(12.0, -1.0),
-            current_char: Some('Ę'),
-            next_advance: 0.8,
+            position     : Point2::new(12.0, -1.0),
+            current_char : Some('Ę'),
+            next_advance : 0.8,
         };
-        let front_char = RenderedChar {
-            index: 0,
-            byte_offset: 0,
-            pen: left_pen.clone(),
-        };
-        let back_char = RenderedChar {
-            index:5,
-            byte_offset:7,
-            pen: right_pen.clone()
-        };
-        let some_char1 = RenderedChar {
-            index: 2,
-            byte_offset: 2,
-            pen: left_pen.clone(),
-        };
-        let some_char2 = RenderedChar {
-            index:4,
-            byte_offset: 5,
-            pen: right_pen.clone()
-        };
-        let rendered_front = RenderedFragment {
-            first_char : front_char,
-            last_char  : some_char2.clone(),
-        };
-        let rendered_middle = RenderedFragment {
-            first_char : some_char1.clone(),
-            last_char  : some_char2,
-        };
-        let rendered_back = RenderedFragment {
-            first_char : some_char1,
-            last_char  : back_char
-        };
+        let left_char  = |index,byte_offset| RenderedChar{index,byte_offset,pen:left_pen.clone()};
+        let right_char = |index,byte_offset| RenderedChar{index,byte_offset,pen:right_pen.clone()};
+        let front      = left_char(0,0);
+        let back       = right_char(5,7);
+        let some_left  = left_char(2,2);
+        let some_right = right_char(4,5);
+
+        let rendered_front  = RenderedFragment{first_char:front, last_char:some_right.clone()};
+        let rendered_middle = RenderedFragment{first_char:some_left.clone(), last_char:some_right};
+        let rendered_back   = RenderedFragment {first_char:some_left, last_char:back};
+
         let not_scrolled   = 1.1..=12.7;
         let scrolled_left  = 0.9..=12.0;
         let scrolled_right = 2.0..=13.0;
