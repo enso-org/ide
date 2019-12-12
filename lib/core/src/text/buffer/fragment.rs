@@ -179,6 +179,7 @@ impl<'a> FragmentsDataBuilder<'a> {
 // === BufferFragments ===
 // =======================
 
+/// A structure managing many buffer fragments.
 #[derive(Debug)]
 pub struct BufferFragments {
     pub fragments      : Vec<BufferFragment>,
@@ -186,6 +187,8 @@ pub struct BufferFragments {
 }
 
 impl BufferFragments {
+
+    /// Create the unassigned fragments for each displayed line.
     pub fn new(displayed_lines:usize) -> BufferFragments {
         let indexes              = 0..displayed_lines;
         let unassigned_fragments = indexes.map(|_| BufferFragment::unassigned());
@@ -195,6 +198,9 @@ impl BufferFragments {
         }
     }
 
+    /// Make minimum fragments reassignment to cover the all displayed lines.
+    ///
+    /// Reassigned buffers are marked as dirty.
     pub fn reassign_fragments(&mut self, displayed_lines:RangeInclusive<usize>) {
         let current_assignment = &self.assigned_lines;
         let new_on_top         = *displayed_lines.start()  .. *current_assignment.start();
@@ -210,6 +216,9 @@ impl BufferFragments {
         self.assigned_lines = displayed_lines;
     }
 
+    /// Mark as dirty all fragments which should be refreshed after x scrolling.
+    ///
+    /// We should refresh fragment when after scroll a not-yet-rendered fragment of line appears.
     pub fn mark_dirty_after_x_scrolling
     (&mut self, displayed_x_range:RangeInclusive<f64>, lines:&[String]) {
         let not_yet_dirty = self.fragments.iter_mut().filter(|f| !f.dirty);
@@ -218,6 +227,7 @@ impl BufferFragments {
         }
     }
 
+    /// Get the minimum fragment id range covering all dirties.
     pub fn minimum_fragments_range_with_all_dirties(&self) -> Option<RangeInclusive<usize>> {
         let fragments     = self.fragments.iter().enumerate();
         let dirty_indices = fragments.filter_map(|(i,f)| f.dirty.and_option_from(|| Some(i)));
@@ -229,6 +239,7 @@ impl BufferFragments {
         }
     }
 
+    /// Use builder to build data for fragments.
     pub fn build_buffer_data_for_fragments<Indexes>
     (&mut self, fragments:Indexes, builder:&mut FragmentsDataBuilder, lines:&[String])
     where Indexes : Iterator<Item=usize> {
@@ -255,19 +266,12 @@ mod tests {
 
     #[test]
     fn fragment_reassignments() {
-        fn assigned_buffer(line:usize) -> BufferFragment {
-            BufferFragment {
-                assigned_line : Some(line),
-                rendered      : None,
-                dirty         : true,
-            }
-        }
         let lines_range = 4..=6;
 
-        assert!( assigned_buffer(2)          .can_be_reassigned(&lines_range));
-        assert!(!assigned_buffer(4)          .can_be_reassigned(&lines_range));
-        assert!(!assigned_buffer(6)          .can_be_reassigned(&lines_range));
-        assert!( assigned_buffer(7)          .can_be_reassigned(&lines_range));
+        assert!( make_assigned_buffer(2)     .can_be_reassigned(&lines_range));
+        assert!(!make_assigned_buffer(4)     .can_be_reassigned(&lines_range));
+        assert!(!make_assigned_buffer(6)     .can_be_reassigned(&lines_range));
+        assert!( make_assigned_buffer(7)     .can_be_reassigned(&lines_range));
         assert!( BufferFragment::unassigned().can_be_reassigned(&lines_range));
     }
 
@@ -413,5 +417,39 @@ mod tests {
             assert_eq!(0, result.first_char.byte_offset);
             assert_eq!(2, result.last_char.byte_offset);
         })
+    }
+
+    #[test]
+    fn fragments_reassign() {
+        let assigned_lines   = 4..=6;
+        let new_assignment_1 = 2..=5;
+        let new_assignment_2 = 5..=8;
+        let mut fragments = BufferFragments {
+            assigned_lines : assigned_lines.clone(),
+            fragments      : assigned_lines.map(make_assigned_buffer).collect(),
+        };
+        fragments.fragments.push(BufferFragment::unassigned());
+
+        fragments.reassign_fragments(new_assignment_1.clone());
+        let expected_assignments_1 = vec![4,5,2,3];
+        let assignments_1_iter     = fragments.fragments.iter().map(|f| f.assigned_line.unwrap());
+        let assignments_1          = assignments_1_iter.collect::<Vec<usize>>();
+        assert_eq!(new_assignment_1      , fragments.assigned_lines);
+        assert_eq!(expected_assignments_1, assignments_1);
+
+        fragments.reassign_fragments(new_assignment_2.clone());
+        let expected_assignments_2 = vec![6,5,7,8];
+        let assignments_2_iter     = fragments.fragments.iter().map(|f| f.assigned_line.unwrap());
+        let assignments_2          = assignments_2_iter.collect::<Vec<usize>>();
+        assert_eq!(new_assignment_2      , fragments.assigned_lines);
+        assert_eq!(expected_assignments_2, assignments_2);
+    }
+
+    fn make_assigned_buffer(line:usize) -> BufferFragment {
+        BufferFragment {
+            assigned_line : Some(line),
+            rendered      : None,
+            dirty         : true,
+        }
     }
 }

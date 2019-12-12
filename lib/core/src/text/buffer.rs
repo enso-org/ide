@@ -74,12 +74,19 @@ impl TextComponentBuffers {
         if self.scrolled_x || self.scrolled_y {
             let opt_dirty_range = self.fragments.minimum_fragments_range_with_all_dirties();
             if let Some(dirty_range) = opt_dirty_range {
-                self.refresh_fragments(gl_context,dirty_range,content);
+                self.refresh_fragments(gl_context,dirty_range,content); // Note[refreshing buffers]
             }
             self.scrolled_x = true;
             self.scrolled_y = true;
         }
     }
+
+    /* Note[refreshing buffer]
+     *
+     * The data exchange with GPU have so big overhead, that we usually replace buffer data with
+     * one operation. That's why we gathering range with all dirties possibly catching many
+     * not-dirty fragments.
+     */
 
     fn create_uninitialized(gl_context:&Context, display_size:Vector2<f64>, content:&mut ContentRef)
     -> TextComponentBuffers {
