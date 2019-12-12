@@ -14,7 +14,11 @@ use web_sys::HtmlCanvasElement;
 use web_sys::WebGlRenderingContext;
 use web_sys::Performance;
 use web_sys::Node;
+use web_sys::MouseEvent;
+use web_sys::EventTarget;
+use js_sys::Function;
 use std::fmt::Debug;
+
 
 pub use web_sys::console;
 
@@ -175,6 +179,25 @@ macro_rules! group {
         group!($logger, format!($str,$a1,$a2,$a3), $body)
     }};
 }
+
+// =============
+// === Utils ===
+// =============
+
+/// Ignores context menu on right mouse button click.
+pub fn ignore_context_menu(target:&EventTarget) -> Closure<dyn Fn(MouseEvent)> {
+    let closure = move |event:MouseEvent| {
+        const RMB : i16 = 2;
+        if  event.button() == RMB {
+            event.prevent_default();
+        }
+    };
+    let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
+    let callback : &Function = closure.as_ref().unchecked_ref();
+    target.add_event_listener_with_callback("contextmenu", callback).unwrap();
+    closure
+}
+
 
 // ===================
 // === DOM Helpers ===

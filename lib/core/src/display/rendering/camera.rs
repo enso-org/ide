@@ -1,11 +1,8 @@
 use crate::prelude::*;
 
-use crate::display::rendering::Transform;
 use super::Object;
 
 use nalgebra::base::Matrix4;
-use nalgebra::Vector3;
-use nalgebra::UnitQuaternion;
 use nalgebra::geometry::Perspective3;
 use nalgebra::geometry::Orthographic3;
 use std::f32::consts::PI;

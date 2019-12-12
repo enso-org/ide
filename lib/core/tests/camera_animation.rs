@@ -17,7 +17,6 @@ mod tests {
     use basegl::display::navigation::Navigator;
 
     use nalgebra::Vector3;
-    use std::f32::consts::PI;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();

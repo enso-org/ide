@@ -30,8 +30,8 @@ mod tests {
 
     #[web_test(no_container)]
     fn invalid_container() {
-        let renderer = HTMLRenderer::new("nonexistent_id");
-        assert!(renderer.is_err(), "nonexistent_id should not exist");
+        let renderer = HTMLRenderer::new("invalid_container");
+        assert!(renderer.is_err(), "invalid_container should not exist");
     }
 
     #[web_test]
@@ -218,7 +218,7 @@ mod tests {
         })
     }
 
-    #[web_bench]
+    #[web_bench(width = 640.0, height = 480.0)]
     fn object_x400_update(b: &mut Bencher) {
         let renderer = HTMLRenderer::new("object_x400_update")
                                     .expect("Renderer couldn't be created");
