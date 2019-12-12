@@ -151,7 +151,7 @@ impl Transform {
 // === HierarchicalTransform ===
 // =============================
 
-pub struct HierarchicalTransform<OnChange> {
+pub struct CachedTransform<OnChange> {
     transform        : Transform,
     transform_matrix : Matrix4<f32>,
     origin           : Matrix4<f32>,
@@ -160,7 +160,7 @@ pub struct HierarchicalTransform<OnChange> {
     pub logger       : Logger,
 }
 
-impl<OnChange> HierarchicalTransform<OnChange> {
+impl<OnChange> CachedTransform<OnChange> {
     pub fn new(logger:Logger, on_change:OnChange) -> Self {
         let logger_dirty     = logger.sub("dirty");
         let transform        = default();
@@ -192,7 +192,7 @@ impl<OnChange> HierarchicalTransform<OnChange> {
 
 // === Getters ===
 
-impl<OnChange> HierarchicalTransform<OnChange> {
+impl<OnChange> CachedTransform<OnChange> {
     pub fn position(&self) -> &Vector3<f32> {
         &self.transform.position
     }
@@ -217,7 +217,7 @@ impl<OnChange> HierarchicalTransform<OnChange> {
 
 // === Setters ===
 
-impl<OnChange:Callback0> HierarchicalTransform<OnChange> {
+impl<OnChange:Callback0> CachedTransform<OnChange> {
     pub fn position_mut(&mut self) -> &mut Vector3<f32> {
         self.dirty.set();
         &mut self.transform.position
@@ -272,14 +272,14 @@ impl<OnChange:Callback0> HierarchicalTransform<OnChange> {
 /// It is not easy to discover such situations, but maybe it will be worth to add some additional
 /// safety on top of that in the future.
 #[derive(Clone,Shrinkwrap)]
-pub struct DisplayObject {
-    rc: Rc<RefCell<DisplayObjectData>>,
+pub struct HierarchicalTransform {
+    rc: Rc<RefCell<HierarchicalTransformData>>,
 }
 
-impl DisplayObject {
+impl HierarchicalTransform {
     /// Creates a new object instance.
     pub fn new(logger:Logger) -> Self {
-        let data = DisplayObjectData::new(logger);
+        let data = HierarchicalTransformData::new(logger);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -301,7 +301,7 @@ impl DisplayObject {
     }
 
     /// Gets a reference to a parent object, if exists.
-    pub fn parent(&self) -> Option<DisplayObject> {
+    pub fn parent(&self) -> Option<HierarchicalTransform> {
         self.borrow().parent().map(|t| t.clone_rc())
     }
 
@@ -321,7 +321,7 @@ impl DisplayObject {
     }
 
     /// Adds a new `DisplayObject` as a child to the current one.
-    pub fn add_child(&self, child:&DisplayObject) {
+    pub fn add_child(&self, child:&HierarchicalTransform) {
         group!(self.borrow().logger, "Adding child.", {
             let child_bind = child.remove_parent_bind();
             child_bind.iter().for_each(|t| t.dispose());
@@ -335,7 +335,7 @@ impl DisplayObject {
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn remove_child(&self, child:&DisplayObject) {
+    pub fn remove_child(&self, child:&HierarchicalTransform) {
         child.parent_bind().iter().for_each(|bind| {
             if self == &bind.parent { self.remove_child_by_index(bind.index) }
         })
@@ -358,7 +358,7 @@ impl DisplayObject {
 
 // === Getters ===
 
-impl DisplayObject {
+impl HierarchicalTransform {
     pub fn global_position(&self) -> Vector3<f32> {
         self.borrow().global_position()
     }
@@ -383,7 +383,7 @@ impl DisplayObject {
 
 // === Setters ===
 
-impl DisplayObject {
+impl HierarchicalTransform {
     pub fn set_position(&self, t:Vector3<f32>) {
         self.borrow_mut().set_position(t);
     }
@@ -412,13 +412,13 @@ impl DisplayObject {
 
 // === Instances ===
 
-impl From<Rc<RefCell<DisplayObjectData>>> for DisplayObject {
-    fn from(rc: Rc<RefCell<DisplayObjectData>>) -> Self {
+impl From<Rc<RefCell<HierarchicalTransformData>>> for HierarchicalTransform {
+    fn from(rc: Rc<RefCell<HierarchicalTransformData>>) -> Self {
         Self {rc}
     }
 }
 
-impl PartialEq for DisplayObject {
+impl PartialEq for HierarchicalTransform {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
     }
@@ -429,7 +429,7 @@ impl PartialEq for DisplayObject {
 
 #[derive(Clone)]
 pub struct ParentBind {
-    pub parent : DisplayObject,
+    pub parent : HierarchicalTransform,
     pub index  : usize
 }
 
@@ -445,10 +445,10 @@ impl ParentBind {
 // === DisplayObjectData ===
 // =========================
 
-pub struct DisplayObjectData {
+pub struct HierarchicalTransformData {
     pub parent_bind      : Option<ParentBind>,
-    pub children         : OptVec<DisplayObject>,
-    pub transform        : HierarchicalTransform<Option<OnChange>>,
+    pub children         : OptVec<HierarchicalTransform>,
+    pub transform        : CachedTransform<Option<OnChange>>,
     pub child_dirty      : ChildDirty,
     pub new_parent_dirty : NewParentDirty,
     pub logger           : Logger,
@@ -471,11 +471,11 @@ fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 
 // === API ===
 
-impl DisplayObjectData {
+impl HierarchicalTransformData {
     pub fn new(logger:Logger) -> Self {
         let parent_bind      = default();
         let children         = default();
-        let transform        = HierarchicalTransform::new(logger.sub("transform"),None);
+        let transform        = CachedTransform::new(logger.sub("transform"), None);
         let child_dirty      = ChildDirty::new(logger.sub("child_dirty"),None);
         let new_parent_dirty = NewParentDirty::new(logger.sub("new_parent_dirty"),());
         Self {parent_bind,children,transform,child_dirty,new_parent_dirty,logger}
@@ -486,7 +486,7 @@ impl DisplayObjectData {
         self.child_dirty.set_callback(callback);
     }
 
-    pub fn parent(&self) -> Option<&DisplayObject> {
+    pub fn parent(&self) -> Option<&HierarchicalTransform> {
         self.parent_bind.as_ref().map(|ref t| &t.parent)
     }
 
@@ -516,7 +516,7 @@ impl DisplayObjectData {
         self.parent_bind.take()
     }
 
-    pub fn insert_child_raw(&mut self, child:&DisplayObject) -> usize {
+    pub fn insert_child_raw(&mut self, child:&HierarchicalTransform) -> usize {
         let child_rc = child.clone();
         let index    = self.children.insert(child_rc);
         self.child_dirty.set(index);
@@ -569,7 +569,7 @@ impl DisplayObjectData {
 
 // === Getters ===
 
-impl DisplayObjectData {
+impl HierarchicalTransformData {
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.global_position()
     }
@@ -594,7 +594,7 @@ impl DisplayObjectData {
 
 // === Setters ===
 
-impl DisplayObjectData {
+impl HierarchicalTransformData {
     pub fn position_mut(&mut self) -> &mut Vector3<f32> {
         self.transform.position_mut()
     }
@@ -646,9 +646,9 @@ mod tests {
 
     #[test]
     fn hierarchy_test() {
-        let obj1 = DisplayObject::new(Logger::new("obj1"));
-        let obj2 = DisplayObject::new(Logger::new("obj2"));
-        let obj3 = DisplayObject::new(Logger::new("obj3"));
+        let obj1 = HierarchicalTransform::new(Logger::new("obj1"));
+        let obj2 = HierarchicalTransform::new(Logger::new("obj2"));
+        let obj3 = HierarchicalTransform::new(Logger::new("obj3"));
 
         obj1.add_child(&obj2);
         assert_eq!(obj2.index(), Some(0));
@@ -662,9 +662,9 @@ mod tests {
 
     #[test]
     fn transformation_test() {
-        let obj1 = DisplayObject::new(Logger::new("obj1"));
-        let obj2 = DisplayObject::new(Logger::new("obj2"));
-        let obj3 = DisplayObject::new(Logger::new("obj3"));
+        let obj1 = HierarchicalTransform::new(Logger::new("obj1"));
+        let obj2 = HierarchicalTransform::new(Logger::new("obj2"));
+        let obj3 = HierarchicalTransform::new(Logger::new("obj3"));
 
         assert_eq!(obj1.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(obj2.position()        , Vector3::new(0.0,0.0,0.0));
@@ -777,26 +777,39 @@ impl Default for Clipping {
 #[derive(Shrinkwrap)]
 pub struct Camera {
     #[shrinkwrap(main_field)]
-    pub object        : DisplayObject,
-    projection        : Projection,
-    clipping          : Clipping,
-    projection_matrix : Matrix4<f32>,
-    view_matrix       : Matrix4<f32>
+    pub transform          : HierarchicalTransform,
+    projection             : Projection,
+    clipping               : Clipping,
+    view_matrix            : Matrix4<f32>,
+    projection_matrix      : Matrix4<f32>,
+    view_projection_matrix : Matrix4<f32>,
+    projection_dirty       : ProjectionDirty,
+    transform_dirty        : TransformDirty2
 }
+
+type ProjectionDirty = dirty::SharedBool<()>;
+type TransformDirty2 = dirty::SharedBool<()>;
 
 impl Camera {
     pub fn new(logger: Logger) -> Self {
-        let mut object        = DisplayObject::new(logger);
-        let projection        = default();
-        let clipping          = default();
-        let projection_matrix = Matrix4::identity();
-        let view_matrix       = Matrix4::identity();
-        object.mod_position(|t| t.z = 1.0);
-        Self {object,projection,clipping,projection_matrix,view_matrix}
+        let projection             = default();
+        let clipping               = default();
+        let view_matrix            = Matrix4::identity();
+        let projection_matrix      = Matrix4::identity();
+        let view_projection_matrix = Matrix4::identity();
+        let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
+        let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
+        let mut transform          = HierarchicalTransform::new(logger);
+        transform.mod_position(|t| t.z = 1.0);
+        Self {transform,projection,clipping,view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
 
-    pub fn update_projection(&mut self) {
-        let projection  = match &self.projection {
+    pub fn recompute_view_matrix(&mut self) {
+        self.view_matrix = self.transform.matrix().try_inverse().unwrap()
+    }
+
+    pub fn recompute_projection_matrix(&mut self) {
+        self.projection_matrix = match &self.projection {
             Projection::Perspective(p) => {
                 let fov_radians = p.fov * std::f32::consts::PI / 180.0;
                 let near        = self.clipping.near;
@@ -805,7 +818,23 @@ impl Camera {
             }
             _ => unimplemented!()
         };
-        self.projection_matrix = projection;
+    }
+
+    pub fn update(&mut self) {
+        let mut changed = false;
+        if self.transform_dirty.check() {
+            self.recompute_view_matrix();
+            self.transform_dirty.unset();
+            changed = true;
+        }
+        if self.projection_dirty.check() {
+            self.recompute_projection_matrix();
+            self.projection_dirty.unset();
+            changed = true;
+        }
+        if changed {
+            self.view_projection_matrix = self.projection_matrix * self.view_matrix;
+        }
     }
 }
 
@@ -822,29 +851,67 @@ impl Camera {
 
 // === Setters ===
 
-//impl Camera {
-//    pub fn aspect_mut(&mut self) -> &mut f32 {
-//
-//    }
-//}
+impl Camera {
+    pub fn projection_mut(&mut self) -> &mut Projection {
+        self.projection_dirty.set();
+        &mut self.projection
+    }
+
+    pub fn clipping_mut(&mut self) -> &mut Clipping {
+        self.projection_dirty.set();
+        &mut self.clipping
+    }
+}
 
 //ar viewMatrix = m4.inverse(cameraMatrix);
 
 
 
-pub trait WidgetData {
-    type Value;
-
-    fn value     (&    self) -> &    Self::Value;
-    fn value_mut (&mut self) -> &mut Self::Value;
-
-    fn draw(&self);
-}
-
-struct Slider {
-
-}
-
-impl Slider {
-
-}
+//pub trait WidgetData {
+//    type Value;
+//
+//    fn value     (&    self) -> &    Self::Value;
+//    fn value_mut (&mut self) -> &mut Self::Value;
+//
+//    fn draw(&self);
+//}
+//
+//struct Slider {
+//
+//}
+//
+//impl Slider {
+//
+//}
+//
+//
+//struct SymbolRegistry {
+//    pub vec: Vec<Symbol>
+//}
+//
+//struct SymbolInstanceRegistry {
+//    pub instances: Vec<SymbolInstance>
+//}
+//
+//struct Symbol {
+//    pub mesh   : Mesh,
+//
+//}
+//
+//struct SymbolInstance {
+//    pub object   : DisplayObject,
+//    pub position : Var<Vector3<f32>>,
+//}
+//
+//
+//pub fn main() {
+//    let symbol_def = SymbolDef::new(EDSL...);
+//    let symbol     = scene.register_symbol(symbol_def);
+//
+//    let s1 = symbol.new_instance();
+//    let s2 = symbol.new_instance();
+//
+//
+//    mouse().position().with(|p| s1.set_position(p));
+//
+//}
