@@ -9,7 +9,7 @@ mod huge_text_generator {
     use std::path::Path;
 
 
-    const MANY        : usize = 10000;
+    const MANY        : usize = 100000;
     const NOT_SO_MANY : usize = 100;
 
     /// Create a file with many lines.

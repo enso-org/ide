@@ -146,7 +146,7 @@ mod tests {
                     let workspace          = &mut world.workspaces[world_test.workspace_id];
                     let text_component     = &mut workspace.text_components[0];
                     for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let block          = i/200;
+                        let block          = i/1000000;
                         let step           = if block % 2 == 0 {-0.1} else {0.1};
                         text_component.scroll(Vector2::new(0.0,step));
                         world.workspace_dirty.set(world_test.workspace_id);
@@ -167,7 +167,7 @@ mod tests {
                     let workspace          = &mut world.workspaces[world_test.workspace_id];
                     let text_component     = &mut workspace.text_components[0];
                     for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let block          = i/200;
+                        let block          = i/1000000;
                         let step           = if block % 2 == 0 {0.1} else {-0.1};
                         text_component.scroll(Vector2::new(step,0.0));
                         world.workspace_dirty.set(world_test.workspace_id);
