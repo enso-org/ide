@@ -54,7 +54,7 @@ mod tests {
         scene
     }
 
-    fn perspective_camera(b: &mut Bencher, name:&str) {
+    fn navigator_test(b: &mut Bencher, name:&str) {
         let renderer = HTMLRenderer::new(name)
             .expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
@@ -87,13 +87,13 @@ mod tests {
         })
     }
 
+    // We create two tests to verify that each HtmlElement has its own
+    // Navigator.
     #[web_bench]
-    fn perspective_camera_1(b: &mut Bencher) {
+    fn navigator_test_1(b: &mut Bencher) {
         perspective_camera(b, "perspective_camera_1")
     }
 
     #[web_bench]
-    fn perspective_camera_2(b: &mut Bencher) {
-        perspective_camera(b, "perspective_camera_2")
-    }
+    fn navigator_test_2(b: &mut Bencher) { perspective_camera(b, "perspective_camera_2") }
 }
