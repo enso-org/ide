@@ -35,7 +35,8 @@ features = [
   'console',
   'Performance',
   'KeyboardEvent',
-  'KeyEvent'
+  'KeyEvent',
+  'MouseEvent'
 ]
 
 [dev-dependencies]
