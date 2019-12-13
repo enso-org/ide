@@ -180,12 +180,26 @@ macro_rules! group {
     }};
 }
 
+
+// ============================
+// === EventListeningResult ===
+// ============================
+
+pub type EventListeningResult<A> = std::result::Result<A, EventListeningError>;
+
+#[derive(Debug)]
+pub enum EventListeningError {
+    AddEventListenerFail,
+}
+
+
 // =============
 // === Utils ===
 // =============
 
-/// Ignores context menu on right mouse button click.
-pub fn ignore_context_menu(target:&EventTarget) -> Closure<dyn Fn(MouseEvent)> {
+/// Ignores context menu when clicking with the right mouse button.
+pub fn ignore_context_menu
+    (target:&EventTarget) -> EventListeningResult<Closure<dyn Fn(MouseEvent)>> {
     let closure = move |event:MouseEvent| {
         const RMB : i16 = 2;
         if  event.button() == RMB {
@@ -194,8 +208,10 @@ pub fn ignore_context_menu(target:&EventTarget) -> Closure<dyn Fn(MouseEvent)> {
     };
     let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
-    target.add_event_listener_with_callback("contextmenu", callback).unwrap();
-    closure
+    match target.add_event_listener_with_callback("contextmenu", callback) {
+        Ok(_)  => Ok(closure),
+        Err(_) => Err(EventListeningError::AddEventListenerFail)
+    }
 }
 
 

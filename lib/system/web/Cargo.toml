@@ -34,6 +34,7 @@ features = [
   'Window',
   'console',
   'Performance',
+  'Event',
   'KeyboardEvent',
   'KeyEvent',
   'MouseEvent'

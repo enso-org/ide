@@ -40,8 +40,9 @@ mod tests {
         ];
 
         for i in 0..=3 {
-            let mut object = HTMLObject::new("div").unwrap();
-            let (x, y) = positions[i];
+            let     object = HTMLObject::new("div");
+            let mut object = object.expect("Couldn't create div");
+            let (x, y)     = positions[i];
             object.set_dimensions(width, height);
             object.set_position(width * x, height * y, 0.0);
             let (r, g, b) = colors[i];
@@ -73,7 +74,8 @@ mod tests {
         let z = y * camera.get_y_scale();
         *camera.position_mut() = Vector3::new(x, y, z);
 
-        let mut navigator = Navigator::new(&renderer.container, &camera);
+        let navigator     = Navigator::new(&renderer.container, &camera);
+        let mut navigator = navigator.expect("Couldn't create navigator");
 
         let mut t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {

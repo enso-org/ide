@@ -1,15 +1,13 @@
-// FIXME: Code still needs to be cleaned up.
-
 use crate::prelude::*;
-
-use crate::display::rendering::Camera;
-use crate::display::rendering::CameraType;
-use crate::display::rendering::DOMContainer;
 
 use super::EventHandler;
 use super::Event;
 use super::ZoomEvent;
 use super::PanEvent;
+use crate::system::web::EventListeningResult as Result;
+use crate::display::rendering::Camera;
+use crate::display::rendering::CameraType;
+use crate::display::rendering::DOMContainer;
 
 use nalgebra::Vector3;
 
@@ -17,6 +15,7 @@ use nalgebra::Vector3;
 // === Animation ===
 // =================
 
+/// Struct used to store animation related properties.
 struct Animation {
     desired_pos  : Vector3<f32>,
     vel          : Vector3<f32>,
@@ -32,15 +31,17 @@ struct Animation {
 // === Navigator ===
 // =================
 
+/// Navigator enables camera navigation with mouse interactions on the specified
+/// DOM.
 pub struct Navigator {
-    dom       : DOMContainer,
-    events    : Rc<EventHandler>,
-    anim: Animation
+    dom    : DOMContainer,
+    events : Rc<EventHandler>,
+    anim   : Animation
 }
 
 impl Navigator {
-    pub fn new(dom:&DOMContainer, camera:&Camera) -> Self {
-        let events        = EventHandler::new(dom);
+    pub fn new(dom:&DOMContainer, camera:&Camera) -> Result<Self> {
+        let events        = EventHandler::new(dom)?;
         let dom           = dom.clone();
 
         let desired_pos   = *camera.position();
@@ -63,9 +64,21 @@ impl Navigator {
             min_vel
         };
 
-        Self { dom, events, anim: animation }
+        Ok(Self { dom, events, anim: animation })
     }
 
+    /// Polls for mouse events and navigates the camera.
+    pub fn navigate(&mut self, camera:&mut Camera, delta_seconds:f32) {
+        match self.events.poll() {
+            Event::Start      => self.anim.desired_pos = *camera.position(),
+            Event::Zoom(zoom) => self.zoom(camera, zoom),
+            Event::Pan(pan)   => self.pan(camera, pan),
+            Event::None       => ()
+        }
+        self.animate(camera, delta_seconds);
+    }
+
+    /// For zooming into a desired focused position.
     fn zoom(&mut self, camera:&mut Camera, zoom:ZoomEvent) {
         if let CameraType::Perspective(persp) = camera.camera_type() {
             let point        = zoom.focus - self.dom.position();
@@ -88,6 +101,7 @@ impl Navigator {
         }
     }
 
+    /// To pan to an offset.
     fn pan(&mut self, camera:&mut Camera, pan:PanEvent) {
         if let CameraType::Perspective(_) = camera.camera_type() {
             let base_z = self.dom.dimensions().y / 2.0 * camera.get_y_scale();
@@ -101,16 +115,7 @@ impl Navigator {
         }
     }
 
-    pub fn navigate(&mut self, camera:&mut Camera, dt:f32) {
-        match self.events.poll() {
-            Event::Start      => self.anim.desired_pos = *camera.position(),
-            Event::Zoom(zoom) => self.zoom(camera, zoom),
-            Event::Pan(pan)   => self.pan(camera, pan),
-            Event::None       => ()
-        }
-        self.animate(camera, dt);
-    }
-
+    /// Animates the camera in a fixed frame rate.
     fn animate(&mut self, camera:&mut Camera, dt:f32) {
         self.anim.time_count += dt;
         let frame_time = 1.0 / self.anim.desired_rate;
@@ -120,6 +125,7 @@ impl Navigator {
         }
     }
 
+    /// Runs camera animation.
     fn tick(&mut self, camera:&mut Camera) {
         let animation     = &mut self.anim;
         let desired_pos   = animation.desired_pos;

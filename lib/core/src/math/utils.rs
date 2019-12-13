@@ -39,12 +39,13 @@ pub struct Float32ArrayView<'a> {
 
 pub trait IntoFloat32ArrayView {
     /// # Safety
-    /// Views into WebAssembly memory are only valid so long as the backing buffer isn't resized in
-    /// JS. Once this function is called any future calls to Box::new (or malloc of any form) may
-    /// cause the returned value here to be invalidated. Use with caution!
+    /// Views into WebAssembly memory are only valid so long as the backing
+    /// buffer isn't resized in JS. Once this function is called any future
+    /// calls to Box::new (or malloc of any form) may cause the returned value
+    /// here to be invalidated. Use with caution!
     ///
-    /// Additionally the returned object can be safely mutated but the input slice isn't guaranteed
-    /// to be mutable.
+    /// Additionally the returned object can be safely mutated but the input
+    /// slice isn't guaranteed to be mutable.
     unsafe fn into_float32_array_view(&self) -> Float32ArrayView<'_>;
 }
 

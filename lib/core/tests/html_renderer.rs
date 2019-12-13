@@ -44,7 +44,7 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let mut object = HTMLObject::new("div").unwrap();
+        let mut object = HTMLObject::new("div").expect("Couldn't create div");
         object.set_position(0.0, 0.0, 0.0);
         object.dom.set_property_or_panic("background-color", "black");
         object.set_dimensions(100.0, 100.0);
