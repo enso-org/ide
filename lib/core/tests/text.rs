@@ -69,7 +69,7 @@ mod tests {
 
     use super::WorldTest;
     use basegl::Color;
-    use basegl::display::world::{World,WorkspaceID};
+    use basegl::display::world::World;
     use basegl::dirty::traits::SharedSetter1;
     use basegl::text::TextComponentBuilder;
 
@@ -97,11 +97,9 @@ mod tests {
     fn small_font() {
         if let Some(world_test) = WorldTest::new("small_font") {
             run_once_initialized(move || {
-                let world        = &mut world_test.world_ptr.borrow_mut();
-                let workspace_id = world_test.workspace_id;
                 let text         = TEST_TEXT.to_string();
                 let size         = 0.025;
-                create_test_components_for_each_font(world,workspace_id,text,size);
+                create_test_components_for_each_font(&world_test,text,size);
             });
         }
     }
@@ -110,11 +108,9 @@ mod tests {
     fn normal_font() {
         if let Some(world_test) = WorldTest::new("normal_font") {
             run_once_initialized(move || {
-                let world        = &mut world_test.world_ptr.borrow_mut();
-                let workspace_id = world_test.workspace_id;
                 let text         = TEST_TEXT.to_string();
                 let size         = 0.0375;
-                create_test_components_for_each_font(world,workspace_id,text,size);
+                create_test_components_for_each_font(&world_test,text,size);
             });
         }
     }
@@ -123,11 +119,9 @@ mod tests {
     fn big_font() {
         if let Some(world_test) = WorldTest::new("big_font") {
             run_once_initialized(move || {
-                let world        = &mut world_test.world_ptr.borrow_mut();
-                let workspace_id = world_test.workspace_id;
                 let text         = TEST_TEXT.to_string();
                 let size         = 0.125;
-                create_test_components_for_each_font(world,workspace_id,text,size);
+                create_test_components_for_each_font(&world_test,text,size);
             });
         }
     }
@@ -136,10 +130,7 @@ mod tests {
     fn static_text(_bencher:&mut Bencher) {
         if let Some(world_test) = WorldTest::new("static_text") {
             run_once_initialized(move || {
-                let workspace_id     = world_test.workspace_id;
-                let world            = &mut world_test.world_ptr.borrow_mut();
-                let text             = TEST_TEXT.to_string();
-                create_full_sized_text_component(world,workspace_id,text);
+                create_full_sized_text_component(&world_test,TEST_TEXT.to_string());
             });
         }
     }
@@ -147,26 +138,20 @@ mod tests {
     #[web_bench]
     fn scrolling_vertical(bencher:&mut Bencher) {
         if let Some(world_test) = WorldTest::new("scrolling_vertical") {
-            let mut bencher_on_init = bencher.clone();
+            let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
-                let bencher_on_frame = bencher_on_init.clone();
-                let workspace_id     = world_test.workspace_id;
-                let world            = &mut world_test.world_ptr.borrow_mut();
-                let text             = LONG_TEXT.to_string();
-                create_full_sized_text_component(world,workspace_id,text);
-                let handle = world.on_frame(move |world| {
-                    if bencher_on_frame.is_running() {
-                        for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                            let block          = i/200;
-                            let sign           = if block % 2 == 0 {-1.0} else {1.0};
-                            let workspace      = &mut world.workspaces[workspace_id];
-                            let text_component = &mut workspace.text_components[0];
-                            text_component.scroll(Vector2::new(0.0,sign * 0.1));
-                            world.workspace_dirty.set(workspace_id);
-                        }
+                create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
+                bencher_clone.iter(move || {
+                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
+                        let block          = i/200;
+                        let step           = if block % 2 == 0 {-0.1} else {0.1};
+                        text_component.scroll(Vector2::new(0.0,step));
+                        world.workspace_dirty.set(world_test.workspace_id);
                     }
                 });
-                bencher_on_init.iter(move || { let _ = handle; });
             });
         }
     }
@@ -174,36 +159,31 @@ mod tests {
     #[web_bench]
     fn scrolling_horizontal(bencher:&mut Bencher) {
         if let Some(world_test) = WorldTest::new("scrolling_horizontal") {
-            let mut bencher_on_init = bencher.clone();
+            let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
-                let bencher_on_frame = bencher_on_init.clone();
-                let workspace_id     = world_test.workspace_id;
-                let world            = &mut world_test.world_ptr.borrow_mut();
-                let text             = WIDE_TEXT.to_string();
-                create_full_sized_text_component(world,workspace_id,text);
-                let handle = world.on_frame(move |world| {
-                    if bencher_on_frame.is_running() {
-                        for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                            let block          = i/200;
-                            let sign           = if block % 2 == 0 {1.0} else {-1.0};
-                            let workspace      = &mut world.workspaces[workspace_id];
-                            let text_component = &mut workspace.text_components[0];
-                            text_component.scroll(Vector2::new(sign * 0.1,0.0));
-                            world.workspace_dirty.set(workspace_id);
-                        }
+                create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
+                bencher_clone.iter(move || {
+                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
+                        let block          = i/200;
+                        let step           = if block % 2 == 0 {0.1} else {-0.1};
+                        text_component.scroll(Vector2::new(step,0.0));
+                        world.workspace_dirty.set(world_test.workspace_id);
                     }
                 });
-                bencher_on_init.iter(move || { let _ = handle; });
             });
         }
     }
 
-    fn create_full_sized_text_component
-    (world:&mut World, workspace_id:WorkspaceID, text:String) {
-        let workspace      = &mut world.workspaces[workspace_id];
-        let fonts          = &mut world.fonts;
-        let font_name      = FONTS[0];
-        let font_id        = fonts.load_embedded_font(font_name).unwrap();
+    fn create_full_sized_text_component(world_test:&WorldTest, text:String) {
+        let workspace_id       = world_test.workspace_id;
+        let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+        let workspace          = &mut world.workspaces[workspace_id];
+        let fonts              = &mut world.fonts;
+        let font_name          = FONTS[0];
+        let font_id            = fonts.load_embedded_font(font_name).unwrap();
 
         let text_component = TextComponentBuilder {
             workspace,fonts,text,font_id,
@@ -216,10 +196,11 @@ mod tests {
         world.workspace_dirty.set(workspace_id); // TODO[AO] Make dirty flags for component
     }
 
-    fn create_test_components_for_each_font
-    (world:&mut World, workspace_id:WorkspaceID, text:String, text_size:f64) {
-        let workspace = &mut world.workspaces[workspace_id];
-        let fonts     = &mut world.fonts;
+    fn create_test_components_for_each_font(world_test:&WorldTest, text:String, text_size:f64) {
+        let workspace_id       = world_test.workspace_id;
+        let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+        let workspace          = &mut world.workspaces[workspace_id];
+        let fonts              = &mut world.fonts;
 
         for (i, font_name) in FONTS.iter().enumerate() {
             let x         = -1.0 + (i / 2) as f64;
