@@ -25,6 +25,7 @@ pub struct BufferFragment {
 
 /// Information what is currently rendered on screen for some specific _buffer fragment_.
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct RenderedFragment {
     pub first_char          : RenderedChar,
     pub last_char           : RenderedChar,
@@ -268,10 +269,10 @@ mod tests {
     fn fragment_reassignments() {
         let lines_range = 4..=6;
 
-        assert!( make_assigned_buffer(2)     .can_be_reassigned(&lines_range));
-        assert!(!make_assigned_buffer(4)     .can_be_reassigned(&lines_range));
-        assert!(!make_assigned_buffer(6)     .can_be_reassigned(&lines_range));
-        assert!( make_assigned_buffer(7)     .can_be_reassigned(&lines_range));
+        assert!( make_assigned_fragment(2)     .can_be_reassigned(&lines_range));
+        assert!(!make_assigned_fragment(4)     .can_be_reassigned(&lines_range));
+        assert!(!make_assigned_fragment(6)     .can_be_reassigned(&lines_range));
+        assert!( make_assigned_fragment(7)     .can_be_reassigned(&lines_range));
         assert!( BufferFragment::unassigned().can_be_reassigned(&lines_range));
     }
 
@@ -426,7 +427,7 @@ mod tests {
         let new_assignment_2 = 5..=8;
         let mut fragments = BufferFragments {
             assigned_lines : assigned_lines.clone(),
-            fragments      : assigned_lines.map(make_assigned_buffer).collect(),
+            fragments      : assigned_lines.map(make_assigned_fragment).collect(),
         };
         fragments.fragments.push(BufferFragment::unassigned());
 
@@ -445,7 +446,42 @@ mod tests {
         assert_eq!(expected_assignments_2, assignments_2);
     }
 
-    fn make_assigned_buffer(line:usize) -> BufferFragment {
+    #[test]
+    fn marking_dirty_after_x_scrolling() {
+        let make_pen   = |position| Pen{position, current_char:Some('A'), next_advance:0.5};
+        let left_pen   = make_pen(Point2::new(3.0, -1.0));
+        let middle_pen = make_pen(Point2::new(5.0, -1.0));
+        let right_pen  = make_pen(Point2::new(7.0, -1.0));
+
+        let make_char          = |pen| RenderedChar{index:1, byte_offset:1, pen};
+        let make_rendered      = |l_pen,r_pen| RenderedFragment{
+            first_char : make_char(l_pen),
+            last_char  : make_char(r_pen)
+        };
+        let displayed_range    = 4.0..=6.0;
+        let rendered_not_dirty = make_rendered(left_pen  ,right_pen.clone());
+        let rendered_dirty     = make_rendered(middle_pen,right_pen);
+        let displayed_lines    = 5;
+        let lines_iter         = (0..displayed_lines).map(|_| "AA".to_string());
+        let lines              = lines_iter.collect::<Vec<String>>();
+
+        let mut fragments      = BufferFragments::new(displayed_lines);
+        for (i,fragment) in fragments.fragments.iter_mut().take(4).enumerate() {
+            fragment.assigned_line = Some(i);
+        }
+        fragments.fragments[0].rendered = Some(rendered_dirty);
+        fragments.fragments[2].rendered = Some(rendered_not_dirty.clone());
+        fragments.fragments[3].rendered = Some(rendered_not_dirty);
+        fragments.fragments[3].dirty    = true;
+
+        fragments.mark_dirty_after_x_scrolling(displayed_range,lines.as_ref());
+
+        let dirties          = fragments.fragments.iter().map(|f| f.dirty).collect::<Vec<bool>>();
+        let expected_dirties = vec![true, true, false, true, false];
+        assert_eq!(expected_dirties, dirties);
+    }
+
+    fn make_assigned_fragment(line:usize) -> BufferFragment {
         BufferFragment {
             assigned_line : Some(line),
             rendered      : None,
