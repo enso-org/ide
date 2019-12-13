@@ -33,7 +33,9 @@ features = [
   'WebGlShader',
   'Window',
   'console',
-  'Performance'
+  'Performance',
+  'Event',
+  'MouseEvent'
 ]
 
 [dev-dependencies]
