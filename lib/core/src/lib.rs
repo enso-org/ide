@@ -100,7 +100,7 @@ mod example_03 {
     use crate::utils;
     use crate::display::world::{World,Workspace,Add};
     use crate::text::font::FontRenderInfo;
-    use crate::Color;
+    use crate::{Area,Color};
 
     use crate::dirty::traits::SharedSetter1;
     use basegl_core_embedded_fonts::EmbeddedFonts;
@@ -110,13 +110,10 @@ mod example_03 {
     [ "DejaVuSans"
     , "DejaVuSansMono"
     , "DejaVuSansMono-Bold"
-    , "DejaVuSansMono-Oblique"
-    , "DejaVuSansCondensed"
     , "DejaVuSerif"
-    , "DejaVuSerifCondensed"
     ];
 
-    const SIZES : &[f64] = &[0.016, 0.024, 0.032, 0.048, 0.064];
+    const SIZES : &[f64] = &[0.024, 0.032, 0.048];
 
     #[wasm_bindgen]
     #[allow(dead_code)]
@@ -132,22 +129,30 @@ mod example_03 {
             let fonts_iter    = FONT_NAMES.iter().map(font_creator);
             let mut fonts     = fonts_iter.collect::<Box<[FontRenderInfo]>>();
 
-            let all_cases     = iproduct!(0..fonts.len(), SIZES.iter());
+            let all_cases     = iproduct!(0..fonts.len(), 0..SIZES.len());
 
-            for (i, (font, size)) in all_cases.enumerate() {
+            for (font, size) in all_cases {
 
-                let line_position = nalgebra::Vector2::new(-0.95, 0.9 - 0.064*(i as f64));
+                let x = -0.95 + 0.6 * (size as f64);
+                let y = 0.90 - 0.45 * (font as f64);
+                let area = Area {
+                    left   : x,
+                    right  : x + 0.5,
+                    top    : y,
+                    bottom : y - 0.2
+                };
                 let text_compnent = crate::text::TextComponentBuilder {
-                    text : "To be, or not to be, that is the question: \
-                        Whether 'tis nobler in the mind to suffer \
-                        The slings and arrows of outrageous fortune, \
-                        Or to take arms against a sea of troubles \
+                    text : "To be, or not to be, that is the question:\n\
+                        Whether 'tis nobler in the mind to suffer\n\
+                        The slings and arrows of outrageous fortune,\n\
+                        Or to take arms against a sea of troubles\n\
                         And by opposing end them."
                         .to_string(),
                     font     : &mut fonts[font],
-                    position : line_position,
-                    size     : *size,
+                    scroll_position: nalgebra::Vector2::new(0.0, 0.05),
+                    size     : SIZES[size],
                     color    : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
+                    area
                 }.build(workspace);
                 workspace.text_components.push(text_compnent);
             }
@@ -166,9 +171,26 @@ pub struct Color<T> {
     pub r : T,
     pub g : T,
     pub b : T,
-    pub a : T
+    pub a : T,
 }
 
+#[derive(Debug)]
+pub struct Area<T> {
+    pub left   : T,
+    pub right  : T,
+    pub top    : T,
+    pub bottom : T,
+}
+
+impl<T:std::ops::Sub+Clone> Area<T> {
+    pub fn width(&self) -> T::Output {
+        self.right.clone() - self.left.clone()
+    }
+
+    pub fn height(&self) -> T::Output {
+        self.top.clone() - self.bottom.clone()
+    }
+}
 
 // ===============
 // === Printer ===
