@@ -90,10 +90,8 @@ mod tests {
     // We create two tests to verify that each HtmlElement has its own
     // Navigator.
     #[web_bench]
-    fn navigator_test_1(b: &mut Bencher) {
-        perspective_camera(b, "perspective_camera_1")
-    }
+    fn navigator_test_1(b: &mut Bencher) { navigator_test(b, "navigator_test_1") }
 
     #[web_bench]
-    fn navigator_test_2(b: &mut Bencher) { perspective_camera(b, "perspective_camera_2") }
+    fn navigator_test_2(b: &mut Bencher) { navigator_test(b, "navigator_test_2") }
 }
