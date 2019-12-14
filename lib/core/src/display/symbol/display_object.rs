@@ -147,9 +147,9 @@ impl Transform {
 
 
 
-// =============================
-// === HierarchicalTransform ===
-// =============================
+// =======================
+// === CachedTransform ===
+// =======================
 
 pub struct CachedTransform<OnChange> {
     transform        : Transform,
@@ -260,9 +260,226 @@ impl<OnChange:Callback0> CachedTransform<OnChange> {
 
 
 
-// =====================
-// === DisplayObject ===
-// =====================
+// =================================
+// === HierarchicalTransformData ===
+// =================================
+
+pub struct HierarchicalTransformData {
+    pub parent_bind      : Option<ParentBind>,
+    pub children         : OptVec<HierarchicalTransform>,
+    pub transform        : CachedTransform<Option<OnChange>>,
+    pub child_dirty      : ChildDirty,
+    pub new_parent_dirty : NewParentDirty,
+    pub on_changed       : Option<Box<dyn FnMut()>>,
+    pub logger           : Logger,
+}
+
+
+// === Types ===
+
+pub type ChildDirty     = dirty::SharedSet<usize,Option<OnChange>>;
+pub type NewParentDirty = dirty::SharedBool<()>;
+pub type TransformDirty = dirty::SharedBool<Option<OnChange>>;
+
+
+// === Callbacks ===
+
+closure! {
+fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
+}
+
+
+// === API ===
+
+impl HierarchicalTransformData {
+    pub fn new(logger:Logger) -> Self {
+        let parent_bind      = default();
+        let children         = default();
+        let transform        = CachedTransform::new(logger.sub("transform"), None);
+        let child_dirty      = ChildDirty::new(logger.sub("child_dirty"),None);
+        let new_parent_dirty = NewParentDirty::new(logger.sub("new_parent_dirty"),());
+        let on_changed       = None;
+        Self {parent_bind,children,transform,child_dirty,new_parent_dirty,on_changed,logger}
+    }
+
+    fn set_on_change_callback(&mut self, callback:Option<OnChange>) {
+        self.transform.dirty.set_callback(callback.clone());
+        self.child_dirty.set_callback(callback);
+    }
+
+    pub fn parent(&self) -> Option<&HierarchicalTransform> {
+        self.parent_bind.as_ref().map(|ref t| &t.parent)
+    }
+
+    pub fn set_parent(&mut self, parent:Option<ParentBind>) {
+        match parent {
+            None => {
+                self.logger.info("Removing parent bind.");
+                self.set_on_change_callback(None);
+            },
+            Some(ref p) => {
+                self.logger.info("Adding new parent bind.");
+                let dirty     = p.parent.rc.borrow().child_dirty.clone_rc();
+                let on_change = fn_on_change(dirty, p.index);
+                self.set_on_change_callback(Some(on_change));
+            }
+        }
+        self.new_parent_dirty.set();
+        self.parent_bind = parent;
+    }
+
+    pub fn update(&mut self) {
+        let origin0 = Matrix4::identity();
+        self.update_with(&origin0,false)
+    }
+
+    pub fn remove_parent_bind(&mut self) -> Option<ParentBind> {
+        self.parent_bind.take()
+    }
+
+    pub fn insert_child_raw(&mut self, child:&HierarchicalTransform) -> usize {
+        let child_rc = child.clone();
+        let index    = self.children.insert(child_rc);
+        self.child_dirty.set(index);
+        index
+    }
+
+    pub fn remove_child(&mut self, index:usize) {
+        group!(self.logger, "Removing child at index {}.", index, {
+            let opt_child = self.children.remove(index);
+            opt_child.iter().for_each(|t| t.set_parent(None));
+            self.child_dirty.unset(&index);
+        })
+    }
+
+    pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
+        let use_origin = force || self.new_parent_dirty.check();
+        let new_origin = use_origin.as_some(parent_origin);
+        let msg        = match new_origin {
+            Some(_) => "Update with new parent origin.",
+            None    => "Update with old parent origin."
+        };
+        group!(self.logger, msg, {
+            let origin_changed = self.transform.update(new_origin);
+            let origin         = &self.transform.matrix;
+            if origin_changed {
+                self.logger.info("Self origin changed.");
+                if !self.children.is_empty() {
+                    group!(self.logger, "Updating all children.", {
+                        self.children.iter().for_each(|child| {
+                            child.update_with(origin,true);
+                        });
+                    })
+                }
+            } else {
+                self.logger.info("Self origin did not change.");
+                if self.child_dirty.check_all() {
+                    group!(self.logger, "Updating dirty children.", {
+                        self.child_dirty.iter().for_each(|ix| {
+                            self.children[*ix].update_with(origin,false)
+                        });
+                    })
+                }
+            }
+            self.child_dirty.unset_all();
+        });
+        self.new_parent_dirty.unset();
+        self.on_changed.iter_mut().for_each(|f| f());
+    }
+
+
+}
+
+
+// === Getters ===
+
+impl HierarchicalTransformData {
+    pub fn global_position(&self) -> Vector3<f32> {
+        self.transform.global_position()
+    }
+
+    pub fn position(&self) -> &Vector3<f32> {
+        self.transform.position()
+    }
+
+    pub fn scale(&self) -> &Vector3<f32> {
+        self.transform.scale()
+    }
+
+    pub fn rotation(&self) -> &Vector3<f32> {
+        self.transform.rotation()
+    }
+
+    pub fn matrix(&self) -> &Matrix4<f32> {
+        self.transform.matrix()
+    }
+}
+
+
+// === Setters ===
+
+impl HierarchicalTransformData {
+    pub fn position_mut(&mut self) -> &mut Vector3<f32> {
+        self.transform.position_mut()
+    }
+
+    pub fn scale_mut(&mut self) -> &mut Vector3<f32> {
+        self.transform.scale_mut()
+    }
+
+    pub fn rotation_mut(&mut self) -> &mut Vector3<f32> {
+        self.transform.rotation_mut()
+    }
+
+    pub fn set_position(&mut self, t:Vector3<f32>) {
+        self.transform.set_position(t);
+    }
+
+    pub fn set_scale(&mut self, t:Vector3<f32>) {
+        self.transform.set_scale(t);
+    }
+
+    pub fn set_rotation(&mut self, t:Vector3<f32>) {
+        self.transform.set_rotation(t);
+    }
+
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_position(f)
+    }
+
+    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_rotation(f)
+    }
+
+    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_scale(f)
+    }
+
+    pub fn set_on_changed<F:FnMut()+'static>(&mut self, f:F) {
+        self.on_changed = Some(Box::new(f))
+    }
+}
+
+// ====================================
+// === HierarchicalTransformManager ===
+// ====================================
+
+struct HierarchicalTransformManager {
+    pub registry: OptVec<HierarchicalTransform>
+}
+
+impl HierarchicalTransformManager {
+    pub fn new() -> Self {
+        let registry = default();
+        Self {registry}
+    }
+}
+
+
+
+// =============================
+// === HierarchicalTransform ===
+// =============================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 ///
@@ -407,6 +624,10 @@ impl HierarchicalTransform {
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.borrow_mut().mod_scale(f)
     }
+
+    pub fn set_on_changed<F:FnMut()+'static>(&self, f:F) {
+        self.borrow_mut().set_on_changed(f)
+    }
 }
 
 
@@ -440,197 +661,6 @@ impl ParentBind {
 }
 
 
-
-// =========================
-// === DisplayObjectData ===
-// =========================
-
-pub struct HierarchicalTransformData {
-    pub parent_bind      : Option<ParentBind>,
-    pub children         : OptVec<HierarchicalTransform>,
-    pub transform        : CachedTransform<Option<OnChange>>,
-    pub child_dirty      : ChildDirty,
-    pub new_parent_dirty : NewParentDirty,
-    pub logger           : Logger,
-}
-
-
-// === Types ===
-
-pub type ChildDirty     = dirty::SharedSet<usize,Option<OnChange>>;
-pub type NewParentDirty = dirty::SharedBool<()>;
-pub type TransformDirty = dirty::SharedBool<Option<OnChange>>;
-
-
-// === Callbacks ===
-
-closure! {
-fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
-}
-
-
-// === API ===
-
-impl HierarchicalTransformData {
-    pub fn new(logger:Logger) -> Self {
-        let parent_bind      = default();
-        let children         = default();
-        let transform        = CachedTransform::new(logger.sub("transform"), None);
-        let child_dirty      = ChildDirty::new(logger.sub("child_dirty"),None);
-        let new_parent_dirty = NewParentDirty::new(logger.sub("new_parent_dirty"),());
-        Self {parent_bind,children,transform,child_dirty,new_parent_dirty,logger}
-    }
-
-    fn set_on_change_callback(&mut self, callback:Option<OnChange>) {
-        self.transform.dirty.set_callback(callback.clone());
-        self.child_dirty.set_callback(callback);
-    }
-
-    pub fn parent(&self) -> Option<&HierarchicalTransform> {
-        self.parent_bind.as_ref().map(|ref t| &t.parent)
-    }
-
-    pub fn set_parent(&mut self, parent:Option<ParentBind>) {
-        match parent {
-            None => {
-                self.logger.info("Removing parent bind.");
-                self.set_on_change_callback(None);
-            },
-            Some(ref p) => {
-                self.logger.info("Adding new parent bind.");
-                let dirty     = p.parent.rc.borrow().child_dirty.clone_rc();
-                let on_change = fn_on_change(dirty, p.index);
-                self.set_on_change_callback(Some(on_change));
-            }
-        }
-        self.new_parent_dirty.set();
-        self.parent_bind = parent;
-    }
-
-    pub fn update(&mut self) {
-        let origin0 = Matrix4::identity();
-        self.update_with(&origin0,false)
-    }
-
-    pub fn remove_parent_bind(&mut self) -> Option<ParentBind> {
-        self.parent_bind.take()
-    }
-
-    pub fn insert_child_raw(&mut self, child:&HierarchicalTransform) -> usize {
-        let child_rc = child.clone();
-        let index    = self.children.insert(child_rc);
-        self.child_dirty.set(index);
-        index
-    }
-
-    pub fn remove_child(&mut self, index:usize) {
-        group!(self.logger, "Removing child at index {}.", index, {
-            let opt_child = self.children.remove(index);
-            opt_child.iter().for_each(|t| t.set_parent(None));
-            self.child_dirty.unset(&index);
-        })
-    }
-
-    pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
-        let use_origin = force || self.new_parent_dirty.check();
-        let new_origin = use_origin.as_some(parent_origin);
-        let msg        = match new_origin {
-            Some(_) => "Update with new parent origin.",
-            None    => "Update with old parent origin."
-        };
-        group!(self.logger, msg, {
-            let origin_changed = self.transform.update(new_origin);
-            let origin         = &self.transform.matrix;
-            if origin_changed {
-                self.logger.info("Self origin changed.");
-                if !self.children.is_empty() {
-                    group!(self.logger, "Updating all children.", {
-                        self.children.iter().for_each(|child| {
-                            child.update_with(origin,true);
-                        });
-                    })
-                }
-            } else {
-                self.logger.info("Self origin did not change.");
-                if self.child_dirty.check_all() {
-                    group!(self.logger, "Updating dirty children.", {
-                        self.child_dirty.iter().for_each(|ix| {
-                            self.children[*ix].update_with(origin,false)
-                        });
-                    })
-                }
-            }
-            self.child_dirty.unset_all();
-        });
-        self.new_parent_dirty.unset();
-    }
-}
-
-
-// === Getters ===
-
-impl HierarchicalTransformData {
-    pub fn global_position(&self) -> Vector3<f32> {
-        self.transform.global_position()
-    }
-
-    pub fn position(&self) -> &Vector3<f32> {
-        self.transform.position()
-    }
-
-    pub fn scale(&self) -> &Vector3<f32> {
-        self.transform.scale()
-    }
-
-    pub fn rotation(&self) -> &Vector3<f32> {
-        self.transform.rotation()
-    }
-
-    pub fn matrix(&self) -> &Matrix4<f32> {
-        self.transform.matrix()
-    }
-}
-
-
-// === Setters ===
-
-impl HierarchicalTransformData {
-    pub fn position_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.position_mut()
-    }
-
-    pub fn scale_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.scale_mut()
-    }
-
-    pub fn rotation_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.rotation_mut()
-    }
-
-    pub fn set_position(&mut self, t:Vector3<f32>) {
-        self.transform.set_position(t);
-    }
-
-    pub fn set_scale(&mut self, t:Vector3<f32>) {
-        self.transform.set_scale(t);
-    }
-
-    pub fn set_rotation(&mut self, t:Vector3<f32>) {
-        self.transform.set_rotation(t);
-    }
-
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_position(f)
-    }
-
-    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_rotation(f)
-    }
-
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_scale(f)
-    }
-}
 
 use std::f32::consts::{PI};
 
@@ -799,7 +829,9 @@ impl Camera {
         let view_projection_matrix = Matrix4::identity();
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
-        let mut transform          = HierarchicalTransform::new(logger);
+        let transform_dirty_copy   = transform_dirty.clone_rc();
+        let transform              = HierarchicalTransform::new(logger);
+        transform.set_on_changed(move || { transform_dirty_copy.set(); });
         transform.mod_position(|t| t.z = 1.0);
         Self {transform,projection,clipping,view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
