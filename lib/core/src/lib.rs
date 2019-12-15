@@ -163,6 +163,18 @@ fn init(world: &mut World) {
     obj1.remove_child(&obj2);
     obj2.update();
     println!("{:?}",obj2.global_position());
+
+    println!("------------ 4");
+
+    let obj1 = HierarchicalObject::new(Logger::new("obj1"));
+    let obj2 = HierarchicalObject::new(Logger::new("obj2"));
+    obj1.add_child(&obj2);
+
+    println!("------------ 5");
+    println!("{:?}",obj2.index());
+
+
+
 //    obj2.mod_position(|t| t.y += 5.0);
 //
 //    obj1.mod_rotation(|t| t.z += 90.0);
