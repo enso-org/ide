@@ -18,6 +18,8 @@ use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
+use crate::data::opt_vec::OptVec;
+use crate::display::scene::Scene;
 
 
 // =============
@@ -42,6 +44,7 @@ pub struct Workspace<OnDirty> {
     pub pixel_ratio         : f64,
     pub mesh_registry       : MeshRegistry<OnDirty>,
     pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
+    pub scene_registry      : OptVec<Scene>,
     pub shape               : Rc<RefCell<WorkspaceShape>>,
     pub shape_dirty         : ShapeDirty<OnDirty>,
     pub logger              : Logger,
@@ -88,24 +91,23 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     pub fn new<Dom: Str>
     (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
-        let dom           = dom.as_ref();
-        let canvas        = web::get_canvas(dom)?;
-        let context       = web::get_webgl2_context(&canvas)?;
-        let pixel_ratio   = web::device_pixel_ratio()?;
-        let sub_logger    = logger.sub("shape_dirty");
-        let shape_dirty   = ShapeDirty::new(sub_logger,on_dirty.clone());
-        let sub_logger    = logger.sub("mesh_registry_dirty");
-        let dirty_flag    = MeshRegistryDirty::new(sub_logger, on_dirty);
-        let on_change     = mesh_registry_on_change(dirty_flag.clone_rc());
-        let sub_logger    = logger.sub("mesh_registry");
-        let mesh_registry = MeshRegistry::new(&context,sub_logger, on_change);
-        let shape         = default();
-        let listeners     = Self::init_listeners
-                            (&logger,&canvas,&shape,&shape_dirty);
+        let dom                 = dom.as_ref();
+        let canvas              = web::get_canvas(dom)?;
+        let context             = web::get_webgl2_context(&canvas)?;
+        let pixel_ratio         = web::device_pixel_ratio()?;
+        let sub_logger          = logger.sub("shape_dirty");
+        let shape_dirty         = ShapeDirty::new(logger.sub("shape_dirty"),on_dirty.clone());
+        let sub_logger          = logger.sub("mesh_registry_dirty");
+        let dirty_flag          = MeshRegistryDirty::new(sub_logger, on_dirty);
+        let on_change           = mesh_registry_on_change(dirty_flag.clone_rc());
+        let sub_logger          = logger.sub("mesh_registry");
+        let mesh_registry       = MeshRegistry::new(&context,sub_logger, on_change);
+        let shape               = default();
+        let listeners           = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let mesh_registry_dirty = dirty_flag;
-        let this = Self
-            {canvas,context,pixel_ratio,mesh_registry,mesh_registry_dirty
-            ,shape,shape_dirty,logger,listeners};
+        let scene_registry      = default();
+        let this = Self {canvas,context,pixel_ratio,mesh_registry,scene_registry,mesh_registry_dirty
+                        ,shape,shape_dirty,logger,listeners};
         Ok(this)
     }
     /// Initialize all listeners and attach them to DOM elements.

@@ -150,9 +150,9 @@ fn init(world: &mut World) {
     shader::main();
 
     println!("------------ 1");
-    let obj1 = HierarchicalTransform::new(Logger::new("obj1"));
-    let obj2 = HierarchicalTransform::new(Logger::new("obj2"));
-    let obj3 = HierarchicalTransform::new(Logger::new("obj3"));
+    let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
+    let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
+    let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
     obj1.add_child(&obj2);
     obj1.update();
     println!("------------ 2");
@@ -166,12 +166,6 @@ fn init(world: &mut World) {
 
     println!("------------ 4");
 
-    let obj1 = HierarchicalObject::new(Logger::new("obj1"));
-    let obj2 = HierarchicalObject::new(Logger::new("obj2"));
-    obj1.add_child(&obj2);
-
-    println!("------------ 5");
-    println!("{:?}",obj2.index());
 
 
 

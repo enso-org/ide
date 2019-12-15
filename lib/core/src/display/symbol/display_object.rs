@@ -14,12 +14,23 @@ use failure::_core::fmt::{Formatter, Error};
 
 
 
+
+// === CloneRef ===
+
+pub trait CloneRef {
+    fn clone_ref(&self) -> Self;
+}
+
+
+
+
 // =================
 // === AxisOrder ===
 // =================
 
 /// Defines the order in which particular axis coordinates are processed. Used
 /// for example to define the rotation order in `DisplayObject`.
+#[derive(Clone,Debug)]
 pub enum AxisOrder { XYZ, XZY, YXZ, YZX, ZXY, ZYX }
 
 impl Default for AxisOrder {
@@ -34,6 +45,7 @@ impl Default for AxisOrder {
 
 /// Defines the order in which transformations (scale, rotate, translate) are
 /// applied to a particular object.
+#[derive(Clone,Debug)]
 pub enum TransformOrder {
     ScaleRotateTranslate,
     ScaleTranslateRotate,
@@ -53,6 +65,7 @@ impl Default for TransformOrder {
 // === Transform ===
 // =================
 
+#[derive(Clone,Debug)]
 pub struct Transform {
     pub position        : Vector3<f32>,
     pub scale           : Vector3<f32>,
@@ -151,6 +164,9 @@ impl Transform {
 // === CachedTransform ===
 // =======================
 
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Debug(bound=""))]
 pub struct CachedTransform<OnChange> {
     transform        : Transform,
     transform_matrix : Matrix4<f32>,
@@ -260,18 +276,95 @@ impl<OnChange:Callback0> CachedTransform<OnChange> {
 
 
 
-// =================================
-// === HierarchicalTransformData ===
-// =================================
+// ==================
+// === ParentBind ===
+// ==================
 
-pub struct HierarchicalTransformData {
-    pub parent_bind      : Option<ParentBind>,
-    pub children         : OptVec<HierarchicalTransform>,
+#[derive(Clone,Debug)]
+pub struct ParentBind {
+    pub parent : DisplayObjectDescription,
+    pub index  : usize
+}
+
+impl ParentBind {
+    pub fn dispose(&self) {
+        self.parent.remove_child_by_index(self.index);
+    }
+}
+
+
+
+// =====================================
+// === HierarchicalObjectDescription ===
+// =====================================
+
+#[derive(Clone,Debug)]
+pub struct HierarchicalObjectDescription {
+    pub parent_bind : Option<ParentBind>,
+    pub children    : OptVec<DisplayObjectDescription>,
+    pub logger      : Logger,
+}
+
+// === Public API ===
+
+impl HierarchicalObjectDescription {
+    pub fn new(logger:Logger) -> Self {
+        let parent_bind = default();
+        let children    = default();
+        Self {parent_bind,children,logger}
+    }
+}
+
+// === Private API ===
+
+impl HierarchicalObjectDescription {
+    fn take_parent_bind(&mut self) -> Option<ParentBind> {
+        self.parent_bind.take()
+    }
+
+    fn remove_parent_bind(&mut self) {
+        self.take_parent_bind().for_each(|t| t.dispose());
+    }
+
+    fn set_parent_bind(&mut self, bind:ParentBind) {
+        self.parent_bind = Some(bind);
+    }
+
+    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
+        let child = child.display_object_description();
+        self.children.insert(child)
+    }
+
+    pub fn remove_child_by_index(&mut self, index:usize) {
+        let opt_child = self.children.remove(index);
+        opt_child.for_each(|t| t.raw_unset_parent());
+    }
+}
+
+// === Getters ===
+
+impl LazyTransformObjectDescription {
+    pub fn parent(&self) -> Option<&DisplayObjectDescription> {
+        self.parent_bind.as_ref().map(|ref t| &t.parent)
+    }
+}
+
+
+// ======================================
+// === LazyTransformObjectDescription ===
+// ======================================
+
+#[derive(Derivative,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+#[derivative(Debug)]
+pub struct LazyTransformObjectDescription {
+    #[shrinkwrap(main_field)]
+    pub wrapped          : HierarchicalObjectDescription,
     pub transform        : CachedTransform<Option<OnChange>>,
     pub child_dirty      : ChildDirty,
     pub new_parent_dirty : NewParentDirty,
-    pub on_changed       : Option<Box<dyn FnMut()>>,
-    pub logger           : Logger,
+    #[derivative(Debug="ignore")]
+    pub on_updated       : Option<Box<dyn FnMut()>>,
 }
 
 
@@ -291,65 +384,19 @@ fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 
 // === API ===
 
-impl HierarchicalTransformData {
+impl LazyTransformObjectDescription {
     pub fn new(logger:Logger) -> Self {
-        let parent_bind      = default();
-        let children         = default();
-        let transform        = CachedTransform::new(logger.sub("transform"), None);
-        let child_dirty      = ChildDirty::new(logger.sub("child_dirty"),None);
-        let new_parent_dirty = NewParentDirty::new(logger.sub("new_parent_dirty"),());
-        let on_changed       = None;
-        Self {parent_bind,children,transform,child_dirty,new_parent_dirty,on_changed,logger}
-    }
-
-    fn set_on_change_callback(&mut self, callback:Option<OnChange>) {
-        self.transform.dirty.set_callback(callback.clone());
-        self.child_dirty.set_callback(callback);
-    }
-
-    pub fn parent(&self) -> Option<&HierarchicalTransform> {
-        self.parent_bind.as_ref().map(|ref t| &t.parent)
-    }
-
-    pub fn set_parent(&mut self, parent:Option<ParentBind>) {
-        match parent {
-            None => {
-                self.logger.info("Removing parent bind.");
-                self.set_on_change_callback(None);
-            },
-            Some(ref p) => {
-                self.logger.info("Adding new parent bind.");
-                let dirty     = p.parent.rc.borrow().child_dirty.clone_rc();
-                let on_change = fn_on_change(dirty, p.index);
-                self.set_on_change_callback(Some(on_change));
-            }
-        }
-        self.new_parent_dirty.set();
-        self.parent_bind = parent;
+        let transform        = CachedTransform :: new(logger.sub("transform")       ,None);
+        let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")     ,None);
+        let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty"),());
+        let wrapped          = HierarchicalObjectDescription::new(logger);
+        let on_updated       = None;
+        Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated}
     }
 
     pub fn update(&mut self) {
         let origin0 = Matrix4::identity();
         self.update_with(&origin0,false)
-    }
-
-    fn remove_parent_bind(&mut self) -> Option<ParentBind> {
-        self.parent_bind.take()
-    }
-
-    pub fn insert_child_raw(&mut self, child:&HierarchicalTransform) -> usize {
-        let child_rc = child.clone();
-        let index    = self.children.insert(child_rc);
-        self.child_dirty.set(index);
-        index
-    }
-
-    pub fn remove_child(&mut self, index:usize) {
-        group!(self.logger, "Removing child at index {}.", index, {
-            let opt_child = self.children.remove(index);
-            opt_child.iter().for_each(|t| t.set_parent(None));
-            self.child_dirty.unset(&index);
-        })
     }
 
     pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
@@ -384,16 +431,47 @@ impl HierarchicalTransformData {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-        self.on_changed.iter_mut().for_each(|f| f());
+        self.on_updated.as_mut().for_each(|f| f());
+    }
+}
+
+// === Private API ===
+
+impl LazyTransformObjectDescription {
+    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
+        let index = self.wrapped.register_child(child);
+        self.child_dirty.set(index);
+        index
     }
 
+    fn remove_child_by_index(&mut self, index:usize) {
+        self.wrapped.remove_child_by_index(index);
+        self.child_dirty.unset(&index);
+    }
 
+    fn raw_unset_parent(&mut self) {
+        self.logger.info("Removing parent bind.");
+        self.transform.dirty.set_callback(None);
+        self.child_dirty.set_callback(None);
+        self.new_parent_dirty.set();
+        self.wrapped.take_parent_bind();
+    }
+
+    fn set_parent_bind(&mut self, bind:ParentBind) {
+        self.logger.info("Adding new parent bind.");
+        let dirty     = bind.parent.rc.borrow().child_dirty.clone_rc();
+        let on_change = fn_on_change(dirty, bind.index);
+        self.transform.dirty.set_callback(Some(on_change.clone()));
+        self.child_dirty.set_callback(Some(on_change));
+        self.new_parent_dirty.set();
+        self.wrapped.set_parent_bind(bind);
+    }
 }
 
 
 // === Getters ===
 
-impl HierarchicalTransformData {
+impl LazyTransformObjectDescription {
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.global_position()
     }
@@ -418,7 +496,7 @@ impl HierarchicalTransformData {
 
 // === Setters ===
 
-impl HierarchicalTransformData {
+impl LazyTransformObjectDescription {
     pub fn position_mut(&mut self) -> &mut Vector3<f32> {
         self.transform.position_mut()
     }
@@ -455,16 +533,16 @@ impl HierarchicalTransformData {
         self.transform.mod_scale(f)
     }
 
-    pub fn set_on_changed<F:FnMut()+'static>(&mut self, f:F) {
-        self.on_changed = Some(Box::new(f))
+    pub fn set_on_updated<F:FnMut()+'static>(&mut self, f:F) {
+        self.on_updated = Some(Box::new(f))
     }
 }
 
 
 
-// =============================
-// === HierarchicalTransform ===
-// =============================
+// ================================
+// === DisplayObjectDescription ===
+// ================================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 ///
@@ -473,648 +551,231 @@ impl HierarchicalTransformData {
 /// hierarchy forms a loop, for example, `obj2` is child of `obj1`, while `obj1` is child of `obj2`.
 /// It is not easy to discover such situations, but maybe it will be worth to add some additional
 /// safety on top of that in the future.
-#[derive(Clone,Shrinkwrap)]
-pub struct HierarchicalTransform {
-    rc: Rc<RefCell<HierarchicalTransformData>>,
+#[derive(Clone,Debug)]
+pub struct DisplayObjectDescription {
+    rc: Rc<RefCell<LazyTransformObjectDescription>>,
 }
 
-impl HierarchicalTransform {
+// === Public API ==
+
+impl DisplayObjectDescription {
     /// Creates a new object instance.
     pub fn new(logger:Logger) -> Self {
-        let data = HierarchicalTransformData::new(logger);
+        let data = LazyTransformObjectDescription::new(logger);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 
-    /// Set callback which will be fired after the object gets dirty for the first time.
-    pub fn set_on_change_callback(&self, callback:Option<OnChange>) {
-        self.borrow_mut().set_on_change_callback(callback);
-    }
-
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self) {
-        self.borrow_mut().update();
-    }
-
-    /// Updates object transformations by providing a new origin location. See docs of `update` to
-    /// learn more.
-    pub fn update_with(&self, new_origin:&Matrix4<f32>, force:bool) {
-        self.borrow_mut().update_with(new_origin,force);
-    }
-
-    /// Gets a reference to a parent object, if exists.
-    pub fn parent(&self) -> Option<HierarchicalTransform> {
-        self.borrow().parent().map(|t| t.clone_rc())
-    }
-
-    /// Gets index at which the object was registered in its parent object.
-    pub fn index(&self) -> Option<usize> {
-        self.parent_bind().map(|t| t.index)
-    }
-
-    /// Gets a reference to a parent bind description, if exists.
-    pub fn parent_bind(&self) -> Option<ParentBind> {
-        self.borrow().parent_bind.clone()
-    }
-
-    /// Set parent of the object. If the object already has a parent, the parent would be replaced.
-    pub fn set_parent(&self, parent:Option<ParentBind>) {
-        self.borrow_mut().set_parent(parent);
+        self.rc.borrow_mut().update();
     }
 
     /// Adds a new `DisplayObject` as a child to the current one.
-    pub fn add_child(&self, child:&HierarchicalTransform) {
-        group!(self.borrow().logger, "Adding child.", {
-            let child_bind = child.remove_parent_bind();
-            child_bind.iter().for_each(|t| t.dispose());
-            let index = self.borrow_mut().insert_child_raw(child);
-            self.borrow().logger.info(|| format!("Child index is {}.", index));
-            let parent      = self.clone();
-            let parent_bind = ParentBind {parent,index};
-            child.set_parent(Some(parent_bind));
-        })
+    pub fn add_child<T:DisplayObject>(&self, child:T) {
+        child.display_object_description().set_parent(self);
     }
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn remove_child(&self, child:&HierarchicalTransform) {
-        child.parent_bind().iter().for_each(|bind| {
-            if self == &bind.parent { self.remove_child_by_index(bind.index) }
+    pub fn remove_child<T:DisplayObject>(&self, child:T) {
+        let child = child.display_object_description();
+        if self.has_child(&child) {
+            child.unset_parent()
+        }
+    }
+
+    /// Replaces the parent binding with a new parent.
+    pub fn set_parent<T:DisplayObject>(&self, parent:T) {
+        group!(self.rc.borrow().logger, "Setting new parent.", {
+            self.unset_parent();
+            let parent      = parent.display_object_description();
+            let index       = parent.rc.borrow_mut().register_child(self);
+            let parent_bind = ParentBind {parent,index};
+            self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
+            self.set_parent_bind(parent_bind);
         })
+    }
+
+    /// Removes the current parent binding.
+    pub fn unset_parent(&self) {
+        self.take_parent_bind().for_each(|t| t.dispose());
+    }
+
+    /// Checks if the provided object is child of the current one.
+    pub fn has_child<T:DisplayObject>(&self, child:T) -> bool {
+        self.child_index(child).is_some()
+    }
+
+    /// Returns the index of the provided object if it was a child of the current one.
+    pub fn child_index<T:DisplayObject>(&self, child:T) -> Option<usize> {
+        let child = child.display_object_description();
+        child.parent_bind().and_then(|bind| {
+            if self == &bind.parent { Some(bind.index) } else { None }
+        })
+    }
+}
+
+
+// === Private API ===
+
+impl DisplayObjectDescription {
+
+    /// Updates object transformations by providing a new origin location. See docs of `update` to
+    /// learn more.
+    fn update_with(&self, new_origin:&Matrix4<f32>, force:bool) {
+        self.rc.borrow_mut().update_with(new_origin,force);
+    }
+
+    fn take_parent_bind(&self) -> Option<ParentBind> {
+        self.rc.borrow_mut().take_parent_bind()
+    }
+
+    /// Gets a reference to a parent bind description, if exists.
+    fn parent_bind(&self) -> Option<ParentBind> {
+        self.rc.borrow().parent_bind.clone()
+    }
+
+    /// Set parent of the object. If the object already has a parent, the parent would be replaced.
+    fn set_parent_bind(&self, parent:ParentBind) {
+        self.rc.borrow_mut().set_parent_bind(parent);
+    }
+
+    /// Removes the binding to the parent object.
+    fn raw_unset_parent(&self) {
+        self.rc.borrow_mut().raw_unset_parent();
     }
 
     /// Removes child by a given index. Does nothing if the index was incorrect. Please use the
     /// `remove_child` method unless you are 100% sure that the index is correct.
-    pub fn remove_child_by_index(&self, index:usize) {
-        let opt_child = self.borrow_mut().remove_child(index);
-    }
-
-
-    // === Private API ===
-
-    fn remove_parent_bind(&self) -> Option<ParentBind> {
-        self.borrow_mut().remove_parent_bind()
+    fn remove_child_by_index(&self, index:usize) {
+        self.rc.borrow_mut().remove_child_by_index(index);
     }
 }
 
 
 // === Getters ===
 
-impl HierarchicalTransform {
+impl DisplayObjectDescription {
+    pub fn parent(&self) -> Option<DisplayObjectDescription> {
+        self.rc.borrow().parent().map(|t| t.clone_ref())
+    }
+
+    pub fn index(&self) -> Option<usize> {
+        self.parent_bind().map(|t| t.index)
+    }
+
     pub fn global_position(&self) -> Vector3<f32> {
-        self.borrow().global_position()
+        self.rc.borrow().global_position()
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.borrow().position().clone()
+        self.rc.borrow().position().clone()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.borrow().scale().clone()
+        self.rc.borrow().scale().clone()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.borrow().rotation().clone()
+        self.rc.borrow().rotation().clone()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.borrow().matrix().clone()
+        self.rc.borrow().matrix().clone()
     }
 }
 
 
 // === Setters ===
 
-impl HierarchicalTransform {
+impl DisplayObjectDescription {
     pub fn set_position(&self, t:Vector3<f32>) {
-        self.borrow_mut().set_position(t);
+        self.rc.borrow_mut().set_position(t);
     }
 
     pub fn set_scale(&self, t:Vector3<f32>) {
-        self.borrow_mut().set_scale(t);
+        self.rc.borrow_mut().set_scale(t);
     }
 
     pub fn set_rotation(&self, t:Vector3<f32>) {
-        self.borrow_mut().set_rotation(t);
+        self.rc.borrow_mut().set_rotation(t);
     }
 
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.borrow_mut().mod_position(f)
+        self.rc.borrow_mut().mod_position(f)
     }
 
     pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.borrow_mut().mod_rotation(f)
+        self.rc.borrow_mut().mod_rotation(f)
     }
 
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.borrow_mut().mod_scale(f)
+        self.rc.borrow_mut().mod_scale(f)
     }
 
-    pub fn set_on_changed<F:FnMut()+'static>(&self, f:F) {
-        self.borrow_mut().set_on_changed(f)
+    pub fn set_on_updated<F:FnMut()+'static>(&self, f:F) {
+        self.rc.borrow_mut().set_on_updated(f)
     }
 }
 
 
 // === Instances ===
 
-impl From<Rc<RefCell<HierarchicalTransformData>>> for HierarchicalTransform {
-    fn from(rc: Rc<RefCell<HierarchicalTransformData>>) -> Self {
+impl DisplayObject for DisplayObjectDescription {
+    fn display_object_description(self) -> DisplayObjectDescription {
+        self
+    }
+}
+
+impl DisplayObject for &DisplayObjectDescription {
+    fn display_object_description(self) -> DisplayObjectDescription {
+        self.clone_ref()
+    }
+}
+
+impl From<Rc<RefCell<LazyTransformObjectDescription>>> for DisplayObjectDescription {
+    fn from(rc: Rc<RefCell<LazyTransformObjectDescription>>) -> Self {
         Self {rc}
     }
 }
 
-impl PartialEq for HierarchicalTransform {
+impl PartialEq for DisplayObjectDescription {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
     }
 }
 
-
-// === ParentBind ===
-
-#[derive(Clone)]
-pub struct ParentBind {
-    pub parent : HierarchicalTransform,
-    pub index  : usize
-}
-
-impl ParentBind {
-    pub fn dispose(&self) {
-        self.parent.remove_child_by_index(self.index);
+impl CloneRef for DisplayObjectDescription {
+    fn clone_ref(&self) -> Self {
+        self.clone()
     }
 }
 
 
+// =====================
+// === DisplayObject ===
+// =====================
+
+pub trait DisplayObject {
+    fn display_object_description(self) -> DisplayObjectDescription;
+}
+
+
+// ==========================================================
 
 use std::f32::consts::{PI};
 use crate::dirty::{SharedDirtyFlag, SetData};
 
 
-// ==========================================================
 
 
-// === CloneRef ===
 
-pub trait CloneRef {
-    fn clone_ref(&self) -> Self;
-}
 
 
 
 
 
-// === ParentBind ===
-
-#[derive(Clone)]
-pub struct ParentBind2<T> {
-    pub parent : T,
-    pub index  : usize
-}
-
-impl<T: IsHierarchy> ParentBind2<T> {
-    pub fn dispose(&self) {
-        self.parent.remove_child_by_index(self.index);
-    }
-}
-
-// === HasLogger ===
-
-pub trait HasLogger {
-    fn logger(&self) -> &Logger;
-}
-
-
-// ==============
-// === Shared ===
-// ==============
-
-#[derive(Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct Shared<T> {
-    rc: Rc<RefCell<T>>
-}
-
-impl<T> CloneRef for Shared<T> {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
-
-impl<T> Shared<T> {
-    pub fn new(data:T) -> Self {
-        Self {rc: Rc::new(RefCell::new(data))}
-    }
-}
-
-
-// ============
-// === Item ===
-// ============
-
-// === Type Family ===
-
-pub trait HasItem { type Item; }
-pub type Item<T> = <T as HasItem>::Item;
-
-
-// === Shared ===
-
-impl<T:HasItem> HasItem for Shared<T> {
-    type Item = Item<T>;
-}
-
-
-
-// =================
-// === Hierarchy ===
-// =================
-
-// === Definition ===
-
-pub struct Hierarchy<T> {
-    pub parent_bind : Option<ParentBind2<T>>,
-    pub children    : OptVec<T>,
-    pub logger      : Logger,
-}
-
-impl<T> HasItem for Hierarchy<T> {
-    type Item = T;
-}
-
-
-// === Interface ===
-
-pub trait IsHierarchyMut: HasItem + HasLogger {
-    fn set_parent            (&mut self, parent:ParentBind2<Self::Item>);
-    fn remove_parent         (&mut self);
-    fn add_child_raw         (&mut self, child:&Self::Item) -> usize;
-    fn remove_child_by_index (&mut self, index:usize);
-    fn index                 (&self) -> Option<usize>;
-    fn children              (&self) -> &OptVec<Self::Item>;
-}
-
-pub trait IsHierarchy
-where Self: CloneRef + HasItem {
-    fn set_parent            (&self, parent:ParentBind2<Self::Item>);
-    fn remove_parent         (&self);
-    fn add_child             (&self, child:&Self::Item) -> usize;
-    fn remove_child_by_index (&self, index:usize);
-    fn index                 (&self) -> Option<usize>;
-}
-
-trait IsHierarchyHelperMut: IsHierarchyMut {
-    fn remove_parent_bind (&mut self) -> Option<ParentBind2<Self::Item>>;
-}
-
-trait IsHierarchyHelper: IsHierarchy {
-    fn remove_parent_bind (&self) -> Option<ParentBind2<Self::Item>>;
-}
-
-
-// === Instances ===
-
-impl<T> Hierarchy<T> {
-    pub fn new(logger:Logger) -> Self {
-        let parent_bind = default();
-        let children    = default();
-        Self {parent_bind,children,logger}
-    }
-
-    pub fn parent(&self) -> Option<&T> {
-        self.parent_bind.as_ref().map(|ref t| &t.parent)
-    }
-}
-
-impl<T> HasLogger for Hierarchy<T> {
-    fn logger(&self) -> &Logger {
-        &self.logger
-    }
-}
-
-impl<T:IsHierarchy> IsHierarchyMut for Hierarchy<T> {
-    fn set_parent(&mut self, parent:ParentBind2<Self::Item>) {
-        group!(self.logger, "Setting new parent bind.", {
-            self.remove_parent();
-            self.parent_bind = Some(parent);
-        })
-    }
-
-    fn remove_parent(&mut self) {
-        self.logger.info("Removing parent bind.");
-        self.parent_bind.iter().for_each(|p| p.dispose());
-        self.parent_bind = None;
-    }
-
-    fn add_child_raw(&mut self, child:&Self::Item) -> usize {
-        let child_ref = child.clone_ref();
-        let index     = self.children.insert(child_ref);
-        index
-    }
-
-    fn remove_child_by_index(&mut self, index:usize) {
-        group!(self.logger, "Removing child at index {}.", index, {
-            let opt_child = self.children.remove(index);
-            opt_child.map(|t| t.remove_parent());
-        })
-    }
-
-    fn index(&self) -> Option<usize> {
-        self.parent_bind.as_ref().map(|t| t.index)
-    }
-
-    fn children(&self) -> &OptVec<Self::Item> {
-        &self.children
-    }
-}
-
-impl<T:IsHierarchy> IsHierarchyHelperMut for Hierarchy<T> {
-    fn remove_parent_bind(&mut self) -> Option<ParentBind2<Self::Item>> {
-        self.parent_bind.take()
-    }
-}
-
-
-// === Shared ===
-
-trait HierarchyCtx = where
-    Self: HasItem + IsHierarchyHelperMut + Sized,
-    Item<Self>: HasItem<Item=Item<Self>>,
-    Item<Self>: IsHierarchyHelper + From<Shared<Self>>;
-
-impl<T:HierarchyCtx> IsHierarchy for Shared<T> {
-    fn add_child(&self, child: &Item<Self>) -> usize {
-        let child_bind = child.remove_parent_bind();
-        child_bind.map(|t| t.dispose());
-        let index = self.rc.borrow_mut().add_child_raw(child);
-//        self.borrow().logger.info(|| format!("Child index is {}.", index));
-        let parent      = self.clone_ref().into();
-        let bind   = ParentBind2 {parent,index};
-        child.set_parent(bind);
-        index
-    }
-
-    fn set_parent(&self, parent:ParentBind2<Item<Self>>) {
-        self.rc.borrow_mut().set_parent(parent)
-    }
-
-    fn remove_parent(&self) {
-        self.rc.borrow_mut().remove_parent()
-    }
-
-    fn remove_child_by_index(&self, index:usize) {
-        self.rc.borrow_mut().remove_child_by_index(index)
-    }
-
-    fn index(&self) -> Option<usize> {
-        self.rc.borrow().index()
-    }
-}
-
-impl<T:HierarchyCtx> IsHierarchyHelper for Shared<T> {
-    fn remove_parent_bind(&self) -> Option<ParentBind2<Self::Item>> {
-        self.rc.borrow_mut().remove_parent_bind()
-    }
-}
-
-
-
-// =========================
-// === WithLazyTransform ===
-// =========================
-
-// === Definition ===
-
-pub struct WithLazyTransform<T> {
-    pub wrapped          : T,
-    pub transform        : CachedTransform<Option<OnChange>>,
-    pub child_dirty      : ChildDirty,
-    pub new_parent_dirty : NewParentDirty,
-}
-
-impl<T:HasItem> HasItem for WithLazyTransform<T> {
-    type Item = Item<T>;
-}
-
-
-// === Interface ===
-
-pub trait HasLazyTransformMut {
-    fn child_dirty(&self) -> ChildDirty;
-    fn update     (&mut self);
-    fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool);
-}
-
-pub trait HasLazyTransform {
-    fn child_dirty(&self) -> ChildDirty;
-    fn update     (&self);
-    fn update_with(&self, parent_origin:&Matrix4<f32>, force:bool);
-}
-
-
-// === Instances ===
-
-impl<T> WithLazyTransform<T>
-where T: HasLogger {
-    pub fn new(wrapped:T) -> Self {
-        let logger           = wrapped.logger();
-        let transform        = CachedTransform :: new(logger.sub("transform")       ,None);
-        let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")     ,None);
-        let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty"),());
-        Self {wrapped,transform,child_dirty,new_parent_dirty}
-    }
-}
-
-impl<T:HasLogger> HasLogger for WithLazyTransform<T> {
-    fn logger(&self) -> &Logger {
-        self.wrapped.logger()
-    }
-}
-
-impl<T> IsHierarchyMut for WithLazyTransform<T>
-where T: IsHierarchyHelperMut, Item<T>:HasLazyTransform {
-    fn set_parent(&mut self, bind:ParentBind2<Self::Item>) {
-        let dirty     = bind.parent.child_dirty();
-        let on_change = fn_on_change(dirty, bind.index);
-        self.transform.dirty.set_callback(Some(on_change.clone()));
-        self.child_dirty.set_callback(Some(on_change));
-        self.new_parent_dirty.set();
-    }
-
-    fn remove_parent(&mut self) {
-        self.wrapped.remove_parent();
-        self.transform.dirty.set_callback(None);
-        self.child_dirty.set_callback(None);
-        self.new_parent_dirty.set();
-    }
-
-    fn add_child_raw(&mut self, child:&Self::Item) -> usize {
-        let index = self.wrapped.add_child_raw(child);
-        self.child_dirty.set(index);
-        index
-    }
-
-    fn remove_child_by_index(&mut self, index:usize) {
-        self.child_dirty.unset(&index);
-        self.wrapped.remove_child_by_index(index)
-    }
-
-    fn index(&self) -> Option<usize> {
-        self.wrapped.index()
-    }
-
-    fn children(&self) -> &OptVec<Self::Item> {
-        self.wrapped.children()
-    }
-}
-
-impl<T> IsHierarchyHelperMut for WithLazyTransform<T>
-where T: IsHierarchyHelperMut, Item<T>:HasLazyTransform {
-    fn remove_parent_bind(&mut self) -> Option<ParentBind2<Self::Item>> {
-        self.wrapped.remove_parent_bind()
-    }
-}
-
-impl<T> HasLazyTransformMut for WithLazyTransform<T>
-where T: IsHierarchyHelperMut, Item<T>:HasLazyTransform {
-    fn child_dirty(&self) -> ChildDirty {
-        self.child_dirty.clone_rc()
-    }
-
-    fn update(&mut self) {
-        let origin0 = Matrix4::identity();
-        self.update_with(&origin0,false)
-    }
-
-    fn update_with(&mut self, parent_origin: &Matrix4<f32>, force: bool) {
-        let use_origin = force || self.new_parent_dirty.check();
-        let new_origin = use_origin.as_some(parent_origin);
-        let msg        = match new_origin {
-            Some(_) => "Update with new parent origin.",
-            None    => "Update with old parent origin."
-        };
-        group!(self.logger(), msg, {
-            let origin_changed = self.transform.update(new_origin);
-            let origin         = &self.transform.matrix;
-            if origin_changed {
-                self.logger().info("Self origin changed.");
-                if !self.children().is_empty() {
-                    group!(self.logger(), "Updating all children.", {
-                        self.children().iter().for_each(|child| {
-                            child.update_with(origin,true);
-                        });
-                    })
-                }
-            } else {
-                self.logger().info("Self origin did not change.");
-                if self.child_dirty.check_all() {
-                    group!(self.logger(), "Updating dirty children.", {
-                        self.child_dirty.iter().for_each(|ix| {
-                            self.children()[*ix].update_with(origin,false)
-                        });
-                    })
-                }
-            }
-            self.child_dirty.unset_all();
-        });
-        self.new_parent_dirty.unset();
-    }
-}
-
-
-// === Shared ===
-
-impl<T:HasLazyTransformMut> HasLazyTransform for Shared<T> {
-    fn child_dirty(&self) -> ChildDirty {
-        self.rc.borrow().child_dirty()
-    }
-
-    fn update_with(&self, parent_origin:&Matrix4<f32>, force:bool) {
-        self.rc.borrow_mut().update_with(parent_origin,force);
-    }
-
-    fn update(&self) {
-        self.rc.borrow_mut().update()
-    }
-}
-
-
-
-
-// ==========================
-// === HierarchicalObject ===
-// ==========================
-
-#[derive(Clone,Shrinkwrap)]
-#[shrinkwrap(mutable)]
-pub struct HierarchicalObject {
-    pub data: Shared<WithLazyTransform<Hierarchy<HierarchicalObject>>>
-}
-
-impl HasItem for HierarchicalObject {
-    type Item = Self;
-}
-
-impl CloneRef for HierarchicalObject {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
-
-impl HierarchicalObject {
-    pub fn new(logger:Logger) -> Self {
-        let data = Shared::new(WithLazyTransform::new(Hierarchy::new(logger)));
-        Self {data}
-    }
-}
-
-impl From<Shared<WithLazyTransform<Hierarchy<HierarchicalObject>>>> for HierarchicalObject {
-    fn from(data: Shared<WithLazyTransform<Hierarchy<HierarchicalObject>>>) -> Self {
-        Self {data}
-    }
-}
-
-impl IsHierarchy for HierarchicalObject {
-    fn set_parent(&self, parent: ParentBind2<Self::Item>) {
-        self.deref().set_parent(parent);
-    }
-
-    fn remove_parent(&self) {
-        self.deref().remove_parent();
-    }
-
-    fn add_child(&self, child:&Self::Item) -> usize {
-        self.deref().add_child(child)
-    }
-
-    fn remove_child_by_index(&self, index:usize) {
-        self.deref().remove_child_by_index(index)
-    }
-
-    fn index(&self) -> Option<usize> {
-        self.deref().index()
-    }
-}
-
-impl IsHierarchyHelper for HierarchicalObject {
-    fn remove_parent_bind(&self) -> Option<ParentBind2<Self::Item>> {
-        self.deref().remove_parent_bind()
-    }
-}
-
-impl HasLazyTransform for HierarchicalObject {
-    fn child_dirty(&self) -> ChildDirty {
-        self.deref().child_dirty()
-    }
-
-    fn update_with(&self, parent_origin:&Matrix4<f32>, force:bool) {
-        self.deref().update_with(parent_origin,force)
-    }
-
-    fn update(&self) {
-        self.deref().update()
-    }
-}
 
 
 // =============
@@ -1125,28 +786,12 @@ impl HasLazyTransform for HierarchicalObject {
 mod tests {
     use super::*;
 
-    #[test]
-    fn hierarchical_test() {
-        let obj1 = HierarchicalObject::new(Logger::new("obj1"));
-        let obj2 = HierarchicalObject::new(Logger::new("obj2"));
-        let obj3 = HierarchicalObject::new(Logger::new("obj3"));
-
-//
-        obj1.add_child(&obj2);
-        assert_eq!(obj2.index(), Some(0));
-        obj1.add_child(&obj2);
-        assert_eq!(obj2.index(), Some(10));
-//        obj1.add_child(&obj3);
-//        assert_eq!(obj3.index(), Some(1));
-//        obj1.remove_child(&obj3);
-//        assert_eq!(obj3.index(), None);
-    }
 
     #[test]
     fn hierarchy_test() {
-        let obj1 = HierarchicalTransform::new(Logger::new("obj1"));
-        let obj2 = HierarchicalTransform::new(Logger::new("obj2"));
-        let obj3 = HierarchicalTransform::new(Logger::new("obj3"));
+        let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
+        let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
+        let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
 
         obj1.add_child(&obj2);
         assert_eq!(obj2.index(), Some(0));
@@ -1160,9 +805,9 @@ mod tests {
 
     #[test]
     fn transformation_test() {
-        let obj1 = HierarchicalTransform::new(Logger::new("obj1"));
-        let obj2 = HierarchicalTransform::new(Logger::new("obj2"));
-        let obj3 = HierarchicalTransform::new(Logger::new("obj3"));
+        let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
+        let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
+        let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
 
         assert_eq!(obj1.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(obj2.position()        , Vector3::new(0.0,0.0,0.0));
@@ -1210,24 +855,32 @@ mod tests {
         obj2.add_child(&obj3);
         obj1.update();
         assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
+        obj1.remove_child(&obj3);
+        obj1.update();
+        obj2.update();
+        obj3.update();
+        assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
     }
 }
 
 
-// ==============
-// === Camera ===
-// ==============
+// ==================
+// === Projection ===
+// ==================
 
+#[derive(Clone,Debug)]
 pub enum Projection {
     Perspective  (Perspective),
     Orthographic (Orthographic)
 }
 
+#[derive(Clone,Debug)]
 pub struct Perspective  {
     pub aspect : f32,
     pub fov    : f32
 }
 
+#[derive(Clone,Debug)]
 pub struct Orthographic {
     pub left   : f32,
     pub right  : f32,
@@ -1259,6 +912,13 @@ impl Default for Projection {
     }
 }
 
+
+
+// ================
+// === Clipping ===
+// ================
+
+#[derive(Clone,Debug)]
 pub struct Clipping {
     pub near : f32,
     pub far  : f32
@@ -1272,10 +932,16 @@ impl Default for Clipping {
     }
 }
 
-#[derive(Shrinkwrap)]
+
+
+// ==============
+// === Camera ===
+// ==============
+
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct Camera {
     #[shrinkwrap(main_field)]
-    pub transform          : HierarchicalTransform,
+    pub transform          : DisplayObjectDescription,
     projection             : Projection,
     clipping               : Clipping,
     view_matrix            : Matrix4<f32>,
@@ -1298,8 +964,8 @@ impl Camera {
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
         let transform_dirty_copy   = transform_dirty.clone_rc();
-        let transform              = HierarchicalTransform::new(logger);
-        transform.set_on_changed(move || { transform_dirty_copy.set(); });
+        let transform              = DisplayObjectDescription::new(logger);
+        transform.set_on_updated(move || { transform_dirty_copy.set(); });
         transform.mod_position(|t| t.z = 1.0);
         Self {transform,projection,clipping,view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
