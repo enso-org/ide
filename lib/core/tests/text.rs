@@ -78,7 +78,7 @@ mod tests {
 
     web_configure!(run_in_browser);
 
-    const SCROLLING_BENCHMARK_ITERATIONS : usize = 2000001; // Gives drop to 20 FPS
+    const SCROLLING_BENCHMARK_ITERATIONS : usize = 10;
     const TEST_TEXT : &str = "To be, or not to be, that is the question:\n\
         Whether 'tis nobler in the mind to suffer\n\
         The slings and arrows of outrageous fortune,\n\
@@ -127,15 +127,6 @@ mod tests {
     }
 
     #[web_bench]
-    fn static_text(_bencher:&mut Bencher) {
-        if let Some(world_test) = WorldTest::new("static_text") {
-            run_once_initialized(move || {
-                create_full_sized_text_component(&world_test,TEST_TEXT.to_string());
-            });
-        }
-    }
-
-    #[web_bench]
     fn scrolling_vertical(bencher:&mut Bencher) {
         if let Some(world_test) = WorldTest::new("scrolling_vertical") {
             let mut bencher_clone = bencher.clone();
@@ -143,13 +134,12 @@ mod tests {
                 create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    let workspace          = &mut world.workspaces[world_test.workspace_id];
-                    let text_component     = &mut workspace.text_components[0];
-                    for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let block          = i/1000000;
-                        let step           = if block % 2 == 0 {-0.1} else {0.1};
-                        text_component.scroll(Vector2::new(0.0,step));
+                    for _ in 0..SCROLLING_BENCHMARK_ITERATIONS {
+                        let workspace          = &mut world.workspaces[world_test.workspace_id];
+                        let text_component     = &mut workspace.text_components[0];
+                        text_component.scroll(Vector2::new(0.0,-1.0));
                         world.workspace_dirty.set(world_test.workspace_id);
+                        world.update();
                     }
                 });
             });
@@ -164,13 +154,12 @@ mod tests {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    let workspace          = &mut world.workspaces[world_test.workspace_id];
-                    let text_component     = &mut workspace.text_components[0];
-                    for i in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let block          = i/1000000;
-                        let step           = if block % 2 == 0 {0.1} else {-0.1};
-                        text_component.scroll(Vector2::new(step,0.0));
+                    for _ in 0..SCROLLING_BENCHMARK_ITERATIONS {
+                        let workspace          = &mut world.workspaces[world_test.workspace_id];
+                        let text_component     = &mut workspace.text_components[0];
+                        text_component.scroll(Vector2::new(1.0,0.0));
                         world.workspace_dirty.set(world_test.workspace_id);
+                        world.update();
                     }
                 });
             });
