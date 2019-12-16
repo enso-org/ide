@@ -3,7 +3,7 @@ use crate::prelude::*;
 use crate::backend::webgl::Context;
 use crate::tp::debug::TypeDebugName;
 use nalgebra::*;
-use web_sys::WebGlBuffer;
+use web_sys::{WebGlBuffer,WebGlUniformLocation};
 
 
 // =============
@@ -33,6 +33,54 @@ impl Empty for Matrix4<f32> { fn empty() -> Self { Self::identity()           } 
 //impl<T,R,C> Empty for MatrixMN<T,R,C> where T:Default, Self:MatrixCtx<T,R,C> {
 //    fn empty() -> Self { Self::repeat(default()) }
 //}
+
+// =================
+// === IsUniform ===
+// =================
+
+
+pub type UniformLocation = WebGlUniformLocation;
+
+pub trait ContextUniformOps<T> {
+    fn set_uniform(&self, location:&UniformLocation, value:&T);
+}
+
+impl ContextUniformOps<i32> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&i32) {
+        self.uniform1i(Some(location),*value);
+    }
+}
+
+impl ContextUniformOps<f32> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&f32) {
+        self.uniform1f(Some(location),*value);
+    }
+}
+
+impl ContextUniformOps<Vector2<f32>> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&Vector2<f32>) {
+        self.uniform_matrix2fv_with_f32_array(Some(location),false,value.data.as_slice());
+    }
+}
+
+impl ContextUniformOps<Vector3<f32>> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&Vector3<f32>) {
+        self.uniform_matrix3fv_with_f32_array(Some(location),false,value.data.as_slice());
+    }
+}
+
+impl ContextUniformOps<Vector4<f32>> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&Vector4<f32>) {
+        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
+    }
+}
+
+impl ContextUniformOps<Matrix4<f32>> for Context {
+    fn set_uniform(&self, location:&UniformLocation, value:&Matrix4<f32>) {
+        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
+    }
+}
+
 
 // ============
 // === Item ===
@@ -201,7 +249,6 @@ where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
     unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
         <T as Item>::js_buffer_view(data)
     }
-
 }
 
 impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {

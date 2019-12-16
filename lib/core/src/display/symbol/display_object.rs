@@ -722,16 +722,8 @@ impl DisplayObjectDescription {
 
 // === Instances ===
 
-impl DisplayObject for DisplayObjectDescription {
-    fn display_object_description(self) -> DisplayObjectDescription {
-        self
-    }
-}
-
-impl DisplayObject for &DisplayObjectDescription {
-    fn display_object_description(self) -> DisplayObjectDescription {
-        self.clone_ref()
-    }
+impl From<&DisplayObjectDescription> for DisplayObjectDescription {
+    fn from(t:&DisplayObjectDescription) -> Self { t.clone_ref() }
 }
 
 impl From<Rc<RefCell<LazyTransformObjectDescription>>> for DisplayObjectDescription {
@@ -757,9 +749,22 @@ impl CloneRef for DisplayObjectDescription {
 // === DisplayObject ===
 // =====================
 
-pub trait DisplayObject {
-    fn display_object_description(self) -> DisplayObjectDescription;
+pub trait DisplayObject: Into<DisplayObjectDescription> {
+    fn display_object_description(self) -> DisplayObjectDescription {
+        self.into()
+    }
 }
+
+impl<T:Into<DisplayObjectDescription>> DisplayObject for T {}
+
+
+pub trait DisplayObjectOps where for<'t> &'t Self:DisplayObject {
+    fn add_child<T:DisplayObject>(&self, child:T) {
+        self.display_object_description().add_child(child)
+    }
+}
+
+impl<T> DisplayObjectOps for T where for<'t> &'t Self:DisplayObject {}
 
 
 // ==========================================================
@@ -891,7 +896,7 @@ pub struct Orthographic {
 impl Default for Perspective {
     fn default() -> Self {
         let aspect = 1.0;
-        let fov    = 45.0;
+        let fov    = 45.0f32.to_radians();
         Self {aspect,fov}
     }
 }
@@ -966,7 +971,7 @@ impl Camera {
         let transform_dirty_copy   = transform_dirty.clone_rc();
         let transform              = DisplayObjectDescription::new(logger);
         transform.set_on_updated(move || { transform_dirty_copy.set(); });
-        transform.mod_position(|t| t.z = 1.0);
+        projection_dirty.set();
         Self {transform,projection,clipping,view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
 
@@ -977,16 +982,16 @@ impl Camera {
     pub fn recompute_projection_matrix(&mut self) {
         self.projection_matrix = match &self.projection {
             Projection::Perspective(p) => {
-                let fov_radians = p.fov * std::f32::consts::PI / 180.0;
-                let near        = self.clipping.near;
-                let far         = self.clipping.far;
-                *Perspective3::new(p.aspect,fov_radians,near,far).as_matrix()
+                let near = self.clipping.near;
+                let far  = self.clipping.far;
+                *Perspective3::new(p.aspect,p.fov,near,far).as_matrix()
             }
             _ => unimplemented!()
         };
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> bool {
+        self.transform.update();
         let mut changed = false;
         if self.transform_dirty.check() {
             self.recompute_view_matrix();
@@ -1001,19 +1006,22 @@ impl Camera {
         if changed {
             self.view_projection_matrix = self.projection_matrix * self.view_matrix;
         }
+        changed
     }
 }
 
 // === Getters ===
 
-//impl Camera {
+impl Camera {
 //    pub fn aspect     (&self) -> &f32          { &self.aspect     }
 //    pub fn fov        (&self) -> &f32          { &self.fov        }
 //    pub fn near       (&self) -> &f32          { &self.near       }
 //    pub fn far        (&self) -> &f32          { &self.far        }
 //    pub fn projection (&self) -> &Matrix4<f32> { &self.projection }
 //    pub fn view       (&self) -> &Matrix4<f32> { &self.view       }
-//}
+
+    pub fn view_projection_matrix (&self) -> &Matrix4<f32> { &self.view_projection_matrix }
+}
 
 // === Setters ===
 
@@ -1026,6 +1034,31 @@ impl Camera {
     pub fn clipping_mut(&mut self) -> &mut Clipping {
         self.projection_dirty.set();
         &mut self.clipping
+    }
+
+    pub fn set_aspect(&mut self, aspect:f32) {
+        match &mut self.projection {
+            Projection::Perspective(p) => {
+                p.aspect = aspect;
+                self.projection_dirty.set();
+            }
+            _ => {}
+        }
+    }
+
+    pub fn set_projection_target(&mut self, width:f32, height:f32) {
+        self.set_aspect(width/height);
+
+        match &self.projection {
+            Projection::Perspective(p) => {
+                let alpha = p.fov / 2.0;
+                let z     = height / (2.0 * alpha.tan());
+                self.mod_position(|t| t.z = z);
+                self.mod_position(|t| t.x = width/2.0);
+                self.mod_position(|t| t.y = height/2.0);
+            }
+            _ => unimplemented!()
+        };
     }
 }
 

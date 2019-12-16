@@ -50,6 +50,7 @@ features = [
   'WebGlBuffer',
   'WebGlRenderingContext',
   'WebGlProgram',
+  'WebGlUniformLocation',
   'WebGlShader',
   'Window',
   'console'

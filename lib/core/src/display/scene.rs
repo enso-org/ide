@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::display::symbol::display_object::Camera;
+use crate::display::symbol::display_object::{Camera, DisplayObjectDescription};
 use basegl_system_web::Logger;
 
 
@@ -11,7 +11,8 @@ use basegl_system_web::Logger;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scene {
-    pub camera: Camera
+    pub root   : DisplayObjectDescription,
+    pub camera : Camera
 }
 
 // === Implementation ===
@@ -19,8 +20,9 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(logger:Logger) -> Self {
+        let root   = DisplayObjectDescription::new(logger.sub("root"));
         let camera = Camera::new(logger.sub("camera"));
-        Self {camera}
+        Self {root,camera}
     }
 }
 

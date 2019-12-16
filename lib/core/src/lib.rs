@@ -113,10 +113,10 @@ fn init(world: &mut World) {
     let bbox3 = bbox.get(p3_ix);
     let bbox4 = bbox.get(p4_ix);
 
-    bbox1.set(Vector2::new(0.5, 0.5));
-    bbox2.set(Vector2::new(0.5, 0.5));
-    bbox3.set(Vector2::new(0.5, 0.5));
-    bbox4.set(Vector2::new(0.5, 0.5));
+    bbox1.set(Vector2::new(20.0, 20.0));
+    bbox2.set(Vector2::new(20.0, 20.0));
+    bbox3.set(Vector2::new(20.0, 20.0));
+    bbox4.set(Vector2::new(20.0, 20.0));
 
 
     let mm1 = model_matrix.get(p1_ix);

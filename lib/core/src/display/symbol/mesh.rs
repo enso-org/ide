@@ -14,9 +14,11 @@ use crate::promote_geometry_types;
 use crate::promote_material_types;
 use crate::system::web::Logger;
 use crate::system::web::group;
+use crate::display::symbol::buffer::item::ContextUniformOps;
 use eval_tt::*;
 
 use crate::display::symbol::buffer::IsBuffer;
+use crate::display::symbol::display_object::Camera;
 
 // ============
 // === Mesh ===
@@ -97,7 +99,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
         })
     }
 
-    pub fn render(&self) {
+    pub fn render(&self, camera:&mut Camera) {
         group!(self.logger, "Rendering.", {
             let vert_shader = webgl::compile_shader(
                 &self.context,
@@ -125,6 +127,8 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
     uniform mediump mat4 view_matrix;
     uniform mediump mat4 projection_matrix;
+    uniform mediump mat4 view_projection_matrix;
+
     uniform mediump float zoom;
 
     void main() {
@@ -136,10 +140,24 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
         vec4 position2 = model_matrix * vec4(0.0,0.0,0.0,1.0);
 
-        _position = vertex_position;
+
+        mat4 model_view_projection_matrix = view_projection_matrix * model_matrix;
 
 
-        local                   = vec3((uv - 0.5) * bbox, 0.0);
+        local       = vec3((uv - 0.5) * bbox, 0.0);
+        gl_Position = view_projection_matrix * vec4(local,1.0);
+
+//        mat4 view_projection_matrix2 =
+//            mat4( 1.0, 0.0, 0.0, 0.0
+//                , 0.0, 1.0, 0.0, 0.0
+//                , 0.0, 0.0, 1.0, 0.0
+//                , 0.2, 0.2, 1.0, 1.0
+//                );
+
+
+        _position = view_projection_matrix * vec4(local,1.0);
+
+
 //        mat4 model_view_matrix  = view_matrix * model_matrix;
 //        vec4 eyeT               = model_view_matrix * vec4(local,1.0);
 //        gl_Position             = projection_matrix * eyeT;
@@ -147,7 +165,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 //        eye                     = eyeT.xyz;
 //        eye.z                   = -eye.z;
 
-        gl_Position = position2;
+        gl_Position = _position;
     }
 "#,
             )
@@ -167,19 +185,24 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
     in vec3 local;
 
+    uniform mediump mat4 view_matrix;
+    uniform mediump mat4 projection_matrix;
+    uniform mediump mat4 view_projection_matrix;
+
     void main() {
-        if(_position.xyz == vec3(0.0,0.0,0.0)) {
-            out_color = vec4(1.0, 1.0, 1.0, 1.0);
-        } else {
-            out_color = vec4(1.0, 0.0, 0.0, 1.0);
-        }
-//        out_color = vec4(1.0, 1.0, 1.0, 1.0);
         out_color = vec4(uv.x, uv.y, 0.0, 1.0);
         out_color = vec4(local, 1.0);
+        out_color = _position;
+        out_color = vec4(1.0,1.0,1.0,1.0);
     }
 "#,
             )
                 .unwrap();
+
+//            println!("{:?}", self.context.get_shader_info_log(&vert_shader));
+//            println!("{:?}", self.context.get_shader_info_log(&frag_shader));
+
+
             let program =
                 webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
 
@@ -212,7 +235,20 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
             println!("!! 3");
 
+            let view_projection_matrix_location = self.context.get_uniform_location(&program, "view_projection_matrix");
+            println!("{:?}",view_projection_matrix_location);
+            println!("{:?}",self.context.get_error());
 
+
+            println!("----- {} , {}", Context::INVALID_VALUE, Context::INVALID_OPERATION);
+
+
+
+            camera.update();
+            self.context.set_uniform(&view_projection_matrix_location.unwrap(), camera.view_projection_matrix());
+
+            println!("CAMERA");
+            println!("{:?}", camera.view_projection_matrix());
 
 
             let pts = self.geometry.scopes.point.size();

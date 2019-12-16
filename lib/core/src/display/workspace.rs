@@ -32,6 +32,68 @@ pub enum Error {
     WebError { error: web::Error },
 }
 
+
+// =============
+// === Shape ===
+// =============
+
+// === Shape ===
+
+#[derive(Clone,Debug)]
+pub struct Shape {
+    rc: Rc<RefCell<ShapeData>>
+}
+
+impl Default for Shape {
+    fn default() -> Self {
+        let rc = Rc::new(RefCell::new(default()));
+        Self {rc}
+    }
+}
+
+impl Shape {
+    pub fn screen_shape(&self) -> ShapeData {
+        self.rc.borrow().clone()
+    }
+
+    pub fn canvas_shape(&self) -> ShapeData {
+        let mut shape = self.screen_shape();
+        shape.width  *= shape.pixel_ratio;
+        shape.height *= shape.pixel_ratio;
+        shape
+    }
+
+    pub fn set_screen_dimension(&self, width:f64, height:f64) {
+        self.rc.borrow_mut().set_screen_dimension(width,height);
+    }
+}
+
+// === ShapeData ===
+
+#[derive(Clone,Debug)]
+pub struct ShapeData {
+    pub width       : f64,
+    pub height      : f64,
+    pub pixel_ratio : f64
+}
+
+impl Default for ShapeData {
+    fn default() -> Self {
+        let width       = 100.0;
+        let height      = 100.0;
+        let pixel_ratio = web::device_pixel_ratio().unwrap_or(1.0);
+        Self {width,height,pixel_ratio}
+    }
+}
+
+impl ShapeData {
+    pub fn set_screen_dimension(&mut self, width:f64, height:f64) {
+        self.width  = width;
+        self.height = height;
+    }
+}
+
+
 // =================
 // === Workspace ===
 // =================
@@ -41,24 +103,15 @@ pub enum Error {
 pub struct Workspace<OnDirty> {
     pub canvas              : web_sys::HtmlCanvasElement,
     pub context             : webgl::Context,
-    pub pixel_ratio         : f64,
     pub mesh_registry       : MeshRegistry<OnDirty>,
     pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
-    pub scene_registry      : OptVec<Scene>,
-    pub shape               : Rc<RefCell<WorkspaceShape>>,
+    pub scene               : Scene, // FIXME We support only 1 scene now;
+    pub shape               : Shape,
     pub shape_dirty         : ShapeDirty<OnDirty>,
     pub logger              : Logger,
     pub listeners           : Listeners,
 }
 
-#[derive(Default)]
-#[derive(Debug)]
-pub struct WorkspaceShape {
-    pub width  : i32,
-    pub height : i32,
-}
-
-pub type WorkspaceShapeDirtyState = WorkspaceShape;
 
 // === Types ===
 
@@ -94,9 +147,8 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let dom                 = dom.as_ref();
         let canvas              = web::get_canvas(dom)?;
         let context             = web::get_webgl2_context(&canvas)?;
-        let pixel_ratio         = web::device_pixel_ratio()?;
         let sub_logger          = logger.sub("shape_dirty");
-        let shape_dirty         = ShapeDirty::new(logger.sub("shape_dirty"),on_dirty.clone());
+        let shape_dirty         = ShapeDirty::new(sub_logger,on_dirty.clone());
         let sub_logger          = logger.sub("mesh_registry_dirty");
         let dirty_flag          = MeshRegistryDirty::new(sub_logger, on_dirty);
         let on_change           = mesh_registry_on_change(dirty_flag.clone_rc());
@@ -105,16 +157,17 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let shape               = default();
         let listeners           = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let mesh_registry_dirty = dirty_flag;
-        let scene_registry      = default();
-        let this = Self {canvas,context,pixel_ratio,mesh_registry,scene_registry,mesh_registry_dirty
+        let scene               = Scene::new(logger.sub("scene1"));
+        let this = Self {canvas,context,mesh_registry,scene,mesh_registry_dirty
                         ,shape,shape_dirty,logger,listeners};
         Ok(this)
     }
+
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
     ( logger : &Logger
     , canvas : &web_sys::HtmlCanvasElement
-    , shape  : &Rc<RefCell<WorkspaceShape>>
+    , shape  : &Shape
     , dirty  : &ShapeDirty<OnDirty>
     ) -> Listeners {
         let logger = logger.clone();
@@ -122,40 +175,45 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let dirty  = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
             group!(logger, "Resize observer event.", {
-                *shape.borrow_mut() = WorkspaceShape {width,height};
+                shape.set_screen_dimension(width,height);
                 dirty.set();
             })
         });
         let resize = ResizeObserver::new(canvas,on_resize);
         Listeners {resize}
     }
+
     /// Build new instance with the provided builder object.
     pub fn build<Name:Into<String>> (name:Name) -> WorkspaceBuilder {
         let name = name.into();
         WorkspaceBuilder {name}
     }
+
     /// Create a new mesh instance.
     pub fn new_mesh(&mut self) -> MeshID {
         self.mesh_registry.new_mesh()
     }
+
     /// Resize the underlying canvas. This function should rather not be called
     /// directly. If you want to change the canvas size, modify the `shape` and
     /// set the dirty flag.
-    fn resize_canvas(&self, shape:&WorkspaceShape) {
-        let ratio  = self.pixel_ratio.floor() as i32;
-        let width  = ratio * shape.width;
-        let height = ratio * shape.height;
-        self.logger.group(fmt!("Resized to {}px x {}px.", width, height), || {
-            self.canvas.set_attribute("width",  &width.to_string()).unwrap();
-            self.canvas.set_attribute("height", &height.to_string()).unwrap();
-            self.context.viewport(0, 0, width, height);
+    fn resize_canvas(&self, shape:&Shape) {
+        let screen = shape.screen_shape();
+        let canvas = shape.canvas_shape();
+        self.logger.group(fmt!("Resized to {}px x {}px.", screen.width, screen.height), || {
+            self.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
+            self.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
+            self.context.viewport(0, 0, canvas.width as i32, canvas.height as i32);
         });
     }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.shape_dirty.check_all() {
-                self.resize_canvas(&self.shape.borrow());
+                let screen = self.shape.screen_shape();
+                self.resize_canvas(&self.shape);
+                self.scene.camera.set_projection_target(screen.width as f32, screen.height as f32);
                 self.shape_dirty.unset_all();
             }
             if self.mesh_registry_dirty.check_all() {
@@ -167,7 +225,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
-            self.mesh_registry.render();
+            self.mesh_registry.render(&mut self.scene.camera);
         })
     }
 }

@@ -13,6 +13,7 @@ use crate::promote;
 use crate::promote_all;
 use crate::promote_mesh_types;
 use eval_tt::*;
+use crate::display::symbol::display_object::Camera;
 
 
 // ====================
@@ -83,10 +84,10 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
         })
     }
 
-    pub fn render(&self) {
+    pub fn render(&self, camera:&mut Camera) {
         group!(self.logger, "Rendering.", {
             for mesh in &self.meshes {
-                mesh.render();
+                mesh.render(camera);
             }
         })
     }

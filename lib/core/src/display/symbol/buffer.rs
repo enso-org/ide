@@ -173,14 +173,17 @@ Buffer<T,OnSet,OnResize> {
     pub fn builder() -> Builder<T> {
         default()
     }
+
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
+
     /// Checks if the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
+
     /// Binds the underlying WebGLBuffer to a given target.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
     pub fn bind(&self, target:u32) {
@@ -198,6 +201,7 @@ Buffer<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
     pub fn add_element(&mut self) {
         self.add_elements(1);
     }
+
     /// Adds multiple new elements initialized to default values.
     pub fn add_elements(&mut self, elem_count: usize) {
         self.extend(iter::repeat(T::empty()).take(elem_count));
@@ -249,6 +253,7 @@ SharedBuffer<T,OnSet,OnResize> {
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
+
     /// Build the buffer from the provider configuration builder.
     pub fn build
     (context:&Context, bldr:Builder<T>, on_set:OnSet, on_resize:OnResize)
@@ -265,6 +270,7 @@ SharedBuffer<T,OnSet,OnResize> where Prim<T>: Debug { // TODO: remove Prim<T>: D
     pub fn update(&self) {
         self.borrow_mut().update()
     }
+
     /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
     /// attribute of the current vertex buffer object and specifies its layout.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
@@ -279,14 +285,17 @@ SharedBuffer<T,OnSet,OnResize> {
     pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
         Var::new(index,self.clone_rc())
     }
+
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.borrow().len()
     }
+
     /// Checks if the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.borrow().is_empty()
     }
+
     /// Binds the underlying WebGLBuffer to a given target.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
     pub fn bind(&self, target:u32) {
@@ -330,6 +339,7 @@ Var<T,OnSet,OnResize> {
     pub fn new(index:usize, buffer: SharedBuffer<T,OnSet,OnResize>) -> Self {
         Self {index, buffer}
     }
+
     /// Gets immutable reference to the underlying data.
     // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe
     // to use it here.
@@ -352,10 +362,12 @@ Var<T,OnSet,OnResize> {
         let target      = unsafe { drop_lifetime_mut(target) }; // [1]
         IndexGuardMut {target,_borrow}
     }
+
     /// Sets the variable to a new value.
     pub fn set(&self, val:T) {
         **self.get_mut() = val;
     }
+
     /// Modifies the underlying data by using the provided function.
     pub fn modify<F: FnOnce(&mut T)>(&self, f:F) {
         f(&mut self.buffer.borrow_mut()[self.index]);
@@ -395,10 +407,12 @@ impl<T> Builder<T> {
     pub fn new() -> Self {
         default()
     }
+
     /// Sets the underlying buffer data.
     pub fn buffer(self, val: Vec <T>) -> Self {
         Self { _buffer: Some(val), _logger: self._logger }
     }
+
     /// Sets the logger.
     pub fn logger(self, val: Logger) -> Self {
         Self { _buffer: self._buffer, _logger: Some(val) }
