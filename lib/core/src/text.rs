@@ -1,13 +1,14 @@
 pub mod font;
 pub mod buffer;
+pub mod content;
 pub mod msdf;
 
 use crate::prelude::*;
 
 use crate::Color;
 use crate::display::world::Workspace;
-use crate::text::buffer::ContentRef;
 use crate::text::buffer::TextComponentBuffers;
+use crate::text::content::TextComponentContent;
 use crate::text::font::FontId;
 use crate::text::font::FontRenderInfo;
 use crate::text::font::Fonts;
@@ -37,8 +38,7 @@ use web_sys::WebGlTexture;
 /// commits
 #[derive(Debug)]
 pub struct TextComponent {
-    pub lines       : Vec<String>,
-    pub font        : FontId,
+    pub content     : TextComponentContent,
     pub position    : Point2<f64>,
     pub size        : Vector2<f64>,
     pub text_size   : f64,
@@ -77,11 +77,8 @@ impl TextComponent {
     pub fn display(&mut self, fonts:&mut Fonts) {
         let gl_context     = &self.gl_context;
         let vertices_count = self.buffers.vertices_count() as i32;
-        let lines          = &mut self.lines;
-        let font           = fonts.get_render_info(self.font);
-        let content_ref    = ContentRef{lines,font};
 
-        self.buffers.refresh(gl_context,content_ref);
+        self.buffers.refresh(gl_context,self.content.refresh_info(fonts));
         gl_context.use_program(Some(&self.gl_program));
         self.update_uniforms();
         self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
@@ -175,22 +172,14 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         let gl_context        = self.workspace.context.clone();
         let gl_program        = self.create_program(&gl_context);
         let gl_msdf_texture   = self.create_msdf_texture(&gl_context);
-        let lines             = self.split_lines();
-        let font              = self.fonts.get_render_info(self.font_id);
         let display_size      = self.size / self.text_size;
-        let content_ref       = ContentRef{lines:lines.as_ref(),font};
-        let buffers           = TextComponentBuffers::new(&gl_context,display_size,content_ref);
+        let mut content       = TextComponentContent::new(self.font_id,self.text.as_ref());
+        let buffers           = TextComponentBuffers::new(&gl_context,display_size,content.refresh_info(self.fonts));
         self.setup_constant_uniforms(&gl_context,&gl_program);
-        TextComponent {
-            lines,
-            font: self.font_id,
-            position: self.position,
-            size: self.size,
-            text_size: self.text_size,
-            gl_context,
-            gl_program,
-            gl_msdf_texture,
-            buffers,
+        TextComponent {content,gl_context,gl_program,gl_msdf_texture,buffers,
+            position  : self.position,
+            size      : self.size,
+            text_size : self.text_size,
         }
     }
 
@@ -198,12 +187,6 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         for ch in self.text.as_ref().chars() {
             self.fonts.get_render_info(self.font_id).get_glyph_info(ch);
         }
-    }
-
-    fn split_lines(&self) -> Vec<String> {
-        let lines_text = self.text.as_ref().split('\n');
-        let lines_iter = lines_text.map(|line| line.to_string());
-        lines_iter.collect()
     }
 
     fn create_program(&self, gl_context:&Context) -> Program {

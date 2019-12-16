@@ -177,6 +177,52 @@ mod tests {
         }
     }
 
+    #[web_bench]
+    fn editing_single_long_line(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("editing_single_long_line") {
+            let mut bencher_clone = bencher.clone();
+            run_once_initialized(move || {
+                create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
+                bencher_clone.iter(move || {
+                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    {
+                        let replacement = TextReplacement { range: CharPosition { line: 1, byte_offset: 0 }..CharPosition { line: 1, byte_offset: 0 }, lines: vec!["bot".to_string()] };
+                        let edit = TextEdit::new(&mut text_component.content, vec![replacement]);
+                        edit.do_edit();
+                    }
+                    assert!(text_component.content.dirty_lines.is_dirty(1));
+                    world.workspace_dirty.set(world_test.workspace_id);
+                    world.update();
+                });
+            });
+        }
+    }
+
+    #[web_bench]
+    fn inserting_many_lines_in_long_file(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("inserting_many_lines_in_long_file") {
+            let mut bencher_clone = bencher.clone();
+            run_once_initialized(move || {
+                create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
+                bencher_clone.iter(move || {
+                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    {
+                        let lines          = TEST_TEXT.split('\n').map(|s| s.to_string()).collect();
+                        let replacement = TextReplacement { range: CharPosition { line: 1, byte_offset: 0 }..CharPosition { line: 1, byte_offset: 0 }, lines};
+                        let edit = TextEdit::new(&mut text_component.content, vec![replacement]);
+                        edit.do_edit();
+                    }
+                    assert!(text_component.content.dirty_lines.is_dirty(1));
+                    world.workspace_dirty.set(world_test.workspace_id);
+                });
+            });
+        }
+    }
+
     fn create_full_sized_text_component(world_test:&WorldTest, text:String) {
         let workspace_id       = world_test.workspace_id;
         let world : &mut World = &mut world_test.world_ptr.borrow_mut();

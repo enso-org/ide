@@ -4,6 +4,7 @@ use crate::text::buffer::glyph_square::Pen;
 use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
 use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
 use crate::text::buffer::line::LineAttributeBuilder;
+use crate::text::content::DirtyLines;
 use crate::text::font::FontRenderInfo;
 
 use nalgebra::geometry::Point2;
@@ -292,6 +293,14 @@ impl BufferFragments {
         }
     }
 
+    /// Mark as dirty all fragments with dirty assigned line.
+    pub fn mark_lines_dirty(&mut self, lines:&DirtyLines) {
+        let not_yet_dirty = self.fragments.iter_mut().filter(|f| !f.dirty);
+        for fragment in not_yet_dirty {
+            fragment.dirty = fragment.assigned_line.map_or(false, |l| lines.is_dirty(l));
+        }
+    }
+
     /// Get the minimum fragment id range covering all dirties.
     pub fn minimum_fragments_range_with_all_dirties(&self) -> Option<RangeInclusive<usize>> {
         let fragments     = self.fragments.iter().enumerate();
@@ -317,6 +326,7 @@ impl BufferFragments {
         }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
