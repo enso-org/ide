@@ -10,6 +10,7 @@ use nalgebra::geometry::Point2;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 
+
 // ======================
 // === BufferFragment ===
 // ======================
@@ -206,18 +207,36 @@ impl BufferFragments {
     ///
     /// Reassigned buffers are marked as dirty.
     pub fn reassign_fragments(&mut self, displayed_lines:RangeInclusive<usize>) {
-        let current_assignment = &self.assigned_lines;
-        let new_on_top         = *displayed_lines.start()  .. *current_assignment.start();
-        let new_on_bottom      = current_assignment.end()+1..=*displayed_lines.end();
-        let mut new_lines      = new_on_top.chain(new_on_bottom);
+        let current_assignment  = &self.assigned_lines;
+        let new_assignment      = self.new_assignment(displayed_lines);
+        let new_on_top          = *new_assignment.start()  .. *current_assignment.start();
+        let new_on_bottom       = current_assignment.end()+1..=*new_assignment.end();
+        let new_lines           = new_on_top.chain(new_on_bottom);
+        let fragments           = self.fragments.iter_mut();
+        let fragments_to_assign = fragments.filter(|f| f.can_be_reassigned(&new_assignment));
+        let reassignments       = new_lines.zip(fragments_to_assign);
 
-        for fragment in &mut self.fragments {
-            if fragment.can_be_reassigned(&displayed_lines) {
-                fragment.assigned_line = new_lines.next();
-                fragment.dirty         = true;
-            }
+        for (line_id,fragment) in reassignments {
+            fragment.assigned_line = Some(line_id);
+            fragment.dirty         = true;
         }
-        self.assigned_lines = displayed_lines;
+        self.assigned_lines = new_assignment;
+    }
+
+    fn new_assignment(&self, displayed_lines:RangeInclusive<usize>) -> RangeInclusive<usize> {
+        let lines_count           = |r:&RangeInclusive<usize>| r.start() - r.end() + 1;
+        let assigned_lines_count  = lines_count(&self.assigned_lines);
+        let displayed_lines_count = lines_count(&displayed_lines);
+        let hidden_lines_to_keep  = (assigned_lines_count - displayed_lines_count).max(0);
+        if self.assigned_lines.start() < displayed_lines.start() {
+            let new_start = displayed_lines.start() - hidden_lines_to_keep;
+            new_start..=*displayed_lines.end()
+        } else if self.assigned_lines.end() > displayed_lines.end() {
+            let new_end = displayed_lines.end() + hidden_lines_to_keep;
+            *displayed_lines.start()..=new_end
+        } else {
+            displayed_lines
+        }
     }
 
     /// Mark as dirty all fragments which should be refreshed after x scrolling.

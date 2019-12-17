@@ -79,8 +79,8 @@ impl TextComponentBuffers {
             if let Some(dirty_range) = opt_dirty_range {
                 self.refresh_fragments(gl_context,dirty_range,content); // Note[refreshing buffers]
             }
-            self.scrolled_x = true;
-            self.scrolled_y = true;
+            self.scrolled_x = false;
+            self.scrolled_y = false;
         }
     }
 
