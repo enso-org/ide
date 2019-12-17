@@ -66,24 +66,24 @@ impl TextComponentBuffers {
     }
 
     /// Refresh the whole buffers data.
-    pub fn refresh(&mut self, gl_context:&Context, content:ContentRef) {
+    pub fn refresh(&mut self, gl_context:&Context, info:RefreshInfo) {
         let scrolled_x = self.scroll_since_last_frame.x != 0.0;
         let scrolled_y = self.scroll_since_last_frame.y != 0.0;
         if scrolled_y {
-            let displayed_lines = self.displayed_lines(content.lines.len());
+            let displayed_lines = self.displayed_lines(info.lines.len());
             self.fragments.reassign_fragments(displayed_lines);
         }
         if scrolled_x {
             let displayed_x = self.displayed_x_range();
             let x_scroll    = self.scroll_since_last_frame.x;
-            let lines       = content.lines;
+            let lines       = info.lines;
             self.fragments.mark_dirty_after_x_scrolling(x_scroll,displayed_x,lines);
         }
-        if scrolled_x || scrolled_y {
-            self.fragments.mark_lines_dirty(&refresh.dirty_lines);
+        if scrolled_x || scrolled_y || info.dirty_lines.any_dirty() {
+            self.fragments.mark_lines_dirty(&info.dirty_lines);
             let opt_dirty_range = self.fragments.minimum_fragments_range_with_all_dirties();
             if let Some(dirty_range) = opt_dirty_range {
-                self.refresh_fragments(gl_context,dirty_range,refresh); // Note[refreshing buffers]
+                self.refresh_fragments(gl_context,dirty_range,info); // Note[refreshing buffers]
             }
             self.scroll_since_last_frame = Vector2::new(0.0,0.0);
         }
@@ -156,12 +156,12 @@ impl TextComponentBuffers {
 
     fn refresh_fragments
     (&mut self, gl_context:&Context, indexes:RangeInclusive<usize>, refresh:RefreshInfo) {
-        let ofsset      = *indexes.start();
+        let offset      = *indexes.start();
         let mut builder = self.create_fragments_data_builder(refresh.font);
 
         self.fragments.build_buffer_data_for_fragments(indexes,&mut builder,refresh.lines.as_ref());
-        self.set_vertex_position_buffer_subdata(gl_context,ofsset,&builder);
-        self.set_texture_coords_buffer_subdata (gl_context,ofsset,&builder);
+        self.set_vertex_position_buffer_subdata(gl_context,offset,&builder);
+        self.set_texture_coords_buffer_subdata (gl_context,offset,&builder);
     }
 
     fn create_fragments_data_builder<'a>(&self, font:&'a mut FontRenderInfo)
