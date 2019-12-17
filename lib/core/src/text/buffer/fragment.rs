@@ -1,11 +1,14 @@
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::{Pen,GlyphVertexPositionBuilder,GlyphTextureCoordsBuilder};
+use crate::text::buffer::glyph_square::Pen;
+use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
+use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
 use crate::text::buffer::line::LineAttributeBuilder;
 use crate::text::font::FontRenderInfo;
 
 use nalgebra::geometry::Point2;
-use std::ops::{Range,RangeInclusive};
+use std::ops::Range;
+use std::ops::RangeInclusive;
 
 // ======================
 // === BufferFragment ===

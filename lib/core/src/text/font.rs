@@ -1,11 +1,15 @@
 use crate::prelude::*;
-use crate::text::msdf::
-{MsdfTexture,convert_msdf_transformation,x_distance_from_msdf_value};
+
+use crate::text::msdf::MsdfTexture;
+use crate::text::msdf::convert_msdf_transformation;
+use crate::text::msdf::x_distance_from_msdf_value;
 
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_embedded_fonts::EmbeddedFonts;
-use msdf_sys::{MsdfParameters,MultichannelSignedDistanceField};
-use std::collections::hash_map::Entry::{Occupied,Vacant};
+use msdf_sys::MsdfParameters;
+use msdf_sys::MultichannelSignedDistanceField;
+use std::collections::hash_map::Entry::Occupied;
+use std::collections::hash_map::Entry::Vacant;
 
 // ========================
 // === Font render info ===

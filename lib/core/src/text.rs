@@ -6,14 +6,25 @@ use crate::prelude::*;
 
 use crate::Color;
 use crate::display::world::Workspace;
-use crate::text::buffer::{TextComponentBuffers, ContentRef};
+use crate::text::buffer::ContentRef;
+use crate::text::buffer::TextComponentBuffers;
+use crate::text::font::FontId;
+use crate::text::font::FontRenderInfo;
+use crate::text::font::Fonts;
 use crate::text::msdf::MsdfTexture;
 
-use font::{FontId,FontRenderInfo};
-use basegl_backend_webgl::{Context,compile_shader,link_program,Program,Shader};
-use nalgebra::{Vector2, Similarity2, Point2, Projective2};
-use web_sys::{WebGlRenderingContext,WebGlBuffer,WebGlTexture};
-use crate::text::font::Fonts;
+use basegl_backend_webgl::Context;
+use basegl_backend_webgl::compile_shader;
+use basegl_backend_webgl::link_program;
+use basegl_backend_webgl::Program;
+use basegl_backend_webgl::Shader;
+use nalgebra::Vector2;
+use nalgebra::Similarity2;
+use nalgebra::Point2;
+use nalgebra::Projective2;
+use web_sys::WebGlRenderingContext;
+use web_sys::WebGlBuffer;
+use web_sys::WebGlTexture;
 
 
 // =====================
@@ -54,7 +65,7 @@ impl TextComponent {
         gl_context.use_program(Some(&self.gl_program));
         self.update_uniforms();
         self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
-        self.bind_buffer_to_attribute("texCoord",&self.buffers.texture_coords);
+        self.bind_buffer_to_attribute("tex_coord",&self.buffers.texture_coords);
         self.setup_blending();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
         gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,vertices_count);
@@ -64,7 +75,7 @@ impl TextComponent {
         let gl_context          = &self.gl_context;
         let to_window           = self.create_to_window();
         let to_window_ref       = to_window.as_ref();
-        let to_window_loc       = gl_context.get_uniform_location(&self.gl_program,"toWindow");
+        let to_window_loc       = gl_context.get_uniform_location(&self.gl_program,"to_window");
         let transpose           = false;
         gl_context.uniform_matrix3fv_with_f32_array(to_window_loc.as_ref(),transpose,to_window_ref);
     }
@@ -241,12 +252,12 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         let range               = FontRenderInfo::MSDF_PARAMS.range as f32;
         let msdf_width          = MsdfTexture::WIDTH as f32;
         let msdf_height         = self.fonts.get_render_info(self.font_id).msdf_texture.rows() as f32;
-        let clip_lower_loc      = gl_context.get_uniform_location(gl_program,"clipLower");
-        let clip_upper_loc      = gl_context.get_uniform_location(gl_program,"clipUpper");
+        let clip_lower_loc      = gl_context.get_uniform_location(gl_program,"clip_lower");
+        let clip_upper_loc      = gl_context.get_uniform_location(gl_program,"clip_upper");
         let color_loc           = gl_context.get_uniform_location(gl_program,"color");
         let range_loc           = gl_context.get_uniform_location(gl_program,"range");
         let msdf_loc            = gl_context.get_uniform_location(gl_program,"msdf");
-        let msdf_size_loc       = gl_context.get_uniform_location(gl_program,"msdfSize");
+        let msdf_size_loc       = gl_context.get_uniform_location(gl_program,"msdf_size");
 
         gl_context.use_program(Some(gl_program));
         gl_context.uniform2f(clip_lower_loc.as_ref(),left,bottom);

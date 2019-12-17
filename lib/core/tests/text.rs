@@ -1,10 +1,21 @@
 //! Test suite for the Web and headless browsers.
 #![cfg(target_arch = "wasm32")]
 
-use basegl::display::world::{World,WorldRef,Workspace,WorkspaceID,Add};
-use basegl_system_web::{get_element_by_id, create_element, dyn_into, NodeInserter, StyleSetter,
-                        get_webgl_context, Result, Error};
-use web_sys::{HtmlElement,HtmlCanvasElement};
+use basegl::display::world::Add;
+use basegl::display::world::Workspace;
+use basegl::display::world::WorkspaceID;
+use basegl::display::world::World;
+use basegl::display::world::WorldRef;
+use basegl_system_web::create_element;
+use basegl_system_web::dyn_into;
+use basegl_system_web::Error;
+use basegl_system_web::get_element_by_id;
+use basegl_system_web::get_webgl_context;
+use basegl_system_web::NodeInserter;
+use basegl_system_web::Result;
+use basegl_system_web::StyleSetter;
+use web_sys::HtmlElement;
+use web_sys::HtmlCanvasElement;
 
 
 // ==================
@@ -74,7 +85,8 @@ mod tests {
     use basegl::text::TextComponentBuilder;
 
     use basegl_core_msdf_sys::run_once_initialized;
-    use nalgebra::{Point2,Vector2};
+    use nalgebra::Point2;
+    use nalgebra::Vector2;
 
     web_configure!(run_in_browser);
 

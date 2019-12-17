@@ -4,9 +4,12 @@ pub mod line;
 
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::
-{BASE_LAYOUT_SIZE,GlyphAttributeBuilder,GlyphVertexPositionBuilder, GlyphTextureCoordsBuilder};
-use crate::text::buffer::fragment::{BufferFragments,FragmentsDataBuilder};
+use crate::text::buffer::glyph_square::BASE_LAYOUT_SIZE;
+use crate::text::buffer::glyph_square::GlyphAttributeBuilder;
+use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
+use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
+use crate::text::buffer::fragment::BufferFragments;
+use crate::text::buffer::fragment::FragmentsDataBuilder;
 use crate::text::font::FontRenderInfo;
 
 use basegl_backend_webgl::Context;
@@ -90,9 +93,12 @@ impl TextComponentBuffers {
 
     fn create_uninitialized(gl_context:&Context, display_size:Vector2<f64>, content:&mut ContentRef)
     -> TextComponentBuffers {
-        let displayed_lines     = (display_size.y.floor() as usize) + 2; // Note[Why 2?]
-        let space_width         = content.font.get_glyph_info(' ').advance;
-        let max_displayed_chars = (display_size.x.ceil() / space_width) as usize;
+        // Display_size.y.floor() makes space for all lines that fit in space in their full height.
+        // But we have 2 more lines: one clipped from top, and one from bottom.
+        const ADDITIONAL_LINES : usize = 2;
+        let displayed_lines            = (display_size.y.floor() as usize) + ADDITIONAL_LINES;
+        let space_width                = content.font.get_glyph_info(' ').advance;
+        let max_displayed_chars        = (display_size.x.ceil() / space_width) as usize;
         TextComponentBuffers {display_size,max_displayed_chars,
             vertex_position : gl_context.create_buffer().unwrap(),
             texture_coords  : gl_context.create_buffer().unwrap(),
@@ -102,12 +108,6 @@ impl TextComponentBuffers {
             scrolled_y      : false,
         }
     }
-
-    /* Note [Why 2?]
-     *
-     * display_size.y.floor() makes space for all lines that fit in space in their full height.
-     * We have 2 more lines: one clipped from top, and one from bottom.
-     */
 
     fn displayed_x_range(&self) -> RangeInclusive<f64> {
         let begin = self.scroll_offset.x;
@@ -167,17 +167,23 @@ impl TextComponentBuffers {
         }
     }
 
+    const GL_FLOAT_SIZE : usize = 4;
+
     fn set_vertex_position_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
-        let fragment_size = GlyphVertexPositionBuilder::OUTPUT_SIZE * self.max_displayed_chars * 4;
-        let offset        = fragment_size * fragment_offset;
-        let data          = builder.vertex_position_data.as_ref();
+        let char_output_floats = GlyphVertexPositionBuilder::OUTPUT_SIZE;
+        let line_output_floats = char_output_floats * self.max_displayed_chars;
+        let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
+        let offset             = fragment_size * fragment_offset;
+        let data               = builder.vertex_position_data.as_ref();
         self.set_buffer_subdata(gl_context,&self.vertex_position,offset,data);
     }
 
     fn set_texture_coords_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
-        let fragment_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE * self.max_displayed_chars * 4;
+        let char_output_floats = GlyphTextureCoordsBuilder::OUTPUT_SIZE;
+        let line_output_floats = char_output_floats * self.max_displayed_chars;
+        let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
         let offset        = fragment_size * fragment_offset;
         let data          = builder.texture_coords_data.as_ref();
         self.set_buffer_subdata(gl_context,&self.texture_coords,offset,data);
