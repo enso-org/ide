@@ -90,7 +90,6 @@ mod tests {
 
     web_configure!(run_in_browser);
 
-    const SCROLLING_BENCHMARK_ITERATIONS : usize = 10;
     const TEST_TEXT : &str = "To be, or not to be, that is the question:\n\
         Whether 'tis nobler in the mind to suffer\n\
         The slings and arrows of outrageous fortune,\n\
@@ -146,13 +145,11 @@ mod tests {
                 create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    for _ in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let workspace          = &mut world.workspaces[world_test.workspace_id];
-                        let text_component     = &mut workspace.text_components[0];
-                        text_component.scroll(Vector2::new(0.0,-1.0));
-                        world.workspace_dirty.set(world_test.workspace_id);
-                        world.update();
-                    }
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    text_component.scroll(Vector2::new(0.0,-1.0));
+                    world.workspace_dirty.set(world_test.workspace_id);
+                    world.update();
                 });
             });
         }
@@ -166,13 +163,11 @@ mod tests {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    for _ in 0..SCROLLING_BENCHMARK_ITERATIONS {
-                        let workspace          = &mut world.workspaces[world_test.workspace_id];
-                        let text_component     = &mut workspace.text_components[0];
-                        text_component.scroll(Vector2::new(1.0,0.0));
-                        world.workspace_dirty.set(world_test.workspace_id);
-                        world.update();
-                    }
+                    let workspace          = &mut world.workspaces[world_test.workspace_id];
+                    let text_component     = &mut workspace.text_components[0];
+                    text_component.scroll(Vector2::new(1.0,0.0));
+                    world.workspace_dirty.set(world_test.workspace_id);
+                    world.update();
                 });
             });
         }
@@ -183,7 +178,7 @@ mod tests {
         let world : &mut World = &mut world_test.world_ptr.borrow_mut();
         let workspace          = &mut world.workspaces[workspace_id];
         let fonts              = &mut world.fonts;
-        let font_name          = FONTS[0];
+        let font_name          = FONTS[1];
         let font_id            = fonts.load_embedded_font(font_name).unwrap();
 
         let text_component = TextComponentBuilder {
