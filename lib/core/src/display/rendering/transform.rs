@@ -58,7 +58,9 @@ impl Transform {
     }
 
     /// Gets mutable Transform's translation.
-    pub fn translation_mut(&mut self) -> &mut Vector3<f32> { &mut self.translation }
+    pub fn translation_mut(&mut self) -> &mut Vector3<f32> {
+        &mut self.translation
+    }
 
     /// Sets Transform's scale.
     pub fn set_scale(&mut self, x:f32, y:f32, z:f32) {
@@ -71,7 +73,9 @@ impl Transform {
     }
 
     /// Gets mutable Transform's scale.
-    pub fn scale_mut(&mut self) -> &mut Vector3<f32> { &mut self.scale }
+    pub fn scale_mut(&mut self) -> &mut Vector3<f32> {
+        &mut self.scale
+    }
 
     /// Sets Transform's rotation from Euler angles in radians.
     pub fn set_rotation(&mut self, roll:f32, pitch:f32, yaw:f32) {

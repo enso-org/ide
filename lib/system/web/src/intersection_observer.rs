@@ -18,17 +18,17 @@ extern "C" {
     fn intersection_unobserve(id: usize);
 }
 
-// ======================
-// === ResizeObserver ===
-// ======================
+// ============================
+// === IntersectionObserver ===
+// ============================
 
-/// The ResizeObserver interface reports changes to the dimensions of an
-/// DOM Element's content or border box. ResizeObserver avoids infinite callback
-/// loops and cyclic dependencies that are often created when resizing via a
-/// callback function. It does this by only processing elements deeper in the
-/// DOM in subsequent frames.
+/// The IntersectionObserver interface of the Intersection Observer API provides
+/// a way to asynchronously observe changes in the intersection of a target
+/// element with an ancestor element or with a top-level document's viewport.
+/// The ancestor element or viewport is referred to as the root.
 ///
-/// See also https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
+/// See also
+/// https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver
 #[derive(Debug)]
 pub struct IntersectionObserver {
     pub target:      JsValue,

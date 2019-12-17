@@ -57,7 +57,8 @@ features = [
   'Event',
   'MouseEvent',
   'WheelEvent',
-  'DomRect'
+  'DomRect',
+  'AddEventListenerOptions'
 ]
 
 [dev-dependencies]

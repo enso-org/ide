@@ -85,12 +85,7 @@ impl DOMContainer {
         let data                  = Rc::new(RefCell::new(data));
         let resize_observer       = None;
         let intersection_observer = None;
-        let mut ret               = Self {
-            dom,
-            resize_observer,
-            intersection_observer,
-            data
-        };
+        let mut ret = Self { dom,resize_observer,intersection_observer,data };
 
         ret.init_listeners();
         ret

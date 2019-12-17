@@ -177,8 +177,7 @@ impl HTMLRenderer {
                 );
             },
             CameraType::Orthographic(_) => {
-                setup_camera_orthographic(
-                    &self.data.camera, &trans_cam);
+                setup_camera_orthographic(&self.data.camera, &trans_cam);
             }
         }
 

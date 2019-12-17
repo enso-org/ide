@@ -73,12 +73,13 @@ impl Camera {
     }
 
     /// Creates an orthographic projection Camera.
-    pub fn orthographic(left   : f32,
-                        right  : f32,
-                        bottom : f32,
-                        top    : f32,
-                        near   : f32,
-                        far    : f32) -> Self {
+    pub fn orthographic
+        (left    : f32
+        , right  : f32
+        , bottom : f32
+        , top    : f32
+        , near   : f32
+        , far    : f32) -> Self {
         let projection  = Orthographic3::new(left, right, bottom, top, near, far);
         let projection  = *projection.as_matrix();
         let object      = default();

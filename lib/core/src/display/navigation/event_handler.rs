@@ -14,6 +14,7 @@ use js_sys::Function;
 use web_sys::MouseEvent;
 use web_sys::WheelEvent;
 use web_sys::EventTarget;
+use web_sys::AddEventListenerOptions;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -43,8 +44,7 @@ pub struct PanEvent {
 pub enum Event {
     Start,
     Zoom(ZoomEvent),
-    Pan(PanEvent),
-    None
+    Pan(PanEvent)
 }
 
 // ==================
@@ -53,7 +53,7 @@ pub enum Event {
 
 /// MouseStart event.
 #[derive(Clone)]
-struct MouseStart {
+struct MouseStartEvent {
     button   : i16,
     position : Vector2<f32>
 }
@@ -63,8 +63,8 @@ struct MouseStart {
 // =================
 
 /// MouseMove event.
-struct MouseMove {
-    start    : Option<MouseStart>,
+struct MouseMoveEvent {
+    start    : Option<MouseStartEvent>,
     previous : Vector2<f32>,
     current  : Vector2<f32>
 }
@@ -74,7 +74,7 @@ struct MouseMove {
 // ==================
 
 /// MouseWheel event with focus position.
-struct MouseWheel {
+struct MouseWheelEvent {
     position : Vector2<f32>,
     delta_y  : f32
 }
@@ -83,12 +83,11 @@ struct MouseWheel {
 // === InternalMouseEvent ===
 // ==========================
 
-/// event_handler's InternalMouseEvents enumeration.
+/// Enumeration to represent mouse events.
 enum InternalMouseEvent {
-    Start(MouseStart),
-    Move(MouseMove),
-    Wheel(MouseWheel),
-    None
+    Start(MouseStartEvent),
+    Move(MouseMoveEvent),
+    Wheel(MouseWheelEvent)
 }
 
 impl InternalMouseEvent {
@@ -97,30 +96,29 @@ impl InternalMouseEvent {
         match self {
             InternalMouseEvent::Start(event) => Self::consume_start(event),
             InternalMouseEvent::Move (event) => Self::consume_move (event),
-            InternalMouseEvent::Wheel(event) => Self::consume_wheel(event),
-            InternalMouseEvent::None         => InternalMouseEvent::None
+            InternalMouseEvent::Wheel(event) => Self::consume_wheel(event)
         }
     }
 
-    fn consume_start(event:&mut MouseStart) -> Self {
+    fn consume_start(event:&mut MouseStartEvent) -> Self {
         // We don't need to modify Start, so we just clone it.
         InternalMouseEvent::Start(event.clone())
     }
 
-    fn consume_move(event:&mut MouseMove) -> Self {
+    fn consume_move(event:&mut MouseMoveEvent) -> Self {
         let start       = event.start.clone();
         let previous    = event.previous;
         let current     = event.current;
-        let mouse_move  = MouseMove { start, previous, current };
+        let mouse_move  = MouseMoveEvent { start, previous, current };
         // To consume move, we set event.previous = event.current.
         event.previous  = event.current;
         InternalMouseEvent::Move(mouse_move)
     }
 
-    fn consume_wheel(event:&mut MouseWheel) -> Self {
+    fn consume_wheel(event:&mut MouseWheelEvent) -> Self {
         let position    = event.position;
         let delta_y     = event.delta_y;
-        let mouse_wheel = MouseWheel { position, delta_y };
+        let mouse_wheel = MouseWheelEvent { position, delta_y };
         // To consume wheel, we set delta_y = 0.
         event.delta_y   = 0.0;
         InternalMouseEvent::Wheel(mouse_wheel)
@@ -131,18 +129,18 @@ impl InternalMouseEvent {
 // === EventHandler ===
 // ====================
 
-const MMB : i16 = 1;
-const RMB : i16 = 2;
+const MIDDLE_MOUSE_BUTTON: i16 = 1;
+const  RIGHT_MOUSE_BUTTON: i16 = 2;
 
 /// Struct used to handle mouse events such as MouseDown, MouseMove, MouseUp,
 /// MouseLeave and MouseWheel.
 pub struct EventHandler {
-    data : RefCell<InternalMouseEvent>
+    data : RefCell<Option<InternalMouseEvent>>
 }
 
 impl EventHandler {
     pub fn new(dom:&DOMContainer) -> Result<Rc<Self>> {
-        let data     = RefCell::new(InternalMouseEvent::None);
+        let data     = RefCell::new(None);
         let ehandler = Rc::new(Self { data });
 
         let document : EventTarget = dyn_into(document().unwrap()).unwrap();
@@ -168,14 +166,14 @@ impl EventHandler {
     (self:&Rc<Self>, target:&EventTarget) -> Result<()> {
         let ehandler = self.clone();
         let closure = move |event:MouseEvent| {
-            if event.button() == MMB || event.button() == RMB {
+            if event.button() == MIDDLE_MOUSE_BUTTON || event.button() == RIGHT_MOUSE_BUTTON {
                 let mut ehandler = ehandler.data.borrow_mut();
                 let button       = event.button();
                 let x            = event.x() as f32;
                 let y            = event.y() as f32;
                 let position     = Vector2::new(x, y);
-                let start        = MouseStart { button, position };
-                *ehandler        = InternalMouseEvent::Start(start);
+                let start        = MouseStartEvent { button, position };
+                *ehandler        = Some(InternalMouseEvent::Start(start));
             }
         };
         add_mouse_event(&target, "mousedown", closure)?.forget();
@@ -187,31 +185,32 @@ impl EventHandler {
     (self:&Rc<Self>, target:&EventTarget) -> Result<()> {
         let ehandler = self.clone();
         let closure = move |event:MouseEvent| {
-            let ime     = &mut ehandler.data.borrow_mut();
-            let ime     = ime as &mut InternalMouseEvent;
-            let x       = event.x() as f32;
-            let y       = event.y() as f32;
+            let mut data = ehandler.data.borrow_mut();
+            let mut ime = data.as_mut();
+            let x = event.x() as f32;
+            let y = event.y() as f32;
             let current = Vector2::new(x, y);
-            match ime {
-                InternalMouseEvent::Start(mouse_start) => {
-                    let previous = mouse_start.position;
+            if let Some(ime) = &mut ime {
+                match ime {
+                    InternalMouseEvent::Start(mouse_start) => {
+                        let previous = mouse_start.position;
 
-                    let start      = Some(mouse_start.clone());
-                    let mouse_move = MouseMove { start, previous, current };
-                    *ime = InternalMouseEvent::Move(mouse_move);
-                },
-                InternalMouseEvent::Move(mouse_move) => {
-                    mouse_move.current = current;
-                },
-                InternalMouseEvent::Wheel(mouse_wheel) => {
-                    mouse_wheel.position = current;
-                },
-                _ => {
-                    let start      = None;
-                    let previous   = current;
-                    let mouse_move = MouseMove { start, previous, current };
-                    *ime = InternalMouseEvent::Move(mouse_move);
-                },
+                        let start = Some(mouse_start.clone());
+                        let mouse_move = MouseMoveEvent { start, previous, current };
+                        **ime = InternalMouseEvent::Move(mouse_move);
+                    },
+                    InternalMouseEvent::Move(mouse_move) => {
+                        mouse_move.current = current;
+                    },
+                    InternalMouseEvent::Wheel(mouse_wheel) => {
+                        mouse_wheel.position = current;
+                    },
+                }
+            } else {
+                let start = None;
+                let previous = current;
+                let mouse_move = MouseMoveEvent { start, previous, current };
+                *data = Some(InternalMouseEvent::Move(mouse_move));
             }
         };
         add_mouse_event(&target, "mousemove", closure)?.forget();
@@ -224,7 +223,7 @@ impl EventHandler {
         let ehandler = self.clone();
         let closure = move |_:MouseEvent| {
             let mut ime = ehandler.data.borrow_mut();
-            *ime        = InternalMouseEvent::None;
+            *ime        = None;
         };
         add_mouse_event(&target  , "mouseup"   , closure.clone())?.forget();
         add_mouse_event(&document, "mouseleave", closure        )?.forget();
@@ -236,24 +235,27 @@ impl EventHandler {
     (self:&Rc<Self>, target:&EventTarget) -> Result<()>{
         let ehandler = self.clone();
         let closure = move |event:WheelEvent| {
-            let ime     = &mut ehandler.data.borrow_mut();
-            let ime     = ime as &mut InternalMouseEvent;
-            let delta_y = event.delta_y() as f32;
-            match ime {
-                InternalMouseEvent::Start(mouse_start) => {
-                    let position    = mouse_start.position;
-                    let mouse_wheel = MouseWheel { position, delta_y };
-                    *ime            = InternalMouseEvent::Wheel(mouse_wheel);
-                },
-                InternalMouseEvent::Move(mouse_move) => {
-                    let position    = mouse_move.current;
-                    let mouse_wheel = MouseWheel { position, delta_y };
-                    *ime            = InternalMouseEvent::Wheel(mouse_wheel);
-                },
-                InternalMouseEvent::Wheel(mouse_wheel) => {
-                    mouse_wheel.delta_y = delta_y;
-                },
-                InternalMouseEvent::None => ()
+            let mut ime = ehandler.data.borrow_mut();
+            let mut ime = ime.as_mut();
+            if let Some(ime) = &mut ime {
+                let delta_y = event.delta_y() as f32;
+                match ime {
+                    InternalMouseEvent::Start(mouse_start) => {
+                        let position = mouse_start.position;
+                        let mouse_wheel = MouseWheelEvent { position, delta_y };
+                        let mouse_event = InternalMouseEvent::Wheel(mouse_wheel);
+                        **ime = mouse_event;
+                    },
+                    InternalMouseEvent::Move(mouse_move) => {
+                        let position = mouse_move.current;
+                        let mouse_wheel = MouseWheelEvent { position, delta_y };
+                        let mouse_event = InternalMouseEvent::Wheel(mouse_wheel);
+                        **ime = mouse_event;
+                    },
+                    InternalMouseEvent::Wheel(mouse_wheel) => {
+                        mouse_wheel.delta_y = delta_y;
+                    }
+                }
             }
         };
         add_wheel_event(&target, closure)?.forget();
@@ -261,37 +263,41 @@ impl EventHandler {
     }
 
     /// Checks if EventHandler has an event.
-    pub fn poll(&self) -> Event {
-        let   event : &mut InternalMouseEvent = &mut self.data.borrow_mut();
-        match event.consume() {
-            InternalMouseEvent::Start(_)         => Event::Start,
-            InternalMouseEvent::Move(mouse_move) => {
-                if let Some(start) = &mouse_move.start {
-                    match start.button {
-                        MMB => {
-                            let mut movement   =  mouse_move.current;
-                                    movement  -=  mouse_move.previous;
-                                    movement.x = -movement.x;
-                            Event::Pan(PanEvent { movement })
-                        },
-                        RMB => {
-                            let focus  = start.position;
-                            let mut amount  = mouse_move.current.y;
-                                    amount -= mouse_move.previous.y;
-                            Event::Zoom(ZoomEvent { focus, amount })
-                        },
-                        _ => Event::None
+    pub fn poll(&self) -> Option<Event> {
+        let mut event = self.data.borrow_mut();
+        let event = event.as_mut();
+        if let Some(event) = event {
+            match event.consume() {
+                InternalMouseEvent::Start(_) => Some(Event::Start),
+                InternalMouseEvent::Move(mouse_move) => {
+                    if let Some(start) = &mouse_move.start {
+                        match start.button {
+                            MIDDLE_MOUSE_BUTTON => {
+                                let mut movement = mouse_move.current;
+                                movement -= mouse_move.previous;
+                                movement.x = -movement.x;
+                                Some(Event::Pan(PanEvent { movement }))
+                            },
+                            RIGHT_MOUSE_BUTTON => {
+                                let focus = start.position;
+                                let mut amount = mouse_move.current.y;
+                                amount -= mouse_move.previous.y;
+                                Some(Event::Zoom(ZoomEvent { focus, amount }))
+                            },
+                            _ => None
+                        }
+                    } else {
+                        None
                     }
-                } else {
-                    Event::None
+                },
+                InternalMouseEvent::Wheel(mouse_wheel) => {
+                    let focus = mouse_wheel.position;
+                    let amount = mouse_wheel.delta_y;
+                    Some(Event::Zoom(ZoomEvent { focus, amount }))
                 }
-            },
-            InternalMouseEvent::Wheel(mouse_wheel) => {
-                let focus  = mouse_wheel.position;
-                let amount = mouse_wheel.delta_y;
-                Event::Zoom(ZoomEvent { focus, amount })
             }
-            _ => Event::None
+        } else {
+            None
         }
     }
 }
@@ -300,12 +306,14 @@ impl EventHandler {
 // === Utils ===
 // =============
 
-/// Adds mouse event callback to target.
+// FIXME: documentation, formatting
+/// Adds a generated wasm_bindgen::prelude::Closure from the `closure` param
+/// to the `EventTarget` and returns it.
 fn add_mouse_event
-<T>(target:&EventTarget, name:&str, t : T)
-    -> Result<Closure<dyn Fn(MouseEvent)>>
-    where T : Fn(MouseEvent) + 'static {
-    let closure = Closure::wrap(Box::new(t) as Box<dyn Fn(MouseEvent)>);
+<T>(target:&EventTarget, name:&str, closure: T)
+-> Result<Closure<dyn Fn(MouseEvent)>>
+where T : Fn(MouseEvent) + 'static {
+    let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
     match target.add_event_listener_with_callback(name, callback) {
         Ok(_) => Ok(closure),
@@ -313,13 +321,18 @@ fn add_mouse_event
     }
 }
 
-/// Adds wheel event callback to target.
+// FIXME: documentation, formatting
+/// Adds a generated wasm_bindgen::prelude::Closure from the `closure` param
+/// to the `EventTarget` and returns it.
 fn add_wheel_event
-<T>(target:&EventTarget, t : T) -> Result<Closure<dyn Fn(WheelEvent)>>
-    where T : Fn(WheelEvent) + 'static {
-    let closure = Closure::wrap(Box::new(t) as Box<dyn Fn(WheelEvent)>);
+<T>(target:&EventTarget, closure: T) -> Result<Closure<dyn Fn(WheelEvent)>>
+where T : Fn(WheelEvent) + 'static {
+    let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(WheelEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
-    match target.add_event_listener_with_callback("wheel", callback) {
+    let mut options = AddEventListenerOptions::new();
+    options.passive(true);
+    match target.add_event_listener_with_callback_and_add_event_listener_options
+    ("wheel", callback, &options) {
         Ok(_)  => Ok(closure),
         Err(_) => Err(Error::AddEventListenerFail)
     }
