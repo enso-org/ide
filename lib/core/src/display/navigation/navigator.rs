@@ -47,6 +47,7 @@ impl Navigator {
             let normalized = normalize_point2(point, self.dom.dimensions());
             let normalized = normalized_to_range2(normalized, -1.0, 1.0);
 
+            // Scale X and Y to compensate aspect and fov.
             let z =  zoom.amount * self.zoom_speed;
             let x = -normalized.x * z / persp.aspect;
             let y =  normalized.y * z / camera.get_y_scale();

@@ -162,7 +162,7 @@ impl MouseManager {
                 }
             },
             State::Disabled => {
-                if let None = self.ignore_context_menu {
+                if self.ignore_context_menu.is_none() {
                     self.ignore_context_menu = Some(ignore_context_menu(&self.target)?);
                 };
             }
