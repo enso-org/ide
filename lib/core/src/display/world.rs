@@ -78,7 +78,7 @@ impl World {
         let update_handle    = default();
         let self_reference   = default();
         Self {workspaces,workspace_dirty,logger,event_loop,update_handle
-             ,self_reference}
+            ,self_reference}
     }
     /// Add new workspace and get its ID.
     pub fn add_workspace(&mut self, name: &str) -> WorkspaceID {
@@ -90,7 +90,7 @@ impl World {
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name,wspace_logger,on_change).unwrap() // FIXME
             })
-        })   
+        })
     }
     /// Dispose the workspace by the provided ID. In case of invalid ID, a 
     /// warning will be emitted.
@@ -104,11 +104,11 @@ impl World {
             }),
         }
     }
-    /// Run the provided callback on every frame. Returns a `CallbackHandle`, 
+    /// Run the provided callback on every frame. Returns a `CallbackHandle`,
     /// which when dropped will cancel the callback. If you want the function
-    /// to run forever, you can use the `forget` method in the handle. 
+    /// to run forever, you can use the `forget` method in the handle.
     pub fn on_frame<F:FnMut(&mut World)+'static>
-    (&mut self, mut callback: F) -> CallbackHandle { 
+    (&mut self, mut callback: F) -> CallbackHandle {
         let this = self.self_reference.as_ref().unwrap().clone_rc();
         let func = move || callback(&mut this.borrow_mut());
         self.event_loop.add_callback(func)
@@ -117,9 +117,9 @@ impl World {
     pub fn update(&mut self) {
 //        if self.workspace_dirty.check_all() {
 //            group!(self.logger, "Updating.", {
-                // FIXME render only needed workspaces.
-                self.workspace_dirty.unset_all();
-                self.workspaces.iter_mut().for_each(|t| t.update());
+        // FIXME render only needed workspaces.
+        self.workspace_dirty.unset_all();
+        self.workspaces.iter_mut().for_each(|t| t.update());
 //            });
 //        }
     }

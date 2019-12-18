@@ -23,8 +23,8 @@ use eval_tt::*;
 
 // === Definition ===
 
-/// Scope defines a view for geometry structure. For example, there is point 
-/// scope or instance scope. Scope contains buffer of data for each item it 
+/// Scope defines a view for geometry structure. For example, there is point
+/// scope or instance scope. Scope contains buffer of data for each item it
 /// describes.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
@@ -79,7 +79,7 @@ impl<OnDirty: Clone> Scope<OnDirty> {
         let instance_count = default();
         let context        = context.clone();
         Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger
-             ,instance_count}
+            ,instance_count}
     }
 }
 
@@ -88,7 +88,7 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
     /// Adds a new named buffer to the scope.
     pub fn add_buffer<Name: Str, T: Item>
     (&mut self, name:Name) -> SharedBuffer<T,OnDirty>
-    where AnyBuffer<OnDirty>: From<SharedBuffer<T,OnDirty>> {
+        where AnyBuffer<OnDirty>: From<SharedBuffer<T,OnDirty>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
         let shape_dirty  = self.shape_dirty.clone();
@@ -137,4 +137,3 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
         self.instance_count
     }
 }
-

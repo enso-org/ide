@@ -290,7 +290,7 @@ SharedHasUnset1 for SharedDirtyFlag<T,OnSet> where Arg<T>:Display {
 // [1] Please refer to `Prelude::drop_lifetime` docs to learn why it is safe to
 // use it here.
 impl<T, OnSet> SharedDirtyFlag<T,OnSet>
-where for<'t> &'t T: IntoIterator {
+    where for<'t> &'t T: IntoIterator {
     pub fn iter(&self) -> SharedDirtyFlagIter<T, OnSet> {
         let _borrow   = self.rc.borrow();
         let reference = unsafe { drop_lifetime(&_borrow) }; // [1]
@@ -302,24 +302,24 @@ where for<'t> &'t T: IntoIterator {
 /// Iterator guard for SharedDirtyFlag. It exposes the iterator of original
 /// structure behind the shared reference.
 pub struct SharedDirtyFlagIter<'t,T,OnSet>
-where &'t T: IntoIterator {
+    where &'t T: IntoIterator {
     pub iter : <&'t T as IntoIterator>::IntoIter,
     _borrow  : Ref<'t,DirtyFlag<T,OnSet>>
 }
 
 impl<'t,T,OnSet> Deref for SharedDirtyFlagIter<'t,T,OnSet>
-where &'t T: IntoIterator {
+    where &'t T: IntoIterator {
     type Target = <&'t T as IntoIterator>::IntoIter;
     fn deref(&self) -> &Self::Target { &self.iter }
 }
 
 impl<'t,T,OnSet> DerefMut for SharedDirtyFlagIter<'t,T,OnSet>
-where &'t T: IntoIterator {
+    where &'t T: IntoIterator {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.iter }
 }
 
 impl<'t,T,OnSet> Iterator for SharedDirtyFlagIter<'t,T,OnSet>
-where &'t T: IntoIterator {
+    where &'t T: IntoIterator {
     type Item = <&'t T as IntoIterator>::Item;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -29,7 +29,6 @@ macro_rules! derive_clone_plus {
 }
 
 
-
 // ========================
 // === IterForGenerator ===
 // ========================

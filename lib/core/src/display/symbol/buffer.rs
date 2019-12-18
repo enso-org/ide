@@ -78,10 +78,10 @@ Buffer<T,OnSet,OnResize> {
     /// Creates new buffer from provided explicit buffer object.
     pub fn new_from
     ( context   : &Context
-    , vec       : Vec<T>
-    , logger    : Logger
-    , on_set    : OnSet
-    , on_resize : OnResize
+      , vec       : Vec<T>
+      , logger    : Logger
+      , on_set    : OnSet
+      , on_resize : OnResize
     ) -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_debug_name()));
         let set_logger     = logger.sub("set_dirty");
@@ -98,13 +98,13 @@ Buffer<T,OnSet,OnResize> {
     /// Creates a new empty buffer.
     pub fn new
     (context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
-    -> Self {
+     -> Self {
         Self::new_from(context,default(),logger,on_set,on_resize)
     }
     /// Build the buffer from the provider configuration builder.
     pub fn build
     (context:&Context, bldr:Builder<T>, on_set:OnSet, on_resize:OnResize)
-    -> Self {
+     -> Self {
         let buffer = bldr._buffer.unwrap_or_else(default);
         let logger = bldr._logger.unwrap_or_else(default);
         Self::new_from(context,buffer,logger,on_set,on_resize)
@@ -113,9 +113,9 @@ Buffer<T,OnSet,OnResize> {
 
 impl<T:Item,OnSet,OnResize>
 Buffer<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
-    pub fn as_prim(&self) -> &[Prim<T>] {
-        <T as Item>::to_prim_buffer(&self.buffer.data)
-    }
+pub fn as_prim(&self) -> &[Prim<T>] {
+    <T as Item>::to_prim_buffer(&self.buffer.data)
+}
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -140,7 +140,7 @@ Buffer<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
         unsafe {
             let js_array = <T as Item>::js_buffer_view(&data);
             context.buffer_data_with_array_buffer_view
-                (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
+            (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
         }
     }
     /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
@@ -247,7 +247,7 @@ SharedBuffer<T,OnSet,OnResize> {
     /// Creates a new empty buffer.
     pub fn new
     (context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
-    -> Self {
+     -> Self {
         let data = Buffer::new(context,logger,on_set,on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
@@ -256,7 +256,7 @@ SharedBuffer<T,OnSet,OnResize> {
     /// Build the buffer from the provider configuration builder.
     pub fn build
     (context:&Context, bldr:Builder<T>, on_set:OnSet, on_resize:OnResize)
-    -> Self {
+     -> Self {
         let data = Buffer::build(context,bldr,on_set,on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
@@ -265,10 +265,10 @@ SharedBuffer<T,OnSet,OnResize> {
 
 impl<T:Item,OnSet,OnResize>
 SharedBuffer<T,OnSet,OnResize> where Prim<T>: Debug { // TODO: remove Prim<T>: Debug
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&self) {
-        self.borrow_mut().update()
-    }
+/// Check dirty flags and update the state accordingly.
+pub fn update(&self) {
+    self.borrow_mut().update()
+}
 
     /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
     /// attribute of the current vertex buffer object and specifies its layout.

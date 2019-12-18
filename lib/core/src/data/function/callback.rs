@@ -62,7 +62,6 @@ impl<T:Callback0> Callback0 for Option<T> {
     }
 }
 
-
 impl Callback0 for () {
     fn call(&mut self) {}
 }

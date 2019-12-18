@@ -1,49 +1,20 @@
-extern crate download_lp;
-
-use std::{fs, path};
-
-/// Download the release package from github
-pub fn github_download(
-    project_url     : &str,
-    version         : &str,
-    filename        : &str,
-    destination_dir : &path::Path
-) {
-    let url = format!(
-        "{project}/releases/download/{version}/{filename}",
-        project  = project_url,
-        version  = version,
-        filename = filename
-    );
-
-    let destination_file = path::Path::new(destination_dir)
-        .join(filename);
-
-    if destination_file.exists() {
-        fs::remove_file(&destination_file).unwrap();
-    }
-
-    download_lp::download(
-        url.as_str(),
-        destination_dir.to_str().unwrap()
-    ).unwrap();
-}
 
 mod msdfgen_wasm {
-    use crate::github_download;
-    use std::path;
+    use basegl_build_utilities::GithubRelease;
 
-    pub const VERSION     : &str = "v1.0";
-    pub const FILENAME    : &str = "msdfgen_wasm.js";
-    pub const PROJECT_URL : &str = "https://github.com/luna/msdfgen-wasm";
+    use std::{path,fs};
+    use std::io::Write;
+
+    pub const PACKAGE : GithubRelease<&str> = GithubRelease {
+        project_url : "https://github.com/luna/msdfgen-wasm",
+        version     : "v1.1",
+        filename    : "msdfgen_wasm.js"
+    };
+
+    pub const FILENAME : &str = PACKAGE.filename;
 
     pub fn download() {
-        github_download(
-            PROJECT_URL,
-            VERSION,
-            FILENAME,
-            path::Path::new(".") // Note [Downloading to src dir]
-        );
+        PACKAGE.download(path::Path::new(".")) // Note [Downloading to src dir]
     }
 
     /* Note [Downloading to src dir]
@@ -57,64 +28,30 @@ mod msdfgen_wasm {
      * If you find and implement a better way to downloading js snippets, please
      * remember to remove msdfgen_wasm.js entry from .gitignore
      */
-}
 
-mod fonts {
-    use crate::github_download;
-    use std::{path, env};
+    const PATCH_LINE : &str = "; export { ccall, getValue, _msdfgen_getKerning,\
+        _msdfgen_generateAutoframedMSDF, _msdfgen_result_getMSDFData,\
+        _msdfgen_result_getAdvance, _msdfgen_result_getTranslation,\
+        _msdfgen_result_getScale, _msdfgen_freeResult, _msdfgen_freeFont,\
+        addInitializationCb, isInitialized }";
 
-    pub const PACKAGE_NAME         : &str = "dejavu-fonts-ttf-2.37.zip";
-    pub const VERSION              : &str = "version_2_37";
-    pub const PROJECT_URL          : &str =
-        "https://github.com/dejavu-fonts/dejavu-fonts/";
-    pub const PACKAGE_FONTS_PREFIX : &str = "dejavu-fonts-ttf-2.37/ttf";
-    pub const FONTS_TO_EXTRACT     : &[&str] = &["DejaVuSansMono-Bold"];
-
-    /// Extract font file from official DejaVu zip package
+    /// Patches downloaded msdfgen_wasm.js file
     ///
-    /// The font file extracted to package's directory
-    fn extract_dejavu_font(
-        package : &std::path::Path,
-        font_name : &str,
-    ) {
-        let font_file = format!("{}.ttf", font_name);
-        let font_package_path = format!("{}/{}",
-            PACKAGE_FONTS_PREFIX,
-            font_file
-        );
+    /// For some reason, for wasm-bindgen test on browsers the function must
+    /// be explicitly exported. Examples works without this line perfectly.
+    pub fn patch_for_wasm_bindgen_test() {
+        let path = path::Path::new(FILENAME);
 
-        let mut archive = zip::ZipArchive::new(
-            std::fs::File::open(package).unwrap()
-        ).unwrap();
-        let mut input = archive.by_name(
-            font_package_path.as_str()
-        ).unwrap();
-        let mut output = std::fs::File::create(
-            package.parent().unwrap().join(font_file)
-        ).unwrap();
-        std::io::copy(&mut input, &mut output).unwrap();
-    }
+        let mut open_options = fs::OpenOptions::new();
+        open_options.append(true);
 
-    pub fn download_and_unzip() {
-        let out_dir = env::var("OUT_DIR").unwrap();
-        let destination_dir = path::Path::new(&out_dir);
-        let package_path = destination_dir.join(PACKAGE_NAME);
-
-        github_download(
-            PROJECT_URL,
-            VERSION,
-            PACKAGE_NAME,
-            destination_dir
-        );
-
-        for font in FONTS_TO_EXTRACT {
-            extract_dejavu_font(package_path.as_path(), &font);
-        }
+        let mut file = open_options.open(path).unwrap();
+        file.write(PATCH_LINE.as_bytes()).unwrap();
     }
 }
 
 fn main() {
     msdfgen_wasm::download();
-    fonts::download_and_unzip();
+    msdfgen_wasm::patch_for_wasm_bindgen_test();
     println!("cargo:rerun-if-changed=build.rs");
 }

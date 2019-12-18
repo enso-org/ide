@@ -10,7 +10,7 @@ use crate::dirty::traits::*;
 use crate::display::mesh_registry;
 use crate::promote_all;
 use crate::promote_mesh_registry_types;
-use crate::promote; 
+use crate::promote;
 use crate::system::web;
 use crate::system::web::fmt;
 use crate::system::web::group;
@@ -20,6 +20,7 @@ use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 use crate::data::opt_vec::OptVec;
 use crate::display::scene::Scene;
+use crate::text;
 
 
 // =============
@@ -110,6 +111,9 @@ pub struct Workspace<OnDirty> {
     pub shape_dirty         : ShapeDirty<OnDirty>,
     pub logger              : Logger,
     pub listeners           : Listeners,
+    // TODO[AO] this is a very temporary solution. Need to develop some general
+    // component handling
+    pub text_components     : Vec<text::TextComponent>,
 }
 
 
@@ -128,7 +132,7 @@ macro_rules! promote_workspace_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) -> 
+fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) ->
     OnMeshRegistryChange { || dirty.set() }
 }
 
@@ -158,17 +162,18 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let listeners           = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let mesh_registry_dirty = dirty_flag;
         let scene               = Scene::new(logger.sub("scene1"));
+        let text_components     = default();
         let this = Self {canvas,context,mesh_registry,scene,mesh_registry_dirty
-                        ,shape,shape_dirty,logger,listeners};
+            ,shape,shape_dirty,logger,listeners,text_components};
         Ok(this)
     }
 
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
     ( logger : &Logger
-    , canvas : &web_sys::HtmlCanvasElement
-    , shape  : &Shape
-    , dirty  : &ShapeDirty<OnDirty>
+      , canvas : &web_sys::HtmlCanvasElement
+      , shape  : &Shape
+      , dirty  : &ShapeDirty<OnDirty>
     ) -> Listeners {
         let logger = logger.clone();
         let shape  = shape.clone();
@@ -250,6 +255,5 @@ impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
 // ========================
 
 pub struct WorkspaceBuilder {
-    pub name: String 
+    pub name: String
 }
-

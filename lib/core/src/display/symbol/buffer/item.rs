@@ -193,7 +193,7 @@ impl Item for f32 {
 }
 
 impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
-where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
+    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
     type Prim = T;
     type Rows = R;
     type Cols = C;
@@ -262,4 +262,3 @@ impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {
         }
     }
 }
-

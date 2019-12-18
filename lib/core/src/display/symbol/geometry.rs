@@ -24,38 +24,38 @@ use failure::_core::fmt::{Formatter, Error};
 
 /// Geometry describes the shape of the display element. It consist of several
 /// scopes containing sets of variables.
-/// 
+///
 ///   - Point Scope
-///     A point is simply a point in space. Points are often assigned with such 
+///     A point is simply a point in space. Points are often assigned with such
 ///     variables as 'position' or 'color'.
-/// 
+///
 ///   - Vertex Scope
-///     A vertex is a reference to a point. Primitives use vertices to reference 
-///     points. For example, the corners of a polygon, the center of a sphere, 
-///     or a control vertex of a spline curve. Primitives can share points, 
+///     A vertex is a reference to a point. Primitives use vertices to reference
+///     points. For example, the corners of a polygon, the center of a sphere,
+///     or a control vertex of a spline curve. Primitives can share points,
 ///     while vertices are unique to a primitive.
-/// 
+///
 ///   - Primitive Scope
 ///     Primitives refer to a unit of geometry, lower-level than an object but
 ///     above points. There are several different types of primitives, including
 ///     polygon faces or Bezier/NURBS surfaces.
-/// 
+///
 ///   - Instance Scope
 ///     Instances are virtual copies of the same geometry. They share point,
 ///     vertex, and primitive variables.
-/// 
+///
 ///   - Object Scope
 ///     Object refers to the whole geometry with all of its instances.
-/// 
+///
 ///   - Global Scope
 ///     Global scope is shared by all objects and it contains some universal
 ///     global variables, like the current 'time' counter.
-/// 
-/// Each scope can contain named attributes which can be accessed from within 
+///
+/// Each scope can contain named attributes which can be accessed from within
 /// materials. If the same name was defined in various scopes, it gets resolved
 /// to the var defined in the most specific scope. For example, if var 'color'
-/// was defined in both 'instance' and 'point' scope, the 'point' definition 
-/// overlapps the other one. 
+/// was defined in both 'instance' and 'point' scope, the 'point' definition
+/// overlapps the other one.
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
