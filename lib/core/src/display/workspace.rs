@@ -18,7 +18,6 @@ use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
-use crate::data::opt_vec::OptVec;
 use crate::display::scene::Scene;
 use crate::text;
 

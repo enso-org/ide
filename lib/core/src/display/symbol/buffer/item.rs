@@ -3,7 +3,7 @@ use crate::prelude::*;
 use crate::backend::webgl::Context;
 use crate::tp::debug::TypeDebugName;
 use nalgebra::*;
-use web_sys::{WebGlBuffer,WebGlUniformLocation};
+use web_sys::WebGlUniformLocation;
 
 
 // =============

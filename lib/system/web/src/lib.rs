@@ -88,6 +88,7 @@ pub struct Logger {
     pub path: String,
 }
 
+#[allow(dead_code)]
 impl Logger {
     pub fn new<T: AsRef<str>>(path:T) -> Self {
         let path = path.as_ref().to_string();
@@ -141,11 +142,11 @@ impl Logger {
 // FIXME: Add the non-wasm impl
 #[cfg(not(target_arch = "wasm32"))]
 impl Logger {
-    pub fn trace<M: LogMsg>(&self, msg: M) {}
-    pub fn info<M: LogMsg>(&self, msg: M) {}
-    pub fn warning<M: LogMsg>(&self, msg: M) {}
-    pub fn error<M: LogMsg>(&self, msg: M) {}
-    pub fn group_begin<M: LogMsg>(&self, msg: M) {}
+    pub fn trace<M: LogMsg>(&self, _msg: M) {}
+    pub fn info<M: LogMsg>(&self, _msg: M) {}
+    pub fn warning<M: LogMsg>(&self, _msg: M) {}
+    pub fn error<M: LogMsg>(&self, _msg: M) {}
+    pub fn group_begin<M: LogMsg>(&self, _msg: M) {}
     pub fn group_end(&self) {}
 }
 

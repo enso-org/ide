@@ -171,8 +171,8 @@ impl<T> RcOps for Rc<T> {
 // === RefGuard ===
 
 pub struct RefGuard<'t,Base,Data> {
-    data   : &'t Data,
-    borrow : Ref<'t,Base>,
+    data    : &'t Data,
+    _borrow : Ref<'t,Base>,
 }
 
 impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
@@ -184,10 +184,10 @@ impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
 
 impl<'t,Base,Data> RefGuard<'t,Base,Data> {
     pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
-        let borrow    = base.borrow();
-        let reference = unsafe { drop_lifetime(&borrow) };
+        let _borrow   = base.borrow();
+        let reference = unsafe { drop_lifetime(&_borrow) };
         let data      = f(reference);
-        RefGuard {data,borrow}
+        RefGuard {data,_borrow}
     }
 }
 

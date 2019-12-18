@@ -141,7 +141,7 @@ impl ShaderBuilder {
     pub fn new() -> Self { default() }
 
     pub fn compute<V:Str,F:Str>
-    (&mut self, cfg:&ShaderConfig, vertex_code:V, fragment_code:F) {
+    (&mut self, cfg:&ShaderConfig, _vertex_code:V, _fragment_code:F) {
         self.gen_precision_code(cfg);
         self.gen_attributes_code(cfg);
         self.gen_shared_attributes_code(cfg);
@@ -209,7 +209,7 @@ impl ShaderBuilder {
     }
 }
 
-fn mk_out_name      <S:Str> (s:S) -> String { format!("out_{}", s.as_ref()) }
+fn _mk_out_name     <S:Str> (s:S) -> String { format!("out_{}", s.as_ref()) }
 fn mk_vertex_name   <S:Str> (s:S) -> String { format!("v_{}"  , s.as_ref()) }
 fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }
 

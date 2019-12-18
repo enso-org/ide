@@ -394,11 +394,11 @@ impl<Ix:RangeIx> HasSet1 for RangeData<Ix> {
 }
 
 impl<Ix:RangeIx> HasUnset1 for RangeData<Ix> {
-    fn unset(&mut self, arg: &Self::Arg) {}
+    fn unset(&mut self, _arg:&Self::Arg) {}
 }
 
 impl<Ix:RangeIx> Display for RangeData<Ix> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.range.as_ref().map(|t|
             format!("[{:?}...{:?}]",t.start(),t.end()))
             .unwrap_or_else(|| "false".into())
@@ -469,7 +469,6 @@ impl<'t,Item:SetItem> IntoIterator for &'t SetData<Item> {
 // ================
 
 use bit_field::BitField as BF;
-use failure::_core::fmt::{Formatter, Error};
 
 /// Dirty flag which keeps information about a set of enumerator values. The
 /// items must be a plain enumerator implementing `Into<usize>`. The data is

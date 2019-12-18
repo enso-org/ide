@@ -3,18 +3,11 @@ pub mod shader;
 use crate::prelude::*;
 
 use crate::backend::webgl::Context;
-use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::symbol::scope;
-use crate::promote_all;
-use crate::promote_scope_types;
-use crate::promote;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use eval_tt::*;
-use num_enum::IntoPrimitive;
 
 
 // ================

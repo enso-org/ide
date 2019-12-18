@@ -7,11 +7,8 @@ use crate::dirty;
 use crate::dirty::traits::*;
 use crate::system::web::group;
 
-use nalgebra::{Vector3, Vector4, Matrix4, Perspective3, Matrix, U4};
+use nalgebra::{Vector3, Vector4, Matrix4, Perspective3};
 use basegl_system_web::Logger;
-use crate::display::symbol::material::shader::glsl::PrimType::Mat2;
-use failure::_core::fmt::{Formatter, Error};
-
 
 
 
@@ -334,10 +331,6 @@ impl HierarchicalObjectData {
 impl HierarchicalObjectData {
     fn take_parent_bind(&mut self) -> Option<ParentBind> {
         self.parent_bind.take()
-    }
-
-    fn remove_parent_bind(&mut self) {
-        self.take_parent_bind().for_each(|t| t.dispose());
     }
 
     fn set_parent_bind(&mut self, bind:ParentBind) {
@@ -787,8 +780,6 @@ impl<T> DisplayObjectOps for T where for<'t> &'t Self:DisplayObject {}
 
 // ==========================================================
 
-use std::f32::consts::{PI};
-use crate::dirty::{SharedDirtyFlag, SetData};
 
 
 // =============
@@ -798,6 +789,7 @@ use crate::dirty::{SharedDirtyFlag, SetData};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f32::consts::{PI};
 
 
     #[test]

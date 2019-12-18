@@ -3,7 +3,6 @@ pub mod data;
 
 use crate::prelude::*;
 
-use crate::backend::webgl;
 use crate::backend::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;

@@ -13,7 +13,6 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use eval_tt::*;
 use num_enum::IntoPrimitive;
-use failure::_core::fmt::{Formatter, Error};
 
 
 // ================

@@ -49,7 +49,6 @@ mod example_01 {
     use wasm_bindgen::prelude::*;
     use crate::display::symbol::display_object::*;
     use basegl_system_web::Logger;
-    use crate::display::symbol::material::shader;
 
 
     #[wasm_bindgen]
@@ -180,7 +179,6 @@ mod example_01 {
             let mm2_cp = mm2.clone();
             let mm3_cp = mm3.clone();
             let mm4_cp = mm4.clone();
-            let transform_cp = transform.clone_ref();
             transform.set_on_updated(move |t| {
                 mm1_cp.set(t.matrix().clone());
                 mm2_cp.set(t.matrix().clone());
