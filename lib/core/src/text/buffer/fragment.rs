@@ -104,11 +104,11 @@ impl RenderedFragment {
 ///
 /// The result is stored in `vertex_position_data` and `texture_coords_data` fields.
 pub struct FragmentsDataBuilder<'a> {
-    pub vertex_position_data : Vec<f32>,
-    pub texture_coords_data  : Vec<f32>,
-    pub font                 : &'a mut FontRenderInfo,
-    pub line_clip            : Range<f64>,
-    pub max_displayed_chars  : usize,
+    pub vertex_position_data  : Vec<f32>,
+    pub texture_coords_data   : Vec<f32>,
+    pub font                  : &'a mut FontRenderInfo,
+    pub line_clip             : Range<f64>,
+    pub max_chars_in_fragment : usize,
 }
 
 impl<'a> FragmentsDataBuilder<'a> {
@@ -132,7 +132,7 @@ impl<'a> FragmentsDataBuilder<'a> {
     /// Get information about first char which data will be actually stored in buffer.
     pub fn first_rendered_char(&mut self, pen:&mut Pen, line:&str) -> Option<RenderedChar> {
         let line_length         = line.chars().count();
-        let always_render_index = line_length.saturating_sub(self.max_displayed_chars);
+        let always_render_index = line_length.saturating_sub(self.max_chars_in_fragment);
         let line_clip           = &self.line_clip;
         let font                = &mut self.font;
         let pen_per_char        = line.chars().map(|c| { pen.next_char(c,font).clone() });
@@ -152,9 +152,9 @@ impl<'a> FragmentsDataBuilder<'a> {
     pub fn last_rendered_char(&mut self, first_char:&RenderedChar, rendered_text:&str)
     -> Option<RenderedChar> {
         let mut pen               = first_char.pen.clone();
-        let rendered_chars_iter   = rendered_text.char_indices().take(self.max_displayed_chars);
+        let rendered_chars_iter   = rendered_text.char_indices().take(self.max_chars_in_fragment);
         let (last_char_offset, _) = rendered_chars_iter.clone().last()?;
-        let last_char_index       = self.max_displayed_chars.min(rendered_text.len())-1;
+        let last_char_index       = self.max_chars_in_fragment.min(rendered_text.len())-1;
         let byte_offset           = first_char.byte_offset + last_char_offset;
         let index                 = first_char.index + last_char_index;
         for (_, ch) in rendered_chars_iter.skip(1) {
@@ -167,14 +167,14 @@ impl<'a> FragmentsDataBuilder<'a> {
     pub fn build_vertex_positions(&mut self, pen:&Pen, text:&str) {
         let rendering_pen = Pen::new(pen.position);
         let glyph_builder = GlyphVertexPositionBuilder::new(self.font,rendering_pen);
-        let builder       = LineAttributeBuilder::new(text,glyph_builder,self.max_displayed_chars);
+        let builder       = LineAttributeBuilder::new(text,glyph_builder,self.max_chars_in_fragment);
         self.vertex_position_data.extend(builder.flatten().map(|f| f as f32));
     }
 
     /// Extend texture coordinates data with a new line's.
     pub fn build_texture_coords(&mut self, text:&str) {
         let glyph_builder = GlyphTextureCoordsBuilder::new(self.font);
-        let builder       = LineAttributeBuilder::new(text,glyph_builder,self.max_displayed_chars);
+        let builder       = LineAttributeBuilder::new(text,glyph_builder,self.max_chars_in_fragment);
         self.texture_coords_data.extend(builder.flatten().map(|f| f as f32));
     }
 }
@@ -184,11 +184,49 @@ impl<'a> FragmentsDataBuilder<'a> {
 // === BufferFragments ===
 // =======================
 
+/// The pointer to the fragment which will be refreshed after x scrolling.
+///
+/// During x scrolling we don't immediately refresh all the lines, but pick only one which is
+/// "centered" on current scroll - the rest of lines should still have data in buffers for
+/// shown glyphs.
+#[derive(Debug)]
+pub struct NextFragmentToRefreshAfterXScrolling {
+    pub fragments_count : usize,
+    pub next_fragment   : usize
+}
+
+impl NextFragmentToRefreshAfterXScrolling {
+    /// New structure pointing to the first line.
+    pub fn new(fragments_count:usize) -> Self {
+        NextFragmentToRefreshAfterXScrolling {fragments_count,
+            next_fragment:0
+        }
+    }
+
+    /// Get range of lines to refresh after x scroll
+    ///
+    /// The bigger jumps should result in more lines to refresh, although there is no point to
+    /// returning last and first line, because in such case we'll be refreshing all the data anyway.
+    /// Better hope that lines won't scroll further in such pace.
+    pub fn get_after_x_scroll(&mut self, x_scroll:f64) -> Range<usize> {
+        let returned_size  = x_scroll.abs().ceil() as usize;
+        let returned_start = self.next_fragment;
+        if self.fragments_count - self.next_fragment <= returned_size {
+            self.next_fragment = 0;
+            returned_start..self.fragments_count
+        } else {
+            self.next_fragment += returned_size;
+            returned_start..(returned_start + returned_size)
+        }
+    }
+}
+
 /// A structure managing many buffer fragments.
 #[derive(Debug)]
 pub struct BufferFragments {
-    pub fragments      : Vec<BufferFragment>,
-    pub assigned_lines : RangeInclusive<usize>,
+    pub fragments   : Vec<BufferFragment>,
+    assigned_lines  : RangeInclusive<usize>,
+    next_to_refresh : NextFragmentToRefreshAfterXScrolling
 }
 
 impl BufferFragments {
@@ -198,8 +236,9 @@ impl BufferFragments {
         let indexes              = 0..displayed_lines;
         let unassigned_fragments = indexes.map(|_| BufferFragment::unassigned());
         BufferFragments {
-            fragments      : unassigned_fragments.collect(),
-            assigned_lines : 1..=0,
+            fragments       : unassigned_fragments.collect(),
+            assigned_lines  : 1..=0,
+            next_to_refresh : NextFragmentToRefreshAfterXScrolling::new(displayed_lines),
         }
     }
 
@@ -223,11 +262,12 @@ impl BufferFragments {
         self.assigned_lines = new_assignment;
     }
 
-    fn new_assignment(&self, displayed_lines:RangeInclusive<usize>) -> RangeInclusive<usize> {
-        let lines_count           = |r:&RangeInclusive<usize>| r.start() - r.end() + 1;
+    /// Returns new assignment for displayed lines, which makes minimal required reassignments.
+    pub fn new_assignment(&self, displayed_lines:RangeInclusive<usize>) -> RangeInclusive<usize> {
+        let lines_count           = |r:&RangeInclusive<usize>| r.end() + 1 - r.start();
         let assigned_lines_count  = lines_count(&self.assigned_lines);
         let displayed_lines_count = lines_count(&displayed_lines);
-        let hidden_lines_to_keep  = (assigned_lines_count - displayed_lines_count).max(0);
+        let hidden_lines_to_keep  = assigned_lines_count.saturating_sub(displayed_lines_count);
         if self.assigned_lines.start() < displayed_lines.start() {
             let new_start = displayed_lines.start() - hidden_lines_to_keep;
             new_start..=*displayed_lines.end()
@@ -243,10 +283,12 @@ impl BufferFragments {
     ///
     /// We should refresh fragment when after scroll a not-yet-rendered fragment of line appears.
     pub fn mark_dirty_after_x_scrolling
-    (&mut self, displayed_x_range:RangeInclusive<f64>, lines:&[String]) {
-        let not_yet_dirty = self.fragments.iter_mut().filter(|f| !f.dirty);
-        for fragment in not_yet_dirty {
-            fragment.dirty = fragment.should_be_dirty(&displayed_x_range,lines);
+    (&mut self, x_scroll:f64, displayed_x_range:RangeInclusive<f64>, lines:&[String]) {
+        let not_yet_dirty   = self.fragments.iter_mut().enumerate().filter(|(_,f)| !f.dirty);
+        let range_refreshed = self.next_to_refresh.get_after_x_scroll(x_scroll);
+        for (index,fragment) in not_yet_dirty {
+            let must_be_refreshed = fragment.should_be_dirty(&displayed_x_range,lines);
+            fragment.dirty        = must_be_refreshed || range_refreshed.contains(&index);
         }
     }
 
@@ -347,7 +389,7 @@ mod tests {
                 texture_coords_data  : Vec::new(),
                 font                 : &mut font,
                 line_clip            : 10.0..80.0,
-                max_displayed_chars  : 100
+                max_chars_in_fragment: 100
             };
 
             let result = builder.build_for_line(0, "");
@@ -381,7 +423,7 @@ mod tests {
                 texture_coords_data  : Vec::new(),
                 font                 : &mut font,
                 line_clip            : 5.5..8.0,
-                max_displayed_chars  : 3
+                max_chars_in_fragment: 3
             };
             let shortest_result = builder.build_for_line(1,shortest_line).unwrap();
             let short_result    = builder.build_for_line(2,short_line).unwrap();
@@ -408,7 +450,7 @@ mod tests {
 
             let vertex_glyph_data_size    = GlyphVertexPositionBuilder::OUTPUT_SIZE;
             let tex_coord_glyph_data_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE;
-            let glyphs_count              = builder.max_displayed_chars * 4;
+            let glyphs_count              = builder.max_chars_in_fragment * 4;
             let vertex_data_size          = vertex_glyph_data_size * glyphs_count;
             let tex_coord_data_size       = tex_coord_glyph_data_size * glyphs_count;
             assert_eq!(vertex_data_size   , builder.vertex_position_data.len());
@@ -433,7 +475,7 @@ mod tests {
                 texture_coords_data  : Vec::new(),
                 font                 : &mut font,
                 line_clip            : 0.0..10.0,
-                max_displayed_chars  : 3
+                max_chars_in_fragment: 3
             };
             let result = builder.build_for_line(1,line).unwrap();
 
@@ -448,8 +490,9 @@ mod tests {
         let new_assignment_1 = 2..=5;
         let new_assignment_2 = 5..=8;
         let mut fragments = BufferFragments {
-            assigned_lines : assigned_lines.clone(),
-            fragments      : assigned_lines.map(make_assigned_fragment).collect(),
+            assigned_lines  : assigned_lines.clone(),
+            fragments       : assigned_lines.map(make_assigned_fragment).collect(),
+            next_to_refresh : NextFragmentToRefreshAfterXScrolling::new(4)
         };
         fragments.fragments.push(BufferFragment::unassigned());
 
@@ -496,7 +539,7 @@ mod tests {
         fragments.fragments[3].rendered = Some(rendered_not_dirty);
         fragments.fragments[3].dirty    = true;
 
-        fragments.mark_dirty_after_x_scrolling(displayed_range,lines.as_ref());
+        fragments.mark_dirty_after_x_scrolling(0.0,displayed_range,lines.as_ref());
 
         let dirties          = fragments.fragments.iter().map(|f| f.dirty).collect::<Vec<bool>>();
         let expected_dirties = vec![true, true, false, true, false];

@@ -145,11 +145,13 @@ mod tests {
                 create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    let workspace          = &mut world.workspaces[world_test.workspace_id];
-                    let text_component     = &mut workspace.text_components[0];
-                    text_component.scroll(Vector2::new(0.0,-1.0));
-                    world.workspace_dirty.set(world_test.workspace_id);
-                    world.update();
+                    for _ in 0..30 { //TODO[AO] make target FPS feature in web_bench
+                        let workspace      = &mut world.workspaces[world_test.workspace_id];
+                        let text_component = &mut workspace.text_components[0];
+                        text_component.scroll(Vector2::new(0.0,-1.0));
+                        world.workspace_dirty.set(world_test.workspace_id);
+                        world.update();
+                    }
                 });
             });
         }
@@ -163,11 +165,13 @@ mod tests {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    let workspace          = &mut world.workspaces[world_test.workspace_id];
-                    let text_component     = &mut workspace.text_components[0];
-                    text_component.scroll(Vector2::new(1.0,0.0));
-                    world.workspace_dirty.set(world_test.workspace_id);
-                    world.update();
+                    for _ in 0..10 { //TODO[AO] make target FPS feature in web_bench
+                        let workspace      = &mut world.workspaces[world_test.workspace_id];
+                        let text_component = &mut workspace.text_components[0];
+                        text_component.scroll(Vector2::new(1.0,0.0));
+                        world.workspace_dirty.set(world_test.workspace_id);
+                        world.update();
+                    }
                 });
             });
         }

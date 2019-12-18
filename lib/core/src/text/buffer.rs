@@ -29,14 +29,13 @@ use std::ops::RangeInclusive;
 /// displayed line The fragment keeps the data for this line.
 #[derive(Debug)]
 pub struct TextComponentBuffers {
-    pub vertex_position : WebGlBuffer,
-    pub texture_coords  : WebGlBuffer,
-    pub display_size    : Vector2<f64>,
-    pub scroll_offset   : Vector2<f64>,
-    pub fragments       : BufferFragments,
-    max_displayed_chars : usize,
-    scrolled_x          : bool,
-    scrolled_y          : bool,
+    pub vertex_position     : WebGlBuffer,
+    pub texture_coords      : WebGlBuffer,
+    pub display_size        : Vector2<f64>,
+    pub scroll_offset       : Vector2<f64>,
+    pub fragments           : BufferFragments,
+    max_chars_in_fragment   : usize,
+    scroll_since_last_frame : Vector2<f64>
 }
 
 /// References to all needed stuff for generating buffer's data.
@@ -57,30 +56,40 @@ impl TextComponentBuffers {
 
     /// Change scrolling by given offset and marks appropriate dirties.
     ///
-    /// The offset is in "text" space, where each line has height of 1.0
+    /// The value of 1.0 on both dimensions is equal to one line's height.
     pub fn scroll(&mut self, offset:Vector2<f64>) {
-        self.scroll_offset += offset;
-        self.scrolled_x    |= offset.x != 0.0;
-        self.scrolled_y    |= offset.y != 0.0;
+        self.scroll_since_last_frame += offset;
+        self.scroll_offset           += offset;
+    }
+
+    /// Jump to scroll position.
+    ///
+    /// The `scroll_position` is a position of top-left corner of the first line.
+    /// The offset of 1.0 on both dimensions is equal to one line's height.
+    pub fn jump_to(&mut self, scroll_position:Vector2<f64>) {
+        self.scroll(scroll_position - self.scroll_offset)
     }
 
     /// Refresh the whole buffers data.
     pub fn refresh(&mut self, gl_context:&Context, content:ContentRef) {
-        if self.scrolled_y {
+        let scrolled_x = self.scroll_since_last_frame.x != 0.0;
+        let scrolled_y = self.scroll_since_last_frame.y != 0.0;
+        if scrolled_y {
             let displayed_lines = self.displayed_lines(content.lines.len());
             self.fragments.reassign_fragments(displayed_lines);
         }
-        if self.scrolled_x {
-            let displayed_x   = self.displayed_x_range();
-            self.fragments.mark_dirty_after_x_scrolling(displayed_x,content.lines);
+        if scrolled_x {
+            let displayed_x = self.displayed_x_range();
+            let x_scroll    = self.scroll_since_last_frame.x;
+            let lines       = content.lines;
+            self.fragments.mark_dirty_after_x_scrolling(x_scroll,displayed_x,lines);
         }
-        if self.scrolled_x || self.scrolled_y {
+        if scrolled_x || scrolled_y {
             let opt_dirty_range = self.fragments.minimum_fragments_range_with_all_dirties();
             if let Some(dirty_range) = opt_dirty_range {
                 self.refresh_fragments(gl_context,dirty_range,content); // Note[refreshing buffers]
             }
-            self.scrolled_x = false;
-            self.scrolled_y = false;
+            self.scroll_since_last_frame = Vector2::new(0.0,0.0);
         }
     }
 
@@ -93,19 +102,23 @@ impl TextComponentBuffers {
 
     fn create_uninitialized(gl_context:&Context, display_size:Vector2<f64>, content:&mut ContentRef)
     -> TextComponentBuffers {
-        // Display_size.y.floor() makes space for all lines that fit in space in their full height.
-        // But we have 2 more lines: one clipped from top, and one from bottom.
-        const ADDITIONAL_LINES : usize = 2;
-        let displayed_lines            = (display_size.y.floor() as usize) + ADDITIONAL_LINES;
-        let space_width                = content.font.get_glyph_info(' ').advance;
-        let max_displayed_chars        = (display_size.x.ceil() / space_width) as usize;
-        TextComponentBuffers {display_size,max_displayed_chars,
-            vertex_position : gl_context.create_buffer().unwrap(),
-            texture_coords  : gl_context.create_buffer().unwrap(),
-            fragments       : BufferFragments::new(displayed_lines),
-            scroll_offset   : Vector2::new(0.0, 0.0),
-            scrolled_x      : false,
-            scrolled_y      : false,
+        // Display_size.(x/y).floor() makes space for all lines/glyphs that fit in space in
+        // their full size. But we have 2 more lines/glyphs: one clipped from top or left, and one
+        // from bottom or right.
+        const ADDITIONAL: usize   = 2;
+        let displayed_lines       = display_size.y.floor() as usize + ADDITIONAL;
+        let space_width           = content.font.get_glyph_info(' ').advance;
+        let displayed_chars       = (display_size.x/space_width).floor();
+        // This margin is to ensure, that after x scrolling we won't need to refresh all the lines
+        // at once.
+        let x_margin              = (displayed_lines as f64) / space_width;
+        let max_chars_in_fragment = (displayed_chars + 2.0*x_margin).floor() as usize + ADDITIONAL;
+        TextComponentBuffers {display_size,max_chars_in_fragment,
+            vertex_position         : gl_context.create_buffer().unwrap(),
+            texture_coords          : gl_context.create_buffer().unwrap(),
+            fragments               : BufferFragments::new(displayed_lines),
+            scroll_offset           : Vector2::new(0.0,0.0),
+            scroll_since_last_frame : Vector2::new(0.0,0.0)
         }
     }
 
@@ -158,12 +171,11 @@ impl TextComponentBuffers {
     -> FragmentsDataBuilder<'a> {
         let line_clip_left  = self.scroll_offset.x;
         let line_clip_right = line_clip_left + self.display_size.x;
-        FragmentsDataBuilder {
-            vertex_position_data : Vec::new(),
-            texture_coords_data  : Vec::new(),
-            font               /*: font*/,
-            line_clip            : line_clip_left..line_clip_right,
-            max_displayed_chars  : self.max_displayed_chars
+        FragmentsDataBuilder {font,
+            vertex_position_data  : Vec::new(),
+            texture_coords_data   : Vec::new(),
+            line_clip             : line_clip_left..line_clip_right,
+            max_chars_in_fragment : self.max_chars_in_fragment
         }
     }
 
@@ -172,7 +184,7 @@ impl TextComponentBuffers {
     fn set_vertex_position_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
         let char_output_floats = GlyphVertexPositionBuilder::OUTPUT_SIZE;
-        let line_output_floats = char_output_floats * self.max_displayed_chars;
+        let line_output_floats = char_output_floats * self.max_chars_in_fragment;
         let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
         let offset             = fragment_size * fragment_offset;
         let data               = builder.vertex_position_data.as_ref();
@@ -182,7 +194,7 @@ impl TextComponentBuffers {
     fn set_texture_coords_buffer_subdata
     (&self, gl_context:&Context, fragment_offset:usize, builder:&FragmentsDataBuilder) {
         let char_output_floats = GlyphTextureCoordsBuilder::OUTPUT_SIZE;
-        let line_output_floats = char_output_floats * self.max_displayed_chars;
+        let line_output_floats = char_output_floats * self.max_chars_in_fragment;
         let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
         let offset        = fragment_size * fragment_offset;
         let data          = builder.texture_coords_data.as_ref();
@@ -226,6 +238,6 @@ impl TextComponentBuffers {
      */
 
     pub fn vertices_count(&self) -> usize {
-        BASE_LAYOUT_SIZE * self.fragments.fragments.len() * self.max_displayed_chars
+        BASE_LAYOUT_SIZE * self.fragments.fragments.len() * self.max_chars_in_fragment
     }
 }

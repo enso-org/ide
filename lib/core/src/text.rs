@@ -49,9 +49,29 @@ pub struct TextComponent {
 }
 
 impl TextComponent {
+    /// Scroll text by given offset.
+    ///
+    /// The value of 1.0 on both dimensions is equal to one line's height.
     pub fn scroll(&mut self, offset:Vector2<f64>) {
         self.buffers.scroll(offset);
     }
+
+    /// Get current scroll position.
+    ///
+    /// The _scroll_position_ is a position of top-left corner of the first line.
+    /// The offset of 1.0 on both dimensions is equal to one line's height.
+    pub fn scroll_position(&self) -> &Vector2<f64> {
+        &self.buffers.scroll_offset
+    }
+
+    /// Jump to scroll position.
+    ///
+    /// The `scroll_position` is a position of top-left corner of the first line.
+    /// The offset of 1.0 on both dimensions is equal to one line's height.
+    pub fn jump_to_position(&mut self, scroll_position:Vector2<f64>) {
+        self.buffers.jump_to(scroll_position);
+    }
+
 
     /// Render text
     pub fn display(&mut self, fonts:&mut Fonts) {
