@@ -15,6 +15,8 @@ use failure::_core::fmt::{Formatter, Error};
 
 
 
+// TODO: Refactor and describe
+
 // === CloneRef ===
 
 pub trait CloneRef {
@@ -39,9 +41,9 @@ impl Default for AxisOrder {
 
 
 
-// =================
-// === Transform ===
-// =================
+// ======================
+// === TransformOrder ===
+// ======================
 
 /// Defines the order in which transformations (scale, rotate, translate) are
 /// applied to a particular object.
@@ -65,6 +67,10 @@ impl Default for TransformOrder {
 // === Transform ===
 // =================
 
+/// Structure describing transform of an object, in particular its position, scale, and rotation.
+/// You can use methods like `matrix` to get a combined transformation matrix. Bear in mind that
+/// the matrix will always be recomputed from scratch. This structure does not contain any caching
+/// mechanisms.
 #[derive(Clone,Debug)]
 pub struct Transform {
     pub position        : Vector3<f32>,
@@ -164,6 +170,9 @@ impl Transform {
 // === CachedTransform ===
 // =======================
 
+/// The same as `Transform` but with caching. It contains cached transformation matrix and dirty
+/// flags which are set after fields are modified. You can use the `update` function to recompute
+/// the matrix.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
@@ -187,6 +196,7 @@ impl<OnChange> CachedTransform<OnChange> {
         Self {transform,transform_matrix,origin,matrix,dirty,logger}
     }
 
+    /// Update the transformation matrix and return information if the data was really updated.
     pub fn update(&mut self, new_origin:Option<&Matrix4<f32>>) -> bool {
         let is_dirty       = self.dirty.check_all();
         let origin_changed = new_origin.is_some();
@@ -280,9 +290,12 @@ impl<OnChange:Callback0> CachedTransform<OnChange> {
 // === ParentBind ===
 // ==================
 
+/// Description of parent-child relation. It contains reference to parent node and information
+/// about the child index there. It is used when a child is reconnected to different parent to
+/// update the old parent with the information that the child was removed.
 #[derive(Clone,Debug)]
 pub struct ParentBind {
-    pub parent : DisplayObjectDescription,
+    pub parent : DisplayObjectData,
     pub index  : usize
 }
 
@@ -298,16 +311,17 @@ impl ParentBind {
 // === HierarchicalObjectDescription ===
 // =====================================
 
+///
 #[derive(Clone,Debug)]
-pub struct HierarchicalObjectDescription {
+pub struct HierarchicalObjectData {
     pub parent_bind : Option<ParentBind>,
-    pub children    : OptVec<DisplayObjectDescription>,
+    pub children    : OptVec<DisplayObjectData>,
     pub logger      : Logger,
 }
 
 // === Public API ===
 
-impl HierarchicalObjectDescription {
+impl HierarchicalObjectData {
     pub fn new(logger:Logger) -> Self {
         let parent_bind = default();
         let children    = default();
@@ -317,7 +331,7 @@ impl HierarchicalObjectDescription {
 
 // === Private API ===
 
-impl HierarchicalObjectDescription {
+impl HierarchicalObjectData {
     fn take_parent_bind(&mut self) -> Option<ParentBind> {
         self.parent_bind.take()
     }
@@ -343,8 +357,8 @@ impl HierarchicalObjectDescription {
 
 // === Getters ===
 
-impl LazyTransformObjectDescription {
-    pub fn parent(&self) -> Option<&DisplayObjectDescription> {
+impl DisplayObjectDataMut {
+    pub fn parent(&self) -> Option<&DisplayObjectData> {
         self.parent_bind.as_ref().map(|ref t| &t.parent)
     }
 }
@@ -354,17 +368,18 @@ impl LazyTransformObjectDescription {
 // === LazyTransformObjectDescription ===
 // ======================================
 
+/// Internal representation of `ObjectData`. See it's documentation for more information.
 #[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derivative(Debug)]
-pub struct LazyTransformObjectDescription {
+pub struct DisplayObjectDataMut {
     #[shrinkwrap(main_field)]
-    pub wrapped          : HierarchicalObjectDescription,
+    pub wrapped          : HierarchicalObjectData,
     pub transform        : CachedTransform<Option<OnChange>>,
     pub child_dirty      : ChildDirty,
     pub new_parent_dirty : NewParentDirty,
     #[derivative(Debug="ignore")]
-    pub on_updated       : Option<Box<dyn FnMut()>>,
+    pub on_updated       : Option<Box<dyn Fn(&DisplayObjectDataMut)>>,
 }
 
 
@@ -384,12 +399,12 @@ fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 
 // === API ===
 
-impl LazyTransformObjectDescription {
+impl DisplayObjectDataMut {
     pub fn new(logger:Logger) -> Self {
         let transform        = CachedTransform :: new(logger.sub("transform")       ,None);
         let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")     ,None);
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty"),());
-        let wrapped          = HierarchicalObjectDescription::new(logger);
+        let wrapped          = HierarchicalObjectData::new(logger);
         let on_updated       = None;
         Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated}
     }
@@ -431,13 +446,18 @@ impl LazyTransformObjectDescription {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-        self.on_updated.as_mut().for_each(|f| f());
+//        self.on_updated.as_mut().for_each(|f| f(self));
+
+        match &self.on_updated {
+            Some(f) => f(self),
+            _ => {}
+        }
     }
 }
 
 // === Private API ===
 
-impl LazyTransformObjectDescription {
+impl DisplayObjectDataMut {
     fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
         let index = self.wrapped.register_child(child);
         self.child_dirty.set(index);
@@ -471,7 +491,7 @@ impl LazyTransformObjectDescription {
 
 // === Getters ===
 
-impl LazyTransformObjectDescription {
+impl DisplayObjectDataMut {
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.global_position()
     }
@@ -496,7 +516,7 @@ impl LazyTransformObjectDescription {
 
 // === Setters ===
 
-impl LazyTransformObjectDescription {
+impl DisplayObjectDataMut {
     pub fn position_mut(&mut self) -> &mut Vector3<f32> {
         self.transform.position_mut()
     }
@@ -533,7 +553,7 @@ impl LazyTransformObjectDescription {
         self.transform.mod_scale(f)
     }
 
-    pub fn set_on_updated<F:FnMut()+'static>(&mut self, f:F) {
+    pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&mut self, f:F) {
         self.on_updated = Some(Box::new(f))
     }
 }
@@ -552,16 +572,16 @@ impl LazyTransformObjectDescription {
 /// It is not easy to discover such situations, but maybe it will be worth to add some additional
 /// safety on top of that in the future.
 #[derive(Clone,Debug)]
-pub struct DisplayObjectDescription {
-    rc: Rc<RefCell<LazyTransformObjectDescription>>,
+pub struct DisplayObjectData {
+    rc: Rc<RefCell<DisplayObjectDataMut>>,
 }
 
 // === Public API ==
 
-impl DisplayObjectDescription {
+impl DisplayObjectData {
     /// Creates a new object instance.
     pub fn new(logger:Logger) -> Self {
-        let data = LazyTransformObjectDescription::new(logger);
+        let data = DisplayObjectDataMut::new(logger);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -619,7 +639,7 @@ impl DisplayObjectDescription {
 
 // === Private API ===
 
-impl DisplayObjectDescription {
+impl DisplayObjectData {
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
@@ -656,8 +676,8 @@ impl DisplayObjectDescription {
 
 // === Getters ===
 
-impl DisplayObjectDescription {
-    pub fn parent(&self) -> Option<DisplayObjectDescription> {
+impl DisplayObjectData {
+    pub fn parent(&self) -> Option<DisplayObjectData> {
         self.rc.borrow().parent().map(|t| t.clone_ref())
     }
 
@@ -689,7 +709,7 @@ impl DisplayObjectDescription {
 
 // === Setters ===
 
-impl DisplayObjectDescription {
+impl DisplayObjectData {
     pub fn set_position(&self, t:Vector3<f32>) {
         self.rc.borrow_mut().set_position(t);
     }
@@ -714,7 +734,7 @@ impl DisplayObjectDescription {
         self.rc.borrow_mut().mod_scale(f)
     }
 
-    pub fn set_on_updated<F:FnMut()+'static>(&self, f:F) {
+    pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&self, f:F) {
         self.rc.borrow_mut().set_on_updated(f)
     }
 }
@@ -722,23 +742,23 @@ impl DisplayObjectDescription {
 
 // === Instances ===
 
-impl From<&DisplayObjectDescription> for DisplayObjectDescription {
-    fn from(t:&DisplayObjectDescription) -> Self { t.clone_ref() }
+impl From<&DisplayObjectData> for DisplayObjectData {
+    fn from(t:&DisplayObjectData) -> Self { t.clone_ref() }
 }
 
-impl From<Rc<RefCell<LazyTransformObjectDescription>>> for DisplayObjectDescription {
-    fn from(rc: Rc<RefCell<LazyTransformObjectDescription>>) -> Self {
+impl From<Rc<RefCell<DisplayObjectDataMut>>> for DisplayObjectData {
+    fn from(rc: Rc<RefCell<DisplayObjectDataMut>>) -> Self {
         Self {rc}
     }
 }
 
-impl PartialEq for DisplayObjectDescription {
+impl PartialEq for DisplayObjectData {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
     }
 }
 
-impl CloneRef for DisplayObjectDescription {
+impl CloneRef for DisplayObjectData {
     fn clone_ref(&self) -> Self {
         self.clone()
     }
@@ -749,13 +769,13 @@ impl CloneRef for DisplayObjectDescription {
 // === DisplayObject ===
 // =====================
 
-pub trait DisplayObject: Into<DisplayObjectDescription> {
-    fn display_object_description(self) -> DisplayObjectDescription {
+pub trait DisplayObject: Into<DisplayObjectData> {
+    fn display_object_description(self) -> DisplayObjectData {
         self.into()
     }
 }
 
-impl<T:Into<DisplayObjectDescription>> DisplayObject for T {}
+impl<T:Into<DisplayObjectData>> DisplayObject for T {}
 
 
 pub trait DisplayObjectOps where for<'t> &'t Self:DisplayObject {
@@ -773,16 +793,6 @@ use std::f32::consts::{PI};
 use crate::dirty::{SharedDirtyFlag, SetData};
 
 
-
-
-
-
-
-
-
-
-
-
 // =============
 // === Tests ===
 // =============
@@ -794,9 +804,9 @@ mod tests {
 
     #[test]
     fn hierarchy_test() {
-        let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
-        let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
-        let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
+        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
+        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
+        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
 
         obj1.add_child(&obj2);
         assert_eq!(obj2.index(), Some(0));
@@ -810,9 +820,9 @@ mod tests {
 
     #[test]
     fn transformation_test() {
-        let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
-        let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
-        let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
+        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
+        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
+        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
 
         assert_eq!(obj1.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(obj2.position()        , Vector3::new(0.0,0.0,0.0));
@@ -869,51 +879,66 @@ mod tests {
 }
 
 
+// =================
+// === Alignment ===
+// =================
+
+#[derive(Clone,Debug)]
+pub struct Alignment {
+    pub horizontal : HorizontalAlignment,
+    pub vertical   : VerticalAlignment,
+}
+
+#[derive(Clone,Debug)]
+pub enum HorizontalAlignment {Left,Center,Right}
+
+#[derive(Clone,Debug)]
+pub enum VerticalAlignment {Top,Center,Bottom}
+
+impl Default for HorizontalAlignment { fn default() -> Self { Self::Center } }
+impl Default for VerticalAlignment   { fn default() -> Self { Self::Center } }
+impl Default for Alignment {
+    fn default() -> Self {
+        let horizontal = default();
+        let vertical   = default();
+        Self {horizontal,vertical}
+    }
+}
+
+
+
+// ==============
+// === Screen ===
+// ==============
+
+#[derive(Clone,Debug)]
+pub struct Screen {
+    pub width  : f32,
+    pub height : f32,
+}
+
+impl Default for Screen {
+    fn default() -> Self {
+        let width  = 100.0;
+        let height = 100.0;
+        Self {width,height}
+    }
+}
+
+
 // ==================
 // === Projection ===
 // ==================
 
 #[derive(Clone,Debug)]
 pub enum Projection {
-    Perspective  (Perspective),
-    Orthographic (Orthographic)
-}
-
-#[derive(Clone,Debug)]
-pub struct Perspective  {
-    pub aspect : f32,
-    pub fov    : f32
-}
-
-#[derive(Clone,Debug)]
-pub struct Orthographic {
-    pub left   : f32,
-    pub right  : f32,
-    pub top    : f32,
-    pub bottom : f32
-}
-
-impl Default for Perspective {
-    fn default() -> Self {
-        let aspect = 1.0;
-        let fov    = 45.0f32.to_radians();
-        Self {aspect,fov}
-    }
-}
-
-impl Default for Orthographic {
-    fn default() -> Self {
-        let left   = -100.0;
-        let right  =  100.0;
-        let top    =  100.0;
-        let bottom = -100.0;
-        Self {left,right,top,bottom}
-    }
+    Perspective {fov:f32},
+    Orthographic
 }
 
 impl Default for Projection {
     fn default() -> Self {
-        Self::Perspective(default())
+        Self::Perspective {fov:45.0f32.to_radians()}
     }
 }
 
@@ -939,14 +964,18 @@ impl Default for Clipping {
 
 
 
-// ==============
-// === Camera ===
-// ==============
+// ====================
+// === Camera2DData ===
+// ====================
 
-#[derive(Clone,Debug,Shrinkwrap)]
-pub struct Camera {
-    #[shrinkwrap(main_field)]
-    pub transform          : DisplayObjectDescription,
+/// Internal `Camera2D` representation. Please see `Camera2D` for full documentation.
+#[derive(Clone,Debug)]
+pub struct Camera2DData {
+    pub transform          : DisplayObjectData,
+    screen                 : Screen,
+    zoom                   : f32,
+    native_z               : f32,
+    alignment              : Alignment,
     projection             : Projection,
     clipping               : Clipping,
     view_matrix            : Matrix4<f32>,
@@ -959,32 +988,44 @@ pub struct Camera {
 type ProjectionDirty = dirty::SharedBool<()>;
 type TransformDirty2 = dirty::SharedBool<()>;
 
-impl Camera {
+impl Camera2DData {
     pub fn new(logger: Logger) -> Self {
+        let screen                 = default();
         let projection             = default();
         let clipping               = default();
+        let alignment              = default();
+        let zoom                   = 2.0;
+        let native_z               = 1.0;
         let view_matrix            = Matrix4::identity();
         let projection_matrix      = Matrix4::identity();
         let view_projection_matrix = Matrix4::identity();
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
         let transform_dirty_copy   = transform_dirty.clone_rc();
-        let transform              = DisplayObjectDescription::new(logger);
-        transform.set_on_updated(move || { transform_dirty_copy.set(); });
+        let transform              = DisplayObjectData::new(logger);
+        transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
+        transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
-        Self {transform,projection,clipping,view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
+        Self {transform,screen,projection,clipping,alignment,zoom,native_z,view_matrix
+             ,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
 
     pub fn recompute_view_matrix(&mut self) {
-        self.view_matrix = self.transform.matrix().try_inverse().unwrap()
+        // TODO: Handle all alignments.
+        let mut transform       = self.transform.matrix();
+        let div                 = 2.0 * self.zoom;
+        let alignment_transform = Vector3::new(self.screen.width/div, self.screen.height/div, 0.0);
+        transform.append_translation_mut(&alignment_transform);
+        self.view_matrix = transform.try_inverse().unwrap()
     }
 
     pub fn recompute_projection_matrix(&mut self) {
         self.projection_matrix = match &self.projection {
-            Projection::Perspective(p) => {
-                let near = self.clipping.near;
-                let far  = self.clipping.far;
-                *Perspective3::new(p.aspect,p.fov,near,far).as_matrix()
+            Projection::Perspective {fov} => {
+                let aspect = self.screen.width / self.screen.height;
+                let near   = self.clipping.near;
+                let far    = self.clipping.far;
+                *Perspective3::new(aspect,*fov,near,far).as_matrix()
             }
             _ => unimplemented!()
         };
@@ -1012,20 +1053,13 @@ impl Camera {
 
 // === Getters ===
 
-impl Camera {
-//    pub fn aspect     (&self) -> &f32          { &self.aspect     }
-//    pub fn fov        (&self) -> &f32          { &self.fov        }
-//    pub fn near       (&self) -> &f32          { &self.near       }
-//    pub fn far        (&self) -> &f32          { &self.far        }
-//    pub fn projection (&self) -> &Matrix4<f32> { &self.projection }
-//    pub fn view       (&self) -> &Matrix4<f32> { &self.view       }
-
+impl Camera2DData {
     pub fn view_projection_matrix (&self) -> &Matrix4<f32> { &self.view_projection_matrix }
 }
 
 // === Setters ===
 
-impl Camera {
+impl Camera2DData {
     pub fn projection_mut(&mut self) -> &mut Projection {
         self.projection_dirty.set();
         &mut self.projection
@@ -1036,81 +1070,111 @@ impl Camera {
         &mut self.clipping
     }
 
-    pub fn set_aspect(&mut self, aspect:f32) {
-        match &mut self.projection {
-            Projection::Perspective(p) => {
-                p.aspect = aspect;
-                self.projection_dirty.set();
-            }
-            _ => {}
-        }
-    }
-
-    pub fn set_projection_target(&mut self, width:f32, height:f32) {
-        self.set_aspect(width/height);
+    pub fn set_screen(&mut self, width:f32, height:f32) {
+        self.screen.width  = width;
+        self.screen.height = height;
+        self.projection_dirty.set();
 
         match &self.projection {
-            Projection::Perspective(p) => {
-                let alpha = p.fov / 2.0;
-                let z     = height / (2.0 * alpha.tan());
-                self.mod_position(|t| t.z = z);
-                self.mod_position(|t| t.x = width/2.0);
-                self.mod_position(|t| t.y = height/2.0);
+            Projection::Perspective {fov} => {
+                let zoom       = self.zoom;
+                let alpha      = fov / 2.0;
+                let native_z  = height / (2.0 * alpha.tan());
+                self.native_z = native_z;
+                self.mod_only_position(|t| t.z = native_z / zoom);
             }
             _ => unimplemented!()
         };
     }
 }
 
-//ar viewMatrix = m4.inverse(cameraMatrix);
+// === Transform Setters ===
+
+impl Camera2DData {
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.mod_only_position(f);
+        self.zoom = self.native_z / self.transform.position().z;
+    }
+
+    pub fn set_position(&mut self, value:Vector3<f32>) {
+        self.mod_position(|p| *p = value);
+    }
+}
+
+// === Private Transform Setters ===
+
+impl Camera2DData {
+    fn mod_only_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_position(f)
+    }
+}
 
 
 
-//pub trait WidgetData {
-//    type Value;
-//
-//    fn value     (&    self) -> &    Self::Value;
-//    fn value_mut (&mut self) -> &mut Self::Value;
-//
-//    fn draw(&self);
-//}
-//
-//struct Slider {
-//
-//}
-//
-//impl Slider {
-//
-//}
-//
-//
-//struct SymbolRegistry {
-//    pub vec: Vec<Symbol>
-//}
-//
-//struct SymbolInstanceRegistry {
-//    pub instances: Vec<SymbolInstance>
-//}
-//
-//struct Symbol {
-//    pub mesh   : Mesh,
-//
-//}
-//
-//struct SymbolInstance {
-//    pub object   : DisplayObject,
-//    pub position : Var<Vector3<f32>>,
-//}
-//
-//
-//pub fn main() {
-//    let symbol_def = SymbolDef::new(EDSL...);
-//    let symbol     = scene.register_symbol(symbol_def);
-//
-//    let s1 = symbol.new_instance();
-//    let s2 = symbol.new_instance();
-//
-//
-//    mouse().position().with(|p| s1.set_position(p));
-//
-//}
+// ================
+// === Camera2D ===
+// ================
+
+/// Camera definition for 2D objects.
+///
+/// Although this camera implementation is defined in terms of 3D transformations under the hood,
+/// it has several properties which make sense only in the context of a 2D projection:
+/// - The `zoom` factor which correlates to the final image zoom. When the `zoom` parameter is set
+///   to `1.0`, the units correspond 1:1 to pixels on the screen.
+/// - The `native_z` value describes the z-axis distance at which the `zoom` value is `1.0`.
+/// - When a new screen dimensions are provided, the camera automatically recomputes the z-axis
+///   position to keep the `zoom` unchanged.
+/// - The `alignment` describes where the origin is placed in the camera frustum. It is used for
+///   drawing elements and scaling the view. By default, the `alignment` is set to center, which
+///   defines the origin center at the center of the screen. When scaling the view, objects placed
+///   in the center of the view will not move visually. If you set the alignment to bottom-left
+///   corner, you will get a view which behaves like a window in window-based GUIs. When scaling
+///   the window, the left-bottom corner will stay in place.
+#[derive(Clone,Debug)]
+pub struct Camera2D {
+    rc: Rc<RefCell<Camera2DData>>
+}
+
+impl Camera2D {
+    /// Creates new Camera instance.
+    pub fn new(logger:Logger) -> Self {
+        let data = Camera2DData::new(logger);
+        let rc   = Rc::new(RefCell::new(data));
+        Self {rc}
+    }
+}
+
+// === Modifiers ===
+
+impl Camera2D {
+    /// Sets screen dimensions.
+    pub fn set_screen(&self, width:f32, height:f32) {
+        self.rc.borrow_mut().set_screen(width,height)
+    }
+
+    /// Update all diry camera parameters and compute updated view-projection matrix.
+    pub fn update(&self) -> bool {
+        self.rc.borrow_mut().update()
+    }
+}
+
+
+// === Getters ===
+
+impl Camera2D {
+    pub fn view_projection_matrix(&self) -> Matrix4<f32> {
+        self.rc.borrow().view_projection_matrix().clone()
+    }
+}
+
+// === Setters ===
+
+impl Camera2D {
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.rc.borrow_mut().mod_position(f)
+    }
+
+    pub fn set_position(&self, value:Vector3<f32>) {
+        self.rc.borrow_mut().set_position(value)
+    }
+}

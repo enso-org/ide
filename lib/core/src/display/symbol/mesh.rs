@@ -18,7 +18,7 @@ use crate::display::symbol::buffer::item::ContextUniformOps;
 use eval_tt::*;
 
 use crate::display::symbol::buffer::IsBuffer;
-use crate::display::symbol::display_object::Camera;
+use crate::display::symbol::display_object::Camera2D;
 
 // ============
 // === Mesh ===
@@ -99,7 +99,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
         })
     }
 
-    pub fn render(&self, camera:&mut Camera) {
+    pub fn render(&self, camera:&Camera2D) {
         group!(self.logger, "Rendering.", {
             let vert_shader = webgl::compile_shader(
                 &self.context,
@@ -141,18 +141,14 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
         vec4 position2 = model_matrix * vec4(0.0,0.0,0.0,1.0);
 
 
+
         mat4 model_view_projection_matrix = view_projection_matrix * model_matrix;
 
 
         local       = vec3((uv - 0.5) * bbox, 0.0);
-        gl_Position = view_projection_matrix * vec4(local,1.0);
+        gl_Position = model_view_projection_matrix * vec4(local,1.0);
 
-//        mat4 view_projection_matrix2 =
-//            mat4( 1.0, 0.0, 0.0, 0.0
-//                , 0.0, 1.0, 0.0, 0.0
-//                , 0.0, 0.0, 1.0, 0.0
-//                , 0.2, 0.2, 1.0, 1.0
-//                );
+
 
 
         _position = view_projection_matrix * vec4(local,1.0);
@@ -165,7 +161,6 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 //        eye                     = eyeT.xyz;
 //        eye.z                   = -eye.z;
 
-        gl_Position = _position;
     }
 "#,
             )
@@ -206,16 +201,6 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let program =
                 webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
 
-            let position_location = self.context.get_attrib_location(&program, "position");
-
-            let model_matrix_location = self.context.get_attrib_location(&program, "vertex_model_matrix");
-
-            let uv_location = self.context.get_attrib_location(&program, "vertex_uv");
-
-
-            let position_location = position_location as u32;
-            let model_matrix_location = model_matrix_location as u32;
-            let uv_location = uv_location as u32;
 
             // === Rendering ==
 
@@ -223,7 +208,6 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
 
             self.geometry.scopes.point.name_map.keys().for_each(|name| {
-                println!(">>> {}",name);
                 let vtx_name = format!("vertex_{}",name);
                 let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
                 // TODO handle missing location
@@ -233,22 +217,22 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             });
 
 
-            println!("!! 3");
+//            println!("!! 3");
 
             let view_projection_matrix_location = self.context.get_uniform_location(&program, "view_projection_matrix");
-            println!("{:?}",view_projection_matrix_location);
-            println!("{:?}",self.context.get_error());
+//            println!("{:?}",view_projection_matrix_location);
+//            println!("{:?}",self.context.get_error());
 
 
-            println!("----- {} , {}", Context::INVALID_VALUE, Context::INVALID_OPERATION);
+//            println!("----- {} , {}", Context::INVALID_VALUE, Context::INVALID_OPERATION);
 
 
 
             camera.update();
-            self.context.set_uniform(&view_projection_matrix_location.unwrap(), camera.view_projection_matrix());
+            self.context.set_uniform(&view_projection_matrix_location.unwrap(), &camera.view_projection_matrix());
 
-            println!("CAMERA");
-            println!("{:?}", camera.view_projection_matrix());
+//            println!("CAMERA");
+//            println!("{:?}", camera.view_projection_matrix());
 
 
             let pts = self.geometry.scopes.point.size();

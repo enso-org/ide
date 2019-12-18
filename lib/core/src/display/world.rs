@@ -115,12 +115,13 @@ impl World {
     }
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        if self.workspace_dirty.check_all() {
-            group!(self.logger, "Updating.", {
+//        if self.workspace_dirty.check_all() {
+//            group!(self.logger, "Updating.", {
+                // FIXME render only needed workspaces.
                 self.workspace_dirty.unset_all();
                 self.workspaces.iter_mut().for_each(|t| t.update());
-            });
-        }
+//            });
+//        }
     }
     /// Dispose the world object, cancel all handlers and events.
     pub fn dispose(&mut self) {

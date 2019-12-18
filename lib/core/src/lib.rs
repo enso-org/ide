@@ -124,10 +124,10 @@ fn init(world: &mut World) {
     let mm3 = model_matrix.get(p3_ix);
     let mm4 = model_matrix.get(p4_ix);
 
-    mm1.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
-    mm2.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
-    mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0, -1.0, 0.0));});
-    mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  1.0, 0.0));});
+    mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+    mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+    mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+    mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
 //    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
 //    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
 //
@@ -139,56 +139,60 @@ fn init(world: &mut World) {
 //    mm5.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
 //    mm6.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
 
-    println!("---------- {:?}", *mm1.get());
 
 //    println!("{:?}",pos);
 //    println!("{:?}",pos.borrow().as_prim());
 
-//    world.on_frame(move |_| on_frame(&p6)).forget();
+
 
 
     shader::main();
 
-    println!("------------ 1");
-    let obj1 = DisplayObjectDescription::new(Logger::new("obj1"));
-    let obj2 = DisplayObjectDescription::new(Logger::new("obj2"));
-    let obj3 = DisplayObjectDescription::new(Logger::new("obj3"));
-    obj1.add_child(&obj2);
-    obj1.update();
-    println!("------------ 2");
-    obj1.mod_position(|t| t.x += 5.0);
-    obj2.mod_position(|t| t.y += 6.0);
-    obj1.update();
-    println!("------------ 3");
-    obj1.remove_child(&obj2);
-    obj2.update();
-    println!("{:?}",obj2.global_position());
+    
 
-    println!("------------ 4");
+    let w1 = Widget::new(Logger::new("widget1"),mm1,mm2,mm3,mm4);
 
-
-
-
-//    obj2.mod_position(|t| t.y += 5.0);
-//
-//    obj1.mod_rotation(|t| t.z += 90.0);
-////    obj1.mod_rotation(|t| t.y += 3.0);
-//    obj1.update();
-//    println!(">>> {:?}", obj2.global_position());
-//    println!(">>> {:?}", obj1.matrix());
-//    println!("------------ 4");
-//    obj1.update();
-//    println!(">>> {:?}", obj2.global_position());
-//    println!(">>> {:?}", obj2.matrix());
-//
-//
-//    println!("============");
+    let camera = workspace.scene.camera.clone();
+    world.on_frame(move |_| on_frame(&camera,&w1)).forget();
 
 }
 
-pub fn on_frame(p: &Var<Vector3<f32>>) {
-     p.modify(|t| t.x += 0.01)
+pub fn on_frame(camera:&Camera2D, widget:&Widget) {
+    camera.mod_position(|p| {
+        p.x -= 0.1;
+        p.z += 1.0
+    });
+    widget.transform.mod_position(|p| p.y += 0.5);
+    widget.transform.update();
 }
+
+
+pub struct Widget {
+    pub transform : DisplayObjectData,
+    pub mm1       : Var<Matrix4<f32>>,
+    pub mm2       : Var<Matrix4<f32>>,
+    pub mm3       : Var<Matrix4<f32>>,
+    pub mm4       : Var<Matrix4<f32>>,
+}
+
+impl Widget {
+    pub fn new(logger:Logger, mm1:Var<Matrix4<f32>>, mm2:Var<Matrix4<f32>>, mm3:Var<Matrix4<f32>>, mm4:Var<Matrix4<f32>>) -> Self {
+        let transform = DisplayObjectData::new(logger);
+        let mm1_cp = mm1.clone();
+        let mm2_cp = mm2.clone();
+        let mm3_cp = mm3.clone();
+        let mm4_cp = mm4.clone();
+        let transform_cp = transform.clone_ref();
+        transform.set_on_updated(move |t| {
+            mm1_cp.set(t.matrix().clone());
+            mm2_cp.set(t.matrix().clone());
+            mm3_cp.set(t.matrix().clone());
+            mm4_cp.set(t.matrix().clone());
+        });
+        Self {transform,mm1,mm2,mm3,mm4}
+    }
+}
+
 
 ////////////////////////////////////////////////
 ////////////////////////////////////////////////

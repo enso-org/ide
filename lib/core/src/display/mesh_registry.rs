@@ -13,7 +13,7 @@ use crate::promote;
 use crate::promote_all;
 use crate::promote_mesh_types;
 use eval_tt::*;
-use crate::display::symbol::display_object::Camera;
+use crate::display::symbol::display_object::Camera2D;
 
 
 // ====================
@@ -84,7 +84,7 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
         })
     }
 
-    pub fn render(&self, camera:&mut Camera) {
+    pub fn render(&self, camera:&Camera2D) {
         group!(self.logger, "Rendering.", {
             for mesh in &self.meshes {
                 mesh.render(camera);

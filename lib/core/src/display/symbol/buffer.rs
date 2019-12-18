@@ -129,7 +129,6 @@ Buffer<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
     }
 
     fn buffer_data(context:&Context, data:&[T::Prim]) {
-        println!("BUFFER DATA: {:?}", data);
         // Note that `js_buffer_view` is somewhat dangerous (hence the
         // `unsafe`!). This is creating a raw view into our module's
         // `WebAssembly.Memory` buffer, but if we allocate more pages for
@@ -326,7 +325,7 @@ From<Rc<RefCell<Buffer<T,OnSet,OnResize>>>> for SharedBuffer<T,OnSet,OnResize> {
 /// View for a particular buffer. Allows reading and writing buffer data
 /// via the internal mutability pattern. It is implemented as a view on
 /// a selected `SharedBuffer` element under the hood.
-#[derive(Derivative)]
+#[derive(Clone,Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
 pub struct Var<T,OnSet,OnResize> {
     index  : usize,
