@@ -57,7 +57,7 @@ impl CodeBuilder {
 
     /// Adds a new element to the builder. The element can be any form of string, slice, or any
     /// other object which implements the `HasCodeRepr` trait.
-    pub fn add<T>(&mut self, t:T)
+    pub fn add<T>(&mut self, t:T) -> &mut Self
         where Self: AddToBuilder<T> {
         self.add_to_builder(t)
     }
@@ -85,30 +85,34 @@ impl CodeBuilder {
 /// A helper trait for handling polymorphic input to the `add` method. It allows adding all kind of
 /// strings (including slices) and also any objects that implement the `Printer` trait.
 pub trait AddToBuilder<T> {
-    fn add_to_builder(&mut self, t:T);
+    fn add_to_builder(&mut self, t:T) -> &mut Self;
 }
 
 impl<T: HasCodeRepr> AddToBuilder<&T> for CodeBuilder {
-    default fn add_to_builder(&mut self, t:&T) {
-        t.build(self)
+    default fn add_to_builder(&mut self, t:&T) -> &mut Self {
+        t.build(self);
+        self
     }
 }
 
 impl AddToBuilder<&String> for CodeBuilder {
-    default fn add_to_builder(&mut self, t:&String) {
-        self.add_str(t)
+    fn add_to_builder(&mut self, t:&String) -> &mut Self {
+        self.add_str(t);
+        self
     }
 }
 
 impl AddToBuilder<&str> for CodeBuilder {
-    default fn add_to_builder(&mut self, t:&str) {
-        self.add_str(t)
+    fn add_to_builder(&mut self, t:&str) -> &mut Self {
+        self.add_str(t);
+        self
     }
 }
 
 impl AddToBuilder<String> for CodeBuilder {
-    default fn add_to_builder(&mut self, t:String) {
-        self.add_str(t)
+    fn add_to_builder(&mut self, t:String) -> &mut Self {
+        self.add_str(t);
+        self
     }
 }
 
@@ -130,29 +134,11 @@ impl Write for CodeBuilder {
     }
 }
 
-// === Smart Builder ===
-
-/// Macro allowing for nicer code building. Basically, the following code:
-/// ```compile_fail
-/// build!(builder,&self.typ,&self.ident,"() {");
-/// ```
-/// Translates to:
-/// ```compile_fail
-/// builder.add(&self.typ);
-/// builder.add(&self.ident);
-/// builder.add(&self."() {");
-/// ```
-#[macro_export]
-macro_rules! build {
-    ($builder:expr, $($expr:expr),*) => {
-        {$($builder.add($expr));*}
-    }
-}
 
 
-// ===============
-// === Printer ===
-// ===============
+// ===================
+// === HasCodeRepr ===
+// ===================
 
 /// Trait implemented by all objects that can have a code representation.
 pub trait HasCodeRepr {
@@ -176,6 +162,6 @@ impl<T: HasCodeRepr> HasCodeRepr for Option<T> {
 
 impl HasCodeRepr for usize {
     fn build(&self, builder:&mut CodeBuilder) {
-        builder.add(self.to_string())
+        builder.add(self.to_string());
     }
 }

@@ -115,9 +115,9 @@ macro_rules! promote_geometry_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) ->
-    ScopeOnChange { || dirty.set(item) }
-}
+fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopesDirtyStatus) -> ScopeOnChange {
+    || dirty.set(item)
+}}
 
 // === Implementation ===
 

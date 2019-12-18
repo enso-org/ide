@@ -325,10 +325,6 @@ impl<'t,T,OnSet> Iterator for SharedDirtyFlagIter<'t,T,OnSet>
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
     }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
 }
 
 

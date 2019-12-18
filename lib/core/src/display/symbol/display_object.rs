@@ -446,8 +446,6 @@ impl DisplayObjectDataMut {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-//        self.on_updated.as_mut().for_each(|f| f(self));
-
         match &self.on_updated {
             Some(f) => f(self),
             _ => {}

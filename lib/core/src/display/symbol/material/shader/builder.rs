@@ -91,6 +91,7 @@ impl AttributeQualifier {
             ident   : name.into()
         }
     }
+
     pub fn to_output_var<Name:Into<glsl::Identifier>>
     (&self, name:Name) -> glsl::GlobalVar {
         let storage = self.storage.clone();
@@ -141,16 +142,23 @@ impl ShaderBuilder {
 
     pub fn compute<V:Str,F:Str>
     (&mut self, cfg:&ShaderConfig, vertex_code:V, fragment_code:F) {
-        let vertex_code   = vertex_code   . as_ref();
-        let fragment_code = fragment_code . as_ref();
+        self.gen_precision_code(cfg);
+        self.gen_attributes_code(cfg);
+        self.gen_shared_attributes_code(cfg);
+        self.gen_uniforms_code(cfg);
+        self.gen_outputs_code(cfg);
+    }
 
+    fn gen_precision_code(&mut self, cfg:&ShaderConfig) {
         for (typ,prec) in &cfg.precision.vertex {
             self.vertex.add(glsl::PrecisionDecl::new(prec,typ));
         }
         for (typ,prec) in &cfg.precision.fragment {
             self.fragment.add(glsl::PrecisionDecl::new(prec,typ));
         }
+    }
 
+    fn gen_attributes_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.attributes.is_empty() {
             for (name,qual) in &cfg.attributes {
                 let vert_name = mk_vertex_name(&name);
@@ -162,7 +170,9 @@ impl ShaderBuilder {
                 self.vertex.main.add(sharing);
             }
         }
+    }
 
+    fn gen_shared_attributes_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.shared.is_empty() {
             for (name,qual) in &cfg.shared {
                 let vert_name = mk_vertex_name(&name);
@@ -171,14 +181,18 @@ impl ShaderBuilder {
                 self.fragment.add(qual.to_input_var (frag_name));
             }
         }
+    }
 
+    fn gen_uniforms_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.uniforms.is_empty() {
             for (name,qual) in &cfg.uniforms {
                 self.vertex  .add(qual.to_var(name));
                 self.fragment.add(qual.to_var(name));
             }
         }
+    }
 
+    fn gen_outputs_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.outputs.is_empty() {
             cfg.outputs.iter().enumerate().for_each(|(loc,(name,qual))|{
                 let mut var = qual.to_output_var(name);
@@ -199,3 +213,22 @@ fn mk_out_name      <S:Str> (s:S) -> String { format!("out_{}", s.as_ref()) }
 fn mk_vertex_name   <S:Str> (s:S) -> String { format!("v_{}"  , s.as_ref()) }
 fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }
 
+
+//use crate::prelude::*;
+//
+//pub fn main() {
+//    let mut cfg = builder::ShaderConfig::new();
+//    let mut sb = builder::ShaderBuilder::new();
+//    cfg.attributes.insert("foo".to_string(),builder::AttributeQualifier{
+//        storage: default(),
+//        prec: default(),
+//        typ: glsl::Type {
+//            prim: glsl::PrimType::Float,
+//            array: None
+//        }
+//    });
+//    sb.compute(&cfg,"--1--","--2--");
+//    let s  = sb.get();
+//    println!("{}",s.vertex);
+//    println!("{}",s.fragment);
+//}

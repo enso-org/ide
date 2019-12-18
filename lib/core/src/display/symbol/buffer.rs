@@ -62,14 +62,14 @@ pub type SetDirty    <Callback> = dirty::SharedRange<usize,Callback>;
 pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
 
 closure! {
-fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) ->
-    DataOnResize { || dirty.set() }
-}
+fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) -> DataOnResize {
+    || dirty.set()
+}}
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) ->
-    DataOnSet { |ix: usize| dirty.set(ix) }
-}
+fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) -> DataOnSet {
+    |ix: usize| dirty.set(ix)
+}}
 
 // === Instances ===
 
@@ -78,10 +78,10 @@ Buffer<T,OnSet,OnResize> {
     /// Creates new buffer from provided explicit buffer object.
     pub fn new_from
     ( context   : &Context
-      , vec       : Vec<T>
-      , logger    : Logger
-      , on_set    : OnSet
-      , on_resize : OnResize
+    , vec       : Vec<T>
+    , logger    : Logger
+    , on_set    : OnSet
+    , on_resize : OnResize
     ) -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_debug_name()));
         let set_logger     = logger.sub("set_dirty");
@@ -103,10 +103,10 @@ Buffer<T,OnSet,OnResize> {
     }
     /// Build the buffer from the provider configuration builder.
     pub fn build
-    (context:&Context, bldr:Builder<T>, on_set:OnSet, on_resize:OnResize)
+    (context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize)
      -> Self {
-        let buffer = bldr._buffer.unwrap_or_else(default);
-        let logger = bldr._logger.unwrap_or_else(default);
+        let buffer = builder._buffer.unwrap_or_else(default);
+        let logger = builder._logger.unwrap_or_else(default);
         Self::new_from(context,buffer,logger,on_set,on_resize)
     }
 }
@@ -239,7 +239,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
 pub struct SharedBuffer<T,OnSet,OnResize> {
-    pub rc: Rc<RefCell<Buffer<T,OnSet,OnResize>>>
+    rc: Rc<RefCell<Buffer<T,OnSet,OnResize>>>
 }
 
 impl<T, OnSet:Callback0, OnResize:Callback0>
@@ -255,9 +255,9 @@ SharedBuffer<T,OnSet,OnResize> {
 
     /// Build the buffer from the provider configuration builder.
     pub fn build
-    (context:&Context, bldr:Builder<T>, on_set:OnSet, on_resize:OnResize)
+    (context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize)
      -> Self {
-        let data = Buffer::build(context,bldr,on_set,on_resize);
+        let data = Buffer::build(context,builder,on_set,on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }

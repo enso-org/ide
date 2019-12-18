@@ -55,14 +55,14 @@ macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
 // === Callbacks ===
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>, ix:usize) ->
-    BufferOnSet { || dirty.set(ix) }
-}
+fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>, ix:usize) -> BufferOnSet {
+    || dirty.set(ix)
+}}
 
 closure! {
-fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) ->
-    BufferOnResize { || dirty.set() }
-}
+fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
+    || dirty.set()
+}}
 
 // === Implementation ===
 

@@ -4,7 +4,7 @@
 use crate::prelude::*;
 
 use crate::data::container::Add;
-use code_builder::{CodeBuilder, HasCodeRepr, build};
+use code_builder::{CodeBuilder, HasCodeRepr};
 use shapely::derive_clone_plus;
 
 
@@ -105,7 +105,7 @@ pub struct Identifier(pub String);
 
 impl HasCodeRepr for Identifier {
     fn build(&self, builder:&mut CodeBuilder) {
-        build!(builder,&self.0);
+        builder.add(&self.0);
     }
 }
 
@@ -199,7 +199,7 @@ impl HasCodeRepr for Statement {
         match self {
             Self::Function       (t) => builder.add(t),
             Self::PrecisionDecl  (t) => builder.add(t),
-        }
+        };
     }
 }
 
@@ -224,12 +224,12 @@ pub struct Function {
 
 impl HasCodeRepr for Function {
     fn build(&self, builder:&mut CodeBuilder) {
-        build!(builder,&self.typ,&self.ident,"() {");
+        builder.add(&self.typ).add(&self.ident).add("() {");
         builder.inc_indent();
-        build!(builder,&self.body);
+        builder.add(&self.body);
         builder.dec_indent();
         builder.newline();
-        build!(builder,"}");
+        builder.add("}");
     }
 }
 
@@ -307,7 +307,7 @@ impl From<PrimType> for Type {
 
 impl HasCodeRepr for Type {
     fn build(&self, builder:&mut CodeBuilder) {
-        build!(builder,&self.prim,&self.array);
+        builder.add(&self.prim).add(&self.array);
     }
 }
 
@@ -387,7 +387,7 @@ impl HasCodeRepr for PrimType {
             Self::USamplerCube         => builder.add("usamplerCube"),
             Self::USampler2DArray      => builder.add("usampler2DArray"),
             Self::Struct(ident)        => builder.add(ident),
-        }
+        };
     }
 }
 
@@ -445,15 +445,15 @@ impl HasCodeRepr for Layout {
 impl HasCodeRepr for InterpolationStorage {
     fn build(&self, builder:&mut CodeBuilder) {
         match self {
-            Self::Smooth => build!(builder,"smooth"),
-            Self::Flat   => build!(builder,"flat"),
-        }
+            Self::Smooth => builder.add("smooth"),
+            Self::Flat   => builder.add("flat"),
+        };
     }
 }
 
 impl HasCodeRepr for LinkageStorage {
     fn build(&self, builder:&mut CodeBuilder) {
-        if self.centroid { build!(builder,"centroid") };
+        if self.centroid { builder.add("centroid"); };
 
     }
 }
@@ -461,17 +461,17 @@ impl HasCodeRepr for LinkageStorage {
 impl HasCodeRepr for GlobalVarStorage {
     fn build(&self, builder:&mut CodeBuilder) {
         match self {
-            Self::ConstStorage        => build!(builder,"const"),
-            Self::UniformStorage      => build!(builder,"uniform"),
-            Self::InStorage    (qual) => build!(builder,"in",qual),
-            Self::OutStorage   (qual) => build!(builder,"out",qual),
-        }
+            Self::ConstStorage        => builder.add("const"),
+            Self::UniformStorage      => builder.add("uniform"),
+            Self::InStorage    (qual) => builder.add("in").add(qual),
+            Self::OutStorage   (qual) => builder.add("out").add(qual),
+        };
     }
 }
 
 impl HasCodeRepr for GlobalVar {
     fn build(&self, builder:&mut CodeBuilder) {
-        build!(builder,&self.layout,&self.storage,&self.typ,&self.ident);
+        builder.add(&self.layout).add(&self.storage).add(&self.typ).add(&self.ident);
     }
 }
 
@@ -491,9 +491,9 @@ pub struct LocalVar {
 impl HasCodeRepr for LocalVar {
     fn build(&self, builder:&mut CodeBuilder) {
         if self.constant {
-            build!(builder,"const");
+            builder.add("const");
         }
-        build!(builder,&self.typ,&self.ident);
+        builder.add(&self.typ).add(&self.ident);
     }
 }
 

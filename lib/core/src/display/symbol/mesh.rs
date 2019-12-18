@@ -58,14 +58,14 @@ macro_rules! promote_mesh_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn geometry_on_change<C:Callback0>(dirty:GeometryDirty<C>) ->
-    OnGeometryChange { || dirty.set() }
-}
+fn geometry_on_change<C:Callback0>(dirty:GeometryDirty<C>) -> OnGeometryChange {
+    || dirty.set()
+}}
 
 closure! {
-fn material_on_change<C:Callback0>(dirty:MaterialDirty<C>) ->
-    OnMaterialChange { || dirty.set() }
-}
+fn material_on_change<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialChange {
+    || dirty.set()
+}}
 
 // === Implementation ===
 

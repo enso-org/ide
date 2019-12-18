@@ -132,9 +132,9 @@ macro_rules! promote_workspace_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) ->
-    OnMeshRegistryChange { || dirty.set() }
-}
+fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) -> OnMeshRegistryChange {
+    || dirty.set()
+}}
 
 // === Implementation ===
 

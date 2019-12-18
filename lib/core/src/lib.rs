@@ -10,6 +10,8 @@
 // Lints. To be refactored after this gets resolved:
 // https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
+
+/// Uncomment the following code to enable macro debugging.
 //#![feature(trace_macros)]
 //#![recursion_limit="256"]
 //trace_macros!(true);
@@ -143,9 +145,6 @@ mod example_01 {
 //    println!("{:?}",pos.borrow().as_prim());
 
 
-
-
-        shader::main();
 
 
 

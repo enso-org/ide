@@ -47,9 +47,9 @@ macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn mesh_on_change<C:Callback0> (dirty:MeshDirty<C>, ix:MeshID) ->
-    OnMeshChange { || dirty.set(ix) }
-}
+fn mesh_on_change<C:Callback0> (dirty:MeshDirty<C>, ix:MeshID) -> OnMeshChange {
+    || dirty.set(ix)
+}}
 
 // === Implementation ===
 

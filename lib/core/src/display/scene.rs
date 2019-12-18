@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
-use crate::display::symbol::display_object::{Camera2D, DisplayObjectData};
+use crate::display::symbol::display_object::Camera2D;
+use crate::display::symbol::display_object::DisplayObjectData;
 use basegl_system_web::Logger;
 
 
