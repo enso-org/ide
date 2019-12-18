@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use crate::data::container::Add;
 use super::glsl;
-use code_builder::Printer;
+use code_builder::HasCodeRepr;
 
 // ==============
 // === Shader ===
@@ -189,8 +189,8 @@ impl ShaderBuilder {
     }
 
     pub fn get(&self) -> Shader {
-        let vertex   = self.vertex  .code();
-        let fragment = self.fragment.code();
+        let vertex   = self.vertex  .to_code();
+        let fragment = self.fragment.to_code();
         Shader {vertex,fragment}
     }
 }

@@ -4,7 +4,7 @@
 use crate::prelude::*;
 
 use crate::data::container::Add;
-use code_builder::{Builder,Printer,build};
+use code_builder::{CodeBuilder, HasCodeRepr, build};
 use shapely::derive_clone_plus;
 
 
@@ -22,9 +22,9 @@ impl Expr {
     }
 }
 
-impl Printer for Expr {
-    fn print(&self, builder:&mut Builder) {
-        self.deref().print(builder)
+impl HasCodeRepr for Expr {
+    fn build(&self, builder:&mut CodeBuilder) {
+        self.deref().build(builder)
     }
 }
 
@@ -54,13 +54,13 @@ macro_rules! mk_expr_unboxed { ($($variant:ident),*) => {
         }
     })*
 
-    impl Printer for ExprUnboxed {
-    fn print(&self, builder:&mut Builder) {
-        match self {
-            $(ExprUnboxed::$variant(t) => t.print(builder)),*
+    impl HasCodeRepr for ExprUnboxed {
+        fn build(&self, builder:&mut CodeBuilder) {
+            match self {
+                $(ExprUnboxed::$variant(t) => t.build(builder)),*
+            }
         }
     }
-}
 };}
 
 mk_expr_unboxed!(RawCode,Identifier,Block,Assignment);
@@ -88,8 +88,8 @@ impl RawCode {
     }
 }
 
-impl Printer for RawCode {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for RawCode {
+    fn build(&self, builder:&mut CodeBuilder) {
         builder.write(&self.str)
     }
 }
@@ -103,8 +103,8 @@ impl Printer for RawCode {
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
 pub struct Identifier(pub String);
 
-impl Printer for Identifier {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Identifier {
+    fn build(&self, builder:&mut CodeBuilder) {
         build!(builder,&self.0);
     }
 }
@@ -145,8 +145,8 @@ impl<T:Into<Expr>> Add<T> for Block {
     }
 }
 
-impl Printer for Block {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Block {
+    fn build(&self, builder:&mut CodeBuilder) {
         for line in &self.exprs {
             builder.newline();
             builder.add(line);
@@ -172,9 +172,9 @@ impl Assignment {
     }
 }
 
-impl Printer for Assignment {
-    fn print(&self, builder:&mut Builder) {
-        self.left.print(builder);
+impl HasCodeRepr for Assignment {
+    fn build(&self, builder:&mut CodeBuilder) {
+        self.left.build(builder);
         builder.add("=");
         builder.add(&self.right);
         builder.terminator();
@@ -194,8 +194,8 @@ pub enum Statement {
     PrecisionDecl (PrecisionDecl)
 }
 
-impl Printer for Statement {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Statement {
+    fn build(&self, builder:&mut CodeBuilder) {
         match self {
             Self::Function       (t) => builder.add(t),
             Self::PrecisionDecl  (t) => builder.add(t),
@@ -222,8 +222,8 @@ pub struct Function {
     pub body  : Block
 }
 
-impl Printer for Function {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Function {
+    fn build(&self, builder:&mut CodeBuilder) {
         build!(builder,&self.typ,&self.ident,"() {");
         builder.inc_indent();
         build!(builder,&self.body);
@@ -271,8 +271,8 @@ impl PrecisionDecl {
     }
 }
 
-impl Printer for PrecisionDecl {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for PrecisionDecl {
+    fn build(&self, builder:&mut CodeBuilder) {
         builder.add("precision");
         builder.add(&self.prec);
         builder.add(&self.typ);
@@ -305,8 +305,8 @@ impl From<PrimType> for Type {
     }
 }
 
-impl Printer for Type {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Type {
+    fn build(&self, builder:&mut CodeBuilder) {
         build!(builder,&self.prim,&self.array);
     }
 }
@@ -339,8 +339,8 @@ pub enum PrimType {
     Struct(Identifier),
 }
 
-impl Printer for PrimType {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for PrimType {
+    fn build(&self, builder:&mut CodeBuilder) {
         match self {
             Self::Float                => builder.add("float"),
             Self::Int                  => builder.add("int"),
@@ -434,16 +434,16 @@ pub enum InterpolationStorage {Smooth, Flat}
 
 // === Printers ===
 
-impl Printer for Layout {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Layout {
+    fn build(&self, builder:&mut CodeBuilder) {
         builder.add_spaced("layout(location=");
         builder.add(&self.location);
         builder.add_spaced(")");
     }
 }
 
-impl Printer for InterpolationStorage {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for InterpolationStorage {
+    fn build(&self, builder:&mut CodeBuilder) {
         match self {
             Self::Smooth => build!(builder,"smooth"),
             Self::Flat   => build!(builder,"flat"),
@@ -451,15 +451,15 @@ impl Printer for InterpolationStorage {
     }
 }
 
-impl Printer for LinkageStorage {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for LinkageStorage {
+    fn build(&self, builder:&mut CodeBuilder) {
         if self.centroid { build!(builder,"centroid") };
 
     }
 }
 
-impl Printer for GlobalVarStorage {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for GlobalVarStorage {
+    fn build(&self, builder:&mut CodeBuilder) {
         match self {
             Self::ConstStorage        => build!(builder,"const"),
             Self::UniformStorage      => build!(builder,"uniform"),
@@ -469,8 +469,8 @@ impl Printer for GlobalVarStorage {
     }
 }
 
-impl Printer for GlobalVar {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for GlobalVar {
+    fn build(&self, builder:&mut CodeBuilder) {
         build!(builder,&self.layout,&self.storage,&self.typ,&self.ident);
     }
 }
@@ -488,8 +488,8 @@ pub struct LocalVar {
     pub ident    : Identifier,
 }
 
-impl Printer for LocalVar {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for LocalVar {
+    fn build(&self, builder:&mut CodeBuilder) {
         if self.constant {
             build!(builder,"const");
         }
@@ -517,8 +517,8 @@ impl Display for Precision {
     }
 }
 
-impl Printer for Precision {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Precision {
+    fn build(&self, builder:&mut CodeBuilder) {
         let str = match self {
             Self::Low    => "lowp",
             Self::Medium => "mediump",
@@ -589,8 +589,8 @@ impl Add<Expr> for Module {
     }
 }
 
-impl Printer for Module {
-    fn print(&self, builder:&mut Builder) {
+impl HasCodeRepr for Module {
+    fn build(&self, builder:&mut CodeBuilder) {
         for t in &self.global_vars {
             builder.add(t);
             builder.terminator();

@@ -148,7 +148,7 @@ fn init(world: &mut World) {
 
     shader::main();
 
-    
+
 
     let w1 = Widget::new(Logger::new("widget1"),mm1,mm2,mm3,mm4);
 
