@@ -1,10 +1,5 @@
-mod event_handler;
-use event_handler::EventHandler;
-use event_handler::Event;
-use event_handler::PanEvent;
-use event_handler::ZoomEvent;
-
-mod navigator;
-pub use navigator::Navigator;
-
+pub mod camera_manager;
+pub mod navigator;
 pub mod mouse_manager;
+pub mod physics;
+pub mod animation_manager;

@@ -14,9 +14,11 @@ mod tests {
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
     use web_test::*;
-    use basegl::display::navigation::Navigator;
+    use basegl::display::navigation::navigator::Navigator;
 
-    use nalgebra::Vector3;
+    use nalgebra::{Vector3, zero};
+    use basegl::display::navigation::physics::{KinematicProperties, PhysicsSimulator};
+    use basegl::display::navigation::animation_manager::AnimationManager;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -74,21 +76,35 @@ mod tests {
         let z = y * camera.get_y_scale();
         *camera.position_mut() = Vector3::new(x, y, z);
 
-        let navigator     = Navigator::new(&renderer.container, &camera);
+        let zoom_speed    = 6.0;
+        let navigator     = Navigator::new(&renderer.container, *camera.position(), zoom_speed);
         let mut navigator = navigator.expect("Couldn't create navigator");
+
+        let mut kinematics   = KinematicProperties::new(*camera.position(), zero(), zero());
+        let drag             = 1.0;
+        let spring_coeff     = 1.5;
+        let mass             = 20.0;
+
+        let mut animation_manager = AnimationManager::new(60.0);
+        let simulator             = PhysicsSimulator::new();
 
         let mut t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {
             let t1 = (performance.now() / 1000.0) as f32;
             let dt = t1 - t0;
             t0 = t1;
-            navigator.navigate(&mut camera, dt);
+            let position = navigator.navigate(&mut camera);
             renderer.render(&mut camera, &scene);
+            animation_manager.run(dt * 75.0, |dt| {
+                simulator.simulate_spring(&mut kinematics, position, mass, spring_coeff);
+                simulator.simulate_dragging(&mut kinematics, drag, dt);
+                simulator.simulate_kinematics(&mut kinematics, dt);
+            });
+            *camera.position_mut() = kinematics.position;
         })
     }
 
-    // We create two tests to verify that each HtmlElement has its own
-    // Navigator.
+    // We create two tests to verify that each HtmlElement has its own Navigator.
     #[web_bench]
     fn navigator_test_1(b: &mut Bencher) { navigator_test(b, "navigator_test_1") }
 

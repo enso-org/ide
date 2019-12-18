@@ -147,7 +147,7 @@ impl MouseManager {
         let data                = Rc::new(RefCell::new(data));
         let ignore_context_menu = None;
         let mut mouse_manager   = Self { target, data, ignore_context_menu };
-        mouse_manager.initialize_events()?;
+        mouse_manager.stop_tracking_mouse_when_it_leaves_dom()?;
         Ok(mouse_manager)
     }
 
@@ -231,7 +231,7 @@ impl MouseManager {
         remove_wheel_event(&self.target, listener)
     }
 
-    fn initialize_events(&mut self) -> Result<()> {
+    fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
         let data    = self.data.clone();
         let closure = move |_| data.borrow_mut().mouse_position = None;
         add_mouse_event(&self.target, "mouseleave", closure)?.forget();

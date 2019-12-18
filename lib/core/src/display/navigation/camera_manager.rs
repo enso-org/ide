@@ -1,5 +1,3 @@
-// FIXME: NEEDS MAJOR REFACTORING!
-
 use crate::prelude::*;
 
 use super::mouse_manager::State;
@@ -16,31 +14,54 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use nalgebra::zero;
 
-// =================
-// === ZoomEvent ===
-// =================
+// ====================
+// === ZoomingEvent ===
+// ====================
 
-pub struct ZoomEvent {
+/// A struct holding zooming event information.
+pub struct ZoomingEvent {
     pub focus  : Vector2<f32>,
     pub amount : f32
 }
 
-// ================
-// === PanEvent ===
-// ================
+impl ZoomingEvent {
+    fn from_mouse_wheel(event:MouseWheelEvent, data:&Rc<RefCell<CameraManagerData>>) -> Self {
+        let amount = event.movement_y;
+        let focus  = data.borrow().mouse_position;
+        Self { amount, focus }
+    }
 
-pub struct PanEvent {
+    fn from_mouse_move(event:MousePositionEvent, focus:Vector2<f32>) -> Self {
+        let amount = event.position.y - event.previous_position.y;
+        Self { focus, amount }
+    }
+}
+
+// ====================
+// === PanningEvent ===
+// ====================
+
+/// A struct holding panning event information.
+pub struct PanningEvent {
     pub movement : Vector2<f32>
+}
+
+impl PanningEvent {
+    fn from(event:MousePositionEvent) -> Self {
+        let mut movement   = event.position - event.previous_position;
+                movement.x = -movement.x;
+        Self { movement }
+    }
 }
 
 // =============
 // === Event ===
 // =============
 
-/// Navigation user interactions events.
+/// An enumeration representing navigation events.
 pub enum Event {
-    Zoom(ZoomEvent),
-    Pan(PanEvent)
+    Zooming(ZoomingEvent),
+    Panning(PanningEvent)
 }
 
 // ====================
@@ -57,33 +78,33 @@ enum MovementType {
 // === EventHandlerData ===
 // ========================
 
-struct EventHandlerData {
-    event_queue    : Vec<Event>,
-    movement_type  : Option<MovementType>,
-    mouse_position : Vector2<f32>
+struct CameraManagerData {
+    event_queue       : Vec<Event>,
+    movement_type     : Option<MovementType>,
+    mouse_position    : Vector2<f32>
 }
 
-impl Default for EventHandlerData {
+impl Default for CameraManagerData {
     fn default() -> Self {
-        let event_queue    = default();
-        let mouse_position = zero();
-        let movement_type  = None;
+        let event_queue       = default();
+        let mouse_position    = zero();
+        let movement_type     = None;
         Self { event_queue, mouse_position, movement_type }
     }
 }
 
-// ====================
-// === EventHandler ===
-// ====================
+// =====================
+// === CameraManager ===
+// =====================
 
 /// Struct used to handle mouse events such as MouseDown, MouseMove, MouseUp,
 /// MouseLeave and MouseWheel.
-pub struct EventHandler {
+pub struct CameraManager {
     mouse_manager : MouseManager,
-    data          : Rc<RefCell<EventHandlerData>>
+    data          : Rc<RefCell<CameraManagerData>>
 }
 
-impl EventHandler {
+impl CameraManager {
     pub fn new(dom:&DOMContainer) -> Result<Self> {
         let mouse_manager     = MouseManager::new(dom)?;
         let data              = default();
@@ -94,13 +115,25 @@ impl EventHandler {
         Ok(event_handler)
     }
 
+    /// Checks if EventHandler has an event.
+    pub fn poll(&mut self) -> Option<Event> {
+        self.data.borrow_mut().event_queue.pop()
+    }
+
+    // Initialize mouse events.
+    fn initialize_events(&mut self) -> Result<()> {
+        self.disable_context_menu()?;
+        self.initialize_wheel_zooming()?;
+        self.initialize_interaction_start_event()?;
+        self.initialize_mouse_move_event()?;
+        self.initialize_interaction_end_event()
+    }
+
     fn initialize_wheel_zooming(&mut self) -> Result<()> {
         let data = self.data.clone();
         self.mouse_manager.add_mouse_wheel_callback(move |event:MouseWheelEvent| {
-            let amount     = event.movement_y;
-            let focus      = data.borrow().mouse_position;
-            let zoom_event = ZoomEvent { amount, focus };
-            let event      = Event::Zoom(zoom_event);
+            let zoom_event = ZoomingEvent::from_mouse_wheel(event, &data);
+            let event      = Event::Zooming(zoom_event);
             data.borrow_mut().event_queue.push(event);
         })?.forget();
         Ok(())
@@ -124,8 +157,6 @@ impl EventHandler {
     }
 
     fn disable_context_menu(&mut self) -> Result<()> {
-        self.mouse_manager.set_context_menu(State::Disabled)?;
-        self.mouse_manager.set_context_menu(State::Enabled)?;
         self.mouse_manager.set_context_menu(State::Disabled)
     }
 
@@ -149,36 +180,18 @@ impl EventHandler {
             if let Some(movement_type) = &data.movement_type {
                 match movement_type {
                     MovementType::Zooming { focus } => {
-                        let focus      = *focus;
-                        let amount     = event.position.y - event.previous_position.y;
-                        let zoom_event = ZoomEvent { focus, amount };
-                        let event      = Event::Zoom(zoom_event);
+                        let zoom_event = ZoomingEvent::from_mouse_move(event, *focus);
+                        let event      = Event::Zooming(zoom_event);
                         data.event_queue.push(event);
                     },
                     MovementType::Panning => {
-                        let mut movement   = event.position - event.previous_position;
-                        movement.x = -movement.x;
-                        let pan_event      = PanEvent { movement };
-                        let event          = Event::Pan(pan_event);
+                        let pan_event      = PanningEvent::from(event);
+                        let event          = Event::Panning(pan_event);
                         data.event_queue.push(event);
                     }
                 }
             }
         })?.forget();
         Ok(())
-    }
-
-    /// Initialize mouse events.
-    fn initialize_events(&mut self) -> Result<()> {
-        self.disable_context_menu()?;
-        self.initialize_wheel_zooming()?;
-        self.initialize_interaction_start_event()?;
-        self.initialize_mouse_move_event()?;
-        self.initialize_interaction_end_event()
-    }
-
-    /// Checks if EventHandler has an event.
-    pub fn poll(&mut self) -> Option<Event> {
-        self.data.borrow_mut().event_queue.pop()
     }
 }
