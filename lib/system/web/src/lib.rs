@@ -37,6 +37,10 @@ pub enum Error {
     TypeMismatch { expected: String, got: String },
     #[fail(display = "WebGL {} is not available.", version)]
     NoWebGL { version: u32 },
+    #[fail(display = "Failed to add event listener")]
+    FailedToAddEventListener,
+    #[fail(display = "Failed to remove event listener")]
+    FailedToRemoveEventListener
 }
 impl Error {
     pub fn missing(name:&str) -> Error {
@@ -180,29 +184,15 @@ macro_rules! group {
     }};
 }
 
-
-// ============================
-// === EventListeningResult ===
-// ============================
-
-pub type EventListeningResult<A> = std::result::Result<A, EventListeningError>;
-
-#[derive(Debug)]
-pub enum EventListeningError {
-    AddEventListenerFail,
-}
-
-
 // =============
 // === Utils ===
 // =============
 
 /// Ignores context menu when clicking with the right mouse button.
-pub fn ignore_context_menu
-    (target:&EventTarget) -> EventListeningResult<Closure<dyn Fn(MouseEvent)>> {
+pub fn ignore_context_menu(target:&EventTarget) -> Result<Closure<dyn Fn(MouseEvent)>> {
     let closure = move |event:MouseEvent| {
-        const RMB : i16 = 2;
-        if  event.button() == RMB {
+        const RIGHT_MOUSE_BUTTON : i16 = 2;
+        if  event.button() == RIGHT_MOUSE_BUTTON {
             event.prevent_default();
         }
     };
@@ -210,7 +200,7 @@ pub fn ignore_context_menu
     let callback : &Function = closure.as_ref().unchecked_ref();
     match target.add_event_listener_with_callback("contextmenu", callback) {
         Ok(_)  => Ok(closure),
-        Err(_) => Err(EventListeningError::AddEventListenerFail)
+        Err(_) => Err(Error::FailedToAddEventListener)
     }
 }
 

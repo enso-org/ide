@@ -6,3 +6,5 @@ use event_handler::ZoomEvent;
 
 mod navigator;
 pub use navigator::Navigator;
+
+pub mod mouse_manager;
