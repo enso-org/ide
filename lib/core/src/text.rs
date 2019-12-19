@@ -93,26 +93,25 @@ impl TextComponent {
 
     fn update_uniforms(&self) {
         let gl_context          = &self.gl_context;
-        let to_window           = self.create_to_window();
-        let to_window_ref       = to_window.as_ref();
-        let to_window_loc       = gl_context.get_uniform_location(&self.gl_program,"to_window");
+        let to_scene            = self.to_scene_matrix();
+        let to_scene_ref        = to_scene.as_ref();
+        let to_scene_loc        = gl_context.get_uniform_location(&self.gl_program,"to_scene");
         let transpose           = false;
-        gl_context.uniform_matrix3fv_with_f32_array(to_window_loc.as_ref(),transpose,to_window_ref);
+        gl_context.uniform_matrix3fv_with_f32_array(to_scene_loc.as_ref(),transpose,to_scene_ref);
     }
 
-    fn create_to_window(&self) -> SmallVec<[f32;9]> {
-        const ROTATION : f64  = 0.0;
-        let window_offset     = Vector2::new(self.buffers.scroll_offset.x*self.text_size, self
-            .buffers.scroll_offset.y*self.text_size);
-        let translate         = self.position.coords + Vector2::new(0.0, self.size.y) -
-            window_offset;
-        let scale             = self.text_size;
-        let similarity        = Similarity2::new(translate,ROTATION,scale);
-        let to_window :  Projective2<f64> = nalgebra::convert(similarity);
-        let matrix            = to_window.matrix();
-        let view : &[[f64;3]] = matrix.as_ref();
-        let flatten_view      = view.iter().flatten();
-        let converted         = flatten_view.map(|f| *f as f32);
+    fn to_scene_matrix(&self) -> SmallVec<[f32;9]> {
+        const ROTATION : f64            = 0.0;
+        let scroll_offset               = self.buffers.scroll_offset*self.text_size;
+        let to_position                 = self.position.coords + Vector2::new(0.0, self.size.y);
+        let translate                   = to_position - scroll_offset;
+        let scale                       = self.text_size;
+        let similarity                  = Similarity2::new(translate,ROTATION,scale);
+        let to_scene : Projective2<f64> = nalgebra::convert(similarity);
+        let matrix                      = to_scene.matrix();
+        let view : &[[f64;3]]           = matrix.as_ref();
+        let flatten_view                = view.iter().flatten();
+        let converted                   = flatten_view.map(|f| *f as f32);
         converted.collect()
     }
 
@@ -179,7 +178,8 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         let lines             = self.split_lines();
         let font              = self.fonts.get_render_info(self.font_id);
         let display_size      = self.size / self.text_size;
-        let buffers           = TextComponentBuffers::new(&gl_context,display_size,ContentRef{ lines:lines.as_ref(), font});
+        let content_ref       = ContentRef{lines:lines.as_ref(),font};
+        let buffers           = TextComponentBuffers::new(&gl_context,display_size,content_ref);
         self.setup_constant_uniforms(&gl_context,&gl_program);
         TextComponent {
             lines,
@@ -264,20 +264,20 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
     }
 
     fn setup_constant_uniforms(&mut self, gl_context:&Context, gl_program:&Program) {
-        let left                = self.position.x                 as f32;
-        let right               = (self.position.x + self.size.x) as f32;
-        let top                 = (self.position.y + self.size.y) as f32;
-        let bottom              = self.position.y                 as f32;
-        let color               = &self.color;
-        let range               = FontRenderInfo::MSDF_PARAMS.range as f32;
-        let msdf_width          = MsdfTexture::WIDTH as f32;
-        let msdf_height         = self.fonts.get_render_info(self.font_id).msdf_texture.rows() as f32;
-        let clip_lower_loc      = gl_context.get_uniform_location(gl_program,"clip_lower");
-        let clip_upper_loc      = gl_context.get_uniform_location(gl_program,"clip_upper");
-        let color_loc           = gl_context.get_uniform_location(gl_program,"color");
-        let range_loc           = gl_context.get_uniform_location(gl_program,"range");
-        let msdf_loc            = gl_context.get_uniform_location(gl_program,"msdf");
-        let msdf_size_loc       = gl_context.get_uniform_location(gl_program,"msdf_size");
+        let left           = self.position.x                 as f32;
+        let right          = (self.position.x + self.size.x) as f32;
+        let top            = (self.position.y + self.size.y) as f32;
+        let bottom         = self.position.y                 as f32;
+        let color          = &self.color;
+        let range          = FontRenderInfo::MSDF_PARAMS.range as f32;
+        let msdf_width     = MsdfTexture::WIDTH as f32;
+        let msdf_height    = self.fonts.get_render_info(self.font_id).msdf_texture.rows() as f32;
+        let clip_lower_loc = gl_context.get_uniform_location(gl_program,"clip_lower");
+        let clip_upper_loc = gl_context.get_uniform_location(gl_program,"clip_upper");
+        let color_loc      = gl_context.get_uniform_location(gl_program,"color");
+        let range_loc      = gl_context.get_uniform_location(gl_program,"range");
+        let msdf_loc       = gl_context.get_uniform_location(gl_program,"msdf");
+        let msdf_size_loc  = gl_context.get_uniform_location(gl_program,"msdf_size");
 
         gl_context.use_program(Some(gl_program));
         gl_context.uniform2f(clip_lower_loc.as_ref(),left,bottom);
