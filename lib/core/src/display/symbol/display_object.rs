@@ -135,9 +135,9 @@ impl Transform {
     /// Computes a rotation matrix from the provided rotation values based on
     /// the rotation order.
     pub fn rotation_matrix(&self) -> Matrix4<f32> {
-        let rx = Matrix4::from_scaled_axis(&Vector3::x() * self.rotation.x);
-        let ry = Matrix4::from_scaled_axis(&Vector3::y() * self.rotation.y);
-        let rz = Matrix4::from_scaled_axis(&Vector3::z() * self.rotation.z);
+        let rx = Matrix4::from_scaled_axis(Vector3::x() * self.rotation.x);
+        let ry = Matrix4::from_scaled_axis(Vector3::y() * self.rotation.y);
+        let rz = Matrix4::from_scaled_axis(Vector3::z() * self.rotation.z);
         match self.rotation_order {
             AxisOrder::XYZ => rz * ry * rx,
             AxisOrder::XZY => ry * rz * rx,
@@ -204,7 +204,7 @@ impl<OnChange> CachedTransform<OnChange> {
                     self.transform_matrix = self.transform.matrix();
                     self.dirty.unset_all();
                 }
-                new_origin.iter().for_each(|t| self.origin = *t.clone());
+                new_origin.iter().for_each(|t| self.origin = **t);
                 self.matrix = self.origin * self.transform_matrix;
             })
         }
@@ -439,10 +439,7 @@ impl DisplayObjectDataMut {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-        match &self.on_updated {
-            Some(f) => f(self),
-            _ => {}
-        }
+        if let Some(f) = &self.on_updated { f(self) }
     }
 }
 
@@ -681,19 +678,19 @@ impl DisplayObjectData {
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.rc.borrow().position().clone()
+        *self.rc.borrow().position()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.rc.borrow().scale().clone()
+        *self.rc.borrow().scale()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.rc.borrow().rotation().clone()
+        *self.rc.borrow().rotation()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.rc.borrow().matrix().clone()
+        *self.rc.borrow().matrix()
     }
 }
 
@@ -1021,6 +1018,8 @@ impl Camera2DData {
         };
     }
 
+    // https://github.com/rust-lang/rust-clippy/issues/4914
+    #[allow(clippy::useless_let_if_seq)]
     pub fn update(&mut self) -> bool {
         self.transform.update();
         let mut changed = false;
@@ -1153,7 +1152,7 @@ impl Camera2D {
 
 impl Camera2D {
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
-        self.rc.borrow().view_projection_matrix().clone()
+        *self.rc.borrow().view_projection_matrix()
     }
 }
 

@@ -136,7 +136,7 @@ pub trait Item: Empty {
     /// This function returns a new typed array which is a view into
     /// wasm's memory. This view does not copy the underlying data.
     ///
-    /// # Unsafety
+    /// # Safety
     ///
     /// Views into WebAssembly memory are only valid so long as the
     /// backing buffer isn't resized in JS. Once this function is called
