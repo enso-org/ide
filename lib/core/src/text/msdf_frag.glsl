@@ -1,7 +1,7 @@
-#extension GL_OES_standard_derivatives : enable
+#version 300 es
 
-varying highp vec2 v_tex_coord;
-varying highp vec4 v_clip_distance;
+in highp vec2 v_tex_coord;
+in highp vec4 v_clip_distance;
 
 uniform sampler2D   msdf;
 // Number of MSDF cells in row and column
@@ -10,6 +10,8 @@ uniform highp vec2  msdf_size;
 // expressed in MSDF cells
 uniform highp float range;
 uniform highp vec4  color;
+
+out highp vec4 out_color;
 
 highp float median(highp vec3 v) {
     return max(min(v.x, v.y), min(max(v.x, v.y), v.z));
@@ -26,11 +28,11 @@ void main() {
     if (clipped) {
         discard;
     } else {
-        highp vec3  msdf_sample  = texture2D(msdf, v_tex_coord).rgb;
+        highp vec3  msdf_sample  = texture(msdf, v_tex_coord).rgb;
         highp float sig_dist     = median(msdf_sample) - 0.5;
         highp float sig_dist_px  = sig_dist * avg_msdf_unit_px;
         highp float opacity      = 0.5 + sig_dist_px + dpi_dilate * 0.08;
-        gl_FragColor = vec4(color.xyz, color.w * clamp(opacity, 0.0, 1.0));
+        out_color = vec4(color.xyz, color.w * clamp(opacity, 0.0, 1.0));
     }
 }
 

@@ -1,12 +1,14 @@
-attribute vec2 position;
-attribute vec2 tex_coord;
+#version 300 es
+
+in vec2 position;
+in vec2 tex_coord;
 
 uniform highp mat3 to_scene;
 uniform highp vec2 clip_lower;
 uniform highp vec2 clip_upper;
 
-varying vec2 v_tex_coord;
-varying vec4 v_clip_distance;
+out vec2 v_tex_coord;
+out vec4 v_clip_distance;
 
 void main() {
     highp vec3 position_on_scene = to_scene * vec3(position, 1.0);

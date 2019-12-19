@@ -10,7 +10,7 @@ use basegl_system_web::create_element;
 use basegl_system_web::dyn_into;
 use basegl_system_web::Error;
 use basegl_system_web::get_element_by_id;
-use basegl_system_web::get_webgl_context;
+use basegl_system_web::get_webgl2_context;
 use basegl_system_web::NodeInserter;
 use basegl_system_web::Result;
 use basegl_system_web::StyleSetter;
@@ -52,7 +52,7 @@ impl WorldTest {
         let canvas_html    : HtmlElement       = dyn_into(canvas_element.clone())?;
         let canvas         : HtmlCanvasElement = dyn_into(canvas_element.clone())?;
 
-        get_webgl_context(&canvas, 1)?;
+        get_webgl2_context(&canvas)?;
         canvas.set_width(640);
         canvas.set_height(640);
         canvas_html.set_id(Self::workspace_name(test_name).as_str());
@@ -77,11 +77,11 @@ impl WorldTest {
 #[cfg(test)]
 mod tests {
     use web_test::*;
+    use basegl::dirty::traits::*;
 
     use super::WorldTest;
     use basegl::Color;
     use basegl::display::world::World;
-    use basegl::dirty::traits::SharedSetter1;
     use basegl::text::TextComponentBuilder;
 
     use basegl_core_msdf_sys::run_once_initialized;

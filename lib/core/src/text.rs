@@ -22,7 +22,7 @@ use nalgebra::Vector2;
 use nalgebra::Similarity2;
 use nalgebra::Point2;
 use nalgebra::Projective2;
-use web_sys::WebGlRenderingContext;
+use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlTexture;
 
@@ -42,7 +42,7 @@ pub struct TextComponent {
     pub position    : Point2<f64>,
     pub size        : Vector2<f64>,
     pub text_size   : f64,
-    gl_context      : WebGlRenderingContext,
+    gl_context      : WebGl2RenderingContext,
     gl_program      : Program,
     gl_msdf_texture : WebGlTexture,
     buffers         : TextComponentBuffers,
@@ -88,7 +88,7 @@ impl TextComponent {
         self.bind_buffer_to_attribute("tex_coord",&self.buffers.texture_coords);
         self.setup_blending();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
-        gl_context.draw_arrays(WebGlRenderingContext::TRIANGLES,0,vertices_count);
+        gl_context.draw_arrays(WebGl2RenderingContext::TRIANGLES,0,vertices_count);
     }
 
     fn update_uniforms(&self) {
@@ -119,9 +119,9 @@ impl TextComponent {
         let gl_context = &self.gl_context;
         let gl_program = &self.gl_program;
         let location   = gl_context.get_attrib_location(gl_program,attribute_name) as u32;
-        let target     = WebGlRenderingContext::ARRAY_BUFFER;
+        let target     = WebGl2RenderingContext::ARRAY_BUFFER;
         let item_size  = 2;
-        let item_type  = WebGlRenderingContext::FLOAT;
+        let item_type  = WebGl2RenderingContext::FLOAT;
         let normalized = false;
         let stride     = 0;
         let offset     = 0;
@@ -207,7 +207,6 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
     }
 
     fn create_program(&self, gl_context:&Context) -> Program {
-        gl_context.get_extension("OES_standard_derivatives").unwrap().unwrap();
         let vert_shader = self.create_vertex_shader(gl_context);
         let frag_shader = self.create_fragment_shader(gl_context);
         link_program(&gl_context, &vert_shader, &frag_shader).unwrap()
@@ -215,14 +214,14 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
 
     fn create_vertex_shader(&self, gl_context:&Context) -> Shader {
         let body        = include_str!("text/msdf_vert.glsl");
-        let shader_type = WebGlRenderingContext::VERTEX_SHADER;
+        let shader_type = WebGl2RenderingContext::VERTEX_SHADER;
 
         compile_shader(gl_context,shader_type,body).unwrap()
     }
 
     fn create_fragment_shader(&self, gl_context:&Context) -> Shader {
         let body        = include_str!("text/msdf_frag.glsl");
-        let shader_type = WebGlRenderingContext::FRAGMENT_SHADER;
+        let shader_type = WebGl2RenderingContext::FRAGMENT_SHADER;
 
         compile_shader(gl_context,shader_type,body).unwrap()
     }
