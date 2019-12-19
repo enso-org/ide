@@ -76,7 +76,7 @@ impl TextComponentBuffers {
         if scrolled_x {
             let displayed_x = self.displayed_x_range();
             let x_scroll    = self.scroll_since_last_frame.x;
-            let lines       = info.lines;
+            let lines       = &info.lines;
             self.fragments.mark_dirty_after_x_scrolling(x_scroll,displayed_x,lines);
         }
         if scrolled_x || scrolled_y || info.dirty_lines.any_dirty() {
@@ -141,7 +141,7 @@ impl TextComponentBuffers {
         is_valid.and_option_from(|| Some(index as usize))
     }
 
-    fn setup_buffers(&mut self, gl_context:&Context, refresh:RefreshInfo) {
+    fn setup_buffers(&mut self, gl_context:&Context, mut refresh:RefreshInfo) {
         let displayed_lines = self.displayed_lines(refresh.lines.len());
         let lines           = refresh.lines;
         let all_fragments   = 0..self.fragments.fragments.len();
@@ -156,11 +156,11 @@ impl TextComponentBuffers {
     }
 
     fn refresh_fragments
-    (&mut self, gl_context:&Context, indexes:RangeInclusive<usize>, refresh:RefreshInfo) {
+    (&mut self, gl_context:&Context, indexes:RangeInclusive<usize>, mut refresh:RefreshInfo) {
         let offset      = *indexes.start();
         let mut builder = self.create_fragments_data_builder(refresh.font);
 
-        self.fragments.build_buffer_data_for_fragments(indexes,&mut builder,refresh.lines.as_ref());
+        self.fragments.build_buffer_data_for_fragments(indexes,&mut builder,&mut refresh.lines);
         self.set_vertex_position_buffer_subdata(gl_context,offset,&builder);
         self.set_texture_coords_buffer_subdata (gl_context,offset,&builder);
     }

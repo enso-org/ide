@@ -1,6 +1,7 @@
 pub mod font;
 pub mod buffer;
 pub mod content;
+pub mod cursor;
 pub mod msdf;
 
 use crate::prelude::*;
@@ -26,6 +27,7 @@ use nalgebra::Projective2;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlTexture;
+use crate::text::cursor::Cursor;
 
 
 // =====================
@@ -39,6 +41,7 @@ use web_sys::WebGlTexture;
 #[derive(Debug)]
 pub struct TextComponent {
     pub content       : TextComponentContent,
+    pub cursors       : Vec<Cursor>,
     pub position      : Point2<f64>,
     pub size          : Vector2<f64>,
     pub text_size     : f64,
@@ -72,7 +75,6 @@ impl TextComponent {
     pub fn jump_to_position(&mut self, scroll_position:Vector2<f64>) {
         self.buffers.jump_to(scroll_position);
     }
-
 
     /// Render text
     pub fn display(&mut self, fonts:&mut Fonts) {
@@ -210,6 +212,7 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         let buffers         = TextComponentBuffers::new(&gl_context,display_size,initial_refresh);
         self.setup_constant_uniforms(&gl_context,&gl_program);
         TextComponent {content,gl_context,gl_program,gl_msdf_texture,buffers,
+            cursors           : default(),
             position          : self.position,
             size              : self.size,
             text_size         : self.text_size,

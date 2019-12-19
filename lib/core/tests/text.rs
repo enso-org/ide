@@ -160,14 +160,14 @@ mod tests {
     }
 
     #[web_bench]
-    fn scrolling_horizontal_10(bencher:&mut Bencher) {
-        if let Some(world_test) = WorldTest::new("scrolling_horizontal_10") {
+    fn scrolling_horizontal_20(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("scrolling_horizontal_20") {
             let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    for _ in 0..10 { //TODO[AO] make target FPS feature in web_bench
+                    for _ in 0..20 { //TODO[AO] make target FPS feature in web_bench
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
                         text_component.scroll(Vector2::new(1.0,0.0));
@@ -180,14 +180,14 @@ mod tests {
     }
 
     #[web_bench]
-    fn editing_single_long_line_20(bencher:&mut Bencher) {
-        if let Some(world_test) = WorldTest::new("editing_single_long_line_20") {
+    fn editing_single_long_line_15(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("editing_single_long_line_15") {
             let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
-                    for _ in 0..20 {
+                    for _ in 0..15 {
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
                         let replace_from   = CharPosition{line:1, byte_offset:2};

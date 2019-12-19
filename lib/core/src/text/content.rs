@@ -1,12 +1,15 @@
+pub mod line;
+
 use crate::prelude::*;
 
 use crate::text::font::FontId;
 use crate::text::font::FontRenderInfo;
 use crate::text::font::Fonts;
+use crate::text::content::line::Line;
 
 use std::ops::Range;
 use std::ops::RangeFrom;
-use failure::_core::ops::RangeInclusive;
+use std::ops::RangeInclusive;
 
 
 // ==================
@@ -78,7 +81,7 @@ pub enum ChangeType {
 /// A structure describing a text operation in one place.
 pub struct TextChange {
     replaced : Range<CharPosition>,
-    lines    : Vec<String>,
+    lines    : Vec<Vec<char>>,
 }
 
 impl TextChange {
@@ -86,7 +89,7 @@ impl TextChange {
     pub fn insert(position:CharPosition, text:&str) -> Self {
         TextChange {
             replaced : position.clone()..position,
-            lines    : TextComponentContent::split_to_lines(text)
+            lines    : TextComponentContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
         }
     }
 
@@ -94,14 +97,14 @@ impl TextChange {
     pub fn delete(range:Range<CharPosition>) -> Self {
         TextChange {
             replaced : range,
-            lines    : vec!["".to_string()],
+            lines    : vec![vec![]],
         }
     }
 
     /// Creates operation which replaces text at given range with given string.
     pub fn replace(replaced:Range<CharPosition>, text:&str) -> Self {
         TextChange {replaced,
-            lines : TextComponentContent::split_to_lines(text)
+            lines : TextComponentContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
         }
     }
 
@@ -127,13 +130,13 @@ impl TextChange {
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
 pub struct TextComponentContent {
-    pub lines       : Vec<String>,
+    pub lines       : Vec<Line>,
     pub dirty_lines : DirtyLines,
     pub font        : FontId,
 }
 
 /// A position of character in multiline text.
-#[derive(Clone,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
 pub struct CharPosition {
     pub line        : usize,
     pub byte_offset : usize,
@@ -141,9 +144,9 @@ pub struct CharPosition {
 
 /// References to all needed stuff for generating buffer's data.
 pub struct RefreshInfo<'a, 'b> {
-    pub lines       : &'a [String],
-    pub dirty_lines : DirtyLines,
-    pub font        : &'b mut FontRenderInfo,
+    pub lines            : &'a mut [Line],
+    pub dirty_lines      : DirtyLines,
+    pub font             : &'b mut FontRenderInfo,
 }
 
 impl TextComponentContent {
@@ -152,16 +155,14 @@ impl TextComponentContent {
     /// The text will be split to lines by `'\n'` characters.
     pub fn new(font_id:FontId, text:&str) -> Self {
         TextComponentContent {
-            lines       : Self::split_to_lines(text),
+            lines       : Self::split_to_lines(text).map(|s| Line::new(s)).collect(),
             dirty_lines : DirtyLines::default(),
             font        : font_id,
         }
     }
 
-    fn split_to_lines(text:&str) -> Vec<String> {
-        let split      = text.split('\n');
-        let without_cr = split.map(Self::cut_cr_at_end_of_line);
-        without_cr.map(|s| s.to_string()).collect()
+    fn split_to_lines(text:&str) -> impl Iterator<Item=String> + '_ {
+        text.split('\n').map(Self::cut_cr_at_end_of_line).map(|s| s.to_string())
     }
 
     /// Cuts carriage return (also known as CR or `'\r'`) from line's end
@@ -197,18 +198,18 @@ impl TextComponentContent {
         let line_index  = change.replaced.start.line;
         let new_content = change.lines.first().unwrap();
         let range       = change.replaced.start.byte_offset..change.replaced.end.byte_offset;
-        self.lines[line_index].replace_range(range, new_content);
+        self.lines[line_index].modify().splice(range,new_content.iter().cloned());
         self.dirty_lines.add_single_line(line_index);
     }
 
     fn make_multiline_change(&mut self, mut change:TextChange) {
+        self.mix_content_into_change(&mut change);
         let start_line           = change.replaced.start.line;
         let end_line             = change.replaced.end.line;
         let replaced_lines_count = end_line - start_line + 1;
         let inserted_lines_count = change.lines.len();
-
-        self.mix_content_into_change(&mut change);
-        self.lines.splice(start_line..=end_line, change.lines);
+        let inserted_lines       = change.lines.drain(0..change.lines.len()).map(|s| Line::new_raw(s));
+        self.lines.splice(start_line..=end_line,inserted_lines);
         if replaced_lines_count != inserted_lines_count {
             self.dirty_lines.add_lines_range_from(start_line..);
         } else {
@@ -229,17 +230,17 @@ impl TextComponentContent {
     fn mix_first_edited_line_into_change(&self, change:&mut TextChange) {
         let first_line   = change.replaced.start.line;
         let replace_from = change.replaced.start.byte_offset;
-        let first_edited = &self.lines[first_line];
+        let first_edited = &self.lines[first_line].chars();
         let prefix       = &first_edited[..replace_from];
-        change.lines.first_mut().unwrap().insert_str(0,prefix);
+        change.lines.first_mut().unwrap().splice(0..0,prefix.iter().cloned());
     }
 
     fn mix_last_edited_line_into_change(&mut self, change:&mut TextChange) {
         let last_line    = change.replaced.end.line;
         let replace_to   = change.replaced.end.byte_offset;
-        let last_edited  = &self.lines[last_line];
+        let last_edited  = &self.lines[last_line].chars();
         let suffix       = &last_edited[replace_to..];
-        change.lines.last_mut().unwrap().push_str(suffix);
+        change.lines.last_mut().unwrap().extend_from_slice(suffix);
     }
 }
 
@@ -284,16 +285,16 @@ mod test {
     fn create_content() {
         let font_id        = 0;
         let single_line    = "Single line";
-        let mutliple_lines = "Multiple\nlines\n";
+        let mutliple_lines = "Multiple\r\nlines\n";
 
         let single_line_content = TextComponentContent::new(font_id,single_line);
         let multiline_content   = TextComponentContent::new(font_id,mutliple_lines);
         assert_eq!(1, single_line_content.lines.len());
         assert_eq!(3, multiline_content  .lines.len());
-        assert_eq!(single_line, single_line_content.lines[0]);
-        assert_eq!("Multiple" , multiline_content  .lines[0]);
-        assert_eq!("lines"    , multiline_content  .lines[1]);
-        assert_eq!(""         , multiline_content  .lines[2]);
+        assert_eq!(single_line, single_line_content.lines[0].chars().iter().collect::<String>());
+        assert_eq!("Multiple" , multiline_content  .lines[0].chars().iter().collect::<String>());
+        assert_eq!("lines"    , multiline_content  .lines[1].chars().iter().collect::<String>());
+        assert_eq!(""         , multiline_content  .lines[2].chars().iter().collect::<String>());
     }
 
     #[test]
@@ -309,16 +310,16 @@ mod test {
         let mut content            = TextComponentContent::new(0, text);
 
         content.make_change(insert);
-        let expected = vec!["Line a", "Labine b", "Line c"];
-        assert_eq!(expected, content.lines);
+        let expected              = vec!["Line a", "Labine b", "Line c"];
+        assert_eq!(expected, get_lines_as_strings(&content));
 
         content.make_change(delete);
         let expected = vec!["Line a", "ne b", "Line c"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
 
         content.make_change(replace);
         let expected = vec!["Line a", "text", "Line c"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
 
         assert!(!content.dirty_lines.is_dirty(0));
         assert!( content.dirty_lines.is_dirty(1));
@@ -340,7 +341,7 @@ mod test {
 
         content.make_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
         assert!(!content.dirty_lines.is_dirty(1));
         assert!( content.dirty_lines.is_dirty(2));
@@ -348,7 +349,7 @@ mod test {
 
         content.make_change(insert_in_middle);
         let expected = vec!["Line a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
         assert!( content.dirty_lines.is_dirty(1));
         assert!( content.dirty_lines.is_dirty(2));
@@ -356,7 +357,7 @@ mod test {
 
         content.make_change(insert_at_begin);
         let expected = vec!["Ins a", "Ins bLine a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
         assert!( content.dirty_lines.is_dirty(0));
         assert!( content.dirty_lines.is_dirty(1));
         assert!( content.dirty_lines.is_dirty(2));
@@ -374,6 +375,10 @@ mod test {
         content.make_change(delete);
 
         let expected = vec!["Lie c"];
-        assert_eq!(expected, content.lines);
+        assert_eq!(expected, get_lines_as_strings(&content));
+    }
+
+    fn get_lines_as_strings(content:&TextComponentContent) -> Vec<String> {
+        content.lines.iter().map(|l| l.chars().iter().collect()).collect()
     }
 }
