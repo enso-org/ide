@@ -96,10 +96,7 @@ pub trait OptionOps {
 impl<T> OptionOps for Option<T> {
     type Item = T;
     fn for_each<U, F: FnOnce(Self::Item) -> U>(self, f: F) {
-        match self {
-            Some(x) => { f(x); }
-            None    => {}
-        }
+        if let Some(x) = self { f(x); }
     }
 }
 
