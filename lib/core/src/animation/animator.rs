@@ -2,6 +2,12 @@ use crate::system::web::AnimationFrameLoop;
 
 use nalgebra::zero;
 
+// ===================
+// === FnAnimation ===
+// ===================
+
+pub trait FnAnimation = FnMut(f32) + 'static;
+
 // ====================
 // === AnimatorData ===
 // ====================
@@ -14,12 +20,12 @@ struct AnimatorData {
 }
 
 impl AnimatorData {
-    pub fn new<F:FnMut(f32) + 'static>(steps_per_second:f32, f:F) -> Self {
+    pub fn new<F:FnAnimation>(steps_per_second:f32, f:F) -> Self {
         let closure          = Box::new(f);
         let previous_time    = None;
         let step_duration    = 1.0 / steps_per_second;
         let accumulated_time = zero();
-        Self { closure, previous_time, step_duration, accumulated_time }
+        Self { closure,previous_time,step_duration,accumulated_time }
     }
 }
 
@@ -33,7 +39,7 @@ pub struct Animator {
 }
 
 impl Animator {
-    pub fn new<F:FnMut(f32) + 'static>(steps_per_second:f32, f:F) -> Self {
+    pub fn new<F:FnAnimation>(steps_per_second:f32, f:F) -> Self {
         let mut data        = AnimatorData::new(steps_per_second, f);
         let _animation_loop = AnimationFrameLoop::new(move |current_time| {
             if let Some(previous_time) = data.previous_time {

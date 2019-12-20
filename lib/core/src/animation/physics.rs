@@ -11,23 +11,30 @@ use crate::traits::HasPosition;
 // ======================
 
 /// This structure contains air dragging properties.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Copy)]
 pub struct DragProperties {
-    amount : Rc<RefCell<f32>>
+    amount : f32
 }
 
 impl DragProperties {
     pub fn new(amount:f32) -> Self {
-        let amount = Rc::new(RefCell::new(amount));
         Self { amount }
     }
+}
 
-    /// Gets dragging amount.
-    pub fn amount(&self) -> f32 { *self.amount.borrow() }
+// === Getters ===
 
-    /// Sets dragging amount.
+impl DragProperties {
+    pub fn amount(&self) -> f32 {
+        self.amount
+    }
+}
+
+// === Setters ===
+
+impl DragProperties {
     pub fn set_amount(&mut self, amount:f32) {
-        *self.amount.borrow_mut() = amount
+        self.amount = amount
     }
 }
 
@@ -35,166 +42,164 @@ impl DragProperties {
 // === SpringProperties ===
 // ========================
 
-struct SpringData {
-    mass        : f32,
+/// This structure contains spring physics properties.
+#[derive(Debug, Clone, Copy)]
+pub struct SpringProperties {
     coefficient : f32,
     fixed_point : Vector3<f32>
 }
 
-/// This structure contains spring physics properties.
-#[derive(Clone)]
-pub struct SpringProperties {
-    data : Rc<RefCell<SpringData>>
-}
-
 impl Default for SpringProperties {
     fn default() -> Self {
-        Self::new(zero(), zero(), zero())
+        Self::new(zero(),zero())
     }
 }
 
 impl SpringProperties {
-    pub fn new(mass:f32, coefficient:f32, fixed_point:Vector3<f32>) -> Self {
-        let data = Rc::new(RefCell::new(SpringData { mass, coefficient, fixed_point }));
-        Self { data }
+    pub fn new(coefficient:f32, fixed_point:Vector3<f32>) -> Self {
+        Self { coefficient,fixed_point }
     }
+}
 
-    /// Gets mass.
-    pub fn mass(&self) -> f32 {
-        self.data.borrow().mass
-    }
+// === Getters ===
 
-    /// Sets mass.
-    pub fn set_mass(&mut self, mass:f32) {
-        self.data.borrow_mut().mass = mass
-    }
+impl SpringProperties {
+    pub fn coefficient(&self) -> f32          { self.coefficient }
+    pub fn fixed_point(&self) -> Vector3<f32> { self.fixed_point }
+}
 
-    /// Gets coefficient.
-    pub fn coefficient(&self) -> f32 {
-        self.data.borrow().coefficient
-    }
+// === Setters ===
 
-    /// Sets coefficient.
-    pub fn set_coefficient(&mut self, coefficient:f32) {
-        self.data.borrow_mut().coefficient = coefficient
-    }
-
-    /// Gets spring's fixed point.
-    pub fn fixed_point(&self) -> Vector3<f32> {
-        self.data.borrow().fixed_point
-    }
-
-    /// Sets spring's fixed point.
-    pub fn set_fixed_point(&mut self, fixed_point:Vector3<f32>) {
-        self.data.borrow_mut().fixed_point = fixed_point
-    }
+impl SpringProperties {
+    pub fn set_coefficient(&mut self, coefficient:f32)          { self.coefficient = coefficient }
+    pub fn set_fixed_point(&mut self, fixed_point:Vector3<f32>) { self.fixed_point = fixed_point }
 }
 
 // ============================
 // === KinematicProperties ===
 // ============================
 
-struct KinematicData {
+/// This structure contains kinematics properties.
+#[derive(Debug, Clone, Copy)]
+pub struct KinematicsProperties {
     position     : Vector3<f32>,
     velocity     : Vector3<f32>,
     acceleration : Vector3<f32>
 }
 
-/// This structure contains kinematics properties.
-#[derive(Clone)]
-pub struct KinematicProperties {
-    data : Rc<RefCell<KinematicData>>
-}
-
-impl Default for KinematicProperties {
+impl Default for KinematicsProperties {
     fn default() -> Self { Self::new(zero(), zero(), zero()) }
 }
 
-impl KinematicProperties {
+impl KinematicsProperties {
     pub fn new(position:Vector3<f32>, velocity:Vector3<f32>, acceleration:Vector3<f32>) -> Self {
-        let data = Rc::new(RefCell::new(KinematicData { position, velocity, acceleration }));
-        Self { data }
+        Self { position,velocity,acceleration }
     }
+}
 
-    /// Gets velocity.
-    pub fn velocity(&self) -> Vector3<f32> {
-        self.data.borrow().velocity
-    }
+// === Getters ===
 
-    /// Sets velocity.
+impl KinematicsProperties {
+    pub fn velocity    (&self) -> Vector3<f32> { self.velocity }
+    pub fn acceleration(&self) -> Vector3<f32> { self.acceleration }
+}
+
+// === Setters ===
+
+impl KinematicsProperties {
     pub fn set_velocity(&mut self, velocity:Vector3<f32>) {
-        self.data.borrow_mut().velocity = velocity
+        self.velocity = velocity
     }
 
-    /// Gets acceleration.
-    pub fn acceleration(&self) -> Vector3<f32> {
-        self.data.borrow().acceleration
-    }
-
-    /// Sets acceleration.
     pub fn set_acceleration(&mut self, acceleration:Vector3<f32>) {
-        self.data.borrow_mut().acceleration = acceleration
+        self.acceleration = acceleration
     }
 }
 
-impl HasPosition for KinematicProperties {
-    fn position(&self) -> Vector3<f32> {
-        self.data.borrow().position
-    }
-
-    fn set_position(&mut self, position:Vector3<f32>) {
-        self.data.borrow_mut().position = position
-    }
+impl HasPosition for KinematicsProperties {
+    fn position    (&self) -> Vector3<f32>            { self.position }
+    fn set_position(&mut self, position:Vector3<f32>) { self.position = position }
 }
 
-// ======================
-// === PropertiesData ===
-// ======================
+// =============================
+// === PhysicsPropertiesData ===
+// =============================
 
-struct PropertiesData {
-    kinematics : KinematicProperties,
+struct PhysicsPropertiesData {
+    kinematics : KinematicsProperties,
     spring     : SpringProperties,
     drag       : DragProperties
 }
 
-impl PropertiesData {
+impl PhysicsPropertiesData {
     pub fn new
-    (kinematics:KinematicProperties, spring:SpringProperties, drag:DragProperties) -> Self {
-        Self { kinematics, spring, drag }
+    (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
+        Self { kinematics,spring,drag }
     }
 }
 
-// ==================
-// === Properties ===
-// ==================
+// =========================
+// === PhysicsProperties ===
+// =========================
 
 /// A structure including kinematics, drag and spring properties.
 #[derive(Clone)]
-pub struct Properties {
-    data : Rc<RefCell<PropertiesData>>
+pub struct PhysicsProperties {
+    data : Rc<RefCell<PhysicsPropertiesData>>
 }
 
-impl Properties {
+impl PhysicsProperties {
     pub fn new
-    (kinematics:KinematicProperties, spring:SpringProperties, drag:DragProperties) -> Self {
-        let data = Rc::new(RefCell::new(PropertiesData::new(kinematics, spring, drag)));
+    (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
+        let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics, spring, drag)));
         Self { data }
     }
+}
 
-    pub fn kinematics(&self) -> KinematicProperties { self.data.borrow().kinematics.clone() }
+// === Getters ===
 
-    pub fn set_kinematics(&mut self, kinematics:KinematicProperties) {
-        self.data.borrow_mut().kinematics = kinematics
+impl PhysicsProperties {
+    pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics.clone() }
+    pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring.clone() }
+    pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag.clone() }
+}
+
+// === Setters ===
+
+impl PhysicsProperties {
+    pub fn mod_kinematics<F:FnOnce(&mut KinematicsProperties)>(&mut self, f:F) {
+        f(&mut self.data.borrow_mut().kinematics)
     }
-    pub fn spring(&self) -> SpringProperties { self.data.borrow().spring.clone() }
 
-    pub fn set_spring(&mut self, spring:SpringProperties) {
-        self.data.borrow_mut().spring = spring
+    pub fn mod_spring<F:FnOnce(&mut SpringProperties)>(&mut self, f:F) {
+        f(&mut self.data.borrow_mut().spring)
     }
-    pub fn drag(&self) -> DragProperties { self.data.borrow().drag.clone() }
 
-    pub fn set_drag(&mut self, drag:DragProperties) {
-        self.data.borrow_mut().drag = drag
+    pub fn mod_drag<F:FnOnce(&mut DragProperties)>(&mut self, f:F) {
+        f(&mut self.data.borrow_mut().drag)
+    }
+}
+
+// ========================
+// === SimulationObject ===
+// ========================
+
+pub trait SimulationObject = HasPosition + 'static;
+
+// =====================
+// === PhysicsObject ===
+// =====================
+
+/// This represents a physics objects with mass and a generic object with `HasPosition`.
+pub struct PhysicsObject {
+    object : Box<dyn SimulationObject>,
+    mass   : f32
+}
+
+impl PhysicsObject {
+    pub fn new<T:SimulationObject>(object:T, mass:f32) -> Self {
+        let object = Box::new(object);
+        Self { object, mass }
     }
 }
 
@@ -208,39 +213,45 @@ pub struct PhysicsSimulator {
 }
 
 /// Simulate the `KinematicProperties`.
-fn simulate_kinematics(properties:&mut KinematicProperties, dt:f32) {
+fn simulate_kinematics(properties:&mut KinematicsProperties, dt:f32) {
     properties.set_velocity(properties.velocity() + properties.acceleration() * dt);
     properties.set_position(properties.position() + properties.velocity()     * dt);
 }
 
 /// Simulate dragging on `KinematicProperties`.
-fn simulate_dragging(kinematics:&mut KinematicProperties, drag:&DragProperties) {
+fn simulate_dragging(kinematics:&mut KinematicsProperties, drag:&DragProperties) {
     let velocity = kinematics.velocity();
     let speed    = velocity.norm();
     kinematics.set_velocity(velocity / (1.0 + drag.amount() * speed));
 }
 
 /// Simulate spring on `KinematicProperties` attached to a fixed point.
-fn simulate_spring(properties:&mut KinematicProperties, spring_properties:&SpringProperties) {
+fn simulate_spring
+(properties:&mut KinematicsProperties, spring_properties:&SpringProperties, mass:f32) {
     let delta     = spring_properties.fixed_point() - properties.position();
     let delta_len = delta.magnitude();
     if delta_len > 0.0 {
         let force_val = delta_len * spring_properties.coefficient();
         let force     = delta.normalize() * force_val;
-        properties.set_acceleration(force / spring_properties.mass());
+        properties.set_acceleration(force / mass);
     }
 }
 
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
-    pub fn new<T>(mut object:T, properties:Properties) -> Self
-    where T: HasPosition + 'static {
+    pub fn new(mut object:PhysicsObject, mut properties:PhysicsProperties) -> Self {
         let steps_per_second = 60.0;
         let _animator = Animator::new(steps_per_second, move |delta_time| {
-            properties.kinematics().set_position(object.position());
-            simulate_spring(&mut properties.kinematics(), &properties.spring());
-            simulate_dragging(&mut properties.kinematics(), &properties.drag());
-            simulate_kinematics(&mut properties.kinematics(), delta_time);
+            let mass   = object.mass;
+            let spring = properties.spring();
+            let drag   = properties.drag();
+            let object = &mut object.object;
+            properties.mod_kinematics(|mut kinematics| {
+                kinematics.set_position(object.position());
+                simulate_spring(&mut kinematics, &spring, mass);
+                simulate_dragging(&mut kinematics, &drag);
+                simulate_kinematics(&mut kinematics, delta_time);
+            });
             object.set_position(properties.kinematics().position());
         });
         Self { _animator }

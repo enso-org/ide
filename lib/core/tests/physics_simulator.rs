@@ -11,9 +11,9 @@ mod tests {
     use basegl::display::rendering::html::HTMLObject;
     use basegl::display::rendering::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
-    use basegl::animation::physics::{DragProperties, SpringProperties};
+    use basegl::animation::physics::{DragProperties, SpringProperties, PhysicsObject};
     use basegl::animation::Animator;
-    use basegl::animation::physics::{PhysicsSimulator, Properties};
+    use basegl::animation::physics::{PhysicsSimulator, PhysicsProperties};
     use basegl::prelude::default;
     use basegl::traits::HasPosition;
     use web_test::*;
@@ -45,14 +45,14 @@ mod tests {
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
 
         let kinematics     = default();
-        let mass           = 1.0;
         let coefficient    = 10.0;
         let fixed_point    = zero();
-        let spring         = SpringProperties::new(mass, coefficient, fixed_point);
+        let spring         = SpringProperties::new(coefficient, fixed_point);
         let drag           = DragProperties::new(0.01);
-        let properties     = Properties::new(kinematics, spring, drag);
-
-        let simulator = PhysicsSimulator::new(object, properties.clone());
+        let mut properties = PhysicsProperties::new(kinematics, spring, drag);
+        let mass           = 1.0;
+        let physics_object = PhysicsObject::new(object, mass);
+        let simulator      = PhysicsSimulator::new(physics_object, properties.clone());
 
         // Updates spring's fixed point every two seconds.
         let every = 2.0;
@@ -61,7 +61,7 @@ mod tests {
             let y = 24.0 * (random() - 0.5) as f32;
             let z = 0.0;
             let position = Vector3::new(x, y, z);
-            properties.spring().set_fixed_point(position);
+            properties.mod_spring(|spring| spring.set_fixed_point(position));
             target.set_position(position);
         });
 
