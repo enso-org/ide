@@ -21,6 +21,7 @@
 // === Module Structure Reexport ===
 // =================================
 
+pub mod animation;
 pub mod control;
 pub mod data;
 pub mod math;
@@ -36,6 +37,7 @@ pub mod system {
 }
 pub mod tp;
 pub mod utils;
+pub mod traits;
 
 // ==================
 // === Example 01 ===

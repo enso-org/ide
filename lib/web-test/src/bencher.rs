@@ -66,7 +66,7 @@ impl BencherData {
         let data_clone = self.clone();
         let performance = get_performance().expect("Performance object");
         let mut t0 = performance.now();
-        let anim_loop = AnimationFrameLoop::new(Box::new(move || {
+        let anim_loop = AnimationFrameLoop::new(Box::new(move |_| {
             let mut data = data_clone.borrow_mut();
 
             (&mut data.func)();

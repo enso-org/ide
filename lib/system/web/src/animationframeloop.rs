@@ -24,8 +24,8 @@ pub struct AnimationFrameLoop {
 // ==========================
 
 impl AnimationFrameLoop {
-    pub fn new(mut func:Box<dyn FnMut()>) -> Self {
-        let nop_func       = Box::new(|| ()) as Box<dyn FnMut()>;
+    pub fn new<F:FnMut(f32) + 'static>(mut f:F) -> Self {
+        let nop_func       = Box::new(|_| ()) as Box<dyn FnMut(f32)>;
         let nop_closure    = Closure::once(nop_func);
         let callback       = Rc::new(RefCell::new(nop_closure));
         let run            = true;
@@ -33,13 +33,13 @@ impl AnimationFrameLoop {
         let callback_clone = callback.clone();
         let data_clone     = data.clone();
 
-        *callback.borrow_mut() = Closure::wrap(Box::new(move || {
+        *callback.borrow_mut() = Closure::wrap(Box::new(move |delta_time| {
             if data_clone.borrow().run {
-                func();
+                f(delta_time);
                 let clb = &callback_clone.borrow();
                 request_animation_frame(&clb).expect("Request Animation Frame");
             }
-        }) as Box<dyn FnMut()>);
+        }) as Box<dyn FnMut(f32)>);
         request_animation_frame(&callback.borrow()).unwrap();
 
         let forget = false;
