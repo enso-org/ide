@@ -151,8 +151,8 @@ impl TextComponentBuffers {
         self.fragments.build_buffer_data_for_fragments(all_fragments,&mut builder,lines);
         let vertex_position_data = builder.vertex_position_data.as_ref();
         let texture_coords_data  = builder.texture_coords_data.as_ref();
-        self.set_buffer_data(gl_context,&self.vertex_position, vertex_position_data);
-        self.set_buffer_data(gl_context,&self.texture_coords , texture_coords_data);
+        set_buffer_data(gl_context,&self.vertex_position, vertex_position_data);
+        set_buffer_data(gl_context,&self.texture_coords , texture_coords_data);
     }
 
     fn refresh_fragments
@@ -186,7 +186,7 @@ impl TextComponentBuffers {
         let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
         let offset             = fragment_size * fragment_offset;
         let data               = builder.vertex_position_data.as_ref();
-        self.set_buffer_subdata(gl_context,&self.vertex_position,offset,data);
+        set_buffer_subdata(gl_context,&self.vertex_position,offset,data);
     }
 
     fn set_texture_coords_buffer_subdata
@@ -196,7 +196,7 @@ impl TextComponentBuffers {
         let fragment_size      = line_output_floats * Self::GL_FLOAT_SIZE;
         let offset        = fragment_size * fragment_offset;
         let data          = builder.texture_coords_data.as_ref();
-        self.set_buffer_subdata(gl_context,&self.texture_coords,offset,data);
+        set_buffer_subdata(gl_context,&self.texture_coords,offset,data);
     }
 
     pub fn vertices_count(&self) -> usize {
@@ -208,7 +208,7 @@ impl TextComponentBuffers {
 pub fn set_buffer_data(gl_context:&Context, buffer:&WebGlBuffer, data:&[f32]) {
     let target = Context::ARRAY_BUFFER;
     gl_context.bind_buffer(target,Some(&buffer));
-    Self::set_bound_buffer_data(gl_context,target,data);
+    set_bound_buffer_data(gl_context,target,data);
 }
 
 fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
@@ -222,7 +222,7 @@ fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
 pub fn set_buffer_subdata(gl_context:&Context, buffer:&WebGlBuffer, offset:usize, data:&[f32]) {
     let target = Context::ARRAY_BUFFER;
     gl_context.bind_buffer(target,Some(&buffer));
-    Self::set_bound_buffer_subdata(gl_context,target,offset as i32,data);
+    set_bound_buffer_subdata(gl_context,target,offset as i32,data);
 }
 
 fn set_bound_buffer_subdata(gl_context:&Context, target:u32, offset:i32, data:&[f32]) {

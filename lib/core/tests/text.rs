@@ -252,13 +252,17 @@ mod tests {
             let x         = -1.0 + (i / 2) as f64;
             let y         = -1.0 + (i % 2) as f64;
             let font_id   = fonts.load_embedded_font(font_name).unwrap();
-            let text_component = TextComponentBuilder {
+            let mut text_component = TextComponentBuilder {
                 workspace,fonts,font_id,text_size,
                 position  : Point2::new(x,y),
                 text      : text.clone(),
                 size      : Vector2::new(1.0,1.0),
                 color     : Color{r:1.0, g:1.0, b:1.0, a:1.0}
             }.build();
+            let cursor_position_1 = CharPosition{line:0, column: 10};
+            let cursor_position_2 = CharPosition{line:1, column: 6};
+            text_component.cursors.add_cursor(cursor_position_1);
+            text_component.cursors.add_cursor(cursor_position_2);
             workspace.text_components.push(text_component);
         }
         world.workspace_dirty.set(workspace_id);

@@ -3,6 +3,7 @@ pub mod buffer;
 pub mod content;
 pub mod cursor;
 pub mod msdf;
+pub mod program;
 
 use crate::prelude::*;
 
@@ -27,7 +28,8 @@ use nalgebra::Projective2;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlTexture;
-use crate::text::cursor::Cursor;
+use crate::text::cursor::{Cursor, Cursors};
+use crate::text::program::{MsdfProgram, BasicProgram, create_content_program, create_cursors_program};
 
 
 // =====================
@@ -40,16 +42,18 @@ use crate::text::cursor::Cursor;
 /// commits
 #[derive(Debug)]
 pub struct TextComponent {
-    pub content       : TextComponentContent,
-    pub cursors       : Vec<Cursor>,
-    pub position      : Point2<f64>,
-    pub size          : Vector2<f64>,
-    pub text_size     : f64,
-    gl_context        : WebGl2RenderingContext,
-    gl_program        : Program,
-    gl_msdf_texture   : WebGlTexture,
-    msdf_texture_rows : usize,
-    buffers           : TextComponentBuffers,
+    pub content         : TextComponentContent,
+    pub cursors         : Cursors,
+    pub cursors_visible : bool,
+    pub position        : Point2<f64>,
+    pub size            : Vector2<f64>,
+    pub text_size       : f64,
+    gl_context          : WebGl2RenderingContext,
+    content_program     : MsdfProgram,
+    cursors_program     : BasicProgram,
+    gl_msdf_texture     : WebGlTexture,
+    msdf_texture_rows   : usize,
+    buffers             : TextComponentBuffers,
 }
 
 impl TextComponent {
@@ -84,30 +88,34 @@ impl TextComponent {
             self.update_msdf_texture(fonts);
         }
 
-        let gl_context     = &self.gl_context;
-        let vertices_count = self.buffers.vertices_count() as i32;
+        if !self.cursors.dirty_cursors.is_empty() {
+            self.cursors.set_buffer_data(&self.gl_context,&mut self.content.refresh_info(fonts));
+        }
 
-        gl_context.use_program(Some(&self.gl_program));
-        self.update_uniforms(fonts);
-        self.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
-        self.bind_buffer_to_attribute("tex_coord",&self.buffers.texture_coords);
+        let gl_context      = &self.gl_context;
+        let vertices_count  = self.buffers.vertices_count() as i32;
+        let to_scene_matrix = self.to_scene_matrix();
+
+        gl_context.use_program(Some(&self.content_program.gl_program));
+        self.content_program.set_to_scene_transformation(gl_context,&to_scene_matrix);
+        self.content_program.set_msdf_size(gl_context,fonts.get_render_info(self.content.font));
+        self.content_program.bind_buffer_to_attribute(gl_context,"position",&self.buffers.vertex_position);
+        self.content_program.bind_buffer_to_attribute(gl_context,"tex_coord",&self.buffers.texture_coords);
         self.setup_blending();
         gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
         gl_context.draw_arrays(WebGl2RenderingContext::TRIANGLES,0,vertices_count);
-    }
 
-    fn update_uniforms(&self, fonts:&mut Fonts) {
-        let gl_context    = &self.gl_context;
-        let to_scene      = self.to_scene_matrix();
-        let to_scene_ref  = to_scene.as_ref();
-        let msdf_width    = MsdfTexture::WIDTH as f32;
-        let msdf_height   = fonts.get_render_info(self.content.font).msdf_texture.rows() as f32;
-        let to_scene_loc  = gl_context.get_uniform_location(&self.gl_program,"to_scene");
-        let msdf_size_loc = gl_context.get_uniform_location(&self.gl_program,"msdf_size");
-        let transpose     = false;
-        gl_context.uniform_matrix3fv_with_f32_array(to_scene_loc.as_ref(),transpose,to_scene_ref);
-        gl_context.uniform2f(msdf_size_loc.as_ref(),msdf_width,msdf_height);
-
+        if Self::shall_be_cursors_visible() {
+            gl_context.use_program(Some(&self.cursors_program.gl_program));
+            self.cursors_program.set_to_scene_transformation(gl_context,&to_scene_matrix);
+            self.cursors_program.bind_buffer_to_attribute(gl_context,"position",&self.cursors.buffer);
+            gl_context.line_width(2.0);
+            gl_context.draw_arrays(WebGl2RenderingContext::LINES,0,(self.cursors.cursors.len() * 2) as i32);
+            gl_context.line_width(1.0);
+            self.cursors_visible = true;
+        } else {
+            self.cursors_visible = false;
+        }
     }
 
     fn update_msdf_texture(&mut self, fonts:&mut Fonts) {
@@ -146,29 +154,6 @@ impl TextComponent {
         converted.collect()
     }
 
-    fn bind_buffer_to_attribute(&self, attribute_name:&str, buffer:&WebGlBuffer) {
-        let gl_context = &self.gl_context;
-        let gl_program = &self.gl_program;
-        let location   = gl_context.get_attrib_location(gl_program,attribute_name) as u32;
-        let target     = WebGl2RenderingContext::ARRAY_BUFFER;
-        let item_size  = 2;
-        let item_type  = WebGl2RenderingContext::FLOAT;
-        let normalized = false;
-        let stride     = 0;
-        let offset     = 0;
-
-        gl_context.enable_vertex_attrib_array(location);
-        gl_context.bind_buffer(target,Some(buffer));
-        gl_context.vertex_attrib_pointer_with_i32
-        ( location
-        , item_size
-        , item_type
-        , normalized
-        , stride
-        , offset
-        );
-    }
-
     fn setup_blending(&self) {
         let gl_context        = &self.gl_context;
         let rgb_source        = Context::SRC_ALPHA;
@@ -178,6 +163,13 @@ impl TextComponent {
 
         gl_context.enable(Context::BLEND);
         gl_context.blend_func_separate(rgb_source,rgb_destination,alpha_source,alhpa_destination);
+    }
+
+    fn shall_be_cursors_visible() -> bool {
+        const BLINKING_PERIOD_MS : f64 = 1000.0;
+        let timestamp = js_sys::Date::now();
+        let blinks    = timestamp/BLINKING_PERIOD_MS;
+        blinks.fract() >= 0.5
     }
 }
 
@@ -204,19 +196,22 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
     pub fn build(mut self) -> TextComponent {
         self.load_all_chars();
         let gl_context      = self.workspace.context.clone();
-        let gl_program      = self.create_program(&gl_context);
+        let content_program = create_content_program(&gl_context);
+        let cursors_program = create_cursors_program(&gl_context);
         let gl_msdf_texture = self.create_msdf_texture(&gl_context);
         let display_size    = self.size / self.text_size;
         let mut content     = TextComponentContent::new(self.font_id,self.text.as_ref());
         let initial_refresh = content.refresh_info(self.fonts);
         let buffers         = TextComponentBuffers::new(&gl_context,display_size,initial_refresh);
-        self.setup_constant_uniforms(&gl_context,&gl_program);
-        TextComponent {content,gl_context,gl_program,gl_msdf_texture,buffers,
-            cursors           : default(),
+        let cursors         = Cursors::new(&gl_context);
+        content_program.set_constant_uniforms(&gl_context,&self.position,self.size,&self.color);
+        cursors_program.set_constant_uniforms(&gl_context,&self.position,self.size,&self.color);
+        TextComponent {content,cursors,gl_context,content_program,cursors_program,gl_msdf_texture,buffers,
             position          : self.position,
             size              : self.size,
             text_size         : self.text_size,
-            msdf_texture_rows : 0
+            msdf_texture_rows : 0,
+            cursors_visible   : false,
         }
     }
 
@@ -224,26 +219,6 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         for ch in self.text.as_ref().chars() {
             self.fonts.get_render_info(self.font_id).get_glyph_info(ch);
         }
-    }
-
-    fn create_program(&self, gl_context:&Context) -> Program {
-        let vert_shader = self.create_vertex_shader(gl_context);
-        let frag_shader = self.create_fragment_shader(gl_context);
-        link_program(&gl_context, &vert_shader, &frag_shader).unwrap()
-    }
-
-    fn create_vertex_shader(&self, gl_context:&Context) -> Shader {
-        let body        = include_str!("text/msdf_vert.glsl");
-        let shader_type = WebGl2RenderingContext::VERTEX_SHADER;
-
-        compile_shader(gl_context,shader_type,body).unwrap()
-    }
-
-    fn create_fragment_shader(&self, gl_context:&Context) -> Shader {
-        let body        = include_str!("text/msdf_frag.glsl");
-        let shader_type = WebGl2RenderingContext::FRAGMENT_SHADER;
-
-        compile_shader(gl_context,shader_type,body).unwrap()
     }
 
     fn create_msdf_texture(&mut self, gl_ctx:&Context)
@@ -258,26 +233,5 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         gl_ctx.tex_parameteri(target,Context::TEXTURE_WRAP_T,wrap);
         gl_ctx.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,min_filter);
         msdf_texture
-    }
-
-    fn setup_constant_uniforms(&mut self, gl_context:&Context, gl_program:&Program) {
-        let left           = self.position.x                 as f32;
-        let right          = (self.position.x + self.size.x) as f32;
-        let top            = (self.position.y + self.size.y) as f32;
-        let bottom         = self.position.y                 as f32;
-        let color          = &self.color;
-        let range          = FontRenderInfo::MSDF_PARAMS.range as f32;
-        let clip_lower_loc = gl_context.get_uniform_location(gl_program,"clip_lower");
-        let clip_upper_loc = gl_context.get_uniform_location(gl_program,"clip_upper");
-        let color_loc      = gl_context.get_uniform_location(gl_program,"color");
-        let range_loc      = gl_context.get_uniform_location(gl_program,"range");
-        let msdf_loc       = gl_context.get_uniform_location(gl_program,"msdf");
-
-        gl_context.use_program(Some(gl_program));
-        gl_context.uniform2f(clip_lower_loc.as_ref(),left,bottom);
-        gl_context.uniform2f(clip_upper_loc.as_ref(),right,top);
-        gl_context.uniform4f(color_loc.as_ref(),color.r,color.g,color.b,color.a);
-        gl_context.uniform1f(range_loc.as_ref(),range);
-        gl_context.uniform1i(msdf_loc.as_ref(),0);
     }
 }
