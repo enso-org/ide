@@ -75,6 +75,14 @@ fn unwrap_error(opt_err: Option<String>) -> String {
 // === Compile / Link ===
 // ======================
 
+pub fn compile_vertex_shader(ctx:&Context, src:&str) -> Result<Shader> {
+    compile_shader(ctx,Context::VERTEX_SHADER,src)
+}
+
+pub fn compile_fragment_shader(ctx:&Context, src:&str) -> Result<Shader> {
+    compile_shader(ctx,Context::FRAGMENT_SHADER,src)
+}
+
 pub fn compile_shader(ctx:&Context, tp:u32, src:&str) -> Result<Shader> {
     let target = ErrorTarget::Shader;
     let shader = ctx.create_shader(tp).ok_or(Error::Create {target})?;

@@ -49,7 +49,6 @@ mod example_01 {
     use wasm_bindgen::prelude::*;
     use crate::display::symbol::display_object::*;
     use basegl_system_web::Logger;
-    use crate::display::symbol::material::shader::{builder, glsl};
 
 
     #[wasm_bindgen]
@@ -59,9 +58,6 @@ mod example_01 {
         set_stdout();
         init(&mut World::new().borrow_mut());
     }
-
-    type Position    = SharedBuffer<Vector3<f32>>;
-    type ModelMatrix = SharedBuffer<Matrix4<f32>>;
 
     #[derive(Debug)]
     pub struct Rect {
@@ -78,11 +74,9 @@ mod example_01 {
         let scopes    : &mut Scopes    = &mut geo.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
         let inst_scope: &mut VarScope  = &mut scopes.instance;
-//        let pos       : Position       = pt_scope.add_buffer("position");
-        let transform : SharedBuffer<Matrix4<f32>>       = inst_scope.add_buffer("transform");
-//        let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
-        let uv           : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("uv");
-        let bbox         : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
+        let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
+        let uv        : Buffer<Vector2<f32>> = pt_scope.add_buffer("uv");
+        let bbox      : Buffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
 
         let p1_ix = pt_scope.add_instance();
         let p2_ix = pt_scope.add_instance();

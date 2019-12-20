@@ -29,6 +29,8 @@ use web_sys::WebGlProgram;
 // === VAO ===
 // ===========
 
+/// A safe wrapper for WebGL VertexArrayObject. It implements `drop` which deletes the VAO from
+/// GPU memory as soon as this object is dropped.
 #[derive(Debug)]
 pub struct VAO {
     context : Context,
@@ -85,7 +87,7 @@ pub struct Mesh<OnDirty> {
     pub material_dirty : MaterialDirty <OnDirty>,
     pub logger         : Logger,
     context            : Context,
-    vao                : VAO,
+    vao                : Option<VAO>,
 }
 
 // === Types ===
@@ -134,7 +136,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let mat_on_change   = material_on_change(material_dirty.clone_rc());
             let material        = Material::new(ctx,mat_logger,mat_on_change);
             let geometry        = Geometry::new(ctx,geo_logger,geo_on_change);
-            let vao             = VAO::new(&context);
+            let vao             = default();
             Self{geometry,material,geometry_dirty,material_dirty,logger,context,vao}
         })
     }
@@ -154,24 +156,29 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
         })
     }
 
-
+    /// Creates a new VertexArrayObject, discovers all variable bindings from material to geometry,
+    /// and initializes the VAO with the bindings.
     fn init_vao(&mut self) {
-        self.vao = VAO::new(&self.context);
+        self.vao = Some(VAO::new(&self.context));
         self.with_program(|program|{
             let var_bindings = self.discover_variable_bindings();
             for (variable,opt_scope_type) in &var_bindings {
                 if let Some(scope_type) = opt_scope_type {
                     let opt_scope = self.geometry.var_scope(scope_type);
                     match opt_scope {
-                        None => panic!("Internal error"), // FIXME
+                        None => self.logger.error("Internal error. Invalid var scope."),
                         Some(scope) => {
-                            let vtx_name = format!("vertex_{}",variable);
-                            let location = self.context.get_attrib_location(program, &vtx_name) as u32;
-                            // TODO handle missing location
-                            let buffer       = &scope.buffer(&variable).unwrap();
-                            let is_instanced = scope_type == &geometry::ScopeType::Instance;
-                            buffer.bind(webgl::Context::ARRAY_BUFFER);
-                            buffer.vertex_attrib_pointer(location,is_instanced);
+                            let vtx_name = shader::builder::mk_vertex_name(&variable);
+                            let location = self.context.get_attrib_location(program, &vtx_name);
+                            if location < 0 {
+                                self.logger.error(|| format!("Attribute '{}' not found.",vtx_name));
+                            } else {
+                                let location     = location as u32;
+                                let buffer       = &scope.buffer(&variable).unwrap();
+                                let is_instanced = scope_type == &geometry::ScopeType::Instance;
+                                buffer.bind(webgl::Context::ARRAY_BUFFER);
+                                buffer.vertex_attrib_pointer(location, is_instanced);
+                            }
                         }
                     }
                 }
@@ -197,7 +204,8 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     pub fn with_program<F:FnOnce(&WebGlProgram) -> T,T>(&self, f:F) -> T {
         let program = self.material.program().as_ref().unwrap(); // FIXME
         self.context.use_program(Some(&program));
-        let out = self.vao.with(|| {
+        let vao = self.vao.as_ref().unwrap(); // FIXME
+        let out = vao.with(|| {
             f(program)
         });
         self.context.use_program(None);

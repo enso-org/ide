@@ -296,6 +296,6 @@ impl ShaderBuilder {
     }
 }
 
-fn mk_out_name      <S:Str> (s:S) -> String { format!("out_{}"    , s.as_ref()) }
-fn mk_vertex_name   <S:Str> (s:S) -> String { format!("vertex_{}" , s.as_ref()) }
-fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }
+pub fn mk_out_name      <S:Str> (s:S) -> String { format!("out_{}"    , s.as_ref()) }
+pub fn mk_vertex_name   <S:Str> (s:S) -> String { format!("vertex_{}" , s.as_ref()) }
+pub fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }

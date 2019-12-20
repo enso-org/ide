@@ -54,7 +54,6 @@ impl<OnDirty: Callback0> Material<OnDirty> {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.dirty.check_all() {
-                self.dirty.unset_all();
 
                 let mut shader_cfg     = shader::builder::ShaderConfig::new();
                 let mut shader_builder = shader::builder::ShaderBuilder::new();
@@ -74,25 +73,15 @@ impl<OnDirty: Callback0> Material<OnDirty> {
                 out_color = vec4(1.0,1.0,1.0,1.0);
                 ");
                 shader_builder.compute(&shader_cfg,vtx_template,frag_template);
-                let shader  = shader_builder.build();
-
-
-                let vert_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::VERTEX_SHADER,
-                    &shader.vertex,
-                )
-                    .unwrap();
-                let frag_shader = webgl::compile_shader(
-                    &self.context,
-                    webgl::Context::FRAGMENT_SHADER,
-                    &shader.fragment,
-                )
-                    .unwrap();
-
-
-                let program = webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
-                self.program = Some(program);
+                let shader      = shader_builder.build();
+                let vert_shader = webgl::compile_vertex_shader  (&self.context,&shader.vertex);
+                let frag_shader = webgl::compile_fragment_shader(&self.context,&shader.fragment);
+                let vert_shader = vert_shader.unwrap();
+                let frag_shader = frag_shader.unwrap();
+                let program     = webgl::link_program(&self.context,&vert_shader,&frag_shader);
+                let program     = program.unwrap();
+                self.program    = Some(program);
+                self.dirty.unset_all();
             }
         })
     }
