@@ -111,6 +111,10 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
         self.name_map.get(name).map(|i| &self.buffers[*i])
     }
 
+    pub fn contains<S:Str>(&self, name:S) -> bool {
+        self.name_map.contains_key(name.as_ref())
+    }
+
     /// Adds a new instance to every buffer in the scope.
     pub fn add_instance(&mut self) -> usize {
         group!(self.logger, "Adding {} instance(s).", 1, {

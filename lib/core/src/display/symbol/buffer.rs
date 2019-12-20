@@ -148,7 +148,7 @@ pub fn as_prim(&self) -> &[Prim<T>] {
     /// handles complex data types like `mat4`. See the following links to learn more:
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
-    pub fn vertex_attrib_pointer(&self, loc:u32) {
+    pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
         let item_size = <T as Item>::gl_item_byte_size() as i32;
         let item_type = <T as Item>::gl_item_type();
         let rows      = <T as Item>::rows() as i32;
@@ -161,6 +161,9 @@ pub fn as_prim(&self) -> &[Prim<T>] {
             let off  = col * col_size;
             self.context.enable_vertex_attrib_array(lloc);
             self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
+            if instanced {
+                self.context.vertex_attrib_divisor(lloc, 1);
+            }
         }
     }
 }
@@ -272,8 +275,8 @@ pub fn update(&self) {
     /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
     /// attribute of the current vertex buffer object and specifies its layout.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
-    pub fn vertex_attrib_pointer(&self, index: u32) {
-        self.borrow().vertex_attrib_pointer(index)
+    pub fn vertex_attrib_pointer(&self, index:u32, instanced:bool) {
+        self.borrow().vertex_attrib_pointer(index,instanced)
     }
 }
 
@@ -523,5 +526,5 @@ pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
     fn is_empty(&self) -> bool;
     fn update(&self);
     fn bind(&self, target:u32);
-    fn vertex_attrib_pointer(&self, index: u32);
+    fn vertex_attrib_pointer(&self, index:u32, instanced:bool);
 }

@@ -19,6 +19,8 @@ use eval_tt::*;
 
 use crate::display::symbol::buffer::IsBuffer;
 use crate::display::symbol::display_object::Camera2D;
+use crate::display::symbol::material::shader;
+
 
 // ============
 // === Mesh ===
@@ -38,7 +40,8 @@ pub struct Mesh<OnDirty> {
     pub geometry_dirty : GeometryDirty <OnDirty>,
     pub material_dirty : MaterialDirty <OnDirty>,
     pub logger         : Logger,
-    context            : Context
+    context            : Context,
+    var_bindings       : Vec<(String,Option<geometry::ScopeType>)>
 }
 
 // === Types ===
@@ -70,6 +73,7 @@ fn material_on_change<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialChange {
 // === Implementation ===
 
 impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
+
     /// Create new instance with the provided on-dirty callback.
     pub fn new(ctx:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         let init_logger = logger.clone();
@@ -86,141 +90,99 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let mat_on_change   = material_on_change(material_dirty.clone_rc());
             let material        = Material::new(ctx,mat_logger,mat_on_change);
             let geometry        = Geometry::new(ctx,geo_logger,geo_on_change);
-            Self{geometry,material,geometry_dirty,material_dirty,logger,context}
+            let var_bindings    = default();
+            Self{geometry,material,geometry_dirty,material_dirty,logger,context,var_bindings}
         })
     }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            if self.geometry_dirty.check_all() {
+            if self.geometry_dirty.check() {
                 self.geometry.update();
-                self.geometry_dirty.unset_all();
+                self.geometry_dirty.unset();
+            }
+            if self.material_dirty.check() {
+               self.material.update();
+               self.var_bindings = self.discover_variable_bindings();
+               self.material_dirty.unset();
             }
         })
     }
 
+    /// For each variable from the material definition, looks up its position in geometry scopes.
+    pub fn discover_variable_bindings(&self) -> Vec<(String,Option<geometry::ScopeType>)> {
+        let variables = self.material.collect_variables();
+        variables.into_iter().map(|variable| {
+            let target = self.geometry.lookup_variable(&variable);
+            if target.is_none() {
+                let msg = || format!("Unable to bind variable '{}' to geometry buffer.", variable);
+                self.logger.warning(msg);
+            }
+            (variable,target)
+        }).collect()
+    }
+
     pub fn render(&self, camera:&Camera2D) {
         group!(self.logger, "Rendering.", {
-            let vert_shader = webgl::compile_shader(
-                &self.context,
-                webgl::Context::VERTEX_SHADER,
-                r#"#version 300 es
 
-    precision highp float;
-    precision highp int;
-
-    in vec4 vertex_position;
-    out vec4 _position;
-
-    in mat4 vertex_model_matrix;
-    out mat4 model_matrix;
-    in vec2 vertex_bbox;
-    out vec2 bbox;
-    in float vertex_symbol_id;
-    out float symbol_id;
-    in float vertex_symbol_family_id;
-    out float symbolFamilyID;
-    in vec2 vertex_uv;
-    out vec2 uv;
-
-    out vec3 local;
-
-    uniform mediump mat4 view_matrix;
-    uniform mediump mat4 projection_matrix;
-    uniform mediump mat4 view_projection_matrix;
-
-    uniform mediump float zoom;
-
-    void main() {
-        model_matrix   = vertex_model_matrix;
-        bbox           = vertex_bbox;
-        symbol_id      = vertex_symbol_id;
-        symbolFamilyID = vertex_symbol_family_id;
-        uv             = vertex_uv;
-
-        vec4 position2 = model_matrix * vec4(0.0,0.0,0.0,1.0);
-
-
-
-        mat4 model_view_projection_matrix = view_projection_matrix * model_matrix;
-
-
-        local       = vec3((uv - 0.5) * bbox, 0.0);
-        gl_Position = model_view_projection_matrix * vec4(local,1.0);
-
-
-
-
-        _position = view_projection_matrix * vec4(local,1.0);
-
-
-//        mat4 model_view_matrix  = view_matrix * model_matrix;
-//        vec4 eyeT               = model_view_matrix * vec4(local,1.0);
-//        gl_Position             = projection_matrix * eyeT;
-//        world                   = gl_Position.xyz;
-//        eye                     = eyeT.xyz;
-//        eye.z                   = -eye.z;
-
-    }
-"#,
-            )
-                .unwrap();
-            let frag_shader = webgl::compile_shader(
-                &self.context,
-                webgl::Context::FRAGMENT_SHADER,
-                r#"#version 300 es
-
-    precision highp float;
-    precision highp int;
-
-    out vec4 out_color;
-    in mat4 model_matrix;
-    in vec4 _position;
-    in vec2 uv;
-
-    in vec3 local;
-
-    uniform mediump mat4 view_matrix;
-    uniform mediump mat4 projection_matrix;
-    uniform mediump mat4 view_projection_matrix;
-
-    void main() {
-        out_color = vec4(uv.x, uv.y, 0.0, 1.0);
-        out_color = vec4(local, 1.0);
-        out_color = _position;
-        out_color = vec4(1.0,1.0,1.0,1.0);
-    }
-"#,
-            )
-                .unwrap();
-
-//            println!("{:?}", self.context.get_shader_info_log(&vert_shader));
-//            println!("{:?}", self.context.get_shader_info_log(&frag_shader));
-
-
-            let program =
-                webgl::link_program(&self.context, &vert_shader, &frag_shader).unwrap();
+            let program = self.material.program().as_ref().unwrap();
 
 
             // === Rendering ==
 
             self.context.use_program(Some(&program));
 
+//            println!("--- all ---");
 
-            self.geometry.scopes.point.name_map.keys().for_each(|name| {
-                let vtx_name = format!("vertex_{}",name);
-                let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
-                // TODO handle missing location
-                let buffer = &self.geometry.scopes.point.buffer(name).unwrap();
-                buffer.bind(webgl::Context::ARRAY_BUFFER);
-                buffer.vertex_attrib_pointer(location);
-            });
+            for (variable,opt_scope_type) in &self.var_bindings {
+
+                if let Some(scope_type) = opt_scope_type {
+                    let opt_scope = self.geometry.var_scope(scope_type);
+                    match opt_scope {
+                        None => panic!("Internal error"), // FIXME
+                        Some(scope) => {
+                            let vtx_name = format!("vertex_{}",variable);
+                            let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
+                            // TODO handle missing location
+                            let buffer       = &scope.buffer(&variable).unwrap();
+                            let is_instanced = scope_type == &geometry::ScopeType::Instance;
+                            buffer.bind(webgl::Context::ARRAY_BUFFER);
+                            buffer.vertex_attrib_pointer(location,is_instanced);
+                        }
+                    }
+                }
+            }
+
+//            println!("--- point ---");
+//
+//            self.geometry.scopes.point.name_map.keys().for_each(|name| {
+//                println!("bind {}",name);
+//                let vtx_name = format!("vertex_{}",name);
+//                let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
+//                // TODO handle missing location
+//                let buffer = &self.geometry.scopes.point.buffer(name).unwrap();
+//                buffer.bind(webgl::Context::ARRAY_BUFFER);
+//                buffer.vertex_attrib_pointer(location,false);
+//            });
+//
+//            println!("--- instance ---");
+//
+//            self.geometry.scopes.instance.name_map.keys().for_each(|name| {
+//                println!("bind {}",name);
+//                let vtx_name = format!("vertex_{}",name);
+//                let location = self.context.get_attrib_location(&program, &vtx_name) as u32;
+//                // TODO handle missing location
+//                let buffer = &self.geometry.scopes.instance.buffer(name).unwrap();
+//                buffer.bind(webgl::Context::ARRAY_BUFFER);
+//                buffer.vertex_attrib_pointer(location,true);
+//            });
 
 
 //            println!("!! 3");
 
-            let view_projection_matrix_location = self.context.get_uniform_location(&program, "view_projection_matrix");
-//            println!("{:?}",view_projection_matrix_location);
+            let view_projection_location = self.context.get_uniform_location(&program, "view_projection");
+//            println!("{:?}",view_projection_location);
 //            println!("{:?}",self.context.get_error());
 
 
@@ -229,14 +191,15 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 
 
             camera.update();
-            self.context.set_uniform(&view_projection_matrix_location.unwrap(), &camera.view_projection_matrix());
+            self.context.set_uniform(&view_projection_location.unwrap(), &camera.view_projection_matrix());
 
 //            println!("CAMERA");
-//            println!("{:?}", camera.view_projection_matrix());
+//            println!("{:?}", camera.view_projection());
 
 
             let pts = self.geometry.scopes.point.size();
-            self.context.draw_arrays(webgl::Context::TRIANGLE_STRIP, 0, pts as i32);
+//            self.context.draw_arrays(webgl::Context::TRIANGLE_STRIP, 0, pts as i32);
+            self.context.draw_arrays_instanced(webgl::Context::TRIANGLE_STRIP, 0, pts as i32,2);
 
 //            println!("{:?}",&self.geometry.scopes.point.buffers[0]);
         })

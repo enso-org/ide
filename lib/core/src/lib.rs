@@ -49,6 +49,7 @@ mod example_01 {
     use wasm_bindgen::prelude::*;
     use crate::display::symbol::display_object::*;
     use basegl_system_web::Logger;
+    use crate::display::symbol::material::shader::{builder, glsl};
 
 
     #[wasm_bindgen]
@@ -76,8 +77,10 @@ mod example_01 {
         let geo       : &mut Geometry  = &mut mesh.geometry;
         let scopes    : &mut Scopes    = &mut geo.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
-        let pos       : Position       = pt_scope.add_buffer("position");
-        let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
+        let inst_scope: &mut VarScope  = &mut scopes.instance;
+//        let pos       : Position       = pt_scope.add_buffer("position");
+        let transform : SharedBuffer<Matrix4<f32>>       = inst_scope.add_buffer("transform");
+//        let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
         let uv           : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("uv");
         let bbox         : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
 
@@ -86,16 +89,25 @@ mod example_01 {
         let p3_ix = pt_scope.add_instance();
         let p4_ix = pt_scope.add_instance();
 
-        let p1 = pos.get(p1_ix);
-        let p2 = pos.get(p2_ix);
-        let p3 = pos.get(p3_ix);
-        let p4 = pos.get(p4_ix);
+        let inst_1_ix = inst_scope.add_instance();
+        let inst_2_ix = inst_scope.add_instance();
+
+//        let p1 = pos.get(p1_ix);
+//        let p2 = pos.get(p2_ix);
+//        let p3 = pos.get(p3_ix);
+//        let p4 = pos.get(p4_ix);
+
+        let transform1 = transform.get(inst_1_ix);
+        let transform2 = transform.get(inst_2_ix);
+
+        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
 
 
-        p1.set(Vector3::new(-0.0, -0.0, 0.0));
-        p2.set(Vector3::new( 0.0, -0.0, 0.0));
-        p3.set(Vector3::new( 0.0,  0.0, 0.0));
-        p4.set(Vector3::new( 0.0,  0.0, 0.0));
+//        p1.set(Vector3::new(-0.0, -0.0, 0.0));
+//        p2.set(Vector3::new( 0.0, -0.0, 0.0));
+//        p3.set(Vector3::new( 0.0,  0.0, 0.0));
+//        p4.set(Vector3::new( 0.0,  0.0, 0.0));
 
 
         let uv1 = uv.get(p1_ix);
@@ -119,15 +131,15 @@ mod example_01 {
         bbox4.set(Vector2::new(20.0, 20.0));
 
 
-        let mm1 = model_matrix.get(p1_ix);
-        let mm2 = model_matrix.get(p2_ix);
-        let mm3 = model_matrix.get(p3_ix);
-        let mm4 = model_matrix.get(p4_ix);
-
-        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        let mm1 = model_matrix.get(p1_ix);
+//        let mm2 = model_matrix.get(p2_ix);
+//        let mm3 = model_matrix.get(p3_ix);
+//        let mm4 = model_matrix.get(p4_ix);
+//
+//        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
 //    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
 //    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
 //
@@ -147,10 +159,14 @@ mod example_01 {
 
 
 
-        let w1 = Widget::new(Logger::new("widget1"),mm1,mm2,mm3,mm4);
+        let w1 = Widget::new(Logger::new("widget1"),transform1);
 
         let camera = workspace.scene.camera.clone();
         world.on_frame(move |_| on_frame(&camera,&w1)).forget();
+
+
+
+
 
     }
 
@@ -166,26 +182,17 @@ mod example_01 {
 
     pub struct Widget {
         pub transform : DisplayObjectData,
-        pub mm1       : Var<Matrix4<f32>>,
-        pub mm2       : Var<Matrix4<f32>>,
-        pub mm3       : Var<Matrix4<f32>>,
-        pub mm4       : Var<Matrix4<f32>>,
+        pub mm        : Var<Matrix4<f32>>,
     }
 
     impl Widget {
-        pub fn new(logger:Logger, mm1:Var<Matrix4<f32>>, mm2:Var<Matrix4<f32>>, mm3:Var<Matrix4<f32>>, mm4:Var<Matrix4<f32>>) -> Self {
+        pub fn new(logger:Logger, mm:Var<Matrix4<f32>>) -> Self {
             let transform = DisplayObjectData::new(logger);
-            let mm1_cp = mm1.clone();
-            let mm2_cp = mm2.clone();
-            let mm3_cp = mm3.clone();
-            let mm4_cp = mm4.clone();
+            let mm_cp = mm.clone();
             transform.set_on_updated(move |t| {
-                mm1_cp.set(t.matrix().clone());
-                mm2_cp.set(t.matrix().clone());
-                mm3_cp.set(t.matrix().clone());
-                mm4_cp.set(t.matrix().clone());
+                mm_cp.set(t.matrix().clone());
             });
-            Self {transform,mm1,mm2,mm3,mm4}
+            Self {transform,mm}
         }
     }
 }
