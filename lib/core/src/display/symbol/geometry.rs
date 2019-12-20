@@ -158,6 +158,8 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
         })
     }
 
+    /// Browses all scopes and finds where a variable was defined. Scopes are browsed in a
+    /// hierarchical order. To learn more about the ordering see the documentation of `Geometry`.
     pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
         let name = name.as_ref();
         if      self.scopes.point     . contains(name) { Some(ScopeType::Point)     }
@@ -169,7 +171,8 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
         else {None}
     }
 
-    pub fn var_scope(&self, scope_type:&ScopeType) -> Option<&VarScope<OnDirty>> {
+    /// Gets reference to scope based on the scope type.
+    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&VarScope<OnDirty>> {
         match scope_type {
             ScopeType::Point     => Some(&self.scopes.point),
             ScopeType::Vertex    => Some(&self.scopes.vertex),

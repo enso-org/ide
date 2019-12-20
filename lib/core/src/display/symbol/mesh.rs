@@ -37,21 +37,17 @@ pub struct VAO {
     vao     : WebGlVertexArrayObject,
 }
 
+// === Public API ===
+
 impl VAO {
+    /// Creates a new VAO instance.
     pub fn new(context:&Context) -> Self {
         let context = context.clone();
         let vao     = context.create_vertex_array().unwrap();
         Self {context,vao}
     }
 
-    pub fn bind(&self) {
-        self.context.bind_vertex_array(Some(&self.vao));
-    }
-
-    pub fn unbind(&self) {
-        self.context.bind_vertex_array(None);
-    }
-
+    /// Binds the VAO, evaluates the provided function, and unbinds the VAO.
     pub fn with<F:FnOnce() -> T,T>(&self, f:F) -> T {
         self.bind();
         let out = f();
@@ -59,6 +55,20 @@ impl VAO {
         out
     }
 }
+
+// === Private API ===
+
+impl VAO {
+    fn bind(&self) {
+        self.context.bind_vertex_array(Some(&self.vao));
+    }
+
+    fn unbind(&self) {
+        self.context.bind_vertex_array(None);
+    }
+}
+
+// === Instances ===
 
 impl Drop for VAO {
     fn drop(&mut self) {
@@ -164,7 +174,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let var_bindings = self.discover_variable_bindings();
             for (variable,opt_scope_type) in &var_bindings {
                 if let Some(scope_type) = opt_scope_type {
-                    let opt_scope = self.geometry.var_scope(scope_type);
+                    let opt_scope = self.geometry.var_scope(*scope_type);
                     match opt_scope {
                         None => self.logger.error("Internal error. Invalid var scope."),
                         Some(scope) => {

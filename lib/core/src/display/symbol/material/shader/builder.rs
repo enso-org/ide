@@ -182,6 +182,8 @@ impl From<glsl::PrimType> for UniformQualifier {
 // === CodeTemplate ===
 // ====================
 
+/// A GLSL code template. It is used to provide a pre-defined GLSL code chunk and insert generated
+/// GLSL snippets in right places.
 pub struct CodeTemplete {
     pub before_main : String,
     pub main        : String,
@@ -189,6 +191,7 @@ pub struct CodeTemplete {
 }
 
 impl CodeTemplete {
+    /// Creates a new instance from the provided main GLSL code definition.
     pub fn from_main<S:Str>(main:S) -> Self {
         Self {main: main.as_ref().to_string(), ..default()}
     }
@@ -228,7 +231,7 @@ impl ShaderBuilder {
         self.add_template_code(vertex_code,fragment_code);
     }
 
-    pub fn add_template_code(&mut self, vertex_code:CodeTemplete, fragment_code:CodeTemplete) {
+    fn add_template_code(&mut self, vertex_code:CodeTemplete, fragment_code:CodeTemplete) {
         self.vertex.main.body.add(&vertex_code.main);
         self.vertex.add(glsl::Statement::Raw(glsl::RawCode::new(vertex_code.before_main)));
 
