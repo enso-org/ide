@@ -84,16 +84,20 @@ impl SpringProperties {
 pub struct KinematicsProperties {
     position     : Vector3<f32>,
     velocity     : Vector3<f32>,
-    acceleration : Vector3<f32>
+    acceleration : Vector3<f32>,
+    mass         : f32
 }
 
 impl Default for KinematicsProperties {
-    fn default() -> Self { Self::new(zero(), zero(), zero()) }
+    fn default() -> Self {
+        Self::new(zero(),zero(),zero(),zero())
+    }
 }
 
 impl KinematicsProperties {
-    pub fn new(position:Vector3<f32>, velocity:Vector3<f32>, acceleration:Vector3<f32>) -> Self {
-        Self { position,velocity,acceleration }
+    pub fn new
+    (position:Vector3<f32>, velocity:Vector3<f32>, acceleration:Vector3<f32>, mass:f32) -> Self {
+        Self { position,velocity,acceleration,mass }
     }
 }
 
@@ -102,6 +106,7 @@ impl KinematicsProperties {
 impl KinematicsProperties {
     pub fn velocity    (&self) -> Vector3<f32> { self.velocity }
     pub fn acceleration(&self) -> Vector3<f32> { self.acceleration }
+    pub fn mass        (&self) -> f32          { self.mass }
 }
 
 // === Setters ===
@@ -113,6 +118,10 @@ impl KinematicsProperties {
 
     pub fn set_acceleration(&mut self, acceleration:Vector3<f32>) {
         self.acceleration = acceleration
+    }
+
+    pub fn set_mass(&mut self, mass:f32) {
+        self.mass = mass
     }
 }
 
@@ -186,23 +195,6 @@ impl PhysicsProperties {
 
 pub trait SimulationObject = HasPosition + 'static;
 
-// =====================
-// === PhysicsObject ===
-// =====================
-
-/// This represents a physics objects with mass and a generic object with `HasPosition`.
-pub struct PhysicsObject {
-    object : Box<dyn SimulationObject>,
-    mass   : f32
-}
-
-impl PhysicsObject {
-    pub fn new<T:SimulationObject>(object:T, mass:f32) -> Self {
-        let object = Box::new(object);
-        Self { object, mass }
-    }
-}
-
 // ========================
 // === PhysicsSimulator ===
 // ========================
@@ -227,28 +219,26 @@ fn simulate_dragging(kinematics:&mut KinematicsProperties, drag:&DragProperties)
 
 /// Simulate spring on `KinematicProperties` attached to a fixed point.
 fn simulate_spring
-(properties:&mut KinematicsProperties, spring_properties:&SpringProperties, mass:f32) {
-    let delta     = spring_properties.fixed_point() - properties.position();
+(kinematics:&mut KinematicsProperties, spring_properties:&SpringProperties) {
+    let delta     = spring_properties.fixed_point() - kinematics.position();
     let delta_len = delta.magnitude();
     if delta_len > 0.0 {
         let force_val = delta_len * spring_properties.coefficient();
         let force     = delta.normalize() * force_val;
-        properties.set_acceleration(force / mass);
+        kinematics.set_acceleration(force / kinematics.mass);
     }
 }
 
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
-    pub fn new(mut object:PhysicsObject, mut properties:PhysicsProperties) -> Self {
+    pub fn new<T:SimulationObject>(mut object:T, mut properties:PhysicsProperties) -> Self {
         let steps_per_second = 60.0;
         let _animator = Animator::new(steps_per_second, move |delta_time| {
-            let mass   = object.mass;
             let spring = properties.spring();
             let drag   = properties.drag();
-            let object = &mut object.object;
             properties.mod_kinematics(|mut kinematics| {
                 kinematics.set_position(object.position());
-                simulate_spring(&mut kinematics, &spring, mass);
+                simulate_spring(&mut kinematics, &spring);
                 simulate_dragging(&mut kinematics, &drag);
                 simulate_kinematics(&mut kinematics, delta_time);
             });

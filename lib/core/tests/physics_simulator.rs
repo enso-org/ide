@@ -6,15 +6,12 @@ web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
-    use basegl::display::rendering::Scene;
-    use basegl::display::rendering::Camera;
-    use basegl::display::rendering::html::HTMLObject;
-    use basegl::display::rendering::html::HTMLRenderer;
+    use basegl::display::rendering::{Scene, Camera};
+    use basegl::display::rendering::html::{HTMLObject, HTMLRenderer};
     use basegl::system::web::StyleSetter;
-    use basegl::animation::physics::{DragProperties, SpringProperties, PhysicsObject};
+    use basegl::animation::physics::{DragProperties, SpringProperties, KinematicsProperties};
     use basegl::animation::Animator;
     use basegl::animation::physics::{PhysicsSimulator, PhysicsProperties};
-    use basegl::prelude::default;
     use basegl::traits::HasPosition;
     use web_test::*;
     use nalgebra::{zero, Vector3};
@@ -44,15 +41,14 @@ mod tests {
         let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
 
-        let kinematics     = default();
+        let mass           = 1.0;
+        let kinematics     = KinematicsProperties::new(zero(), zero(), zero(), mass);
         let coefficient    = 10.0;
         let fixed_point    = zero();
         let spring         = SpringProperties::new(coefficient, fixed_point);
         let drag           = DragProperties::new(0.01);
         let mut properties = PhysicsProperties::new(kinematics, spring, drag);
-        let mass           = 1.0;
-        let physics_object = PhysicsObject::new(object, mass);
-        let simulator      = PhysicsSimulator::new(physics_object, properties.clone());
+        let simulator      = PhysicsSimulator::new(object, properties.clone());
 
         // Updates spring's fixed point every two seconds.
         let every = 2.0;
