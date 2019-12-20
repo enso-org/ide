@@ -18,6 +18,7 @@ use web_sys::WebGlProgram;
 
 // === Definition ===
 
+/// Material keeps track of a shader and related WebGL Program.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Material<OnDirty> {
@@ -55,6 +56,8 @@ impl<OnDirty: Callback0> Material<OnDirty> {
         group!(self.logger, "Updating.", {
             if self.dirty.check_all() {
 
+                // FIXME: Hardcoded variables until we get proper shaders EDSL.
+
                 let mut shader_cfg     = shader::builder::ShaderConfig::new();
                 let mut shader_builder = shader::builder::ShaderBuilder::new();
                 shader_cfg.insert_attribute        ("bbox"            , shader::glsl::PrimType::Vec2);
@@ -86,11 +89,18 @@ impl<OnDirty: Callback0> Material<OnDirty> {
         })
     }
 
+    /// Traverses the material definition and collects all attribute names.
+    pub fn collect_variables(&self) -> Vec<String> {
+        // FIXME: Hardcoded.
+        vec!["bbox".into(),"uv".into(),"transform".into()]
+    }
+}
+
+
+// === Getters ===
+
+impl<OnDirty> Material<OnDirty> {
     pub fn program(&self) -> &Option<WebGlProgram> {
         &self.program
-    }
-
-    pub fn collect_variables(&self) -> Vec<String> {
-        vec!["bbox".into(),"uv".into(),"transform".into()]
     }
 }

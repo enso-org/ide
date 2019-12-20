@@ -215,9 +215,13 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     pub fn render(&self, camera:&Camera2D) {
         group!(self.logger, "Rendering.", {
             self.with_program(|program|{
-                let view_projection_location = self.context.get_uniform_location(program, "view_projection");
+
+                // FIXME: do proper uniform management
+                let view_projection_location =
+                    self.context.get_uniform_location(program, "view_projection");
                 camera.update();
-                self.context.set_uniform(&view_projection_location.unwrap(), &camera.view_projection_matrix());
+                self.context.set_uniform(&view_projection_location.unwrap(),
+                    &camera.view_projection_matrix());
 
                 let mode           = webgl::Context::TRIANGLE_STRIP;
                 let first          = 0;
