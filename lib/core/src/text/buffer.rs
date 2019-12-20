@@ -69,7 +69,7 @@ impl TextComponentBuffers {
     pub fn refresh(&mut self, gl_context:&Context, info:RefreshInfo) {
         let scrolled_x = self.scroll_since_last_frame.x != 0.0;
         let scrolled_y = self.scroll_since_last_frame.y != 0.0;
-        if scrolled_y {
+        if scrolled_y || info.dirty_lines.range.is_some() {
             let displayed_lines = self.displayed_lines(info.lines.len());
             self.fragments.reassign_fragments(displayed_lines);
         }

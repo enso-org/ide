@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::text::font::FontRenderInfo;
-use crate::text::content::CharPosition;
+use crate::text::content::{CharPosition, TextComponentContent};
 use crate::text::content::RefreshInfo;
 use crate::text::content::line::LineRef;
 use crate::text::buffer::glyph_square::point_to_iterable;
@@ -108,7 +108,11 @@ impl Cursors {
     pub fn set_buffer_data(&mut self, gl_context:&Context, refresh:&mut RefreshInfo) {
         let data = self.cursors.iter().map(|cursor| {
             let line       = LineRef{line:&mut refresh.lines[cursor.position.line], line_id:cursor.position.line};
-            let x_position = line.line.get_char_x_range(cursor.position.column-1, refresh.font).end;
+            let x_position = if cursor.position.column > 0 {
+                line.line.get_char_x_range(cursor.position.column-1, refresh.font).end
+            } else {
+                0.0
+            };
             let y_position = line.start_point().y as f32;
             CURSOR_VERTICES_BASE_LAYOUT.iter()
                 .map(|p| Point2::new(p.x + x_position, p.y + y_position))

@@ -233,10 +233,10 @@ mod example_01 {
 }
 
 // ==================
-// === Example 03 ===
+// === Example 02 ===
 // ==================
 
-mod example_03 {
+mod example_02 {
     use wasm_bindgen::prelude::*;
 
     use crate::utils;
@@ -247,58 +247,67 @@ mod example_03 {
 
     use itertools::iproduct;
     use nalgebra::{Point2,Vector2};
+    use crate::text::content::{CharPosition, TextChange};
 
-    const FONT_NAMES : &[&str] = &
-        [ "DejaVuSans"
-        , "DejaVuSansMono"
-        , "DejaVuSansMono-Bold"
-        , "DejaVuSerif"
-        ];
+    struct Sequence {
+        time   : f64,
+        change : char,
+    }
 
-    const SIZES : &[f64] = &[0.024, 0.032, 0.048];
+    fn one_letter_animation(start_time:f64, text:&'static str) -> Vec<Sequence> {
+        let mut time = start_time;
+        text.char_indices().map(|(i,ch)| {
+            let next = Sequence {time,change:ch};
+            time += 50.0;
+            next
+        }).collect()
+    }
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_03_text() {
+    pub fn run_02_text() {
         utils::set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
-            let mut world_ref = World::new();
-            let workspace_id  = world_ref.add(Workspace::build("canvas"));
+            let mut world_ref     = World::new();
+            let workspace_id      = world_ref.add(Workspace::build("canvas"));
             let world :&mut World = &mut world_ref.borrow_mut();
-            let workspace     = &mut world.workspaces[workspace_id];
-            let fonts         = &mut world.fonts;
-            let font_ids_iter = FONT_NAMES.iter().map(|name| fonts.load_embedded_font(name).unwrap());
-            let font_ids      = font_ids_iter.collect::<Box<[FontId]>>();
+            let workspace         = &mut world.workspaces[workspace_id];
+            let fonts             = &mut world.fonts;
+            let font_id           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
 
-            let all_cases     = iproduct!(0..font_ids.len(), 0..SIZES.len());
-
-            for (font, size) in all_cases {
-
-                let x = -0.95 + 0.6 * (size as f64);
-                let y = 0.90 - 0.45 * (font as f64);
-                let text_compnent = crate::text::TextComponentBuilder {
-                    workspace,
-                    fonts,
-                    text : "To be, or not to be, that is the question:\n\
-                        Whether 'tis nobler in the mind to suffer\n\
-                        The slings and arrows of outrageous fortune,\n\
-                        Or to take arms against a sea of troubles\n\
-                        And by opposing end them."
-                        .to_string(),
-                    font_id: font_ids[font],
-                    position: Point2::new(x, y),
-                    size: Vector2::new(0.5, 0.2),
-                    text_size: SIZES[size],
-                    color    : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
-                }.build();
-                workspace.text_components.push(text_compnent);
-            }
+            let mut text_component = crate::text::TextComponentBuilder{workspace,fonts,font_id,
+                text      : "".to_string(),
+                position  : Point2::new(-0.95,-0.9),
+                size      : Vector2::new(1.8,1.6),
+                text_size : 0.032,
+                color     : Color {r: 0.0, g: 0.8, b: 0.0, a: 1.0},
+            }.build();
+            text_component.cursors.add_cursor(CharPosition{line:0,column:0});
+            workspace.text_components.push(text_component);
             world.workspace_dirty.set(workspace_id);
-
+            let animation_start = js_sys::Date::now();
+            let mut animation = one_letter_animation(animation_start + 3000.0, include_str!("lib.rs"));
+            let start_scrolling = animation_start + 10000.0;
             world.on_frame(move |w| {
-                let space = &mut w.workspaces[workspace_id];
-                for text_component in &mut space.text_components {
-                    text_component.scroll(Vector2::new(0.0,0.00001));
+                let workspace = &mut w.workspaces[workspace_id];
+                let editor = workspace.text_components.first_mut().unwrap();
+                let next_step = match animation.first() {
+                    Some(next) => next.time <= js_sys::Date::now(),
+                    None       => false
+                };
+                if next_step {
+                    let step = animation.drain(0..1).next().unwrap();
+                    let cursor = editor.cursors.cursors.first_mut().unwrap();
+                    let change = TextChange::insert(cursor.position, step.change.to_string().as_str());
+                    editor.content.make_change(change);
+                    let new_cursor_position = CharPosition {
+                        line: editor.content.lines.len()-1,
+                        column : editor.content.lines.last().unwrap().len(),
+                    };
+                    cursor.position = new_cursor_position;
+                }
+                if start_scrolling <= js_sys::Date::now() {
+                    editor.scroll(Vector2::new(0.0, -0.01));
                 }
                 w.workspace_dirty.set(workspace_id);
             }).forget();
