@@ -138,8 +138,8 @@ pub struct TextComponentContent {
 /// A position of character in multiline text.
 #[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
 pub struct CharPosition {
-    pub line        : usize,
-    pub byte_offset : usize,
+    pub line   : usize,
+    pub column : usize,
 }
 
 /// References to all needed stuff for generating buffer's data.
@@ -197,7 +197,7 @@ impl TextComponentContent {
     fn make_simple_change(&mut self, change:TextChange) {
         let line_index  = change.replaced.start.line;
         let new_content = change.lines.first().unwrap();
-        let range       = change.replaced.start.byte_offset..change.replaced.end.byte_offset;
+        let range       = change.replaced.start.column..change.replaced.end.column;
         self.lines[line_index].modify().splice(range,new_content.iter().cloned());
         self.dirty_lines.add_single_line(line_index);
     }
@@ -229,7 +229,7 @@ impl TextComponentContent {
 
     fn mix_first_edited_line_into_change(&self, change:&mut TextChange) {
         let first_line   = change.replaced.start.line;
-        let replace_from = change.replaced.start.byte_offset;
+        let replace_from = change.replaced.start.column;
         let first_edited = &self.lines[first_line].chars();
         let prefix       = &first_edited[..replace_from];
         change.lines.first_mut().unwrap().splice(0..0,prefix.iter().cloned());
@@ -237,7 +237,7 @@ impl TextComponentContent {
 
     fn mix_last_edited_line_into_change(&mut self, change:&mut TextChange) {
         let last_line    = change.replaced.end.line;
-        let replace_to   = change.replaced.end.byte_offset;
+        let replace_to   = change.replaced.end.column;
         let last_edited  = &self.lines[last_line].chars();
         let suffix       = &last_edited[replace_to..];
         change.lines.last_mut().unwrap().extend_from_slice(suffix);
@@ -300,10 +300,10 @@ mod test {
     #[test]
     fn edit_single_line() {
         let text                   = "Line a\nLine b\nLine c";
-        let delete_from            = CharPosition{line:1, byte_offset:0};
-        let delete_to              = CharPosition{line:1, byte_offset:4};
+        let delete_from            = CharPosition{line:1, column:0};
+        let delete_to              = CharPosition{line:1, column:4};
         let deleted_range          = delete_from..delete_to;
-        let insert                 = TextChange::insert(CharPosition{line:1, byte_offset:1}, "ab");
+        let insert                 = TextChange::insert(CharPosition{line:1, column:1}, "ab");
         let delete                 = TextChange::delete(deleted_range.clone());
         let replace                = TextChange::replace(deleted_range, "text");
 
@@ -330,9 +330,9 @@ mod test {
     fn insert_multiple_lines() {
         let text             = "Line a\nLine b\nLine c";
         let inserted         = "Ins a\nIns b";
-        let begin_position   = CharPosition{line:0, byte_offset:0};
-        let middle_position  = CharPosition{line:1, byte_offset:2};
-        let end_position     = CharPosition{line:2, byte_offset:6};
+        let begin_position   = CharPosition{line:0, column:0};
+        let middle_position  = CharPosition{line:1, column:2};
+        let end_position     = CharPosition{line:2, column:6};
         let insert_at_begin  = TextChange::insert(begin_position , inserted);
         let insert_in_middle = TextChange::insert(middle_position, inserted);
         let insert_at_end    = TextChange::insert(end_position   , inserted);
@@ -366,8 +366,8 @@ mod test {
     #[test]
     fn delete_multiple_lines() {
         let text          = "Line a\nLine b\nLine c";
-        let delete_from   = CharPosition{line:0, byte_offset:2};
-        let delete_to     = CharPosition{line:2, byte_offset:3};
+        let delete_from   = CharPosition{line:0, column:2};
+        let delete_to     = CharPosition{line:2, column:3};
         let deleted_range = delete_from..delete_to;
         let delete        = TextChange::delete(deleted_range);
 

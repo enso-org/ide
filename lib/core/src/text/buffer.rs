@@ -199,43 +199,43 @@ impl TextComponentBuffers {
         self.set_buffer_subdata(gl_context,&self.texture_coords,offset,data);
     }
 
-    fn set_buffer_data(&self, gl_context:&Context, buffer:&WebGlBuffer, data:&[f32]) {
-        let target = Context::ARRAY_BUFFER;
-        gl_context.bind_buffer(target,Some(&buffer));
-        Self::set_bound_buffer_data(gl_context,target,data);
-    }
-
-    fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
-        let usage      = Context::STATIC_DRAW;
-        unsafe { // Note [unsafe buffer_data]
-            let float_array = Float32Array::view(&data);
-            gl_context.buffer_data_with_array_buffer_view(target,&float_array,usage);
-        }
-    }
-
-    fn set_buffer_subdata
-    (&self, gl_context:&Context, buffer:&WebGlBuffer, offset:usize, data:&[f32]) {
-        let target = Context::ARRAY_BUFFER;
-        gl_context.bind_buffer(target,Some(&buffer));
-        Self::set_bound_buffer_subdata(gl_context,target,offset as i32,data);
-    }
-
-    fn set_bound_buffer_subdata(gl_context:&Context, target:u32, offset:i32, data:&[f32]) {
-        unsafe { // Note [unsafe buffer_data]
-            let float_array = Float32Array::view(&data);
-            gl_context.buffer_sub_data_with_i32_and_array_buffer_view(target,offset,&float_array);
-        }
-    }
-
-    /* Note [unsafe buffer_data]
-     *
-     * The Float32Array::view is safe as long there are no allocations done
-     * until it is destroyed. This way of creating buffers were taken from
-     * wasm-bindgen examples
-     * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
-     */
-
     pub fn vertices_count(&self) -> usize {
         BASE_LAYOUT_SIZE * self.fragments.fragments.len() * self.max_chars_in_fragment
     }
 }
+
+
+pub fn set_buffer_data(gl_context:&Context, buffer:&WebGlBuffer, data:&[f32]) {
+    let target = Context::ARRAY_BUFFER;
+    gl_context.bind_buffer(target,Some(&buffer));
+    Self::set_bound_buffer_data(gl_context,target,data);
+}
+
+fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
+    let usage      = Context::STATIC_DRAW;
+    unsafe { // Note [unsafe buffer_data]
+        let float_array = Float32Array::view(&data);
+        gl_context.buffer_data_with_array_buffer_view(target,&float_array,usage);
+    }
+}
+
+pub fn set_buffer_subdata(gl_context:&Context, buffer:&WebGlBuffer, offset:usize, data:&[f32]) {
+    let target = Context::ARRAY_BUFFER;
+    gl_context.bind_buffer(target,Some(&buffer));
+    Self::set_bound_buffer_subdata(gl_context,target,offset as i32,data);
+}
+
+fn set_bound_buffer_subdata(gl_context:&Context, target:u32, offset:i32, data:&[f32]) {
+    unsafe { // Note [unsafe buffer_data]
+        let float_array = Float32Array::view(&data);
+        gl_context.buffer_sub_data_with_i32_and_array_buffer_view(target,offset,&float_array);
+    }
+}
+
+/* Note [unsafe buffer_data]
+ *
+ * The Float32Array::view is safe as long there are no allocations done
+ * until it is destroyed. This way of creating buffers were taken from
+ * wasm-bindgen examples
+ * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
+ */

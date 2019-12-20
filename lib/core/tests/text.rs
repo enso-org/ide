@@ -190,8 +190,8 @@ mod tests {
                     for _ in 0..15 {
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
-                        let replace_from   = CharPosition{line:1, byte_offset:2};
-                        let replace_to     = CharPosition{line:1, byte_offset:3};
+                        let replace_from   = CharPosition{line:1, column:2};
+                        let replace_to     = CharPosition{line:1, column:3};
                         let replaced_range = replace_from..replace_to;
                         let change         = TextChange::replace(replaced_range, "abc");
                         text_component.content.make_change(change);
@@ -213,7 +213,7 @@ mod tests {
                     let world : &mut World = &mut world_test.world_ptr.borrow_mut();
                     let workspace      = &mut world.workspaces[world_test.workspace_id];
                     let text_component = &mut workspace.text_components[0];
-                    let position       = CharPosition{line:1, byte_offset:0};
+                    let position       = CharPosition{line:1, column:0};
                     let change         = TextChange::insert(position, TEST_TEXT);
                     text_component.content.make_change(change);
                     world.workspace_dirty.set(world_test.workspace_id);

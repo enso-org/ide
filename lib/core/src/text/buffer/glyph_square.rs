@@ -27,7 +27,7 @@ lazy_static! {
         ];
 }
 
-fn point_to_iterable<T:Scalar>(p:Point2<T>) -> SmallVec<[T;2]> {
+pub fn point_to_iterable<T:Scalar>(p:Point2<T>) -> SmallVec<[T;2]> {
     p.iter().cloned().collect()
 }
 
