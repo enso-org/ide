@@ -142,12 +142,13 @@ impl TextComponentBuffers {
     }
 
     fn setup_buffers(&mut self, gl_context:&Context, refresh:RefreshInfo) {
-        let displayed_lines      = self.displayed_lines(refresh.lines.len());
-        let all_fragments        = 0..self.fragments.fragments.len();
-        let mut builder          = self.create_fragments_data_builder(refresh.font);
+        let displayed_lines = self.displayed_lines(refresh.lines.len());
+        let lines           = refresh.lines;
+        let all_fragments   = 0..self.fragments.fragments.len();
+        let mut builder     = self.create_fragments_data_builder(refresh.font);
 
         self.fragments.reassign_fragments(displayed_lines);
-        self.fragments.build_buffer_data_for_fragments(all_fragments,&mut builder,refresh.lines.as_ref());
+        self.fragments.build_buffer_data_for_fragments(all_fragments,&mut builder,lines);
         let vertex_position_data = builder.vertex_position_data.as_ref();
         let texture_coords_data  = builder.texture_coords_data.as_ref();
         self.set_buffer_data(gl_context,&self.vertex_position, vertex_position_data);

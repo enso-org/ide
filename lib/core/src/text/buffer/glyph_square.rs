@@ -138,6 +138,9 @@ impl<'a> GlyphAttributeBuilder for GlyphVertexPositionBuilder<'a> {
     type Output = SmallVec<[f64;12]>; // Note[Output size]
 
     /// Compute vertices for the next glyph.
+    ///
+    /// The vertices position are the final vertices passed to webgl buffer. It takes the previous
+    /// built glyph into consideration for proper spacing.
     fn build_for_next_glyph(&mut self, ch:char) -> Self::Output {
         self.pen.next_char(ch, self.font);
         let to_pen_position          = self.translation_by_pen_position();
@@ -170,7 +173,7 @@ impl<'a> GlyphTextureCoordsBuilder<'a> {
         GlyphTextureCoordsBuilder {font}
     }
 
-    /// Convert base layout to msdf space
+    /// Convert base layout to msdf space.
     ///
     /// The base layout contains vertices within (0.0, 0.0) - (1.0, 1.0) range. In msdf
     /// space we use distances expressed in msdf cells.
@@ -225,7 +228,7 @@ impl<'a> GlyphAttributeBuilder for GlyphTextureCoordsBuilder<'a> {
 
     type Output = SmallVec<[f64; 12]>; // Note[Output size]
 
-    /// Compute texture coordinates for `ch`
+    /// Compute texture coordinates for `ch`.
     fn build_for_next_glyph(&mut self, ch:char) -> Self::Output {
         let to_msdf            = Self::base_layout_to_msdf_space();
         let border_align       = Self::align_borders_to_msdf_cell_center_transform();

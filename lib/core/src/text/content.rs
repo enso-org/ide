@@ -69,7 +69,7 @@ impl DirtyLines {
 
 /// A change type
 ///
-/// A change is simple if it's replace a fragment of one line with text without newlines. Otherwise
+/// A change is simple if it's replace a fragment of one line with text without new lines. Otherwise
 /// its a multiline change.
 pub enum ChangeType {
     Simple, Multiline
@@ -109,7 +109,10 @@ impl TextChange {
     pub fn change_type(&self) -> ChangeType {
         if self.lines.is_empty() {
             panic!("Invalid change");
-        } else if self.replaced.start.line == self.replaced.end.line && self.lines.len() == 1 {
+        }
+        let is_one_line_modified = self.replaced.start.line == self.replaced.end.line;
+        let is_one_line_inserted = self.lines.len() == 1;
+        if is_one_line_modified && is_one_line_inserted {
             ChangeType::Simple
         } else {
             ChangeType::Multiline
@@ -157,11 +160,12 @@ impl TextComponentContent {
 
     fn split_to_lines(text:&str) -> Vec<String> {
         let split      = text.split('\n');
-        let without_cr = split.map(Self::cut_cr);
+        let without_cr = split.map(Self::cut_cr_at_end_of_line);
         without_cr.map(|s| s.to_string()).collect()
     }
 
-    fn cut_cr(from:&str) -> &str {
+    /// Cuts carriage return (also known as CR or `'\r'`) from line's end
+    fn cut_cr_at_end_of_line(from:&str) -> &str {
         if from.ends_with('\r') {
             &from[..from.len()-1]
         } else {
@@ -188,7 +192,7 @@ impl TextComponentContent {
             ChangeType::Multiline => self.make_multiline_change(change),
         }
     }
-    
+
     fn make_simple_change(&mut self, change:TextChange) {
         let line_index  = change.replaced.start.line;
         let new_content = change.lines.first().unwrap();
@@ -211,7 +215,12 @@ impl TextComponentContent {
             self.dirty_lines.add_lines_range(start_line..=end_line);
         }
     }
-    
+
+    /// Mix the unchanged parts of modified lines into change.
+    ///
+    /// This is for convenience of making multiline content changes. After mixing existing content
+    /// into change we can just operate on whole lines (replace the whole lines of current content
+    /// with the whole lines-to-insert in change description).
     fn mix_content_into_change(&mut self, change:&mut TextChange) {
         self.mix_first_edited_line_into_change(change);
         self.mix_last_edited_line_into_change(change);

@@ -95,14 +95,14 @@ impl TextComponent {
     }
 
     fn update_uniforms(&self, fonts:&mut Fonts) {
-        let gl_context          = &self.gl_context;
-        let to_scene            = self.to_scene_matrix();
-        let to_scene_ref        = to_scene.as_ref();
-        let msdf_width          = MsdfTexture::WIDTH as f32;
-        let msdf_height         = fonts.get_render_info(self.content.font).msdf_texture.rows() as f32;
-        let to_scene_loc        = gl_context.get_uniform_location(&self.gl_program,"to_scene");
-        let msdf_size_loc       = gl_context.get_uniform_location(&self.gl_program,"msdf_size");
-        let transpose           = false;
+        let gl_context    = &self.gl_context;
+        let to_scene      = self.to_scene_matrix();
+        let to_scene_ref  = to_scene.as_ref();
+        let msdf_width    = MsdfTexture::WIDTH as f32;
+        let msdf_height   = fonts.get_render_info(self.content.font).msdf_texture.rows() as f32;
+        let to_scene_loc  = gl_context.get_uniform_location(&self.gl_program,"to_scene");
+        let msdf_size_loc = gl_context.get_uniform_location(&self.gl_program,"msdf_size");
+        let transpose     = false;
         gl_context.uniform_matrix3fv_with_f32_array(to_scene_loc.as_ref(),transpose,to_scene_ref);
         gl_context.uniform2f(msdf_size_loc.as_ref(),msdf_width,msdf_height);
 
@@ -124,16 +124,7 @@ impl TextComponent {
         gl_context.bind_texture(target,Some(&self.gl_msdf_texture));
         let tex_image_result =
             gl_context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-            ( target
-            , tex_level
-            , internal_fmt
-            , width
-            , height
-            , border
-            , format
-            , tex_type
-            , data
-            );
+            (target,tex_level,internal_fmt,width,height,border,format,tex_type,data);
         tex_image_result.unwrap();
         self.msdf_texture_rows = font_msdf.rows();
     }
@@ -210,12 +201,13 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
     /// Build a new text component rendering on given workspace
     pub fn build(mut self) -> TextComponent {
         self.load_all_chars();
-        let gl_context        = self.workspace.context.clone();
-        let gl_program        = self.create_program(&gl_context);
-        let gl_msdf_texture   = self.create_msdf_texture(&gl_context);
-        let display_size      = self.size / self.text_size;
-        let mut content       = TextComponentContent::new(self.font_id,self.text.as_ref());
-        let buffers           = TextComponentBuffers::new(&gl_context,display_size,content.refresh_info(self.fonts));
+        let gl_context      = self.workspace.context.clone();
+        let gl_program      = self.create_program(&gl_context);
+        let gl_msdf_texture = self.create_msdf_texture(&gl_context);
+        let display_size    = self.size / self.text_size;
+        let mut content     = TextComponentContent::new(self.font_id,self.text.as_ref());
+        let initial_refresh = content.refresh_info(self.fonts);
+        let buffers         = TextComponentBuffers::new(&gl_context,display_size,initial_refresh);
         self.setup_constant_uniforms(&gl_context,&gl_program);
         TextComponent {content,gl_context,gl_program,gl_msdf_texture,buffers,
             position          : self.position,
