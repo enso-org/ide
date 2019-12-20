@@ -225,8 +225,8 @@ fn simulate_spring(properties:&mut KinematicProperties, spring_properties:&Sprin
     let delta     = spring_properties.fixed_point() - properties.position();
     let delta_len = delta.magnitude();
     if delta_len > 0.0 {
-        let force_val           = delta_len * spring_properties.coefficient();
-        let force               = delta.normalize() * force_val;
+        let force_val = delta_len * spring_properties.coefficient();
+        let force     = delta.normalize() * force_val;
         properties.set_acceleration(force / spring_properties.mass());
     }
 }
