@@ -20,6 +20,7 @@ use nalgebra::Vector4;
 use nalgebra::Matrix4;
 use std::iter::Extend;
 use web_sys::WebGlBuffer;
+use std::ops::RangeInclusive;
 
 
 // ==================
@@ -39,7 +40,7 @@ use web_sys::WebGlBuffer;
 pub struct BufferData<T,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
     pub buffer       : Data        <T,OnSet,OnResize>,
-    pub set_dirty    : SetDirty    <OnSet>,
+    pub buffer_dirty : BufferDirty <OnSet>,
     pub resize_dirty : ResizeDirty <OnResize>,
     pub logger       : Logger,
     pub gl_buffer    : WebGlBuffer,
@@ -57,7 +58,7 @@ macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
 
 // === Callbacks ===
 
-pub type SetDirty    <Callback> = dirty::SharedRange<usize,Callback>;
+pub type BufferDirty    <Callback> = dirty::SharedRange<usize,Callback>;
 pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
 
 closure! {
@@ -66,7 +67,7 @@ fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) -> DataOnResize {
 }}
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) -> DataOnSet {
+fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
     |ix: usize| dirty.set(ix)
 }}
 
@@ -75,35 +76,28 @@ fn buffer_on_set<C:Callback0> (dirty:SetDirty<C>) -> DataOnSet {
 impl<T,OnSet:Callback0, OnResize:Callback0>
 BufferData<T,OnSet,OnResize> {
     /// Creates new buffer from provided explicit buffer object.
-    pub fn new_from
-    ( context   : &Context
-    , vec       : Vec<T>
-    , logger    : Logger
-    , on_set    : OnSet
-    , on_resize : OnResize
-    ) -> Self {
+    pub fn new_from(context: &Context, vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize)
+    -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_debug_name()));
-        let set_logger     = logger.sub("set_dirty");
+        let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
-        let set_dirty      = SetDirty::new(set_logger,on_set);
+        let buffer_dirty   = BufferDirty::new(set_logger,on_set);
         let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
         let buff_on_resize = buffer_on_resize(resize_dirty.clone_rc());
-        let buff_on_set    = buffer_on_set(set_dirty.clone_rc());
+        let buff_on_set    = buffer_on_set(buffer_dirty.clone_rc());
         let buffer         = Data::new_from(vec, buff_on_set, buff_on_resize);
         let context        = context.clone();
         let gl_buffer      = create_gl_buffer(&context);
-        Self {buffer,set_dirty,resize_dirty,logger,gl_buffer,context}
+        Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context}
     }
+
     /// Creates a new empty buffer.
-    pub fn new
-    (context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
-     -> Self {
+    pub fn new(context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
         Self::new_from(context,default(),logger,on_set,on_resize)
     }
+
     /// Build the buffer from the provider configuration builder.
-    pub fn build
-    (context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize)
-     -> Self {
+    pub fn build(context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
         let buffer = builder._buffer.unwrap_or_else(default);
         let logger = builder._logger.unwrap_or_else(default);
         Self::new_from(context,buffer,logger,on_set,on_resize)
@@ -118,16 +112,23 @@ pub fn as_prim(&self) -> &[Prim<T>] {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            self.set_dirty.unset_all();
-            self.resize_dirty.unset_all();
+
             let data = self.as_prim();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
-            Self::buffer_data(&self.context,data);
+            Self::buffer_data(&self.context,data,&None);
             // TODO finish
+
+            {
+//            let range: &Option<RangeInclusive<usize>> = &self.buffer_dirty.borrow().data.range;
+//            println!("{:?}", range);
+            }
+
+            self.buffer_dirty.unset_all();
+            self.resize_dirty.unset_all();
         })
     }
 
-    fn buffer_data(context:&Context, data:&[T::Prim]) {
+    fn buffer_data(context:&Context, data:&[T::Prim], opt_range:&Option<RangeInclusive<usize>>) {
         // Note that `js_buffer_view` is somewhat dangerous (hence the
         // `unsafe`!). This is creating a raw view into our module's
         // `WebAssembly.Memory` buffer, but if we allocate more pages for
@@ -136,10 +137,23 @@ pub fn as_prim(&self) -> &[Prim<T>] {
         //
         // As a result, after `js_buffer_view` we have to be very careful not to
         // do any memory allocations before it's dropped.
-        unsafe {
-            let js_array = <T as Item>::js_buffer_view(&data);
-            context.buffer_data_with_array_buffer_view
-            (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
+
+        match opt_range {
+            None => unsafe {
+                let js_array = <T as Item>::js_buffer_view(&data);
+                context.buffer_data_with_array_buffer_view
+                (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
+            }
+            Some(range) => {
+                let start  = *range.start() as u32;
+                let end    = *range.end()   as u32;
+                let length = end - start + 1;
+                unsafe {
+                    let js_array = <T as Item>::js_buffer_view(&data);
+                    context.buffer_data_with_array_buffer_view_and_src_offset_and_length
+                    (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW, start, length);
+                }
+            }
         }
     }
     /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
@@ -232,9 +246,10 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 }
 
 
-// ====================
+
+// ==============
 // === Buffer ===
-// ====================
+// ==============
 
 /// Shared view for `Buffer`.
 #[derive(Derivative)]
@@ -267,10 +282,10 @@ Buffer<T,OnSet,OnResize> {
 
 impl<T:Item,OnSet,OnResize>
 Buffer<T,OnSet,OnResize> where Prim<T>: Debug { // TODO: remove Prim<T>: Debug
-/// Check dirty flags and update the state accordingly.
-pub fn update(&self) {
-    self.rc.borrow_mut().update()
-}
+    /// Check dirty flags and update the state accordingly.
+    pub fn update(&self) {
+        self.rc.borrow_mut().update()
+    }
 
     /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
     /// attribute of the current vertex buffer object and specifies its layout.
@@ -354,7 +369,9 @@ impl<T:Copy,OnSet:Callback0,OnResize> Var<T,OnSet,OnResize> {
 
     /// Modifies the underlying data by using the provided function.
     pub fn modify<F:FnOnce(&mut T)>(&self, f:F) {
-        f(&mut self.buffer.rc.borrow_mut()[self.index]);
+        let mut value = self.get();
+        f(&mut value);
+        self.set(value);
     }
 }
 

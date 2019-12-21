@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
-use crate::data::container::Add;
 use super::glsl;
-use code_builder::HasCodeRepr;
+use crate::data::container::Add;
 use crate::display::symbol::material::shader::glsl::{Type, PrimType};
+use code_builder::HasCodeRepr;
 use std::collections::BTreeMap;
 
 
@@ -184,6 +184,7 @@ impl From<glsl::PrimType> for UniformQualifier {
 
 /// A GLSL code template. It is used to provide a pre-defined GLSL code chunk and insert generated
 /// GLSL snippets in right places.
+#[derive(Default)]
 pub struct CodeTemplete {
     pub before_main : String,
     pub main        : String,
@@ -194,15 +195,6 @@ impl CodeTemplete {
     /// Creates a new instance from the provided main GLSL code definition.
     pub fn from_main<S:Str>(main:S) -> Self {
         Self {main: main.as_ref().to_string(), ..default()}
-    }
-}
-
-impl Default for CodeTemplete {
-    fn default() -> Self {
-        let before_main = default();
-        let main        = default();
-        let after_main  = default();
-        Self {before_main,main,after_main}
     }
 }
 

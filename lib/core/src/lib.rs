@@ -48,7 +48,8 @@ mod example_01 {
     use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
     use crate::display::symbol::display_object::*;
-    use basegl_system_web::Logger;
+    use basegl_system_web::{Logger, get_performance};
+    use web_sys::Performance;
 
 
     #[wasm_bindgen]
@@ -84,24 +85,14 @@ mod example_01 {
         let p4_ix = pt_scope.add_instance();
 
         let inst_1_ix = inst_scope.add_instance();
-        let inst_2_ix = inst_scope.add_instance();
-
-//        let p1 = pos.get(p1_ix);
-//        let p2 = pos.get(p2_ix);
-//        let p3 = pos.get(p3_ix);
-//        let p4 = pos.get(p4_ix);
-
+//        let inst_2_ix = inst_scope.add_instance();
+//
         let transform1 = transform.get(inst_1_ix);
-        let transform2 = transform.get(inst_2_ix);
+//        let transform2 = transform.get(inst_2_ix);
 
         transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
+//        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
 
-
-//        p1.set(Vector3::new(-0.0, -0.0, 0.0));
-//        p2.set(Vector3::new( 0.0, -0.0, 0.0));
-//        p3.set(Vector3::new( 0.0,  0.0, 0.0));
-//        p4.set(Vector3::new( 0.0,  0.0, 0.0));
 
 
         let uv1 = uv.get(p1_ix);
@@ -119,10 +110,10 @@ mod example_01 {
         let bbox3 = bbox.get(p3_ix);
         let bbox4 = bbox.get(p4_ix);
 
-        bbox1.set(Vector2::new(20.0, 20.0));
-        bbox2.set(Vector2::new(20.0, 20.0));
-        bbox3.set(Vector2::new(20.0, 20.0));
-        bbox4.set(Vector2::new(20.0, 20.0));
+        bbox1.set(Vector2::new(2.0, 2.0));
+        bbox2.set(Vector2::new(2.0, 2.0));
+        bbox3.set(Vector2::new(2.0, 2.0));
+        bbox4.set(Vector2::new(2.0, 2.0));
 
 
 //        let mm1 = model_matrix.get(p1_ix);
@@ -149,28 +140,78 @@ mod example_01 {
 //    println!("{:?}",pos);
 //    println!("{:?}",pos.borrow().as_prim());
 
+//        let camera = workspace.scene.camera.clone();
 
+
+        let make_widget = |scope: &mut VarScope| {
+            let inst_1_ix = scope.add_instance();
+            let transform1 = transform.get(inst_1_ix);
+            Widget::new(Logger::new("widget"),transform1)
+        };
 
 
 
         let w1 = Widget::new(Logger::new("widget1"),transform1);
 
-        let camera = workspace.scene.camera.clone();
-        world.on_frame(move |_| on_frame(&camera,&w1)).forget();
 
 
 
+        let mut widgets: Vec<Widget> = default();
+        let count = 100;
+        for _ in 0 .. count {
+            let widget = make_widget(inst_scope);
+            widgets.push(widget);
+        }
+
+        let performance = get_performance().unwrap();
+
+
+        let mut i:i32 = 0;
+        world.on_frame(move |_| on_frame(&mut i,&w1, &mut widgets,&performance)).forget();
 
 
     }
 
-    pub fn on_frame(camera:&Camera2D, widget:&Widget) {
-        camera.mod_position(|p| {
-            p.x -= 0.1;
-            p.z += 1.0
-        });
-        widget.transform.mod_position(|p| p.y += 0.5);
-        widget.transform.update();
+    #[allow(clippy::many_single_char_names)]
+    pub fn on_frame(ii:&mut i32, w1:&Widget, widgets:&mut Vec<Widget>, performance:&Performance) {
+//        camera.mod_position(|p| {
+//            p.x -= 0.1;
+//            p.z += 1.0
+//        });
+        w1.transform.mod_position(|p| p.y += 0.5);
+        w1.transform.update();
+
+        *ii += 1;
+
+        if *ii < 1000i32 {
+            let t = (performance.now() / 1000.0) as f32;
+            let length = widgets.len() as f32;
+            for (i, object) in widgets.iter_mut().enumerate() {
+                let i = i as f32;
+                let d = (i / length - 0.5) * 2.0;
+
+                let mut y = d;
+                let r = (1.0 - y * y).sqrt();
+                let mut x = (y * 100.0 + t).cos() * r;
+                let mut z = (y * 100.0 + t).sin() * r;
+
+                x += (y * 1.25 + t * 2.50).cos() * 0.5;
+                y += (z * 1.25 + t * 2.00).cos() * 0.5;
+                z += (x * 1.25 + t * 3.25).cos() * 0.5;
+                object.transform.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
+//            object.transform.set_position(Vector3::new(0.0, 0.0, 0.0));
+                object.transform.update();
+
+//            let faster_t = t * 100.0;
+//            let r = (i +   0.0 + faster_t) as u8 % 255;
+//            let g = (i +  85.0 + faster_t) as u8 % 255;
+//            let b = (i + 170.0 + faster_t) as u8 % 255;
+//            set_gradient_bg(&object.dom, &r.into(), &g.into(), &b.into());
+            }
+        }
+
+
+
     }
 
 

@@ -25,21 +25,21 @@ use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 
 
-// ===========
-// === VAO ===
-// ===========
+// =========================
+// === VertexArrayObject ===
+// =========================
 
 /// A safe wrapper for WebGL VertexArrayObject. It implements `drop` which deletes the VAO from
 /// GPU memory as soon as this object is dropped.
 #[derive(Debug)]
-pub struct VAO {
+pub struct VertexArrayObject {
     context : Context,
     vao     : WebGlVertexArrayObject,
 }
 
 // === Public API ===
 
-impl VAO {
+impl VertexArrayObject {
     /// Creates a new VAO instance.
     pub fn new(context:&Context) -> Self {
         let context = context.clone();
@@ -58,7 +58,7 @@ impl VAO {
 
 // === Private API ===
 
-impl VAO {
+impl VertexArrayObject {
     fn bind(&self) {
         self.context.bind_vertex_array(Some(&self.vao));
     }
@@ -70,7 +70,7 @@ impl VAO {
 
 // === Instances ===
 
-impl Drop for VAO {
+impl Drop for VertexArrayObject {
     fn drop(&mut self) {
         self.context.delete_vertex_array(Some(&self.vao));
     }
@@ -97,7 +97,7 @@ pub struct Mesh<OnDirty> {
     pub material_dirty : MaterialDirty <OnDirty>,
     pub logger         : Logger,
     context            : Context,
-    vao                : Option<VAO>,
+    vao                : Option<VertexArrayObject>,
 }
 
 // === Types ===
@@ -169,7 +169,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     /// Creates a new VertexArrayObject, discovers all variable bindings from material to geometry,
     /// and initializes the VAO with the bindings.
     fn init_vao(&mut self) {
-        self.vao = Some(VAO::new(&self.context));
+        self.vao = Some(VertexArrayObject::new(&self.context));
         self.with_program(|program|{
             let var_bindings = self.discover_variable_bindings();
             for (variable,opt_scope_type) in &var_bindings {
