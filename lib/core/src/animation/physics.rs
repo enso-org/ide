@@ -25,7 +25,7 @@ impl DragProperties {
 // === Getters ===
 
 impl DragProperties {
-    pub fn amount(&self) -> f32 {
+    pub fn amount(self) -> f32 {
         self.amount
     }
 }
@@ -168,9 +168,9 @@ impl PhysicsProperties {
 // === Getters ===
 
 impl PhysicsProperties {
-    pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics.clone() }
-    pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring.clone() }
-    pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag.clone() }
+    pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics }
+    pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring }
+    pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag }
 }
 
 // === Setters ===
@@ -211,7 +211,7 @@ fn simulate_kinematics(properties:&mut KinematicsProperties, dt:f32) {
 }
 
 /// Simulate dragging on `KinematicProperties`.
-fn simulate_dragging(kinematics:&mut KinematicsProperties, drag:&DragProperties) {
+fn simulate_dragging(kinematics:&mut KinematicsProperties, drag:DragProperties) {
     let velocity = kinematics.velocity();
     let speed    = velocity.norm();
     kinematics.set_velocity(velocity / (1.0 + drag.amount() * speed));
@@ -239,7 +239,7 @@ impl PhysicsSimulator {
             properties.mod_kinematics(|mut kinematics| {
                 kinematics.set_position(object.position());
                 simulate_spring(&mut kinematics, &spring);
-                simulate_dragging(&mut kinematics, &drag);
+                simulate_dragging(&mut kinematics, drag);
                 simulate_kinematics(&mut kinematics, delta_time);
             });
             object.set_position(properties.kinematics().position());
