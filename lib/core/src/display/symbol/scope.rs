@@ -128,12 +128,19 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            for i in 0..self.buffers.len() {
-                if self.buffer_dirty.check(&i) {
+            if self.shape_dirty.check() {
+                for i in 0..self.buffers.len() {
                     self.buffers[i].update()
                 }
+            } else {
+                for i in 0..self.buffers.len() {
+                    if self.buffer_dirty.check(&i) {
+                        self.buffers[i].update()
+                    }
+                }
             }
-            self.buffer_dirty.unset_all()
+            self.shape_dirty.unset();
+            self.buffer_dirty.unset_all();
         })
     }
 

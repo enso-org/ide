@@ -58,7 +58,7 @@ macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
 
 // === Callbacks ===
 
-pub type BufferDirty    <Callback> = dirty::SharedRange<usize,Callback>;
+pub type BufferDirty <Callback> = dirty::SharedRange<usize,Callback>;
 pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
 
 closure! {
@@ -106,37 +106,37 @@ BufferData<T,OnSet,OnResize> {
 
 impl<T:Item,OnSet,OnResize>
 BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
-pub fn as_prim(&self) -> &[Prim<T>] {
-    <T as Item>::to_prim_buffer(&self.buffer.data)
-}
+
+    pub fn as_prim_buffer(&self) -> &[Prim<T>] {
+        <T as Item>::to_prim_buffer(&self.buffer.data)
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-
-            let data = self.as_prim();
+            let data = self.as_prim_buffer();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
-            Self::buffer_data(&self.context,data,&None);
-            // TODO finish
-
-            {
-//            let range: &Option<RangeInclusive<usize>> = &self.buffer_dirty.borrow().data.range;
-//            println!("{:?}", range);
+            if self.resize_dirty.check() {
+                self.buffer_data(&self.context,data,&None);
+            } else if self.buffer_dirty.check_all() {
+                let range = &self.buffer_dirty.borrow().data.range;
+                self.buffer_data(&self.context,data,range);
             }
-
             self.buffer_dirty.unset_all();
-            self.resize_dirty.unset_all();
+            self.resize_dirty.unset();
         })
     }
 
-    fn buffer_data(context:&Context, data:&[T::Prim], opt_range:&Option<RangeInclusive<usize>>) {
-        // Note that `js_buffer_view` is somewhat dangerous (hence the
-        // `unsafe`!). This is creating a raw view into our module's
-        // `WebAssembly.Memory` buffer, but if we allocate more pages for
-        // ourself (aka do a memory allocation in Rust) it'll cause the buffer
-        // to change, causing the resulting js array to be invalid.
+    fn buffer_data(&self, context:&Context, data:&[T::Prim], opt_range:&Option<RangeInclusive<usize>>) {
+        // Note that `js_buffer_view` is somewhat dangerous (hence the `unsafe`!). This is creating
+        // a raw view into our module's `WebAssembly.Memory` buffer, but if we allocate more pages
+        // for ourself (aka do a memory allocation in Rust) it'll cause the buffer to change,
+        // causing the resulting js array to be invalid.
         //
-        // As a result, after `js_buffer_view` we have to be very careful not to
-        // do any memory allocations before it's dropped.
+        // As a result, after `js_buffer_view` we have to be very careful not to do any memory
+        // allocations before it's dropped.
+
+        self.logger.info(|| format!("Setting buffer data."));
 
         match opt_range {
             None => unsafe {
@@ -145,13 +145,16 @@ pub fn as_prim(&self) -> &[Prim<T>] {
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
             }
             Some(range) => {
-                let start  = *range.start() as u32;
-                let end    = *range.end()   as u32;
-                let length = end - start + 1;
+                let item_byte_size  = <T as Item>::gl_item_byte_size() as u32;
+                let item_count      = <T as Item>::item_count() as u32;
+                let start           = *range.start() as u32;
+                let end             = *range.end()   as u32;
+                let length          = (end - start + 1) * item_count;
+                let dst_byte_offset = (item_byte_size * start) as i32;
                 unsafe {
                     let js_array = <T as Item>::js_buffer_view(&data);
-                    context.buffer_data_with_array_buffer_view_and_src_offset_and_length
-                    (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW, start, length);
+                    context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
+                    (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start,length)
                 }
             }
         }
@@ -163,16 +166,16 @@ pub fn as_prim(&self) -> &[Prim<T>] {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_size = <T as Item>::gl_item_byte_size() as i32;
-        let item_type = <T as Item>::gl_item_type();
-        let rows      = <T as Item>::rows() as i32;
-        let cols      = <T as Item>::cols() as i32;
-        let col_size  = item_size * rows;
-        let stride    = col_size  * cols;
-        let normalize = false;
+        let item_byte_size = <T as Item>::gl_item_byte_size() as i32;
+        let item_type      = <T as Item>::gl_item_type();
+        let rows           = <T as Item>::rows() as i32;
+        let cols           = <T as Item>::cols() as i32;
+        let col_byte_size  = item_byte_size * rows;
+        let stride         = col_byte_size  * cols;
+        let normalize      = false;
         for col in 0..cols {
             let lloc = loc + col as u32;
-            let off  = col * col_size;
+            let off  = col * col_byte_size;
             self.context.enable_vertex_attrib_array(lloc);
             self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
             if instanced {

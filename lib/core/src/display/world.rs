@@ -125,14 +125,14 @@ impl World {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-//        if self.workspace_dirty.check_all() {
-//            group!(self.logger, "Updating.", {
+        if self.workspace_dirty.check_all() {
+            group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;
         self.workspaces.iter_mut().for_each(|t| t.update(fonts));
-//            });
-//        }
+            });
+        }
     }
 
     // [Adam Obuchowicz]

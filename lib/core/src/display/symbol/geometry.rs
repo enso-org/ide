@@ -137,7 +137,7 @@ impl<OnDirty: Callback0> Geometry<OnDirty> {
                 let status_mod = ScopeType::$uname;
                 let scs_dirty  = scopes_dirty.clone_rc();
                 let callback   = scope_on_change(scs_dirty, status_mod);
-                let $name      = $cls::new(&context,sub_logger, callback);
+                let $name      = $cls::new(&context,sub_logger,callback);
             )*}}
             new_scope!(VarScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
             new_scope!(VarScope {object}{Object});

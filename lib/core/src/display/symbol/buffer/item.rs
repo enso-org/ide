@@ -230,10 +230,8 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
-        unsafe {
-            let len = buffer.len() * Self::item_count();
-            std::slice::from_raw_parts(buffer.as_ptr().cast(), len)
-        }
+        let len = buffer.len() * Self::item_count();
+        unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast(), len) }
     }
 
     fn to_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Prim] {

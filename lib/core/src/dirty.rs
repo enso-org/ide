@@ -110,14 +110,14 @@ HasUnsetAll for DirtyFlag<T,OnSet> {
 
 // === Check ===
 
-impl<T:DirtyFlagOps0,OnSet:Callback0>
+impl<T:DirtyFlagOps0,OnSet>
 HasCheck0 for DirtyFlag<T,OnSet> {
     fn check(&self) -> bool {
         self.data.check()
     }
 }
 
-impl<T:DirtyFlagOps1,OnSet:Callback0>
+impl<T:DirtyFlagOps1,OnSet>
 HasCheck1 for DirtyFlag<T,OnSet> {
     fn check(&self, arg: &Self::Arg) -> bool {
         self.data.check(arg)
@@ -243,12 +243,12 @@ HasCheckAll for SharedDirtyFlag<T,OnSet> {
 
 // === Check ===
 
-impl<T:DirtyFlagOps0,OnSet:Callback0>
+impl<T:DirtyFlagOps0,OnSet>
 HasCheck0 for SharedDirtyFlag<T,OnSet> {
     fn check (&self) -> bool { self.borrow().check()   }
 }
 
-impl<T:DirtyFlagOps1,OnSet:Callback0>
+impl<T:DirtyFlagOps1,OnSet>
 HasCheck1 for SharedDirtyFlag<T,OnSet> {
     fn check (&self, arg:&Arg<T>) -> bool { self.borrow().check(arg)   }
 }

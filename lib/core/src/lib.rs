@@ -90,7 +90,7 @@ mod example_01 {
         let transform1 = transform.get(inst_1_ix);
 //        let transform2 = transform.get(inst_2_ix);
 
-        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
 //        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
 
 
@@ -146,6 +146,7 @@ mod example_01 {
         let make_widget = |scope: &mut VarScope| {
             let inst_1_ix = scope.add_instance();
             let transform1 = transform.get(inst_1_ix);
+//            transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 0.0,0.0,0.0));}); // DELETEME
             Widget::new(Logger::new("widget"),transform1)
         };
 
@@ -157,7 +158,7 @@ mod example_01 {
 
 
         let mut widgets: Vec<Widget> = default();
-        let count = 100;
+        let count = 1000;
         for _ in 0 .. count {
             let widget = make_widget(inst_scope);
             widgets.push(widget);
