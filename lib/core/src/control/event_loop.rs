@@ -7,9 +7,11 @@ use crate::system::web;
 use wasm_bindgen::prelude::Closure;
 
 
+
 // =================
 // === EventLoop ===
 // =================
+
 
 // === Definition ===
 
@@ -36,7 +38,7 @@ impl EventLoop {
     /// Init the event loop.
     fn init(self) -> Self {
         let data = Rc::downgrade(&self.rc);
-        let main = move || { data.upgrade().map(|t| t.borrow_mut().run()); };
+        let main = move |_| { data.upgrade().map(|t| t.borrow_mut().run()); };
         with(self.borrow_mut(), |mut data| {
             data.main = Some(Closure::new(main));
             data.run();
@@ -57,6 +59,8 @@ impl From<Rc<RefCell<EventLoopData>>> for EventLoop {
     }
 }
 
+
+
 // =====================
 // === EventLoopData ===
 // =====================
@@ -65,7 +69,7 @@ impl From<Rc<RefCell<EventLoopData>>> for EventLoop {
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct EventLoopData {
-    pub main      : Option<Closure<dyn FnMut()>>,
+    pub main      : Option<Closure<dyn FnMut(f32)>>,
     pub main_id   : i32,
     pub callbacks : CallbackRegistry,
 }

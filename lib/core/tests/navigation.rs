@@ -13,8 +13,9 @@ mod tests {
     use basegl::display::rendering::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
-    use web_test::*;
     use basegl::display::navigation::navigator::Navigator;
+    use basegl::traits::HasPosition;
+    use web_test::*;
 
     use nalgebra::{Vector3, zero};
     use basegl::display::navigation::physics::{KinematicProperties, PhysicsSimulator};
@@ -46,7 +47,7 @@ mod tests {
             let mut object = object.expect("Couldn't create div");
             let (x, y)     = positions[i];
             object.set_dimensions(width, height);
-            object.set_position(width * x, height * y, 0.0);
+            object.set_position(Vector3::new(width * x, height * y, 0.0));
             let (r, g, b) = colors[i];
             let color = format!("rgb({}, {}, {})", r, g, b);
             object.dom.set_property_or_panic("background-color", color);
@@ -74,13 +75,13 @@ mod tests {
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;
         let z = y * camera.get_y_scale();
-        *camera.position_mut() = Vector3::new(x, y, z);
+        camera.set_position(Vector3::new(x, y, z));
 
         let zoom_speed    = 6.0;
-        let navigator     = Navigator::new(&renderer.container, *camera.position(), zoom_speed);
+        let navigator     = Navigator::new(&renderer.container, camera.position(), zoom_speed);
         let mut navigator = navigator.expect("Couldn't create navigator");
 
-        let mut kinematics   = KinematicProperties::new(*camera.position(), zero(), zero());
+        let mut kinematics   = KinematicProperties::new(camera.position(), zero(), zero());
         let drag             = 1.0;
         let spring_coeff     = 1.5;
         let mass             = 20.0;
@@ -100,7 +101,7 @@ mod tests {
                 simulator.simulate_dragging(&mut kinematics, drag, dt);
                 simulator.simulate_kinematics(&mut kinematics, dt);
             });
-            *camera.position_mut() = kinematics.position;
+            camera.set_position(kinematics.position);
         })
     }
 

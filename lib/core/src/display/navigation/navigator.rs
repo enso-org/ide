@@ -6,6 +6,7 @@ use crate::system::web::Result;
 use crate::display::rendering::Camera;
 use crate::display::rendering::CameraType;
 use crate::display::rendering::DOMContainer;
+use crate::traits::HasPosition;
 
 use nalgebra::Vector3;
 use nalgebra::Vector2;

@@ -2,8 +2,7 @@
 
 pub mod resize_observer;
 pub mod intersection_observer;
-mod animationframeloop;
-pub use animationframeloop::AnimationFrameLoop;
+pub mod animation_frame_loop;
 
 use basegl_prelude::*;
 
@@ -262,7 +261,7 @@ pub fn get_webgl2_context
     context.dyn_into().map_err(|_| no_webgl())
 }
 
-pub fn request_animation_frame(f:&Closure<dyn FnMut()>) -> Result<i32> {
+pub fn request_animation_frame(f:&Closure<dyn FnMut(f32)>) -> Result<i32> {
     let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))
 }
