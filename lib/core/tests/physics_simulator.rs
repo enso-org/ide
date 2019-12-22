@@ -10,7 +10,7 @@ mod tests {
     use basegl::display::rendering::html::{HTMLObject, HTMLRenderer};
     use basegl::system::web::StyleSetter;
     use basegl::animation::physics::{DragProperties, SpringProperties, KinematicsProperties};
-    use basegl::animation::Animator;
+    use basegl::animation::FixedStepAnimator;
     use basegl::animation::physics::{PhysicsSimulator, PhysicsProperties};
     use basegl::traits::HasPosition;
     use web_test::*;
@@ -41,18 +41,18 @@ mod tests {
         let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
 
-        let mass           = 1.0;
+        let mass           = 2.0;
         let kinematics     = KinematicsProperties::new(zero(), zero(), zero(), mass);
         let coefficient    = 10.0;
         let fixed_point    = zero();
         let spring         = SpringProperties::new(coefficient, fixed_point);
-        let drag           = DragProperties::new(0.01);
+        let drag           = DragProperties::new(0.8);
         let mut properties = PhysicsProperties::new(kinematics, spring, drag);
         let simulator      = PhysicsSimulator::new(object, properties.clone());
 
         // Updates spring's fixed point every two seconds.
         let every = 2.0;
-        let animator  = Animator::new(1.0 / every, move |_| {
+        let animator  = FixedStepAnimator::new(1.0 / every, move |_| {
             let x = 32.0 * (random() - 0.5) as f32;
             let y = 24.0 * (random() - 0.5) as f32;
             let z = 0.0;

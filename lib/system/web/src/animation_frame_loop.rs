@@ -5,6 +5,13 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::Closure;
 
 
+// =======================
+// === FnAnimationLoop ===
+// =======================
+
+pub trait FnAnimationLoop = FnMut(f32) + 'static;
+
+
 
 // ==========================
 // === AnimationFrameData ===
@@ -26,7 +33,7 @@ pub struct AnimationFrameLoop {
 // ==========================
 
 impl AnimationFrameLoop {
-    pub fn new<F:FnMut(f32) + 'static>(mut f:F) -> Self {
+    pub fn new<F:FnAnimationLoop>(mut f:F) -> Self {
         let nop_func       = Box::new(|_| ()) as Box<dyn FnMut(f32)>;
         let nop_closure    = Closure::once(nop_func);
         let callback       = Rc::new(RefCell::new(nop_closure));

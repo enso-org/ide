@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::BenchContainer;
 pub use crate::system::web::get_performance;
-pub use crate::system::web::AnimationFrameLoop;
+pub use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
