@@ -10,6 +10,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 
+
 // ===================
 // === BencherCell ===
 // ===================
@@ -44,6 +45,7 @@ impl BencherCell {
         self.container.time.set_inner_html(&display);
     }
 }
+
 
 
 // ===================
@@ -90,6 +92,8 @@ impl BencherData {
         self.borrow().anim_loop.is_some()
     }
 }
+
+
 
 // ===============
 // === Bencher ===

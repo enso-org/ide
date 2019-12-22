@@ -2,11 +2,15 @@ use crate::system::web::AnimationFrameLoop;
 
 use nalgebra::zero;
 
+
+
 // ===================
 // === FnAnimation ===
 // ===================
 
 pub trait FnAnimation = FnMut(f32) + 'static;
+
+
 
 // ====================
 // === AnimatorData ===
@@ -28,6 +32,8 @@ impl AnimatorData {
         Self { closure,previous_time,step_duration,accumulated_time }
     }
 }
+
+
 
 // ================
 // === Animator ===

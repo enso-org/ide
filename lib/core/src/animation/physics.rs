@@ -6,6 +6,8 @@ use nalgebra::Vector3;
 use nalgebra::zero;
 use crate::traits::HasPosition;
 
+
+
 // ======================
 // === DragProperties ===
 // ======================
@@ -22,6 +24,7 @@ impl DragProperties {
     }
 }
 
+
 // === Getters ===
 
 impl DragProperties {
@@ -30,6 +33,7 @@ impl DragProperties {
     }
 }
 
+
 // === Setters ===
 
 impl DragProperties {
@@ -37,6 +41,8 @@ impl DragProperties {
         self.amount = amount
     }
 }
+
+
 
 // ========================
 // === SpringProperties ===
@@ -61,6 +67,7 @@ impl SpringProperties {
     }
 }
 
+
 // === Getters ===
 
 impl SpringProperties {
@@ -68,12 +75,15 @@ impl SpringProperties {
     pub fn fixed_point(&self) -> Vector3<f32> { self.fixed_point }
 }
 
+
 // === Setters ===
 
 impl SpringProperties {
     pub fn set_coefficient(&mut self, coefficient:f32)          { self.coefficient = coefficient }
     pub fn set_fixed_point(&mut self, fixed_point:Vector3<f32>) { self.fixed_point = fixed_point }
 }
+
+
 
 // ============================
 // === KinematicProperties ===
@@ -101,6 +111,7 @@ impl KinematicsProperties {
     }
 }
 
+
 // === Getters ===
 
 impl KinematicsProperties {
@@ -108,6 +119,7 @@ impl KinematicsProperties {
     pub fn acceleration(&self) -> Vector3<f32> { self.acceleration }
     pub fn mass        (&self) -> f32          { self.mass }
 }
+
 
 // === Setters ===
 
@@ -130,6 +142,8 @@ impl HasPosition for KinematicsProperties {
     fn set_position(&mut self, position:Vector3<f32>) { self.position = position }
 }
 
+
+
 // =============================
 // === PhysicsPropertiesData ===
 // =============================
@@ -146,6 +160,8 @@ impl PhysicsPropertiesData {
         Self { kinematics,spring,drag }
     }
 }
+
+
 
 // =========================
 // === PhysicsProperties ===
@@ -165,6 +181,7 @@ impl PhysicsProperties {
     }
 }
 
+
 // === Getters ===
 
 impl PhysicsProperties {
@@ -172,6 +189,7 @@ impl PhysicsProperties {
     pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring }
     pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag }
 }
+
 
 // === Setters ===
 
@@ -189,11 +207,15 @@ impl PhysicsProperties {
     }
 }
 
+
+
 // ========================
 // === SimulationObject ===
 // ========================
 
 pub trait SimulationObject = HasPosition + 'static;
+
+
 
 // ========================
 // === PhysicsSimulator ===

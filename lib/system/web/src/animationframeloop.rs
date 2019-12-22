@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::Closure;
 
 
+
 // ==========================
 // === AnimationFrameData ===
 // ==========================
@@ -17,6 +18,7 @@ pub struct AnimationFrameLoop {
     forget : bool,
     data   : Rc<RefCell<AnimationFrameData>>
 }
+
 
 
 // ==========================

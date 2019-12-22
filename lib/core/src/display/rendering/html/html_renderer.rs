@@ -20,6 +20,12 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
+
+
+// ===================
+// === Js Bindings ===
+// ===================
+
 mod js {
     use super::*;
     #[wasm_bindgen(module = "/js/html_renderer.js")]
@@ -68,6 +74,8 @@ fn setup_camera_transform
         )
     }
 }
+
+
 
 // ========================
 // === HTMLRendererData ===

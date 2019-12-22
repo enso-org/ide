@@ -7,9 +7,11 @@ use crate::system::web;
 use wasm_bindgen::prelude::Closure;
 
 
+
 // =================
 // === EventLoop ===
 // =================
+
 
 // === Definition ===
 
@@ -56,6 +58,8 @@ impl From<Rc<RefCell<EventLoopData>>> for EventLoop {
         Self {rc}
     }
 }
+
+
 
 // =====================
 // === EventLoopData ===
