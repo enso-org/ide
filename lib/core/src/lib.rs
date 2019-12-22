@@ -11,6 +11,8 @@
 // Lints. To be refactored after this gets resolved:
 // https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
+
+/// Uncomment the following code to enable macro debugging.
 //#![feature(trace_macros)]
 //#![recursion_limit="256"]
 //trace_macros!(true);
@@ -44,8 +46,11 @@ mod example_01 {
     use crate::set_stdout;
     use crate::display::world::*;
     use crate::prelude::*;
-    use nalgebra::{Vector2, Vector3};
+    use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
+    use crate::display::symbol::display_object::*;
+    use basegl_system_web::Logger;
+
 
     #[wasm_bindgen]
     #[allow(dead_code)]
@@ -55,8 +60,8 @@ mod example_01 {
         init(&mut World::new().borrow_mut());
     }
 
-    type Position = SharedBuffer<Vector2<f32>>;
-    type Color    = SharedBuffer<Vector3<f32>>;
+    type Position    = SharedBuffer<Vector3<f32>>;
+    type ModelMatrix = SharedBuffer<Matrix4<f32>>;
 
     #[derive(Debug)]
     pub struct Rect {
@@ -73,20 +78,116 @@ mod example_01 {
         let scopes    : &mut Scopes    = &mut geo.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
         let pos       : Position       = pt_scope.add_buffer("position");
-        let color     : Color          = pt_scope.add_buffer("color");
+        let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
+        let uv           : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("uv");
+        let bbox         : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
 
-        let inst_ix = pt_scope.add_instance();
+        let p1_ix = pt_scope.add_instance();
+        let p2_ix = pt_scope.add_instance();
+        let p3_ix = pt_scope.add_instance();
+        let p4_ix = pt_scope.add_instance();
 
-        let rect = Rect {
-            position : pos.get(inst_ix),
-            color    : color.get(inst_ix)
-        };
+        let p1 = pos.get(p1_ix);
+        let p2 = pos.get(p2_ix);
+        let p3 = pos.get(p3_ix);
+        let p4 = pos.get(p4_ix);
 
-        world.on_frame(move |_| on_frame(&rect)).forget();
+
+        p1.set(Vector3::new(-0.0, -0.0, 0.0));
+        p2.set(Vector3::new( 0.0, -0.0, 0.0));
+        p3.set(Vector3::new( 0.0,  0.0, 0.0));
+        p4.set(Vector3::new( 0.0,  0.0, 0.0));
+
+
+        let uv1 = uv.get(p1_ix);
+        let uv2 = uv.get(p2_ix);
+        let uv3 = uv.get(p3_ix);
+        let uv4 = uv.get(p4_ix);
+
+        uv1.set(Vector2::new(0.0, 0.0));
+        uv2.set(Vector2::new(0.0, 1.0));
+        uv3.set(Vector2::new(1.0, 0.0));
+        uv4.set(Vector2::new(1.0, 1.0));
+
+        let bbox1 = bbox.get(p1_ix);
+        let bbox2 = bbox.get(p2_ix);
+        let bbox3 = bbox.get(p3_ix);
+        let bbox4 = bbox.get(p4_ix);
+
+        bbox1.set(Vector2::new(20.0, 20.0));
+        bbox2.set(Vector2::new(20.0, 20.0));
+        bbox3.set(Vector2::new(20.0, 20.0));
+        bbox4.set(Vector2::new(20.0, 20.0));
+
+
+        let mm1 = model_matrix.get(p1_ix);
+        let mm2 = model_matrix.get(p2_ix);
+        let mm3 = model_matrix.get(p3_ix);
+        let mm4 = model_matrix.get(p4_ix);
+
+        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
+//    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
+//
+//    mm1.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm2.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm3.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//
+//    mm4.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm5.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+//    mm6.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+
+
+//    println!("{:?}",pos);
+//    println!("{:?}",pos.borrow().as_prim());
+
+
+
+
+
+        let w1 = Widget::new(Logger::new("widget1"),mm1,mm2,mm3,mm4);
+
+        let camera = workspace.scene.camera.clone();
+        world.on_frame(move |_| on_frame(&camera,&w1)).forget();
+
     }
 
-    pub fn on_frame(rect: &Rect) {
-        rect.position.modify(|p| p.x += 1.0)
+    pub fn on_frame(camera:&Camera2D, widget:&Widget) {
+        camera.mod_position(|p| {
+            p.x -= 0.1;
+            p.z += 1.0
+        });
+        widget.transform.mod_position(|p| p.y += 0.5);
+        widget.transform.update();
+    }
+
+
+    pub struct Widget {
+        pub transform : DisplayObjectData,
+        pub mm1       : Var<Matrix4<f32>>,
+        pub mm2       : Var<Matrix4<f32>>,
+        pub mm3       : Var<Matrix4<f32>>,
+        pub mm4       : Var<Matrix4<f32>>,
+    }
+
+    impl Widget {
+        pub fn new(logger:Logger, mm1:Var<Matrix4<f32>>, mm2:Var<Matrix4<f32>>, mm3:Var<Matrix4<f32>>, mm4:Var<Matrix4<f32>>) -> Self {
+            let transform = DisplayObjectData::new(logger);
+            let mm1_cp = mm1.clone();
+            let mm2_cp = mm2.clone();
+            let mm3_cp = mm3.clone();
+            let mm4_cp = mm4.clone();
+            transform.set_on_updated(move |t| {
+                mm1_cp.set(t.matrix().clone());
+                mm2_cp.set(t.matrix().clone());
+                mm3_cp.set(t.matrix().clone());
+                mm4_cp.set(t.matrix().clone());
+            });
+            Self {transform,mm1,mm2,mm3,mm4}
+        }
     }
 }
 
@@ -99,19 +200,19 @@ mod example_03 {
 
     use crate::utils;
     use crate::display::world::{World,Workspace,Add};
-    use crate::text::font::FontRenderInfo;
-    use crate::{Area,Color};
+    use crate::text::font::FontId;
+    use crate::Color;
+    use crate::dirty::traits::*;
 
-    use crate::dirty::traits::SharedSetter1;
-    use basegl_core_embedded_fonts::EmbeddedFonts;
     use itertools::iproduct;
+    use nalgebra::{Point2,Vector2};
 
     const FONT_NAMES : &[&str] = &
-    [ "DejaVuSans"
-    , "DejaVuSansMono"
-    , "DejaVuSansMono-Bold"
-    , "DejaVuSerif"
-    ];
+        [ "DejaVuSans"
+        , "DejaVuSansMono"
+        , "DejaVuSansMono-Bold"
+        , "DejaVuSerif"
+        ];
 
     const SIZES : &[f64] = &[0.024, 0.032, 0.048];
 
@@ -122,41 +223,44 @@ mod example_03 {
         basegl_core_msdf_sys::run_once_initialized(|| {
             let mut world_ref = World::new();
             let workspace_id  = world_ref.add(Workspace::build("canvas"));
-            let world         = &mut world_ref.borrow_mut();
-            let workspace     = &mut world[workspace_id];
-            let font_base     = EmbeddedFonts::create_and_fill();
-            let font_creator  = |name:&&'static str| FontRenderInfo::from_embedded(&font_base,name);
-            let fonts_iter    = FONT_NAMES.iter().map(font_creator);
-            let mut fonts     = fonts_iter.collect::<Box<[FontRenderInfo]>>();
+            let world :&mut World = &mut world_ref.borrow_mut();
+            let workspace     = &mut world.workspaces[workspace_id];
+            let fonts         = &mut world.fonts;
+            let font_ids_iter = FONT_NAMES.iter().map(|name| fonts.load_embedded_font(name).unwrap());
+            let font_ids      = font_ids_iter.collect::<Box<[FontId]>>();
 
-            let all_cases     = iproduct!(0..fonts.len(), 0..SIZES.len());
+            let all_cases     = iproduct!(0..font_ids.len(), 0..SIZES.len());
 
             for (font, size) in all_cases {
 
                 let x = -0.95 + 0.6 * (size as f64);
                 let y = 0.90 - 0.45 * (font as f64);
-                let area = Area {
-                    left   : x,
-                    right  : x + 0.5,
-                    top    : y,
-                    bottom : y - 0.2
-                };
                 let text_compnent = crate::text::TextComponentBuilder {
+                    workspace,
+                    fonts,
                     text : "To be, or not to be, that is the question:\n\
                         Whether 'tis nobler in the mind to suffer\n\
                         The slings and arrows of outrageous fortune,\n\
                         Or to take arms against a sea of troubles\n\
                         And by opposing end them."
                         .to_string(),
-                    font     : &mut fonts[font],
-                    scroll_position: nalgebra::Vector2::new(0.0, 0.05),
-                    size     : SIZES[size],
+                    font_id: font_ids[font],
+                    position: Point2::new(x, y),
+                    size: Vector2::new(0.5, 0.2),
+                    text_size: SIZES[size],
                     color    : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
-                    area
-                }.build(workspace);
+                }.build();
                 workspace.text_components.push(text_compnent);
             }
             world.workspace_dirty.set(workspace_id);
+
+            world.on_frame(move |w| {
+                let space = &mut w.workspaces[workspace_id];
+                for text_component in &mut space.text_components {
+                    text_component.scroll(Vector2::new(0.0,0.00001));
+                }
+                w.workspace_dirty.set(workspace_id);
+            }).forget();
         });
     }
 }
