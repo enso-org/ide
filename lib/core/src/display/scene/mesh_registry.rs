@@ -13,7 +13,7 @@ use crate::promote;
 use crate::promote_all;
 use crate::promote_mesh_types;
 use eval_tt::*;
-use crate::display::symbol::display_object::Camera2D;
+use crate::display::camera::Camera2D;
 
 
 // ====================

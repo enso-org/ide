@@ -20,7 +20,7 @@ use crate::object::geometry::primitive::mesh::buffer::item::ContextUniformOps;
 use eval_tt::*;
 
 use crate::object::geometry::primitive::mesh::buffer::IsBuffer;
-use crate::display::symbol::display_object::Camera2D;
+use crate::display::camera::Camera2D;
 use material::shader;
 
 use web_sys::WebGlVertexArrayObject;

@@ -51,6 +51,7 @@ mod example_01 {
     use crate::display::symbol::display_object::*;
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
+    use crate::display::symbol::DisplayObjectData;
 
 
     #[wasm_bindgen]
