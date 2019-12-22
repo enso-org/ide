@@ -1,3 +1,6 @@
+pub mod buffer;
+pub mod scope;
+
 use crate::prelude::*;
 
 use crate::backend::webgl::Context;
@@ -5,7 +8,6 @@ use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::symbol::scope;
 use crate::promote_all;
 use crate::promote_scope_types;
 use crate::promote;
@@ -59,7 +61,7 @@ use num_enum::IntoPrimitive;
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Geometry<OnDirty> {
+pub struct Mesh<OnDirty> {
     #[shrinkwrap(main_field)]
     pub scopes       : Scopes      <OnDirty>,
     pub scopes_dirty : ScopesDirty <OnDirty>,
@@ -107,7 +109,7 @@ promote_scope_types!{ [ScopeOnChange] scope }
 #[macro_export]
 macro_rules! promote_geometry_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
-    promote! {$($args)* [Geometry,Scopes,VarScope,UniformScope,GlobalScope]}
+    promote! {$($args)* [Mesh,Scopes,VarScope,UniformScope,GlobalScope]}
 };}
 
 // === Callbacks ===
@@ -125,7 +127,7 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
     }
 )*}}
 
-impl<OnDirty: Callback0> Geometry<OnDirty> {
+impl<OnDirty: Callback0> Mesh<OnDirty> {
     /// Creates new geometry with attached dirty callback.
     pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         let scopes_logger = logger.sub("scopes_dirty");

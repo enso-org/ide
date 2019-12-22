@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::glsl;
 use crate::data::container::Add;
-use crate::display::symbol::material::shader::glsl::{Type, PrimType};
+use crate::object::material::shader::glsl::{Type, PrimType};
 use code_builder::HasCodeRepr;
 use std::collections::BTreeMap;
 

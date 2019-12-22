@@ -6,7 +6,7 @@ use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::symbol::mesh;
+use crate::object;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::promote;
@@ -26,7 +26,7 @@ use crate::display::symbol::display_object::Camera2D;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct MeshRegistry <OnDirty> {
-    pub meshes     : OptVec<Mesh<OnDirty>>,
+    pub meshes     : OptVec<Object<OnDirty>>,
     pub mesh_dirty : MeshDirty<OnDirty>,
     pub logger     : Logger,
     context        : Context
@@ -34,9 +34,9 @@ pub struct MeshRegistry <OnDirty> {
 
 // === Types ===
 
-pub type MeshID              = usize;
-pub type MeshDirty <OnDirty> = dirty::SharedSet<MeshID, OnDirty>;
-promote_mesh_types!{ [OnMeshChange] mesh }
+pub type ObjectId            = usize;
+pub type MeshDirty <OnDirty> = dirty::SharedSet<ObjectId, OnDirty>;
+promote_mesh_types!{ [OnMeshChange] object }
 
 #[macro_export]
 macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
@@ -47,7 +47,7 @@ macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
 // === Callbacks ===
 
 closure! {
-fn mesh_on_change<C:Callback0> (dirty:MeshDirty<C>, ix:MeshID) -> OnMeshChange {
+fn mesh_on_change<C:Callback0> (dirty:MeshDirty<C>, ix:ObjectId) -> OnMeshChange {
     || dirty.set(ix)
 }}
 
@@ -64,14 +64,14 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
         Self {meshes,mesh_dirty,logger,context}
     }
     /// Creates a new mesh instance.
-    pub fn new_mesh(&mut self) -> MeshID {
+    pub fn new_mesh(&mut self) -> ObjectId {
         let mesh_dirty = self.mesh_dirty.clone();
         let logger     = &self.logger;
         let context    = &self.context;
         self.meshes.insert_with_ix(|ix| {
             let on_dirty   = mesh_on_change(mesh_dirty, ix);
             let logger     = logger.sub(format!("mesh{}",ix));
-            Mesh::new(context,logger,on_dirty)
+            Object::new(context,logger,on_dirty)
         })
     }
     /// Check dirty flags and update the state accordingly.
@@ -94,7 +94,7 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
 }
 
 impl<OnDirty> Index<usize> for MeshRegistry<OnDirty> {
-    type Output = Mesh<OnDirty>;
+    type Output = Object<OnDirty>;
     fn index(&self, ix:usize) -> &Self::Output {
         self.meshes.index(ix)
     }

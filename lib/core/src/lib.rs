@@ -26,6 +26,7 @@ pub mod data;
 pub mod math;
 pub mod dirty;
 pub mod display;
+pub mod object;
 pub mod text;
 pub use basegl_prelude as prelude;
 pub mod backend {
@@ -69,9 +70,9 @@ mod example_01 {
     fn init(world: &mut World) {
         let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
         let workspace : &mut Workspace = &mut world[wspace_id];
-        let mesh_id   : MeshID         = workspace.new_mesh();
-        let mesh      : &mut Mesh      = &mut workspace[mesh_id];
-        let geo       : &mut Geometry  = &mut mesh.geometry;
+        let sym_id    : ObjectId = workspace.new_mesh();
+        let mesh      : &mut Object    = &mut workspace[sym_id];
+        let geo       : &mut Mesh      = &mut mesh.geometry;
         let scopes    : &mut Scopes    = &mut geo.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
         let inst_scope: &mut VarScope  = &mut scopes.instance;

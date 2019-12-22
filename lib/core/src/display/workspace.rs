@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub use crate::display::mesh_registry::MeshID;
+pub use crate::display::mesh_registry::ObjectId;
 
 use crate::backend::webgl;
 use crate::closure;
@@ -195,7 +195,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     }
 
     /// Create a new mesh instance.
-    pub fn new_mesh(&mut self) -> MeshID {
+    pub fn new_mesh(&mut self) -> ObjectId {
         self.mesh_registry.new_mesh()
     }
 
@@ -243,7 +243,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
 
 
 impl<OnDirty> Index<usize> for Workspace<OnDirty> {
-    type Output = Mesh<OnDirty>;
+    type Output = Object<OnDirty>;
     fn index(&self, ix: usize) -> &Self::Output {
         self.mesh_registry.index(ix)
     }

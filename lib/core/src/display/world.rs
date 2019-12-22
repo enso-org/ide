@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 pub use crate::data::container::*;
-pub use crate::display::workspace::MeshID;
+pub use crate::display::workspace::ObjectId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;

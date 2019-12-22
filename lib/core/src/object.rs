@@ -1,3 +1,6 @@
+pub mod geometry;
+pub mod material;
+
 use crate::prelude::*;
 
 use crate::backend::webgl;
@@ -6,20 +9,19 @@ use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::symbol::geometry;
-use crate::display::symbol::material;
+use crate::object::geometry::primitive::mesh;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_geometry_types;
 use crate::promote_material_types;
 use crate::system::web::Logger;
 use crate::system::web::group;
-use crate::display::symbol::buffer::item::ContextUniformOps;
+use crate::object::geometry::primitive::mesh::buffer::item::ContextUniformOps;
 use eval_tt::*;
 
-use crate::display::symbol::buffer::IsBuffer;
+use crate::object::geometry::primitive::mesh::buffer::IsBuffer;
 use crate::display::symbol::display_object::Camera2D;
-use crate::display::symbol::material::shader;
+use material::shader;
 
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
@@ -89,9 +91,9 @@ impl Drop for VertexArrayObject {
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Mesh<OnDirty> {
+pub struct Object<OnDirty> {
     #[shrinkwrap(main_field)]
-    pub geometry       : Geometry      <OnDirty>,
+    pub geometry       : Mesh          <OnDirty>,
     pub material       : Material      <OnDirty>,
     pub geometry_dirty : GeometryDirty <OnDirty>,
     pub material_dirty : MaterialDirty <OnDirty>,
@@ -104,14 +106,14 @@ pub struct Mesh<OnDirty> {
 
 pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
 pub type MaterialDirty<Callback> = dirty::SharedBool<Callback>;
-promote_geometry_types!{ [OnGeometryChange] geometry }
+promote_geometry_types!{ [OnGeometryChange] mesh }
 promote_material_types!{ [OnGeometryChange] material }
 
 #[macro_export]
 macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_geometry_types! {$($args)*}
     crate::promote_material_types! {$($args)*}
-    promote! {$($args)* [Mesh]}
+    promote! {$($args)* [Object]}
 };}
 
 // === Callbacks ===
@@ -128,7 +130,7 @@ fn material_on_change<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialChange {
 
 // === Implementation ===
 
-impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
+impl<OnDirty:Callback0+Clone> Object<OnDirty> {
 
     /// Create new instance with the provided on-dirty callback.
     pub fn new(ctx:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
@@ -145,7 +147,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
             let geo_on_change   = geometry_on_change(geometry_dirty.clone_rc());
             let mat_on_change   = material_on_change(material_dirty.clone_rc());
             let material        = Material::new(ctx,mat_logger,mat_on_change);
-            let geometry        = Geometry::new(ctx,geo_logger,geo_on_change);
+            let geometry        = Mesh::new(ctx,geo_logger,geo_on_change);
             let vao             = default();
             Self{geometry,material,geometry_dirty,material_dirty,logger,context,vao}
         })
@@ -185,7 +187,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
                             } else {
                                 let location     = location as u32;
                                 let buffer       = &scope.buffer(&variable).unwrap();
-                                let is_instanced = scope_type == &geometry::ScopeType::Instance;
+                                let is_instanced = scope_type == &mesh::ScopeType::Instance;
                                 buffer.bind(webgl::Context::ARRAY_BUFFER);
                                 buffer.vertex_attrib_pointer(location, is_instanced);
                             }
@@ -197,7 +199,7 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
     }
 
     /// For each variable from the material definition, looks up its position in geometry scopes.
-    pub fn discover_variable_bindings(&self) -> Vec<(String,Option<geometry::ScopeType>)> {
+    pub fn discover_variable_bindings(&self) -> Vec<(String,Option<mesh::ScopeType>)> {
         let variables = self.material.collect_variables();
         variables.into_iter().map(|variable| {
             let target = self.geometry.lookup_variable(&variable);
@@ -255,13 +257,13 @@ impl<OnDirty:Callback0+Clone> Mesh<OnDirty> {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct SharedMesh<OnDirty> {
-    pub raw: RefCell<Mesh<OnDirty>>
+    pub raw: RefCell<Object<OnDirty>>
 }
 
 impl<OnDirty:Callback0+Clone> SharedMesh<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
     pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
-        let raw = RefCell::new(Mesh::new(context,logger, on_dirty));
+        let raw = RefCell::new(Object::new(context, logger, on_dirty));
         Self { raw }
     }
 }
