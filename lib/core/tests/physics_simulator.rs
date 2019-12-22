@@ -61,9 +61,9 @@ mod tests {
             target.set_position(position);
         });
 
-        std::mem::forget(simulator);
-        std::mem::forget(animator);
         b.iter(move || {
+            let _keep_alive = &simulator;
+            let _keep_alive = &animator;
             renderer.render(&mut camera, &scene);
         });
     }
