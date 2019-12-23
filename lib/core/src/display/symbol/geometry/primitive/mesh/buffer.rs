@@ -110,10 +110,14 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
         <T as Item>::to_prim_buffer(&self.buffer.data)
     }
 
+    pub fn as_buffer(&self) -> &[T] {
+        &self.buffer.data
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            let data = self.as_prim_buffer();
+            let data = self.as_buffer();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
             if self.resize_dirty.check() {
                 self.buffer_data(&self.context,data,&None);
@@ -126,7 +130,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
         })
     }
 
-    fn buffer_data(&self, context:&Context, data:&[T::Prim], opt_range:&Option<RangeInclusive<usize>>) {
+    fn buffer_data(&self, context:&Context, data:&[T], opt_range:&Option<RangeInclusive<usize>>) {
         // Note that `js_buffer_view` is somewhat dangerous (hence the `unsafe`!). This is creating
         // a raw view into our module's `WebAssembly.Memory` buffer, but if we allocate more pages
         // for ourself (aka do a memory allocation in Rust) it'll cause the buffer to change,
@@ -135,11 +139,13 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
         // As a result, after `js_buffer_view` we have to be very careful not to do any memory
         // allocations before it's dropped.
 
+//        let data = <T as Item>::to_prim_buffer(data);
+
         self.logger.info(|| format!("Setting buffer data."));
 
         match opt_range {
             None => unsafe {
-                let js_array = <T as Item>::js_buffer_view(&data);
+                let js_array = data.js_buffer_view();
                 context.buffer_data_with_array_buffer_view
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
             }
@@ -151,7 +157,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
                 let length          = (end - start + 1) * item_count;
                 let dst_byte_offset = (item_byte_size * start) as i32;
                 unsafe {
-                    let js_array = <T as Item>::js_buffer_view(&data);
+                    let js_array = data.js_buffer_view();
                     context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
                     (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start,length)
                 }

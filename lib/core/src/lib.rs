@@ -27,8 +27,6 @@ pub mod data;
 pub mod debug;
 pub mod display;
 
-
-pub mod math;
 pub use basegl_prelude as prelude;
 pub mod backend {
     pub use basegl_backend_webgl as webgl;
@@ -36,13 +34,15 @@ pub mod backend {
 pub mod system {
     pub use basegl_system_web as web;
 }
-pub mod utils;
+
+
 
 // ==================
 // === Example 01 ===
 // ==================
 
 mod example_01 {
+    use super::*;
     use crate::set_stdout;
     use crate::display::world::*;
     use crate::prelude::*;
@@ -57,6 +57,7 @@ mod example_01 {
     #[wasm_bindgen]
     #[allow(dead_code)]
     pub fn run_01_example() {
+        set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
         init(&mut World::new().borrow_mut());
@@ -240,9 +241,9 @@ mod example_01 {
 // ==================
 
 mod example_03 {
+    use super::*;
     use wasm_bindgen::prelude::*;
 
-    use crate::utils;
     use crate::display::world::{World,Workspace,Add};
     use crate::display::shape::text::font::FontId;
     use crate::Color;
@@ -263,7 +264,7 @@ mod example_03 {
     #[wasm_bindgen]
     #[allow(dead_code)]
     pub fn run_03_text() {
-        utils::set_panic_hook();
+        set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
             let mut world_ref = World::new();
             let workspace_id  = world_ref.add(Workspace::build("canvas"));
@@ -410,4 +411,15 @@ pub fn set_stdout() {
 pub fn set_stdout_unbuffered() {
     let printer = Printer::new(_print, false);
     std::io::set_print(Some(Box::new(printer)));
+}
+
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    //
+    // For more details see
+    // https://github.com/rustwasm/console_error_panic_hook#readme
+    #[cfg(feature = "console_error_panic_hook")]
+        console_error_panic_hook::set_once();
 }

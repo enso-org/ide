@@ -4,18 +4,16 @@ use crate::display::render::css3d::GraphicsRenderer;
 use crate::display::render::css3d::Scene;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::html::HTMLObject;
-use crate::math::utils::IntoFloat32ArrayView;
-use crate::math::utils::eps;
-use crate::math::utils::invert_y;
+use crate::display::symbol::geometry::primitive::mesh::buffer::item::JSBufferView;
 use crate::system::web::Result;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 
+use js_sys::Object;
 use nalgebra::Vector2;
 use nalgebra::Matrix4;
-
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
@@ -24,7 +22,7 @@ mod js {
     use super::*;
     #[wasm_bindgen(module = "/js/html_renderer.js")]
     extern "C" {
-        pub fn set_object_transform(dom: &JsValue, matrix_array: &JsValue);
+        pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
         pub fn setup_camera_transform
         ( dom          : &JsValue
@@ -36,12 +34,25 @@ mod js {
     }
 }
 
+/// eps is used to round very small values to 0.0 for numerical stability
+pub fn eps(value: f32) -> f32 {
+    if value.abs() < 1e-10 { 0.0 } else { value }
+}
+
+/// Inverts Matrix Y coordinates.
+/// It's equivalent to scaling by (1.0, -1.0, 1.0).
+pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
+    /// Negating the second column to invert Y.
+    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+    m
+}
+
 fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
-        let matrix_array =  matrix.into_float32_array_view();
+        let matrix_array =  matrix.js_buffer_view();
         js::set_object_transform(&dom, &matrix_array);
     }
 }
@@ -58,7 +69,7 @@ fn setup_camera_transform
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
-        let matrix_array = matrix.into_float32_array_view();
+        let matrix_array = matrix.js_buffer_view();
         js::setup_camera_transform(
             &dom,
             &near.into(),

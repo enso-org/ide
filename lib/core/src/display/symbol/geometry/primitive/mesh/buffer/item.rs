@@ -15,6 +15,29 @@ pub trait MatrixCtx<T,R,C> = where
     nalgebra::DefaultAllocator: nalgebra::allocator::Allocator<T, R, C>;
 
 
+pub trait JSBufferView {
+    /// Creates a JS typed array which is a view into wasm's linear memory at the slice specified.
+    ///
+    /// This function returns a new typed array which is a view into wasm's memory. This view does
+    /// not copy the underlying data.
+    ///
+    /// # Safety
+    ///
+    /// Views into WebAssembly memory are only valid so long as the backing buffer isn't resized in
+    /// JS. Once this function is called any future calls to `Box::new` (or malloc of any form) may
+    /// cause the returned value here to be invalidated. Use with caution!
+    ///
+    /// Additionally the returned object can be safely mutated but the input slice isn't guaranteed
+    /// to be mutable.
+    ///
+    /// Finally, the returned object is disconnected from the input slice's lifetime, so there's no
+    /// guarantee that the data is read at the right time.
+    unsafe fn js_buffer_view(&self) -> js_sys::Object;
+}
+
+
+
+
 // =============
 // === Empty ===
 // =============
@@ -34,10 +57,11 @@ impl Empty for Matrix4<f32> { fn empty() -> Self { Self::identity()           } 
 //    fn empty() -> Self { Self::repeat(default()) }
 //}
 
+
+
 // =================
 // === IsUniform ===
 // =================
-
 
 pub type UniformLocation = WebGlUniformLocation;
 
@@ -88,9 +112,11 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 
 // === Definition ===
 
+pub trait JSBufferViewArr = Sized where [Self]:JSBufferView;
+
 /// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
-pub trait Item: Empty {
+pub trait Item : Empty + JSBufferViewArr {
     type Prim;
     type Rows: DimName;
     type Cols: DimName;
@@ -129,27 +155,6 @@ pub trait Item: Empty {
 
     fn to_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Prim]
         where Self: std::marker::Sized;
-
-    /// Creates a JS typed array which is a view into wasm's linear
-    /// memory at the slice specified.
-    ///
-    /// This function returns a new typed array which is a view into
-    /// wasm's memory. This view does not copy the underlying data.
-    ///
-    /// # Safety
-    ///
-    /// Views into WebAssembly memory are only valid so long as the
-    /// backing buffer isn't resized in JS. Once this function is called
-    /// any future calls to `Box::new` (or malloc of any form) may cause
-    /// the returned value here to be invalidated. Use with caution!
-    ///
-    /// Additionally the returned object can be safely mutated but the
-    /// input slice isn't guaranteed to be mutable.
-    ///
-    /// Finally, the returned object is disconnected from the input
-    /// slice's lifetime, so there's no guarantee that the data is read
-    /// at the right time.
-    unsafe fn js_buffer_view(rust: &[Self::Prim]) -> js_sys::Object;
 }
 
 // === Type Families ===
@@ -171,8 +176,11 @@ impl Item for i32 {
     fn from_buffer_mut    (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
     fn to_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
-    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
-        js_sys::Int32Array::view(&data).into()
+}
+
+impl JSBufferView for [i32] {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        js_sys::Int32Array::view(self).into()
     }
 }
 
@@ -183,14 +191,18 @@ impl Item for f32 {
 
     fn gl_item_byte_size  () -> usize { 4 }
     fn gl_item_type       () -> u32 { Context::FLOAT }
-    fn from_buffer     (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
-    fn from_buffer_mut (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
-    fn to_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
-    fn to_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
-    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
-        js_sys::Float32Array::view(&data).into()
+    fn from_buffer        (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
+    fn from_buffer_mut    (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
+    fn to_prim_buffer     (buffer: &    [Self])       -> &    [Self::Prim] { buffer }
+    fn to_prim_buffer_mut (buffer: &mut [Self])       -> &mut [Self::Prim] { buffer }
+}
+
+impl JSBufferView for [f32] {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        js_sys::Float32Array::view(self).into()
     }
 }
+
 
 impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
     where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
@@ -243,23 +255,18 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
         }
     }
+}
 
-    unsafe fn js_buffer_view(data: &[Self::Prim]) -> js_sys::Object {
-        <T as Item>::js_buffer_view(data)
+impl<T:Item<Prim=T>,R,C> JSBufferView for [MatrixMN<T,R,C>]
+where Self:MatrixCtx<T,R,C>, T:Default, MatrixMN<T,R,C>:Item, [Prim<MatrixMN<T,R,C>>]:JSBufferView {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        <MatrixMN<T,R,C> as Item>::to_prim_buffer(self).js_buffer_view()
     }
 }
 
-//MatrixMN<N, R, C> = Matrix<N, R, C, Owned<N, R, C>>
-
-//impl <T,R,C,S> TypeDisplay for Matrix<T,R,C,S> where Self: MatrixCtx<T,R,C> {
-//    fn type_display() -> String {
-//        unimplemented!()
-////        let cols = <C as DimName>::dim();
-////        let rows = <R as DimName>::dim();
-////        let item = type_name::<T>();
-////        match cols {
-////            1 => format!("Vector{}<{}>"    , rows, item),
-////            _ => format!("Matrix{}x{}<{}>" , rows, cols, item)
-////        }
-//    }
-//}
+impl<T:Item<Prim=T>,R,C> JSBufferView for MatrixMN<T,R,C>
+where Self:MatrixCtx<T,R,C> {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        self.as_slice().js_buffer_view()
+    }
+}
