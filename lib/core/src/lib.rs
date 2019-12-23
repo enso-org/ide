@@ -21,10 +21,14 @@
 // === Module Structure Reexport ===
 // =================================
 
+pub mod animation;
 pub mod control;
 pub mod data;
-pub mod math;
+pub mod debug;
 pub mod display;
+
+
+pub mod math;
 pub use basegl_prelude as prelude;
 pub mod backend {
     pub use basegl_backend_webgl as webgl;
