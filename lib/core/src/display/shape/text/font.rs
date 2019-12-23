@@ -1,8 +1,8 @@
 use crate::prelude::*;
 
-use crate::text::msdf::MsdfTexture;
-use crate::text::msdf::convert_msdf_transformation;
-use crate::text::msdf::x_distance_from_msdf_value;
+use crate::display::shape::text::msdf::MsdfTexture;
+use crate::display::shape::text::msdf::convert_msdf_transformation;
+use crate::display::shape::text::msdf::x_distance_from_msdf_value;
 
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_embedded_fonts::EmbeddedFonts;
@@ -222,7 +222,7 @@ impl Default for Fonts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::msdf::MsdfTexture;
+    use crate::display::shape::text::msdf::MsdfTexture;
     use basegl_core_msdf_sys as msdf_sys;
     use basegl_core_embedded_fonts::EmbeddedFonts;
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};

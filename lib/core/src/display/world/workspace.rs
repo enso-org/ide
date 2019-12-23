@@ -17,8 +17,8 @@ use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
-use crate::text;
-use crate::text::font::Fonts;
+use crate::display::shape::text;
+use crate::display::shape::text::font::Fonts;
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 

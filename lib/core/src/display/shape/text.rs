@@ -7,12 +7,12 @@ use crate::prelude::*;
 
 use crate::Color;
 use crate::display::world::Workspace;
-use crate::text::buffer::TextComponentBuffers;
-use crate::text::content::TextComponentContent;
-use crate::text::font::FontId;
-use crate::text::font::FontRenderInfo;
-use crate::text::font::Fonts;
-use crate::text::msdf::MsdfTexture;
+use crate::display::shape::text::buffer::TextComponentBuffers;
+use crate::display::shape::text::content::TextComponentContent;
+use crate::display::shape::text::font::FontId;
+use crate::display::shape::text::font::FontRenderInfo;
+use crate::display::shape::text::font::Fonts;
+use crate::display::shape::text::msdf::MsdfTexture;
 
 use basegl_backend_webgl::Context;
 use basegl_backend_webgl::compile_shader;

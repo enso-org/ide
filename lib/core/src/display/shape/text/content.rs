@@ -1,8 +1,8 @@
 use crate::prelude::*;
 
-use crate::text::font::FontId;
-use crate::text::font::FontRenderInfo;
-use crate::text::font::Fonts;
+use crate::display::shape::text::font::FontId;
+use crate::display::shape::text::font::FontRenderInfo;
+use crate::display::shape::text::font::Fonts;
 
 use std::ops::Range;
 use std::ops::RangeFrom;

@@ -1,11 +1,11 @@
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::Pen;
-use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
-use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
-use crate::text::buffer::line::LineAttributeBuilder;
-use crate::text::content::DirtyLines;
-use crate::text::font::FontRenderInfo;
+use crate::display::shape::text::buffer::glyph_square::Pen;
+use crate::display::shape::text::buffer::glyph_square::GlyphVertexPositionBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
+use crate::display::shape::text::buffer::line::LineAttributeBuilder;
+use crate::display::shape::text::content::DirtyLines;
+use crate::display::shape::text::font::FontRenderInfo;
 
 use nalgebra::geometry::Point2;
 use std::ops::Range;
@@ -335,7 +335,7 @@ impl BufferFragments {
 mod tests {
     use super::*;
 
-    use crate::text::buffer::glyph_square::{GlyphAttributeBuilder,GlyphVertexPositionBuilder};
+    use crate::display::shape::text::buffer::glyph_square::{GlyphAttributeBuilder,GlyphVertexPositionBuilder};
 
     use basegl_core_msdf_sys::test_utils::TestAfterInit;
     use nalgebra::Point2;

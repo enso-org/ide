@@ -1,8 +1,8 @@
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::GlyphAttributeBuilder;
-use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
-use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphAttributeBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphVertexPositionBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
 
 
 // ============================

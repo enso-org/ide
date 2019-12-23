@@ -17,7 +17,7 @@ use crate::promote_workspace_types;
 use crate::promote;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use crate::text::font::Fonts;
+use crate::display::shape::text::font::Fonts;
 
 use eval_tt::*;
 

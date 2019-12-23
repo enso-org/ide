@@ -26,7 +26,6 @@ pub mod data;
 pub mod math;
 pub mod dirty;
 pub mod display;
-pub mod text;
 pub use basegl_prelude as prelude;
 pub mod backend {
     pub use basegl_backend_webgl as webgl;
@@ -243,7 +242,7 @@ mod example_03 {
 
     use crate::utils;
     use crate::display::world::{World,Workspace,Add};
-    use crate::text::font::FontId;
+    use crate::display::shape::text::font::FontId;
     use crate::Color;
     use crate::dirty::traits::*;
 
@@ -278,7 +277,7 @@ mod example_03 {
 
                 let x = -0.95 + 0.6 * (size as f64);
                 let y = 0.90 - 0.45 * (font as f64);
-                let text_compnent = crate::text::TextComponentBuilder {
+                let text_compnent = crate::display::shape::text::TextComponentBuilder {
                     workspace,
                     fonts,
                     text : "To be, or not to be, that is the question:\n\

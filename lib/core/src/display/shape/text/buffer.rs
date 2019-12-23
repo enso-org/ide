@@ -4,14 +4,14 @@ pub mod line;
 
 use crate::prelude::*;
 
-use crate::text::buffer::glyph_square::BASE_LAYOUT_SIZE;
-use crate::text::buffer::glyph_square::GlyphAttributeBuilder;
-use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
-use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
-use crate::text::buffer::fragment::BufferFragments;
-use crate::text::buffer::fragment::FragmentsDataBuilder;
-use crate::text::content::RefreshInfo;
-use crate::text::font::FontRenderInfo;
+use crate::display::shape::text::buffer::glyph_square::BASE_LAYOUT_SIZE;
+use crate::display::shape::text::buffer::glyph_square::GlyphAttributeBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphVertexPositionBuilder;
+use crate::display::shape::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
+use crate::display::shape::text::buffer::fragment::BufferFragments;
+use crate::display::shape::text::buffer::fragment::FragmentsDataBuilder;
+use crate::display::shape::text::content::RefreshInfo;
+use crate::display::shape::text::font::FontRenderInfo;
 
 use basegl_backend_webgl::Context;
 use js_sys::Float32Array;

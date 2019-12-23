@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
-use crate::text::font::FontRenderInfo;
-use crate::text::msdf::MsdfTexture;
+use crate::display::shape::text::font::FontRenderInfo;
+use crate::display::shape::text::msdf::MsdfTexture;
 
 use nalgebra::Point2;
 use nalgebra::Translation2;
@@ -256,7 +256,7 @@ impl<'a> GlyphAttributeBuilder for GlyphTextureCoordsBuilder<'a> {
 mod tests {
     use super::*;
 
-    use crate::text::font::GlyphRenderInfo;
+    use crate::display::shape::text::font::GlyphRenderInfo;
 
     use basegl_core_msdf_sys::test_utils::TestAfterInit;
     use std::future::Future;
