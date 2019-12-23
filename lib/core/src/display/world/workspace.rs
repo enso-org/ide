@@ -1,16 +1,16 @@
 use crate::prelude::*;
 
-pub use crate::display::world::scene::mesh_registry::ObjectId;
+pub use crate::display::world::scene::symbol_registry::SymbolId;
 
 use crate::backend::webgl;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
-use crate::display::world::scene::mesh_registry;
+use crate::display::world::scene::symbol_registry;
 use crate::display::world::scene::Scene;
 use crate::promote_all;
-use crate::promote_mesh_registry_types;
+use crate::promote_symbol_registry_types;
 use crate::promote;
 use crate::system::web;
 use crate::system::web::fmt;
@@ -102,15 +102,15 @@ impl ShapeData {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Workspace<OnDirty> {
-    pub canvas              : web_sys::HtmlCanvasElement,
-    pub context             : webgl::Context,
-    pub mesh_registry       : MeshRegistry<OnDirty>,
-    pub mesh_registry_dirty : MeshRegistryDirty<OnDirty>,
-    pub scene               : Scene, // FIXME We support only 1 scene now;
-    pub shape               : Shape,
-    pub shape_dirty         : ShapeDirty<OnDirty>,
-    pub logger              : Logger,
-    pub listeners           : Listeners,
+    pub canvas                : web_sys::HtmlCanvasElement,
+    pub context               : webgl::Context,
+    pub symbol_registry       : SymbolRegistry<OnDirty>,
+    pub symbol_registry_dirty : SymbolRegistryDirty<OnDirty>,
+    pub scene                 : Scene, // FIXME We support only 1 scene now;
+    pub shape                 : Shape,
+    pub shape_dirty           : ShapeDirty<OnDirty>,
+    pub logger                : Logger,
+    pub listeners             : Listeners,
     // TODO[AO] this is a very temporary solution. Need to develop some general
     // component handling
     pub text_components     : Vec<text::TextComponent>,
@@ -119,20 +119,20 @@ pub struct Workspace<OnDirty> {
 
 // === Types ===
 
-pub type ShapeDirty        <Callback> = dirty::SharedBool<Callback>;
-pub type MeshRegistryDirty <Callback> = dirty::SharedBool<Callback>;
-promote_mesh_registry_types!{ [OnMeshRegistryChange] mesh_registry }
+pub type ShapeDirty          <Callback> = dirty::SharedBool<Callback>;
+pub type SymbolRegistryDirty <Callback> = dirty::SharedBool<Callback>;
+promote_symbol_registry_types!{ [OnSymbolRegistryChange] symbol_registry }
 
 #[macro_export]
 macro_rules! promote_workspace_types { ($($args:tt)*) => {
-    crate::promote_mesh_registry_types! { $($args)* }
+    crate::promote_symbol_registry_types! { $($args)* }
     promote! { $($args)* [Workspace] }
 };}
 
 // === Callbacks ===
 
 closure! {
-fn mesh_registry_on_change<C:Callback0> (dirty:MeshRegistryDirty<C>) -> OnMeshRegistryChange {
+fn symbol_registry_on_change<C:Callback0> (dirty:SymbolRegistryDirty<C>) -> OnSymbolRegistryChange {
     || dirty.set()
 }}
 
@@ -148,33 +148,30 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     pub fn new<Dom:Str>
     (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
-        let dom                 = dom.as_ref();
-        let canvas              = web::get_canvas(dom)?;
-        let context             = web::get_webgl2_context(&canvas)?;
-        let sub_logger          = logger.sub("shape_dirty");
-        let shape_dirty         = ShapeDirty::new(sub_logger,on_dirty.clone());
-        let sub_logger          = logger.sub("mesh_registry_dirty");
-        let dirty_flag          = MeshRegistryDirty::new(sub_logger, on_dirty);
-        let on_change           = mesh_registry_on_change(dirty_flag.clone_rc());
-        let sub_logger          = logger.sub("mesh_registry");
-        let mesh_registry       = MeshRegistry::new(&context,sub_logger, on_change);
-        let shape               = default();
-        let listeners           = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
-        let mesh_registry_dirty = dirty_flag;
-        let scene               = Scene::new(logger.sub("scene1"));
-        let text_components     = default();
-        let this = Self {canvas,context,mesh_registry,scene,mesh_registry_dirty
+        let dom                   = dom.as_ref();
+        let canvas                = web::get_canvas(dom)?;
+        let context               = web::get_webgl2_context(&canvas)?;
+        let sub_logger            = logger.sub("shape_dirty");
+        let shape_dirty           = ShapeDirty::new(sub_logger,on_dirty.clone());
+        let sub_logger            = logger.sub("symbol_registry_dirty");
+        let dirty_flag            = SymbolRegistryDirty::new(sub_logger, on_dirty);
+        let on_change             = symbol_registry_on_change(dirty_flag.clone_rc());
+        let sub_logger            = logger.sub("symbol_registry");
+        let symbol_registry       = SymbolRegistry::new(&context,sub_logger, on_change);
+        let shape                 = default();
+        let listeners             = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
+        let symbol_registry_dirty = dirty_flag;
+        let scene                 = Scene::new(logger.sub("scene1"));
+        let text_components       = default();
+        let this = Self {canvas,context,symbol_registry,scene,symbol_registry_dirty
             ,shape,shape_dirty,logger,listeners,text_components};
         Ok(this)
     }
 
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
-    ( logger : &Logger
-      , canvas : &web_sys::HtmlCanvasElement
-      , shape  : &Shape
-      , dirty  : &ShapeDirty<OnDirty>
-    ) -> Listeners {
+    (logger:&Logger, canvas:&web_sys::HtmlCanvasElement, shape:&Shape, dirty:&ShapeDirty<OnDirty>)
+    -> Listeners {
         let logger = logger.clone();
         let shape  = shape.clone();
         let dirty  = dirty.clone();
@@ -195,8 +192,8 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     }
 
     /// Create a new mesh instance.
-    pub fn new_mesh(&mut self) -> ObjectId {
-        self.mesh_registry.new_mesh()
+    pub fn new_mesh(&mut self) -> SymbolId {
+        self.symbol_registry.new_mesh()
     }
 
     /// Resize the underlying canvas. This function should rather not be called
@@ -221,16 +218,16 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
                 self.scene.camera.set_screen(screen.width as f32, screen.height as f32);
                 self.shape_dirty.unset_all();
             }
-            if self.mesh_registry_dirty.check_all() {
-                self.mesh_registry.update();
-                self.mesh_registry_dirty.unset_all();
+            if self.symbol_registry_dirty.check_all() {
+                self.symbol_registry.update();
+                self.symbol_registry_dirty.unset_all();
             }
 
             self.logger.info("Clearing the scene.");
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
-            self.mesh_registry.render(&self.scene.camera);
+            self.symbol_registry.render(&self.scene.camera);
             if !self.text_components.is_empty() {
                 self.logger.info("Rendering text components");
                 for text_component in &mut self.text_components {
@@ -245,13 +242,13 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
 impl<OnDirty> Index<usize> for Workspace<OnDirty> {
     type Output = Symbol<OnDirty>;
     fn index(&self, ix: usize) -> &Self::Output {
-        self.mesh_registry.index(ix)
+        self.symbol_registry.index(ix)
     }
 }
 
 impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
-        self.mesh_registry.index_mut(ix)
+        self.symbol_registry.index_mut(ix)
     }
 }
 

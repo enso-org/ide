@@ -1,4 +1,4 @@
-pub mod mesh_registry;
+pub mod symbol_registry;
 
 use crate::prelude::*;
 

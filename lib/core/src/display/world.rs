@@ -4,7 +4,7 @@ pub mod workspace;
 use crate::prelude::*;
 
 pub use crate::data::container::*;
-pub use crate::display::world::workspace::ObjectId;
+pub use crate::display::world::workspace::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;

@@ -110,7 +110,7 @@ promote_geometry_types!{ [OnGeometryChange] mesh }
 promote_material_types!{ [OnGeometryChange] material }
 
 #[macro_export]
-macro_rules! promote_mesh_types { ($($args:tt)*) => {
+macro_rules! promote_symbol_types { ($($args:tt)*) => {
     crate::promote_geometry_types! {$($args)*}
     crate::promote_material_types! {$($args)*}
     promote! {$($args)* [Symbol]}
