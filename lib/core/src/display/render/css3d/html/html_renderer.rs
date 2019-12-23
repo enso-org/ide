@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
-use crate::display::rendering::GraphicsRenderer;
-use crate::display::rendering::Scene;
-use crate::display::rendering::Camera;
-use crate::display::rendering::html::HTMLObject;
+use crate::display::render::css3d::GraphicsRenderer;
+use crate::display::render::css3d::Scene;
+use crate::display::render::css3d::Camera;
+use crate::display::render::css3d::html::HTMLObject;
 use crate::math::utils::IntoFloat32ArrayView;
 use crate::math::utils::eps;
 use crate::math::utils::invert_y;

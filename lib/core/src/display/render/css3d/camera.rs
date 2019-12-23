@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::display::rendering::Object;
+use crate::display::render::css3d::Object;
 
 use nalgebra::base::Matrix4;
 use nalgebra::geometry::Perspective3;

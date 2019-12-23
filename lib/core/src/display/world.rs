@@ -1,7 +1,10 @@
+pub mod scene;
+pub mod workspace;
+
 use crate::prelude::*;
 
 pub use crate::data::container::*;
-pub use crate::display::workspace::ObjectId;
+pub use crate::display::world::workspace::ObjectId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
@@ -9,7 +12,6 @@ use crate::control::event_loop::EventLoop;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::workspace;
 use crate::promote_all;
 use crate::promote_workspace_types;
 use crate::promote;

@@ -1,3 +1,5 @@
+// TODO: To be cleaned up.
+
 mod object;
 mod scene;
 

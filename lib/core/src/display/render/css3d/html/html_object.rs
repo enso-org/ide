@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::display::rendering::Object;
+use crate::display::render::css3d::Object;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;

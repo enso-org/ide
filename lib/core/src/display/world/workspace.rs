@@ -1,14 +1,14 @@
 use crate::prelude::*;
 
-pub use crate::display::scene::mesh_registry::ObjectId;
+pub use crate::display::world::scene::mesh_registry::ObjectId;
 
 use crate::backend::webgl;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::display::scene::mesh_registry;
-use crate::display::scene::Scene;
+use crate::display::world::scene::mesh_registry;
+use crate::display::world::scene::Scene;
 use crate::promote_all;
 use crate::promote_mesh_registry_types;
 use crate::promote;
