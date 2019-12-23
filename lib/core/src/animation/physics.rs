@@ -224,15 +224,33 @@ impl PhysicsProperties {
 
 impl PhysicsProperties {
     pub fn mod_kinematics<F:FnOnce(&mut KinematicsProperties)>(&mut self, f:F) {
-        f(&mut self.data.borrow_mut().kinematics)
+        let mut kinematics = self.kinematics();
+        f(&mut kinematics);
+        self.set_kinematics(kinematics);
+    }
+
+    pub fn set_kinematics(&mut self, kinematics:KinematicsProperties) {
+        self.data.borrow_mut().kinematics = kinematics;
     }
 
     pub fn mod_spring<F:FnOnce(&mut SpringProperties)>(&mut self, f:F) {
-        f(&mut self.data.borrow_mut().spring)
+        let mut spring = self.spring();
+        f(&mut spring);
+        self.set_spring(spring);
+    }
+
+    pub fn set_spring(&mut self, spring:SpringProperties) {
+        self.data.borrow_mut().spring = spring;
     }
 
     pub fn mod_drag<F:FnOnce(&mut DragProperties)>(&mut self, f:F) {
-        f(&mut self.data.borrow_mut().drag)
+        let mut drag = self.drag();
+        f(&mut drag);
+        self.set_drag(drag);
+    }
+
+    pub fn set_drag(&mut self, drag:DragProperties) {
+        self.data.borrow_mut().drag = drag;
     }
 }
 
