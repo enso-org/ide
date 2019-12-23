@@ -1,3 +1,6 @@
+// FIXME: Animators structs should get EventLoop as parameter. The whole application should have
+// only one RequestAnimationFrame loop going on to avoid its overhead.
+
 pub mod physics;
 mod continuous_time_animator;
 mod animator;

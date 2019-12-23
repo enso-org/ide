@@ -19,6 +19,7 @@ struct ContinuousTimeAnimatorData {
 impl ContinuousTimeAnimatorData {
     pub fn new<F:FnAnimation>(f:F) -> Self {
         let closure      = Box::new(f);
+        // TODO: get_performance is slow. Replace it with better approach.
         let start_time   = get_performance().expect("Couldn't get performance").now() as f32;
         let current_time = 0.0;
         Self { closure,start_time,current_time }
@@ -55,6 +56,7 @@ impl ContinuousTimeAnimator {
 
 impl ContinuousTimeAnimator {
     pub fn set_time(&mut self, time:f32) {
+        // TODO: get_performance is slow. Replace it with better approach.
         let current_time = get_performance().expect("Couldn't get performance").now() as f32;
         self.data.borrow_mut().start_time = current_time + time;
     }
