@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use crate::backend::webgl::Context;
 use crate::data::function::callback::*;
-use crate::dirty;
-use crate::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::dirty::traits::*;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::backend::webgl;

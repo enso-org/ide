@@ -6,8 +6,8 @@ use crate::prelude::*;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::closure;
-use crate::dirty;
-use crate::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::dirty::traits::*;
 use crate::system::web::group;
 
 use nalgebra::{Vector3, Vector4, Matrix4, Perspective3};

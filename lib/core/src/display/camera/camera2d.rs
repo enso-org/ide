@@ -1,11 +1,11 @@
 
 use crate::prelude::*;
 
-use crate::dirty;
+use crate::data::dirty;
 use crate::display::object::DisplayObjectData;
 use nalgebra::{Vector3, Vector4, Matrix4, Perspective3};
 use basegl_system_web::Logger;
-use crate::dirty::traits::*;
+use crate::data::dirty::traits::*;
 
 
 

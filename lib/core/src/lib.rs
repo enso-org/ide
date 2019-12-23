@@ -24,7 +24,6 @@
 pub mod control;
 pub mod data;
 pub mod math;
-pub mod dirty;
 pub mod display;
 pub use basegl_prelude as prelude;
 pub mod backend {
@@ -244,7 +243,7 @@ mod example_03 {
     use crate::display::world::{World,Workspace,Add};
     use crate::display::shape::text::font::FontId;
     use crate::Color;
-    use crate::dirty::traits::*;
+    use crate::data::dirty::traits::*;
 
     use itertools::iproduct;
     use nalgebra::{Point2,Vector2};
