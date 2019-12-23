@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 pub trait Callback = FnMut() + 'static;
 
+
 // === Handle ===
 
 /// Handle to a callback. When the handle is dropped, the callback is removed.
@@ -16,14 +17,17 @@ pub trait Callback = FnMut() + 'static;
 pub struct CallbackHandle (Rc<()>);
 
 impl CallbackHandle {
+
     /// Create a new handle.
     pub fn new() -> Self {
         default()
     }
+
     /// Create guard for this handle.
     pub fn guard(&self) -> Guard {
         Guard(Rc::downgrade(&self.0))
     }
+
     /// Forget the handle. Warning! You would not be able to stop the callback
     /// after performing this operation.
     pub fn forget(self) {
@@ -40,6 +44,7 @@ impl Guard {
     }
 }
 
+
 // === Definition ===
 
 /// Registry gathering callbacks. Each registered callback is assigned with
@@ -53,6 +58,7 @@ pub struct CallbackRegistry {
 }
 
 impl CallbackRegistry {
+
     /// Adds new callback and returns a new handle for it.
     pub fn add<F:Callback>(&mut self, callback:F) -> CallbackHandle {
         let callback = Box::new(callback) as Box<dyn FnMut()>;
@@ -61,6 +67,7 @@ impl CallbackRegistry {
         self.list.push((guard, callback));
         handle
     }
+
     /// Fires all registered callbacks.
     pub fn run_all(&mut self) {
         self.list.retain(|(guard,_)| guard.exists());

@@ -2,18 +2,18 @@ pub mod shader;
 
 use crate::prelude::*;
 
-use crate::backend::webgl::Context;
+use crate::display::render::webgl::Context;
+use crate::display::render::webgl;
 use crate::data::function::callback::*;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use crate::backend::webgl;
 use web_sys::WebGlProgram;
 
 
 // ================
-// === Geometry ===
+// === Material ===
 // ================
 
 // === Definition ===

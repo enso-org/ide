@@ -6,9 +6,8 @@ use crate::data::function::callback::{Callback0,Callback1};
 // === Observable ===
 // ==================
 
-/// Wrapper for array-like type. It allows attaching callbacks which fire when
-/// the underlying structure changes.
-
+/// Wrapper for array-like type. It allows attaching callbacks which fire when the underlying
+/// structure changes.
 #[derive(Shrinkwrap)]
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
@@ -23,15 +22,15 @@ pub struct Observable<T,OnSet,OnResize> {
 
 impl<T,OnSet,OnResize>
 Observable<T,OnSet,OnResize> {
-    pub fn new_from(data: T, on_set: OnSet, on_resize: OnResize) -> Self {
-        Self { data, on_set, on_resize }
+    pub fn new_from(data:T, on_set:OnSet, on_resize:OnResize) -> Self {
+        Self {data,on_set,on_resize}
     }
 }
 
 impl<T:Default,OnSet,OnResize>
 Observable<T,OnSet,OnResize> {
     pub fn new(on_set:OnSet, on_resize:OnResize) -> Self {
-        Self::new_from(default(), on_set, on_resize)
+        Self::new_from(default(),on_set,on_resize)
     }
 }
 
@@ -56,7 +55,7 @@ IndexMut<Ix> for Observable<T,OnSet,OnResize> {
 impl <T:Extend<S>,S,OnSet,OnResize:Callback0>
 Extend<S> for Observable<T,OnSet,OnResize> {
     #[inline]
-    fn extend<I: IntoIterator<Item=S>>(&mut self, iter:I) {
+    fn extend<I:IntoIterator<Item=S>>(&mut self, iter:I) {
         self.on_resize.call();
         self.data.extend(iter)
     }

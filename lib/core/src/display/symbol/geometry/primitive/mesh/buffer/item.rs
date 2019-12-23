@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::backend::webgl::Context;
+use crate::display::render::webgl::Context;
 use nalgebra::*;
 use web_sys::WebGlUniformLocation;
 use nalgebra::storage::Owned;

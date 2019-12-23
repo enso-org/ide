@@ -20,7 +20,7 @@ use web_sys::HtmlElement;
 
 mod js {
     use super::*;
-    #[wasm_bindgen(module = "/js/html_renderer.js")]
+    #[wasm_bindgen(module = "/src/display/render/css3d/html/snippets.js")]
     extern "C" {
         pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);

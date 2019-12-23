@@ -28,9 +28,6 @@ pub mod debug;
 pub mod display;
 
 pub use basegl_prelude as prelude;
-pub mod backend {
-    pub use basegl_backend_webgl as webgl;
-}
 pub mod system {
     pub use basegl_system_web as web;
 }

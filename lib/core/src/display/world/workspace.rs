@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub use crate::display::world::scene::symbol_registry::SymbolId;
 
-use crate::backend::webgl;
+use crate::display::render::webgl;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::dirty;

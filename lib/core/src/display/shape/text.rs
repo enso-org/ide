@@ -7,6 +7,11 @@ use crate::prelude::*;
 
 use crate::Color;
 use crate::display::world::Workspace;
+use crate::display::render::webgl::Context;
+use crate::display::render::webgl::compile_shader;
+use crate::display::render::webgl::link_program;
+use crate::display::render::webgl::Program;
+use crate::display::render::webgl::Shader;
 use crate::display::shape::text::buffer::TextComponentBuffers;
 use crate::display::shape::text::content::TextComponentContent;
 use crate::display::shape::text::font::FontId;
@@ -14,11 +19,6 @@ use crate::display::shape::text::font::FontRenderInfo;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text::msdf::MsdfTexture;
 
-use basegl_backend_webgl::Context;
-use basegl_backend_webgl::compile_shader;
-use basegl_backend_webgl::link_program;
-use basegl_backend_webgl::Program;
-use basegl_backend_webgl::Shader;
 use nalgebra::Vector2;
 use nalgebra::Similarity2;
 use nalgebra::Point2;

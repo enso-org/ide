@@ -3,8 +3,8 @@ pub mod material;
 
 use crate::prelude::*;
 
-use crate::backend::webgl;
-use crate::backend::webgl::Context;
+use crate::display::render::webgl;
+use crate::display::render::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::dirty;

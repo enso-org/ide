@@ -4,6 +4,7 @@ pub mod line;
 
 use crate::prelude::*;
 
+use crate::display::render::webgl::Context;
 use crate::display::shape::text::buffer::glyph_square::BASE_LAYOUT_SIZE;
 use crate::display::shape::text::buffer::glyph_square::GlyphAttributeBuilder;
 use crate::display::shape::text::buffer::glyph_square::GlyphVertexPositionBuilder;
@@ -13,7 +14,6 @@ use crate::display::shape::text::buffer::fragment::FragmentsDataBuilder;
 use crate::display::shape::text::content::RefreshInfo;
 use crate::display::shape::text::font::FontRenderInfo;
 
-use basegl_backend_webgl::Context;
 use js_sys::Float32Array;
 use nalgebra::Vector2;
 use web_sys::WebGlBuffer;
