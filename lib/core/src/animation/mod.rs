@@ -1,13 +1,12 @@
 pub mod physics;
 mod continuous_time_animator;
-mod differential_time_animator;
+mod animator;
 mod fixed_step_animator;
 
 pub use continuous_time_animator::ContinuousTimeAnimator;
-pub use differential_time_animator::DifferentialTimeAnimator;
+pub use animator::Animator;
 pub use fixed_step_animator::FixedStepAnimator;
-
-
+pub use fixed_step_animator::IntervalCounter;
 
 // ===================
 // === FnAnimation ===

@@ -1,12 +1,10 @@
 use crate::prelude::*;
 
-use crate::animation::{FixedStepAnimator, ContinuousTimeAnimator, linear_interpolation};
+use crate::animation::{Animator, IntervalCounter, linear_interpolation};
+use crate::traits::HasPosition;
 
 use nalgebra::Vector3;
 use nalgebra::zero;
-use crate::traits::HasPosition;
-
-
 
 // ====================
 // === PhysicsForce ===
@@ -37,9 +35,9 @@ impl PhysicsForce for DragProperties {
         let velocity  = kinematics.velocity;
         let speed     = velocity.norm();
         if speed > 0.0 {
-            velocity.normalize() * speed.powf(2.0) * -0.5 * self.coefficient
+            velocity.normalize() * speed * speed * -0.5 * self.coefficient
         } else {
-            Vector3::new(0.0, 0.0, 0.0)
+            zero()
         }
     }
 }
@@ -102,7 +100,7 @@ impl PhysicsForce for SpringProperties {
             let force_val = delta_len * self.coefficient();
             delta.normalize() * force_val
         } else {
-            Vector3::new(0.0, 0.0, 0.0)
+            zero()
         }
     }
 }
@@ -254,36 +252,31 @@ pub trait SimulationObject = HasPosition + 'static;
 
 /// A 60 steps per second physics simulator used to simulate `Properties`.
 pub struct PhysicsSimulator {
-    _fixed_step_animator : FixedStepAnimator
+    _animator : Animator
 }
 
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
     pub fn new<T:SimulationObject>(mut object:T, mut properties:PhysicsProperties) -> Self {
         properties.mod_kinematics(|kinematics| { kinematics.set_position(object.position()); });
+        let steps_per_second     = 60.0;
+        let step_ms              = 1000.0 / steps_per_second;
+        let mut current_position = object.position();
+        let mut next_position    = simulate(&mut properties, step_ms);
+        let mut interval_counter = IntervalCounter::new(step_ms);
+        let _animator            = Animator::new(move |delta_ms| {
+            let intervals = interval_counter.add_time(delta_ms);
+            for _ in 0..intervals {
+                current_position = next_position;
+                next_position    = simulate(&mut properties, step_ms);
+            }
 
-        let steps_per_second = 60.0;
-        let step_time        = 1.0 / steps_per_second;
-        let current_position = Rc::new(RefCell::new(object.position()));
-        let next_position    = Rc::new(RefCell::new(simulate(&mut properties, step_time)));
-
-        let current_position_clone  = current_position.clone();
-        let next_position_clone     = next_position.clone();
-        let mut continuous_animator = ContinuousTimeAnimator::new(move |time| {
-            let current_position = *current_position_clone.borrow();
-            let next_position    = *next_position_clone.borrow();
-            let transition       = time / step_time / 1000.0;
-            object.set_position(linear_interpolation(current_position, next_position, transition));
+            let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
+            let position   = linear_interpolation(current_position, next_position, transition);
+            object.set_position(position);
         });
 
-        let _fixed_step_animator   = FixedStepAnimator::new(steps_per_second, move |_| {
-            continuous_animator.set_time(0.0);
-            let mut next_position          = next_position.borrow_mut();
-            *current_position.borrow_mut() = *next_position;
-            *next_position                 = simulate(&mut properties, step_time);
-        });
-
-        Self { _fixed_step_animator }
+        Self { _animator }
     }
 }
 
@@ -295,14 +288,15 @@ fn simulate_kinematics(kinematics:&mut KinematicsProperties, force:&Vector3<f32>
 }
 
 /// Runs a simulation step.
-fn simulate(properties:&mut PhysicsProperties, delta_time:f32) -> Vector3<f32> {
+fn simulate(properties:&mut PhysicsProperties, delta_ms:f32) -> Vector3<f32> {
     let spring        = properties.spring();
     let drag          = properties.drag();
     let mut net_force = zero();
     properties.mod_kinematics(|mut kinematics| {
         net_force += spring.force(&kinematics);
         net_force += drag.force(&kinematics);
-        simulate_kinematics(&mut kinematics, &net_force, delta_time);
+        let delta_seconds = delta_ms / 1000.0;
+        simulate_kinematics(&mut kinematics, &net_force, delta_seconds);
     });
     properties.kinematics().position()
 }
