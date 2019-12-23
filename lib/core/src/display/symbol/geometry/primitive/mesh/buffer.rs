@@ -11,7 +11,6 @@ use crate::data::dirty::traits::*;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use crate::tp::debug::TypeDebugName;
 use item::Item;
 use item::Prim;
 use nalgebra::Vector2;
@@ -78,7 +77,7 @@ BufferData<T,OnSet,OnResize> {
     /// Creates new buffer from provided explicit buffer object.
     pub fn new_from(context: &Context, vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize)
     -> Self {
-        logger.info(fmt!("Creating new {} buffer.", T::type_debug_name()));
+        logger.info(fmt!("Creating new {} buffer.", T::type_display()));
         let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
         let buffer_dirty   = BufferDirty::new(set_logger,on_set);

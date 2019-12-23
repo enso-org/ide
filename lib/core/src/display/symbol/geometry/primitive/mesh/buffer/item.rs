@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
 use crate::backend::webgl::Context;
-use crate::tp::debug::TypeDebugName;
 use nalgebra::*;
 use web_sys::WebGlUniformLocation;
+use nalgebra::storage::Owned;
 
 
 // =============
@@ -249,14 +249,17 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
     }
 }
 
-impl <T,R,C> TypeDebugName for MatrixMN<T,R,C> where Self: MatrixCtx<T,R,C> {
-    fn type_debug_name() -> String {
-        let cols = <C as DimName>::dim();
-        let rows = <R as DimName>::dim();
-        let item = type_name::<T>();
-        match cols {
-            1 => format!("Vector{}<{}>"    , rows, item),
-            _ => format!("Matrix{}x{}<{}>" , rows, cols, item)
-        }
-    }
-}
+//MatrixMN<N, R, C> = Matrix<N, R, C, Owned<N, R, C>>
+
+//impl <T,R,C,S> TypeDisplay for Matrix<T,R,C,S> where Self: MatrixCtx<T,R,C> {
+//    fn type_display() -> String {
+//        unimplemented!()
+////        let cols = <C as DimName>::dim();
+////        let rows = <R as DimName>::dim();
+////        let item = type_name::<T>();
+////        match cols {
+////            1 => format!("Vector{}<{}>"    , rows, item),
+////            _ => format!("Matrix{}x{}<{}>" , rows, cols, item)
+////        }
+//    }
+//}
