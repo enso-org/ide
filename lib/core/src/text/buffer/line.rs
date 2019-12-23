@@ -48,7 +48,9 @@ impl<'a,GlyphBuilder: GlyphAttributeBuilder> Iterator for LineAttributeBuilder<'
         let next_char     = self.chars.get(self.squares_produced);
         values_remain.and_option_from(|| {
             self.squares_produced += 1;
-            Some(next_char.map(|ch| self.glyph_builder.build_for_next_glyph(*ch)).unwrap_or(GlyphBuilder::empty()))
+            let next_char_attrs = next_char.map(|ch| self.glyph_builder.build_for_next_glyph(*ch));
+            let returned_value  = next_char_attrs.unwrap_or_else(GlyphBuilder::empty);
+            Some(returned_value)
         })
     }
 }

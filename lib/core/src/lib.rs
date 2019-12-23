@@ -1,4 +1,5 @@
 #![cfg_attr(test, allow(dead_code))]
+#![feature(drain_filter)]
 #![feature(unboxed_closures)]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
@@ -240,28 +241,13 @@ mod example_02 {
     use wasm_bindgen::prelude::*;
 
     use crate::utils;
-    use crate::display::world::{World,Workspace,Add};
-    use crate::text::font::FontId;
+    use crate::display::world::{World, Workspace, Add, WorkspaceID};
     use crate::Color;
     use crate::dirty::traits::*;
 
-    use itertools::iproduct;
     use nalgebra::{Point2,Vector2};
     use crate::text::content::{CharPosition, TextChange};
-
-    struct Sequence {
-        time   : f64,
-        change : char,
-    }
-
-    fn one_letter_animation(start_time:f64, text:&'static str) -> Vec<Sequence> {
-        let mut time = start_time;
-        text.char_indices().map(|(i,ch)| {
-            let next = Sequence {time,change:ch};
-            time += 50.0;
-            next
-        }).collect()
-    }
+    use crate::text::TextComponentProperties;
 
     #[wasm_bindgen]
     #[allow(dead_code)]
@@ -276,42 +262,67 @@ mod example_02 {
             let font_id           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
 
             let mut text_component = crate::text::TextComponentBuilder{workspace,fonts,font_id,
-                text      : "".to_string(),
-                position  : Point2::new(-0.95,-0.9),
-                size      : Vector2::new(1.8,1.6),
-                text_size : 0.032,
-                color     : Color {r: 0.0, g: 0.8, b: 0.0, a: 1.0},
+                text       : "".to_string(),
+                properties : TextComponentProperties {
+                    position  : Point2::new(-0.95,-0.9),
+                    size      : Vector2::new(1.8,1.6),
+                    text_size : 0.032,
+                    color     : Color {r: 0.0, g: 0.8, b: 0.0, a: 1.0},
+                }
             }.build();
             text_component.cursors.add_cursor(CharPosition{line:0,column:0});
             workspace.text_components.push(text_component);
             world.workspace_dirty.set(workspace_id);
-            let animation_start = js_sys::Date::now();
-            let mut animation = one_letter_animation(animation_start + 3000.0, include_str!("lib.rs"));
+
+            let now             = js_sys::Date::now();
+            let animation_start = now + 3000.0;
             let start_scrolling = animation_start + 10000.0;
+            let mut chars       = typed_character_list(animation_start,include_str!("lib.rs"));
             world.on_frame(move |w| {
-                let workspace = &mut w.workspaces[workspace_id];
-                let editor = workspace.text_components.first_mut().unwrap();
-                let next_step = match animation.first() {
-                    Some(next) => next.time <= js_sys::Date::now(),
-                    None       => false
-                };
-                if next_step {
-                    let step = animation.drain(0..1).next().unwrap();
-                    let cursor = editor.cursors.cursors.first_mut().unwrap();
-                    let change = TextChange::insert(cursor.position, step.change.to_string().as_str());
-                    editor.content.make_change(change);
-                    let new_cursor_position = CharPosition {
-                        line: editor.content.lines.len()-1,
-                        column : editor.content.lines.last().unwrap().len(),
-                    };
-                    cursor.position = new_cursor_position;
-                }
-                if start_scrolling <= js_sys::Date::now() {
-                    editor.scroll(Vector2::new(0.0, -0.01));
-                }
-                w.workspace_dirty.set(workspace_id);
+                animate_text_component(w,workspace_id,&mut chars,start_scrolling)
             }).forget();
         });
+    }
+
+    struct CharToPush {
+        time   : f64,
+        a_char: char,
+    }
+
+    const ONE_CHAR_TYPING_DURATION_MS : f64 = 50.0;
+
+    fn typed_character_list(start_time:f64, text:&'static str) -> Vec<CharToPush> {
+        text.char_indices().map(|(i,a_char)| {
+            let time = start_time + ONE_CHAR_TYPING_DURATION_MS * i as f64;
+            CharToPush {time,a_char}
+        }).collect()
+    }
+
+    fn animate_text_component
+    ( world:&mut World
+    , workspace_id:WorkspaceID
+    , typed_chars:&mut Vec<CharToPush>
+    , start_scrolling:f64) {
+        let workspace   = &mut world.workspaces[workspace_id];
+        let editor      = workspace.text_components.first_mut().unwrap();
+        let now         = js_sys::Date::now();
+
+        let to_type_now = typed_chars.drain_filter(|ch| ch.time <= now);
+        for ch in to_type_now {
+            let cursor = editor.cursors.cursors.first_mut().unwrap();
+            let string = ch.a_char.to_string();
+            let change = TextChange::insert(cursor.position, string.as_str());
+            editor.content.make_change(change);
+            let new_cursor_position = CharPosition {
+                line: editor.content.lines.len()-1,
+                column : editor.content.lines.last().unwrap().len(),
+            };
+            cursor.position = new_cursor_position;
+        }
+        if start_scrolling <= js_sys::Date::now() {
+            editor.scroll(Vector2::new(0.0, -0.01));
+        }
+        world.workspace_dirty.set(workspace_id);
     }
 }
 

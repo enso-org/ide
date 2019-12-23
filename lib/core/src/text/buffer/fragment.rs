@@ -5,8 +5,8 @@ use crate::text::buffer::glyph_square::GlyphVertexPositionBuilder;
 use crate::text::buffer::glyph_square::GlyphTextureCoordsBuilder;
 use crate::text::buffer::line::LineAttributeBuilder;
 use crate::text::content::DirtyLines;
-use crate::text::content::line::LineRef;
 use crate::text::content::line::Line;
+use crate::text::content::line::LineRef;
 use crate::text::font::FontRenderInfo;
 
 use nalgebra::geometry::Point2;
@@ -102,10 +102,10 @@ impl<'a> FragmentsDataBuilder<'a> {
 
     /// Append buffers' data for fragment assigned to `line`
     pub fn build_for_line(&mut self, line:&mut LineRef) -> Option<RenderedFragment> {
-        let chars_start = self.rendered_chars_start(line.line);
-        let chars_end   = self.rendered_chars_end(chars_start,line.line);
+        let chars_start = self.rendered_chars_start(line);
+        let chars_end   = self.rendered_chars_end(chars_start,line);
         let mut pen     = self.create_pen_for_vertex_building(chars_start,line);
-        let chars       = &line.line.chars()[chars_start..];
+        let chars       = &line.chars()[chars_start..];
         let start_x     = pen.position.x as f32;
         self.build_vertex_positions(&mut pen,chars);
         self.build_texture_coords(chars);
@@ -154,8 +154,8 @@ impl<'a> FragmentsDataBuilder<'a> {
     }
 
     fn create_pen_for_vertex_building(&mut self, from_char:usize, line:&mut LineRef) -> Pen {
-        if from_char < line.line.len() {
-            let x = line.line.get_char_x_position(from_char,self.font) as f64;
+        if from_char < line.len() {
+            let x = line.get_char_x_position(from_char,self.font) as f64;
             let y = line.start_point().y;
             Pen::new(Point2::new(x,y))
         } else {
@@ -306,7 +306,7 @@ impl BufferFragments {
             let fragment      = &mut self.fragments[fragment_id];
             let line_id       = fragment.assigned_line.unwrap_or(0);
             let line          = fragment.assigned_line.map_or(&mut empty_line, |i| &mut lines[i]);
-            let mut line_ref  = LineRef{line,line_id};
+            let mut line_ref  = LineRef {line,line_id};
             fragment.rendered = builder.build_for_line(&mut line_ref);
             fragment.dirty    = false;
         }
@@ -363,7 +363,7 @@ mod tests {
         TestAfterInit::schedule(|| {
             let mut font     = FontRenderInfo::mock_font("Test font".to_string());
             let mut line     = Line::empty();
-            let mut line_ref = LineRef{line:&mut line, line_id:0};
+            let mut line_ref = LineRef {line:&mut line, line_id:0};
             let mut builder = FragmentsDataBuilder {
                 vertex_position_data : Vec::new(),
                 texture_coords_data  : Vec::new(),
@@ -405,10 +405,10 @@ mod tests {
                 line_clip            : 5.5..8.0,
                 max_chars_in_fragment: 3
             };
-            let shortest_result = builder.build_for_line(&mut LineRef{line:&mut shortest_line, line_id:1}).unwrap();
-            let short_result    = builder.build_for_line(&mut LineRef{line:&mut short_line, line_id:2}).unwrap();
-            let medium_result   = builder.build_for_line(&mut LineRef{line:&mut medium_line, line_id:3}).unwrap();
-            let long_result     = builder.build_for_line(&mut LineRef{line:&mut long_line, line_id:4}).unwrap();
+            let shortest_result = builder.build_for_line(&mut LineRef {line:&mut shortest_line, line_id:1}).unwrap();
+            let short_result    = builder.build_for_line(&mut LineRef {line:&mut short_line, line_id:2}).unwrap();
+            let medium_result   = builder.build_for_line(&mut LineRef {line:&mut medium_line, line_id:3}).unwrap();
+            let long_result     = builder.build_for_line(&mut LineRef {line:&mut long_line, line_id:4}).unwrap();
 
             assert_eq!(0..2, shortest_result.chars_range);
             assert_eq!(1..4, short_result   .chars_range);
@@ -441,7 +441,7 @@ mod tests {
             b_info.advance   = 1.5;
             font.mock_kerning_info('Ą', 'B', 0.0);
             let mut line     = Line::new("ĄB".to_string());
-            let mut line_ref = LineRef{line:&mut line, line_id:0};
+            let mut line_ref = LineRef {line:&mut line, line_id:0};
 
             let mut builder = FragmentsDataBuilder {
                 vertex_position_data : Vec::new(),

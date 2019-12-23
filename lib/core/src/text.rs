@@ -11,30 +11,35 @@ use crate::Color;
 use crate::display::world::Workspace;
 use crate::text::buffer::TextComponentBuffers;
 use crate::text::content::TextComponentContent;
+use crate::text::cursor::Cursors;
 use crate::text::font::FontId;
-use crate::text::font::FontRenderInfo;
 use crate::text::font::Fonts;
 use crate::text::msdf::MsdfTexture;
+use crate::text::program::MsdfProgram;
+use crate::text::program::BasicProgram;
+use crate::text::program::create_content_program;
+use crate::text::program::create_cursors_program;
 
 use basegl_backend_webgl::Context;
-use basegl_backend_webgl::compile_shader;
-use basegl_backend_webgl::link_program;
-use basegl_backend_webgl::Program;
-use basegl_backend_webgl::Shader;
 use nalgebra::Vector2;
 use nalgebra::Similarity2;
 use nalgebra::Point2;
 use nalgebra::Projective2;
 use web_sys::WebGl2RenderingContext;
-use web_sys::WebGlBuffer;
 use web_sys::WebGlTexture;
-use crate::text::cursor::{Cursor, Cursors};
-use crate::text::program::{MsdfProgram, BasicProgram, create_content_program, create_cursors_program};
 
 
 // =====================
 // === TextComponent ===
 // =====================
+
+#[derive(Debug)]
+pub struct TextComponentProperties {
+    pub position        : Point2<f64>,
+    pub size            : Vector2<f64>,
+    pub text_size       : f64,
+    pub color           : Color<f32>,
+}
 
 /// Component rendering text
 ///
@@ -42,18 +47,15 @@ use crate::text::program::{MsdfProgram, BasicProgram, create_content_program, cr
 /// commits
 #[derive(Debug)]
 pub struct TextComponent {
-    pub content         : TextComponentContent,
-    pub cursors         : Cursors,
-    pub cursors_visible : bool,
-    pub position        : Point2<f64>,
-    pub size            : Vector2<f64>,
-    pub text_size       : f64,
-    gl_context          : WebGl2RenderingContext,
-    content_program     : MsdfProgram,
-    cursors_program     : BasicProgram,
-    gl_msdf_texture     : WebGlTexture,
-    msdf_texture_rows   : usize,
-    buffers             : TextComponentBuffers,
+    pub content       : TextComponentContent,
+    pub cursors       : Cursors,
+    pub properties    : TextComponentProperties,
+    gl_context        : WebGl2RenderingContext,
+    content_program   : MsdfProgram,
+    cursors_program   : BasicProgram,
+    gl_msdf_texture   : WebGlTexture,
+    msdf_texture_rows : usize,
+    buffers           : TextComponentBuffers,
 }
 
 impl TextComponent {
@@ -80,71 +82,65 @@ impl TextComponent {
         self.buffers.jump_to(scroll_position);
     }
 
-    /// Render text
+    /// Render text component.
     pub fn display(&mut self, fonts:&mut Fonts) {
-        self.buffers.refresh(&self.gl_context,self.content.refresh_info(fonts));
-
-        if self.msdf_texture_rows != fonts.get_render_info(self.content.font).msdf_texture.rows() {
-            self.update_msdf_texture(fonts);
-        }
-
-        if !self.cursors.dirty_cursors.is_empty() {
-            self.cursors.set_buffer_data(&self.gl_context,&mut self.content.refresh_info(fonts));
-        }
-
-        let gl_context      = &self.gl_context;
-        let vertices_count  = self.buffers.vertices_count() as i32;
-        let to_scene_matrix = self.to_scene_matrix();
-
-        gl_context.use_program(Some(&self.content_program.gl_program));
-        self.content_program.set_to_scene_transformation(gl_context,&to_scene_matrix);
-        self.content_program.set_msdf_size(gl_context,fonts.get_render_info(self.content.font));
-        self.content_program.bind_buffer_to_attribute(gl_context,"position",&self.buffers.vertex_position);
-        self.content_program.bind_buffer_to_attribute(gl_context,"tex_coord",&self.buffers.texture_coords);
-        self.setup_blending();
-        gl_context.bind_texture(Context::TEXTURE_2D, Some(&self.gl_msdf_texture));
-        gl_context.draw_arrays(WebGl2RenderingContext::TRIANGLES,0,vertices_count);
-
-        if Self::shall_be_cursors_visible() {
-            gl_context.use_program(Some(&self.cursors_program.gl_program));
-            self.cursors_program.set_to_scene_transformation(gl_context,&to_scene_matrix);
-            self.cursors_program.bind_buffer_to_attribute(gl_context,"position",&self.cursors.buffer);
-            gl_context.line_width(2.0);
-            gl_context.draw_arrays(WebGl2RenderingContext::LINES,0,(self.cursors.cursors.len() * 2) as i32);
-            gl_context.line_width(1.0);
-            self.cursors_visible = true;
-        } else {
-            self.cursors_visible = false;
+        self.refresh_content_buffers(fonts);
+        self.refresh_msdf_texture(fonts);
+        self.refresh_cursors(fonts);
+        self.display_content(fonts);
+        if Cursors::cursors_should_be_visible() {
+            self.display_cursors();
         }
     }
 
-    fn update_msdf_texture(&mut self, fonts:&mut Fonts) {
-        let gl_context   = &self.gl_context;
-        let font_msdf    = &fonts.get_render_info(self.content.font).msdf_texture;
-        let target       = Context::TEXTURE_2D;
-        let width        = MsdfTexture::WIDTH as i32;
-        let height       = font_msdf.rows() as i32;
-        let border       = 0;
-        let tex_level    = 0;
-        let format       = Context::RGB;
-        let internal_fmt = Context::RGB as i32;
-        let tex_type     = Context::UNSIGNED_BYTE;
-        let data         = Some(font_msdf.data.as_slice());
+    fn refresh_content_buffers(&mut self, fonts:&mut Fonts) {
+        let refresh_info = self.content.refresh_info(fonts);
+        self.buffers.refresh(&self.gl_context,refresh_info);
+    }
 
-        gl_context.bind_texture(target,Some(&self.gl_msdf_texture));
-        let tex_image_result =
-            gl_context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-            (target,tex_level,internal_fmt,width,height,border,format,tex_type,data);
-        tex_image_result.unwrap();
-        self.msdf_texture_rows = font_msdf.rows();
+    fn refresh_msdf_texture(&mut self, fonts:&mut Fonts) {
+        let font_msdf            = &fonts.get_render_info(self.content.font).msdf_texture;
+        let current_msdf_rows    = font_msdf.rows();
+        let msdf_texture_changed = self.msdf_texture_rows != current_msdf_rows;
+        if msdf_texture_changed {
+            let gl_ctx       = &self.gl_context;
+            let target       = Context::TEXTURE_2D;
+            let width        = MsdfTexture::WIDTH as i32;
+            let height       = font_msdf.rows() as i32;
+            let border       = 0;
+            let tex_level    = 0;
+            let format       = Context::RGB;
+            let internal_fmt = Context::RGB as i32;
+            let tex_type     = Context::UNSIGNED_BYTE;
+            let data         = Some(font_msdf.data.as_slice());
+
+            gl_ctx.bind_texture(target,Some(&self.gl_msdf_texture));
+            let tex_image_result =
+                gl_ctx.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+                (target,tex_level,internal_fmt,width,height,border,format,tex_type,data);
+            tex_image_result.unwrap();
+            self.msdf_texture_rows = font_msdf.rows();
+        }
+    }
+
+    fn refresh_cursors(&mut self, fonts:&mut Fonts) {
+        let cursors_changed = !self.cursors.dirty_cursors.is_empty();
+        if !cursors_changed {
+            let gl_context = &self.gl_context;
+            let content    = &mut self.content;
+            self.cursors.update_buffer_data(gl_context,content,fonts);
+        }
     }
 
     fn to_scene_matrix(&self) -> SmallVec<[f32;9]> {
         const ROTATION : f64            = 0.0;
-        let scroll_offset               = self.buffers.scroll_offset*self.text_size;
-        let to_position                 = self.position.coords + Vector2::new(0.0, self.size.y);
+        let position                    = &self.properties.position;
+        let size                        = self.properties.size;
+        let text_size                   = self.properties.text_size;
+        let scroll_offset               = self.buffers.scroll_offset * text_size;
+        let to_position                 = position.coords + Vector2::new(0.0, size.y);
         let translate                   = to_position - scroll_offset;
-        let scale                       = self.text_size;
+        let scale                       = text_size;
         let similarity                  = Similarity2::new(translate,ROTATION,scale);
         let to_scene : Projective2<f64> = nalgebra::convert(similarity);
         let matrix                      = to_scene.matrix();
@@ -152,6 +148,37 @@ impl TextComponent {
         let flatten_view                = view.iter().flatten();
         let converted                   = flatten_view.map(|f| *f as f32);
         converted.collect()
+    }
+
+    fn display_content(&self, fonts:&mut Fonts) {
+        let gl_context       = &self.gl_context;
+        let font             = fonts.get_render_info(self.content.font);
+        let vertices_count   = self.buffers.vertices_count() as i32;
+        let to_scene_matrix  = self.to_scene_matrix();
+        let program          = &self.content_program;
+
+        gl_context.use_program(Some(&program.gl_program));
+        program.set_to_scene_transformation(&to_scene_matrix);
+        program.set_msdf_size(font);
+        program.bind_buffer_to_attribute("position",&self.buffers.vertex_position);
+        program.bind_buffer_to_attribute("tex_coord",&self.buffers.texture_coords);
+        self.setup_blending();
+        gl_context.bind_texture(Context::TEXTURE_2D,Some(&self.gl_msdf_texture));
+        gl_context.draw_arrays(WebGl2RenderingContext::TRIANGLES,0,vertices_count);
+    }
+
+    fn display_cursors(&self) {
+        let gl_context       = &self.gl_context;
+        let to_scene_matrix  = self.to_scene_matrix();
+        let program          = &self.cursors_program;
+        let vertices_count   = self.cursors.vertices_count() as i32;
+
+        gl_context.use_program(Some(&program.gl_program));
+        self.cursors_program.set_to_scene_transformation(&to_scene_matrix);
+        self.cursors_program.bind_buffer_to_attribute("position",&self.cursors.buffer);
+        gl_context.line_width(2.0);
+        gl_context.draw_arrays(WebGl2RenderingContext::LINES,0,vertices_count);
+        gl_context.line_width(1.0);
     }
 
     fn setup_blending(&self) {
@@ -163,13 +190,6 @@ impl TextComponent {
 
         gl_context.enable(Context::BLEND);
         gl_context.blend_func_separate(rgb_source,rgb_destination,alpha_source,alhpa_destination);
-    }
-
-    fn shall_be_cursors_visible() -> bool {
-        const BLINKING_PERIOD_MS : f64 = 1000.0;
-        let timestamp = js_sys::Date::now();
-        let blinks    = timestamp/BLINKING_PERIOD_MS;
-        blinks.fract() >= 0.5
     }
 }
 
@@ -184,10 +204,7 @@ pub struct TextComponentBuilder<'a, 'b, Str:AsRef<str>> {
     pub fonts           : &'b mut Fonts,
     pub text            : Str,
     pub font_id         : FontId,
-    pub position        : Point2<f64>,
-    pub size            : Vector2<f64>,
-    pub text_size       : f64,
-    pub color           : Color<f32>,
+    pub properties      : TextComponentProperties,
 }
 
 impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
@@ -199,19 +216,17 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
         let content_program = create_content_program(&gl_context);
         let cursors_program = create_cursors_program(&gl_context);
         let gl_msdf_texture = self.create_msdf_texture(&gl_context);
-        let display_size    = self.size / self.text_size;
+        let display_size    = self.properties.size / self.properties.text_size;
         let mut content     = TextComponentContent::new(self.font_id,self.text.as_ref());
         let initial_refresh = content.refresh_info(self.fonts);
         let buffers         = TextComponentBuffers::new(&gl_context,display_size,initial_refresh);
         let cursors         = Cursors::new(&gl_context);
-        content_program.set_constant_uniforms(&gl_context,&self.position,self.size,&self.color);
-        cursors_program.set_constant_uniforms(&gl_context,&self.position,self.size,&self.color);
-        TextComponent {content,cursors,gl_context,content_program,cursors_program,gl_msdf_texture,buffers,
-            position          : self.position,
-            size              : self.size,
-            text_size         : self.text_size,
+        content_program.set_constant_uniforms(&self.properties);
+        cursors_program.set_constant_uniforms(&self.properties);
+        TextComponent
+        {content,cursors,gl_context,content_program,cursors_program,gl_msdf_texture,buffers,
+            properties        : self.properties,
             msdf_texture_rows : 0,
-            cursors_visible   : false,
         }
     }
 

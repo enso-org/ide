@@ -7,7 +7,13 @@ use nalgebra::Point2;
 use std::ops::Range;
 
 
-/// The rendered char position in line and on screen.
+/// A line of text in TextComponent.
+///
+/// The line is kept as vector of chars instead of `str`, because we often want to have a quick
+/// access to a concrete fragment of the line. Additionally, this structure keeps cache of x
+/// position of the char in a _text space_ (where value of 1.0 is equal to lines height). The cache
+/// is initially empty and is load on demand - so the `char_x_position` vector will be often shorter
+/// than number of characters in line.
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Line {
@@ -16,17 +22,19 @@ pub struct Line {
 }
 
 impl Line {
-
+    /// Create line from given string.
     pub fn new<S:Str>(string:S) -> Self {
         Self::new_raw(string.as_ref().chars().collect())
     }
 
+    /// Create line from given characters vector.
     pub fn new_raw(chars:Vec<char>) -> Self {
         Line {chars,
             char_x_positions : Vec::new(),
         }
     }
 
+    /// Create an empty line.
     pub fn empty() -> Self {
         Line{
             chars            : Vec::new(),
@@ -34,38 +42,53 @@ impl Line {
         }
     }
 
+    /// A immutable reference to characters vector.
     pub fn chars(&self) -> &[char] {
         &self.chars.as_ref()
     }
 
+    /// Get lines length.
     pub fn len(&self) -> usize {
         self.chars.len()
     }
 
+    /// Check if line is empty.
+    pub fn is_empty(&self) -> bool {
+        self.chars.is_empty()
+    }
+
+    /// Get the mutable reference to characters. Because we're allowing for modifications here,
+    /// the `chars_x_position` cache is cleared.
     pub fn modify(&mut self) -> &mut Vec<char> {
         self.char_x_positions.clear();
         &mut self.chars
     }
 
+    /// Get x position of character with given index. The position is in _text space_.
     pub fn get_char_x_position(&mut self, index:usize, font:&mut FontRenderInfo) -> f32 {
         self.fill_chars_x_position_up_to(index,font);
         self.char_x_positions[index]
     }
 
+    /// Get range of x coordinates containing the given character.
     pub fn get_char_x_range(&mut self, index:usize, font:&mut FontRenderInfo) -> Range<f32> {
         let start   = self.get_char_x_position(index,font);
         let advance = font.get_glyph_info(self.chars[index]).advance as f32;
         start..(start + advance)
     }
 
+    /// Find the character occupying the given `x_position` in a _text space_. If there are two
+    /// characters under this x coordinate (e.g. due to a kerning) the char on the left will be
+    /// returned.
     pub fn find_char_at_x_position(&mut self, x_position:f32, font:&mut FontRenderInfo)
-        -> Option<usize> {
+    -> Option<usize> {
         if self.chars.is_empty() {
             None
         } else {
+            let comparator   = |f:&f32| f.partial_cmp(&x_position).unwrap();
             self.fill_chars_x_position_up_to_value(x_position,font);
             let last_index   = self.len() - 1;
-            let found        = self.char_x_positions.binary_search_by(|f| f.partial_cmp(&x_position).unwrap());
+            let found        = self.char_x_positions.binary_search_by(comparator);
             let mut in_range = || self.get_char_x_range(last_index, font).end >= x_position;
             match found {
                 Ok(index)                        => Some(index),
@@ -76,11 +99,13 @@ impl Line {
         }
     }
 
+    /// Fill the `chars_x_position` cache so it will contain information about character with given
+    /// index.
     pub fn fill_chars_x_position_up_to(&mut self, index:usize, font:&mut FontRenderInfo) {
         let new_len = index + 1;
         let to_fill = new_len.saturating_sub(self.char_x_positions.len());
         let pen_opt = self.last_cached_char_pen(font);
-        let mut pen = pen_opt.unwrap_or(Pen::new(Point2::new(0.0,0.0)));
+        let mut pen = pen_opt.unwrap_or_else(|| Pen::new(Point2::new(0.0,0.0)));
         let chars   = &self.chars[self.char_x_positions.len()..];
         for ch in chars.iter().take(to_fill) {
             pen.next_char(*ch,font);
@@ -89,6 +114,8 @@ impl Line {
         }
     }
 
+    /// Fill the `chars_x_position` cache so it will contain information about character being
+    /// under given `x_position`.
     pub fn fill_chars_x_position_up_to_value(&mut self, x_position:f32, font:&mut FontRenderInfo) {
         let last_cached    = self.char_x_positions.last();
         let already_filled = last_cached.map_or(false, |cached| *cached >= x_position);
@@ -115,12 +142,19 @@ impl Line {
     }
 }
 
+/// A line reference with it's index.
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 pub struct LineRef<'a> {
+    #[shrinkwrap(main_field)]
     pub line    : &'a mut Line,
     pub line_id : usize,
 }
 
 impl<'a> LineRef<'a> {
+    /// Get the point where a _baseline_ of current line begins (The _baseline_ is a font specific
+    /// term, for details see [freetype documentation]
+    /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
     pub fn start_point(&self) -> Point2<f64> {
         Point2::new(0.0, -(self.line_id as f64) - 1.0)
     }

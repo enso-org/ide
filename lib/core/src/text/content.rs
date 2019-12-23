@@ -6,6 +6,7 @@ use crate::text::font::FontId;
 use crate::text::font::FontRenderInfo;
 use crate::text::font::Fonts;
 use crate::text::content::line::Line;
+use crate::text::content::line::LineRef;
 
 use std::ops::Range;
 use std::ops::RangeFrom;
@@ -88,7 +89,7 @@ impl TextChange {
     /// Creates operation which inserts text at given position.
     pub fn insert(position:CharPosition, text:&str) -> Self {
         TextChange {
-            replaced : position.clone()..position,
+            replaced : position..position,
             lines    : TextComponentContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
         }
     }
@@ -155,7 +156,7 @@ impl TextComponentContent {
     /// The text will be split to lines by `'\n'` characters.
     pub fn new(font_id:FontId, text:&str) -> Self {
         TextComponentContent {
-            lines       : Self::split_to_lines(text).map(|s| Line::new(s)).collect(),
+            lines       : Self::split_to_lines(text).map(Line::new).collect(),
             dirty_lines : DirtyLines::default(),
             font        : font_id,
         }
@@ -165,12 +166,19 @@ impl TextComponentContent {
         text.split('\n').map(Self::cut_cr_at_end_of_line).map(|s| s.to_string())
     }
 
-    /// Cuts carriage return (also known as CR or `'\r'`) from line's end
+    /// Returns slice without carriage return (also known as CR or `'\r'`) at line's end
     fn cut_cr_at_end_of_line(from:&str) -> &str {
         if from.ends_with('\r') {
             &from[..from.len()-1]
         } else {
             from
+        }
+    }
+
+    pub fn line(& mut self, index:usize) -> LineRef {
+        LineRef {
+            line    : &mut self.lines[index],
+            line_id : index,
         }
     }
 
@@ -182,7 +190,7 @@ impl TextComponentContent {
         RefreshInfo {
             lines       : &mut self.lines,
             dirty_lines : std::mem::take(&mut self.dirty_lines),
-            font        : fonts.get_render_info(self.font)
+            font        : fonts.get_render_info(self.font),
         }
     }
 
@@ -208,7 +216,7 @@ impl TextComponentContent {
         let end_line             = change.replaced.end.line;
         let replaced_lines_count = end_line - start_line + 1;
         let inserted_lines_count = change.lines.len();
-        let inserted_lines       = change.lines.drain(0..change.lines.len()).map(|s| Line::new_raw(s));
+        let inserted_lines       = change.lines.drain(0..change.lines.len()).map(Line::new_raw);
         self.lines.splice(start_line..=end_line,inserted_lines);
         if replaced_lines_count != inserted_lines_count {
             self.dirty_lines.add_lines_range_from(start_line..);

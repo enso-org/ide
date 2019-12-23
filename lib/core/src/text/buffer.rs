@@ -14,7 +14,8 @@ use crate::text::content::RefreshInfo;
 use crate::text::font::FontRenderInfo;
 
 use basegl_backend_webgl::Context;
-use js_sys::Float32Array;
+use basegl_backend_webgl::set_buffer_data;
+use basegl_backend_webgl::set_buffer_subdata;
 use nalgebra::Vector2;
 use web_sys::WebGlBuffer;
 use std::ops::RangeInclusive;
@@ -141,7 +142,7 @@ impl TextComponentBuffers {
         is_valid.and_option_from(|| Some(index as usize))
     }
 
-    fn setup_buffers(&mut self, gl_context:&Context, mut refresh:RefreshInfo) {
+    fn setup_buffers(&mut self, gl_context:&Context, refresh:RefreshInfo) {
         let displayed_lines = self.displayed_lines(refresh.lines.len());
         let lines           = refresh.lines;
         let all_fragments   = 0..self.fragments.fragments.len();
@@ -203,39 +204,3 @@ impl TextComponentBuffers {
         BASE_LAYOUT_SIZE * self.fragments.fragments.len() * self.max_chars_in_fragment
     }
 }
-
-
-pub fn set_buffer_data(gl_context:&Context, buffer:&WebGlBuffer, data:&[f32]) {
-    let target = Context::ARRAY_BUFFER;
-    gl_context.bind_buffer(target,Some(&buffer));
-    set_bound_buffer_data(gl_context,target,data);
-}
-
-fn set_bound_buffer_data(gl_context:&Context, target:u32, data:&[f32]) {
-    let usage      = Context::STATIC_DRAW;
-    unsafe { // Note [unsafe buffer_data]
-        let float_array = Float32Array::view(&data);
-        gl_context.buffer_data_with_array_buffer_view(target,&float_array,usage);
-    }
-}
-
-pub fn set_buffer_subdata(gl_context:&Context, buffer:&WebGlBuffer, offset:usize, data:&[f32]) {
-    let target = Context::ARRAY_BUFFER;
-    gl_context.bind_buffer(target,Some(&buffer));
-    set_bound_buffer_subdata(gl_context,target,offset as i32,data);
-}
-
-fn set_bound_buffer_subdata(gl_context:&Context, target:u32, offset:i32, data:&[f32]) {
-    unsafe { // Note [unsafe buffer_data]
-        let float_array = Float32Array::view(&data);
-        gl_context.buffer_sub_data_with_i32_and_array_buffer_view(target,offset,&float_array);
-    }
-}
-
-/* Note [unsafe buffer_data]
- *
- * The Float32Array::view is safe as long there are no allocations done
- * until it is destroyed. This way of creating buffers were taken from
- * wasm-bindgen examples
- * (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
- */
