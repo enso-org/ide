@@ -243,7 +243,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
 
 
 impl<OnDirty> Index<usize> for Workspace<OnDirty> {
-    type Output = Object<OnDirty>;
+    type Output = Symbol<OnDirty>;
     fn index(&self, ix: usize) -> &Self::Output {
         self.mesh_registry.index(ix)
     }

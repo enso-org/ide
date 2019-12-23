@@ -26,7 +26,6 @@ pub mod data;
 pub mod math;
 pub mod dirty;
 pub mod display;
-pub mod object;
 pub mod text;
 pub use basegl_prelude as prelude;
 pub mod backend {
@@ -48,10 +47,10 @@ mod example_01 {
     use crate::prelude::*;
     use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
-    use crate::display::symbol::display_object::*;
+    use crate::display::object::display_object::*;
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
-    use crate::display::symbol::DisplayObjectData;
+    use crate::display::object::DisplayObjectData;
 
 
     #[wasm_bindgen]
@@ -72,7 +71,7 @@ mod example_01 {
         let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
         let workspace : &mut Workspace = &mut world[wspace_id];
         let sym_id    : ObjectId = workspace.new_mesh();
-        let mesh      : &mut Object    = &mut workspace[sym_id];
+        let mesh      : &mut Symbol    = &mut workspace[sym_id];
         let geo       : &mut Mesh      = &mut mesh.geometry;
         let scopes    : &mut Scopes    = &mut geo.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;

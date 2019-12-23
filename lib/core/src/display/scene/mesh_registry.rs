@@ -6,7 +6,7 @@ use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::dirty;
 use crate::dirty::traits::*;
-use crate::object;
+use crate::display::symbol;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::promote;
@@ -26,7 +26,7 @@ use crate::display::camera::Camera2D;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct MeshRegistry <OnDirty> {
-    pub meshes     : OptVec<Object<OnDirty>>,
+    pub meshes     : OptVec<Symbol<OnDirty>>,
     pub mesh_dirty : MeshDirty<OnDirty>,
     pub logger     : Logger,
     context        : Context
@@ -36,7 +36,7 @@ pub struct MeshRegistry <OnDirty> {
 
 pub type ObjectId            = usize;
 pub type MeshDirty <OnDirty> = dirty::SharedSet<ObjectId, OnDirty>;
-promote_mesh_types!{ [OnMeshChange] object }
+promote_mesh_types!{ [OnMeshChange] symbol }
 
 #[macro_export]
 macro_rules! promote_mesh_registry_types { ($($args:tt)*) => {
@@ -71,7 +71,7 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
         self.meshes.insert_with_ix(|ix| {
             let on_dirty   = mesh_on_change(mesh_dirty, ix);
             let logger     = logger.sub(format!("mesh{}",ix));
-            Object::new(context,logger,on_dirty)
+            Symbol::new(context,logger,on_dirty)
         })
     }
     /// Check dirty flags and update the state accordingly.
@@ -94,7 +94,7 @@ impl<OnDirty:Callback0> MeshRegistry<OnDirty> {
 }
 
 impl<OnDirty> Index<usize> for MeshRegistry<OnDirty> {
-    type Output = Object<OnDirty>;
+    type Output = Symbol<OnDirty>;
     fn index(&self, ix:usize) -> &Self::Output {
         self.meshes.index(ix)
     }

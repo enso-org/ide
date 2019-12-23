@@ -3,7 +3,7 @@ pub mod mesh_registry;
 use crate::prelude::*;
 
 use crate::display::camera::Camera2D;
-use crate::display::symbol::DisplayObjectData;
+use crate::display::object::DisplayObjectData;
 use basegl_system_web::Logger;
 
 
