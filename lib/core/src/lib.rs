@@ -52,7 +52,7 @@ mod example_01 {
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_01_example() {
+    pub fn run_example_basic_objects_management() {
         set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
@@ -259,7 +259,7 @@ mod example_03 {
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_03_text() {
+    pub fn run_example_text() {
         set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
             let mut world_ref = World::new();
