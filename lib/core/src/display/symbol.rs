@@ -12,7 +12,7 @@ use crate::data::dirty::traits::*;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::promote;
 use crate::promote_all;
-use crate::promote_geometry_types;
+use crate::promote_mesh_types;
 use crate::promote_material_types;
 use crate::system::web::Logger;
 use crate::system::web::group;
@@ -106,12 +106,12 @@ pub struct Symbol<OnDirty> {
 
 pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
 pub type MaterialDirty<Callback> = dirty::SharedBool<Callback>;
-promote_geometry_types!{ [OnGeometryChange] mesh }
-promote_material_types!{ [OnGeometryChange] material }
+promote_mesh_types!     { [OnGeometryChange] mesh }
+promote_material_types! { [OnGeometryChange] material }
 
 #[macro_export]
 macro_rules! promote_symbol_types { ($($args:tt)*) => {
-    crate::promote_geometry_types! {$($args)*}
+    crate::promote_mesh_types!     {$($args)*}
     crate::promote_material_types! {$($args)*}
     promote! {$($args)* [Symbol]}
 };}

@@ -17,13 +17,14 @@ use eval_tt::*;
 use num_enum::IntoPrimitive;
 
 
-// ================
-// === Geometry ===
-// ================
+// ============
+// === Mesh ===
+// ============
 
 // === Definition ===
 
-/// Geometry describes the shape of the display element. It consist of several
+/// A polygon mesh is a collection of vertices, edges and faces that defines the shape of a
+/// polyhedral object. Mesh describes the shape of the display element. It consist of several
 /// scopes containing sets of variables.
 ///
 ///   - Point Scope
@@ -107,7 +108,7 @@ pub type GlobalScope  <F> = scope::Scope<ScopeOnChange<F>>; // FIXME mock
 promote_scope_types!{ [ScopeOnChange] scope }
 
 #[macro_export]
-macro_rules! promote_geometry_types { ($($args:tt)*) => {
+macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
     promote! {$($args)* [Mesh,Scopes,VarScope,UniformScope,GlobalScope]}
 };}
@@ -128,7 +129,8 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
 )*}}
 
 impl<OnDirty: Callback0> Mesh<OnDirty> {
-    /// Creates new geometry with attached dirty callback.
+
+    /// Creates new mesh with attached dirty callback.
     pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
         let scopes_logger = logger.sub("scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,on_dirty);
@@ -162,7 +164,7 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
     }
 
     /// Browses all scopes and finds where a variable was defined. Scopes are browsed in a
-    /// hierarchical order. To learn more about the ordering see the documentation of `Geometry`.
+    /// hierarchical order. To learn more about the ordering see the documentation of `Mesh`.
     pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
         let name = name.as_ref();
         if      self.scopes.point     . contains(name) { Some(ScopeType::Point)     }

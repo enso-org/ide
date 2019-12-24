@@ -22,6 +22,7 @@ use web_sys::WebGlBuffer;
 use std::ops::RangeInclusive;
 
 
+
 // ==================
 // === BufferData ===
 // ==================
@@ -46,6 +47,7 @@ pub struct BufferData<T,OnSet,OnResize> {
     context          : Context
 }
 
+
 // === Types ===
 
 pub type ObservableVec<T,OnSet,OnResize> = Observable<Vec<T>,OnSet,OnResize>;
@@ -55,6 +57,7 @@ pub type Data<T,OnSet,OnResize> = ObservableVec<T,DataOnSet<OnSet>,DataOnResize<
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
     promote! { $callbacks $module [Var<T>,BufferData<T>,Buffer<T>,AnyBuffer] }
 };}
+
 
 // === Callbacks ===
 
@@ -71,10 +74,12 @@ fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
     |ix: usize| dirty.set(ix)
 }}
 
+
 // === Instances ===
 
 impl<T,OnSet:Callback0, OnResize:Callback0>
 BufferData<T,OnSet,OnResize> {
+
     /// Creates a new empty buffer.
     pub fn new(context: &Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
     -> Self {
@@ -99,33 +104,36 @@ BufferData<T,OnSet,OnResize> {
 }
 
 impl<T:Item,OnSet,OnResize>
-BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
+BufferData<T,OnSet,OnResize> {
 
-    pub fn as_prim_buffer(&self) -> &[Prim<T>] {
-        <T as Item>::to_prim_buffer(&self.buffer.data)
+    /// View the data as slice of primitive elements.
+    pub fn as_prim_slice(&self) -> &[Prim<T>] {
+        <T as Item>::convert_prim_buffer(&self.buffer.data)
     }
 
-    pub fn as_buffer(&self) -> &[T] {
+    /// View the data as slice of elements.
+    pub fn as_slice(&self) -> &[T] {
         &self.buffer.data
     }
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            let data = self.as_buffer();
+            let data = self.as_slice();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
             if self.resize_dirty.check() {
-                self.buffer_data(&self.context,data,&None);
+                self.upload_data(&self.context,data,&None);
             } else if self.buffer_dirty.check_all() {
                 let range = &self.buffer_dirty.take().range;
-                self.buffer_data(&self.context,data,range);
+                self.upload_data(&self.context,data,range);
             }
             self.buffer_dirty.unset_all();
             self.resize_dirty.unset();
         })
     }
 
-    fn buffer_data(&self, context:&Context, data:&[T], opt_range:&Option<RangeInclusive<usize>>) {
+    /// Uploads the provided data to the GPU buffer.
+    fn upload_data(&self, context:&Context, data:&[T], opt_range:&Option<RangeInclusive<usize>>) {
         // Note that `js_buffer_view` is somewhat dangerous (hence the `unsafe`!). This is creating
         // a raw view into our module's `WebAssembly.Memory` buffer, but if we allocate more pages
         // for ourself (aka do a memory allocation in Rust) it'll cause the buffer to change,
@@ -133,8 +141,6 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
         //
         // As a result, after `js_buffer_view` we have to be very careful not to do any memory
         // allocations before it's dropped.
-
-//        let data = <T as Item>::to_prim_buffer(data);
 
         self.logger.info(|| format!("Setting buffer data."));
 
@@ -145,7 +151,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
             }
             Some(range) => {
-                let item_byte_size  = <T as Item>::gl_item_byte_size() as u32;
+                let item_byte_size  = <T as Item>::gpu_prim_byte_size() as u32;
                 let item_count      = <T as Item>::item_count() as u32;
                 let start           = *range.start() as u32;
                 let end             = *range.end()   as u32;
@@ -159,6 +165,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
             }
         }
     }
+
     /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
     /// current vertex buffer object and specifies its layout. Please note that this function is
     /// more complex that a raw call to `WebGLRenderingContext.vertexAttribPointer`, as it correctly
@@ -166,8 +173,8 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as Item>::gl_item_byte_size() as i32;
-        let item_type      = <T as Item>::gl_item_type();
+        let item_byte_size = <T as Item>::gpu_prim_byte_size() as i32;
+        let item_type      = <T as Item>::gpu_item_type();
         let rows           = <T as Item>::rows() as i32;
         let cols           = <T as Item>::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
@@ -241,6 +248,7 @@ IndexMut<usize> for BufferData<T,OnSet,OnResize> {
     }
 }
 
+
 // === Utils ===
 
 fn create_gl_buffer(context:&Context) -> WebGlBuffer {
@@ -264,6 +272,7 @@ pub struct Buffer<T,OnSet,OnResize> {
 
 impl<T, OnSet:Callback0, OnResize:Callback0>
 Buffer<T,OnSet,OnResize> {
+
     /// Creates a new empty buffer.
     pub fn new
     (context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
@@ -282,7 +291,7 @@ Buffer<T,OnSet,OnResize> {
 }
 
 impl<T:Item,OnSet,OnResize>
-Buffer<T,OnSet,OnResize> where Prim<T>: Debug { // TODO: remove Prim<T>: Debug
+Buffer<T,OnSet,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         self.rc.borrow_mut().update()
@@ -334,6 +343,7 @@ From<Rc<RefCell<BufferData<T,OnSet,OnResize>>>> for Buffer<T,OnSet,OnResize> {
         Self {rc}
     }
 }
+
 
 
 // ===========
@@ -401,6 +411,8 @@ impl Builder {
     }
 }
 
+
+
 // ========================
 // === TO BE REFACTORED ===
 // ========================
@@ -429,6 +441,8 @@ macro_rules! cartesian {
         cartesian_impl!{ [] [$($a)*,] [$($b)*,] [$($b)*,], $f }
     };
 }
+
+
 
 // =================
 // === AnyBuffer ===
@@ -493,6 +507,7 @@ macro_rules! mk_any_buffer {
         cartesian!($bases, $params, mk_any_buffer_impl);
     }
 }
+
 
 // === Definition ===
 

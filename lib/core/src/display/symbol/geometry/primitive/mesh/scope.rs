@@ -17,6 +17,7 @@ use crate::promote_buffer_types;
 use eval_tt::*;
 
 
+
 // =============
 // === Scope ===
 // =============
@@ -38,6 +39,7 @@ pub struct Scope <OnDirty> {
     context          : Context
 }
 
+
 // === Types ===
 
 pub type BufferIndex           = usize;
@@ -52,6 +54,7 @@ macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
     promote! { $callbacks $module [Scope] }
 };}
 
+
 // === Callbacks ===
 
 closure! {
@@ -63,6 +66,7 @@ closure! {
 fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
     || dirty.set()
 }}
+
 
 // === Implementation ===
 
@@ -107,10 +111,12 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
         })
     }
 
+    /// Lookups buffer by a given name.
     pub fn buffer(&self, name:&str) -> Option<&AnyBuffer<OnDirty>> {
         self.name_map.get(name).map(|i| &self.buffers[*i])
     }
 
+    /// Checks if a buffer with the given name was created in this scope.
     pub fn contains<S:Str>(&self, name:S) -> bool {
         self.name_map.contains_key(name.as_ref())
     }
@@ -144,6 +150,7 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
         })
     }
 
+    /// Returns the size of buffers in this scope.
     pub fn size(&self) -> usize {
         self.instance_count
     }
