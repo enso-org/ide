@@ -144,8 +144,8 @@ impl<OnDirty:Callback0+Clone> Symbol<OnDirty> {
             let mat_dirt_logger = logger.sub("material_dirty");
             let geometry_dirty  = GeometryDirty::new(geo_dirt_logger,on_dirty2);
             let material_dirty  = MaterialDirty::new(mat_dirt_logger,on_dirty);
-            let geo_on_change   = geometry_on_change(geometry_dirty.clone_rc());
-            let mat_on_change   = material_on_change(material_dirty.clone_rc());
+            let geo_on_change   = geometry_on_change(geometry_dirty.clone_ref());
+            let mat_on_change   = material_on_change(material_dirty.clone_ref());
             let material        = Material::new(ctx,mat_logger,mat_on_change);
             let geometry        = Mesh::new(ctx,geo_logger,geo_on_change);
             let vao             = default();

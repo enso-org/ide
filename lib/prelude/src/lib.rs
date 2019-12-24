@@ -108,6 +108,17 @@ impl<T> OptionOps for Option<T> {
 
 
 
+// ================
+// === CloneRef ===
+// ================
+
+/// Like `Clone` but should be implemented only for cheap reference-based clones. Using `clone_ref`
+/// instead of `clone` makes the code more clear and makes it easier to predict its performance.
+pub trait CloneRef {
+    fn clone_ref(&self) -> Self;
+}
+
+
 
 // ===================
 // === WithPhantom ===
@@ -132,6 +143,7 @@ impl<T, P> WithPhantom<T, P> {
         Self { without_phantom, phantom }
     }
 }
+
 
 
 // =====================

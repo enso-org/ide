@@ -137,7 +137,7 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } { $($uname:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = ScopeType::$uname;
-                let scs_dirty  = scopes_dirty.clone_rc();
+                let scs_dirty  = scopes_dirty.clone_ref();
                 let callback   = scope_on_change(scs_dirty, status_mod);
                 let $name      = $cls::new(&context,sub_logger,callback);
             )*}}
@@ -148,6 +148,7 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
         });
         Self {context,scopes,scopes_dirty,logger}
     }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {

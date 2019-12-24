@@ -15,22 +15,16 @@ pub struct Observable<T,OnSet,OnResize> {
     #[shrinkwrap(main_field)]
     pub data: T,
     #[derivative(Debug="ignore")]
-    pub on_set: OnSet,
+    pub on_mut: OnSet,
     #[derivative(Debug="ignore")]
     pub on_resize: OnResize,
 }
 
-impl<T,OnSet,OnResize>
-Observable<T,OnSet,OnResize> {
-    pub fn new_from(data:T, on_set:OnSet, on_resize:OnResize) -> Self {
-        Self {data,on_set,on_resize}
-    }
-}
-
 impl<T:Default,OnSet,OnResize>
 Observable<T,OnSet,OnResize> {
-    pub fn new(on_set:OnSet, on_resize:OnResize) -> Self {
-        Self::new_from(default(),on_set,on_resize)
+    pub fn new(on_mut:OnSet, on_resize:OnResize) -> Self {
+        let data = default();
+        Self {data,on_mut,on_resize}
     }
 }
 
@@ -47,7 +41,7 @@ impl<T:IndexMut<Ix>,OnSet:Callback1<Ix>,OnResize,Ix:Copy>
 IndexMut<Ix> for Observable<T,OnSet,OnResize> {
     #[inline]
     fn index_mut(&mut self, index:Ix) -> &mut Self::Output {
-        self.on_set.call(index);
+        self.on_mut.call(index);
         &mut self.data[index]
     }
 }

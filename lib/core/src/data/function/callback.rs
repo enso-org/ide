@@ -2,6 +2,30 @@ use crate::prelude::*;
 use std::fmt;
 
 
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+// TODO
+//
+// We should refactor the whole file as soon as this gets resolved:
+// https://github.com/rust-lang/rust/issues/65918
+//
+// Then, we will be able to use unboxed closures (see the closure.rs file) and there would not be
+// a need anymore for the closures to be in `WithPhantom<Rc<dyn Fn(...)>,P>` type. It dereferences
+// to the first type param, however, `Rc<dyn Fn(...)>` does not implement `Fn` trait (as its
+// superclasses could not be implemented). We are using `Rc` to be able to clone the closure.
+// We could use `Box` instead but cloning boxed dyn closures is hard. Using unboxed closures will
+// solve all of these.
+//
+// After the error is solved we could define a NOP type which implements the Fn* traits and use it
+// instead of `()` when necessary. Then we would be able to use `Fn(...)` whenever we use
+// `CallbackN(...)`.
+
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
 
 // =====================
 // === Callback Type ===
@@ -13,12 +37,11 @@ pub type NoCallback = ();
 #[shrinkwrap(mutable)]
 pub struct Callback<Func>(pub Func);
 
-impl<Func> Default for Callback<Func> {
-    fn default() -> Self {
-        //        Callback(NOP::nop())
-        unimplemented!()
-    }
-}
+//impl<Func> Default for Callback<Func> {
+//    fn default() -> Self {
+//        Callback(NOP::nop())
+//    }
+//}
 
 impl<Func> fmt::Debug for Callback<Func> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

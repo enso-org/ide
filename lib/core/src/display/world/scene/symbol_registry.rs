@@ -83,7 +83,7 @@ impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            for mesh_id in self.symbol_dirty.borrow().data.iter() {
+            for mesh_id in self.symbol_dirty.take().iter() {
                 self.symbols[*mesh_id].update()
             }
             self.symbol_dirty.unset_all();

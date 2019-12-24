@@ -45,7 +45,6 @@ mod example_01 {
     use crate::prelude::*;
     use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
-    use crate::display::object::display_object::*;
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
     use crate::display::object::DisplayObjectData;

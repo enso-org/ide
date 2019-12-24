@@ -1,10 +1,8 @@
-//! This module contains implementation of various dirty flags. A dirty flag is
-//! a structure which remembers that something was changed, but not updated yet.
-//! For example, dirty flags are useful when defining OpenGL buffer management.
-//! When a data in CPU-buffer changes, dirty flags can keep a set of changed
-//! indexes and bulk-update the GPU-buffers every animation frame. You can think
-//! of dirty flags like about a way to introduce laziness to the program
-//! evaluation mechanisms.
+//! This module contains implementation of various dirty flags. A dirty flag is a structure which
+//! remembers that something was changed, but not updated yet. For example, dirty flags are useful
+//! when defining OpenGL buffer management. When a data in CPU-buffer changes, dirty flags can keep
+//! a set of changed indexes and bulk-update the GPU-buffers every animation frame. You can think
+//! of dirty flags like about a way to introduce laziness to the program evaluation mechanisms.
 
 use crate::prelude::*;
 
@@ -13,6 +11,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use rustc_hash::FxHashSet;
 use std::hash::Hash;
+use std::mem;
 use std::ops;
 
 
@@ -69,7 +68,6 @@ use traits::*;
 /// implements public API for working with dirty flags.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "T:Debug"))]
-//#[shrinkwrap(mutable)]
 pub struct DirtyFlag<T,OnSet> {
     pub data : T,
     on_set   : Callback<OnSet>,
@@ -83,6 +81,10 @@ impl<OnSet,T:Default> DirtyFlag<T,OnSet> {
     pub fn new(logger: Logger, on_set:Callback<OnSet>) -> Self {
         let data = default();
         Self {data,on_set,logger}
+    }
+
+    pub fn take(&mut self) -> T {
+        mem::take(&mut self.data)
     }
 }
 
@@ -182,9 +184,9 @@ HasUnset1 for DirtyFlag<T,OnSet>
 
 // === Definition ===
 
-/// A version of `DirtyFlag` which uses internal mutability pattern. It is meant
-/// to expose the same API but without requiring `self` reference to be mutable.
-#[derive(Derivative,Shrinkwrap)]
+/// A version of `DirtyFlag` which uses internal mutability pattern. It is meant to expose the same
+/// API but without requiring `self` reference to be mutable.
+#[derive(Derivative)]
 #[derivative(Debug(bound = "T:Debug"))]
 #[derivative(Clone(bound = ""))]
 pub struct SharedDirtyFlag<T,OnSet> {
@@ -200,6 +202,17 @@ SharedDirtyFlag<T,OnSet> {
         let callback = Callback(on_set);
         let rc       = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
         Self { rc }
+    }
+
+    pub fn take(&self) -> T {
+        self.rc.borrow_mut().take()
+    }
+}
+
+impl<T,OnSet>
+SharedDirtyFlag<T,OnSet> {
+    pub fn clone_ref(&self) -> Self {
+        self.clone()
     }
 }
 
@@ -245,24 +258,24 @@ HasCheckAll for SharedDirtyFlag<T,OnSet> {
 
 impl<T:DirtyFlagOps0,OnSet>
 HasCheck0 for SharedDirtyFlag<T,OnSet> {
-    fn check (&self) -> bool { self.borrow().check()   }
+    fn check (&self) -> bool { self.rc.borrow().check()   }
 }
 
 impl<T:DirtyFlagOps1,OnSet>
 HasCheck1 for SharedDirtyFlag<T,OnSet> {
-    fn check (&self, arg:&Arg<T>) -> bool { self.borrow().check(arg)   }
+    fn check (&self, arg:&Arg<T>) -> bool { self.rc.borrow().check(arg)   }
 }
 
 // === Set ===
 
 impl<T:DirtyFlagOps0,OnSet:Callback0>
 SharedHasSet0 for SharedDirtyFlag<T,OnSet> {
-    fn set (&self) { self.borrow_mut().set() }
+    fn set (&self) { self.rc.borrow_mut().set() }
 }
 
 impl<T:DirtyFlagOps1,OnSet:Callback0>
 SharedHasSet1 for SharedDirtyFlag<T,OnSet> {
-    fn set (&self, arg: Arg<T>) { self.borrow_mut().set(arg) }
+    fn set (&self, arg: Arg<T>) { self.rc.borrow_mut().set(arg) }
 }
 
 // === Unset ===
@@ -270,14 +283,14 @@ SharedHasSet1 for SharedDirtyFlag<T,OnSet> {
 impl<T:HasUnset0,OnSet>
 SharedHasUnset0 for SharedDirtyFlag<T,OnSet> {
     fn unset(&self) {
-        self.borrow_mut().unset()
+        self.rc.borrow_mut().unset()
     }
 }
 
 impl<T:HasUnset1,OnSet>
 SharedHasUnset1 for SharedDirtyFlag<T,OnSet> where Arg<T>:Display {
     fn unset(&self, arg:&Self::Arg) {
-        self.borrow_mut().unset(arg)
+        self.rc.borrow_mut().unset(arg)
     }
 }
 
@@ -312,9 +325,8 @@ impl HasUnset0   for BoolData { fn unset     (&mut self)         { self.is_dirty
 // === Range ===
 // =============
 
-/// Dirty flag which keeps information about a range of dirty items. It does not
-/// track items separately, nor you are allowed to keep multiple ranges in it.
-/// Just a single value range.
+/// Dirty flag which keeps information about a range of dirty items. It does not track items
+/// separately, nor you are allowed to keep multiple ranges in it. Just a single value range.
 
 pub type  Range       <Ix,OnSet> = DirtyFlag       <RangeData<Ix>,OnSet>;
 pub type  SharedRange <Ix,OnSet> = SharedDirtyFlag <RangeData<Ix>,OnSet>;

@@ -74,32 +74,26 @@ fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
 
 impl<T,OnSet:Callback0, OnResize:Callback0>
 BufferData<T,OnSet,OnResize> {
-    /// Creates new buffer from provided explicit buffer object.
-    pub fn new_from(context: &Context, vec:Vec<T>, logger:Logger, on_set:OnSet, on_resize:OnResize)
+    /// Creates a new empty buffer.
+    pub fn new(context: &Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
     -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_display()));
         let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
         let buffer_dirty   = BufferDirty::new(set_logger,on_set);
         let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
-        let buff_on_resize = buffer_on_resize(resize_dirty.clone_rc());
-        let buff_on_set    = buffer_on_set(buffer_dirty.clone_rc());
-        let buffer         = Data::new_from(vec, buff_on_set, buff_on_resize);
+        let buff_on_resize = buffer_on_resize(resize_dirty.clone_ref());
+        let buff_on_set    = buffer_on_set(buffer_dirty.clone_ref());
+        let buffer         = Data::new(buff_on_set, buff_on_resize);
         let context        = context.clone();
         let gl_buffer      = create_gl_buffer(&context);
         Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context}
     }
 
-    /// Creates a new empty buffer.
-    pub fn new(context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize) -> Self {
-        Self::new_from(context,default(),logger,on_set,on_resize)
-    }
-
     /// Build the buffer from the provider configuration builder.
-    pub fn build(context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize) -> Self {
-        let buffer = builder._buffer.unwrap_or_else(default);
+    pub fn build(context:&Context, builder:Builder, on_set:OnSet, on_resize:OnResize) -> Self {
         let logger = builder._logger.unwrap_or_else(default);
-        Self::new_from(context,buffer,logger,on_set,on_resize)
+        Self::new(context,logger,on_set,on_resize)
     }
 }
 
@@ -122,7 +116,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
             if self.resize_dirty.check() {
                 self.buffer_data(&self.context,data,&None);
             } else if self.buffer_dirty.check_all() {
-                let range = &self.buffer_dirty.borrow().data.range;
+                let range = &self.buffer_dirty.take().range;
                 self.buffer_data(&self.context,data,range);
             }
             self.buffer_dirty.unset_all();
@@ -193,7 +187,7 @@ BufferData<T,OnSet,OnResize> where Prim<T>:Debug { // TODO remove Prim<T>:Debug
 impl<T,OnSet,OnResize>
 BufferData<T,OnSet,OnResize> {
     /// Returns a new buffer `Builder` object.
-    pub fn builder() -> Builder<T> {
+    pub fn builder() -> Builder {
         default()
     }
 
@@ -278,10 +272,8 @@ Buffer<T,OnSet,OnResize> {
         Self {rc}
     }
 
-    /// Build the buffer from the provider configuration builder.
-    pub fn build
-    (context:&Context, builder:Builder<T>, on_set:OnSet, on_resize:OnResize)
-     -> Self {
+    /// Build the buffer from the provided configuration builder.
+    pub fn build(context:&Context, builder:Builder, on_set:OnSet, on_resize:OnResize) -> Self {
         let data = BufferData::build(context, builder, on_set, on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
@@ -392,25 +384,19 @@ impl<T:Copy,OnSet:Callback0,OnResize> Var<T,OnSet,OnResize> {
 /// Buffer builder.
 #[derive(Derivative)]
 #[derivative(Default(bound=""))]
-pub struct Builder<T> {
-    pub _buffer : Option <Vec<T>>,
+pub struct Builder {
     pub _logger : Option <Logger>
 }
 
-impl<T> Builder<T> {
+impl Builder {
     /// Creates a new builder object.
     pub fn new() -> Self {
         default()
     }
 
-    /// Sets the underlying buffer data.
-    pub fn buffer(self, val: Vec <T>) -> Self {
-        Self { _buffer: Some(val), _logger: self._logger }
-    }
-
     /// Sets the logger.
     pub fn logger(self, val: Logger) -> Self {
-        Self { _buffer: self._buffer, _logger: Some(val) }
+        Self { _logger: Some(val) }
     }
 }
 

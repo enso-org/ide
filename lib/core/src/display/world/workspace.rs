@@ -155,7 +155,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let shape_dirty           = ShapeDirty::new(sub_logger,on_dirty.clone());
         let sub_logger            = logger.sub("symbol_registry_dirty");
         let dirty_flag            = SymbolRegistryDirty::new(sub_logger, on_dirty);
-        let on_change             = symbol_registry_on_change(dirty_flag.clone_rc());
+        let on_change             = symbol_registry_on_change(dirty_flag.clone_ref());
         let sub_logger            = logger.sub("symbol_registry");
         let symbol_registry       = SymbolRegistry::new(&context,sub_logger, on_change);
         let shape                 = default();

@@ -95,7 +95,7 @@ impl World {
         let dirty  = &self.workspace_dirty;
         self.workspaces.insert_with_ix(|ix| {
             group!(logger, format!("Adding workspace {} ({}).", ix, name), {
-                let on_change     = workspace_on_change(dirty.clone_rc(),ix);
+                let on_change     = workspace_on_change(dirty.clone_ref(),ix);
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name,wspace_logger,on_change).unwrap() // FIXME
             })

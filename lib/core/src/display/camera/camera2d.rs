@@ -1,9 +1,8 @@
-
 use crate::prelude::*;
 
 use crate::data::dirty;
 use crate::display::object::DisplayObjectData;
-use nalgebra::{Vector3, Vector4, Matrix4, Perspective3};
+use nalgebra::{Vector3, Matrix4, Perspective3};
 use basegl_system_web::Logger;
 use crate::data::dirty::traits::*;
 
@@ -41,6 +40,7 @@ impl Default for Alignment {
 // === Screen ===
 // ==============
 
+/// Camera's frustum screen dimensions.
 #[derive(Clone,Debug)]
 pub struct Screen {
     pub width  : f32,
@@ -56,10 +56,12 @@ impl Default for Screen {
 }
 
 
+
 // ==================
 // === Projection ===
 // ==================
 
+/// Camera's projection type.
 #[derive(Clone,Debug)]
 pub enum Projection {
     Perspective {fov:f32},
@@ -78,6 +80,7 @@ impl Default for Projection {
 // === Clipping ===
 // ================
 
+/// Camera's frustum clipping range.
 #[derive(Clone,Debug)]
 pub struct Clipping {
     pub near : f32,
@@ -131,13 +134,13 @@ impl Camera2DData {
         let view_projection_matrix = Matrix4::identity();
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
-        let transform_dirty_copy   = transform_dirty.clone_rc();
+        let transform_dirty_copy   = transform_dirty.clone();
         let transform              = DisplayObjectData::new(logger);
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
         Self {transform,screen,projection,clipping,alignment,zoom,native_z,view_matrix
-            ,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
+             ,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
     }
 
     pub fn recompute_view_matrix(&mut self) {
@@ -183,11 +186,13 @@ impl Camera2DData {
     }
 }
 
+
 // === Getters ===
 
 impl Camera2DData {
     pub fn view_projection_matrix (&self) -> &Matrix4<f32> { &self.view_projection_matrix }
 }
+
 
 // === Setters ===
 
@@ -213,18 +218,19 @@ impl Camera2DData {
                 let alpha      = fov / 2.0;
                 let native_z  = height / (2.0 * alpha.tan());
                 self.native_z = native_z;
-                self.mod_only_position(|t| t.z = native_z / zoom);
+                self.mod_position_keep_zoom(|t| t.z = native_z / zoom);
             }
             _ => unimplemented!()
         };
     }
 }
 
+
 // === Transform Setters ===
 
 impl Camera2DData {
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.mod_only_position(f);
+        self.mod_position_keep_zoom(f);
         self.zoom = self.native_z / self.transform.position().z;
     }
 
@@ -233,10 +239,11 @@ impl Camera2DData {
     }
 }
 
+
 // === Private Transform Setters ===
 
 impl Camera2DData {
-    fn mod_only_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+    fn mod_position_keep_zoom<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
         self.transform.mod_position(f)
     }
 }
@@ -276,6 +283,7 @@ impl Camera2D {
     }
 }
 
+
 // === Modifiers ===
 
 impl Camera2D {
@@ -298,6 +306,7 @@ impl Camera2D {
         *self.rc.borrow().view_projection_matrix()
     }
 }
+
 
 // === Setters ===
 
