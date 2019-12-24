@@ -39,22 +39,22 @@ pub trait Callback0: 'static {
 pub trait Callback1<Arg1> {
     fn call(&mut self, arg1:Arg1);
 }
-
-pub trait Callback2<Arg1,Arg2> {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2);
-}
-
-pub trait Callback3<Arg1,Arg2,Arg3> {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3);
-}
-
-pub trait Callback4<Arg1,Arg2,Arg3,Arg4> {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4);
-}
-
-pub trait Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4, arg5:Arg5);
-}
+//
+//pub trait Callback2<Arg1,Arg2> {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2);
+//}
+//
+//pub trait Callback3<Arg1,Arg2,Arg3> {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3);
+//}
+//
+//pub trait Callback4<Arg1,Arg2,Arg3,Arg4> {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4);
+//}
+//
+//pub trait Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4, arg5:Arg5);
+//}
 
 
 // === Unit Implementations ===
@@ -75,21 +75,21 @@ impl<Arg1> Callback1<Arg1> for () {
     fn call(&mut self, _arg1:Arg1) {}
 }
 
-impl<Arg1,Arg2> Callback2<Arg1,Arg2> for () {
-    fn call(&mut self, _arg1:Arg1, _arg2:Arg2) {}
-}
-
-impl<Arg1,Arg2,Arg3> Callback3<Arg1,Arg2,Arg3> for () {
-    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3) {}
-}
-
-impl<Arg1,Arg2,Arg3,Arg4> Callback4<Arg1,Arg2,Arg3,Arg4> for () {
-    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3, _arg4:Arg4) {}
-}
-
-impl<Arg1,Arg2,Arg3,Arg4,Arg5> Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> for () {
-    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3, _arg4:Arg4, _arg5:Arg5) {}
-}
+//impl<Arg1,Arg2> Callback2<Arg1,Arg2> for () {
+//    fn call(&mut self, _arg1:Arg1, _arg2:Arg2) {}
+//}
+//
+//impl<Arg1,Arg2,Arg3> Callback3<Arg1,Arg2,Arg3> for () {
+//    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3) {}
+//}
+//
+//impl<Arg1,Arg2,Arg3,Arg4> Callback4<Arg1,Arg2,Arg3,Arg4> for () {
+//    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3, _arg4:Arg4) {}
+//}
+//
+//impl<Arg1,Arg2,Arg3,Arg4,Arg5> Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> for () {
+//    fn call(&mut self, _arg1:Arg1, _arg2:Arg2, _arg3:Arg3, _arg4:Arg4, _arg5:Arg5) {}
+//}
 
 
 // === FnMut Implementations ===
@@ -120,28 +120,28 @@ impl<Arg1, F: FnMut(Arg1) -> T, T> Callback1<Arg1> for F {
     }
 }
 
-impl<Arg1,Arg2, F: FnMut(Arg1,Arg2) -> T, T> Callback2<Arg1,Arg2> for F {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2) {
-        self(arg1, arg2);
-    }
-}
-
-impl<Arg1,Arg2,Arg3, F: FnMut(Arg1,Arg2,Arg3) -> T, T> Callback3<Arg1,Arg2,Arg3> for F {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3) {
-        self(arg1, arg2, arg3);
-    }
-}
-
-impl<Arg1,Arg2,Arg3,Arg4, F: FnMut(Arg1,Arg2,Arg3,Arg4) -> T, T>
-    Callback4<Arg1,Arg2,Arg3,Arg4> for F {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4) {
-        self(arg1, arg2, arg3, arg4);
-    }
-}
-
-impl<Arg1,Arg2,Arg3,Arg4,Arg5, F: FnMut(Arg1,Arg2,Arg3,Arg4,Arg5) -> T, T>
-    Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> for F {
-    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4, arg5:Arg5) {
-        self(arg1, arg2, arg3, arg4, arg5);
-    }
-}
+//impl<Arg1,Arg2, F: FnMut(Arg1,Arg2) -> T, T> Callback2<Arg1,Arg2> for F {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2) {
+//        self(arg1, arg2);
+//    }
+//}
+//
+//impl<Arg1,Arg2,Arg3, F: FnMut(Arg1,Arg2,Arg3) -> T, T> Callback3<Arg1,Arg2,Arg3> for F {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3) {
+//        self(arg1, arg2, arg3);
+//    }
+//}
+//
+//impl<Arg1,Arg2,Arg3,Arg4, F: FnMut(Arg1,Arg2,Arg3,Arg4) -> T, T>
+//    Callback4<Arg1,Arg2,Arg3,Arg4> for F {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4) {
+//        self(arg1, arg2, arg3, arg4);
+//    }
+//}
+//
+//impl<Arg1,Arg2,Arg3,Arg4,Arg5, F: FnMut(Arg1,Arg2,Arg3,Arg4,Arg5) -> T, T>
+//    Callback5<Arg1,Arg2,Arg3,Arg4,Arg5> for F {
+//    fn call(&mut self, arg1:Arg1, arg2:Arg2, arg3:Arg3, arg4:Arg4, arg5:Arg5) {
+//        self(arg1, arg2, arg3, arg4, arg5);
+//    }
+//}

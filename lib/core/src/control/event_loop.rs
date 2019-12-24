@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::control::callback::Callback;
+use crate::control::callback::CallbackMut;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry;
 use crate::system::web;
@@ -45,7 +45,7 @@ impl EventLoop {
 
     /// Add new callback. Returns `CallbackHandle` which when dropped, removes
     /// the callback as well.
-    pub fn add_callback<F: Callback>(&self, callback: F) -> CallbackHandle {
+    pub fn add_callback<F:CallbackMut>(&self, callback:F) -> CallbackHandle {
         self.rc.borrow_mut().callbacks.add(callback)
     }
 }

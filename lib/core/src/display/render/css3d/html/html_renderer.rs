@@ -42,7 +42,7 @@ pub fn eps(value: f32) -> f32 {
 /// Inverts Matrix Y coordinates.
 /// It's equivalent to scaling by (1.0, -1.0, 1.0).
 pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
-    /// Negating the second column to invert Y.
+    // Negating the second column to invert Y.
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m
 }
@@ -58,13 +58,7 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
 }
 
 fn setup_camera_transform
-( dom         : &JsValue
-, near        : f32
-, half_width  : f32
-, half_height : f32
-, matrix      : &Matrix4<f32>
-) {
-
+(dom:&JsValue, near:f32, half_width:f32, half_height:f32, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.

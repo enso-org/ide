@@ -1,5 +1,3 @@
-#![feature(type_ascription)]
-
 use basegl_prelude::*;
 
 use web_sys::WebGlProgram;
