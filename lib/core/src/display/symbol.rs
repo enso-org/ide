@@ -180,7 +180,7 @@ impl<OnDirty:Callback0+Clone> Symbol<OnDirty> {
                     match opt_scope {
                         None => self.logger.error("Internal error. Invalid var scope."),
                         Some(scope) => {
-                            let vtx_name = shader::builder::mk_vertex_name(&variable);
+                            let vtx_name = shader::mk_vertex_name(&variable);
                             let location = self.context.get_attrib_location(program, &vtx_name);
                             if location < 0 {
                                 self.logger.error(|| format!("Attribute '{}' not found.",vtx_name));

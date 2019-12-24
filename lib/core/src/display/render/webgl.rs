@@ -1,8 +1,12 @@
+pub mod glsl;
+
 use basegl_prelude::*;
 
 use web_sys::WebGlProgram;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlShader;
+
+
 
 // =============
 // === Types ===
@@ -11,6 +15,8 @@ use web_sys::WebGlShader;
 pub type Context = WebGl2RenderingContext;
 pub type Shader  = WebGlShader;
 pub type Program = WebGlProgram;
+
+
 
 // =============
 // === Error ===
@@ -33,6 +39,8 @@ pub enum ErrorTarget {
     #[fail(display = "program")]
     Program,
 }
+
+
 
 // ==================
 // === HasInfoLog ===
@@ -66,6 +74,8 @@ impl CompilationTarget for Program {
 fn unwrap_error(opt_err: Option<String>) -> String {
     opt_err.unwrap_or_else(|| "Unknown error.".to_string())
 }
+
+
 
 // ======================
 // === Compile / Link ===

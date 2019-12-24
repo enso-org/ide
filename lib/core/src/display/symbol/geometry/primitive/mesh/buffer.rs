@@ -1,5 +1,4 @@
 pub mod item;
-pub mod data;
 
 use crate::prelude::*;
 
@@ -8,6 +7,7 @@ use crate::closure;
 use crate::data::function::callback::*;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::data::seq::observable::Observable;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -48,7 +48,8 @@ pub struct BufferData<T,OnSet,OnResize> {
 
 // === Types ===
 
-pub type Data <T,S,R> = data::Data <T,DataOnSet<S>,DataOnResize<R>>;
+pub type ObservableVec<T,OnSet,OnResize> = Observable<Vec<T>,OnSet,OnResize>;
+pub type Data<T,OnSet,OnResize> = ObservableVec<T,DataOnSet<OnSet>,DataOnResize<OnResize>>;
 
 #[macro_export]
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {

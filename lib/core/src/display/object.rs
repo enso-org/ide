@@ -374,6 +374,7 @@ impl DisplayObjectData {
         self.rc.borrow_mut().update_with(new_origin,force);
     }
 
+    /// Removes and returns the parent bind. Please note that the parent is not updated.
     fn take_parent_bind(&self) -> Option<ParentBind> {
         self.rc.borrow_mut().take_parent_bind()
     }
