@@ -25,9 +25,9 @@ use crate::display::camera::Camera2D;
 /// Registry for all the created symbols.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct SymbolRegistry<OnDirty> {
-    pub symbols      : OptVec<Symbol<OnDirty>>,
-    pub symbol_dirty : SymbolDirty<OnDirty>,
+pub struct SymbolRegistry<OnMut> {
+    pub symbols      : OptVec<Symbol<OnMut>>,
+    pub symbol_dirty : SymbolDirty<OnMut>,
     pub logger       : Logger,
     context          : Context
 }
@@ -59,24 +59,24 @@ fn mesh_on_change<C:Callback0> (dirty:SymbolDirty<C>, ix:SymbolId) -> OnSymbolCh
 impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
         logger.info("Initializing.");
-        let mesh_logger  = logger.sub("symbol_dirty");
-        let symbol_dirty = SymbolDirty::new(mesh_logger, on_dirty);
-        let symbols      = default();
-        let context      = context.clone();
+        let symbol_logger = logger.sub("symbol_dirty");
+        let symbol_dirty  = SymbolDirty::new(symbol_logger, on_mut);
+        let symbols       = default();
+        let context       = context.clone();
         Self {symbols,symbol_dirty,logger,context}
     }
 
-    /// Creates a new mesh instance.
-    pub fn new_mesh(&mut self) -> SymbolId {
+    /// Creates a new `Symbol` instance.
+    pub fn new_symbol(&mut self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
         let logger     = &self.logger;
         let context    = &self.context;
         self.symbols.insert_with_ix(|ix| {
-            let on_dirty   = mesh_on_change(symbol_dirty, ix);
-            let logger     = logger.sub(format!("mesh{}",ix));
-            Symbol::new(context,logger,on_dirty)
+            let on_mut = mesh_on_change(symbol_dirty, ix);
+            let logger = logger.sub(format!("symbol{}",ix));
+            Symbol::new(context,logger,on_mut)
         })
     }
 

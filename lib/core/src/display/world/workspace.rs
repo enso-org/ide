@@ -23,6 +23,7 @@ use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 
 
+
 // =============
 // === Error ===
 // =============
@@ -32,6 +33,7 @@ pub enum Error {
     #[fail(display = "Web Platform error: {}", error)]
     WebError { error: web::Error },
 }
+
 
 
 // =============
@@ -69,6 +71,7 @@ impl Shape {
     }
 }
 
+
 // === ShapeData ===
 
 #[derive(Clone,Debug)]
@@ -93,6 +96,7 @@ impl ShapeData {
         self.height = height;
     }
 }
+
 
 
 // =================
@@ -129,12 +133,14 @@ macro_rules! promote_workspace_types { ($($args:tt)*) => {
     promote! { $($args)* [Workspace] }
 };}
 
+
 // === Callbacks ===
 
 closure! {
 fn symbol_registry_on_change<C:Callback0> (dirty:SymbolRegistryDirty<C>) -> OnSymbolRegistryChange {
     || dirty.set()
 }}
+
 
 // === Implementation ===
 
@@ -191,9 +197,9 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         WorkspaceBuilder {name}
     }
 
-    /// Create a new mesh instance.
-    pub fn new_mesh(&mut self) -> SymbolId {
-        self.symbol_registry.new_mesh()
+    /// Create a new `Symbol` instance.
+    pub fn new_symbol(&mut self) -> SymbolId {
+        self.symbol_registry.new_symbol()
     }
 
     /// Resize the underlying canvas. This function should rather not be called
@@ -238,7 +244,6 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     }
 }
 
-
 impl<OnDirty> Index<usize> for Workspace<OnDirty> {
     type Output = Symbol<OnDirty>;
     fn index(&self, ix: usize) -> &Self::Output {
@@ -251,6 +256,7 @@ impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
         self.symbol_registry.index_mut(ix)
     }
 }
+
 
 
 // ========================

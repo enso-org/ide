@@ -22,9 +22,9 @@ use web_sys::WebGlProgram;
 /// Material keeps track of a shader and related WebGL Program.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Material<OnDirty> {
+pub struct Material<OnMut> {
     program    : Option<WebGlProgram>,
-    pub dirty  : Dirty <OnDirty>,
+    pub dirty  : Dirty <OnMut>,
     pub logger : Logger,
     context    : Context
 }
@@ -43,10 +43,10 @@ macro_rules! promote_material_types { ($($args:tt)*) => {
 impl<OnDirty: Callback0> Material<OnDirty> {
 
     /// Creates new material with attached callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
         let program      = default();
         let dirty_logger = logger.sub("dirty");
-        let dirty        = Dirty::new(dirty_logger,on_dirty);
+        let dirty        = Dirty::new(dirty_logger,on_mut);
         let context      = context.clone();
         dirty.set();
         Self {program,dirty,logger,context}

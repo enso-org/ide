@@ -29,10 +29,10 @@ use eval_tt::*;
 /// describes.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Scope <OnDirty> {
-    pub buffers      : OptVec<AnyBuffer<OnDirty>>,
-    pub buffer_dirty : BufferDirty<OnDirty>,
-    pub shape_dirty  : ShapeDirty<OnDirty>,
+pub struct Scope <OnMut> {
+    pub buffers      : OptVec<AnyBuffer<OnMut>>,
+    pub buffer_dirty : BufferDirty<OnMut>,
+    pub shape_dirty  : ShapeDirty<OnMut>,
     pub name_map     : HashMap<BufferName, BufferIndex>,
     pub logger       : Logger,
     instance_count   : usize,
@@ -44,8 +44,8 @@ pub struct Scope <OnDirty> {
 
 pub type BufferIndex           = usize;
 pub type BufferName            = String;
-pub type BufferDirty <OnDirty> = dirty::SharedBitField<u64, OnDirty>;
-pub type ShapeDirty  <OnDirty> = dirty::SharedBool<OnDirty>;
+pub type BufferDirty <OnMut> = dirty::SharedBitField<u64, OnMut>;
+pub type ShapeDirty  <OnMut> = dirty::SharedBool<OnMut>;
 promote_buffer_types! {[BufferOnSet, BufferOnResize] buffer}
 
 #[macro_export]
@@ -70,14 +70,14 @@ fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
 
 // === Implementation ===
 
-impl<OnDirty: Clone> Scope<OnDirty> {
+impl<OnMut: Clone> Scope<OnMut> {
     /// Create a new scope with the provided dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_mut:OnMut) -> Self {
         logger.info("Initializing.");
         let buffer_logger  = logger.sub("buffer_dirty");
         let shape_logger   = logger.sub("shape_dirty");
-        let buffer_dirty   = BufferDirty::new(buffer_logger,on_dirty.clone());
-        let shape_dirty    = ShapeDirty::new(shape_logger,on_dirty);
+        let buffer_dirty   = BufferDirty::new(buffer_logger,on_mut.clone());
+        let shape_dirty    = ShapeDirty::new(shape_logger,on_mut);
         let buffers        = default();
         let name_map       = default();
         let instance_count = default();
@@ -87,12 +87,12 @@ impl<OnDirty: Clone> Scope<OnDirty> {
     }
 }
 
-impl<OnDirty: Callback0> Scope<OnDirty> {
+impl<OnMut: Callback0> Scope<OnMut> {
 
     /// Adds a new named buffer to the scope.
     pub fn add_buffer<Name: Str, T: Item>
-    (&mut self, name:Name) -> Buffer<T,OnDirty>
-        where AnyBuffer<OnDirty>: From<Buffer<T,OnDirty>> {
+    (&mut self, name:Name) -> Buffer<T,OnMut>
+        where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
         let shape_dirty  = self.shape_dirty.clone();
@@ -112,7 +112,7 @@ impl<OnDirty: Callback0> Scope<OnDirty> {
     }
 
     /// Lookups buffer by a given name.
-    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer<OnDirty>> {
+    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer<OnMut>> {
         self.name_map.get(name).map(|i| &self.buffers[*i])
     }
 

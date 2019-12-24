@@ -28,57 +28,54 @@ use num_enum::IntoPrimitive;
 /// scopes containing sets of variables.
 ///
 ///   - Point Scope
-///     A point is simply a point in space. Points are often assigned with such
-///     variables as 'position' or 'color'.
+///     A point is simply a point in space. Points are often assigned with such variables as
+///     'position' or 'color'.
 ///
 ///   - Vertex Scope
-///     A vertex is a reference to a point. Primitives use vertices to reference
-///     points. For example, the corners of a polygon, the center of a sphere,
-///     or a control vertex of a spline curve. Primitives can share points,
-///     while vertices are unique to a primitive.
+///     A vertex is a reference to a point. Primitives use vertices to reference points. For
+///     example, the corners of a polygon, the center of a sphere, or a control vertex of a spline
+///     curve. Primitives can share points, while vertices are unique to a primitive.
 ///
 ///   - Primitive Scope
-///     Primitives refer to a unit of geometry, lower-level than an object but
-///     above points. There are several different types of primitives, including
-///     polygon faces or Bezier/NURBS surfaces.
+///     Primitives refer to a unit of geometry, lower-level than an object but above points. There
+///     are several different types of primitives, including polygon faces or Bezier/NURBS surfaces.
 ///
 ///   - Instance Scope
-///     Instances are virtual copies of the same geometry. They share point,
-///     vertex, and primitive variables.
+///     Instances are virtual copies of the same geometry. They share point, vertex, and primitive
+///     variables.
 ///
 ///   - Object Scope
 ///     Object refers to the whole geometry with all of its instances.
 ///
 ///   - Global Scope
-///     Global scope is shared by all objects and it contains some universal
-///     global variables, like the current 'time' counter.
+///     Global scope is shared by all objects and it contains some universal global variables, like
+///     the current 'time' counter.
 ///
-/// Each scope can contain named attributes which can be accessed from within
-/// materials. If the same name was defined in various scopes, it gets resolved
-/// to the var defined in the most specific scope. For example, if var 'color'
-/// was defined in both 'instance' and 'point' scope, the 'point' definition
-/// overlapps the other one.
+/// Each scope can contain named attributes which can be accessed from within materials. If the same
+/// name was defined in various scopes, it gets resolved to the var defined in the most specific
+/// scope. For example, if var 'color' was defined in both 'instance' and 'point' scope, the 'point'
+/// definition overlapps the other one.
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Mesh<OnDirty> {
+pub struct Mesh<OnMut> {
     #[shrinkwrap(main_field)]
-    pub scopes       : Scopes      <OnDirty>,
-    pub scopes_dirty : ScopesDirty <OnDirty>,
+    pub scopes       : Scopes      <OnMut>,
+    pub scopes_dirty : ScopesDirty <OnMut>,
     pub logger       : Logger,
     context          : Context
 }
 
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Scopes<OnDirty> {
-    pub point     : VarScope     <OnDirty>,
-    pub vertex    : VarScope     <OnDirty>,
-    pub primitive : VarScope     <OnDirty>,
-    pub instance  : VarScope     <OnDirty>,
-    pub object    : UniformScope <OnDirty>,
-    pub global    : GlobalScope  <OnDirty>,
+pub struct Scopes<OnMut> {
+    pub point     : VarScope     <OnMut>,
+    pub vertex    : VarScope     <OnMut>,
+    pub primitive : VarScope     <OnMut>,
+    pub instance  : VarScope     <OnMut>,
+    pub object    : UniformScope <OnMut>,
+    pub global    : GlobalScope  <OnMut>,
 }
 
 #[derive(Copy,Clone,Debug,IntoPrimitive,PartialEq)]
@@ -99,6 +96,7 @@ impl Display for ScopeType {
     }
 }
 
+
 // === Types ===
 
 pub type ScopesDirty  <F> = dirty::SharedEnum<u8,ScopeType,F>;
@@ -113,12 +111,14 @@ macro_rules! promote_mesh_types { ($($args:tt)*) => {
     promote! {$($args)* [Mesh,Scopes,VarScope,UniformScope,GlobalScope]}
 };}
 
+
 // === Callbacks ===
 
 closure! {
 fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopeType) -> ScopeOnChange {
     || dirty.set(item)
 }}
+
 
 // === Implementation ===
 
@@ -128,12 +128,12 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
     }
 )*}}
 
-impl<OnDirty: Callback0> Mesh<OnDirty> {
+impl<OnMut: Callback0> Mesh<OnMut> {
 
     /// Creates new mesh with attached dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnDirty) -> Self {
+    pub fn new(context:&Context, logger:Logger, on_mut:OnMut) -> Self {
         let scopes_logger = logger.sub("scopes_dirty");
-        let scopes_dirty  = ScopesDirty::new(scopes_logger,on_dirty);
+        let scopes_dirty  = ScopesDirty::new(scopes_logger,on_mut);
         let context       = context.clone();
         let scopes        = group!(logger, "Initializing.", {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } { $($uname:ident),* } ) => {$(
@@ -177,7 +177,7 @@ impl<OnDirty: Callback0> Mesh<OnDirty> {
     }
 
     /// Gets reference to scope based on the scope type.
-    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&VarScope<OnDirty>> {
+    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&VarScope<OnMut>> {
         match scope_type {
             ScopeType::Point     => Some(&self.scopes.point),
             ScopeType::Vertex    => Some(&self.scopes.vertex),

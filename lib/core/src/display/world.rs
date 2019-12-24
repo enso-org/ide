@@ -22,6 +22,7 @@ use crate::display::shape::text::font::Fonts;
 use eval_tt::*;
 
 
+
 // =============
 // === World ===
 // =============
@@ -42,11 +43,13 @@ pub struct World {
     pub self_reference  : Option<WorldRef>
 }
 
+
 // === Types ===
 
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedSet<WorkspaceID>;
 promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
+
 
 // === Callbacks ===
 
@@ -54,6 +57,7 @@ closure! {
 fn workspace_on_change(dirty:WorkspaceDirty, ix:WorkspaceID) -> WorkspaceOnChange {
     || dirty.set(ix)
 }}
+
 
 // === Implementation ===
 
@@ -195,6 +199,7 @@ impl Drop for World {
 }
 
 
+
 // ================
 // === WorldRef ===
 // ================
@@ -227,6 +232,7 @@ impl<T> Add<T> for WorldRef where World: Add<T> {
         self.borrow_mut().add(t)
     }
 }
+
 
 // === Instances ===
 

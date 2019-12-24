@@ -37,10 +37,10 @@ use std::ops::RangeInclusive;
 #[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct BufferData<T,OnSet,OnResize> {
+pub struct BufferData<T,OnMut,OnResize> {
     #[shrinkwrap(main_field)]
-    pub buffer       : Data        <T,OnSet,OnResize>,
-    pub buffer_dirty : BufferDirty <OnSet>,
+    pub buffer       : Data        <T,OnMut,OnResize>,
+    pub buffer_dirty : BufferDirty <OnMut>,
     pub resize_dirty : ResizeDirty <OnResize>,
     pub logger       : Logger,
     pub gl_buffer    : WebGlBuffer,
@@ -50,8 +50,8 @@ pub struct BufferData<T,OnSet,OnResize> {
 
 // === Types ===
 
-pub type ObservableVec<T,OnSet,OnResize> = Observable<Vec<T>,OnSet,OnResize>;
-pub type Data<T,OnSet,OnResize> = ObservableVec<T,DataOnSet<OnSet>,DataOnResize<OnResize>>;
+pub type ObservableVec<T,OnMut,OnResize> = Observable<Vec<T>,OnMut,OnResize>;
+pub type Data<T,OnMut,OnResize> = ObservableVec<T,DataOnSet<OnMut>,DataOnResize<OnResize>>;
 
 #[macro_export]
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
@@ -70,41 +70,41 @@ fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) -> DataOnResize {
 }}
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
+fn buffer_on_mut<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
     |ix: usize| dirty.set(ix)
 }}
 
 
 // === Instances ===
 
-impl<T,OnSet:Callback0, OnResize:Callback0>
-BufferData<T,OnSet,OnResize> {
+impl<T,OnMut:Callback0, OnResize:Callback0>
+BufferData<T,OnMut,OnResize> {
 
     /// Creates a new empty buffer.
-    pub fn new(context: &Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
+    pub fn new(context: &Context, logger:Logger, on_mut:OnMut, on_resize:OnResize)
     -> Self {
         logger.info(fmt!("Creating new {} buffer.", T::type_display()));
         let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
-        let buffer_dirty   = BufferDirty::new(set_logger,on_set);
+        let buffer_dirty   = BufferDirty::new(set_logger,on_mut);
         let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
         let buff_on_resize = buffer_on_resize(resize_dirty.clone_ref());
-        let buff_on_set    = buffer_on_set(buffer_dirty.clone_ref());
-        let buffer         = Data::new(buff_on_set, buff_on_resize);
+        let buff_on_mut    = buffer_on_mut(buffer_dirty.clone_ref());
+        let buffer         = Data::new(buff_on_mut, buff_on_resize);
         let context        = context.clone();
         let gl_buffer      = create_gl_buffer(&context);
         Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context}
     }
 
     /// Build the buffer from the provider configuration builder.
-    pub fn build(context:&Context, builder:Builder, on_set:OnSet, on_resize:OnResize) -> Self {
+    pub fn build(context:&Context, builder:Builder, on_mut:OnMut, on_resize:OnResize) -> Self {
         let logger = builder._logger.unwrap_or_else(default);
-        Self::new(context,logger,on_set,on_resize)
+        Self::new(context,logger,on_mut,on_resize)
     }
 }
 
-impl<T:Item,OnSet,OnResize>
-BufferData<T,OnSet,OnResize> {
+impl<T:Item,OnMut,OnResize>
+BufferData<T,OnMut,OnResize> {
 
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Prim<T>] {
@@ -192,8 +192,8 @@ BufferData<T,OnSet,OnResize> {
     }
 }
 
-impl<T,OnSet,OnResize>
-BufferData<T,OnSet,OnResize> {
+impl<T,OnMut,OnResize>
+BufferData<T,OnMut,OnResize> {
     /// Returns a new buffer `Builder` object.
     pub fn builder() -> Builder {
         default()
@@ -220,8 +220,8 @@ pub trait AddElementCtx<T,OnResize> = where
     T: Item + Clone,
     OnResize: Callback0;
 
-impl<T,OnSet,OnResize>
-BufferData<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
+impl<T,OnMut,OnResize>
+BufferData<T,OnMut,OnResize> where Self: AddElementCtx<T,OnResize> {
     /// Adds a single new element initialized to default value.
     pub fn add_element(&mut self) {
         self.add_elements(1);
@@ -233,16 +233,16 @@ BufferData<T,OnSet,OnResize> where Self: AddElementCtx<T,OnResize> {
     }
 }
 
-impl<T,OnSet,OnResize>
-Index<usize> for BufferData<T,OnSet,OnResize> {
+impl<T,OnMut,OnResize>
+Index<usize> for BufferData<T,OnMut,OnResize> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
         self.buffer.index(index)
     }
 }
 
-impl<T,OnSet:Callback0,OnResize>
-IndexMut<usize> for BufferData<T,OnSet,OnResize> {
+impl<T,OnMut:Callback0,OnResize>
+IndexMut<usize> for BufferData<T,OnMut,OnResize> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.buffer.index_mut(index)
     }
@@ -266,32 +266,32 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
-pub struct Buffer<T,OnSet,OnResize> {
-    rc: Rc<RefCell<BufferData<T,OnSet,OnResize>>>
+pub struct Buffer<T,OnMut,OnResize> {
+    rc: Rc<RefCell<BufferData<T,OnMut,OnResize>>>
 }
 
-impl<T, OnSet:Callback0, OnResize:Callback0>
-Buffer<T,OnSet,OnResize> {
+impl<T, OnMut:Callback0, OnResize:Callback0>
+Buffer<T,OnMut,OnResize> {
 
     /// Creates a new empty buffer.
     pub fn new
-    (context:&Context, logger:Logger, on_set:OnSet, on_resize:OnResize)
+    (context:&Context, logger:Logger, on_mut:OnMut, on_resize:OnResize)
      -> Self {
-        let data = BufferData::new(context, logger, on_set, on_resize);
+        let data = BufferData::new(context, logger, on_mut, on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 
     /// Build the buffer from the provided configuration builder.
-    pub fn build(context:&Context, builder:Builder, on_set:OnSet, on_resize:OnResize) -> Self {
-        let data = BufferData::build(context, builder, on_set, on_resize);
+    pub fn build(context:&Context, builder:Builder, on_mut:OnMut, on_resize:OnResize) -> Self {
+        let data = BufferData::build(context, builder, on_mut, on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 }
 
-impl<T:Item,OnSet,OnResize>
-Buffer<T,OnSet,OnResize> {
+impl<T:Item,OnMut,OnResize>
+Buffer<T,OnMut,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         self.rc.borrow_mut().update()
@@ -305,10 +305,10 @@ Buffer<T,OnSet,OnResize> {
     }
 }
 
-impl<T,OnSet,OnResize>
-Buffer<T,OnSet,OnResize> {
+impl<T,OnMut,OnResize>
+Buffer<T,OnMut,OnResize> {
     /// Get the variable by given index.
-    pub fn get(&self, index:usize) -> Var<T,OnSet,OnResize> {
+    pub fn get(&self, index:usize) -> Var<T,OnMut,OnResize> {
         Var::new(index,self.clone())
     }
 
@@ -329,17 +329,17 @@ Buffer<T,OnSet,OnResize> {
     }
 }
 
-impl<T,OnSet,OnResize>
-Buffer<T,OnSet,OnResize> where (): AddElementCtx<T,OnResize> {
+impl<T,OnMut,OnResize>
+Buffer<T,OnMut,OnResize> where (): AddElementCtx<T,OnResize> {
     /// Adds a single new element initialized to default value.
     pub fn add_element(&self){
         self.rc.borrow_mut().add_element()
     }
 }
 
-impl <T,OnSet,OnResize>
-From<Rc<RefCell<BufferData<T,OnSet,OnResize>>>> for Buffer<T,OnSet,OnResize> {
-    fn from(rc: Rc<RefCell<BufferData<T, OnSet, OnResize>>>) -> Self {
+impl <T,OnMut,OnResize>
+From<Rc<RefCell<BufferData<T,OnMut,OnResize>>>> for Buffer<T,OnMut,OnResize> {
+    fn from(rc: Rc<RefCell<BufferData<T, OnMut, OnResize>>>) -> Self {
         Self {rc}
     }
 }
@@ -355,19 +355,19 @@ From<Rc<RefCell<BufferData<T,OnSet,OnResize>>>> for Buffer<T,OnSet,OnResize> {
 /// a selected `Buffer` element under the hood.
 #[derive(Clone,Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Var<T,OnSet,OnResize> {
+pub struct Var<T,OnMut,OnResize> {
     index  : usize,
-    buffer : Buffer<T,OnSet,OnResize>
+    buffer : Buffer<T,OnMut,OnResize>
 }
 
-impl<T,OnSet,OnResize> Var<T,OnSet,OnResize> {
+impl<T,OnMut,OnResize> Var<T,OnMut,OnResize> {
     /// Creates a new variable as an indexed view over provided buffer.
-    pub fn new(index:usize, buffer: Buffer<T,OnSet,OnResize>) -> Self {
+    pub fn new(index:usize, buffer: Buffer<T,OnMut,OnResize>) -> Self {
         Self {index, buffer}
     }
 }
 
-impl<T:Copy,OnSet:Callback0,OnResize> Var<T,OnSet,OnResize> {
+impl<T:Copy,OnMut:Callback0,OnResize> Var<T,OnMut,OnResize> {
     /// Gets immutable reference to the underlying data.
     pub fn get(&self) -> T {
         *self.buffer.rc.borrow().index(self.index)
@@ -460,13 +460,13 @@ macro_rules! mk_any_buffer_impl {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
-    /// `Buffer<dyn Item, OnSet, OnResize>`.
+    /// `Buffer<dyn Item, OnMut, OnResize>`.
     #[enum_dispatch(IsBuffer)]
     #[derive(Derivative)]
     #[derivative(Debug(bound=""))]
-    pub enum AnyBuffer<OnSet, OnResize> {
+    pub enum AnyBuffer<OnMut, OnResize> {
         $(  [<Variant $base For $param>]
-                (Buffer<$base<$param>, OnSet, OnResize>),
+                (Buffer<$base<$param>, OnMut, OnResize>),
         )*
     }
 
@@ -516,7 +516,7 @@ mk_any_buffer!([Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]
-pub trait IsBuffer<OnSet: Callback0, OnResize: Callback0> {
+pub trait IsBuffer<OnMut: Callback0, OnResize: Callback0> {
     fn add_element(&self);
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;

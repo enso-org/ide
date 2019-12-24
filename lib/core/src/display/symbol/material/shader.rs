@@ -21,6 +21,7 @@ pub struct Shader {
 }
 
 
+
 // ====================
 // === ShaderConfig ===
 // ====================
@@ -54,6 +55,7 @@ impl ShaderConfig {
     }
 }
 
+
 // === ShaderPrecision ===
 
 #[derive(Clone,Debug)]
@@ -72,6 +74,7 @@ impl Default for ShaderPrecision {
         Self {vertex,fragment}
     }
 }
+
 
 // === LocalVarQualifier ===
 

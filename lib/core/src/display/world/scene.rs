@@ -18,8 +18,8 @@ pub struct Scene {
     pub camera : Camera2D
 }
 
-// === Implementation ===
 
+// === Implementation ===
 
 impl Scene {
     pub fn new(logger:Logger) -> Self {

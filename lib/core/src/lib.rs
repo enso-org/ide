@@ -68,10 +68,10 @@ mod example_01 {
     fn init(world: &mut World) {
         let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
         let workspace : &mut Workspace = &mut world[wspace_id];
-        let sym_id    : SymbolId = workspace.new_mesh();
-        let mesh      : &mut Symbol    = &mut workspace[sym_id];
-        let geo       : &mut Mesh      = &mut mesh.geometry;
-        let scopes    : &mut Scopes    = &mut geo.scopes;
+        let sym_id    : SymbolId       = workspace.new_symbol();
+        let symbol    : &mut Symbol    = &mut workspace[sym_id];
+        let mesh      : &mut Mesh      = &mut symbol.surface;
+        let scopes    : &mut Scopes    = &mut mesh.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
         let inst_scope: &mut VarScope  = &mut scopes.instance;
         let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
