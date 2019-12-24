@@ -142,7 +142,7 @@ BufferData<T,OnMut,OnResize> {
         // As a result, after `js_buffer_view` we have to be very careful not to do any memory
         // allocations before it's dropped.
 
-        self.logger.info(|| format!("Setting buffer data."));
+        self.logger.info("Setting buffer data.");
 
         match opt_range {
             None => unsafe {
