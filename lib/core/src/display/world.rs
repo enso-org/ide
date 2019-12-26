@@ -40,7 +40,7 @@ pub struct World {
     pub event_loop      : EventLoop,
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
-    pub self_reference  : Option<WorldRef>
+    pub self_reference  : Option<WorldRef>,
 }
 
 
@@ -66,12 +66,12 @@ impl World {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> WorldRef {
         println!("NOTICE! When profiling in Chrome check 'Disable JavaScript Samples' under the \
-                  gear icon in the 'Performance' tab. It can drastically slow the reading.");
+                  gear icon in the 'Performance' tab. It can drastically slow the rendering.");
         let world_ref  = WorldRef::new(Self::new_uninitialized());
         let world_ref2 = world_ref.clone_rc();
         let world_ref3 = world_ref.clone_rc();
         with(world_ref.borrow_mut(), |mut data| {
-            let update          = move || world_ref2.borrow_mut().update();
+            let update          = move || world_ref2.borrow_mut().run();
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
             data.self_reference = Some(world_ref3);
@@ -123,10 +123,14 @@ impl World {
     /// which when dropped will cancel the callback. If you want the function
     /// to run forever, you can use the `forget` method in the handle.
     pub fn on_frame<F:FnMut(&mut World)+'static>
-    (&mut self, mut callback: F) -> CallbackHandle {
+    (&mut self, mut callback:F) -> CallbackHandle {
         let this = self.self_reference.as_ref().unwrap().clone_rc();
         let func = move || callback(&mut this.borrow_mut());
         self.event_loop.add_callback(func)
+    }
+
+    pub fn run(&mut self) {
+        self.update();
     }
 
     /// Check dirty flags and update the state accordingly.

@@ -16,6 +16,7 @@ use web_sys::Node;
 use std::fmt::Debug;
 
 pub use web_sys::console;
+use wasm_bindgen::prelude::*;
 
 
 // =============
@@ -328,4 +329,9 @@ impl NodeRemover for Node {
             panic!("Failed to remove child {:?} from {:?}",node,self);
         self.remove_child(node).unwrap_or_else(panic_msg);
     }
+}
+
+#[wasm_bindgen(inline_js = "export function request_animation_frame2(f) { requestAnimationFrame(f) }")]
+extern "C" {
+    pub fn request_animation_frame2(closure: &Closure<dyn FnMut()>) -> i32;
 }

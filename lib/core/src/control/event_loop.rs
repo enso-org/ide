@@ -5,6 +5,7 @@ use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
+use crate::debug::stats::Stats;
 
 
 // =================
@@ -62,18 +63,21 @@ impl EventLoop {
 pub struct EventLoopData {
     main      : Option<Closure<dyn FnMut()>>,
     callbacks : CallbackRegistry,
+    stats     : Stats,
     main_id   : i32,
 }
 
 impl EventLoopData {
     /// Create new instance.
     pub fn run(&mut self) {
+        self.stats.begin();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
             callbacks.run_all();
-            web::request_animation_frame(main).unwrap()
+            web::request_animation_frame2(main)
         });
         self.main_id = callback_id;
+        self.stats.end();
     }
 }
 
