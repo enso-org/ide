@@ -7,10 +7,10 @@ web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
-    use basegl::display::rendering::Scene;
-    use basegl::display::rendering::Camera;
-    use basegl::display::rendering::html::HTMLObject;
-    use basegl::display::rendering::html::HTMLRenderer;
+    use basegl::display::render::css3d::Scene;
+    use basegl::display::render::css3d::Camera;
+    use basegl::display::render::css3d::html::HTMLObject;
+    use basegl::display::render::css3d::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
     use basegl::display::navigation::navigator::Navigator;

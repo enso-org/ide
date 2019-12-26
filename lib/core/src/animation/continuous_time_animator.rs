@@ -19,9 +19,13 @@ struct ContinuousTimeAnimatorData {
 impl ContinuousTimeAnimatorData {
     pub fn new<F:FnAnimation>(f:F) -> Self {
         let closure      = Box::new(f);
-        let start_time   = get_performance().expect("Couldn't get performance").now() as f32;
-        let current_time = 0.0;
+        let start_time   = get_performance().expect("Couldn't get performance timer").now() as f32;
+        let current_time = start_time;
         Self { closure,start_time,current_time }
+    }
+
+    pub fn set_time(&mut self, time:f32) {
+        self.start_time  = self.current_time + time;
     }
 }
 
@@ -55,7 +59,6 @@ impl ContinuousTimeAnimator {
 
 impl ContinuousTimeAnimator {
     pub fn set_time(&mut self, time:f32) {
-        let current_time = get_performance().expect("Couldn't get performance").now() as f32;
-        self.data.borrow_mut().start_time = current_time + time;
+        self.data.borrow_mut().set_time(time);
     }
 }

@@ -7,7 +7,7 @@ use super::mouse_manager::MouseWheelEvent;
 use super::mouse_manager::MousePositionEvent;
 use super::mouse_manager::MouseButton;
 use crate::system::web::Result;
-use crate::display::rendering::DOMContainer;
+use crate::display::render::css3d::DOMContainer;
 
 use nalgebra::Vector2;
 use std::rc::Rc;

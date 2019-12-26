@@ -6,12 +6,17 @@ web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
-    use basegl::display::rendering::{Scene, Camera};
-    use basegl::display::rendering::html::{HTMLObject, HTMLRenderer};
     use basegl::system::web::StyleSetter;
-    use basegl::animation::physics::{DragProperties, SpringProperties, KinematicsProperties};
+    use basegl::animation::physics::DragProperties;
+    use basegl::animation::physics::SpringProperties;
+    use basegl::animation::physics::KinematicsProperties;
     use basegl::animation::FixedStepAnimator;
-    use basegl::animation::physics::{PhysicsSimulator, PhysicsProperties};
+    use basegl::animation::physics::PhysicsSimulator;
+    use basegl::animation::physics::PhysicsProperties;
+    use basegl::display::render::css3d::html::HTMLRenderer;
+    use basegl::display::render::css3d::html::HTMLObject;
+    use basegl::display::render::css3d::Scene;
+    use basegl::display::render::css3d::Camera;
     use basegl::traits::HasPosition;
     use web_test::*;
     use nalgebra::{zero, Vector3};

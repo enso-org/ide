@@ -3,9 +3,9 @@ use super::camera_manager::Event;
 use super::camera_manager::ZoomingEvent;
 use super::camera_manager::PanningEvent;
 use crate::system::web::Result;
-use crate::display::rendering::Camera;
-use crate::display::rendering::CameraType;
-use crate::display::rendering::DOMContainer;
+use crate::display::render::css3d::Camera;
+use crate::display::render::css3d::CameraType;
+use crate::display::render::css3d::DOMContainer;
 use crate::traits::HasPosition;
 
 use nalgebra::Vector3;
