@@ -75,8 +75,7 @@ Please note that this codebase does not use `rustfmt`. Please read the following
 documents to learn more about reasons behind this decision and the recommended
 code style guide. Be sure to carefully read the documents before contributing to
 this repository:
-- [Rust style guide]
-  (https://github.com/luna/basegl/blob/master/docs/style-guide.md)
+- [Rust style guide](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
 - [Rust style
   guide](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
 
