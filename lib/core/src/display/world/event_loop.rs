@@ -74,13 +74,13 @@ pub struct EventLoopData {
 
 impl Default for EventLoopData {
     fn default() -> Self {
-        let main      = default();
-        let callbacks = default();
-        let mut monitor: Monitor = Monitor::new();
-        let main_id = default();
-        let time    = monitor.add(monitor::FrameTime::new());
-        let fps     = monitor.add(monitor::Fps::new());
-        let mem     = monitor.add(monitor::WasmMemory::new());
+        let main        = default();
+        let callbacks   = default();
+        let main_id     = default();
+        let mut monitor = Monitor::new();
+        let time        = monitor.add(monitor::FrameTime::new());
+        let fps         = monitor.add(monitor::Fps::new());
+        let mem         = monitor.add(monitor::WasmMemory::new());
         Self {main,callbacks,monitor,time,fps,mem,main_id}
     }
 }
@@ -94,7 +94,7 @@ impl EventLoopData {
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
             callbacks.run_all();
-            web::request_animation_frame2(main)
+            web::request_animation_frame(main).unwrap()
         });
         self.main_id = callback_id;
         self.time.end();
