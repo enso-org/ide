@@ -10,7 +10,8 @@
     "build": "webpack --config webpack.prod.js",
     "build-dev": "webpack --config webpack.dev.js",
     "start": "webpack-dev-server --config webpack.prod.js",
-    "start-dev": "webpack-dev-server --config webpack.dev.js"
+    "start-dev": "webpack-dev-server --config webpack.dev.js",
+    "prod-server": "npx http-server -p 3000 --proxy http://localhost:3000\\? dist"
   },
   "repository": {
     "type": "git",
