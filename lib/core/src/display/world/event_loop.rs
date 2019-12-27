@@ -5,9 +5,9 @@ use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
-use crate::debug::stats;
-use crate::debug::stats::Stats;
-use crate::debug::stats::Panel;
+use crate::debug::monitor;
+use crate::debug::monitor::Monitor;
+use crate::debug::monitor::Panel;
 
 
 // =================
@@ -65,7 +65,7 @@ impl EventLoop {
 pub struct EventLoopData {
     main      : Option<Closure<dyn FnMut()>>,
     callbacks : CallbackRegistry,
-    stats     : Stats,
+    monitor   : Monitor,
     time      : Panel,
     fps       : Panel,
     mem       : Panel,
@@ -76,19 +76,18 @@ impl Default for EventLoopData {
     fn default() -> Self {
         let main      = default();
         let callbacks = default();
-        let mut stats:Stats = Stats::new();
+        let mut monitor: Monitor = Monitor::new();
         let main_id = default();
-        let time    = stats.add_panel(stats::FrameTimeMonitor::new());
-        let fps     = stats.add_panel(stats::FpsMonitor::new());
-        let mem     = stats.add_panel(stats::WasmMemoryMonitor::new());
-        Self {main,callbacks,stats,time,fps,mem,main_id}
+        let time    = monitor.add(monitor::FrameTime::new());
+        let fps     = monitor.add(monitor::Fps::new());
+        let mem     = monitor.add(monitor::WasmMemory::new());
+        Self {main,callbacks,monitor,time,fps,mem,main_id}
     }
 }
 
 impl EventLoopData {
     /// Create new instance.
     pub fn run(&mut self) {
-
         self.time.begin();
         self.fps.begin();
         self.mem.begin();
@@ -101,7 +100,7 @@ impl EventLoopData {
         self.time.end();
         self.fps.end();
         self.mem.end();
-        self.stats.draw();
+        self.monitor.draw();
     }
 }
 

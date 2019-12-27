@@ -171,6 +171,7 @@ mod example_01 {
 
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[allow(clippy::many_single_char_names)]
     pub fn on_frame(world:&mut World, ii:&mut i32, w1:&Widget, widgets:&mut Vec<Widget>, performance:&Performance, wspace_id:WorkspaceID, sym_id:SymbolId, transform : &Buffer<Matrix4<f32>>) {
 //        camera.mod_position(|p| {
@@ -197,12 +198,14 @@ mod example_01 {
 
         *ii += 1;
 
-        if *ii < 1000i32 {
-//            let count = 100;
-//            for _ in 0 .. count {
-//                let widget = make_widget(inst_scope);
-//                widgets.push(widget);
-//            }
+        if *ii < 200i32 {
+            let count = 100;
+            if widgets.len() < 100_000 {
+                for _ in 0..count {
+                    let widget = make_widget(inst_scope);
+                    widgets.push(widget);
+                }
+            }
 
             let t = (performance.now() / 1000.0) as f32;
             let length = widgets.len() as f32;

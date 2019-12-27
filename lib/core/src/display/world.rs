@@ -1,3 +1,4 @@
+pub mod event_loop;
 pub mod scene;
 pub mod workspace;
 
@@ -8,7 +9,6 @@ pub use crate::display::world::workspace::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::control::event_loop::EventLoop;
 use crate::data::opt_vec::OptVec;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
@@ -19,6 +19,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::display::shape::text::font::Fonts;
 
+use event_loop::EventLoop;
 use eval_tt::*;
 
 
