@@ -35,6 +35,11 @@ pub mod system {
 
 
 
+//struct SpriteSystem {
+//
+//}
+
+
 // ==================
 // === Example 01 ===
 // ==================
@@ -77,7 +82,7 @@ mod example_01 {
         let inst_scope: &mut VarScope  = &mut scopes.instance;
         let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
         let uv        : Buffer<Vector2<f32>> = pt_scope.add_buffer("uv");
-        let bbox      : Buffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
+        let bbox      : Buffer<Vector2<f32>> = inst_scope.add_buffer("bbox");
 
         let p1_ix = pt_scope.add_instance();
         let p2_ix = pt_scope.add_instance();
@@ -88,6 +93,8 @@ mod example_01 {
 //        let inst_2_ix = inst_scope.add_instance();
 //
         let transform1 = transform.get(inst_1_ix);
+        let bbox1      = bbox.get(inst_1_ix);
+        bbox1.set(Vector2::new(5.0,5.0));
 //        let transform2 = transform.get(inst_2_ix);
 
 //        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
@@ -105,15 +112,16 @@ mod example_01 {
         uv3.set(Vector2::new(1.0, 0.0));
         uv4.set(Vector2::new(1.0, 1.0));
 
-        let bbox1 = bbox.get(p1_ix);
-        let bbox2 = bbox.get(p2_ix);
-        let bbox3 = bbox.get(p3_ix);
-        let bbox4 = bbox.get(p4_ix);
 
-        bbox1.set(Vector2::new(2.0, 2.0));
-        bbox2.set(Vector2::new(2.0, 2.0));
-        bbox3.set(Vector2::new(2.0, 2.0));
-        bbox4.set(Vector2::new(2.0, 2.0));
+//        let bbox1 = bbox.get(p1_ix);
+//        let bbox2 = bbox.get(p2_ix);
+//        let bbox3 = bbox.get(p3_ix);
+//        let bbox4 = bbox.get(p4_ix);
+//
+//        bbox1.set(Vector2::new(2.0, 2.0));
+//        bbox2.set(Vector2::new(2.0, 2.0));
+//        bbox3.set(Vector2::new(2.0, 2.0));
+//        bbox4.set(Vector2::new(2.0, 2.0));
 
 
 //        let mm1 = model_matrix.get(p1_ix);
@@ -146,6 +154,8 @@ mod example_01 {
         let make_widget = |scope: &mut VarScope| {
             let inst_1_ix = scope.add_instance();
             let transform1 = transform.get(inst_1_ix);
+            let bbox1      = bbox.get(inst_1_ix);
+            bbox1.set(Vector2::new(2.0,2.0));
             Widget::new(Logger::new("widget"),transform1)
         };
 
@@ -186,11 +196,11 @@ mod example_01 {
         let scopes    : &mut Scopes    = &mut mesh.scopes;
         let inst_scope: &mut VarScope  = &mut scopes.instance;
 
-        let make_widget = |scope: &mut VarScope| {
-            let inst_1_ix = scope.add_instance();
-            let transform1 = transform.get(inst_1_ix);
-            Widget::new(Logger::new("widget"),transform1)
-        };
+//        let make_widget = |scope: &mut VarScope| {
+//            let inst_1_ix = scope.add_instance();
+//            let transform1 = transform.get(inst_1_ix);
+//            Widget::new(Logger::new("widget"),transform1)
+//        };
 
 
 
@@ -200,13 +210,13 @@ mod example_01 {
         *ii += 1;
 
         if *ii < 200i32 {
-            let count = 100;
-            if widgets.len() < 100_000 {
-                for _ in 0..count {
-                    let widget = make_widget(inst_scope);
-                    widgets.push(widget);
-                }
-            }
+//            let count = 100;
+//            if widgets.len() < 100_000 {
+//                for _ in 0..count {
+//                    let widget = make_widget(inst_scope);
+//                    widgets.push(widget);
+//                }
+//            }
 
             let t = (performance.now() / 1000.0) as f32;
             let length = widgets.len() as f32;
