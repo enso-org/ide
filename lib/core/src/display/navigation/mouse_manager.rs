@@ -15,6 +15,8 @@ use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+
+
 // ======================
 // === EventListeners ===
 // ======================
@@ -23,6 +25,8 @@ use std::cell::RefCell;
 pub type MouseEventListener = Closure<dyn Fn(MouseEvent)>;
 /// A wheel event listener object returned when adding callbacks to MouseManager.
 pub type WheelEventListener = Closure<dyn Fn(WheelEvent)>;
+
+
 
 // ===================
 // === MouseButton ===
@@ -34,6 +38,8 @@ pub enum MouseButton {
     MIDDLE,
     RIGHT
 }
+
+
 
 // =======================
 // === MouseClickEvent ===
@@ -60,6 +66,8 @@ impl MouseClickEvent {
 
 pub trait FnMouseClick = Fn(MouseClickEvent) + 'static;
 
+
+
 // ==========================
 // === MousePositionevent ===
 // ==========================
@@ -85,6 +93,8 @@ impl MousePositionEvent {
 
 pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
 
+
+
 // =======================
 // === MouseWheelEvent ===
 // =======================
@@ -103,6 +113,8 @@ impl MouseWheelEvent {
 
 pub trait FnMouseWheel = Fn(MouseWheelEvent) + 'static;
 
+
+
 // ========================
 // === MouseManagerData ===
 // ========================
@@ -112,6 +124,8 @@ struct MouseManagerData {
     dom            : DOMContainer,
     mouse_position : Option<Vector2<f32>>
 }
+
+
 
 // =============
 // === State ===
@@ -123,6 +137,8 @@ pub enum State {
     Disabled
 }
 
+
+
 // ====================
 // === MouseManager ===
 // ====================
@@ -131,7 +147,8 @@ pub enum State {
 pub struct MouseManager {
     target : EventTarget,
     data   : Rc<RefCell<MouseManagerData>>,
-    ignore_context_menu : Option<Closure<dyn Fn(MouseEvent)>>
+    ignore_context_menu : Option<MouseEventListener>,
+    stop_mouse_tracking : Option<MouseEventListener>
 }
 
 const   LEFT_MOUSE_BUTTON: i16 = 0;
@@ -146,7 +163,8 @@ impl MouseManager {
         let data                = MouseManagerData { dom, mouse_position };
         let data                = Rc::new(RefCell::new(data));
         let ignore_context_menu = None;
-        let mut mouse_manager   = Self { target, data, ignore_context_menu };
+        let stop_mouse_tracking = None;
+        let mut mouse_manager   = Self { target, data, ignore_context_menu, stop_mouse_tracking };
         mouse_manager.stop_tracking_mouse_when_it_leaves_dom()?;
         Ok(mouse_manager)
     }
@@ -234,10 +252,12 @@ impl MouseManager {
     fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
         let data    = self.data.clone();
         let closure = move |_| data.borrow_mut().mouse_position = None;
-        add_mouse_event(&self.target, "mouseleave", closure)?.forget();
+        self.stop_mouse_tracking = Some(add_mouse_event(&self.target, "mouseleave", closure)?);
         Ok(())
     }
 }
+
+
 
 // =============
 // === Utils ===

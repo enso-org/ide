@@ -7,12 +7,14 @@ use nalgebra::geometry::Perspective3;
 use nalgebra::geometry::Orthographic3;
 use std::f32::consts::PI;
 
+
+
 // ===================
 // === Perspective ===
 // ===================
 
 /// Perspective projection properties.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Perspective {
     pub fov    : f32,
     pub aspect : f32,
@@ -20,12 +22,14 @@ pub struct Perspective {
     pub far    : f32
 }
 
+
+
 // ====================
 // === Orthographic ===
 // ====================
 
 /// Orthographic projection properties.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Orthographic {
     pub left   : f32,
     pub right  : f32,
@@ -35,15 +39,28 @@ pub struct Orthographic {
     pub far    : f32
 }
 
+
+
 // ==================
 // === CameraType ===
 // ==================
 
 /// CameraType enum.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum CameraType {
     Perspective(Perspective),
     Orthographic(Orthographic)
+}
+
+
+
+// ==================
+// === CameraData ===
+// ==================
+
+struct CameraData {
+    camera_type : CameraType,
+    projection  : Matrix4<f32>
 }
 
 // ==============
@@ -51,13 +68,12 @@ pub enum CameraType {
 // ==============
 
 /// A 3D camera representation with its own 3D Transform and projection matrix.
-#[derive(Shrinkwrap, Debug)]
+#[derive(Shrinkwrap, Clone)]
 #[shrinkwrap(mutable)]
 pub struct Camera {
     #[shrinkwrap(main_field)]
     pub object  : Object,
-    camera_type : CameraType,
-    projection  : Matrix4<f32>
+    data        : Rc<RefCell<CameraData>>
 }
 
 impl Camera {
@@ -69,7 +85,8 @@ impl Camera {
         let object      = default();
         let camera_type = Perspective { fov, aspect, near, far };
         let camera_type = CameraType::Perspective(camera_type);
-        Self { object, projection, camera_type }
+        let data        = Rc::new(RefCell::new(CameraData { camera_type, projection }));
+        Self { object, data }
     }
 
     /// Creates an orthographic projection Camera.
@@ -85,22 +102,18 @@ impl Camera {
         let object      = default();
         let camera_type = Orthographic { left, right, bottom, top, near, far };
         let camera_type = CameraType::Orthographic(camera_type);
-        Self { object, projection, camera_type }
+        let data        = Rc::new(RefCell::new(CameraData { camera_type, projection }));
+        Self { object, data }
     }
 
     /// Gets CameraType.
-    pub fn camera_type(&self) -> &CameraType { &self.camera_type }
+    pub fn camera_type(&self) -> CameraType { self.data.borrow().camera_type }
 
     /// Gets projection's y scaling.
-    pub fn get_y_scale(&self) -> f32 { self.projection.m11 }
+    pub fn get_y_scale(&self) -> f32 { self.data.borrow().projection.m11 }
 
     /// Gets Camera's projection matrix.
-    pub fn projection(&self) -> &Matrix4<f32> { &self.projection }
-
-    /// Gets mutable Camera's projection matrix.
-    pub fn projection_mut(&mut self) -> &mut Matrix4<f32> {
-        &mut self.projection
-    }
+    pub fn projection(&self) -> Matrix4<f32> { self.data.borrow().projection }
 }
 
 // =============
@@ -120,6 +133,6 @@ mod test {
             , 0.0     ,       0.0, -1.002002, -2.002002
             , 0.0     ,       0.0,      -1.0,       0.0
             );
-        assert_eq!(*camera.projection(), expected);
+        assert_eq!(camera.projection(), expected);
     }
 }

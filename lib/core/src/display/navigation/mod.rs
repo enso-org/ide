@@ -1,5 +1,3 @@
-pub mod camera_manager;
+pub mod navigator_events;
 pub mod navigator;
 pub mod mouse_manager;
-pub mod physics;
-pub mod animation_manager;

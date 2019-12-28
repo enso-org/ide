@@ -1,14 +1,14 @@
-use super::camera_manager::CameraManager;
-use super::camera_manager::Event;
-use super::camera_manager::ZoomingEvent;
-use super::camera_manager::PanningEvent;
+use super::navigator_events::NavigatorEvents;
+use super::navigator_events::ZoomEvent;
+use super::navigator_events::PanningEvent;
 use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
 use crate::traits::HasPosition;
+use crate::animation::physics::{PhysicsSimulator, SpringProperties, DragProperties, PhysicsProperties, KinematicsProperties};
 
-use nalgebra::Vector3;
+use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
 
 // =================
@@ -17,61 +17,63 @@ use nalgebra::Vector2;
 
 /// Navigator enables camera navigation with mouse interactions on the specified DOM.
 pub struct Navigator {
-    dom        : DOMContainer,
-    events     : CameraManager,
-    position   : Vector3<f32>,
-    zoom_speed : f32
+    _events    : NavigatorEvents,
+    _simulator : PhysicsSimulator,
 }
 
 impl Navigator {
-    pub fn new(dom:&DOMContainer, position:Vector3<f32>, zoom_speed:f32) -> Result<Self> {
-        let events     = CameraManager::new(dom)?;
-        let dom        = dom.clone();
+    pub fn new(dom:&DOMContainer, camera:Camera, zoom_speed:f32) -> Result<Self> {
+        let mass           = 25.0;
+        let velocity       = zero();
+        let kinematics     = KinematicsProperties::new(camera.position(), velocity, zero(), mass);
+        let coefficient    = 10000.0;
+        let fixed_point    = camera.position();
+        let spring         = SpringProperties::new(coefficient, fixed_point);
+        let drag           = DragProperties::new(1000.0);
+        let mut properties = PhysicsProperties::new(kinematics, spring, drag);
+        let _simulator     = PhysicsSimulator::new(camera.object.clone(), properties.clone());
 
-        Ok(Self { dom, events, position, zoom_speed })
-    }
-
-    /// Navigates the camera and returns it's position.
-    pub fn navigate(&mut self, camera:&mut Camera) -> Vector3<f32> {
-        while let Some(event) = self.events.poll() {
-            match event {
-                Event::Zooming(zoom) => self.zoom(camera, zoom),
-                Event::Panning(pan)   => self.pan(camera, pan)
-            }
-        }
-        self.position
-    }
-
-    fn zoom(&mut self, camera:&mut Camera, zoom: ZoomingEvent) {
-        if let CameraType::Perspective(persp) = camera.camera_type() {
-            let point      = zoom.focus;
-            let normalized = normalize_point2(point, self.dom.dimensions());
-            let normalized = normalized_to_range2(normalized, -1.0, 1.0);
-
-            // Scale X and Y to compensate aspect and fov.
-            let x = -normalized.x * persp.aspect;
-            let y =  normalized.y;
-            let z = camera.get_y_scale();
-            let direction = Vector3::new(x, y, z).normalize();
-
-            self.position += direction * zoom.amount * self.zoom_speed;
-            if  self.position.z < persp.near + 1.0 {
-                self.position.z = persp.near + 1.0;
-            }
-        }
-    }
-
-    fn pan(&mut self, camera:&mut Camera, pan: PanningEvent) {
-        if let CameraType::Perspective(_) = camera.camera_type() {
-            let base_z = self.dom.dimensions().y / 2.0 * camera.get_y_scale();
-            let scale  = camera.position().z / base_z;
+        let dom_clone            = dom.clone();
+        let camera_clone         = camera.clone();
+        let mut properties_clone = properties.clone();
+        let panning_callback     = move |pan:PanningEvent| {
+            let base_z = dom_clone.dimensions().y / 2.0 * camera_clone.get_y_scale();
+            let scale  = camera_clone.position().z / base_z;
 
             let x = pan.movement.x * scale;
             let y = pan.movement.y * scale;
             let z = 0.0;
 
-            self.position += Vector3::new(x, y, z);
-        }
+            properties_clone.mod_spring(|spring| {
+                spring.set_fixed_point(spring.fixed_point() + Vector3::new(x, y, z));
+            });
+        };
+
+        let dom_clone = dom.clone();
+        let zoom_callback = move |zoom:ZoomEvent| {
+            if let CameraType::Perspective(persp) = camera.camera_type() {
+                let point      = zoom.focus;
+                let normalized = normalize_point2(point, dom_clone.dimensions());
+                let normalized = normalized_to_range2(normalized, -1.0, 1.0);
+
+                // Scale X and Y to compensate aspect and fov.
+                let x         = -normalized.x * persp.aspect;
+                let y         =  normalized.y;
+                let z         = camera.get_y_scale();
+                let direction = Vector3::new(x, y, z).normalize();
+
+                let mut position = properties.spring().fixed_point();
+                position += direction * zoom.amount * zoom_speed;
+                if  position.z < persp.near + 1.0 {
+                    position.z = persp.near + 1.0;
+                }
+
+                properties.mod_spring(|spring| spring.set_fixed_point(position));
+            }
+        };
+        let _events  = NavigatorEvents::new(dom, panning_callback, zoom_callback)?;
+
+        Ok(Self { _events, _simulator })
     }
 }
 
