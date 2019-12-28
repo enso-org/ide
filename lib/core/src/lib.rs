@@ -50,25 +50,19 @@ mod example_01 {
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
     use crate::display::object::DisplayObjectData;
+    use crate::display::object::DisplayObjectOps;
 
 
     #[derive(Clone,Debug)]
     pub struct SymbolRef {
-        world        : WorldRef,
-        workspace_id : WorkspaceID,
+        world        : World,
         symbol_id    : SymbolId,
     }
 
     impl SymbolRef {
-        pub fn new(world:WorldRef, workspace_id:WorkspaceID, symbol_id:SymbolId) -> Self {
-            Self {world,workspace_id,symbol_id}
+        pub fn new(world: World, symbol_id:SymbolId) -> Self {
+            Self {world,symbol_id}
         }
-//
-//        pub fn borrow_mut(&self) -> &mut Symbol {
-//            let world     = &mut self.world.borrow_mut();
-//            let workspace = &mut world[self.workspace_id];
-//            &mut workspace[self.symbol_id]
-//        }
     }
 
     #[derive(Clone,Debug)]
@@ -104,6 +98,12 @@ mod example_01 {
         }
     }
 
+    impl From<&Sprite> for DisplayObjectData {
+        fn from(t:&Sprite) -> Self {
+            t.rc.borrow().display_object.clone_ref()
+        }
+    }
+
     pub struct SpriteData {
         sprite_ref     : SpriteRef,
         display_object : DisplayObjectData,
@@ -125,23 +125,25 @@ mod example_01 {
     }
 
     pub struct SpriteSystem {
-        symbol_ref   : SymbolRef,
-        transform    : Buffer<Matrix4<f32>>,
-        uv           : Buffer<Vector2<f32>>,
-        bbox         : Buffer<Vector2<f32>>,
+        display_object : DisplayObjectData,
+        symbol_ref     : SymbolRef,
+        transform      : Buffer<Matrix4<f32>>,
+        uv             : Buffer<Vector2<f32>>,
+        bbox           : Buffer<Vector2<f32>>,
     }
 
     impl SpriteSystem {
-        pub fn new(world_ref: &WorldRef) -> Self {
-            let world        = &mut world_ref.borrow_mut();
-            let workspace_id = world.add(Workspace::build("canvas")); // fixme
-            let workspace    = &mut world[workspace_id];
-            let symbol_id    = workspace.new_symbol();
-            let symbol       = &mut workspace[symbol_id];
-            let mesh         = &mut symbol.surface;
-            let uv           = mesh.scopes.point.add_buffer("uv");
-            let transform    = mesh.scopes.instance.add_buffer("transform");
-            let bbox         = mesh.scopes.instance.add_buffer("bbox");
+        pub fn new(world:&World) -> Self {
+            let logger         = Logger::new("SpriteSystem");
+            let display_object = DisplayObjectData::new(logger);
+            let world_data     = &mut world.borrow_mut();
+            let workspace      = &mut world_data.workspace;
+            let symbol_id      = workspace.new_symbol();
+            let symbol         = &mut workspace[symbol_id];
+            let mesh           = &mut symbol.surface;
+            let uv             = mesh.scopes.point.add_buffer("uv");
+            let transform      = mesh.scopes.instance.add_buffer("transform");
+            let bbox           = mesh.scopes.instance.add_buffer("bbox");
 
             let p1_index = mesh.scopes.point.add_instance();
             let p2_index = mesh.scopes.point.add_instance();
@@ -153,24 +155,30 @@ mod example_01 {
             uv.get(p3_index).set(Vector2::new(1.0, 0.0));
             uv.get(p4_index).set(Vector2::new(1.0, 1.0));
 
-            let world      = world_ref.clone();
-            let symbol_ref = SymbolRef::new(world,workspace_id,symbol_id);
-            Self {symbol_ref,transform,uv,bbox}
+            let world      = world.clone_ref();
+            let symbol_ref = SymbolRef::new(world,symbol_id);
+            Self {display_object,symbol_ref,transform,uv,bbox}
         }
 
         pub fn new_instance(&self) -> Sprite {
-            let world        = &mut self.symbol_ref.world.borrow_mut();
-            let workspace    = &mut world[self.symbol_ref.workspace_id];
-            let symbol       = &mut workspace[self.symbol_ref.symbol_id];
+            let world_data   = &mut self.symbol_ref.world.borrow_mut();
+            let symbol       = &mut world_data.workspace[self.symbol_ref.symbol_id];
             let instance_id  = symbol.surface.instance.add_instance();
             let transform    = self.transform.get(instance_id);
             let bbox         = self.bbox.get(instance_id);
             let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);
             bbox.set(Vector2::new(2.0,2.0));
-            Sprite::new(sprite_ref,transform,bbox)
+            let sprite = Sprite::new(sprite_ref,transform,bbox);
+            self.add_child(&sprite);
+            sprite
         }
     }
 
+    impl From<&SpriteSystem> for DisplayObjectData {
+        fn from(t:&SpriteSystem) -> Self {
+            t.display_object.clone_ref()
+        }
+    }
 
 
 
@@ -180,7 +188,7 @@ mod example_01 {
         set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
-        init(&World::new());
+        init(&WorldData::new("canvas"));
     }
 
     #[derive(Debug)]
@@ -189,9 +197,9 @@ mod example_01 {
         color    : Var<Vector3<f32>>,
     }
 
-    fn init(world_ref: &WorldRef) {
+    fn init(world: &World) {
 
-        let sprite_system = SpriteSystem::new(world_ref);
+        let sprite_system = SpriteSystem::new(world);
 
         let sprite1 = sprite_system.new_instance();
         sprite1.mod_position(|t| t.y += 0.5);
@@ -200,7 +208,7 @@ mod example_01 {
 
         let mut sprites: Vec<Sprite> = default();
         let count = 100;
-        for _ in 0 .. count {
+        for i in 0 .. count {
             let sprite = sprite_system.new_instance();
             sprites.push(sprite);
         }
@@ -209,37 +217,41 @@ mod example_01 {
 //
 //
         let mut i:i32 = 0;
-        world_ref.borrow_mut().on_frame(move |w| on_frame(w,&mut i,&mut sprites,&performance)).forget();
+        world.on_frame(move |_| on_frame(&mut i,&sprite1,&mut sprites,&performance,&sprite_system)).forget();
 
 
     }
 
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::many_single_char_names)]
-    pub fn on_frame(world:&mut World, ii:&mut i32, widgets:&mut Vec<Sprite>, performance:&Performance) {
+    pub fn on_frame(ii:&mut i32, sprite1:&Sprite, sprites:&mut Vec<Sprite>, performance:&Performance,sprite_system:&SpriteSystem) {
 //        camera.mod_position(|p| {
 //            p.x -= 0.1;
 //            p.z += 1.0
 //        });
 
 
-//        w1.transform.mod_position(|p| p.y += 0.5);
-//        w1.transform.update();
+        if *ii < 50i32 {
+            sprite1.mod_position(|p| p.y += 0.5);
+//            sprite1.update();
+            sprite_system.update();
+
+        }
 
         *ii += 1;
 
-        if *ii < 200i32 {
+        if *ii < 1000i32 {
 //            let count = 100;
-//            if widgets.len() < 100_000 {
+//            if sprites.len() < 100_000 {
 //                for _ in 0..count {
 //                    let widget = make_widget(inst_scope);
-//                    widgets.push(widget);
+//                    sprites.push(widget);
 //                }
 //            }
 
             let t = (performance.now() / 1000.0) as f32;
-            let length = widgets.len() as f32;
-            for (i, object) in widgets.iter_mut().enumerate() {
+            let length = sprites.len() as f32;
+            for (i, sprite) in sprites.iter_mut().enumerate() {
                 let i = i as f32;
                 let d = (i / length - 0.5) * 2.0;
 
@@ -251,9 +263,9 @@ mod example_01 {
                 x += (y * 1.25 + t * 2.50).cos() * 0.5;
                 y += (z * 1.25 + t * 2.00).cos() * 0.5;
                 z += (x * 1.25 + t * 3.25).cos() * 0.5;
-                object.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
-//            object.transform.set_position(Vector3::new(0.0, 0.0, 0.0));
-                object.rc.borrow().display_object.update();
+                sprite.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
+//            sprite.transform.set_position(Vector3::new(0.0, 0.0, 0.0));
+//                sprite.update();
 
 //            let faster_t = t * 100.0;
 //            let r = (i +   0.0 + faster_t) as u8 % 255;
@@ -261,7 +273,11 @@ mod example_01 {
 //            let b = (i + 170.0 + faster_t) as u8 % 255;
 //            set_gradient_bg(&object.dom, &r.into(), &g.into(), &b.into());
             }
+
+            sprite_system.update();
+
         }
+
 
 
 
@@ -293,7 +309,7 @@ mod example_03 {
     use super::*;
     use wasm_bindgen::prelude::*;
 
-    use crate::display::world::{World,Workspace,Add};
+    use crate::display::world::{WorldData, Workspace, Add};
     use crate::display::shape::text::font::FontId;
     use crate::Color;
     use crate::data::dirty::traits::*;
@@ -315,10 +331,9 @@ mod example_03 {
     pub fn run_example_text() {
         set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
-            let mut world_ref = World::new();
-            let workspace_id  = world_ref.add(Workspace::build("canvas"));
-            let world :&mut World = &mut world_ref.borrow_mut();
-            let workspace     = &mut world.workspaces[workspace_id];
+            let mut world_ref = WorldData::new("canvas");
+            let world :&mut WorldData = &mut world_ref.borrow_mut();
+            let workspace     = &mut world.workspace;
             let fonts         = &mut world.fonts;
             let font_ids_iter = FONT_NAMES.iter().map(|name| fonts.load_embedded_font(name).unwrap());
             let font_ids      = font_ids_iter.collect::<Box<[FontId]>>();
@@ -346,15 +361,15 @@ mod example_03 {
                 }.build();
                 workspace.text_components.push(text_compnent);
             }
-            world.workspace_dirty.set(workspace_id);
+            world.workspace_dirty.set();
 
-            world.on_frame(move |w| {
-                let space = &mut w.workspaces[workspace_id];
-                for text_component in &mut space.text_components {
-                    text_component.scroll(Vector2::new(0.0,0.00001));
-                }
-                w.workspace_dirty.set(workspace_id);
-            }).forget();
+//            world.on_frame(move |w| {
+//                let space = &mut w.workspace;
+//                for text_component in &mut space.text_components {
+//                    text_component.scroll(Vector2::new(0.0,0.00001));
+//                }
+//                w.workspace_dirty.set();
+//            }).forget();
         });
     }
 }

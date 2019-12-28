@@ -4,8 +4,8 @@
 use basegl::display::world::Add;
 use basegl::display::world::Workspace;
 use basegl::display::world::WorkspaceID;
+use basegl::display::world::WorldData;
 use basegl::display::world::World;
-use basegl::display::world::WorldRef;
 use basegl_system_web::create_element;
 use basegl_system_web::dyn_into;
 use basegl_system_web::Error;
@@ -26,7 +26,7 @@ use web_sys::HtmlCanvasElement;
 ///
 /// This should be a temporary solution - until world and htmlscene frameworks will be merged.
 pub struct WorldTest {
-    pub world_ptr    : WorldRef,
+    pub world_ptr    : World,
     pub workspace_id : WorkspaceID,
 }
 
@@ -62,7 +62,7 @@ impl WorldTest {
     }
 
     fn create_world_with_workspace(test_name:&str) -> WorldTest {
-        let world_ptr    = World::new();
+        let world_ptr    = WorldData::new();
         let workspace    = Workspace::build(Self::workspace_name(test_name));
         let workspace_id = world_ptr.borrow_mut().add(workspace);
         WorldTest {world_ptr,workspace_id}
@@ -81,7 +81,7 @@ mod tests {
 
     use super::WorldTest;
     use basegl::Color;
-    use basegl::display::world::World;
+    use basegl::display::world::WorldData;
     use basegl::display::shape::text::content::TextChange;
     use basegl::display::shape::text::content::CharPosition;
     use basegl::display::shape::text::TextComponentBuilder;
@@ -146,7 +146,7 @@ mod tests {
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
                 bencher_clone.iter(move || {
-                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
                     for _ in 0..30 { //TODO[AO] make target FPS feature in web_bench
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
@@ -166,7 +166,7 @@ mod tests {
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
-                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
                     for _ in 0..10 { //TODO[AO] make target FPS feature in web_bench
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
@@ -186,7 +186,7 @@ mod tests {
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
                 bencher_clone.iter(move || {
-                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
                     for _ in 0..20 {
                         let workspace      = &mut world.workspaces[world_test.workspace_id];
                         let text_component = &mut workspace.text_components[0];
@@ -210,7 +210,7 @@ mod tests {
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,LONG_TEXT.to_string());
                 bencher_clone.iter(move || {
-                    let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+                    let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
                     let workspace      = &mut world.workspaces[world_test.workspace_id];
                     let text_component = &mut workspace.text_components[0];
                     let position       = CharPosition{line:1, byte_offset:0};
@@ -225,7 +225,7 @@ mod tests {
 
     fn create_full_sized_text_component(world_test:&WorldTest, text:String) {
         let workspace_id       = world_test.workspace_id;
-        let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+        let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
         let workspace          = &mut world.workspaces[workspace_id];
         let fonts              = &mut world.fonts;
         let font_name          = FONTS[1];
@@ -244,7 +244,7 @@ mod tests {
 
     fn create_test_components_for_each_font(world_test:&WorldTest, text:String, text_size:f64) {
         let workspace_id       = world_test.workspace_id;
-        let world : &mut World = &mut world_test.world_ptr.borrow_mut();
+        let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
         let workspace          = &mut world.workspaces[workspace_id];
         let fonts              = &mut world.fonts;
 

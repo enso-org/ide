@@ -117,7 +117,7 @@ pub struct Workspace<OnDirty> {
     pub listeners             : Listeners,
     // TODO[AO] this is a very temporary solution. Need to develop some general
     // component handling
-    pub text_components     : Vec<text::TextComponent>,
+    pub text_components : Vec<text::TextComponent>,
 }
 
 
@@ -191,12 +191,6 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         Listeners {resize}
     }
 
-    /// Build new instance with the provided builder object.
-    pub fn build<Name:Into<String>> (name:Name) -> WorkspaceBuilder {
-        let name = name.into();
-        WorkspaceBuilder {name}
-    }
-
     /// Create a new `Symbol` instance.
     pub fn new_symbol(&mut self) -> SymbolId {
         self.symbol_registry.new_symbol()
@@ -255,14 +249,4 @@ impl<OnDirty> IndexMut<usize> for Workspace<OnDirty> {
     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
         self.symbol_registry.index_mut(ix)
     }
-}
-
-
-
-// ========================
-// === WorkspaceBuilder ===
-// ========================
-
-pub struct WorkspaceBuilder {
-    pub name: String
 }

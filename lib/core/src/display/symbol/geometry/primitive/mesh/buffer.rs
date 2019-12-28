@@ -155,12 +155,13 @@ BufferData<T,OnMut,OnResize> {
                 let item_count      = <T as Item>::item_count() as u32;
                 let start           = *range.start() as u32;
                 let end             = *range.end()   as u32;
+                let start_item      = start * item_count;
                 let length          = (end - start + 1) * item_count;
-                let dst_byte_offset = (item_byte_size * start) as i32;
+                let dst_byte_offset = (item_byte_size * item_count * start) as i32;
                 unsafe {
                     let js_array = data.js_buffer_view();
                     context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
-                    (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start,length)
+                    (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
                 }
             }
         }

@@ -307,9 +307,9 @@ SharedHasUnset1 for SharedDirtyFlag<T,OnSet> where Arg<T>:Display {
 /// The on / off dirty flag. If you need a simple dirty / clean switch, this one
 /// is the right choice.
 
-pub type  Bool       <OnSet> = DirtyFlag       <BoolData,OnSet>;
-pub type  SharedBool <OnSet> = SharedDirtyFlag <BoolData,OnSet>;
-pub trait BoolCtx    <OnSet> = where OnSet: Callback0;
+pub type  Bool       <OnSet=()> = DirtyFlag       <BoolData,OnSet>;
+pub type  SharedBool <OnSet=()> = SharedDirtyFlag <BoolData,OnSet>;
+pub trait BoolCtx    <OnSet>    = where OnSet: Callback0;
 
 #[derive(Debug,Display,Default)]
 pub struct BoolData { is_dirty: bool }

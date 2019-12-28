@@ -72,7 +72,7 @@ impl HierarchicalObjectData {
         self.parent_bind = Some(bind);
     }
 
-    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
+    fn register_child<T: DisplayObject>(&mut self, child:T) -> usize {
         let child = child.display_object_description();
         self.children.insert(child)
     }
@@ -184,7 +184,7 @@ impl DisplayObjectDataMut {
 // === Private API ===
 
 impl DisplayObjectDataMut {
-    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
+    fn register_child<T: DisplayObject>(&mut self, child:T) -> usize {
         let index = self.wrapped.register_child(child);
         self.child_dirty.set(index);
         index
@@ -319,13 +319,13 @@ impl DisplayObjectData {
     }
 
     /// Adds a new `DisplayObject` as a child to the current one.
-    pub fn add_child<T:DisplayObject>(&self, child:T) {
+    pub fn add_child<T: DisplayObject>(&self, child:T) {
         child.display_object_description().set_parent(self);
     }
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn remove_child<T:DisplayObject>(&self, child:T) {
+    pub fn remove_child<T: DisplayObject>(&self, child:T) {
         let child = child.display_object_description();
         if self.has_child(&child) {
             child.unset_parent()
@@ -333,7 +333,7 @@ impl DisplayObjectData {
     }
 
     /// Replaces the parent binding with a new parent.
-    pub fn set_parent<T:DisplayObject>(&self, parent:T) {
+    pub fn set_parent<T: DisplayObject>(&self, parent:T) {
         group!(self.rc.borrow().logger, "Setting new parent.", {
             self.unset_parent();
             let parent      = parent.display_object_description();
@@ -350,12 +350,12 @@ impl DisplayObjectData {
     }
 
     /// Checks if the provided object is child of the current one.
-    pub fn has_child<T:DisplayObject>(&self, child:T) -> bool {
+    pub fn has_child<T: DisplayObject>(&self, child:T) -> bool {
         self.child_index(child).is_some()
     }
 
     /// Returns the index of the provided object if it was a child of the current one.
-    pub fn child_index<T:DisplayObject>(&self, child:T) -> Option<usize> {
+    pub fn child_index<T: DisplayObject>(&self, child:T) -> Option<usize> {
         let child = child.display_object_description();
         child.parent_bind().and_then(|bind| {
             if self == &bind.parent { Some(bind.index) } else { None }
@@ -505,6 +505,21 @@ pub trait DisplayObject: Into<DisplayObjectData> {
 }
 
 impl<T:Into<DisplayObjectData>> DisplayObject for T {}
+
+
+pub trait DisplayObjectOps<'t>
+where &'t Self:DisplayObject, Self:'t {
+    fn add_child<T:DisplayObject>(&'t self, child:T) {
+        self.display_object_description().add_child(child);
+    }
+
+    fn update(&'t self) {
+        self.display_object_description().update();
+    }
+}
+
+impl<'t,T> DisplayObjectOps<'t> for T
+where T:'t, &'t T:DisplayObject {}
 
 
 //pub trait DisplayObjectOps where for<'t> &'t Self:DisplayObject {
