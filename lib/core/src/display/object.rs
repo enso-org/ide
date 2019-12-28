@@ -320,7 +320,19 @@ impl DisplayObjectData {
 
     /// Adds a new `DisplayObject` as a child to the current one.
     pub fn add_child<T: DisplayObject>(&self, child:T) {
-        child.display_object_description().set_parent(self);
+//        child.display_object_description().set_parent(self);
+        self.clone_ref().add_child_take(child);
+    }
+
+    /// Adds a new `DisplayObject` as a child to the current one.
+    pub fn add_child_take<T: DisplayObject>(self, child:T) {
+        self.rc.borrow().logger.info("Adding new child.");
+        let child = child.display_object_description();
+        child.unset_parent();
+        let index = self.rc.borrow_mut().register_child(&child);
+        self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
+        let parent_bind = ParentBind {parent:self,index};
+        child.set_parent_bind(parent_bind);
     }
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
@@ -334,14 +346,7 @@ impl DisplayObjectData {
 
     /// Replaces the parent binding with a new parent.
     pub fn set_parent<T: DisplayObject>(&self, parent:T) {
-        group!(self.rc.borrow().logger, "Setting new parent.", {
-            self.unset_parent();
-            let parent      = parent.display_object_description();
-            let index       = parent.rc.borrow_mut().register_child(self);
-            let parent_bind = ParentBind {parent,index};
-            self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
-            self.set_parent_bind(parent_bind);
-        })
+        parent.display_object_description().add_child_take(self);
     }
 
     /// Removes the current parent binding.
@@ -510,26 +515,20 @@ impl<T:Into<DisplayObjectData>> DisplayObject for T {}
 pub trait DisplayObjectOps<'t>
 where &'t Self:DisplayObject, Self:'t {
     fn add_child<T:DisplayObject>(&'t self, child:T) {
-        self.display_object_description().add_child(child);
+        self.display_object_description().add_child_take(child);
     }
 
-    fn update(&'t self) {
-        self.display_object_description().update();
+    fn update(&'t self) where &'t Self: Modify<&'t DisplayObjectData> {
+        self.modify(|t| t.update());
     }
 }
 
 impl<'t,T> DisplayObjectOps<'t> for T
 where T:'t, &'t T:DisplayObject {}
 
-
-//pub trait DisplayObjectOps where for<'t> &'t Self:DisplayObject {
-//    fn add_child<T:DisplayObject>(&self, child:T) {
-//        self.display_object_description().add_child(child)
-//    }
-//}
-//
-//impl<T> DisplayObjectOps for T where for<'t> &'t Self:DisplayObject {}
-
+pub trait Modify<T> {
+    fn modify<F:FnOnce(T)>(self, f:F);
+}
 
 
 

@@ -5,7 +5,6 @@ pub mod msdf;
 
 use crate::prelude::*;
 
-use crate::Color;
 use crate::display::world::Workspace;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::compile_shader;
@@ -26,6 +25,39 @@ use nalgebra::Projective2;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlTexture;
+
+
+
+// =================
+// === Utilities ===
+// =================
+
+#[derive(Debug)]
+pub struct Color<T> {
+    pub r : T,
+    pub g : T,
+    pub b : T,
+    pub a : T,
+}
+
+#[derive(Debug)]
+pub struct Area<T> {
+    pub left   : T,
+    pub right  : T,
+    pub top    : T,
+    pub bottom : T,
+}
+
+impl<T:std::ops::Sub+Clone> Area<T> {
+    pub fn width(&self) -> T::Output {
+        self.right.clone() - self.left.clone()
+    }
+
+    pub fn height(&self) -> T::Output {
+        self.top.clone() - self.bottom.clone()
+    }
+}
+
 
 
 // =====================

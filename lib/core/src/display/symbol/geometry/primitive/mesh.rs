@@ -78,6 +78,11 @@ pub struct Scopes<OnMut> {
     pub global    : GlobalScope  <OnMut>,
 }
 
+pub type PointId     = usize;
+pub type VertexId    = usize;
+pub type PrimitiveId = usize;
+pub type InstanceId  = usize;
+
 #[derive(Copy,Clone,Debug,IntoPrimitive,PartialEq)]
 #[repr(u8)]
 pub enum ScopeType {
