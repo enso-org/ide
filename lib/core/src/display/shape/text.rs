@@ -1,6 +1,12 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod font;
+#[warn(missing_docs)]
 pub mod buffer;
+#[warn(missing_docs)]
 pub mod content;
+#[warn(missing_docs)]
 pub mod msdf;
 
 use crate::prelude::*;

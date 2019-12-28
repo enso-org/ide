@@ -1,18 +1,16 @@
-use super::*;
-use crate::set_stdout;
-use crate::display::world::*;
-use crate::prelude::*;
-use nalgebra::{Vector2, Vector3, Matrix4};
-use wasm_bindgen::prelude::*;
-use basegl_system_web::{Logger, get_performance};
-use web_sys::Performance;
-use crate::display::object::DisplayObjectData;
-use crate::display::object::DisplayObjectOps;
-use crate::display::object::Modify;
+#![allow(missing_docs)]
 
+use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::sprite::Sprite;
 use crate::display::symbol::geometry::sprite::SpriteSystem;
+use crate::display::world::*;
+use crate::prelude::*;
+use crate::system::web::set_stdout;
 
+use basegl_system_web::get_performance;
+use nalgebra::Vector3;
+use wasm_bindgen::prelude::*;
+use web_sys::Performance;
 
 
 #[wasm_bindgen]
@@ -31,7 +29,7 @@ fn init(world: &World) {
 
     let mut sprites: Vec<Sprite> = default();
     let count = 100;
-    for i in 0 .. count {
+    for _ in 0 .. count {
         let sprite = sprite_system.new_instance();
         sprites.push(sprite);
     }

@@ -1,4 +1,8 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod geometry;
+#[warn(missing_docs)]
 pub mod material;
 
 use crate::prelude::*;
@@ -113,6 +117,7 @@ promote_mesh_types!     { [OnSurfaceMut] mesh }
 promote_material_types! { [OnSurfaceMut] material }
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_symbol_types { ($($args:tt)*) => {
     crate::promote_mesh_types!     {$($args)*}
     crate::promote_material_types! {$($args)*}

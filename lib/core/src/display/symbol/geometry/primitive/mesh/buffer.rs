@@ -1,3 +1,6 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod item;
 
 use crate::prelude::*;
@@ -54,6 +57,7 @@ pub type ObservableVec<T,OnMut,OnResize> = Observable<Vec<T>,OnMut,OnResize>;
 pub type Data<T,OnMut,OnResize> = ObservableVec<T,DataOnSet<OnMut>,DataOnResize<OnResize>>;
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
     promote! { $callbacks $module [Var<T>,BufferData<T>,Buffer<T>,AnyBuffer] }
 };}

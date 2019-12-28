@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
@@ -40,6 +42,7 @@ pub type SymbolDirty<OnDirty> = dirty::SharedSet<SymbolId, OnDirty>;
 promote_symbol_types!{ [OnSymbolChange] symbol }
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_symbol_registry_types { ($($args:tt)*) => {
     crate::promote_symbol_types! { $($args)* }
     promote! { $($args)* [SymbolRegistry] }

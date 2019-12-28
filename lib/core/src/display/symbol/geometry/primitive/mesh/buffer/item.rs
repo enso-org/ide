@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::display::render::webgl::Context;
 use nalgebra::*;
 use web_sys::WebGlUniformLocation;

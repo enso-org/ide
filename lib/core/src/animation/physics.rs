@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 
 use crate::animation::{Animator, IntervalCounter, linear_interpolation};

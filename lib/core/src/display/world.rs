@@ -1,5 +1,10 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod event_loop;
+#[warn(missing_docs)]
 pub mod scene;
+#[warn(missing_docs)]
 pub mod workspace;
 
 use crate::prelude::*;
@@ -9,7 +14,6 @@ pub use crate::display::world::workspace::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::data::opt_vec::OptVec;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use crate::promote_all;

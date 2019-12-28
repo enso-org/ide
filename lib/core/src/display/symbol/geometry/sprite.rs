@@ -1,3 +1,7 @@
+//! This module defines sprites, rectangular planes. All planes share the same material, but can
+//! differ in size and can have different attributes driving the look and feel of the material.
+//! Sprites are very fast to render. You can expect even millions of sprites to be rendered 60 FPS.
+
 use crate::prelude::*;
 
 use crate::display::object::*;
@@ -23,6 +27,7 @@ pub struct SymbolRef {
 }
 
 impl SymbolRef {
+    /// Constructor.
     pub fn new(world: World, symbol_id:SymbolId) -> Self {
         Self {world,symbol_id}
     }
@@ -42,6 +47,7 @@ pub struct SpriteRef {
 }
 
 impl SpriteRef {
+    /// Constructor.
     pub fn new(symbol_ref:SymbolRef, instance_id:InstanceId) -> Self {
         Self {symbol_ref,instance_id}
     }
@@ -104,22 +110,22 @@ impl From<&Sprite> for DisplayObjectData {
 // ==================
 
 struct SpriteData {
-    sprite_ref     : SpriteRef,
-    display_object : DisplayObjectData,
-    transform      : Var<Matrix4<f32>>,
-    bbox           : Var<Vector2<f32>>,
+    _sprite_ref     : SpriteRef,
+    display_object  : DisplayObjectData,
+    _transform      : Var<Matrix4<f32>>,
+    _bbox           : Var<Vector2<f32>>,
 }
 
 impl SpriteData {
     pub fn new
-    (sprite_ref:SpriteRef, transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
-        let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
+    (_sprite_ref:SpriteRef, _transform:Var<Matrix4<f32>>, _bbox:Var<Vector2<f32>>) -> Self {
+        let logger         = Logger::new(format!("Sprite{}",_sprite_ref.instance_id));
         let display_object = DisplayObjectData::new(logger);
-        let transform_cp   = transform.clone();
+        let transform_cp   = _transform.clone();
         display_object.set_on_updated(move |t| {
             transform_cp.set(t.matrix().clone());
         });
-        Self {sprite_ref,display_object,transform,bbox}
+        Self {_sprite_ref,display_object,_transform,_bbox}
     }
 }
 
@@ -148,11 +154,12 @@ pub struct SpriteSystem {
     display_object : DisplayObjectData,
     symbol_ref     : SymbolRef,
     transform      : Buffer<Matrix4<f32>>,
-    uv             : Buffer<Vector2<f32>>,
+    _uv            : Buffer<Vector2<f32>>,
     bbox           : Buffer<Vector2<f32>>,
 }
 
 impl SpriteSystem {
+    /// Constructor.
     pub fn new(world:&World) -> Self {
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
@@ -177,9 +184,10 @@ impl SpriteSystem {
 
         let world      = world.clone_ref();
         let symbol_ref = SymbolRef::new(world,symbol_id);
-        Self {display_object,symbol_ref,transform,uv,bbox}
+        Self {display_object,symbol_ref,transform,_uv:uv,bbox}
     }
 
+    /// Creates a new sprite instance.
     pub fn new_instance(&self) -> Sprite {
         let world_data   = &mut self.symbol_ref.world.borrow_mut();
         let symbol       = &mut world_data.workspace[self.symbol_ref.symbol_id];

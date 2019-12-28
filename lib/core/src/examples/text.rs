@@ -1,6 +1,8 @@
+#![allow(missing_docs)]
+
 use wasm_bindgen::prelude::*;
 
-use crate::display::world::{WorldData, Workspace, Add};
+use crate::display::world::WorldData;
 use crate::display::shape::text::font::FontId;
 use crate::display::shape::text::Color;
 use crate::data::dirty::traits::*;
@@ -22,7 +24,7 @@ const SIZES : &[f64] = &[0.024, 0.032, 0.048];
 pub fn run_example_text() {
     set_panic_hook();
     basegl_core_msdf_sys::run_once_initialized(|| {
-        let mut world_ref = WorldData::new("canvas");
+        let world_ref = WorldData::new("canvas");
         let world :&mut WorldData = &mut world_ref.borrow_mut();
         let workspace     = &mut world.workspace;
         let fonts         = &mut world.fonts;

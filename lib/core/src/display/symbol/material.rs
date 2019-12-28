@@ -1,3 +1,6 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod shader;
 
 use crate::prelude::*;
@@ -34,6 +37,7 @@ pub struct Material<OnMut> {
 pub type Dirty <F> = dirty::SharedBool<F>;
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_material_types { ($($args:tt)*) => {
     promote! {$($args)* [Material]}
 };}

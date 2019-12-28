@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use super::Animator;
 use super::FnAnimation;
 

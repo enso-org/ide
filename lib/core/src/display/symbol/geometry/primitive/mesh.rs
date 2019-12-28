@@ -1,4 +1,8 @@
+#![allow(missing_docs)]
+
+#[warn(missing_docs)]
 pub mod buffer;
+#[warn(missing_docs)]
 pub mod scope;
 
 use crate::prelude::*;
@@ -111,6 +115,7 @@ pub type GlobalScope  <F> = scope::Scope<ScopeOnChange<F>>; // FIXME mock
 promote_scope_types!{ [ScopeOnChange] scope }
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
     promote! {$($args)* [Mesh,Scopes,VarScope,UniformScope,GlobalScope]}

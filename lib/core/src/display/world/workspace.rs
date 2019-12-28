@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 
 pub use crate::display::world::scene::symbol_registry::SymbolId;
@@ -128,6 +130,7 @@ pub type SymbolRegistryDirty <Callback> = dirty::SharedBool<Callback>;
 promote_symbol_registry_types!{ [OnSymbolRegistryChange] symbol_registry }
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_workspace_types { ($($args:tt)*) => {
     crate::promote_symbol_registry_types! { $($args)* }
     promote! { $($args)* [Workspace] }

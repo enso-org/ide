@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
@@ -49,6 +51,7 @@ pub type ShapeDirty  <OnMut> = dirty::SharedBool<OnMut>;
 promote_buffer_types! {[BufferOnSet, BufferOnResize] buffer}
 
 #[macro_export]
+/// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
     crate::promote_buffer_types! { $callbacks $module }
     promote! { $callbacks $module [Scope] }

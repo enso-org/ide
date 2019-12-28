@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 // FIXME: Animators structs should get EventLoop as parameter. The whole application should have
 // only one RequestAnimationFrame loop going on to avoid its overhead.
 

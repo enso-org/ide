@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! This module contains implementation of various dirty flags. A dirty flag is a structure which
 //! remembers that something was changed, but not updated yet. For example, dirty flags are useful
 //! when defining OpenGL buffer management. When a data in CPU-buffer changes, dirty flags can keep

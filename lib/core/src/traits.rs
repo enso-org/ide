@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use nalgebra::Vector3;
 
 pub trait HasPosition {
