@@ -213,7 +213,7 @@ impl Drop for World {
 
 /// Shared reference to the `World` object.
 #[derive(Shrinkwrap)]
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct WorldRef {
     pub rc: Rc<RefCell<World>>,
 }

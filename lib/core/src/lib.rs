@@ -34,11 +34,7 @@ pub mod system {
 }
 
 
-
-//struct SpriteSystem {
-//
-//}
-
+type InstanceId = usize;
 
 // ==================
 // === Example 01 ===
@@ -56,13 +52,135 @@ mod example_01 {
     use crate::display::object::DisplayObjectData;
 
 
+    #[derive(Clone,Debug)]
+    pub struct SymbolRef {
+        world        : WorldRef,
+        workspace_id : WorkspaceID,
+        symbol_id    : SymbolId,
+    }
+
+    impl SymbolRef {
+        pub fn new(world:WorldRef, workspace_id:WorkspaceID, symbol_id:SymbolId) -> Self {
+            Self {world,workspace_id,symbol_id}
+        }
+//
+//        pub fn borrow_mut(&self) -> &mut Symbol {
+//            let world     = &mut self.world.borrow_mut();
+//            let workspace = &mut world[self.workspace_id];
+//            &mut workspace[self.symbol_id]
+//        }
+    }
+
+    #[derive(Clone,Debug)]
+    pub struct SpriteRef {
+        symbol_ref  : SymbolRef,
+        instance_id : InstanceId,
+    }
+
+    impl SpriteRef {
+        pub fn new(symbol_ref:SymbolRef, instance_id:InstanceId) -> Self {
+            Self {symbol_ref,instance_id}
+        }
+    }
+
+
+    pub struct Sprite {
+        rc: Rc<RefCell<SpriteData>>
+    }
+
+    impl Sprite {
+        pub fn new(sprite_ref:SpriteRef, transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
+            let data = SpriteData::new(sprite_ref,transform,bbox);
+            let rc   = Rc::new(RefCell::new(data));
+            Self {rc}
+        }
+
+        pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+            self.rc.borrow().display_object.mod_position(f);
+        }
+
+        pub fn set_position(&self, value:Vector3<f32>) {
+            self.rc.borrow().display_object.set_position(value)
+        }
+    }
+
+    pub struct SpriteData {
+        sprite_ref     : SpriteRef,
+        display_object : DisplayObjectData,
+        transform      : Var<Matrix4<f32>>,
+        bbox           : Var<Vector2<f32>>,
+    }
+
+    impl SpriteData {
+        pub fn new
+        (sprite_ref:SpriteRef, transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
+            let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
+            let display_object = DisplayObjectData::new(logger);
+            let transform_cp   = transform.clone();
+            display_object.set_on_updated(move |t| {
+                transform_cp.set(t.matrix().clone());
+            });
+            Self {sprite_ref,display_object,transform,bbox}
+        }
+    }
+
+    pub struct SpriteSystem {
+        symbol_ref   : SymbolRef,
+        transform    : Buffer<Matrix4<f32>>,
+        uv           : Buffer<Vector2<f32>>,
+        bbox         : Buffer<Vector2<f32>>,
+    }
+
+    impl SpriteSystem {
+        pub fn new(world_ref: &WorldRef) -> Self {
+            let world        = &mut world_ref.borrow_mut();
+            let workspace_id = world.add(Workspace::build("canvas")); // fixme
+            let workspace    = &mut world[workspace_id];
+            let symbol_id    = workspace.new_symbol();
+            let symbol       = &mut workspace[symbol_id];
+            let mesh         = &mut symbol.surface;
+            let uv           = mesh.scopes.point.add_buffer("uv");
+            let transform    = mesh.scopes.instance.add_buffer("transform");
+            let bbox         = mesh.scopes.instance.add_buffer("bbox");
+
+            let p1_index = mesh.scopes.point.add_instance();
+            let p2_index = mesh.scopes.point.add_instance();
+            let p3_index = mesh.scopes.point.add_instance();
+            let p4_index = mesh.scopes.point.add_instance();
+
+            uv.get(p1_index).set(Vector2::new(0.0, 0.0));
+            uv.get(p2_index).set(Vector2::new(0.0, 1.0));
+            uv.get(p3_index).set(Vector2::new(1.0, 0.0));
+            uv.get(p4_index).set(Vector2::new(1.0, 1.0));
+
+            let world      = world_ref.clone();
+            let symbol_ref = SymbolRef::new(world,workspace_id,symbol_id);
+            Self {symbol_ref,transform,uv,bbox}
+        }
+
+        pub fn new_instance(&self) -> Sprite {
+            let world        = &mut self.symbol_ref.world.borrow_mut();
+            let workspace    = &mut world[self.symbol_ref.workspace_id];
+            let symbol       = &mut workspace[self.symbol_ref.symbol_id];
+            let instance_id  = symbol.surface.instance.add_instance();
+            let transform    = self.transform.get(instance_id);
+            let bbox         = self.bbox.get(instance_id);
+            let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);
+            bbox.set(Vector2::new(2.0,2.0));
+            Sprite::new(sprite_ref,transform,bbox)
+        }
+    }
+
+
+
+
     #[wasm_bindgen]
     #[allow(dead_code)]
     pub fn run_example_basic_objects_management() {
         set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
-        init(&mut World::new().borrow_mut());
+        init(&World::new());
     }
 
     #[derive(Debug)]
@@ -71,141 +189,42 @@ mod example_01 {
         color    : Var<Vector3<f32>>,
     }
 
-    fn init(world: &mut World) {
-        let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
-        let workspace : &mut Workspace = &mut world[wspace_id];
-        let sym_id    : SymbolId       = workspace.new_symbol();
-        let symbol    : &mut Symbol    = &mut workspace[sym_id];
-        let mesh      : &mut Mesh      = &mut symbol.surface;
-        let scopes    : &mut Scopes    = &mut mesh.scopes;
-        let pt_scope  : &mut VarScope  = &mut scopes.point;
-        let inst_scope: &mut VarScope  = &mut scopes.instance;
-        let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
-        let uv        : Buffer<Vector2<f32>> = pt_scope.add_buffer("uv");
-        let bbox      : Buffer<Vector2<f32>> = inst_scope.add_buffer("bbox");
+    fn init(world_ref: &WorldRef) {
 
-        let p1_ix = pt_scope.add_instance();
-        let p2_ix = pt_scope.add_instance();
-        let p3_ix = pt_scope.add_instance();
-        let p4_ix = pt_scope.add_instance();
+        let sprite_system = SpriteSystem::new(world_ref);
 
-        let inst_1_ix = inst_scope.add_instance();
-//        let inst_2_ix = inst_scope.add_instance();
-//
-        let transform1 = transform.get(inst_1_ix);
-        let bbox1      = bbox.get(inst_1_ix);
-        bbox1.set(Vector2::new(5.0,5.0));
-//        let transform2 = transform.get(inst_2_ix);
-
-//        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-//        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
+        let sprite1 = sprite_system.new_instance();
+        sprite1.mod_position(|t| t.y += 0.5);
+        sprite1.rc.borrow().display_object.update();
 
 
-
-        let uv1 = uv.get(p1_ix);
-        let uv2 = uv.get(p2_ix);
-        let uv3 = uv.get(p3_ix);
-        let uv4 = uv.get(p4_ix);
-
-        uv1.set(Vector2::new(0.0, 0.0));
-        uv2.set(Vector2::new(0.0, 1.0));
-        uv3.set(Vector2::new(1.0, 0.0));
-        uv4.set(Vector2::new(1.0, 1.0));
-
-
-//        let bbox1 = bbox.get(p1_ix);
-//        let bbox2 = bbox.get(p2_ix);
-//        let bbox3 = bbox.get(p3_ix);
-//        let bbox4 = bbox.get(p4_ix);
-//
-//        bbox1.set(Vector2::new(2.0, 2.0));
-//        bbox2.set(Vector2::new(2.0, 2.0));
-//        bbox3.set(Vector2::new(2.0, 2.0));
-//        bbox4.set(Vector2::new(2.0, 2.0));
-
-
-//        let mm1 = model_matrix.get(p1_ix);
-//        let mm2 = model_matrix.get(p2_ix);
-//        let mm3 = model_matrix.get(p3_ix);
-//        let mm4 = model_matrix.get(p4_ix);
-//
-//        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-//        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-//        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-//        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-//    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
-//    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
-//
-//    mm1.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-//    mm2.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-//    mm3.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-//
-//    mm4.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-//    mm5.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-//    mm6.set(Matrix4::new( 0.0,  0.0, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
-
-
-//    println!("{:?}",pos);
-//    println!("{:?}",pos.borrow().as_prim());
-
-//        let camera = workspace.scene.camera.clone();
-
-
-        let make_widget = |scope: &mut VarScope| {
-            let inst_1_ix = scope.add_instance();
-            let transform1 = transform.get(inst_1_ix);
-            let bbox1      = bbox.get(inst_1_ix);
-            bbox1.set(Vector2::new(2.0,2.0));
-            Widget::new(Logger::new("widget"),transform1)
-        };
-
-
-
-        let w1 = Widget::new(Logger::new("widget1"),transform1);
-
-
-
-
-        let mut widgets: Vec<Widget> = default();
+        let mut sprites: Vec<Sprite> = default();
         let count = 100;
         for _ in 0 .. count {
-            let widget = make_widget(inst_scope);
-            widgets.push(widget);
+            let sprite = sprite_system.new_instance();
+            sprites.push(sprite);
         }
-
+//
         let performance = get_performance().unwrap();
-
-
+//
+//
         let mut i:i32 = 0;
-        world.on_frame(move |w| on_frame(w,&mut i,&w1, &mut widgets,&performance,wspace_id,sym_id,&transform)).forget();
+        world_ref.borrow_mut().on_frame(move |w| on_frame(w,&mut i,&mut sprites,&performance)).forget();
 
 
     }
 
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::many_single_char_names)]
-    pub fn on_frame(world:&mut World, ii:&mut i32, w1:&Widget, widgets:&mut Vec<Widget>, performance:&Performance, wspace_id:WorkspaceID, sym_id:SymbolId, transform : &Buffer<Matrix4<f32>>) {
+    pub fn on_frame(world:&mut World, ii:&mut i32, widgets:&mut Vec<Sprite>, performance:&Performance) {
 //        camera.mod_position(|p| {
 //            p.x -= 0.1;
 //            p.z += 1.0
 //        });
 
-        let workspace : &mut Workspace = &mut world[wspace_id];
-        let symbol    : &mut Symbol    = &mut workspace[sym_id];
-        let mesh      : &mut Mesh      = &mut symbol.surface;
-        let scopes    : &mut Scopes    = &mut mesh.scopes;
-        let inst_scope: &mut VarScope  = &mut scopes.instance;
 
-//        let make_widget = |scope: &mut VarScope| {
-//            let inst_1_ix = scope.add_instance();
-//            let transform1 = transform.get(inst_1_ix);
-//            Widget::new(Logger::new("widget"),transform1)
-//        };
-
-
-
-        w1.transform.mod_position(|p| p.y += 0.5);
-        w1.transform.update();
+//        w1.transform.mod_position(|p| p.y += 0.5);
+//        w1.transform.update();
 
         *ii += 1;
 
@@ -232,9 +251,9 @@ mod example_01 {
                 x += (y * 1.25 + t * 2.50).cos() * 0.5;
                 y += (z * 1.25 + t * 2.00).cos() * 0.5;
                 z += (x * 1.25 + t * 3.25).cos() * 0.5;
-                object.transform.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
+                object.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
 //            object.transform.set_position(Vector3::new(0.0, 0.0, 0.0));
-                object.transform.update();
+                object.rc.borrow().display_object.update();
 
 //            let faster_t = t * 100.0;
 //            let r = (i +   0.0 + faster_t) as u8 % 255;
