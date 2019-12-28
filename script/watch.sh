@@ -1,2 +1,3 @@
-#!/bin/sh
-cargo watch -i .gitignore -i "pkg/*" -s "script/build.sh"
+#!/bin/bash
+cargo watch --watch "lib" --clear -s "script/build.sh ${@}"
+

@@ -138,6 +138,10 @@ impl HTMLRenderer {
         let div    : HtmlElement = dyn_into(create_element("div")?)?;
         let camera : HtmlElement = dyn_into(create_element("div")?)?;
 
+        div.set_property_or_panic("position", "absolute");
+        div.set_property_or_panic("top", "0px");
+        div.set_property_or_panic("overflow", "hidden");
+        div   .set_property_or_panic("overflow"       , "hidden");
         div   .set_property_or_panic("width"          , "100%");
         div   .set_property_or_panic("height"         , "100%");
         camera.set_property_or_panic("width"          , "100%");
@@ -207,5 +211,14 @@ impl HTMLRenderer {
     pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
         self.renderer.set_dimensions(dimensions);
         self.data.set_dimensions(dimensions);
+    }
+}
+
+
+// === Getters ===
+
+impl HTMLRenderer {
+    pub fn div(&self) -> &HtmlElement {
+        &self.data.div
     }
 }

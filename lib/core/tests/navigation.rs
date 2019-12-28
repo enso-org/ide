@@ -12,12 +12,9 @@ mod tests {
     use basegl::display::render::css3d::html::HTMLObject;
     use basegl::display::render::css3d::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
-    use basegl::system::web::get_performance;
     use basegl::display::navigation::navigator::Navigator;
-    use basegl::traits::HasPosition;
     use web_test::*;
 
-    use basegl::animation::*;
     use basegl::animation::physics::*;
 
     use nalgebra::{Vector3, zero};
@@ -69,8 +66,6 @@ mod tests {
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let mut camera  = Camera::perspective(45.0, 320.0 / 240.0, 1.0, 1000.0);
-        let performance = get_performance()
-                         .expect("Couldn't get performance obj");
 
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;

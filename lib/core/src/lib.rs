@@ -34,7 +34,7 @@ pub mod system {
     pub use basegl_system_web as web;
 }
 
-
+pub mod examples;
 
 // ==================
 // === Example 01 ===
@@ -50,8 +50,7 @@ mod example_01 {
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
     use crate::display::object::DisplayObjectData;
-
-
+    
     #[wasm_bindgen]
     #[allow(dead_code)]
     pub fn run_example_basic_objects_management() {

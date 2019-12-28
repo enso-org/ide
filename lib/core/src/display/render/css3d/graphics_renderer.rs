@@ -3,7 +3,6 @@ use crate::prelude::*;
 use super::DOMContainer;
 use super::ResizeCallbackFn;
 use crate::system::web::Result;
-use crate::system::web::StyleSetter;
 
 use nalgebra::Vector2;
 
@@ -20,7 +19,6 @@ pub struct GraphicsRenderer {
 impl GraphicsRenderer {
     pub fn new(dom_id: &str) -> Result<Self> {
         let container = DOMContainer::from_id(dom_id)?;
-        container.dom.set_property_or_panic("overflow", "hidden");
         Ok(Self { container })
     }
 

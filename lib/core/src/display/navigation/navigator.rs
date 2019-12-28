@@ -49,11 +49,12 @@ impl Navigator {
             let normalized = normalized_to_range2(normalized, -1.0, 1.0);
 
             // Scale X and Y to compensate aspect and fov.
-            let z =  zoom.amount * self.zoom_speed;
-            let x = -normalized.x * z / persp.aspect;
-            let y =  normalized.y * z / camera.get_y_scale();
+            let x = -normalized.x * persp.aspect;
+            let y =  normalized.y;
+            let z = camera.get_y_scale();
+            let direction = Vector3::new(x, y, z).normalize();
 
-            self.position += Vector3::new(x, y, z);
+            self.position += direction * zoom.amount * self.zoom_speed;
             if  self.position.z < persp.near + 1.0 {
                 self.position.z = persp.near + 1.0;
             }
