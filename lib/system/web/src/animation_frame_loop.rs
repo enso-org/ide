@@ -22,7 +22,6 @@ struct AnimationFrameData {
 }
 
 pub struct AnimationFrameLoop {
-    forget : bool,
     data   : Rc<RefCell<AnimationFrameData>>
 }
 
@@ -51,19 +50,12 @@ impl AnimationFrameLoop {
         }) as Box<dyn FnMut(f32)>);
         request_animation_frame(&callback.borrow()).unwrap();
 
-        let forget = false;
-        AnimationFrameLoop{forget,data}
-    }
-
-    pub fn forget(mut self) {
-        self.forget = true;
+        AnimationFrameLoop{data}
     }
 }
 
 impl Drop for AnimationFrameLoop {
     fn drop(&mut self) {
-        if !self.forget {
-            self.data.borrow_mut().run = false;
-        }
+        self.data.borrow_mut().run = false;
     }
 }

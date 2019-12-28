@@ -32,13 +32,7 @@ impl DragProperties {
 
 impl PhysicsForce for DragProperties {
     fn force(&self, kinematics:&KinematicsProperties) -> Vector3<f32> {
-        let velocity  = kinematics.velocity;
-        let speed     = velocity.norm();
-        if speed > 0.0 {
-            velocity.normalize() * speed * speed * -0.5 * self.coefficient
-        } else {
-            zero()
-        }
+        -kinematics.velocity * self.coefficient
     }
 }
 

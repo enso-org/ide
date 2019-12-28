@@ -17,9 +17,10 @@ mod tests {
     use basegl::traits::HasPosition;
     use web_test::*;
 
+    use basegl::animation::*;
+    use basegl::animation::physics::*;
+
     use nalgebra::{Vector3, zero};
-    use basegl::display::navigation::physics::{KinematicProperties, PhysicsSimulator};
-    use basegl::display::navigation::animation_manager::AnimationManager;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -81,27 +82,22 @@ mod tests {
         let navigator     = Navigator::new(&renderer.container, camera.position(), zoom_speed);
         let mut navigator = navigator.expect("Couldn't create navigator");
 
-        let mut kinematics   = KinematicProperties::new(camera.position(), zero(), zero());
-        let drag             = 1.0;
-        let spring_coeff     = 1.5;
-        let mass             = 20.0;
+        let mass           = 25.0;
+        let velocity       = zero();
+        let kinematics     = KinematicsProperties::new(camera.position(), velocity, zero(), mass);
+        let coefficient    = 10000.0;
+        let fixed_point    = camera.position();
+        let spring         = SpringProperties::new(coefficient, fixed_point);
+        let drag           = DragProperties::new(1000.0);
+        let mut properties = PhysicsProperties::new(kinematics, spring, drag);
+        let simulator      = PhysicsSimulator::new(camera.object.clone(), properties.clone());
 
-        let mut animation_manager = AnimationManager::new(60.0);
-        let simulator             = PhysicsSimulator::new();
-
-        let mut t0 = (performance.now() / 1000.0) as f32;
         b.iter(move || {
-            let t1 = (performance.now() / 1000.0) as f32;
-            let dt = t1 - t0;
-            t0 = t1;
+            let _keep_alive = &simulator;
             let position = navigator.navigate(&mut camera);
             renderer.render(&mut camera, &scene);
-            animation_manager.run(dt * 75.0, |dt| {
-                simulator.simulate_spring(&mut kinematics, position, mass, spring_coeff);
-                simulator.simulate_dragging(&mut kinematics, drag, dt);
-                simulator.simulate_kinematics(&mut kinematics, dt);
-            });
-            camera.set_position(kinematics.position);
+            //camera.set_position(kinematics.position);
+            properties.mod_spring(|spring| spring.set_fixed_point(position));
         })
     }
 
