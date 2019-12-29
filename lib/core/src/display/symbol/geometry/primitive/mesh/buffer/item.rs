@@ -12,7 +12,7 @@ use web_sys::WebGlUniformLocation;
 
 pub trait MatrixCtx<T,R,C> = where
     T:Scalar, R:DimName, C:DimName,
-    nalgebra::DefaultAllocator: nalgebra::allocator::Allocator<T, R, C>;
+    DefaultAllocator: nalgebra::allocator::Allocator<T, R, C>;
 
 
 

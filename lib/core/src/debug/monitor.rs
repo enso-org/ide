@@ -9,7 +9,9 @@ use std::f64;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen;
-use web_sys::*;
+use web_sys::CanvasRenderingContext2d;
+use web_sys::Performance;
+use web_sys;
 
 
 
@@ -121,9 +123,9 @@ pub struct Monitor {
     config        : SamplerConfig,
     width         : f64,
     height        : f64,
-    dom           : Element,
+    dom           : web_sys::Element,
     panels        : Vec<Panel>,
-    canvas        : HtmlCanvasElement,
+    canvas        : web_sys::HtmlCanvasElement,
     context       : CanvasRenderingContext2d,
     is_first_draw : bool,
 }
@@ -147,7 +149,7 @@ impl Default for Monitor {
         body().prepend_with_node_1(&dom).unwrap();
 
         let canvas = document().create_element("canvas").unwrap();
-        let canvas: HtmlCanvasElement = canvas.dyn_into().unwrap();
+        let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into().unwrap();
 
         let context = canvas.get_context("2d").unwrap().unwrap();
         let context: CanvasRenderingContext2d = context.dyn_into().unwrap();
@@ -219,9 +221,9 @@ impl Monitor {
     }
 
     fn shift_plot_area_left(&mut self) {
-        let width  = self.width as f64;
-        let height = self.height as f64;
-        let shift  = -(self.config.plot_step_size as f64);
+        let width  = self.width;
+        let height = self.height;
+        let shift  = -(self.config.plot_step_size);
         self.context.draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh
         (&self.canvas,0.0,0.0,width,height,shift,0.0,self.width,self.height).unwrap();
     }

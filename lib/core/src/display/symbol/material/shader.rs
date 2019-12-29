@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use crate::data::container::Add;
 use crate::display::render::webgl::glsl;
-use crate::display::render::webgl::glsl::PrimType;
-use crate::display::render::webgl::glsl::Type;
 
 use code_builder::HasCodeRepr;
 use std::collections::BTreeMap;
@@ -134,7 +132,7 @@ impl AttributeQualifier {
 }
 
 impl From<glsl::Type> for AttributeQualifier {
-    fn from(typ: Type) -> Self {
+    fn from(typ:glsl::Type) -> Self {
         let storage = default();
         let prec    = default();
         Self {storage,prec,typ}
@@ -142,8 +140,8 @@ impl From<glsl::Type> for AttributeQualifier {
 }
 
 impl From<glsl::PrimType> for AttributeQualifier {
-    fn from(prim_type: glsl::PrimType) -> Self {
-        let typ:Type = prim_type.into();
+    fn from(prim_type:glsl::PrimType) -> Self {
+        let typ:glsl::Type = prim_type.into();
         typ.into()
     }
 }
@@ -171,15 +169,15 @@ impl UniformQualifier {
 }
 
 impl From<glsl::Type> for UniformQualifier {
-    fn from(typ: Type) -> Self {
+    fn from(typ:glsl::Type) -> Self {
         let prec = default();
         Self {prec,typ}
     }
 }
 
 impl From<glsl::PrimType> for UniformQualifier {
-    fn from(prim_type: PrimType) -> Self {
-        let typ:Type = prim_type.into();
+    fn from(prim_type:glsl::PrimType) -> Self {
+        let typ:glsl::Type = prim_type.into();
         typ.into()
     }
 }

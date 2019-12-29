@@ -73,7 +73,7 @@ impl CallbackRegistry {
 
     /// Adds new callback and returns a new handle for it.
     pub fn add<F:CallbackMut>(&mut self, callback:F) -> CallbackHandle {
-        let callback = Box::new(callback) as Box<dyn FnMut()>;
+        let callback = Box::new(callback);
         let handle   = CallbackHandle::new();
         let guard    = handle.guard();
         self.callback_list.push((guard, callback));

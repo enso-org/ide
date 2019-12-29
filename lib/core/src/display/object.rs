@@ -542,7 +542,7 @@ pub trait Modify<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f32::consts::{PI};
+    use std::f32::consts::PI;
 
     #[test]
     fn hierarchy_test() {

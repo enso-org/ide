@@ -21,7 +21,7 @@ pub trait PhysicsForce {
 // ======================
 
 /// This structure contains air dragging properties.
-#[derive(Default, Clone, Copy)]
+#[derive(Default,Debug,Clone,Copy)]
 pub struct DragProperties {
     coefficient: f32
 }
