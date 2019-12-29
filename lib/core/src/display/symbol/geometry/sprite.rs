@@ -63,6 +63,7 @@ impl SpriteRef {
 /// freely rotated only by their local z-axis. This implementation, however, implements sprites as
 /// full 3D objects. We may want to fork this implementation in the future to create a specialized
 /// 2d representation as well.
+#[derive(Clone,Debug)]
 pub struct Sprite {
     rc: Rc<RefCell<SpriteData>>
 }
@@ -109,23 +110,27 @@ impl From<&Sprite> for DisplayObjectData {
 // === SpriteData ===
 // ==================
 
+#[derive(Debug)]
 struct SpriteData {
-    _sprite_ref     : SpriteRef,
-    display_object  : DisplayObjectData,
-    _transform      : Var<Matrix4<f32>>,
-    _bbox           : Var<Vector2<f32>>,
+    sprite_ref     : SpriteRef,
+    display_object : DisplayObjectData,
+    _transform     : Var<Matrix4<f32>>,
+    bbox           : Var<Vector2<f32>>,
 }
 
 impl SpriteData {
     pub fn new
-    (_sprite_ref:SpriteRef, _transform:Var<Matrix4<f32>>, _bbox:Var<Vector2<f32>>) -> Self {
-        let logger         = Logger::new(format!("Sprite{}",_sprite_ref.instance_id));
+    (sprite_ref:SpriteRef, _transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
+        let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
         let display_object = DisplayObjectData::new(logger);
         let transform_cp   = _transform.clone();
         display_object.set_on_updated(move |t| {
             transform_cp.set(t.matrix().clone());
         });
-        Self {_sprite_ref,display_object,_transform,_bbox}
+
+        sprite_ref.symbol_ref.world.mod_stats(|stats| stats.inc_sprite_count());
+
+        Self {sprite_ref,display_object,_transform,bbox}
     }
 }
 
@@ -138,6 +143,19 @@ impl From<&SpriteData> for DisplayObjectData {
 impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteData {
     fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
         f(&self.display_object)
+    }
+}
+
+impl Drop for SpriteData {
+    fn drop(&mut self) {
+        self.sprite_ref.symbol_ref.world.mod_stats(|stats| stats.dec_sprite_count());
+
+        let mut world = self.sprite_ref.symbol_ref.world.borrow_mut();
+        let symbol    = &mut world.workspace[self.sprite_ref.symbol_ref.symbol_id];
+        let mesh      = &mut symbol.surface;
+        self.bbox.set(Vector2::new(0.0,0.0));
+        mesh.scopes.instance.dispose(self.sprite_ref.instance_id);
+        self.display_object.unset_parent();
     }
 }
 
@@ -182,6 +200,8 @@ impl SpriteSystem {
         uv.get(p3_index).set(Vector2::new(1.0, 0.0));
         uv.get(p4_index).set(Vector2::new(1.0, 1.0));
 
+        world_data.stats.inc_sprite_system_count();
+
         let world      = world.clone_ref();
         let symbol_ref = SymbolRef::new(world,symbol_id);
         Self {display_object,symbol_ref,transform,_uv:uv,bbox}
@@ -189,9 +209,11 @@ impl SpriteSystem {
 
     /// Creates a new sprite instance.
     pub fn new_instance(&self) -> Sprite {
-        let world_data   = &mut self.symbol_ref.world.borrow_mut();
-        let symbol       = &mut world_data.workspace[self.symbol_ref.symbol_id];
-        let instance_id  = symbol.surface.instance.add_instance();
+        let instance_id = {
+            let world_data   = &mut self.symbol_ref.world.borrow_mut();
+            let symbol       = &mut world_data.workspace[self.symbol_ref.symbol_id];
+            symbol.surface.instance.add_instance()
+        };
         let transform    = self.transform.get(instance_id);
         let bbox         = self.bbox.get(instance_id);
         let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);

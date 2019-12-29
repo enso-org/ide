@@ -37,15 +37,17 @@ pub struct Scope <OnMut> {
     pub shape_dirty  : ShapeDirty<OnMut>,
     pub name_map     : HashMap<BufferName, BufferIndex>,
     pub logger       : Logger,
-    instance_count   : usize,
+    free_ids         : Vec<InstanceId>,
+    size             : usize,
     context          : Context
 }
 
 
 // === Types ===
 
-pub type BufferIndex           = usize;
-pub type BufferName            = String;
+pub type InstanceId          = usize;
+pub type BufferIndex         = usize;
+pub type BufferName          = String;
 pub type BufferDirty <OnMut> = dirty::SharedBitField<u64, OnMut>;
 pub type ShapeDirty  <OnMut> = dirty::SharedBool<OnMut>;
 promote_buffer_types! {[BufferOnSet, BufferOnResize] buffer}
@@ -73,27 +75,27 @@ fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
 
 // === Implementation ===
 
-impl<OnMut: Clone> Scope<OnMut> {
+impl<OnMut:Clone> Scope<OnMut> {
     /// Create a new scope with the provided dirty callback.
     pub fn new(context:&Context, logger:Logger, on_mut:OnMut) -> Self {
         logger.info("Initializing.");
-        let buffer_logger  = logger.sub("buffer_dirty");
-        let shape_logger   = logger.sub("shape_dirty");
-        let buffer_dirty   = BufferDirty::new(buffer_logger,on_mut.clone());
-        let shape_dirty    = ShapeDirty::new(shape_logger,on_mut);
-        let buffers        = default();
-        let name_map       = default();
-        let instance_count = default();
-        let context        = context.clone();
-        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger
-            ,instance_count}
+        let buffer_logger = logger.sub("buffer_dirty");
+        let shape_logger  = logger.sub("shape_dirty");
+        let buffer_dirty  = BufferDirty::new(buffer_logger,on_mut.clone());
+        let shape_dirty   = ShapeDirty::new(shape_logger,on_mut);
+        let buffers       = default();
+        let name_map      = default();
+        let free_ids      = default();
+        let size          = default();
+        let context       = context.clone();
+        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger,free_ids,size}
     }
 }
 
 impl<OnMut: Callback0> Scope<OnMut> {
 
     /// Adds a new named buffer to the scope.
-    pub fn add_buffer<Name: Str, T: Item>
+    pub fn add_buffer<Name:Str, T:Item>
     (&mut self, name:Name) -> Buffer<T,OnMut>
         where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
         let name         = name.as_ref().to_string();
@@ -125,12 +127,26 @@ impl<OnMut: Callback0> Scope<OnMut> {
     }
 
     /// Adds a new instance to every buffer in the scope.
-    pub fn add_instance(&mut self) -> usize {
+    pub fn add_instance(&mut self) -> InstanceId {
         group!(self.logger, "Adding {} instance(s).", 1, {
-            let ix = self.instance_count;
-            self.instance_count += 1;
-            self.buffers.iter_mut().for_each(|t| t.add_element());
-            ix
+            match self.free_ids.pop() {
+                Some(ix) => ix,
+                None     => {
+                    let ix = self.size;
+                    self.size += 1;
+                    self.buffers.iter_mut().for_each(|t| t.add_element());
+                    ix
+                }
+            }
+        })
+    }
+
+    /// Disposes instance for reuse in the future. Please note that the disposed data still
+    /// exists in the buffer and will be used when rendering. It is yours responsibility to hide
+    /// id, fo example by degenerating vertices.
+    pub fn dispose(&mut self, id:InstanceId) {
+        group!(self.logger, "Disposing instance {}.", id, {
+            self.free_ids.push(id);
         })
     }
 
@@ -155,6 +171,6 @@ impl<OnMut: Callback0> Scope<OnMut> {
 
     /// Returns the size of buffers in this scope.
     pub fn size(&self) -> usize {
-        self.instance_count
+        self.size
     }
 }

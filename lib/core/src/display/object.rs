@@ -61,6 +61,10 @@ impl HierarchicalObjectData {
         let children    = default();
         Self {parent_bind,children,logger}
     }
+
+    pub fn child_count(&self) -> usize {
+        self.children.len()
+    }
 }
 
 
@@ -323,7 +327,6 @@ impl DisplayObjectData {
 
     /// Adds a new `DisplayObject` as a child to the current one.
     pub fn add_child<T: DisplayObject>(&self, child:T) {
-//        child.display_object_description().set_parent(self);
         self.clone_ref().add_child_take(child);
     }
 
@@ -368,6 +371,11 @@ impl DisplayObjectData {
         child.parent_bind().and_then(|bind| {
             if self == &bind.parent { Some(bind.index) } else { None }
         })
+    }
+
+    /// Returns the number of children of this node.
+    pub fn child_count(&self) -> usize {
+        self.rc.borrow().child_count()
     }
 }
 
@@ -627,6 +635,18 @@ mod tests {
         obj2.update();
         obj3.update();
         assert_eq!(obj3.global_position() , Vector3::new(7.0,6.0,0.0));
+    }
+
+    #[test]
+    fn parent_test() {
+        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
+        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
+        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
+        obj1.add_child(&obj2);
+        obj1.add_child(&obj3);
+        obj2.unset_parent();
+        obj3.unset_parent();
+        assert_eq!(obj1.child_count(),0);
     }
 }
 

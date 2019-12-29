@@ -12,6 +12,7 @@ use wasm_bindgen;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::Performance;
 use web_sys;
+use crate::debug::stats::Stats;
 
 
 
@@ -603,5 +604,35 @@ impl Sampler for WasmMemory {
             if      self.value <=  50.0 { ValueCheck::Correct }
             else if self.value <= 100.0 { ValueCheck::Warning }
             else                        { ValueCheck::Error   };
+    }
+}
+
+
+
+// =========================
+// === SpriteSystemCount ===
+// =========================
+
+#[derive(Debug,Default)]
+pub struct SpriteSystemCount {
+    stats: Stats,
+}
+
+impl SpriteSystemCount {
+    pub fn new(stats:&Stats) -> Self {
+        let stats = stats.clone();
+        Self {stats}
+    }
+}
+
+impl Sampler for SpriteSystemCount {
+    fn label    (&self) -> &str        { "Sprite system count" }
+    fn value    (&self) -> f64         { self.stats.sprite_system_count() as f64 }
+    fn min_size (&self) -> Option<f64> { Some(100.0) }
+    fn check    (&self) -> ValueCheck  {
+        let count = self.stats.sprite_system_count();
+        if      count < 100 { ValueCheck::Correct }
+        else if count < 500 { ValueCheck::Warning }
+        else                { ValueCheck::Error   }
     }
 }

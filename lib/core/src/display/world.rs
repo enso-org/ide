@@ -16,6 +16,7 @@ use crate::closure;
 use crate::control::callback::CallbackHandle;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::debug::stats::Stats;
 use crate::promote_all;
 use crate::promote_workspace_types;
 use crate::promote;
@@ -66,6 +67,10 @@ impl World {
         let func = move || callback(&this);
         self.rc.borrow_mut().event_loop.add_callback(func)
     }
+
+    pub fn mod_stats<F:FnOnce(&Stats)>(&self, f:F) {
+        f(&self.rc.borrow().stats);
+    }
 }
 
 impl<T> Add<T> for World where WorldData: Add<T> {
@@ -82,6 +87,14 @@ impl Deref for World {
         &self.rc
     }
 }
+
+
+
+// ====================
+// === StatsMonitor ===
+// ====================
+
+
 
 
 
@@ -102,6 +115,7 @@ pub struct WorldData {
     pub event_loop      : EventLoop,
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
+    pub stats           : Stats,
 }
 
 
@@ -150,7 +164,8 @@ impl WorldData {
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
-        Self {workspace,workspace_dirty,logger,event_loop,fonts,update_handle}
+        let stats                  = default();
+        Self {workspace,workspace_dirty,logger,event_loop,fonts,update_handle,stats}
     }
 
     pub fn run(&mut self) {
