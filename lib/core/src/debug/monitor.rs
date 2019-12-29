@@ -80,7 +80,7 @@ impl Default for Config {
             margin                : 4,
             panel_height          : 15,
             labels_width          : 120,
-            results_width         : 30,
+            results_width         : 50,
             plots_width           : 100,
             font_size             : 9,
             font_vertical_offset  : 4,
@@ -326,15 +326,16 @@ impl Default for ValueCheck {
 // ===============
 
 pub trait Sampler: Debug {
-    fn label        (&self) -> &str;
-    fn begin        (&mut self, _time:f64) {}
-    fn end          (&mut self, _time:f64) {}
-    fn value        (&self) -> f64;
-    fn check        (&self) -> ValueCheck  { ValueCheck::Correct }
-    fn max_value    (&self) -> Option<f64> { None }
-    fn min_value    (&self) -> Option<f64> { None }
-    fn min_size     (&self) -> Option<f64> { None }
-    fn smooth_range (&self) -> usize { 2 }
+    fn label             (&self) -> &str;
+    fn begin             (&mut self, _time:f64) {}
+    fn end               (&mut self, _time:f64) {}
+    fn value             (&self) -> f64;
+    fn check             (&self) -> ValueCheck  { ValueCheck::Correct }
+    fn max_value         (&self) -> Option<f64> { None }
+    fn min_value         (&self) -> Option<f64> { None }
+    fn min_size          (&self) -> Option<f64> { None }
+    fn smooth_range      (&self) -> usize { 2 }
+    fn results_precision (&self) -> usize { 2 }
 }
 
 
@@ -345,19 +346,20 @@ pub trait Sampler: Debug {
 
 #[derive(Debug)]
 pub struct PanelData {
-    label       : String,
-    context     : CanvasRenderingContext2d,
-    performance : Performance,
-    config      : SamplerConfig,
-    min_value   : f64,
-    max_value   : f64,
-    begin_value : f64,
-    value       : f64,
-    last_values : VecDeque<f64>,
-    norm_value  : f64,
-    draw_offset : f64,
-    value_check : ValueCheck,
-    sampler     : Box<dyn Sampler>
+    label             : String,
+    context           : CanvasRenderingContext2d,
+    performance       : Performance,
+    config            : SamplerConfig,
+    min_value         : f64,
+    max_value         : f64,
+    begin_value       : f64,
+    value             : f64,
+    last_values       : VecDeque<f64>,
+    norm_value        : f64,
+    draw_offset       : f64,
+    value_check       : ValueCheck,
+    results_precision : usize,
+    sampler           : Box<dyn Sampler>
 }
 
 
@@ -366,19 +368,20 @@ pub struct PanelData {
 impl PanelData {
     pub fn new<S:Sampler+'static>
     (context:CanvasRenderingContext2d, config:SamplerConfig, sampler:S) -> Self {
-        let label         = sampler.label().into();
-        let performance   = performance();
-        let min_value     = f64::INFINITY;
-        let max_value     = f64::NEG_INFINITY;
-        let begin_value   = default();
-        let value         = default();
-        let last_values   = default();
-        let norm_value    = default();
-        let draw_offset   = 0.0;
-        let value_check   = default();
-        let sampler       = Box::new(sampler);
+        let label             = sampler.label().into();
+        let performance       = performance();
+        let min_value         = f64::INFINITY;
+        let max_value         = f64::NEG_INFINITY;
+        let begin_value       = default();
+        let value             = default();
+        let last_values       = default();
+        let norm_value        = default();
+        let draw_offset       = 0.0;
+        let value_check       = default();
+        let sampler           = Box::new(sampler);
+        let results_precision = sampler.results_precision();
         Self {label,context,performance,config,min_value,max_value,begin_value,value,last_values
-             ,norm_value,draw_offset,value_check,sampler}
+             ,norm_value,draw_offset,value_check,results_precision,sampler}
     }
 }
 
@@ -475,8 +478,7 @@ impl PanelData {
     }
 
     fn draw_results(&mut self) {
-        let display_value = (self.value * 100.0).round() / 100.0;
-        let display_value = format!("{:.*}",2,display_value);
+        let display_value = format!("{1:.0$}",self.results_precision,self.value);
         let y_pos         = self.config.panel_height - self.config.font_vertical_offset;
         let color         = match self.value_check {
             ValueCheck::Correct => &self.config.label_color_ok,
@@ -626,13 +628,45 @@ impl SpriteSystemCount {
 }
 
 impl Sampler for SpriteSystemCount {
-    fn label    (&self) -> &str        { "Sprite system count" }
-    fn value    (&self) -> f64         { self.stats.sprite_system_count() as f64 }
-    fn min_size (&self) -> Option<f64> { Some(100.0) }
-    fn check    (&self) -> ValueCheck  {
+    fn label             (&self) -> &str        { "Sprite system count" }
+    fn value             (&self) -> f64         { self.stats.sprite_system_count() as f64 }
+    fn min_size          (&self) -> Option<f64> { Some(100.0) }
+    fn results_precision (&self) -> usize       { 0 }
+    fn check             (&self) -> ValueCheck  {
         let count = self.stats.sprite_system_count();
         if      count < 100 { ValueCheck::Correct }
         else if count < 500 { ValueCheck::Warning }
         else                { ValueCheck::Error   }
+    }
+}
+
+
+
+// ===================
+// === SpriteCount ===
+// ===================
+
+#[derive(Debug,Default)]
+pub struct SpriteCount {
+    stats: Stats,
+}
+
+impl SpriteCount {
+    pub fn new(stats:&Stats) -> Self {
+        let stats = stats.clone();
+        Self {stats}
+    }
+}
+
+impl Sampler for SpriteCount {
+    fn label             (&self) -> &str        { "Sprite count" }
+    fn value             (&self) -> f64         { self.stats.sprite_count() as f64 }
+    fn min_size          (&self) -> Option<f64> { Some(100.0) }
+    fn results_precision (&self) -> usize       { 0 }
+    fn check             (&self) -> ValueCheck  {
+        let count = self.stats.sprite_count();
+        if      count < 100_000 { ValueCheck::Correct }
+        else if count < 500_000 { ValueCheck::Warning }
+        else                    { ValueCheck::Error   }
     }
 }

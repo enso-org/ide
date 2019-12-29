@@ -23,6 +23,9 @@ use crate::promote;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::display::shape::text::font::Fonts;
+use crate::debug::monitor;
+use crate::debug::monitor::Monitor;
+use crate::debug::monitor::Panel;
 
 use event_loop::EventLoop;
 use eval_tt::*;
@@ -94,7 +97,65 @@ impl Deref for World {
 // === StatsMonitor ===
 // ====================
 
+#[derive(Clone,Debug)]
+pub struct StatsMonitor {
+    rc: Rc<RefCell<StatsMonitorData>>
+}
 
+impl StatsMonitor {
+    pub fn new(stats:&Stats) -> Self {
+        let rc = Rc::new(RefCell::new(StatsMonitorData::new(stats)));
+        Self {rc}
+    }
+
+    pub fn begin(&self) {
+        self.rc.borrow_mut().begin()
+    }
+
+    pub fn end(&self) {
+        self.rc.borrow_mut().end()
+    }
+}
+
+
+#[derive(Debug)]
+pub struct StatsMonitorData {
+    monitor             : Monitor,
+    time                : Panel,
+    fps                 : Panel,
+    mem                 : Panel,
+    sprite_system_count : Panel,
+    sprite_count        : Panel,
+}
+
+impl StatsMonitorData {
+    fn new(stats:&Stats) -> Self {
+        let mut monitor         = Monitor::new();
+        let time                = monitor.add(monitor::FrameTime::new());
+        let fps                 = monitor.add(monitor::Fps::new());
+        let mem                 = monitor.add(monitor::WasmMemory::new());
+        let sprite_system_count = monitor.add(monitor::SpriteSystemCount::new(&stats));
+        let sprite_count        = monitor.add(monitor::SpriteCount::new(&stats));
+        Self {monitor,time,fps,mem,sprite_system_count,sprite_count}
+    }
+
+    fn begin(&mut self) {
+        self.time.begin();
+        self.fps.begin();
+        self.mem.begin();
+        self.sprite_system_count.begin();
+        self.sprite_count.begin();
+    }
+
+    fn end(&mut self) {
+        self.time.end();
+        self.fps.end();
+        self.mem.end();
+        self.sprite_system_count.end();
+        self.sprite_count.end();
+        self.monitor.draw();
+    }
+}
 
 
 
@@ -116,6 +177,7 @@ pub struct WorldData {
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
     pub stats           : Stats,
+    pub stats_monitor   : StatsMonitor,
 }
 
 
@@ -165,7 +227,13 @@ impl WorldData {
         let event_loop             = EventLoop::new();
         let update_handle          = default();
         let stats                  = default();
-        Self {workspace,workspace_dirty,logger,event_loop,fonts,update_handle,stats}
+        let stats_monitor          = StatsMonitor::new(&stats);
+
+        let stats_monitor_cp_1 = stats_monitor.clone();
+        let stats_monitor_cp_2 = stats_monitor.clone();
+        event_loop.set_on_loop_started  (move || { &stats_monitor_cp_1.begin(); });
+        event_loop.set_on_loop_finished (move || { &stats_monitor_cp_2.end();   });
+        Self {workspace,workspace_dirty,logger,event_loop,fonts,update_handle,stats,stats_monitor}
     }
 
     pub fn run(&mut self) {

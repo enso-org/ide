@@ -51,7 +51,7 @@ impl Stats {
 
     /// Increase `SpriteSystem` count.
     pub fn dec_sprite_system_count(&self) {
-        self.mod_sprite_system_count(|t| t+1);
+        self.mod_sprite_system_count(|t| t-1);
     }
 
 
@@ -81,7 +81,7 @@ impl Stats {
 
     /// Increase `Sprite` count.
     pub fn dec_sprite_count(&self) {
-        self.mod_sprite_count(|t| t+1);
+        self.mod_sprite_count(|t| t-1);
     }
 
 }

@@ -81,6 +81,14 @@ impl Sprite {
         self.rc.borrow().display_object.set_position(value)
     }
 
+    pub fn mod_bbox<F:FnOnce(&mut Vector2<f32>)>(&self, f:F) {
+        self.rc.borrow().bbox.modify(f);
+    }
+
+    pub fn set_bbox(&self, value:Vector2<f32>) {
+        self.rc.borrow().bbox.set(value);
+    }
+
     /// Updates the sprite and all of its children.
     pub fn update(&self) {
         self.rc.borrow().update();
@@ -217,7 +225,7 @@ impl SpriteSystem {
         let transform    = self.transform.get(instance_id);
         let bbox         = self.bbox.get(instance_id);
         let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);
-        bbox.set(Vector2::new(2.0,2.0));
+        bbox.set(Vector2::new(1.0,1.0));
         let sprite = Sprite::new(sprite_ref,transform,bbox);
         self.add_child(&sprite);
         sprite
