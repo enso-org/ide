@@ -1,4 +1,5 @@
-#![allow(missing_docs)]
+//! This is a root module for shapes, 2-dimensional graphical elements.
 
-#[warn(missing_docs)]
+pub mod compound;
+pub mod primitive;
 pub mod text;

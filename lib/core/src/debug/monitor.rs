@@ -319,6 +319,8 @@ impl Default for ValueCheck {
     }
 }
 
+// To be removed after this gets resolved: https://github.com/rust-lang/rust-clippy/issues/4971
+#[allow(clippy::collapsible_if)]
 impl ValueCheck {
     pub fn from_tresholds(t1:f64, t2:f64, value:f64) -> Self {
         if t1 > t2 {

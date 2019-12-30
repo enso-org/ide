@@ -4,3 +4,5 @@
 pub mod sprite_system;
 #[warn(missing_docs)]
 pub mod text;
+#[warn(missing_docs)]
+pub mod shapes;
