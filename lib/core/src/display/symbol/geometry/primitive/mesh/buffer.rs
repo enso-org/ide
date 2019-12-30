@@ -5,24 +5,25 @@ pub mod item;
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::closure;
-use crate::data::function::callback::*;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::function::callback::*;
 use crate::data::seq::observable::Observable;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl::Context;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use item::Item;
 use item::Prim;
+use nalgebra::Matrix4;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
-use nalgebra::Matrix4;
 use std::iter::Extend;
-use web_sys::WebGlBuffer;
 use std::ops::RangeInclusive;
+use web_sys::WebGlBuffer;
 
 
 
@@ -47,7 +48,9 @@ pub struct BufferData<T,OnMut,OnResize> {
     pub resize_dirty : ResizeDirty <OnResize>,
     pub logger       : Logger,
     pub gl_buffer    : WebGlBuffer,
-    context          : Context
+    context          : Context,
+    stats            : Stats,
+    gpu_mem_usage    : u32,
 }
 
 
@@ -85,9 +88,11 @@ impl<T,OnMut:Callback0, OnResize:Callback0>
 BufferData<T,OnMut,OnResize> {
 
     /// Creates a new empty buffer.
-    pub fn new(context: &Context, logger:Logger, on_mut:OnMut, on_resize:OnResize)
-    -> Self {
+    pub fn new
+    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
+        stats.inc_buffer_count();
         logger.info(fmt!("Creating new {} buffer.", T::type_display()));
+        let stats          = stats.clone_ref();
         let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
         let buffer_dirty   = BufferDirty::new(set_logger,on_mut);
@@ -97,13 +102,8 @@ BufferData<T,OnMut,OnResize> {
         let buffer         = Data::new(buff_on_mut, buff_on_resize);
         let context        = context.clone();
         let gl_buffer      = create_gl_buffer(&context);
-        Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context}
-    }
-
-    /// Build the buffer from the provider configuration builder.
-    pub fn build(context:&Context, builder:Builder, on_mut:OnMut, on_resize:OnResize) -> Self {
-        let logger = builder._logger.unwrap_or_else(default);
-        Self::new(context,logger,on_mut,on_resize)
+        let gpu_mem_usage  = default();
+        Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context,stats,gpu_mem_usage}
     }
 }
 
@@ -123,13 +123,12 @@ BufferData<T,OnMut,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
-            let data = self.as_slice();
             self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
             if self.resize_dirty.check() {
-                self.upload_data(&self.context,data,&None);
+                self.upload_data(&None);
             } else if self.buffer_dirty.check_all() {
                 let range = &self.buffer_dirty.take().range;
-                self.upload_data(&self.context,data,range);
+                self.upload_data(range);
             }
             self.buffer_dirty.unset_all();
             self.resize_dirty.unset();
@@ -137,7 +136,7 @@ BufferData<T,OnMut,OnResize> {
     }
 
     /// Uploads the provided data to the GPU buffer.
-    fn upload_data(&self, context:&Context, data:&[T], opt_range:&Option<RangeInclusive<usize>>) {
+    fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
         // Note that `js_buffer_view` is somewhat dangerous (hence the `unsafe`!). This is creating
         // a raw view into our module's `WebAssembly.Memory` buffer, but if we allocate more pages
         // for ourself (aka do a memory allocation in Rust) it'll cause the buffer to change,
@@ -147,16 +146,24 @@ BufferData<T,OnMut,OnResize> {
         // allocations before it's dropped.
 
         self.logger.info("Setting buffer data.");
+        self.stats.inc_data_upload_count();
+
+        let data           = self.as_slice();
+        let item_byte_size = <T as Item>::gpu_prim_byte_size() as u32;
+        let item_count     = <T as Item>::item_count()         as u32;
 
         match opt_range {
             None => unsafe {
                 let js_array = data.js_buffer_view();
-                context.buffer_data_with_array_buffer_view
+                self.context.buffer_data_with_array_buffer_view
                 (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
+
+                self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+                self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
+                self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
+                self.stats.mod_data_upload_size(|s| s + self.gpu_mem_usage);
             }
             Some(range) => {
-                let item_byte_size  = <T as Item>::gpu_prim_byte_size() as u32;
-                let item_count      = <T as Item>::item_count() as u32;
                 let start           = *range.start() as u32;
                 let end             = *range.end()   as u32;
                 let start_item      = start * item_count;
@@ -164,9 +171,10 @@ BufferData<T,OnMut,OnResize> {
                 let dst_byte_offset = (item_byte_size * item_count * start) as i32;
                 unsafe {
                     let js_array = data.js_buffer_view();
-                    context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
+                    self.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
                     (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
                 }
+                self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
             }
         }
     }
@@ -199,11 +207,6 @@ BufferData<T,OnMut,OnResize> {
 
 impl<T,OnMut,OnResize>
 BufferData<T,OnMut,OnResize> {
-    /// Returns a new buffer `Builder` object.
-    pub fn builder() -> Builder {
-        default()
-    }
-
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.buffer.len()
@@ -253,6 +256,14 @@ IndexMut<usize> for BufferData<T,OnMut,OnResize> {
     }
 }
 
+impl<T,OnMut,OnResize> Drop for BufferData<T,OnMut,OnResize> {
+    fn drop(&mut self) {
+        self.context.delete_buffer(Some(&self.gl_buffer));
+        self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+        self.stats.dec_buffer_count();
+    }
+}
+
 
 // === Utils ===
 
@@ -277,19 +288,10 @@ pub struct Buffer<T,OnMut,OnResize> {
 
 impl<T, OnMut:Callback0, OnResize:Callback0>
 Buffer<T,OnMut,OnResize> {
-
     /// Creates a new empty buffer.
     pub fn new
-    (context:&Context, logger:Logger, on_mut:OnMut, on_resize:OnResize)
-     -> Self {
-        let data = BufferData::new(context, logger, on_mut, on_resize);
-        let rc   = Rc::new(RefCell::new(data));
-        Self {rc}
-    }
-
-    /// Build the buffer from the provided configuration builder.
-    pub fn build(context:&Context, builder:Builder, on_mut:OnMut, on_resize:OnResize) -> Self {
-        let data = BufferData::build(context, builder, on_mut, on_resize);
+    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
+        let data = BufferData::new(logger,stats,context,on_mut,on_resize);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -388,31 +390,6 @@ impl<T:Copy,OnMut:Callback0,OnResize> Var<T,OnMut,OnResize> {
         let mut value = self.get();
         f(&mut value);
         self.set(value);
-    }
-}
-
-
-
-// ===============
-// === Builder ===
-// ===============
-
-/// Buffer builder.
-#[derive(Derivative)]
-#[derivative(Default(bound=""))]
-pub struct Builder {
-    pub _logger : Option <Logger>
-}
-
-impl Builder {
-    /// Creates a new builder object.
-    pub fn new() -> Self {
-        default()
-    }
-
-    /// Sets the logger.
-    pub fn logger(self, val: Logger) -> Self {
-        Self { _logger: Some(val) }
     }
 }
 

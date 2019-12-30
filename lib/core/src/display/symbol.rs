@@ -7,20 +7,21 @@ pub mod material;
 
 use crate::prelude::*;
 
-use crate::display::render::webgl;
-use crate::display::render::webgl::Context;
 use crate::closure;
-use crate::data::function::callback::*;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::function::callback::*;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl::Context;
+use crate::display::render::webgl;
+use crate::display::symbol::geometry::primitive::mesh::buffer::item::ContextUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::promote;
 use crate::promote_all;
-use crate::promote_mesh_types;
 use crate::promote_material_types;
-use crate::system::web::Logger;
+use crate::promote_mesh_types;
 use crate::system::web::group;
-use crate::display::symbol::geometry::primitive::mesh::buffer::item::ContextUniformOps;
+use crate::system::web::Logger;
 use eval_tt::*;
 
 use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
@@ -94,12 +95,9 @@ impl Drop for VertexArrayObject {
 // === Definition ===
 
 /// Symbol is a surface with attached `Material`.
-#[derive(Shrinkwrap)]
-#[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Symbol<OnMut> {
-    #[shrinkwrap(main_field)]
     pub surface        : Mesh          <OnMut>,
     pub material       : Material      <OnMut>,
     pub surface_dirty  : GeometryDirty <OnMut>,
@@ -107,6 +105,7 @@ pub struct Symbol<OnMut> {
     pub logger         : Logger,
     context            : Context,
     vao                : Option<VertexArrayObject>,
+    stats              : Stats,
 }
 
 // === Types ===
@@ -143,7 +142,8 @@ fn material_on_mut<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialMut {
 impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(ctx:&Context, logger:Logger, on_dirty:OnMut) -> Self {
+    pub fn new(logger:Logger, stats:&Stats, ctx:&Context, on_dirty:OnMut) -> Self {
+        stats.inc_symbol_count();
         let init_logger = logger.clone();
         group!(init_logger, "Initializing.", {
             let context         = ctx.clone();
@@ -156,10 +156,11 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
             let material_dirty  = MaterialDirty::new(mat_dirt_logger,on_dirty);
             let geo_on_change   = surface_on_mut(surface_dirty.clone_ref());
             let mat_on_change   = material_on_mut(material_dirty.clone_ref());
-            let material        = Material::new(ctx,material_logger,mat_on_change);
-            let surface         = Mesh::new(ctx,surface_logger,geo_on_change);
+            let material        = Material::new(material_logger,&stats,ctx,mat_on_change);
+            let surface         = Mesh::new(surface_logger,&stats,ctx,geo_on_change);
             let vao             = default();
-            Self{surface,material,surface_dirty,material_dirty,logger,context,vao}
+            let stats           = stats.clone_ref();
+            Self{surface,material,surface_dirty,material_dirty,logger,context,vao,stats}
         })
     }
 
@@ -247,8 +248,10 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
                 let mode           = webgl::Context::TRIANGLE_STRIP;
                 let first          = 0;
-                let count          = self.surface.scopes.point.size() as i32;
+                let count          = self.surface.scopes.point.size()    as i32;
                 let instance_count = self.surface.scopes.instance.size() as i32;
+
+                self.stats.inc_draw_call_count();
                 self.context.draw_arrays_instanced(mode,first,count,instance_count);
             });
 
@@ -256,24 +259,8 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
     }
 }
 
-
-
-// ==================
-// === SharedMesh ===
-// ==================
-
-/// A shared version of `Mesh`.
-#[derive(Shrinkwrap)]
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
-pub struct SharedMesh<OnMut> {
-    pub raw: RefCell<Symbol<OnMut>>
-}
-
-impl<OnMut:Callback0+Clone> SharedMesh<OnMut> {
-    /// Create new instance with the provided on-dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_dirty:OnMut) -> Self {
-        let raw = RefCell::new(Symbol::new(context, logger, on_dirty));
-        Self { raw }
+impl<OnMut> Drop for Symbol<OnMut> {
+    fn drop(&mut self) {
+        self.stats.dec_symbol_count();
     }
 }

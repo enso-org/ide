@@ -7,9 +7,7 @@ use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
-use crate::debug::monitor;
-use crate::debug::monitor::Monitor;
-use crate::debug::monitor::Panel;
+
 
 
 // =================

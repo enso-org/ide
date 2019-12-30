@@ -120,40 +120,45 @@ impl StatsMonitor {
 
 #[derive(Debug)]
 pub struct StatsMonitorData {
-    monitor             : Monitor,
-    time                : Panel,
-    fps                 : Panel,
-    mem                 : Panel,
-    sprite_system_count : Panel,
-    sprite_count        : Panel,
+    stats   : Stats,
+    monitor : Monitor,
+    panels  : Vec<Panel>
 }
 
 impl StatsMonitorData {
     fn new(stats:&Stats) -> Self {
-        let mut monitor         = Monitor::new();
-        let time                = monitor.add(monitor::FrameTime::new());
-        let fps                 = monitor.add(monitor::Fps::new());
-        let mem                 = monitor.add(monitor::WasmMemory::new());
-        let sprite_system_count = monitor.add(monitor::SpriteSystemCount::new(&stats));
-        let sprite_count        = monitor.add(monitor::SpriteCount::new(&stats));
-        Self {monitor,time,fps,mem,sprite_system_count,sprite_count}
+        let stats       = stats.clone_ref();
+        let mut monitor = Monitor::new();
+        let panels = vec![
+            monitor.add( monitor::FrameTime            :: new()       ),
+            monitor.add( monitor::Fps                  :: new()       ),
+            monitor.add( monitor::WasmMemory           :: new()       ),
+            monitor.add( monitor::GpuMemory            :: new(&stats) ),
+            monitor.add( monitor::DrawCallCount        :: new(&stats) ),
+            monitor.add( monitor::DataUploadCount      :: new(&stats) ),
+            monitor.add( monitor::DataUploadSize       :: new(&stats) ),
+            monitor.add( monitor::BufferCount          :: new(&stats) ),
+            monitor.add( monitor::SymbolCount          :: new(&stats) ),
+            monitor.add( monitor::MaterialCount        :: new(&stats) ),
+            monitor.add( monitor::MaterialCompileCount :: new(&stats) ),
+            monitor.add( monitor::SpriteSystemCount    :: new(&stats) ),
+            monitor.add( monitor::SpriteCount          :: new(&stats) ),
+        ];
+        Self {stats,monitor,panels}
     }
 
     fn begin(&mut self) {
-        self.time.begin();
-        self.fps.begin();
-        self.mem.begin();
-        self.sprite_system_count.begin();
-        self.sprite_count.begin();
+        for panel in &self.panels {
+            panel.begin();
+        }
     }
 
     fn end(&mut self) {
-        self.time.end();
-        self.fps.end();
-        self.mem.end();
-        self.sprite_system_count.end();
-        self.sprite_count.end();
+        for panel in &self.panels {
+            panel.end();
+        }
         self.monitor.draw();
+        self.stats.reset();
     }
 }
 
@@ -217,16 +222,16 @@ impl WorldData {
     /// Create new uninitialized world instance. You should rather not need to
     /// call this function directly.
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
+        let stats                  = default();
         let logger                 = Logger::new("world");
         let workspace_logger       = logger.sub("workspace");
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
         let on_change              = workspace_on_change(workspace_dirty.clone_ref());
-        let workspace              = Workspace::new(dom,workspace_logger,on_change).unwrap(); // fixme unwrap
+        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
-        let stats                  = default();
         let stats_monitor          = StatsMonitor::new(&stats);
 
         let stats_monitor_cp_1 = stats_monitor.clone();

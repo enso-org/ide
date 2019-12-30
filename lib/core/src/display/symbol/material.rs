@@ -5,15 +5,17 @@ pub mod shader;
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
-use crate::display::render::webgl;
-use crate::display::render::webgl::glsl;
-use crate::data::function::callback::*;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::function::callback::*;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl::Context;
+use crate::display::render::webgl::glsl;
+use crate::display::render::webgl;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use web_sys::WebGlProgram;
+
 
 
 // ================
@@ -29,7 +31,8 @@ pub struct Material<OnMut> {
     program    : Option<WebGlProgram>,
     pub dirty  : Dirty <OnMut>,
     pub logger : Logger,
-    context    : Context
+    context    : Context,
+    stats      : Stats,
 }
 
 // === Types ===
@@ -47,19 +50,23 @@ macro_rules! promote_material_types { ($($args:tt)*) => {
 impl<OnDirty: Callback0> Material<OnDirty> {
 
     /// Creates new material with attached callback.
-    pub fn new(context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
+    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnDirty) -> Self {
+        stats.inc_material_count();
         let program      = default();
         let dirty_logger = logger.sub("dirty");
         let dirty        = Dirty::new(dirty_logger,on_mut);
         let context      = context.clone();
+        let stats        = stats.clone_ref();
         dirty.set();
-        Self {program,dirty,logger,context}
+        Self {program,dirty,logger,context,stats}
     }
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.dirty.check_all() {
+
+                self.stats.inc_material_compile_count();
 
                 // FIXME: Hardcoded variables until we get proper shaders EDSL.
 
@@ -98,6 +105,12 @@ impl<OnDirty: Callback0> Material<OnDirty> {
     pub fn collect_variables(&self) -> Vec<String> {
         // FIXME: Hardcoded.
         vec!["bbox".into(),"uv".into(),"transform".into()]
+    }
+}
+
+impl<OnMut> Drop for Material<OnMut> {
+    fn drop(&mut self) {
+        self.stats.dec_material_count();
     }
 }
 

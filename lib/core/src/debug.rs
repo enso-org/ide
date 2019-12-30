@@ -1,5 +1,4 @@
-#![allow(missing_docs)]
+//! This is the root module of debug utilities, including realtime rendering statistics.
 
-#[warn(missing_docs)]
 pub mod monitor;
 pub mod stats;

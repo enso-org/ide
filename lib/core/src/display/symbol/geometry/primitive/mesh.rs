@@ -7,14 +7,15 @@ pub mod scope;
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::closure;
-use crate::data::function::callback::*;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
+use crate::data::dirty;
+use crate::data::function::callback::*;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl::Context;
+use crate::promote;
 use crate::promote_all;
 use crate::promote_scope_types;
-use crate::promote;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use eval_tt::*;
@@ -69,7 +70,8 @@ pub struct Mesh<OnMut> {
     pub scopes       : Scopes      <OnMut>,
     pub scopes_dirty : ScopesDirty <OnMut>,
     pub logger       : Logger,
-    context          : Context
+    context          : Context,
+    stats            : Stats,
 }
 
 #[derive(Derivative)]
@@ -142,7 +144,9 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
 impl<OnMut: Callback0> Mesh<OnMut> {
 
     /// Creates new mesh with attached dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_mut:OnMut) -> Self {
+    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+        stats.inc_mesh_count();
+        let stats         = stats.clone();
         let scopes_logger = logger.sub("scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,on_mut);
         let context       = context.clone();
@@ -152,14 +156,14 @@ impl<OnMut: Callback0> Mesh<OnMut> {
                 let status_mod = ScopeType::$uname;
                 let scs_dirty  = scopes_dirty.clone_ref();
                 let callback   = scope_on_change(scs_dirty, status_mod);
-                let $name      = $cls::new(&context,sub_logger,callback);
+                let $name      = $cls::new(sub_logger,&stats,&context,callback);
             )*}}
             new_scope!(VarScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
             new_scope!(VarScope {object}{Object});
             new_scope!(VarScope {global}{Global});
             Scopes {point,vertex,primitive,instance,object,global}
         });
-        Self {context,scopes,scopes_dirty,logger}
+        Self {context,scopes,scopes_dirty,logger,stats}
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -196,5 +200,11 @@ impl<OnMut: Callback0> Mesh<OnMut> {
             ScopeType::Instance  => Some(&self.scopes.instance),
             _                    => None
         }
+    }
+}
+
+impl<OnMut> Drop for Mesh<OnMut> {
+    fn drop(&mut self) {
+        self.stats.dec_mesh_count();
     }
 }

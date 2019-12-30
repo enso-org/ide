@@ -24,76 +24,77 @@ impl Default for Stats {
 }
 
 impl Stats {
-
-    // === SpriteSystem ===
-
-    /// Gets `SpriteSystem` count.
-    pub fn sprite_system_count(&self) -> usize {
-        self.rc.borrow().sprite_system_count
+    /// Cheap, reference-based clone.
+    pub fn clone_ref(&self) -> Self {
+        self.clone()
     }
 
-    /// Sets `SpriteSystem` count.
-    pub fn set_sprite_system_count(&self, value:usize) {
-        self.rc.borrow_mut().sprite_system_count = value;
+    /// Resets the per-frame statistics.
+    pub fn reset(&self) {
+        self.rc.borrow_mut().reset();
     }
-
-    /// Modifies `SpriteSystem` count.
-    pub fn mod_sprite_system_count<F:FnOnce(usize)->usize>(&self, f:F) {
-        let value = self.sprite_system_count();
-        let value = f(value);
-        self.set_sprite_system_count(value);
-    }
-
-    /// Increase `SpriteSystem` count.
-    pub fn inc_sprite_system_count(&self) {
-        self.mod_sprite_system_count(|t| t+1);
-    }
-
-    /// Increase `SpriteSystem` count.
-    pub fn dec_sprite_system_count(&self) {
-        self.mod_sprite_system_count(|t| t-1);
-    }
-
-
-    // === Sprite ===
-
-    /// Gets `Sprite` count.
-    pub fn sprite_count(&self) -> usize {
-        self.rc.borrow().sprite_count
-    }
-
-    /// Sets `Sprite` count.
-    pub fn set_sprite_count(&self, value:usize) {
-        self.rc.borrow_mut().sprite_count = value;
-    }
-
-    /// Modifies `Sprite` count.
-    pub fn mod_sprite_count<F:FnOnce(usize)->usize>(&self, f:F) {
-        let value = self.sprite_count();
-        let value = f(value);
-        self.set_sprite_count(value);
-    }
-
-    /// Increase `Sprite` count.
-    pub fn inc_sprite_count(&self) {
-        self.mod_sprite_count(|t| t+1);
-    }
-
-    /// Increase `Sprite` count.
-    pub fn dec_sprite_count(&self) {
-        self.mod_sprite_count(|t| t-1);
-    }
-
 }
 
+macro_rules! gen_stats {
+    ($($field:ident : $field_type:ty),* $(,)?) => { paste::item! {
 
+        #[derive(Debug,Default,Clone,Copy)]
+        struct StatsData {
+            $($field : $field_type),*
+        }
 
-// =================
-// === StatsData ===
-// =================
+        impl Stats { $(
 
-#[derive(Debug,Default,Clone,Copy)]
-struct StatsData {
-    sprite_system_count : usize,
-    sprite_count        : usize,
+            /// Field getter.
+            pub fn $field(&self) -> $field_type {
+                self.rc.borrow().$field
+            }
+
+            /// Field setter.
+            pub fn [<set _ $field>](&self, value:$field_type) {
+                self.rc.borrow_mut().$field = value;
+            }
+
+            /// Field modifier.
+            pub fn [<mod _ $field>]<F:FnOnce($field_type)->$field_type>(&self, f:F) {
+                let value = self.$field();
+                let value = f(value);
+                self.[<set _ $field>](value);
+            }
+
+            /// Increments field's value.
+            pub fn [<inc _ $field>](&self) {
+                self.[<mod _ $field>](|t| t+1);
+            }
+
+            /// Decrements field's value.
+            pub fn [<dec _ $field>](&self) {
+                self.[<mod _ $field>](|t| t-1);
+            }
+
+        )* }
+    }};
+}
+
+gen_stats!{
+    gpu_memory_usage       : u32,
+    draw_call_count        : usize,
+    buffer_count           : usize,
+    data_upload_count      : usize,
+    data_upload_size       : u32,
+    sprite_system_count    : usize,
+    sprite_count           : usize,
+    symbol_count           : usize,
+    mesh_count             : usize,
+    material_count         : usize,
+    material_compile_count : usize,
+}
+
+impl StatsData {
+    fn reset(&mut self) {
+        self.draw_call_count        = 0;
+        self.material_compile_count = 0;
+        self.data_upload_count      = 0;
+        self.data_upload_size       = 0;
+    }
 }

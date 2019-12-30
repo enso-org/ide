@@ -81,10 +81,12 @@ impl Sprite {
         self.rc.borrow().display_object.set_position(value)
     }
 
+    /// Modifies the bounding box dimensions of the sprite.
     pub fn mod_bbox<F:FnOnce(&mut Vector2<f32>)>(&self, f:F) {
         self.rc.borrow().bbox.modify(f);
     }
 
+    /// Sets the bounding box dimensions of the sprite.
     pub fn set_bbox(&self, value:Vector2<f32>) {
         self.rc.borrow().bbox.set(value);
     }

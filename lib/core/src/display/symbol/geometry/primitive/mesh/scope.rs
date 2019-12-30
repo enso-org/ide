@@ -2,20 +2,21 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::closure;
+use crate::data::dirty::traits::*;
+use crate::data::dirty;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
-use crate::data::dirty;
-use crate::data::dirty::traits::*;
-use crate::display::symbol::geometry::primitive::mesh::buffer;
-use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl::Context;
 use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
-use crate::system::web::group;
-use crate::system::web::Logger;
+use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
+use crate::display::symbol::geometry::primitive::mesh::buffer;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_buffer_types;
+use crate::system::web::group;
+use crate::system::web::Logger;
 use eval_tt::*;
 
 
@@ -39,7 +40,8 @@ pub struct Scope <OnMut> {
     pub logger       : Logger,
     free_ids         : Vec<InstanceId>,
     size             : usize,
-    context          : Context
+    context          : Context,
+    stats            : Stats,
 }
 
 
@@ -77,8 +79,9 @@ fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
 
 impl<OnMut:Clone> Scope<OnMut> {
     /// Create a new scope with the provided dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_mut:OnMut) -> Self {
+    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         logger.info("Initializing.");
+        let stats         = stats.clone_ref();
         let buffer_logger = logger.sub("buffer_dirty");
         let shape_logger  = logger.sub("shape_dirty");
         let buffer_dirty  = BufferDirty::new(buffer_logger,on_mut.clone());
@@ -88,16 +91,15 @@ impl<OnMut:Clone> Scope<OnMut> {
         let free_ids      = default();
         let size          = default();
         let context       = context.clone();
-        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger,free_ids,size}
+        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger,free_ids,size,stats}
     }
 }
 
 impl<OnMut: Callback0> Scope<OnMut> {
 
     /// Adds a new named buffer to the scope.
-    pub fn add_buffer<Name:Str, T:Item>
-    (&mut self, name:Name) -> Buffer<T,OnMut>
-        where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
+    pub fn add_buffer<Name:Str, T:Item>(&mut self, name:Name) -> Buffer<T,OnMut>
+    where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
         let shape_dirty  = self.shape_dirty.clone();
@@ -107,7 +109,7 @@ impl<OnMut: Callback0> Scope<OnMut> {
             let on_resize  = buffer_on_resize(shape_dirty);
             let logger     = self.logger.sub(&name);
             let context    = &self.context;
-            let buffer     = Buffer::new(context,logger,on_set,on_resize);
+            let buffer     = Buffer::new(logger,&self.stats,context,on_set,on_resize);
             let buffer_ref = buffer.clone();
             self.buffers.set(ix, AnyBuffer::from(buffer));
             self.name_map.insert(name, ix);

@@ -319,6 +319,20 @@ impl Default for ValueCheck {
     }
 }
 
+impl ValueCheck {
+    pub fn from_tresholds(t1:f64, t2:f64, value:f64) -> Self {
+        if t1 > t2 {
+            if      value >= t1 { ValueCheck::Correct }
+            else if value >= t2 { ValueCheck::Warning }
+            else                { ValueCheck::Error   }
+        } else {
+            if      value <= t1 { ValueCheck::Correct }
+            else if value <= t2 { ValueCheck::Warning }
+            else                { ValueCheck::Error   }
+        }
+    }
+}
+
 
 
 // ===============
@@ -326,16 +340,22 @@ impl Default for ValueCheck {
 // ===============
 
 pub trait Sampler: Debug {
-    fn label             (&self) -> &str;
-    fn begin             (&mut self, _time:f64) {}
-    fn end               (&mut self, _time:f64) {}
-    fn value             (&self) -> f64;
-    fn check             (&self) -> ValueCheck  { ValueCheck::Correct }
-    fn max_value         (&self) -> Option<f64> { None }
-    fn min_value         (&self) -> Option<f64> { None }
-    fn min_size          (&self) -> Option<f64> { None }
-    fn smooth_range      (&self) -> usize { 2 }
-    fn results_precision (&self) -> usize { 2 }
+    fn label        (&self) -> &str;
+    fn begin        (&mut self, _time:f64) {}
+    fn end          (&mut self, _time:f64) {}
+    fn value        (&self) -> f64;
+    fn check        (&self) -> ValueCheck  { ValueCheck::Correct }
+    fn max_value    (&self) -> Option<f64> { None }
+    fn min_value    (&self) -> Option<f64> { None }
+    fn min_size     (&self) -> Option<f64> { None }
+    fn smooth_range (&self) -> usize { 2 }
+    fn precision    (&self) -> usize { 2 }
+
+    // === Utils ===
+
+    fn check_by_treshold(&self, t1:f64, t2:f64) -> ValueCheck {
+        ValueCheck::from_tresholds(t1,t2,self.value())
+    }
 }
 
 
@@ -346,20 +366,20 @@ pub trait Sampler: Debug {
 
 #[derive(Debug)]
 pub struct PanelData {
-    label             : String,
-    context           : CanvasRenderingContext2d,
-    performance       : Performance,
-    config            : SamplerConfig,
-    min_value         : f64,
-    max_value         : f64,
-    begin_value       : f64,
-    value             : f64,
-    last_values       : VecDeque<f64>,
-    norm_value        : f64,
-    draw_offset       : f64,
-    value_check       : ValueCheck,
-    results_precision : usize,
-    sampler           : Box<dyn Sampler>
+    label       : String,
+    context     : CanvasRenderingContext2d,
+    performance : Performance,
+    config      : SamplerConfig,
+    min_value   : f64,
+    max_value   : f64,
+    begin_value : f64,
+    value       : f64,
+    last_values : VecDeque<f64>,
+    norm_value  : f64,
+    draw_offset : f64,
+    value_check : ValueCheck,
+    precision   : usize,
+    sampler     : Box<dyn Sampler>
 }
 
 
@@ -379,9 +399,9 @@ impl PanelData {
         let draw_offset       = 0.0;
         let value_check       = default();
         let sampler           = Box::new(sampler);
-        let results_precision = sampler.results_precision();
+        let precision = sampler.precision();
         Self {label,context,performance,config,min_value,max_value,begin_value,value,last_values
-             ,norm_value,draw_offset,value_check,results_precision,sampler}
+             ,norm_value,draw_offset,value_check,precision,sampler}
     }
 }
 
@@ -478,7 +498,7 @@ impl PanelData {
     }
 
     fn draw_results(&mut self) {
-        let display_value = format!("{1:.0$}",self.results_precision,self.value);
+        let display_value = format!("{1:.0$}",self.precision,self.value);
         let y_pos         = self.config.panel_height - self.config.font_vertical_offset;
         let color         = match self.value_check {
             ValueCheck::Correct => &self.config.label_color_ok,
@@ -535,10 +555,7 @@ impl Sampler for FrameTime {
     fn end   (&mut self, time:f64) {
         let end_time     = time;
         self.value       = end_time - self.begin_time;
-        self.value_check =
-            if      self.value < 1000.0 / 55.0 { ValueCheck::Correct }
-            else if self.value < 1000.0 / 25.0 { ValueCheck::Warning }
-            else                               { ValueCheck::Error   };
+        self.value_check = self.check_by_treshold(1000.0/55.0, 1000.0/25.0);
     }
 }
 
@@ -568,10 +585,7 @@ impl Sampler for Fps {
         if self.begin_time > 0.0 {
             let end_time     = time;
             self.value       = 1000.0 / (end_time - self.begin_time);
-            self.value_check =
-                if      self.value >= 55.0 { ValueCheck::Correct }
-                else if self.value >= 25.0 { ValueCheck::Warning }
-                else                       { ValueCheck::Error   };
+            self.value_check = self.check_by_treshold(55.0,25.0);
         }
         self.begin_time = time;
     }
@@ -598,75 +612,52 @@ impl Sampler for WasmMemory {
     fn value    (&self) -> f64         { self.value }
     fn check    (&self) -> ValueCheck  { self.value_check }
     fn min_size (&self) -> Option<f64> { Some(100.0) }
-    fn end      (&mut self, _time:f64)  {
+    fn end      (&mut self, _time:f64) {
         let memory: Memory      = wasm_bindgen::memory().dyn_into().unwrap();
         let buffer: ArrayBuffer = memory.buffer().dyn_into().unwrap();
         self.value              = (buffer.byte_length() as f64) / (1024.0 * 1024.0);
-        self.value_check        =
-            if      self.value <=  50.0 { ValueCheck::Correct }
-            else if self.value <= 100.0 { ValueCheck::Warning }
-            else                        { ValueCheck::Error   };
+        self.value_check        = self.check_by_treshold(50.0,100.0);
     }
 }
 
 
 
-// =========================
-// === SpriteSystemCount ===
-// =========================
+// ======================
+// === Stats Samplers ===
+// ======================
 
-#[derive(Debug,Default)]
-pub struct SpriteSystemCount {
-    stats: Stats,
+macro_rules! gen_stats {
+    ($label:tt, $name:ident, $method:ident, $t1:expr, $t2:expr, $prec:expr, $div:expr) => {
+
+        #[derive(Debug,Default)]
+        pub struct $name {
+            stats: Stats,
+        }
+
+        impl $name {
+            pub fn new(stats:&Stats) -> Self {
+                Self {stats:stats.clone()}
+            }
+        }
+
+        impl Sampler for $name {
+            fn label     (&self) -> &str        { $label }
+            fn value     (&self) -> f64         { self.stats.$method() as f64 / $div }
+            fn min_size  (&self) -> Option<f64> { Some($t1) }
+            fn precision (&self) -> usize       { $prec }
+            fn check     (&self) -> ValueCheck  { self.check_by_treshold($t1,$t2) }
+        }
+
+    };
 }
 
-impl SpriteSystemCount {
-    pub fn new(stats:&Stats) -> Self {
-        let stats = stats.clone();
-        Self {stats}
-    }
-}
-
-impl Sampler for SpriteSystemCount {
-    fn label             (&self) -> &str        { "Sprite system count" }
-    fn value             (&self) -> f64         { self.stats.sprite_system_count() as f64 }
-    fn min_size          (&self) -> Option<f64> { Some(100.0) }
-    fn results_precision (&self) -> usize       { 0 }
-    fn check             (&self) -> ValueCheck  {
-        let count = self.stats.sprite_system_count();
-        if      count < 100 { ValueCheck::Correct }
-        else if count < 500 { ValueCheck::Warning }
-        else                { ValueCheck::Error   }
-    }
-}
-
-
-
-// ===================
-// === SpriteCount ===
-// ===================
-
-#[derive(Debug,Default)]
-pub struct SpriteCount {
-    stats: Stats,
-}
-
-impl SpriteCount {
-    pub fn new(stats:&Stats) -> Self {
-        let stats = stats.clone();
-        Self {stats}
-    }
-}
-
-impl Sampler for SpriteCount {
-    fn label             (&self) -> &str        { "Sprite count" }
-    fn value             (&self) -> f64         { self.stats.sprite_count() as f64 }
-    fn min_size          (&self) -> Option<f64> { Some(100.0) }
-    fn results_precision (&self) -> usize       { 0 }
-    fn check             (&self) -> ValueCheck  {
-        let count = self.stats.sprite_count();
-        if      count < 100_000 { ValueCheck::Correct }
-        else if count < 500_000 { ValueCheck::Warning }
-        else                    { ValueCheck::Error   }
-    }
-}
+gen_stats!("GPU memory usage (Mb)"  , GpuMemory            , gpu_memory_usage       , 100.0     , 500.0     , 2, 1024.0 * 1024.0);
+gen_stats!("Draw call count"        , DrawCallCount        , draw_call_count        , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Buffer count"           , BufferCount          , buffer_count           , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Data upload count"      , DataUploadCount      , data_upload_count      , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Data upload size (Mb)"  , DataUploadSize       , data_upload_size       ,   1.0     ,  10.0     , 2, 1024.0 * 1024.0);
+gen_stats!("Sprite system count"    , SpriteSystemCount    , sprite_system_count    , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Symbol count"           , SymbolCount          , symbol_count           , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Sprite count"           , SpriteCount          , sprite_count           , 100_000.0 , 500_000.0 , 0, 1.0);
+gen_stats!("Material count"         , MaterialCount        , material_count         , 100.0     , 500.0     , 0, 1.0);
+gen_stats!("Material compile count" , MaterialCompileCount , material_compile_count , 10.0      , 100.0     , 0, 1.0);

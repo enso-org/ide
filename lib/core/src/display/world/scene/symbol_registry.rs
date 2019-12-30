@@ -2,20 +2,22 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::closure;
+use crate::data::dirty::traits::*;
+use crate::data::dirty;
 use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
-use crate::data::dirty;
-use crate::data::dirty::traits::*;
+use crate::debug::stats::Stats;
+use crate::display::camera::Camera2D;
+use crate::display::render::webgl::Context;
 use crate::display::symbol;
-use crate::system::web::group;
-use crate::system::web::Logger;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_symbol_types;
+use crate::system::web::group;
+use crate::system::web::Logger;
 use eval_tt::*;
-use crate::display::camera::Camera2D;
+
 
 
 // ======================
@@ -31,7 +33,8 @@ pub struct SymbolRegistry<OnMut> {
     pub symbols      : OptVec<Symbol<OnMut>>,
     pub symbol_dirty : SymbolDirty<OnMut>,
     pub logger       : Logger,
-    context          : Context
+    context          : Context,
+    stats            : Stats,
 }
 
 
@@ -62,24 +65,26 @@ fn mesh_on_change<C:Callback0> (dirty:SymbolDirty<C>, ix:SymbolId) -> OnSymbolCh
 impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
+    pub fn new(stats:&Stats, context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
         logger.info("Initializing.");
         let symbol_logger = logger.sub("symbol_dirty");
         let symbol_dirty  = SymbolDirty::new(symbol_logger, on_mut);
         let symbols       = default();
         let context       = context.clone();
-        Self {symbols,symbol_dirty,logger,context}
+        let stats         = stats.clone_ref();
+        Self {symbols,symbol_dirty,logger,context,stats}
     }
 
     /// Creates a new `Symbol` instance.
     pub fn new_symbol(&mut self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
-        let logger     = &self.logger;
-        let context    = &self.context;
+        let logger       = &self.logger;
+        let context      = &self.context;
+        let stats        = &self.stats;
         self.symbols.insert_with_ix(|ix| {
             let on_mut = mesh_on_change(symbol_dirty, ix);
             let logger = logger.sub(format!("symbol{}",ix));
-            Symbol::new(context,logger,on_mut)
+            Symbol::new(logger,stats,context,on_mut)
         })
     }
 

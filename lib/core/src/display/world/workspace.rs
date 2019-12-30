@@ -4,23 +4,25 @@ use crate::prelude::*;
 
 pub use crate::display::world::scene::symbol_registry::SymbolId;
 
-use crate::display::render::webgl;
 use crate::closure;
-use crate::data::function::callback::*;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
-use crate::display::world::scene::symbol_registry;
+use crate::data::dirty;
+use crate::data::function::callback::*;
+use crate::debug::stats::Stats;
+use crate::display::render::webgl;
+use crate::display::shape::text::font::Fonts;
+use crate::display::shape::text;
 use crate::display::world::scene::Scene;
+use crate::display::world::scene::symbol_registry;
+use crate::promote;
 use crate::promote_all;
 use crate::promote_symbol_registry_types;
-use crate::promote;
-use crate::system::web;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
-use crate::display::shape::text;
-use crate::display::shape::text::font::Fonts;
+use crate::system::web;
+
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 
@@ -155,7 +157,7 @@ pub struct Listeners {
 impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<Dom:Str>
-    (dom:Dom, logger:Logger, on_dirty:OnDirty) -> Result<Self, Error> {
+    (dom:Dom, logger:Logger, stats:&Stats, on_dirty:OnDirty) -> Result<Self, Error> {
         logger.trace("Initializing.");
         let dom                   = dom.as_ref();
         let canvas                = web::get_canvas(dom)?;
@@ -166,7 +168,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let dirty_flag            = SymbolRegistryDirty::new(sub_logger, on_dirty);
         let on_change             = symbol_registry_on_change(dirty_flag.clone_ref());
         let sub_logger            = logger.sub("symbol_registry");
-        let symbol_registry       = SymbolRegistry::new(&context,sub_logger, on_change);
+        let symbol_registry       = SymbolRegistry::new(&stats,&context,sub_logger,on_change);
         let shape                 = default();
         let listeners             = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbol_registry_dirty = dirty_flag;
