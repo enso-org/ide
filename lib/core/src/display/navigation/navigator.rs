@@ -59,8 +59,11 @@ impl Navigator {
         let camera_clone         = camera.clone();
         let mut properties_clone = properties.clone();
         let panning_callback     = move |pan: PanEvent| {
-            let base_z = dom_clone.dimensions().y / 2.0 * camera_clone.get_y_scale();
-            let scale  = camera_clone.position().z / base_z;
+            // base_distance is a distance where the camera covers all the UI.
+            let base_distance = dom_clone.dimensions().y / 2.0 * camera_clone.get_y_scale();
+            // We can then scale the movement based on the camera distance. If we are closer, the
+            // movement will be slower, if we are further, the movement is faster.
+            let scale         = camera_clone.position().z / base_distance;
 
             let x = pan.movement.x * scale;
             let y = pan.movement.y * scale;
