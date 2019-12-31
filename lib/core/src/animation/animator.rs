@@ -1,4 +1,5 @@
-use super::ContinuousTimeAnimator;
+
+use super::ContinuousAnimator;
 use super::FnAnimation;
 
 
@@ -29,13 +30,13 @@ impl AnimatorData {
 /// This structure runs an animation every frame with the time difference from the last frame as
 /// its input.
 pub struct Animator {
-    _continuous_animator: ContinuousTimeAnimator
+    _continuous_animator: ContinuousAnimator
 }
 
 impl Animator {
     pub fn new<F:FnAnimation>(f:F) -> Self {
         let mut data             = AnimatorData::new(f);
-        let _continuous_animator = ContinuousTimeAnimator::new(move |current_ms| {
+        let _continuous_animator = ContinuousAnimator::new(move |current_ms| {
             if let Some(previous_ms) = data.previous_ms {
                 let delta_ms = current_ms - previous_ms;
                 (data.closure)(delta_ms);

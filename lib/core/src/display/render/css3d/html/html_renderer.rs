@@ -34,10 +34,10 @@ mod js {
         pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
         pub fn setup_camera_perspective
         ( dom          : &JsValue
-          , y_scale      : &JsValue
-          , half_width   : &JsValue
-          , half_height  : &JsValue
-          , matrix_array : &JsValue
+        , y_scale      : &JsValue
+        , half_width   : &JsValue
+        , half_height  : &JsValue
+        , matrix_array : &JsValue
         );
     }
 }

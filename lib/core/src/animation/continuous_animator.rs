@@ -10,13 +10,13 @@ use std::cell::RefCell;
 // === ContinuousTimeAnimatorData ===
 // ==================================
 
-struct ContinuousTimeAnimatorData {
+struct ContinuousAnimatorData {
     closure      : Box<dyn FnMut(f32)>,
     start_time   : f32,
     current_time : f32
 }
 
-impl ContinuousTimeAnimatorData {
+impl ContinuousAnimatorData {
     pub fn new<F:FnAnimation>(f:F) -> Self {
         let closure      = Box::new(f);
         let start_time   = get_performance().expect("Couldn't get performance timer").now() as f32;
@@ -31,22 +31,22 @@ impl ContinuousTimeAnimatorData {
 
 
 
-// ==============================
-// === ContinuousTimeAnimator ===
-// ==============================
+// ==========================
+// === ContinuousAnimator ===
+// ==========================
 
 /// This structure runs an animation with continuous time as its input.
-pub struct ContinuousTimeAnimator {
+pub struct ContinuousAnimator {
     _animation_loop : AnimationFrameLoop,
-    data            : Rc<RefCell<ContinuousTimeAnimatorData>>
+    data            : Rc<RefCell<ContinuousAnimatorData>>
 }
 
-impl ContinuousTimeAnimator {
+impl ContinuousAnimator {
     pub fn new<F:FnAnimation>(f:F) -> Self {
-        let data            = Rc::new(RefCell::new(ContinuousTimeAnimatorData::new(f)));
+        let data            = Rc::new(RefCell::new(ContinuousAnimatorData::new(f)));
         let data_clone      = data.clone();
         let _animation_loop = AnimationFrameLoop::new(move |current_time| {
-            let mut data : &mut ContinuousTimeAnimatorData = &mut data_clone.borrow_mut();
+            let mut data : &mut ContinuousAnimatorData = &mut data_clone.borrow_mut();
             (data.closure)(current_time - data.start_time);
             data.current_time = current_time;
         });
@@ -57,7 +57,7 @@ impl ContinuousTimeAnimator {
 
 // === Setters ===
 
-impl ContinuousTimeAnimator {
+impl ContinuousAnimator {
     pub fn set_time(&mut self, time:f32) {
         self.data.borrow_mut().set_time(time);
     }

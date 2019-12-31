@@ -1,3 +1,9 @@
+// This file contains the implementation of DOMContainer. A struct that aids us to handle html
+// elements, get its position and dimension avoiding style reflow.
+//
+// It relies on Resize Observer and Intersection Observer, which notifies us when the element's
+// rect and visibility rect is updated.
+
 // FIXME: ResizeCallback can be completely substituted by IntersectionCallback
 
 use crate::prelude::*;
@@ -15,6 +21,8 @@ use nalgebra::Vector2;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+
+
 // ============================
 // === IntersectionCallback ===
 // ============================
@@ -22,12 +30,16 @@ use std::rc::Rc;
 type IntersectionCallback        = Box<dyn Fn(&Vector2<f32>, &Vector2<f32>)>;
 pub trait IntersectionCallbackFn = Fn(&Vector2<f32>, &Vector2<f32>) + 'static;
 
+
+
 // ======================
 // === ResizeCallback ===
 // ======================
 
 type ResizeCallback        = Box<dyn Fn(&Vector2<f32>)>;
 pub trait ResizeCallbackFn = Fn(&Vector2<f32>) + 'static;
+
+
 
 // ========================
 // === DOMContainerData ===
@@ -51,6 +63,7 @@ impl DOMContainerData {
         Self { position, dimensions, resize_callbacks, intersection_callbacks }
     }
 }
+
 
 
 // ====================

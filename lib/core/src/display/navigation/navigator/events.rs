@@ -1,9 +1,11 @@
-use super::mouse_manager::State;
-use super::mouse_manager::MouseManager;
-use super::mouse_manager::MouseClickEvent;
-use super::mouse_manager::MouseWheelEvent;
-use super::mouse_manager::MousePositionEvent;
-use super::mouse_manager::MouseButton;
+use super::super::mouse_manager;
+
+use mouse_manager::ContextMenuState;
+use mouse_manager::MouseManager;
+use mouse_manager::MouseClickEvent;
+use mouse_manager::MouseWheelEvent;
+use mouse_manager::MousePositionEvent;
+use mouse_manager::MouseButton;
 use crate::system::web::Result;
 use crate::display::render::css3d::DOMContainer;
 
@@ -16,6 +18,8 @@ use crate::display::navigation::mouse_manager::{MouseEventListener, WheelEventLi
 // =================
 // === ZoomEvent ===
 // =================
+
+pub trait FnZoomEvent = FnMut(ZoomEvent) + 'static;
 
 /// A struct holding zoom event information, such as the focus point and the amount of zoom.
 pub struct ZoomEvent {
@@ -42,11 +46,13 @@ impl ZoomEvent {
     }
 }
 
-pub trait FnZoomEvent = FnMut(ZoomEvent) + 'static;
+
 
 // ================
 // === PanEvent ===
 // ================
+
+pub trait FnPanEvent = FnMut(PanEvent) + 'static;
 
 /// A struct holding pan event information.
 pub struct PanEvent {
@@ -54,14 +60,17 @@ pub struct PanEvent {
 }
 
 impl PanEvent {
-    fn from(event:MousePositionEvent) -> Self {
+    fn from_mouse_move(event:MousePositionEvent) -> Self {
         let mut movement   = event.position - event.previous_position;
                 movement.x = -movement.x;
         Self { movement }
     }
-}
 
-pub trait FnPanEvent = FnMut(PanEvent) + 'static;
+    fn from_wheel_event(event:MouseWheelEvent) -> Self {
+        let movement = Vector2::new(event.movement_x, -event.movement_y);
+        Self { movement }
+    }
+}
 
 
 
@@ -74,6 +83,8 @@ enum MovementType {
     Pan,
     Zoom { focus : Vector2<f32> }
 }
+
+
 
 // ===========================
 // === NavigatorEventsData ===
@@ -95,14 +106,16 @@ impl NavigatorEventsData {
         Self { mouse_position,movement_type,pan_callback,zoom_callback,zoom_speed }
     }
 
-    fn call_zoom(&mut self, event:ZoomEvent) {
+    fn on_zoom(&mut self, event:ZoomEvent) {
         (self.zoom_callback)(event);
     }
 
-    fn call_pan(&mut self, event: PanEvent) {
+    fn on_pan(&mut self, event: PanEvent) {
         (self.pan_callback)(event);
     }
 }
+
+
 
 // =======================
 // === NavigatorEvents ===
@@ -151,25 +164,31 @@ impl NavigatorEvents {
     fn initialize_events(&mut self) -> Result<()> {
         self.disable_context_menu()?;
         self.initialize_wheel_zoom()?;
-        self.initialize_interaction_start_event()?;
+        self.initialize_mouse_start_event()?;
         self.initialize_mouse_move_event()?;
-        self.initialize_interaction_end_event()
+        self.initialize_mouse_end_event()
     }
 
     fn initialize_wheel_zoom(&mut self) -> Result<()> {
         let data = self.data.clone();
         let listener = self.mouse_manager.add_mouse_wheel_callback(move |event:MouseWheelEvent| {
-            let mut data       = data.borrow_mut();
-            let mouse_position = data.mouse_position;
-            let zoom_speed     = data.zoom_speed;
-            let zoom_event     = ZoomEvent::from_mouse_wheel(event, mouse_position, zoom_speed);
-            data.call_zoom(zoom_event);
+            if event.is_touchpad && !event.is_ctrl_pressed {
+                let mut data  = data.borrow_mut();
+                let pan_event = PanEvent::from_wheel_event(event);
+                data.on_pan(pan_event);
+            } else {
+                let mut data       = data.borrow_mut();
+                let mouse_position = data.mouse_position;
+                let zoom_speed     = data.zoom_speed;
+                let zoom_event     = ZoomEvent::from_mouse_wheel(event, mouse_position, zoom_speed);
+                data.on_zoom(zoom_event);
+            }
         })?;
         self.wheel_zoom = Some(listener);
         Ok(())
     }
 
-    fn initialize_interaction_start_event(&mut self) -> Result<()> {
+    fn initialize_mouse_start_event(&mut self) -> Result<()> {
         let data     = self.data.clone();
         let listener = self.mouse_manager.add_mouse_down_callback(move |event:MouseClickEvent| {
             match event.button {
@@ -188,10 +207,10 @@ impl NavigatorEvents {
     }
 
     fn disable_context_menu(&mut self) -> Result<()> {
-        self.mouse_manager.set_context_menu(State::Disabled)
+        self.mouse_manager.set_context_menu(ContextMenuState::Disabled)
     }
 
-    fn initialize_interaction_end_event(&mut self) -> Result<()> {
+    fn initialize_mouse_end_event(&mut self) -> Result<()> {
         let data         = self.data.clone();
         let closure      = move |_| data.borrow_mut().movement_type = None;
         let listener     = self.mouse_manager.add_mouse_up_callback(closure)?;
@@ -214,11 +233,11 @@ impl NavigatorEvents {
                 match movement_type {
                     MovementType::Zoom { focus } => {
                         let zoom_event = ZoomEvent::from_mouse_move(event, *focus, data.zoom_speed);
-                        data.call_zoom(zoom_event);
+                        data.on_zoom(zoom_event);
                     },
                     MovementType::Pan => {
-                        let pan_event = PanEvent::from(event);
-                        data.call_pan(pan_event);
+                        let pan_event = PanEvent::from_mouse_move(event);
+                        data.on_pan(pan_event);
                     }
                 }
             }

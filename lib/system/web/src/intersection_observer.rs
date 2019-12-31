@@ -2,11 +2,15 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 
+
+
 // =============
 // === Types ===
 // =============
 
 pub type Listener = Closure<dyn FnMut(i32, i32, i32, i32)>;
+
+
 
 // ===================
 // === JS Bindings ===
@@ -17,6 +21,8 @@ extern "C" {
     fn intersection_observe(target: &JsValue, closure: &Listener) -> usize;
     fn intersection_unobserve(id: usize);
 }
+
+
 
 // ============================
 // === IntersectionObserver ===

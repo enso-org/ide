@@ -1,15 +1,23 @@
-use super::navigator_events::NavigatorEvents;
-use super::navigator_events::ZoomEvent;
-use super::navigator_events::PanEvent;
+mod events;
+
+use events::NavigatorEvents;
+use events::ZoomEvent;
+use events::PanEvent;
 use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
 use crate::traits::HasPosition;
-use crate::animation::physics::{PhysicsSimulator, SpringProperties, DragProperties, PhysicsProperties, KinematicsProperties};
+use crate::animation::physics::PhysicsSimulator;
+use crate::animation::physics::SpringProperties;
+use crate::animation::physics::DragProperties;
+use crate::animation::physics::PhysicsProperties;
+use crate::animation::physics::KinematicsProperties;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
+
+
 
 // =================
 // === Navigator ===
@@ -23,16 +31,30 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(dom:&DOMContainer, camera:Camera, zoom_speed:f32) -> Result<Self> {
-        let mass           = 25.0;
-        let velocity       = zero();
-        let kinematics     = KinematicsProperties::new(camera.position(), velocity, zero(), mass);
-        let coefficient    = 10000.0;
-        let fixed_point    = camera.position();
-        let spring         = SpringProperties::new(coefficient, fixed_point);
-        let drag           = DragProperties::new(1000.0);
-        let mut properties = PhysicsProperties::new(kinematics, spring, drag);
-        let _simulator     = PhysicsSimulator::new(camera.object.clone(), properties.clone());
+        let (_simulator, properties) = Self::start_simulator(camera.clone());
+        let _events = Self::start_navigator_events(dom,camera.clone(),zoom_speed,properties)?;
+        Ok(Self { _events, _simulator })
+    }
 
+    fn start_simulator(camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
+        let mass               = 25.0;
+        let velocity           = zero();
+        let position           = camera.position();
+        let kinematics         = KinematicsProperties::new(position, velocity, zero(), mass);
+        let spring_coefficient = 10000.0;
+        let fixed_point        = camera.position();
+        let spring             = SpringProperties::new(spring_coefficient, fixed_point);
+        let drag               = DragProperties::new(1000.0);
+        let properties         = PhysicsProperties::new(kinematics, spring, drag);
+        let simulator          = PhysicsSimulator::new(camera.object.clone(), properties.clone());
+        (simulator, properties)
+    }
+
+    fn start_navigator_events
+    ( dom:&DOMContainer
+    , camera:Camera
+    , zoom_speed:f32
+    , mut properties:PhysicsProperties) -> Result<NavigatorEvents> {
         let dom_clone            = dom.clone();
         let camera_clone         = camera.clone();
         let mut properties_clone = properties.clone();
@@ -69,11 +91,11 @@ impl Navigator {
                 properties.mod_spring(|spring| spring.set_fixed_point(position));
             }
         };
-        let _events  = NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)?;
-
-        Ok(Self { _events, _simulator })
+        NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)
     }
 }
+
+
 
 // =============
 // === Utils ===

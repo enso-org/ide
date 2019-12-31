@@ -67,7 +67,7 @@ pub fn run_example_camera_navigation() {
     let navigator  = Navigator::new(&renderer.container, camera.clone(), zoom_speed);
     let navigator  = navigator.expect("Couldn't create navigator");
 
-    let animator = ContinuousTimeAnimator::new(move |_| {
+    let animator = ContinuousAnimator::new(move |_| {
         let _keep_alive = &navigator;
         renderer.render(&mut camera, &scene);
     });

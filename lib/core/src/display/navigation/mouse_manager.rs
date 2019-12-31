@@ -3,6 +3,7 @@ use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
 use crate::system::web::ignore_context_menu;
+use crate::system::web::get_performance;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -10,11 +11,11 @@ use web_sys::MouseEvent;
 use web_sys::WheelEvent;
 use web_sys::EventTarget;
 use web_sys::AddEventListenerOptions;
+use web_sys::Performance;
 use js_sys::Function;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
-
 
 
 // ======================
@@ -24,7 +25,7 @@ use std::cell::RefCell;
 /// A mouse event listener object returned when adding callbacks to MouseManager.
 pub type MouseEventListener = Closure<dyn Fn(MouseEvent)>;
 /// A wheel event listener object returned when adding callbacks to MouseManager.
-pub type WheelEventListener = Closure<dyn Fn(WheelEvent)>;
+pub type WheelEventListener = Closure<dyn FnMut(WheelEvent)>;
 
 
 
@@ -45,6 +46,8 @@ pub enum MouseButton {
 // === MouseClickEvent ===
 // =======================
 
+pub trait FnMouseClick = Fn(MouseClickEvent) + 'static;
+
 /// A struct storing information about mouse down and mouse up events.
 pub struct MouseClickEvent {
     pub position : Vector2<f32>,
@@ -64,13 +67,13 @@ impl MouseClickEvent {
     }
 }
 
-pub trait FnMouseClick = Fn(MouseClickEvent) + 'static;
-
 
 
 // ==========================
 // === MousePositionevent ===
 // ==========================
+
+pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse move, mouse enter and mouse leave events.
 pub struct MousePositionEvent {
@@ -91,7 +94,46 @@ impl MousePositionEvent {
     }
 }
 
-pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
+
+
+// =============================
+// === TouchPadEventDetector ===
+// =============================
+
+
+struct TouchPadEventDetector {
+    is_touchpad : bool,
+    performance : Performance,
+    count       : u32,
+    start       : f64
+}
+
+impl TouchPadEventDetector {
+    fn new() -> Self {
+        let performance = get_performance().expect("Couldn't get performance");
+        let is_touchpad = false;
+        let count       = 0;
+        let start       = performance.now();
+        Self { is_touchpad,performance,count,start }
+    }
+
+    fn is_touchpad(&mut self) -> bool {
+        let current_time = self.performance.now();
+
+        if self.count == 0 {
+            self.start = current_time;
+        }
+
+        self.count += 1;
+
+        if current_time - self.start > 100.0 {
+            self.is_touchpad = self.count > 5;
+            self.count = 0;
+        }
+
+        self.is_touchpad
+    }
+}
 
 
 
@@ -99,21 +141,25 @@ pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
 // === MouseWheelEvent ===
 // =======================
 
+pub trait FnMouseWheel = FnMut(MouseWheelEvent) + 'static;
+
 /// A struct storing information about mouse wheel events.
 pub struct MouseWheelEvent {
-    pub movement_x : f32,
-    pub movement_y : f32
+    pub is_touchpad     : bool,
+    pub is_ctrl_pressed : bool,
+    pub movement_x      : f32,
+    pub movement_y      : f32
 }
 
 impl MouseWheelEvent {
-    fn from(event:WheelEvent) -> Self {
-        let movement_x = event.delta_x() as f32;
-        let movement_y = event.delta_y() as f32;
-        Self { movement_x,movement_y }
+    fn from(event:WheelEvent, detector:&mut TouchPadEventDetector) -> Self {
+        let is_touchpad     = detector.is_touchpad();
+        let movement_x      = event.delta_x() as f32;
+        let movement_y      = event.delta_y() as f32;
+        let is_ctrl_pressed = event.ctrl_key();
+        Self { is_touchpad,movement_x,movement_y,is_ctrl_pressed }
     }
 }
-
-pub trait FnMouseWheel = Fn(MouseWheelEvent) + 'static;
 
 
 
@@ -123,6 +169,7 @@ pub trait FnMouseWheel = Fn(MouseWheelEvent) + 'static;
 
 /// A struct used for storing shared MouseManager's mutable data.
 struct MouseManagerData {
+    detector       : TouchPadEventDetector,
     dom            : DOMContainer,
     mouse_position : Option<Vector2<f32>>
 }
@@ -130,11 +177,11 @@ struct MouseManagerData {
 
 
 // =============
-// === State ===
+// === ContextMenuState ===
 // =============
 
 /// An enum mainly used for enabling or disabling the Context Menu.
-pub enum State {
+pub enum ContextMenuState {
     Enabled,
     Disabled
 }
@@ -145,10 +192,10 @@ pub enum State {
 // === MouseManager ===
 // ====================
 
-/// MouseManager
+/// This structs manages mouse events in a specified DOM object.
 pub struct MouseManager {
-    target : EventTarget,
-    data   : Rc<RefCell<MouseManagerData>>,
+    target              : EventTarget,
+    data                : Rc<RefCell<MouseManagerData>>,
     ignore_context_menu : Option<MouseEventListener>,
     stop_mouse_tracking : Option<MouseEventListener>
 }
@@ -162,7 +209,8 @@ impl MouseManager {
         let target              = dyn_into::<_, EventTarget>(dom.dom.clone())?;
         let dom                 = dom.clone();
         let mouse_position      = None;
-        let data                = MouseManagerData { dom, mouse_position };
+        let detector            = TouchPadEventDetector::new();
+        let data                = MouseManagerData { dom,mouse_position,detector };
         let data                = Rc::new(RefCell::new(data));
         let ignore_context_menu = None;
         let stop_mouse_tracking = None;
@@ -172,16 +220,16 @@ impl MouseManager {
     }
 
     /// Sets context menu state to enabled or disabled.
-    pub fn set_context_menu(&mut self, state:State) -> Result<()> {
+    pub fn set_context_menu(&mut self, state: ContextMenuState) -> Result<()> {
         match state {
-            State::Enabled => {
+            ContextMenuState::Enabled => {
                 if let Some(callback) = &self.ignore_context_menu {
                     let callback = callback.as_ref().unchecked_ref();
                     remove_event_listener_with_callback(&self.target, "contextmenu", callback)?;
                     self.ignore_context_menu = None;
                 }
             },
-            State::Disabled => {
+            ContextMenuState::Disabled => {
                 if self.ignore_context_menu.is_none() {
                     self.ignore_context_menu = Some(ignore_context_menu(&self.target)?);
                 };
@@ -241,8 +289,12 @@ impl MouseManager {
     }
 
     /// Adds MouseWheel event callback and returns its listener object.
-    pub fn add_mouse_wheel_callback<F:FnMouseWheel>(&mut self, f:F) -> Result<WheelEventListener> {
-        let closure = move |event:WheelEvent| f(MouseWheelEvent::from(event));
+    pub fn add_mouse_wheel_callback
+    <F:FnMouseWheel>(&mut self, mut f:F) -> Result<WheelEventListener> {
+        let data = self.data.clone();
+        let closure = move |event:WheelEvent| {
+            f(MouseWheelEvent::from(event, &mut data.borrow_mut().detector));
+        };
         add_wheel_event(&self.target, closure)
     }
 
@@ -298,8 +350,8 @@ fn remove_mouse_event(target:&EventTarget, name:&str, listener:MouseEventListene
 
 /// Adds wheel event callback and returns its listener.
 fn add_wheel_event<T>(target:&EventTarget, closure: T) -> Result<WheelEventListener>
-where T : Fn(WheelEvent) + 'static {
-    let closure     = Closure::wrap(Box::new(closure) as Box<dyn Fn(WheelEvent)>);
+where T : FnMut(WheelEvent) + 'static {
+    let closure     = Closure::wrap(Box::new(closure) as Box<dyn FnMut(WheelEvent)>);
     let callback    = closure.as_ref().unchecked_ref();
     let mut options = AddEventListenerOptions::new();
     options.passive(true);
