@@ -18,9 +18,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 
-// =====================
-// === EventListener ===
-// =====================
+// =================================================================================================
+// === EventListener ===============================================================================
+// =================================================================================================
 
 /// This struct keeps the register of the event listener and unregisters it when it's dropped.
 pub struct EventListener<T : ?Sized> {
@@ -42,18 +42,18 @@ impl<T : ?Sized> Drop for EventListener<T> {
     }
 }
 
-// =============================
-// === Mouse Event Listeners ===
-// =============================
+// =================================================================================================
+// === Mouse Event Listeners =======================================================================
+// =================================================================================================
 
 pub type MouseEventListener = EventListener<dyn Fn(MouseEvent)>;
 pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 
 
 
-// ===================
-// === MouseButton ===
-// ===================
+// =================================================================================================
+// === MouseButton =================================================================================
+// =================================================================================================
 
 /// An enumeration representing the mouse buttons.
 pub enum MouseButton {
@@ -64,9 +64,9 @@ pub enum MouseButton {
 
 
 
-// =======================
-// === MouseClickEvent ===
-// =======================
+// =================================================================================================
+// === MouseClickEvent =============================================================================
+// =================================================================================================
 
 pub trait FnMouseClick = Fn(MouseClickEvent) + 'static;
 
@@ -77,9 +77,9 @@ pub struct MouseClickEvent {
 }
 
 impl MouseClickEvent {
-    fn from(event:MouseEvent, data:&Rc<RefCell<MouseManagerData>>) -> Self {
+    fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position  = Vector2::new(event.x() as f32, event.y() as f32);
-        let position  = position - data.borrow().dom.position();
+        let position  = position - data.dom().position();
         let button    = match event.button() {
             LEFT_MOUSE_BUTTON      => MouseButton::LEFT,
             MIDDLE_MOUSE_BUTTON    => MouseButton::MIDDLE,
@@ -91,9 +91,9 @@ impl MouseClickEvent {
 
 
 
-// ==========================
-// === MousePositionevent ===
-// ==========================
+// =================================================================================================
+// === MousePositionEvent ==========================================================================
+// =================================================================================================
 
 pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
 
@@ -104,23 +104,23 @@ pub struct MousePositionEvent {
 }
 
 impl MousePositionEvent {
-    fn from(event:MouseEvent, data:&Rc<RefCell<MouseManagerData>>) -> Self {
+    fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position  = Vector2::new(event.x() as f32, event.y() as f32);
-        let position  = position - data.borrow().dom.position();
-        let previous_position = match data.borrow().mouse_position {
+        let position  = position - data.dom().position();
+        let previous_position = match data.mouse_position() {
             Some(position) => position,
             None           => position
         };
-        data.borrow_mut().mouse_position = Some(position);
+        data.set_mouse_position(Some(position));
         Self { previous_position, position }
     }
 }
 
 
 
-// =============================
-// === TouchPadEventDetector ===
-// =============================
+// =================================================================================================
+// === TouchPadEventDetector =======================================================================
+// =================================================================================================
 
 
 struct TouchPadEventDetector {
@@ -159,9 +159,9 @@ impl TouchPadEventDetector {
 
 
 
-// =======================
-// === MouseWheelEvent ===
-// =======================
+// =================================================================================================
+// === MouseWheelEvent =============================================================================
+// =================================================================================================
 
 pub trait FnMouseWheel = FnMut(MouseWheelEvent) + 'static;
 
@@ -185,41 +185,83 @@ impl MouseWheelEvent {
 
 
 
-// ========================
-// === MouseManagerData ===
-// ========================
+// =================================================================================================
+// === MouseManagerCell ============================================================================
+// =================================================================================================
+
+struct MouseManagerCell {
+    detector            : TouchPadEventDetector,
+    dom                 : DOMContainer,
+    mouse_position      : Option<Vector2<f32>>,
+    target              : EventTarget,
+    stop_mouse_tracking : Option<MouseEventListener>
+}
+
+
+
+// =================================================================================================
+// === MouseManagerData ============================================================================
+// =================================================================================================
 
 /// A struct used for storing shared MouseManager's mutable data.
 struct MouseManagerData {
-    detector       : TouchPadEventDetector,
-    dom            : DOMContainer,
-    mouse_position : Option<Vector2<f32>>
+    cell : RefCell<MouseManagerCell>
+}
+
+impl MouseManagerData {
+    fn new(target:EventTarget, dom:DOMContainer) -> Rc<Self> {
+        let detector            = TouchPadEventDetector::new();
+        let mouse_position      = None;
+        let stop_mouse_tracking = None;
+        let cell                = MouseManagerCell {
+            detector,
+            dom,
+            mouse_position,
+            target,
+            stop_mouse_tracking
+        };
+        let cell = RefCell::new(cell);
+        Rc::new(Self { cell })
+    }
+}
+
+
+// === Setters =====================================================================================
+
+impl MouseManagerData {
+    fn set_mouse_position(&self, position:Option<Vector2<f32>>) {
+        self.cell.borrow_mut().mouse_position = position
+    }
+
+    fn set_stop_mouse_tracking(&self, listener:Option<MouseEventListener>) {
+        self.cell.borrow_mut().stop_mouse_tracking = listener;
+    }
+
+    fn mod_detector<F:FnOnce(&mut TouchPadEventDetector)>(&self, f:F) {
+        (f)(&mut self.cell.borrow_mut().detector)
+    }
+}
+
+
+// === Getters =====================================================================================
+
+impl MouseManagerData {
+    fn target(&self) -> EventTarget { self.cell.borrow().target.clone() }
+
+    fn mouse_position(&self) -> Option<Vector2<f32>> { self.cell.borrow().mouse_position }
+
+    fn dom(&self) -> DOMContainer { self.cell.borrow().dom.clone() }
 }
 
 
 
-// ========================
-// === ContextMenuState ===
-// ========================
-
-/// An enum mainly used for enabling or disabling the Context Menu.
-pub enum ContextMenuState {
-    Enabled,
-    Disabled
-}
-
-
-
-// ====================
-// === MouseManager ===
-// ====================
+// =================================================================================================
+// === MouseManager ================================================================================
+// =================================================================================================
 
 /// This structs manages mouse events in a specified DOM object.
 pub struct MouseManager {
-    target              : EventTarget,
-    data                : Rc<RefCell<MouseManagerData>>,
-    ignore_context_menu : Option<MouseEventListener>,
-    stop_mouse_tracking : Option<MouseEventListener>
+    data                : Rc<MouseManagerData>
 }
 
 const   LEFT_MOUSE_BUTTON: i16 = 0;
@@ -230,50 +272,30 @@ impl MouseManager {
     pub fn new(dom:&DOMContainer) -> Result<Self> {
         let target              = dyn_into::<_, EventTarget>(dom.dom.clone())?;
         let dom                 = dom.clone();
-        let mouse_position      = None;
-        let detector            = TouchPadEventDetector::new();
-        let data                = MouseManagerData { dom,mouse_position,detector };
-        let data                = Rc::new(RefCell::new(data));
-        let ignore_context_menu = None;
-        let stop_mouse_tracking = None;
-        let mut mouse_manager   = Self { target, data, ignore_context_menu, stop_mouse_tracking };
+        let data                = MouseManagerData::new(target,dom);
+        let mut mouse_manager   = Self { data };
         mouse_manager.stop_tracking_mouse_when_it_leaves_dom()?;
         Ok(mouse_manager)
     }
 
     /// Sets context menu state to enabled or disabled.
-    pub fn set_context_menu(&mut self, state: ContextMenuState) -> Result<()> {
-        match state {
-            ContextMenuState::Enabled => {
-                if let Some(_callback) = &self.ignore_context_menu {
-                    self.ignore_context_menu = None;
-                }
-            },
-            ContextMenuState::Disabled => {
-                if self.ignore_context_menu.is_none() {
-                    let listener = ignore_context_menu(&self.target)?;
-                    let target = self.target.clone();
-                    let name = "contextmenu".to_string();
-                    let listener = MouseEventListener::new(target, name, listener);
-                    self.ignore_context_menu = Some(listener);
-                };
-            }
-        }
-        Ok(())
+    pub fn disable_context_menu(&mut self) -> Result<MouseEventListener> {
+        let listener = ignore_context_menu(&self.data.target())?;
+        Ok(MouseEventListener::new(self.data.target(), "contextmenu".to_string(), listener))
     }
 
     /// Adds mouse down event callback and returns its listener object.
     pub fn add_mouse_down_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MouseClickEvent::from(event, &data));
-        add_mouse_event(&self.target, "mousedown", closure)
+        add_mouse_event(&self.data.target(), "mousedown", closure)
     }
 
     /// Adds mouse up event callback and returns its listener object.
     pub fn add_mouse_up_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MouseClickEvent::from(event, &data));
-        add_mouse_event(&self.target, "mouseup", closure)
+        add_mouse_event(&self.data.target(), "mouseup", closure)
     }
 
     /// Adds mouse move event callback and returns its listener object.
@@ -281,7 +303,7 @@ impl MouseManager {
     <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MousePositionEvent::from(event, &data));
-        add_mouse_event(&self.target, "mousemove", closure)
+        add_mouse_event(&self.data.target(), "mousemove", closure)
     }
 
     /// Adds mouse leave event callback and returns its listener object.
@@ -289,7 +311,7 @@ impl MouseManager {
     <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MousePositionEvent::from(event, &data));
-        add_mouse_event(&self.target, "mouseleave", closure)
+        add_mouse_event(&self.data.target(), "mouseleave", closure)
     }
 
     /// Adds MouseWheel event callback and returns its listener object.
@@ -297,24 +319,27 @@ impl MouseManager {
     <F:FnMouseWheel>(&mut self, mut f:F) -> Result<WheelEventListener> {
         let data = self.data.clone();
         let closure = move |event:WheelEvent| {
-            f(MouseWheelEvent::from(event, &mut data.borrow_mut().detector));
+            data.mod_detector(|mut detector| {
+                f(MouseWheelEvent::from(event, &mut detector));
+            });
         };
-        add_wheel_event(&self.target, closure)
+        add_wheel_event(&self.data.target(), closure)
     }
 
     fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
-        let data    = self.data.clone();
-        let closure = move |_| data.borrow_mut().mouse_position = None;
-        self.stop_mouse_tracking = Some(add_mouse_event(&self.target, "mouseleave", closure)?);
+        let data     = self.data.clone();
+        let closure  = move |_| data.set_mouse_position(None);
+        let listener = add_mouse_event(&self.data.target(), "mouseleave", closure)?;
+        self.data.set_stop_mouse_tracking(Some(listener));
         Ok(())
     }
 }
 
 
 
-// =============
-// === Utils ===
-// =============
+// =================================================================================================
+// === Utils =======================================================================================
+// =================================================================================================
 
 fn add_event_listener_with_callback
 (target:&EventTarget, name:&str, function:&Function) -> Result<()> {
