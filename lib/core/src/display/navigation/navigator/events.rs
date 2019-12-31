@@ -219,16 +219,18 @@ impl NavigatorEvents {
     }
 
     fn initialize_wheel_zoom(&mut self) -> Result<()> {
-        let data = self.data.clone();
+        let data = Rc::downgrade(&self.data);
         let listener = self.mouse_manager.add_mouse_wheel_callback(move |event:MouseWheelEvent| {
-            if event.is_touchpad && !event.is_ctrl_pressed {
-                let pan_event = PanEvent::from_wheel_event(event);
-                data.on_pan(pan_event);
-            } else {
-                let mouse_position = data.mouse_position();
-                let zoom_speed     = data.zoom_speed();
-                let zoom_event     = ZoomEvent::from_mouse_wheel(event, mouse_position, zoom_speed);
-                data.on_zoom(zoom_event);
+            if let Some(data) = data.upgrade() {
+                if event.is_touchpad && !event.is_ctrl_pressed {
+                    let pan_event = PanEvent::from_wheel_event(event);
+                    data.on_pan(pan_event);
+                } else {
+                    let position   = data.mouse_position();
+                    let zoom_speed = data.zoom_speed();
+                    let zoom_event = ZoomEvent::from_mouse_wheel(event, position, zoom_speed);
+                    data.on_zoom(zoom_event);
+                }
             }
         })?;
         self.wheel_zoom = Some(listener);
@@ -236,17 +238,19 @@ impl NavigatorEvents {
     }
 
     fn initialize_mouse_start_event(&mut self) -> Result<()> {
-        let data     = self.data.clone();
+        let data     = Rc::downgrade(&self.data);
         let listener = self.mouse_manager.add_mouse_down_callback(move |event:MouseClickEvent| {
-            match event.button {
-                MouseButton::MIDDLE => {
-                    data.set_movement_type(Some(MovementType::Pan))
-                },
-                MouseButton::RIGHT => {
-                    let focus = event.position;
-                    data.set_movement_type(Some(MovementType::Zoom { focus }))
-                },
-                _ => ()
+            if let Some(data) = data.upgrade() {
+                match event.button {
+                    MouseButton::MIDDLE => {
+                        data.set_movement_type(Some(MovementType::Pan))
+                    },
+                    MouseButton::RIGHT => {
+                        let focus = event.position;
+                        data.set_movement_type(Some(MovementType::Zoom { focus }))
+                    },
+                    _ => ()
+                }
             }
         })?;
         self.mouse_down = Some(listener);
@@ -259,33 +263,43 @@ impl NavigatorEvents {
     }
 
     fn initialize_mouse_end_event(&mut self) -> Result<()> {
-        let data         = self.data.clone();
-        let closure      = move |_| data.set_movement_type(None);
+        let data         = Rc::downgrade(&self.data);
+        let closure      = move |_| {
+            if let Some(data) = data.upgrade() {
+                data.set_movement_type(None);
+            }
+        };
         let listener     = self.mouse_manager.add_mouse_up_callback(closure)?;
         self.mouse_up    = Some(listener);
 
-        let data         = self.data.clone();
-        let closure      = move |_| data.set_movement_type(None);
+        let data         = Rc::downgrade(&self.data);
+        let closure      = move |_| {
+            if let Some(data) = data.upgrade() {
+                data.set_movement_type(None);
+            }
+        };
         let listener     = self.mouse_manager.add_mouse_leave_callback(closure)?;
         self.mouse_leave = Some(listener);
         Ok(())
     }
 
     fn initialize_mouse_move_event(&mut self) -> Result<()> {
-        let data     = self.data.clone();
+        let data     = Rc::downgrade(&self.data);
         let listener = self.mouse_manager.add_mouse_move_callback(move |event:MousePositionEvent| {
-            data.set_mouse_position(event.position);
+            if let Some(data) = data.upgrade() {
+                data.set_mouse_position(event.position);
 
-            if let Some(movement_type) = data.movement_type() {
-                match movement_type {
-                    MovementType::Zoom { focus } => {
-                        let zoom_speed = data.zoom_speed();
-                        let zoom_event = ZoomEvent::from_mouse_move(event, focus, zoom_speed);
-                        data.on_zoom(zoom_event);
-                    },
-                    MovementType::Pan => {
-                        let pan_event = PanEvent::from_mouse_move(event);
-                        data.on_pan(pan_event);
+                if let Some(movement_type) = data.movement_type() {
+                    match movement_type {
+                        MovementType::Zoom { focus } => {
+                            let zoom_speed = data.zoom_speed();
+                            let zoom_event = ZoomEvent::from_mouse_move(event, focus, zoom_speed);
+                            data.on_zoom(zoom_event);
+                        },
+                        MovementType::Pan => {
+                            let pan_event = PanEvent::from_mouse_move(event);
+                            data.on_pan(pan_event);
+                        }
                     }
                 }
             }

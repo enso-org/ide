@@ -286,49 +286,71 @@ impl MouseManager {
 
     /// Adds mouse down event callback and returns its listener object.
     pub fn add_mouse_down_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
-        let data = self.data.clone();
-        let closure = move |event:MouseEvent| f(MouseClickEvent::from(event, &data));
+        let data = Rc::downgrade(&self.data);
+        let closure = move |event:MouseEvent| {
+            if let Some(data) = data.upgrade() {
+                f(MouseClickEvent::from(event, &data));
+            }
+        };
         add_mouse_event(&self.data.target(), "mousedown", closure)
     }
 
     /// Adds mouse up event callback and returns its listener object.
     pub fn add_mouse_up_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
-        let data = self.data.clone();
-        let closure = move |event:MouseEvent| f(MouseClickEvent::from(event, &data));
+        let data = Rc::downgrade(&self.data);
+        let closure = move |event:MouseEvent| {
+            if let Some(data) = data.upgrade() {
+                f(MouseClickEvent::from(event, &data));
+            }
+        };
         add_mouse_event(&self.data.target(), "mouseup", closure)
     }
 
     /// Adds mouse move event callback and returns its listener object.
     pub fn add_mouse_move_callback
     <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
-        let data = self.data.clone();
-        let closure = move |event:MouseEvent| f(MousePositionEvent::from(event, &data));
+        let data = Rc::downgrade(&self.data);
+        let closure = move |event:MouseEvent| {
+            if let Some(data) = data.upgrade() {
+                f(MousePositionEvent::from(event, &data));
+            }
+        };
         add_mouse_event(&self.data.target(), "mousemove", closure)
     }
 
     /// Adds mouse leave event callback and returns its listener object.
     pub fn add_mouse_leave_callback
     <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
-        let data = self.data.clone();
-        let closure = move |event:MouseEvent| f(MousePositionEvent::from(event, &data));
+        let data = Rc::downgrade(&self.data);
+        let closure = move |event:MouseEvent| {
+            if let Some(data) = data.upgrade() {
+                f(MousePositionEvent::from(event, &data));
+            }
+        };
         add_mouse_event(&self.data.target(), "mouseleave", closure)
     }
 
     /// Adds MouseWheel event callback and returns its listener object.
     pub fn add_mouse_wheel_callback
     <F:FnMouseWheel>(&mut self, mut f:F) -> Result<WheelEventListener> {
-        let data = self.data.clone();
+        let data = Rc::downgrade(&self.data);
         let closure = move |event:WheelEvent| {
-            data.mod_detector(|mut detector| {
-                f(MouseWheelEvent::from(event, &mut detector));
-            });
+            if let Some(data) = data.upgrade() {
+                data.mod_detector(|mut detector| {
+                    f(MouseWheelEvent::from(event, &mut detector));
+                });
+            }
         };
         add_wheel_event(&self.data.target(), closure)
     }
 
     fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
-        let data     = self.data.clone();
-        let closure  = move |_| data.set_mouse_position(None);
+        let data     = Rc::downgrade(&self.data);
+        let closure  = move |_| {
+            if let Some(data) = data.upgrade() {
+                data.set_mouse_position(None);
+            }
+        };
         let listener = add_mouse_event(&self.data.target(), "mouseleave", closure)?;
         self.data.set_stop_mouse_tracking(Some(listener));
         Ok(())

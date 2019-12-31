@@ -5,7 +5,6 @@
 #![feature(specialization)]
 #![feature(associated_type_defaults)]
 #![feature(set_stdio)]
-#![feature(arbitrary_self_types)]
 //#![warn(missing_docs)]
 
 // Lints. To be refactored after this gets resolved:
