@@ -17,7 +17,7 @@ mod tests {
 
     use basegl::animation::physics::*;
 
-    use nalgebra::{Vector3, zero};
+    use nalgebra::Vector3;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -73,26 +73,13 @@ mod tests {
         let z = y * camera.get_y_scale();
         camera.set_position(Vector3::new(x, y, z));
 
-        let zoom_speed    = 6.0;
-        let navigator     = Navigator::new(&renderer.container, camera.position(), zoom_speed);
-        let mut navigator = navigator.expect("Couldn't create navigator");
-
-        let mass           = 25.0;
-        let velocity       = zero();
-        let kinematics     = KinematicsProperties::new(camera.position(), velocity, zero(), mass);
-        let coefficient    = 10000.0;
-        let fixed_point    = camera.position();
-        let spring         = SpringProperties::new(coefficient, fixed_point);
-        let drag           = DragProperties::new(1000.0);
-        let mut properties = PhysicsProperties::new(kinematics, spring, drag);
-        let simulator      = PhysicsSimulator::new(camera.object.clone(), properties.clone());
+        let zoom_speed = 6.0;
+        let navigator  = Navigator::new(&renderer.container, camera.clone(), zoom_speed);
+        let navigator  = navigator.expect("Couldn't create navigator");
 
         b.iter(move || {
-            let _keep_alive = &simulator;
-            let position = navigator.navigate(&mut camera);
+            let _keep_alive = &navigator;
             renderer.render(&mut camera, &scene);
-            //camera.set_position(kinematics.position);
-            properties.mod_spring(|spring| spring.set_fixed_point(position));
         })
     }
 

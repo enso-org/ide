@@ -35,11 +35,11 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     for i in 0..=3 {
         let     object = HTMLObject::new("div");
         let mut object = object.expect("Couldn't create div");
-        let (x, y)     = positions[i];
+        let (p_x, p_y) = positions[i];
         object.set_dimensions(width, height);
-        object.set_position(Vector3::new(width * x, height * y, 0.0));
-        let (r, g, b) = colors[i];
-        let color = format!("rgb({}, {}, {})", r, g, b);
+        object.set_position(Vector3::new(width * p_x, height * p_y, 0.0));
+        let (c_r, c_g, c_b) = colors[i];
+        let color = format!("rgb({}, {}, {})", c_r, c_g, c_b);
         object.dom.set_property_or_panic("background-color", color);
         scene.add(object);
     }

@@ -32,7 +32,7 @@ pub struct Navigator {
 impl Navigator {
     pub fn new(dom:&DOMContainer, camera:Camera, zoom_speed:f32) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(camera.clone());
-        let _events = Self::start_navigator_events(dom,camera.clone(),zoom_speed,properties)?;
+        let _events = Self::start_navigator_events(dom,camera,zoom_speed,properties)?;
         Ok(Self { _events, _simulator })
     }
 
@@ -46,7 +46,7 @@ impl Navigator {
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);
         let drag               = DragProperties::new(1000.0);
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
-        let simulator          = PhysicsSimulator::new(camera.object.clone(), properties.clone());
+        let simulator          = PhysicsSimulator::new(camera.object, properties.clone());
         (simulator, properties)
     }
 
