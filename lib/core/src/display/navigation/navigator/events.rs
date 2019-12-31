@@ -205,12 +205,11 @@ impl NavigatorEvents {
             wheel_zoom,
         };
 
-        event_handler.initialize_events()?;
+        event_handler.initialize_mouse_events()?;
         Ok(event_handler)
     }
 
-    // Initialize mouse events.
-    fn initialize_events(&mut self) -> Result<()> {
+    fn initialize_mouse_events(&mut self) -> Result<()> {
         self.disable_context_menu()?;
         self.initialize_wheel_zoom()?;
         self.initialize_mouse_start_event()?;

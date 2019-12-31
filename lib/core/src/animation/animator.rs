@@ -1,5 +1,7 @@
+pub mod continuous;
+pub mod fixed_step;
 
-use super::ContinuousAnimator;
+use continuous::ContinuousAnimator;
 use super::FnAnimation;
 
 

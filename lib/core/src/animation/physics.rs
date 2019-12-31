@@ -1,6 +1,8 @@
 use crate::prelude::*;
 
-use crate::animation::{Animator, IntervalCounter, linear_interpolation};
+use crate::animation::animator::Animator;
+use crate::animation::animator::fixed_step::IntervalCounter;
+use crate::animation::linear_interpolation;
 use crate::traits::HasPosition;
 
 use nalgebra::Vector3;

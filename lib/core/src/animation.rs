@@ -2,14 +2,9 @@
 // only one RequestAnimationFrame loop going on to avoid its overhead.
 
 pub mod physics;
-mod continuous_animator;
-mod animator;
-mod fixed_step_animator;
+pub mod animator;
 
-pub use continuous_animator::ContinuousAnimator;
-pub use animator::Animator;
-pub use fixed_step_animator::FixedStepAnimator;
-pub use fixed_step_animator::IntervalCounter;
+
 
 // ===================
 // === FnAnimation ===

@@ -10,7 +10,7 @@ mod tests {
     use basegl::animation::physics::DragProperties;
     use basegl::animation::physics::SpringProperties;
     use basegl::animation::physics::KinematicsProperties;
-    use basegl::animation::FixedStepAnimator;
+    use basegl::animation::animator::fixed_step::FixedStepAnimator;
     use basegl::animation::physics::PhysicsSimulator;
     use basegl::animation::physics::PhysicsProperties;
     use basegl::display::render::css3d::html::HTMLRenderer;

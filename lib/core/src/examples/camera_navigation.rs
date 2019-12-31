@@ -7,7 +7,7 @@ use crate::display::render::css3d::html::HTMLRenderer;
 use crate::system::web::StyleSetter;
 use crate::display::navigation::navigator::Navigator;
 
-use crate::animation::*;
+use crate::animation::animator::continuous::ContinuousAnimator;
 use crate::animation::physics::*;
 
 use nalgebra::{Vector2, Vector3};
