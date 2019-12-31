@@ -146,7 +146,7 @@ impl NavigatorEventsData {
     }
 
     fn movement_type(&self) -> Option<MovementType> {
-        self.cell.borrow().movement_type.clone()
+        self.cell.borrow().movement_type
     }
 }
 
