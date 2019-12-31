@@ -1,5 +1,3 @@
-// FIXME: This file should me moved to system::web, but it would require also moving DOMContainer.
-
 use crate::display::render::css3d::DOMContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
@@ -20,14 +18,36 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 
-// ======================
-// === EventListeners ===
-// ======================
+// =====================
+// === EventListener ===
+// =====================
 
-/// A mouse event listener object returned when adding callbacks to MouseManager.
-pub type MouseEventListener = Closure<dyn Fn(MouseEvent)>;
-/// A wheel event listener object returned when adding callbacks to MouseManager.
-pub type WheelEventListener = Closure<dyn FnMut(WheelEvent)>;
+/// This struct keeps the register of the event listener and unregisters it when it's dropped.
+pub struct EventListener<T : ?Sized> {
+    target  : EventTarget,
+    name    : String,
+    closure : Closure<T>
+}
+
+impl<T : ?Sized> EventListener<T> {
+    fn new(target:EventTarget, name:String, closure:Closure<T>) -> Self {
+        Self { target, name, closure }
+    }
+}
+
+impl<T : ?Sized> Drop for EventListener<T> {
+    fn drop(&mut self) {
+        let callback : &Function = self.closure.as_ref().unchecked_ref();
+        remove_event_listener_with_callback(&self.target, &self.name, callback).ok();
+    }
+}
+
+// =============================
+// === Mouse Event Listeners ===
+// =============================
+
+pub type MouseEventListener = EventListener<dyn Fn(MouseEvent)>;
+pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 
 
 
@@ -178,9 +198,9 @@ struct MouseManagerData {
 
 
 
-// =============
+// ========================
 // === ContextMenuState ===
-// =============
+// ========================
 
 /// An enum mainly used for enabling or disabling the Context Menu.
 pub enum ContextMenuState {
@@ -225,15 +245,17 @@ impl MouseManager {
     pub fn set_context_menu(&mut self, state: ContextMenuState) -> Result<()> {
         match state {
             ContextMenuState::Enabled => {
-                if let Some(callback) = &self.ignore_context_menu {
-                    let callback = callback.as_ref().unchecked_ref();
-                    remove_event_listener_with_callback(&self.target, "contextmenu", callback)?;
+                if let Some(_callback) = &self.ignore_context_menu {
                     self.ignore_context_menu = None;
                 }
             },
             ContextMenuState::Disabled => {
                 if self.ignore_context_menu.is_none() {
-                    self.ignore_context_menu = Some(ignore_context_menu(&self.target)?);
+                    let listener = ignore_context_menu(&self.target)?;
+                    let target = self.target.clone();
+                    let name = "contextmenu".to_string();
+                    let listener = MouseEventListener::new(target, name, listener);
+                    self.ignore_context_menu = Some(listener);
                 };
             }
         }
@@ -247,21 +269,11 @@ impl MouseManager {
         add_mouse_event(&self.target, "mousedown", closure)
     }
 
-    /// Removes the mouse down event listener.
-    pub fn remove_mouse_down_callback(&mut self, listener:MouseEventListener) -> Result<()> {
-        remove_mouse_event(&self.target, "mousedown", listener)
-    }
-
     /// Adds mouse up event callback and returns its listener object.
     pub fn add_mouse_up_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MouseClickEvent::from(event, &data));
         add_mouse_event(&self.target, "mouseup", closure)
-    }
-
-    /// Removes mouse up event event listener.
-    pub fn remove_mouse_up_callback(&mut self, listener:MouseEventListener) -> Result<()> {
-        remove_mouse_event(&self.target, "mouseup", listener)
     }
 
     /// Adds mouse move event callback and returns its listener object.
@@ -272,22 +284,12 @@ impl MouseManager {
         add_mouse_event(&self.target, "mousemove", closure)
     }
 
-    /// Removes mouse move event listener.
-    pub fn remove_mouse_move_callback(&mut self, listener:MouseEventListener) -> Result<()> {
-        remove_mouse_event(&self.target, "mousemove", listener)
-    }
-
     /// Adds mouse leave event callback and returns its listener object.
     pub fn add_mouse_leave_callback
     <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
         let data = self.data.clone();
         let closure = move |event:MouseEvent| f(MousePositionEvent::from(event, &data));
         add_mouse_event(&self.target, "mouseleave", closure)
-    }
-
-    /// Removes mouse leave event listener.
-    pub fn remove_mouse_leave_callback(&mut self, listener:MouseEventListener) -> Result<()> {
-        remove_mouse_event(&self.target, "mouseleave", listener)
     }
 
     /// Adds MouseWheel event callback and returns its listener object.
@@ -298,11 +300,6 @@ impl MouseManager {
             f(MouseWheelEvent::from(event, &mut data.borrow_mut().detector));
         };
         add_wheel_event(&self.target, closure)
-    }
-
-    /// Removes MouseWheel event listener.
-    pub fn remove_mouse_wheel_callback(&mut self, listener:WheelEventListener) -> Result<()> {
-        remove_wheel_event(&self.target, listener)
     }
 
     fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
@@ -341,13 +338,7 @@ where T : Fn(MouseEvent) + 'static {
     let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
     add_event_listener_with_callback(target, name, callback)?;
-    Ok(closure)
-}
-
-/// Removes mouse event listener.
-fn remove_mouse_event(target:&EventTarget, name:&str, listener:MouseEventListener) -> Result<()> {
-    let callback : &Function = listener.as_ref().unchecked_ref();
-    remove_event_listener_with_callback(target, name, callback)
+    Ok(MouseEventListener::new(target.clone(), name.to_string(), closure))
 }
 
 /// Adds wheel event callback and returns its listener.
@@ -359,13 +350,12 @@ where T : FnMut(WheelEvent) + 'static {
     options.passive(true);
     match target.add_event_listener_with_callback_and_add_event_listener_options
     ("wheel", callback, &options) {
-        Ok(_)  => Ok(closure),
+        Ok(_)  => {
+            let target = target.clone();
+            let name = "wheel".to_string();
+            let listener = WheelEventListener::new(target, name, closure);
+            Ok(listener)
+        },
         Err(_) => Err(Error::FailedToAddEventListener)
     }
-}
-
-/// Removes wheel event listener.
-fn remove_wheel_event(target:&EventTarget, listener:WheelEventListener) -> Result<()> {
-    let callback = listener.as_ref().unchecked_ref();
-    remove_event_listener_with_callback(target, "wheel", callback)
 }

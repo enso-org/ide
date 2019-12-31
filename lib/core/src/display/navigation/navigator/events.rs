@@ -1,11 +1,11 @@
-use super::super::mouse_manager;
-
-use mouse_manager::ContextMenuState;
-use mouse_manager::MouseManager;
-use mouse_manager::MouseClickEvent;
-use mouse_manager::MouseWheelEvent;
-use mouse_manager::MousePositionEvent;
-use mouse_manager::MouseButton;
+use crate::control::mouse_manager::ContextMenuState;
+use crate::control::mouse_manager::MouseManager;
+use crate::control::mouse_manager::MouseClickEvent;
+use crate::control::mouse_manager::MouseWheelEvent;
+use crate::control::mouse_manager::MousePositionEvent;
+use crate::control::mouse_manager::MouseButton;
+use crate::control::mouse_manager::MouseEventListener;
+use crate::control::mouse_manager::WheelEventListener;
 use crate::system::web::Result;
 use crate::display::render::css3d::DOMContainer;
 
@@ -13,7 +13,6 @@ use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
 use nalgebra::zero;
-use crate::display::navigation::mouse_manager::{MouseEventListener, WheelEventListener};
 
 // =================
 // === ZoomEvent ===
