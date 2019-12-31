@@ -17,37 +17,43 @@ use crate::display::navigation::mouse_manager::{MouseEventListener, WheelEventLi
 // === ZoomEvent ===
 // =================
 
-/// A struct holding zoom event information.
+/// A struct holding zoom event information, such as the focus point and the amount of zoom.
 pub struct ZoomEvent {
     pub focus  : Vector2<f32>,
     pub amount : f32
 }
 
 impl ZoomEvent {
-    fn from_mouse_wheel(event:MouseWheelEvent, data:&Rc<RefCell<NavigatorEventsData>>) -> Self {
-        let amount = event.movement_y;
-        let focus  = data.borrow().mouse_position;
-        Self { amount, focus }
+    fn new(focus:Vector2<f32>, amount:f32, zoom_speed:f32) -> Self {
+        let amount = amount * zoom_speed;
+        Self { focus, amount }
     }
 
-    fn from_mouse_move(event:MousePositionEvent, focus:Vector2<f32>) -> Self {
+    fn from_mouse_wheel
+    (event:MouseWheelEvent, mouse_position:Vector2<f32>, zoom_speed:f32) -> Self {
+        let amount = event.movement_y;
+        let focus  = mouse_position;
+        Self::new(focus, amount, zoom_speed)
+    }
+
+    fn from_mouse_move(event:MousePositionEvent, focus:Vector2<f32>, zoom_speed:f32) -> Self {
         let amount = event.position.y - event.previous_position.y;
-        Self { focus, amount }
+        Self::new(focus, amount, zoom_speed)
     }
 }
 
 pub trait FnZoomEvent = FnMut(ZoomEvent) + 'static;
 
-// ====================
-// === PanningEvent ===
-// ====================
+// ================
+// === PanEvent ===
+// ================
 
-/// A struct holding panning event information.
-pub struct PanningEvent {
+/// A struct holding pan event information.
+pub struct PanEvent {
     pub movement : Vector2<f32>
 }
 
-impl PanningEvent {
+impl PanEvent {
     fn from(event:MousePositionEvent) -> Self {
         let mut movement   = event.position - event.previous_position;
                 movement.x = -movement.x;
@@ -55,7 +61,7 @@ impl PanningEvent {
     }
 }
 
-pub trait FnPanningEvent = FnMut(PanningEvent) + 'static;
+pub trait FnPanEvent = FnMut(PanEvent) + 'static;
 
 
 
@@ -65,8 +71,8 @@ pub trait FnPanningEvent = FnMut(PanningEvent) + 'static;
 
 #[derive(PartialEq)]
 enum MovementType {
-    Panning,
-    Zooming { focus : Vector2<f32> }
+    Pan,
+    Zoom { focus : Vector2<f32> }
 }
 
 // ===========================
@@ -76,23 +82,25 @@ enum MovementType {
 struct NavigatorEventsData {
     movement_type    : Option<MovementType>,
     mouse_position   : Vector2<f32>,
-    panning_callback : Box<dyn FnPanningEvent>,
-    zoom_callback    : Box<dyn FnZoomEvent>
+    pan_callback     : Box<dyn FnPanEvent>,
+    zoom_callback    : Box<dyn FnZoomEvent>,
+    zoom_speed       : f32
 }
 
 impl NavigatorEventsData {
-    fn new(panning_callback:Box<dyn FnPanningEvent>, zoom_callback:Box<dyn FnZoomEvent>) -> Self {
+    fn new
+    (pan_callback:Box<dyn FnPanEvent>, zoom_callback:Box<dyn FnZoomEvent>, zoom_speed:f32) -> Self {
         let mouse_position   = zero();
         let movement_type    = None;
-        Self { mouse_position, movement_type, panning_callback, zoom_callback }
+        Self { mouse_position,movement_type,pan_callback,zoom_callback,zoom_speed }
     }
 
     fn call_zoom(&mut self, event:ZoomEvent) {
         (self.zoom_callback)(event);
     }
 
-    fn call_panning(&mut self, event:PanningEvent) {
-        (self.panning_callback)(event);
+    fn call_pan(&mut self, event: PanEvent) {
+        (self.pan_callback)(event);
     }
 }
 
@@ -100,7 +108,7 @@ impl NavigatorEventsData {
 // === NavigatorEvents ===
 // =======================
 
-/// Struct used to handle panning and zoom events from mouse interactions.
+/// Struct used to handle pan and zoom events from mouse interactions.
 pub struct NavigatorEvents {
     mouse_manager : MouseManager,
     data          : Rc<RefCell<NavigatorEventsData>>,
@@ -108,22 +116,23 @@ pub struct NavigatorEvents {
     mouse_move    : Option<MouseEventListener>,
     mouse_up      : Option<MouseEventListener>,
     mouse_leave   : Option<MouseEventListener>,
-    wheel_zooming : Option<WheelEventListener>
+    wheel_zoom    : Option<WheelEventListener>
 }
 
 impl NavigatorEvents {
-    pub fn new<P,Z>(dom:&DOMContainer, panning_callback:P, zoom_callback:Z) -> Result<Self>
-    where P : FnPanningEvent, Z : FnZoomEvent {
-        let panning_callback  = Box::new(panning_callback);
+    pub fn new
+    <P,Z>(dom:&DOMContainer, pan_callback:P, zoom_callback:Z, zoom_speed:f32) -> Result<Self>
+    where P : FnPanEvent, Z : FnZoomEvent {
+        let pan_callback      = Box::new(pan_callback);
         let zoom_callback     = Box::new(zoom_callback);
         let mouse_manager     = MouseManager::new(dom)?;
-        let data              = NavigatorEventsData::new(panning_callback, zoom_callback);
+        let data              = NavigatorEventsData::new(pan_callback, zoom_callback, zoom_speed);
         let data              = Rc::new(RefCell::new(data));
         let mouse_move        = None;
         let mouse_up          = None;
         let mouse_leave       = None;
         let mouse_down        = None;
-        let wheel_zooming     = None;
+        let wheel_zoom        = None;
         let mut event_handler = Self {
             mouse_manager,
             data,
@@ -131,7 +140,7 @@ impl NavigatorEvents {
             mouse_move,
             mouse_up,
             mouse_leave,
-            wheel_zooming
+            wheel_zoom
         };
 
         event_handler.initialize_events()?;
@@ -141,19 +150,22 @@ impl NavigatorEvents {
     // Initialize mouse events.
     fn initialize_events(&mut self) -> Result<()> {
         self.disable_context_menu()?;
-        self.initialize_wheel_zooming()?;
+        self.initialize_wheel_zoom()?;
         self.initialize_interaction_start_event()?;
         self.initialize_mouse_move_event()?;
         self.initialize_interaction_end_event()
     }
 
-    fn initialize_wheel_zooming(&mut self) -> Result<()> {
+    fn initialize_wheel_zoom(&mut self) -> Result<()> {
         let data = self.data.clone();
         let listener = self.mouse_manager.add_mouse_wheel_callback(move |event:MouseWheelEvent| {
-            let zoom_event = ZoomEvent::from_mouse_wheel(event, &data);
-            data.borrow_mut().call_zoom(zoom_event);
+            let mut data       = data.borrow_mut();
+            let mouse_position = data.mouse_position;
+            let zoom_speed     = data.zoom_speed;
+            let zoom_event     = ZoomEvent::from_mouse_wheel(event, mouse_position, zoom_speed);
+            data.call_zoom(zoom_event);
         })?;
-        self.wheel_zooming = Some(listener);
+        self.wheel_zoom = Some(listener);
         Ok(())
     }
 
@@ -162,11 +174,11 @@ impl NavigatorEvents {
         let listener = self.mouse_manager.add_mouse_down_callback(move |event:MouseClickEvent| {
             match event.button {
                 MouseButton::MIDDLE => {
-                    data.borrow_mut().movement_type = Some(MovementType::Panning)
+                    data.borrow_mut().movement_type = Some(MovementType::Pan)
                 },
                 MouseButton::RIGHT => {
                     let focus = event.position;
-                    data.borrow_mut().movement_type  = Some(MovementType::Zooming { focus })
+                    data.borrow_mut().movement_type  = Some(MovementType::Zoom { focus })
                 },
                 _ => ()
             }
@@ -200,13 +212,13 @@ impl NavigatorEvents {
 
             if let Some(movement_type) = &data.movement_type {
                 match movement_type {
-                    MovementType::Zooming { focus } => {
-                        let zoom_event = ZoomEvent::from_mouse_move(event, *focus);
+                    MovementType::Zoom { focus } => {
+                        let zoom_event = ZoomEvent::from_mouse_move(event, *focus, data.zoom_speed);
                         data.call_zoom(zoom_event);
                     },
-                    MovementType::Panning => {
-                        let pan_event      = PanningEvent::from(event);
-                        data.call_panning(pan_event);
+                    MovementType::Pan => {
+                        let pan_event = PanEvent::from(event);
+                        data.call_pan(pan_event);
                     }
                 }
             }

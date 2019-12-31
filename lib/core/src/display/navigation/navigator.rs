@@ -1,6 +1,6 @@
 use super::navigator_events::NavigatorEvents;
 use super::navigator_events::ZoomEvent;
-use super::navigator_events::PanningEvent;
+use super::navigator_events::PanEvent;
 use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
@@ -36,7 +36,7 @@ impl Navigator {
         let dom_clone            = dom.clone();
         let camera_clone         = camera.clone();
         let mut properties_clone = properties.clone();
-        let panning_callback     = move |pan:PanningEvent| {
+        let panning_callback     = move |pan: PanEvent| {
             let base_z = dom_clone.dimensions().y / 2.0 * camera_clone.get_y_scale();
             let scale  = camera_clone.position().z / base_z;
 
@@ -63,15 +63,13 @@ impl Navigator {
                 let direction = Vector3::new(x, y, z).normalize();
 
                 let mut position = properties.spring().fixed_point();
-                position += direction * zoom.amount * zoom_speed;
-                if  position.z < persp.near + 1.0 {
-                    position.z = persp.near + 1.0;
-                }
+                position  += direction * zoom.amount;
+                position.z = position.z.max(persp.near + 1.0);
 
                 properties.mod_spring(|spring| spring.set_fixed_point(position));
             }
         };
-        let _events  = NavigatorEvents::new(dom, panning_callback, zoom_callback)?;
+        let _events  = NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)?;
 
         Ok(Self { _events, _simulator })
     }

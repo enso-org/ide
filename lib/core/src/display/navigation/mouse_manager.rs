@@ -101,13 +101,15 @@ pub trait FnMousePosition = Fn(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse wheel events.
 pub struct MouseWheelEvent {
+    pub movement_x : f32,
     pub movement_y : f32
 }
 
 impl MouseWheelEvent {
     fn from(event:WheelEvent) -> Self {
+        let movement_x = event.delta_x() as f32;
         let movement_y = event.delta_y() as f32;
-        Self { movement_y }
+        Self { movement_x,movement_y }
     }
 }
 
