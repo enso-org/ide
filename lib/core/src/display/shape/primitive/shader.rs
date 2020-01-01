@@ -185,14 +185,11 @@ impl Canvas {
     }
 
 
-    pub fn mv(&mut self, x:f32, y:f32) {
+    pub fn translate(&mut self, x:f32, y:f32) {
         self.add_code_line_ind(iformat!("position = sdf_translate(position, vec2({x.glsl()},{y.glsl()}));"));
     }
 
 }
-
-
-static GLOBAL_SHAPE_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 
 
@@ -211,7 +208,6 @@ macro_rules! shape {
         /// The shape definition.
         #[derive(Debug,Clone)]
         pub struct $name {
-            pub id        : usize,
             pub glsl_name : String,
             $(pub $field  : String),*
         }
@@ -222,16 +218,20 @@ macro_rules! shape {
         impl $name {
             /// Constructor.
             pub fn new <$($field:Glsl),*> ( $($field : $field),* ) -> Self {
-                let id        = GLOBAL_SHAPE_COUNT.fetch_add(1, Ordering::Relaxed);
                 let glsl_name = stringify!($name).to_snake_case();
                 $(let $field = $field.glsl();)*
-                Self {id,glsl_name,$($field),*}
+                Self {glsl_name,$($field),*}
             }
+
+            pub fn new_shape <$($field:Glsl),*> ( $($field : $field),* ) -> Shape<Self> {
+                Shape::new(Self::new($($field),*))
+            }
+
 
             /// Draws the shape on the provided canvas. Shapes are always drawn in the center of
             /// the canvas. In order to move them somewhere, use the canvas moving API.
             pub fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
-                let args = vec!["position", $(stringify!($field)),* ].join(",");
+                let args = vec!["position".to_string(), $(self.$field.glsl()),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
                 canvas.new_shape(&code,None)
             }
@@ -247,11 +247,7 @@ macro_rules! shape {
             }
         }
 
-        impl Shape for $name {
-            fn id(&self) -> usize {
-                self.id
-            }
-
+        impl ShapeDef for $name {
             fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
                 self.draw(&mut renderer.canvas)
             }
@@ -260,52 +256,89 @@ macro_rules! shape {
 }
 
 
+#[derive(Debug,Derivative,Shrinkwrap)]
+#[derivative(Clone(bound=""))]
+pub struct Shape<T> {
+    rc:Rc<T>
+}
 
-trait Shape {
-    fn id(&self) -> usize {
-        0
+impl<T> Shape<T> {
+    pub fn new(t:T) -> Self {
+        Self {rc:Rc::new(t)}
     }
+}
 
+impl<T> HasId for Shape<T> {
+    fn id(&self) -> usize {
+        Rc::downgrade(&self.rc).as_raw() as *const() as usize
+    }
+}
+
+
+trait HasId {
+    fn id(&self) -> usize;
+}
+
+trait ShapeDef {
+    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape;
+}
+
+trait IsShape = ShapeDef + HasId;
+
+impl<T:ShapeDef> ShapeDef for Shape<T> {
     fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-        unimplemented!()
+        self.rc.render_glsl(renderer)
     }
 }
 
 
 
 
+// === Translate ===
 
-
-pub struct Move<S> {
+pub struct Translate<S> {
     shape : S,
     x     : f32,
     y     : f32,
 }
 
-impl<S> Move<S> {
-    pub fn new(shape:S,x:f32,y:f32) -> Self {
-        Self {shape,x,y}
+impl<S:Clone> Translate<S> {
+    pub fn new(shape:&S,x:f32,y:f32) -> Self {
+        Self {shape:shape.clone(),x,y}
     }
 }
 
-impl<S:Shape> Shape for Move<S> {
+impl<S:IsShape> ShapeDef for Translate<S> {
     fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
         renderer.with_new_tx_ctx(|r| {
-            r.canvas.mv(self.x,self.y);
+            r.canvas.translate(self.x,self.y);
             r.render_shape(&self.shape)
         })
     }
 }
 
 
-//export class Move extends Shape
-//constructor: (@a, @x, @y) -> super(); @addChildren @a
-//renderGLSL: (r) ->
-//r_x = resolve r, @x
-//r_y = resolve r, @y
-//r.withNewTxCtx () =>
-//r.canvas.move r_x, r_y
-//r.renderShape @a
+
+// === Union ===
+
+pub struct Union<S1,S2> {
+    shape1 : S1,
+    shape2 : S2
+}
+
+impl<S1:Clone,S2:Clone> Union<S1,S2> {
+    pub fn new(shape1:&S1,shape2:&S2) -> Self {
+        Self {shape1:shape1.clone(),shape2:shape2.clone()}
+    }
+}
+
+impl<S1:IsShape,S2:IsShape> ShapeDef for Union<S1,S2> {
+    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
+        let s1 = renderer.render_shape(&self.shape1);
+        let s2 = renderer.render_shape(&self.shape2);
+        renderer.canvas.union(s1,s2)
+    }
+}
 
 
 
@@ -335,7 +368,7 @@ impl GlslRenderer {
         out
     }
 
-    pub fn render_shape<S:Shape>(&mut self, shape:&S) -> CanvasShape {
+    pub fn render_shape<S:IsShape>(&mut self, shape:&S) -> CanvasShape {
         let shape_ptr    = shape.id();
         let canvas_shape = self.done.get(&(shape_ptr,self.tx_ctx));
         match canvas_shape {
@@ -348,7 +381,7 @@ impl GlslRenderer {
         }
     }
 
-    pub fn render<S:Shape>(&mut self, shape:&S) -> String {
+    pub fn render<S:IsShape>(&mut self, shape:&S) -> String {
         let canvas_shape = self.render_shape(shape);
         iformat!("shape main(vec2 position) {{\n{self.canvas.code()}\n    return {canvas_shape.name};\n}}")
     }
@@ -357,13 +390,25 @@ impl GlslRenderer {
 
 pub trait ShapeOps
 where Self:Sized+Clone {
-    fn mv(&self,x:f32,y:f32) -> Move<Self> {
-        Move::new(self.clone(),x,y)
+    fn translate(&self,x:f32,y:f32) -> Shape<Translate<Self>> {
+        Shape::new(Translate::new(self,x,y))
+    }
+
+    fn union<S:Clone>(&self,that:S) -> Shape<Union<Self,S>> {
+        Shape::new(Union::new(self,&that))
     }
 }
 
-impl<T> ShapeOps for T where T:Shape+Clone {}
+impl<T> ShapeOps for Shape<T> {}
 
+
+
+impl<T,S:Clone> std::ops::Add<S> for Shape<T> {
+    type Output = Shape<Union<Shape<T>,S>>;
+    fn add(self, that:S) -> Self::Output {
+        self.union(that)
+    }
+}
 
 
 
@@ -461,9 +506,11 @@ pub fn main() {
 //    let s2 = c2.draw(canvas);
 //    canvas.union(s1,s2);
 
-    let s1 = Circle::new(10.0).mv(1.0,2.0);
+    let s1 = Circle::new_shape(10.0);
+    let s2 = s1.translate(1.0,2.0);
+    let s3 = s1 + s2;
 
-    println!("{}", r.render(&s1));
+    println!("{}", r.render(&s3));
 
 //
 //    println!("{}", c1.sdf_code());
