@@ -13,6 +13,9 @@
 //#![warn(missing_copy_implementations)]
 //#![warn(missing_debug_implementations)]
 
+#![feature(trace_macros)]
+#![recursion_limit="256"]
+
 #![feature(associated_type_defaults)]
 #![feature(specialization)]
 #![feature(trait_alias)]
@@ -22,6 +25,7 @@
 // To be removed after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
 #![allow(clippy::option_map_unit_fn)]
 
+trace_macros!(true);
 
 
 // ===================
@@ -30,9 +34,7 @@
 
 /// Uncomment the following lines in order to enable macro-expandion debugging during compilation.
 
-//#![feature(trace_macros)]
-//#![recursion_limit="256"]
-//trace_macros!(true);
+
 
 
 

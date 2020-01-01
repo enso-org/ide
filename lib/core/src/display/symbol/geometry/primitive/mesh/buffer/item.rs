@@ -167,10 +167,13 @@ pub trait Item : Empty + JSBufferViewArr {
 
     // === Type Encoding ===
 
-    /// Returns the WebGL enum representing the item type, like Context::FLOAT.
+    /// Returns the WebGL enum code representing the item type, like Context::FLOAT.
     fn gpu_item_type() -> u32 {
         Self::Prim::gpu_item_type()
     }
+
+    /// Returns the GLSL type name, like `"float"` for `f32`.
+    fn gpu_type_name() -> String;
 
 
     // === Conversions ===
@@ -205,8 +208,9 @@ impl Item for i32 {
     type Rows = U1;
     type Cols = U1;
 
-    fn gpu_byte_size           () -> usize { 4 }
-    fn gpu_item_type           () -> u32 { Context::INT }
+    fn gpu_byte_size           () -> usize  { 4 }
+    fn gpu_item_type           () -> u32    { Context::INT }
+    fn gpu_type_name           () -> String { "int".into() }
     fn from_buffer             (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
     fn from_buffer_mut         (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
@@ -224,12 +228,13 @@ impl Item for f32 {
     type Rows = U1;
     type Cols = U1;
 
-    fn gpu_byte_size          () -> usize { 4 }
-    fn gpu_item_type          () -> u32 { Context::FLOAT }
-    fn from_buffer            (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
-    fn from_buffer_mut        (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
-    fn convert_prim_buffer    (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
-    fn convert_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
+    fn gpu_byte_size           () -> usize  { 4 }
+    fn gpu_item_type           () -> u32    { Context::FLOAT }
+    fn gpu_type_name           () -> String { "float".into() }
+    fn from_buffer             (buffer: &    [Self::Prim]) -> &    [Self] { buffer }
+    fn from_buffer_mut         (buffer: &mut [Self::Prim]) -> &mut [Self] { buffer }
+    fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Prim] { buffer }
+    fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Prim] { buffer }
 }
 
 impl JSBufferView for [f32] {
@@ -243,6 +248,13 @@ impl<T:Item<Prim=T>,R,C> Item for MatrixMN<T,R,C>
     type Prim = T;
     type Rows = R;
     type Cols = C;
+
+    fn gpu_type_name() -> String {
+        let cols = <Self as Item>::cols();
+        let rows = <Self as Item>::rows();
+        if cols == 1 { format!("vec{}",rows) }
+        else         { format!("mat{}x{}",cols,rows) }
+    }
 
     fn from_buffer(buffer: &[Self::Prim]) -> &[Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
