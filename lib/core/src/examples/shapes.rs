@@ -11,7 +11,7 @@ use crate::system::web::set_stdout;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
-use crate::display::shape::primitive::shader;
+use crate::display::shape::primitive;
 
 
 #[wasm_bindgen]
@@ -32,7 +32,7 @@ fn init(world: &World) {
         t.y += 100.0;
     });
 
-    shader::main();
+    primitive::main();
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
