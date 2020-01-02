@@ -16,41 +16,35 @@ use js_sys::Function;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::any::Any;
 
 
+// FIXME: We need to use one style headers everywhere. Please change these to short ones and if you think longer are better, lets talk with the whole IDE team on Discord first and if we all agree they are better, we will change them in the whole codebase with some kind of regexp.
 // =================================================================================================
 // === EventListener ===============================================================================
 // =================================================================================================
 
 /// This struct keeps the register of the event listener and unregisters it when it's dropped.
-pub struct EventListener<T : ?Sized> {
+pub struct EventListener { // FIXME: spacing + WOHOOOO! Not parametrized with `T` anymore!
     target  : EventTarget,
     name    : String,
-    closure : Closure<T>
+    closure : Function // FIXME: Danilo, I would really love to ask you to go slowly trough all your names and think if they are named semantically or syntactically. I know that this is a closure. It is like naming `int:i32` :P We need to name variables by describing their purpose, not their type / shape.
 }
 
-impl<T : ?Sized> EventListener<T> {
-    fn new(target:EventTarget, name:String, closure:Closure<T>) -> Self {
+impl EventListener {
+    fn new<T:?Sized>(target:EventTarget, name:String, closure:Closure<T>) -> Self {
+        let closure: &Function = closure.as_ref().unchecked_ref();
+        let closure = closure.clone();
         Self { target, name, closure }
     }
 }
 
-impl<T : ?Sized> Drop for EventListener<T> {
+impl Drop for EventListener {
     fn drop(&mut self) {
-        let callback : &Function = self.closure.as_ref().unchecked_ref();
-        remove_event_listener_with_callback(&self.target, &self.name, callback).ok();
+        remove_event_listener_with_callback(&self.target,&self.name,&self.closure).ok();
     }
 }
-
-// =================================================================================================
-// === Mouse Event Listeners =======================================================================
-// =================================================================================================
-
-pub type MouseEventListener = EventListener<dyn Fn(MouseEvent)>;
-pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
-
-
-
+// FIXME: Spacing
 // =================================================================================================
 // === MouseButton =================================================================================
 // =================================================================================================
@@ -68,7 +62,8 @@ pub enum MouseButton {
 // === MouseClickEvent =============================================================================
 // =================================================================================================
 
-pub trait FnMouseClick = Fn(MouseClickEvent) + 'static;
+// FIXME: Maybe it's ok, but why you don't define it as FnMut?
+pub trait FnMouseClick = Fn(MouseClickEvent) + 'static; // TODO: To make the name more semantical, lets rename it to `MouseClickCallback` please :)
 
 /// A struct storing information about mouse down and mouse up events.
 pub struct MouseClickEvent {
@@ -83,7 +78,7 @@ impl MouseClickEvent {
         let button    = match event.button() {
             LEFT_MOUSE_BUTTON      => MouseButton::LEFT,
             MIDDLE_MOUSE_BUTTON    => MouseButton::MIDDLE,
-            RIGHT_MOUSE_BUTTON | _ => MouseButton::RIGHT
+            RIGHT_MOUSE_BUTTON | _ => MouseButton::RIGHT // TODO: Please, do not revert to right mouse button. You can drop the events, but do not convert other buttons to RMB!
         };
         Self { position, button }
     }
@@ -105,7 +100,7 @@ pub struct MousePositionEvent {
 
 impl MousePositionEvent {
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
-        let position  = Vector2::new(event.x() as f32, event.y() as f32);
+        let position  = Vector2::new(event.x() as f32, event.y() as f32); // FIXME: spacing
         let position  = position - data.dom().position();
         let previous_position = match data.mouse_position() {
             Some(position) => position,
@@ -189,12 +184,12 @@ impl MouseWheelEvent {
 // === MouseManagerCell ============================================================================
 // =================================================================================================
 
-struct MouseManagerCell {
+struct MouseManagerCell { // FIXME: We do not use this naming convention. This sohuld be `MouseManagerData` or something similar. anyway, this is not a cell! Cell means mutable from different places. `RefCell<Something>` is a cell. this is not.
     detector            : TouchPadEventDetector,
     dom                 : DOMContainer,
     mouse_position      : Option<Vector2<f32>>,
     target              : EventTarget,
-    stop_mouse_tracking : Option<MouseEventListener>
+    stop_mouse_tracking : Option<EventListener> // FIXME: this needs a better name. "stop_mouse_tracking" is like name of a function.
 }
 
 
@@ -205,7 +200,7 @@ struct MouseManagerCell {
 
 /// A struct used for storing shared MouseManager's mutable data.
 struct MouseManagerData {
-    cell : RefCell<MouseManagerCell>
+    cell : RefCell<MouseManagerCell> // FIXME: why MouseManagerData contains `RefCell` only, but not `Rc`, and everywehre it is used it is used as `Rc<MouseManagerData>`?
 }
 
 impl MouseManagerData {
@@ -220,6 +215,8 @@ impl MouseManagerData {
             target,
             stop_mouse_tracking
         };
+        // FIXME: make it like this (below). Its better to break alignment than make 7-line expression :)
+        // FIXME: let cell = MouseManagerCell { detector,dom,mouse_position,target,stop_mouse_tracking};
         let cell = RefCell::new(cell);
         Rc::new(Self { cell })
     }
@@ -233,7 +230,7 @@ impl MouseManagerData {
         self.cell.borrow_mut().mouse_position = position
     }
 
-    fn set_stop_mouse_tracking(&self, listener:Option<MouseEventListener>) {
+    fn set_stop_mouse_tracking(&self, listener:Option<EventListener>) {
         self.cell.borrow_mut().stop_mouse_tracking = listener;
     }
 
@@ -261,7 +258,7 @@ impl MouseManagerData {
 
 /// This structs manages mouse events in a specified DOM object.
 pub struct MouseManager {
-    data                : Rc<MouseManagerData>
+    data                : Rc<MouseManagerData> // FIXME: spacing
 }
 
 const   LEFT_MOUSE_BUTTON: i16 = 0;
@@ -279,13 +276,14 @@ impl MouseManager {
     }
 
     /// Sets context menu state to enabled or disabled.
-    pub fn disable_context_menu(&mut self) -> Result<MouseEventListener> {
+    pub fn disable_context_menu(&mut self) -> Result<EventListener> {
         let listener = ignore_context_menu(&self.data.target())?;
-        Ok(MouseEventListener::new(self.data.target(), "contextmenu".to_string(), listener))
+        Ok(EventListener::new(self.data.target(), "contextmenu".to_string(), listener)) // FIXME: this is ugly a little bit. Please make the `new` function in such way that it accepts both `String` as well as `&str`. To make nice API, the conversion should always be done on definition side, not use-side! :)
     }
 
+    // FIXME: Can we generate the below things with macro_rules to throw away the boilerplate? Or would it be impractical?
     /// Adds mouse down event callback and returns its listener object.
-    pub fn add_mouse_down_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
+    pub fn add_mouse_down_callback<F:FnMouseClick>(&mut self, f:F) -> Result<EventListener> {
         let data = Rc::downgrade(&self.data);
         let closure = move |event:MouseEvent| {
             if let Some(data) = data.upgrade() {
@@ -296,7 +294,7 @@ impl MouseManager {
     }
 
     /// Adds mouse up event callback and returns its listener object.
-    pub fn add_mouse_up_callback<F:FnMouseClick>(&mut self, f:F) -> Result<MouseEventListener> {
+    pub fn add_mouse_up_callback<F:FnMouseClick>(&mut self, f:F) -> Result<EventListener> {
         let data = Rc::downgrade(&self.data);
         let closure = move |event:MouseEvent| {
             if let Some(data) = data.upgrade() {
@@ -308,7 +306,7 @@ impl MouseManager {
 
     /// Adds mouse move event callback and returns its listener object.
     pub fn add_mouse_move_callback
-    <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
+    <F:FnMousePosition>(&mut self, f:F) -> Result<EventListener> {
         let data = Rc::downgrade(&self.data);
         let closure = move |event:MouseEvent| {
             if let Some(data) = data.upgrade() {
@@ -320,7 +318,7 @@ impl MouseManager {
 
     /// Adds mouse leave event callback and returns its listener object.
     pub fn add_mouse_leave_callback
-    <F:FnMousePosition>(&mut self, f:F) -> Result<MouseEventListener> {
+    <F:FnMousePosition>(&mut self, f:F) -> Result<EventListener> {
         let data = Rc::downgrade(&self.data);
         let closure = move |event:MouseEvent| {
             if let Some(data) = data.upgrade() {
@@ -332,7 +330,7 @@ impl MouseManager {
 
     /// Adds MouseWheel event callback and returns its listener object.
     pub fn add_mouse_wheel_callback
-    <F:FnMouseWheel>(&mut self, mut f:F) -> Result<WheelEventListener> {
+    <F:FnMouseWheel>(&mut self, mut f:F) -> Result<EventListener> {
         let data = Rc::downgrade(&self.data);
         let closure = move |event:WheelEvent| {
             if let Some(data) = data.upgrade() {
@@ -380,16 +378,16 @@ fn remove_event_listener_with_callback
 }
 
 /// Adds mouse event callback and returns its listener.
-fn add_mouse_event<T>(target:&EventTarget, name:&str, closure: T) -> Result<MouseEventListener>
+fn add_mouse_event<T>(target:&EventTarget, name:&str, closure: T) -> Result<EventListener>
 where T : Fn(MouseEvent) + 'static {
     let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
     add_event_listener_with_callback(target, name, callback)?;
-    Ok(MouseEventListener::new(target.clone(), name.to_string(), closure))
+    Ok(EventListener::new(target.clone(), name.to_string(), closure))
 }
 
 /// Adds wheel event callback and returns its listener.
-fn add_wheel_event<T>(target:&EventTarget, closure: T) -> Result<WheelEventListener>
+fn add_wheel_event<T>(target:&EventTarget, closure: T) -> Result<EventListener>
 where T : FnMut(WheelEvent) + 'static {
     let closure     = Closure::wrap(Box::new(closure) as Box<dyn FnMut(WheelEvent)>);
     let callback    = closure.as_ref().unchecked_ref();
@@ -400,7 +398,7 @@ where T : FnMut(WheelEvent) + 'static {
         Ok(_)  => {
             let target = target.clone();
             let name = "wheel".to_string();
-            let listener = WheelEventListener::new(target, name, closure);
+            let listener = EventListener::new(target, name, closure);
             Ok(listener)
         },
         Err(_) => Err(Error::FailedToAddEventListener)

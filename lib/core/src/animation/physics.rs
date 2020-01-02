@@ -1,5 +1,5 @@
 use crate::prelude::*;
-
+// FIXME: This file really needs to change its name. It does not contain general physics simulator. It is a very specific physics system and the name should reflect that. Now its misleading.
 use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
 use crate::animation::linear_interpolation;
@@ -11,11 +11,11 @@ use nalgebra::zero;
 // ====================
 // === PhysicsForce ===
 // ====================
-
+// FIXME: Lack of docs here and there. Please add them to **all** public traits / structs / methods / modules
 pub trait PhysicsForce {
     fn force(&self, kinematics:&KinematicsProperties) -> Vector3<f32>;
 }
-
+// FIXME: spacing
 // ======================
 // === DragProperties ===
 // ======================
@@ -31,7 +31,7 @@ impl DragProperties {
         Self { coefficient: amount }
     }
 }
-
+// FIXME: We agreed that before merging this we will have the proper equation here. It is still not using v*v. We can have both, but we need the correct one. I believe it will be relaly simple to implement. And in case of problems with stability I will help you, we will do it fast! I think it would be cool to kjeep both equasions here :)
 impl PhysicsForce for DragProperties {
     fn force(&self, kinematics:&KinematicsProperties) -> Vector3<f32> {
         -kinematics.velocity * self.coefficient
@@ -39,7 +39,8 @@ impl PhysicsForce for DragProperties {
 }
 
 // === Getters ===
-
+// FIXME: I was thinking for long time about these getters. Either we delete these getters / setters, or we add getters and setters to all other fields in all other strucutres. Otherwise its inconsistent.
+//        Adding it to every other structure is IMO an overkill, so I owuld remove those. This will also simplify this file drastically. Win - Win!
 impl DragProperties {
     pub fn coefficient(self) -> f32 {
         self.coefficient
@@ -115,7 +116,7 @@ impl SpringProperties {
 // ============================
 
 /// This structure contains kinematics properties.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)] //FIXME: Spacing
 pub struct KinematicsProperties {
     position     : Vector3<f32>,
     velocity     : Vector3<f32>,
@@ -201,7 +202,7 @@ pub struct PhysicsProperties {
 impl PhysicsProperties {
     pub fn new
     (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
-        let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics, spring, drag)));
+        let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics, spring, drag))); // FIXME: spacing
         Self { data }
     }
 }
@@ -256,7 +257,7 @@ impl PhysicsProperties {
 // === SimulationObject ===
 // ========================
 
-pub trait SimulationObject = HasPosition + 'static;
+pub trait SimulationObject = HasPosition + 'static; // FIXME: this is a helper type. I would not create for it a separate section. It is helper for the PhysicsSimulator::new, lets put it in the PhysicsSimulator section.
 
 
 
@@ -264,6 +265,7 @@ pub trait SimulationObject = HasPosition + 'static;
 // === PhysicsSimulator ===
 // ========================
 
+// FIXME: Why the steps_per_second are not input parameter to this simulator? I know that 60 is amazing number, but it should be configurable :P
 /// A 60 steps per second physics simulator used to simulate `Properties`.
 pub struct PhysicsSimulator {
     _animator : Animator
@@ -282,11 +284,11 @@ impl PhysicsSimulator {
             let intervals = interval_counter.add_time(delta_ms);
             for _ in 0..intervals {
                 current_position = next_position;
-                next_position    = simulate(&mut properties, step_ms);
+                next_position    = simulate(&mut properties, step_ms); // FIXME: spacing + We are calling `simulate(&mut properties, step_ms)` here and above. Can we maybe merge these calls into one? Just asking, maybe its not possible.
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let position   = linear_interpolation(current_position, next_position, transition);
+            let position   = linear_interpolation(current_position, next_position, transition); // FIXME: spacing
             object.set_position(position);
         });
 

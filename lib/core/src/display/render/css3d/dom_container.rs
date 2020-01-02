@@ -76,7 +76,7 @@ pub struct DOMContainer {
     pub dom               : HtmlElement,
     resize_observer       : Option<ResizeObserver>,
     intersection_observer : Option<IntersectionObserver>,
-    data                  : Rc<RefCell<DOMContainerData>>,
+    data                  : Rc<RefCell<DOMContainerData>>, // FIXME: naked RefCell
 }
 
 impl Clone for DOMContainer {

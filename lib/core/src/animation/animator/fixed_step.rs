@@ -3,7 +3,7 @@ use super::FnAnimation;
 
 use nalgebra::zero;
 
-
+// FIXME: Remove all unnecessary .gitkeep files, please! :) .gitkeep are used only for git not to remove a folder when no other files are present.
 
 // =======================
 // === IntervalCounter ===
@@ -28,8 +28,9 @@ impl IntervalCounter {
         self.accumulated_time -= count as f32 * self.interval_duration;
         count
     }
-}
 
+}
+// FIXME: spacing
 // =============================
 // === FixedStepAnimatorData ===
 // =============================
@@ -67,7 +68,7 @@ pub struct FixedStepAnimator {
 
 impl FixedStepAnimator {
     pub fn new<F:FnAnimation>(steps_per_second:f32, f:F) -> Self {
-        let mut data               = FixedStepAnimatorData::new(steps_per_second, f);
+        let mut data               = FixedStepAnimatorData::new(steps_per_second, f); // FIXME: Spacing
         let _animator = Animator::new(move |delta_ms| {
             let intervals = data.counter.add_time(delta_ms);
             for _ in 0..intervals {

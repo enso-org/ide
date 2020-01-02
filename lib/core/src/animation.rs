@@ -10,10 +10,10 @@ pub mod animator;
 // === FnAnimation ===
 // ===================
 
-pub trait FnAnimation = FnMut(f32) + 'static;
+pub trait FnAnimation = FnMut(f32) + 'static; // FIXME: This name does not tell what it is. When I see "FnAnimation" I understand that this is a "function that has something to do with animation". A much better name would be something like AnimatorCallback - it tells that it is a "callback used by Animator".
 
 
-
+// FIXME: Please move things to better place then!
 // FIXME: The objects in this section needs a better place.
 // =============
 // === Utils ===
