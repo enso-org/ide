@@ -9,23 +9,22 @@ use crate::prelude::*;
 use inflector::Inflector;
 
 use crate::display::shape::primitive::def::class::ShapeRef;
+use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::canvas::Drawable;
-use crate::display::shape::primitive::shader::canvas::DrawableWithNum;
 use crate::display::shape::primitive::shader::item::GlslItem;
 use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
 
 
 
-// =================
-// === PrimShape ===
-// =================
+// ================
+// === SdfShape ===
+// ================
 
-/// Class of primitive shapes. Primitive shapes are described by a SDF field.
-pub trait PrimShape {
-    /// Converts the shape to SDF GLSL code.
-    fn to_sdf_code(&self) -> String;
+/// Class of primitive SDF shapes.
+pub trait SdfShape {
+    /// Gets the SDF definition for the given shape.
+    fn glsl_definition() -> String;
 }
 
 
@@ -34,15 +33,15 @@ pub trait PrimShape {
 // === Prim Shape Definition Macros ===
 // ====================================
 
-/// Defines primitive shapes and appropriate shape wrappers.
+/// Defines SDF shapes and appropriate shape wrappers.
 ///
-/// Primitive shapes are defined in the `mutable` module, while the shape wrappers are placed in
-/// the `immutable` module. The shape definition accepted by this macro is similar to both a struct
+/// SDF shapes are defined in the `mutable` module, while the shape wrappers are placed in the
+/// `immutable` module. The shape definition accepted by this macro is similar to both a struct
 /// and a function definition. It's body should be defined as a valid GLSL code.
 ///
 /// For the following input:
 /// ```compile_fail
-/// define_prim_shapes! {
+/// define_sdf_shapes! {
 ///     Circle (radius:f32) {
 ///         return sdf(length(position)-radius, bbox_center(radius,radius));
 ///     }
@@ -66,25 +65,6 @@ pub trait PrimShape {
 ///             Self {glsl_name,radius}
 ///         }
 ///     }
-///
-///     impl PrimShape for Circle {
-///            fn to_sdf_code(&self) -> String {
-///                let body = "return sdf(length(position)-radius, bbox_center(radius,radius));";
-///                let args = vec![
-///                    "vec2 position".to_string(),
-///                    format!("{} {}", <$f32 as Item>::gpu_type_name(), "radius")
-///                    ].join(", ");
-///                format!("sdf {} ({}) {{ {} }}",self.glsl_name,args,body)
-///            }
-///        }
-///
-///        impl Drawable for Circle {
-///            fn paint(&self, painter:&mut Painter) -> CanvasShape {
-///             let args = vec!["position", &self.radius].join(",");
-///             let code = format!("{}({})",self.glsl_name,args);
-///             canvas.define_shape(&code,None)
-///            }
-///        }
 /// }
 ///
 /// pub mod immutable {
@@ -94,29 +74,57 @@ pub trait PrimShape {
 ///     pub fn Circle<radius:GlslItem<f32>>(radius:radius) -> Circle {
 ///         Shape::new(mutable::Circle::new(radius))
 ///     }
+///
+///     impl Shape for Circle {
+///         fn paint(&self, painter:&mut Painter) -> CanvasShape {
+///             let args = vec!["position", &self.radius].join(",");
+///             let code = format!("{}({})",self.glsl_name,args);
+///             canvas.define_shape(self.id(),&code)
+///         }
+///     }
+///
+///     impl SdfShape for Circle {
+///         fn glsl_definition() -> String {
+///             let body = "return sdf(length(position)-radius, bbox_center(radius,radius));";
+///             let args = vec![
+///                 "vec2 position".to_string(),
+///                 format!("{} {}", <$f32 as Item>::gpu_type_name(), "radius")
+///                 ].join(", ");
+///             format!("sdf {} ({}) {{ {} }}",self.glsl_name,args,body)
+///         }
+///     }
 /// }
 /// ```
+///
+/// Moreover, there is also a `all_shapes_glsl_definitions` function generated which returns a code
+/// containing GLSL definitions of all shapes in one place.
 
-macro_rules! define_prim_shapes {
+macro_rules! define_sdf_shapes {
     ( $($name:ident $args:tt $body:tt)* ) => {
 
         /// Contains mutable shapes definitions.
         pub mod mutable {
             use super::*;
-            $(_define_mutable! {$name $args $body} )*
+            $(_define_sdf_shape_mutable_part! {$name $args $body} )*
         }
 
         /// Contains immutable shapes definitions.
         pub mod immutable {
             use super::*;
-            $(_define_shape! {$name $args $body} )*
+            $(_define_sdf_shape_immutable_part! {$name $args $body} )*
+        }
+
+        /// GLSL definition of all shapes.
+        pub fn all_shapes_glsl_definitions() -> String {
+            use immutable::*;
+            vec![$($name::glsl_definition()),*].join("\n\n")
         }
     };
 }
 
-/// See the docs of `define_prim_shapes`.
-macro_rules! _define_shape {
-    ( $name:ident ( $($field:ident : $field_type:ty),* $(,)? ) { $($code:tt)* } ) => {
+/// See the docs of `define_sdf_shapes`.
+macro_rules! _define_sdf_shape_immutable_part {
+    ( $name:ident ( $($field:ident : $field_type:ty),* $(,)? ) $body:tt ) => {
 
         /// Smart shape type.
         pub type $name = ShapeRef<mutable::$name>;
@@ -125,11 +133,30 @@ macro_rules! _define_shape {
         pub fn $name <$($field:GlslItem<$field_type>),*> ( $($field : $field),* ) -> $name {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
+
+        impl Shape for $name {
+            fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+                let args = vec!["position", $(&self.$field),* ].join(",");
+                let code = format!("{}({})",self.glsl_name,args);
+                canvas.define_shape(self.id(),&code)
+            }
+        }
+
+        impl SdfShape for $name {
+            fn glsl_definition() -> String {
+                let name = stringify!($name).to_snake_case();
+                let body = stringify!($body);
+                let args = vec!["vec2 position".to_string(), $(
+                    format!("{} {}", <$field_type as Item>::gpu_type_name(), stringify!($field))
+                ),*].join(", ");
+                iformat!("sdf {name} ({args}) {body}")
+            }
+        }
     }
 }
 
-/// See the docs of `define_prim_shapes`.
-macro_rules! _define_mutable {
+/// See the docs of `define_sdf_shapes`.
+macro_rules! _define_sdf_shape_mutable_part {
     ( $name:ident ( $($field:ident : $field_type:ty),* $(,)? ) { $($code:tt)* } ) => {
 
         /// The shape definition.
@@ -148,24 +175,6 @@ macro_rules! _define_mutable {
                 Self {glsl_name,$($field),*}
             }
         }
-
-        impl PrimShape for $name {
-            fn to_sdf_code(&self) -> String {
-                let body = stringify!($($code)*);
-                let args = vec!["vec2 position".to_string(), $(
-                    format!("{} {}", <$field_type as Item>::gpu_type_name(), stringify!($field))
-                ),*].join(", ");
-                format!("sdf {} ({}) {{ {} }}",self.glsl_name,args,body)
-            }
-        }
-
-        impl DrawableWithNum for $name {
-            fn draw_with_num(&self, canvas:&mut Canvas, num:usize) -> CanvasShape {
-                let args = vec!["position", $(&self.$field),* ].join(",");
-                let code = format!("{}({})",self.glsl_name,args);
-                canvas.define_shape(num,&code)
-            }
-        }
     };
 }
 
@@ -175,7 +184,7 @@ macro_rules! _define_mutable {
 // === Prim Shapes ===
 // ===================
 
-define_prim_shapes! {
+define_sdf_shapes! {
 
     // === Infinite ===
 
