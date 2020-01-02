@@ -12,6 +12,7 @@ use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::canvas::Drawable;
+use crate::display::shape::primitive::shader::canvas::DrawableWithNum;
 use crate::display::shape::primitive::shader::item::GlslItem;
 use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
 
@@ -158,11 +159,11 @@ macro_rules! _define_mutable {
             }
         }
 
-        impl Drawable for $name {
-            fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        impl DrawableWithNum for $name {
+            fn draw_with_num(&self, canvas:&mut Canvas, num:usize) -> CanvasShape {
                 let args = vec!["position", $(&self.$field),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
-                canvas.define_shape(&code)
+                canvas.define_shape(num,&code)
             }
         }
     };

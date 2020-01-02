@@ -7,6 +7,7 @@ use crate::display::shape::primitive::def::*;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::canvas::Drawable;
+use crate::display::shape::primitive::shader::canvas::DrawableWithNum;
 
 
 
@@ -58,7 +59,7 @@ impl<T> ShapeRef<T> {
     }
 }
 
-impl<T:Drawable> ShapeRef<T> {
+impl<T:DrawableWithNum> ShapeRef<T> {
     /// Translate the shape by a given offset.
     pub fn translate(&self,x:f32,y:f32) -> Translate<Self> {
         Translate(self,x,y)
@@ -76,13 +77,13 @@ impl<T> HasId for ShapeRef<T> {
     }
 }
 
-impl<T:Drawable> Drawable for ShapeRef<T> {
+impl<T:DrawableWithNum> Drawable for ShapeRef<T> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
-        self.rc.draw(canvas)
+        self.rc.draw_with_num(canvas,self.id())
     }
 }
 
-impl<T:Drawable,S:Shape> std::ops::Add<&S> for &ShapeRef<T> {
+impl<T:DrawableWithNum,S:Shape> std::ops::Add<&S> for &ShapeRef<T> {
     type Output = Union<ShapeRef<T>,S>;
     fn add(self, that:&S) -> Self::Output {
         self.union(that)

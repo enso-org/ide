@@ -17,6 +17,13 @@ pub trait Drawable {
 }
 
 
+/// Describes every shape which can be painted on the canvas.
+pub trait DrawableWithNum {
+    /// Draw the element on the canvas.
+    fn draw_with_num(&self, canvas:&mut Canvas, num:usize) -> CanvasShape;
+}
+
+
 
 // ===================
 // === CanvasShape ===
@@ -133,17 +140,17 @@ impl Canvas {
 // === Shape Definition ===
 
 impl Canvas {
-    /// Creates a new `CanvasShape` object. The shape is not assigned with any id and is not
-    /// represented in the GLSL code yet.
-    pub fn new_canvas_shape(&mut self) -> CanvasShape {
-        let num = self.get_new_shape_num();
-        CanvasShape::new(num)
-    }
+//    /// Creates a new `CanvasShape` object. The shape is not assigned with any id and is not
+//    /// represented in the GLSL code yet.
+//    pub fn new_canvas_shape(&mut self) -> CanvasShape {
+//        let num = self.get_new_shape_num();
+//        CanvasShape::new(num)
+//    }
 
     /// Defines a new shape with a new id and associated parameters, like color.
-    pub fn define_shape(&mut self, sdf:&str) -> CanvasShape {
+    pub fn define_shape(&mut self, num:usize, sdf:&str) -> CanvasShape {
         let color     = "rgb2lch(vec3(1.0,0.0,0.0)";
-        let mut shape = self.new_canvas_shape();
+        let mut shape = CanvasShape::new(num);
         let id        = self.get_new_id();
         self.define("color" , "shape_color" , iformat!("{color}"));
         self.define("sdf"   , "shape_sdf"   , iformat!("{sdf}"));
@@ -155,8 +162,8 @@ impl Canvas {
     }
 
     /// Define a new shape from the provided GLSL expression.
-    pub fn new_shape_from_expr(&mut self, expr:&str) -> CanvasShape {
-        let shape = self.new_canvas_shape();
+    pub fn new_shape_from_expr(&mut self, num:usize, expr:&str) -> CanvasShape {
+        let shape = CanvasShape::new(num);
         self.add_current_function_code_line(expr);
         self.submit_shape_constructor(&shape.name);
         shape
@@ -168,18 +175,22 @@ impl Canvas {
 
 impl Canvas {
     /// Create a union shape from the provided shape components.
-    pub fn union(&mut self, s1:CanvasShape, s2:CanvasShape) -> CanvasShape {
+    pub fn union(&mut self, num:usize, s1:CanvasShape, s2:CanvasShape) -> CanvasShape {
         let expr      = iformat!("return union({s1.getter()},{s2.getter()});");
-        let mut shape = self.new_shape_from_expr(&expr);
+        let mut shape = self.new_shape_from_expr(num,&expr);
         shape.add_ids(&s1.ids);
         shape.add_ids(&s2.ids);
         shape
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<X:GlslItem<f32>,Y:GlslItem<f32>>(&mut self, x:X, y:Y) {
-        let expr = iformat!("sdf_translate(position, vec2({x.to_glsl()},{y.to_glsl()}))");
-        self.define("","position",expr);
+    pub fn translate<X:GlslItem<f32>,Y:GlslItem<f32>>(&mut self, num:usize, s1:CanvasShape, x:X, y:Y) -> CanvasShape{
+        let trans = iformat!("position = sdf_translate(position, vec2({x.to_glsl()},{y.to_glsl()}))");
+        let expr  = iformat!("return {s1.getter()};");
+        self.add_current_function_code_line(trans);
+        let mut shape = self.new_shape_from_expr(num,&expr);
+        shape.add_ids(&s1.ids);
+        shape
     }
 }
 

@@ -8,7 +8,7 @@ use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::canvas::Drawable;
+use crate::display::shape::primitive::shader::canvas::DrawableWithNum;
 use crate::display::shape::primitive::shader::item::GlslItem;
 
 
@@ -120,17 +120,17 @@ define_compound_shapes! {
     Union(child1,child2)()
 }
 
-impl<Child:Shape> Drawable for mutable::Translate<Child> {
-    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
-        canvas.translate(&self.x,&self.y);
-        self.child.draw(canvas)
+impl<Child:Shape> DrawableWithNum for mutable::Translate<Child> {
+    fn draw_with_num(&self, canvas:&mut Canvas, num:usize) -> CanvasShape {
+        let s1 = self.child.draw(canvas);
+        canvas.translate(num,s1,&self.x,&self.y)
     }
 }
 
-impl<Child1:Shape,Child2:Shape> Drawable for mutable::Union<Child1,Child2> {
-    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+impl<Child1:Shape,Child2:Shape> DrawableWithNum for mutable::Union<Child1,Child2> {
+    fn draw_with_num(&self, canvas:&mut Canvas, num:usize) -> CanvasShape {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
-        canvas.union(s1,s2)
+        canvas.union(num,s1,s2)
     }
 }
