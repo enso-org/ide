@@ -160,6 +160,11 @@ impl Canvas {
         self.add_indented_code_line(iformat!("{ty} {name} = {expr.as_ref()};"));
     }
 
+    /// Assigns a value to an existing variable in the GLSL code.
+    fn assign<E:Str>(&mut self, name:&str, expr:E) {
+        self.define("",name,expr)
+    }
+
     /// Get the final GLSL code.
     fn to_glsl(&self) -> String {
         self.code_lines.join("\n")
@@ -281,9 +286,9 @@ pub trait PrimShape {
 ///            }
 ///        }
 ///
-///        impl ShapeDef for Circle {
-///            fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-///                self.draw(&mut renderer.canvas)
+///        impl PainterShape for Circle {
+///            fn paint(&self, painter:&mut Painter) -> CanvasShape {
+///                self.draw(&mut painter.canvas)
 ///            }
 ///        }
 /// }
@@ -363,9 +368,9 @@ macro_rules! define_prim_shape {
             }
         }
 
-        impl ShapeDef for $name {
-            fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-                self.draw(&mut renderer.canvas)
+        impl PainterShape for $name {
+            fn paint(&self, painter:&mut Painter) -> CanvasShape {
+                self.draw(&mut painter.canvas)
             }
         }
     };
@@ -377,15 +382,26 @@ macro_rules! define_prim_shape {
 // === HasId ===
 // =============
 
-/// Each shape definition has to be assigned with an unique id in order for the renderer to
+/// Each shape definition has to be assigned with an unique id in order for the painter to
 /// implement results cache. For example, we can create a circle as `s1` and then move it right,
 /// which will result in the `s2` object. We can merge them together creating `s3` object. The
-/// renderer needs to discover that `s3` was in fact created from two `s1` under the hood.
+/// painter needs to discover that `s3` was in fact created from two `s1` under the hood.
 ///
 /// This trait should not be implemented manually. It is implemented by `Immutable`, which wraps
 /// every shape definition.
 pub trait HasId {
     fn id(&self) -> usize;
+}
+
+
+
+// ====================
+// === PainterShape ===
+// ====================
+
+/// Describes every shape which can be painted on the canvas by using the `Painter` interface.
+trait PainterShape {
+    fn paint(&self, painter:&mut Painter) -> CanvasShape;
 }
 
 
@@ -414,42 +430,75 @@ impl<T> HasId for Immutable<T> {
     }
 }
 
-
-
-trait ShapeDef {
-    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape;
-}
-
-trait IsShape = ShapeDef + HasId;
-
-impl<T:ShapeDef> ShapeDef for Immutable<T> {
-    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-        self.rc.render_glsl(renderer)
+impl<T:PainterShape> PainterShape for Immutable<T> {
+    fn paint(&self, painter:&mut Painter) -> CanvasShape {
+        self.rc.paint(painter)
     }
 }
+
+
+
+// =============
+// === Shape ===
+// =============
+
+/// Type of every shape. Under the hood, every shape is `Immutable<P>` where `P:PrimShape`, however,
+/// it is much easier to express the dependencies on more general type bounds, so the following
+/// type does not mention the specific implementation details.
+trait Shape = PainterShape + HasId;
+
+
+/// Methods available on every shape.
+pub trait ShapeOps
+    where Self:Sized+Clone {
+    fn translate(&self,x:f32,y:f32) -> Translate<Self> {
+        Immutable::new(PrimTranslate::new(self, x, y))
+    }
+
+    fn union<S:Clone>(&self,that:S) -> Union<Self,S> {
+        Immutable::new(PrimUnion::new(self, &that))
+    }
+}
+impl<T> ShapeOps for Immutable<T> {}
+
+
+impl<T,S:Clone> std::ops::Add<S> for Immutable<T> {
+    type Output = Immutable<PrimUnion<Immutable<T>,S>>;
+    fn add(self, that:S) -> Self::Output {
+        self.union(that)
+    }
+}
+
+
+
+
+
+
+
 
 
 
 
 // === Translate ===
 
-pub struct Translate<S> {
+pub type Translate<S> = Immutable<PrimTranslate<S>>;
+pub struct PrimTranslate<S> {
     shape : S,
     x     : f32,
     y     : f32,
 }
 
-impl<S:Clone> Translate<S> {
+impl<S:Clone> PrimTranslate<S> {
     pub fn new(shape:&S,x:f32,y:f32) -> Self {
         Self {shape:shape.clone(),x,y}
     }
 }
 
-impl<S:IsShape> ShapeDef for Translate<S> {
-    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-        renderer.with_new_tx_ctx(|r| {
-            r.canvas.translate(self.x,self.y);
-            r.render_shape(&self.shape)
+impl<S:Shape> PainterShape for PrimTranslate<S> {
+    fn paint(&self, painter:&mut Painter) -> CanvasShape {
+        painter.with_new_transform_context(|painter| {
+            painter.canvas.translate(self.x,self.y);
+            painter.draw_shape(&self.shape)
         })
     }
 }
@@ -458,94 +507,93 @@ impl<S:IsShape> ShapeDef for Translate<S> {
 
 // === Union ===
 
-pub struct Union<S1,S2> {
-    shape1 : S1,
-    shape2 : S2
+pub type Union<S1,S2> = Immutable<PrimUnion<S1,S2>>;
+pub struct PrimUnion<S1,S2> {
+    shape1: S1,
+    shape2: S2
 }
 
-impl<S1:Clone,S2:Clone> Union<S1,S2> {
+impl<S1:Clone,S2:Clone> PrimUnion<S1,S2> {
     pub fn new(shape1:&S1,shape2:&S2) -> Self {
         Self {shape1:shape1.clone(),shape2:shape2.clone()}
     }
 }
 
-impl<S1:IsShape,S2:IsShape> ShapeDef for Union<S1,S2> {
-    fn render_glsl(&self, renderer:&mut GlslRenderer) -> CanvasShape {
-        let s1 = renderer.render_shape(&self.shape1);
-        let s2 = renderer.render_shape(&self.shape2);
-        renderer.canvas.union(s1,s2)
+impl<S1:Shape,S2:Shape> PainterShape for PrimUnion<S1,S2> {
+    fn paint(&self, painter:&mut Painter) -> CanvasShape {
+        let s1 = painter.draw_shape(&self.shape1);
+        let s2 = painter.draw_shape(&self.shape2);
+        painter.canvas.union(s1,s2)
     }
 }
 
 
 
+// ===============
+// === Painter ===
+// ===============
 
+/// Helper for painting shapes on canvas. It implements a transform stack, allowing for implementing
+/// elements with hierarchical transforms (like rotation of group of objects). The transform stack
+/// is implemented by using the `transform_context` variable. It defines a
+/// `position_{transform_context}` variable in GLSL code and simulates push / pop states there.
 #[derive(Debug,Default)]
-struct GlslRenderer {
-    canvas      : Canvas,
-    done        : HashMap<(usize,usize), CanvasShape>,
-    tx_ctx      : usize,
-    last_tx_ctx : usize,
+struct Painter {
+    canvas                 : Canvas,
+    done                   : HashMap<(usize,usize), CanvasShape>,
+    transform_context      : usize,
+    last_transform_context : usize,
 }
 
-impl GlslRenderer {
-    pub fn get_new_tx_ctx(&mut self) -> usize {
-        self.last_tx_ctx += 1;
-        self.last_tx_ctx
+impl Painter {
+    /// Runs the painter for the given shape and returns GLSL code for it.
+    pub fn run<S:Shape>(shape:&S) -> String {
+        Self::default().glsl_code(shape)
     }
 
-    pub fn with_new_tx_ctx<F:FnOnce(&mut Self)->T,T>(&mut self, f:F) -> T {
-        let old_ctx = self.tx_ctx;
-        let new_ctx = self.get_new_tx_ctx();
-        self.tx_ctx = new_ctx;
+    /// Gets a new transform context id.
+    fn get_new_transform_context(&mut self) -> usize {
+        self.last_transform_context += 1;
+        self.last_transform_context
+    }
+
+    /// Evaluates the provided function in a new transform context. After the function is finished,
+    /// the transform is restored to what it was before evaluating the function.
+    fn with_new_transform_context<F:FnOnce(&mut Self)->T,T>(&mut self, f:F) -> T {
+        let old_ctx = self.transform_context;
+        let new_ctx = self.get_new_transform_context();
+        self.transform_context = new_ctx;
         self.canvas.define("vec2",&iformat!("position_{new_ctx}"),"position");
         let out = f(self);
-        self.canvas.define("","position",iformat!("position_{new_ctx}"));
-        self.tx_ctx = old_ctx;
+        self.canvas.assign("position",iformat!("position_{new_ctx}"));
+        self.transform_context = old_ctx;
         out
     }
 
-    pub fn render_shape<S:IsShape>(&mut self, shape:&S) -> CanvasShape {
+    /// Draws the provided shape on canvas with the current transformation stack. If the shape in
+    /// such transformation stack was already drawn, this method returns reference to that shape.
+    fn draw_shape<S:Shape>(&mut self, shape:&S) -> CanvasShape {
         let shape_ptr    = shape.id();
-        let canvas_shape = self.done.get(&(shape_ptr,self.tx_ctx));
+        let canvas_shape = self.done.get(&(shape_ptr,self.transform_context));
         match canvas_shape {
             Some(s) => s.clone(),
             None    => {
-                let canvas_shape = shape.render_glsl(self);
-                self.done.insert((shape_ptr,self.tx_ctx), canvas_shape.clone());
+                let canvas_shape = shape.paint(self);
+                self.done.insert((shape_ptr,self.transform_context), canvas_shape.clone());
                 canvas_shape
             }
         }
     }
 
-    pub fn render<S:IsShape>(&mut self, shape:&S) -> String {
-        let canvas_shape = self.render_shape(shape);
+    /// Returns the final GLSL code.
+    fn glsl_code<S:Shape>(&mut self, shape:&S) -> String {
+        let canvas_shape = self.draw_shape(shape);
         iformat!("shape main(vec2 position) {{\n{self.canvas.to_glsl()}\n    return {canvas_shape.name};\n}}")
     }
 }
 
 
-pub trait ShapeOps
-where Self:Sized+Clone {
-    fn translate(&self,x:f32,y:f32) -> Immutable<Translate<Self>> {
-        Immutable::new(Translate::new(self,x,y))
-    }
 
-    fn union<S:Clone>(&self,that:S) -> Immutable<Union<Self,S>> {
-        Immutable::new(Union::new(self,&that))
-    }
-}
-
-impl<T> ShapeOps for Immutable<T> {}
-
-
-
-impl<T,S:Clone> std::ops::Add<S> for Immutable<T> {
-    type Output = Immutable<Union<Immutable<T>,S>>;
-    fn add(self, that:S) -> Self::Output {
-        self.union(that)
-    }
-}
 
 
 
@@ -636,23 +684,11 @@ define_shapes! {
 pub fn main() {
     use shapes::*;
 
-    let mut r:GlslRenderer = default();
-    let canvas = &mut r.canvas;
-
-//    let c1 = Circle::new("10.0");
-//    let c2 = Circle::new("10.0");
-//    let s1 = c1.draw(canvas);
-//    let s2 = c2.draw(canvas);
-//    canvas.union(s1,s2);
-
     let s1 = Circle(10.0);
     let s2 = s1.translate(1.0,2.0);
     let s3 = s1 + s2;
 
-    println!("{}", r.render(&s3));
-
-//
-//    println!("{}", c1.to_sdf_code());
+    println!("{}", Painter::run(&s3));
 }
 
 
