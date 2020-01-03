@@ -73,9 +73,7 @@ impl Navigator {
             let y = pan.movement.y * scale;
             let z = 0.0;
 
-            properties_clone.mod_spring(|spring| {
-                spring.fixed_point = spring.fixed_point + Vector3::new(x, y, z);
-            });
+            properties_clone.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
         };
 
         let dom_clone = dom.clone();

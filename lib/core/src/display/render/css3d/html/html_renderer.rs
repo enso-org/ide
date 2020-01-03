@@ -66,8 +66,7 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
 }
 
 fn setup_camera_perspective
-(dom:&JsValue, near:f32, half_width:f32, half_height:f32, matrix:&Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
+(dom:&JsValue, near:f32, half_width:f32, half_height:f32, matrix:&Matrix4<f32>) { // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {

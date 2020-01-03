@@ -62,7 +62,7 @@ impl HasPosition for Object {
 #[cfg(test)]
 mod test {
     use super::Object;
-    use crate::traits::HasPosition;
+    use crate::animation::HasPosition;
     use nalgebra::Vector3;
     use nalgebra::Quaternion;
     use std::f32::consts::PI;

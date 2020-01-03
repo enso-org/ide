@@ -13,9 +13,8 @@ mod tests {
     use basegl::display::render::css3d::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::display::navigation::navigator::Navigator;
+    use basegl::animation::HasPosition;
     use web_test::*;
-
-    use basegl::animation::physics::*;
 
     use nalgebra::Vector3;
 
