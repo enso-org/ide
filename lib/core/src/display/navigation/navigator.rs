@@ -87,9 +87,11 @@ impl Navigator {
                 let z         = camera.get_y_scale();
                 let direction = Vector3::new(x, y, z).normalize();
 
-                let mut position = properties.spring().fixed_point();
-                position  += direction * zoom.amount;
-                position.z = position.z.max(persp.near + 1.0);
+                let mut position          = properties.spring().fixed_point();
+                let distance_compensation = position.z  * 0.001;
+                let zoom_amount           = zoom.amount * distance_compensation;
+                position                 += direction   * zoom_amount;
+                position.z                = position.z.max(persp.near + 1.0);
 
                 properties.mod_spring(|spring| spring.set_fixed_point(position));
             }
