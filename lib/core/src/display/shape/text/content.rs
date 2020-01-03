@@ -124,9 +124,18 @@ impl TextChange {
     }
 }
 
+
+
 // ============================
 // === TextComponentContent ===
 // ============================
+
+/// A position of character in multiline text.
+#[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
+pub struct CharPosition {
+    pub line   : usize,
+    pub column : usize,
+}
 
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
@@ -134,13 +143,6 @@ pub struct TextComponentContent {
     pub lines       : Vec<Line>,
     pub dirty_lines : DirtyLines,
     pub font        : FontId,
-}
-
-/// A position of character in multiline text.
-#[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
-pub struct CharPosition {
-    pub line   : usize,
-    pub column : usize,
 }
 
 /// References to all needed stuff for generating buffer's data.
@@ -175,7 +177,7 @@ impl TextComponentContent {
         }
     }
 
-    pub fn line(& mut self, index:usize) -> LineRef {
+    pub fn line(&mut self, index:usize) -> LineRef {
         LineRef {
             line    : &mut self.lines[index],
             line_id : index,

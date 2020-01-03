@@ -348,7 +348,7 @@ mod example_02 {
                 column : editor.content.lines.last().unwrap().len(),
             };
             cursor.position = new_cursor_position;
-            editor.cursors.dirty_cursors.insert(0);
+//            editor.cursors.dirty_cursors.insert(0);
         }
         if start_scrolling <= js_sys::Date::now() {
             editor.scroll(Vector2::new(0.0, -0.01));
