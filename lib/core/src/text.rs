@@ -35,10 +35,10 @@ use web_sys::WebGlTexture;
 
 #[derive(Debug)]
 pub struct TextComponentProperties {
-    pub position        : Point2<f64>,
-    pub size            : Vector2<f64>,
-    pub text_size       : f64,
-    pub color           : Color<f32>,
+    pub position  : Point2<f64>,
+    pub size      : Vector2<f64>,
+    pub text_size : f64,
+    pub color     : Color<f32>,
 }
 
 /// Component rendering text
