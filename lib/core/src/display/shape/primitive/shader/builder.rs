@@ -9,6 +9,7 @@ use crate::display::shape::primitive::def::sdf;
 
 
 //const GLSL_DEFS:&str = include_str!("helpers.glsl");
+const FRAGMENT_RUNNER:&str = include_str!("../glsl/fragment_runner.glsl");
 
 
 pub fn header(label:&str) -> String {
@@ -30,6 +31,8 @@ impl Builder {
         let shape_header = header("Shape Definition");
         canvas.add_current_function_code_line(iformat!("return {shape_ref.getter()};"));
         canvas.submit_shape_constructor("run");
-        iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}")
+        iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
+        FRAGMENT_RUNNER.to_string()
     }
 }
+

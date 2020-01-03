@@ -17,6 +17,8 @@ use crate::system::web::Logger;
 use web_sys::WebGlProgram;
 
 
+use crate::display::shape::primitive::shader::builder::Builder;
+
 
 // ================
 // === Material ===
