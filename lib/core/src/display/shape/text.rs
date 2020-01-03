@@ -33,6 +33,7 @@ use web_sys::WebGlTexture;
 // === TextComponent ===
 // =====================
 
+/// Properties of text component.
 #[derive(Debug)]
 pub struct TextComponentProperties {
     pub position  : Point2<f64>,
@@ -44,7 +45,7 @@ pub struct TextComponentProperties {
 /// Component rendering text
 ///
 /// This component is under heavy construction, so the api may easily changed in few future
-/// commits
+/// commits.
 #[derive(Debug)]
 pub struct TextComponent {
     pub content       : TextComponentContent,
