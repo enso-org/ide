@@ -221,14 +221,14 @@ impl NavigatorEvents {
         let data = Rc::downgrade(&self.data);
         let listener = self.mouse_manager.add_mouse_wheel_callback(move |event:MouseWheelEvent| {
             if let Some(data) = data.upgrade() {
-                if event.is_touchpad && !event.is_ctrl_pressed {
-                    let pan_event = PanEvent::from_wheel_event(event);
-                    data.on_pan(pan_event);
-                } else {
+                if event.is_ctrl_pressed {
                     let position   = data.mouse_position();
                     let zoom_speed = data.zoom_speed();
                     let zoom_event = ZoomEvent::from_mouse_wheel(event, position, zoom_speed);
                     data.on_zoom(zoom_event);
+                } else {
+                    let pan_event = PanEvent::from_wheel_event(event);
+                    data.on_pan(pan_event);
                 }
             }
         })?;

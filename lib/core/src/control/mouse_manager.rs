@@ -3,7 +3,6 @@ use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
 use crate::system::web::ignore_context_menu;
-use crate::system::web::get_performance;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -11,7 +10,6 @@ use web_sys::MouseEvent;
 use web_sys::WheelEvent;
 use web_sys::EventTarget;
 use web_sys::AddEventListenerOptions;
-use web_sys::Performance;
 use js_sys::Function;
 use nalgebra::Vector2;
 use std::rc::Rc;
@@ -119,47 +117,6 @@ impl MousePositionEvent {
 
 
 // =================================================================================================
-// === TouchPadEventDetector =======================================================================
-// =================================================================================================
-
-
-struct TouchPadEventDetector {
-    is_touchpad : bool,
-    performance : Performance,
-    count       : u32,
-    start       : f64
-}
-
-impl TouchPadEventDetector {
-    fn new() -> Self {
-        let performance = get_performance().expect("Couldn't get performance");
-        let is_touchpad = false;
-        let count       = 0;
-        let start       = performance.now();
-        Self { is_touchpad,performance,count,start }
-    }
-
-    fn is_touchpad(&mut self) -> bool {
-        let current_time = self.performance.now();
-
-        if self.count == 0 {
-            self.start = current_time;
-        }
-
-        self.count += 1;
-
-        if current_time - self.start > 100.0 {
-            self.is_touchpad = self.count > 5;
-            self.count = 0;
-        }
-
-        self.is_touchpad
-    }
-}
-
-
-
-// =================================================================================================
 // === MouseWheelEvent =============================================================================
 // =================================================================================================
 
@@ -167,19 +124,17 @@ pub trait FnMouseWheel = FnMut(MouseWheelEvent) + 'static;
 
 /// A struct storing information about mouse wheel events.
 pub struct MouseWheelEvent {
-    pub is_touchpad     : bool,
     pub is_ctrl_pressed : bool,
     pub movement_x      : f32,
     pub movement_y      : f32
 }
 
 impl MouseWheelEvent {
-    fn from(event:WheelEvent, detector:&mut TouchPadEventDetector) -> Self {
-        let is_touchpad     = detector.is_touchpad();
+    fn from(event:WheelEvent) -> Self {
         let movement_x      = event.delta_x() as f32;
         let movement_y      = event.delta_y() as f32;
         let is_ctrl_pressed = event.ctrl_key();
-        Self { is_touchpad,movement_x,movement_y,is_ctrl_pressed }
+        Self { movement_x,movement_y,is_ctrl_pressed }
     }
 }
 
@@ -190,7 +145,6 @@ impl MouseWheelEvent {
 // =================================================================================================
 
 struct MouseManagerCell {
-    detector            : TouchPadEventDetector,
     dom                 : DOMContainer,
     mouse_position      : Option<Vector2<f32>>,
     target              : EventTarget,
@@ -210,11 +164,9 @@ struct MouseManagerData {
 
 impl MouseManagerData {
     fn new(target:EventTarget, dom:DOMContainer) -> Rc<Self> {
-        let detector            = TouchPadEventDetector::new();
         let mouse_position      = None;
         let stop_mouse_tracking = None;
         let cell                = MouseManagerCell {
-            detector,
             dom,
             mouse_position,
             target,
@@ -235,10 +187,6 @@ impl MouseManagerData {
 
     fn set_stop_mouse_tracking(&self, listener:Option<MouseEventListener>) {
         self.cell.borrow_mut().stop_mouse_tracking = listener;
-    }
-
-    fn mod_detector<F:FnOnce(&mut TouchPadEventDetector)>(&self, f:F) {
-        (f)(&mut self.cell.borrow_mut().detector)
     }
 }
 
@@ -333,13 +281,9 @@ impl MouseManager {
     /// Adds MouseWheel event callback and returns its listener object.
     pub fn add_mouse_wheel_callback
     <F:FnMouseWheel>(&mut self, mut f:F) -> Result<WheelEventListener> {
-        let data = Rc::downgrade(&self.data);
         let closure = move |event:WheelEvent| {
-            if let Some(data) = data.upgrade() {
-                data.mod_detector(|mut detector| {
-                    f(MouseWheelEvent::from(event, &mut detector));
-                });
-            }
+            event.prevent_default();
+            f(MouseWheelEvent::from(event));
         };
         add_wheel_event(&self.data.target(), closure)
     }
