@@ -22,40 +22,40 @@
 // === Module Structure Reexport ===
 // =================================
 
+pub mod animation;
 pub mod control;
 pub mod data;
-pub mod math;
-pub mod dirty;
+pub mod debug;
 pub mod display;
-pub mod text;
+pub mod traits;
+
 pub use basegl_prelude as prelude;
-pub mod backend {
-    pub use basegl_backend_webgl as webgl;
-}
 pub mod system {
     pub use basegl_system_web as web;
 }
-pub mod tp;
-pub mod utils;
+
+
 
 // ==================
 // === Example 01 ===
 // ==================
 
 mod example_01 {
+    use super::*;
     use crate::set_stdout;
     use crate::display::world::*;
     use crate::prelude::*;
     use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
-    use crate::display::symbol::display_object::*;
     use basegl_system_web::{Logger, get_performance};
     use web_sys::Performance;
+    use crate::display::object::DisplayObjectData;
 
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_01_example() {
+    pub fn run_example_basic_objects_management() {
+        set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
         init(&mut World::new().borrow_mut());
@@ -70,10 +70,10 @@ mod example_01 {
     fn init(world: &mut World) {
         let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
         let workspace : &mut Workspace = &mut world[wspace_id];
-        let mesh_id   : MeshID         = workspace.new_mesh();
-        let mesh      : &mut Mesh      = &mut workspace[mesh_id];
-        let geo       : &mut Geometry  = &mut mesh.geometry;
-        let scopes    : &mut Scopes    = &mut geo.scopes;
+        let sym_id    : SymbolId       = workspace.new_symbol();
+        let symbol    : &mut Symbol    = &mut workspace[sym_id];
+        let mesh      : &mut Mesh      = &mut symbol.surface;
+        let scopes    : &mut Scopes    = &mut mesh.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
         let inst_scope: &mut VarScope  = &mut scopes.instance;
         let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
@@ -91,7 +91,7 @@ mod example_01 {
         let transform1 = transform.get(inst_1_ix);
 //        let transform2 = transform.get(inst_2_ix);
 
-        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
 //        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
 
 
@@ -147,6 +147,7 @@ mod example_01 {
         let make_widget = |scope: &mut VarScope| {
             let inst_1_ix = scope.add_instance();
             let transform1 = transform.get(inst_1_ix);
+//            transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 0.0,0.0,0.0));}); // DELETEME
             Widget::new(Logger::new("widget"),transform1)
         };
 
@@ -158,7 +159,7 @@ mod example_01 {
 
 
         let mut widgets: Vec<Widget> = default();
-        let count = 100;
+        let count = 1000;
         for _ in 0 .. count {
             let widget = make_widget(inst_scope);
             widgets.push(widget);
@@ -238,21 +239,27 @@ mod example_01 {
 // ==================
 
 mod example_02 {
+    use super::*;
     use wasm_bindgen::prelude::*;
 
-    use crate::utils;
-    use crate::display::world::{World, Workspace, Add, WorkspaceID};
+    use crate::display::world::World;
+    use crate::display::world::Workspace;
+    use crate::display::world::Add;
+    use crate::display::world::WorkspaceID;
     use crate::Color;
-    use crate::dirty::traits::*;
+    use crate::data::dirty::traits::*;
 
-    use nalgebra::{Point2,Vector2};
-    use crate::text::content::{CharPosition, TextChange};
-    use crate::text::TextComponentProperties;
+    use nalgebra::Point2;
+    use nalgebra::Vector2;
+    use crate::display::shape::text::content::CharPosition;
+    use crate::display::shape::text::content::TextChange;
+    use crate::display::shape::text::TextComponentBuilder;
+    use crate::display::shape::text::TextComponentProperties;
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_02_text() {
-        utils::set_panic_hook();
+    pub fn run_example_text() {
+        set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
             let mut world_ref     = World::new();
             let workspace_id      = world_ref.add(Workspace::build("canvas"));
@@ -261,7 +268,7 @@ mod example_02 {
             let fonts             = &mut world.fonts;
             let font_id           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
 
-            let mut text_component = crate::text::TextComponentBuilder{workspace,fonts,font_id,
+            let mut text_component = TextComponentBuilder{workspace,fonts,font_id,
                 text       : "".to_string(),
                 properties : TextComponentProperties {
                     position  : Point2::new(-0.95,-0.9),
@@ -427,4 +434,15 @@ pub fn set_stdout() {
 pub fn set_stdout_unbuffered() {
     let printer = Printer::new(_print, false);
     std::io::set_print(Some(Box::new(printer)));
+}
+
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    //
+    // For more details see
+    // https://github.com/rustwasm/console_error_panic_hook#readme
+    #[cfg(feature = "console_error_panic_hook")]
+        console_error_panic_hook::set_once();
 }
