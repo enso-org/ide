@@ -52,7 +52,7 @@ impl Cursor {
 
     /// Get `LineRef` object of this cursor's line.
     pub fn current_line<'a>(&self, content:&'a mut TextComponentContent) -> LineRef<'a> {
-        content.line(self.position.column)
+        content.line(self.position.line)
     }
 
     /// Get the position where the cursor should be rendered. The returned point is on the
@@ -129,14 +129,6 @@ impl Cursors {
         self.dirty_cursors.insert(new_index);
     }
 
-    /// Checks if cursors should be currently visible as a part of their blinking.
-    pub fn cursors_should_be_visible() -> bool {
-        const BLINKING_PERIOD_MS : f64 = 1000.0;
-        let timestamp                  = js_sys::Date::now();
-        let blinks                     = timestamp / BLINKING_PERIOD_MS;
-        blinks.fract() >= 0.5
-    }
-
     /// Update the cursors' buffer data.
     pub fn update_buffer_data
     (&mut self, gl_context:&Context, content:&mut TextComponentContent, fonts:&mut Fonts) {
@@ -144,6 +136,7 @@ impl Cursors {
         let cursors_vertices = cursors.map(|cursor| Self::cursor_vertices(cursor,content,fonts));
         let buffer_data      = cursors_vertices.flatten().collect_vec();
         set_buffer_data(gl_context,&self.buffer,buffer_data.as_slice());
+        self.dirty_cursors.clear();
     }
 
     fn cursor_vertices(cursor:&Cursor, content:&mut TextComponentContent, fonts:&mut Fonts)

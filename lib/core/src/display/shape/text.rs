@@ -88,7 +88,7 @@ impl TextComponent {
         self.refresh_msdf_texture(fonts);
         self.refresh_cursors(fonts);
         self.display_content(fonts);
-        if Cursors::cursors_should_be_visible() {
+        if !self.cursors.cursors.is_empty() {
             self.display_cursors();
         }
     }
@@ -125,7 +125,7 @@ impl TextComponent {
 
     fn refresh_cursors(&mut self, fonts:&mut Fonts) {
         let cursors_changed = !self.cursors.dirty_cursors.is_empty();
-        if !cursors_changed {
+        if cursors_changed {
             let gl_context = &self.gl_context;
             let content    = &mut self.content;
             self.cursors.update_buffer_data(gl_context,content,fonts);
