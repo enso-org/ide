@@ -3,6 +3,7 @@
 //! defines several aliases and utils which may find their place in new
 //! libraries in the future.
 
+#![feature(specialization)]
 #![feature(trait_alias)]
 
 pub use boolinator::Boolinator;
@@ -39,6 +40,11 @@ pub use std::rc::Weak;
 pub use std::slice;
 pub use std::slice::SliceIndex;
 pub use lazy_static::lazy_static;
+
+use nalgebra::Matrix;
+use nalgebra::DimName;
+use nalgebra::Scalar;
+
 
 /// Abstraction for any kind of string as an argument. Functions defined as
 /// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`,
@@ -102,6 +108,17 @@ impl<T> OptionOps for Option<T> {
 
 
 
+// ================
+// === CloneRef ===
+// ================
+
+/// Like `Clone` but should be implemented only for cheap reference-based clones. Using `clone_ref`
+/// instead of `clone` makes the code more clear and makes it easier to predict its performance.
+pub trait CloneRef {
+    fn clone_ref(&self) -> Self;
+}
+
+
 
 // ===================
 // === WithPhantom ===
@@ -126,6 +143,7 @@ impl<T, P> WithPhantom<T, P> {
         Self { without_phantom, phantom }
     }
 }
+
 
 
 // =====================
@@ -161,89 +179,129 @@ impl<T> RcOps for Rc<T> {
 
 
 
-// ==========================
-// === RefCell Management ===
-// ==========================
+// ===================
+// === TypeDisplay ===
+// ===================
 
-// === RefGuard ===
-
-pub struct RefGuard<'t,Base,Data> {
-    data    : &'t Data,
-    _borrow : Ref<'t,Base>,
+/// Like `Display` trait but for types. However, unlike `Display` it defaults to
+/// `core::any::type_name` if not provided with explicit implementation.
+pub trait TypeDisplay {
+    fn type_display() -> String;
 }
 
-impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
-    type Target = Data;
-    fn deref(&self) -> &Self::Target {
-        self.data
+impl<T> TypeDisplay for T {
+    default fn type_display() -> String {
+        type_name::<Self>().to_string()
     }
 }
 
-impl<'t,Base,Data> RefGuard<'t,Base,Data> {
-    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
-        let _borrow   = base.borrow();
-        let reference = unsafe { drop_lifetime(&_borrow) };
-        let data      = f(reference);
-        RefGuard {data,_borrow}
+// TODO: This impl should be hidden behind a flag. Not everybody using prelude want to import
+//       nalgebra as well.
+impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
+    fn type_display() -> String {
+        let cols = <C as DimName>::dim();
+        let rows = <R as DimName>::dim();
+        let item = type_name::<T>();
+        match cols {
+            1 => format!("Vector{}<{}>"    , rows, item),
+            _ => format!("Matrix{}x{}<{}>" , rows, cols, item)
+        }
     }
 }
 
-impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.data.fmt(f)
-    }
-}
 
 
-// === Unsafe Utils ===
+// =================================================================================================
+// ========================================= README ================================================
+// The below code was used to create references inside shared mutable structures. After refactoring
+// the codebase it turned out we are not using it anymore. Getting such references is very tricky to
+// get right, so this code is left here commented in case it would be needed in the future.
+// =================================================================================================
+// =================================================================================================
 
-/// # Safety
-/// This is a very unsafe function, use it with caution please. There are few
-/// legitimate use cases listed below. You are not allowed to use this function
-/// for any other use case. If you discover a new possibly legitimate case,
-/// confirm it with Luna Rust Core team and add its description below.
-///
-/// In long-run, the below use cases should be replaced with safe-versions
-/// implemented as macros.
-///
-/// 1. Keeping mutually connected fields in a single structure. Especially
-///    useful when defining iterators for wrappers keeping containers behind
-///    a shared `Rc<Refcell<...>>` gate. An example:
-///
-///    ```compile_fail
-///    use std::rc::Rc;
-///    use core::cell::RefCell;
-///    use core::cell::Ref;
-///
-///    pub struct SharedDirtyFlag<T> {
-///        data: Rc<RefCell<T>>
-///    }
-///
-///    impl<T> SharedDirtyFlag<T>
-///    where for<'t> &'t T: IntoIterator {
-///        pub fn iter(&self) -> SharedDirtyFlagIter<T> {
-///            let borrow    = self.data.borrow();
-///            let reference = unsafe { drop_lifetime(&borrow) };
-///            let iter      = reference.into_iter();
-///            SharedDirtyFlagIter { iter, borrow }
-///        }
-///    }
-///
-///    // CAUTION !!!
-///    // Please keep the fields in the correct order. They will be dropped
-///    // in order. Moreover, keep the borrow field private.
-///    pub struct SharedDirtyFlagIter<'t,T>
-///    where &'t T: IntoIterator {
-///        pub iter : <&'t T as IntoIterator>::IntoIter,
-///        borrow   : Ref<'t,T>
-///    }
-///    ```
-pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
-    std::mem::transmute(t)
-}
-
-/// # Safety
-/// Please see the `drop_lifetime` docs.
-pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
-    std::mem::transmute(t)
-}
+//// ==========================
+//// === RefCell Management ===
+//// ==========================
+//
+//// === RefGuard ===
+//
+//pub struct RefGuard<'t,Base,Data> {
+//    data    : &'t Data,
+//    _borrow : Ref<'t,Base>,
+//}
+//
+//impl<'t,Base,Data> Deref for RefGuard<'t,Base,Data> {
+//    type Target = Data;
+//    fn deref(&self) -> &Self::Target {
+//        self.data
+//    }
+//}
+//
+//impl<'t,Base,Data> RefGuard<'t,Base,Data> {
+//    pub fn new<F:FnOnce(&'t Base) -> &'t Data>(base:&'t RefCell<Base>, f:F) -> Self {
+//        let _borrow   = base.borrow();
+//        let reference = unsafe { drop_lifetime(&_borrow) };
+//        let data      = f(reference);
+//        RefGuard {data,_borrow}
+//    }
+//}
+//
+//impl<'t,Base,Data:Debug> Debug for RefGuard<'t,Base,Data> {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        self.data.fmt(f)
+//    }
+//}
+//
+//
+//// === Unsafe Utils ===
+//
+///// # Safety
+///// This is a very unsafe function, use it with caution please. There are few
+///// legitimate use cases listed below. You are not allowed to use this function
+///// for any other use case. If you discover a new possibly legitimate case,
+///// confirm it with Luna Rust Core team and add its description below.
+/////
+///// In long-run, the below use cases should be replaced with safe-versions
+///// implemented as macros.
+/////
+///// 1. Keeping mutually connected fields in a single structure. Especially
+/////    useful when defining iterators for wrappers keeping containers behind
+/////    a shared `Rc<Refcell<...>>` gate. An example:
+/////
+/////    ```compile_fail
+/////    use std::rc::Rc;
+/////    use core::cell::RefCell;
+/////    use core::cell::Ref;
+/////
+/////    pub struct SharedDirtyFlag<T> {
+/////        data: Rc<RefCell<T>>
+/////    }
+/////
+/////    impl<T> SharedDirtyFlag<T>
+/////    where for<'t> &'t T: IntoIterator {
+/////        pub fn iter(&self) -> SharedDirtyFlagIter<T> {
+/////            let borrow    = self.data.borrow();
+/////            let reference = unsafe { drop_lifetime(&borrow) };
+/////            let iter      = reference.into_iter();
+/////            SharedDirtyFlagIter { iter, borrow }
+/////        }
+/////    }
+/////
+/////    // CAUTION !!!
+/////    // Please keep the fields in the correct order. They will be dropped
+/////    // in order. Moreover, keep the borrow field private.
+/////    pub struct SharedDirtyFlagIter<'t,T>
+/////    where &'t T: IntoIterator {
+/////        pub iter : <&'t T as IntoIterator>::IntoIter,
+/////        borrow   : Ref<'t,T>
+/////    }
+/////    ```
+//pub unsafe fn drop_lifetime<'a,'b,T>(t: &'a T) -> &'b T {
+//    std::mem::transmute(t)
+//}
+//
+///// # Safety
+///// Please see the `drop_lifetime` docs.
+//pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
+//    std::mem::transmute(t)
+//}

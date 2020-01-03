@@ -21,46 +21,44 @@
 // === Module Structure Reexport ===
 // =================================
 
+pub mod animation;
 pub mod control;
 pub mod data;
-pub mod math;
-pub mod dirty;
+pub mod debug;
 pub mod display;
-pub mod text;
+pub mod traits;
+
 pub use basegl_prelude as prelude;
-pub mod backend {
-    pub use basegl_backend_webgl as webgl;
-}
 pub mod system {
     pub use basegl_system_web as web;
 }
-pub mod tp;
-pub mod utils;
+
+
 
 // ==================
 // === Example 01 ===
 // ==================
 
 mod example_01 {
+    use super::*;
     use crate::set_stdout;
     use crate::display::world::*;
     use crate::prelude::*;
     use nalgebra::{Vector2, Vector3, Matrix4};
     use wasm_bindgen::prelude::*;
-    use crate::display::symbol::display_object::*;
-    use basegl_system_web::Logger;
+    use basegl_system_web::{Logger, get_performance};
+    use web_sys::Performance;
+    use crate::display::object::DisplayObjectData;
 
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_01_example() {
+    pub fn run_example_basic_objects_management() {
+        set_panic_hook();
         console_error_panic_hook::set_once();
         set_stdout();
         init(&mut World::new().borrow_mut());
     }
-
-    type Position    = SharedBuffer<Vector3<f32>>;
-    type ModelMatrix = SharedBuffer<Matrix4<f32>>;
 
     #[derive(Debug)]
     pub struct Rect {
@@ -71,31 +69,30 @@ mod example_01 {
     fn init(world: &mut World) {
         let wspace_id : WorkspaceID    = world.add(Workspace::build("canvas"));
         let workspace : &mut Workspace = &mut world[wspace_id];
-        let mesh_id   : MeshID         = workspace.new_mesh();
-        let mesh      : &mut Mesh      = &mut workspace[mesh_id];
-        let geo       : &mut Geometry  = &mut mesh.geometry;
-        let scopes    : &mut Scopes    = &mut geo.scopes;
+        let sym_id    : SymbolId       = workspace.new_symbol();
+        let symbol    : &mut Symbol    = &mut workspace[sym_id];
+        let mesh      : &mut Mesh      = &mut symbol.surface;
+        let scopes    : &mut Scopes    = &mut mesh.scopes;
         let pt_scope  : &mut VarScope  = &mut scopes.point;
-        let pos       : Position       = pt_scope.add_buffer("position");
-        let model_matrix : ModelMatrix = pt_scope.add_buffer("model_matrix");
-        let uv           : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("uv");
-        let bbox         : SharedBuffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
+        let inst_scope: &mut VarScope  = &mut scopes.instance;
+        let transform : Buffer<Matrix4<f32>> = inst_scope.add_buffer("transform");
+        let uv        : Buffer<Vector2<f32>> = pt_scope.add_buffer("uv");
+        let bbox      : Buffer<Vector2<f32>> = pt_scope.add_buffer("bbox");
 
         let p1_ix = pt_scope.add_instance();
         let p2_ix = pt_scope.add_instance();
         let p3_ix = pt_scope.add_instance();
         let p4_ix = pt_scope.add_instance();
 
-        let p1 = pos.get(p1_ix);
-        let p2 = pos.get(p2_ix);
-        let p3 = pos.get(p3_ix);
-        let p4 = pos.get(p4_ix);
+        let inst_1_ix = inst_scope.add_instance();
+//        let inst_2_ix = inst_scope.add_instance();
+//
+        let transform1 = transform.get(inst_1_ix);
+//        let transform2 = transform.get(inst_2_ix);
 
+//        transform1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        transform2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  200.0, 0.0));});
 
-        p1.set(Vector3::new(-0.0, -0.0, 0.0));
-        p2.set(Vector3::new( 0.0, -0.0, 0.0));
-        p3.set(Vector3::new( 0.0,  0.0, 0.0));
-        p4.set(Vector3::new( 0.0,  0.0, 0.0));
 
 
         let uv1 = uv.get(p1_ix);
@@ -113,21 +110,21 @@ mod example_01 {
         let bbox3 = bbox.get(p3_ix);
         let bbox4 = bbox.get(p4_ix);
 
-        bbox1.set(Vector2::new(20.0, 20.0));
-        bbox2.set(Vector2::new(20.0, 20.0));
-        bbox3.set(Vector2::new(20.0, 20.0));
-        bbox4.set(Vector2::new(20.0, 20.0));
+        bbox1.set(Vector2::new(2.0, 2.0));
+        bbox2.set(Vector2::new(2.0, 2.0));
+        bbox3.set(Vector2::new(2.0, 2.0));
+        bbox4.set(Vector2::new(2.0, 2.0));
 
 
-        let mm1 = model_matrix.get(p1_ix);
-        let mm2 = model_matrix.get(p2_ix);
-        let mm3 = model_matrix.get(p3_ix);
-        let mm4 = model_matrix.get(p4_ix);
-
-        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
-        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        let mm1 = model_matrix.get(p1_ix);
+//        let mm2 = model_matrix.get(p2_ix);
+//        let mm3 = model_matrix.get(p3_ix);
+//        let mm4 = model_matrix.get(p4_ix);
+//
+//        mm1.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm2.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm3.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
+//        mm4.modify(|t| {t.append_translation_mut(&Vector3::new( 1.0,  100.0, 0.0));});
 //    mm5.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0,  1.0, 0.0));});
 //    mm6.modify(|t| {t.append_translation_mut(&Vector3::new(-1.0, -1.0, 0.0));});
 //
@@ -143,49 +140,118 @@ mod example_01 {
 //    println!("{:?}",pos);
 //    println!("{:?}",pos.borrow().as_prim());
 
+//        let camera = workspace.scene.camera.clone();
+
+
+        let make_widget = |scope: &mut VarScope| {
+            let inst_1_ix = scope.add_instance();
+            let transform1 = transform.get(inst_1_ix);
+            Widget::new(Logger::new("widget"),transform1)
+        };
+
+
+
+        let w1 = Widget::new(Logger::new("widget1"),transform1);
 
 
 
 
-        let w1 = Widget::new(Logger::new("widget1"),mm1,mm2,mm3,mm4);
+        let mut widgets: Vec<Widget> = default();
+        let count = 100;
+        for _ in 0 .. count {
+            let widget = make_widget(inst_scope);
+            widgets.push(widget);
+        }
 
-        let camera = workspace.scene.camera.clone();
-        world.on_frame(move |_| on_frame(&camera,&w1)).forget();
+        let performance = get_performance().unwrap();
+
+
+        let mut i:i32 = 0;
+        world.on_frame(move |w| on_frame(w,&mut i,&w1, &mut widgets,&performance,wspace_id,sym_id,&transform)).forget();
+
 
     }
 
-    pub fn on_frame(camera:&Camera2D, widget:&Widget) {
-        camera.mod_position(|p| {
-            p.x -= 0.1;
-            p.z += 1.0
-        });
-        widget.transform.mod_position(|p| p.y += 0.5);
-        widget.transform.update();
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::many_single_char_names)]
+    pub fn on_frame(world:&mut World, ii:&mut i32, w1:&Widget, widgets:&mut Vec<Widget>, performance:&Performance, wspace_id:WorkspaceID, sym_id:SymbolId, transform : &Buffer<Matrix4<f32>>) {
+//        camera.mod_position(|p| {
+//            p.x -= 0.1;
+//            p.z += 1.0
+//        });
+
+        let workspace : &mut Workspace = &mut world[wspace_id];
+        let symbol    : &mut Symbol    = &mut workspace[sym_id];
+        let mesh      : &mut Mesh      = &mut symbol.surface;
+        let scopes    : &mut Scopes    = &mut mesh.scopes;
+        let inst_scope: &mut VarScope  = &mut scopes.instance;
+
+        let make_widget = |scope: &mut VarScope| {
+            let inst_1_ix = scope.add_instance();
+            let transform1 = transform.get(inst_1_ix);
+            Widget::new(Logger::new("widget"),transform1)
+        };
+
+
+
+        w1.transform.mod_position(|p| p.y += 0.5);
+        w1.transform.update();
+
+        *ii += 1;
+
+        if *ii < 200i32 {
+            let count = 100;
+            if widgets.len() < 100_000 {
+                for _ in 0..count {
+                    let widget = make_widget(inst_scope);
+                    widgets.push(widget);
+                }
+            }
+
+            let t = (performance.now() / 1000.0) as f32;
+            let length = widgets.len() as f32;
+            for (i, object) in widgets.iter_mut().enumerate() {
+                let i = i as f32;
+                let d = (i / length - 0.5) * 2.0;
+
+                let mut y = d;
+                let r = (1.0 - y * y).sqrt();
+                let mut x = (y * 100.0 + t).cos() * r;
+                let mut z = (y * 100.0 + t).sin() * r;
+
+                x += (y * 1.25 + t * 2.50).cos() * 0.5;
+                y += (z * 1.25 + t * 2.00).cos() * 0.5;
+                z += (x * 1.25 + t * 3.25).cos() * 0.5;
+                object.transform.set_position(Vector3::new(x * 50.0 + 200.0, y * 50.0 + 100.0, z * 50.0));
+//            object.transform.set_position(Vector3::new(0.0, 0.0, 0.0));
+                object.transform.update();
+
+//            let faster_t = t * 100.0;
+//            let r = (i +   0.0 + faster_t) as u8 % 255;
+//            let g = (i +  85.0 + faster_t) as u8 % 255;
+//            let b = (i + 170.0 + faster_t) as u8 % 255;
+//            set_gradient_bg(&object.dom, &r.into(), &g.into(), &b.into());
+            }
+        }
+
+
+
     }
 
 
     pub struct Widget {
         pub transform : DisplayObjectData,
-        pub mm1       : Var<Matrix4<f32>>,
-        pub mm2       : Var<Matrix4<f32>>,
-        pub mm3       : Var<Matrix4<f32>>,
-        pub mm4       : Var<Matrix4<f32>>,
+        pub mm        : Var<Matrix4<f32>>,
     }
 
     impl Widget {
-        pub fn new(logger:Logger, mm1:Var<Matrix4<f32>>, mm2:Var<Matrix4<f32>>, mm3:Var<Matrix4<f32>>, mm4:Var<Matrix4<f32>>) -> Self {
+        pub fn new(logger:Logger, mm:Var<Matrix4<f32>>) -> Self {
             let transform = DisplayObjectData::new(logger);
-            let mm1_cp = mm1.clone();
-            let mm2_cp = mm2.clone();
-            let mm3_cp = mm3.clone();
-            let mm4_cp = mm4.clone();
+            let mm_cp = mm.clone();
             transform.set_on_updated(move |t| {
-                mm1_cp.set(t.matrix().clone());
-                mm2_cp.set(t.matrix().clone());
-                mm3_cp.set(t.matrix().clone());
-                mm4_cp.set(t.matrix().clone());
+                mm_cp.set(t.matrix().clone());
             });
-            Self {transform,mm1,mm2,mm3,mm4}
+            Self {transform,mm}
         }
     }
 }
@@ -195,13 +261,13 @@ mod example_01 {
 // ==================
 
 mod example_03 {
+    use super::*;
     use wasm_bindgen::prelude::*;
 
-    use crate::utils;
     use crate::display::world::{World,Workspace,Add};
-    use crate::text::font::FontId;
+    use crate::display::shape::text::font::FontId;
     use crate::Color;
-    use crate::dirty::traits::*;
+    use crate::data::dirty::traits::*;
 
     use itertools::iproduct;
     use nalgebra::{Point2,Vector2};
@@ -217,8 +283,8 @@ mod example_03 {
 
     #[wasm_bindgen]
     #[allow(dead_code)]
-    pub fn run_03_text() {
-        utils::set_panic_hook();
+    pub fn run_example_text() {
+        set_panic_hook();
         basegl_core_msdf_sys::run_once_initialized(|| {
             let mut world_ref = World::new();
             let workspace_id  = world_ref.add(Workspace::build("canvas"));
@@ -234,7 +300,7 @@ mod example_03 {
 
                 let x = -0.95 + 0.6 * (size as f64);
                 let y = 0.90 - 0.45 * (font as f64);
-                let text_compnent = crate::text::TextComponentBuilder {
+                let text_compnent = crate::display::shape::text::TextComponentBuilder {
                     workspace,
                     fonts,
                     text : "To be, or not to be, that is the question:\n\
@@ -365,4 +431,15 @@ pub fn set_stdout() {
 pub fn set_stdout_unbuffered() {
     let printer = Printer::new(_print, false);
     std::io::set_print(Some(Box::new(printer)));
+}
+
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    //
+    // For more details see
+    // https://github.com/rustwasm/console_error_panic_hook#readme
+    #[cfg(feature = "console_error_panic_hook")]
+        console_error_panic_hook::set_once();
 }

@@ -1,23 +1,27 @@
+pub mod event_loop;
+pub mod scene;
+pub mod workspace;
+
 use crate::prelude::*;
 
 pub use crate::data::container::*;
-pub use crate::display::workspace::MeshID;
+pub use crate::display::world::workspace::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::control::event_loop::EventLoop;
 use crate::data::opt_vec::OptVec;
-use crate::dirty;
-use crate::dirty::traits::*;
-use crate::display::workspace;
+use crate::data::dirty;
+use crate::data::dirty::traits::*;
 use crate::promote_all;
 use crate::promote_workspace_types;
 use crate::promote;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use crate::text::font::Fonts;
+use crate::display::shape::text::font::Fonts;
 
+use event_loop::EventLoop;
 use eval_tt::*;
+
 
 
 // =============
@@ -37,14 +41,16 @@ pub struct World {
     pub event_loop      : EventLoop,
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
-    pub self_reference  : Option<WorldRef>
+    pub self_reference  : Option<WorldRef>,
 }
+
 
 // === Types ===
 
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedSet<WorkspaceID>;
 promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
+
 
 // === Callbacks ===
 
@@ -53,17 +59,20 @@ fn workspace_on_change(dirty:WorkspaceDirty, ix:WorkspaceID) -> WorkspaceOnChang
     || dirty.set(ix)
 }}
 
+
 // === Implementation ===
 
 impl World {
     /// Create and initialize new world instance.
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> WorldRef {
+        println!("NOTICE! When profiling in Chrome check 'Disable JavaScript Samples' under the \
+                  gear icon in the 'Performance' tab. It can drastically slow the rendering.");
         let world_ref  = WorldRef::new(Self::new_uninitialized());
         let world_ref2 = world_ref.clone_rc();
         let world_ref3 = world_ref.clone_rc();
         with(world_ref.borrow_mut(), |mut data| {
-            let update          = move || world_ref2.borrow_mut().update();
+            let update          = move || world_ref2.borrow_mut().run();
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
             data.self_reference = Some(world_ref3);
@@ -91,7 +100,7 @@ impl World {
         let dirty  = &self.workspace_dirty;
         self.workspaces.insert_with_ix(|ix| {
             group!(logger, format!("Adding workspace {} ({}).", ix, name), {
-                let on_change     = workspace_on_change(dirty.clone_rc(),ix);
+                let on_change     = workspace_on_change(dirty.clone_ref(),ix);
                 let wspace_logger = logger.sub(ix.to_string());
                 Workspace::new(name,wspace_logger,on_change).unwrap() // FIXME
             })
@@ -115,22 +124,26 @@ impl World {
     /// which when dropped will cancel the callback. If you want the function
     /// to run forever, you can use the `forget` method in the handle.
     pub fn on_frame<F:FnMut(&mut World)+'static>
-    (&mut self, mut callback: F) -> CallbackHandle {
+    (&mut self, mut callback:F) -> CallbackHandle {
         let this = self.self_reference.as_ref().unwrap().clone_rc();
         let func = move || callback(&mut this.borrow_mut());
         self.event_loop.add_callback(func)
     }
 
+    pub fn run(&mut self) {
+        self.update();
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-//        if self.workspace_dirty.check_all() {
-//            group!(self.logger, "Updating.", {
+        if self.workspace_dirty.check_all() {
+            group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;
         self.workspaces.iter_mut().for_each(|t| t.update(fonts));
-//            });
-//        }
+            });
+        }
     }
 
     // [Adam Obuchowicz]
@@ -191,6 +204,7 @@ impl Drop for World {
 }
 
 
+
 // ================
 // === WorldRef ===
 // ================
@@ -223,6 +237,7 @@ impl<T> Add<T> for WorldRef where World: Add<T> {
         self.borrow_mut().add(t)
     }
 }
+
 
 // === Instances ===
 
