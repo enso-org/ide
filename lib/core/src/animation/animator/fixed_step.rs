@@ -1,9 +1,9 @@
 use super::Animator;
-use super::FnAnimation;
+use super::AnimationCallback;
 
 use nalgebra::zero;
 
-// FIXME: Remove all unnecessary .gitkeep files, please! :) .gitkeep are used only for git not to remove a folder when no other files are present.
+
 
 // =======================
 // === IntervalCounter ===
@@ -41,7 +41,7 @@ struct FixedStepAnimatorData {
 }
 
 impl FixedStepAnimatorData {
-    pub fn new<F:FnAnimation>(steps_per_second:f32, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(steps_per_second:f32, f:F) -> Self {
         let closure          = Box::new(f);
         let step_duration    = 1000.0 / steps_per_second;
         let counter          = IntervalCounter::new(step_duration);
@@ -58,17 +58,17 @@ impl FixedStepAnimatorData {
 /// This structure attempts to run a closure at a fixed time rate.
 ///
 /// # Internals
-/// If, for instance, we want to run FnAnimation once per second, it's delta_time
-/// (FnAnimation(delta_time)) will be 1 second. But keep in mind that if the actual frame takes
-/// longer, say 2 seconds, FnAnimation will be called twice in the same moment, but its delta_time
-/// parameter will always be fixed to 1 second.
+/// If, for instance, we want to run AnimationCallback once per second, it's delta_ms
+/// (AnimationCallback(delta_ms)) will be 1000ms. But keep in mind that if the actual frame
+/// takes longer, say 2000ms, AnimationCallback will be called twice in the same moment, but
+/// its delta_ms parameter will always be fixed to 1 second.
 pub struct FixedStepAnimator {
     _animator: Animator
 }
 
 impl FixedStepAnimator {
-    pub fn new<F:FnAnimation>(steps_per_second:f32, f:F) -> Self {
-        let mut data               = FixedStepAnimatorData::new(steps_per_second, f); // FIXME: Spacing
+    pub fn new<F:AnimationCallback>(steps_per_second:f32, f:F) -> Self {
+        let mut data = FixedStepAnimatorData::new(steps_per_second, f);
         let _animator = Animator::new(move |delta_ms| {
             let intervals = data.counter.add_time(delta_ms);
             for _ in 0..intervals {

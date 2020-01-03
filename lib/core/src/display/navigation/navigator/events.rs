@@ -3,7 +3,8 @@ use crate::control::mouse_manager::MouseClickEvent;
 use crate::control::mouse_manager::MouseWheelEvent;
 use crate::control::mouse_manager::MousePositionEvent;
 use crate::control::mouse_manager::MouseButton;
-use crate::control::mouse_manager::EventListener;
+use crate::control::mouse_manager::WheelEventListener;
+use crate::control::mouse_manager::MouseEventListener;
 use crate::system::web::Result;
 use crate::display::render::css3d::DOMContainer;
 
@@ -20,7 +21,7 @@ pub trait FnZoomEvent = FnMut(ZoomEvent) + 'static;
 
 /// A struct holding zoom event information, such as the focus point and the amount of zoom.
 pub struct ZoomEvent {
-    pub focus  : Vector2<f32>, // FIXME: needs a better name. Focus is normally a value, like "focus of 2.5". Why this is 2D value? The name needs to improve. I understand from docs that this is focus point (should be named focus_point), but I dont really understand where this point is in the space - please add it to the docs.
+    pub focus  : Vector2<f32>,
     pub amount : f32
 }
 
@@ -58,8 +59,8 @@ pub struct PanEvent {
 
 impl PanEvent {
     fn from_mouse_move(event:MousePositionEvent) -> Self {
-        let mut movement   = event.position - event.previous_position;
-                movement.x = -movement.x; // FIXME: I understand this looks fancy, but we do not have such alignment rules. I would keep code according to rules in order to make it moreconsistent. But I have to admit that for a moment I was amazed that you can define two variables with one `let` keyword :P
+        let mut movement = event.position - event.previous_position;
+        movement.x       = -movement.x;
         Self { movement }
     }
 
@@ -173,12 +174,12 @@ impl NavigatorEventsData {
 pub struct NavigatorEvents {
     data                 : Rc<NavigatorEventsData>,
     mouse_manager        : MouseManager,
-    mouse_down           : Option<EventListener>,
-    mouse_move           : Option<EventListener>,
-    mouse_up             : Option<EventListener>,
-    mouse_leave          : Option<EventListener>,
-    disable_context_menu : Option<EventListener>,
-    wheel_zoom           : Option<EventListener>
+    mouse_down           : Option<MouseEventListener>,
+    mouse_move           : Option<MouseEventListener>,
+    mouse_up             : Option<MouseEventListener>,
+    mouse_leave          : Option<MouseEventListener>,
+    disable_context_menu : Option<MouseEventListener>,
+    wheel_zoom           : Option<WheelEventListener>
 }
 
 impl NavigatorEvents {

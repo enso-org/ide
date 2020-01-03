@@ -7,12 +7,12 @@ use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
-use crate::traits::HasPosition;
-use crate::animation::physics::PhysicsSimulator;
-use crate::animation::physics::SpringProperties;
-use crate::animation::physics::DragProperties;
-use crate::animation::physics::PhysicsProperties;
-use crate::animation::physics::KinematicsProperties;
+use crate::animation::HasPosition;
+use crate::animation::physics::rubber_band::PhysicsSimulator;
+use crate::animation::physics::rubber_band::SpringProperties;
+use crate::animation::physics::rubber_band::DragProperties;
+use crate::animation::physics::rubber_band::PhysicsProperties;
+use crate::animation::physics::rubber_band::KinematicsProperties;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
@@ -46,7 +46,10 @@ impl Navigator {
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);
         let drag               = DragProperties::new(1000.0);
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
-        let simulator          = PhysicsSimulator::new(camera.object, properties.clone());
+        let camera             = camera.object;
+        let steps_per_second   = 60.0;
+        let properties_clone   = properties.clone();
+        let simulator          = PhysicsSimulator::new(steps_per_second, camera, properties_clone);
         (simulator, properties)
     }
 
@@ -70,7 +73,7 @@ impl Navigator {
             let z = 0.0;
 
             properties_clone.mod_spring(|spring| {
-                spring.set_fixed_point(spring.fixed_point() + Vector3::new(x, y, z));
+                spring.fixed_point = spring.fixed_point + Vector3::new(x, y, z);
             });
         };
 
@@ -87,11 +90,11 @@ impl Navigator {
                 let z         = camera.get_y_scale();
                 let direction = Vector3::new(x, y, z).normalize();
 
-                let mut position = properties.spring().fixed_point();
+                let mut position = properties.spring().fixed_point;
                 position  += direction * zoom.amount;
                 position.z = position.z.max(persp.near + 1.0);
 
-                properties.mod_spring(|spring| spring.set_fixed_point(position));
+                properties.mod_spring(|spring| spring.fixed_point = position);
             }
         };
         NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)

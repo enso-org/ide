@@ -7,7 +7,7 @@ use nalgebra::Vector3;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::traits::HasPosition;
+use crate::animation::HasPosition;
 
 
 
