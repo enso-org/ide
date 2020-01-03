@@ -3,8 +3,8 @@ use crate::control::mouse_manager::MouseClickEvent;
 use crate::control::mouse_manager::MouseWheelEvent;
 use crate::control::mouse_manager::MousePositionEvent;
 use crate::control::mouse_manager::MouseButton;
-use crate::control::mouse_manager::MouseEventListener;
 use crate::control::mouse_manager::WheelEventListener;
+use crate::control::mouse_manager::MouseEventListener;
 use crate::system::web::Result;
 use crate::display::render::css3d::DOMContainer;
 
@@ -59,8 +59,8 @@ pub struct PanEvent {
 
 impl PanEvent {
     fn from_mouse_move(event:MousePositionEvent) -> Self {
-        let mut movement   = event.position - event.previous_position;
-                movement.x = -movement.x;
+        let mut movement = event.position - event.previous_position;
+        movement.x       = -movement.x;
         Self { movement }
     }
 
@@ -102,6 +102,8 @@ struct NavigatorEventsCell {
 // === NavigatorEventsData =========================================================================
 // =================================================================================================
 
+// FIXME: The same as previously - why we are keeping something with `RefCell` and not `Rc<RefCell<...>>`, as the only usage of that is `Rc<NavigatorEventsData>`?
+// FIXME: I really believe this should be changed. If you feel otherwise, please write to me detailed explanation why this design is better! :)
 struct NavigatorEventsData {
     cell : RefCell<NavigatorEventsCell>
 }

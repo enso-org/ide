@@ -7,12 +7,12 @@ use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
-use crate::traits::HasPosition;
-use crate::animation::physics::PhysicsSimulator;
-use crate::animation::physics::SpringProperties;
-use crate::animation::physics::DragProperties;
-use crate::animation::physics::PhysicsProperties;
-use crate::animation::physics::KinematicsProperties;
+use crate::animation::HasPosition;
+use crate::animation::physics::rubber_band::PhysicsSimulator;
+use crate::animation::physics::rubber_band::SpringProperties;
+use crate::animation::physics::rubber_band::DragProperties;
+use crate::animation::physics::rubber_band::PhysicsProperties;
+use crate::animation::physics::rubber_band::KinematicsProperties;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
@@ -32,21 +32,25 @@ pub struct Navigator {
 impl Navigator {
     pub fn new(dom:&DOMContainer, camera:Camera, zoom_speed:f32) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(camera.clone());
-        let _events = Self::start_navigator_events(dom,camera,zoom_speed,properties)?;
+        let scaled_down_zoom_speed = zoom_speed / 1000.0;
+        let _events = Self::start_navigator_events(dom,camera,scaled_down_zoom_speed,properties)?;
         Ok(Self { _events, _simulator })
     }
 
     fn start_simulator(camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
-        let mass               = 25.0;
+        let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.position();
         let kinematics         = KinematicsProperties::new(position, velocity, zero(), mass);
         let spring_coefficient = 10000.0;
         let fixed_point        = camera.position();
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);
-        let drag               = DragProperties::new(1000.0);
+        let drag               = DragProperties::new(1500.0);
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
-        let simulator          = PhysicsSimulator::new(camera.object, properties.clone());
+        let camera             = camera.object;
+        let steps_per_second   = 60.0;
+        let properties_clone   = properties.clone();
+        let simulator          = PhysicsSimulator::new(steps_per_second, camera, properties_clone);
         (simulator, properties)
     }
 
@@ -70,7 +74,7 @@ impl Navigator {
             let z = 0.0;
 
             properties_clone.mod_spring(|spring| {
-                spring.set_fixed_point(spring.fixed_point() + Vector3::new(x, y, z));
+                spring.fixed_point = spring.fixed_point + Vector3::new(x, y, z);
             });
         };
 
@@ -82,18 +86,16 @@ impl Navigator {
                 let normalized = normalized_to_range2(normalized, -1.0, 1.0);
 
                 // Scale X and Y to compensate aspect and fov.
-                let x         = -normalized.x * persp.aspect;
-                let y         =  normalized.y;
-                let z         = camera.get_y_scale();
-                let direction = Vector3::new(x, y, z).normalize();
-
-                let mut position          = properties.spring().fixed_point();
-                let distance_compensation = position.z  * 0.001;
-                let zoom_amount           = zoom.amount * distance_compensation;
+                let x                     = -normalized.x * persp.aspect;
+                let y                     =  normalized.y;
+                let z                     = camera.get_y_scale();
+                let direction             = Vector3::new(x, y, z).normalize();
+                let mut position          = properties.spring().fixed_point;
+                let zoom_amount           = zoom.amount * position.z;
                 position                 += direction   * zoom_amount;
                 position.z                = position.z.max(persp.near + 1.0);
 
-                properties.mod_spring(|spring| spring.set_fixed_point(position));
+                properties.mod_spring(|spring| spring.fixed_point = position);
             }
         };
         NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)

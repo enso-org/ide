@@ -192,14 +192,14 @@ macro_rules! group {
 // =============
 
 /// Ignores context menu when clicking with the right mouse button.
-pub fn ignore_context_menu(target:&EventTarget) -> Result<Closure<dyn Fn(MouseEvent)>> {
+pub fn ignore_context_menu(target:&EventTarget) -> Result<Closure<dyn FnMut(MouseEvent)>> {
     let closure = move |event:MouseEvent| {
         const RIGHT_MOUSE_BUTTON : i16 = 2;
         if  event.button() == RIGHT_MOUSE_BUTTON {
             event.prevent_default();
         }
     };
-    let closure = Closure::wrap(Box::new(closure) as Box<dyn Fn(MouseEvent)>);
+    let closure = Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
     match target.add_event_listener_with_callback("contextmenu", callback) {
         Ok(_)  => Ok(closure),

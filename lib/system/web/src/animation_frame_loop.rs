@@ -5,11 +5,11 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::Closure;
 
 
-// =======================
-// === FnAnimationLoop ===
-// =======================
+// =============================
+// === AnimationLoopCallback ===
+// =============================
 
-pub trait FnAnimationLoop = FnMut(f32) + 'static;
+pub trait AnimationLoopCallback = FnMut(f32) + 'static;
 
 
 
@@ -17,12 +17,15 @@ pub trait FnAnimationLoop = FnMut(f32) + 'static;
 // === AnimationFrameData ===
 // ==========================
 
+// FIXME: We've got `control/event_loop.rs`. They do almost the same thing.
+// They should be merged now or in the next code cleaning. In the later case,
+// there should be a note about it.
 struct AnimationFrameData {
-    run : bool
+    is_running : bool
 }
 
 pub struct AnimationFrameLoop {
-    data   : Rc<RefCell<AnimationFrameData>>
+    data : Rc<RefCell<AnimationFrameData>>
 }
 
 
@@ -32,30 +35,31 @@ pub struct AnimationFrameLoop {
 // ==========================
 
 impl AnimationFrameLoop {
-    pub fn new<F:FnAnimationLoop>(mut f:F) -> Self {
-        let nop_func       = Box::new(|_| ()) as Box<dyn FnMut(f32)>;
+    pub fn new<F:AnimationLoopCallback>(mut f:F) -> Self {
+        let nop_func       = Box::new(|_| ());
         let nop_closure    = Closure::once(nop_func);
         let callback       = Rc::new(RefCell::new(nop_closure));
-        let run            = true;
-        let data           = Rc::new(RefCell::new(AnimationFrameData { run }));
+        let is_running     = true;
+        let data           = AnimationFrameData { is_running };
+        let data           = Rc::new(RefCell::new(data));
         let callback_clone = callback.clone();
         let data_clone     = data.clone();
 
         *callback.borrow_mut() = Closure::wrap(Box::new(move |delta_time| {
-            if data_clone.borrow().run {
+            if data_clone.borrow().is_running {
                 f(delta_time);
-                let clb = &callback_clone.borrow();
-                request_animation_frame(&clb).expect("Request Animation Frame");
+                let callback = &callback_clone.borrow();
+                request_animation_frame(&callback).expect("Request Animation \
+                Frame");
             }
-        }) as Box<dyn FnMut(f32)>);
+        }));
         request_animation_frame(&callback.borrow()).unwrap();
-
         AnimationFrameLoop{data}
     }
 }
 
 impl Drop for AnimationFrameLoop {
     fn drop(&mut self) {
-        self.data.borrow_mut().run = false;
+        self.data.borrow_mut().is_running = false;
     }
 }

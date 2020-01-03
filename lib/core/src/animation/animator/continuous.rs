@@ -1,9 +1,9 @@
-use crate::system::web::get_performance;
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
-use super::FnAnimation;
+use super::AnimationCallback;
 
 use std::rc::Rc;
 use std::cell::RefCell;
+
 
 
 // ==================================
@@ -11,21 +11,22 @@ use std::cell::RefCell;
 // ==================================
 
 struct ContinuousAnimatorData {
-    closure      : Box<dyn FnMut(f32)>,
-    start_time   : f32,
-    current_time : f32
+    callback          : Box<dyn AnimationCallback>,
+    relative_start_ms : f32,
+    absolute_start_ms : Option<f32>
 }
 
 impl ContinuousAnimatorData {
-    pub fn new<F:FnAnimation>(f:F) -> Self {
-        let closure      = Box::new(f);
-        let start_time   = get_performance().expect("Couldn't get performance timer").now() as f32;
-        let current_time = start_time;
-        Self { closure,start_time,current_time }
+    fn new<F:AnimationCallback>(f:F) -> Self {
+        let callback          = Box::new(f);
+        let relative_start_ms = 0.0;
+        let absolute_start_ms = None;
+        Self {callback,relative_start_ms,absolute_start_ms}
     }
 
-    pub fn set_time(&mut self, time:f32) {
-        self.start_time  = self.current_time + time;
+    fn set_time(&mut self, time:f32) {
+        self.relative_start_ms = time;
+        self.absolute_start_ms = None;
     }
 }
 
@@ -42,13 +43,18 @@ pub struct ContinuousAnimator {
 }
 
 impl ContinuousAnimator {
-    pub fn new<F:FnAnimation>(f:F) -> Self {
+    pub fn new<F:AnimationCallback>(f:F) -> Self {
         let data            = Rc::new(RefCell::new(ContinuousAnimatorData::new(f)));
         let data_clone      = data.clone();
         let _animation_loop = AnimationFrameLoop::new(move |current_time| {
             let mut data : &mut ContinuousAnimatorData = &mut data_clone.borrow_mut();
-            (data.closure)(current_time - data.start_time);
-            data.current_time = current_time;
+            let absolute_start_ms = if let Some(absolute_start_ms) = data.absolute_start_ms {
+                absolute_start_ms
+            } else {
+                data.absolute_start_ms = Some(current_time);
+                current_time
+            };
+            (data.callback)(current_time - absolute_start_ms + data.relative_start_ms);
         });
         Self { _animation_loop, data }
     }
@@ -58,6 +64,7 @@ impl ContinuousAnimator {
 // === Setters ===
 
 impl ContinuousAnimator {
+    /// Sets the current playback time.
     pub fn set_time(&mut self, time:f32) {
         self.data.borrow_mut().set_time(time);
     }
