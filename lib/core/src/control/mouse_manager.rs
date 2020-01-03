@@ -285,12 +285,12 @@ impl MouseManager {
             event.prevent_default();
             f(MouseWheelEvent::from(event));
         };
-        add_wheel_event(&self.data.target(), closure)
+        add_wheel_event(&self.data.target(), closure, false)
     }
 
     fn stop_tracking_mouse_when_it_leaves_dom(&mut self) -> Result<()> {
-        let data     = Rc::downgrade(&self.data);
-        let closure  = move |_| {
+        let data    = Rc::downgrade(&self.data);
+        let closure = move |_| {
             if let Some(data) = data.upgrade() {
                 data.set_mouse_position(None);
             }
@@ -333,12 +333,12 @@ where T : Fn(MouseEvent) + 'static {
 }
 
 /// Adds wheel event callback and returns its listener.
-fn add_wheel_event<T>(target:&EventTarget, closure: T) -> Result<WheelEventListener>
+fn add_wheel_event<T>(target:&EventTarget, closure: T, passive:bool) -> Result<WheelEventListener>
 where T : FnMut(WheelEvent) + 'static {
     let closure     = Closure::wrap(Box::new(closure) as Box<dyn FnMut(WheelEvent)>);
     let callback    = closure.as_ref().unchecked_ref();
     let mut options = AddEventListenerOptions::new();
-    options.passive(true);
+    options.passive(passive);
     match target.add_event_listener_with_callback_and_add_event_listener_options
     ("wheel", callback, &options) {
         Ok(_)  => {
