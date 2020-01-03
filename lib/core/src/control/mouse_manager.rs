@@ -159,6 +159,7 @@ impl MouseWheelEvent {
         let movement_x      = event.delta_x() as f32;
         let movement_y      = event.delta_y() as f32;
         let is_ctrl_pressed = event.ctrl_key();
+        println!("{}x{}", movement_x, movement_y);
         Self { movement_x,movement_y,is_ctrl_pressed }
     }
 }

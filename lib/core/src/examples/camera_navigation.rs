@@ -11,6 +11,7 @@ use crate::animation::animator::continuous::ContinuousAnimator;
 use crate::animation::physics::rubber_band::*;
 
 use nalgebra::{Vector2, Vector3};
+use crate::set_stdout;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     let mut scene : Scene<HTMLObject> = Scene::new();
@@ -50,6 +51,7 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_camera_navigation() {
+    set_stdout();
     let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
     renderer.container.dom.set_property_or_panic("background-color", "black");
 
