@@ -7,11 +7,11 @@ web_configure!(run_in_browser);
 #[cfg(test)]
 mod tests {
     use basegl::system::web::StyleSetter;
-    use basegl::animation::physics::rubber_band::DragProperties;
-    use basegl::animation::physics::rubber_band::SpringProperties;
-    use basegl::animation::physics::rubber_band::KinematicsProperties;
-    use basegl::animation::physics::rubber_band::PhysicsSimulator;
-    use basegl::animation::physics::rubber_band::PhysicsProperties;
+    use basegl::animation::physics::inertia::DragProperties;
+    use basegl::animation::physics::inertia::SpringProperties;
+    use basegl::animation::physics::inertia::KinematicsProperties;
+    use basegl::animation::physics::inertia::PhysicsSimulator;
+    use basegl::animation::physics::inertia::PhysicsProperties;
     use basegl::animation::animator::fixed_step::FixedStepAnimator;
     use basegl::display::render::css3d::html::HTMLRenderer;
     use basegl::display::render::css3d::html::HTMLObject;

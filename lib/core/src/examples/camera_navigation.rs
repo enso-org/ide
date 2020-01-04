@@ -8,7 +8,7 @@ use crate::system::web::StyleSetter;
 use crate::display::navigation::navigator::Navigator;
 
 use crate::animation::animator::continuous::ContinuousAnimator;
-use crate::animation::physics::rubber_band::*;
+use crate::animation::physics::inertia::*;
 
 use nalgebra::{Vector2, Vector3};
 use crate::set_stdout;

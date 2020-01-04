@@ -8,11 +8,11 @@ use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
 use crate::animation::HasPosition;
-use crate::animation::physics::rubber_band::PhysicsSimulator;
-use crate::animation::physics::rubber_band::SpringProperties;
-use crate::animation::physics::rubber_band::DragProperties;
-use crate::animation::physics::rubber_band::PhysicsProperties;
-use crate::animation::physics::rubber_band::KinematicsProperties;
+use crate::animation::physics::inertia::PhysicsSimulator;
+use crate::animation::physics::inertia::SpringProperties;
+use crate::animation::physics::inertia::DragProperties;
+use crate::animation::physics::inertia::PhysicsProperties;
+use crate::animation::physics::inertia::KinematicsProperties;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
