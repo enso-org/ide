@@ -16,6 +16,7 @@ use crate::animation::physics::rubber_band::KinematicsProperties;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
+use nalgebra::clamp;
 
 
 
@@ -30,10 +31,18 @@ pub struct Navigator {
 }
 
 impl Navigator {
-    pub fn new(dom:&DOMContainer, camera:Camera, zoom_speed:f32) -> Result<Self> {
+    pub fn new
+    (dom:&DOMContainer, camera:Camera, min_zoom:f32, max_zoom:f32, zoom_speed:f32) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(camera.clone());
         let scaled_down_zoom_speed = zoom_speed / 1000.0;
-        let _events = Self::start_navigator_events(dom,camera,scaled_down_zoom_speed,properties)?;
+        let _events = Self::start_navigator_events(
+            dom,
+            camera,
+            min_zoom,
+            max_zoom,
+            scaled_down_zoom_speed,
+            properties
+        )?;
         Ok(Self { _events, _simulator })
     }
 
@@ -57,6 +66,8 @@ impl Navigator {
     fn start_navigator_events
     ( dom:&DOMContainer
     , camera:Camera
+    , min_zoom:f32
+    , max_zoom:f32
     , zoom_speed:f32
     , mut properties:PhysicsProperties) -> Result<NavigatorEvents> {
         let dom_clone            = dom.clone();
@@ -91,7 +102,8 @@ impl Navigator {
                 let mut position          = properties.spring().fixed_point;
                 let zoom_amount           = zoom.amount * position.z;
                 position                 += direction   * zoom_amount;
-                position.z                = position.z.max(persp.near + 1.0);
+                let min_zoom              = persp.near + 1.0 + min_zoom;
+                position.z                = clamp(position.z, min_zoom, max_zoom);
 
                 properties.mod_spring(|spring| spring.fixed_point = position);
             }
