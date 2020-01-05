@@ -1,3 +1,4 @@
+use basegl_prelude::*;
 use super::request_animation_frame;
 
 use std::rc::Rc;
@@ -105,8 +106,8 @@ pub struct AnimationFrameLoop {
     data : Rc<AnimationFrameData>
 }
 
-impl AnimationFrameLoop {
-    pub fn new() -> Self {
+impl Default for AnimationFrameLoop {
+    fn default() -> Self {
         let nop_func       = Box::new(|_| ());
         let nop_closure    = Closure::once(nop_func);
         let callback       = Rc::new(RefCell::new(nop_closure));
@@ -124,6 +125,10 @@ impl AnimationFrameLoop {
         request_animation_frame(&callback.borrow()).expect("Couldn't request animation frame");
         AnimationFrameLoop{data}
     }
+}
+
+impl AnimationFrameLoop {
+    pub fn new() -> Self { default() }
 
     pub fn add_callback
     <T:AnimationFrameCallback>(&mut self, callback:T) -> AnimationFrameCallbackGuard {
