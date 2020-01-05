@@ -5,6 +5,8 @@ pub mod geometry;
 #[warn(missing_docs)]
 pub mod material;
 #[warn(missing_docs)]
+pub mod registry;
+#[warn(missing_docs)]
 pub mod shader;
 
 use crate::prelude::*;
