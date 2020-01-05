@@ -2,6 +2,7 @@ use super::Animator;
 use super::AnimationCallback;
 
 use nalgebra::zero;
+use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 
 
@@ -30,7 +31,9 @@ impl IntervalCounter {
     }
 
 }
-// FIXME: spacing
+
+
+
 // =============================
 // === FixedStepAnimatorData ===
 // =============================
@@ -67,9 +70,11 @@ pub struct FixedStepAnimator {
 }
 
 impl FixedStepAnimator {
-    pub fn new<F:AnimationCallback>(steps_per_second:f32, f:F) -> Self {
+    pub fn new<F:AnimationCallback>
+    (mut event_loop:&mut AnimationFrameLoop
+    , steps_per_second:f32, f:F) -> Self {
         let mut data = FixedStepAnimatorData::new(steps_per_second, f);
-        let _animator = Animator::new(move |delta_ms| {
+        let _animator = Animator::new(&mut event_loop, move |delta_ms| {
             let intervals = data.counter.add_time(delta_ms);
             for _ in 0..intervals {
                 (data.closure)(data.counter.interval_duration);

@@ -13,6 +13,7 @@ use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
 use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::KinematicsProperties;
+use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
@@ -32,8 +33,13 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new
-    (dom:&DOMContainer, camera:Camera, min_zoom:f32, max_zoom:f32, zoom_speed:f32) -> Result<Self> {
-        let (_simulator, properties) = Self::start_simulator(camera.clone());
+    ( mut event_loop:&mut AnimationFrameLoop
+    , dom:&DOMContainer
+    , camera:Camera
+    , min_zoom:f32
+    , max_zoom:f32
+    , zoom_speed:f32) -> Result<Self> {
+        let (_simulator, properties) = Self::start_simulator(&mut event_loop, camera.clone());
         let scaled_down_zoom_speed = zoom_speed / 1000.0;
         let _events = Self::start_navigator_events(
             dom,
@@ -46,7 +52,9 @@ impl Navigator {
         Ok(Self { _events, _simulator })
     }
 
-    fn start_simulator(camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
+    fn start_simulator
+    ( mut event_loop:&mut AnimationFrameLoop
+    , camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.position();
@@ -59,7 +67,12 @@ impl Navigator {
         let camera             = camera.object;
         let steps_per_second   = 60.0;
         let properties_clone   = properties.clone();
-        let simulator          = PhysicsSimulator::new(steps_per_second, camera, properties_clone);
+        let simulator          = PhysicsSimulator::new(
+            &mut event_loop,
+            steps_per_second,
+            camera,
+            properties_clone
+        );
         (simulator, properties)
     }
 

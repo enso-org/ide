@@ -9,7 +9,6 @@ pub use crate::display::world::workspace::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::data::opt_vec::OptVec;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use crate::promote_all;
@@ -19,6 +18,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::display::shape::text::font::Fonts;
 
+use data::opt_vec::OptVec;
 use event_loop::EventLoop;
 use eval_tt::*;
 

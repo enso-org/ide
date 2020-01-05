@@ -8,6 +8,7 @@ use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
 use crate::math::utils::linear_interpolation;
 use crate::animation::HasPosition;
+use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 use nalgebra::Vector3;
 use nalgebra::zero;
@@ -241,15 +242,18 @@ pub struct PhysicsSimulator {
 
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
-    pub fn new
-    <T>(steps_per_second:f32, mut object:T, mut properties:PhysicsProperties) -> Self
-        where T:SimulationObject {
+    pub fn new<T>
+    ( mut event_loop:&mut AnimationFrameLoop
+    , steps_per_second:f32
+    , mut object:T
+    , mut properties:PhysicsProperties) -> Self
+    where T:SimulationObject {
         properties.mod_kinematics(|kinematics| { kinematics.set_position(object.position()); });
         let step_ms              = 1000.0 / steps_per_second;
         let mut current_position = object.position();
         let mut next_position    = simulate(&mut properties, step_ms);
         let mut interval_counter = IntervalCounter::new(step_ms);
-        let _animator            = Animator::new(move |delta_ms| {
+        let _animator            = Animator::new(&mut event_loop, move |delta_ms| {
             let intervals = interval_counter.add_time(delta_ms);
             for _ in 0..intervals {
                 current_position = next_position;

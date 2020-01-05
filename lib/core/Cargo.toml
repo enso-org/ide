@@ -12,6 +12,7 @@ default = ["no_unboxed_callbacks"]
 no_unboxed_callbacks = []
 
 [dependencies]
+data                       = { version = "0.1.0"  , path = "../data"          }
 basegl-prelude             = { version = "0.1.0"  , path = "../prelude"       }
 eval-tt                    = { version = "0.1.0"  , path = "../eval-tt"       }
 optics                     = { version = "0.1.0"  , path = "../optics"        }

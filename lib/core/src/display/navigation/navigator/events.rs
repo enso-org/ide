@@ -13,9 +13,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use nalgebra::zero;
 
-// =================================================================================================
-// === ZoomEvent ===================================================================================
-// =================================================================================================
+// =================
+// === ZoomEvent ===
+// =================
 
 pub trait FnZoomEvent = FnMut(ZoomEvent) + 'static;
 
@@ -46,9 +46,9 @@ impl ZoomEvent {
 
 
 
-// =================================================================================================
-// === PanEvent ====================================================================================
-// =================================================================================================
+// ================
+// === PanEvent ===
+// ================
 
 pub trait FnPanEvent = FnMut(PanEvent) + 'static;
 
@@ -72,9 +72,9 @@ impl PanEvent {
 
 
 
-// =================================================================================================
-// === MovementType ================================================================================
-// =================================================================================================
+// ====================
+// === MovementType ===
+// ====================
 
 #[derive(PartialEq, Clone, Copy)]
 enum MovementType {
@@ -84,11 +84,11 @@ enum MovementType {
 
 
 
-// =================================================================================================
-// === NavigatorEventsCell =========================================================================
-// =================================================================================================
+// =================================
+// === NavigatorEventsProperties ===
+// =================================
 
-struct NavigatorEventsCell {
+struct NavigatorEventsProperties {
     movement_type        : Option<MovementType>,
     mouse_position       : Vector2<f32>,
     pan_callback         : Box<dyn FnPanEvent>,
@@ -98,14 +98,12 @@ struct NavigatorEventsCell {
 
 
 
-// =================================================================================================
-// === NavigatorEventsData =========================================================================
-// =================================================================================================
+// ===========================
+// === NavigatorEventsData ===
+// ===========================
 
-// FIXME: The same as previously - why we are keeping something with `RefCell` and not `Rc<RefCell<...>>`, as the only usage of that is `Rc<NavigatorEventsData>`?
-// FIXME: I really believe this should be changed. If you feel otherwise, please write to me detailed explanation why this design is better! :)
 struct NavigatorEventsData {
-    cell : RefCell<NavigatorEventsCell>
+    properties : RefCell<NavigatorEventsProperties>
 }
 
 impl NavigatorEventsData {
@@ -113,9 +111,9 @@ impl NavigatorEventsData {
     ( pan_callback:Box<dyn FnPanEvent>
     , zoom_callback:Box<dyn FnZoomEvent>
     , zoom_speed:f32) -> Rc<Self> {
-        let mouse_position   = zero();
-        let movement_type    = None;
-        let cell             = RefCell::new(NavigatorEventsCell {
+        let mouse_position = zero();
+        let movement_type  = None;
+        let properties     = RefCell::new(NavigatorEventsProperties {
             mouse_position,
             movement_type,
             pan_callback,
@@ -123,52 +121,52 @@ impl NavigatorEventsData {
             zoom_speed
 
         });
-        Rc::new(Self { cell })
+        Rc::new(Self {properties})
     }
 
     fn on_zoom(&self, event:ZoomEvent) {
-        (&mut self.cell.borrow_mut().zoom_callback)(event);
+        (&mut self.properties.borrow_mut().zoom_callback)(event);
     }
 
     fn on_pan(&self, event: PanEvent) {
-        (&mut self.cell.borrow_mut().pan_callback)(event);
+        (&mut self.properties.borrow_mut().pan_callback)(event);
     }
 }
 
 
-// === Getters =====================================================================================
+// === Getters ===
 
 impl NavigatorEventsData {
     fn mouse_position(&self) -> Vector2<f32> {
-        self.cell.borrow().mouse_position
+        self.properties.borrow().mouse_position
     }
 
     fn zoom_speed(&self) -> f32 {
-        self.cell.borrow().zoom_speed
+        self.properties.borrow().zoom_speed
     }
 
     fn movement_type(&self) -> Option<MovementType> {
-        self.cell.borrow().movement_type
+        self.properties.borrow().movement_type
     }
 }
 
 
-// === Setters =====================================================================================
+// === Setters ===
 
 impl NavigatorEventsData {
     fn set_movement_type(&self, movement_type:Option<MovementType>) {
-        self.cell.borrow_mut().movement_type = movement_type;
+        self.properties.borrow_mut().movement_type = movement_type;
     }
 
     fn set_mouse_position(&self, mouse_position:Vector2<f32>) {
-        self.cell.borrow_mut().mouse_position = mouse_position;
+        self.properties.borrow_mut().mouse_position = mouse_position;
     }
 }
 
 
-// =================================================================================================
-// === NavigatorEvents =============================================================================
-// =================================================================================================
+// =======================
+// === NavigatorEvents ===
+// =======================
 
 /// Struct used to handle pan and zoom events from mouse interactions.
 pub struct NavigatorEvents {

@@ -1,4 +1,5 @@
 #![feature(trait_alias)]
+#![feature(arbitrary_self_types)]
 
 pub mod resize_observer;
 pub mod intersection_observer;
@@ -187,6 +188,7 @@ macro_rules! group {
         group!($logger, format!($str,$a1,$a2,$a3), $body)
     }};
 }
+
 
 // =============
 // === Utils ===

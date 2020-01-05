@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::data::opt_vec::*;
+use data::opt_vec::*;
 
 type Index = usize;
 

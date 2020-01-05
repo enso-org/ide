@@ -12,6 +12,7 @@ use crate::animation::physics::inertia::*;
 
 use nalgebra::{Vector2, Vector3};
 use crate::set_stdout;
+use basegl_system_web::animation_frame_loop::AnimationFrameLoop;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     let mut scene : Scene<HTMLObject> = Scene::new();
@@ -65,14 +66,23 @@ pub fn run_example_camera_navigation() {
     let z = y * camera.get_y_scale();
     camera.set_position(Vector3::new(x, y, z));
 
+    let mut event_loop = AnimationFrameLoop::new();
+
     let zoom_speed   = 2.0;
     let min_zoom     = 10.0;
     let max_zoom     = 10000.0;
     let camera_clone = camera.clone();
-    let navigator  = Navigator::new(&renderer.container,camera_clone,min_zoom,max_zoom,zoom_speed);
+    let navigator  = Navigator::new(
+        &mut event_loop,
+        &renderer.container,
+        camera_clone,
+        min_zoom,
+        max_zoom,
+        zoom_speed
+    );
     let navigator  = navigator.expect("Couldn't create navigator");
 
-    let animator = ContinuousAnimator::new(move |_| {
+    let animator = ContinuousAnimator::new(&mut event_loop, move |_| {
         let _keep_alive = &navigator;
         renderer.render(&mut camera, &scene);
     });

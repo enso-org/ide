@@ -3,7 +3,7 @@ pub mod fixed_step;
 
 use continuous::ContinuousAnimator;
 use super::AnimationCallback;
-
+use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 
 // ====================
@@ -36,9 +36,9 @@ pub struct Animator {
 }
 
 impl Animator {
-    pub fn new<F:AnimationCallback>(f:F) -> Self {
+    pub fn new<F:AnimationCallback>(mut event_loop:&mut AnimationFrameLoop, f:F) -> Self {
         let mut data             = AnimatorData::new(f);
-        let _continuous_animator = ContinuousAnimator::new(move |current_ms| {
+        let _continuous_animator = ContinuousAnimator::new(&mut event_loop, move |current_ms| {
             if let Some(previous_ms) = data.previous_ms {
                 let delta_ms = current_ms - previous_ms;
                 (data.callback)(delta_ms);

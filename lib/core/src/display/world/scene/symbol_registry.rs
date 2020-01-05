@@ -3,7 +3,6 @@ use crate::prelude::*;
 use crate::display::render::webgl::Context;
 use crate::closure;
 use crate::data::function::callback::*;
-use crate::data::opt_vec::OptVec;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use crate::display::symbol;
@@ -12,6 +11,7 @@ use crate::system::web::Logger;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_symbol_types;
+use data::opt_vec::OptVec;
 use eval_tt::*;
 use crate::display::camera::Camera2D;
 

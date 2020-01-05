@@ -46,6 +46,7 @@ mod tests {
         let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
 
+        let mut event_loop   = b.event_loop();
         let mass             = 2.0;
         let kinematics       = KinematicsProperties::new(zero(), zero(), zero(), mass);
         let coefficient      = 10.0;
@@ -54,11 +55,16 @@ mod tests {
         let drag             = DragProperties::new(0.8);
         let mut properties   = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second = 60.0;
-        let simulator        = PhysicsSimulator::new(steps_per_second, object, properties.clone());
+        let simulator        = PhysicsSimulator::new(
+            &mut event_loop,
+            steps_per_second,
+            object,
+            properties.clone()
+        );
 
         // Updates spring's fixed point every two seconds.
         let every = 2.0;
-        let animator  = FixedStepAnimator::new(1.0 / every, move |_| {
+        let animator  = FixedStepAnimator::new(&mut event_loop, 1.0 / every, move |_| {
             let x = 32.0 * (random() - 0.5) as f32;
             let y = 24.0 * (random() - 0.5) as f32;
             let z = 0.0;
