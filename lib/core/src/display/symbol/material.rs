@@ -1,126 +1,60 @@
-#![allow(missing_docs)]
-
-#[warn(missing_docs)]
-pub mod shader;
-
 use crate::prelude::*;
 
-use crate::data::dirty::traits::*;
-use crate::data::dirty;
-use crate::data::function::callback::*;
-use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::data::GpuData;
 use crate::display::render::webgl::glsl;
-use crate::display::render::webgl;
-use crate::system::web::group;
-use crate::system::web::Logger;
-use web_sys::WebGlProgram;
 
 
-use crate::display::shape::primitive::shader::builder::Builder;
+
+#[derive(Clone,Debug)]
+pub struct Binding {
+    pub name         : String,
+    pub glsl_type    : glsl::PrimType,
+    pub glsl_default : String,
+}
+
+impl Binding {
+    pub fn new(name:String, glsl_type:glsl::PrimType, glsl_default:String) -> Self {
+        Self {name,glsl_type,glsl_default}
+    }
+}
+
 
 
 // ================
 // === Material ===
 // ================
 
-// === Definition ===
-
-/// Material keeps track of a shader and related WebGL Program.
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
-pub struct Material<OnMut> {
-    program    : Option<WebGlProgram>,
-    pub dirty  : Dirty <OnMut>,
-    pub logger : Logger,
-    context    : Context,
-    stats      : Stats,
+#[derive(Clone,Debug,Default)]
+pub struct Material {
+    pub inputs      : Vec<Binding>,
+    pub outputs     : Vec<Binding>,
+    pub before_main : String,
+    pub main        : String,
 }
 
-// === Types ===
-
-pub type Dirty <F> = dirty::SharedBool<F>;
-
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_material_types { ($($args:tt)*) => {
-    promote! {$($args)* [Material]}
-};}
-
-// === Implementation ===
-
-impl<OnDirty: Callback0> Material<OnDirty> {
-
-    /// Creates new material with attached callback.
-    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnDirty) -> Self {
-        stats.inc_material_count();
-        let program      = default();
-        let dirty_logger = logger.sub("dirty");
-        let dirty        = Dirty::new(dirty_logger,on_mut);
-        let context      = context.clone();
-        let stats        = stats.clone_ref();
-        dirty.set();
-        Self {program,dirty,logger,context,stats}
+impl Material {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
     }
 
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
-        group!(self.logger, "Updating.", {
-            if self.dirty.check_all() {
-
-                self.stats.inc_material_compile_count();
-
-                // FIXME: Hardcoded variables until we get proper shaders EDSL.
-
-                let mut shader_cfg     = shader::ShaderConfig::new();
-                let mut shader_builder = shader::ShaderBuilder::new();
-                shader_cfg.insert_attribute        ("bbox"            , glsl::PrimType::Vec2);
-                shader_cfg.insert_attribute        ("uv"              , glsl::PrimType::Vec2);
-                shader_cfg.insert_attribute        ("transform"       , glsl::PrimType::Mat4);
-                shader_cfg.insert_shared_attribute ("local"           , glsl::PrimType::Vec3);
-                shader_cfg.insert_uniform          ("view_projection" , glsl::PrimType::Mat4);
-                shader_cfg.insert_output           ("color"           , glsl::PrimType::Vec4);
-
-                let vtx_template = shader::CodeTemplete::from_main("
-                mat4 model_view_projection = view_projection * transform;
-                local                      = vec3((uv - 0.5) * bbox, 0.0);
-                gl_Position                = model_view_projection * vec4(local,1.0);
-                ");
-                let frag_template = shader::CodeTemplete::from_main("
-                out_color = vec4(1.0,1.0,1.0,1.0);
-                ");
-                shader_builder.compute(&shader_cfg,vtx_template,frag_template);
-                let shader      = shader_builder.build();
-                let vert_shader = webgl::compile_vertex_shader  (&self.context,&shader.vertex);
-                let frag_shader = webgl::compile_fragment_shader(&self.context,&shader.fragment);
-                let vert_shader = vert_shader.unwrap();
-                let frag_shader = frag_shader.unwrap();
-                let program     = webgl::link_program(&self.context,&vert_shader,&frag_shader);
-                let program     = program.unwrap();
-                self.program    = Some(program);
-                self.dirty.unset_all();
-            }
-        })
+    pub fn add_input<Name:Into<String>,T:GpuData>(&mut self, name:Name, t:T) {
+        self.inputs.push(Self::make_binding(name,t));
     }
 
-    /// Traverses the material definition and collects all attribute names.
-    pub fn collect_variables(&self) -> Vec<String> {
-        // FIXME: Hardcoded.
-        vec!["bbox".into(),"uv".into(),"transform".into()]
+    pub fn add_output<Name:Into<String>,T:GpuData>(&mut self, name:Name, t:T) {
+        self.outputs.push(Self::make_binding(name,t));
     }
-}
 
-impl<OnMut> Drop for Material<OnMut> {
-    fn drop(&mut self) {
-        self.stats.dec_material_count();
+    pub fn set_before_main<Code:Into<String>>(&mut self, code:Code) {
+        self.before_main = code.into()
     }
-}
 
+    pub fn set_main<Code:Into<String>>(&mut self, code:Code) {
+        self.main = code.into()
+    }
 
-// === Getters ===
-
-impl<OnDirty> Material<OnDirty> {
-    pub fn program(&self) -> &Option<WebGlProgram> {
-        &self.program
+    pub fn make_binding<Name:Into<String>,T:GpuData>(name:Name, t:T) -> Binding {
+        Binding::new(name.into(), <T as GpuData>::glsl_type(), t.to_glsl())
     }
 }

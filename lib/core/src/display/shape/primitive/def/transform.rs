@@ -8,7 +8,7 @@ use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::item::GlslItem;
+use crate::display::shape::primitive::shader::data::ShaderData;
 
 
 
@@ -37,7 +37,7 @@ use crate::display::shape::primitive::shader::item::GlslItem;
 ///     }
 ///
 ///     impl<child:Shape> Translate<child> {
-///         pub fn new<x:GlslItem<f32>,y:GlslItem<f32>>(child:&child,x:x,y:y) -> Self {
+///         pub fn new<x:ShaderData<f32>,y:ShaderData<f32>>(child:&child,x:x,y:y) -> Self {
 ///             let child = child.clone();
 ///             let x     = x.to_glsl();
 ///             let y     = y.to_glsl();
@@ -50,7 +50,7 @@ use crate::display::shape::primitive::shader::item::GlslItem;
 ///     use super::*;
 ///
 ///     pub type Translate<child> = ShapeRef<mutable::Translate<child>>;
-///     pub fn Translate<child:Shape,x:GlslItem<f32>,y:GlslItem<f32>>
+///     pub fn Translate<child:Shape,x:ShaderData<f32>,y:ShaderData<f32>>
 ///     (child:&child,x:x,y:y) -> Translate<child> {
 ///         ShapeRef::new(mutable::Translate::new(child,x,y))
 ///     }
@@ -85,7 +85,7 @@ macro_rules! _define_compound_shape_data {
 
         impl<$($shape_field:Shape),*> $name<$($shape_field),*> {
             /// Constructor.
-            pub fn new<$($field:GlslItem<$field_type>),*>
+            pub fn new<$($field:ShaderData<$field_type>),*>
             ($($shape_field:&$shape_field),*,$($field:$field),*) -> Self {
                 $(let $shape_field = $shape_field.clone();)*
                 $(let $field       = $field.to_glsl();)*
@@ -102,7 +102,7 @@ macro_rules! _define_compound_shape {
             ShapeRef<mutable::$name<$($shape_field),*>>;
 
         /// Smart constructor.
-        pub fn $name<$($shape_field:Shape),*,$($field:GlslItem<$field_type>),*>
+        pub fn $name<$($shape_field:Shape),*,$($field:ShaderData<$field_type>),*>
         ( $($shape_field:&$shape_field),*,$($field:$field),*) -> $name<$($shape_field),*> {
             ShapeRef::new(mutable::$name::new($($shape_field),*,$($field),*))
         }

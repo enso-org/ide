@@ -1,5 +1,10 @@
 #![allow(missing_docs)]
 
+
+#[warn(missing_docs)]
+pub mod uniform;
+
+
 use crate::prelude::*;
 
 use crate::closure;
@@ -10,7 +15,7 @@ use crate::data::opt_vec::OptVec;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
-use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
+use crate::system::gpu::data::GpuData;
 use crate::display::symbol::geometry::primitive::mesh::buffer;
 use crate::promote;
 use crate::promote_all;
@@ -98,7 +103,7 @@ impl<OnMut:Clone> Scope<OnMut> {
 impl<OnMut: Callback0> Scope<OnMut> {
 
     /// Adds a new named buffer to the scope.
-    pub fn add_buffer<Name:Str, T:Item>(&mut self, name:Name) -> Buffer<T,OnMut>
+    pub fn add_buffer<Name:Str, T:GpuData>(&mut self, name:Name) -> Buffer<T,OnMut>
     where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();

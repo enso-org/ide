@@ -5,14 +5,14 @@
 use crate::prelude::*;
 
 use crate::display::object::*;
-use crate::display::world::*;
 use crate::display::symbol::geometry::primitive::mesh::InstanceId;
+use crate::display::symbol::material::Material;
+use crate::display::world::*;
 
 use basegl_system_web::Logger;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
-
 
 
 // =================
@@ -200,6 +200,8 @@ impl SpriteSystem {
         let transform      = mesh.scopes.instance.add_buffer("transform");
         let bbox           = mesh.scopes.instance.add_buffer("bbox");
 
+        symbol.shader.set_geometry_material(Self::geometry_material());
+
         let p1_index = mesh.scopes.point.add_instance();
         let p2_index = mesh.scopes.point.add_instance();
         let p3_index = mesh.scopes.point.add_instance();
@@ -231,6 +233,21 @@ impl SpriteSystem {
         let sprite = Sprite::new(sprite_ref,transform,bbox);
         self.add_child(&sprite);
         sprite
+    }
+
+    fn geometry_material() -> Material {
+        let mut material = Material::new();
+        material.add_input  ("bbox"            , Vector2::<f32>::zeros());
+        material.add_input  ("uv"              , Vector2::<f32>::zeros());
+        material.add_input  ("transform"       , Matrix4::<f32>::identity());
+        material.add_input  ("view_projection" , Matrix4::<f32>::identity());
+        material.add_output ("local"           , Vector3::<f32>::zeros());
+        material.set_main("
+                mat4 model_view_projection = view_projection * transform;
+                local                      = vec3((uv - 0.5) * bbox, 0.0);
+                gl_Position                = model_view_projection * vec4(local,1.0);
+                ");
+        material
     }
 }
 

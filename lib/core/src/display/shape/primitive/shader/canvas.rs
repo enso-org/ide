@@ -1,7 +1,7 @@
 //! Canvas for drawing vector graphics. See the documentation of `Canvas` to learn more.
 
 use crate::prelude::*;
-use super::item::GlslItem;
+use crate::display::shape::primitive::shader::data::ShaderData;
 
 
 
@@ -188,7 +188,7 @@ impl Canvas {
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<X:GlslItem<f32>,Y:GlslItem<f32>>
+    pub fn translate<X: ShaderData<f32>,Y: ShaderData<f32>>
     (&mut self, num:usize, s1:CanvasShape, x:X, y:Y) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let x     = x.to_glsl();

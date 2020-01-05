@@ -38,19 +38,19 @@ pub struct ShaderConfig {
 impl ShaderConfig {
     pub fn new() -> Self { default() }
 
-    pub fn insert_attribute<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
+    pub fn add_attribute<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
         self.attributes.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn insert_shared_attribute<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
+    pub fn add_shared_attribute<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
         self.shared.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn insert_uniform<S:Str,Q:Into<UniformQualifier>>(&mut self, name:S, qual:Q) {
+    pub fn add_uniform<S:Str,Q:Into<UniformQualifier>>(&mut self, name:S, qual:Q) {
         self.uniforms.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn insert_output<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
+    pub fn add_output<S:Str,Q:Into<AttributeQualifier>>(&mut self, name:S, qual:Q) {
         self.outputs.insert(name.as_ref().to_string(), qual.into());
     }
 }
@@ -146,6 +146,13 @@ impl From<glsl::PrimType> for AttributeQualifier {
     }
 }
 
+impl From<&glsl::PrimType> for AttributeQualifier {
+    fn from(prim_type:&glsl::PrimType) -> Self {
+        let typ:glsl::Type = prim_type.into();
+        typ.into()
+    }
+}
+
 
 // === UniformQualifier ===
 
@@ -177,6 +184,13 @@ impl From<glsl::Type> for UniformQualifier {
 
 impl From<glsl::PrimType> for UniformQualifier {
     fn from(prim_type:glsl::PrimType) -> Self {
+        let typ:glsl::Type = prim_type.into();
+        typ.into()
+    }
+}
+
+impl From<&glsl::PrimType> for UniformQualifier {
+    fn from(prim_type:&glsl::PrimType) -> Self {
         let typ:glsl::Type = prim_type.into();
         typ.into()
     }
@@ -249,8 +263,8 @@ impl ShaderBuilder {
     fn gen_attributes_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.attributes.is_empty() {
             for (name,qual) in &cfg.attributes {
-                let vert_name = mk_vertex_name(&name);
-                let frag_name = mk_fragment_name(&name);
+                let vert_name = mk_vertex_name(name);
+                let frag_name = mk_fragment_name(name);
                 let sharing   = glsl::Assignment::new(&frag_name,&vert_name);
                 self.vertex  .add(qual.to_input_var (&vert_name));
                 self.vertex  .add(qual.to_output_var(&frag_name));
@@ -263,7 +277,7 @@ impl ShaderBuilder {
     fn gen_shared_attributes_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.shared.is_empty() {
             for (name,qual) in &cfg.shared {
-                let frag_name = mk_fragment_name(&name);
+                let frag_name = mk_fragment_name(name);
                 self.vertex  .add(qual.to_output_var(&frag_name));
                 self.fragment.add(qual.to_input_var (&frag_name));
             }
@@ -297,6 +311,6 @@ impl ShaderBuilder {
     }
 }
 
-pub fn mk_out_name      <S:Str> (s:S) -> String { format!("out_{}"    , s.as_ref()) }
+pub fn mk_out_name      <S:Str> (s:S) -> String { format!("output_{}" , s.as_ref()) }
 pub fn mk_vertex_name   <S:Str> (s:S) -> String { format!("vertex_{}" , s.as_ref()) }
 pub fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }

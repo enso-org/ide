@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
 #[warn(missing_docs)]
-pub mod item;
 
 use crate::prelude::*;
 
@@ -12,11 +11,11 @@ use crate::data::function::callback::*;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
+use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::Item;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use item::Item;
-use item::Prim;
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -107,12 +106,12 @@ BufferData<T,OnMut,OnResize> {
     }
 }
 
-impl<T:Item,OnMut,OnResize>
+impl<T:GpuData,OnMut,OnResize>
 BufferData<T,OnMut,OnResize> {
 
     /// View the data as slice of primitive elements.
-    pub fn as_prim_slice(&self) -> &[Prim<T>] {
-        <T as Item>::convert_prim_buffer(&self.buffer.data)
+    pub fn as_prim_slice(&self) -> &[Item<T>] {
+        <T as GpuData>::convert_prim_buffer(&self.buffer.data)
     }
 
     /// View the data as slice of elements.
@@ -149,8 +148,8 @@ BufferData<T,OnMut,OnResize> {
         self.stats.inc_data_upload_count();
 
         let data           = self.as_slice();
-        let item_byte_size = <T as Item>::gpu_prim_byte_size() as u32;
-        let item_count     = <T as Item>::item_count()         as u32;
+        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as u32;
+        let item_count     = <T as GpuData>::item_count()         as u32;
 
         match opt_range {
             None => unsafe {
@@ -186,10 +185,10 @@ BufferData<T,OnMut,OnResize> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as Item>::gpu_prim_byte_size() as i32;
-        let item_type      = <T as Item>::gpu_item_type();
-        let rows           = <T as Item>::rows() as i32;
-        let cols           = <T as Item>::cols() as i32;
+        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as i32;
+        let item_type      = <T as GpuData>::glsl_item_type_code();
+        let rows           = <T as GpuData>::rows() as i32;
+        let cols           = <T as GpuData>::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;
@@ -225,7 +224,7 @@ BufferData<T,OnMut,OnResize> {
 }
 
 pub trait AddElementCtx<T,OnResize> = where
-    T: Item + Clone,
+    T: GpuData + Clone,
     OnResize: Callback0;
 
 impl<T,OnMut,OnResize>
@@ -297,7 +296,7 @@ Buffer<T,OnMut,OnResize> {
     }
 }
 
-impl<T:Item,OnMut,OnResize>
+impl<T:GpuData,OnMut,OnResize>
 Buffer<T,OnMut,OnResize> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
@@ -442,7 +441,7 @@ macro_rules! mk_any_buffer_impl {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
-    /// `Buffer<dyn Item, OnMut, OnResize>`.
+    /// `Buffer<dyn GpuData, OnMut, OnResize>`.
     #[enum_dispatch(IsBuffer)]
     #[derive(Derivative)]
     #[derivative(Debug(bound=""))]

@@ -10,6 +10,8 @@ use crate::data::opt_vec::OptVec;
 use crate::debug::stats::Stats;
 use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::Uniform;
 use crate::display::symbol;
 use crate::promote;
 use crate::promote_all;
@@ -17,7 +19,7 @@ use crate::promote_symbol_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use eval_tt::*;
-
+use nalgebra::Matrix4;
 
 
 // ======================
@@ -30,11 +32,13 @@ use eval_tt::*;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct SymbolRegistry<OnMut> {
-    pub symbols      : OptVec<Symbol<OnMut>>,
-    pub symbol_dirty : SymbolDirty<OnMut>,
-    pub logger       : Logger,
-    context          : Context,
-    stats            : Stats,
+    pub symbols         : OptVec<Symbol<OnMut>>,
+    pub symbol_dirty    : SymbolDirty<OnMut>,
+    pub logger          : Logger,
+    pub variables       : UniformScope,
+    pub view_projection : Uniform<Matrix4<f32>>,
+    context             : Context,
+    stats               : Stats,
 }
 
 
@@ -67,24 +71,27 @@ impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
     /// Create new instance with the provided on-dirty callback.
     pub fn new(stats:&Stats, context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
         logger.info("Initializing.");
-        let symbol_logger = logger.sub("symbol_dirty");
-        let symbol_dirty  = SymbolDirty::new(symbol_logger, on_mut);
-        let symbols       = default();
-        let context       = context.clone();
-        let stats         = stats.clone_ref();
-        Self {symbols,symbol_dirty,logger,context,stats}
+        let symbol_logger   = logger.sub("symbol_dirty");
+        let symbol_dirty    = SymbolDirty::new(symbol_logger, on_mut);
+        let symbols         = default();
+        let variables       = UniformScope::new(logger.sub("global_variables"));
+        let view_projection = variables.add_or_panic("view_projection");
+        let context         = context.clone();
+        let stats           = stats.clone_ref();
+        Self {symbols,symbol_dirty,logger,variables,view_projection,context,stats}
     }
 
     /// Creates a new `Symbol` instance.
     pub fn new_symbol(&mut self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
+        let variables    = &self.variables;
         let logger       = &self.logger;
         let context      = &self.context;
         let stats        = &self.stats;
         self.symbols.insert_with_ix(|ix| {
             let on_mut = mesh_on_change(symbol_dirty, ix);
             let logger = logger.sub(format!("symbol{}",ix));
-            Symbol::new(logger,stats,context,on_mut)
+            Symbol::new(variables,logger,stats,context,on_mut)
         })
     }
 
@@ -99,9 +106,15 @@ impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
     }
 
     pub fn render(&self, camera:&Camera2D) {
+        let changed = camera.update();
+        if changed {
+            println!("CHANGED!!!");
+            let view_projection = camera.view_projection_matrix();
+            // TODO finish
+        }
         group!(self.logger, "Rendering.", {
-            for mesh in &self.symbols {
-                mesh.render(camera);
+            for symbol in &self.symbols {
+                symbol.render(camera);
             }
         })
     }

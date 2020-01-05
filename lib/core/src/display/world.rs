@@ -130,19 +130,19 @@ impl StatsMonitorData {
         let stats       = stats.clone_ref();
         let mut monitor = Monitor::new();
         let panels = vec![
-            monitor.add( monitor::FrameTime            :: new()       ),
-            monitor.add( monitor::Fps                  :: new()       ),
-            monitor.add( monitor::WasmMemory           :: new()       ),
-            monitor.add( monitor::GpuMemory            :: new(&stats) ),
-            monitor.add( monitor::DrawCallCount        :: new(&stats) ),
-            monitor.add( monitor::DataUploadCount      :: new(&stats) ),
-            monitor.add( monitor::DataUploadSize       :: new(&stats) ),
-            monitor.add( monitor::BufferCount          :: new(&stats) ),
-            monitor.add( monitor::SymbolCount          :: new(&stats) ),
-            monitor.add( monitor::MaterialCount        :: new(&stats) ),
-            monitor.add( monitor::MaterialCompileCount :: new(&stats) ),
-            monitor.add( monitor::SpriteSystemCount    :: new(&stats) ),
-            monitor.add( monitor::SpriteCount          :: new(&stats) ),
+            monitor.add( monitor::FrameTime          :: new()       ),
+            monitor.add( monitor::Fps                :: new()       ),
+            monitor.add( monitor::WasmMemory         :: new()       ),
+            monitor.add( monitor::GpuMemory          :: new(&stats) ),
+            monitor.add( monitor::DrawCallCount      :: new(&stats) ),
+            monitor.add( monitor::DataUploadCount    :: new(&stats) ),
+            monitor.add( monitor::DataUploadSize     :: new(&stats) ),
+            monitor.add( monitor::BufferCount        :: new(&stats) ),
+            monitor.add( monitor::SymbolCount        :: new(&stats) ),
+            monitor.add( monitor::ShaderCount        :: new(&stats) ),
+            monitor.add( monitor::ShaderCompileCount :: new(&stats) ),
+            monitor.add( monitor::SpriteSystemCount  :: new(&stats) ),
+            monitor.add( monitor::SpriteCount        :: new(&stats) ),
         ];
         Self {stats,monitor,panels}
     }

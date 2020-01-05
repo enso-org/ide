@@ -4,6 +4,8 @@
 pub mod geometry;
 #[warn(missing_docs)]
 pub mod material;
+#[warn(missing_docs)]
+pub mod shader;
 
 use crate::prelude::*;
 
@@ -12,22 +14,21 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
+use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
-use crate::display::symbol::geometry::primitive::mesh::buffer::item::ContextUniformOps;
+use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::promote;
 use crate::promote_all;
-use crate::promote_material_types;
 use crate::promote_mesh_types;
+use crate::promote_shader_types;
+use crate::system::gpu::data::ContextUniformOps;
 use crate::system::web::group;
 use crate::system::web::Logger;
+
 use eval_tt::*;
-
-use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
-use crate::display::camera::Camera2D;
-use material::shader;
-
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 
@@ -94,14 +95,14 @@ impl Drop for VertexArrayObject {
 
 // === Definition ===
 
-/// Symbol is a surface with attached `Material`.
+/// Symbol is a surface with attached `Shader`.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Symbol<OnMut> {
     pub surface        : Mesh          <OnMut>,
-    pub material       : Material      <OnMut>,
+    pub shader         : Shader        <OnMut>,
     pub surface_dirty  : GeometryDirty <OnMut>,
-    pub material_dirty : MaterialDirty <OnMut>,
+    pub shader_dirty   : ShaderDirty   <OnMut>,
     pub logger         : Logger,
     context            : Context,
     vao                : Option<VertexArrayObject>,
@@ -111,15 +112,15 @@ pub struct Symbol<OnMut> {
 // === Types ===
 
 pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
-pub type MaterialDirty<Callback> = dirty::SharedBool<Callback>;
-promote_mesh_types!     { [OnSurfaceMut] mesh }
-promote_material_types! { [OnSurfaceMut] material }
+pub type ShaderDirty<Callback> = dirty::SharedBool<Callback>;
+promote_mesh_types!   { [OnSurfaceMut] mesh }
+promote_shader_types! { [OnSurfaceMut] shader }
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_symbol_types { ($($args:tt)*) => {
-    crate::promote_mesh_types!     {$($args)*}
-    crate::promote_material_types! {$($args)*}
+    crate::promote_mesh_types!   {$($args)*}
+    crate::promote_shader_types! {$($args)*}
     promote! {$($args)* [Symbol]}
 };}
 
@@ -132,7 +133,7 @@ fn surface_on_mut<C:Callback0>(dirty:GeometryDirty<C>) -> OnSurfaceMut {
 }}
 
 closure! {
-fn material_on_mut<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialMut {
+fn shader_on_mut<C:Callback0>(dirty:ShaderDirty<C>) -> OnShaderMut {
     || dirty.set()
 }}
 
@@ -142,25 +143,26 @@ fn material_on_mut<C:Callback0>(dirty:MaterialDirty<C>) -> OnMaterialMut {
 impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(logger:Logger, stats:&Stats, ctx:&Context, on_dirty:OnMut) -> Self {
+    pub fn new
+    (global:&UniformScope, logger:Logger, stats:&Stats, ctx:&Context, on_dirty:OnMut) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();
         group!(init_logger, "Initializing.", {
             let context         = ctx.clone();
             let on_dirty2       = on_dirty.clone();
             let surface_logger  = logger.sub("surface");
-            let material_logger = logger.sub("material");
+            let shader_logger   = logger.sub("shader");
             let geo_dirt_logger = logger.sub("surface_dirty");
-            let mat_dirt_logger = logger.sub("material_dirty");
+            let mat_dirt_logger = logger.sub("shader_dirty");
             let surface_dirty   = GeometryDirty::new(geo_dirt_logger,on_dirty2);
-            let material_dirty  = MaterialDirty::new(mat_dirt_logger,on_dirty);
+            let shader_dirty    = ShaderDirty::new(mat_dirt_logger,on_dirty);
             let geo_on_change   = surface_on_mut(surface_dirty.clone_ref());
-            let mat_on_change   = material_on_mut(material_dirty.clone_ref());
-            let material        = Material::new(material_logger,&stats,ctx,mat_on_change);
-            let surface         = Mesh::new(surface_logger,&stats,ctx,geo_on_change);
+            let mat_on_change   = shader_on_mut(shader_dirty.clone_ref());
+            let shader          = Shader::new(shader_logger,&stats,ctx,mat_on_change);
+            let surface         = Mesh::new(global,surface_logger,&stats,ctx,geo_on_change);
             let vao             = default();
             let stats           = stats.clone_ref();
-            Self{surface,material,surface_dirty,material_dirty,logger,context,vao,stats}
+            Self{surface,shader,surface_dirty,shader_dirty,logger,context,vao,stats}
         })
     }
 
@@ -171,15 +173,19 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
                 self.surface.update();
                 self.surface_dirty.unset();
             }
-            if self.material_dirty.check() {
-                self.material.update();
+            if self.shader_dirty.check() {
+                let var_bindings = self.discover_variable_bindings();
+                println!("------------------");
+                println!("{:?}",var_bindings);
+
+                self.shader.update();
                 self.init_vao();
-               self.material_dirty.unset();
+               self.shader_dirty.unset();
             }
         })
     }
 
-    /// Creates a new VertexArrayObject, discovers all variable bindings from material to geometry,
+    /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_vao(&mut self) {
         self.vao = Some(VertexArrayObject::new(&self.context));
@@ -191,13 +197,13 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
                     match opt_scope {
                         None => self.logger.error("Internal error. Invalid var scope."),
                         Some(scope) => {
-                            let vtx_name = shader::mk_vertex_name(&variable);
+                            let vtx_name = shader::builder::mk_vertex_name(variable);
                             let location = self.context.get_attrib_location(program, &vtx_name);
                             if location < 0 {
                                 self.logger.error(|| format!("Attribute '{}' not found.",vtx_name));
                             } else {
                                 let location     = location as u32;
-                                let buffer       = &scope.buffer(&variable).unwrap();
+                                let buffer       = &scope.buffer(variable).unwrap();
                                 let is_instanced = scope_type == &mesh::ScopeType::Instance;
                                 buffer.bind(webgl::Context::ARRAY_BUFFER);
                                 buffer.vertex_attrib_pointer(location, is_instanced);
@@ -209,9 +215,9 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
         });
     }
 
-    /// For each variable from the material definition, looks up its position in geometry scopes.
+    /// For each variable from the shader definition, looks up its position in geometry scopes.
     pub fn discover_variable_bindings(&self) -> Vec<(String,Option<mesh::ScopeType>)> {
-        let variables = self.material.collect_variables();
+        let variables = self.shader.collect_variables();
         variables.into_iter().map(|variable| {
             let target = self.surface.lookup_variable(&variable);
             if target.is_none() {
@@ -225,7 +231,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
     pub fn with_program<F:FnOnce(&WebGlProgram) -> T,T>(&self, f:F) -> T {
-        let program = self.material.program().as_ref().unwrap(); // FIXME
+        let program = self.shader.program().as_ref().unwrap(); // FIXME
         self.context.use_program(Some(&program));
         let vao = self.vao.as_ref().unwrap(); // FIXME
         let out = vao.with(|| {

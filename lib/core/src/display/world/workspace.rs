@@ -114,13 +114,12 @@ pub struct Workspace<OnDirty> {
     pub context               : webgl::Context,
     pub symbol_registry       : SymbolRegistry<OnDirty>,
     pub symbol_registry_dirty : SymbolRegistryDirty<OnDirty>,
-    pub scene                 : Scene, // FIXME We support only 1 scene now;
+    pub scene                 : Scene,
     pub shape                 : Shape,
     pub shape_dirty           : ShapeDirty<OnDirty>,
     pub logger                : Logger,
     pub listeners             : Listeners,
-    // TODO[AO] this is a very temporary solution. Need to develop some general
-    // component handling
+    // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
     pub text_components : Vec<text::TextComponent>,
 }
 
@@ -172,7 +171,7 @@ impl<OnDirty: Clone + Callback0 + 'static> Workspace<OnDirty> {
         let shape                 = default();
         let listeners             = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbol_registry_dirty = dirty_flag;
-        let scene                 = Scene::new(logger.sub("scene1"));
+        let scene                 = Scene::new(logger.sub("scene"));
         let text_components       = default();
         let this = Self {canvas,context,symbol_registry,scene,symbol_registry_dirty
             ,shape,shape_dirty,logger,listeners,text_components};

@@ -48,9 +48,11 @@ use nalgebra::Scalar;
 
 
 /// Abstraction for any kind of string as an argument. Functions defined as
-/// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`,
-/// and `&str` without requiring caller to know the implementation details.
-pub trait Str = AsRef<str>;
+/// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`, and `&str` without
+/// requiring caller to know the implementation details. Moreover, the definition can decide if it
+/// needs allocation or not. Calling `s.as_ref()` will never allocate, while `s.into()` will
+/// allocate only when necessary.
+pub trait Str = Into<String> + AsRef<str>;
 
 /// Alias for `Default::default()`.
 pub fn default<T: Default>() -> T {

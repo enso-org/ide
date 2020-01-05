@@ -47,12 +47,9 @@ pub mod data;
 pub mod debug;
 pub mod display;
 pub mod examples;
+pub mod system;
 pub mod traits;
 
 pub use basegl_prelude as prelude;
-/// System module.
-pub mod system {
-    pub use basegl_system_web as web;
-}
 
 

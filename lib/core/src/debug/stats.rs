@@ -86,15 +86,15 @@ gen_stats!{
     sprite_count           : usize,
     symbol_count           : usize,
     mesh_count             : usize,
-    material_count         : usize,
-    material_compile_count : usize,
+    shader_count           : usize,
+    shader_compile_count   : usize,
 }
 
 impl StatsData {
     fn reset(&mut self) {
-        self.draw_call_count        = 0;
-        self.material_compile_count = 0;
-        self.data_upload_count      = 0;
-        self.data_upload_size       = 0;
+        self.draw_call_count      = 0;
+        self.shader_compile_count = 0;
+        self.data_upload_count    = 0;
+        self.data_upload_size     = 0;
     }
 }

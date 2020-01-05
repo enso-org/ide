@@ -653,13 +653,13 @@ macro_rules! gen_stats {
     };
 }
 
-gen_stats!("GPU memory usage (Mb)"  , GpuMemory            , gpu_memory_usage       , 100.0     , 500.0     , 2, 1024.0 * 1024.0);
-gen_stats!("Draw call count"        , DrawCallCount        , draw_call_count        , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Buffer count"           , BufferCount          , buffer_count           , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Data upload count"      , DataUploadCount      , data_upload_count      , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Data upload size (Mb)"  , DataUploadSize       , data_upload_size       ,   1.0     ,  10.0     , 2, 1024.0 * 1024.0);
-gen_stats!("Sprite system count"    , SpriteSystemCount    , sprite_system_count    , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Symbol count"           , SymbolCount          , symbol_count           , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Sprite count"           , SpriteCount          , sprite_count           , 100_000.0 , 500_000.0 , 0, 1.0);
-gen_stats!("Material count"         , MaterialCount        , material_count         , 100.0     , 500.0     , 0, 1.0);
-gen_stats!("Material compile count" , MaterialCompileCount , material_compile_count , 10.0      , 100.0     , 0, 1.0);
+gen_stats!("GPU memory usage (Mb)"  , GpuMemory            , gpu_memory_usage       , 100.0     , 500.0     , 2 , 1024.0 * 1024.0);
+gen_stats!("Draw call count"        , DrawCallCount        , draw_call_count        , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Buffer count"           , BufferCount          , buffer_count           , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Data upload count"      , DataUploadCount      , data_upload_count      , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Data upload size (Mb)"  , DataUploadSize       , data_upload_size       ,   1.0     ,  10.0     , 2 , 1024.0 * 1024.0);
+gen_stats!("Sprite system count"    , SpriteSystemCount    , sprite_system_count    , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Symbol count"           , SymbolCount          , symbol_count           , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Sprite count"           , SpriteCount          , sprite_count           , 100_000.0 , 500_000.0 , 0 , 1.0);
+gen_stats!("Shader count"           , ShaderCount          , shader_count           , 100.0     , 500.0     , 0 , 1.0);
+gen_stats!("Shader compile count"   , ShaderCompileCount   , shader_compile_count   , 10.0      , 100.0     , 0 , 1.0);

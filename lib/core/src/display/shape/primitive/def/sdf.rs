@@ -8,12 +8,12 @@ use crate::prelude::*;
 
 use inflector::Inflector;
 
-use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::def::class::Shape;
+use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::item::GlslItem;
-use crate::display::symbol::geometry::primitive::mesh::buffer::item::Item;
+use crate::display::shape::primitive::shader::data::ShaderData;
+use crate::system::gpu::data::GpuData;
 
 
 
@@ -59,7 +59,7 @@ pub trait SdfShape {
 ///     }
 ///
 ///     impl Circle {
-///         pub fn new<radius:GlslItem<f32>>(radius:radius) -> Self {
+///         pub fn new<radius:ShaderData<f32>>(radius:radius) -> Self {
 ///             let glsl_name = "circle".to_string();
 ///             let radius    = radius.to_glsl();
 ///             Self {glsl_name,radius}
@@ -71,7 +71,7 @@ pub trait SdfShape {
 ///     use super::*;
 ///
 ///     pub type Circle = ShapeRef<mutable::Circle>;
-///     pub fn Circle<radius:GlslItem<f32>>(radius:radius) -> Circle {
+///     pub fn Circle<radius:ShaderData<f32>>(radius:radius) -> Circle {
 ///         Shape::new(mutable::Circle::new(radius))
 ///     }
 ///
@@ -88,7 +88,7 @@ pub trait SdfShape {
 ///             let body = "return sdf(length(position)-radius, bbox_center(radius,radius));";
 ///             let args = vec![
 ///                 "vec2 position".to_string(),
-///                 format!("{} {}", <$f32 as Item>::gpu_type_name(), "radius")
+///                 format!("{} {}", <$f32 as GpuData>::gpu_type_name(), "radius")
 ///                 ].join(", ");
 ///             format!("sdf {} ({}) {{ {} }}",self.glsl_name,args,body)
 ///         }
@@ -130,7 +130,7 @@ macro_rules! _define_sdf_shape_immutable_part {
         pub type $name = ShapeRef<mutable::$name>;
 
         /// Smart shape constructor.
-        pub fn $name <$($field:GlslItem<$field_type>),*> ( $($field : $field),* ) -> $name {
+        pub fn $name <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> $name {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
 
@@ -147,7 +147,7 @@ macro_rules! _define_sdf_shape_immutable_part {
                 let name = stringify!($name).to_snake_case();
                 let body = stringify!($body);
                 let args = vec!["vec2 position".to_string(), $(
-                    format!("{} {}", <$field_type as Item>::gpu_type_name(), stringify!($field))
+                    format!("{} {}", <$field_type as GpuData>::glsl_type_name(), stringify!($field))
                 ),*].join(", ");
                 iformat!("sdf {name} ({args}) {body}")
             }
@@ -169,7 +169,7 @@ macro_rules! _define_sdf_shape_mutable_part {
 
         impl $name {
             /// Constructor.
-            pub fn new <$($field:GlslItem<$field_type>),*> ( $($field : $field),* ) -> Self {
+            pub fn new <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> Self {
                 let glsl_name = stringify!($name).to_snake_case();
                 $(let $field = $field.to_glsl();)*
                 Self {glsl_name,$($field),*}
