@@ -2,7 +2,7 @@ use basegl_prelude::*;
 use super::request_animation_frame;
 
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{RefCell, Cell};
 use wasm_bindgen::prelude::Closure;
 
 use data::opt_vec::{OptVec, Ix};
@@ -38,7 +38,7 @@ impl Drop for AnimationFrameCallbackGuard {
 
 struct AnimationFrameProperties {
     is_running : bool,
-    callbacks  : OptVec<Box<dyn AnimationFrameCallback>>
+    callbacks  : OptVec<Rc<RefCell<Box<dyn AnimationFrameCallback>>>>
 }
 
 impl Drop for AnimationFrameProperties {
@@ -64,8 +64,11 @@ impl AnimationFrameData {
     }
 
     fn on_animation_frame(&self, time_ms:f32) {
-        for callback in &mut self.properties.borrow_mut().callbacks {
-            (callback)(time_ms)
+        // FIXME: Can it be cleaned up?
+        let mut callbacks = self.properties.borrow().callbacks.clone();
+        for callback in &mut callbacks {
+            let mut callback : &mut Box<dyn AnimationFrameCallback> = &mut callback.borrow_mut();
+            (&mut callback)(time_ms)
         }
     }
 }
@@ -76,7 +79,8 @@ impl AnimationFrameData {
 impl AnimationFrameData {
     fn add_callback
     <T:AnimationFrameCallback>(self:&Rc<Self>, callback:T) -> AnimationFrameCallbackGuard {
-        let ix   = self.properties.borrow_mut().callbacks.insert(Box::new(callback));
+        let ix   = self.properties.borrow_mut().callbacks.insert(Rc::new(RefCell::new(Box::new
+            (callback))));
         let data = self.clone();
         AnimationFrameCallbackGuard { ix, data }
     }

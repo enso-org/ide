@@ -1,10 +1,8 @@
-use nalgebra::Vector3;
-
-// FIXME: Animators structs should get EventLoop as parameter. The whole application should have
-// only one RequestAnimationFrame loop going on to avoid its overhead.
-
 pub mod physics;
 pub mod animator;
+pub mod easing;
+
+use nalgebra::Vector3;
 
 
 
