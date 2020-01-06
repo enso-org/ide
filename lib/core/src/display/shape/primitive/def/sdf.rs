@@ -43,7 +43,7 @@ pub trait SdfShape {
 /// ```compile_fail
 /// define_sdf_shapes! {
 ///     Circle (radius:f32) {
-///         return bsdf(length(position)-radius, bbox_center(radius,radius));
+///         return bound_sdf(length(position)-radius, bounding_box(radius,radius));
 ///     }
 /// ```
 ///
@@ -85,7 +85,7 @@ pub trait SdfShape {
 ///
 ///     impl SdfShape for Circle {
 ///         fn glsl_definition() -> String {
-///             let body = "return bsdf(length(position)-radius, bbox_center(radius,radius));";
+///             let body = "return bound_sdf(length(position)-radius, bounding_box(radius,radius));";
 ///             let args = vec![
 ///                 "vec2 position".to_string(),
 ///                 format!("{} {}", <$f32 as GpuData>::gpu_type_name(), "radius")
@@ -149,7 +149,7 @@ macro_rules! _define_sdf_shape_immutable_part {
                 let args = vec!["vec2 position".to_string(), $(
                     format!("{} {}", <$field_type as GpuData>::glsl_type_name(), stringify!($field))
                 ),*].join(", ");
-                iformat!("bsdf {name} ({args}) {body}")
+                iformat!("BoundSdf {name} ({args}) {body}")
             }
         }
     }
@@ -189,22 +189,22 @@ define_sdf_shapes! {
     // === Infinite ===
 
     Plane () {
-        return bsdf(FLOAT_MIN,bbox_center(0.0,0.0));
+        return bound_sdf(FLOAT_MIN,bounding_box(0.0,0.0));
     }
 
     HalfPlane () {
-        return bsdf(position.y, bbox_center(0.0,0.0))
+        return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
     Line (width:f32) {
-        return bsdf(abs(position.y)-width, bbox_center(0.0,width));
+        return bound_sdf(abs(position.y)-width, bounding_box(0.0,width));
     }
 
 
     // === Ellipse ===
 
     Circle (radius:f32) {
-        return bsdf(length(position)-radius, bbox_center(radius,radius));
+        return bound_sdf(length(position)-radius, bounding_box(radius,radius));
     }
 
     Ellipse (x_radius:f32, y_radius:f32) {
@@ -213,22 +213,24 @@ define_sdf_shapes! {
         float px2  = position.x * position.x;
         float py2  = position.y * position.y;
         float dist = (b2 * px2 + a2 * py2 - a2 * b2) / (a2 * b2);
-        return bsdf(dist, bbox_center(x_radius,y_radius));
+        return bound_sdf(dist, bounding_box(x_radius,y_radius));
     }
 
 
     // === Rectangle ===
 
     SharpRect (width:f32, height:f32) {
-        vec2 size = vec2(width,height);
-        return max_el(abs(position) - size);
+        vec2  size = vec2(width,height);
+        vec2  dir  = abs(position) - size;
+        float dist = max(dir);
+        return bound_sdf(dist,bounding_box(width/2.0,height/2.0));
     }
 
     Rect (width:f32, height:f32) {
         vec2  size = vec2(width,height);
         vec2  dir  = abs(position) - size;
-        float dist = max_el(min(dir,0.0)) + length(max(dir,0.0));
-        return bsdf(dist,bbox_center(width,height));
+        float dist = max(min(dir,0.0)) + length(max(dir,0.0));
+        return bound_sdf(dist,bounding_box(width/2.0,height/2.0));
     }
 
     RoundedRectByCorner
@@ -241,19 +243,21 @@ define_sdf_shapes! {
         float bl = bottom_left;
         float br = bottom_right;
 
-        bool is_top_left     = position.x <  - size.x + tl && position.y >   size.y - tl;
-        bool is_top_right    = position.x >    size.x - tr && position.y >   size.y - tr;
-        bool is_bottom_left  = position.x <  - size.x + bl && position.y < - size.y + bl;
-        bool is_bottom_right = position.x >    size.x - br && position.y < - size.y + br;
+        bool is_top_left     = position.x <  -size.x + tl && position.y >  size.y - tl;
+        bool is_top_right    = position.x >   size.x - tr && position.y >  size.y - tr;
+        bool is_bottom_left  = position.x <  -size.x + bl && position.y < -size.y + bl;
+        bool is_bottom_right = position.x >   size.x - br && position.y < -size.y + br;
 
-        if      is_top_left     {return length(position - vec2(- size.x + tl,   size.y - tl)) - tl;}
-        else if is_top_right    {return length(position - vec2(  size.x - tr,   size.y - tr)) - tr;}
-        else if is_bottom_left  {return length(position - vec2(- size.x + bl, - size.y + bl)) - bl;}
-        else if is_bottom_right {return length(position - vec2(  size.x - br, - size.y + br)) - br;}
+        float dist;
+        if      (is_top_left)     {dist = length(position - vec2(-size.x + tl,  size.y - tl)) - tl;}
+        else if (is_top_right)    {dist = length(position - vec2( size.x - tr,  size.y - tr)) - tr;}
+        else if (is_bottom_left)  {dist = length(position - vec2(-size.x + bl, -size.y + bl)) - bl;}
+        else if (is_bottom_right) {dist = length(position - vec2( size.x - br, -size.y + br)) - br;}
         else {
             vec2 dir = abs(position) - size;
-            return min(max(dir.x,dir.y),0.0) + length(max(dir,0.0));
+            dist = min(max(dir.x,dir.y),0.0) + length(max(dir,0.0));
         }
+        return bound_sdf(dist,bounding_box(width/2.0,height/2.0));
     }
 
 
@@ -262,6 +266,6 @@ define_sdf_shapes! {
     Triangle (width:f32, height:f32) {
         vec2  norm = normalize(vec2(height,width/2.0));
         float dist = max(abs(position).x*norm.x + position.y*norm.y - height*norm.y, -position.y);
-        return bsdf(dist,bbox_center(width,height/2.0));
+        return bound_sdf(dist,bounding_box(width,height/2.0));
     }
 }

@@ -57,7 +57,7 @@ impl CanvasShapeData {
 
     /// Getter of the shape as GLSL expression.
     pub fn getter(&self) -> String {
-        iformat!("{self.name}(global,position)")
+        iformat!("{self.name}(env,position)")
     }
 }
 
@@ -119,7 +119,7 @@ impl Canvas {
 
     /// Defines a new variable in the GLSL code.
     pub fn define<E:Str>(&mut self, ty:&str, name:&str, expr:E) {
-        let max_type_length = 6;
+        let max_type_length = 8;
         let max_name_length = 6;
         let ty              = format!("{:1$}" , ty   , max_type_length);
         let name            = format!("{:1$}" , name , max_name_length);
@@ -129,7 +129,7 @@ impl Canvas {
     /// Submits the `current_function_lines` as a new shape construction function in the GLSL code.
     pub fn submit_shape_constructor(&mut self, name:&str) {
         let body = self.current_function_lines.join("\n    ");
-        let func = iformat!("shape {name} (globals global, vec2 position) {{\n    {body}\n}}");
+        let func = iformat!("Shape {name} (Env env, vec2 position) {{\n    {body}\n}}");
         self.current_function_lines = default();
         self.functions.push(func);
     }
@@ -150,13 +150,13 @@ impl Canvas {
     /// Defines a new shape with a new id and associated parameters, like color.
     pub fn define_shape(&mut self, num:usize, sdf:&str) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let color     = "rgb2lch(vec3(1.0,0.0,0.0)";
+            let color     = "color(rgb2lch(vec3(1.0,0.0,0.0)))";
             let mut shape = CanvasShapeData::new(num);
             let id        = this.get_new_id();
-            this.define("color" , "_color" , iformat!("{color}"));
-            this.define("bsdf"  , "_bsdf"  , iformat!("{sdf}"));
-            this.define("id"    , "_id"    , iformat!("new_id_layer(_bsdf,{id})"));
-            this.add_current_function_code_line("return shape(_id,_color,_bsdf);");
+            this.define("Color"    , "_color" , iformat!("{color}"));
+            this.define("BoundSdf" , "_sdf"   , iformat!("{sdf}"));
+            this.define("Id"       , "_id"    , iformat!("new_id_layer(_sdf,{id})"));
+            this.add_current_function_code_line("return shape(_id,_sdf,_color);");
             this.submit_shape_constructor(&shape.name);
             shape.add_id(id);
             shape
@@ -179,7 +179,7 @@ impl Canvas {
     /// Create a union shape from the provided shape components.
     pub fn union(&mut self, num:usize, s1:CanvasShape, s2:CanvasShape) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let expr      = iformat!("return union({s1.getter()},{s2.getter()});");
+            let expr      = iformat!("return unify({s1.getter()},{s2.getter()});");
             let mut shape = this.new_shape_from_expr(num,&expr);
             shape.add_ids(&s1.ids);
             shape.add_ids(&s2.ids);
@@ -193,7 +193,7 @@ impl Canvas {
         self.if_not_defined(num, |this| {
             let x     = x.to_glsl();
             let y     = y.to_glsl();
-            let trans = iformat!("position = translate(position,vec2({x},{y}))");
+            let trans = iformat!("position = translate(position,vec2({x},{y}));");
             let expr  = iformat!("return {s1.getter()};");
             this.add_current_function_code_line(trans);
             let mut shape = this.new_shape_from_expr(num,&expr);

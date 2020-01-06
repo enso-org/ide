@@ -38,8 +38,12 @@ impl Builder {
         let redirections = overload::builtin_redirections();
         let helpers      = overload::allow_overloading(&HELPERS.to_string());
 
-        let helpers = format!("{}\n\n{}",redirections,helpers);
-//        let helpers = format!("{}\n\n{}\n\n{}",redirections,helpers,defs);
+        let defs = overload::allow_overloading(&defs);
+
+        println!("{}",defs);
+
+//        let helpers = format!("{}\n\n{}",redirections,helpers);
+        let helpers = format!("{}\n\n{}\n\n{}",redirections,helpers,defs);
 
         CodeTemplete::new(helpers,FRAGMENT_RUNNER.to_string(),default())
     }

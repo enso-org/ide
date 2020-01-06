@@ -1,15 +1,19 @@
 
 
-float zoom_level = 1.0;
+float zoom_level = 0.5;
 
 
 // =================
 // === Constants ===
 // =================
 
-#define PI 3.14159265
-#define TAU (2.0*PI)
-#define PHI (sqrt(5.0)*0.5 + 0.5)
+#define PI         3.14159265
+#define TAU        (2.0*PI)
+#define PHI        (sqrt(5.0)*0.5 + 0.5)
+#define FLOAT_MAX  3.402823466e+38
+#define FLOAT_MIN  1.175494351e-38
+#define DOUBLE_MAX 1.7976931348623158e+308
+#define DOUBLE_MIN 2.2250738585072014e-308
 const float INF = 1e10;
 
 
@@ -115,40 +119,141 @@ float min (vec4 v) {
 }
 
 
+// ==========
+// === Id ===
+// ==========
 
-// ====================
-// === Bounding Box ===
-// ====================
+struct Id {
+    int value;
+};
+
+Id id(int value) {
+    return Id(value);
+}
+
+
+
+// =============
+// === Color ===
+// =============
+
+struct Color {
+    vec4 rgba;
+};
+
+Color color(vec4 rgba) {
+    return Color(rgba);
+}
+
+Color color(vec3 rgb) {
+    return Color(vec4(rgb,1.0));
+}
+
+
+
+// ===================
+// === BoundingBox ===
+// ===================
 
 /// Describes the rectangular of an object.
-struct bbox {
+struct BoundingBox {
     float min_x;
     float max_x;
     float min_y;
     float max_y;
 };
 
+BoundingBox bounding_box (float min_x, float max_x, float min_y, float max_y) {
+    return BoundingBox(min_x,max_x,min_y,max_y);
+}
+
+BoundingBox bounding_box (float w, float h) {
+    return BoundingBox(-w,w,-h,h);
+}
+
+BoundingBox unify (BoundingBox a, BoundingBox b) {
+    float min_x = min(a.min_x,b.min_x);
+    float max_x = max(a.max_x,b.max_x);
+    float min_y = min(a.min_y,b.min_y);
+    float max_y = max(a.max_y,b.max_y);
+    return BoundingBox(min_x,max_x,min_y,max_y);
+}
+
 
 
 // ===========
-// === SDF ===
+// === Sdf ===
 // ===========
 
 /// Signed distance field. Describes the distance to the nearest point of a shape.
 /// Follow the link to learn more: https://en.wikipedia.org/wiki/Signed_distance_function .
-struct sdf {
+struct Sdf {
     float distance;
 };
 
+Sdf sdf (float distance) {
+    return Sdf(distance);
+}
+
+Sdf unify (Sdf a, Sdf b) {
+    return Sdf(min(a.distance,b.distance));
+}
+
+
+
+// ================
+// === BoundSdf ===
+// ================
+
 /// Bound SDF. Signed distance field with associated bounds. See documentation of `sdf` and `bbox`
 /// to learn more.
-struct bsdf {
-    sdf  sdf;
-//    bbox bbox;
+struct BoundSdf {
+    Sdf         sdf;
+    BoundingBox bounds;
 };
 
+BoundSdf bound_sdf (Sdf sdf, BoundingBox bounds) {
+    return BoundSdf(sdf,bounds);
+}
+
+BoundSdf bound_sdf (float distance, BoundingBox bounds) {
+    return BoundSdf(sdf(distance),bounds);
+}
+
+BoundSdf unify (BoundSdf a, BoundSdf b) {
+    return BoundSdf(unify(a.sdf,b.sdf),unify(a.bounds,b.bounds));
+}
 
 
+
+// =============
+// === Shape ===
+// =============
+
+struct Shape {
+    Id       id;
+    BoundSdf sdf;
+    Color    color;
+};
+
+Shape shape (Id id, BoundSdf bound_sdf, Color color) {
+    return Shape(id,bound_sdf,color);
+}
+
+Shape unify (Shape s1, Shape s2) {
+    return Shape(s1.id,unify(s1.sdf,s2.sdf),s1.color);
+}
+
+
+
+
+// =============
+// === Input ===
+// =============
+
+struct Env {
+    int test;
+};
 
 
 
@@ -213,9 +318,9 @@ vec3 hsv2rgb(vec3 c) {
 ////// Transform //////
 ///////////////////////
 
-vec2 sdf_translate (vec2 p, vec2 t) { return p - t; }
+vec2 translate (vec2 p, vec2 t) { return p - t; }
 
-vec2 sdf_rotate (vec2 p, float angle) {
+vec2 rotate (vec2 p, float angle) {
 	return p*cos(angle) + vec2(p.y,-p.x)*sin(angle);
 }
 
@@ -340,7 +445,7 @@ float sdf_halfplaneFast(vec2 p, vec2 dir) {
 }
 
 float sdf_halfplaneFast(vec2 p, float angle) {
-  return sdf_halfplaneFast(p, sdf_rotate(vec2(0.0,1.0), angle));
+  return sdf_halfplaneFast(p, rotate(vec2(0.0,1.0), angle));
 }
 
 float sdf_halfplaneFast(vec2 p) {
@@ -354,7 +459,7 @@ float sdf_halfplane(vec2 p, vec2 dir) {
 }
 
 float sdf_halfplane(vec2 p, float angle) {
-  return sdf_halfplane(p, sdf_rotate(vec2(0.0,1.0), angle));
+  return sdf_halfplane(p, rotate(vec2(0.0,1.0), angle));
 }
 
 float sdf_halfplane(vec2 p) {
@@ -750,13 +855,13 @@ vec3 unpackColor(float f) {
 
 
 
-int newIDLayer (float a, int i) {
-    return (a <= 0.0) ? i : 0;
+Id new_id_layer (BoundSdf bsdf, int i) {
+    return Id((bsdf.sdf.distance <= 0.0) ? i : 0);
 }
 
-float newIDLayer (float a, float i) {
-    return (a <= 0.0) ? i : 0.0;
-}
+//float new_id_layer (BoundSdf bsdf, float i) {
+//    return (a <= 0.0) ? i : 0.0;
+//}
 
 int id_union        (float a, float b, int ida, int idb) { return (b <= 0.0) ? idb : ida; }
 int id_difference   (float a, float b, int ida)          { return (sdf_difference(a,b) <= 0.0) ? ida : 0 ; }

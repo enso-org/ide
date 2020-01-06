@@ -1,9 +1,14 @@
 
 
-//    vec2      p     = local.xy ;
+Env   env      = Env(1);
+vec2  position = local.xy ;
+Shape shape    = run(env,position);
+float alpha    = sdf_render(shape.sdf.sdf.distance);
+
+output_color = vec4(1.0,0.0,0.0,alpha);
+
 //    sdf_shape shape = _main(p);
 //    int       sid   = shape.id;
-//    float     alpha = sdf_render(shape.density);
 //
 //    float idMask           = (float(sid)) > 0. ? 1. : 0.; // shape.cd.a * float(sid)
 //    float symbolFamilyID_r = float(floor(symbolFamilyID + 0.5));
@@ -40,4 +45,3 @@
 //            gl_FragColor = vec4(0.0);
 //        }
 //    }
-output_color = vec4(1.0,0.0,0.0,1.0);

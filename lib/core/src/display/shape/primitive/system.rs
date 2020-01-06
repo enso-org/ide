@@ -24,8 +24,8 @@ impl ShapeSystem {
         let mut material = Material::new();
 
         let s1 = Circle(10.0);
-        let s2 = s1.translate(7.0,0.0);
-        let s3 = &s2 + &s2;
+        let s2 = s1.translate(14.0,0.0);
+        let s3 = &s1 + &s2;
 
         let code = shader::builder::Builder::run(&s3);
         material.set_code(code);
