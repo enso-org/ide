@@ -7,7 +7,7 @@ use super::canvas::Canvas;
 use super::super::class::Shape;
 use crate::display::shape::primitive::def::sdf;
 use crate::display::symbol::shader::builder::CodeTemplete;
-
+use crate::display::shape::primitive::shader::overload;
 
 const HELPERS         :&str = include_str!("../glsl/helpers.glsl");
 const FRAGMENT_RUNNER :&str = include_str!("../glsl/fragment_runner.glsl");
@@ -33,7 +33,15 @@ impl Builder {
         canvas.add_current_function_code_line(iformat!("return {shape_ref.getter()};"));
         canvas.submit_shape_constructor("run");
         let defs = iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
-        CodeTemplete::new(default(),FRAGMENT_RUNNER.to_string(),default())
+//        CodeTemplete::new(HELPERS.to_string(),FRAGMENT_RUNNER.to_string(),default())
+
+        let redirections = overload::builtin_redirections();
+        let helpers      = overload::allow_overloading(&HELPERS.to_string());
+
+        let helpers = format!("{}\n\n{}",redirections,helpers);
+//        let helpers = format!("{}\n\n{}\n\n{}",redirections,helpers,defs);
+
+        CodeTemplete::new(helpers,FRAGMENT_RUNNER.to_string(),default())
     }
 }
 

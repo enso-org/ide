@@ -154,9 +154,9 @@ impl Canvas {
             let mut shape = CanvasShapeData::new(num);
             let id        = this.get_new_id();
             this.define("color" , "_color" , iformat!("{color}"));
-            this.define("sdf"   , "_sdf"   , iformat!("{sdf}"));
-            this.define("id"    , "_id"    , iformat!("new_id_layer(_sdf,{id})"));
-            this.add_current_function_code_line("return shape(_id,_color,_sdf);");
+            this.define("bsdf"  , "_bsdf"  , iformat!("{sdf}"));
+            this.define("id"    , "_id"    , iformat!("new_id_layer(_bsdf,{id})"));
+            this.add_current_function_code_line("return shape(_id,_color,_bsdf);");
             this.submit_shape_constructor(&shape.name);
             shape.add_id(id);
             shape

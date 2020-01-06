@@ -198,7 +198,7 @@ impl SpriteSystem {
         let mesh           = &mut symbol.surface;
         let uv             = mesh.scopes.point.add_buffer("uv");
         let transform      = mesh.scopes.instance.add_buffer("transform");
-        let bbox           = mesh.scopes.instance.add_buffer("bbox");
+        let bbox           = mesh.scopes.instance.add_buffer("bounds");
 
         let geometry_material = Self::geometry_material();
         let material          = Self::material();
@@ -241,14 +241,14 @@ impl SpriteSystem {
 
     fn geometry_material() -> Material {
         let mut material = Material::new();
-        material.add_input  ("bbox"            , Vector2::<f32>::zeros());
+        material.add_input  ("bounds"          , Vector2::<f32>::zeros());
         material.add_input  ("uv"              , Vector2::<f32>::zeros());
         material.add_input  ("transform"       , Matrix4::<f32>::identity());
         material.add_input  ("view_projection" , Matrix4::<f32>::identity());
         material.add_output ("local"           , Vector3::<f32>::zeros());
         material.set_main("
                 mat4 model_view_projection = view_projection * transform;
-                local                      = vec3((uv - 0.5) * bbox, 0.0);
+                local                      = vec3((uv - 0.5) * bounds, 0.0);
                 gl_Position                = model_view_projection * vec4(local,1.0);
                 ");
         material

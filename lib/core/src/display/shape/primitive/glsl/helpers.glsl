@@ -1,35 +1,158 @@
 
 
-float mix (float a, float b, float w1, float w2) {
-    return (a * w1 + b * w2) / (w1 + w2);
+float zoom_level = 1.0;
+
+
+// =================
+// === Constants ===
+// =================
+
+#define PI 3.14159265
+#define TAU (2.0*PI)
+#define PHI (sqrt(5.0)*0.5 + 0.5)
+const float INF = 1e10;
+
+
+
+// ====================
+// === Math Helpers ===
+// ====================
+
+// === Mix ===
+
+/// Weight interpolation between two values.
+float mix (float a, float b, float weight_a, float weight_b) {
+    return (a*weight_a + b*weight_b) / (weight_a + weight_b);
 }
 
-vec2 mix (vec2 a, float w1, vec2 b, float w2) {
+/// Weight interpolation between two values.
+vec2 mix (vec2 a, vec2 b, float weight_a, float weight_b) {
     vec2 c;
-    float ws = w1 + w2;
-    c.x = (a.x * w1 + b.x * w2) / ws;
-    c.y = (a.y * w1 + b.y * w2) / ws;
+    float total_weight = weight_a + weight_b;
+    c.x = (a.x*weight_a + b.x*weight_b) / total_weight;
+    c.y = (a.y*weight_a + b.y*weight_b) / total_weight;
     return c;
 }
 
-vec3 mix (vec3 a, float w1, vec3 b, float w2) {
+/// Weight interpolation between two values.
+vec3 mix (vec3 a, vec3 b, float weight_a, float weight_b) {
     vec3 c;
-    float ws = w1 + w2;
-    c.x = (a.x * w1 + b.x * w2) / ws;
-    c.y = (a.y * w1 + b.y * w2) / ws;
-    c.z = (a.z * w1 + b.z * w2) / ws;
+    float total_weight = weight_a + weight_b;
+    c.x = (a.x * weight_a + b.x * weight_b) / total_weight;
+    c.y = (a.y * weight_a + b.y * weight_b) / total_weight;
+    c.z = (a.z * weight_a + b.z * weight_b) / total_weight;
     return c;
 }
 
-vec4 mix (vec4 a, float w1, vec4 b, float w2) {
+/// Weight interpolation between two values.
+vec4 mix (vec4 a, vec4 b, float weight_a, float weight_b) {
     vec4 c;
-    float ws = w1 + w2;
-    c.x = (a.x * w1 + b.x * w2) / ws;
-    c.y = (a.y * w1 + b.y * w2) / ws;
-    c.z = (a.z * w1 + b.z * w2) / ws;
-    c.w = (a.w * w1 + b.w * w2) / ws;
+    float total_weight = weight_a + weight_b;
+    c.x = (a.x * weight_a + b.x * weight_b) / total_weight;
+    c.y = (a.y * weight_a + b.y * weight_b) / total_weight;
+    c.z = (a.z * weight_a + b.z * weight_b) / total_weight;
+    c.w = (a.w * weight_a + b.w * weight_b) / total_weight;
     return c;
 }
+
+
+// === Clamp ===
+
+/// Constrain a value to lie between 0 and 1.
+float clamp (float a) {
+    return clamp(a,0.0,1.0);
+}
+
+/// Constrain a value to lie between 0 and 1.
+vec2 clamp (vec2 a) {
+    return clamp(a,0.0,1.0);
+}
+
+/// Constrain a value to lie between 0 and 1.
+vec3 clamp (vec3 a) {
+    return clamp(a,0.0,1.0);
+}
+
+/// Constrain a value to lie between 0 and 1.
+vec4 clamp (vec4 a) {
+    return clamp(a,0.0,1.0);
+}
+
+
+// === Max ===
+
+/// Return the greater of all field values.
+float max (vec2 v) {
+    return max(v.x,v.y);
+}
+
+/// Return the greater of all field values.
+float max (vec3 v) {
+    return max(max(v.x,v.y),v.z);
+}
+
+/// Return the greater of all field values.
+float max (vec4 v) {
+    return max(max(v.x,v.y),max(v.z,v.w));
+}
+
+
+// === Min ===
+
+/// Return the lesser of all field values.
+float min (vec2 v) {
+    return min(v.x, v.y);
+}
+
+/// Return the lesser of all field values.
+float min (vec3 v) {
+    return min(min(v.x, v.y), v.z);
+}
+
+/// Return the lesser of all field values.
+float min (vec4 v) {
+    return min(min(v.x, v.y), min(v.z, v.w));
+}
+
+
+
+// ====================
+// === Bounding Box ===
+// ====================
+
+/// Describes the rectangular of an object.
+struct bbox {
+    float min_x;
+    float max_x;
+    float min_y;
+    float max_y;
+};
+
+
+
+// ===========
+// === SDF ===
+// ===========
+
+/// Signed distance field. Describes the distance to the nearest point of a shape.
+/// Follow the link to learn more: https://en.wikipedia.org/wiki/Signed_distance_function .
+struct sdf {
+    float distance;
+};
+
+/// Bound SDF. Signed distance field with associated bounds. See documentation of `sdf` and `bbox`
+/// to learn more.
+struct bsdf {
+    sdf  sdf;
+//    bbox bbox;
+};
+
+
+
+
+
+
+
 
 
 float bismooth (float a, float exp) {
@@ -39,10 +162,7 @@ float bismooth (float a, float exp) {
   return a4;
 }
 
-float clamp (float a) { return clamp(a, 0.0, 1.0); }
-vec2  clamp (vec2  a) { return clamp(a, 0.0, 1.0); }
-vec3  clamp (vec3  a) { return clamp(a, 0.0, 1.0); }
-vec4  clamp (vec4  a) { return clamp(a, 0.0, 1.0); }
+
 
 
 
@@ -86,39 +206,6 @@ vec3 hsv2rgb(vec3 c) {
 
 
 
-///////////////////////
-////// Constants //////
-///////////////////////
-
-#define PI 3.14159265
-#define TAU (2.0*PI)
-#define PHI (sqrt(5.0)*0.5 + 0.5)
-const float INF = 1e10;
-
-
-
-/////////////////////
-////// Helpers //////
-/////////////////////
-
-float square (float x) {return x*x;}
-vec2  square (vec2  x) {return x*x;}
-vec3  square (vec3  x) {return x*x;}
-
-float lengthSqr (vec3 x) {return dot(x, x);}
-
-float maxEl (vec2 v) {return max(v.x, v.y);}
-float maxEl (vec3 v) {return max(max(v.x, v.y), v.z);}
-float maxEl (vec4 v) {return max(max(v.x, v.y), max(v.z, v.w));}
-
-float minEl (vec2 v) {return min(v.x, v.y);}
-float minEl (vec3 v) {return min(min(v.x, v.y), v.z);}
-float minEl (vec4 v) {return min(min(v.x, v.y), min(v.z, v.w));}
-
-float signPlus (float x) { return (x<0.0)?-1.0:1.0; }
-vec2  signPlus (vec2  v) { return vec2((v.x<0.0)?-1.0:1.0, (v.y<0.0)?-1.0:1.0);}
-vec3  signPlus (vec3  v) { return vec3((v.x<0.0)?-1.0:1.0, (v.y<0.0)?-1.0:1.0, (v.z<0.0)?-1.0:1.0);}
-vec4  signPlus (vec4  v) { return vec4((v.x<0.0)?-1.0:1.0, (v.y<0.0)?-1.0:1.0, (v.z<0.0)?-1:1, (v.w<0.0)?-1.0:1.0);}
 
 
 
@@ -146,8 +233,8 @@ float sdf_grow   (float size, float d)  { return d - size;  }
 float sdf_shrink (float size, float d)  { return d + size;  }
 float sdf_border (float d)              { return abs(d);    }
 float sdf_flatten(float a)              { return clamp(-a); }
-float sdf_render (float d)              { return clamp((0.5 - d) / zoomLevel); }
-float sdf_render (float d, float w)     { return clamp((0.5 - d) / zoomLevel / w); }
+float sdf_render (float d)              { return clamp((0.5 - d) / zoom_level); }
+float sdf_render (float d, float w)     { return clamp((0.5 - d) / zoom_level / w); }
 
 float sdf_removeOutside (float d) { return (d > 0.0) ?  INF : d; }
 float sdf_removeInside  (float d) { return (d < 0.0) ? -INF : d; }
@@ -298,13 +385,13 @@ float sdf_line(vec2 p, vec2 dir, float width) {
 ////// Rectangle //////
 
 float sdf_rectSharp(vec2 p, vec2 size) {
-    return maxEl(abs(p) - size);
+    return max(abs(p) - size);
 }
 
 float sdf_rect(vec2 p, vec2 size) {
   size   = size / 2.0;
   vec2 d = abs(p) - size;
-  return maxEl(min(d, 0.0)) + length(max(d, 0.0));
+  return max(min(d, 0.0)) + length(max(d, 0.0));
 }
 
 float sdf_rect(vec2 p, vec2 size, float radius) {
@@ -817,7 +904,7 @@ vec4 color_mergeLCH (float d2, float d1, vec4 c2, vec4 c1, float width) {
   float p2  = sdf_render(d2);
   float pb1 = c1.a * c1.a * smoothstep(1.0-clamp((d1/w1) + 0.5));
   float pb2 = c2.a * c2.a * smoothstep(1.0-clamp((d2/w2)));
-  vec3  c3  = mix (c1.rgb, pb1, c2.rgb, (1.0-pb1)*pb2);
+  vec3  c3  = mix (c1.rgb,c2.rgb,pb1,(1.0-pb1)*pb2);
   float aa  = p1 * c1.a + p2 * c2.a;
   aa /= max(p1, p2); // unpremultiply
   return vec4(c3, aa);

@@ -43,7 +43,7 @@ pub trait SdfShape {
 /// ```compile_fail
 /// define_sdf_shapes! {
 ///     Circle (radius:f32) {
-///         return sdf(length(position)-radius, bbox_center(radius,radius));
+///         return bsdf(length(position)-radius, bbox_center(radius,radius));
 ///     }
 /// ```
 ///
@@ -85,7 +85,7 @@ pub trait SdfShape {
 ///
 ///     impl SdfShape for Circle {
 ///         fn glsl_definition() -> String {
-///             let body = "return sdf(length(position)-radius, bbox_center(radius,radius));";
+///             let body = "return bsdf(length(position)-radius, bbox_center(radius,radius));";
 ///             let args = vec![
 ///                 "vec2 position".to_string(),
 ///                 format!("{} {}", <$f32 as GpuData>::gpu_type_name(), "radius")
@@ -149,7 +149,7 @@ macro_rules! _define_sdf_shape_immutable_part {
                 let args = vec!["vec2 position".to_string(), $(
                     format!("{} {}", <$field_type as GpuData>::glsl_type_name(), stringify!($field))
                 ),*].join(", ");
-                iformat!("sdf {name} ({args}) {body}")
+                iformat!("bsdf {name} ({args}) {body}")
             }
         }
     }
@@ -189,22 +189,22 @@ define_sdf_shapes! {
     // === Infinite ===
 
     Plane () {
-        return sdf(FLOAT_MIN,bbox_center(0.0,0.0));
+        return bsdf(FLOAT_MIN,bbox_center(0.0,0.0));
     }
 
     HalfPlane () {
-        return sdf(position.y, bbox_center(0.0,0.0))
+        return bsdf(position.y, bbox_center(0.0,0.0))
     }
 
     Line (width:f32) {
-        return sdf(abs(position.y)-width, bbox_center(0.0,width));
+        return bsdf(abs(position.y)-width, bbox_center(0.0,width));
     }
 
 
     // === Ellipse ===
 
     Circle (radius:f32) {
-        return sdf(length(position)-radius, bbox_center(radius,radius));
+        return bsdf(length(position)-radius, bbox_center(radius,radius));
     }
 
     Ellipse (x_radius:f32, y_radius:f32) {
@@ -213,7 +213,7 @@ define_sdf_shapes! {
         float px2  = position.x * position.x;
         float py2  = position.y * position.y;
         float dist = (b2 * px2 + a2 * py2 - a2 * b2) / (a2 * b2);
-        return sdf(dist, bbox_center(x_radius,y_radius));
+        return bsdf(dist, bbox_center(x_radius,y_radius));
     }
 
 
@@ -228,7 +228,7 @@ define_sdf_shapes! {
         vec2  size = vec2(width,height);
         vec2  dir  = abs(position) - size;
         float dist = max_el(min(dir,0.0)) + length(max(dir,0.0));
-        return sdf(dist,bbox_center(width,height));
+        return bsdf(dist,bbox_center(width,height));
     }
 
     RoundedRectByCorner
@@ -262,6 +262,6 @@ define_sdf_shapes! {
     Triangle (width:f32, height:f32) {
         vec2  norm = normalize(vec2(height,width/2.0));
         float dist = max(abs(position).x*norm.x + position.y*norm.y - height*norm.y, -position.y);
-        return sdf(dist,bbox_center(width,height/2.0));
+        return bsdf(dist,bbox_center(width,height/2.0));
     }
 }
