@@ -29,7 +29,7 @@
 // === Macro Debug ===
 // ===================
 
-/// Uncomment the following lines in order to enable macro-expandion debugging during compilation.
+/// Uncomment the following lines in order to enable macro-expansion debugging during compilation.
 
 //#![feature(trace_macros)]
 //#![recursion_limit="256"]

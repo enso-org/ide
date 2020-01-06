@@ -5,8 +5,10 @@
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::sprite::Sprite;
 use crate::display::symbol::geometry::sprite::SpriteSystem;
+use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
 use crate::system::web::set_stdout;
+use crate::system::web::set_stack_trace_limit;
 
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
@@ -20,36 +22,35 @@ pub fn run_example_shapes() {
     set_panic_hook();
     console_error_panic_hook::set_once();
     set_stdout();
+    set_stack_trace_limit();
     init(&WorldData::new("canvas"));
 }
 
 fn init(world: &World) {
-    let sprite_system = SpriteSystem::new(world);
-    let sprite = sprite_system.new_instance();
+    let shape_system = ShapeSystem::new(world);
+    let sprite = shape_system.new_instance();
     sprite.set_bbox(Vector2::new(100.0,100.0));
     sprite.mod_position(|t| {
         t.x += 250.0;
         t.y += 100.0;
     });
 
-    primitive::main();
-
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {
-        on_frame(&mut time,&mut iter,&sprite,&sprite_system)
+        on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
 }
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::many_single_char_names)]
 pub fn on_frame
-( _time         : &mut i32
-, iter          : &mut i32
-, _sprite1      : &Sprite
-, sprite_system : &SpriteSystem) {
+( _time        : &mut i32
+, iter         : &mut i32
+, _sprite1     : &Sprite
+, shape_system : &ShapeSystem) {
     *iter += 1;
-    sprite_system.update();
+    shape_system.update();
 }
 
 

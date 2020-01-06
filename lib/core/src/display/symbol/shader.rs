@@ -14,11 +14,33 @@ use crate::display::render::webgl::glsl;
 use crate::display::render::webgl;
 use crate::display::shape::primitive::shader::builder::Builder;
 use crate::display::symbol::material::Material;
+use crate::display::symbol::material::VarDecl;
 use crate::display::symbol::shader;
 use crate::system::web::group;
 use crate::system::web::Logger;
+use crate::display::symbol::geometry::primitive::mesh::ScopeType;
 
 use web_sys::WebGlProgram;
+
+
+
+// ==================
+// === VarBinding ===
+// ==================
+
+#[derive(Clone,Debug)]
+pub struct VarBinding {
+    pub name  : String,
+    pub decl  : VarDecl,
+    pub scope : Option<ScopeType>,
+}
+
+impl VarBinding {
+    pub fn new<Name:Str>(name:Name, decl:VarDecl, scope:Option<ScopeType>) -> Self {
+        let name = name.into();
+        Self {name,decl,scope}
+    }
+}
 
 
 
@@ -32,13 +54,13 @@ use web_sys::WebGlProgram;
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Shader<OnMut> {
-    geometry   : Material,
-    material   : Material,
-    program    : Option<WebGlProgram>,
-    pub dirty  : Dirty <OnMut>,
-    pub logger : Logger,
-    context    : Context,
-    stats      : Stats,
+    geometry_material : Material,
+    material          : Material,
+    program           : Option<WebGlProgram>,
+    pub dirty         : Dirty <OnMut>,
+    pub logger        : Logger,
+    context           : Context,
+    stats             : Stats,
 }
 
 // === Types ===
@@ -58,23 +80,21 @@ impl<OnMut:Callback0> Shader<OnMut> {
     /// Creates new shader with attached callback.
     pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_shader_count();
-        let geometry     = default();
-        let material     = default();
-        let program      = default();
-        let dirty_logger = logger.sub("dirty");
-        let dirty        = Dirty::new(dirty_logger,on_mut);
-        let context      = context.clone();
-        let stats        = stats.clone_ref();
+        let geometry_material = default();
+        let material          = default();
+        let program           = default();
+        let dirty_logger      = logger.sub("dirty");
+        let dirty             = Dirty::new(dirty_logger,on_mut);
+        let context           = context.clone();
+        let stats             = stats.clone_ref();
         dirty.set();
-        Self {geometry,material,program,dirty,logger,context,stats}
+        Self {geometry_material,material,program,dirty,logger,context,stats}
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
+    pub fn update(&mut self, bindings:&Vec<VarBinding>) {
         group!(self.logger, "Updating.", {
             if self.dirty.check_all() {
-
-                        println!("UPDATE SHADER");
 
                 self.stats.inc_shader_compile_count();
 
@@ -82,41 +102,44 @@ impl<OnMut:Callback0> Shader<OnMut> {
                 let mut shader_cfg     = shader::builder::ShaderConfig::new();
                 let mut shader_builder = shader::builder::ShaderBuilder::new();
 
-//                for t in &self.geometry.attributes {
-//                    shader_cfg.add_attribute(&t.name,&t.glsl_type);
-//                }
-//
-//                for t in &self.geometry.uniforms {
-//                    shader_cfg.add_uniform(&t.name,&t.glsl_type);
-//                }
-//
-//                for t in &self.geometry.outputs {
-//                    shader_cfg.add_shared_attribute(&t.name,&t.glsl_type);
-//                }
 
+                for binding in bindings {
+                    let name = &binding.name;
+                    let tp   = &binding.decl.tp;
+                    match binding.scope {
+                        None => todo!(),
+                        Some(scope_type) => match scope_type {
+                            ScopeType::Instance => shader_cfg.add_attribute (name,tp),
+                            ScopeType::Point    => shader_cfg.add_attribute (name,tp),
+                            ScopeType::Global   => shader_cfg.add_uniform   (name,tp),
+                            _ => todo!()
+                        }
+                    }
+                }
 
-                shader_cfg.add_attribute        ("bbox"            , glsl::PrimType::Vec2);
-                shader_cfg.add_attribute        ("uv"              , glsl::PrimType::Vec2);
-                shader_cfg.add_attribute        ("transform"       , glsl::PrimType::Mat4);
-                shader_cfg.add_shared_attribute ("local"           , glsl::PrimType::Vec3);
-                shader_cfg.add_uniform          ("view_projection" , glsl::PrimType::Mat4);
-                shader_cfg.add_output           ("color"           , glsl::PrimType::Vec4);
+                self.geometry_material.outputs.iter().for_each(|(name,decl)|{
+                    shader_cfg.add_shared_attribute(name,&decl.tp);
+                });
 
-                let vtx_template = shader::builder::CodeTemplete::from_main("
-                mat4 model_view_projection = view_projection * transform;
-                local                      = vec3((uv - 0.5) * bbox, 0.0);
-                gl_Position                = model_view_projection * vec4(local,1.0);
-                ");
-                let frag_template = shader::builder::CodeTemplete::from_main("
-                output_color = vec4(1.0,1.0,1.0,1.0);
-                ");
-                shader_builder.compute(&shader_cfg,vtx_template,frag_template);
+                shader_cfg.add_output("color", glsl::PrimType::Vec4);
+
+                let vertex_code   = self.geometry_material.code.clone();
+                let fragment_code = self.material.code.clone();
+                shader_builder.compute(&shader_cfg,vertex_code,fragment_code);
                 let shader      = shader_builder.build();
                 let vert_shader = webgl::compile_vertex_shader  (&self.context,&shader.vertex);
                 let frag_shader = webgl::compile_fragment_shader(&self.context,&shader.fragment);
+                match frag_shader {
+                    Err(ref err) => {
+                        self.logger.error(|| format!("{}", err))
+                    }
+                    _ => {}
+                }
+
                 let vert_shader = vert_shader.unwrap();
                 let frag_shader = frag_shader.unwrap();
                 let program     = webgl::link_program(&self.context,&vert_shader,&frag_shader);
+
                 let program     = program.unwrap();
                 self.program    = Some(program);
                 self.dirty.unset_all();
@@ -125,9 +148,8 @@ impl<OnMut:Callback0> Shader<OnMut> {
     }
 
     /// Traverses the shader definition and collects all attribute names.
-    pub fn collect_variables(&self) -> Vec<String> {
-        // FIXME: Hardcoded.
-        vec!["bbox".into(),"uv".into(),"transform".into(),"view_projection".into()]
+    pub fn collect_variables(&self) -> BTreeMap<String,VarDecl> {
+        self.geometry_material.inputs.clone().into_iter().chain(self.material.inputs.clone()).collect()
     }
 }
 
@@ -150,14 +172,13 @@ impl<OnMut> Shader<OnMut> {
 // === Setters ===
 
 impl<OnMut:Callback0> Shader<OnMut> {
-    pub fn set_geometry_material(&mut self, material:Material) {
-        println!("SET GEO MAT");
-        self.geometry = material;
+    pub fn set_geometry_material<M:Into<Material>>(&mut self, material:M) {
+        self.geometry_material = material.into();
         self.dirty.set();
     }
 
-    pub fn set_material(&mut self, material:Material) {
-        self.material = material;
+    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
+        self.material = material.into();
         self.dirty.set();
     }
 }

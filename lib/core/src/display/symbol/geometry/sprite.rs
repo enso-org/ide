@@ -179,11 +179,11 @@ impl Drop for SpriteData {
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 pub struct SpriteSystem {
-    display_object : DisplayObjectData,
-    symbol_ref     : SymbolRef,
-    transform      : Buffer<Matrix4<f32>>,
-    _uv            : Buffer<Vector2<f32>>,
-    bbox           : Buffer<Vector2<f32>>,
+    display_object    : DisplayObjectData,
+    symbol_ref        : SymbolRef,
+    transform         : Buffer<Matrix4<f32>>,
+    _uv               : Buffer<Vector2<f32>>,
+    bbox              : Buffer<Vector2<f32>>,
 }
 
 impl SpriteSystem {
@@ -200,7 +200,11 @@ impl SpriteSystem {
         let transform      = mesh.scopes.instance.add_buffer("transform");
         let bbox           = mesh.scopes.instance.add_buffer("bbox");
 
-        symbol.shader.set_geometry_material(Self::geometry_material());
+        let geometry_material = Self::geometry_material();
+        let material          = Self::material();
+
+        symbol.shader.set_geometry_material (&geometry_material);
+        symbol.shader.set_material          (&material);
 
         let p1_index = mesh.scopes.point.add_instance();
         let p2_index = mesh.scopes.point.add_instance();
@@ -222,8 +226,8 @@ impl SpriteSystem {
     /// Creates a new sprite instance.
     pub fn new_instance(&self) -> Sprite {
         let instance_id = {
-            let world_data   = &mut self.symbol_ref.world.borrow_mut();
-            let symbol       = &mut world_data.workspace[self.symbol_ref.symbol_id];
+            let world_data = &mut self.symbol_ref.world.borrow_mut();
+            let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
             symbol.surface.instance.add_instance()
         };
         let transform    = self.transform.get(instance_id);
@@ -249,6 +253,12 @@ impl SpriteSystem {
                 ");
         material
     }
+
+    fn material() -> Material {
+        let mut material = Material::new();
+        material.set_main("output_color = vec4(1.0,1.0,1.0,1.0);");
+        material
+    }
 }
 
 impl From<&SpriteSystem> for DisplayObjectData {
@@ -260,5 +270,16 @@ impl From<&SpriteSystem> for DisplayObjectData {
 impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteSystem {
     fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
         f(&self.display_object)
+    }
+}
+
+
+// === Setters ===
+
+impl SpriteSystem {
+    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
+        let world_data = &mut self.symbol_ref.world.borrow_mut();
+        let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
+        symbol.shader.set_material(material);
     }
 }

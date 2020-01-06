@@ -1,6 +1,5 @@
 
 
-void main() {
 //    vec2      p     = local.xy ;
 //    sdf_shape shape = _main(p);
 //    int       sid   = shape.id;
@@ -41,5 +40,4 @@ void main() {
 //            gl_FragColor = vec4(0.0);
 //        }
 //    }
-    out_color = vec4(1.0,0.0,0.0,1.0);
-}
+output_color = vec4(1.0,0.0,0.0,1.0);

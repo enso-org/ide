@@ -6,10 +6,11 @@ use crate::prelude::*;
 use super::canvas::Canvas;
 use super::super::class::Shape;
 use crate::display::shape::primitive::def::sdf;
+use crate::display::symbol::shader::builder::CodeTemplete;
 
 
-//const GLSL_DEFS:&str = include_str!("helpers.glsl");
-const FRAGMENT_RUNNER:&str = include_str!("../glsl/fragment_runner.glsl");
+const HELPERS         :&str = include_str!("../glsl/helpers.glsl");
+const FRAGMENT_RUNNER :&str = include_str!("../glsl/fragment_runner.glsl");
 
 
 pub fn header(label:&str) -> String {
@@ -23,7 +24,7 @@ pub struct Builder {}
 
 impl Builder {
     /// Returns the final GLSL code.
-    pub fn run<S:Shape>(shape:&S) -> String {
+    pub fn run<S:Shape>(shape:&S) -> CodeTemplete {
         let sdf_defs     = sdf::all_shapes_glsl_definitions();
         let mut canvas   = Canvas::default();
         let shape_ref    = shape.draw(&mut canvas);
@@ -31,8 +32,8 @@ impl Builder {
         let shape_header = header("Shape Definition");
         canvas.add_current_function_code_line(iformat!("return {shape_ref.getter()};"));
         canvas.submit_shape_constructor("run");
-        iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
-        FRAGMENT_RUNNER.to_string()
+        let defs = iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
+        CodeTemplete::new(default(),FRAGMENT_RUNNER.to_string(),default())
     }
 }
 

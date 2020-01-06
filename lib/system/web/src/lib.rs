@@ -127,8 +127,8 @@ impl Logger {
 //        console::warn_1(&self.format(msg));
     }
 
-    pub fn error<M: LogMsg>(&self, _msg: M) {
-//        console::error_1(&self.format(msg));
+    pub fn error<M: LogMsg>(&self, msg: M) {
+        console::error_1(&self.format(msg));
     }
 
     pub fn group_begin<M: LogMsg>(&self, _msg: M) {
@@ -408,4 +408,13 @@ pub fn set_stdout() {
 pub fn set_stdout_unbuffered() {
     let printer = Printer::new(_print, false);
     std::io::set_print(Some(Box::new(printer)));
+}
+
+#[wasm_bindgen(inline_js = "
+export function set_stack_trace_limit() {
+    Error.stackTraceLimit = 100
+}
+")]
+extern "C" {
+    pub fn set_stack_trace_limit();
 }

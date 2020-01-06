@@ -178,9 +178,9 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
             if self.shader_dirty.check() {
                 let var_bindings = self.discover_variable_bindings();
                 println!("------------------");
-                println!("{:?}",var_bindings);
+//                println!("{:#?}",var_bindings);
 
-                self.shader.update();
+                self.shader.update(&var_bindings);
                 self.init_vao();
                self.shader_dirty.unset();
             }
@@ -193,19 +193,19 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
         self.vao = Some(VertexArrayObject::new(&self.context));
         self.with_program(|program|{
             let var_bindings = self.discover_variable_bindings();
-            for (variable,opt_scope_type) in &var_bindings {
-                if let Some(scope_type) = opt_scope_type {
+            for binding in &var_bindings {
+                if let Some(scope_type) = binding.scope.as_ref() {
                     let opt_scope = self.surface.var_scope(*scope_type);
                     match opt_scope {
                         None => self.logger.error("Internal error. Invalid var scope."),
                         Some(scope) => {
-                            let vtx_name = shader::builder::mk_vertex_name(variable);
+                            let vtx_name = shader::builder::mk_vertex_name(&binding.name);
                             let location = self.context.get_attrib_location(program, &vtx_name);
                             if location < 0 {
                                 self.logger.error(|| format!("Attribute '{}' not found.",vtx_name));
                             } else {
                                 let location     = location as u32;
-                                let buffer       = &scope.buffer(variable).unwrap();
+                                let buffer       = &scope.buffer(&binding.name).unwrap();
                                 let is_instanced = scope_type == &mesh::ScopeType::Instance;
                                 buffer.bind(webgl::Context::ARRAY_BUFFER);
                                 buffer.vertex_attrib_pointer(location, is_instanced);
@@ -218,15 +218,15 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
     }
 
     /// For each variable from the shader definition, looks up its position in geometry scopes.
-    pub fn discover_variable_bindings(&self) -> Vec<(String,Option<mesh::ScopeType>)> {
-        let variables = self.shader.collect_variables();
-        variables.into_iter().map(|variable| {
-            let target = self.surface.lookup_variable(&variable);
+    pub fn discover_variable_bindings(&self) -> Vec<shader::VarBinding> {
+        let var_decls = self.shader.collect_variables();
+        var_decls.into_iter().map(|(var_name,var_decl)| {
+            let target = self.surface.lookup_variable(&var_name);
             if target.is_none() {
-                let msg = || format!("Unable to bind variable '{}' to geometry buffer.", variable);
+                let msg = || format!("Unable to bind variable '{}' to geometry buffer.", var_name);
                 self.logger.warning(msg);
             }
-            (variable,target)
+            shader::VarBinding::new(var_name,var_decl,target)
         }).collect()
     }
 

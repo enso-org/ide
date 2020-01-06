@@ -204,17 +204,56 @@ impl From<&glsl::PrimType> for UniformQualifier {
 
 /// A GLSL code template. It is used to provide a pre-defined GLSL code chunk and insert generated
 /// GLSL snippets in right places.
-#[derive(Default)]
+#[derive(Clone,Debug,Default)]
 pub struct CodeTemplete {
-    pub before_main : String,
-    pub main        : String,
-    pub after_main  : String,
+    before_main : String,
+    main        : String,
+    after_main  : String,
 }
 
 impl CodeTemplete {
+    /// Constructor.
+    pub fn new(before_main:String, main:String, after_main:String) -> Self {
+        Self {before_main,main,after_main}
+    }
+
     /// Creates a new instance from the provided main GLSL code definition.
     pub fn from_main<S:Str>(main:S) -> Self {
         Self {main: main.as_ref().to_string(), ..default()}
+    }
+}
+
+
+// === Getters ===
+
+impl CodeTemplete {
+    pub fn before_main(&self) -> &String {
+        &self.before_main
+    }
+
+    pub fn main(&self) -> &String {
+        &self.main
+    }
+
+    pub fn after_main(&self) -> &String {
+        &self.after_main
+    }
+}
+
+
+// === Setters ===
+
+impl CodeTemplete {
+    pub fn set_before_main<S:Str>(&mut self, value:S) {
+        self.before_main = value.into();
+    }
+
+    pub fn set_main<S:Str>(&mut self, value:S) {
+        self.main = value.into();
+    }
+
+    pub fn set_after_main<S:Str>(&mut self, value:S) {
+        self.after_main = value.into();
     }
 }
 

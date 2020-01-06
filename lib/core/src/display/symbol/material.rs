@@ -2,19 +2,23 @@ use crate::prelude::*;
 
 use crate::system::gpu::data::GpuData;
 use crate::display::render::webgl::glsl;
+use crate::display::symbol::shader::builder::CodeTemplete;
 
 
+
+// ===============
+// === VarDecl ===
+// ===============
 
 #[derive(Clone,Debug)]
-pub struct Binding {
-    pub name         : String,
-    pub glsl_type    : glsl::PrimType,
-    pub glsl_default : String,
+pub struct VarDecl {
+    pub tp      : glsl::PrimType,
+    pub default : String,
 }
 
-impl Binding {
-    pub fn new(name:String, glsl_type:glsl::PrimType, glsl_default:String) -> Self {
-        Self {name,glsl_type,glsl_default}
+impl VarDecl {
+    pub fn new(tp:glsl::PrimType, default:String) -> Self {
+        Self {tp,default}
     }
 }
 
@@ -24,12 +28,13 @@ impl Binding {
 // === Material ===
 // ================
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug,Default,Shrinkwrap)]
+#[shrinkwrap(mutable)]
 pub struct Material {
-    pub inputs      : Vec<Binding>,
-    pub outputs     : Vec<Binding>,
-    pub before_main : String,
-    pub main        : String,
+    #[shrinkwrap(main_field)]
+    pub code    : CodeTemplete,
+    pub inputs  : BTreeMap<String,VarDecl>,
+    pub outputs : BTreeMap<String,VarDecl>,
 }
 
 impl Material {
@@ -38,23 +43,29 @@ impl Material {
         default()
     }
 
-    pub fn add_input<Name:Into<String>,T:GpuData>(&mut self, name:Name, t:T) {
-        self.inputs.push(Self::make_binding(name,t));
+    pub fn add_input<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+        self.inputs.insert(name.into(),Self::make_var_decl(t));
     }
 
-    pub fn add_output<Name:Into<String>,T:GpuData>(&mut self, name:Name, t:T) {
-        self.outputs.push(Self::make_binding(name,t));
+    pub fn add_output<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+        self.outputs.insert(name.into(),Self::make_var_decl(t));
     }
 
-    pub fn set_before_main<Code:Into<String>>(&mut self, code:Code) {
-        self.before_main = code.into()
+    pub fn make_var_decl<T:GpuData>(t:T) -> VarDecl {
+        VarDecl::new(<T as GpuData>::glsl_type(), t.to_glsl())
     }
+}
 
-    pub fn set_main<Code:Into<String>>(&mut self, code:Code) {
-        self.main = code.into()
+impl From<&Material> for Material {
+    fn from(t:&Material) -> Self {
+        t.clone()
     }
+}
 
-    pub fn make_binding<Name:Into<String>,T:GpuData>(name:Name, t:T) -> Binding {
-        Binding::new(name.into(), <T as GpuData>::glsl_type(), t.to_glsl())
+// === Setters ===
+
+impl Material {
+    pub fn set_code<T:Into<CodeTemplete>>(&mut self, code:T) {
+        self.code = code.into();
     }
 }

@@ -22,6 +22,7 @@ pub use smallvec::SmallVec;
 pub use std::cell::Ref;
 pub use std::cell::RefCell;
 pub use std::cell::RefMut;
+pub use std::collections::BTreeMap;
 pub use std::collections::HashMap;
 pub use std::collections::HashSet;
 pub use std::convert::identity;
