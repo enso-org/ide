@@ -11,7 +11,7 @@ use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 // ====================
 
 struct AnimatorData {
-    callback    : Box<dyn FnMut(f32)>,
+    callback    : Box<dyn AnimationCallback>,
     previous_ms : Option<f32>
 }
 

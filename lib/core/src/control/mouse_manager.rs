@@ -17,27 +17,6 @@ use std::cell::RefCell;
 
 
 
-// ==========================
-// === add_callback macro ===
-// ==========================
-
-macro_rules! add_callback {
-    ($name:ident, $event_type:ident, $target:literal) => { paste::item! {
-        pub fn $name
-        <F:[<$event_type Callback>]>(&mut self, mut f:F) -> Result<MouseEventListener> {
-            let data = Rc::downgrade(&self.data);
-            let closure = move |event:MouseEvent| {
-                if let Some(data) = data.upgrade() {
-                    f([<$event_type Event>]::from(event, &data));
-                }
-            };
-            add_mouse_event(&self.data.target(), $target, closure)
-        }
-    } };
-}
-
-
-
 // =====================
 // === EventListener ===
 // =====================
@@ -70,7 +49,10 @@ impl<T:?Sized> Drop for EventListener<T> {
 // =============================
 
 pub type MouseEventListener = EventListener<dyn FnMut(MouseEvent)>;
+
 pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
+
+
 
 // ===================
 // === MouseButton ===
@@ -214,11 +196,53 @@ impl MouseManagerData {
 // === Getters ===
 
 impl MouseManagerData {
-    fn target(&self) -> EventTarget { self.properties.borrow().target.clone() }
+    fn target(&self) -> EventTarget {
+        self.properties.borrow().target.clone()
+    }
 
-    fn mouse_position(&self) -> Option<Vector2<f32>> { self.properties.borrow().mouse_position }
+    fn mouse_position(&self) -> Option<Vector2<f32>> {
+        self.properties.borrow().mouse_position
+    }
 
-    fn dom(&self) -> DOMContainer { self.properties.borrow().dom.clone() }
+    fn dom(&self) -> DOMContainer {
+        self.properties.borrow().dom.clone()
+    }
+}
+
+
+
+// ==========================
+// === add_callback macro ===
+// ==========================
+
+/// Creates an add_callback method implementation.
+/// ```compile_fail
+/// add_callback!(add_mouse_down_callback, MouseClick, "mousedown")
+/// ```
+/// expands to
+/// ```compile_fail
+/// fn add_mouse_down_callback
+/// <F:MouseClickEvent>(&mut self, mut f:F) -> Result<MouseEventListener> {
+///     let data = Rc::downgrade(&self.data);
+///     let closure = move |event:MouseEvent| {
+///     if let Some(data) = data.upgrade() {
+///         f(MouseClickEvent::from(event, &data));
+///     }
+/// };
+/// ```
+macro_rules! add_callback {
+    ($name:ident, $event_type:ident, $target:literal) => { paste::item! {
+        pub fn $name
+        <F:[<$event_type Callback>]>(&mut self, mut f:F) -> Result<MouseEventListener> {
+            let data = Rc::downgrade(&self.data);
+            let closure = move |event:MouseEvent| {
+                if let Some(data) = data.upgrade() {
+                    f([<$event_type Event>]::from(event, &data));
+                }
+            };
+            add_mouse_event(&self.data.target(), $target, closure)
+        }
+    } };
 }
 
 

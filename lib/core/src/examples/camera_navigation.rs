@@ -68,18 +68,8 @@ pub fn run_example_camera_navigation() {
 
     let mut event_loop = AnimationFrameLoop::new();
 
-    let zoom_speed   = 2.0;
-    let min_zoom     = 10.0;
-    let max_zoom     = 10000.0;
     let camera_clone = camera.clone();
-    let navigator  = Navigator::new(
-        &mut event_loop,
-        &renderer.container,
-        camera_clone,
-        min_zoom,
-        max_zoom,
-        zoom_speed
-    );
+    let navigator  = Navigator::new(&mut event_loop, &renderer.container, camera_clone);
     let navigator  = navigator.expect("Couldn't create navigator");
 
     let animator = ContinuousAnimator::new(&mut event_loop, move |_| {

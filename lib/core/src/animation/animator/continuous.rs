@@ -71,8 +71,13 @@ impl ContinuousAnimatorData {
 // === Getters ===
 
 impl ContinuousAnimatorData {
-    fn relative_start_ms(&self) -> f32               { self.properties.borrow().relative_start_ms }
-    fn absolute_start_ms(&self) -> Option<f32>       { self.properties.borrow().absolute_start_ms }
+    fn relative_start_ms(&self) -> f32 {
+        self.properties.borrow().relative_start_ms
+    }
+
+    fn absolute_start_ms(&self) -> Option<f32> {
+        self.properties.borrow().absolute_start_ms
+    }
 }
 
 // ==========================
@@ -90,12 +95,10 @@ impl ContinuousAnimator {
         let data_clone      = data.clone();
         let callback_guard  = event_loop.add_callback(move |current_time| {
             let absolute_start_ms = data_clone.absolute_start_ms();
-            let absolute_start_ms = if let Some(absolute_start_ms) = absolute_start_ms {
-                absolute_start_ms
-            } else {
+            let absolute_start_ms = absolute_start_ms.unwrap_or_else(|| {
                 data_clone.set_absolute_start_ms(Some(current_time));
                 current_time
-            };
+            });
             let relative_start_ms = data_clone.relative_start_ms();
             let relative_time_ms  = current_time - absolute_start_ms + relative_start_ms;
             data_clone.on_animation_frame(relative_time_ms);
