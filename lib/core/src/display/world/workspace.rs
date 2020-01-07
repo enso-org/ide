@@ -158,21 +158,21 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
     pub fn new<Dom:Str>
     (dom:Dom, logger:Logger, stats:&Stats, on_dirty:OnMut) -> Result<Self, Error> {
         logger.trace("Initializing.");
-        let dom                   = dom.as_ref();
-        let canvas                = web::get_canvas(dom)?;
-        let context               = web::get_webgl2_context(&canvas)?;
-        let sub_logger            = logger.sub("shape_dirty");
-        let shape_dirty           = ShapeDirty::new(sub_logger,on_dirty.clone());
-        let sub_logger            = logger.sub("symbols_dirty");
-        let dirty_flag            = SymbolRegistryDirty::new(sub_logger, on_dirty);
-        let on_change             = symbols_on_change(dirty_flag.clone_ref());
-        let sub_logger            = logger.sub("symbols");
-        let symbols       = SymbolRegistry::new(&stats,&context,sub_logger,on_change);
-        let shape                 = default();
-        let listeners             = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
-        let symbols_dirty = dirty_flag;
-        let scene                 = Scene::new(logger.sub("scene"));
-        let text_components       = default();
+        let dom             = dom.as_ref();
+        let canvas          = web::get_canvas(dom)?;
+        let context         = web::get_webgl2_context(&canvas)?;
+        let sub_logger      = logger.sub("shape_dirty");
+        let shape_dirty     = ShapeDirty::new(sub_logger,on_dirty.clone());
+        let sub_logger      = logger.sub("symbols_dirty");
+        let dirty_flag      = SymbolRegistryDirty::new(sub_logger, on_dirty);
+        let on_change       = symbols_on_change(dirty_flag.clone_ref());
+        let sub_logger      = logger.sub("symbols");
+        let symbols         = SymbolRegistry::new(&stats,&context,sub_logger,on_change);
+        let shape           = default();
+        let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
+        let symbols_dirty   = dirty_flag;
+        let scene           = Scene::new(logger.sub("scene"));
+        let text_components = default();
         let this = Self {canvas,context,symbols,scene,symbols_dirty
             ,shape,shape_dirty,logger,listeners,text_components};
         Ok(this)

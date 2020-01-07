@@ -5,10 +5,14 @@ use nalgebra::Matrix4;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use web_sys::WebGlUniformLocation;
 
 use crate::system::gpu::data::GpuData;
 use crate::system::gpu::data::Empty;
+use crate::system::gpu::data::ContextUniformOps;
 use crate::system::web::Logger;
+use crate::display::render::webgl::Context;
+
 
 
 macro_rules! shared_bracket_impl {
@@ -200,6 +204,10 @@ impl {
         Self {map,logger}
     }
 
+    pub fn get<Name:Str>(&self, name:Name) -> Option<AnyUniform> {
+        self.map.get(name.as_ref()).cloned()
+    }
+
     pub fn contains<Name:Str>(&self, name:Name) -> bool {
         self.map.contains_key(name.as_ref())
     }
@@ -230,8 +238,9 @@ impl UniformScopeData {
 }
 
 
-pub trait UniformValue = GpuData where AnyUniform: From<Uniform<Self>>;
-
+pub trait UniformValue = GpuData where
+    AnyUniform : From<Uniform<Self>>,
+    Context    : ContextUniformOps<Self>;
 
 
 
@@ -276,6 +285,10 @@ impl<Value:UniformValue> {
     pub fn unset_dirty(&mut self) {
         self.dirty = false;
     }
+
+    pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
+        context.set_uniform(location,&self.value);
+    }
 }}
 
 
@@ -286,7 +299,7 @@ impl<Value:UniformValue> {
 // === AnyUniform ===
 // ==================
 
-#[enum_dispatch(IsUniform)]
+#[enum_dispatch(AnyUniformOps)]
 #[derive(Clone,Debug)]
 pub enum AnyUniform {
     Vector3_of_f32(Uniform<Vector3<f32>>),
@@ -294,5 +307,6 @@ pub enum AnyUniform {
 }
 
 #[enum_dispatch]
-pub trait IsUniform {
+pub trait AnyUniformOps {
+    fn upload(&self, context:&Context, location:&WebGlUniformLocation);
 }

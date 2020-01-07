@@ -20,6 +20,8 @@ use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
 use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::AnyUniform;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::AnyUniformOps;
 use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::promote;
@@ -33,6 +35,25 @@ use crate::system::web::Logger;
 use eval_tt::*;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
+use web_sys::WebGlUniformLocation;
+
+
+
+
+/// Binds input variable definition in shader to both its location and an uniform declaration.
+#[derive(Clone,Debug)]
+pub struct UniformBinding {
+    name     : String,
+    location : WebGlUniformLocation,
+    uniform  : AnyUniform,
+}
+
+impl UniformBinding {
+    pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyUniform) -> Self {
+        let name = name.into();
+        Self {name,location,uniform}
+    }
+}
 
 
 
@@ -108,6 +129,7 @@ pub struct Symbol<OnMut> {
     pub logger         : Logger,
     context            : Context,
     vao                : Option<VertexArrayObject>,
+    uniforms           : Vec<UniformBinding>,
     stats              : Stats,
 }
 
@@ -163,8 +185,9 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
             let shader          = Shader::new(shader_logger,&stats,ctx,mat_on_change);
             let surface         = Mesh::new(global,surface_logger,&stats,ctx,geo_on_change);
             let vao             = default();
+            let uniforms        = default();
             let stats           = stats.clone_ref();
-            Self{surface,shader,surface_dirty,shader_dirty,logger,context,vao,stats}
+            Self{surface,shader,surface_dirty,shader_dirty,logger,context,vao,uniforms,stats}
         })
     }
 
@@ -178,10 +201,11 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
             if self.shader_dirty.check() {
                 let var_bindings = self.discover_variable_bindings();
                 println!("------------------");
-//                println!("{:#?}",var_bindings);
+                println!("{:#?}",var_bindings);
+
 
                 self.shader.update(&var_bindings);
-                self.init_vao();
+                self.init_vao(&var_bindings);
                self.shader_dirty.unset();
             }
         })
@@ -189,15 +213,23 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
-    fn init_vao(&mut self) {
+    fn init_vao(&mut self, var_bindings:&Vec<shader::VarBinding>) {
         self.vao = Some(VertexArrayObject::new(&self.context));
+        let mut uniforms: Vec<UniformBinding> = default();
         self.with_program(|program|{
-            let var_bindings = self.discover_variable_bindings();
-            for binding in &var_bindings {
+            for binding in var_bindings {
                 if let Some(scope_type) = binding.scope.as_ref() {
                     let opt_scope = self.surface.var_scope(*scope_type);
                     match opt_scope {
-                        None => self.logger.error("Internal error. Invalid var scope."),
+                        None => {
+                            let name     = &binding.name;
+                            let location = self.context.get_uniform_location(program,name).unwrap();
+                            let uniform  = self.surface.scopes.global.get(name).unwrap();
+                            let binding  = UniformBinding::new(name,location,uniform);
+                            uniforms.push(binding);
+//                            println!("BINDING GLOBAL VAR '{}'", name);
+//                            println!("{:?}", binding);
+                        },
                         Some(scope) => {
                             let vtx_name = shader::builder::mk_vertex_name(&binding.name);
                             let location = self.context.get_attrib_location(program, &vtx_name);
@@ -215,6 +247,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
                 }
             }
         });
+        self.uniforms = uniforms;
     }
 
     /// For each variable from the shader definition, looks up its position in geometry scopes.
@@ -247,12 +280,9 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
         group!(self.logger, "Rendering.", {
             self.with_program(|program|{
 
-                // FIXME: do proper uniform management
-                let view_projection_location =
-                    self.context.get_uniform_location(program, "view_projection");
-                camera.update();
-                self.context.set_uniform(&view_projection_location.unwrap(),
-                    &camera.view_projection_matrix());
+                for binding in &self.uniforms {
+                    binding.uniform.upload(&self.context,&binding.location);
+                }
 
                 let mode           = webgl::Context::TRIANGLE_STRIP;
                 let first          = 0;

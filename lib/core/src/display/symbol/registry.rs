@@ -109,7 +109,7 @@ impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
         let changed = camera.update();
         if changed {
             println!("CHANGED!!!");
-            let view_projection = camera.view_projection_matrix();
+            self.view_projection.set(camera.view_projection_matrix());
             // TODO finish
         }
         group!(self.logger, "Rendering.", {
