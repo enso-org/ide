@@ -199,10 +199,6 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
             }
             if self.shader_dirty.check() {
                 let var_bindings = self.discover_variable_bindings();
-                println!("------------------");
-                println!("{:#?}",var_bindings);
-
-
                 self.shader.update(&var_bindings);
                 self.init_vao(&var_bindings);
                 self.shader_dirty.unset();
