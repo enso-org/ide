@@ -123,8 +123,8 @@ impl Logger {
 //        console::group_end();
     }
 
-    pub fn warning<M: LogMsg>(&self, _msg: M) {
-//        console::warn_1(&self.format(msg));
+    pub fn warning<M: LogMsg>(&self, msg: M) {
+        console::warn_1(&self.format(msg));
     }
 
     pub fn error<M: LogMsg>(&self, msg: M) {

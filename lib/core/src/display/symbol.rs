@@ -16,7 +16,6 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
-use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
 use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
@@ -206,7 +205,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
                 self.shader.update(&var_bindings);
                 self.init_vao(&var_bindings);
-               self.shader_dirty.unset();
+                self.shader_dirty.unset();
             }
         })
     }
@@ -223,12 +222,16 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
                     match opt_scope {
                         None => {
                             let name     = &binding.name;
-                            let location = self.context.get_uniform_location(program,name).unwrap();
-                            let uniform  = self.surface.scopes.global.get(name).unwrap();
-                            let binding  = UniformBinding::new(name,location,uniform);
-                            uniforms.push(binding);
-//                            println!("BINDING GLOBAL VAR '{}'", name);
-//                            println!("{:?}", binding);
+                            let location = self.context.get_uniform_location(program,name);
+                            match location {
+                                None => self.logger.warning(|| format!("The uniform '{}' is not used in this shader. It is recommended to remove it from the material definition.", name)),
+                                Some(location) => {
+                                    let uniform = self.surface.scopes.global.get(name).unwrap();
+                                    let binding = UniformBinding::new(name,location,uniform);
+                                    uniforms.push(binding);
+                                }
+                            }
+
                         },
                         Some(scope) => {
                             let vtx_name = shader::builder::mk_vertex_name(&binding.name);
@@ -276,7 +279,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
         out
     }
 
-    pub fn render(&self, camera:&Camera2D) {
+    pub fn render(&self) {
         group!(self.logger, "Rendering.", {
             self.with_program(|program|{
 

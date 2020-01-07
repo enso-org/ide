@@ -129,7 +129,7 @@ impl Camera2DData {
         let projection             = default();
         let clipping               = default();
         let alignment              = default();
-        let zoom                   = 2.0;
+        let zoom                   = 1.0;
         let native_z               = 1.0;
         let view_matrix            = Matrix4::identity();
         let projection_matrix      = Matrix4::identity();
@@ -192,7 +192,13 @@ impl Camera2DData {
 // === Getters ===
 
 impl Camera2DData {
-    pub fn view_projection_matrix (&self) -> &Matrix4<f32> { &self.view_projection_matrix }
+    pub fn zoom(&self) -> f32 {
+        self.zoom
+    }
+
+    pub fn view_projection_matrix (&self) -> &Matrix4<f32> {
+        &self.view_projection_matrix
+    }
 }
 
 
@@ -304,6 +310,10 @@ impl Camera2D {
 // === Getters ===
 
 impl Camera2D {
+    pub fn zoom(&self) -> f32 {
+        self.rc.borrow().zoom()
+    }
+
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
         *self.rc.borrow().view_projection_matrix()
     }

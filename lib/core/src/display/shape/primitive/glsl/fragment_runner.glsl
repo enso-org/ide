@@ -7,7 +7,7 @@ float alpha    = render(shape);
 
 output_color = vec4(1.0,0.0,0.0,alpha);
 
-RGB col = distance_meter(shape.sdf.distance, 500.0 * zoom_level, 500.0/zoom_level);
+RGB col = distance_meter(shape.sdf.distance, 200.0 * zoom * pixel_ratio, 200.0/zoom * pixel_ratio);
 output_color = rgba(col).raw;
 
 //    sdf_shape shape = _main(p);

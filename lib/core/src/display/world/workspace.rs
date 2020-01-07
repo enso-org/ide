@@ -22,6 +22,8 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
+
 
 use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
@@ -70,8 +72,12 @@ impl Shape {
         shape
     }
 
-    pub fn set_screen_dimension(&self, width:f64, height:f64) {
+    pub fn set_screen_dimension(&self, width:f32, height:f32) {
         self.rc.borrow_mut().set_screen_dimension(width,height);
+    }
+
+    pub fn pixel_ratio(&self) -> f32 {
+        self.rc.borrow().pixel_ratio
     }
 }
 
@@ -80,22 +86,22 @@ impl Shape {
 
 #[derive(Clone,Debug)]
 pub struct ShapeData {
-    pub width       : f64,
-    pub height      : f64,
-    pub pixel_ratio : f64
+    pub width       : f32,
+    pub height      : f32,
+    pub pixel_ratio : f32
 }
 
 impl Default for ShapeData {
     fn default() -> Self {
         let width       = 100.0;
         let height      = 100.0;
-        let pixel_ratio = web::device_pixel_ratio().unwrap_or(1.0);
+        let pixel_ratio = web::device_pixel_ratio().unwrap_or(1.0) as f32;
         Self {width,height,pixel_ratio}
     }
 }
 
 impl ShapeData {
-    pub fn set_screen_dimension(&mut self, width:f64, height:f64) {
+    pub fn set_screen_dimension(&mut self, width:f32, height:f32) {
         self.width  = width;
         self.height = height;
     }
@@ -156,7 +162,7 @@ pub struct Listeners {
 impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<Dom:Str>
-    (dom:Dom, logger:Logger, stats:&Stats, on_dirty:OnMut) -> Result<Self, Error> {
+    (dom:Dom, variables:&UniformScope, logger:Logger, stats:&Stats, on_dirty:OnMut) -> Result<Self, Error> {
         logger.trace("Initializing.");
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom)?;
@@ -167,14 +173,19 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
         let dirty_flag      = SymbolRegistryDirty::new(sub_logger, on_dirty);
         let on_change       = symbols_on_change(dirty_flag.clone_ref());
         let sub_logger      = logger.sub("symbols");
-        let symbols         = SymbolRegistry::new(&stats,&context,sub_logger,on_change);
-        let shape           = default();
+        let symbols         = SymbolRegistry::new(variables,&stats,&context,sub_logger,on_change);
+        let shape           = Shape::default();
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let scene           = Scene::new(logger.sub("scene"));
         let text_components = default();
+
+        variables.add("pixel_ratio", shape.pixel_ratio());
+
         let this = Self {canvas,context,symbols,scene,symbols_dirty
             ,shape,shape_dirty,logger,listeners,text_components};
+
+
         Ok(this)
     }
 
@@ -187,7 +198,7 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
         let dirty  = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
             group!(logger, "Resize observer event.", {
-                shape.set_screen_dimension(width,height);
+                shape.set_screen_dimension(width as f32,height as f32);
                 dirty.set();
             })
         });

@@ -48,6 +48,7 @@ impl Builder {
 
         let code = format!("{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",redirections,math,color,debug,shape,defs);
 
+
         CodeTemplete::new(code,FRAGMENT_RUNNER.to_string(),default())
     }
 }

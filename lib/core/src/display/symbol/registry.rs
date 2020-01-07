@@ -35,8 +35,9 @@ pub struct SymbolRegistry<OnMut> {
     pub symbols         : OptVec<Symbol<OnMut>>,
     pub symbol_dirty    : SymbolDirty<OnMut>,
     pub logger          : Logger,
-    pub variables       : UniformScope,
     pub view_projection : Uniform<Matrix4<f32>>,
+    pub zoom            : Uniform<f32>,
+    variables           : UniformScope,
     context             : Context,
     stats               : Stats,
 }
@@ -69,16 +70,17 @@ fn mesh_on_change<C:Callback0> (dirty:SymbolDirty<C>, ix:SymbolId) -> OnSymbolCh
 impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new(stats:&Stats, context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
+    pub fn new(variables:&UniformScope, stats:&Stats, context:&Context, logger:Logger, on_mut:OnDirty) -> Self {
         logger.info("Initializing.");
         let symbol_logger   = logger.sub("symbol_dirty");
         let symbol_dirty    = SymbolDirty::new(symbol_logger, on_mut);
         let symbols         = default();
-        let variables       = UniformScope::new(logger.sub("global_variables"));
-        let view_projection = variables.add_or_panic("view_projection");
+        let variables       = variables.clone();
+        let view_projection = variables.add_or_panic("view_projection", Matrix4::<f32>::identity());
+        let zoom            = variables.add_or_panic("zoom"           , 1.0);
         let context         = context.clone();
         let stats           = stats.clone_ref();
-        Self {symbols,symbol_dirty,logger,variables,view_projection,context,stats}
+        Self {symbols,symbol_dirty,logger,view_projection,zoom,variables,context,stats}
     }
 
     /// Creates a new `Symbol` instance.
@@ -108,13 +110,12 @@ impl<OnDirty:Callback0> SymbolRegistry<OnDirty> {
     pub fn render(&self, camera:&Camera2D) {
         let changed = camera.update();
         if changed {
-            println!("CHANGED!!!");
             self.view_projection.set(camera.view_projection_matrix());
-            // TODO finish
+            self.zoom.set(camera.zoom());
         }
         group!(self.logger, "Rendering.", {
             for symbol in &self.symbols {
-                symbol.render(camera);
+                symbol.render();
             }
         })
     }

@@ -98,10 +98,8 @@ impl<OnMut:Callback0> Shader<OnMut> {
 
                 self.stats.inc_shader_compile_count();
 
-
                 let mut shader_cfg     = shader::builder::ShaderConfig::new();
                 let mut shader_builder = shader::builder::ShaderBuilder::new();
-
 
                 for binding in bindings {
                     let name = &binding.name;

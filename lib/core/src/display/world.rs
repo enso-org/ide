@@ -20,13 +20,17 @@ use crate::debug::stats::Stats;
 use crate::promote_all;
 use crate::promote_workspace_types;
 use crate::promote;
+use crate::system::web;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::display::shape::text::font::Fonts;
 use crate::debug::monitor;
 use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
+use crate::display::symbol::geometry::primitive::mesh::scope::uniform::Uniform;
 
+use web_sys::Performance;
 use event_loop::EventLoop;
 use eval_tt::*;
 
@@ -179,6 +183,10 @@ pub struct WorldData {
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
     pub event_loop      : EventLoop,
+    pub variables       : UniformScope,
+    pub performance     : Performance,
+    pub start_time      : f32,
+    pub time            : Uniform<f32>,
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
     pub stats           : Stats,
@@ -228,33 +236,39 @@ impl WorldData {
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
         let on_change              = workspace_on_change(workspace_dirty.clone_ref());
-        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
+        let variables              = UniformScope::new(logger.sub("global_variables"));
+        let time                   = variables.add_or_panic("time",0.0);
+        let workspace              = Workspace::new(dom,&variables,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
         let stats_monitor          = StatsMonitor::new(&stats);
+        let performance            = web::get_performance().unwrap();
+        let start_time             = performance.now() as f32;
 
         let stats_monitor_cp_1 = stats_monitor.clone();
         let stats_monitor_cp_2 = stats_monitor.clone();
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,fonts,update_handle,stats,stats_monitor}
+        Self {workspace,workspace_dirty,logger,event_loop,variables,performance,start_time,time,fonts,update_handle,stats,stats_monitor}
     }
 
     pub fn run(&mut self) {
+        let relative_time = self.performance.now() as f32 - self.start_time;
+        self.time.set(relative_time);
         self.update();
     }
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        if self.workspace_dirty.check_all() {
+//        if self.workspace_dirty.check_all() {
             group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;
         self.workspace.update(fonts);
             });
-        }
+//        }
     }
 
     /// Dispose the world object, cancel all handlers and events.

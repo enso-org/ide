@@ -213,13 +213,13 @@ impl {
     }
 
     pub fn add<Name:Str, Value:UniformValue>
-    (&mut self, name:Name) -> Option<Uniform<Value>> {
-        self.add_or_else(name,|t| Some(t), |_| None)
+    (&mut self, name:Name, value:Value) -> Option<Uniform<Value>> {
+        self.add_or_else(name,value,|t| Some(t), |_| None)
     }
 
     pub fn add_or_panic<Name:Str, Value:UniformValue>
-    (&mut self, name:Name) -> Uniform<Value> {
-        self.add_or_else(name,|t|{t},|name| {
+    (&mut self, name:Name, value:Value) -> Uniform<Value> {
+        self.add_or_else(name,value,|t|{t},|name| {
             panic!("Trying to override uniform '{}'.", name.as_ref())
         })
     }
@@ -227,12 +227,12 @@ impl {
 
 impl UniformScopeData {
     pub fn add_or_else<Name:Str, Value:UniformValue, Ok:Fn(Uniform<Value>)->T, Fail:Fn(Name)->T, T>
-    (&mut self, name:Name, ok:Ok, fail:Fail) -> T {
+    (&mut self, name:Name, value:Value, ok:Ok, fail:Fail) -> T {
         if self.map.contains_key(name.as_ref()) { fail(name) } else {
-            let value     = Uniform::new();
-            let any_value = value.clone().into();
-            self.map.insert(name.into(),any_value);
-            ok(value)
+            let uniform     = Uniform::new(value);
+            let any_uniform = uniform.clone().into();
+            self.map.insert(name.into(),any_uniform);
+            ok(uniform)
         }
     }
 }
@@ -258,8 +258,7 @@ pub struct UniformData<Value> {
 }
 
 impl<Value:UniformValue> {
-    pub fn new() -> Self {
-        let value = Empty::empty();
+    pub fn new(value:Value) -> Self {
         let dirty = false;
         Self {value,dirty}
     }
@@ -302,8 +301,9 @@ impl<Value:UniformValue> {
 #[enum_dispatch(AnyUniformOps)]
 #[derive(Clone,Debug)]
 pub enum AnyUniform {
-    Vector3_of_f32(Uniform<Vector3<f32>>),
-    Matrix4_of_f32(Uniform<Matrix4<f32>>)
+    Variant_f32           (Uniform<f32>),
+    Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
+    Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)
 }
 
 #[enum_dispatch]

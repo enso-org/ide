@@ -14,6 +14,7 @@ use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
 use crate::display::shape::primitive;
+use crate::display::shape::primitive::def::*;
 
 
 #[wasm_bindgen]
@@ -27,9 +28,16 @@ pub fn run_example_shapes() {
 }
 
 fn init(world: &World) {
-    let shape_system = ShapeSystem::new(world);
+
+
+
+    let s1 = Circle("25.0 + 20.0*sin(time/100.0)");
+    let s2 = s1.translate(25.0,0.0);
+    let s3 = &s1 + &s2;
+
+    let shape_system = ShapeSystem::new(world,&s3);
     let sprite = shape_system.new_instance();
-    sprite.set_bbox(Vector2::new(100.0,100.0));
+    sprite.set_bbox(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {
         t.x += 250.0;
         t.y += 100.0;

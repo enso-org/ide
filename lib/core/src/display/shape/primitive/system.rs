@@ -5,6 +5,7 @@ use crate::display::world::World;
 use crate::display::symbol::material::Material;
 use crate::display::shape::primitive::shader;
 use crate::display::shape::primitive::def::*;
+use crate::display::shape::primitive::def::class::Shape;
 
 
 #[derive(Shrinkwrap)]
@@ -14,20 +15,18 @@ pub struct ShapeSystem {
 }
 
 impl ShapeSystem {
-    pub fn new(world:&World) -> Self {
+    pub fn new<S:Shape>(world:&World, shape:&S) -> Self {
         let mut sprite_system = SpriteSystem::new(world);
-        sprite_system.set_material(Self::material());
+        sprite_system.set_material(Self::material(shape));
         Self {sprite_system}
     }
 
-    fn material() -> Material {
+    fn material<S:Shape>(shape:&S) -> Material {
         let mut material = Material::new();
-
-        let s1 = Circle(10.0);
-        let s2 = s1.translate(14.0,0.0);
-        let s3 = &s1 + &s2;
-
-        let code = shader::builder::Builder::run(&s3);
+        material.add_input("pixel_ratio", 1.0);
+        material.add_input("zoom"       , 1.0);
+        material.add_input("time"       , 0.0);
+        let code = shader::builder::Builder::run(shape);
         material.set_code(code);
         material
     }
