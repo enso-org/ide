@@ -182,6 +182,11 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
 
         variables.add("pixel_ratio", shape.pixel_ratio());
 
+        // FIXME: use correct blending function and rething premultiplying the alpha.
+        context.enable(webgl::Context::BLEND);
+//        context.blend_func(webgl::Context::ONE, webgl::Context::ONE_MINUS_SRC_ALPHA);
+        context.blend_func(webgl::Context::SRC_ALPHA, webgl::Context::ONE);
+
         let this = Self {canvas,context,symbols,scene,symbols_dirty
             ,shape,shape_dirty,logger,listeners,text_components};
 

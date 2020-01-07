@@ -23,9 +23,10 @@ impl ShapeSystem {
 
     fn material<S:Shape>(shape:&S) -> Material {
         let mut material = Material::new();
-        material.add_input("pixel_ratio", 1.0);
-        material.add_input("zoom"       , 1.0);
-        material.add_input("time"       , 0.0);
+        material.add_input("pixel_ratio"  , 1.0);
+        material.add_input("zoom"         , 1.0);
+        material.add_input("time"         , 0.0);
+        material.add_input("display_mode" , 0);
         let code = shader::builder::Builder::run(shape);
         material.set_code(code);
         material

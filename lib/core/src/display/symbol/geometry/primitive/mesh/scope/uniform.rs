@@ -301,6 +301,7 @@ impl<Value:UniformValue> {
 #[enum_dispatch(AnyUniformOps)]
 #[derive(Clone,Debug)]
 pub enum AnyUniform {
+    Variant_i32           (Uniform<i32>),
     Variant_f32           (Uniform<f32>),
     Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
     Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)

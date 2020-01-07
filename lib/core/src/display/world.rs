@@ -29,8 +29,10 @@ use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
 use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
 use crate::display::symbol::geometry::primitive::mesh::scope::uniform::Uniform;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::{JsCast, JsValue};
 
-use web_sys::Performance;
+use web_sys::{Performance,KeyboardEvent};
 use event_loop::EventLoop;
 use eval_tt::*;
 
@@ -187,6 +189,7 @@ pub struct WorldData {
     pub performance     : Performance,
     pub start_time      : f32,
     pub time            : Uniform<f32>,
+    pub display_mode    : Uniform<i32>,
     pub fonts           : Fonts,
     pub update_handle   : Option<CallbackHandle>,
     pub stats           : Stats,
@@ -224,6 +227,20 @@ impl WorldData {
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
         });
+
+        // -----------------------------------------------------------------------------------------
+        // FIXME: Hacky way of switching display_mode. To be fixed and refactored out.
+        let world_copy = world.clone();
+        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
+            let val = val.unchecked_into::<KeyboardEvent>();
+            let key = val.key();
+            if      key == "0" { world_copy.borrow_mut().display_mode.set(0) }
+            else if key == "1" { world_copy.borrow_mut().display_mode.set(1) }
+        }));
+        (&web::document().unwrap() as &web_sys::EventTarget).add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref());
+        c.forget();
+        // -----------------------------------------------------------------------------------------
+
         world
     }
 
@@ -238,6 +255,7 @@ impl WorldData {
         let on_change              = workspace_on_change(workspace_dirty.clone_ref());
         let variables              = UniformScope::new(logger.sub("global_variables"));
         let time                   = variables.add_or_panic("time",0.0);
+        let display_mode           = variables.add_or_panic("display_mode",0);
         let workspace              = Workspace::new(dom,&variables,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
@@ -245,12 +263,11 @@ impl WorldData {
         let stats_monitor          = StatsMonitor::new(&stats);
         let performance            = web::get_performance().unwrap();
         let start_time             = performance.now() as f32;
-
-        let stats_monitor_cp_1 = stats_monitor.clone();
-        let stats_monitor_cp_2 = stats_monitor.clone();
+        let stats_monitor_cp_1     = stats_monitor.clone();
+        let stats_monitor_cp_2     = stats_monitor.clone();
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,variables,performance,start_time,time,fonts,update_handle,stats,stats_monitor}
+        Self {workspace,workspace_dirty,logger,event_loop,variables,performance,start_time,time,display_mode,fonts,update_handle,stats,stats_monitor}
     }
 
     pub fn run(&mut self) {

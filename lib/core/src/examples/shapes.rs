@@ -31,7 +31,7 @@ fn init(world: &World) {
 
 
 
-    let s1 = Circle("25.0 + 20.0*sin(input_time/100.0)");
+    let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
 
