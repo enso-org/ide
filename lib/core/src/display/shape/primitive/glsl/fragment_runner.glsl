@@ -3,9 +3,12 @@
 Env   env      = Env(1);
 vec2  position = local.xy ;
 Shape shape    = run(env,position);
-float alpha    = sdf_render(shape.sdf.sdf.distance);
+float alpha    = render(shape);
 
 output_color = vec4(1.0,0.0,0.0,alpha);
+
+RGB col = distance_meter(shape.sdf.distance, 500.0 * zoom_level, 500.0/zoom_level);
+output_color = rgba(col).raw;
 
 //    sdf_shape shape = _main(p);
 //    int       sid   = shape.id;

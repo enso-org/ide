@@ -150,13 +150,13 @@ impl Canvas {
     /// Defines a new shape with a new id and associated parameters, like color.
     pub fn define_shape(&mut self, num:usize, sdf:&str) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let color     = "color(rgb2lch(vec3(1.0,0.0,0.0)))";
+            let color     = "lcha(rgba(1.0,0.0,0.0))";
             let mut shape = CanvasShapeData::new(num);
             let id        = this.get_new_id();
-            this.define("Color"    , "_color" , iformat!("{color}"));
-            this.define("BoundSdf" , "_sdf"   , iformat!("{sdf}"));
-            this.define("Id"       , "_id"    , iformat!("new_id_layer(_sdf,{id})"));
-            this.add_current_function_code_line("return shape(_id,_sdf,_color);");
+            this.define("LCHA"     , "color" , iformat!("{color}"));
+            this.define("BoundSdf" , "sdf"   , iformat!("{sdf}"));
+            this.define("Id"       , "id"    , iformat!("new_id_layer(sdf,{id})"));
+            this.add_current_function_code_line("return shape(id,sdf,color);");
             this.submit_shape_constructor(&shape.name);
             shape.add_id(id);
             shape
