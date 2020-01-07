@@ -22,23 +22,28 @@ pub fn run_example_text() {
     set_panic_hook();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let mut world_ref     = WorldData::new("canvas");
-        let world :&mut WorldData = &mut world_ref.rc.borrow_mut();
-        let workspace         = &mut world.workspace;
-        let fonts             = &mut world.fonts;
-        let font_id           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
+        {
+            let world: &mut WorldData = &mut world_ref.rc.borrow_mut();
+            let workspace = &mut world.workspace;
+            let fonts = &mut world.fonts;
+            let font_id = fonts.load_embedded_font("DejaVuSansMono").unwrap();
 
-        let mut text_component = TextComponentBuilder{workspace,fonts,font_id,
-            text       : "".to_string(),
-            properties : TextComponentProperties {
-                position  : Point2::new(-0.95,-0.9),
-                size      : Vector2::new(1.8,1.6),
-                text_size : 0.032,
-                color     : Color {r: 0.0, g: 0.8, b: 0.0, a: 1.0},
-            }
-        }.build();
-        text_component.cursors.add_cursor(CharPosition{line:0,column:0});
-        workspace.text_components.push(text_component);
-        world.workspace_dirty.set();
+            let mut text_component = TextComponentBuilder {
+                workspace,
+                fonts,
+                font_id,
+                text: "".to_string(),
+                properties: TextComponentProperties {
+                    position: Point2::new(-0.95, -0.9),
+                    size: Vector2::new(1.8, 1.6),
+                    text_size: 0.032,
+                    color: Color { r: 0.0, g: 0.8, b: 0.0, a: 1.0 },
+                }
+            }.build();
+            text_component.cursors.add_cursor(CharPosition { line: 0, column: 0 });
+            workspace.text_components.push(text_component);
+            world.workspace_dirty.set();
+        }
 
         let now             = js_sys::Date::now();
         let animation_start = now + 3000.0;
@@ -99,7 +104,6 @@ pub fn set_panic_hook() {
     //
     // For more details see
     // https://github.com/rustwasm/console_error_panic_hook#readme
-    #[cfg(feature = "console_error_panic_hook")]
         console_error_panic_hook::set_once();
 }
 
