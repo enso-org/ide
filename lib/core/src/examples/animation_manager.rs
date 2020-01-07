@@ -50,7 +50,7 @@ impl Canvas {
     pub fn height(&self) -> f64 { self.canvas.height() as f64 }
 
     pub fn point(&self, point:Vector2<f64>, color:&str) {
-        let size = 10.0 / self.height();
+        let size = 20.0 / self.height();
         self.context.save();
         self.context.set_fill_style(&color.into());
         self.context.scale(self.width() / 2.0, self.height() / 2.0).ok();
