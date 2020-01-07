@@ -174,7 +174,7 @@ impl StatsMonitorData {
 // === WorldData ===
 // =================
 
-// === Definition === 
+// === Definition ===
 
 /// World is the top-level structure managing several instances of `Workspace`.
 /// It is responsible for updating the system on every animation frame.
@@ -278,8 +278,8 @@ impl WorldData {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-//        if self.workspace_dirty.check_all() {
-            group!(self.logger, "Updating.", {
+        //        if self.workspace_dirty.check_all() {
+        group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;
@@ -299,6 +299,5 @@ impl Drop for WorldData {
         self.logger.info("Dropping.");
     }
 }
-
 
 

@@ -403,7 +403,7 @@ impl PanelData {
         let sampler           = Box::new(sampler);
         let precision = sampler.precision();
         Self {label,context,performance,config,min_value,max_value,begin_value,value,last_values
-             ,norm_value,draw_offset,value_check,precision,sampler}
+            ,norm_value,draw_offset,value_check,precision,sampler}
     }
 }
 

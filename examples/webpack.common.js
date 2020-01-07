@@ -25,6 +25,10 @@ module.exports = {
     },
     performance: {
         hints: 'error',
+<<<<<<< HEAD:examples/webpack.common.js
         maxAssetSize: 3.8 * mb,
+=======
+        maxAssetSize: 3.7 * mb,
+>>>>>>> master:examples/webpack.common.js
     },
 };

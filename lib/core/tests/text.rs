@@ -82,6 +82,7 @@ mod tests {
     use basegl::display::shape::text::content::CharPosition;
     use basegl::display::shape::text::TextComponentBuilder;
     use basegl::display::world::WorldData;
+    use basegl::display::shape::text::TextComponentProperties;
 
     use basegl_core_msdf_sys::run_once_initialized;
     use nalgebra::Point2;
@@ -157,8 +158,8 @@ mod tests {
     }
 
     #[web_bench]
-    fn scrolling_horizontal_10(bencher:&mut Bencher) {
-        if let Some(world_test) = WorldTest::new("scrolling_horizontal_10") {
+    fn scrolling_horizontal_20(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("scrolling_horizontal_20") {
             let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
@@ -177,8 +178,8 @@ mod tests {
     }
 
     #[web_bench]
-    fn editing_single_long_line_20(bencher:&mut Bencher) {
-        if let Some(world_test) = WorldTest::new("editing_single_long_line_20") {
+    fn editing_single_long_line_15(bencher:&mut Bencher) {
+        if let Some(world_test) = WorldTest::new("editing_single_long_line_15") {
             let mut bencher_clone = bencher.clone();
             run_once_initialized(move || {
                 create_full_sized_text_component(&world_test,WIDE_TEXT.to_string());
@@ -187,8 +188,8 @@ mod tests {
                     for _ in 0..20 {
                         let workspace      = &mut world.workspace;
                         let text_component = &mut workspace.text_components[0];
-                        let replace_from   = CharPosition{line:1, byte_offset:2};
-                        let replace_to     = CharPosition{line:1, byte_offset:3};
+                        let replace_from   = CharPosition{line:1, column:2};
+                        let replace_to     = CharPosition{line:1, column:3};
                         let replaced_range = replace_from..replace_to;
                         let change         = TextChange::replace(replaced_range, "abc");
                         text_component.content.make_change(change);
@@ -210,7 +211,7 @@ mod tests {
                     let world : &mut WorldData = &mut world_test.world_ptr.borrow_mut();
                     let workspace      = &mut world.workspace;
                     let text_component = &mut workspace.text_components[0];
-                    let position       = CharPosition{line:1, byte_offset:0};
+                    let position       = CharPosition{line:1, column:0};
                     let change         = TextChange::insert(position, TEST_TEXT);
                     text_component.content.make_change(change);
                     world.workspace_dirty.set();
@@ -227,13 +228,14 @@ mod tests {
         let font_name          = FONTS[1];
         let font_id            = fonts.load_embedded_font(font_name).unwrap();
 
-        let text_component = TextComponentBuilder {
-            workspace,fonts,text,font_id,
+        let properties = TextComponentProperties {
             position  : Point2::new(-1.0, -1.0),
             size      : Vector2::new(2.0, 2.0),
             text_size : 0.03125,
             color     : Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
-        }.build();
+        };
+        let builder        = TextComponentBuilder {workspace,fonts,text,font_id,properties};
+        let text_component = builder.build();
         workspace.text_components.push(text_component);
         world.workspace_dirty.set(); // TODO[AO] Make dirty flags for component
     }
@@ -247,13 +249,20 @@ mod tests {
             let x         = -1.0 + (i / 2) as f64;
             let y         = -1.0 + (i % 2) as f64;
             let font_id   = fonts.load_embedded_font(font_name).unwrap();
-            let text_component = TextComponentBuilder {
-                workspace,fonts,font_id,text_size,
+
+            let properties = TextComponentProperties {text_size,
                 position  : Point2::new(x,y),
-                text      : text.clone(),
                 size      : Vector2::new(1.0,1.0),
                 color     : Color{r:1.0, g:1.0, b:1.0, a:1.0}
-            }.build();
+            };
+            let builder            = TextComponentBuilder{workspace,fonts,font_id,properties,
+                text: text.clone()
+            };
+            let mut text_component = builder.build();
+            let cursor_position_1  = CharPosition{line:0, column: 10};
+            let cursor_position_2  = CharPosition{line:1, column: 6};
+            text_component.cursors.add_cursor(cursor_position_1);
+            text_component.cursors.add_cursor(cursor_position_2);
             workspace.text_components.push(text_component);
         }
         world.workspace_dirty.set();

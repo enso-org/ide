@@ -185,8 +185,8 @@ macro_rules! group {
 // ===================
 
 pub fn dyn_into<T,U>(obj :T) -> Result<U>
-where T : wasm_bindgen::JsCast + Debug,
-      U : wasm_bindgen::JsCast
+    where T : wasm_bindgen::JsCast + Debug,
+          U : wasm_bindgen::JsCast
 {
     let expected = type_name::<T>();
     let got = format!("{:?}", obj);
@@ -255,14 +255,14 @@ pub fn get_performance() -> Result<Performance> {
 
 pub trait AttributeSetter {
     fn set_attribute_or_panic<T, U>(&self, name:T, value:U)
-            where T : AsRef<str>,
-                  U : AsRef<str>;
+        where T : AsRef<str>,
+              U : AsRef<str>;
 }
 
 impl AttributeSetter for web_sys::HtmlElement {
     fn set_attribute_or_panic<T,U>(&self, name:T, value:U)
-            where T : AsRef<str>,
-                  U : AsRef<str> {
+        where T : AsRef<str>,
+              U : AsRef<str> {
         let name   = name.as_ref();
         let value  = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
@@ -273,14 +273,14 @@ impl AttributeSetter for web_sys::HtmlElement {
 
 pub trait StyleSetter {
     fn set_property_or_panic<T,U>(&self, name:T, value:U)
-            where T : AsRef<str>,
-                  U : AsRef<str>;
+        where T : AsRef<str>,
+              U : AsRef<str>;
 }
 
 impl StyleSetter for web_sys::HtmlElement {
     fn set_property_or_panic<T,U>(&self, name:T, value:U)
-            where T : AsRef<str>,
-                  U : AsRef<str> {
+        where T : AsRef<str>,
+              U : AsRef<str> {
         let name   = name.as_ref();
         let value  = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
