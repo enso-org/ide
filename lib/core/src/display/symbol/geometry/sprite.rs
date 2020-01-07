@@ -247,9 +247,9 @@ impl SpriteSystem {
         material.add_input  ("view_projection" , Matrix4::<f32>::identity());
         material.add_output ("local"           , Vector3::<f32>::zeros());
         material.set_main("
-                mat4 model_view_projection = view_projection * transform;
-                local                      = vec3((uv - 0.5) * bounds, 0.0);
-                gl_Position                = model_view_projection * vec4(local,1.0);
+                mat4 model_view_projection = input_view_projection * input_transform;
+                input_local                = vec3((input_uv - 0.5) * input_bounds, 0.0);
+                gl_Position                = model_view_projection * vec4(input_local,1.0);
                 ");
         material
     }

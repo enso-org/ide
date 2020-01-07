@@ -326,8 +326,9 @@ impl ShaderBuilder {
     fn gen_uniforms_code(&mut self, cfg:&ShaderConfig) {
         if !cfg.uniforms.is_empty() {
             for (name,qual) in &cfg.uniforms {
-                self.vertex  .add(qual.to_var(name));
-                self.fragment.add(qual.to_var(name));
+                let name = mk_uniform_name(name);
+                self.vertex  .add(qual.to_var(&name));
+                self.fragment.add(qual.to_var(&name));
             }
         }
     }
@@ -352,4 +353,5 @@ impl ShaderBuilder {
 
 pub fn mk_out_name      <S:Str> (s:S) -> String { format!("output_{}" , s.as_ref()) }
 pub fn mk_vertex_name   <S:Str> (s:S) -> String { format!("vertex_{}" , s.as_ref()) }
-pub fn mk_fragment_name <S:Str> (s:S) -> String { s.as_ref().into() }
+pub fn mk_fragment_name <S:Str> (s:S) -> String { format!("input_{}"  , s.as_ref()) }
+pub fn mk_uniform_name  <S:Str> (s:S) -> String { format!("input_{}"  , s.as_ref()) }

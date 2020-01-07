@@ -132,7 +132,7 @@ Shape unify (Shape s1, Shape s2) {
 }
 
 float render(Shape shape) {
-    return clamp((0.5 - shape.sdf.distance) * pixel_ratio * zoom);
+    return clamp((0.5 - shape.sdf.distance) * input_pixel_ratio * input_zoom);
 }
 
 

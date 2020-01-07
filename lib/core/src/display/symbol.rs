@@ -218,7 +218,8 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
                     match opt_scope {
                         None => {
                             let name     = &binding.name;
-                            let location = self.context.get_uniform_location(program,name);
+                            let uni_name = shader::builder::mk_uniform_name(name);
+                            let location = self.context.get_uniform_location(program,&uni_name);
                             match location {
                                 None => self.logger.warning(|| format!("The uniform '{}' is not used in this shader. It is recommended to remove it from the material definition.", name)),
                                 Some(location) => {
