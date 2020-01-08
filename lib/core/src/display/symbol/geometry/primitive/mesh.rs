@@ -5,8 +5,10 @@ pub mod buffer;
 #[warn(missing_docs)]
 pub mod scope;
 
-use crate::prelude::*;
+pub use scope::uniform::UniformScope;
+pub use scope::uniform::Uniform;
 
+use crate::prelude::*;
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
@@ -77,12 +79,12 @@ pub struct Mesh<OnMut> {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Scopes<OnMut> {
-    pub point     : VarScope     <OnMut>,
-    pub vertex    : VarScope     <OnMut>,
-    pub primitive : VarScope     <OnMut>,
-    pub instance  : VarScope     <OnMut>,
+    pub point     : AttributeScope <OnMut>,
+    pub vertex    : AttributeScope <OnMut>,
+    pub primitive : AttributeScope <OnMut>,
+    pub instance  : AttributeScope <OnMut>,
     pub object    : UniformScope,
-    pub global    : GlobalScope,
+    pub global    : UniformScope,
 }
 
 pub type PointId     = usize;
@@ -111,17 +113,14 @@ impl Display for ScopeType {
 
 // === Types ===
 
-pub type ScopesDirty  <F> = dirty::SharedEnum<u8,ScopeType,F>;
-pub type VarScope     <F> = scope::Scope<ScopeOnChange<F>>;
-pub type UniformScope     = scope::uniform::UniformScope;
-pub type GlobalScope      = scope::uniform::UniformScope;
+pub type ScopesDirty<F> = dirty::SharedEnum<u8,ScopeType,F>;
 promote_scope_types!{ [ScopeOnChange] scope }
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_mesh_types { ($($args:tt)*) => {
     crate::promote_scope_types! { $($args)* }
-    promote! {$($args)* [Mesh,Scopes,VarScope]}
+    promote! {$($args)* [Mesh,Scopes]}
 };}
 
 
@@ -159,7 +158,7 @@ impl<OnMut: Callback0> Mesh<OnMut> {
                 let callback   = scope_on_change(scs_dirty, status_mod);
                 let $name      = $cls::new(sub_logger,&stats,&context,callback);
             )*}}
-            new_scope!(VarScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
+            new_scope!(AttributeScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
 
             let object_scope_logger = logger.sub("object");
             let object              = UniformScope::new(object_scope_logger);
@@ -196,7 +195,7 @@ impl<OnMut: Callback0> Mesh<OnMut> {
     }
 
     /// Gets reference to scope based on the scope type.
-    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&VarScope<OnMut>> {
+    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&AttributeScope<OnMut>> {
         match scope_type {
             ScopeType::Point     => Some(&self.scopes.point),
             ScopeType::Vertex    => Some(&self.scopes.vertex),
