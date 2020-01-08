@@ -12,7 +12,7 @@ use crate::display::world::Workspace;
 use crate::display::render::webgl::Context;
 use crate::display::shape::text::buffer::TextComponentBuffers;
 use crate::display::shape::text::content::TextComponentContent;
-use crate::display::shape::text::cursor::Cursors;
+use crate::display::shape::text::cursor::{Cursors, Step, CursorNavigation};
 use crate::display::shape::text::font::FontId;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text::msdf::MsdfTexture;
@@ -92,6 +92,12 @@ impl TextComponent {
         if !self.cursors.cursors.is_empty() {
             self.display_cursors();
         }
+    }
+
+    pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut Fonts) {
+        let content        = &mut self.content;
+        let mut navigation = CursorNavigation {content,fonts,selecting};
+        self.cursors.navigate_all_cursors(&mut navigation,&step);
     }
 
     fn refresh_content_buffers(&mut self, fonts:&mut Fonts) {

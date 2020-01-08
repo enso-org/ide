@@ -104,9 +104,9 @@ pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
 /// A struct for cursor navigation process
 pub struct CursorNavigation<'a,'b> {
-    content   : &'a mut TextComponentContent,
-    fonts     : &'b mut Fonts,
-    selecting : bool
+    pub content   : &'a mut TextComponentContent,
+    pub fonts     : &'b mut Fonts,
+    pub selecting : bool
 }
 
 impl<'a,'b> CursorNavigation<'a,'b> {
@@ -160,7 +160,7 @@ impl<'a,'b> CursorNavigation<'a,'b> {
     /// whole document.
     pub fn next_char(&self, position:&CharPosition) -> Option<CharPosition> {
         let current_line = &self.content.lines[position.line];
-        let next_column  = Some(position.column + 1).filter(|c| *c < current_line.len());
+        let next_column  = Some(position.column + 1).filter(|c| *c <= current_line.len());
         let next_line    = Some(position.line + 1)  .filter(|l| *l < self.content.lines.len());
         match (next_column,next_line) {
             (None         , None      ) => None,

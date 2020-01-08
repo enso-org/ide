@@ -278,6 +278,7 @@ mod example_02 {
     use crate::display::shape::text::content::TextChange;
     use crate::display::shape::text::TextComponentBuilder;
     use crate::display::shape::text::TextComponentProperties;
+    use crate::display::shape::text::cursor::Step::Right;
 
     #[wasm_bindgen]
     #[allow(dead_code)]
@@ -343,12 +344,7 @@ mod example_02 {
             let string = ch.a_char.to_string();
             let change = TextChange::insert(cursor.position, string.as_str());
             editor.content.make_change(change);
-            let new_cursor_position = CharPosition {
-                line: editor.content.lines.len()-1,
-                column : editor.content.lines.last().unwrap().len(),
-            };
-            cursor.position = new_cursor_position;
-//            editor.cursors.dirty_cursors.insert(0);
+            editor.navigate_cursors(Right,false,&mut world.fonts);
         }
         if start_scrolling <= js_sys::Date::now() {
             editor.scroll(Vector2::new(0.0, -0.01));
