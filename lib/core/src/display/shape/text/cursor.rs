@@ -26,7 +26,6 @@ pub struct Cursor {
     pub selected_to : CharPosition,
 }
 
-
 impl Cursor {
     /// Create a new cursor at given position and without any selection.
     pub fn new(position:CharPosition) -> Self {
@@ -260,8 +259,9 @@ lazy_static! {
 /// a WebGL buffer with vertex positions of all cursors.
 #[derive(Debug)]
 pub struct Cursors {
-    pub cursors       : Vec<Cursor>,
-    pub buffer        : Option<WebGlBuffer>,
+    pub cursors : Vec<Cursor>,
+    pub dirty   : bool,
+    pub buffer  : Option<WebGlBuffer>,
 }
 
 impl Cursors {
@@ -270,6 +270,7 @@ impl Cursors {
     pub fn new(gl_context:&Context) -> Self {
         Cursors {
             cursors : Vec::new(),
+            dirty   : false,
             buffer  : gl_context.create_buffer()
         }
     }
@@ -281,17 +282,20 @@ impl Cursors {
         let cursors_vertices = cursors.map(|cursor| Self::cursor_vertices(cursor,content,fonts));
         let buffer_data      = cursors_vertices.flatten().collect_vec();
         set_buffer_data(gl_context,self.buffer.as_ref().unwrap(),buffer_data.as_slice());
+        self.dirty = false;
     }
 
     /// Removes all current cursors and replace them with single cursor without any selection.
     pub fn set_cursor(&mut self, position:CharPosition) {
-        self.cursors       = vec![Cursor::new(position)];
+        self.cursors = vec![Cursor::new(position)];
+        self.dirty   = true;
     }
 
     /// Add new cursor without selection.
     pub fn add_cursor(&mut self, position:CharPosition) {
         self.cursors.push(Cursor::new(position));
         self.merge_overlapping_selections();
+        self.dirty = true;
     }
 
     /// Do the navigation step of all cursors.
@@ -301,6 +305,7 @@ impl Cursors {
     pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:&Step) {
         self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,&step));
         self.merge_overlapping_selections();
+        self.dirty = true;
     }
 
     /// Number of vertices in cursors' buffer.
@@ -354,7 +359,10 @@ impl Cursors {
 
     #[cfg(test)]
     fn mock(cursors:Vec<Cursor>) -> Self {
-        Cursors{cursors,buffer:None}
+        Cursors{cursors,
+            dirty  : false,
+            buffer : None
+        }
     }
 }
 
