@@ -101,8 +101,9 @@ impl Sprite {
 // === Private API ===
 
 impl Sprite {
-    fn new(sprite_ref:SpriteRef, transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
-        let data = SpriteData::new(sprite_ref,transform,bbox);
+    fn new
+    (sprite:SpriteRef, transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
+        let data = SpriteData::new(sprite,transform,bbox);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -124,13 +125,13 @@ impl From<&Sprite> for DisplayObjectData {
 struct SpriteData {
     sprite_ref     : SpriteRef,
     display_object : DisplayObjectData,
-    _transform     : Var<Matrix4<f32>>,
-    bbox           : Var<Vector2<f32>>,
+    _transform     : Attribute<Matrix4<f32>>,
+    bbox           : Attribute<Vector2<f32>>,
 }
 
 impl SpriteData {
     pub fn new
-    (sprite_ref:SpriteRef, _transform:Var<Matrix4<f32>>, bbox:Var<Vector2<f32>>) -> Self {
+    (sprite_ref:SpriteRef, _transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
         let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
         let display_object = DisplayObjectData::new(logger);
         let transform_cp   = _transform.clone();

@@ -73,6 +73,7 @@ macro_rules! promote_shader_types { ($($args:tt)*) => {
     promote! {$($args)* [Shader]}
 };}
 
+
 // === Implementation ===
 
 impl<OnMut:Callback0> Shader<OnMut> {

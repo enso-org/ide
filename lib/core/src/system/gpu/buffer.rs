@@ -59,7 +59,7 @@ pub type Data<T,OnMut,OnResize> = ObservableVec<T,DataOnSet<OnMut>,DataOnResize<
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
-    promote! { $callbacks $module [Var<T>,BufferData<T>,Buffer<T>,AnyBuffer] }
+    promote! { $callbacks $module [Attribute<T>,BufferData<T>,Buffer<T>,AnyBuffer] }
 };}
 
 
@@ -312,8 +312,8 @@ Buffer<T,OnMut,OnResize> {
 impl<T,OnMut,OnResize>
 Buffer<T,OnMut,OnResize> {
     /// Get the variable by given index.
-    pub fn get(&self, index:usize) -> Var<T,OnMut,OnResize> {
-        Var::new(index,self.clone())
+    pub fn get(&self, index:usize) -> Attribute<T,OnMut,OnResize> {
+        Attribute::new(index, self.clone())
     }
 
     /// Returns the number of elements in the buffer.
@@ -359,19 +359,19 @@ From<Rc<RefCell<BufferData<T,OnMut,OnResize>>>> for Buffer<T,OnMut,OnResize> {
 /// a selected `Buffer` element under the hood.
 #[derive(Clone,Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Var<T,OnMut,OnResize> {
+pub struct Attribute<T,OnMut,OnResize> {
     index  : usize,
     buffer : Buffer<T,OnMut,OnResize>
 }
 
-impl<T,OnMut,OnResize> Var<T,OnMut,OnResize> {
+impl<T,OnMut,OnResize> Attribute<T,OnMut,OnResize> {
     /// Creates a new variable as an indexed view over provided buffer.
     pub fn new(index:usize, buffer: Buffer<T,OnMut,OnResize>) -> Self {
         Self {index, buffer}
     }
 }
 
-impl<T:Copy,OnMut:Callback0,OnResize> Var<T,OnMut,OnResize> {
+impl<T:Copy,OnMut:Callback0,OnResize> Attribute<T,OnMut,OnResize> {
     /// Gets immutable reference to the underlying data.
     pub fn get(&self) -> T {
         *self.buffer.rc.borrow().index(self.index)
