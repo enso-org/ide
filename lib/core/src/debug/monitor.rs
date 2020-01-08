@@ -390,18 +390,18 @@ pub struct PanelData {
 impl PanelData {
     pub fn new<S:Sampler+'static>
     (context:CanvasRenderingContext2d, config:SamplerConfig, sampler:S) -> Self {
-        let label             = sampler.label().into();
-        let performance       = performance();
-        let min_value         = f64::INFINITY;
-        let max_value         = f64::NEG_INFINITY;
-        let begin_value       = default();
-        let value             = default();
-        let last_values       = default();
-        let norm_value        = default();
-        let draw_offset       = 0.0;
-        let value_check       = default();
-        let sampler           = Box::new(sampler);
-        let precision = sampler.precision();
+        let label       = sampler.label().into();
+        let performance = performance();
+        let min_value   = f64::INFINITY;
+        let max_value   = f64::NEG_INFINITY;
+        let begin_value = default();
+        let value       = default();
+        let last_values = default();
+        let norm_value  = default();
+        let draw_offset = 0.0;
+        let value_check = default();
+        let sampler     = Box::new(sampler);
+        let precision   = sampler.precision();
         Self {label,context,performance,config,min_value,max_value,begin_value,value,last_values
             ,norm_value,draw_offset,value_check,precision,sampler}
     }
@@ -628,7 +628,9 @@ impl Sampler for WasmMemory {
 // === Stats Samplers ===
 // ======================
 
-macro_rules! gen_stats {
+/// Utility to generate Samplers for stats parameters. See the usages below this declaration to
+/// discover more.
+macro_rules! stats_sampler {
     ($label:tt, $name:ident, $method:ident, $t1:expr, $t2:expr, $prec:expr, $div:expr) => {
 
         #[derive(Debug,Default)]
@@ -653,13 +655,15 @@ macro_rules! gen_stats {
     };
 }
 
-gen_stats!("GPU memory usage (Mb)"  , GpuMemory            , gpu_memory_usage       , 100.0     , 500.0     , 2 , 1024.0 * 1024.0);
-gen_stats!("Draw call count"        , DrawCallCount        , draw_call_count        , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Buffer count"           , BufferCount          , buffer_count           , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Data upload count"      , DataUploadCount      , data_upload_count      , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Data upload size (Mb)"  , DataUploadSize       , data_upload_size       ,   1.0     ,  10.0     , 2 , 1024.0 * 1024.0);
-gen_stats!("Sprite system count"    , SpriteSystemCount    , sprite_system_count    , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Symbol count"           , SymbolCount          , symbol_count           , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Sprite count"           , SpriteCount          , sprite_count           , 100_000.0 , 500_000.0 , 0 , 1.0);
-gen_stats!("Shader count"           , ShaderCount          , shader_count           , 100.0     , 500.0     , 0 , 1.0);
-gen_stats!("Shader compile count"   , ShaderCompileCount   , shader_compile_count   , 10.0      , 100.0     , 0 , 1.0);
+const MB:f64 = (1024 * 1024) as f64;
+
+stats_sampler!("GPU memory usage (Mb)"  , GpuMemoryUsage     , gpu_memory_usage     , 100.0     , 500.0     , 2 , MB);
+stats_sampler!("Draw call count"        , DrawCallCount      , draw_call_count      , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Buffer count"           , BufferCount        , buffer_count         , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Data upload count"      , DataUploadCount    , data_upload_count    , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Data upload size (Mb)"  , DataUploadSize     , data_upload_size     ,   1.0     ,  10.0     , 2 , MB);
+stats_sampler!("Sprite system count"    , SpriteSystemCount  , sprite_system_count  , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Symbol count"           , SymbolCount        , symbol_count         , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Sprite count"           , SpriteCount        , sprite_count         , 100_000.0 , 500_000.0 , 0 , 1.0);
+stats_sampler!("Shader count"           , ShaderCount        , shader_count         , 100.0     , 500.0     , 0 , 1.0);
+stats_sampler!("Shader compile count"   , ShaderCompileCount , shader_compile_count , 10.0      , 100.0     , 0 , 1.0);

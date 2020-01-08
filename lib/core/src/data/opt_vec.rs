@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+ #![allow(missing_docs)]
 
 use crate::prelude::*;
 use std::iter::FilterMap;

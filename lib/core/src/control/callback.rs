@@ -6,6 +6,7 @@ use crate::prelude::*;
 // === Callback ===
 // ================
 
+/// Callback accepted by the `CallbackRegistry`.
 pub trait CallbackMut = FnMut() + 'static;
 
 
@@ -59,9 +60,9 @@ impl Guard {
 // === CallbackRegistry ===
 // ========================
 
-/// Registry gathering callbacks. Each registered callback is assigned with
-/// a handle. Callback and handle lifetimes are strictly connected. As soon a
-/// handle is dropped, the callback is removed as well.
+/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
+/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
+/// as well.
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct CallbackRegistry {
@@ -86,6 +87,7 @@ impl CallbackRegistry {
         self.callback_list.iter_mut().for_each(|(_,callback)| callback());
     }
 
+    /// Checks all registered callbacks and removes the ones which got dropped.
     fn clear_unused_callbacks(&mut self) {
         self.callback_list.retain(|(guard,_)| guard.exists());
     }

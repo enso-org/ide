@@ -139,7 +139,7 @@ impl StatsMonitorData {
             monitor.add( monitor::FrameTime          :: new()       ),
             monitor.add( monitor::Fps                :: new()       ),
             monitor.add( monitor::WasmMemory         :: new()       ),
-            monitor.add( monitor::GpuMemory          :: new(&stats) ),
+            monitor.add( monitor::GpuMemoryUsage     :: new(&stats) ),
             monitor.add( monitor::DrawCallCount      :: new(&stats) ),
             monitor.add( monitor::DataUploadCount    :: new(&stats) ),
             monitor.add( monitor::DataUploadSize     :: new(&stats) ),
