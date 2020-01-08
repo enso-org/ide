@@ -27,7 +27,6 @@ use crate::promote;
 use crate::promote_all;
 use crate::promote_mesh_types;
 use crate::promote_shader_types;
-use crate::system::gpu::data::ContextUniformOps;
 use crate::system::web::group;
 use crate::system::web::Logger;
 
@@ -208,7 +207,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
-    fn init_vao(&mut self, var_bindings:&Vec<shader::VarBinding>) {
+    fn init_vao(&mut self, var_bindings:&[shader::VarBinding]) {
         self.vao = Some(VertexArrayObject::new(&self.context));
         let mut uniforms: Vec<UniformBinding> = default();
         self.with_program(|program|{
@@ -278,8 +277,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {
-            self.with_program(|program|{
-
+            self.with_program(|_|{
                 for binding in &self.uniforms {
                     binding.uniform.upload(&self.context,&binding.location);
                 }

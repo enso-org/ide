@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! This module defines data types representing attributes and uniforms.
 //!   - Uniforms are per-primitive parameters (constant during an entire draw call).
 //!   - Attributes are per-vertex parameters (typically positions, normals, colors, UVs, ...).

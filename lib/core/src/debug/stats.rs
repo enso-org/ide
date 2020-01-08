@@ -77,17 +77,17 @@ macro_rules! gen_stats {
 }
 
 gen_stats!{
-    gpu_memory_usage       : u32,
-    draw_call_count        : usize,
-    buffer_count           : usize,
-    data_upload_count      : usize,
-    data_upload_size       : u32,
-    sprite_system_count    : usize,
-    sprite_count           : usize,
-    symbol_count           : usize,
-    mesh_count             : usize,
-    shader_count           : usize,
-    shader_compile_count   : usize,
+    gpu_memory_usage     : u32,
+    draw_call_count      : usize,
+    buffer_count         : usize,
+    data_upload_count    : usize,
+    data_upload_size     : u32,
+    sprite_system_count  : usize,
+    sprite_count         : usize,
+    symbol_count         : usize,
+    mesh_count           : usize,
+    shader_count         : usize,
+    shader_compile_count : usize,
 }
 
 impl StatsData {

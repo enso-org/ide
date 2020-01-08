@@ -1,16 +1,15 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 
 use enum_dispatch::*;
 use nalgebra::Matrix4;
-use nalgebra::Vector2;
 use nalgebra::Vector3;
-use nalgebra::Vector4;
 use shapely::shared;
 use web_sys::WebGlUniformLocation;
 
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::ContextUniformOps;
-use crate::system::gpu::data::Empty;
 use crate::system::gpu::data::GpuData;
 use crate::system::web::Logger;
 
@@ -30,7 +29,6 @@ pub trait UniformValue = GpuData where
 // ====================
 // === UniformScope ===
 // ====================
-
 
 shared! { UniformScope
 
@@ -61,7 +59,7 @@ impl {
     /// Add a new uniform with a given name and initial value. Returns `None` if the name is in use.
     pub fn add<Name:Str, Value:UniformValue>
     (&mut self, name:Name, value:Value) -> Option<Uniform<Value>> {
-        self.add_or_else(name,value,|t| Some(t), |_| None)
+        self.add_or_else(name,value,Some,|_|None)
     }
 
     /// Add a new uniform with a given name and initial value. Panics if the name is in use.
@@ -150,6 +148,7 @@ impl<Value:UniformValue> {
 // ==================
 
 /// Existentially typed uniform value.
+#[allow(non_camel_case_types)]
 #[enum_dispatch(AnyUniformOps)]
 #[derive(Clone,Debug)]
 pub enum AnyUniform {

@@ -51,7 +51,7 @@ impl CanvasShapeData {
     }
 
     /// Add multiple ids enclosed in this shape.
-    pub fn add_ids(&mut self, ids:&Vec<usize>) {
+    pub fn add_ids(&mut self, ids:&[usize]) {
         self.ids.extend(ids)
     }
 

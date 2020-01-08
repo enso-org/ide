@@ -101,7 +101,7 @@ pub fn compile_shader(ctx:&Context, tp:u32, src:&str) -> Result<Shader> {
     ctx.compile_shader(&shader);
     if shader.check(ctx) { Ok(shader) } else {
         let code: String   = src.into();
-        let lines          = code.split("\n").collect::<Vec<&str>>();
+        let lines          = code.split('\n').collect::<Vec<&str>>();
         let lines_num      = lines.len();
         let lines_str_len  = (lines_num as f32).log10().ceil() as usize;
         let lines_enum     = lines.into_iter().enumerate();
@@ -117,8 +117,7 @@ pub fn compile_shader(ctx:&Context, tp:u32, src:&str) -> Result<Shader> {
             let preview_radius     = 5;
             let preview_line_start = std::cmp::max(0         , line_num - preview_radius);
             let preview_line_end   = std::cmp::min(lines_num , line_num + preview_radius);
-            let preview            = lines_with_num[preview_line_start..preview_line_end].join("\n");
-            preview
+            lines_with_num[preview_line_start..preview_line_end].join("\n")
         } else { code_with_num };
         Err(Error::Compile {target,message,code:out})
     }
@@ -134,15 +133,6 @@ pub fn link_program(ctx:&Context, vert_shader:&Shader, frag_shader:&Shader) -> R
     Ok(program)
 }
 
-//fn handle_error<T: CompilationTarget>(ctx:&Context, target:ErrorTarget, t:T) -> Result<T> {
-//    if t.check(ctx) {
-//        Ok(t)
-//    } else {
-//        let message = t.logs(ctx);
-//        let error   = Error::Compile {target,message};
-//        Err(error)
-//    }
-//}
 
 
 // ========================

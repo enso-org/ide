@@ -4,9 +4,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::display::world::World;
 use crate::display::world::WorldData;
-use crate::display::world::Workspace;
-use crate::display::world::Add;
-use crate::display::world::WorkspaceID;
 use crate::data::dirty::traits::*;
 
 use nalgebra::Point2;
@@ -21,7 +18,7 @@ use crate::display::shape::text::TextComponentProperties;
 pub fn run_example_text() {
     set_panic_hook();
     basegl_core_msdf_sys::run_once_initialized(|| {
-        let mut world_ref     = WorldData::new("canvas");
+        let world_ref = WorldData::new("canvas");
         {
             let world: &mut WorldData = &mut world_ref.rc.borrow_mut();
             let workspace = &mut world.workspace;

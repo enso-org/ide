@@ -235,7 +235,7 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
             if self.shape_dirty.check_all() {
                 let screen = self.shape.screen_shape();
                 self.resize_canvas(&self.shape);
-                self.scene.camera.set_screen(screen.width as f32, screen.height as f32);
+                self.scene.camera.set_screen(screen.width, screen.height);
                 self.shape_dirty.unset_all();
             }
             if self.symbols_dirty.check_all() {

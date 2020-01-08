@@ -237,7 +237,7 @@ impl WorldData {
             if      key == "0" { world_copy.borrow_mut().display_mode.set(0) }
             else if key == "1" { world_copy.borrow_mut().display_mode.set(1) }
         }));
-        (&web::document().unwrap() as &web_sys::EventTarget).add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref());
+        web::document().unwrap().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
         // -----------------------------------------------------------------------------------------
 

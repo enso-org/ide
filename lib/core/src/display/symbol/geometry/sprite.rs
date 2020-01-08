@@ -15,6 +15,7 @@ use nalgebra::Vector3;
 use nalgebra::Matrix4;
 
 
+
 // =================
 // === SymbolRef ===
 // =================
@@ -278,6 +279,7 @@ impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteSystem {
 // === Setters ===
 
 impl SpriteSystem {
+    /// Sets the material for all sprites in this system.
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
         let world_data = &mut self.symbol_ref.world.borrow_mut();
         let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];

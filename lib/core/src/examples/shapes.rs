@@ -4,7 +4,6 @@
 
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::sprite::Sprite;
-use crate::display::symbol::geometry::sprite::SpriteSystem;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
 use crate::system::web::set_stdout;
@@ -13,7 +12,6 @@ use crate::system::web::set_stack_trace_limit;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
-use crate::display::shape::primitive;
 use crate::display::shape::primitive::def::*;
 
 

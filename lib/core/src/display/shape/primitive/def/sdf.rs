@@ -169,6 +169,7 @@ macro_rules! _define_sdf_shape_mutable_part {
 
         impl $name {
             /// Constructor.
+            #[allow(clippy::new_without_default)]
             pub fn new <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> Self {
                 let glsl_name = stringify!($name).to_snake_case();
                 $(let $field = $field.to_glsl();)*

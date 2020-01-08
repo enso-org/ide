@@ -12,7 +12,6 @@ use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl;
 use crate::display::render::webgl;
-use crate::display::shape::primitive::shader::builder::Builder;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material::VarDecl;
 use crate::display::symbol::shader;
@@ -93,7 +92,7 @@ impl<OnMut:Callback0> Shader<OnMut> {
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self, bindings:&Vec<VarBinding>) {
+    pub fn update(&mut self, bindings:&[VarBinding]) {
         group!(self.logger, "Updating.", {
             if self.dirty.check_all() {
 
@@ -116,23 +115,20 @@ impl<OnMut:Callback0> Shader<OnMut> {
                     }
                 }
 
-                self.geometry_material.outputs.iter().for_each(|(name,decl)|{
+                self.geometry_material.outputs().iter().for_each(|(name,decl)|{
                     shader_cfg.add_shared_attribute(name,&decl.tp);
                 });
 
                 shader_cfg.add_output("color", glsl::PrimType::Vec4);
 
-                let vertex_code   = self.geometry_material.code.clone();
-                let fragment_code = self.material.code.clone();
+                let vertex_code   = self.geometry_material.code().clone();
+                let fragment_code = self.material.code().clone();
                 shader_builder.compute(&shader_cfg,vertex_code,fragment_code);
                 let shader      = shader_builder.build();
                 let vert_shader = webgl::compile_vertex_shader  (&self.context,&shader.vertex);
                 let frag_shader = webgl::compile_fragment_shader(&self.context,&shader.fragment);
-                match frag_shader {
-                    Err(ref err) => {
-                        self.logger.error(|| format!("{}", err))
-                    }
-                    _ => {}
+                if let Err(ref err) = frag_shader {
+                    self.logger.error(|| format!("{}", err))
                 }
 
                 let vert_shader = vert_shader.unwrap();
@@ -148,7 +144,9 @@ impl<OnMut:Callback0> Shader<OnMut> {
 
     /// Traverses the shader definition and collects all attribute names.
     pub fn collect_variables(&self) -> BTreeMap<String,VarDecl> {
-        self.geometry_material.inputs.clone().into_iter().chain(self.material.inputs.clone()).collect()
+        let geometry_material_inputs = self.geometry_material.inputs().clone();
+        let surface_material_inputs  = self.material.inputs().clone();
+        geometry_material_inputs.into_iter().chain(surface_material_inputs).collect()
     }
 }
 
