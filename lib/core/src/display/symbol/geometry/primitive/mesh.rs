@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-pub use crate::system::gpu::scope;
-pub use crate::system::gpu::scope::Uniform;
-pub use crate::system::gpu::scope::UniformScope;
+pub use crate::system::gpu::data;
+pub use crate::system::gpu::data::Uniform;
+pub use crate::system::gpu::data::UniformScope;
 
 use crate::closure;
 use crate::data::dirty::traits::*;
@@ -110,7 +110,7 @@ impl Display for ScopeType {
 // === Types ===
 
 pub type ScopesDirty<F> = dirty::SharedEnum<u8,ScopeType,F>;
-promote_scope_types!{ [ScopeOnChange] scope }
+promote_scope_types!{ [ScopeOnChange] data }
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.

@@ -1,5 +1,8 @@
 #![allow(missing_docs)]
 
+#![warn(missing_docs)]
+pub mod class;
+
 use crate::prelude::*;
 
 use crate::closure;
@@ -47,18 +50,19 @@ pub struct AttributeScope<OnMut> {
 
 // === Types ===
 
-pub type InstanceId          = usize;
-pub type BufferIndex         = usize;
-pub type BufferName          = String;
-pub type BufferDirty <OnMut> = dirty::SharedBitField<u64,OnMut>;
-pub type ShapeDirty  <OnMut> = dirty::SharedBool<OnMut>;
+pub type InstanceId            = usize;
+pub type BufferIndex           = usize;
+pub type BufferName            = String;
+pub type BufferDirty   <OnMut> = dirty::SharedBitField<u64,OnMut>;
+pub type ShapeDirty    <OnMut> = dirty::SharedBool<OnMut>;
+pub type Attribute   <T,OnMut> = class::Attribute<T,BufferOnSet<OnMut>,BufferOnResize<OnMut>>;
 promote_buffer_types! {[BufferOnSet,BufferOnResize] buffer}
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
     crate::promote_buffer_types! { $callbacks $module }
-    promote! { $callbacks $module [AttributeScope] }
+    promote! { $callbacks $module [Attribute<T>,AttributeScope] }
 };}
 
 

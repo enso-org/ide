@@ -9,6 +9,7 @@ use crate::data::function::callback::*;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
+use crate::system::gpu::data::attribute::class::Attribute;
 use crate::system::gpu::data::GpuData;
 use crate::system::gpu::data::Item;
 use crate::system::web::fmt;
@@ -59,7 +60,7 @@ pub type Data<T,OnMut,OnResize> = ObservableVec<T,DataOnSet<OnMut>,DataOnResize<
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
 macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
-    promote! { $callbacks $module [Attribute<T>,BufferData<T>,Buffer<T>,AnyBuffer] }
+    promote! { $callbacks $module [BufferData<T>,Buffer<T>,AnyBuffer] }
 };}
 
 
@@ -280,7 +281,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
 pub struct Buffer<T,OnMut,OnResize> {
-    rc: Rc<RefCell<BufferData<T,OnMut,OnResize>>>
+    pub rc: Rc<RefCell<BufferData<T,OnMut,OnResize>>>
 }
 
 impl<T, OnMut:Callback0, OnResize:Callback0>
@@ -311,6 +312,7 @@ Buffer<T,OnMut,OnResize> {
 
 impl<T,OnMut,OnResize>
 Buffer<T,OnMut,OnResize> {
+    // FIXME: Rethink if buffer should know about Attribute.
     /// Get the variable by given index.
     pub fn get(&self, index:usize) -> Attribute<T,OnMut,OnResize> {
         Attribute::new(index, self.clone())
@@ -345,48 +347,6 @@ impl <T,OnMut,OnResize>
 From<Rc<RefCell<BufferData<T,OnMut,OnResize>>>> for Buffer<T,OnMut,OnResize> {
     fn from(rc: Rc<RefCell<BufferData<T, OnMut, OnResize>>>) -> Self {
         Self {rc}
-    }
-}
-
-
-
-// ===========
-// === Var ===
-// ===========
-
-/// View for a particular buffer. Allows reading and writing buffer data
-/// via the internal mutability pattern. It is implemented as a view on
-/// a selected `Buffer` element under the hood.
-#[derive(Clone,Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
-pub struct Attribute<T,OnMut,OnResize> {
-    index  : usize,
-    buffer : Buffer<T,OnMut,OnResize>
-}
-
-impl<T,OnMut,OnResize> Attribute<T,OnMut,OnResize> {
-    /// Creates a new variable as an indexed view over provided buffer.
-    pub fn new(index:usize, buffer: Buffer<T,OnMut,OnResize>) -> Self {
-        Self {index, buffer}
-    }
-}
-
-impl<T:Copy,OnMut:Callback0,OnResize> Attribute<T,OnMut,OnResize> {
-    /// Gets immutable reference to the underlying data.
-    pub fn get(&self) -> T {
-        *self.buffer.rc.borrow().index(self.index)
-    }
-
-    /// Sets the variable to a new value.
-    pub fn set(&self, value:T) {
-        *self.buffer.rc.borrow_mut().index_mut(self.index) = value;
-    }
-
-    /// Modifies the underlying data by using the provided function.
-    pub fn modify<F:FnOnce(&mut T)>(&self, f:F) {
-        let mut value = self.get();
-        f(&mut value);
-        self.set(value);
     }
 }
 
