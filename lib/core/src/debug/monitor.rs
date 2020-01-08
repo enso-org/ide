@@ -333,15 +333,15 @@ impl Default for ValueCheck {
 #[allow(clippy::collapsible_if)]
 impl ValueCheck {
     /// Construct the check by comparing the provided value to two threshold values.
-    pub fn from_threshold(t1:f64, t2:f64, value:f64) -> Self {
-        if t1 > t2 {
-            if      value >= t1 { ValueCheck::Correct }
-            else if value >= t2 { ValueCheck::Warning }
-            else                { ValueCheck::Error   }
+    pub fn from_threshold(warn_threshold:f64, err_threshold:f64, value:f64) -> Self {
+        if warn_threshold > err_threshold {
+            if      value >= warn_threshold { ValueCheck::Correct }
+            else if value >= err_threshold  { ValueCheck::Warning }
+            else                            { ValueCheck::Error   }
         } else {
-            if      value <= t1 { ValueCheck::Correct }
-            else if value <= t2 { ValueCheck::Warning }
-            else                { ValueCheck::Error   }
+            if      value <= warn_threshold { ValueCheck::Correct }
+            else if value <= err_threshold  { ValueCheck::Warning }
+            else                            { ValueCheck::Error   }
         }
     }
 }
@@ -393,8 +393,8 @@ pub trait Sampler: Debug {
     // === Utils ===
 
     /// Wrapper for `ValueCheck::from_threshold`.
-    fn check_by_threshold(&self, t1:f64, t2:f64) -> ValueCheck {
-        ValueCheck::from_threshold(t1,t2,self.value())
+    fn check_by_threshold(&self, warn_threshold:f64, err_threshold:f64) -> ValueCheck {
+        ValueCheck::from_threshold(warn_threshold,err_threshold,self.value())
     }
 }
 
@@ -597,8 +597,8 @@ impl FrameTime {
     pub fn new() -> Self { default() }
 }
 
-const FPS_WARNING_THRESHOLD : f64 = 1000.0/55.0;
-const FPS_ERROR_THRESHOLD   : f64 = 1000.0/25.0;
+const FRAME_TIME_WARNING_THRESHOLD : f64 = 1000.0/55.0;
+const FRAME_TIME_ERROR_THRESHOLD   : f64 = 1000.0/25.0;
 
 impl Sampler for FrameTime {
     fn label (&self) -> &str       { "Frame time (ms)" }
@@ -608,7 +608,8 @@ impl Sampler for FrameTime {
     fn end   (&mut self, time:f64) {
         let end_time     = time;
         self.value       = end_time - self.begin_time;
-        self.value_check = self.check_by_threshold(FPS_WARNING_THRESHOLD, FPS_ERROR_THRESHOLD);
+        self.value_check = self.check_by_threshold
+            (FRAME_TIME_WARNING_THRESHOLD, FRAME_TIME_ERROR_THRESHOLD);
     }
 }
 
@@ -631,6 +632,9 @@ impl Fps {
     pub fn new() -> Self { default() }
 }
 
+const FPS_WARNING_THRESHOLD : f64 = 55.0;
+const FPS_ERROR_THRESHOLD   : f64 = 25.0;
+
 impl Sampler for Fps {
     fn label     (&self) -> &str        { "Frames per second" }
     fn value     (&self) -> f64         { self.value }
@@ -640,7 +644,7 @@ impl Sampler for Fps {
         if self.begin_time > 0.0 {
             let end_time     = time;
             self.value       = 1000.0 / (end_time - self.begin_time);
-            self.value_check = self.check_by_threshold(55.0,25.0);
+            self.value_check = self.check_by_threshold(FPS_WARNING_THRESHOLD,FPS_ERROR_THRESHOLD);
         }
         self.begin_time = time;
     }
@@ -664,6 +668,9 @@ impl WasmMemory {
     pub fn new() -> Self { default() }
 }
 
+const WASM_MEM_WARNING_THRESHOLD : f64 = 50.0;
+const WASM_MEM_ERROR_THRESHOLD   : f64 = 100.0;
+
 impl Sampler for WasmMemory {
     fn label    (&self) -> &str        { "WASM memory usage (Mb)" }
     fn value    (&self) -> f64         { self.value }
@@ -673,7 +680,8 @@ impl Sampler for WasmMemory {
         let memory: Memory      = wasm_bindgen::memory().dyn_into().unwrap();
         let buffer: ArrayBuffer = memory.buffer().dyn_into().unwrap();
         self.value              = (buffer.byte_length() as f64) / (1024.0 * 1024.0);
-        self.value_check        = self.check_by_threshold(50.0,100.0);
+        self.value_check        = self.check_by_threshold
+            (WASM_MEM_WARNING_THRESHOLD,WASM_MEM_ERROR_THRESHOLD);
     }
 }
 
