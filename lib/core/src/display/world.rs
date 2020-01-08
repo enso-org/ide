@@ -27,8 +27,8 @@ use crate::display::shape::text::font::Fonts;
 use crate::debug::monitor;
 use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
-use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
-use crate::display::symbol::geometry::primitive::mesh::scope::uniform::Uniform;
+use crate::system::gpu::scope::uniform::UniformScope;
+use crate::system::gpu::scope::uniform::Uniform;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 

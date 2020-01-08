@@ -1,20 +1,16 @@
 #![allow(missing_docs)]
 
-#[warn(missing_docs)]
-pub mod buffer;
-#[warn(missing_docs)]
-pub mod scope;
+pub use crate::system::gpu::scope;
+pub use crate::system::gpu::scope::Uniform;
+pub use crate::system::gpu::scope::UniformScope;
 
-pub use scope::uniform::UniformScope;
-pub use scope::uniform::Uniform;
-
-use crate::prelude::*;
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
+use crate::prelude::*;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_scope_types;

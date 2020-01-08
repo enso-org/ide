@@ -9,9 +9,9 @@ use crate::data::function::callback::*;
 use crate::data::opt_vec::OptVec;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
-use crate::display::symbol::geometry::primitive::mesh::buffer::IsBuffer;
+use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::GpuData;
-use crate::display::symbol::geometry::primitive::mesh::buffer;
+use crate::system::gpu::buffer;
 use crate::promote;
 use crate::promote_all;
 use crate::promote_buffer_types;
@@ -96,7 +96,6 @@ impl<OnMut:Clone> AttributeScope<OnMut> {
 }
 
 impl<OnMut: Callback0> AttributeScope<OnMut> {
-
     /// Adds a new named buffer to the scope.
     pub fn add_buffer<Name:Str, T:GpuData>(&mut self, name:Name) -> Buffer<T,OnMut>
     where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {

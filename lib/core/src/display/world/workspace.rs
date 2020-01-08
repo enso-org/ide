@@ -22,7 +22,7 @@ use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
-use crate::display::symbol::geometry::primitive::mesh::scope::uniform::UniformScope;
+use crate::system::gpu::scope::uniform::UniformScope;
 
 
 use eval_tt::*;
