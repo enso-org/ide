@@ -164,7 +164,7 @@ impl StatsMonitorData {
             panel.end();
         }
         self.monitor.draw();
-        self.stats.reset();
+        self.stats.reset_per_frame_statistics();
     }
 }
 
@@ -176,7 +176,8 @@ impl StatsMonitorData {
 
 // === Definition ===
 
-/// World is the top-level structure managing several instances of `Workspace`.
+/// World is the top-level application structure. It used to manage several instances of
+/// `Workspace`, and there is probability that we will get back to this design in the future.
 /// It is responsible for updating the system on every animation frame.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
@@ -229,7 +230,7 @@ impl WorldData {
         });
 
         // -----------------------------------------------------------------------------------------
-        // FIXME: Hacky way of switching display_mode. To be fixed and refactored out.
+        // FIXME[WD]: Hacky way of switching display_mode. To be fixed and refactored out.
         let world_copy = world.clone();
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             let val = val.unchecked_into::<KeyboardEvent>();
@@ -278,14 +279,14 @@ impl WorldData {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        //        if self.workspace_dirty.check_all() {
+        //TODO[WD]: Re-think when should we check the condition (uniform update):
+        //          if self.workspace_dirty.check_all() {
         group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;
         self.workspace.update(fonts);
             });
-//        }
     }
 
     /// Dispose the world object, cancel all handlers and events.

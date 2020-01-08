@@ -5,9 +5,10 @@
 // only one RequestAnimationFrame loop going on to avoid its overhead.
 
 pub mod physics;
-mod continuous_time_animator;
-mod animator;
-mod fixed_step_animator;
+pub mod animator;
+pub mod continuous_time_animator;
+pub mod fixed_step_animator;
+pub mod position;
 
 pub use continuous_time_animator::ContinuousTimeAnimator;
 pub use animator::Animator;

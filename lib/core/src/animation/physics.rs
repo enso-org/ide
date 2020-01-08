@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::animation::{Animator, IntervalCounter, linear_interpolation};
-use crate::traits::HasPosition;
+use crate::animation::position::HasPosition;
 
 use nalgebra::Vector3;
 use nalgebra::zero;

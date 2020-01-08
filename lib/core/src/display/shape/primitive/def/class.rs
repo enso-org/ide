@@ -13,9 +13,9 @@ use crate::display::shape::primitive::shader::canvas::CanvasShape;
 // === Shape ===
 // =============
 
-/// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, it is much easier
-/// to express the dependencies on more general type bounds, so the following type does not mention
-/// the specific implementation details.
+/// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, we do not use
+/// specific `ShapeRef<P>` field here, as it is much easier to express any bounds when using
+/// more generic types.
 pub trait Shape: Clone {
     /// Draw the element on the canvas.
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape;
@@ -27,8 +27,7 @@ pub trait Shape: Clone {
 // === ShapeRef ===
 // ================
 
-/// Immutable wrapper for primitive shapes with fast clone operation. It also assigns each shape
-/// with an unique id.
+/// Immutable reference to a shape. It is also used to get unique id for each shape.
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 pub struct ShapeRef<T> {
@@ -54,12 +53,12 @@ impl<T> ShapeRef<T> {
 
 impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
     /// Translate the shape by a given offset.
-    pub fn translate(&self,x:f32,y:f32) -> Translate<Self> {
+    pub fn translate(&self, x:f32, y:f32) -> Translate<Self> {
         Translate(self,x,y)
     }
 
     /// Unify the shape with another one.
-    pub fn union<S:Shape>(&self,that:&S) -> Union<Self,S> {
+    pub fn union<S:Shape>(&self, that:&S) -> Union<Self,S> {
         Union(self,that)
     }
 }

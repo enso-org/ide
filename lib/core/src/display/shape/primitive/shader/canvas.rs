@@ -29,7 +29,8 @@ impl CanvasShape {
 // === CanvasShapeData ===
 // =======================
 
-/// Definition of a shape defined on `Canvas`.
+/// Definition of a shape defined on `Canvas`. Please note that this shape definition is just a
+/// reference to GLSL code which defines a vector shape there.
 #[derive(Clone,Debug)]
 pub struct CanvasShapeData {
     shape_num : usize,

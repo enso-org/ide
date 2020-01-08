@@ -1,5 +1,8 @@
 #![allow(missing_docs)]
 
+//! Camera implementation which is specialized for 2D view (it computes some additional parameters,
+//! like the zoom to the canvas).
+
 use crate::prelude::*;
 
 use crate::data::dirty;
@@ -14,6 +17,7 @@ use crate::data::dirty::traits::*;
 // === Alignment ===
 // =================
 
+/// Camera alignment. It describes where the origin of the camera should be aligned to.
 #[derive(Clone,Debug)]
 pub struct Alignment {
     pub horizontal : HorizontalAlignment,

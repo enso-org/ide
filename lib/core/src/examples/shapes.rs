@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
-//use crate::prelude::*;
-
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::sprite::Sprite;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
 use crate::system::web::set_stdout;
 use crate::system::web::set_stack_trace_limit;
+use crate::system::web::forward_panic_hook_to_console;
 
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
@@ -18,8 +17,7 @@ use crate::display::shape::primitive::def::*;
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_shapes() {
-    set_panic_hook();
-    console_error_panic_hook::set_once();
+    forward_panic_hook_to_console();
     set_stdout();
     set_stack_trace_limit();
     init(&WorldData::new("canvas"));
@@ -58,17 +56,3 @@ pub fn on_frame
     *iter += 1;
     shape_system.update();
 }
-
-
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if our code ever panics.
-    //
-    // For more details see
-    // https://github.com/rustwasm/console_error_panic_hook#readme
-    #[cfg(feature = "console_error_panic_hook")]
-        console_error_panic_hook::set_once();
-}
-
-

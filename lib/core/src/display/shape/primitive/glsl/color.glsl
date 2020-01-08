@@ -2,6 +2,13 @@
 // === Colorspaces Definition ======================================================================
 // =================================================================================================
 
+/// Helper for colors definition.
+/// For the given input of `DEF_COLOR(RGB,RGBA,rgb,rgba,r,g,b)`, it defines:
+///   - A RGB  struct which contains `vec3 raw` field for each component.
+///   - A RGBA struct which contains `vec4 raw` field for each component.
+///   - A rich set of smart constructors for each of the types.
+///   - A rich set of simple conversions between them.
+
 #define DEF_COLOR(type_name3,type_name4,name3,name4,t1,t2,t3) \
                                                               \
 /* ============================= */                           \
@@ -101,7 +108,7 @@ DEF_COLOR(LCH,LCHA,lch,lcha,l,c,h)
 // === Colorpsace Conversion =======================================================================
 // =================================================================================================
 
-#define DEF_TRANS_CONVERSIONS_1_WAY(                                                 \
+#define DEF_TRANSITIVE_CONVERSIONS_1_WAY(                                                 \
 a_type_name3,a_type_name4,a_name3,a_name4,b_type_name3,b_type_name4,b_name3,b_name4) \
                                                                                      \
 a_type_name3 a_name3(b_type_name4 b_name4) {                                         \
@@ -116,11 +123,11 @@ a_type_name4 a_name4(b_type_name3 b_name3) {                                    
     return a_name4(a_name3(b_name3));                                                \
 }
 
-#define DEF_TRANS_CONVERSIONS(                                                       \
+#define DEF_TRANSITIVE_CONVERSIONS(                                                       \
 a_type_name3,a_type_name4,a_name3,a_name4,b_type_name3,b_type_name4,b_name3,b_name4) \
-DEF_TRANS_CONVERSIONS_1_WAY(                                                         \
+DEF_TRANSITIVE_CONVERSIONS_1_WAY(                                                         \
 a_type_name3,a_type_name4,a_name3,a_name4,b_type_name3,b_type_name4,b_name3,b_name4) \
-DEF_TRANS_CONVERSIONS_1_WAY(                                                         \
+DEF_TRANSITIVE_CONVERSIONS_1_WAY(                                                         \
 b_type_name3,b_type_name4,b_name3,b_name4,a_type_name3,a_type_name4,a_name3,a_name4)
 
 
@@ -161,7 +168,7 @@ RGB rgb (LCH lch) {
     return rgb(raw);
 }
 
-DEF_TRANS_CONVERSIONS(RGB,RGBA,rgb,rgba,LCH,LCHA,lch,lcha)
+DEF_TRANSITIVE_CONVERSIONS(RGB,RGBA,rgb,rgba,LCH,LCHA,lch,lcha)
 
 
 
@@ -189,9 +196,10 @@ RGB rgb(HSV hsv) {
     return rgb(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y));
 }
 
-DEF_TRANS_CONVERSIONS(RGB,RGBA,rgb,rgba,HSV,HSVA,hsv,hsva)
+DEF_TRANSITIVE_CONVERSIONS(RGB,RGBA,rgb,rgba,HSV,HSVA,hsv,hsva)
 
 
+// TODO: we will use it for color mixing. Should be enabled / removed in next PR.
 
 ////cheaply lerp around a circle
 //float lerpAng(in float a, in float b, in float x)

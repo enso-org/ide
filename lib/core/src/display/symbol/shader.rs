@@ -91,6 +91,7 @@ impl<OnMut:Callback0> Shader<OnMut> {
         Self {geometry_material,material,program,dirty,logger,context,stats}
     }
 
+    // TODO: this is very work-in-progress function. It should be refactored in the next PR.
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self, bindings:&[VarBinding]) {
         group!(self.logger, "Updating.", {

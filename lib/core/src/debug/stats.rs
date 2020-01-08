@@ -30,8 +30,8 @@ impl Stats {
     }
 
     /// Resets the per-frame statistics.
-    pub fn reset(&self) {
-        self.rc.borrow_mut().reset();
+    pub fn reset_per_frame_statistics(&self) {
+        self.rc.borrow_mut().reset_per_frame_statistics();
     }
 }
 
@@ -91,7 +91,7 @@ gen_stats!{
 }
 
 impl StatsData {
-    fn reset(&mut self) {
+    fn reset_per_frame_statistics(&mut self) {
         self.draw_call_count      = 0;
         self.shader_compile_count = 0;
         self.data_upload_count    = 0;

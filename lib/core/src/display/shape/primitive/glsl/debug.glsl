@@ -1,3 +1,5 @@
+/// See the following link for more information about this color mapping:
+/// https://gamedev.stackexchange.com/questions/62917/uncharted-2-tone-mapping-and-an-eye-adaptation
 vec3 uncharted_to_tone_mapping(vec3 color) {
     float A = 0.15;
     float B = 0.50;
@@ -27,9 +29,7 @@ vec3 fusion_gradient_hdr(float x) {
     return fusion_gradient(sqrt(t))*(0.5+2.*t);
 }
 
-/// Distance meter function. Needs a bit more than just the distance to estimate the zoom level that
-/// it paints at. If you have real opengl, you can additionally use derivatives (dFdx, dFdy) to
-/// detect discontinuities.
+// TODO: consider using (dFdx, dFdy) to detect discontinuities.
 RGB distance_meter(float dist, float ray_length, float cam_height) {
     float idealGridDistance = 20.0/ray_length;
     float nearestBase = floor(log(idealGridDistance)/log(10.));

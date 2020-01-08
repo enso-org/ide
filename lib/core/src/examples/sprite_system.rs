@@ -6,6 +6,7 @@ use crate::display::symbol::geometry::sprite::SpriteSystem;
 use crate::display::world::*;
 use crate::prelude::*;
 use crate::system::web::set_stdout;
+use crate::system::web::forward_panic_hook_to_console;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -16,8 +17,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_sprite_system() {
-    set_panic_hook();
-    console_error_panic_hook::set_once();
+    forward_panic_hook_to_console();
     set_stdout();
     init(&WorldData::new("canvas"));
 }
@@ -102,16 +102,4 @@ pub fn on_frame
     }
 
     sprite_system.update();
-}
-
-
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if our code ever panics.
-    //
-    // For more details see
-    // https://github.com/rustwasm/console_error_panic_hook#readme
-    #[cfg(feature = "console_error_panic_hook")]
-        console_error_panic_hook::set_once();
 }

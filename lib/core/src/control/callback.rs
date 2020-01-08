@@ -1,6 +1,8 @@
-#![allow(missing_docs)]
+//! Definitions of callback handling utilities.
 
 use crate::prelude::*;
+
+
 
 // ================
 // === Callback ===
@@ -67,7 +69,7 @@ impl Guard {
 #[derivative(Debug, Default)]
 pub struct CallbackRegistry {
     #[derivative(Debug="ignore")]
-    pub callback_list: Vec<(Guard, Box<dyn FnMut()>)>
+    callback_list: Vec<(Guard, Box<dyn FnMut()>)>
 }
 
 impl CallbackRegistry {

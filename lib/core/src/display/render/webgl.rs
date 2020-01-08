@@ -31,17 +31,17 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug,Fail,From)]
 pub enum Error {
-    #[fail(display = "Unable to create {}.", target)]
+    #[fail(display="Unable to create {}.",target)]
     Create { target:ErrorTarget },
-    #[fail(display = "Unable to compile {}.\n{}\n\n{}",target,message,code)]
+    #[fail(display="Unable to compile {}.\n{}\n\n{}",target,message,code)]
     Compile { target:ErrorTarget, message:String, code:String },
 }
 
 #[derive(Copy, Clone, Debug, Fail)]
 pub enum ErrorTarget {
-    #[fail(display = "shader")]
+    #[fail(display="shader")]
     Shader,
-    #[fail(display = "program")]
+    #[fail(display="program")]
     Program,
 }
 
@@ -94,12 +94,15 @@ pub fn compile_fragment_shader(ctx:&Context, src:&str) -> Result<Shader> {
     compile_shader(ctx,Context::FRAGMENT_SHADER,src)
 }
 
+// TODO: This is a very work-in-progress function. It should be refactored into helper functions.
 pub fn compile_shader(ctx:&Context, tp:u32, src:&str) -> Result<Shader> {
     let target = ErrorTarget::Shader;
     let shader = ctx.create_shader(tp).ok_or(Error::Create {target})?;
     ctx.shader_source(&shader, src);
     ctx.compile_shader(&shader);
-    if shader.check(ctx) { Ok(shader) } else {
+    if shader.check(ctx) {
+        Ok(shader)
+    } else {
         let code: String   = src.into();
         let lines          = code.split('\n').collect::<Vec<&str>>();
         let lines_num      = lines.len();
@@ -129,7 +132,7 @@ pub fn link_program(ctx:&Context, vert_shader:&Shader, frag_shader:&Shader) -> R
     ctx.attach_shader(&program, vert_shader);
     ctx.attach_shader(&program, frag_shader);
     ctx.link_program(&program);
-    //handle_error(ctx, target, program)
+    // TODO: handler errors
     Ok(program)
 }
 

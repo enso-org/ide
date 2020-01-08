@@ -12,11 +12,12 @@ use crate::display::shape::text::content::CharPosition;
 use crate::display::shape::text::content::TextChange;
 use crate::display::shape::text::{TextComponentBuilder, Color};
 use crate::display::shape::text::TextComponentProperties;
+use crate::system::web::forward_panic_hook_to_console;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_text() {
-    set_panic_hook();
+    forward_panic_hook_to_console();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world_ref = WorldData::new("canvas");
         {
@@ -93,14 +94,3 @@ fn animate_text_component
     }
     world.workspace_dirty.set();
 }
-
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if our code ever panics.
-    //
-    // For more details see
-    // https://github.com/rustwasm/console_error_panic_hook#readme
-        console_error_panic_hook::set_once();
-}
-

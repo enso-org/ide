@@ -25,6 +25,7 @@ const FRAGMENT_RUNNER :&str = include_str!("../glsl/fragment_runner.glsl");
 
 // === Definition ===
 
+// TODO: Consider removing this struct and moving the utils to functions.
 /// GLSL code builder.
 pub struct Builder {}
 
@@ -56,7 +57,7 @@ impl Builder {
 
 // == Utils ===
 
-/// Defines a visual header element.
+/// Defines glsl comment being a pretty printed header of a code section.
 fn header(label:&str) -> String {
     let border_len = label.len() + 8;
     let border     = "=".repeat(border_len);

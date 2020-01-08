@@ -37,7 +37,16 @@ pub trait SdfShape {
 ///
 /// SDF shapes are defined in the `mutable` module, while the shape wrappers are placed in the
 /// `immutable` module. The shape definition accepted by this macro is similar to both a struct
-/// and a function definition. It's body should be defined as a valid GLSL code.
+/// and a function definition.
+///
+/// The body of the shape definition should be a valid GLSL function body code. The function is
+/// provided with two parameters:
+///   - The current position point as `vec2 position`.
+///   - All input parameters bound to this shader from the material definition as `Env env`.
+///
+/// The result of this shader should be a new `BoundSdf` instance. For more information about
+/// the types and available helper functions in GLSL, please refer to the GLSL definitions in
+/// `src/display/shape/primitive/def/glsl/*.glsl` files.
 ///
 /// For the following input:
 /// ```compile_fail

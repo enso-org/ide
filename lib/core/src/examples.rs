@@ -1,8 +1,5 @@
-#![allow(missing_docs)]
+//! Root module for all example scenes.
 
-#[warn(missing_docs)]
 pub mod sprite_system;
-#[warn(missing_docs)]
 pub mod text;
-#[warn(missing_docs)]
 pub mod shapes;

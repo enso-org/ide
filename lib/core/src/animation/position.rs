@@ -2,6 +2,10 @@
 
 use nalgebra::Vector3;
 
+// ===================
+// === HasPosition ===
+// ===================
+
 pub trait HasPosition {
     /// Gets self's position.
     fn position(&self) -> Vector3<f32>;
