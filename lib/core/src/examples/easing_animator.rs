@@ -94,8 +94,8 @@ impl Canvas {
         self.context.set_fill_style(&color.into());
         let width  = 8.0  / width;
         let height = 16.0 / height;
-        let time_seconds = time_ms / 2000.0;
-        let x      = time_seconds % 1.0;
+        let time_seconds = time_ms / 1000.0;
+        let x      = (time_seconds % 3.0) / 2.0;
         let y      = f(x);
         self.context.fill_rect(x - width / 2.0, y - height / 2.0, width, height);
         self.context.restore();
@@ -115,8 +115,7 @@ struct SharedData {
     animation_canvas : Canvas,
     easing_animator  : EasingAnimator,
     object           : Object,
-    easing_function  : &'static dyn FnEasing,
-    event_loop       : EventLoop
+    easing_function  : &'static dyn FnEasing
 }
 
 #[derive(Clone)]
@@ -142,15 +141,13 @@ impl SubExample {
             target_position,
             2.0
         );
-        let event_loop      = event_loop.clone();
         let easing_function = f;
         let data = SharedData {
             object,
             easing_function,
             graph_canvas,
             animation_canvas,
-            easing_animator,
-            event_loop
+            easing_animator
         };
         let data = Rc::new(RefCell::new(data));
         Self {data}
@@ -159,16 +156,7 @@ impl SubExample {
     fn  set_position(&mut self, target_position:Vector3<f32>) {
         let mut data         = self.data.borrow_mut();
         let origin_position  = data.object.position();
-        let easing_function  = data.easing_function;
-        let object           = data.object.clone();
-        data.easing_animator = EasingAnimator::new(
-            &mut data.event_loop,
-            easing_function,
-            object,
-            origin_position,
-            target_position,
-            2.0
-        );
+        data.easing_animator.animate(origin_position, target_position, 2.0);
     }
 
     fn render(&self, color:&str, time_ms:f64) {
@@ -237,7 +225,7 @@ impl Example {
         );
         let easing_in_out_clone = easing_in_out.clone();
 
-        let _fixed_step = FixedStepAnimator::new(&mut event_loop, 0.5, move |_| {
+        let _fixed_step = FixedStepAnimator::new(&mut event_loop, 1.0 / 3.0, move |_| {
             let target_position = vector3_random();
             easing_in.set_position(target_position.clone());
             easing_out.set_position(target_position.clone());

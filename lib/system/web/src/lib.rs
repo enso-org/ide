@@ -4,7 +4,6 @@
 
 pub mod resize_observer;
 pub mod intersection_observer;
-pub mod animation_frame_loop;
 
 use basegl_prelude::*;
 
