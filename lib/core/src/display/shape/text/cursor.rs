@@ -314,7 +314,7 @@ impl Cursors {
             self.cursors.sort_by_key(|c| c.position);
             let mut i          = 1;
             while i < self.cursors.len() {
-                let merged        = self.merged_selection_range(i - 1,i);
+                let merged = self.merged_selection_range(i - 1,i);
                 match merged {
                     Some(merged_range) => {
                         self.cursors[i-1].extend_selection(&merged_range);
@@ -335,10 +335,10 @@ impl Cursors {
         let left_cursor_position        = self.cursors[left_cursor_index].position;
         let left_cursor_range           = self.cursors[left_cursor_index].selection_range();
         let right_cursor_position       = self.cursors[right_cursor_index].position;
-        let right_cursor_range          = self.cursors[left_cursor_index].selection_range();
+        let right_cursor_range          = self.cursors[right_cursor_index].selection_range();
         let are_cursor_at_same_position = left_cursor_position == right_cursor_position;
         let are_ranges_overlapping      = right_cursor_range.start < left_cursor_range.end;
-        let are_cursors_merged          = are_cursor_at_same_position && are_ranges_overlapping;
+        let are_cursors_merged          = are_cursor_at_same_position || are_ranges_overlapping;
         are_cursors_merged.and_option_from(|| {
             let new_start = left_cursor_range.start.min(right_cursor_range.start);
             let new_end   = left_cursor_range.end  .max(right_cursor_range.end  );
