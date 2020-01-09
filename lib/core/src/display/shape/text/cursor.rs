@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::set_buffer_data;
-use crate::display::shape::text::content::CharPosition;
+use crate::display::shape::text::content::TextLocation;
 use crate::display::shape::text::content::TextComponentContent;
 use crate::display::shape::text::content::line::LineRef;
 use crate::display::shape::text::buffer::glyph_square::point_to_iterable;
@@ -17,6 +17,7 @@ use std::ops::Range;
 use web_sys::WebGlBuffer;
 
 
+
 // ==============
 // === Cursor ===
 // ==============
@@ -24,20 +25,20 @@ use web_sys::WebGlBuffer;
 /// Cursor in TextComponent with its selection
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct Cursor {
-    pub position    : CharPosition,
-    pub selected_to : CharPosition,
+    pub position    : TextLocation,
+    pub selected_to : TextLocation,
 }
 
 impl Cursor {
     /// Create a new cursor at given position and without any selection.
-    pub fn new(position:CharPosition) -> Self {
+    pub fn new(position:TextLocation) -> Self {
         Cursor {position,
             selected_to : position
         }
     }
 
     /// Get range of selected text by this cursor.
-    pub fn selection_range(&self) -> Range<CharPosition> {
+    pub fn selection_range(&self) -> Range<TextLocation> {
         match self.position.cmp(&self.selected_to) {
             Ordering::Equal   => self.position..self.position,
             Ordering::Greater => self.selected_to..self.position,
@@ -47,17 +48,17 @@ impl Cursor {
 
     /// Extend the selection to cover the given range. Cursor itself may be moved, and will be
     /// on the same side of selection as before.
-    pub fn extend_selection(&mut self, range:&Range<CharPosition>) {
+    pub fn extend_selection(&mut self, range:&Range<TextLocation>) {
         let new_start = range.start.min(self.position).min(self.selected_to);
         let new_end   = range.end.max(self.position).max(self.selected_to);
-        match self.position.cmp(&self.selected_to) {
-            Ordering::Less => { *self = Cursor{position:new_start, selected_to:new_end  } },
-            _              => { *self = Cursor{position:new_end  , selected_to:new_start} },
+        *self = match self.position.cmp(&self.selected_to) {
+            Ordering::Less => Cursor{position:new_start, selected_to:new_end  },
+            _              => Cursor{position:new_end  , selected_to:new_start},
         }
     }
 
     /// Check if char at given position is selected.
-    pub fn is_char_selected(&self, position:CharPosition) -> bool {
+    pub fn is_char_selected(&self, position:TextLocation) -> bool {
         self.selection_range().contains(&position)
     }
 
@@ -80,12 +81,12 @@ impl Cursor {
     }
 
     fn x_position_of_cursor_at
-    (position:&CharPosition, content:&mut TextComponentContent, fonts:&mut Fonts)
+    (at:&TextLocation, content:&mut TextComponentContent, fonts:&mut Fonts)
     -> f64 {
         let font     = fonts.get_render_info(content.font);
-        let mut line = content.line(position.line);
-        if position.column > 0 {
-            let char_index = position.column - 1;
+        let mut line = content.line(at.line);
+        if at.column > 0 {
+            let char_index = at.column - 1;
             line.get_char_x_range(char_index,font).end.into()
         } else {
             line.start_point().x
@@ -113,10 +114,10 @@ pub struct CursorNavigation<'a,'b> {
 
 impl<'a,'b> CursorNavigation<'a,'b> {
     /// Jump cursor directly to given position.
-    pub fn move_cursor_to_position(&self, cursor:&mut Cursor, position:CharPosition) {
-        cursor.position = position;
+    pub fn move_cursor_to_position(&self, cursor:&mut Cursor, to:TextLocation) {
+        cursor.position = to;
         if !self.selecting {
-            cursor.selected_to = position;
+            cursor.selected_to = to;
         }
     }
 
@@ -126,33 +127,17 @@ impl<'a,'b> CursorNavigation<'a,'b> {
         self.move_cursor_to_position(cursor,new_position);
     }
 
-    /// Get cursor position at begin of given line.
-    pub fn line_begin(&self, line_index:usize) -> CharPosition {
-        CharPosition {
-            column : 0,
-            line   : line_index,
-        }
-    }
-
     /// Get cursor position at end of given line.
-    pub fn line_end(&self, line_index:usize) -> CharPosition {
-        CharPosition{
+    pub fn line_end_position(&self, line_index:usize) -> TextLocation {
+        TextLocation {
             line   : line_index,
             column : self.content.lines[line_index].len(),
         }
     }
 
-    /// Get cursor position at begin of whole content
-    pub fn content_begin(&self) -> CharPosition {
-        CharPosition {
-            column : 0,
-            line   : 0,
-        }
-    }
-
     /// Get cursor position at end of whole content
-    pub fn content_end(&self) -> CharPosition {
-        CharPosition {
+    pub fn content_end_position(&self) -> TextLocation {
+        TextLocation {
             column : self.content.lines.last().unwrap().len(),
             line   : self.content.lines.len() - 1,
         }
@@ -160,63 +145,64 @@ impl<'a,'b> CursorNavigation<'a,'b> {
 
     /// Get cursor position for the next char from given position. Returns none if at end of
     /// whole document.
-    pub fn next_char(&self, position:&CharPosition) -> Option<CharPosition> {
+    pub fn next_char_position(&self, position:&TextLocation) -> Option<TextLocation> {
         let current_line = &self.content.lines[position.line];
         let next_column  = Some(position.column + 1).filter(|c| *c <= current_line.len());
         let next_line    = Some(position.line + 1)  .filter(|l| *l < self.content.lines.len());
         match (next_column,next_line) {
             (None         , None      ) => None,
-            (None         , Some(line)) => Some(self.line_begin(line)),
-            (Some(column) , _         ) => Some(CharPosition{column, ..*position})
+            (None         , Some(line)) => Some(TextLocation::at_line_begin(line)),
+            (Some(column) , _         ) => Some(TextLocation {column, ..*position})
         }
     }
 
     /// Get cursor position for the previous char from given position. Returns none if at begin of
     /// whole document.
-    pub fn prev_char(&self, position:&CharPosition) -> Option<CharPosition> {
+    pub fn prev_char_position(&self, position:&TextLocation) -> Option<TextLocation> {
         let prev_column = position.column.checked_sub(1);
         let prev_line   = position.line.checked_sub(1);
         match (prev_column,prev_line) {
             (None         , None      ) => None,
-            (None         , Some(line)) => Some(self.line_end(line)),
-            (Some(column) , _         ) => Some(CharPosition{column, ..*position})
+            (None         , Some(line)) => Some(self.line_end_position(line)),
+            (Some(column) , _         ) => Some(TextLocation {column, ..*position})
         }
     }
 
     /// Get cursor position one line above the given position, such the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    pub fn line_up(&mut self, position:&CharPosition) -> Option<CharPosition> {
+    pub fn line_up_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
         let prev_line = position.line.checked_sub(1);
         prev_line.map(|line| self.near_same_x_in_another_line(position,line))
     }
 
     /// Get cursor position one line behind the given position, such the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    pub fn line_down(&mut self, position:&CharPosition) -> Option<CharPosition> {
+    pub fn line_down_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
         let next_line = Some(position.line + 1).filter(|l| *l < self.content.lines.len());
         next_line.map(|line| self.near_same_x_in_another_line(position,line))
     }
 
-    fn new_position(&mut self, position:CharPosition, step:&Step) -> CharPosition {
+    /// New position of cursor at `position` after applying `step`.
+    fn new_position(&mut self, position: TextLocation, step:&Step) -> TextLocation {
         match step {
-            Step::Left      => self.prev_char(&position).unwrap_or(position),
-            Step::Right     => self.next_char(&position).unwrap_or(position),
-            Step::Up        => self.line_up(&position).unwrap_or(position),
-            Step::Down      => self.line_down(&position).unwrap_or(position),
-            Step::LineBegin => self.line_begin(position.line),
-            Step::LineEnd   => self.line_end(position.line),
-            Step::DocBegin  => self.content_begin(),
-            Step::DocEnd    => self.content_end(),
+            Step::Left      => self.prev_char_position(&position).unwrap_or(position),
+            Step::Right     => self.next_char_position(&position).unwrap_or(position),
+            Step::Up        => self.line_up_position(&position).unwrap_or(position),
+            Step::Down      => self.line_down_position(&position).unwrap_or(position),
+            Step::LineBegin => TextLocation::at_line_begin(position.line),
+            Step::LineEnd   => self.line_end_position(position.line),
+            Step::DocBegin  => TextLocation::at_document_begin(),
+            Step::DocEnd    => self.content_end_position(),
         }
     }
 
     /// Get the cursor position on another line, such that the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    fn near_same_x_in_another_line(&mut self, position:&CharPosition, line:usize)
-    -> CharPosition {
+    fn near_same_x_in_another_line(&mut self, position:&TextLocation, line:usize)
+    -> TextLocation {
         let x_position = Cursor::x_position_of_cursor_at(position,self.content,self.fonts);
         let column     = self.column_near_x(line,x_position);
-        CharPosition{line,column}
+        TextLocation {line,column}
     }
 
     /// Get the column number in given line, so the cursor will be as near as possible the
@@ -236,6 +222,7 @@ impl<'a,'b> CursorNavigation<'a,'b> {
         }
     }
 }
+
 
 
 // ===============
@@ -288,15 +275,15 @@ impl Cursors {
     }
 
     /// Removes all current cursors and replace them with single cursor without any selection.
-    pub fn set_cursor(&mut self, position:CharPosition) {
+    pub fn set_cursor(&mut self, position: TextLocation) {
         self.cursors = vec![Cursor::new(position)];
         self.dirty   = true;
     }
 
     /// Add new cursor without selection.
-    pub fn add_cursor(&mut self, position:CharPosition) {
+    pub fn add_cursor(&mut self, position: TextLocation) {
         self.cursors.push(Cursor::new(position));
-        self.merge_overlapping_selections();
+        self.merge_overlapping_cursors();
         self.dirty = true;
     }
 
@@ -306,7 +293,7 @@ impl Cursors {
     /// area overlap, they are irreversibly merged.
     pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:&Step) {
         self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,&step));
-        self.merge_overlapping_selections();
+        self.merge_overlapping_cursors();
         self.dirty = true;
     }
 
@@ -315,22 +302,25 @@ impl Cursors {
         self.cursors.len() * CURSOR_BASE_LAYOUT_SIZE
     }
 
-    fn merge_overlapping_selections(&mut self) {
+    /// Merge overlapping cursors
+    ///
+    /// This function checks all cursors, and merge each pair where cursors are at the same position
+    /// or their selection overlap.
+    ///
+    /// The merged pair will be replaced with one cursor with selection being a sum of selections of
+    /// removed cursors.
+    fn merge_overlapping_cursors(&mut self) {
         if !self.cursors.is_empty() {
             self.cursors.sort_by_key(|c| c.position);
-            let mut last_range = self.cursors.first().unwrap().selection_range();
             let mut i          = 1;
             while i < self.cursors.len() {
-                let current_range = self.cursors[i].selection_range();
-                let merged        = Self::merged_selection_range(&last_range,&current_range);
+                let merged        = self.merged_selection_range(i - 1,i);
                 match merged {
                     Some(merged_range) => {
                         self.cursors[i-1].extend_selection(&merged_range);
                         self.cursors.remove(i);
-                        last_range = merged_range;
                     },
-                    None               => {
-                        last_range = current_range;
+                    None => {
                         i += 1
                     }
                 };
@@ -338,14 +328,20 @@ impl Cursors {
         }
     }
 
-    /// Returns merged range of two overlapping selections, or `None` if these selections does
-    /// not overlap.
-    fn merged_selection_range(left_range:&Range<CharPosition>, right_range:&Range<CharPosition>)
-    -> Option<Range<CharPosition>> {
-        let are_ranges_overlapping = right_range.start < left_range.end || right_range == left_range;
-        are_ranges_overlapping.and_option_from(|| {
-            let new_start = left_range.start.min(right_range.start);
-            let new_end   = left_range.end  .max(right_range.end  );
+    /// Checks if two cursors should be merged and returns new selection range after merging if they
+    /// shoukd, and `None` otherwise.
+    fn merged_selection_range(&self, left_cursor_index:usize, right_cursor_index:usize)
+    -> Option<Range<TextLocation>> {
+        let left_cursor_position        = self.cursors[left_cursor_index].position;
+        let left_cursor_range           = self.cursors[left_cursor_index].selection_range();
+        let right_cursor_position       = self.cursors[right_cursor_index].position;
+        let right_cursor_range          = self.cursors[left_cursor_index].selection_range();
+        let are_cursor_at_same_position = left_cursor_position == right_cursor_position;
+        let are_ranges_overlapping      = right_cursor_range.start < left_cursor_range.end;
+        let are_cursors_merged          = are_cursor_at_same_position && are_ranges_overlapping;
+        are_cursors_merged.and_option_from(|| {
+            let new_start = left_cursor_range.start.min(right_cursor_range.start);
+            let new_end   = left_cursor_range.end  .max(right_cursor_range.end  );
             Some(new_start..new_end)
         })
     }
@@ -387,11 +383,11 @@ mod test {
         TestAfterInit::schedule(||{
             let text        = "FirstLine.\nSecondLine\nThirdLine";
             let initial_cursors = vec!
-                [ Cursor::new(CharPosition{line:0, column:0 })
-                , Cursor::new(CharPosition{line:1, column:0 })
-                , Cursor::new(CharPosition{line:1, column:6 })
-                , Cursor::new(CharPosition{line:1, column:10})
-                , Cursor::new(CharPosition{line:2, column:9 })
+                [ Cursor::new(TextLocation {line:0, column:0 })
+                , Cursor::new(TextLocation {line:1, column:0 })
+                , Cursor::new(TextLocation {line:1, column:6 })
+                , Cursor::new(TextLocation {line:1, column:10})
+                , Cursor::new(TextLocation {line:2, column:9 })
                 ];
             let mut expected_positions = HashMap::<Step,Vec<(usize,usize)>>::new();
             expected_positions.insert(Left,      vec![(0,0),(0,10),(1,5),(1,9),(2,8)]);
@@ -428,11 +424,11 @@ mod test {
         TestAfterInit::schedule(||{
             let text              = "FirstLine\nSecondLine";
             let initial_cursor   = Cursor {
-                position    : CharPosition{line:1, column:0},
-                selected_to : CharPosition{line:0, column:1}
+                position    : TextLocation {line:1, column:0},
+                selected_to : TextLocation {line:0, column:1}
             };
             let initial_cursors   = vec![initial_cursor];
-            let new_position      = CharPosition{line:1,column:10};
+            let new_position      = TextLocation {line:1,column:10};
 
             let mut fonts      = Fonts::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
@@ -453,9 +449,9 @@ mod test {
     fn moving_with_select() -> impl Future<Output=()> {
         TestAfterInit::schedule(||{
             let text              = "FirstLine\nSecondLine";
-            let initial_position  = CharPosition{line:0,column:1};
-            let initial_cursors   = vec![Cursor::new(initial_position)];
-            let new_position      = CharPosition{line:0,column:9};
+            let initial_loc     = TextLocation {line:0,column:1};
+            let initial_cursors = vec![Cursor::new(initial_loc)];
+            let new_loc         = TextLocation {line:0,column:9};
 
             let mut fonts      = Fonts::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
@@ -465,24 +461,24 @@ mod test {
                 fonts: &mut fonts,
                 selecting: true
             };
-            let mut cursors    = Cursors::mock(initial_cursors.clone());
+            let mut cursors = Cursors::mock(initial_cursors.clone());
             cursors.navigate_all_cursors(&mut navigation,&LineEnd);
-            assert_eq!(new_position    , cursors.cursors.first().unwrap().position);
-            assert_eq!(initial_position, cursors.cursors.first().unwrap().selected_to);
+            assert_eq!(new_loc    , cursors.cursors.first().unwrap().position);
+            assert_eq!(initial_loc, cursors.cursors.first().unwrap().selected_to);
         })
     }
 
     #[wasm_bindgen_test(async)]
     fn merging_selection_after_moving() -> impl Future<Output=()> {
         TestAfterInit::schedule(||{
-            let make_char_pos   = |(line,column):(usize,usize)| CharPosition{line,column};
-            let cursor_on_left  = |range:&Range<(usize,usize)>| Cursor {
-                position    : make_char_pos(range.start),
-                selected_to : make_char_pos(range.end)
+            let make_char_loc  = |(line,column):(usize,usize)| TextLocation {line,column};
+            let cursor_on_left = |range:&Range<(usize,usize)>| Cursor {
+                position    : make_char_loc(range.start),
+                selected_to : make_char_loc(range.end)
             };
             let cursor_on_right = |range:&Range<(usize,usize)>| Cursor {
-                position    : make_char_pos(range.end),
-                selected_to : make_char_pos(range.start)
+                position    : make_char_loc(range.end),
+                selected_to : make_char_loc(range.start)
             };
             merging_selection_after_moving_case(cursor_on_left);
             merging_selection_after_moving_case(cursor_on_right);
@@ -497,7 +493,7 @@ mod test {
         let expected_cursors = expected_ranges.iter().map(convert).collect_vec();
         let mut cursors      = Cursors::mock(initial_cursors);
 
-        cursors.merge_overlapping_selections();
+        cursors.merge_overlapping_cursors();
 
         assert_eq!(expected_cursors, cursors.cursors);
     }
