@@ -200,8 +200,8 @@ impl Example {
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in,
-            origin_position.clone(),
-            target_position.clone()
+            origin_position,
+            target_position
         );
         let easing_in_clone = easing_in.clone();
 
@@ -210,8 +210,8 @@ impl Example {
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_out,
-            origin_position.clone(),
-            target_position.clone()
+            origin_position,
+            target_position
         );
         let easing_out_clone = easing_out.clone();
 
@@ -220,8 +220,8 @@ impl Example {
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in_out,
-            origin_position.clone(),
-            target_position.clone()
+            origin_position,
+            target_position
         );
         let easing_in_out_clone = easing_in_out.clone();
 

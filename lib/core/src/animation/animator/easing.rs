@@ -62,8 +62,8 @@ impl EasingAnimator {
             if let Some(data) = weak.upgrade() {
                 let mut data         = data.borrow_mut();
                 let duration_seconds = data.duration_seconds;
-                let origin_position  = data.origin_position.clone();
-                let target_position  = data.target_position.clone();
+                let origin_position  = data.origin_position;
+                let target_position  = data.target_position;
                 let time_seconds     = time_ms as f64 / 1000.0 / duration_seconds;
                 let time_seconds     = clamp(time_seconds, 0.0, 1.0);
                 let time_seconds     = easing_function(time_seconds) as f32;
