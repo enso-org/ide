@@ -1,5 +1,6 @@
 pub mod continuous;
 pub mod fixed_step;
+pub mod easing;
 
 use continuous::ContinuousAnimator;
 use super::AnimationCallback;

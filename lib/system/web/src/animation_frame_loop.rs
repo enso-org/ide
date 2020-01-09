@@ -2,7 +2,7 @@ use basegl_prelude::*;
 use super::request_animation_frame;
 
 use std::rc::Rc;
-use std::cell::{RefCell, Cell};
+use std::cell::RefCell;
 use wasm_bindgen::prelude::Closure;
 
 use data::opt_vec::{OptVec, Ix};

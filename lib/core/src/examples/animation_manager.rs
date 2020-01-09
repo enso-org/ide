@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use crate::animation::easing::*;
-use crate::system::web::console_log;
+use crate::animation::animator::easing::EasingAnimator;
 use crate::system::web::create_element;
 use crate::system::web::NodeInserter;
 use crate::system::web::AttributeSetter;
@@ -18,6 +18,10 @@ use crate::animation::HasPosition;
 use crate::animation::animator::fixed_step::FixedStepAnimator;
 use js_sys::Math;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
+#[derive(Clone)]
 pub struct Canvas {
     canvas  : HtmlCanvasElement,
     context : CanvasRenderingContext2d
@@ -89,12 +93,80 @@ impl Canvas {
     }
 }
 
-fn Vector3_random() -> Vector3<f32> {
+fn vector3_random() -> Vector3<f32> {
     let x = ((Math::random() - 0.5) * 2.0) as f32;
     let y = ((Math::random() - 0.5) * 2.0) as f32;
     Vector3::new(x, y, 0.0)
 }
 
+struct SharedData {
+    graph_canvas     : Canvas,
+    animation_canvas : Canvas,
+    easing_animator  : EasingAnimator,
+    object           : Object,
+    easing_function  : &'static dyn FnEasing,
+    event_loop       : AnimationFrameLoop
+}
+
+#[derive(Clone)]
+struct SubExample {
+    data : Rc<RefCell<SharedData>>
+}
+
+impl SubExample {
+    fn new<F>
+    ( mut event_loop   : &mut AnimationFrameLoop
+    , graph_canvas     : Canvas
+    , animation_canvas : Canvas
+    , f                : &'static F
+    , origin_position  : Vector3<f32>
+    , target_position  : Vector3<f32>) -> Self
+    where F:FnEasing {
+        let object          = Object::new();
+        let easing_animator = EasingAnimator::new(
+            &mut event_loop,
+            f,
+            object.clone(),
+            origin_position,
+            target_position,
+            2.0
+        );
+        let event_loop      = event_loop.clone();
+        let easing_function = f;
+        let data = SharedData {
+            object,
+            easing_function,
+            graph_canvas,
+            animation_canvas,
+            easing_animator,
+            event_loop
+        };
+        let data = Rc::new(RefCell::new(data));
+        Self {data}
+    }
+
+    fn set_position(&mut self, target_position:Vector3<f32>) {
+        let mut data         = self.data.borrow_mut();
+        let origin_position  = data.object.position();
+        let easing_function  = data.easing_function;
+        let object           = data.object.clone();
+        data.easing_animator = EasingAnimator::new(
+            &mut data.event_loop,
+            easing_function,
+            object,
+            origin_position,
+            target_position,
+            2.0
+        );
+    }
+
+    fn render(&self, color:&str, time_ms:f64) {
+        let data = self.data.borrow();
+        let position = data.object.position();
+        data.graph_canvas.graph(data.easing_function, color, time_ms);
+        data.animation_canvas.point(Vector2::new(position.x as f64, position.y as f64), color);
+    }
+}
 
 struct Example {
     _animator : ContinuousAnimator
@@ -121,84 +193,53 @@ impl Example {
         let graph_canvas     = Canvas::new(name);
         let animation_canvas = Canvas::new(name);
 
-        let mut object_in       = Object::new();
-        let object_in_clone     = object_in.clone();
-        let mut object_out      = Object::new();
-        let object_out_clone    = object_out.clone();
-        let mut object_in_out   = Object::new();
-        let object_in_out_clone = object_in_out.clone();
-
         let origin_position  = Vector3::new(0.0, 0.0, 0.0);
-        let target_position  = Vector3_random();
+        let target_position  = vector3_random();
 
-        let mut ease_in_animator = EasingAnimator::new(
+        let mut easing_in = SubExample::new(
             &mut event_loop,
+            graph_canvas.clone(),
+            animation_canvas.clone(),
             ease_in,
-            object_in.clone(),
             origin_position.clone(),
-            target_position.clone(),
-            2.0
+            target_position.clone()
         );
-        let mut ease_out_animator = EasingAnimator::new(
+        let easing_in_clone = easing_in.clone();
+
+        let mut easing_out = SubExample::new(
             &mut event_loop,
+            graph_canvas.clone(),
+            animation_canvas.clone(),
             ease_out,
-            object_out.clone(),
             origin_position.clone(),
-            target_position.clone(),
-            2.0
+            target_position.clone()
         );
-        let mut ease_in_out_animator = EasingAnimator::new(
+        let easing_out_clone = easing_out.clone();
+
+        let mut easing_in_out = SubExample::new(
             &mut event_loop,
+            graph_canvas.clone(),
+            animation_canvas.clone(),
             ease_in_out,
-            object_in_out.clone(),
-            origin_position,
-            target_position,
-            2.0
+            origin_position.clone(),
+            target_position.clone()
         );
+        let easing_in_out_clone = easing_in_out.clone();
 
-
-        let mut event_loop_clone = event_loop.clone();
         let _fixed_step = FixedStepAnimator::new(&mut event_loop, 0.5, move |_| {
-            let origin_position = object_in.position();
-            let target_position = Vector3_random();
-            ease_in_animator = EasingAnimator::new(
-                &mut event_loop_clone,
-                ease_in,
-                object_in.clone(),
-                origin_position.clone(),
-                target_position.clone(),
-                2.0
-            );
-            ease_out_animator = EasingAnimator::new(
-                &mut event_loop_clone,
-                ease_out,
-                object_out.clone(),
-                origin_position.clone(),
-                target_position.clone(),
-                2.0
-            );
-            ease_in_out_animator = EasingAnimator::new(
-                &mut event_loop_clone,
-                ease_in_out,
-                object_in_out.clone(),
-                origin_position,
-                target_position,
-                2.0
-            );
+            let target_position = vector3_random();
+            easing_in.set_position(target_position.clone());
+            easing_out.set_position(target_position.clone());
+            easing_in_out.set_position(target_position.clone());
         });
-        std::mem::forget(_fixed_step);
+
         let _animator = ContinuousAnimator::new(&mut event_loop, move |time_ms:f32| {
+            let _keep_alive = &_fixed_step;
             graph_canvas.clear();
-            graph_canvas.graph(ease_in    , "red"  , time_ms as f64);
-            graph_canvas.graph(ease_out   , "green", time_ms as f64);
-            graph_canvas.graph(ease_in_out, "blue" , time_ms as f64);
             animation_canvas.clear();
-            let position = object_in_clone.position();
-            animation_canvas.point(Vector2::new(position.x as f64, position.y as f64), "red");
-            let position = object_out_clone.position();
-            animation_canvas.point(Vector2::new(position.x as f64, position.y as f64), "green");
-            let position = object_in_out_clone.position();
-            animation_canvas.point(Vector2::new(position.x as f64, position.y as f64), "blue");
+            easing_in_clone.render("red", time_ms as f64);
+            easing_out_clone.render("green", time_ms as f64);
+            easing_in_out_clone.render("blue", time_ms as f64);
         });
         Self { _animator }
     }
