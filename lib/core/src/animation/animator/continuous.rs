@@ -1,7 +1,7 @@
 //! This module implements ContinuousAnimator.
 
-use crate::system::web::animation_frame_loop::AnimationFrameLoop;
-use crate::system::web::animation_frame_loop::AnimationFrameCallbackGuard;
+use crate::control::event_loop::EventLoop;
+use crate::control::callback2::CallbackHandle;
 use super::AnimationCallback;
 
 use std::rc::Rc;
@@ -16,7 +16,7 @@ struct ContinuousTimeAnimatorProperties {
     callback          : Box<dyn AnimationCallback>,
     relative_start_ms : f32,
     absolute_start_ms : Option<f32>,
-    callback_guard    : Option<AnimationFrameCallbackGuard>
+    callback_guard    : Option<CallbackHandle>
 }
 
 
@@ -60,7 +60,7 @@ impl ContinuousAnimatorData {
         properties.absolute_start_ms = None;
     }
 
-    fn set_callback_guard(&self, callback_guard:Option<AnimationFrameCallbackGuard>) {
+    fn set_callback_guard(&self, callback_guard:Option<CallbackHandle>) {
         self.properties.borrow_mut().callback_guard = callback_guard;
     }
 
@@ -93,7 +93,7 @@ pub struct ContinuousAnimator {
 
 impl ContinuousAnimator {
     /// Creates `ContinuousAnimator` with an `AnimationCallback`.
-    pub fn new<F:AnimationCallback>(event_loop:&mut AnimationFrameLoop, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, f:F) -> Self {
         let data            = ContinuousAnimatorData::new(f);
         let weak_data       = Rc::downgrade(&data);
         let callback_guard  = event_loop.add_callback(move |current_time| {

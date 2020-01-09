@@ -15,7 +15,7 @@ use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
 use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::KinematicsProperties;
-use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+use crate::control::event_loop::EventLoop;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
@@ -36,7 +36,7 @@ pub struct Navigator {
 impl Navigator {
     // FIXME: Create a simplified constructor with dom defaulted to window.
     pub fn new
-    (mut event_loop:&mut AnimationFrameLoop, dom:&DOMContainer, camera:Camera) -> Result<Self> {
+    (mut event_loop:&mut EventLoop, dom:&DOMContainer, camera:Camera) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(&mut event_loop, camera.clone());
         let zoom_speed             = 2.0;
         let min_zoom               = 10.0;
@@ -54,7 +54,7 @@ impl Navigator {
     }
 
     fn start_simulator
-    ( mut event_loop:&mut AnimationFrameLoop
+    ( mut event_loop:&mut EventLoop
     , camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();

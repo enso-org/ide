@@ -10,7 +10,7 @@ use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
 use crate::math::utils::linear_interpolation;
 use crate::animation::position::HasPosition;
-use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+use crate::control::event_loop::EventLoop;
 
 use nalgebra::Vector3;
 use nalgebra::zero;
@@ -245,7 +245,7 @@ pub struct PhysicsSimulator {
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
     pub fn new<T>
-    ( mut event_loop:&mut AnimationFrameLoop
+    ( mut event_loop:&mut EventLoop
     , steps_per_second:f32
     , mut object:T
     , mut properties:PhysicsProperties) -> Self

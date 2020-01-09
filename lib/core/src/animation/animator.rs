@@ -5,7 +5,7 @@ pub mod fixed_step;
 pub mod easing;
 
 use continuous::ContinuousAnimator;
-use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+use crate::control::event_loop::EventLoop;
 
 
 
@@ -48,7 +48,7 @@ pub struct Animator {
 
 impl Animator {
     /// Creates `Animator` with an `AnimationCallback`.
-    pub fn new<F:AnimationCallback>(mut event_loop:&mut AnimationFrameLoop, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(mut event_loop:&mut EventLoop, f:F) -> Self {
         let mut data             = AnimatorData::new(f);
         let _continuous_animator = ContinuousAnimator::new(&mut event_loop, move |current_ms| {
             if let Some(previous_ms) = data.previous_ms {

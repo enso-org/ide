@@ -8,6 +8,7 @@ use crate::system::web::NodeInserter;
 use crate::system::web::AttributeSetter;
 use crate::system::web::StyleSetter;
 use crate::display::render::css3d::Object;
+use crate::control::event_loop::EventLoop;
 
 use nalgebra::{Vector2, Vector3};
 
@@ -15,7 +16,6 @@ use web_sys::{HtmlElement, HtmlCanvasElement, CanvasRenderingContext2d};
 use wasm_bindgen::JsCast;
 use crate::system::web::get_element_by_id;
 use crate::animation::animator::continuous::ContinuousAnimator;
-use basegl_system_web::animation_frame_loop::AnimationFrameLoop;
 use crate::animation::position::HasPosition;
 use crate::animation::animator::fixed_step::FixedStepAnimator;
 use js_sys::Math;
@@ -116,7 +116,7 @@ struct SharedData {
     easing_animator  : EasingAnimator,
     object           : Object,
     easing_function  : &'static dyn FnEasing,
-    event_loop       : AnimationFrameLoop
+    event_loop       : EventLoop
 }
 
 #[derive(Clone)]
@@ -126,7 +126,7 @@ struct SubExample {
 
 impl SubExample {
     fn new<F>
-    ( mut event_loop   : &mut AnimationFrameLoop
+    ( mut event_loop   : &mut EventLoop
     , graph_canvas     : Canvas
     , animation_canvas : Canvas
     , f                : &'static F
@@ -156,7 +156,7 @@ impl SubExample {
         Self {data}
     }
 
-    fn set_position(&mut self, target_position:Vector3<f32>) {
+    fn  set_position(&mut self, target_position:Vector3<f32>) {
         let mut data         = self.data.borrow_mut();
         let origin_position  = data.object.position();
         let easing_function  = data.easing_function;
@@ -185,7 +185,7 @@ struct Example {
 
 impl Example {
     pub fn new<F1, F2, F3>
-    ( mut event_loop : &mut AnimationFrameLoop
+    ( mut event_loop : &mut EventLoop
     , name           : &str
     , ease_in        : &'static F1
     , ease_out       : &'static F2
@@ -272,7 +272,7 @@ macro_rules! example {
 #[allow(dead_code)]
 /// Runs EasingAnimator example.
 pub fn run_example_easing_animator() {
-    let mut event_loop = AnimationFrameLoop::new();
+    let mut event_loop = EventLoop::new();
     let container : HtmlElement = create_element("div").unwrap().dyn_into().unwrap();
     container.set_attribute_or_panic("id", "examples");
     container.set_property_or_panic("display", "flex");

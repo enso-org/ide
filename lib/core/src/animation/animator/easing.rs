@@ -3,7 +3,7 @@
 use super::ContinuousAnimator;
 use crate::animation::position::HasPosition;
 use crate::animation::easing::FnEasing;
-use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+use crate::control::event_loop::EventLoop;
 use crate::math::utils::linear_interpolation;
 
 use nalgebra::Vector3;
@@ -22,7 +22,7 @@ impl EasingAnimator {
     /// Creates an EasingAnimator using a `easing_function` to move `object` from
     /// `origin_position` to `target_position` in `duration_seconds`.
     pub fn new<T,F>
-    (mut event_loop   : &mut AnimationFrameLoop
+    (mut event_loop   : &mut EventLoop
      , easing_function  : F
      , mut object       : T
      , origin_position  : Vector3<f32>
