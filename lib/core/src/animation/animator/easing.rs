@@ -1,5 +1,7 @@
+//! This file provides the implementation of EasingAnimator.
+
 use super::ContinuousAnimator;
-use crate::animation::HasPosition;
+use crate::animation::position::HasPosition;
 use crate::animation::easing::FnEasing;
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 use crate::math::utils::linear_interpolation;
@@ -17,6 +19,8 @@ pub struct EasingAnimator {
 }
 
 impl EasingAnimator {
+    /// Creates an EasingAnimator using a `easing_function` to move `object` from
+    /// `origin_position` to `target_position` in `duration_seconds`.
     pub fn new<T,F>
     (mut event_loop   : &mut AnimationFrameLoop
      , easing_function  : F

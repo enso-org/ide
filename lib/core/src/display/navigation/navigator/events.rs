@@ -89,11 +89,11 @@ enum MovementType {
 // =================================
 
 struct NavigatorEventsProperties {
-    movement_type        : Option<MovementType>,
-    mouse_position       : Vector2<f32>,
-    pan_callback         : Box<dyn FnPanEvent>,
-    zoom_callback        : Box<dyn FnZoomEvent>,
-    zoom_speed           : f32
+    movement_type  : Option<MovementType>,
+    mouse_position : Vector2<f32>,
+    pan_callback   : Box<dyn FnPanEvent>,
+    zoom_callback  : Box<dyn FnZoomEvent>,
+    zoom_speed     : f32
 }
 
 

@@ -1,10 +1,20 @@
+//! This file implements Animator.
+
 pub mod continuous;
 pub mod fixed_step;
 pub mod easing;
 
 use continuous::ContinuousAnimator;
-use super::AnimationCallback;
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+
+
+
+// =========================
+// === AnimationCallback ===
+// =========================
+
+pub trait AnimationCallback = FnMut(f32) + 'static;
+
 
 
 // ====================
@@ -12,7 +22,7 @@ use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 // ====================
 
 struct AnimatorData {
-    callback    : Box<dyn FnMut(f32)>,
+    callback    : Box<dyn AnimationCallback>,
     previous_ms : Option<f32>
 }
 
@@ -37,6 +47,7 @@ pub struct Animator {
 }
 
 impl Animator {
+    /// Creates `Animator` with an `AnimationCallback`.
     pub fn new<F:AnimationCallback>(mut event_loop:&mut AnimationFrameLoop, f:F) -> Self {
         let mut data             = AnimatorData::new(f);
         let _continuous_animator = ContinuousAnimator::new(&mut event_loop, move |current_ms| {

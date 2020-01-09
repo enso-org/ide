@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use wasm_bindgen::prelude::*;
 
 use crate::display::render::css3d::Scene;
@@ -11,7 +13,6 @@ use crate::animation::animator::continuous::ContinuousAnimator;
 use crate::animation::physics::inertia::*;
 
 use nalgebra::{Vector2, Vector3};
-use crate::set_stdout;
 use basegl_system_web::animation_frame_loop::AnimationFrameLoop;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
@@ -52,7 +53,6 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_camera_navigation() {
-    set_stdout();
     let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
     renderer.container.dom.set_property_or_panic("background-color", "black");
 
@@ -68,18 +68,8 @@ pub fn run_example_camera_navigation() {
 
     let mut event_loop = AnimationFrameLoop::new();
 
-    let zoom_speed   = 2.0;
-    let min_zoom     = 10.0;
-    let max_zoom     = 10000.0;
     let camera_clone = camera.clone();
-    let navigator  = Navigator::new(
-        &mut event_loop,
-        &renderer.container,
-        camera_clone,
-        min_zoom,
-        max_zoom,
-        zoom_speed
-    );
+    let navigator  = Navigator::new(&mut event_loop, &renderer.container, camera_clone);
     let navigator  = navigator.expect("Couldn't create navigator");
 
     let animator = ContinuousAnimator::new(&mut event_loop, move |_| {

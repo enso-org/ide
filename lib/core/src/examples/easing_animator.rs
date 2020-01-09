@@ -1,3 +1,5 @@
+//! EasingAnimator examples.
+
 use wasm_bindgen::prelude::*;
 use crate::animation::easing::*;
 use crate::animation::animator::easing::EasingAnimator;
@@ -14,7 +16,7 @@ use wasm_bindgen::JsCast;
 use crate::system::web::get_element_by_id;
 use crate::animation::animator::continuous::ContinuousAnimator;
 use basegl_system_web::animation_frame_loop::AnimationFrameLoop;
-use crate::animation::HasPosition;
+use crate::animation::position::HasPosition;
 use crate::animation::animator::fixed_step::FixedStepAnimator;
 use js_sys::Math;
 
@@ -22,12 +24,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 #[derive(Clone)]
+/// A simplified Canvas object used in the EasingAnimator example.
 pub struct Canvas {
     canvas  : HtmlCanvasElement,
     context : CanvasRenderingContext2d
 }
 
 impl Canvas {
+    /// Creates a Canvas element inside the identified container.
     pub fn new(container_id:&str) -> Self {
         let canvas = create_element("canvas").unwrap();
         let canvas: HtmlCanvasElement = canvas.dyn_into().unwrap();
@@ -45,14 +49,18 @@ impl Canvas {
         Self {canvas,context}
     }
 
+    /// Clears the canvas.
     pub fn clear(&self) {
         self.context.clear_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64)
     }
 
+    /// Gets Canvas' width.
     pub fn width(&self) -> f64 { self.canvas.width() as f64 }
 
+    /// Gets Canvas` height.
     pub fn height(&self) -> f64 { self.canvas.height() as f64 }
 
+    /// Draw a point
     pub fn point(&self, point:Vector2<f64>, color:&str) {
         let size = 20.0 / self.height();
         self.context.save();
@@ -64,6 +72,7 @@ impl Canvas {
         self.context.restore();
     }
 
+    /// Draw a 2D graph of the provided FnEasing function.
     pub fn graph<F:FnEasing>(&self, f:F, color:&str, time_ms:f64) {
         let width  = self.width() - 1.0;
         let height = self.height();
@@ -93,10 +102,12 @@ impl Canvas {
     }
 }
 
+/// Creates a Vector3<f32> with random components from -1 to 1.
 fn vector3_random() -> Vector3<f32> {
     let x = ((Math::random() - 0.5) * 2.0) as f32;
     let y = ((Math::random() - 0.5) * 2.0) as f32;
-    Vector3::new(x, y, 0.0)
+    let z = ((Math::random() - 0.5) * 2.0) as f32;
+    Vector3::new(x, y, z)
 }
 
 struct SharedData {
@@ -259,7 +270,8 @@ macro_rules! example {
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_animation_manager() {
+/// Runs EasingAnimator example.
+pub fn run_example_easing_animator() {
     let mut event_loop = AnimationFrameLoop::new();
     let container : HtmlElement = create_element("div").unwrap().dyn_into().unwrap();
     container.set_attribute_or_panic("id", "examples");
@@ -278,5 +290,5 @@ pub fn run_example_animation_manager() {
     example!(event_loop, sine);
     example!(event_loop, back);
     example!(event_loop, elastic);
-    std::mem::drop(event_loop);
+    std::mem::forget(event_loop);
 }

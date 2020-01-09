@@ -1,3 +1,5 @@
+//! This module implements ContinuousAnimator.
+
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 use crate::system::web::animation_frame_loop::AnimationFrameCallbackGuard;
 use super::AnimationCallback;
@@ -71,32 +73,37 @@ impl ContinuousAnimatorData {
 // === Getters ===
 
 impl ContinuousAnimatorData {
-    fn relative_start_ms(&self) -> f32               { self.properties.borrow().relative_start_ms }
-    fn absolute_start_ms(&self) -> Option<f32>       { self.properties.borrow().absolute_start_ms }
+    fn relative_start_ms(&self) -> f32 {
+        self.properties.borrow().relative_start_ms
+    }
+
+    fn absolute_start_ms(&self) -> Option<f32> {
+        self.properties.borrow().absolute_start_ms
+    }
 }
 
 // ==========================
 // === ContinuousAnimator ===
 // ==========================
 
-/// This structure runs an animation with continuous time as its input.
+/// This structure runs an animation with continuous time in milliseconds.
 pub struct ContinuousAnimator {
     data : Rc<ContinuousAnimatorData>
 }
 
 impl ContinuousAnimator {
+    /// Creates `ContinuousAnimator` with an `AnimationCallback`.
     pub fn new<F:AnimationCallback>(event_loop:&mut AnimationFrameLoop, f:F) -> Self {
         let data            = ContinuousAnimatorData::new(f);
         let weak_data       = Rc::downgrade(&data);
         let callback_guard  = event_loop.add_callback(move |current_time| {
             if let Some(data) = weak_data.upgrade() {
                 let absolute_start_ms = data.absolute_start_ms();
-                let absolute_start_ms = if let Some(absolute_start_ms) = absolute_start_ms {
-                    absolute_start_ms
-                } else {
+                let absolute_start_ms = absolute_start_ms.unwrap_or_else(|| {
                     data.set_absolute_start_ms(Some(current_time));
                     current_time
-                };
+
+                });
                 let relative_start_ms = data.relative_start_ms();
                 let relative_time_ms  = current_time - absolute_start_ms + relative_start_ms;
                 data.on_animation_frame(relative_time_ms);

@@ -13,7 +13,7 @@ mod tests {
     use basegl::display::render::css3d::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::display::navigation::navigator::Navigator;
-    use basegl::animation::HasPosition;
+    use basegl::animation::position::HasPosition;
     use web_test::*;
 
     use nalgebra::Vector3;
@@ -73,20 +73,10 @@ mod tests {
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();
-        let zoom_speed     = 6.0;
-        let min_zoom       = 10.0;
-        let max_zoom       = 10000.0;
         let container      = &renderer.container;
         let camera_clone   = camera.clone();
-        let navigator      = Navigator::new(
-            &mut event_loop,
-            container,
-            camera_clone,
-            min_zoom,
-            max_zoom,
-            zoom_speed
-        );
-        let navigator    = navigator.expect("Couldn't create navigator");
+        let navigator      = Navigator::new(&mut event_loop, container, camera_clone);
+        let navigator      = navigator.expect("Couldn't create navigator");
 
         b.iter(move || {
             let _keep_alive = &navigator;

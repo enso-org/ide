@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 mod events;
 
 use events::NavigatorEvents;
@@ -7,7 +9,7 @@ use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
-use crate::animation::HasPosition;
+use crate::animation::position::HasPosition;
 use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
@@ -32,14 +34,13 @@ pub struct Navigator {
 }
 
 impl Navigator {
+    // FIXME: Create a simplified constructor with dom defaulted to window.
     pub fn new
-    ( mut event_loop:&mut AnimationFrameLoop
-    , dom:&DOMContainer
-    , camera:Camera
-    , min_zoom:f32
-    , max_zoom:f32
-    , zoom_speed:f32) -> Result<Self> {
+    (mut event_loop:&mut AnimationFrameLoop, dom:&DOMContainer, camera:Camera) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(&mut event_loop, camera.clone());
+        let zoom_speed             = 2.0;
+        let min_zoom               = 10.0;
+        let max_zoom               = 10000.0;
         let scaled_down_zoom_speed = zoom_speed / 1000.0;
         let _events = Self::start_navigator_events(
             dom,
@@ -110,12 +111,13 @@ impl Navigator {
                 // Scale X and Y to compensate aspect and fov.
                 let x                     = -normalized.x * persp.aspect;
                 let y                     =  normalized.y;
-                let z                     = camera.get_y_scale();
+                let fov_slope             = camera.get_y_scale();
+                let z                     = fov_slope;
                 let direction             = Vector3::new(x, y, z).normalize();
                 let mut position          = properties.spring().fixed_point;
                 let zoom_amount           = zoom.amount * position.z;
                 position                 += direction   * zoom_amount;
-                let min_zoom              = persp.near + 1.0 + min_zoom;
+                let min_zoom              = persp.near  + min_zoom;
                 position.z                = clamp(position.z, min_zoom, max_zoom);
 
                 properties.mod_spring(|spring| spring.fixed_point = position);
