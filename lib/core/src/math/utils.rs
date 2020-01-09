@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use nalgebra::clamp;
 use std::ops::Mul;
 use std::ops::Add;

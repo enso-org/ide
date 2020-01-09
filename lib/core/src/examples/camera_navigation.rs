@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use wasm_bindgen::prelude::*;
 
 use crate::display::render::css3d::Scene;
@@ -11,7 +13,6 @@ use crate::animation::animator::continuous::ContinuousAnimator;
 use crate::animation::physics::inertia::*;
 
 use nalgebra::{Vector2, Vector3};
-use crate::set_stdout;
 use basegl_system_web::animation_frame_loop::AnimationFrameLoop;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
@@ -52,7 +53,6 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_camera_navigation() {
-    set_stdout();
     let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
     renderer.container.dom.set_property_or_panic("background-color", "black");
 

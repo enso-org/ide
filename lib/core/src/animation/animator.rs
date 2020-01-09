@@ -2,8 +2,16 @@ pub mod continuous;
 pub mod fixed_step;
 
 use continuous::ContinuousAnimator;
-use super::AnimationCallback;
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
+
+
+
+// =========================
+// === AnimationCallback ===
+// =========================
+
+pub trait AnimationCallback = FnMut(f32) + 'static;
+
 
 
 // ====================

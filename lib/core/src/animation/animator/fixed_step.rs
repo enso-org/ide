@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use super::Animator;
 use super::AnimationCallback;
 
@@ -11,6 +13,7 @@ use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 // =======================
 
 /// This struct counts the intervals in a time period.
+#[derive(Debug)]
 pub struct IntervalCounter {
     pub interval_duration : f32,
     pub accumulated_time  : f32

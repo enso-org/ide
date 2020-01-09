@@ -336,7 +336,7 @@ fn remove_event_listener_with_callback
 /// Adds mouse event callback and returns its listener.
 fn add_mouse_event<T>(target:&EventTarget, name:&str, closure: T) -> Result<MouseEventListener>
 where T : FnMut(MouseEvent) + 'static {
-    let closure = Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
+    let closure : Closure<dyn FnMut(MouseEvent)> = Closure::wrap(Box::new(closure));
     let callback : &Function = closure.as_ref().unchecked_ref();
     add_event_listener_with_callback(target, name, callback)?;
     Ok(EventListener::new(target.clone(), name.to_string(), closure))
@@ -345,7 +345,7 @@ where T : FnMut(MouseEvent) + 'static {
 /// Adds wheel event callback and returns its listener.
 fn add_wheel_event<T>(target:&EventTarget, closure: T, passive:bool) -> Result<WheelEventListener>
 where T : FnMut(WheelEvent) + 'static {
-    let closure     = Closure::wrap(Box::new(closure) as Box<dyn FnMut(WheelEvent)>);
+    let closure : Closure<dyn FnMut(WheelEvent)> = Closure::wrap(Box::new(closure));
     let callback    = closure.as_ref().unchecked_ref();
     let mut options = AddEventListenerOptions::new();
     options.passive(passive);

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! This file implements physics components to simulate a rubber band dynamics.
 //! The components has the potential to be further developed and extended in the future into a
 //! more sophisticated physics simulator.
@@ -7,7 +9,7 @@ use crate::prelude::*;
 use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
 use crate::math::utils::linear_interpolation;
-use crate::animation::HasPosition;
+use crate::animation::position::HasPosition;
 use crate::system::web::animation_frame_loop::AnimationFrameLoop;
 
 use nalgebra::Vector3;

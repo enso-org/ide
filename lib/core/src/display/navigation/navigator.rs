@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 mod events;
 
 use events::NavigatorEvents;
@@ -7,7 +9,7 @@ use crate::system::web::Result;
 use crate::display::render::css3d::Camera;
 use crate::display::render::css3d::CameraType;
 use crate::display::render::css3d::DOMContainer;
-use crate::animation::HasPosition;
+use crate::animation::position::HasPosition;
 use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
