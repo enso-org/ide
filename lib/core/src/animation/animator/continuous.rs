@@ -1,7 +1,7 @@
 //! This module implements ContinuousAnimator.
 
 use crate::control::event_loop::EventLoop;
-use crate::control::callback2::CallbackHandle;
+use crate::control::callback::CallbackHandle;
 use super::AnimationCallback;
 
 use std::rc::Rc;

@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::control::callback::CallbackMut;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry;
 use crate::system::web;
@@ -50,8 +49,8 @@ impl EventLoop {
 
     /// Add new callback. Returns `CallbackHandle` which when dropped, removes
     /// the callback as well.
-    pub fn add_callback<F:CallbackMut>(&self, callback:F) -> CallbackHandle {
-        self.rc.borrow_mut().callbacks.add(callback)
+    pub fn add_callback<F:FnMut()+'static>(&self, callback:F) -> CallbackHandle {
+        self.rc.borrow_mut().callbacks.add(Box::new(callback))
     }
 
     pub fn set_on_loop_started<F:FnMut()+'static>(&self, f:F) {
@@ -74,7 +73,7 @@ impl EventLoop {
 #[derivative(Debug)]
 pub struct EventLoopData {
     main             : Option<Closure<dyn FnMut(f32)>>,
-    callbacks        : CallbackRegistry,
+    callbacks        : CallbackRegistry<Box<dyn FnMut()>>,
     #[derivative(Debug="ignore")]
     on_loop_started  : Box<dyn FnMut()>,
     #[derivative(Debug="ignore")]
@@ -99,7 +98,7 @@ impl EventLoopData {
         (self.on_loop_started)();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
-            callbacks.run_all();
+            callbacks.run_all(|c| c());
             web::request_animation_frame(main).unwrap()
         });
         self.main_id = callback_id;

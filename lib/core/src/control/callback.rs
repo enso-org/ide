@@ -4,15 +4,6 @@ use crate::prelude::*;
 
 
 
-// ================
-// === Callback ===
-// ================
-
-/// Callback accepted by the `CallbackRegistry`.
-pub trait CallbackMut = FnMut() + 'static;
-
-
-
 // ======================
 // === CallbackHandle ===
 // ======================
@@ -66,17 +57,22 @@ impl Guard {
 /// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
 /// as well.
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct CallbackRegistry {
+#[derivative(Debug)]
+pub struct CallbackRegistry<F> {
     #[derivative(Debug="ignore")]
-    callback_list: Vec<(Guard, Box<dyn FnMut()>)>
+    callback_list: Vec<(Guard, F)>
 }
 
-impl CallbackRegistry {
+impl<F> Default for CallbackRegistry<F> {
+    fn default() -> Self {
+        let callback_list = default();
+        Self { callback_list }
+    }
+}
 
+impl<F> CallbackRegistry<F> {
     /// Adds new callback and returns a new handle for it.
-    pub fn add<F:CallbackMut>(&mut self, callback:F) -> CallbackHandle {
-        let callback = Box::new(callback);
+    pub fn add(&mut self, callback:F) -> CallbackHandle {
         let handle   = CallbackHandle::new();
         let guard    = handle.guard();
         self.callback_list.push((guard, callback));
@@ -84,9 +80,9 @@ impl CallbackRegistry {
     }
 
     /// Fires all registered callbacks.
-    pub fn run_all(&mut self) {
+    pub fn run_all<C:FnMut(&mut F)>(&mut self, mut c:C) {
         self.clear_unused_callbacks();
-        self.callback_list.iter_mut().for_each(|(_,callback)| callback());
+        self.callback_list.iter_mut().for_each(|(_,callback)| c(callback));
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.

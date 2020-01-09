@@ -2,8 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::control::callback2::CallbackHandle;
-use crate::control::callback2::CallbackRegistry;
+use crate::control::callback::CallbackHandle;
+use crate::control::callback::CallbackRegistry;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
 

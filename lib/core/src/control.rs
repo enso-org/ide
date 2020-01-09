@@ -3,6 +3,5 @@
 //! Root module for all control abstractions, like event loops or event systems.
 
 pub mod callback;
-pub mod mouse_manager;
-pub mod callback2;
 pub mod event_loop;
+pub mod mouse_manager;
