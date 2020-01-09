@@ -1,8 +1,6 @@
 #![allow(missing_docs)]
 
 #[warn(missing_docs)]
-pub mod event_loop;
-#[warn(missing_docs)]
 pub mod scene;
 #[warn(missing_docs)]
 pub mod workspace;
@@ -33,7 +31,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 
 use web_sys::{Performance,KeyboardEvent};
-use event_loop::EventLoop;
+use crate::control::event_loop::EventLoop;
 use eval_tt::*;
 
 
@@ -73,7 +71,7 @@ impl World {
     pub fn on_frame<F:FnMut(&World)+'static>
     (&self, mut callback:F) -> CallbackHandle {
         let this = self.clone_ref();
-        let func = move || callback(&this);
+        let func = move |_| callback(&this);
         self.rc.borrow_mut().event_loop.add_callback(func)
     }
 
@@ -224,7 +222,7 @@ impl WorldData {
         let world     = World::new(Self::new_uninitialized(dom));
         let world_ref = world.clone_ref();
         with(world.borrow_mut(), |mut data| {
-            let update          = move || world_ref.borrow_mut().run();
+            let update          = move |_| world_ref.borrow_mut().run();
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
         });
