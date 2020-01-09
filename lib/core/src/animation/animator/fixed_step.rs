@@ -32,7 +32,6 @@ impl IntervalCounter {
         self.accumulated_time -= count as f32 * self.interval_duration;
         count
     }
-
 }
 
 

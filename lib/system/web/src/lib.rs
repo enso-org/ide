@@ -1,6 +1,5 @@
 #![feature(trait_alias)]
 #![feature(set_stdio)]
-#![feature(arbitrary_self_types)]
 
 pub mod resize_observer;
 pub mod intersection_observer;
