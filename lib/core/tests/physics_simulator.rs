@@ -17,7 +17,7 @@ mod tests {
     use basegl::display::render::css3d::html::HTMLObject;
     use basegl::display::render::css3d::Scene;
     use basegl::display::render::css3d::Camera;
-    use basegl::animation::HasPosition;
+    use basegl::animation::position::HasPosition;
     use web_test::*;
     use nalgebra::{zero, Vector3};
     use js_sys::Math::random;
