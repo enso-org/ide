@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! This file implements physics components to simulate a rubber band dynamics.
 //! The components has the potential to be further developed and extended in the future into a
 //! more sophisticated physics simulator.
@@ -22,6 +20,7 @@ use nalgebra::zero;
 // ====================
 /// A trait for implementing 3 dimensional forces.
 pub trait PhysicsForce {
+    /// Gets the calculated force.
     fn force(&self, kinematics:&KinematicsProperties) -> Vector3<f32>;
 }
 
@@ -34,12 +33,14 @@ pub trait PhysicsForce {
 /// This structure contains air dragging properties.
 #[derive(Default, Clone, Copy)]
 pub struct DragProperties {
+    /// Drag`s coefficient.
     pub coefficient: f32
 }
 
 impl DragProperties {
-    pub fn new(amount:f32) -> Self {
-        Self { coefficient: amount }
+    /// Creates `DragProperties` with drag's `coefficient`.
+    pub fn new(coefficient:f32) -> Self {
+        Self { coefficient }
     }
 }
 
@@ -58,7 +59,9 @@ impl PhysicsForce for DragProperties {
 /// This structure contains spring physics properties.
 #[derive(Debug, Clone, Copy)]
 pub struct SpringProperties {
+    /// Spring's coefficient.
     pub coefficient : f32,
+    /// Spring's fixed point.
     pub fixed_point : Vector3<f32>
 }
 
@@ -69,6 +72,7 @@ impl Default for SpringProperties {
 }
 
 impl SpringProperties {
+    /// Creates `SpringProperties` with spring's `coefficient` and `fixed_point`.
     pub fn new(coefficient:f32, fixed_point:Vector3<f32>) -> Self {
         Self { coefficient,fixed_point }
     }
@@ -109,6 +113,7 @@ impl Default for KinematicsProperties {
 }
 
 impl KinematicsProperties {
+    /// Creates `KinematicsProperties` with `position`, `velocity`, `acceleration` and `mass`.
     pub fn new
     (position:Vector3<f32>, velocity:Vector3<f32>, acceleration:Vector3<f32>, mass:f32) -> Self {
         Self { position,velocity,acceleration,mass }
@@ -119,23 +124,37 @@ impl KinematicsProperties {
 // === Getters ===
 
 impl KinematicsProperties {
-    pub fn velocity    (&self) -> Vector3<f32> { self.velocity }
-    pub fn acceleration(&self) -> Vector3<f32> { self.acceleration }
-    pub fn mass        (&self) -> f32          { self.mass }
+    /// `Velocity` getter.
+    pub fn velocity(&self) -> Vector3<f32> {
+        self.velocity
+    }
+
+    /// `Acceleration` getter.
+    pub fn acceleration(&self) -> Vector3<f32> {
+        self.acceleration
+    }
+
+    /// `Mass` getter.
+    pub fn mass(&self) -> f32 {
+        self.mass
+    }
 }
 
 
 // === Setters ===
 
 impl KinematicsProperties {
+    /// `Velocity` setter.
     pub fn set_velocity(&mut self, velocity:Vector3<f32>) {
         self.velocity = velocity
     }
 
+    /// `Acceleration` setter.
     pub fn set_acceleration(&mut self, acceleration:Vector3<f32>) {
         self.acceleration = acceleration
     }
 
+    /// `Mass` setter.
     pub fn set_mass(&mut self, mass:f32) {
         self.mass = mass
     }
@@ -178,6 +197,7 @@ pub struct PhysicsProperties {
 }
 
 impl PhysicsProperties {
+    /// Creates  `PhysicsProperties` with `kinematics`, `spring` and `drag`.
     pub fn new
     (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
         let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics,spring,drag)));
@@ -189,8 +209,11 @@ impl PhysicsProperties {
 // === Getters ===
 
 impl PhysicsProperties {
+    /// `KinematicsProperties` getter.
     pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics }
+    /// `SpringProperties` getter.
     pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring }
+    /// `DragProperties` getter.
     pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag }
 }
 
@@ -198,32 +221,38 @@ impl PhysicsProperties {
 // === Setters ===
 
 impl PhysicsProperties {
+    /// Safe accessor to modify `KinematicsProperties`.
     pub fn mod_kinematics<F:FnOnce(&mut KinematicsProperties)>(&mut self, f:F) {
         let mut kinematics = self.kinematics();
         f(&mut kinematics);
         self.set_kinematics(kinematics);
     }
 
+    /// `KinematicsProperties` setter.
     pub fn set_kinematics(&mut self, kinematics:KinematicsProperties) {
         self.data.borrow_mut().kinematics = kinematics;
     }
 
+    /// Safe accessor to modify `SpringProperties`.
     pub fn mod_spring<F:FnOnce(&mut SpringProperties)>(&mut self, f:F) {
         let mut spring = self.spring();
         f(&mut spring);
         self.set_spring(spring);
     }
 
+    /// `SpringProperties` setter.
     pub fn set_spring(&mut self, spring:SpringProperties) {
         self.data.borrow_mut().spring = spring;
     }
 
+    /// Safe accessor to modify `DragProperties`.
     pub fn mod_drag<F:FnOnce(&mut DragProperties)>(&mut self, f:F) {
         let mut drag = self.drag();
         f(&mut drag);
         self.set_drag(drag);
     }
 
+    /// `DragProperties` setter.
     pub fn set_drag(&mut self, drag:DragProperties) {
         self.data.borrow_mut().drag = drag;
     }
@@ -235,6 +264,7 @@ impl PhysicsProperties {
 // === PhysicsSimulator ===
 // ========================
 
+/// A trait defining the constraints of a SimulationObject.
 pub trait SimulationObject = HasPosition + 'static;
 
 /// A fixed step physics simulator used to simulate `PhysicsProperties`.

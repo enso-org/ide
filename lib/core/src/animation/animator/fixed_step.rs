@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! This module implements `FixedStepAnimator` and its helper `IntervalCounter`.
 
 use super::Animator;
 use super::AnimationCallback;
@@ -15,11 +15,14 @@ use nalgebra::zero;
 /// This struct counts the intervals in a time period.
 #[derive(Debug)]
 pub struct IntervalCounter {
+    /// Interval duration.
     pub interval_duration : f32,
+    /// The amount of time accumulated by `IntervalCounter`'s `add_time`.
     pub accumulated_time  : f32
 }
 
 impl IntervalCounter {
+    /// Creates `IntervalCounter` which counts how many intervals with an `interval_duration`.
     pub fn new(interval_duration:f32) -> Self {
         let accumulated_time = zero();
         Self { interval_duration, accumulated_time }
@@ -72,6 +75,8 @@ pub struct FixedStepAnimator {
 }
 
 impl FixedStepAnimator {
+    /// Registers `FixedStepAnimator` in `EventLoop`, running `AnimationCallback` at a fixed rate
+    /// determined by `steps_per_second`.
     pub fn new<F:AnimationCallback>
     (mut event_loop:&mut EventLoop, steps_per_second:f32, f:F) -> Self {
         let mut data = FixedStepAnimatorData::new(steps_per_second, f);

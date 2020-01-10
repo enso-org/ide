@@ -1,3 +1,6 @@
+//! This module contains the `MouseManager` implementation, its associated structs such as
+//! `MousePositionEvent`, `MouseClickEvent` and `MouseWheelEvent`.
+
 use crate::display::render::css3d::DOMContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
@@ -48,9 +51,10 @@ impl<T:?Sized> Drop for EventListener<T> {
 // === Mouse Event Listeners ===
 // =============================
 
-/// MouseEventListener
+/// EventListener for Mouse events.
 pub type MouseEventListener = EventListener<dyn FnMut(MouseEvent)>;
 
+/// EventListener for Wheel events.
 pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 
 
@@ -245,7 +249,7 @@ impl MouseManagerData {
 macro_rules! add_callback {
     ($name:ident, $event_type:ident, $target:literal) => { paste::item! {
         /// Adds $name event callback and returns its listener object.
-        pub fn $name
+        pub fn [<add_ $name _callback>]
         <F:[<$event_type Callback>]>(&mut self, mut f:F) -> Result<MouseEventListener> {
             let data = Rc::downgrade(&self.data);
             let closure = move |event:MouseEvent| {
@@ -290,17 +294,13 @@ impl MouseManager {
         Ok(EventListener::new(self.data.target(), "contextmenu", listener))
     }
 
-    /// Adds mouse down event callback and returns its listener object.
-    add_callback!(add_mouse_down_callback, MouseClick, "mousedown");
+    add_callback!(mouse_down, MouseClick, "mousedown");
 
-    /// Adds mouse up event callback and returns its listener object.
-    add_callback!(add_mouse_up_callback, MouseClick, "mouseup");
+    add_callback!(mouse_up, MouseClick, "mouseup");
 
-    /// Adds mouse move event callback and returns its listener object.
-    add_callback!(add_mouse_move_callback, MousePosition, "mousemove");
+    add_callback!(mouse_move, MousePosition, "mousemove");
 
-    /// Adds mouse leave event callback and returns its listener object.
-    add_callback!(add_mouse_leave_callback, MousePosition, "mouseleave");
+    add_callback!(mouse_leave, MousePosition, "mouseleave");
 
     /// Adds MouseWheel event callback and returns its listener object.
     pub fn add_mouse_wheel_callback

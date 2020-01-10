@@ -1,3 +1,5 @@
+//! This module contains implementation of `EventLoop`.
+
 use crate::prelude::*;
 
 use crate::control::callback::CallbackHandle;
@@ -60,10 +62,12 @@ impl EventLoop {
         self.rc.borrow_mut().callbacks.add(Box::new(callback))
     }
 
+    /// Sets a callback which is called when the loop started.
     pub fn set_on_loop_started<F:FnMut()+'static>(&self, f:F) {
         self.rc.borrow_mut().set_on_loop_started(f)
     }
 
+    /// Sets a callback which is called when the loop finished.
     pub fn set_on_loop_finished<F:FnMut()+'static>(&self, f:F) {
         self.rc.borrow_mut().set_on_loop_finished(f);
     }
@@ -112,10 +116,12 @@ impl EventLoopData {
         (self.on_loop_finished)();
     }
 
+    /// Sets a callback which is called when the loop started.
     pub fn set_on_loop_started<F:FnMut()+'static>(&mut self, f:F) {
         self.on_loop_started = Box::new(f);
     }
 
+    /// Sets a callback which is called when the loop finished.
     pub fn set_on_loop_finished<F:FnMut()+'static>(&mut self, f:F) {
         self.on_loop_finished = Box::new(f);
     }
