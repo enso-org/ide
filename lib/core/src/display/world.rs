@@ -36,7 +36,6 @@ use wasm_bindgen::{JsCast, JsValue};
 
 use web_sys::{Performance,KeyboardEvent};
 use event_loop::EventLoop;
-use eval_tt::*;
 
 
 

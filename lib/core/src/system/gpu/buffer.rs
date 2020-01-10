@@ -5,15 +5,13 @@ use crate::prelude::*;
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::attribute::class::Attribute;
 use crate::system::gpu::data::GpuData;
 use crate::system::gpu::data::Item;
-use crate::system::web::fmt;
-use crate::system::web::group;
+use crate::system::web::info;
 use crate::system::web::Logger;
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
@@ -22,88 +20,172 @@ use nalgebra::Vector4;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
+use crate::control::callback::Callback;
+
+use shapely::shared;
 
 
+// ==============
+// === Buffer ===
+// ==============
 
-// ==================
-// === BufferData ===
-// ==================
-
-// === Definition ===
-
-/// Please refer to the 'Buffer management pipeline' doc to learn more about
-/// attributes, scopes, geometries, meshes, scenes, and other relevant concepts.
-///
-/// Buffers are values stored in geometry. Under the hood they are stored in
-/// vectors and are synchronised with GPU buffers on demand.
-#[derive(Derivative,Shrinkwrap)]
-#[shrinkwrap(mutable)]
-#[derivative(Debug(bound="T:Debug"))]
+shared! {Buffer
+/// CPU-counterpart of WebGL buffers. The buffer data is synchronised with GPU on demand, usually
+/// in the update stage before drawing the frame.
+#[derive(Debug)]
 pub struct BufferData<T> {
-    #[shrinkwrap(main_field)]
-    pub buffer       : Data<T>,
-    pub buffer_dirty : BufferDirty,
-    pub resize_dirty : ResizeDirty,
-    pub logger       : Logger,
-    pub gl_buffer    : WebGlBuffer,
-    context          : Context,
-    stats            : Stats,
-    gpu_mem_usage    : u32,
+    buffer        : ObservableVec<T>,
+    mut_dirty     : MutDirty,
+    resize_dirty  : ResizeDirty,
+    gl_buffer     : WebGlBuffer,
+    context       : Context,
+    stats         : Stats,
+    gpu_mem_usage : u32,
+    logger        : Logger,
+}
+
+impl<T:GpuData> {
+    /// Constructor.
+    pub fn new<OnMut:Callback,OnResize:Callback>
+    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
+        info!(logger,"Creating new {T::type_display()} buffer.",{
+            stats.inc_buffer_count();
+            let stats         = stats.clone_ref();
+            let mut_dirty     = MutDirty::new(logger.sub("mut_dirty"),Box::new(on_mut));
+            let resize_dirty  = ResizeDirty::new(logger.sub("resize_dirty"),Box::new(on_resize));
+            let on_resize_fn  = on_resize_fn(resize_dirty.clone_ref());
+            let on_mut_fn     = on_mut_fn(mut_dirty.clone_ref());
+            let buffer        = ObservableVec::new(on_mut_fn,on_resize_fn);
+            let context       = context.clone();
+            let gl_buffer     = create_gl_buffer(&context);
+            let gpu_mem_usage = default();
+            Self {buffer,mut_dirty,resize_dirty,logger,gl_buffer,context,stats,gpu_mem_usage}
+        })
+    }
+
+    /// Returns the number of elements in the buffer.
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Checks if the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
+    /// Gets a copy of the data by its index.
+    pub fn get(&self, index:usize) -> T {
+        *self.buffer.index(index)
+    }
+
+    /// Sets data value at the given index.
+    pub fn set(&mut self, index:usize, value:T) {
+        *self.buffer.index_mut(index) = value
+    }
+
+    /// Binds the underlying WebGLBuffer to a given target.
+    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
+    pub fn bind(&self, target:u32) {
+        self.context.bind_buffer(target, Some(&self.gl_buffer));
+    }
+
+
+    /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
+    /// current vertex buffer object and specifies its layout. Please note that this function is
+    /// more complex that a raw call to `WebGLRenderingContext.vertexAttribPointer`, as it correctly
+    /// handles complex data types like `mat4`. See the following links to learn more:
+    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
+    /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
+    pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
+        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as i32;
+        let item_type      = <T as GpuData>::glsl_item_type_code();
+        let rows           = <T as GpuData>::rows() as i32;
+        let cols           = <T as GpuData>::cols() as i32;
+        let col_byte_size  = item_byte_size * rows;
+        let stride         = col_byte_size  * cols;
+        let normalize      = false;
+        for col in 0..cols {
+            let lloc = loc + col as u32;
+            let off  = col * col_byte_size;
+            self.context.enable_vertex_attrib_array(lloc);
+            self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
+            if instanced {
+                self.context.vertex_attrib_divisor(lloc, 1);
+            }
+        }
+    }
+
+    /// Check dirty flags and update the state accordingly.
+    pub fn update(&mut self) {
+        info!(self.logger, "Updating.", {
+            self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
+            if self.resize_dirty.check() {
+                self.upload_data(&None);
+            } else if self.mut_dirty.check_all() {
+                let range = &self.mut_dirty.take().range;
+                self.upload_data(range);
+            }
+            self.mut_dirty.unset_all();
+            self.resize_dirty.unset();
+        })
+    }
+
+    /// Adds a single new element initialized to default value.
+    pub fn add_element(&mut self) {
+        self.add_elements(1);
+    }
+
+    /// Adds multiple new elements initialized to default values.
+    pub fn add_elements(&mut self, elem_count: usize) {
+        self.extend(iter::repeat(T::empty()).take(elem_count));
+    }
+}}
+
+
+impl<T:GpuData> Buffer<T> {
+    /// Get the attribute pointing to a given buffer index.
+    pub fn at(&self, index:usize) -> Attribute<T> {
+        Attribute::new(index,self.clone_ref())
+    }
+}
+
+impl<T> Deref for BufferData<T> {
+    type Target = ObservableVec<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
+}
+
+impl<T> DerefMut for BufferData<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buffer
+    }
 }
 
 
 // === Types ===
 
-pub type ObservableVec<T,OnMut,OnResize> = Observable<Vec<T>,OnMut,OnResize>;
-pub type Data<T> = ObservableVec<T,DataOnSet,DataOnResize>;
-
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
-    promote! { $callbacks $module [BufferData<T>,Buffer<T>,AnyBuffer] }
-};}
-
-
-// === Callbacks ===
-
-pub type BufferDirty = dirty::SharedRange<usize,Box<dyn Fn()>>;
-pub type ResizeDirty = dirty::SharedBool<Box<dyn Fn()>>;
+pub type ObservableVec<T> = Observable<Vec<T>,OnMut,OnResize>;
+pub type MutDirty         = dirty::SharedRange <usize,Box<dyn Callback>>;
+pub type ResizeDirty      = dirty::SharedBool        <Box<dyn Callback>>;
 
 closure! {
-fn buffer_on_resize(dirty:ResizeDirty) -> DataOnResize {
+fn on_resize_fn(dirty:ResizeDirty) -> OnResize {
     || dirty.set()
 }}
 
 closure! {
-fn buffer_on_mut(dirty:BufferDirty) -> DataOnSet {
+fn on_mut_fn(dirty:MutDirty) -> OnMut {
     |ix: usize| dirty.set(ix)
 }}
 
 
 // === Instances ===
 
-impl<T> BufferData<T> {
-    /// Creates a new empty buffer.
-    pub fn new<OnMut:Fn()+'static,OnResize:Fn()+'static>
-    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
-        stats.inc_buffer_count();
-        logger.info(fmt!("Creating new {} buffer.", T::type_display()));
-        let stats          = stats.clone_ref();
-        let set_logger     = logger.sub("buffer_dirty");
-        let resize_logger  = logger.sub("resize_dirty");
-        let buffer_dirty   = BufferDirty::new(set_logger,Box::new(on_mut));
-        let resize_dirty   = ResizeDirty::new(resize_logger,Box::new(on_resize));
-        let buff_on_resize = buffer_on_resize(resize_dirty.clone_ref());
-        let buff_on_mut    = buffer_on_mut(buffer_dirty.clone_ref());
-        let buffer         = Data::new(buff_on_mut, buff_on_resize);
-        let context        = context.clone();
-        let gl_buffer      = create_gl_buffer(&context);
-        let gpu_mem_usage  = default();
-        Self {buffer,buffer_dirty,resize_dirty,logger,gl_buffer,context,stats,gpu_mem_usage}
-    }
-}
 
 impl<T:GpuData> BufferData<T> {
+
+
 
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Item<T>] {
@@ -115,20 +197,7 @@ impl<T:GpuData> BufferData<T> {
         &self.buffer.data
     }
 
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
-        group!(self.logger, "Updating.", {
-            self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
-            if self.resize_dirty.check() {
-                self.upload_data(&None);
-            } else if self.buffer_dirty.check_all() {
-                let range = &self.buffer_dirty.take().range;
-                self.upload_data(range);
-            }
-            self.buffer_dirty.unset_all();
-            self.resize_dirty.unset();
-        })
-    }
+
 
     /// Uploads the provided data to the GPU buffer.
     fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
@@ -174,64 +243,16 @@ impl<T:GpuData> BufferData<T> {
         }
     }
 
-    /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
-    /// current vertex buffer object and specifies its layout. Please note that this function is
-    /// more complex that a raw call to `WebGLRenderingContext.vertexAttribPointer`, as it correctly
-    /// handles complex data types like `mat4`. See the following links to learn more:
-    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
-    /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
-    pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as i32;
-        let item_type      = <T as GpuData>::glsl_item_type_code();
-        let rows           = <T as GpuData>::rows() as i32;
-        let cols           = <T as GpuData>::cols() as i32;
-        let col_byte_size  = item_byte_size * rows;
-        let stride         = col_byte_size  * cols;
-        let normalize      = false;
-        for col in 0..cols {
-            let lloc = loc + col as u32;
-            let off  = col * col_byte_size;
-            self.context.enable_vertex_attrib_array(lloc);
-            self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
-            if instanced {
-                self.context.vertex_attrib_divisor(lloc, 1);
-            }
-        }
-    }
+
 }
 
-impl<T> BufferData<T> {
-    /// Returns the number of elements in the buffer.
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
-
-    /// Checks if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
-    }
-
-    /// Binds the underlying WebGLBuffer to a given target.
-    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
-    pub fn bind(&self, target:u32) {
-        self.context.bind_buffer(target, Some(&self.gl_buffer));
-    }
-}
 
 pub trait AddElementCtx<T> = where
     T: GpuData + Clone;
 
 impl<T>
 BufferData<T> where Self: AddElementCtx<T> {
-    /// Adds a single new element initialized to default value.
-    pub fn add_element(&mut self) {
-        self.add_elements(1);
-    }
 
-    /// Adds multiple new elements initialized to default values.
-    pub fn add_elements(&mut self, elem_count: usize) {
-        self.extend(iter::repeat(T::empty()).take(elem_count));
-    }
 }
 
 impl<T>
@@ -267,79 +288,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 
 
 
-// ==============
-// === Buffer ===
-// ==============
 
-/// Shared view for `Buffer`.
-#[derive(Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
-#[derivative(Clone(bound=""))]
-pub struct Buffer<T> {
-    pub rc: Rc<RefCell<BufferData<T>>>
-}
-
-impl<T> Buffer<T> {
-    /// Creates a new empty buffer.
-    pub fn new<OnMut:Fn()+'static,OnResize:Fn()+'static>
-    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
-        let data = BufferData::new(logger,stats,context,Box::new(on_mut),Box::new(on_resize));
-        let rc   = Rc::new(RefCell::new(data));
-        Self {rc}
-    }
-}
-
-impl<T:GpuData> Buffer<T> {
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&self) {
-        self.rc.borrow_mut().update()
-    }
-
-    /// binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex
-    /// attribute of the current vertex buffer object and specifies its layout.
-    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
-    pub fn vertex_attrib_pointer(&self, index:u32, instanced:bool) {
-        self.rc.borrow().vertex_attrib_pointer(index,instanced)
-    }
-}
-
-impl<T> Buffer<T> {
-    // FIXME: Rethink if buffer should know about Attribute.
-    /// Get the variable by given index.
-    pub fn get(&self, index:usize) -> Attribute<T> {
-        Attribute::new(index, self.clone())
-    }
-
-    /// Returns the number of elements in the buffer.
-    pub fn len(&self) -> usize {
-        self.rc.borrow().len()
-    }
-
-    /// Checks if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.rc.borrow().is_empty()
-    }
-
-    /// Binds the underlying WebGLBuffer to a given target.
-    /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
-    pub fn bind(&self, target:u32) {
-        self.rc.borrow().bind(target)
-    }
-}
-
-impl<T> Buffer<T> where (): AddElementCtx<T> {
-    /// Adds a single new element initialized to default value.
-    pub fn add_element(&self){
-        self.rc.borrow_mut().add_element()
-    }
-}
-
-impl <T>
-From<Rc<RefCell<BufferData<T>>>> for Buffer<T> {
-    fn from(rc: Rc<RefCell<BufferData<T>>>) -> Self {
-        Self {rc}
-    }
-}
 
 
 

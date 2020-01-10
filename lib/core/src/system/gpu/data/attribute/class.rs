@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::data::function::callback::Callback0;
 use crate::system::gpu::buffer::Buffer;
+use crate::system::gpu::data::GpuData;
 
 
 // =================
@@ -13,8 +14,7 @@ use crate::system::gpu::buffer::Buffer;
 /// View for a particular buffer. Allows reading and writing buffer data
 /// via the internal mutability pattern. It is implemented as a view on
 /// a selected `Buffer` element under the hood.
-#[derive(Clone,Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
+#[derive(Clone,Debug,Derivative)]
 pub struct Attribute<T> {
     index  : usize,
     buffer : Buffer<T>
@@ -22,23 +22,23 @@ pub struct Attribute<T> {
 
 impl<T> Attribute<T> {
     /// Creates a new variable as an indexed view over provided buffer.
-    pub fn new(index:usize, buffer: Buffer<T>) -> Self {
+    pub fn new(index:usize, buffer:Buffer<T>) -> Self {
         Self {index, buffer}
     }
 }
 
-impl<T:Copy> Attribute<T> {
-    /// Gets immutable reference to the underlying data.
+impl<T:GpuData> Attribute<T> {
+    /// Gets a copy of the data this attribute points to.
     pub fn get(&self) -> T {
-        *self.buffer.rc.borrow().index(self.index)
+        self.buffer.get(self.index)
     }
 
-    /// Sets the variable to a new value.
+    /// Sets the data this attribute points to.
     pub fn set(&self, value:T) {
-        *self.buffer.rc.borrow_mut().index_mut(self.index) = value;
+        self.buffer.set(self.index,value);
     }
 
-    /// Modifies the underlying data by using the provided function.
+    /// Modifies the data this attribute points to.
     pub fn modify<F:FnOnce(&mut T)>(&self, f:F) {
         let mut value = self.get();
         f(&mut value);

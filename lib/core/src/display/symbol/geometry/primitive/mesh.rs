@@ -4,22 +4,16 @@ pub use crate::system::gpu::data;
 
 
 pub mod types {
-    use super::*;
     pub use crate::system::gpu::data::types::*;
     pub use crate::system::gpu::data::attribute::types::*;
     pub use super::Mesh;
 }
 pub use types::*;
 
-use types::Buffer;
-use types::Attribute;
-
-
 
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::prelude::*;
@@ -28,7 +22,6 @@ use crate::prelude::*;
 //use crate::promote_scope_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use eval_tt::*;
 use num_enum::IntoPrimitive;
 
 

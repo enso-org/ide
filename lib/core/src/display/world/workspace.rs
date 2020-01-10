@@ -7,18 +7,13 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text;
 use crate::display::world::scene::Scene;
 use crate::display::symbol::Symbol;
-use crate::display::symbol::registry;
 use crate::display::symbol::registry::SymbolRegistry;
-//use crate::promote;
-//use crate::promote_all;
-//use crate::promote_symbol_registry_types;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -26,8 +21,6 @@ use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::system::gpu::data::uniform::UniformScope;
 
-
-use eval_tt::*;
 use wasm_bindgen::prelude::Closure;
 
 

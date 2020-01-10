@@ -200,7 +200,7 @@ pub struct SharedDirtyFlag<T,OnSet> {
 
 impl<T:Default,OnSet>
 SharedDirtyFlag<T,OnSet> {
-    pub fn new(logger: Logger, on_set: OnSet) -> Self {
+    pub fn new(logger:Logger, on_set:OnSet) -> Self {
         let callback = Callback(on_set);
         let rc       = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
         Self { rc }

@@ -7,7 +7,6 @@ use crate::prelude::*;
 
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl;

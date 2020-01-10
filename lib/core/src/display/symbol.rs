@@ -15,16 +15,12 @@ pub mod types {
 }
 pub use types::*;
 
-use types::Attribute;
-use types::Buffer;
-
 
 use crate::prelude::*;
 
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
@@ -32,15 +28,10 @@ use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
-//use crate::promote;
-//use crate::promote_all;
-//use crate::promote_mesh_types;
-//use crate::promote_shader_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use shader::Shader;
 
-use eval_tt::*;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;

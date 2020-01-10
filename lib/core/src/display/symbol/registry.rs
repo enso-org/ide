@@ -5,25 +5,18 @@ use crate::prelude::*;
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
-use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
-use crate::display::symbol;
-//use crate::promote;
-//use crate::promote_all;
-//use crate::promote_symbol_types;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use data::opt_vec::OptVec;
-use eval_tt::*;
 use nalgebra::Matrix4;
 
 
 pub mod types {
-    use super::*;
     pub use crate::display::symbol::Symbol;
 }
 pub use types::*;
@@ -36,8 +29,7 @@ pub use types::*;
 // === Definition ===
 
 /// Registry for all the created symbols.
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derive(Debug)]
 pub struct SymbolRegistry {
     pub symbols         : OptVec<Symbol>,
     pub symbol_dirty    : SymbolDirty,

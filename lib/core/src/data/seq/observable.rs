@@ -12,7 +12,7 @@ use crate::data::function::callback::{Callback0,Callback1};
 /// structure changes.
 #[derive(Shrinkwrap)]
 #[derive(Derivative)]
-#[derivative(Debug(bound="T:Debug"))]
+#[derivative(Clone,Debug(bound="T:Debug"))]
 pub struct Observable<T,OnMut,OnResize> {
     #[shrinkwrap(main_field)]
     pub data: T,

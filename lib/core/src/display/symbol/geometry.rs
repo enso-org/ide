@@ -6,11 +6,12 @@ pub mod primitive;
 pub mod sprite;
 
 
+// =================
+// === Reexports ===
+// =================
+
 pub mod types {
     use super::*;
     pub use primitive::types::*;
 }
 pub use types::*;
-
-use types::Attribute;
-use types::Buffer;

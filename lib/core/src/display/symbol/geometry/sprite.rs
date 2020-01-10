@@ -213,10 +213,10 @@ impl SpriteSystem {
         let p3_index = mesh.scopes.point.add_instance();
         let p4_index = mesh.scopes.point.add_instance();
 
-        uv.get(p1_index).set(Vector2::new(0.0, 0.0));
-        uv.get(p2_index).set(Vector2::new(0.0, 1.0));
-        uv.get(p3_index).set(Vector2::new(1.0, 0.0));
-        uv.get(p4_index).set(Vector2::new(1.0, 1.0));
+        uv.at(p1_index).set(Vector2::new(0.0, 0.0));
+        uv.at(p2_index).set(Vector2::new(0.0, 1.0));
+        uv.at(p3_index).set(Vector2::new(1.0, 0.0));
+        uv.at(p4_index).set(Vector2::new(1.0, 1.0));
 
         world_data.stats.inc_sprite_system_count();
 
@@ -232,8 +232,8 @@ impl SpriteSystem {
             let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
             symbol.surface.instance.add_instance()
         };
-        let transform    = self.transform.get(instance_id);
-        let bbox         = self.bbox.get(instance_id);
+        let transform    = self.transform.at(instance_id);
+        let bbox         = self.bbox.at(instance_id);
         let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);
         bbox.set(Vector2::new(1.0,1.0));
         let sprite = Sprite::new(sprite_ref,transform,bbox);

@@ -174,9 +174,10 @@ macro_rules! fmt {
 #[macro_export]
 macro_rules! group {
     ($logger:expr, $message:expr, $body:tt) => {{
-        $logger.group_begin(|| $message);
+        let __logger = $logger.clone();
+        __logger.group_begin(|| $message);
         let out = $body;
-        $logger.group_end();
+        __logger.group_end();
         out
     }};
     ($logger:expr, $str:expr, $a1:expr, $body:tt) => {{
@@ -189,6 +190,18 @@ macro_rules! group {
         group!($logger, format!($str,$a1,$a2,$a3), $body)
     }};
 }
+
+#[macro_export]
+macro_rules! info {
+    ($logger:expr, $message:expr, $body:tt) => {{
+        let __logger = $logger.clone();
+        __logger.group_begin(||iformat!($message));
+        let out = $body;
+        __logger.group_end();
+        out
+    }};
+}
+
 
 
 // =============

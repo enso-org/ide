@@ -33,7 +33,7 @@ pub trait UniformValue = GpuData where
 shared! { UniformScope
 
 /// A scope containing set of uniform values.
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub struct UniformScopeData {
     map    : HashMap<String,AnyUniform>,
     logger : Logger,
@@ -95,7 +95,7 @@ impl UniformScopeData {
 shared! { Uniform
 
 /// An uniform value.
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub struct UniformData<Value> {
     value: Value,
     dirty: bool,

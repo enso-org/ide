@@ -8,6 +8,9 @@ use crate::prelude::*;
 // === Callback ===
 // ================
 
+/// Immutable callback type.
+pub trait Callback = Fn() + 'static;
+
 /// Callback accepted by the `CallbackRegistry`.
 pub trait CallbackMut = FnMut() + 'static;
 
