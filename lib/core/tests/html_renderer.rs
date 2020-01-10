@@ -67,8 +67,8 @@ mod tests {
 
         // Iterate over 3 axes.
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
-            // Creates 10 HTMLObjects per axis.
-            for i in 0 .. 10 {
+            // Creates 5 HTMLObjects per axis.
+            for i in 0 .. 5 {
                 let mut object = HTMLObject::new("div").unwrap();
                 object.set_dimensions(1.0, 1.0);
 
@@ -81,16 +81,16 @@ mod tests {
                 object.set_position(Vector3::new(x, y, z));
 
                 // Creates a gradient color based on the axis.
-                let r = (x * 25.5) as u8;
-                let g = (y * 25.5) as u8;
-                let b = (z * 25.5) as u8;
+                let r = (x * 50.0) as u8;
+                let g = (y * 50.0) as u8;
+                let b = (z * 50.0) as u8;
                 let color = format!("rgba({}, {}, {}, {})", r, g, b, 1.0);
 
                 object.dom.set_property_or_panic("background-color", color);
                 scene.add(object);
             }
         }
-        assert_eq!(scene.len(), 30, "We should have 30 HTMLObjects");
+        assert_eq!(scene.len(), 15, "We should have 30 HTMLObjects");
         scene
     }
 
@@ -187,13 +187,13 @@ mod tests {
     }
 
     #[web_bench]
-    fn object_x1000(b: &mut Bencher) {
+    fn object_x100(b: &mut Bencher) {
         let mut scene : Scene<HTMLObject> = Scene::new();
-        let renderer = HTMLRenderer::new("object_x1000")
+        let renderer = HTMLRenderer::new("object_x100")
                                     .expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
-        for _ in 0..1000 {
+        for _ in 0..100 {
             let mut object = HTMLObject::new("div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
@@ -220,13 +220,13 @@ mod tests {
     }
 
     #[web_bench]
-    fn object_x400_update(b: &mut Bencher) {
-        let renderer = HTMLRenderer::new("object_x400_update")
+    fn object_x50_update(b: &mut Bencher) {
+        let renderer = HTMLRenderer::new("object_x50_update")
                                     .expect("Renderer couldn't be created");
         let mut scene : Scene<HTMLObject> = Scene::new();
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
-        for _ in 0..400 {
+        for _ in 0..50 {
             let mut object = HTMLObject::new("div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
