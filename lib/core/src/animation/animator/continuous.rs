@@ -13,10 +13,10 @@ use std::cell::RefCell;
 // ========================================
 
 struct ContinuousTimeAnimatorProperties {
-    callback          : Box<dyn AnimationCallback>,
-    relative_start_ms : f32,
-    absolute_start_ms : Option<f32>,
-    callback_guard    : Option<CallbackHandle>
+    callback                   : Box<dyn AnimationCallback>,
+    relative_start_ms          : f32,
+    absolute_start_ms          : Option<f32>,
+    event_loop_callback_handle : Option<CallbackHandle>
 }
 
 
@@ -31,13 +31,13 @@ struct ContinuousAnimatorData {
 
 impl ContinuousAnimatorData {
     fn new<F:AnimationCallback>(f:F) -> Rc<Self> {
-        let callback          = Box::new(f);
-        let relative_start_ms = 0.0;
-        let absolute_start_ms = None;
-        let callback_guard    = None;
-        let properties        = ContinuousTimeAnimatorProperties {
+        let callback                   = Box::new(f);
+        let relative_start_ms          = 0.0;
+        let absolute_start_ms          = None;
+        let event_loop_callback_handle = None;
+        let properties                 = ContinuousTimeAnimatorProperties {
             callback,
-            callback_guard,
+            event_loop_callback_handle,
             relative_start_ms,
             absolute_start_ms
         };
@@ -67,8 +67,8 @@ impl ContinuousAnimatorData {
         properties.absolute_start_ms = None;
     }
 
-    fn set_callback_guard(&self, callback_guard:Option<CallbackHandle>) {
-        self.properties.borrow_mut().callback_guard = callback_guard;
+    fn set_event_loop_callback_handle(&self, event_loop_callback_handle:Option<CallbackHandle>) {
+        self.properties.borrow_mut().event_loop_callback_handle = event_loop_callback_handle;
     }
 
     fn set_absolute_start_ms(&self, absolute_start_ms:Option<f32>) {
@@ -104,10 +104,10 @@ impl ContinuousAnimator {
     pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, f:F) -> Self {
         let data            = ContinuousAnimatorData::new(f);
         let weak_data       = Rc::downgrade(&data);
-        let callback_guard  = event_loop.add_callback(move |absolute_time_ms| {
+        let callback_handle = event_loop.add_callback(move |absolute_time_ms| {
             weak_data.upgrade().map(|data| data.on_animation_frame(absolute_time_ms));
         });
-        data.set_callback_guard(Some(callback_guard));
+        data.set_event_loop_callback_handle(Some(callback_handle));
         Self {data}
     }
 }
