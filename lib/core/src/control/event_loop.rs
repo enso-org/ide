@@ -1,12 +1,9 @@
-#![allow(missing_docs)]
-
 use crate::prelude::*;
 
 use crate::control::callback::CallbackHandle;
-use crate::control::callback::CallbackRegistry;
+use crate::control::callback::CallbackRegistry1;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
-
 
 
 // =========================
@@ -50,7 +47,9 @@ impl EventLoop {
         let main = move |time_ms| { data.upgrade().map(|t| t.borrow_mut().run(time_ms)); };
         with(self.rc.borrow_mut(), |mut data| {
             data.main = Some(Closure::new(main));
-            data.run(0.0);
+            if let Some(closure) = &data.main {
+                web::request_animation_frame(&closure).unwrap();
+            }
         });
         self
     }
@@ -81,7 +80,7 @@ impl EventLoop {
 #[derivative(Debug)]
 pub struct EventLoopData {
     main             : Option<Closure<dyn FnMut(f32)>>,
-    callbacks        : CallbackRegistry<Box<dyn EventLoopCallback>>,
+    callbacks        : CallbackRegistry1<f32>,
     #[derivative(Debug="ignore")]
     on_loop_started  : Box<dyn FnMut()>,
     #[derivative(Debug="ignore")]
@@ -106,7 +105,7 @@ impl EventLoopData {
         (self.on_loop_started)();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
-            callbacks.run_all(|c| c(time_ms));
+            callbacks.run_all(time_ms);
             web::request_animation_frame(main).unwrap()
         });
         self.main_id = callback_id;

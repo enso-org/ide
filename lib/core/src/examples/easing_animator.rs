@@ -10,9 +10,12 @@ use crate::system::web::StyleSetter;
 use crate::display::render::css3d::Object;
 use crate::control::event_loop::EventLoop;
 
-use nalgebra::{Vector2, Vector3};
+use nalgebra::Vector2;
+use nalgebra::Vector3;
 
-use web_sys::{HtmlElement, HtmlCanvasElement, CanvasRenderingContext2d};
+use web_sys::HtmlElement;
+use web_sys::HtmlCanvasElement;
+use web_sys::CanvasRenderingContext2d;
 use wasm_bindgen::JsCast;
 use crate::system::web::get_element_by_id;
 use crate::animation::animator::continuous::ContinuousAnimator;
@@ -28,6 +31,43 @@ use std::cell::RefCell;
 pub struct Canvas {
     canvas  : HtmlCanvasElement,
     context : CanvasRenderingContext2d
+}
+
+#[derive(Clone, Copy)]
+/// Interpolatable properties for our example code.
+pub struct Properties {
+    /// Position property.
+    pub position : Vector2<f32>,
+    /// Alpha property.
+    pub alpha    : f64
+}
+
+impl Properties {
+    /// Creates a new Properties instance.
+    pub fn new(position:Vector2<f32>, alpha:f64) -> Self {
+        Self { position, alpha }
+    }
+}
+
+use std::ops::Mul;
+use std::ops::Add;
+
+impl Mul<f64> for Properties {
+    type Output = Self;
+    fn mul(self, rhs:f64) -> Self::Output {
+        let position = self.position * rhs as f32;
+        let alpha    = self.alpha    * rhs;
+        Properties { position, alpha }
+    }
+}
+
+impl Add<Properties> for Properties {
+    type Output = Self;
+    fn add(self, rhs:Self) -> Self {
+        let position = self.position + rhs.position;
+        let alpha    = self.alpha    + rhs.alpha;
+        Properties { position, alpha }
+    }
 }
 
 impl Canvas {
@@ -60,15 +100,19 @@ impl Canvas {
     /// Gets Canvas` height.
     pub fn height(&self) -> f64 { self.canvas.height() as f64 }
 
+    //create properties with {position, opacity}
+
     /// Draw a point
-    pub fn point(&self, point:Vector2<f64>, color:&str) {
+    pub fn point(&self, properties:Properties, color:&str) {
         let size = 20.0 / self.height();
+        let point = properties.position;
         self.context.save();
+        self.context.set_global_alpha(properties.alpha);
         self.context.set_fill_style(&color.into());
         self.context.scale(self.width() / 2.0, self.height() / 2.0).ok();
         self.context.set_line_width(2.0 / self.height());
         self.context.translate(1.0, 1.0).ok();
-        self.context.fill_rect(point.x - size / 2.0, point.y - size / 2.0, size, size);
+        self.context.fill_rect(point.x as f64 - size / 2.0,point.y as f64 - size / 2.0,size,size);
         self.context.restore();
     }
 
@@ -163,7 +207,8 @@ impl SubExample {
         let data = self.data.borrow();
         let position = data.object.position();
         data.graph_canvas.graph(data.easing_function, color, time_ms);
-        data.animation_canvas.point(Vector2::new(position.x as f64, position.y as f64), color);
+        let properties = Properties::new(Vector2::new(position.x, position.y), 1.0);
+        data.animation_canvas.point(properties, color);
     }
 }
 

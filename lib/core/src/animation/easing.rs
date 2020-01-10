@@ -26,8 +26,7 @@ macro_rules! easing_fn {
             } else {
                 ([<$name _out>](t - 1.0) + 1.0) / 2.0
             }
-}
-
+        }
     } };
 }
 

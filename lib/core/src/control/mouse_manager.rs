@@ -48,6 +48,7 @@ impl<T:?Sized> Drop for EventListener<T> {
 // === Mouse Event Listeners ===
 // =============================
 
+/// MouseEventListener
 pub type MouseEventListener = EventListener<dyn FnMut(MouseEvent)>;
 
 pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
@@ -60,9 +61,13 @@ pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 
 /// An enumeration representing the mouse buttons.
 pub enum MouseButton {
+    /// Left mouse button.
     LEFT,
+    /// Middle mouse button.
     MIDDLE,
+    /// Right mouse button.
     RIGHT,
+    /// For unknown mouse buttons IDs.
     UNKNOWN
 }
 
@@ -76,7 +81,9 @@ pub trait MouseClickCallback = FnMut(MouseClickEvent) + 'static;
 
 /// A struct storing information about mouse down and mouse up events.
 pub struct MouseClickEvent {
+    /// The position where the MouseClickEvent occurred.
     pub position : Vector2<f32>,
+    /// The button which triggered the event.
     pub button   : MouseButton
 }
 
@@ -104,7 +111,9 @@ pub trait MousePositionCallback = FnMut(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse move, mouse enter and mouse leave events.
 pub struct MousePositionEvent {
+    /// The previous position where the mouse was.
     pub previous_position : Vector2<f32>,
+    /// The current position where the mouse is.
     pub position          : Vector2<f32>
 }
 
@@ -131,8 +140,11 @@ pub trait MouseWheelCallback = FnMut(MouseWheelEvent) + 'static;
 
 /// A struct storing information about mouse wheel events.
 pub struct MouseWheelEvent {
+    /// A boolean indicating if the keyboard ctrl button is pressed.
     pub is_ctrl_pressed : bool,
+    /// The horizontal movement in pixels.
     pub movement_x      : f32,
+    /// The vertical movement in pixels.
     pub movement_y      : f32
 }
 
@@ -232,6 +244,7 @@ impl MouseManagerData {
 /// ```
 macro_rules! add_callback {
     ($name:ident, $event_type:ident, $target:literal) => { paste::item! {
+        /// Adds $name event callback and returns its listener object.
         pub fn $name
         <F:[<$event_type Callback>]>(&mut self, mut f:F) -> Result<MouseEventListener> {
             let data = Rc::downgrade(&self.data);
@@ -261,6 +274,7 @@ const MIDDLE_MOUSE_BUTTON: i16 = 1;
 const  RIGHT_MOUSE_BUTTON: i16 = 2;
 
 impl MouseManager {
+    /// Creates a new instance to manage mouse events in the specified DOMContainer.
     pub fn new(dom:&DOMContainer) -> Result<Self> {
         let target              = dyn_into::<_, EventTarget>(dom.dom.clone())?;
         let dom                 = dom.clone();

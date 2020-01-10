@@ -39,14 +39,13 @@ impl EasingAnimator {
     /// Creates an EasingAnimator using a `easing_function` to move `object` from
     /// `origin_position` to `target_position` in `duration_seconds`.
     pub fn new<T,F>
-    (mut event_loop   : &mut EventLoop
-     , easing_function  : F
-     , object           : T
-     , origin_position  : Vector3<f32>
-     , target_position  : Vector3<f32>
-     , duration_seconds : f64
-    ) -> Self
-        where T : HasPosition + 'static, F : FnEasing {
+    (mut event_loop    : &mut EventLoop
+    , easing_function  : F
+    , object           : T
+    , origin_position  : Vector3<f32>
+    , target_position  : Vector3<f32>
+    , duration_seconds : f64) -> Self
+    where T : HasPosition + 'static, F : FnEasing {
         let continuous_animator = None;
         let object               = Box::new(object);
         let data                 = EasingAnimatorData{

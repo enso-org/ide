@@ -13,7 +13,8 @@ use crate::display::navigation::navigator::Navigator;
 use crate::animation::animator::continuous::ContinuousAnimator;
 use crate::animation::physics::inertia::*;
 
-use nalgebra::{Vector2, Vector3};
+use nalgebra::Vector2;
+use nalgebra::Vector3;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     let mut scene : Scene<HTMLObject> = Scene::new();
@@ -77,4 +78,5 @@ pub fn run_example_camera_navigation() {
         renderer.render(&mut camera, &scene);
     });
     std::mem::forget(animator);
+    std::mem::forget(event_loop);
 }

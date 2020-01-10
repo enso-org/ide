@@ -45,7 +45,14 @@ impl ContinuousAnimatorData {
         Rc::new(Self {properties})
     }
 
-    fn on_animation_frame(&self, relative_time_ms:f32) {
+    fn on_animation_frame(&self, absolute_time_ms:f32) {
+        let absolute_start_ms = self.absolute_start_ms();
+        let absolute_start_ms = absolute_start_ms.unwrap_or_else(|| {
+            self.set_absolute_start_ms(Some(absolute_time_ms));
+            absolute_time_ms
+        });
+        let relative_start_ms = self.relative_start_ms();
+        let relative_time_ms  = absolute_time_ms - absolute_start_ms + relative_start_ms;
         (&mut self.properties.borrow_mut().callback)(relative_time_ms)
     }
 }
@@ -86,7 +93,8 @@ impl ContinuousAnimatorData {
 // === ContinuousAnimator ===
 // ==========================
 
-/// This structure runs an animation with continuous time in milliseconds.
+/// `ContinuousAnimator` registers itself in `EventLoop`, repeatedly calling an
+/// `AnimationCallback` with the playback time in millisecond as its input.
 pub struct ContinuousAnimator {
     data : Rc<ContinuousAnimatorData>
 }
@@ -96,18 +104,8 @@ impl ContinuousAnimator {
     pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, f:F) -> Self {
         let data            = ContinuousAnimatorData::new(f);
         let weak_data       = Rc::downgrade(&data);
-        let callback_guard  = event_loop.add_callback(move |current_time| {
-            if let Some(data) = weak_data.upgrade() {
-                let absolute_start_ms = data.absolute_start_ms();
-                let absolute_start_ms = absolute_start_ms.unwrap_or_else(|| {
-                    data.set_absolute_start_ms(Some(current_time));
-                    current_time
-
-                });
-                let relative_start_ms = data.relative_start_ms();
-                let relative_time_ms  = current_time - absolute_start_ms + relative_start_ms;
-                data.on_animation_frame(relative_time_ms);
-            }
+        let callback_guard  = event_loop.add_callback(move |absolute_time_ms| {
+            weak_data.upgrade().map(|data| data.on_animation_frame(absolute_time_ms));
         });
         data.set_callback_guard(Some(callback_guard));
         Self {data}

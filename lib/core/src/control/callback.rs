@@ -4,6 +4,16 @@ use crate::prelude::*;
 
 
 
+// ================
+// === Callback ===
+// ================
+
+/// Callback used by `CallbackRegistry`.
+pub trait CallbackMut = FnMut() + 'static;
+
+/// Callback with one param used by `CallbackRegistry1`
+pub trait CallbackMut1<T> = FnMut(T) + 'static;
+
 // ======================
 // === CallbackHandle ===
 // ======================
@@ -57,22 +67,17 @@ impl Guard {
 /// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
 /// as well.
 #[derive(Derivative)]
-#[derivative(Debug)]
-pub struct CallbackRegistry<F> {
+#[derivative(Debug, Default)]
+pub struct CallbackRegistry {
     #[derivative(Debug="ignore")]
-    callback_list: Vec<(Guard, F)>
+    callback_list: Vec<(Guard, Box<dyn CallbackMut>)>
 }
 
-impl<F> Default for CallbackRegistry<F> {
-    fn default() -> Self {
-        let callback_list = default();
-        Self { callback_list }
-    }
-}
+impl CallbackRegistry {
 
-impl<F> CallbackRegistry<F> {
     /// Adds new callback and returns a new handle for it.
-    pub fn add(&mut self, callback:F) -> CallbackHandle {
+    pub fn add<F:CallbackMut>(&mut self, callback:F) -> CallbackHandle {
+        let callback = Box::new(callback);
         let handle   = CallbackHandle::new();
         let guard    = handle.guard();
         self.callback_list.push((guard, callback));
@@ -80,9 +85,41 @@ impl<F> CallbackRegistry<F> {
     }
 
     /// Fires all registered callbacks.
-    pub fn run_all<C:FnMut(&mut F)>(&mut self, mut c:C) {
+    pub fn run_all(&mut self) {
         self.clear_unused_callbacks();
-        self.callback_list.iter_mut().for_each(|(_,callback)| c(callback));
+        self.callback_list.iter_mut().for_each(|(_,callback)| callback());
+    }
+
+    /// Checks all registered callbacks and removes the ones which got dropped.
+    fn clear_unused_callbacks(&mut self) {
+        self.callback_list.retain(|(guard,_)| guard.exists());
+    }
+}
+
+/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
+/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
+/// as well.
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
+pub struct CallbackRegistry1<T:Copy> {
+    #[derivative(Debug="ignore")]
+    callback_list: Vec<(Guard, Box<dyn CallbackMut1<T>>)>
+}
+
+impl<T:Copy> CallbackRegistry1<T> {
+    /// Adds new callback and returns a new handle for it.
+    pub fn add<F:CallbackMut1<T>>(&mut self, callback:F) -> CallbackHandle {
+        let callback = Box::new(callback);
+        let handle   = CallbackHandle::new();
+        let guard    = handle.guard();
+        self.callback_list.push((guard, callback));
+        handle
+    }
+
+    /// Fires all registered callbacks.
+    pub fn run_all(&mut self, t:T) {
+        self.clear_unused_callbacks();
+        self.callback_list.iter_mut().for_each(move |(_,callback)| callback(t));
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
