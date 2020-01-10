@@ -1,6 +1,6 @@
 //! This module aims to provide math utils.
 
-pub trait Interpolable<T> = Mul<f32, Output = T> + Add<T, Output = T>;
+pub trait Interpolable<T:Copy> = Mul<f32, Output = T> + Add<T, Output = T> + Copy;
 
 use std::ops::Mul;
 use std::ops::Add;

@@ -7,11 +7,10 @@ use crate::system::web::create_element;
 use crate::system::web::NodeInserter;
 use crate::system::web::AttributeSetter;
 use crate::system::web::StyleSetter;
-use crate::display::render::css3d::Object;
 use crate::control::event_loop::EventLoop;
 
 use nalgebra::Vector2;
-use nalgebra::Vector3;
+use nalgebra::zero;
 
 use web_sys::HtmlElement;
 use web_sys::HtmlCanvasElement;
@@ -19,7 +18,6 @@ use web_sys::CanvasRenderingContext2d;
 use wasm_bindgen::JsCast;
 use crate::system::web::get_element_by_id;
 use crate::animation::animator::continuous::ContinuousAnimator;
-use crate::animation::position::HasPosition;
 use crate::animation::animator::fixed_step::FixedStepAnimator;
 use js_sys::Math;
 
@@ -38,26 +36,31 @@ pub struct Canvas {
 pub struct Properties {
     /// Position property.
     pub position : Vector2<f32>,
-    /// Alpha property.
-    pub alpha    : f64
+    /// Size property.
+    pub size     : f64
 }
 
 impl Properties {
-    /// Creates a new Properties instance.
-    pub fn new(position:Vector2<f32>, alpha:f64) -> Self {
-        Self { position, alpha }
+    /// Creates new Properties instance.
+    pub fn new(position:Vector2<f32>, size:f64) -> Self {
+        Self { position, size }
+    }
+
+    /// Creates random Properties.
+    pub fn random() -> Self {
+        Self::new(vector2_random(), Math::random() * 100.0)
     }
 }
 
 use std::ops::Mul;
 use std::ops::Add;
 
-impl Mul<f64> for Properties {
+impl Mul<f32> for Properties {
     type Output = Self;
-    fn mul(self, rhs:f64) -> Self::Output {
-        let position = self.position * rhs as f32;
-        let alpha    = self.alpha    * rhs;
-        Properties { position, alpha }
+    fn mul(self, rhs:f32) -> Self {
+        let position = self.position * rhs;
+        let size     = self.size     * rhs as f64;
+        Properties { position, size }
     }
 }
 
@@ -65,8 +68,8 @@ impl Add<Properties> for Properties {
     type Output = Self;
     fn add(self, rhs:Self) -> Self {
         let position = self.position + rhs.position;
-        let alpha    = self.alpha    + rhs.alpha;
-        Properties { position, alpha }
+        let size     = self.size     + rhs.size;
+        Properties { position, size }
     }
 }
 
@@ -104,10 +107,9 @@ impl Canvas {
 
     /// Draw a point
     pub fn point(&self, properties:Properties, color:&str) {
-        let size = 20.0 / self.height();
+        let size = (20.0 + properties.size) / self.height();
         let point = properties.position;
         self.context.save();
-        self.context.set_global_alpha(properties.alpha);
         self.context.set_fill_style(&color.into());
         self.context.scale(self.width() / 2.0, self.height() / 2.0).ok();
         self.context.set_line_width(2.0 / self.height());
@@ -147,18 +149,17 @@ impl Canvas {
 }
 
 /// Creates a Vector3<f32> with random components from -1 to 1.
-fn vector3_random() -> Vector3<f32> {
+fn vector2_random() -> Vector2<f32> {
     let x = ((Math::random() - 0.5) * 2.0) as f32;
     let y = ((Math::random() - 0.5) * 2.0) as f32;
-    let z = ((Math::random() - 0.5) * 2.0) as f32;
-    Vector3::new(x, y, z)
+    Vector2::new(x, y)
 }
 
 struct SharedData {
     graph_canvas     : Canvas,
     animation_canvas : Canvas,
-    easing_animator  : EasingAnimator,
-    object           : Object,
+    easing_animator  : Option<EasingAnimator<Properties>>,
+    properties       : Properties,
     easing_function  : &'static dyn FnEasing
 }
 
@@ -169,46 +170,49 @@ struct SubExample {
 
 impl SubExample {
     fn new<F>
-    ( mut event_loop   : &mut EventLoop
-    , graph_canvas     : Canvas
-    , animation_canvas : Canvas
-    , f                : &'static F
-    , origin_position  : Vector3<f32>
-    , target_position  : Vector3<f32>) -> Self
+    (mut event_loop   : &mut EventLoop
+     , graph_canvas     : Canvas
+     , animation_canvas : Canvas
+     , f                : &'static F
+     , initial_value    : Properties
+     , final_value      : Properties) -> Self
     where F:FnEasing {
-        let object          = Object::new();
-        let easing_animator = EasingAnimator::new(
-            &mut event_loop,
-            f,
-            object.clone(),
-            origin_position,
-            target_position,
-            2.0
-        );
+        let properties       = Properties::new(Vector2::new(0.0, 0.0), 1.0);
+        let easing_animator  = None;
         let easing_function = f;
         let data = SharedData {
-            object,
+            properties,
             easing_function,
             graph_canvas,
             animation_canvas,
             easing_animator
         };
         let data = Rc::new(RefCell::new(data));
+        let weak = Rc::downgrade(&data);
+        let easing_animator = EasingAnimator::new(
+            &mut event_loop,
+            move |value| { weak.upgrade().map(|data| data.borrow_mut().properties = value); },
+            f,
+            initial_value,
+            final_value,
+            2.0
+        );
+        data.borrow_mut().easing_animator = Some(easing_animator);
         Self {data}
     }
 
-    fn  set_position(&mut self, target_position:Vector3<f32>) {
-        let mut data         = self.data.borrow_mut();
-        let origin_position  = data.object.position();
-        data.easing_animator.animate(origin_position, target_position, 2.0);
+    fn set_properties(&mut self, value:Properties) {
+        let mut data      = self.data.borrow_mut();
+        let initial_value = data.properties;
+        data.easing_animator.as_mut().map(
+            |easing| easing.animate(initial_value, value, 2.0)
+        );
     }
 
     fn render(&self, color:&str, time_ms:f64) {
         let data = self.data.borrow();
-        let position = data.object.position();
         data.graph_canvas.graph(data.easing_function, color, time_ms);
-        let properties = Properties::new(Vector2::new(position.x, position.y), 1.0);
-        data.animation_canvas.point(properties, color);
+        data.animation_canvas.point(data.properties, color);
     }
 }
 
@@ -237,16 +241,16 @@ impl Example {
         let graph_canvas     = Canvas::new(name);
         let animation_canvas = Canvas::new(name);
 
-        let origin_position  = Vector3::new(0.0, 0.0, 0.0);
-        let target_position  = vector3_random();
+        let initial_value    = Properties::new(zero(), 1.0);
+        let final_value      = Properties::random();
 
         let mut easing_in = SubExample::new(
             &mut event_loop,
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in,
-            origin_position,
-            target_position
+            initial_value,
+            final_value
         );
         let easing_in_clone = easing_in.clone();
 
@@ -255,8 +259,8 @@ impl Example {
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_out,
-            origin_position,
-            target_position
+            initial_value,
+            final_value
         );
         let easing_out_clone = easing_out.clone();
 
@@ -265,25 +269,25 @@ impl Example {
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in_out,
-            origin_position,
-            target_position
+            initial_value,
+            final_value
         );
         let easing_in_out_clone = easing_in_out.clone();
 
         let _fixed_step = FixedStepAnimator::new(&mut event_loop, 1.0 / 3.0, move |_| {
-            let target_position = vector3_random();
-            easing_in.set_position(target_position.clone());
-            easing_out.set_position(target_position.clone());
-            easing_in_out.set_position(target_position.clone());
+            let properties = Properties::random();
+            easing_in.set_properties(properties);
+            easing_out.set_properties(properties);
+            easing_in_out.set_properties(properties);
         });
 
         let _animator = ContinuousAnimator::new(&mut event_loop, move |time_ms:f32| {
             let _keep_alive = &_fixed_step;
             graph_canvas.clear();
             animation_canvas.clear();
-            easing_in_clone.render("red", time_ms as f64);
             easing_out_clone.render("green", time_ms as f64);
             easing_in_out_clone.render("blue", time_ms as f64);
+            easing_in_clone.render("red", time_ms as f64);
         });
         Self { _animator }
     }
