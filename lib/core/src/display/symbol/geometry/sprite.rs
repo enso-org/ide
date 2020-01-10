@@ -243,6 +243,7 @@ impl SpriteSystem {
 
     fn geometry_material() -> Material {
         let mut material = Material::new();
+        material.add_input  ("foo"             , 0);
         material.add_input  ("bounds"          , Vector2::<f32>::zeros());
         material.add_input  ("uv"              , Vector2::<f32>::zeros());
         material.add_input  ("transform"       , Matrix4::<f32>::identity());

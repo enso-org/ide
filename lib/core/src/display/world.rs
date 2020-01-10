@@ -257,6 +257,7 @@ impl WorldData {
         let variables              = UniformScope::new(logger.sub("global_variables"));
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
+        variables.add_or_panic("foo",0);
         let workspace              = Workspace::new(dom,&variables,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();

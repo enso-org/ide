@@ -79,8 +79,6 @@ pub struct Scopes<OnMut> {
     pub vertex    : AttributeScope <OnMut>,
     pub primitive : AttributeScope <OnMut>,
     pub instance  : AttributeScope <OnMut>,
-    pub object    : UniformScope,
-    pub global    : UniformScope,
 }
 
 pub type PointId     = usize;
@@ -91,7 +89,7 @@ pub type InstanceId  = usize;
 #[derive(Copy,Clone,Debug,IntoPrimitive,PartialEq)]
 #[repr(u8)]
 pub enum ScopeType {
-    Point, Vertex, Primitive, Instance, Object, Global
+    Point, Vertex, Primitive, Instance
 }
 
 impl From<ScopeType> for usize {
@@ -139,8 +137,7 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
 impl<OnMut: Callback0> Mesh<OnMut> {
 
     /// Creates new mesh with attached dirty callback.
-    pub fn new
-    (global:&UniformScope, logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_mesh_count();
         let stats         = stats.clone();
         let scopes_logger = logger.sub("scopes_dirty");
@@ -155,12 +152,7 @@ impl<OnMut: Callback0> Mesh<OnMut> {
                 let $name      = $cls::new(sub_logger,&stats,&context,callback);
             )*}}
             new_scope!(AttributeScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
-
-            let object_scope_logger = logger.sub("object");
-            let object              = UniformScope::new(object_scope_logger);
-            let global              = global.clone();
-
-            Scopes {point,vertex,primitive,instance,object,global}
+            Scopes {point,vertex,primitive,instance}
         });
         Self {context,scopes,scopes_dirty,logger,stats}
     }
@@ -171,7 +163,6 @@ impl<OnMut: Callback0> Mesh<OnMut> {
             if self.scopes_dirty.check_all() {
                 update_scopes!(self.{point,vertex,primitive,instance}
                                     {Point,Vertex,Primitive,Instance});
-//                update_scopes!(self.{object,global}{Object,Global});
                 self.scopes_dirty.unset_all()
             }
         })
@@ -185,19 +176,16 @@ impl<OnMut: Callback0> Mesh<OnMut> {
         else if self.scopes.vertex    . contains(name) { Some(ScopeType::Vertex)    }
         else if self.scopes.primitive . contains(name) { Some(ScopeType::Primitive) }
         else if self.scopes.instance  . contains(name) { Some(ScopeType::Instance)  }
-        else if self.scopes.object    . contains(name) { Some(ScopeType::Object)    }
-        else if self.scopes.global    . contains(name) { Some(ScopeType::Global)    }
         else {None}
     }
 
     /// Gets reference to scope based on the scope type.
-    pub fn var_scope(&self, scope_type:ScopeType) -> Option<&AttributeScope<OnMut>> {
+    pub fn scope_by_type(&self, scope_type:ScopeType) -> &AttributeScope<OnMut> {
         match scope_type {
-            ScopeType::Point     => Some(&self.scopes.point),
-            ScopeType::Vertex    => Some(&self.scopes.vertex),
-            ScopeType::Primitive => Some(&self.scopes.primitive),
-            ScopeType::Instance  => Some(&self.scopes.instance),
-            _                    => None
+            ScopeType::Point     => &self.scopes.point,
+            ScopeType::Vertex    => &self.scopes.vertex,
+            ScopeType::Primitive => &self.scopes.primitive,
+            ScopeType::Instance  => &self.scopes.instance,
         }
     }
 }

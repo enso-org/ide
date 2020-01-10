@@ -32,7 +32,7 @@ mod tests {
     #[web_test(no_container)]
     fn invalid_container() {
         let renderer = HTMLRenderer::new("nonexistent_id");
-        assert!(renderer.is_err(), "nonexistent_id should not exist");
+        assert!(renderer.is_err(), "nonexistent_id should nots exist");
     }
 
     #[web_test]

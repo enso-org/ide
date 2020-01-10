@@ -17,7 +17,7 @@ use crate::display::symbol::material::VarDecl;
 use crate::display::symbol::shader;
 use crate::system::web::group;
 use crate::system::web::Logger;
-use crate::display::symbol::geometry::primitive::mesh::ScopeType;
+use crate::display::symbol::ScopeType;
 
 use web_sys::WebGlProgram;
 
@@ -56,15 +56,15 @@ pub struct Shader<OnMut> {
     geometry_material : Material,
     material          : Material,
     program           : Option<WebGlProgram>,
-    pub dirty         : Dirty <OnMut>,
-    pub logger        : Logger,
+    dirty             : Dirty<OnMut>,
+    logger            : Logger,
     context           : Context,
     stats             : Stats,
 }
 
 // === Types ===
 
-pub type Dirty <F> = dirty::SharedBool<F>;
+pub type Dirty<F> = dirty::SharedBool<F>;
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
@@ -108,10 +108,9 @@ impl<OnMut:Callback0> Shader<OnMut> {
                     match binding.scope {
                         None => todo!(),
                         Some(scope_type) => match scope_type {
-                            ScopeType::Instance => shader_cfg.add_attribute (name,tp),
-                            ScopeType::Point    => shader_cfg.add_attribute (name,tp),
-                            ScopeType::Global   => shader_cfg.add_uniform   (name,tp),
-                            _ => todo!()
+                            ScopeType::Symbol => shader_cfg.add_uniform   (name,tp),
+                            ScopeType::Global => shader_cfg.add_uniform   (name,tp),
+                            _                 => shader_cfg.add_attribute (name,tp),
                         }
                     }
                 }
