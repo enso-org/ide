@@ -4,3 +4,13 @@
 pub mod compound;
 pub mod primitive;
 pub mod sprite;
+
+
+pub mod types {
+    use super::*;
+    pub use primitive::types::*;
+}
+pub use types::*;
+
+use types::Attribute;
+use types::Buffer;

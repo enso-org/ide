@@ -7,19 +7,23 @@ pub mod scene;
 #[warn(missing_docs)]
 pub mod workspace;
 
+pub use crate::display::symbol::types::*;
+pub use crate::display::world::workspace::Workspace;
+
 use crate::prelude::*;
 
 pub use crate::data::container::*;
 pub use crate::display::world::workspace::SymbolId;
+
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use crate::debug::stats::Stats;
-use crate::promote_all;
-use crate::promote_workspace_types;
-use crate::promote;
+//use crate::promote_all;
+//use crate::promote_workspace_types;
+//use crate::promote;
 use crate::system::web;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -27,8 +31,6 @@ use crate::display::shape::text::font::Fonts;
 use crate::debug::monitor;
 use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
-use crate::system::gpu::data::uniform::UniformScope;
-use crate::system::gpu::data::uniform::Uniform;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -202,7 +204,7 @@ pub struct WorldData {
 
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedBool;
-promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
+//promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
 
 
 // === Callbacks ===
@@ -253,7 +255,8 @@ impl WorldData {
         let workspace_logger       = logger.sub("workspace");
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
-        let on_change              = workspace_on_change(workspace_dirty.clone_ref());
+        let workspace_dirty2       = workspace_dirty.clone();
+        let on_change              = move || {workspace_dirty2.set()};
         let variables              = UniformScope::new(logger.sub("global_variables"));
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);

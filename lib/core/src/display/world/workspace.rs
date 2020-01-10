@@ -13,10 +13,12 @@ use crate::display::render::webgl;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text;
 use crate::display::world::scene::Scene;
+use crate::display::symbol::Symbol;
 use crate::display::symbol::registry;
-use crate::promote;
-use crate::promote_all;
-use crate::promote_symbol_registry_types;
+use crate::display::symbol::registry::SymbolRegistry;
+//use crate::promote;
+//use crate::promote_all;
+//use crate::promote_symbol_registry_types;
 use crate::system::web::fmt;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -115,14 +117,14 @@ impl ShapeData {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Workspace<OnMut> {
+pub struct Workspace {
     pub canvas        : web_sys::HtmlCanvasElement,
     pub context       : webgl::Context,
-    pub symbols       : SymbolRegistry<OnMut>,
-    pub symbols_dirty : SymbolRegistryDirty<OnMut>,
+    pub symbols       : SymbolRegistry,
+    pub symbols_dirty : SymbolRegistryDirty,
     pub scene         : Scene,
     pub shape         : Shape,
-    pub shape_dirty   : ShapeDirty<OnMut>,
+    pub shape_dirty   : ShapeDirty,
     pub logger        : Logger,
     pub listeners     : Listeners,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
@@ -132,22 +134,22 @@ pub struct Workspace<OnMut> {
 
 // === Types ===
 
-pub type ShapeDirty          <Callback> = dirty::SharedBool<Callback>;
-pub type SymbolRegistryDirty <Callback> = dirty::SharedBool<Callback>;
-promote_symbol_registry_types!{ [OnSymbolRegistryChange] registry }
+pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
+pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
+//promote_symbol_registry_types!{ [OnSymbolRegistryChange] registry }
 
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_workspace_types { ($($args:tt)*) => {
-    crate::promote_symbol_registry_types! { $($args)* }
-    promote! { $($args)* [Workspace] }
-};}
+//#[macro_export]
+///// Promote relevant types to parent scope. See `promote!` macro for more information.
+//macro_rules! promote_workspace_types { ($($args:tt)*) => {
+//    crate::promote_symbol_registry_types! { $($args)* }
+//    promote! { $($args)* [Workspace] }
+//};}
 
 
 // === Callbacks ===
 
 closure! {
-fn symbols_on_change<C:Callback0> (dirty:SymbolRegistryDirty<C>) -> OnSymbolRegistryChange {
+fn symbols_on_change(dirty:SymbolRegistryDirty) -> OnSymbolRegistryChange {
     || dirty.set()
 }}
 
@@ -159,18 +161,18 @@ pub struct Listeners {
     resize: ResizeObserver,
 }
 
-impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
+impl Workspace {
     /// Create new instance with the provided on-dirty callback.
-    pub fn new<Dom:Str>
-    (dom:Dom, variables:&UniformScope, logger:Logger, stats:&Stats, on_dirty:OnMut) -> Result<Self, Error> {
+    pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
+    (dom:Dom, variables:&UniformScope, logger:Logger, stats:&Stats, on_mut:OnMut) -> Result<Self, Error> {
         logger.trace("Initializing.");
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom)?;
         let context         = web::get_webgl2_context(&canvas)?;
         let sub_logger      = logger.sub("shape_dirty");
-        let shape_dirty     = ShapeDirty::new(sub_logger,on_dirty.clone());
+        let shape_dirty     = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
         let sub_logger      = logger.sub("symbols_dirty");
-        let dirty_flag      = SymbolRegistryDirty::new(sub_logger, on_dirty);
+        let dirty_flag      = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change       = symbols_on_change(dirty_flag.clone_ref());
         let sub_logger      = logger.sub("symbols");
         let symbols         = SymbolRegistry::new(variables,&stats,&context,sub_logger,on_change);
@@ -196,7 +198,7 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
 
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
-    (logger:&Logger, canvas:&web_sys::HtmlCanvasElement, shape:&Shape, dirty:&ShapeDirty<OnMut>)
+    (logger:&Logger, canvas:&web_sys::HtmlCanvasElement, shape:&Shape, dirty:&ShapeDirty)
     -> Listeners {
         let logger = logger.clone();
         let shape  = shape.clone();
@@ -258,14 +260,14 @@ impl<OnMut: Clone + Callback0 + 'static> Workspace<OnMut> {
     }
 }
 
-impl<OnMut> Index<usize> for Workspace<OnMut> {
-    type Output = Symbol<OnMut>;
+impl Index<usize> for Workspace {
+    type Output = Symbol;
     fn index(&self, ix: usize) -> &Self::Output {
         self.symbols.index(ix)
     }
 }
 
-impl<OnMut> IndexMut<usize> for Workspace<OnMut> {
+impl IndexMut<usize> for Workspace {
     fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
         self.symbols.index_mut(ix)
     }

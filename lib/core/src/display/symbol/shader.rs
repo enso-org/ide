@@ -52,11 +52,11 @@ impl VarBinding {
 /// Shader keeps track of a shader and related WebGL Program.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Shader<OnMut> {
+pub struct Shader {
     geometry_material : Material,
     material          : Material,
     program           : Option<WebGlProgram>,
-    dirty             : Dirty<OnMut>,
+    dirty             : Dirty,
     logger            : Logger,
     context           : Context,
     stats             : Stats,
@@ -64,27 +64,27 @@ pub struct Shader<OnMut> {
 
 // === Types ===
 
-pub type Dirty<F> = dirty::SharedBool<F>;
+pub type Dirty = dirty::SharedBool<Box<dyn Fn()>>;
 
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_shader_types { ($($args:tt)*) => {
-    promote! {$($args)* [Shader]}
-};}
+//#[macro_export]
+///// Promote relevant types to parent scope. See `promote!` macro for more information.
+//macro_rules! promote_shader_types { ($($args:tt)*) => {
+//    promote! {$($args)* [Shader]}
+//};}
 
 
 // === Implementation ===
 
-impl<OnMut:Callback0> Shader<OnMut> {
+impl Shader {
 
     /// Creates new shader with attached callback.
-    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    pub fn new<OnMut:Fn()+'static>(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_shader_count();
         let geometry_material = default();
         let material          = default();
         let program           = default();
         let dirty_logger      = logger.sub("dirty");
-        let dirty             = Dirty::new(dirty_logger,on_mut);
+        let dirty             = Dirty::new(dirty_logger,Box::new(on_mut));
         let context           = context.clone();
         let stats             = stats.clone_ref();
         dirty.set();
@@ -150,7 +150,7 @@ impl<OnMut:Callback0> Shader<OnMut> {
     }
 }
 
-impl<OnMut> Drop for Shader<OnMut> {
+impl Drop for Shader {
     fn drop(&mut self) {
         self.stats.dec_shader_count();
     }
@@ -159,7 +159,7 @@ impl<OnMut> Drop for Shader<OnMut> {
 
 // === Getters ===
 
-impl<OnMut> Shader<OnMut> {
+impl Shader {
     pub fn program(&self) -> &Option<WebGlProgram> {
         &self.program
     }
@@ -168,7 +168,7 @@ impl<OnMut> Shader<OnMut> {
 
 // === Setters ===
 
-impl<OnMut:Callback0> Shader<OnMut> {
+impl Shader {
     pub fn set_geometry_material<M:Into<Material>>(&mut self, material:M) {
         self.geometry_material = material.into();
         self.dirty.set();

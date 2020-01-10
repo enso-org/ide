@@ -14,9 +14,9 @@ use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::GpuData;
 use crate::system::gpu::buffer;
-use crate::promote;
-use crate::promote_all;
-use crate::promote_buffer_types;
+//use crate::promote;
+//use crate::promote_all;
+//use crate::promote_buffer_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use data::opt_vec::OptVec;
@@ -35,10 +35,10 @@ use eval_tt::*;
 /// describes.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct AttributeScope<OnMut> {
-    pub buffers      : OptVec<AnyBuffer<OnMut>>,
-    pub buffer_dirty : BufferDirty<OnMut>,
-    pub shape_dirty  : ShapeDirty<OnMut>,
+pub struct AttributeScope {
+    pub buffers      : OptVec<AnyBuffer>,
+    pub buffer_dirty : BufferDirty,
+    pub shape_dirty  : ShapeDirty,
     pub name_map     : HashMap<BufferName, BufferIndex>,
     pub logger       : Logger,
     free_ids         : Vec<InstanceId>,
@@ -50,46 +50,52 @@ pub struct AttributeScope<OnMut> {
 
 // === Types ===
 
-pub type InstanceId            = usize;
-pub type BufferIndex           = usize;
-pub type BufferName            = String;
-pub type BufferDirty   <OnMut> = dirty::SharedBitField<u64,OnMut>;
-pub type ShapeDirty    <OnMut> = dirty::SharedBool<OnMut>;
-pub type Attribute   <T,OnMut> = class::Attribute<T,BufferOnSet<OnMut>,BufferOnResize<OnMut>>;
-promote_buffer_types! {[BufferOnSet,BufferOnResize] buffer}
+pub mod types {
+    use super::*;
+    pub type InstanceId = usize;
+    pub type BufferIndex = usize;
+    pub type BufferName = String;
+    pub type BufferDirty = dirty::SharedBitField<u64, Box<dyn Fn()>>;
+    pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
+    pub type Attribute<T> = class::Attribute<T>;
+    pub type Buffer<T> = buffer::Buffer<T>;
+    pub type AnyBuffer = buffer::AnyBuffer;
+}
+pub use types::*;
+//promote_buffer_types! {[BufferOnSet,BufferOnResize] buffer}
 
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
-    crate::promote_buffer_types! { $callbacks $module }
-    promote! { $callbacks $module [Attribute<T>,AttributeScope] }
-};}
+//#[macro_export]
+///// Promote relevant types to parent scope. See `promote!` macro for more information.
+//macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
+//    crate::promote_buffer_types! { $callbacks $module }
+////    promote! { $callbacks $module [Attribute<T>,AttributeScope] }
+//};}
 
 
 // === Callbacks ===
 
 closure! {
-fn buffer_on_set<C:Callback0> (dirty:BufferDirty<C>, ix:usize) -> BufferOnSet {
+fn buffer_on_set(dirty:BufferDirty, ix:usize) -> BufferOnSet {
     || dirty.set(ix)
 }}
 
 closure! {
-fn buffer_on_resize<C:Callback0> (dirty:ShapeDirty<C>) -> BufferOnResize {
+fn buffer_on_resize(dirty:ShapeDirty) -> BufferOnResize {
     || dirty.set()
 }}
 
 
 // === Implementation ===
 
-impl<OnMut:Clone> AttributeScope<OnMut> {
+impl AttributeScope {
     /// Create a new scope with the provided dirty callback.
-    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    pub fn new<OnMut:Fn()+Clone+'static>(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         logger.info("Initializing.");
         let stats         = stats.clone_ref();
         let buffer_logger = logger.sub("buffer_dirty");
         let shape_logger  = logger.sub("shape_dirty");
-        let buffer_dirty  = BufferDirty::new(buffer_logger,on_mut.clone());
-        let shape_dirty   = ShapeDirty::new(shape_logger,on_mut);
+        let buffer_dirty  = BufferDirty::new(buffer_logger,Box::new(on_mut.clone()));
+        let shape_dirty   = ShapeDirty::new(shape_logger,Box::new(on_mut));
         let buffers       = default();
         let name_map      = default();
         let free_ids      = default();
@@ -99,10 +105,10 @@ impl<OnMut:Clone> AttributeScope<OnMut> {
     }
 }
 
-impl<OnMut: Callback0> AttributeScope<OnMut> {
+impl AttributeScope {
     /// Adds a new named buffer to the scope.
-    pub fn add_buffer<Name:Str, T:GpuData>(&mut self, name:Name) -> Buffer<T,OnMut>
-    where AnyBuffer<OnMut>: From<Buffer<T,OnMut>> {
+    pub fn add_buffer<Name:Str, T:GpuData>(&mut self, name:Name) -> Buffer<T>
+    where AnyBuffer: From<Buffer<T>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
         let shape_dirty  = self.shape_dirty.clone();
@@ -122,7 +128,7 @@ impl<OnMut: Callback0> AttributeScope<OnMut> {
     }
 
     /// Lookups buffer by a given name.
-    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer<OnMut>> {
+    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer> {
         self.name_map.get(name).map(|i| &self.buffers[*i])
     }
 

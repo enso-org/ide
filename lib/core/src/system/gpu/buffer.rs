@@ -39,11 +39,11 @@ use web_sys::WebGlBuffer;
 #[derive(Derivative,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct BufferData<T,OnMut,OnResize> {
+pub struct BufferData<T> {
     #[shrinkwrap(main_field)]
-    pub buffer       : Data        <T,OnMut,OnResize>,
-    pub buffer_dirty : BufferDirty <OnMut>,
-    pub resize_dirty : ResizeDirty <OnResize>,
+    pub buffer       : Data<T>,
+    pub buffer_dirty : BufferDirty,
+    pub resize_dirty : ResizeDirty,
     pub logger       : Logger,
     pub gl_buffer    : WebGlBuffer,
     context          : Context,
@@ -55,7 +55,7 @@ pub struct BufferData<T,OnMut,OnResize> {
 // === Types ===
 
 pub type ObservableVec<T,OnMut,OnResize> = Observable<Vec<T>,OnMut,OnResize>;
-pub type Data<T,OnMut,OnResize> = ObservableVec<T,DataOnSet<OnMut>,DataOnResize<OnResize>>;
+pub type Data<T> = ObservableVec<T,DataOnSet,DataOnResize>;
 
 #[macro_export]
 /// Promote relevant types to parent scope. See `promote!` macro for more information.
@@ -66,35 +66,33 @@ macro_rules! promote_buffer_types { ($callbacks:tt $module:ident) => {
 
 // === Callbacks ===
 
-pub type BufferDirty <Callback> = dirty::SharedRange<usize,Callback>;
-pub type ResizeDirty <Callback> = dirty::SharedBool<Callback>;
+pub type BufferDirty = dirty::SharedRange<usize,Box<dyn Fn()>>;
+pub type ResizeDirty = dirty::SharedBool<Box<dyn Fn()>>;
 
 closure! {
-fn buffer_on_resize<C:Callback0> (dirty:ResizeDirty<C>) -> DataOnResize {
+fn buffer_on_resize(dirty:ResizeDirty) -> DataOnResize {
     || dirty.set()
 }}
 
 closure! {
-fn buffer_on_mut<C:Callback0> (dirty:BufferDirty<C>) -> DataOnSet {
+fn buffer_on_mut(dirty:BufferDirty) -> DataOnSet {
     |ix: usize| dirty.set(ix)
 }}
 
 
 // === Instances ===
 
-impl<T,OnMut:Callback0, OnResize:Callback0>
-BufferData<T,OnMut,OnResize> {
-
+impl<T> BufferData<T> {
     /// Creates a new empty buffer.
-    pub fn new
+    pub fn new<OnMut:Fn()+'static,OnResize:Fn()+'static>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
         stats.inc_buffer_count();
         logger.info(fmt!("Creating new {} buffer.", T::type_display()));
         let stats          = stats.clone_ref();
         let set_logger     = logger.sub("buffer_dirty");
         let resize_logger  = logger.sub("resize_dirty");
-        let buffer_dirty   = BufferDirty::new(set_logger,on_mut);
-        let resize_dirty   = ResizeDirty::new(resize_logger,on_resize);
+        let buffer_dirty   = BufferDirty::new(set_logger,Box::new(on_mut));
+        let resize_dirty   = ResizeDirty::new(resize_logger,Box::new(on_resize));
         let buff_on_resize = buffer_on_resize(resize_dirty.clone_ref());
         let buff_on_mut    = buffer_on_mut(buffer_dirty.clone_ref());
         let buffer         = Data::new(buff_on_mut, buff_on_resize);
@@ -105,8 +103,7 @@ BufferData<T,OnMut,OnResize> {
     }
 }
 
-impl<T:GpuData,OnMut,OnResize>
-BufferData<T,OnMut,OnResize> {
+impl<T:GpuData> BufferData<T> {
 
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Item<T>] {
@@ -203,8 +200,7 @@ BufferData<T,OnMut,OnResize> {
     }
 }
 
-impl<T,OnMut,OnResize>
-BufferData<T,OnMut,OnResize> {
+impl<T> BufferData<T> {
     /// Returns the number of elements in the buffer.
     pub fn len(&self) -> usize {
         self.buffer.len()
@@ -222,12 +218,11 @@ BufferData<T,OnMut,OnResize> {
     }
 }
 
-pub trait AddElementCtx<T,OnResize> = where
-    T: GpuData + Clone,
-    OnResize: Callback0;
+pub trait AddElementCtx<T> = where
+    T: GpuData + Clone;
 
-impl<T,OnMut,OnResize>
-BufferData<T,OnMut,OnResize> where Self: AddElementCtx<T,OnResize> {
+impl<T>
+BufferData<T> where Self: AddElementCtx<T> {
     /// Adds a single new element initialized to default value.
     pub fn add_element(&mut self) {
         self.add_elements(1);
@@ -239,22 +234,22 @@ BufferData<T,OnMut,OnResize> where Self: AddElementCtx<T,OnResize> {
     }
 }
 
-impl<T,OnMut,OnResize>
-Index<usize> for BufferData<T,OnMut,OnResize> {
+impl<T>
+Index<usize> for BufferData<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
         self.buffer.index(index)
     }
 }
 
-impl<T,OnMut:Callback0,OnResize>
-IndexMut<usize> for BufferData<T,OnMut,OnResize> {
+impl<T>
+IndexMut<usize> for BufferData<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.buffer.index_mut(index)
     }
 }
 
-impl<T,OnMut,OnResize> Drop for BufferData<T,OnMut,OnResize> {
+impl<T> Drop for BufferData<T> {
     fn drop(&mut self) {
         self.context.delete_buffer(Some(&self.gl_buffer));
         self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
@@ -280,23 +275,21 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
-pub struct Buffer<T,OnMut,OnResize> {
-    pub rc: Rc<RefCell<BufferData<T,OnMut,OnResize>>>
+pub struct Buffer<T> {
+    pub rc: Rc<RefCell<BufferData<T>>>
 }
 
-impl<T, OnMut:Callback0, OnResize:Callback0>
-Buffer<T,OnMut,OnResize> {
+impl<T> Buffer<T> {
     /// Creates a new empty buffer.
-    pub fn new
+    pub fn new<OnMut:Fn()+'static,OnResize:Fn()+'static>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
-        let data = BufferData::new(logger,stats,context,on_mut,on_resize);
+        let data = BufferData::new(logger,stats,context,Box::new(on_mut),Box::new(on_resize));
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 }
 
-impl<T:GpuData,OnMut,OnResize>
-Buffer<T,OnMut,OnResize> {
+impl<T:GpuData> Buffer<T> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         self.rc.borrow_mut().update()
@@ -310,11 +303,10 @@ Buffer<T,OnMut,OnResize> {
     }
 }
 
-impl<T,OnMut,OnResize>
-Buffer<T,OnMut,OnResize> {
+impl<T> Buffer<T> {
     // FIXME: Rethink if buffer should know about Attribute.
     /// Get the variable by given index.
-    pub fn get(&self, index:usize) -> Attribute<T,OnMut,OnResize> {
+    pub fn get(&self, index:usize) -> Attribute<T> {
         Attribute::new(index, self.clone())
     }
 
@@ -335,17 +327,16 @@ Buffer<T,OnMut,OnResize> {
     }
 }
 
-impl<T,OnMut,OnResize>
-Buffer<T,OnMut,OnResize> where (): AddElementCtx<T,OnResize> {
+impl<T> Buffer<T> where (): AddElementCtx<T> {
     /// Adds a single new element initialized to default value.
     pub fn add_element(&self){
         self.rc.borrow_mut().add_element()
     }
 }
 
-impl <T,OnMut,OnResize>
-From<Rc<RefCell<BufferData<T,OnMut,OnResize>>>> for Buffer<T,OnMut,OnResize> {
-    fn from(rc: Rc<RefCell<BufferData<T, OnMut, OnResize>>>) -> Self {
+impl <T>
+From<Rc<RefCell<BufferData<T>>>> for Buffer<T> {
+    fn from(rc: Rc<RefCell<BufferData<T>>>) -> Self {
         Self {rc}
     }
 }
@@ -401,22 +392,21 @@ macro_rules! mk_any_buffer_impl {
     /// and many, many more). It provides a faster alternative to dyn trait one:
     /// `Buffer<dyn GpuData, OnMut, OnResize>`.
     #[enum_dispatch(IsBuffer)]
-    #[derive(Derivative)]
-    #[derivative(Debug(bound=""))]
-    pub enum AnyBuffer<OnMut, OnResize> {
+    #[derive(Debug)]
+    pub enum AnyBuffer {
         $(  [<Variant $base For $param>]
-                (Buffer<$base<$param>, OnMut, OnResize>),
+                (Buffer<$base<$param>>),
         )*
     }
 
     $( // ======================================================================
 
-    impl<'t, T, S>
-    TryFrom<&'t AnyBuffer<T, S>>
-    for &'t Buffer<$base<$param>, T, S> {
+    impl<'t>
+    TryFrom<&'t AnyBuffer>
+    for &'t Buffer<$base<$param>> {
         type Error = BadVariant;
-        fn try_from(v: &'t AnyBuffer<T, S>)
-        -> Result <&'t Buffer<$base<$param>, T, S>, Self::Error> {
+        fn try_from(v: &'t AnyBuffer)
+        -> Result <&'t Buffer<$base<$param>>, Self::Error> {
             match v {
                 AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                 _ => Err(BadVariant)
@@ -424,12 +414,12 @@ macro_rules! mk_any_buffer_impl {
         }
     }
 
-    impl<'t, T, S>
-    TryFrom<&'t mut AnyBuffer<T, S>>
-    for &'t mut Buffer<$base<$param>, T, S> {
+    impl<'t>
+    TryFrom<&'t mut AnyBuffer>
+    for &'t mut Buffer<$base<$param>> {
         type Error = BadVariant;
-        fn try_from(v: &'t mut AnyBuffer<T, S>)
-        -> Result <&'t mut Buffer<$base<$param>, T, S>, Self::Error> {
+        fn try_from(v: &'t mut AnyBuffer)
+        -> Result <&'t mut Buffer<$base<$param>>, Self::Error> {
             match v {
                 AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
                 _ => Err(BadVariant)
@@ -455,7 +445,7 @@ mk_any_buffer!([Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]
-pub trait IsBuffer<OnMut: Callback0, OnResize: Callback0> {
+pub trait IsBuffer {
     fn add_element(&self);
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;

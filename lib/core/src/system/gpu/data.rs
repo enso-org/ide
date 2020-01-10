@@ -18,3 +18,13 @@ pub mod uniform;
 pub use attribute::*;
 pub use class::*;
 pub use uniform::*;
+
+pub mod types {
+    use super::*;
+    pub use uniform::Uniform;
+    pub use uniform::UniformScope;
+    pub use attribute::Buffer;
+    pub use attribute::Attribute;
+    pub use attribute::AttributeScope;
+}
+pub use types::*;

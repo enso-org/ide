@@ -212,10 +212,11 @@ impl DisplayObjectDataMut {
 
     fn set_parent_bind(&mut self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
-        let dirty     = bind.parent.rc.borrow().child_dirty.clone_ref();
-        let on_change = fn_on_change(dirty, bind.index);
-        self.transform.dirty.set_callback(Some(on_change.clone()));
-        self.child_dirty.set_callback(Some(on_change));
+        let dirty  = bind.parent.rc.borrow().child_dirty.clone_ref();
+        let index  = bind.index;
+        let on_mut = move || {dirty.set(index)};
+        self.transform.dirty.set_callback(Some(Box::new(on_mut.clone())));
+        self.child_dirty.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
         self.wrapped.set_parent_bind(bind);
     }

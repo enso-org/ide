@@ -9,6 +9,16 @@ pub mod registry;
 #[warn(missing_docs)]
 pub mod shader;
 
+pub mod types {
+    use super::*;
+    pub use geometry::types::*;
+}
+pub use types::*;
+
+use types::Attribute;
+use types::Buffer;
+
+
 use crate::prelude::*;
 
 use crate::closure;
@@ -21,19 +31,20 @@ use crate::display::render::webgl;
 use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyUniformOps;
-use crate::system::gpu::data::uniform::UniformScope;
 use crate::display::symbol::geometry::primitive::mesh;
-use crate::promote;
-use crate::promote_all;
-use crate::promote_mesh_types;
-use crate::promote_shader_types;
+//use crate::promote;
+//use crate::promote_all;
+//use crate::promote_mesh_types;
+//use crate::promote_shader_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
+use shader::Shader;
 
 use eval_tt::*;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
+
 
 
 
@@ -119,11 +130,11 @@ impl Drop for VertexArrayObject {
 /// Symbol is a surface with attached `Shader`.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Symbol<OnMut> {
-    pub surface        : Mesh          <OnMut>,
-    pub shader         : Shader        <OnMut>,
-    pub surface_dirty  : GeometryDirty <OnMut>,
-    pub shader_dirty   : ShaderDirty   <OnMut>,
+pub struct Symbol {
+    pub surface        : Mesh,
+    pub shader         : Shader,
+    pub surface_dirty  : GeometryDirty,
+    pub shader_dirty   : ShaderDirty,
     symbol_scope       : UniformScope,
     global_scope       : UniformScope,
     context            : Context,
@@ -141,55 +152,55 @@ pub enum ScopeType {
 }
 
 
-pub type GeometryDirty<Callback> = dirty::SharedBool<Callback>;
-pub type ShaderDirty<Callback> = dirty::SharedBool<Callback>;
-promote_mesh_types!   { [OnSurfaceMut] mesh }
-promote_shader_types! { [OnSurfaceMut] shader }
-
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_symbol_types { ($($args:tt)*) => {
-    crate::promote_mesh_types!   {$($args)*}
-    crate::promote_shader_types! {$($args)*}
-    promote! {$($args)* [Symbol]}
-};}
+pub type GeometryDirty = dirty::SharedBool<Box<dyn Fn()>>;
+pub type ShaderDirty   = dirty::SharedBool<Box<dyn Fn()>>;
+//promote_mesh_types!   { [OnSurfaceMut] mesh }
+//promote_shader_types! { [OnSurfaceMut] shader }
+//
+//#[macro_export]
+///// Promote relevant types to parent scope. See `promote!` macro for more information.
+//macro_rules! promote_symbol_types { ($($args:tt)*) => {
+//    crate::promote_mesh_types!   {$($args)*}
+//    crate::promote_shader_types! {$($args)*}
+//    promote! {$($args)* [Symbol]}
+//};}
 
 
 // === Callbacks ===
 
 closure! {
-fn surface_on_mut<C:Callback0>(dirty:GeometryDirty<C>) -> OnSurfaceMut {
+fn surface_on_mut(dirty:GeometryDirty) -> OnSurfaceMut {
     || dirty.set()
 }}
 
 closure! {
-fn shader_on_mut<C:Callback0>(dirty:ShaderDirty<C>) -> OnShaderMut {
+fn shader_on_mut(dirty:ShaderDirty) -> OnShaderMut {
     || dirty.set()
 }}
 
 
 // === Implementation ===
 
-impl<OnMut:Callback0+Clone> Symbol<OnMut> {
+impl Symbol {
 
     /// Create new instance with the provided on-dirty callback.
-    pub fn new
-    (global_scope:&UniformScope, logger:Logger, stats:&Stats, ctx:&Context, on_dirty:OnMut) -> Self {
+    pub fn new <OnMut:Fn()+Clone+'static>
+    (global_scope:&UniformScope, logger:Logger, stats:&Stats, ctx:&Context, on_mut:OnMut) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();
         group!(init_logger, "Initializing.", {
             let context         = ctx.clone();
-            let on_dirty2       = on_dirty.clone();
+            let on_mut2         = on_mut.clone();
             let surface_logger  = logger.sub("surface");
             let shader_logger   = logger.sub("shader");
             let geo_dirt_logger = logger.sub("surface_dirty");
             let mat_dirt_logger = logger.sub("shader_dirty");
-            let surface_dirty   = GeometryDirty::new(geo_dirt_logger,on_dirty2);
-            let shader_dirty    = ShaderDirty::new(mat_dirt_logger,on_dirty);
-            let geo_on_change   = surface_on_mut(surface_dirty.clone_ref());
-            let mat_on_change   = shader_on_mut(shader_dirty.clone_ref());
-            let shader          = Shader::new(shader_logger,&stats,ctx,mat_on_change);
-            let surface         = Mesh::new(surface_logger,&stats,ctx,geo_on_change);
+            let surface_dirty   = GeometryDirty::new(geo_dirt_logger,Box::new(on_mut2));
+            let shader_dirty    = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
+            let geo_on_mut      = surface_on_mut(surface_dirty.clone_ref());
+            let mat_on_mut      = shader_on_mut(shader_dirty.clone_ref());
+            let shader          = Shader::new(shader_logger,&stats,ctx,mat_on_mut);
+            let surface         = Mesh::new(surface_logger,&stats,ctx,geo_on_mut);
             let symbol_scope    = UniformScope::new(logger.sub("uniform_scope"));
             let global_scope    = global_scope.clone();
             let vao             = default();
@@ -335,7 +346,7 @@ impl<OnMut:Callback0+Clone> Symbol<OnMut> {
     }
 }
 
-impl<OnMut> Drop for Symbol<OnMut> {
+impl Drop for Symbol {
     fn drop(&mut self) {
         self.stats.dec_symbol_count();
     }

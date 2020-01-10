@@ -15,19 +15,19 @@ use crate::system::gpu::buffer::Buffer;
 /// a selected `Buffer` element under the hood.
 #[derive(Clone,Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
-pub struct Attribute<T,OnMut,OnResize> {
+pub struct Attribute<T> {
     index  : usize,
-    buffer : Buffer<T,OnMut,OnResize>
+    buffer : Buffer<T>
 }
 
-impl<T,OnMut,OnResize> Attribute<T,OnMut,OnResize> {
+impl<T> Attribute<T> {
     /// Creates a new variable as an indexed view over provided buffer.
-    pub fn new(index:usize, buffer: Buffer<T,OnMut,OnResize>) -> Self {
+    pub fn new(index:usize, buffer: Buffer<T>) -> Self {
         Self {index, buffer}
     }
 }
 
-impl<T:Copy,OnMut:Callback0,OnResize> Attribute<T,OnMut,OnResize> {
+impl<T:Copy> Attribute<T> {
     /// Gets immutable reference to the underlying data.
     pub fn get(&self) -> T {
         *self.buffer.rc.borrow().index(self.index)

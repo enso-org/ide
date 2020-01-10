@@ -1,8 +1,20 @@
 #![allow(missing_docs)]
 
 pub use crate::system::gpu::data;
-pub use crate::system::gpu::data::Uniform;
-pub use crate::system::gpu::data::UniformScope;
+
+
+pub mod types {
+    use super::*;
+    pub use crate::system::gpu::data::types::*;
+    pub use crate::system::gpu::data::attribute::types::*;
+    pub use super::Mesh;
+}
+pub use types::*;
+
+use types::Buffer;
+use types::Attribute;
+
+
 
 use crate::closure;
 use crate::data::dirty::traits::*;
@@ -11,13 +23,15 @@ use crate::data::function::callback::*;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::prelude::*;
-use crate::promote;
-use crate::promote_all;
-use crate::promote_scope_types;
+//use crate::promote;
+//use crate::promote_all;
+//use crate::promote_scope_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use eval_tt::*;
 use num_enum::IntoPrimitive;
+
+
 
 
 
@@ -63,10 +77,10 @@ use num_enum::IntoPrimitive;
 #[shrinkwrap(mutable)]
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Mesh<OnMut> {
+pub struct Mesh {
     #[shrinkwrap(main_field)]
-    pub scopes       : Scopes      <OnMut>,
-    pub scopes_dirty : ScopesDirty <OnMut>,
+    pub scopes       : Scopes,
+    pub scopes_dirty : ScopesDirty,
     pub logger       : Logger,
     context          : Context,
     stats            : Stats,
@@ -74,11 +88,11 @@ pub struct Mesh<OnMut> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct Scopes<OnMut> {
-    pub point     : AttributeScope <OnMut>,
-    pub vertex    : AttributeScope <OnMut>,
-    pub primitive : AttributeScope <OnMut>,
-    pub instance  : AttributeScope <OnMut>,
+pub struct Scopes {
+    pub point     : AttributeScope,
+    pub vertex    : AttributeScope,
+    pub primitive : AttributeScope,
+    pub instance  : AttributeScope,
 }
 
 pub type PointId     = usize;
@@ -107,21 +121,22 @@ impl Display for ScopeType {
 
 // === Types ===
 
-pub type ScopesDirty<F> = dirty::SharedEnum<u8,ScopeType,F>;
-promote_scope_types!{ [ScopeOnChange] data }
+pub type ScopesDirty = dirty::SharedEnum<u8,ScopeType,Box<dyn Fn()>>;
+//promote_scope_types!{ [ScopeOnChange] data }
 
-#[macro_export]
-/// Promote relevant types to parent scope. See `promote!` macro for more information.
-macro_rules! promote_mesh_types { ($($args:tt)*) => {
-    crate::promote_scope_types! { $($args)* }
-    promote! {$($args)* [Mesh,Scopes]}
-};}
+//#[macro_export]
+///// Promote relevant types to parent scope. See `promote!` macro for more information.
+//macro_rules! promote_mesh_types { ($($args:tt)*) => {
+////    crate::promote_scope_types! { $($args)* }
+//    promote! {$($args)* [Mesh,Scopes]}
+//};}
+
 
 
 // === Callbacks ===
 
 closure! {
-fn scope_on_change<C:Callback0>(dirty:ScopesDirty<C>, item:ScopeType) -> ScopeOnChange {
+fn scope_on_change(dirty:ScopesDirty, item:ScopeType) -> ScopeOnChange {
     || dirty.set(item)
 }}
 
@@ -134,21 +149,21 @@ macro_rules! update_scopes { ($self:ident . {$($name:ident),*} {$($uname:ident),
     }
 )*}}
 
-impl<OnMut: Callback0> Mesh<OnMut> {
+impl Mesh {
 
     /// Creates new mesh with attached dirty callback.
-    pub fn new(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    pub fn new<OnMut:Fn()+'static>(logger:Logger, stats:&Stats, context:&Context,on_mut:OnMut) -> Self {
         stats.inc_mesh_count();
         let stats         = stats.clone();
         let scopes_logger = logger.sub("scopes_dirty");
-        let scopes_dirty  = ScopesDirty::new(scopes_logger,on_mut);
+        let scopes_dirty  = ScopesDirty::new(scopes_logger,Box::new(on_mut));
         let context       = context.clone();
         let scopes        = group!(logger, "Initializing.", {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } { $($uname:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = ScopeType::$uname;
                 let scs_dirty  = scopes_dirty.clone_ref();
-                let callback   = scope_on_change(scs_dirty, status_mod);
+                let callback   = move || {scs_dirty.set(status_mod)};
                 let $name      = $cls::new(sub_logger,&stats,&context,callback);
             )*}}
             new_scope!(AttributeScope {point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
@@ -180,7 +195,7 @@ impl<OnMut: Callback0> Mesh<OnMut> {
     }
 
     /// Gets reference to scope based on the scope type.
-    pub fn scope_by_type(&self, scope_type:ScopeType) -> &AttributeScope<OnMut> {
+    pub fn scope_by_type(&self, scope_type:ScopeType) -> &AttributeScope {
         match scope_type {
             ScopeType::Point     => &self.scopes.point,
             ScopeType::Vertex    => &self.scopes.vertex,
@@ -190,7 +205,7 @@ impl<OnMut: Callback0> Mesh<OnMut> {
     }
 }
 
-impl<OnMut> Drop for Mesh<OnMut> {
+impl Drop for Mesh {
     fn drop(&mut self) {
         self.stats.dec_mesh_count();
     }
