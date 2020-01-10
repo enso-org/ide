@@ -1,3 +1,3 @@
-#![allow(missing_docs)]
+//! This module provides math utilities.
 
 pub mod utils;

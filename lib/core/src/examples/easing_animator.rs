@@ -34,7 +34,7 @@ pub struct Canvas {
 }
 
 #[derive(Clone, Copy)]
-/// Interpolatable properties for our example code.
+/// Interpolable properties for our example code.
 pub struct Properties {
     /// Position property.
     pub position : Vector2<f32>,
