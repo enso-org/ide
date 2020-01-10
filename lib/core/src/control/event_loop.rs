@@ -49,9 +49,7 @@ impl EventLoop {
         let main = move |time_ms| { data.upgrade().map(|t| t.borrow_mut().run(time_ms)); };
         with(self.rc.borrow_mut(), |mut data| {
             data.main = Some(Closure::new(main));
-            if let Some(closure) = &data.main {
-                web::request_animation_frame(&closure).unwrap();
-            }
+            web::request_animation_frame(&data.main.as_ref().unwrap()).unwrap();
         });
         self
     }
