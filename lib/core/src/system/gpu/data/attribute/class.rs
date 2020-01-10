@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::data::function::callback::Callback0;
 use crate::system::gpu::buffer::Buffer;
 use crate::system::gpu::data::GpuData;
 

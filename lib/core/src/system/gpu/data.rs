@@ -19,6 +19,7 @@ pub use attribute::*;
 pub use class::*;
 pub use uniform::*;
 
+/// ...
 pub mod types {
     use super::*;
     pub use uniform::Uniform;

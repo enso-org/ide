@@ -10,6 +10,7 @@ pub mod sprite;
 // === Reexports ===
 // =================
 
+/// ...
 pub mod types {
     use super::*;
     pub use primitive::types::*;

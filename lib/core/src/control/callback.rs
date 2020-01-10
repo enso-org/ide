@@ -9,7 +9,10 @@ use crate::prelude::*;
 // ================
 
 /// Immutable callback type.
-pub trait Callback = Fn() + 'static;
+pub trait CallbackFn = Fn() + 'static;
+
+/// Immutable callback object.
+pub type Callback = Box<dyn CallbackFn>;
 
 /// Callback accepted by the `CallbackRegistry`.
 pub trait CallbackMut = FnMut() + 'static;

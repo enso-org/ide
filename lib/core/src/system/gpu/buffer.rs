@@ -20,7 +20,7 @@ use nalgebra::Vector4;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
-use crate::control::callback::Callback;
+use crate::control::callback::CallbackFn;
 
 use shapely::shared;
 
@@ -46,7 +46,7 @@ pub struct BufferData<T> {
 
 impl<T:GpuData> {
     /// Constructor.
-    pub fn new<OnMut:Callback,OnResize:Callback>
+    pub fn new<OnMut:CallbackFn,OnResize:CallbackFn>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
         info!(logger,"Creating new {T::type_display()} buffer.",{
             stats.inc_buffer_count();
@@ -166,8 +166,8 @@ impl<T> DerefMut for BufferData<T> {
 // === Types ===
 
 pub type ObservableVec<T> = Observable<Vec<T>,OnMut,OnResize>;
-pub type MutDirty         = dirty::SharedRange <usize,Box<dyn Callback>>;
-pub type ResizeDirty      = dirty::SharedBool        <Box<dyn Callback>>;
+pub type MutDirty         = dirty::SharedRange <usize,Box<dyn CallbackFn>>;
+pub type ResizeDirty      = dirty::SharedBool        <Box<dyn CallbackFn>>;
 
 closure! {
 fn on_resize_fn(dirty:ResizeDirty) -> OnResize {
