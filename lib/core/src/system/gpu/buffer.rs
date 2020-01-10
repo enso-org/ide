@@ -1,28 +1,57 @@
-#![allow(missing_docs)]
+//! This module implements utilities for managing WebGL buffers.
 
 use crate::prelude::*;
 
 use crate::closure;
+use crate::control::callback::Callback;
+use crate::control::callback::CallbackFn;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::attribute::class::Attribute;
+use crate::system::gpu::data::class::JSBufferView;
 use crate::system::gpu::data::GpuData;
 use crate::system::gpu::data::Item;
 use crate::system::web::info;
 use crate::system::web::Logger;
+use crate::system::web::warning;
+
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use shapely::shared;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
-use crate::control::callback::CallbackFn;
 
-use shapely::shared;
+
+
+// =============
+// === Types ===
+// =============
+
+/// A vector which fires events whenever it is modified or resized.
+pub type ObservableVec<T> = Observable<Vec<T>,OnMut,OnResize>;
+
+/// Dirty flag keeping track of the range of modified elements.
+pub type MutDirty = dirty::SharedRange<usize,Callback>;
+
+/// Dirty flag keeping track of whether the buffer was resized.
+pub type ResizeDirty = dirty::SharedBool<Callback>;
+
+closure! {
+fn on_resize_fn(dirty:ResizeDirty) -> OnResize {
+    || dirty.set()
+}}
+
+closure! {
+fn on_mut_fn(dirty:MutDirty) -> OnMut {
+    |ix: usize| dirty.set(ix)
+}}
+
 
 
 // ==============
@@ -50,14 +79,14 @@ impl<T:GpuData> {
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
         info!(logger,"Creating new {T::type_display()} buffer.",{
             stats.inc_buffer_count();
-            let stats         = stats.clone_ref();
-            let mut_dirty     = MutDirty::new(logger.sub("mut_dirty"),Box::new(on_mut));
-            let resize_dirty  = ResizeDirty::new(logger.sub("resize_dirty"),Box::new(on_resize));
+            let mut_dirty     = MutDirty::new(logger.sub("mut_dirty"),Callback(on_mut));
+            let resize_dirty  = ResizeDirty::new(logger.sub("resize_dirty"),Callback(on_resize));
             let on_resize_fn  = on_resize_fn(resize_dirty.clone_ref());
             let on_mut_fn     = on_mut_fn(mut_dirty.clone_ref());
             let buffer        = ObservableVec::new(on_mut_fn,on_resize_fn);
-            let context       = context.clone();
             let gl_buffer     = create_gl_buffer(&context);
+            let context       = context.clone();
+            let stats         = stats.clone_ref();
             let gpu_mem_usage = default();
             Self {buffer,mut_dirty,resize_dirty,logger,gl_buffer,context,stats,gpu_mem_usage}
         })
@@ -80,15 +109,40 @@ impl<T:GpuData> {
 
     /// Sets data value at the given index.
     pub fn set(&mut self, index:usize, value:T) {
-        *self.buffer.index_mut(index) = value
+        *self.buffer.index_mut(index) = value;
+    }
+
+    /// Adds a single new element initialized to default value.
+    pub fn add_element(&mut self) {
+        self.add_elements(1);
+    }
+
+    /// Adds multiple new elements initialized to default values.
+    pub fn add_elements(&mut self, elem_count:usize) {
+        self.extend(iter::repeat(T::empty()).take(elem_count));
+    }
+
+    /// Check dirty flags and update the state accordingly.
+    pub fn update(&mut self) {
+        info!(self.logger, "Updating.", {
+            self.context.bind_buffer(Context::ARRAY_BUFFER,Some(&self.gl_buffer));
+            if self.resize_dirty.check() {
+                self.upload_data(&None);
+            } else if self.mut_dirty.check_all() {
+                self.upload_data(&self.mut_dirty.take().range);
+            } else {
+                warning!(self.logger,"Update requested but it was not needed.")
+            }
+            self.mut_dirty.unset_all();
+            self.resize_dirty.unset();
+        })
     }
 
     /// Binds the underlying WebGLBuffer to a given target.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
     pub fn bind(&self, target:u32) {
-        self.context.bind_buffer(target, Some(&self.gl_buffer));
+        self.context.bind_buffer(target,Some(&self.gl_buffer));
     }
-
 
     /// Binds the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
     /// current vertex buffer object and specifies its layout. Please note that this function is
@@ -114,79 +168,12 @@ impl<T:GpuData> {
             }
         }
     }
-
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
-        info!(self.logger, "Updating.", {
-            self.context.bind_buffer(Context::ARRAY_BUFFER, Some(&self.gl_buffer));
-            if self.resize_dirty.check() {
-                self.upload_data(&None);
-            } else if self.mut_dirty.check_all() {
-                let range = &self.mut_dirty.take().range;
-                self.upload_data(range);
-            }
-            self.mut_dirty.unset_all();
-            self.resize_dirty.unset();
-        })
-    }
-
-    /// Adds a single new element initialized to default value.
-    pub fn add_element(&mut self) {
-        self.add_elements(1);
-    }
-
-    /// Adds multiple new elements initialized to default values.
-    pub fn add_elements(&mut self, elem_count: usize) {
-        self.extend(iter::repeat(T::empty()).take(elem_count));
-    }
 }}
 
 
-impl<T:GpuData> Buffer<T> {
-    /// Get the attribute pointing to a given buffer index.
-    pub fn at(&self, index:usize) -> Attribute<T> {
-        Attribute::new(index,self.clone_ref())
-    }
-}
-
-impl<T> Deref for BufferData<T> {
-    type Target = ObservableVec<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.buffer
-    }
-}
-
-impl<T> DerefMut for BufferData<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.buffer
-    }
-}
-
-
-// === Types ===
-
-pub type ObservableVec<T> = Observable<Vec<T>,OnMut,OnResize>;
-pub type MutDirty         = dirty::SharedRange <usize,Box<dyn CallbackFn>>;
-pub type ResizeDirty      = dirty::SharedBool        <Box<dyn CallbackFn>>;
-
-closure! {
-fn on_resize_fn(dirty:ResizeDirty) -> OnResize {
-    || dirty.set()
-}}
-
-closure! {
-fn on_mut_fn(dirty:MutDirty) -> OnMut {
-    |ix: usize| dirty.set(ix)
-}}
-
-
-// === Instances ===
-
+// === Private API ===
 
 impl<T:GpuData> BufferData<T> {
-
-
-
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Item<T>] {
         <T as GpuData>::convert_prim_buffer(&self.buffer.data)
@@ -196,8 +183,6 @@ impl<T:GpuData> BufferData<T> {
     pub fn as_slice(&self) -> &[T] {
         &self.buffer.data
     }
-
-
 
     /// Uploads the provided data to the GPU buffer.
     fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
@@ -217,11 +202,12 @@ impl<T:GpuData> BufferData<T> {
         let item_count     = <T as GpuData>::item_count()         as u32;
 
         match opt_range {
-            None => unsafe {
-                let js_array = data.js_buffer_view();
-                self.context.buffer_data_with_array_buffer_view
-                (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
-
+            None => {
+                unsafe {
+                    let js_array = data.js_buffer_view();
+                    self.context.buffer_data_with_array_buffer_view
+                    (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
+                }
                 self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
                 self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
                 self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
@@ -242,31 +228,31 @@ impl<T:GpuData> BufferData<T> {
             }
         }
     }
-
-
 }
 
 
-pub trait AddElementCtx<T> = where
-    T: GpuData + Clone;
+// === Smart Accessors ===
 
-impl<T>
-BufferData<T> where Self: AddElementCtx<T> {
-
-}
-
-impl<T>
-Index<usize> for BufferData<T> {
-    type Output = T;
-    fn index(&self, index: usize) -> &Self::Output {
-        self.buffer.index(index)
+impl<T:GpuData> Buffer<T> {
+    /// Get the attribute pointing to a given buffer index.
+    pub fn at(&self, index:usize) -> Attribute<T> {
+        Attribute::new(index,self.clone_ref())
     }
 }
 
-impl<T>
-IndexMut<usize> for BufferData<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.buffer.index_mut(index)
+
+// === Instances ===
+
+impl<T> Deref for BufferData<T> {
+    type Target = ObservableVec<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
+}
+
+impl<T> DerefMut for BufferData<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buffer
     }
 }
 
@@ -285,10 +271,6 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
     let buffer = context.create_buffer();
     buffer.ok_or("failed to create buffer").unwrap()
 }
-
-
-
-
 
 
 

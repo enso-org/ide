@@ -114,14 +114,17 @@ macro_rules! shared_bracket_impl {
     ([impl [$($impl_params:tt)*] $name:ident $name_mut:ident $([$($params:tt)*])?] [
         $(
             $(#[$($meta:tt)*])*
-            pub fn $fn_name:ident $([$($fn_params:tt)*])? ($($fn_args:tt)*) $(-> $fn_type:ty)? {
+            pub fn $fn_name:ident
+            $([$($fn_params:tt)*])? ($($fn_args:tt)*) $(-> $fn_type:ty)? {
                 $($fn_body:tt)*
-        })*
+            }
+        )*
     ]) => {
         impl <$($impl_params)*> $name_mut $(<$($params)*>)? {
             $(
                 $(#[$($meta)*])*
-                pub fn $fn_name $(<$($fn_params)*>)* ($($fn_args)*) $(-> $fn_type)? {$($fn_body)*}
+                pub fn $fn_name $(<$($fn_params)*>)*
+                ($($fn_args)*) $(-> $fn_type)? {$($fn_body)*}
             )*
         }
 
@@ -204,6 +207,7 @@ macro_rules! shared_struct {
         }
 
         impl<$($params)*> $name <$($params)*> {
+            /// Cheap clone of the structure. Implemented as the `Rc::clone` under the hood.
             pub fn clone_ref(&self) -> Self {
                 self.clone()
             }

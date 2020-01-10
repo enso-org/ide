@@ -193,6 +193,23 @@ macro_rules! group {
 
 #[macro_export]
 macro_rules! info {
+    ($logger:expr, $message:expr) => {{
+        $logger.info(||iformat!($message));
+    }};
+    ($logger:expr, $message:expr, $body:tt) => {{
+        let __logger = $logger.clone();
+        __logger.group_begin(||iformat!($message));
+        let out = $body;
+        __logger.group_end();
+        out
+    }};
+}
+
+#[macro_export]
+macro_rules! warning {
+    ($logger:expr, $message:expr) => {{
+        $logger.warning(||iformat!($message));
+    }};
     ($logger:expr, $message:expr, $body:tt) => {{
         let __logger = $logger.clone();
         __logger.group_begin(||iformat!($message));

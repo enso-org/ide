@@ -72,31 +72,24 @@ macro_rules! closure {
         $body:tt
     ) => { paste::item! {
         #[cfg(not(feature = "no_unboxed_callbacks"))]
+        /// Closure type.
         pub type $type<$($param),*> =
             impl Fn($($larg_type),*) + Clone;
 
         #[cfg(not(feature = "no_unboxed_callbacks"))]
+        /// Closure constructor.
         pub fn $name<$($param:$param_type),*>
         ($($arg:$arg_type),*) -> $type<$($param),*> {
             move |$($larg),*| $body
         }
 
-//        #[cfg(feature = "no_unboxed_callbacks")]
-//        pub type $type<$($param),*> =
-//            WithPhantom<Rc<dyn Fn($($larg_type),*)>, $($param),*>;
-//
-//        #[cfg(feature = "no_unboxed_callbacks")]
-//        pub fn $name<$($param:$param_type),*>
-//        ($($arg:$arg_type),*)
-//        -> WithPhantom<Rc<dyn Fn($($larg_type),*)>, $($param),*> {
-//            WithPhantom::new(Rc::new(move |$($larg),*| $body))
-//        }
-
         #[cfg(feature = "no_unboxed_callbacks")]
+        /// Closure type.
         pub type $type<$($param),*> =
             Box<dyn Fn($($larg_type),*)>;
 
         #[cfg(feature = "no_unboxed_callbacks")]
+        /// Closure constructor.
         pub fn $name<$($param:$param_type),*>
         ($($arg:$arg_type),*)
         -> Box<dyn Fn($($larg_type),*)> {

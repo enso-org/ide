@@ -14,6 +14,12 @@ pub trait CallbackFn = Fn() + 'static;
 /// Immutable callback object.
 pub type Callback = Box<dyn CallbackFn>;
 
+/// Callback object smart constructor.
+#[allow(non_snake_case)]
+pub fn Callback<F:CallbackFn>(f:F) -> Callback {
+    Box::new(f)
+}
+
 /// Callback accepted by the `CallbackRegistry`.
 pub trait CallbackMut = FnMut() + 'static;
 
