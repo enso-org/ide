@@ -12,6 +12,7 @@ use crate::display::render::webgl::Context;
 use crate::system::gpu::data::ContextUniformOps;
 use crate::system::gpu::data::GpuData;
 use crate::system::web::Logger;
+use crate::system::gpu::data::texture::*;
 
 
 
@@ -20,9 +21,9 @@ use crate::system::web::Logger;
 // =============
 
 /// A set of constraints that every uniform has to met.
-pub trait UniformValue = GpuData where
-    AnyUniform : From<Uniform<Self>>,
-    Context    : ContextUniformOps<Self>;
+pub trait UniformValue = Sized where
+    AnyUniform : From<Uniform<Self>>;
+//    Context    : ContextUniformOps<Self>;
 
 
 
@@ -134,12 +135,97 @@ impl<Value:UniformValue> {
     pub fn unset_dirty(&mut self) {
         self.dirty = false;
     }
+}}
 
+impl<Value:UniformValue> UniformData<Value> where Context: ContextUniformOps<Value> {
     /// Uploads the uniform data to the provided location of the currently bound shader program.
     pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
         context.set_uniform(location,&self.value);
     }
-}}
+}
+
+impl<Value:UniformValue> Uniform<Value> where Context: ContextUniformOps<Value> {
+    /// Uploads the uniform data to the provided location of the currently bound shader program.
+    pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
+        self.rc.borrow().upload(context,location)
+    }
+}
+
+
+// ======================
+// === AnyPrimUniform ===
+// ======================
+
+/// Existentially typed uniform value.
+#[allow(non_camel_case_types)]
+#[enum_dispatch(AnyPrimUniformOps)]
+#[derive(Clone,Debug)]
+pub enum AnyPrimUniform {
+    Variant_i32           (Uniform<i32>),
+    Variant_f32           (Uniform<f32>),
+    Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
+    Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)
+}
+
+/// Set of operations exposed by the `AnyPrimUniform` value.
+#[enum_dispatch]
+pub trait AnyPrimUniformOps {
+    fn upload(&self, context:&Context, location:&WebGlUniformLocation);
+}
+
+
+pub type Identity<T> = T;
+
+macro_rules! with_all_prim_types {
+    ( $f:ident ) => {
+        $f! { [Identity i32] [Identity f32] [Vector3 f32] [Matrix4 f32] }
+    }
+}
+
+
+
+// =========================
+// === AnyTextureUniform ===
+// =========================
+
+macro_rules! gen_any_texture_uniform {
+    ( $([$internal_format:tt $type:tt])* ) => { paste::item! {
+        #[allow(missing_docs)]
+        #[allow(non_camel_case_types)]
+        #[enum_dispatch(AnyTextureUniformOps)]
+        #[derive(Clone,Debug)]
+        pub enum AnyTextureUniform {
+            $( [< $internal_format _ $type >] (Uniform<Texture<$internal_format,$type>>) ),*
+        }
+    }}
+}
+
+macro_rules! gen_prim_conversions {
+    ( $([$t1:ident $t2:ident])* ) => {$(
+        impl From<Uniform<$t1<$t2>>> for AnyUniform {
+            fn from(t:Uniform<$t1<$t2>>) -> Self {
+                Self::Prim(t.into())
+            }
+        }
+    )*}
+}
+
+macro_rules! gen_texture_conversions {
+    ( $([$internal_format:tt $type:tt])* ) => {$(
+        impl From<Uniform<Texture<$internal_format,$type>>> for AnyUniform {
+            fn from(t:Uniform<Texture<$internal_format,$type>>) -> Self {
+                Self::Texture(t.into())
+            }
+        }
+    )*}
+}
+
+crate::with_all_texture_types!(gen_any_texture_uniform);
+
+
+#[enum_dispatch]
+pub trait AnyTextureUniformOps {
+}
 
 
 
@@ -147,19 +233,11 @@ impl<Value:UniformValue> {
 // === AnyUniform ===
 // ==================
 
-/// Existentially typed uniform value.
-#[allow(non_camel_case_types)]
-#[enum_dispatch(AnyUniformOps)]
 #[derive(Clone,Debug)]
 pub enum AnyUniform {
-    Variant_i32           (Uniform<i32>),
-    Variant_f32           (Uniform<f32>),
-    Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
-    Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)
+    Prim(AnyPrimUniform),
+    Texture(AnyTextureUniform)
 }
 
-/// Set of operations exposed by the `AnyUniform` value.
-#[enum_dispatch]
-pub trait AnyUniformOps {
-    fn upload(&self, context:&Context, location:&WebGlUniformLocation);
-}
+with_all_prim_types!(gen_prim_conversions);
+crate::with_all_texture_types!(gen_texture_conversions);

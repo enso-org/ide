@@ -37,6 +37,9 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Performance,KeyboardEvent};
 use event_loop::EventLoop;
 
+use crate::system::gpu::data::texture::AnyTexture;
+use crate::system::gpu::data::texture::Texture;
+
 
 
 // =============
@@ -259,7 +262,7 @@ impl WorldData {
         let variables              = UniformScope::new(logger.sub("global_variables"));
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
-        variables.add_or_panic("foo",0);
+//        variables.add_or_panic("sample_image",AnyTexture::from(Texture::new("https://webgl2fundamentals.org/webgl/resources/f-texture.png")));
         let workspace              = Workspace::new(dom,&variables,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();

@@ -2,7 +2,7 @@
 //! Follow the link to learn more about many assumptions this module was built upon:
 //! https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 
-//use crate::prelude::*;
+use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
 use nalgebra::*;
@@ -70,7 +70,7 @@ macro_rules! gl_enum {
         #[allow(missing_docs)]
         pub enum $name { $($field),* }
 
-        $(#[allow(missing_docs)] pub struct $field {})*
+        $(#[allow(missing_docs)] pub struct $field;)*
 
         impl IsGlEnum for $name {
             fn to_gl_enum(&self) -> u32 {
@@ -108,7 +108,7 @@ pub mod unsupported_types {
     pub struct u32_2_10_10_10_REV {}
     pub struct u32_5_9_9_9_REV {}
 }
-use unsupported_types::*;
+pub use unsupported_types::*;
 
 
 
@@ -138,7 +138,7 @@ pub mod format {
         }
     }
 }
-use format::*;
+pub use format::*;
 
 
 
@@ -213,7 +213,7 @@ pub mod internal_format {
         }
     }
 }
-use internal_format::*;
+pub use internal_format::*;
 
 
 
@@ -257,16 +257,18 @@ pub trait InternalFormatInfo {
 /// not allowed to choose them arbitrary. Follow the link to learn more about possible relations and
 /// how the values were composed below:
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
+#[macro_export]
 macro_rules! generate_texture_internal_format_info {
-    ($( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt $elem_descs:tt
+    ([] $( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt $elem_descs:tt
     )*) => {
         $(
-            generate_texture_internal_format_info_item!
+            $crate::generate_texture_internal_format_info_item!
             { $internal_format $format $color_renderable $filterable $elem_descs }
         )*
     }
 }
 
+#[macro_export]
 macro_rules! generate_texture_internal_format_info_item {
     ( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
       [$($possible_types:ident : $bytes_per_element:ident),*]
@@ -283,7 +285,8 @@ macro_rules! generate_texture_internal_format_info_item {
     }
 }
 
-generate_texture_internal_format_info! {
+#[macro_export]
+macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
 //  INTERNAL_FORMAT   FORMAT         COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
     Alpha             Alpha          True  True  [u8:U1,f16:U2,f32:U4]
     Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
@@ -344,4 +347,116 @@ generate_texture_internal_format_info! {
     DepthComponent32f DepthComponent True  False [f32:U4]
     Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
     Depth32fStencil8  DepthStencil   True  False [f32_32_u32_24_8_REV:U4]
+}}}
+
+with_texture_format_relations!(generate_texture_internal_format_info []);
+
+
+
+// =====================
+// === TextureSource ===
+// =====================
+
+/// Source of the texture. Please note that the texture will be loaded asynchronously on demand.
+#[derive(Clone,Debug)]
+pub enum TextureSource {
+    /// URL the texture should be loaded from. This source implies asynchronous loading.
+    Url(String)
+}
+
+impl<S:Str> From<S> for TextureSource {
+    fn from(s:S) -> Self {
+        Self::Url(s.into())
+    }
+}
+
+
+
+// ===============
+// === Texture ===
+// ===============
+
+/// Texture representation.
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Debug(bound=""))]
+pub struct Texture<InternalFormat,ElemType> {
+    source  : TextureSource,
+    phantom : PhantomData<(InternalFormat,ElemType)>,
+}
+
+
+
+impl<InternalFormat,ElemType> Texture<InternalFormat,ElemType> {
+    /// Constructor.
+    pub fn new<S:Into<TextureSource>>(source:S) -> Self {
+        let source  = source.into();
+        let phantom = PhantomData;
+        Self {source,phantom}
+    }
+}
+
+
+
+// ==================
+// === AnyTexture ===
+// ==================
+
+#[macro_export]
+macro_rules! cartesians {
+    ($f:ident [$($out:tt)*]) => {
+        $f! { $($out)* }
+    };
+    ($f:ident $out:tt [$a:tt []] $($in:tt)*) => {
+        $crate::cartesians! {$f $out $($in)*}
+    };
+    ($f:ident [$($out:tt)*] [$a:tt [$b:tt $($bs:tt)*]] $($in:tt)*) => {
+        $crate::cartesians! {$f [$($out)* [$a $b]] [$a [$($bs)*]]  $($in)* }
+    };
+}
+
+#[macro_export]
+macro_rules! with_all_texture_types_impl {
+    ( [$f:ident]
+     $( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
+        [$($possible_types:ident : $bytes_per_element:ident),*]
+    )*) => {
+        $crate::cartesians! { $f [] $([$internal_format [$($possible_types)*]])* }
+    }
+}
+
+#[macro_export]
+macro_rules! with_all_texture_types {
+    ($f:ident) => {
+        $crate::with_texture_format_relations! { with_all_texture_types_impl [$f] }
+    }
+}
+
+
+macro_rules! generate_any_texture {
+    ( $([$internal_format:tt $type:tt])* ) => { paste::item! {
+        /// Wrapper for any valid texture type.
+        #[allow(non_camel_case_types)]
+        #[allow(missing_docs)]
+        #[derive(Clone,Debug)]
+        pub enum AnyTexture {
+            $([< $internal_format _ $type >](Texture<$internal_format,$type>)),*
+        }
+        $(impl From<Texture<$internal_format,$type>> for AnyTexture {
+            fn from(t:Texture<$internal_format,$type>) -> Self {
+                Self::[< $internal_format _ $type >](t)
+            }
+        })*
+    }}
+}
+
+with_all_texture_types!(generate_any_texture);
+
+use crate::system::gpu::data::class::ContextUniformOps;
+use web_sys::WebGlUniformLocation;
+
+impl ContextUniformOps<AnyTexture> for Context {
+    fn set_uniform(&self, location:&WebGlUniformLocation, value:&AnyTexture){
+        todo!()
+    }
 }

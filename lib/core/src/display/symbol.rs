@@ -26,7 +26,9 @@ use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
 use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
-use crate::system::gpu::data::uniform::AnyUniformOps;
+use crate::system::gpu::data::uniform::AnyTextureUniform;
+use crate::system::gpu::data::uniform::AnyPrimUniform;
+use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -45,11 +47,27 @@ use web_sys::WebGlUniformLocation;
 pub struct UniformBinding {
     name     : String,
     location : WebGlUniformLocation,
-    uniform  : AnyUniform,
+    uniform  : AnyPrimUniform,
 }
 
 impl UniformBinding {
-    pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyUniform) -> Self {
+    pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyPrimUniform) -> Self {
+        let name = name.into();
+        Self {name,location,uniform}
+    }
+}
+
+
+
+#[derive(Clone,Debug)]
+pub struct TextureBinding {
+    name     : String,
+    location : WebGlUniformLocation,
+    uniform  : AnyTextureUniform,
+}
+
+impl TextureBinding {
+    pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyTextureUniform) -> Self {
         let name = name.into();
         Self {name,location,uniform}
     }
@@ -132,6 +150,7 @@ pub struct Symbol {
     logger             : Logger,
     vao                : Option<VertexArrayObject>,
     uniforms           : Vec<UniformBinding>,
+    textures           : Vec<TextureBinding>,
     stats              : Stats,
 }
 
@@ -196,8 +215,9 @@ impl Symbol {
             let global_scope    = global_scope.clone();
             let vao             = default();
             let uniforms        = default();
+            let textures        = default();
             let stats           = stats.clone_ref();
-            Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context,vao,uniforms,stats}
+            Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context,vao,uniforms,textures,stats}
         })
     }
 
@@ -220,8 +240,9 @@ impl Symbol {
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_vao(&mut self, var_bindings:&[shader::VarBinding]) {
-        self.vao = Some(VertexArrayObject::new(&self.context));
-        let mut uniforms: Vec<UniformBinding> = default();
+        self.vao      = Some(VertexArrayObject::new(&self.context));
+        self.uniforms = default();
+        self.textures = default();
         self.with_program2(|this,program|{
             for binding in var_bindings {
                 if let Some(scope_type) = binding.scope.as_ref() {
@@ -241,18 +262,15 @@ impl Symbol {
                             }
                         }
                         _ => {
-                            this.foo(program,binding).map(|x|{
-                                uniforms.push(x);
-                            });
+                            this.foo(program,binding);
                         }
                     }
                 }
             }
         });
-        self.uniforms = uniforms;
     }
 
-    pub fn foo(&mut self, program:&WebGlProgram, binding:&shader::VarBinding) -> Option<UniformBinding>{
+    pub fn foo(&mut self, program:&WebGlProgram, binding:&shader::VarBinding) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
@@ -260,8 +278,12 @@ impl Symbol {
             let uniform = self.global_scope.get(name).unwrap_or_else(||{
                 panic!("Internal error. Variable ... was not found in program.")
             });
-            UniformBinding::new(name,location,uniform)
-        })
+            match uniform {
+                AnyUniform::Prim(uniform) => self.uniforms.push(UniformBinding::new(name,location,uniform)),
+                AnyUniform::Texture(uniform) => self.textures.push(TextureBinding::new(name,location,uniform)),
+            }
+
+        });
     }
 
     pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
