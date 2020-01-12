@@ -7,8 +7,8 @@
 
 pub mod attribute;
 pub mod class;
+pub mod texture;
 pub mod uniform;
-
 
 
 // =================

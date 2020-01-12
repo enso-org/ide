@@ -8,7 +8,8 @@ edition = "2018"
 crate-type = ["rlib", "cdylib"]
 
 [features]
-default = ["no_unboxed_callbacks"]
+default = ["statistics", "no_unboxed_callbacks"]
+statistics = []
 no_unboxed_callbacks = []
 
 [dependencies]

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! This module implements utilities for managing WebGL buffers.
 
 use crate::prelude::*;
@@ -26,6 +28,75 @@ use shapely::shared;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
+
+
+
+// ===================
+// === BufferUsage ===
+// ===================
+
+/// Specifies the intended usage pattern of the data store for optimization purposes.
+#[derive(Clone,Copy,Debug)]
+pub enum BufferUsage {
+    /// The contents are intended to be specified once by the application, and used many times as
+    /// the source for WebGL drawing and image specification commands.
+    Static,
+
+    /// Default. The contents are intended to be respecified repeatedly by the application, and used
+    /// many times as the source for WebGL drawing and image specification commands.
+    Dynamic,
+
+    /// The contents are intended to be specified once by the application, and used at most a few
+    /// times as the source for WebGL drawing and image specification commands.
+    Stream,
+
+    /// The contents are intended to be specified once by reading data from WebGL, and queried many
+    /// times by the application.
+    StaticRead,
+
+    /// The contents are intended to be respecified repeatedly by reading data from WebGL, and
+    /// queried many times by the application.
+    DynamicRead,
+
+    /// The contents are intended to be specified once by reading data from WebGL, and queried at
+    /// most a few times by the application
+    StreamRead,
+
+    /// The contents are intended to be specified once by reading data from WebGL, and used many
+    /// times as the source for WebGL drawing and image specification commands.
+    StaticCopy,
+
+    /// The contents are intended to be respecified repeatedly by reading data from WebGL, and used
+    /// many times as the source for WebGL drawing and image specification commands.
+    DynamicCopy,
+
+    /// The contents are intended to be specified once by reading data from WebGL, and used at most
+    /// a few times as the source for WebGL drawing and image specification commands.
+    StreamCopy
+}
+
+impl BufferUsage {
+    /// Converts the value to WebGL `GLEnum`.
+    pub fn to_gl_enum(&self) -> u32 {
+        match self {
+            Self::Static      => Context::STATIC_DRAW,
+            Self::Dynamic     => Context::DYNAMIC_DRAW,
+            Self::Stream      => Context::STREAM_DRAW,
+            Self::StaticRead  => Context::STATIC_READ,
+            Self::DynamicRead => Context::DYNAMIC_READ,
+            Self::StreamRead  => Context::STREAM_READ,
+            Self::StaticCopy  => Context::STATIC_COPY,
+            Self::DynamicCopy => Context::DYNAMIC_COPY,
+            Self::StreamCopy  => Context::STREAM_COPY,
+        }
+    }
+}
+
+impl Default for BufferUsage {
+    fn default() -> Self {
+        BufferUsage::Dynamic
+    }
+}
 
 
 
@@ -67,6 +138,7 @@ pub struct BufferData<T> {
     mut_dirty     : MutDirty,
     resize_dirty  : ResizeDirty,
     gl_buffer     : WebGlBuffer,
+    usage         : BufferUsage,
     context       : Context,
     stats         : Stats,
     gpu_mem_usage : u32,
@@ -85,11 +157,23 @@ impl<T:GpuData> {
             let on_mut_fn     = on_mut_fn(mut_dirty.clone_ref());
             let buffer        = ObservableVec::new(on_mut_fn,on_resize_fn);
             let gl_buffer     = create_gl_buffer(&context);
+            let usage         = default();
             let context       = context.clone();
             let stats         = stats.clone_ref();
             let gpu_mem_usage = default();
-            Self {buffer,mut_dirty,resize_dirty,logger,gl_buffer,context,stats,gpu_mem_usage}
+            Self {buffer,mut_dirty,resize_dirty,logger,gl_buffer,usage,context,stats,gpu_mem_usage}
         })
+    }
+
+    /// Reads the usage pattern of the buffer.
+    pub fn usage(&self) -> BufferUsage {
+        self.usage
+    }
+
+    /// Sets the usage pattern of the buffer.
+    pub fn set_usage(&mut self, usage:BufferUsage) {
+        self.usage = usage;
+        self.resize_dirty.set();
     }
 
     /// Returns the number of elements in the buffer.
@@ -183,50 +267,65 @@ impl<T:GpuData> BufferData<T> {
     pub fn as_slice(&self) -> &[T] {
         &self.buffer.data
     }
+}
 
-    /// Uploads the provided data to the GPU buffer.
+
+// === Data Upload ===
+
+// Note [Safety]
+// =============
+// Usage of `js_buffer_view` is somewhat dangerous. It is creating a raw view into the module's
+// `WebAssembly.Memory` buffer, but if we allocate more pages for ourself (aka do a memory
+// allocation in Rust) it'll cause the buffer to change, causing the resulting js array to be
+// invalid.
+
+impl<T:GpuData> BufferData<T> {
+    /// Uploads the provided data range to the GPU buffer. In case the local buffer was resized,
+    /// it will be re-created on the GPU.
     fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
-        // Note that `js_buffer_view` is somewhat dangerous (hence the `unsafe`!). This is creating
-        // a raw view into our module's `WebAssembly.Memory` buffer, but if we allocate more pages
-        // for ourself (aka do a memory allocation in Rust) it'll cause the buffer to change,
-        // causing the resulting js array to be invalid.
-        //
-        // As a result, after `js_buffer_view` we have to be very careful not to do any memory
-        // allocations before it's dropped.
-
-        self.logger.info("Setting buffer data.");
-        self.stats.inc_data_upload_count();
-
-        let data           = self.as_slice();
-        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as u32;
-        let item_count     = <T as GpuData>::item_count()         as u32;
-
-        match opt_range {
-            None => {
-                unsafe {
-                    let js_array = data.js_buffer_view();
-                    self.context.buffer_data_with_array_buffer_view
-                    (Context::ARRAY_BUFFER, &js_array, Context::STATIC_DRAW);
-                }
-                self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-                self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
-                self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
-                self.stats.mod_data_upload_size(|s| s + self.gpu_mem_usage);
+        info!(self.logger,"Uploading buffer data.",{
+            self.stats.inc_data_upload_count();
+            match opt_range {
+                None        => self.replace_gpu_buffer(),
+                Some(range) => self.update_gpu_sub_buffer(range)
             }
-            Some(range) => {
-                let start           = *range.start() as u32;
-                let end             = *range.end()   as u32;
-                let start_item      = start * item_count;
-                let length          = (end - start + 1) * item_count;
-                let dst_byte_offset = (item_byte_size * item_count * start) as i32;
-                unsafe {
-                    let js_array = data.js_buffer_view();
-                    self.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
-                    (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
-                }
-                self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
-            }
+        });
+    }
+
+    /// Replaces the whole GPU buffer by the local data.
+    fn replace_gpu_buffer(&mut self) {
+        let data = self.as_slice();
+        unsafe { // Note [Safety]
+            let js_array = data.js_buffer_view();
+            self.context.buffer_data_with_array_buffer_view
+            (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
         }
+        crate::if_compiled_with_stats! {
+            let item_byte_size = <T as GpuData>::gpu_item_byte_size() as u32;
+            let item_count     = <T as GpuData>::item_count() as u32;
+            self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+            self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
+            self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
+            self.stats.mod_data_upload_size(|s| s + self.gpu_mem_usage);
+        }
+    }
+
+    /// Updates the GPU sub-buffer data by the provided index range.
+    fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
+        let data            = self.as_slice();
+        let item_byte_size  = <T as GpuData>::gpu_item_byte_size() as u32;
+        let item_count      = <T as GpuData>::item_count() as u32;
+        let start           = *range.start() as u32;
+        let end             = *range.end() as u32;
+        let start_item      = start * item_count;
+        let length          = (end - start + 1) * item_count;
+        let dst_byte_offset = (item_byte_size * item_count * start) as i32;
+        unsafe { // Note [Safety]
+            let js_array = data.js_buffer_view();
+            self.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
+            (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
+        }
+        self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
     }
 }
 
@@ -269,7 +368,7 @@ impl<T> Drop for BufferData<T> {
 
 fn create_gl_buffer(context:&Context) -> WebGlBuffer {
     let buffer = context.create_buffer();
-    buffer.ok_or("failed to create buffer").unwrap()
+    buffer.ok_or("Failed to create WebGL buffer.").unwrap()
 }
 
 
@@ -278,28 +377,24 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 // === TO BE REFACTORED ===
 // ========================
 
-// TODO The following code should be refactored to use the new macro `eval-tt`
-// TODO engine. Some utils, like `cartesian` macro should also be refactored
-// TODO out.
+// TODO The following code should be refactored to use the new macro `eval-tt` engine. Some utils,
+//      like `cartesian` macro should also be refactored out.
 
 macro_rules! cartesian_impl {
-    ($out:tt [] $b:tt $init_b:tt, $f:ident) => {
+    ($f:ident $out:tt [] $b:tt $init_b:tt) => {
         $f!{ $out }
     };
-    ($out:tt [$a:ident, $($at:tt)*] [] $init_b:tt, $f:ident) => {
-        cartesian_impl!{ $out [$($at)*] $init_b $init_b, $f }
+    ($f:ident $out:tt [$a:ident, $($at:tt)*] [] $init_b:tt) => {
+        cartesian_impl!{ $f $out [$($at)*] $init_b $init_b }
     };
-    ([$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt
-    ,$f:ident) => {
-        cartesian_impl!{
-            [$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b, $f
-        }
+    ($f:ident [$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt) => {
+        cartesian_impl!{ $f [$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b }
     };
 }
 
 macro_rules! cartesian {
-    ([$($a:tt)*], [$($b:tt)*], $f:ident) => {
-        cartesian_impl!{ [] [$($a)*,] [$($b)*,] [$($b)*,], $f }
+    ($f:ident, [$($a:tt)*], [$($b:tt)*]) => {
+        cartesian_impl!{ $f [] [$($a)*,] [$($b)*,] [$($b)*,] }
     };
 }
 
@@ -362,9 +457,10 @@ macro_rules! mk_any_buffer_impl {
 }
 }}
 
-macro_rules! mk_any_buffer {
-    ($bases:tt, $params:tt) => {
-        cartesian!($bases, $params, mk_any_buffer_impl);
+
+macro_rules! with_all_possible_attribute_types {
+    ($f:ident) => {
+        cartesian!($f, [Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
     }
 }
 
@@ -372,7 +468,9 @@ macro_rules! mk_any_buffer {
 // === Definition ===
 
 type Identity<T> = T;
-mk_any_buffer!([Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
+
+
+with_all_possible_attribute_types!(mk_any_buffer_impl);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]
