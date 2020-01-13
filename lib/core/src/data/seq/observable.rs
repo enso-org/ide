@@ -39,7 +39,7 @@ Index<Ix> for Observable<T,OnMut,OnResize> {
     }
 }
 
-impl<T:IndexMut<Ix>,OnMut: Proc1<Ix>,OnResize,Ix:Copy>
+impl<T:IndexMut<Ix>, OnMut:Proc1<Ix> ,OnResize, Ix:Copy>
 IndexMut<Ix> for Observable<T,OnMut,OnResize> {
     #[inline]
     fn index_mut(&mut self, index:Ix) -> &mut Self::Output {
@@ -48,7 +48,7 @@ IndexMut<Ix> for Observable<T,OnMut,OnResize> {
     }
 }
 
-impl <T:Extend<S>,S,OnMut,OnResize: Proc0>
+impl <T:Extend<S>,S,OnMut,OnResize:Proc0>
 Extend<S> for Observable<T,OnMut,OnResize> {
     #[inline]
     fn extend<I:IntoIterator<Item=S>>(&mut self, iter:I) {

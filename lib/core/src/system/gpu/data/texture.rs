@@ -61,6 +61,11 @@ impl Value for False {
 // === GlEnum ===
 // ==============
 
+
+
+
+
+
 /// Converts Rust types to `GlEnum` values.
 pub trait IsGlEnum {
     /// `GlEnum` value of this type.
@@ -165,6 +170,8 @@ gen_prim_type_instances! {
 // ================
 // === GL Types ===
 // ================
+
+
 
 macro_rules! gl_variants {
     ( $($name:ident = $expr:expr),* $(,)? ) => {$(
