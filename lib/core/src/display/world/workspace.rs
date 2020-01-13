@@ -120,6 +120,7 @@ pub struct Workspace {
     pub shape_dirty   : ShapeDirty,
     pub logger        : Logger,
     pub listeners     : Listeners,
+    pub variables     : UniformScope,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
     pub text_components : Vec<text::TextComponent>,
 }
@@ -157,7 +158,7 @@ pub struct Listeners {
 impl Workspace {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
-    (dom:Dom, variables:&UniformScope, logger:Logger, stats:&Stats, on_mut:OnMut) -> Result<Self, Error> {
+    (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Result<Self, Error> {
         logger.trace("Initializing.");
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom)?;
@@ -168,7 +169,8 @@ impl Workspace {
         let dirty_flag      = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change       = symbols_on_change(dirty_flag.clone_ref());
         let sub_logger      = logger.sub("symbols");
-        let symbols         = SymbolRegistry::new(variables,&stats,&context,sub_logger,on_change);
+        let variables       = UniformScope::new(logger.sub("global_variables"),&context);
+        let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
         let shape           = Shape::default();
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
@@ -183,7 +185,7 @@ impl Workspace {
         context.blend_func(webgl::Context::SRC_ALPHA, webgl::Context::ONE);
 
         let this = Self {canvas,context,symbols,scene,symbols_dirty
-            ,shape,shape_dirty,logger,listeners,text_components};
+            ,shape,shape_dirty,logger,listeners,variables,text_components};
 
 
         Ok(this)

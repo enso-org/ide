@@ -25,6 +25,6 @@ module.exports = {
     },
     performance: {
         hints: 'error',
-        maxAssetSize: 3.9 * mb,
+        maxAssetSize: 4.0 * mb,
     },
 };

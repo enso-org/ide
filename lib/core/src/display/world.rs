@@ -37,7 +37,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Performance,KeyboardEvent};
 use event_loop::EventLoop;
 
-use crate::system::gpu::data::texture::AnyTexture;
+//use crate::system::gpu::data::texture::AnyTexture;
 use crate::system::gpu::data::texture::Texture;
 
 
@@ -190,7 +190,6 @@ pub struct WorldData {
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
     pub event_loop      : EventLoop,
-    pub variables       : UniformScope,
     pub performance     : Performance,
     pub start_time      : f32,
     pub time            : Uniform<f32>,
@@ -258,12 +257,16 @@ impl WorldData {
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
         let workspace_dirty2       = workspace_dirty.clone();
+//        let variables              = UniformScope::new(logger.sub("global_variables"),&workspace.context); //FIXME: complex relation
         let on_change              = move || {workspace_dirty2.set()};
-        let variables              = UniformScope::new(logger.sub("global_variables"));
+        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
+        let variables              = &workspace.variables;
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
-//        variables.add_or_panic("sample_image",AnyTexture::from(Texture::new("https://webgl2fundamentals.org/webgl/resources/f-texture.png")));
-        let workspace              = Workspace::new(dom,&variables,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
+
+        let txt1 = Texture::Rgba("https://webgl2fundamentals.org/webgl/resources/f-texture.png");
+
+        variables.add_or_panic2("sample_image",txt1);
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
@@ -274,7 +277,7 @@ impl WorldData {
         let stats_monitor_cp_2     = stats_monitor.clone();
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,variables,performance,start_time,time,display_mode,fonts,update_handle,stats,stats_monitor}
+        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode,fonts,update_handle,stats,stats_monitor}
     }
 
     pub fn run(&mut self) {

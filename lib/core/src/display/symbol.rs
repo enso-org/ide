@@ -195,11 +195,10 @@ impl Symbol {
 
     /// Create new instance with the provided on-dirty callback.
     pub fn new <OnMut:Fn()+Clone+'static>
-    (global_scope:&UniformScope, logger:Logger, stats:&Stats, ctx:&Context, on_mut:OnMut) -> Self {
+    (global_scope:&UniformScope, logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();
         group!(init_logger, "Initializing.", {
-            let context         = ctx.clone();
             let on_mut2         = on_mut.clone();
             let surface_logger  = logger.sub("surface");
             let shader_logger   = logger.sub("shader");
@@ -209,14 +208,15 @@ impl Symbol {
             let shader_dirty    = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
             let geo_on_mut      = surface_on_mut(surface_dirty.clone_ref());
             let mat_on_mut      = shader_on_mut(shader_dirty.clone_ref());
-            let shader          = Shader::new(shader_logger,&stats,ctx,mat_on_mut);
-            let surface         = Mesh::new(surface_logger,&stats,ctx,geo_on_mut);
-            let symbol_scope    = UniformScope::new(logger.sub("uniform_scope"));
+            let shader          = Shader::new(shader_logger,&stats,context,mat_on_mut);
+            let surface         = Mesh::new(surface_logger,&stats,context,geo_on_mut);
+            let symbol_scope    = UniformScope::new(logger.sub("uniform_scope"),context);
             let global_scope    = global_scope.clone();
             let vao             = default();
             let uniforms        = default();
             let textures        = default();
             let stats           = stats.clone_ref();
+            let context         = context.clone();
             Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context,vao,uniforms,textures,stats}
         })
     }

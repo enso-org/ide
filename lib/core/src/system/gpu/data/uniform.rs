@@ -6,6 +6,7 @@ use enum_dispatch::*;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use shapely::shared;
+use web_sys::HtmlImageElement;
 use web_sys::WebGlUniformLocation;
 
 use crate::display::render::webgl::Context;
@@ -13,7 +14,8 @@ use crate::system::gpu::data::ContextUniformOps;
 use crate::system::gpu::data::GpuData;
 use crate::system::web::Logger;
 use crate::system::gpu::data::texture::*;
-
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 
 
 // =============
@@ -25,6 +27,8 @@ pub trait UniformValue = Sized where
     AnyUniform : From<Uniform<Self>>;
 //    Context    : ContextUniformOps<Self>;
 
+pub trait UniformValue2 = Sized where
+    AnyUniform : From<Uniform<Bound<Self>>>;
 
 
 // ====================
@@ -36,15 +40,17 @@ shared! { UniformScope
 /// A scope containing set of uniform values.
 #[derive(Debug)]
 pub struct UniformScopeData {
-    map    : HashMap<String,AnyUniform>,
-    logger : Logger,
+    map     : HashMap<String,AnyUniform>,
+    logger  : Logger,
+    context : Context,
 }
 
 impl {
     /// Constructor.
-    pub fn new(logger: Logger) -> Self {
-        let map = default();
-        Self {map,logger}
+    pub fn new(logger:Logger, context:&Context) -> Self {
+        let map     = default();
+        let context = context.clone();
+        Self {map,logger,context}
     }
 
     /// Look up uniform by name.
@@ -71,6 +77,26 @@ impl {
         })
     }
 }}
+
+
+impl UniformScopeData {
+    pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
+    (&mut self, name:Name, value:Texture<I,T>) -> Uniform<Bound<Texture<I,T>>>
+        where Texture<I,T>: UniformValue2 {
+        let uniform = Uniform::new(Bound::new(value, & self.context));
+        let any_uniform = uniform.clone().into();
+        self.map.insert(name.into(), any_uniform);
+        uniform
+    }
+}
+
+impl UniformScope {
+    pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
+    (&self, name:Name, value:Texture<I,T>) -> Uniform<Bound<Texture<I,T>>>
+    where Texture<I,T>: UniformValue2 {
+        self.rc.borrow_mut().add_or_panic2(name,value)
+    }
+}
 
 impl UniformScopeData {
     /// Adds a new uniform with a given name and initial value. In case the name was already in use,
@@ -195,7 +221,7 @@ macro_rules! gen_any_texture_uniform {
         #[enum_dispatch(AnyTextureUniformOps)]
         #[derive(Clone,Debug)]
         pub enum AnyTextureUniform {
-            $( [< $internal_format _ $type >] (Uniform<Texture<$internal_format,$type>>) ),*
+            $( [< $internal_format _ $type >] (Uniform<Bound<Texture<$internal_format,$type>>>) ),*
         }
     }}
 }
@@ -212,8 +238,8 @@ macro_rules! gen_prim_conversions {
 
 macro_rules! gen_texture_conversions {
     ( $([$internal_format:tt $type:tt])* ) => {$(
-        impl From<Uniform<Texture<$internal_format,$type>>> for AnyUniform {
-            fn from(t:Uniform<Texture<$internal_format,$type>>) -> Self {
+        impl From<Uniform<Bound<Texture<$internal_format,$type>>>> for AnyUniform {
+            fn from(t:Uniform<Bound<Texture<$internal_format,$type>>>) -> Self {
                 Self::Texture(t.into())
             }
         }

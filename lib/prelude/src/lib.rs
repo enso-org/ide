@@ -56,7 +56,7 @@ use nalgebra::Scalar;
 pub trait Str = Into<String> + AsRef<str>;
 
 /// Alias for `Default::default()`.
-pub fn default<T: Default>() -> T {
+pub fn default<T:Default>() -> T {
     Default::default()
 }
 
