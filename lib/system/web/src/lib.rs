@@ -255,17 +255,22 @@ where T : wasm_bindgen::JsCast + Debug,
     obj.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
 }
 
-pub fn window() -> Result<web_sys::Window> {
+pub fn window() -> web_sys::Window {
+    web_sys::window().unwrap_or_else(|| panic!("Cannot access window object."))
+}
+
+
+pub fn try_window() -> Result<web_sys::Window> {
     web_sys::window().ok_or_else(|| Error::missing("window"))
 }
 
 pub fn device_pixel_ratio() -> Result<f64> {
-    let win = window()?;
+    let win = try_window()?;
     Ok(win.device_pixel_ratio())
 }
 
 pub fn document() -> Result<web_sys::Document> {
-    window()?.document().ok_or_else(|| Error::missing("document"))
+    try_window()?.document().ok_or_else(|| Error::missing("document"))
 }
 
 pub fn get_element_by_id(id:&str) -> Result<web_sys::Element> {
@@ -296,17 +301,17 @@ pub fn get_webgl2_context
 }
 
 pub fn request_animation_frame(f:&Closure<dyn FnMut(f32)>) -> Result<i32> {
-    let req = window()?.request_animation_frame(f.as_ref().unchecked_ref());
+    let req = try_window()?.request_animation_frame(f.as_ref().unchecked_ref());
     req.map_err(|_| Error::missing("requestAnimationFrame"))
 }
 
 pub fn cancel_animation_frame(id:i32) -> Result<()> {
-    let req = window()?.cancel_animation_frame(id);
+    let req = try_window()?.cancel_animation_frame(id);
     req.map_err(|_| Error::missing("cancel_animation_frame"))
 }
 
 pub fn get_performance() -> Result<Performance> {
-    window()?.performance().ok_or_else(|| Error::missing("performance"))
+    try_window()?.performance().ok_or_else(|| Error::missing("performance"))
 }
 
 

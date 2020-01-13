@@ -5,11 +5,14 @@
 use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
+use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlImageElement;
+use web_sys::Url;
 use web_sys::WebGlTexture;
+
 
 
 // =============
@@ -479,8 +482,6 @@ pub struct Texture<InternalFormat,ElemType> {
     phantom : PhantomData2<InternalFormat,ElemType>,
 }
 
-
-
 impl<I:InternalFormat,T:PrimType> Texture<I,T> {
     /// Constructor.
     pub fn new<S:Into<TextureSource>>(source:S) -> Self {
@@ -628,11 +629,35 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
                 });
                 let js_callback = callback.as_ref().unchecked_ref();
                 let image       = image_ref.borrow();
+                request_cors_if_not_same_origin(&image,&url);
                 image.set_src(url);
                 image.add_event_listener_with_callback("load",js_callback).unwrap();
                 *callback_ref.borrow_mut() = Some(callback);
             }
         }
+    }
+}
+
+
+// === Utils ===
+
+/// CORS = Cross Origin Resource Sharing. It's a way for the webpage to ask the image server for
+/// permission to use the image. To do this we set the crossOrigin attribute to something and then
+/// when the browser tries to get the image from the server, if it's not the same domain, the browser
+/// will ask for CORS permission. The string we set `cross_origin` to is sent to the server.
+/// The server can look at that string and decide whether or not to give you permission. Most
+/// servers that support CORS don't look at the string, they just give permission to everyone.
+///
+/// **Note**
+/// Why don't want to just always see the permission because asking for permission takes 2 HTTP
+/// requests, so it's slower than not asking. If we know we're on the same domain or we know we
+/// won't use the image for anything except img tags and or canvas2d then we don't want to set
+/// crossDomain because it will make things slower.
+fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
+    let url    = Url::new(url_str).unwrap();
+    let origin = web::window().location().origin().unwrap();
+    if url.origin() != origin {
+        img.set_cross_origin(Some(""));
     }
 }
 

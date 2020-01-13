@@ -14,6 +14,30 @@ use crate::system::web::Logger;
 use crate::system::gpu::data::texture::*;
 
 
+// ================
+// === Bindable ===
+// ================
+//
+//trait Bindable {
+//    type Result;
+//    fn bind(self, context:&Context) -> Self::Result;
+//}
+//
+//default impl<T> Bindable for T {
+//    type Result = T;
+//    fn bind(self, context:&Context) -> Self::Result {
+//        self
+//    }
+//}
+//
+//impl<I,T> Bindable for Texture<I,T> {
+//    type Result = BoundTexture<I,T>;
+//    fn bind(self, context:&Context) -> Self::Result {
+//        BoundTexture::new(self,context)
+//    }
+//}
+//
+
 
 // =============
 // === Types ===
@@ -77,7 +101,7 @@ impl UniformScopeData {
     pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
     (&mut self, name:Name, value:Texture<I,T>) -> Uniform<BoundTexture<I,T>>
         where AnyUniform: From<Uniform<BoundTexture<I,T>>> {
-        let uniform = Uniform::new(BoundTexture::new(value, & self.context));
+        let uniform = Uniform::new(BoundTexture::new(value,&self.context));
         let any_uniform = uniform.clone().into();
         self.map.insert(name.into(), any_uniform);
         uniform
