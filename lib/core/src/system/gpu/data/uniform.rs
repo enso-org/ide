@@ -14,39 +14,63 @@ use crate::system::web::Logger;
 use crate::system::gpu::data::texture::*;
 
 
+
 // ================
 // === Bindable ===
 // ================
-//
-//trait Bindable {
-//    type Result;
-//    fn bind(self, context:&Context) -> Self::Result;
-//}
-//
-//default impl<T> Bindable for T {
-//    type Result = T;
-//    fn bind(self, context:&Context) -> Self::Result {
-//        self
-//    }
-//}
-//
-//impl<I,T> Bindable for Texture<I,T> {
-//    type Result = BoundTexture<I,T>;
-//    fn bind(self, context:&Context) -> Self::Result {
-//        BoundTexture::new(self,context)
-//    }
-//}
-//
+
+/// Some values need to be initialized before they can be used as uniforms. Textures, for example,
+/// need to allocate memory on GPU and if used with remote source, need to download images.
+/// For primitive types, like numbers or matrices, the binding operation does nothing.
+pub trait Bindable {
+    type Result;
+    fn bind(self, context:&Context) -> Self::Result;
+}
+
+/// Result of the binding operation.
+pub type Bound<T> = <T as Bindable>::Result;
+
+impl<I:InternalFormat,T:PrimType> Bindable for Texture<I,T> {
+    type Result = BoundTexture<I,T>;
+    fn bind(self, context:&Context) -> Self::Result {
+        BoundTexture::new(self,context)
+    }
+}
+
+
+// TODO: Make those generic with marcos:
+
+impl Bindable for f32 {
+    type Result = f32;
+    fn bind(self, _context:&Context) -> Self::Result {
+        self
+    }
+}
+
+impl Bindable for i32 {
+    type Result = i32;
+    fn bind(self, _context:&Context) -> Self::Result {
+        self
+    }
+}
+
+impl Bindable for Matrix4<f32> {
+    type Result = Matrix4<f32>;
+    fn bind(self, _context:&Context) -> Self::Result {
+        self
+    }
+}
+
 
 
 // =============
 // === Types ===
 // =============
 
-/// A set of constraints that every uniform has to met.
-pub trait UniformValue = Sized where
-    AnyUniform : From<Uniform<Self>>;
-//    Context    : ContextUniformOps<Self>;
+/// A set of constraints that a value has to match in order to be used as an uniform.
+pub trait UniformValue = Bindable where
+    AnyUniform : From<Uniform<Bound<Self>>>;
+
 
 
 // ====================
@@ -82,48 +106,35 @@ impl {
     }
 
     /// Add a new uniform with a given name and initial value. Returns `None` if the name is in use.
+    /// Please note that the value will be bound to the context before it becomes the uniform.
+    /// Refer to the docs of `Bindable` to learn more.
     pub fn add<Name:Str, Value:UniformValue>
-    (&mut self, name:Name, value:Value) -> Option<Uniform<Value>> {
+    (&mut self, name:Name, value:Value) -> Option<Uniform<Bound<Value>>> {
         self.add_or_else(name,value,Some,|_|None)
     }
 
     /// Add a new uniform with a given name and initial value. Panics if the name is in use.
+    /// Please note that the value will be bound to the context before it becomes the uniform.
+    /// Refer to the docs of `Bindable` to learn more.
     pub fn add_or_panic<Name:Str, Value:UniformValue>
-    (&mut self, name:Name, value:Value) -> Uniform<Value> {
+    (&mut self, name:Name, value:Value) -> Uniform<Bound<Value>> {
         self.add_or_else(name,value,|t|{t},|name| {
             panic!("Trying to override uniform '{}'.", name.as_ref())
         })
     }
 }}
 
-
-impl UniformScopeData {
-    pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
-    (&mut self, name:Name, value:Texture<I,T>) -> Uniform<BoundTexture<I,T>>
-        where AnyUniform: From<Uniform<BoundTexture<I,T>>> {
-        let uniform = Uniform::new(BoundTexture::new(value,&self.context));
-        let any_uniform = uniform.clone().into();
-        self.map.insert(name.into(), any_uniform);
-        uniform
-    }
-}
-
-impl UniformScope {
-    pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
-    (&self, name:Name, value:Texture<I,T>) -> Uniform<BoundTexture<I,T>>
-    where AnyUniform: From<Uniform<BoundTexture<I,T>>> {
-        self.rc.borrow_mut().add_or_panic2(name,value)
-    }
-}
-
 impl UniformScopeData {
     /// Adds a new uniform with a given name and initial value. In case the name was already in use,
     /// it fires the `fail` function. Otherwise, it fires the `ok` function on the newly created
     /// uniform.
-    pub fn add_or_else<Name:Str, Value:UniformValue, Ok:Fn(Uniform<Value>)->T, Fail:Fn(Name)->T, T>
-    (&mut self, name:Name, value:Value, ok:Ok, fail:Fail) -> T {
+    pub fn add_or_else<Name:Str,Value:UniformValue,Ok,Fail,T>
+    (&mut self, name:Name, value:Value, ok:Ok, fail:Fail) -> T
+    where Ok   : Fn(Uniform<Bound<Value>>)->T,
+          Fail : Fn(Name)->T {
         if self.map.contains_key(name.as_ref()) { fail(name) } else {
-            let uniform     = Uniform::new(value);
+            let bound_value = value.bind(&self.context);
+            let uniform     = Uniform::new(bound_value);
             let any_uniform = uniform.clone().into();
             self.map.insert(name.into(),any_uniform);
             ok(uniform)
@@ -146,7 +157,7 @@ pub struct UniformData<Value> {
     dirty: bool,
 }
 
-impl<Value:UniformValue> {
+impl<Value> {
     /// Constructor.
     pub fn new(value:Value) -> Self {
         let dirty = false;
@@ -181,19 +192,20 @@ impl<Value:UniformValue> {
     }
 }}
 
-impl<Value:UniformValue> UniformData<Value> where Context: ContextUniformOps<Value> {
+impl<Value> UniformData<Value> where Context: ContextUniformOps<Value> {
     /// Uploads the uniform data to the provided location of the currently bound shader program.
     pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
         context.set_uniform(location,&self.value);
     }
 }
 
-impl<Value:UniformValue> Uniform<Value> where Context: ContextUniformOps<Value> {
+impl<Value> Uniform<Value> where Context: ContextUniformOps<Value> {
     /// Uploads the uniform data to the provided location of the currently bound shader program.
     pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
         self.rc.borrow().upload(context,location)
     }
 }
+
 
 
 // ======================

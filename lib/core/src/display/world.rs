@@ -257,7 +257,6 @@ impl WorldData {
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
         let workspace_dirty2       = workspace_dirty.clone();
-//        let variables              = UniformScope::new(logger.sub("global_variables"),&workspace.context); //FIXME: complex relation
         let on_change              = move || {workspace_dirty2.set()};
         let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
         let variables              = &workspace.variables;
@@ -265,8 +264,8 @@ impl WorldData {
         let display_mode           = variables.add_or_panic("display_mode",0);
 
         let txt1 = Texture::Rgba("https://webgl2fundamentals.org/webgl/resources/f-texture.png");
+        variables.add_or_panic("sample_image",txt1);
 
-        variables.add_or_panic2("sample_image",txt1);
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
