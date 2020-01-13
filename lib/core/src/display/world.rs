@@ -9,36 +9,28 @@ pub mod workspace;
 
 pub use crate::display::symbol::types::*;
 pub use crate::display::world::workspace::Workspace;
-
-use crate::prelude::*;
-
 pub use crate::data::container::*;
 pub use crate::display::world::workspace::SymbolId;
 
+use crate::prelude::*;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::data::dirty;
 use crate::data::dirty::traits::*;
-use crate::debug::stats::Stats;
-//use crate::promote_all;
-//use crate::promote_workspace_types;
-//use crate::promote;
-use crate::system::web;
-use crate::system::web::group;
-use crate::system::web::Logger;
-use crate::display::shape::text::font::Fonts;
-use crate::debug::monitor;
+use crate::data::dirty;
 use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
+use crate::debug::monitor;
+use crate::debug::stats::Stats;
+use crate::display::shape::text::font::Fonts;
+use crate::system::gpu::data::texture::Texture;
+use crate::system::web::group;
+use crate::system::web::Logger;
+use crate::system::web;
+use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
-
 use web_sys::{Performance,KeyboardEvent};
-use event_loop::EventLoop;
-
-//use crate::system::gpu::data::texture::AnyTexture;
-use crate::system::gpu::data::texture::Texture;
 
 
 
@@ -205,7 +197,6 @@ pub struct WorldData {
 
 pub type WorkspaceID    = usize;
 pub type WorkspaceDirty = dirty::SharedBool;
-//promote_workspace_types!{ [[WorkspaceOnChange]] workspace }
 
 
 // === Callbacks ===

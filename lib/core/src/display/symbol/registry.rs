@@ -46,14 +46,6 @@ pub struct SymbolRegistry {
 
 pub type SymbolId    = usize;
 pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
-//promote_symbol_types!{ [OnSymbolChange] symbol }
-//
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_symbol_registry_types { ($($args:tt)*) => {
-//    crate::promote_symbol_types! { $($args)* }
-//    promote! { $($args)* [SymbolRegistry] }
-//};}
 
 
 // === Callbacks ===

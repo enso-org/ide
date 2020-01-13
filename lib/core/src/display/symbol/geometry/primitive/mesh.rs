@@ -17,14 +17,9 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::prelude::*;
-//use crate::promote;
-//use crate::promote_all;
-//use crate::promote_scope_types;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use num_enum::IntoPrimitive;
-
-
 
 
 
@@ -115,15 +110,6 @@ impl Display for ScopeType {
 // === Types ===
 
 pub type ScopesDirty = dirty::SharedEnum<u8,ScopeType,Box<dyn Fn()>>;
-//promote_scope_types!{ [ScopeOnChange] data }
-
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_mesh_types { ($($args:tt)*) => {
-////    crate::promote_scope_types! { $($args)* }
-//    promote! {$($args)* [Mesh,Scopes]}
-//};}
-
 
 
 // === Callbacks ===

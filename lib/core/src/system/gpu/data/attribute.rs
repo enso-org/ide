@@ -56,14 +56,6 @@ pub mod types {
     pub type AnyBuffer = buffer::AnyBuffer;
 }
 pub use types::*;
-//promote_buffer_types! {[BufferOnSet,BufferOnResize] buffer}
-
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_scope_types { ($callbacks:tt $module:ident) => {
-//    crate::promote_buffer_types! { $callbacks $module }
-////    promote! { $callbacks $module [Attribute<T>,AttributeScope] }
-//};}
 
 
 // === Callbacks ===

@@ -161,19 +161,8 @@ pub enum ScopeType {
     Mesh(mesh::ScopeType), Symbol, Global
 }
 
-
 pub type GeometryDirty = dirty::SharedBool<Box<dyn Fn()>>;
 pub type ShaderDirty   = dirty::SharedBool<Box<dyn Fn()>>;
-//promote_mesh_types!   { [OnSurfaceMut] mesh }
-//promote_shader_types! { [OnSurfaceMut] shader }
-//
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_symbol_types { ($($args:tt)*) => {
-//    crate::promote_mesh_types!   {$($args)*}
-//    crate::promote_shader_types! {$($args)*}
-//    promote! {$($args)* [Symbol]}
-//};}
 
 
 // === Callbacks ===

@@ -65,12 +65,6 @@ pub struct Shader {
 
 pub type Dirty = dirty::SharedBool<Box<dyn Fn()>>;
 
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_shader_types { ($($args:tt)*) => {
-//    promote! {$($args)* [Shader]}
-//};}
-
 
 // === Implementation ===
 

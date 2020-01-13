@@ -130,14 +130,6 @@ pub struct Workspace {
 
 pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
 pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
-//promote_symbol_registry_types!{ [OnSymbolRegistryChange] registry }
-
-//#[macro_export]
-///// Promote relevant types to parent scope. See `promote!` macro for more information.
-//macro_rules! promote_workspace_types { ($($args:tt)*) => {
-//    crate::promote_symbol_registry_types! { $($args)* }
-//    promote! { $($args)* [Workspace] }
-//};}
 
 
 // === Callbacks ===
