@@ -231,7 +231,7 @@ impl Symbol {
             if self.shader_dirty.check() {
                 let var_bindings = self.discover_variable_bindings();
                 self.shader.update(&var_bindings);
-                self.init_vao(&var_bindings);
+                self.init_variable_bindings(&var_bindings);
                 self.shader_dirty.unset();
             }
         })
@@ -239,50 +239,52 @@ impl Symbol {
 
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
-    fn init_vao(&mut self, var_bindings:&[shader::VarBinding]) {
+    fn init_variable_bindings(&mut self, var_bindings:&[shader::VarBinding]) {
         self.vao      = Some(VertexArrayObject::new(&self.context));
         self.uniforms = default();
         self.textures = default();
-        self.with_program2(|this,program|{
+        self.with_program_mut(|this,program|{
             for binding in var_bindings {
                 if let Some(scope_type) = binding.scope.as_ref() {
                     match scope_type {
-                        ScopeType::Mesh(mesh_scope_type) => {
-                            let scope = this.surface.scope_by_type(*mesh_scope_type);
-                            let vtx_name = shader::builder::mk_vertex_name(&binding.name);
-                            let location = this.context.get_attrib_location(program, &vtx_name);
-                            if location < 0 {
-                                this.logger.error(|| format!("Attribute '{}' not found.",vtx_name));
-                            } else {
-                                let location     = location as u32;
-                                let buffer       = &scope.buffer(&binding.name).unwrap();
-                                let is_instanced = mesh_scope_type == &mesh::ScopeType::Instance;
-                                buffer.bind(webgl::Context::ARRAY_BUFFER);
-                                buffer.vertex_attrib_pointer(location, is_instanced);
-                            }
-                        }
-                        _ => {
-                            this.foo(program,binding);
-                        }
+                        ScopeType::Mesh(s) => this.init_attribute_binding(program,binding,*s),
+                        _                  => this.init_uniform_binding(program,binding),
                     }
                 }
             }
         });
     }
 
-    pub fn foo(&mut self, program:&WebGlProgram, binding:&shader::VarBinding) {
+
+    fn init_attribute_binding(&mut self, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
+        let vtx_name = shader::builder::mk_vertex_name(&binding.name);
+        let scope    = self.surface.scope_by_type(mesh_scope_type);
+        let location = self.context.get_attrib_location(program, &vtx_name);
+        if location < 0 {
+            self.logger.error(|| format!("Attribute '{}' not found.",vtx_name));
+        } else {
+            let location     = location as u32;
+            let buffer       = &scope.buffer(&binding.name).unwrap();
+            let is_instanced = mesh_scope_type == mesh::ScopeType::Instance;
+            buffer.bind(webgl::Context::ARRAY_BUFFER);
+            buffer.vertex_attrib_pointer(location, is_instanced);
+        }
+    }
+
+    fn init_uniform_binding(&mut self, program:&WebGlProgram, binding:&shader::VarBinding) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
         opt_location.map(|location|{
             let uniform = self.global_scope.get(name).unwrap_or_else(||{
-                panic!("Internal error. Variable ... was not found in program.")
+                panic!("Internal error. Variable {} not found in program.",name)
             });
             match uniform {
-                AnyUniform::Prim(uniform) => self.uniforms.push(UniformBinding::new(name,location,uniform)),
-                AnyUniform::Texture(uniform) => self.textures.push(TextureBinding::new(name,location,uniform)),
+                AnyUniform::Prim(uniform) =>
+                    self.uniforms.push(UniformBinding::new(name,location,uniform)),
+                AnyUniform::Texture(uniform) =>
+                    self.textures.push(TextureBinding::new(name,location,uniform)),
             }
-
         });
     }
 
@@ -314,25 +316,23 @@ impl Symbol {
         let program = self.shader.program().as_ref().unwrap(); // FIXME
         self.context.use_program(Some(&program));
         let vao = self.vao.as_ref().unwrap(); // FIXME
-        let out = vao.with(|| {
-            f(program)
-        });
+        let out = vao.with(||{ f(program) });
         self.context.use_program(None);
         out
     }
 
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
-    pub fn with_program2<F:FnOnce(&mut Self, &WebGlProgram) -> T,T>(&mut self, f:F) -> T {
+    pub fn with_program_mut<F:FnOnce(&mut Self, &WebGlProgram) -> T,T>(&mut self, f:F) -> T {
         let this:&mut Self = self;
         let program = this.shader.program().as_ref().unwrap().clone(); // FIXME
         this.context.use_program(Some(&program));
-        this.with_vao(|this|{
-            f(this,&program)
-        })
+        let out = this.with_vao_mut(|this|{ f(this,&program) });
+        self.context.use_program(None);
+        out
     }
 
-    pub fn with_vao<F:FnOnce(&mut Self) -> T,T>(&mut self, f:F) -> T {
+    pub fn with_vao_mut<F:FnOnce(&mut Self) -> T,T>(&mut self, f:F) -> T {
         self.vao.as_ref().unwrap().bind();
         let out = f(self);
         self.vao.as_ref().unwrap().unbind();
