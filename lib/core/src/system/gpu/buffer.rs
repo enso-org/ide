@@ -13,10 +13,10 @@ use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::usage::BufferUsage;
-use crate::system::gpu::data::attribute::class::Attribute;
-use crate::system::gpu::data::class::JSBufferView;
+use crate::system::gpu::data::attribute::Attribute;
+use crate::system::gpu::data::class::JsBufferView;
 use crate::system::gpu::data::gl_enum::*;
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::data::Item;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
@@ -78,7 +78,7 @@ pub struct BufferData<T> {
     logger        : Logger,
 }
 
-impl<T:GpuData> {
+impl<T:BufferItem> {
     /// Constructor.
     pub fn new<OnMut:CallbackFn,OnResize:CallbackFn>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
@@ -168,10 +168,10 @@ impl<T:GpuData> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as i32;
-        let item_type      = <T as GpuData>::glsl_item_type_code();
-        let rows           = <T as GpuData>::rows() as i32;
-        let cols           = <T as GpuData>::cols() as i32;
+        let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
+        let item_type      = <T as BufferItem>::glsl_item_type_code();
+        let rows           = <T as BufferItem>::rows() as i32;
+        let cols           = <T as BufferItem>::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;
@@ -190,10 +190,10 @@ impl<T:GpuData> {
 
 // === Private API ===
 
-impl<T:GpuData> BufferData<T> {
+impl<T: BufferItem> BufferData<T> {
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Item<T>] {
-        <T as GpuData>::convert_prim_buffer(&self.buffer.data)
+        <T as BufferItem>::convert_prim_buffer(&self.buffer.data)
     }
 
     /// View the data as slice of elements.
@@ -212,7 +212,7 @@ impl<T:GpuData> BufferData<T> {
 // allocation in Rust) it'll cause the buffer to change, causing the resulting js array to be
 // invalid.
 
-impl<T:GpuData> BufferData<T> {
+impl<T: BufferItem> BufferData<T> {
     /// Uploads the provided data range to the GPU buffer. In case the local buffer was resized,
     /// it will be re-created on the GPU.
     fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
@@ -234,8 +234,8 @@ impl<T:GpuData> BufferData<T> {
             (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
         }
         crate::if_compiled_with_stats! {
-            let item_byte_size = <T as GpuData>::gpu_item_byte_size() as u32;
-            let item_count     = <T as GpuData>::item_count() as u32;
+            let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as u32;
+            let item_count     = <T as BufferItem>::item_count() as u32;
             self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
             self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
             self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
@@ -246,8 +246,8 @@ impl<T:GpuData> BufferData<T> {
     /// Updates the GPU sub-buffer data by the provided index range.
     fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
         let data            = self.as_slice();
-        let item_byte_size  = <T as GpuData>::gpu_item_byte_size() as u32;
-        let item_count      = <T as GpuData>::item_count() as u32;
+        let item_byte_size  = <T as BufferItem>::gpu_item_byte_size() as u32;
+        let item_count      = <T as BufferItem>::item_count() as u32;
         let start           = *range.start() as u32;
         let end             = *range.end() as u32;
         let start_item      = start * item_count;
@@ -265,7 +265,7 @@ impl<T:GpuData> BufferData<T> {
 
 // === Smart Accessors ===
 
-impl<T:GpuData> Buffer<T> {
+impl<T: BufferItem> Buffer<T> {
     /// Get the attribute pointing to a given buffer index.
     pub fn at(&self, index:usize) -> Attribute<T> {
         Attribute::new(index,self.clone_ref())
@@ -323,7 +323,7 @@ macro_rules! define_any_buffer {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
-    /// `Buffer<dyn GpuData, OnMut, OnResize>`.
+    /// `Buffer<dyn BufferItem, OnMut, OnResize>`.
     #[enum_dispatch(IsBuffer)]
     #[derive(Debug)]
     #[allow(missing_docs)]

@@ -1,8 +1,5 @@
 #![allow(missing_docs)]
 
-#[warn(missing_docs)]
-pub mod class;
-
 use crate::prelude::*;
 
 use crate::closure;
@@ -11,7 +8,7 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::IsBuffer;
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::buffer;
 use crate::system::web::group;
 use crate::system::web::Logger;
@@ -23,8 +20,6 @@ use data::opt_vec::OptVec;
 // === AttributeScope ===
 // ======================
 
-// === Definition ===
-
 /// Scope defines a view for geometry structure. For example, there is point
 /// scope or instance scope. Scope contains buffer of data for each item it
 /// describes.
@@ -33,9 +28,9 @@ pub struct AttributeScope {
     pub buffers      : OptVec<AnyBuffer>,
     pub buffer_dirty : BufferDirty,
     pub shape_dirty  : ShapeDirty,
-    pub name_map     : HashMap<BufferName, BufferIndex>,
+    pub name_map     : HashMap<String,BufferIndex>,
     pub logger       : Logger,
-    free_ids         : Vec<InstanceId>,
+    free_ids         : Vec<InstanceIndex>,
     size             : usize,
     context          : Context,
     stats            : Stats,
@@ -46,17 +41,18 @@ pub struct AttributeScope {
 
 pub mod types {
     use super::*;
-    pub type InstanceId = usize;
-    pub type BufferIndex = usize;
-    pub type BufferName = String;
-    pub type BufferDirty = dirty::SharedBitField<u64, Box<dyn Fn()>>;
-    pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
-    pub type Attribute<T> = class::Attribute<T>;
-    pub type Buffer<T> = buffer::Buffer<T>;
-    pub type AnyBuffer = buffer::AnyBuffer;
+
+    pub use buffer::AnyBuffer;
+    pub use buffer::Buffer;
+
+    pub type InstanceIndex = usize;
+    pub type BufferIndex   = usize;
+
 }
 pub use types::*;
 
+pub type BufferDirty   = dirty::SharedBitField<u64,Box<dyn Fn()>>;
+pub type ShapeDirty    = dirty::SharedBool<Box<dyn Fn()>>;
 
 // === Callbacks ===
 
@@ -93,7 +89,7 @@ impl AttributeScope {
 
 impl AttributeScope {
     /// Adds a new named buffer to the scope.
-    pub fn add_buffer<Name:Str, T:GpuData>(&mut self, name:Name) -> Buffer<T>
+    pub fn add_buffer<Name:Str, T: BufferItem>(&mut self, name:Name) -> Buffer<T>
     where AnyBuffer: From<Buffer<T>> {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
@@ -124,7 +120,7 @@ impl AttributeScope {
     }
 
     /// Adds a new instance to every buffer in the scope.
-    pub fn add_instance(&mut self) -> InstanceId {
+    pub fn add_instance(&mut self) -> InstanceIndex {
         group!(self.logger, "Adding {} instance(s).", 1, {
             match self.free_ids.pop() {
                 Some(ix) => ix,
@@ -141,7 +137,7 @@ impl AttributeScope {
     /// Disposes instance for reuse in the future. Please note that the disposed data still
     /// exists in the buffer and will be used when rendering. It is yours responsibility to hide
     /// id, fo example by degenerating vertices.
-    pub fn dispose(&mut self, id:InstanceId) {
+    pub fn dispose(&mut self, id:InstanceIndex) {
         group!(self.logger, "Disposing instance {}.", id, {
             self.free_ids.push(id);
         })
@@ -169,5 +165,46 @@ impl AttributeScope {
     /// Returns the size of buffers in this scope.
     pub fn size(&self) -> usize {
         self.size
+    }
+}
+
+
+
+// =================
+// === Attribute ===
+// =================
+
+/// View for a particular buffer. Allows reading and writing buffer data
+/// via the internal mutability pattern. It is implemented as a view on
+/// a selected `Buffer` element under the hood.
+#[derive(Clone,Debug,Derivative)]
+pub struct Attribute<T> {
+    index  : usize,
+    buffer : Buffer<T>
+}
+
+impl<T> Attribute<T> {
+    /// Creates a new variable as an indexed view over provided buffer.
+    pub fn new(index:usize, buffer:Buffer<T>) -> Self {
+        Self {index, buffer}
+    }
+}
+
+impl<T: BufferItem> Attribute<T> {
+    /// Gets a copy of the data this attribute points to.
+    pub fn get(&self) -> T {
+        self.buffer.get(self.index)
+    }
+
+    /// Sets the data this attribute points to.
+    pub fn set(&self, value:T) {
+        self.buffer.set(self.index,value);
+    }
+
+    /// Modifies the data this attribute points to.
+    pub fn modify<F:FnOnce(&mut T)>(&self, f:F) {
+        let mut value = self.get();
+        f(&mut value);
+        self.set(value);
     }
 }
