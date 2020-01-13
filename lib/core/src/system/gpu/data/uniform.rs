@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use enum_dispatch::*;
 use nalgebra::Matrix4;
+use nalgebra::Vector2;
 use nalgebra::Vector3;
 use shapely::shared;
 use web_sys::WebGlUniformLocation;
@@ -160,7 +161,7 @@ pub struct UniformData<Value> {
 impl<Value> {
     /// Constructor.
     pub fn new(value:Value) -> Self {
-        let dirty = false;
+        let dirty = true;
         Self {value,dirty}
     }
 
@@ -192,20 +193,27 @@ impl<Value> {
     }
 }}
 
-impl<Value> UniformData<Value> where Context: ContextUniformOps<Value> {
+impl<Value> UniformData<Value> where Context : ContextUniformOps<Value> {
     /// Uploads the uniform data to the provided location of the currently bound shader program.
     pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
         context.set_uniform(location,&self.value);
     }
 }
 
-impl<Value> Uniform<Value> where Context: ContextUniformOps<Value> {
+impl<Value> Uniform<Value> where Context : ContextUniformOps<Value> {
     /// Uploads the uniform data to the provided location of the currently bound shader program.
     pub fn upload(&self, context:&Context, location:&WebGlUniformLocation) {
         self.rc.borrow().upload(context,location)
     }
 }
 
+impl<Value> Uniform<Value> where Context : ContextTextureOps<Value> {
+    /// Bind texture in this WebGl context.
+    pub fn bind_texture(&self, context:&Context) {
+        let value = &self.rc.borrow().value;
+        ContextTextureOps::bind_texture(context,value);
+    }
+}
 
 
 // ======================
@@ -219,6 +227,7 @@ impl<Value> Uniform<Value> where Context: ContextUniformOps<Value> {
 pub enum AnyPrimUniform {
     Variant_i32           (Uniform<i32>),
     Variant_f32           (Uniform<f32>),
+    Variant_Vector2_of_f32(Uniform<Vector2<f32>>),
     Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
     Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)
 }
@@ -234,7 +243,7 @@ pub type Identity<T> = T;
 
 macro_rules! with_all_prim_types {
     ( $f:ident ) => {
-        $f! { [Identity i32] [Identity f32] [Vector3 f32] [Matrix4 f32] }
+        $f! { [Identity i32] [Identity f32] [Vector2 f32] [Vector3 f32] [Matrix4 f32] }
     }
 }
 
@@ -281,6 +290,7 @@ crate::with_all_texture_types!(gen_any_texture_uniform);
 
 #[enum_dispatch]
 pub trait AnyTextureUniformOps {
+    fn bind_texture(&self, context:&Context);
 }
 
 

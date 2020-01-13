@@ -27,6 +27,7 @@ use crate::display::render::webgl;
 use crate::system::gpu::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyTextureUniform;
+use crate::system::gpu::data::uniform::AnyTextureUniformOps;
 use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
@@ -55,21 +56,40 @@ impl UniformBinding {
         let name = name.into();
         Self {name,location,uniform}
     }
+
+    pub fn upload(&self, context:&Context) {
+        self.uniform.upload(context,&self.location);
+    }
 }
 
 
 
 #[derive(Clone,Debug)]
 pub struct TextureBinding {
-    name     : String,
-    location : WebGlUniformLocation,
-    uniform  : AnyTextureUniform,
+    name         : String,
+    location     : WebGlUniformLocation,
+    uniform      : AnyTextureUniform,
+    texture_unit : u32,
 }
 
 impl TextureBinding {
-    pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyTextureUniform) -> Self {
+    pub fn new<Name:Str>
+    ( name         : Name
+    , location     : WebGlUniformLocation
+    , uniform      : AnyTextureUniform
+    , texture_unit : u32
+    ) -> Self {
         let name = name.into();
-        Self {name,location,uniform}
+        Self {name,location,uniform,texture_unit}
+    }
+
+    pub fn bind_texture(&self, context:&Context) {
+        context.active_texture(self.texture_unit);
+        self.uniform.bind_texture(context);
+    }
+
+    pub fn upload_uniform(&self, context:&Context) {
+        context.uniform1i(Some(&self.location),self.texture_unit as i32);
     }
 }
 
@@ -229,21 +249,23 @@ impl Symbol {
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_variable_bindings(&mut self, var_bindings:&[shader::VarBinding]) {
-        self.vao      = Some(VertexArrayObject::new(&self.context));
-        self.uniforms = default();
-        self.textures = default();
+        let mut texture_unit_iter = Context::TEXTURE0..;
+        self.vao                  = Some(VertexArrayObject::new(&self.context));
+        self.uniforms             = default();
+        self.textures             = default();
         self.with_program_mut(|this,program|{
             for binding in var_bindings {
-                if let Some(scope_type) = binding.scope.as_ref() {
-                    match scope_type {
-                        ScopeType::Mesh(s) => this.init_attribute_binding(program,binding,*s),
-                        _                  => this.init_uniform_binding(program,binding),
-                    }
+                match binding.scope.as_ref() {
+                    Some(ScopeType::Mesh(s)) =>
+                        this.init_attribute_binding(program,binding,*s),
+                    Some(_) =>
+                        this.init_uniform_binding(program,binding,&mut texture_unit_iter),
+                    None =>
+                        {}
                 }
             }
         });
     }
-
 
     fn init_attribute_binding(&mut self, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
         let vtx_name = shader::builder::mk_vertex_name(&binding.name);
@@ -260,19 +282,29 @@ impl Symbol {
         }
     }
 
-    fn init_uniform_binding(&mut self, program:&WebGlProgram, binding:&shader::VarBinding) {
+    /// Init uniform binding. This function should be run in context of `program` (used inside
+    /// closure passed as argument to `with_program`).
+    fn init_uniform_binding
+    ( &mut self
+    , program:&WebGlProgram
+    , binding:&shader::VarBinding
+    , texture_unit_iter : &mut dyn Iterator<Item=u32>
+    ) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
         opt_location.map(|location|{
-            let uniform = self.global_scope.get(name).unwrap_or_else(||{
-                panic!("Internal error. Variable {} not found in program.",name)
-            });
+            let get_default = || binding.decl.default.clone();
+            let uniform     = self.global_scope.get(name).unwrap_or_else(get_default);
             match uniform {
                 AnyUniform::Prim(uniform) =>
                     self.uniforms.push(UniformBinding::new(name,location,uniform)),
-                AnyUniform::Texture(uniform) =>
-                    self.textures.push(TextureBinding::new(name,location,uniform)),
+                AnyUniform::Texture(uniform) => {
+                    let texture_unit = texture_unit_iter.next().unwrap();
+                    let binding      = TextureBinding::new(name,location,uniform,texture_unit);
+                    binding.upload_uniform(&self.context);
+                    self.textures.push(binding);
+                }
             }
         });
     }
@@ -332,7 +364,10 @@ impl Symbol {
         group!(self.logger, "Rendering.", {
             self.with_program(|_|{
                 for binding in &self.uniforms {
-                    binding.uniform.upload(&self.context,&binding.location);
+                    binding.upload(&self.context);
+                }
+                for binding in &self.textures {
+                    binding.bind_texture(&self.context);
                 }
 
                 let mode           = webgl::Context::TRIANGLE_STRIP;

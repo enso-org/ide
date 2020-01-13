@@ -639,6 +639,24 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
 }
 
 
+// === ContextTextureOps ===
+
+/// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
+/// for making distinction in `Uniform` implementations.
+pub trait ContextTextureOps<Texture> {
+    /// Bind texture in this WebGl context.
+    fn bind_texture(&self, texture:&Texture);
+}
+
+impl<I,T> ContextTextureOps<BoundTexture<I,T>> for Context {
+    fn bind_texture(&self, texture:&BoundTexture<I,T>) {
+        let target     = Context::TEXTURE_2D;
+        let gl_texture = &texture.rc.borrow().gl_texture;
+        self.bind_texture(target,Some(gl_texture));
+    }
+}
+
+
 // === Utils ===
 
 /// CORS = Cross Origin Resource Sharing. It's a way for the webpage to ask the image server for

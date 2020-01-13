@@ -3,6 +3,8 @@
 use crate::prelude::*;
 
 use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::uniform::Uniform;
+use crate::system::gpu::data::uniform::AnyUniform;
 use crate::display::render::webgl::glsl;
 use crate::display::symbol::shader::builder::CodeTemplete;
 
@@ -18,15 +20,15 @@ use crate::display::symbol::shader::builder::CodeTemplete;
 #[derive(Clone,Debug)]
 pub struct VarDecl {
     /// The GLSL type of the variable.
-    pub tp: glsl::PrimType,
+    pub tp : glsl::PrimType,
 
     /// Default value of the variable used in case it was not bound to a real value.
-    pub default : String,
+    pub default : AnyUniform,
 }
 
 impl VarDecl {
     /// Constructor.
-    pub fn new(tp:glsl::PrimType, default:String) -> Self {
+    pub fn new(tp:glsl::PrimType, default:AnyUniform) -> Self {
         Self {tp,default}
     }
 }
@@ -48,6 +50,8 @@ pub struct Material {
     outputs : BTreeMap<String,VarDecl>,
 }
 
+pub trait DefaultValue = GpuData where AnyUniform : From<Uniform<Self>>;
+
 impl Material {
     /// Constructor.
     pub fn new() -> Self {
@@ -55,17 +59,17 @@ impl Material {
     }
 
     /// Adds a new input variable.
-    pub fn add_input<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+    pub fn add_input<Name:Str,T:DefaultValue>(&mut self, name:Name, t:T) {
         self.inputs.insert(name.into(),Self::make_var_decl(t));
     }
 
     /// Adds a new output variable.
-    pub fn add_output<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+    pub fn add_output<Name:Str,T:DefaultValue>(&mut self, name:Name, t:T) {
         self.outputs.insert(name.into(),Self::make_var_decl(t));
     }
 
-    fn make_var_decl<T:GpuData>(t:T) -> VarDecl {
-        VarDecl::new(<T as GpuData>::glsl_type(), t.to_glsl())
+    fn make_var_decl<T:DefaultValue>(t:T) -> VarDecl {
+        VarDecl::new(<T as GpuData>::glsl_type(), Uniform::new(t).into())
     }
 }
 
