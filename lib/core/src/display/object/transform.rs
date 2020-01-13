@@ -231,7 +231,7 @@ impl<OnChange> CachedTransform<OnChange> {
 
 // === Setters ===
 
-impl<OnChange:Callback0> CachedTransform<OnChange> {
+impl<OnChange: Proc0> CachedTransform<OnChange> {
     pub fn position_mut(&mut self) -> &mut Vector3<f32> {
         self.dirty.set();
         &mut self.transform.position

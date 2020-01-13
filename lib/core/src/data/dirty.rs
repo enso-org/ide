@@ -72,7 +72,7 @@ use traits::*;
 #[derivative(Debug(bound = "T:Debug"))]
 pub struct DirtyFlag<T,OnSet> {
     pub data : T,
-    on_set   : Callback<OnSet>,
+    on_set   : Proc<OnSet>,
     logger   : Logger,
 }
 
@@ -80,7 +80,7 @@ pub struct DirtyFlag<T,OnSet> {
 // === Basics ===
 
 impl<OnSet,T:Default> DirtyFlag<T,OnSet> {
-    pub fn new(logger: Logger, on_set:Callback<OnSet>) -> Self {
+    pub fn new(logger: Logger, on_set: Proc<OnSet>) -> Self {
         let data = default();
         Self {data,on_set,logger}
     }
@@ -131,7 +131,7 @@ HasCheck1 for DirtyFlag<T,OnSet> {
 
 // === Set ===
 
-impl<T:DirtyFlagOps0,OnSet:Callback0>
+impl<T:DirtyFlagOps0,OnSet: Proc0>
 HasSet0 for  DirtyFlag<T,OnSet> {
     fn set(&mut self) {
         let is_set = self.data.check_all();
@@ -144,7 +144,7 @@ HasSet0 for  DirtyFlag<T,OnSet> {
     }
 }
 
-impl<T:DirtyFlagOps1,OnSet:Callback0>
+impl<T:DirtyFlagOps1,OnSet: Proc0>
 HasSet1 for DirtyFlag<T,OnSet> {
     fn set(&mut self, arg: Self::Arg) {
         let first_set = !self.check_all();
@@ -201,7 +201,7 @@ pub struct SharedDirtyFlag<T,OnSet> {
 impl<T:Default,OnSet>
 SharedDirtyFlag<T,OnSet> {
     pub fn new(logger:Logger, on_set:OnSet) -> Self {
-        let callback = Callback(on_set);
+        let callback = Proc(on_set);
         let rc       = Rc::new(RefCell::new(DirtyFlag::new(logger,callback)));
         Self { rc }
     }
@@ -221,7 +221,7 @@ SharedDirtyFlag<T,OnSet> {
 impl<T,OnSet>
 SharedDirtyFlag<T,OnSet> {
     pub fn set_callback(&self, on_set:OnSet) {
-        self.rc.borrow_mut().on_set = Callback(on_set);
+        self.rc.borrow_mut().on_set = Proc(on_set);
     }
 }
 
@@ -270,12 +270,12 @@ HasCheck1 for SharedDirtyFlag<T,OnSet> {
 
 // === Set ===
 
-impl<T:DirtyFlagOps0,OnSet:Callback0>
+impl<T:DirtyFlagOps0,OnSet: Proc0>
 SharedHasSet0 for SharedDirtyFlag<T,OnSet> {
     fn set (&self) { self.rc.borrow_mut().set() }
 }
 
-impl<T:DirtyFlagOps1,OnSet:Callback0>
+impl<T:DirtyFlagOps1,OnSet: Proc0>
 SharedHasSet1 for SharedDirtyFlag<T,OnSet> {
     fn set (&self, arg: Arg<T>) { self.rc.borrow_mut().set(arg) }
 }
@@ -311,7 +311,7 @@ SharedHasUnset1 for SharedDirtyFlag<T,OnSet> where Arg<T>:Display {
 
 pub type  Bool       <OnSet=()> = DirtyFlag       <BoolData,OnSet>;
 pub type  SharedBool <OnSet=()> = SharedDirtyFlag <BoolData,OnSet>;
-pub trait BoolCtx    <OnSet>    = where OnSet: Callback0;
+pub trait BoolCtx    <OnSet>    = where OnSet: Proc0;
 
 #[derive(Debug,Display,Default)]
 pub struct BoolData { is_dirty: bool }
@@ -332,7 +332,7 @@ impl HasUnset0   for BoolData { fn unset     (&mut self)         { self.is_dirty
 
 pub type  Range       <Ix,OnSet> = DirtyFlag       <RangeData<Ix>,OnSet>;
 pub type  SharedRange <Ix,OnSet> = SharedDirtyFlag <RangeData<Ix>,OnSet>;
-pub trait RangeCtx       <OnSet> = where OnSet: Callback0;
+pub trait RangeCtx       <OnSet> = where OnSet: Proc0;
 pub trait RangeIx                = PartialOrd + Copy + Debug;
 
 #[derive(Debug,Default)]
@@ -386,7 +386,7 @@ impl<Ix:RangeIx> Display for RangeData<Ix> {
 
 pub type  Set       <Ix,OnSet=()> = DirtyFlag       <SetData<Ix>,OnSet>;
 pub type  SharedSet <Ix,OnSet=()> = SharedDirtyFlag <SetData<Ix>,OnSet>;
-pub trait SetCtx       <OnSet>    = where OnSet: Callback0;
+pub trait SetCtx       <OnSet>    = where OnSet: Proc0;
 pub trait SetItem                 = Eq + Hash + Debug;
 
 #[derive(Derivative,Shrinkwrap)]
@@ -444,7 +444,7 @@ use bit_field::BitField as BF;
 
 pub type  Enum       <Prim,T,OnSet> = DirtyFlag       <EnumData<Prim,T>,OnSet>;
 pub type  SharedEnum <Prim,T,OnSet> = SharedDirtyFlag <EnumData<Prim,T>,OnSet>;
-pub trait EnumCtx           <OnSet> = where OnSet: Callback0;
+pub trait EnumCtx           <OnSet> = where OnSet: Proc0;
 pub trait EnumBase                  = Default + PartialEq + Copy + BF;
 pub trait EnumElem                  = Copy+Into<usize>;
 
