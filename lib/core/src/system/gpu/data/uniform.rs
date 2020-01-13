@@ -6,16 +6,13 @@ use enum_dispatch::*;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use shapely::shared;
-use web_sys::HtmlImageElement;
 use web_sys::WebGlUniformLocation;
 
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::ContextUniformOps;
-use crate::system::gpu::data::GpuData;
 use crate::system::web::Logger;
 use crate::system::gpu::data::texture::*;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
+
 
 
 // =============
@@ -26,9 +23,6 @@ use wasm_bindgen::JsCast;
 pub trait UniformValue = Sized where
     AnyUniform : From<Uniform<Self>>;
 //    Context    : ContextUniformOps<Self>;
-
-pub trait UniformValue2 = Sized where
-    AnyUniform : From<Uniform<Bound<Self>>>;
 
 
 // ====================
@@ -81,9 +75,9 @@ impl {
 
 impl UniformScopeData {
     pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
-    (&mut self, name:Name, value:Texture<I,T>) -> Uniform<Bound<Texture<I,T>>>
-        where Texture<I,T>: UniformValue2 {
-        let uniform = Uniform::new(Bound::new(value, & self.context));
+    (&mut self, name:Name, value:Texture<I,T>) -> Uniform<BoundTexture<I,T>>
+        where AnyUniform: From<Uniform<BoundTexture<I,T>>> {
+        let uniform = Uniform::new(BoundTexture::new(value, & self.context));
         let any_uniform = uniform.clone().into();
         self.map.insert(name.into(), any_uniform);
         uniform
@@ -92,8 +86,8 @@ impl UniformScopeData {
 
 impl UniformScope {
     pub fn add_or_panic2 <Name:Str,I:InternalFormat,T:PrimType>
-    (&self, name:Name, value:Texture<I,T>) -> Uniform<Bound<Texture<I,T>>>
-    where Texture<I,T>: UniformValue2 {
+    (&self, name:Name, value:Texture<I,T>) -> Uniform<BoundTexture<I,T>>
+    where AnyUniform: From<Uniform<BoundTexture<I,T>>> {
         self.rc.borrow_mut().add_or_panic2(name,value)
     }
 }
@@ -221,7 +215,7 @@ macro_rules! gen_any_texture_uniform {
         #[enum_dispatch(AnyTextureUniformOps)]
         #[derive(Clone,Debug)]
         pub enum AnyTextureUniform {
-            $( [< $internal_format _ $type >] (Uniform<Bound<Texture<$internal_format,$type>>>) ),*
+            $( [< $internal_format _ $type >] (Uniform<BoundTexture<$internal_format,$type>>) ),*
         }
     }}
 }
@@ -238,8 +232,8 @@ macro_rules! gen_prim_conversions {
 
 macro_rules! gen_texture_conversions {
     ( $([$internal_format:tt $type:tt])* ) => {$(
-        impl From<Uniform<Bound<Texture<$internal_format,$type>>>> for AnyUniform {
-            fn from(t:Uniform<Bound<Texture<$internal_format,$type>>>) -> Self {
+        impl From<Uniform<BoundTexture<$internal_format,$type>>> for AnyUniform {
+            fn from(t:Uniform<BoundTexture<$internal_format,$type>>) -> Self {
                 Self::Texture(t.into())
             }
         }

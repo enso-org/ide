@@ -124,6 +124,7 @@ pub use unsupported_types::*;
 
 /// Class of GL primitive types, including bytes, shorts, ints, etc.
 pub trait PrimType: Copy + 'static {
+    /// The `GlEnum` value of the type.
     fn gl_type() -> u32;
 }
 
@@ -165,6 +166,7 @@ gen_prim_type_instances! {
 macro_rules! gl_variants {
     ( $($name:ident = $expr:expr),* $(,)? ) => {$(
         #[allow(missing_docs)]
+        #[derive(Copy,Clone,Debug)]
         pub struct $name;
 
         impl Default for $name {
@@ -356,6 +358,7 @@ macro_rules! generate_internal_format_instances {
     }
 }
 
+/// See docs of `generate_internal_format_instances`.
 #[macro_export]
 macro_rules! generate_internal_format_instances_item {
     ( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
@@ -373,8 +376,11 @@ macro_rules! generate_internal_format_instances_item {
     }
 }
 
+/// Runs the provided macro with all texture format relations. In order to learn more about the
+/// possible relations, refer to the source code and to the guide:
+/// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 #[macro_export]
-macro_rules! with_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
+macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
 //  INTERNAL_FORMAT   FORMAT         COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
     Alpha             Alpha          True  True  [u8:U1,f16:U2,f32:U4]
     Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
@@ -437,7 +443,7 @@ macro_rules! with_format_relations { ($f:ident $args:tt) => { $crate::$f! { $arg
     Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
 }}}
 
-with_format_relations!(generate_internal_format_instances []);
+with_texture_format_relations!(generate_internal_format_instances []);
 
 
 
@@ -483,28 +489,40 @@ impl<I:InternalFormat,T:PrimType> Texture<I,T> {
         Self {source,phantom}
     }
 
+    /// Internal format instance of this texture. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn internal_format(&self) -> AnyInternalFormat {
         <I>::default().into()
     }
 
+    /// Format instance of this texture. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn format(&self) -> AnyFormat {
         <I::Format>::default().into()
     }
 
+    /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_internal_format(&self) -> i32 {
         self.internal_format().to_gl_enum() as i32
     }
 
+    /// Format of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_format(&self) -> u32 {
         self.format().to_gl_enum()
     }
 
+    /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_elem_type(&self) -> u32 {
         <T>::gl_type()
     }
 }
 
 impl Texture<Rgba,u8> {
+    /// Smart constructor.
+    #[allow(non_snake_case)]
     pub fn Rgba<S:Into<TextureSource>>(source:S) -> Self {
         let source  = source.into();
         let phantom = PhantomData;
@@ -514,43 +532,40 @@ impl Texture<Rgba,u8> {
 
 
 
+// ====================
+// === BoundTexture ===
+// ====================
+
+/// Texture bound to GL context.
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct BoundTexture<I,T> {
+    rc: Rc<RefCell<BoundTextureData<I,T>>>
+}
+
+/// Texture bound to GL context.
 #[derive(Debug)]
-pub struct BoundData<T> {
-    texture    : T,
+pub struct BoundTextureData<I,T> {
+    texture    : Texture<I,T>,
     gl_texture : WebGlTexture,
     context    : Context,
 }
 
-impl<T> BoundData<T> {
+impl<I,T> BoundTextureData<I,T> {
     /// Constructor.
-    pub fn new(texture:T,context:&Context) -> Self {
+    pub fn new(texture:Texture<I,T>,context:&Context) -> Self {
         let gl_texture = context.create_texture().unwrap();
         let context    = context.clone();
         Self {texture,gl_texture,context}
     }
 }
 
-
-#[derive(Debug,Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct Bound<T> {
-    rc: Rc<RefCell<BoundData<T>>>
-}
-
-impl<F:InternalFormat,T:PrimType> Bound<Texture<F,T>> {
-    /// Constructor.
-    pub fn new(texture:Texture<F,T>, context:&Context) -> Self {
-        let data = BoundData::new(texture,context);
-        let rc   = Rc::new(RefCell::new(data));
-        let out  = Self {rc};
-        out.init_mock();
-        out.reload();
-        out
-    }
-
+impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
+    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
+    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
+    /// until the download is complete.
     pub fn init_mock(&self) {
-        let data            = self.rc.borrow();
-        let texture         = &data.texture;
+        let texture         = &self.texture;
         let target          = Context::TEXTURE_2D;
         let level           = 0;
         let internal_format = texture.gl_internal_format();
@@ -560,24 +575,45 @@ impl<F:InternalFormat,T:PrimType> Bound<Texture<F,T>> {
         let height          = 1;
         let border          = 0;
         let color           = vec![0,0,255,255];
-        data.context.bind_texture(Context::TEXTURE_2D,Some(&data.gl_texture));
-        data.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-            (target,level,internal_format,width,height,border,format,elem_type,Some(&color));
+        self.context.bind_texture(Context::TEXTURE_2D,Some(&self.gl_texture));
+        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+        (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
+    }
+}
+
+impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
+    /// Constructor.
+    pub fn new(texture:Texture<I,T>, context:&Context) -> Self {
+        let data = BoundTextureData::new(texture,context);
+        let rc   = Rc::new(RefCell::new(data));
+        let out  = Self {rc};
+        out.init_mock();
+        out.reload();
+        out
     }
 
+    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
+    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
+    /// until the download is complete.
+    pub fn init_mock(&self) {
+        self.rc.borrow().init_mock()
+    }
+
+    /// Loads or re-loads the texture data from the provided source. If the source involves
+    /// downloading the data, this action will be performed asynchronously.
     pub fn reload(&self) {
         let data = self.rc.borrow();
         match &data.texture.source {
             TextureSource::Url(url) => {
-                let image             = HtmlImageElement::new().unwrap();
-                let no_callback       = <Option<Closure<dyn FnMut()>>>::None;
-                let callback_ref      = Rc::new(RefCell::new(no_callback));
-                let image_ref         = Rc::new(RefCell::new(image));
-                let mut this          = self.clone();
-                let mut callback_ref2 = callback_ref.clone();
-                let mut image_ref_opt = image_ref.clone();
+                let image         = HtmlImageElement::new().unwrap();
+                let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
+                let callback_ref  = Rc::new(RefCell::new(no_callback));
+                let image_ref     = Rc::new(RefCell::new(image));
+                let this          = self.clone();
+                let callback_ref2 = callback_ref.clone();
+                let image_ref_opt = image_ref.clone();
                 let callback: Closure<dyn FnMut()> = Closure::once(move || {
-                    let keep_alive      = callback_ref2;
+                    let _keep_alive     = callback_ref2;
                     let data            = this.rc.borrow();
                     let texture         = &data.texture;
                     let image           = image_ref_opt.borrow();
@@ -588,81 +624,55 @@ impl<F:InternalFormat,T:PrimType> Bound<Texture<F,T>> {
                     let elem_type       = texture.gl_elem_type();
                     data.context.bind_texture(target,Some(&data.gl_texture));
                     data.context.tex_image_2d_with_u32_and_u32_and_html_image_element
-                        (target,level,internal_format,format,elem_type,&image);
+                        (target,level,internal_format,format,elem_type,&image).unwrap();
                 });
-                let image = image_ref.borrow();
+                let js_callback = callback.as_ref().unchecked_ref();
+                let image       = image_ref.borrow();
                 image.set_src(url);
-                image.add_event_listener_with_callback("load",callback.as_ref().unchecked_ref());
+                image.add_event_listener_with_callback("load",js_callback).unwrap();
                 *callback_ref.borrow_mut() = Some(callback);
             }
         }
-
     }
 }
 
 
 
+// ======================
+// === Meta Iterators ===
+// ======================
 
-
-// ==================
-// === AnyTexture ===
-// ==================
-
+/// See docs of `with_all_texture_types`.
 #[macro_export]
-macro_rules! cartesians {
+macro_rules! with_all_texture_types_cartesians {
     ($f:ident [$($out:tt)*]) => {
         $f! { $($out)* }
     };
     ($f:ident $out:tt [$a:tt []] $($in:tt)*) => {
-        $crate::cartesians! {$f $out $($in)*}
+        $crate::with_all_texture_types_cartesians! {$f $out $($in)*}
     };
     ($f:ident [$($out:tt)*] [$a:tt [$b:tt $($bs:tt)*]] $($in:tt)*) => {
-        $crate::cartesians! {$f [$($out)* [$a $b]] [$a [$($bs)*]]  $($in)* }
+        $crate::with_all_texture_types_cartesians! {$f [$($out)* [$a $b]] [$a [$($bs)*]]  $($in)* }
     };
 }
 
+/// See docs of `with_all_texture_types`.
 #[macro_export]
 macro_rules! with_all_texture_types_impl {
     ( [$f:ident]
      $( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
         [$($possible_types:ident : $bytes_per_element:ident),*]
     )*) => {
-        $crate::cartesians! { $f [] $([$internal_format [$($possible_types)*]])* }
+        $crate::with_all_texture_types_cartesians!
+            { $f [] $([$internal_format [$($possible_types)*]])* }
     }
 }
 
+/// Runs the argument macro providing it with list of all possible texture types:
+/// `arg! { [Alpha u8] [Alpha f16] [Alpha f32] [Luminance u8] ... }`
 #[macro_export]
 macro_rules! with_all_texture_types {
     ($f:ident) => {
-        $crate::with_format_relations! { with_all_texture_types_impl [$f] }
+        $crate::with_texture_format_relations! { with_all_texture_types_impl [$f] }
     }
 }
-
-
-macro_rules! generate_any_texture {
-    ( $([$internal_format:tt $type:tt])* ) => { paste::item! {
-        /// Wrapper for any valid texture type.
-        #[allow(non_camel_case_types)]
-        #[allow(missing_docs)]
-        #[derive(Clone,Debug)]
-        pub enum AnyTexture {
-            $([< $internal_format _ $type >](Texture<$internal_format,$type>)),*
-        }
-        $(impl From<Texture<$internal_format,$type>> for AnyTexture {
-            fn from(t:Texture<$internal_format,$type>) -> Self {
-                Self::[< $internal_format _ $type >](t)
-            }
-        })*
-    }}
-}
-
-with_all_texture_types!(generate_any_texture);
-
-//use crate::system::gpu::data::class::ContextUniformOps;
-//use web_sys::WebGlUniformLocation;
-
-//impl ContextUniformOps<AnyTexture> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&AnyTexture){
-//        todo!()
-//    }
-//}
