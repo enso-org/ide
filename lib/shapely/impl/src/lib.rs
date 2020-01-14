@@ -10,6 +10,8 @@
 #![feature(overlapping_marker_traits)]
 
 pub mod shared;
+pub mod singleton;
+pub mod cartesian;
 
 pub use shapely_macros::*;
 

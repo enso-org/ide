@@ -1,6 +1,6 @@
-#![allow(missing_docs)]
-
 //! This module implements utilities for managing WebGL buffers.
+
+pub mod usage;
 
 use crate::prelude::*;
 
@@ -12,13 +12,15 @@ use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
-use crate::system::gpu::data::attribute::class::Attribute;
-use crate::system::gpu::data::class::JSBufferView;
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::buffer::usage::BufferUsage;
+use crate::system::gpu::data::attribute::Attribute;
+use crate::system::gpu::data::class::JsBufferView;
+use crate::system::gpu::data::gl_enum::*;
+use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::data::Item;
 use crate::system::web::info;
+use crate::system::web::internal_warning;
 use crate::system::web::Logger;
-use crate::system::web::warning;
 
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
@@ -28,75 +30,6 @@ use shapely::shared;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
-
-
-
-// ===================
-// === BufferUsage ===
-// ===================
-
-/// Specifies the intended usage pattern of the data store for optimization purposes.
-#[derive(Clone,Copy,Debug)]
-pub enum BufferUsage {
-    /// The contents are intended to be specified once by the application, and used many times as
-    /// the source for WebGL drawing and image specification commands.
-    Static,
-
-    /// Default. The contents are intended to be respecified repeatedly by the application, and used
-    /// many times as the source for WebGL drawing and image specification commands.
-    Dynamic,
-
-    /// The contents are intended to be specified once by the application, and used at most a few
-    /// times as the source for WebGL drawing and image specification commands.
-    Stream,
-
-    /// The contents are intended to be specified once by reading data from WebGL, and queried many
-    /// times by the application.
-    StaticRead,
-
-    /// The contents are intended to be respecified repeatedly by reading data from WebGL, and
-    /// queried many times by the application.
-    DynamicRead,
-
-    /// The contents are intended to be specified once by reading data from WebGL, and queried at
-    /// most a few times by the application
-    StreamRead,
-
-    /// The contents are intended to be specified once by reading data from WebGL, and used many
-    /// times as the source for WebGL drawing and image specification commands.
-    StaticCopy,
-
-    /// The contents are intended to be respecified repeatedly by reading data from WebGL, and used
-    /// many times as the source for WebGL drawing and image specification commands.
-    DynamicCopy,
-
-    /// The contents are intended to be specified once by reading data from WebGL, and used at most
-    /// a few times as the source for WebGL drawing and image specification commands.
-    StreamCopy
-}
-
-impl BufferUsage {
-    /// Converts the value to WebGL `GLEnum`.
-    pub fn to_gl_enum(&self) -> u32 {
-        match self {
-            Self::Static      => Context::STATIC_DRAW,
-            Self::Dynamic     => Context::DYNAMIC_DRAW,
-            Self::Stream      => Context::STREAM_DRAW,
-            Self::StaticRead  => Context::STATIC_READ,
-            Self::DynamicRead => Context::DYNAMIC_READ,
-            Self::StreamRead  => Context::STREAM_READ,
-            Self::StaticCopy  => Context::STATIC_COPY,
-            Self::DynamicCopy => Context::DYNAMIC_COPY,
-            Self::StreamCopy  => Context::STREAM_COPY,
-        }
-    }
-}
-
-impl Default for BufferUsage {
-    fn default() -> Self {
-        BufferUsage::Dynamic
-    }
-}
 
 
 
@@ -145,7 +78,7 @@ pub struct BufferData<T> {
     logger        : Logger,
 }
 
-impl<T:GpuData> {
+impl<T:BufferItem> {
     /// Constructor.
     pub fn new<OnMut:CallbackFn,OnResize:CallbackFn>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
@@ -215,7 +148,7 @@ impl<T:GpuData> {
             } else if self.mut_dirty.check_all() {
                 self.upload_data(&self.mut_dirty.take().range);
             } else {
-                warning!(self.logger,"Update requested but it was not needed.")
+                internal_warning!(self.logger,"Update requested but it was not needed.")
             }
             self.mut_dirty.unset_all();
             self.resize_dirty.unset();
@@ -235,10 +168,10 @@ impl<T:GpuData> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as GpuData>    ::gpu_item_byte_size() as i32;
-        let item_type      = <T as GpuData>::glsl_item_type_code();
-        let rows           = <T as GpuData>    ::rows() as i32;
-        let cols           = <T as GpuData>    ::cols() as i32;
+        let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
+        let item_type      = <T as BufferItem>::glsl_item_type_code();
+        let rows           = <T as BufferItem>::rows() as i32;
+        let cols           = <T as BufferItem>::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;
@@ -257,10 +190,10 @@ impl<T:GpuData> {
 
 // === Private API ===
 
-impl<T:GpuData> BufferData<T> {
+impl<T: BufferItem> BufferData<T> {
     /// View the data as slice of primitive elements.
     pub fn as_prim_slice(&self) -> &[Item<T>] {
-        <T as GpuData>::convert_prim_buffer(&self.buffer.data)
+        <T as BufferItem>::convert_prim_buffer(&self.buffer.data)
     }
 
     /// View the data as slice of elements.
@@ -279,7 +212,7 @@ impl<T:GpuData> BufferData<T> {
 // allocation in Rust) it'll cause the buffer to change, causing the resulting js array to be
 // invalid.
 
-impl<T:GpuData> BufferData<T> {
+impl<T: BufferItem> BufferData<T> {
     /// Uploads the provided data range to the GPU buffer. In case the local buffer was resized,
     /// it will be re-created on the GPU.
     fn upload_data(&mut self, opt_range:&Option<RangeInclusive<usize>>) {
@@ -301,8 +234,8 @@ impl<T:GpuData> BufferData<T> {
             (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
         }
         crate::if_compiled_with_stats! {
-            let item_byte_size = <T as GpuData>::gpu_item_byte_size() as u32;
-            let item_count     = <T as GpuData>::item_count() as u32;
+            let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as u32;
+            let item_count     = <T as BufferItem>::item_count() as u32;
             self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
             self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
             self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
@@ -313,8 +246,8 @@ impl<T:GpuData> BufferData<T> {
     /// Updates the GPU sub-buffer data by the provided index range.
     fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
         let data            = self.as_slice();
-        let item_byte_size  = <T as GpuData>::gpu_item_byte_size() as u32;
-        let item_count      = <T as GpuData>::item_count() as u32;
+        let item_byte_size  = <T as BufferItem>::gpu_item_byte_size() as u32;
+        let item_count      = <T as BufferItem>::item_count() as u32;
         let start           = *range.start() as u32;
         let end             = *range.end() as u32;
         let start_item      = start * item_count;
@@ -332,7 +265,7 @@ impl<T:GpuData> BufferData<T> {
 
 // === Smart Accessors ===
 
-impl<T:GpuData> Buffer<T> {
+impl<T: BufferItem> Buffer<T> {
     /// Get the attribute pointing to a given buffer index.
     pub fn at(&self, index:usize) -> Attribute<T> {
         Attribute::new(index,self.clone_ref())
@@ -373,33 +306,6 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 
 
 
-// ========================
-// === TO BE REFACTORED ===
-// ========================
-
-// TODO The following code should be refactored to use the new macro `eval-tt` engine. Some utils,
-//      like `cartesian` macro should also be refactored out.
-
-macro_rules! cartesian_impl {
-    ($f:ident $out:tt [] $b:tt $init_b:tt) => {
-        $f!{ $out }
-    };
-    ($f:ident $out:tt [$a:ident, $($at:tt)*] [] $init_b:tt) => {
-        cartesian_impl!{ $f $out [$($at)*] $init_b $init_b }
-    };
-    ($f:ident [$($out:tt)*] [$a:ident, $($at:tt)*] [$b:ident, $($bt:tt)*] $init_b:tt) => {
-        cartesian_impl!{ $f [$($out)* ($a, $b),] [$a, $($at)*] [$($bt)*] $init_b }
-    };
-}
-
-macro_rules! cartesian {
-    ($f:ident, [$($a:tt)*], [$($b:tt)*]) => {
-        cartesian_impl!{ $f [] [$($a)*,] [$($b)*,] [$($b)*,] }
-    };
-}
-
-
-
 // =================
 // === AnyBuffer ===
 // =================
@@ -408,59 +314,50 @@ use enum_dispatch::*;
 
 // === Macros ===
 
+/// Variant mismatch error type.
 #[derive(Debug)]
 pub struct BadVariant;
 
-macro_rules! mk_any_buffer_impl {
-([$(($base:ident, $param:ident)),*,]) => { paste::item! {
+macro_rules! define_any_buffer {
+([$([$base:ident $param:ident])*]) => { paste::item! {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
-    /// `Buffer<dyn GpuData, OnMut, OnResize>`.
+    /// `Buffer<dyn BufferItem, OnMut, OnResize>`.
     #[enum_dispatch(IsBuffer)]
     #[derive(Debug)]
+    #[allow(missing_docs)]
     pub enum AnyBuffer {
-        $(  [<Variant $base For $param>]
-                (Buffer<$base<$param>>),
-        )*
+        $([<Variant $base For $param>](Buffer<$base<$param>>)),*
     }
 
-    $( // ======================================================================
-
-    impl<'t>
-    TryFrom<&'t AnyBuffer>
-    for &'t Buffer<$base<$param>> {
-        type Error = BadVariant;
-        fn try_from(v: &'t AnyBuffer)
-        -> Result <&'t Buffer<$base<$param>>, Self::Error> {
-            match v {
-                AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
-                _ => Err(BadVariant)
+    $(
+        impl<'t> TryFrom<&'t AnyBuffer> for &'t Buffer<$base<$param>> {
+            type Error = BadVariant;
+            fn try_from(t:&'t AnyBuffer) -> Result <&'t Buffer<$base<$param>>,Self::Error> {
+                match t {
+                    AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
+                    _ => Err(BadVariant)
+                }
             }
         }
-    }
 
-    impl<'t>
-    TryFrom<&'t mut AnyBuffer>
-    for &'t mut Buffer<$base<$param>> {
-        type Error = BadVariant;
-        fn try_from(v: &'t mut AnyBuffer)
-        -> Result <&'t mut Buffer<$base<$param>>, Self::Error> {
-            match v {
-                AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
-                _ => Err(BadVariant)
+        impl<'t> TryFrom<&'t mut AnyBuffer> for &'t mut Buffer<$base<$param>> {
+            type Error = BadVariant;
+            fn try_from(t:&'t mut AnyBuffer) -> Result <&'t mut Buffer<$base<$param>>,Self::Error> {
+                match t {
+                    AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
+                    _ => Err(BadVariant)
+                }
             }
         }
-    }
-
-    )* // ======================================================================
-}
-}}
+    )*
+}}}
 
 
-macro_rules! with_all_possible_attribute_types {
+macro_rules! with_all_attribute_types {
     ($f:ident) => {
-        cartesian!($f, [Identity,Vector2,Vector3,Vector4,Matrix4], [f32]);
+        shapely::cartesian!($f _ [Identity Vector2 Vector3 Vector4 Matrix4] [f32]);
     }
 }
 
@@ -470,10 +367,11 @@ macro_rules! with_all_possible_attribute_types {
 type Identity<T> = T;
 
 
-with_all_possible_attribute_types!(mk_any_buffer_impl);
+with_all_attribute_types!(define_any_buffer);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]
+#[allow(missing_docs)]
 pub trait IsBuffer {
     fn add_element(&self);
     fn len(&self) -> usize;

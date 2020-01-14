@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::data::Empty;
 
 
@@ -49,7 +49,7 @@ impl<T> ShaderData<T> for &str {
     fn to_glsl (&self) -> String { (*self).into() }
 }
 
-impl<T:GpuData+PartialEq> ShaderData<T> for T {
-    fn is_zero (&self) -> bool   { <T as Empty>       :: is_empty(self) }
-    fn to_glsl (&self) -> String { <T as GpuData> :: to_glsl(self)  }
+impl<T: BufferItem +PartialEq> ShaderData<T> for T {
+    fn is_zero (&self) -> bool   { <T as Empty>   :: is_empty(self) }
+    fn to_glsl (&self) -> String { <T as BufferItem> :: to_glsl(self)  }
 }

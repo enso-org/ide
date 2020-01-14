@@ -7,6 +7,7 @@
 
 pub mod attribute;
 pub mod class;
+pub mod gl_enum;
 pub mod texture;
 pub mod uniform;
 

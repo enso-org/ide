@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::BufferItem;
 use crate::display::render::webgl::glsl;
 use crate::display::symbol::shader::builder::CodeTemplete;
 
@@ -61,18 +61,17 @@ impl Material {
     }
 
     /// Adds a new input variable.
-    pub fn add_input<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+    pub fn add_input<Name:Str,T: BufferItem>(&mut self, name:Name, t:T) {
         self.inputs.insert(name.into(),Self::make_var_decl(t));
     }
 
     /// Adds a new output variable.
-    pub fn add_output<Name:Str,T:GpuData>(&mut self, name:Name, t:T) {
+    pub fn add_output<Name:Str,T: BufferItem>(&mut self, name:Name, t:T) {
         self.outputs.insert(name.into(),Self::make_var_decl(t));
     }
 
-    fn make_var_decl<T:GpuData>(t:T) -> VarDecl {
-
-        VarDecl::new(<T as GpuData>::glsl_type(),Some(t.to_glsl()))
+    fn make_var_decl<T: BufferItem>(t:T) -> VarDecl {
+        VarDecl::new(glsl::PrimType::from_phantom::<T>(), Some(t.to_glsl()))
     }
 }
 

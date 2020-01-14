@@ -191,14 +191,57 @@ macro_rules! group {
     }};
 }
 
+//#[macro_export]
+//macro_rules! info {
+//    ($logger:expr, $message:expr) => {{
+//        $logger.info(||iformat!($message));
+//    }};
+//    ($logger:expr, $message:expr, $body:tt) => {{
+//        let __logger = $logger.clone();
+//        __logger.group_begin(||iformat!($message));
+//        let out = $body;
+//        __logger.group_end();
+//        out
+//    }};
+//}
+
+//#[macro_export]
+//macro_rules! warning {
+//    ($logger:expr, $message:expr) => {{
+//        $logger.warning(||iformat!($message));
+//    }};
+//    ($logger:expr, $message:expr, $body:tt) => {{
+//        let __logger = $logger.clone();
+//        __logger.group_begin(||iformat!($message));
+//        let out = $body;
+//        __logger.group_end();
+//        out
+//    }};
+//}
+
+
+
+
+
+
+
+
 #[macro_export]
-macro_rules! info {
-    ($logger:expr, $message:expr) => {{
-        $logger.info(||iformat!($message));
+macro_rules! log_template {
+    ($method:ident $logger:expr, $message:tt $($rest:tt)*) => {
+        $crate::log_template_impl! {$method $logger, iformat!($message) $($rest)*}
+    };
+}
+
+
+#[macro_export]
+macro_rules! log_template_impl {
+    ($method:ident $logger:expr, $expr:expr) => {{
+        $logger.$method(|| $expr);
     }};
-    ($logger:expr, $message:expr, $body:tt) => {{
+    ($method:ident $logger:expr, $expr:expr, $body:tt) => {{
         let __logger = $logger.clone();
-        __logger.group_begin(||iformat!($message));
+        __logger.group_begin(|| $expr);
         let out = $body;
         __logger.group_end();
         out
@@ -206,18 +249,50 @@ macro_rules! info {
 }
 
 #[macro_export]
-macro_rules! warning {
-    ($logger:expr, $message:expr) => {{
-        $logger.warning(||iformat!($message));
-    }};
-    ($logger:expr, $message:expr, $body:tt) => {{
-        let __logger = $logger.clone();
-        __logger.group_begin(||iformat!($message));
-        let out = $body;
-        __logger.group_end();
-        out
-    }};
+macro_rules! with_internal_bug_message { ($f:ident $($args:tt)*) => { $crate::$f! {
+"This is a bug. We will be thankful if you report it and provide us with as much information as \
+possible at https://github.com/luna/enso/issues. Thank you!"
+$($args)*
+}};}
+
+#[macro_export]
+macro_rules! log_internal_bug_template {
+    ($($toks:tt)*) => {
+        $crate::with_internal_bug_message! { log_internal_bug_template_impl $($toks)* }
+    };
 }
+
+#[macro_export]
+macro_rules! log_internal_bug_template_impl {
+    ($note:tt $method:ident $logger:expr, $message:tt $($rest:tt)*) => {
+        $crate::log_template_impl! {$method $logger,
+            format!("Internal Error. {}\n\n{}",iformat!($message),$note) $($rest)*
+        }
+    };
+}
+
+
+#[macro_export]
+macro_rules! info {
+    ($($toks:tt)*) => {
+        $crate::log_template! {info $($toks)*}
+    };
+}
+
+#[macro_export]
+macro_rules! warning {
+    ($($toks:tt)*) => {
+        $crate::log_template! {warning $($toks)*}
+    };
+}
+
+#[macro_export]
+macro_rules! internal_warning {
+    ($($toks:tt)*) => {
+        $crate::log_internal_bug_template! {warning $($toks)*}
+    };
+}
+
 
 
 

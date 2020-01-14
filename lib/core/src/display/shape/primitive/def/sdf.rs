@@ -13,7 +13,7 @@ use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
-use crate::system::gpu::data::GpuData;
+use crate::system::gpu::data::BufferItem;
 
 
 
@@ -97,7 +97,7 @@ pub trait SdfShape {
 ///             let body = "return bound_sdf(length(position)-radius, bounding_box(radius,radius));";
 ///             let args = vec![
 ///                 "vec2 position".to_string(),
-///                 format!("{} {}", <$f32 as GpuData>::gpu_type_name(), "radius")
+///                 format!("{} {}", <$f32 as BufferItem>::gpu_type_name(), "radius")
 ///                 ].join(", ");
 ///             format!("sdf {} ({}) {{ {} }}",self.glsl_name,args,body)
 ///         }
@@ -156,7 +156,7 @@ macro_rules! _define_sdf_shape_immutable_part {
                 let name = stringify!($name).to_snake_case();
                 let body = stringify!($body);
                 let args = vec!["vec2 position".to_string(), $(
-                    format!("{} {}", <$field_type as GpuData>::glsl_type_name(), stringify!($field))
+                    format!("{} {}", <$field_type as BufferItem>::glsl_type_name(), stringify!($field))
                 ),*].join(", ");
                 iformat!("BoundSdf {name} ({args}) {body}")
             }
