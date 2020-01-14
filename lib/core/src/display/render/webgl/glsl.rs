@@ -6,7 +6,9 @@
 use crate::prelude::*;
 
 use crate::data::container::Add;
+
 use code_builder::{CodeBuilder, HasCodeRepr};
+use nalgebra::*;
 use shapely::derive_clone_plus;
 
 
@@ -446,6 +448,7 @@ pub struct LinkageStorage {
 #[derive(Clone,Debug)]
 pub enum InterpolationStorage {Smooth, Flat}
 
+
 // === Printers ===
 
 impl HasCodeRepr for Layout {
@@ -632,4 +635,36 @@ impl HasCodeRepr for Module {
         }
         builder.add(&self.main);
     }
+}
+
+
+// ============================
+// === PrimType Conversions ===
+// ============================
+
+macro_rules! define_glsl_prim_type_conversions {
+    ($($ty:ty => $name:ident),* $(,)?) => {$(
+        impl From<PhantomData<$ty>> for PrimType {
+            fn from(_:PhantomData<$ty>) -> Self {
+                Self::$name
+            }
+        }
+    )*}
+}
+
+define_glsl_prim_type_conversions! {
+    i32            => Int,
+    f32            => Float,
+    Vector2<f32>   => Vec2,
+    Vector3<f32>   => Vec3,
+    Vector4<f32>   => Vec4,
+    Matrix2<f32>   => Mat2,
+    Matrix3<f32>   => Mat3,
+    Matrix4<f32>   => Mat4,
+    Matrix2x3<f32> => Mat2x3,
+    Matrix2x4<f32> => Mat2x4,
+    Matrix3x2<f32> => Mat3x2,
+    Matrix3x4<f32> => Mat3x4,
+    Matrix4x2<f32> => Mat4x2,
+    Matrix4x3<f32> => Mat4x3,
 }

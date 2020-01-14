@@ -180,13 +180,15 @@ impl<T, P> WithPhantom<T, P> {
 /// ```compile_fail
 /// let val = GlEnum::from_phantom::<Int>()
 /// ```
-pub trait FromPhantom {
+pub trait FromPhantomImpl {
     fn from_phantom<P>() -> Self where Self: From<PhantomData<P>> {
         Self::from(PhantomData::<P>)
     }
 }
-impl<T> FromPhantom for T {}
+impl<T> FromPhantomImpl for T {}
 
+/// Trait alias for `From<PhantomData<T>>`.
+pub trait FromPhantom<T> = From<PhantomData<T>>;
 
 
 

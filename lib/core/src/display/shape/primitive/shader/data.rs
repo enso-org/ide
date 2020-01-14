@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::system::gpu::data::BufferItem;
-use crate::system::gpu::data::Empty;
+use crate::system::gpu::data::ShaderDefault;
 
 
 
@@ -50,6 +50,6 @@ impl<T> ShaderData<T> for &str {
 }
 
 impl<T: BufferItem +PartialEq> ShaderData<T> for T {
-    fn is_zero (&self) -> bool   { <T as Empty>   :: is_empty(self) }
-    fn to_glsl (&self) -> String { <T as BufferItem> :: to_glsl(self)  }
+    fn is_zero (&self) -> bool   { <T as ShaderDefault> :: is_shader_default(self) }
+    fn to_glsl (&self) -> String { <T as BufferItem>    :: to_glsl(self)  }
 }

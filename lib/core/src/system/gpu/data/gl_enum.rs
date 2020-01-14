@@ -1,5 +1,10 @@
 //! This module defines a wrapper for WebGL enums and associated utils.
 
+use crate::prelude::*;
+use crate::display::render::webgl::Context;
+
+
+
 // ==============
 // === GlEnum ===
 // ==============
@@ -42,27 +47,47 @@ impl<T> GlEnumOps for T where for<'a> &'a T:Into<GlEnum> {
     }
 }
 
+/// Methods for every object which implements `Into<GlEnum>`.
+pub trait IsGlEnum {
+    /// Converts the current value to `GlEnum`.
+    fn gl_enum<G:From<GlEnum>>() -> G;
+}
+
+impl<T> IsGlEnum for T where GlEnum: FromPhantom<T> {
+    fn gl_enum<G:From<GlEnum>>() -> G {
+        GlEnum::from_phantom::<Self>().into()
+    }
+}
+
 
 
 // ==============
 // === Macros ===
 // ==============
 
-/// Defines singleton types, just like `define_singletons`. Then it also defines conversions
-/// `From<$singleton>` and `From<PhantomData<$singleton>>` for every singleton type.
+/// Combination of `define_singletons` and `define_gl_enum_conversions`.
 #[macro_export]
 macro_rules! define_singletons_gl {
     ( $( $(#$meta:tt)* $name:ident = $expr:expr ),* $(,)? ) => {
         shapely::define_singletons!{ $( $(#$meta)* $name),* }
+        $crate::define_gl_enum_conversions!{ $( $(#$meta)* $name = $expr ),* }
+    }
+}
+
+
+/// Defines conversions `From<$type>` and `From<PhantomData<$type>>` for every provided type.
+#[macro_export]
+macro_rules! define_gl_enum_conversions {
+    ( $( $(#$meta:tt)* $type:ty = $expr:expr ),* $(,)? ) => {
         $(
-            impl From<$name> for GlEnum {
-                fn from(_:$name) -> Self {
+            impl From<$type> for GlEnum {
+                fn from(_:$type) -> Self {
                     $expr.into()
                 }
             }
 
-            impl From<PhantomData<$name>> for GlEnum {
-                fn from(_:PhantomData<$name>) -> Self {
+            impl From<PhantomData<$type>> for GlEnum {
+                fn from(_:PhantomData<$type>) -> Self {
                     $expr.into()
                 }
             }
@@ -92,4 +117,14 @@ macro_rules! define_singleton_enum_gl {
             }
         }
     }
+}
+
+
+// ================================
+// === Primitive Type Instances ===
+// ================================
+
+define_gl_enum_conversions! {
+    i32 = Context::INT,
+    f32 = Context::FLOAT,
 }
