@@ -4,13 +4,12 @@ use crate::prelude::*;
 
 use crate::closure;
 use crate::data::dirty;
+use crate::data::OptVec;
 use crate::debug::Stats;
-use crate::system::gpu::shader::Context;
-use data::opt_vec::OptVec;
+use crate::system::gpu::Context;
 
 use crate::data::dirty::traits::*;
 use crate::system::gpu::types::*;
-
 
 
 
@@ -23,15 +22,15 @@ use crate::system::gpu::types::*;
 /// describes.
 #[derive(Debug)]
 pub struct AttributeScope {
-    buffers      : OptVec<AnyBuffer>,
-    buffer_dirty : BufferDirty,
-    shape_dirty  : ShapeDirty,
-    name_map     : HashMap<String,BufferIndex>,
-    logger       : Logger,
-    free_ids     : Vec<InstanceIndex>,
-    size         : usize,
-    context      : Context,
-    stats        : Stats,
+    buffers         : OptVec<AnyBuffer>,
+    buffer_dirty    : BufferDirty,
+    shape_dirty     : ShapeDirty,
+    buffer_name_map : HashMap<String,BufferIndex>,
+    logger          : Logger,
+    free_ids        : Vec<InstanceIndex>,
+    size            : usize,
+    context         : Context,
+    stats           : Stats,
 }
 
 
@@ -68,11 +67,11 @@ impl AttributeScope {
         let buffer_dirty  = BufferDirty::new(buffer_logger,Box::new(on_mut.clone()));
         let shape_dirty   = ShapeDirty::new(shape_logger,Box::new(on_mut));
         let buffers       = default();
-        let name_map      = default();
+        let buffer_name_map      = default();
         let free_ids      = default();
         let size          = default();
         let context       = context.clone();
-        Self {context,buffers,buffer_dirty,shape_dirty,name_map,logger,free_ids,size,stats}
+        Self {context,buffers,buffer_dirty,shape_dirty,buffer_name_map,logger,free_ids,size,stats}
     }
 }
 
@@ -92,7 +91,7 @@ impl AttributeScope {
             let buffer     = Buffer::new(logger,&self.stats,context,on_set,on_resize);
             let buffer_ref = buffer.clone();
             self.buffers.set(ix, AnyBuffer::from(buffer));
-            self.name_map.insert(name, ix);
+            self.buffer_name_map.insert(name, ix);
             self.shape_dirty.set();
             buffer_ref
         })
@@ -100,12 +99,12 @@ impl AttributeScope {
 
     /// Lookups buffer by a given name.
     pub fn buffer(&self, name:&str) -> Option<&AnyBuffer> {
-        self.name_map.get(name).map(|i| &self.buffers[*i])
+        self.buffer_name_map.get(name).map(|i| &self.buffers[*i])
     }
 
     /// Checks if a buffer with the given name was created in this scope.
     pub fn contains<S:Str>(&self, name:S) -> bool {
-        self.name_map.contains_key(name.as_ref())
+        self.buffer_name_map.contains_key(name.as_ref())
     }
 
     /// Adds a new instance to every buffer in the scope.

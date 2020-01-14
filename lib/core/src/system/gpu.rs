@@ -13,3 +13,4 @@ pub mod types {
     /// Alias for WebGl2RenderingContext.
     pub type Context = WebGl2RenderingContext;
 }
+pub use types::*;
