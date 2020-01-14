@@ -125,6 +125,17 @@ pub type Cols <T> = <T as BufferItem>::Cols;
 
 // === Instances ===
 
+impl BufferItem for bool {
+    type Item = Self;
+    type Rows = U1;
+    type Cols = U1;
+
+    fn slice_from_items     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn slice_from_items_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+    fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Item] { buffer }
+    fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
+}
+
 impl BufferItem for i32 {
     type Item = Self;
     type Rows = U1;
@@ -216,6 +227,13 @@ pub trait JsBufferView {
 
 
 // === Instances ===
+
+impl JsBufferView for [bool] {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        let i32arr = self.iter().cloned().map(|t| if t {1} else {0}).collect::<Vec<i32>>();
+        js_sys::Int32Array::view(&i32arr).into()
+    }
+}
 
 impl JsBufferView for [i32] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {

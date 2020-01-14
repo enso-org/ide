@@ -74,6 +74,12 @@ impl From<&str> for Glsl {
     }
 }
 
+impl From<bool> for Glsl {
+    fn from(t:bool) -> Self {
+        t.to_string().into()
+    }
+}
+
 impl From<i32> for Glsl {
     fn from(t:i32) -> Self {
         t.to_string().into()
@@ -757,14 +763,26 @@ macro_rules! define_glsl_prim_type_conversions {
 }
 
 define_glsl_prim_type_conversions! {
+    bool           => Bool,
     i32            => Int,
     f32            => Float,
+
     Vector2<f32>   => Vec2,
     Vector3<f32>   => Vec3,
     Vector4<f32>   => Vec4,
+
+    Vector2<i32>   => IVec2,
+    Vector3<i32>   => IVec3,
+    Vector4<i32>   => IVec4,
+
+    Vector2<bool>  => BVec2,
+    Vector3<bool>  => BVec3,
+    Vector4<bool>  => BVec4,
+
     Matrix2<f32>   => Mat2,
     Matrix3<f32>   => Mat3,
     Matrix4<f32>   => Mat4,
+
     Matrix2x3<f32> => Mat2x3,
     Matrix2x4<f32> => Mat2x4,
     Matrix3x2<f32> => Mat3x2,

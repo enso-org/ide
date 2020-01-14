@@ -15,11 +15,11 @@ use crate::display::render::webgl::Context;
 use crate::system::gpu::data::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
 use crate::system::gpu::data::buffer::item::JsBufferView;
-use crate::system::gpu::data::BufferItem;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
 use crate::system::web::Logger;
 
+use crate::system::gpu::data::prim::*;
 use crate::data::dirty::traits::*;
 use crate::system::gpu::data::gl_enum::traits::*;
 
@@ -32,6 +32,10 @@ use shapely::shared;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
+
+
+pub use crate::system::gpu::data::BufferItem;
+
 
 
 
@@ -100,6 +104,16 @@ impl<T:BufferItem> {
         })
     }
 
+    /// Returns the number of elements in the buffer.
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Checks if the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
     /// Reads the usage pattern of the buffer.
     pub fn usage(&self) -> BufferUsage {
         self.usage
@@ -109,16 +123,6 @@ impl<T:BufferItem> {
     pub fn set_usage(&mut self, usage:BufferUsage) {
         self.usage = usage;
         self.resize_dirty.set();
-    }
-
-    /// Returns the number of elements in the buffer.
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
-
-    /// Checks if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
     }
 
     /// Gets a copy of the data by its index.
@@ -323,7 +327,7 @@ use enum_dispatch::*;
 pub struct BadVariant;
 
 macro_rules! define_any_buffer {
-([$([$base:ident $param:ident])*]) => { paste::item! {
+([] [$([$base:ident $param:ident])*]) => { paste::item! {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
@@ -359,19 +363,9 @@ macro_rules! define_any_buffer {
 }}}
 
 
-macro_rules! with_all_attribute_types {
-    ($f:ident) => {
-        shapely::cartesian!($f _ [Identity Vector2 Vector3 Vector4 Matrix4] [f32]);
-    }
-}
-
-
 // === Definition ===
 
-type Identity<T> = T;
-
-
-with_all_attribute_types!(define_any_buffer);
+crate::with_all_prim_types!([[define_any_buffer] []]);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]

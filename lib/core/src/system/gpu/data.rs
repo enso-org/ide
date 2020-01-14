@@ -9,6 +9,7 @@ pub mod attribute;
 pub mod buffer;
 pub mod default;
 pub mod gl_enum;
+pub mod prim;
 pub mod sized;
 pub mod texture;
 pub mod uniform;
@@ -23,13 +24,16 @@ pub use buffer::item::*;
 pub use default::*;
 pub use uniform::*;
 
-/// ...
+/// Common types.
 pub mod types {
     use super::*;
-    pub use uniform::Uniform;
-    pub use uniform::UniformScope;
-    pub use attribute::Buffer;
     pub use attribute::Attribute;
     pub use attribute::AttributeScope;
+    pub use buffer::AnyBuffer;
+    pub use buffer::Buffer;
+    pub use buffer::BufferItem;
+    pub use prim::*;
+    pub use uniform::Uniform;
+    pub use uniform::UniformScope;
 }
 pub use types::*;

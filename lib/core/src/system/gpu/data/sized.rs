@@ -32,6 +32,10 @@ pub type GpuByteSize<T> = <T as GpuKnownSize>::GpuByteSize;
 
 // === Instances ===
 
+impl GpuKnownSize for bool {
+    type GpuByteSize = U4;
+}
+
 impl GpuKnownSize for i32 {
     type GpuByteSize = U4;
 }

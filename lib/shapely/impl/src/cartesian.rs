@@ -22,24 +22,24 @@
 /// ```
 #[macro_export]
 macro_rules! cartesian {
-    ($f:ident $args:tt [$($a:tt)*] [$($b:tt)*]) => {
-        $crate::_cartesian_impl!{ $f $args [] [$($a)*] [$($b)*] [$($b)*] }
+    ($f:tt [$($a:tt)*] [$($b:tt)*]) => {
+        $crate::_cartesian_impl!{ $f [] [$($a)*] [$($b)*] [$($b)*] }
     };
 }
 
 /// Internal helper for `cartesian` macro.
 #[macro_export]
 macro_rules! _cartesian_impl {
-    ($f:ident _ $out:tt [] $b:tt $init_b:tt) => {
+    ([[$f:path]] $out:tt [] $b:tt $init_b:tt) => {
         $f!{ $out }
     };
-    ($f:ident $args:tt $out:tt [] $b:tt $init_b:tt) => {
+    ([[$f:path] $args:tt] $out:tt [] $b:tt $init_b:tt) => {
         $f!{ $args $out }
     };
-    ($f:ident $args:tt $out:tt [$a:ident $($at:tt)*] [] $init_b:tt) => {
-        $crate::_cartesian_impl!{ $f $args $out [$($at)*] $init_b $init_b }
+    ($f:tt $out:tt [$a:ident $($at:tt)*] [] $init_b:tt) => {
+        $crate::_cartesian_impl!{ $f $out [$($at)*] $init_b $init_b }
     };
-    ($f:ident $args:tt [$($out:tt)*] [$a:ident $($at:tt)*] [$b:ident $($bt:tt)*] $init_b:tt) => {
-        $crate::_cartesian_impl!{ $f $args [$($out)* [$a $b]] [$a $($at)*] [$($bt)*] $init_b }
+    ($f:tt [$($out:tt)*] [$a:ident $($at:tt)*] [$b:ident $($bt:tt)*] $init_b:tt) => {
+        $crate::_cartesian_impl!{ $f [$($out)* [$a $b]] [$a $($at)*] [$($bt)*] $init_b }
     };
 }

@@ -131,6 +131,7 @@ macro_rules! define_singleton_enum_gl {
 // ================================
 
 define_gl_enum_conversions! {
-    i32 = Context::INT,
-    f32 = Context::FLOAT,
+    bool = Context::BOOL,
+    i32  = Context::INT,
+    f32  = Context::FLOAT,
 }

@@ -5,7 +5,6 @@ pub use crate::system::gpu::data;
 
 pub mod types {
     pub use crate::system::gpu::data::types::*;
-    pub use crate::system::gpu::data::attribute::types::*;
     pub use super::Mesh;
 }
 pub use types::*;

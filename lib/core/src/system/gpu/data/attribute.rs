@@ -1,18 +1,19 @@
 #![allow(missing_docs)]
 
 use crate::prelude::*;
+use crate::system::gpu::types::*;
 
 use crate::closure;
-use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::buffer::IsBuffer;
 use crate::system::gpu::data::BufferItem;
-use crate::system::gpu::data::buffer;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use data::opt_vec::OptVec;
+
+use crate::data::dirty::traits::*;
 
 
 
@@ -25,34 +26,25 @@ use data::opt_vec::OptVec;
 /// describes.
 #[derive(Debug)]
 pub struct AttributeScope {
-    pub buffers      : OptVec<AnyBuffer>,
-    pub buffer_dirty : BufferDirty,
-    pub shape_dirty  : ShapeDirty,
-    pub name_map     : HashMap<String,BufferIndex>,
-    pub logger       : Logger,
-    free_ids         : Vec<InstanceIndex>,
-    size             : usize,
-    context          : Context,
-    stats            : Stats,
+    buffers      : OptVec<AnyBuffer>,
+    buffer_dirty : BufferDirty,
+    shape_dirty  : ShapeDirty,
+    name_map     : HashMap<String,BufferIndex>,
+    logger       : Logger,
+    free_ids     : Vec<InstanceIndex>,
+    size         : usize,
+    context      : Context,
+    stats        : Stats,
 }
 
 
 // === Types ===
 
-pub mod types {
-    use super::*;
-
-    pub use buffer::AnyBuffer;
-    pub use buffer::Buffer;
-
-    pub type InstanceIndex = usize;
-    pub type BufferIndex   = usize;
-
-}
-pub use types::*;
-
+pub type InstanceIndex = usize;
+pub type BufferIndex   = usize;
 pub type BufferDirty   = dirty::SharedBitField<u64,Box<dyn Fn()>>;
 pub type ShapeDirty    = dirty::SharedBool<Box<dyn Fn()>>;
+
 
 // === Callbacks ===
 
