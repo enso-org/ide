@@ -114,6 +114,10 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 
 
 
+// ========
+// === GLSL
+
+
 // ===============
 // === GpuData ===
 // ===============
@@ -199,7 +203,7 @@ pub trait GpuData : Copy + Empty + JSBufferViewArr {
         Self::glsl_type().to_code()
     }
 
-    /// Converts the data to GLSL value.
+    /// Converts the data to GLSL value. Returns None if data are not represented by GLSL literal.
     fn to_glsl(&self) -> String;
 }
 
@@ -223,9 +227,11 @@ impl GpuData for i32 {
     fn from_buffer_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
+
     fn glsl_item_type_code     () -> u32            { Context::INT }
     fn glsl_type               () -> glsl::PrimType { glsl::PrimType::Int }
     fn to_glsl                 (&self) -> String    { self.to_string() }
+
 }
 
 impl JSBufferView for [i32] {

@@ -207,11 +207,11 @@ impl<Value> Uniform<Value> where Context : ContextUniformOps<Value> {
     }
 }
 
-impl<Value> Uniform<Value> where Context : ContextTextureOps<Value> {
+impl<Value> Uniform<Value> where Context : ContextTextureOps<Value,Guard=TextureBindingGuard> {
     /// Bind texture in this WebGl context.
-    pub fn bind_texture(&self, context:&Context) {
+    pub fn bind_texture_unit(&self, context:&Context, unit:u32) -> TextureBindingGuard {
         let value = &self.rc.borrow().value;
-        ContextTextureOps::bind_texture(context,value);
+        context.bind_texture_unit(value,unit)
     }
 }
 
@@ -290,7 +290,7 @@ crate::with_all_texture_types!(gen_any_texture_uniform);
 
 #[enum_dispatch]
 pub trait AnyTextureUniformOps {
-    fn bind_texture(&self, context:&Context);
+    fn bind_texture_unit(&self, context:&Context, unit:u32) -> TextureBindingGuard;
 }
 
 

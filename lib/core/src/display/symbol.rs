@@ -38,9 +38,7 @@ use shader::Shader;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
-
-
-
+use crate::system::gpu::data::texture::TextureBindingGuard;
 
 
 /// Binds input variable definition in shader to both its location and an uniform declaration.
@@ -83,9 +81,8 @@ impl TextureBinding {
         Self {name,location,uniform,texture_unit}
     }
 
-    pub fn bind_texture(&self, context:&Context) {
-        context.active_texture(self.texture_unit);
-        self.uniform.bind_texture(context);
+    pub fn bind_texture_unit(&self, context:&Context) -> TextureBindingGuard {
+        self.uniform.bind_texture_unit(context,self.texture_unit)
     }
 
     pub fn upload_uniform(&self, context:&Context) {
@@ -294,8 +291,9 @@ impl Symbol {
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
         opt_location.map(|location|{
-            let get_default = || binding.decl.default.clone();
-            let uniform     = self.global_scope.get(name).unwrap_or_else(get_default);
+            let uniform = self.global_scope.get(name).unwrap_or_else(||{
+                panic!("Internal error. Variable {} not found in program.",name)
+            });
             match uniform {
                 AnyUniform::Prim(uniform) =>
                     self.uniforms.push(UniformBinding::new(name,location,uniform)),
@@ -366,9 +364,8 @@ impl Symbol {
                 for binding in &self.uniforms {
                     binding.upload(&self.context);
                 }
-                for binding in &self.textures {
-                    binding.bind_texture(&self.context);
-                }
+                let bind_texture_unit  = |b:&TextureBinding| b.bind_texture_unit(&self.context);
+                let _tex_unit_bindings = self.textures.iter().map(bind_texture_unit).collect_vec();
 
                 let mode           = webgl::Context::TRIANGLE_STRIP;
                 let first          = 0;

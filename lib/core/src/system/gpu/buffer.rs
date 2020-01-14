@@ -235,10 +235,10 @@ impl<T:GpuData> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as GpuData>::gpu_item_byte_size() as i32;
+        let item_byte_size = <T as GpuData>    ::gpu_item_byte_size() as i32;
         let item_type      = <T as GpuData>::glsl_item_type_code();
-        let rows           = <T as GpuData>::rows() as i32;
-        let cols           = <T as GpuData>::cols() as i32;
+        let rows           = <T as GpuData>    ::rows() as i32;
+        let cols           = <T as GpuData>    ::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;

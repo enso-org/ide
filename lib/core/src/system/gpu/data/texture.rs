@@ -301,7 +301,6 @@ pub mod internal_format {
 pub use internal_format::*;
 
 
-
 // ==============
 // === Format ===
 // ==============
@@ -644,18 +643,40 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
 /// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
 /// for making distinction in `Uniform` implementations.
 pub trait ContextTextureOps<Texture> {
-    /// Bind texture in this WebGl context.
-    fn bind_texture(&self, texture:&Texture);
+    /// A guard removing created binding at end of scope.
+    type Guard;
+    /// Bind texture for specific unit
+    fn bind_texture_unit(&self, texture:&Texture, unit:u32) -> Self::Guard;
 }
 
 impl<I,T> ContextTextureOps<BoundTexture<I,T>> for Context {
-    fn bind_texture(&self, texture:&BoundTexture<I,T>) {
+    type Guard = TextureBindingGuard;
+
+    fn bind_texture_unit(&self, texture:&BoundTexture<I,T>, unit:u32) -> Self::Guard {
+        let context    = self.clone();
         let target     = Context::TEXTURE_2D;
         let gl_texture = &texture.rc.borrow().gl_texture;
-        self.bind_texture(target,Some(gl_texture));
+        context.active_texture(unit);
+        context.bind_texture(target,Some(gl_texture));
+        context.active_texture(Context::TEXTURE0);
+        TextureBindingGuard {context,target,unit}
     }
 }
 
+/// Guard which unbinds texture in specific texture unit on drop.
+pub struct TextureBindingGuard {
+    context : Context,
+    target  : u32,
+    unit    : u32,
+}
+
+impl Drop for TextureBindingGuard {
+    fn drop(&mut self) {
+        self.context.active_texture(self.unit);
+        self.context.bind_texture(self.target,None);
+        self.context.active_texture(Context::TEXTURE0);
+    }
+}
 
 // === Utils ===
 

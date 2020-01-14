@@ -50,6 +50,6 @@ impl<T> ShaderData<T> for &str {
 }
 
 impl<T:GpuData+PartialEq> ShaderData<T> for T {
-    fn is_zero (&self) -> bool   { <T as Empty>   :: is_empty(self) }
+    fn is_zero (&self) -> bool   { <T as Empty>       :: is_empty(self) }
     fn to_glsl (&self) -> String { <T as GpuData> :: to_glsl(self)  }
 }
