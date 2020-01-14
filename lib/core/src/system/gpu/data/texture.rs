@@ -171,8 +171,6 @@ gen_prim_type_instances! {
 // === GL Types ===
 // ================
 
-
-
 macro_rules! gl_variants {
     ( $($name:ident = $expr:expr),* $(,)? ) => {$(
         #[allow(missing_docs)]

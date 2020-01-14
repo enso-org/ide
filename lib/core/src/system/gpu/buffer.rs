@@ -8,7 +8,6 @@ use crate::prelude::*;
 use crate::closure;
 use crate::control::callback::Callback;
 use crate::control::callback::CallbackFn;
-use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
@@ -16,11 +15,14 @@ use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
 use crate::system::gpu::buffer::item::JsBufferView;
-use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::BufferItem;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
 use crate::system::web::Logger;
+
+use crate::data::dirty::traits::*;
+use crate::system::gpu::data::gl_enum::traits::*;
+
 
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
@@ -168,10 +170,10 @@ impl<T:BufferItem> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
-        let item_type      = <T as BufferItem>::glsl_item_type_code().into();
-        let rows           = <T as BufferItem>::rows() as i32;
-        let cols           = <T as BufferItem>::cols() as i32;
+        let item_byte_size = T::item_gpu_byte_size() as i32;
+        let item_type      = T::item_gl_enum().into();
+        let rows           = T::rows() as i32;
+        let cols           = T::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;
@@ -181,7 +183,8 @@ impl<T:BufferItem> {
             self.context.enable_vertex_attrib_array(lloc);
             self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
             if instanced {
-                self.context.vertex_attrib_divisor(lloc, 1);
+                let instance_count = 1;
+                self.context.vertex_attrib_divisor(lloc,instance_count);
             }
         }
     }
@@ -234,20 +237,21 @@ impl<T: BufferItem> BufferData<T> {
             (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
         }
         crate::if_compiled_with_stats! {
-            let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as u32;
-            let item_count     = <T as BufferItem>::item_count() as u32;
+            let item_byte_size    = T::item_gpu_byte_size() as u32;
+            let item_count        = T::item_count() as u32;
+            let new_gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
             self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-            self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
-            self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
-            self.stats.mod_data_upload_size(|s| s + self.gpu_mem_usage);
+            self.stats.mod_gpu_memory_usage(|s| s + new_gpu_mem_usage);
+            self.stats.mod_data_upload_size(|s| s + new_gpu_mem_usage);
+            self.gpu_mem_usage = new_gpu_mem_usage;
         }
     }
 
     /// Updates the GPU sub-buffer data by the provided index range.
     fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
         let data            = self.as_slice();
-        let item_byte_size  = <T as BufferItem>::gpu_item_byte_size() as u32;
-        let item_count      = <T as BufferItem>::item_count() as u32;
+        let item_byte_size  = T::item_gpu_byte_size() as u32;
+        let item_count      = T::item_count() as u32;
         let start           = *range.start() as u32;
         let end             = *range.end() as u32;
         let start_item      = start * item_count;

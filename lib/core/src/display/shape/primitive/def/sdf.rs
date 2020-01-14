@@ -16,6 +16,8 @@ use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::data::BufferItem;
 use crate::display::render::webgl::glsl::Glsl;
 
+use crate::display::render::webgl::glsl::traits::*;
+
 
 
 // ================
@@ -157,7 +159,7 @@ macro_rules! _define_sdf_shape_immutable_part {
                 let name = stringify!($name).to_snake_case();
                 let body = stringify!($body);
                 let args = vec!["vec2 position".to_string(), $(
-                    format!("{} {}", <$field_type as BufferItem>::glsl_type_name(), stringify!($field))
+                    format!("{} {}", <$field_type as IsPrimType>::glsl_prim_type(), stringify!($field))
                 ),*].join(", ");
                 iformat!("BoundSdf {name} ({args}) {body}")
             }

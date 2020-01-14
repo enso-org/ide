@@ -30,33 +30,38 @@ impl From<GlEnum> for u32 {
 
 
 
-// =================
-// === GlEnumOps ===
-// =================
+// ==================
+// === Extensions ===
+// ==================
 
-/// Methods for every object which implements `Into<GlEnum>`.
-pub trait GlEnumOps {
-    /// Converts the current value to `GlEnum`.
-    fn to_gl_enum<G:From<GlEnum>>(&self) -> G;
-}
+/// Extension methods.
+pub mod traits {
+    use super::*;
 
-impl<T> GlEnumOps for T where for<'a> &'a T:Into<GlEnum> {
-    fn to_gl_enum<G:From<GlEnum>>(&self) -> G {
-        let g:GlEnum = self.into();
-        g.into()
+    /// Methods for every object which implements `Into<GlEnum>`.
+    pub trait GlEnumOps {
+        /// Converts the current value to `GlEnum`.
+        fn to_gl_enum<G:From<GlEnum>>(&self) -> G;
     }
-}
 
-/// Methods for every object which implements `Into<GlEnum>`.
-pub trait IsGlEnum {
-    /// Converts the current value to `GlEnum`.
-    fn gl_enum<G:From<GlEnum>>() -> G;
-}
+    impl<T> GlEnumOps for T where for<'a> &'a T:Into<GlEnum> {
+        fn to_gl_enum<G:From<GlEnum>>(&self) -> G {
+            let g:GlEnum = self.into();
+            g.into()
+        }
+    }
 
-impl<T> IsGlEnum for T where PhantomData<T>:Into<GlEnum> {
-    fn gl_enum<G:From<GlEnum>>() -> G {
-        let g:GlEnum = PhantomData::<T>.into();
-        g.into()
+    /// Methods for every object which implements `Into<GlEnum>`.
+    pub trait IsGlEnum {
+        /// Converts the current value to `GlEnum`.
+        fn gl_enum<G:From<GlEnum>>() -> G;
+    }
+
+    impl<T> IsGlEnum for T where PhantomData<T>:Into<GlEnum> {
+        fn gl_enum<G:From<GlEnum>>() -> G {
+            let g:GlEnum = PhantomData::<T>.into();
+            g.into()
+        }
     }
 }
 

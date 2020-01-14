@@ -55,16 +55,16 @@ impl Material {
     }
 
     /// Adds a new input variable.
-    pub fn add_input<Name:Str,T: BufferItem>(&mut self, name:Name, t:T) {
+    pub fn add_input<Name:Str,T:BufferItem>(&mut self, name:Name, t:T) {
         self.inputs.insert(name.into(),Self::make_var_decl(t));
     }
 
     /// Adds a new output variable.
-    pub fn add_output<Name:Str,T: BufferItem>(&mut self, name:Name, t:T) {
+    pub fn add_output<Name:Str,T:BufferItem>(&mut self, name:Name, t:T) {
         self.outputs.insert(name.into(),Self::make_var_decl(t));
     }
 
-    fn make_var_decl<T: BufferItem>(t:T) -> VarDecl {
+    fn make_var_decl<T:BufferItem>(t:T) -> VarDecl {
         VarDecl::new(glsl::PrimType::phantom_from::<T>(), t.into().into())
     }
 }

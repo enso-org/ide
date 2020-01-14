@@ -492,6 +492,18 @@ impl HasCodeRepr for PrimType {
     }
 }
 
+impl From<PrimType> for String {
+    fn from(t:PrimType) -> Self {
+        t.to_code()
+    }
+}
+
+impl Display for PrimType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",self.to_code())
+    }
+}
+
 
 
 // =================
@@ -735,6 +747,12 @@ macro_rules! define_glsl_prim_type_conversions {
                 Self::$name
             }
         }
+
+        impl From<PhantomData<$ty>> for Type {
+            fn from(_:PhantomData<$ty>) -> Self {
+                PrimType::$name.into()
+            }
+        }
     )*}
 }
 
@@ -753,4 +771,21 @@ define_glsl_prim_type_conversions! {
     Matrix3x4<f32> => Mat3x4,
     Matrix4x2<f32> => Mat4x2,
     Matrix4x3<f32> => Mat4x3,
+}
+
+
+// === Smart accessors ===
+
+/// Extension methods.
+pub mod traits {
+    use super::*;
+
+    /// Extension methods for every type which could be converted to `PrimType`.
+    pub trait IsPrimType: Sized + PhantomInto<PrimType> {
+        /// `PrimType` representation of the current type.
+        fn glsl_prim_type() -> PrimType {
+            Self::phantom_to()
+        }
+    }
+    impl<T:PhantomInto<PrimType>> IsPrimType for T {}
 }

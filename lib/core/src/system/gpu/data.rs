@@ -8,6 +8,7 @@
 pub mod attribute;
 pub mod shader_default;
 pub mod gl_enum;
+pub mod known_size;
 pub mod texture;
 pub mod uniform;
 

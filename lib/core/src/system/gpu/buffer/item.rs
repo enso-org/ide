@@ -3,20 +3,26 @@
 use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
-use crate::display::render::webgl::glsl;
-use crate::system::gpu::data::gl_enum::*;
-use crate::system::gpu::data::ShaderDefault;
 use crate::display::render::webgl::glsl::Glsl;
+use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::gl_enum::GlEnum;
+use crate::system::gpu::data::known_size::GpuKnownSize;
+use crate::system::gpu::data::ShaderDefault;
+
+use crate::display::render::webgl::glsl::traits::*;
+use crate::system::gpu::data::gl_enum::traits::*;
 
 use nalgebra::*;
 use web_sys::WebGlUniformLocation;
 use code_builder::HasCodeRepr;
 
 
+
 // =============
 // === Types ===
 // =============
 
+/// Common Matrix bounds used as super-bounds for many helpers in this module.
 pub trait MatrixCtx<T,R,C> = where
     T:Scalar, R:DimName, C:DimName,
     DefaultAllocator: nalgebra::allocator::Allocator<T,R,C>,
@@ -24,56 +30,9 @@ pub trait MatrixCtx<T,R,C> = where
 
 
 
-// =================
-// === IsUniform ===
-// =================
-
-
-//pub trait ContextUniformOps<T> {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&T);
-//}
-//
-//impl ContextUniformOps<i32> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&i32) {
-//        self.uniform1i(Some(location),*value);
-//    }
-//}
-//
-//impl ContextUniformOps<f32> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&f32) {
-//        self.uniform1f(Some(location),*value);
-//    }
-//}
-//
-//impl ContextUniformOps<Vector2<f32>> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector2<f32>) {
-//        self.uniform_matrix2fv_with_f32_array(Some(location),false,value.data.as_slice());
-//    }
-//}
-//
-//impl ContextUniformOps<Vector3<f32>> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector3<f32>) {
-//        self.uniform_matrix3fv_with_f32_array(Some(location),false,value.data.as_slice());
-//    }
-//}
-//
-//impl ContextUniformOps<Vector4<f32>> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector4<f32>) {
-//        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
-//    }
-//}
-//
-//impl ContextUniformOps<Matrix4<f32>> for Context {
-//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Matrix4<f32>) {
-//        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
-//    }
-//}
-
-
-
-// ===============
-// === GpuData ===
-// ===============
+// ==================
+// === BufferItem ===
+// ==================
 
 // === Definition ===
 
@@ -84,7 +43,7 @@ pub trait ItemBounds = BufferItem + PhantomInto<GlEnum>;
 
 /// Super bounds of the `BufferItem` trait.
 pub trait BufferItemBounds =
-    Copy + ShaderDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl>;
+    Copy + ShaderDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl> + GpuKnownSize;
 
 /// Class for buffer items, like `f32` or `Vector<f32>`.
 ///
@@ -124,16 +83,6 @@ pub trait BufferItem: BufferItemBounds {
         Self::rows() * Self::cols()
     }
 
-    /// Returns the size in bytes in GPU memory of the type.
-    fn gpu_byte_size() -> usize {
-        Self::gpu_item_byte_size() * Self::item_count()
-    }
-
-    /// Returns the size in bytes in GPU memory of the primitive type of this type.
-    fn gpu_item_byte_size() -> usize {
-        Self::Item::gpu_byte_size()
-    }
-
 
     // === Conversions ===
 
@@ -150,17 +99,18 @@ pub trait BufferItem: BufferItemBounds {
     fn slice_to_items_mut(buffer: &mut [Self]) -> &mut [Self::Item];
 
 
-    // === GLSL ===
+    // === Temporary Helpers ===
 
     // TODO: Remove when it gets resolved: https://github.com/rust-lang/rust/issues/68210
     /// Returns the WebGL enum code representing the item type, like Context::FLOAT.
-    fn glsl_item_type_code() -> GlEnum {
+    fn item_gl_enum() -> GlEnum {
         Self::Item::gl_enum()
     }
 
-    /// Returns the GLSL type name, like `"float"` for `f32`.
-    fn glsl_type_name() -> String {
-        Self::phantom_to::<glsl::PrimType>().to_code()
+    // TODO: Remove when it gets resolved: https://github.com/rust-lang/rust/issues/68210
+    /// Returns the size in bytes in GPU memory of the primitive type of this type.
+    fn item_gpu_byte_size() -> usize {
+        Self::Item::gpu_byte_size()
     }
 }
 
@@ -184,7 +134,6 @@ impl BufferItem for i32 {
     type Rows = U1;
     type Cols = U1;
 
-    fn gpu_byte_size        () -> usize { 4 }
     fn slice_from_items     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
     fn slice_from_items_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
     fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Item] { buffer }
@@ -196,16 +145,15 @@ impl BufferItem for f32 {
     type Rows = U1;
     type Cols = U1;
 
-    fn gpu_byte_size           () -> usize { 4 }
-    fn slice_from_items             (buffer: &    [Self::Item]) -> &    [Self] { buffer }
-    fn slice_from_items_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
-    fn slice_to_items     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
-    fn slice_to_items_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
+    fn slice_from_items     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn slice_from_items_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+    fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Item] { buffer }
+    fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
 }
 
 
-impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:ShaderDefault + PhantomInto<glsl::PrimType> {
+impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
+    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:ShaderDefault + PhantomInto<glsl::PrimType> + GpuKnownSize {
     type Item = T;
     type Rows = R;
     type Cols = C;
@@ -214,20 +162,16 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
-        unsafe {
-            let len = buffer.len() / Self::item_count();
-            std::slice::from_raw_parts(buffer.as_ptr().cast(), len)
-        }
+        let len = buffer.len() / Self::item_count();
+        unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast(), len) }
     }
 
     fn slice_from_items_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
-        unsafe {
-            let len = buffer.len() / Self::item_count();
-            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        }
+        let len = buffer.len() / Self::item_count();
+        unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len) }
     }
 
     fn slice_to_items(buffer: &[Self]) -> &[Self::Item] {
@@ -242,10 +186,8 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
-        unsafe {
-            let len = buffer.len() * Self::item_count();
-            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        }
+        let len = buffer.len() * Self::item_count();
+        unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len) }
     }
 }
 
