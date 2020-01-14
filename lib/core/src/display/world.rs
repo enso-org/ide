@@ -255,7 +255,7 @@ impl WorldData {
         let display_mode           = variables.add_or_panic("display_mode",0);
 
         let txt1 = Texture::Rgba("https://webgl2fundamentals.org/webgl/resources/f-texture.png");
-        variables.add_or_panic("sample_image",txt1);
+        variables.add_or_panic("sample_image",&txt1);
 
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();

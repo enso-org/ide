@@ -31,7 +31,7 @@ pub trait Bindable {
 /// Result of the binding operation.
 pub type Bound<T> = <T as Bindable>::Result;
 
-impl<I:InternalFormat,T:PrimType> Bindable for Texture<I,T> {
+impl<I:InternalFormat,T:PrimType> Bindable for &Texture<I,T> {
     type Result = BoundTexture<I,T>;
     fn bind(self, context:&Context) -> Self::Result {
         BoundTexture::new(self,context)

@@ -72,13 +72,9 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 
 
 
-// ========
-// === GLSL
-
-
-// ===============
-// === GpuData ===
-// ===============
+// ==================
+// === BufferItem ===
+// ==================
 
 // === Definition ===
 
@@ -296,6 +292,12 @@ impl JsBufferView for [i32] {
 impl JsBufferView for [f32] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         js_sys::Float32Array::view(self).into()
+    }
+}
+
+impl JsBufferView for [u8] {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        js_sys::Uint8Array::view(self).into()
     }
 }
 

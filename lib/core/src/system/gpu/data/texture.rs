@@ -5,6 +5,8 @@
 use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
+use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::class::JsBufferViewArr;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
@@ -306,6 +308,7 @@ pub mod internal_format {
     }
 }
 pub use internal_format::*;
+use crate::system::gpu::data::JsBufferView;
 
 
 // ==============
@@ -462,12 +465,16 @@ with_texture_format_relations!(generate_internal_format_instances []);
 
 /// Source of the texture. Please note that the texture will be loaded asynchronously on demand.
 #[derive(Clone,Debug)]
-pub enum TextureSource {
+pub enum TextureSource<ElemType> {
+    /// Source which does not load any data but leave 1x1 mock texture.
+    Empty,
     /// URL the texture should be loaded from. This source implies asynchronous loading.
-    Url(String)
+    Url(String),
+    /// A vector with texture representation.
+    Array{data:Vec<ElemType>, width:i32, height:i32},
 }
 
-impl<S:Str> From<S> for TextureSource {
+impl<ElemType,S:Str> From<S> for TextureSource<ElemType> {
     fn from(s:S) -> Self {
         Self::Url(s.into())
     }
@@ -482,18 +489,18 @@ impl<S:Str> From<S> for TextureSource {
 /// Texture representation.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound="ElemType:Debug"))]
 pub struct Texture<InternalFormat,ElemType> {
-    source  : TextureSource,
-    phantom : PhantomData2<InternalFormat,ElemType>,
+    source          : TextureSource<ElemType>,
+    internal_format : PhantomData<InternalFormat>,
 }
 
 impl<I:InternalFormat,T:PrimType> Texture<I,T> {
     /// Constructor.
-    pub fn new<S:Into<TextureSource>>(source:S) -> Self {
-        let source  = source.into();
-        let phantom = PhantomData;
-        Self {source,phantom}
+    pub fn new<S:Into<TextureSource<T>>>(source:S) -> Self {
+        let source          = source.into();
+        let internal_format = PhantomData;
+        Self {source,internal_format}
     }
 
     /// Internal format instance of this texture. Please note, that this value could be computed
@@ -530,13 +537,18 @@ impl<I:InternalFormat,T:PrimType> Texture<I,T> {
 impl Texture<Rgba,u8> {
     /// Smart constructor.
     #[allow(non_snake_case)]
-    pub fn Rgba<S:Into<TextureSource>>(source:S) -> Self {
-        let source  = source.into();
-        let phantom = PhantomData;
-        Self {source,phantom}
+    pub fn Rgba<S:Into<TextureSource<u8>>>(source:S) -> Self {
+        let source          = source.into();
+        let internal_format = PhantomData;
+        Self {source,internal_format}
     }
 }
 
+impl<I,T> From<PhantomData<Texture<I,T>>> for glsl::PrimType {
+    fn from(_: PhantomData<Texture<I,T>>) -> Self {
+        Self::Sampler2D
+    }
+}
 
 
 // ====================
@@ -553,31 +565,30 @@ pub struct BoundTexture<I,T> {
 /// Texture bound to GL context.
 #[derive(Debug)]
 pub struct BoundTextureData<I,T> {
-    texture    : Texture<I,T>,
+//    texture    : Texture<I,T>,
     gl_texture : WebGlTexture,
     context    : Context,
+    phantom : PhantomData2<I,T>,
 }
 
 impl<I,T> BoundTextureData<I,T> {
     /// Constructor.
-    pub fn new(texture:Texture<I,T>,context:&Context) -> Self {
+    pub fn new(context:&Context) -> Self {
         let gl_texture = context.create_texture().unwrap();
         let context    = context.clone();
-        Self {texture,gl_texture,context}
+        let phantom    = PhantomData;
+        Self {gl_texture,context,phantom}
     }
-}
 
-impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
     /// Initializes default texture value. It is useful when the texture data needs to be downloaded
     /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
     /// until the download is complete.
     pub fn init_mock(&self) {
-        let texture         = &self.texture;
         let target          = Context::TEXTURE_2D;
         let level           = 0;
-        let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format();
-        let elem_type       = texture.gl_elem_type();
+        let internal_format = Context::RGBA as i32;
+        let format          = Context::RGBA;
+        let elem_type       = Context::UNSIGNED_BYTE;
         let width           = 1;
         let height          = 1;
         let border          = 0;
@@ -588,14 +599,14 @@ impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
+impl<I:InternalFormat,T:PrimType/* + JsBufferViewArr*/> BoundTexture<I,T> {
     /// Constructor.
-    pub fn new(texture:Texture<I,T>, context:&Context) -> Self {
-        let data = BoundTextureData::new(texture,context);
+    pub fn new(texture:&Texture<I,T>, context:&Context) -> Self {
+        let data = BoundTextureData::new(context);
         let rc   = Rc::new(RefCell::new(data));
         let out  = Self {rc};
         out.init_mock();
-        out.reload();
+        out.reload(texture);
         out
     }
 
@@ -608,9 +619,14 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
 
     /// Loads or re-loads the texture data from the provided source. If the source involves
     /// downloading the data, this action will be performed asynchronously.
-    pub fn reload(&self) {
-        let data = self.rc.borrow();
-        match &data.texture.source {
+    pub fn reload(&self, texture:&Texture<I,T>) {
+        let data            = self.rc.borrow();
+        let internal_format = texture.gl_internal_format();
+        let format          = texture.gl_format();
+        let elem_type       = texture.gl_elem_type();
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        match &texture.source {
             TextureSource::Url(url) => {
                 let image         = HtmlImageElement::new().unwrap();
                 let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
@@ -622,16 +638,10 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
                 let callback: Closure<dyn FnMut()> = Closure::once(move || {
                     let _keep_alive     = callback_ref2;
                     let data            = this.rc.borrow();
-                    let texture         = &data.texture;
                     let image           = image_ref_opt.borrow();
-                    let target          = Context::TEXTURE_2D;
-                    let level           = 0;
-                    let internal_format = texture.gl_internal_format();
-                    let format          = texture.gl_format();
-                    let elem_type       = texture.gl_elem_type();
                     data.context.bind_texture(target,Some(&data.gl_texture));
                     data.context.tex_image_2d_with_u32_and_u32_and_html_image_element
-                        (target,level,internal_format,format,elem_type,&image).unwrap();
+                    (target,level,internal_format,format,elem_type,&image).unwrap();
                 });
                 let js_callback = callback.as_ref().unchecked_ref();
                 let image       = image_ref.borrow();
@@ -640,10 +650,16 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
                 image.add_event_listener_with_callback("load",js_callback).unwrap();
                 *callback_ref.borrow_mut() = Some(callback);
             }
+            TextureSource::Array{data,width,height} => {
+//                let data   = data.js_buffer_view();
+//                let border = 0;
+//                context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
+//                (target,level,internal_format,*width,*height,border,format,elem_type,Some(&data));
+            }
+            TextureSource::Empty => {}
         }
     }
 }
-
 
 // === ContextTextureOps ===
 
