@@ -517,9 +517,9 @@ pub struct EmptyTexture();
 // === Texture from url ===
 
 pub struct TextureFromUrl<I,T> {
-    url       : String,
-    format    : PhantomData<I>,
-    elem_type : PhantomData<T>
+    pub url       : String,
+    pub format    : PhantomData<I>,
+    pub elem_type : PhantomData<T>
 }
 
 impl<I:InternalFormat,T:PrimType> Texture<I,T> for TextureFromUrl<I,T> {}
@@ -658,30 +658,30 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType + JsBufferViewArr> BoundTexture<I,T> {
+impl<I:InternalFormat,T:PrimType/* + JsBufferViewArr*/> BoundTexture<I,T> {
     pub fn new_from_memory(texture:&TextureFromMemory<'_,I,T>, context:&Context) -> Self {
         let data = BoundTextureData::new(context);
         let rc   = Rc::new(RefCell::new(data));
         let out  = Self {rc};
-        out.reload_from_memory(texture);
+//        out.reload_from_memory(texture);
         out
     }
 
-    pub fn reload_from_memory(&self, texture:&TextureFromMemory<'_,I,T>) {
-        let data            = &self.rc.borrow();
-        let context         = &data.context;
-        let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format();
-        let elem_type       = texture.gl_elem_type();
-        let target          = Context::TEXTURE_2D;
-        let level           = 0;
-        let border          = 0;
-        let width           = texture.width;
-        let height          = texture.height;
-        let view            = texture.view.js_buffer_view();
-        context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
-        (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
-    }
+//    pub fn reload_from_memory(&self, texture:&TextureFromMemory<'_,I,T>) {
+//        let data            = &self.rc.borrow();
+//        let context         = &data.context;
+//        let internal_format = texture.gl_internal_format();
+//        let format          = texture.gl_format();
+//        let elem_type       = texture.gl_elem_type();
+//        let target          = Context::TEXTURE_2D;
+//        let level           = 0;
+//        let border          = 0;
+//        let width           = texture.width;
+//        let height          = texture.height;
+//        let view            = texture.view.js_buffer_view();
+//        context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
+//        (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
+//    }
 }
 
 // TODO[ao]: The both IntoUniformValueImpl implementations should be generated only for valid I,T
