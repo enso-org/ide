@@ -24,7 +24,7 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl;
-use crate::system::gpu::buffer::IsBuffer;
+use crate::system::gpu::data::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyTextureUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniform;

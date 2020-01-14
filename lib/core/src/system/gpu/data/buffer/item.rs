@@ -2,19 +2,15 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl::Glsl;
 use crate::display::render::webgl::glsl;
 use crate::system::gpu::data::gl_enum::GlEnum;
-use crate::system::gpu::data::known_size::GpuKnownSize;
-use crate::system::gpu::data::ShaderDefault;
+use crate::system::gpu::data::sized::GpuKnownSize;
+use crate::system::gpu::data::GpuDefault;
 
-use crate::display::render::webgl::glsl::traits::*;
 use crate::system::gpu::data::gl_enum::traits::*;
 
 use nalgebra::*;
-use web_sys::WebGlUniformLocation;
-use code_builder::HasCodeRepr;
 
 
 
@@ -43,7 +39,7 @@ pub trait ItemBounds = BufferItem + PhantomInto<GlEnum>;
 
 /// Super bounds of the `BufferItem` trait.
 pub trait BufferItemBounds =
-    Copy + ShaderDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl> + GpuKnownSize;
+    Copy + GpuDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl> + GpuKnownSize;
 
 /// Class for buffer items, like `f32` or `Vector<f32>`.
 ///
@@ -153,7 +149,7 @@ impl BufferItem for f32 {
 
 
 impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:ShaderDefault + PhantomInto<glsl::PrimType> + GpuKnownSize {
+    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:GpuDefault + PhantomInto<glsl::PrimType> + GpuKnownSize {
     type Item = T;
     type Rows = R;
     type Cols = C;
@@ -197,6 +193,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
 // === JsBufferView ===
 // ====================
 
+/// Extension method for viewing into wasm's linear memory.
 pub trait JsBufferView {
     /// Creates a JS typed array which is a view into wasm's linear memory at the slice specified.
     ///

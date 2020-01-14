@@ -6,9 +6,10 @@
 //! https://www.khronos.org/opengl/wiki/Type_Qualifier_(GLSL)
 
 pub mod attribute;
-pub mod shader_default;
+pub mod buffer;
+pub mod default;
 pub mod gl_enum;
-pub mod known_size;
+pub mod sized;
 pub mod texture;
 pub mod uniform;
 
@@ -18,8 +19,8 @@ pub mod uniform;
 // =================
 
 pub use attribute::*;
-pub use super::buffer::item::*;
-pub use shader_default::*;
+pub use buffer::item::*;
+pub use default::*;
 pub use uniform::*;
 
 /// ...

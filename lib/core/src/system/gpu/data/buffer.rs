@@ -12,9 +12,9 @@ use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
-use crate::system::gpu::buffer::usage::BufferUsage;
+use crate::system::gpu::data::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
-use crate::system::gpu::buffer::item::JsBufferView;
+use crate::system::gpu::data::buffer::item::JsBufferView;
 use crate::system::gpu::data::BufferItem;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
@@ -138,7 +138,7 @@ impl<T:BufferItem> {
 
     /// Adds multiple new elements initialized to default values.
     pub fn add_elements(&mut self, elem_count:usize) {
-        self.extend(iter::repeat(T::shader_default()).take(elem_count));
+        self.extend(iter::repeat(T::gpu_default()).take(elem_count));
     }
 
     /// Check dirty flags and update the state accordingly.

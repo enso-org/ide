@@ -10,7 +10,7 @@ use crate::data::container::Add;
 use code_builder::{CodeBuilder, HasCodeRepr};
 use nalgebra::*;
 use shapely::derive_clone_plus;
-use crate::system::gpu::buffer::item::MatrixCtx;
+use crate::system::gpu::data::buffer::item::MatrixCtx;
 
 
 

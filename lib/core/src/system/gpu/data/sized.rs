@@ -1,7 +1,7 @@
 //! This module implements type-level utils for checking the size of values for a given type.
 
 use nalgebra::*;
-use crate::system::gpu::buffer::item::MatrixCtx;
+use crate::system::gpu::data::buffer::item::MatrixCtx;
 
 
 
@@ -15,7 +15,10 @@ pub mod traits {
 
     /// Type-level computation of byte size for types stored on GPU.
     pub trait GpuKnownSize {
+        /// Byte size as type-level uint.
         type GpuByteSize: DimName;
+
+        /// Byte size of the type.
         fn gpu_byte_size() -> usize {
             <Self::GpuByteSize as DimName>::dim()
         }

@@ -1,7 +1,7 @@
 //! This module defines an abstraction for all types which can be used as GLSL code values.
 
 use crate::system::gpu::data::BufferItem;
-use crate::system::gpu::data::ShaderDefault;
+use crate::system::gpu::data::GpuDefault;
 use crate::display::render::webgl::glsl::Glsl;
 
 
@@ -45,5 +45,5 @@ impl<T> ShaderData<T> for &str {
 }
 
 impl<T: BufferItem+PartialEq+Into<Glsl>> ShaderData<T> for T {
-    fn is_zero (&self) -> bool { <T as ShaderDefault> :: is_shader_default(self) }
+    fn is_zero (&self) -> bool { <T as GpuDefault> :: is_gpu_default(self) }
 }
