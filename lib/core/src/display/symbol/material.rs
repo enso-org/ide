@@ -65,7 +65,7 @@ impl Material {
     }
 
     fn make_var_decl<T: BufferItem>(t:T) -> VarDecl {
-        VarDecl::new(glsl::PrimType::from_phantom::<T>(), t.into().into())
+        VarDecl::new(glsl::PrimType::phantom_from::<T>(), t.into().into())
     }
 }
 

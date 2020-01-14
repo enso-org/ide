@@ -1,6 +1,7 @@
 //! This module implements utilities for managing WebGL buffers.
 
 pub mod usage;
+pub mod item;
 
 use crate::prelude::*;
 
@@ -14,10 +15,9 @@ use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
-use crate::system::gpu::data::class::JsBufferView;
+use crate::system::gpu::buffer::item::JsBufferView;
 use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::BufferItem;
-use crate::system::gpu::data::Item;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
 use crate::system::web::Logger;
@@ -169,7 +169,6 @@ impl<T:BufferItem> {
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
         let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
-//        let item_type      = <<T as BufferItem>::Item as IsGlEnum>::gl_enum().into();
         let item_type      = <T as BufferItem>::glsl_item_type_code().into();
         let rows           = <T as BufferItem>::rows() as i32;
         let cols           = <T as BufferItem>::cols() as i32;
@@ -193,8 +192,8 @@ impl<T:BufferItem> {
 
 impl<T: BufferItem> BufferData<T> {
     /// View the data as slice of primitive elements.
-    pub fn as_prim_slice(&self) -> &[Item<T>] {
-        <T as BufferItem>::convert_prim_buffer(&self.buffer.data)
+    pub fn as_prim_slice(&self) -> &[item::Item<T>] {
+        <T as BufferItem>::slice_to_items(&self.buffer.data)
     }
 
     /// View the data as slice of elements.
