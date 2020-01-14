@@ -256,11 +256,8 @@ impl WorldData {
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
 
-        let txt1 = TextureFromUrl {
-            url : "https://webgl2fundamentals.org/webgl/resources/f-texture.png".to_string(),
-            format : PhantomData::<Rgba>,
-            elem_type : PhantomData::<u8>
-        };
+        let txt1 : TextureFromUrl<Rgba,u8> =
+            "https://webgl2fundamentals.org/webgl/resources/f-texture.png".into();
         variables.add_or_panic("sample_image",&txt1);
 
         let fonts                  = Fonts::new();
