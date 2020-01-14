@@ -181,7 +181,7 @@ impl<T, P> WithPhantom<T, P> {
 /// let val = GlEnum::phantom_from::<Int>()
 /// ```
 pub trait PhantomConversions: Sized {
-    fn phantom_to<P>() -> P where Self:PhantomInto<P> {
+    fn phantom_into<P>() -> P where Self:PhantomInto<P> {
         PhantomData::<Self>.into()
     }
     fn phantom_from<P:PhantomInto<Self>>() -> Self {

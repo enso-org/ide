@@ -89,7 +89,7 @@ impl SymbolRegistry {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        group!(self.logger, "Updating.", {
+        group_old!(self.logger, "Updating.", {
             for mesh_id in self.symbol_dirty.take().iter() {
                 self.symbols[*mesh_id].update()
             }
@@ -103,7 +103,7 @@ impl SymbolRegistry {
             self.view_projection.set(camera.view_projection_matrix());
             self.zoom.set(camera.zoom());
         }
-        group!(self.logger, "Rendering.", {
+        group_old!(self.logger, "Rendering.", {
             for symbol in &self.symbols {
                 symbol.render();
             }

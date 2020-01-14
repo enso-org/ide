@@ -9,23 +9,9 @@ use crate::system::gpu::shader::Context;
 // === GlEnum ===
 // ==============
 
-/// The newtype for WebGL enums.
-#[derive(Clone,Copy,Debug)]
-pub struct GlEnum {
-    /// Raw value of the enum.
-    pub raw: u32,
-}
-
-impl From<u32> for GlEnum {
-    fn from(raw:u32) -> Self {
-        Self {raw}
-    }
-}
-
-impl From<GlEnum> for u32 {
-    fn from(t:GlEnum) -> Self {
-        t.raw
-    }
+newtype_copy! {
+    /// The newtype for WebGL enums.
+    GlEnum(u32);
 }
 
 
@@ -39,28 +25,27 @@ pub mod traits {
     use super::*;
 
     /// Methods for every object which implements `Into<GlEnum>`.
-    pub trait GlEnumOps {
+    pub trait IntoGlEnum {
         /// Converts the current value to `GlEnum`.
-        fn to_gl_enum<G:From<GlEnum>>(&self) -> G;
+        fn into_gl_enum(&self) -> GlEnum;
     }
 
-    impl<T> GlEnumOps for T where for<'a> &'a T:Into<GlEnum> {
-        fn to_gl_enum<G:From<GlEnum>>(&self) -> G {
+    impl<T> IntoGlEnum for T where for<'a> &'a T:Into<GlEnum> {
+        fn into_gl_enum(&self) -> GlEnum {
             let g:GlEnum = self.into();
             g.into()
         }
     }
 
-    /// Methods for every object which implements `Into<GlEnum>`.
-    pub trait IsGlEnum {
+    /// Methods for every object which implements `PhantomInto<GlEnum>`.
+    pub trait PhantomIntoGlEnum {
         /// Converts the current value to `GlEnum`.
-        fn gl_enum<G:From<GlEnum>>() -> G;
+        fn gl_enum() -> GlEnum;
     }
 
-    impl<T> IsGlEnum for T where PhantomData<T>:Into<GlEnum> {
-        fn gl_enum<G:From<GlEnum>>() -> G {
-            let g:GlEnum = PhantomData::<T>.into();
-            g.into()
+    impl<T> PhantomIntoGlEnum for T where T:PhantomInto<GlEnum> {
+        fn gl_enum() -> GlEnum {
+            T::phantom_into::<GlEnum>().into()
         }
     }
 }

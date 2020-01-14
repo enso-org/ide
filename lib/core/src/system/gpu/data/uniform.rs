@@ -12,7 +12,6 @@ use crate::system::gpu::data::texture::*;
 
 
 
-
 // =====================
 // === UniformUpload ===
 // =====================

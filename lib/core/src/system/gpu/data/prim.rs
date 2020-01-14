@@ -15,14 +15,6 @@ pub type Identity<T> = T;
 // === Macros ===
 // ==============
 
-/// Evaluates the argument macro with a list of all Rust built-in types supported on GPU.
-#[macro_export]
-macro_rules! with_all_built_in_prim_types {
-    ([[$f:path] $args:tt]) => {
-        $f! { $args [ f32 ] }
-    }
-}
-
 /// Evaluates the argument macro with a list of all nalgebra types supported on GPU.
 #[macro_export]
 macro_rules! with_all_nalgebra_prim_types {
@@ -31,24 +23,6 @@ macro_rules! with_all_nalgebra_prim_types {
         [ Vector2 Vector3 Vector4 Matrix4 Matrix2 Matrix3
           Matrix2x3 Matrix2x4 Matrix3x2 Matrix3x4 Matrix4x2 Matrix4x3
         ] }
-    }
-}
-
-/// Evaluates the argument macro with a list of all container types supported on GPU.
-#[macro_export]
-macro_rules! with_all_prim_container_types {
-    ($f:tt) => {
-        $crate::with_all_nalgebra_prim_types! {
-            [[$crate::_with_all_prim_container_types_impl] $f]
-        }
-    }
-}
-
-/// Internal helper for `with_all_prim_container_types`.
-#[macro_export]
-macro_rules! _with_all_prim_container_types_impl {
-    ([[$f:path] $args:tt] [$($types:tt)*]) => {
-        $f! { $args [Identity $($types)*] }
     }
 }
 

@@ -802,7 +802,7 @@ pub mod traits {
     pub trait IsPrimType: Sized + PhantomInto<PrimType> {
         /// `PrimType` representation of the current type.
         fn glsl_prim_type() -> PrimType {
-            Self::phantom_to()
+            Self::phantom_into()
         }
     }
     impl<T:PhantomInto<PrimType>> IsPrimType for T {}

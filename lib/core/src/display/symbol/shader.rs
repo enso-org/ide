@@ -85,7 +85,7 @@ impl Shader {
     // TODO: this is very work-in-progress function. It should be refactored in the next PR.
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self, bindings:&[VarBinding]) {
-        group!(self.logger, "Updating.", {
+        group_old!(self.logger, "Updating.", {
             if self.dirty.check_all() {
 
                 self.stats.inc_shader_compile_count();

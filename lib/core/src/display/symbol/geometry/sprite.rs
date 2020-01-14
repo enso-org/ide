@@ -5,7 +5,6 @@
 use crate::prelude::*;
 
 use crate::display::object::*;
-use crate::display::symbol::geometry::primitive::mesh::InstanceId;
 use crate::display::symbol::material::Material;
 use crate::display::world::*;
 
@@ -13,7 +12,7 @@ use logger::*;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
-
+use crate::system::gpu::data::AttributeInstanceIndex;
 
 
 // =================
@@ -44,12 +43,12 @@ impl SymbolRef {
 #[derive(Clone,Debug)]
 pub struct SpriteRef {
     symbol_ref  : SymbolRef,
-    instance_id : InstanceId,
+    instance_id : AttributeInstanceIndex,
 }
 
 impl SpriteRef {
     /// Constructor.
-    pub fn new(symbol_ref:SymbolRef, instance_id:InstanceId) -> Self {
+    pub fn new(symbol_ref:SymbolRef, instance_id:AttributeInstanceIndex) -> Self {
         Self {symbol_ref,instance_id}
     }
 }

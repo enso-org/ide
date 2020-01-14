@@ -232,11 +232,12 @@ impl<T: BufferItem> BufferData<T> {
 
     /// Replaces the whole GPU buffer by the local data.
     fn replace_gpu_buffer(&mut self) {
-        let data = self.as_slice();
+        let data    = self.as_slice();
+        let gl_enum = self.usage.into_gl_enum().into();
         unsafe { // Note [Safety]
             let js_array = data.js_buffer_view();
             self.context.buffer_data_with_array_buffer_view
-            (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
+            (Context::ARRAY_BUFFER,&js_array,gl_enum);
         }
         crate::if_compiled_with_stats! {
             let item_byte_size    = T::item_gpu_byte_size() as u32;
@@ -273,7 +274,7 @@ impl<T: BufferItem> BufferData<T> {
 
 impl<T: BufferItem> Buffer<T> {
     /// Get the attribute pointing to a given buffer index.
-    pub fn at(&self, index:usize) -> Attribute<T> {
+    pub fn at(&self, index:AttributeInstanceIndex) -> Attribute<T> {
         Attribute::new(index,self.clone_ref())
     }
 }
@@ -317,6 +318,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 // =================
 
 use enum_dispatch::*;
+use crate::system::gpu::data::AttributeInstanceIndex;
 
 // === Macros ===
 

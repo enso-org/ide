@@ -135,7 +135,7 @@ impl Mesh {
         let scopes_logger = logger.sub("scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,Box::new(on_mut));
         let context       = context.clone();
-        let scopes        = group!(logger, "Initializing.", {
+        let scopes        = group_old!(logger, "Initializing.", {
             macro_rules! new_scope { ($cls:ident { $($name:ident),* } { $($uname:ident),* } ) => {$(
                 let sub_logger = logger.sub(stringify!($name));
                 let status_mod = ScopeType::$uname;
@@ -151,7 +151,7 @@ impl Mesh {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        group!(self.logger, "Updating.", {
+        group_old!(self.logger, "Updating.", {
             if self.scopes_dirty.check_all() {
                 update_scopes!(self.{point,vertex,primitive,instance}
                                     {Point,Vertex,Primitive,Instance});

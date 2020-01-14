@@ -32,17 +32,9 @@ pub type GpuByteSize<T> = <T as GpuKnownSize>::GpuByteSize;
 
 // === Instances ===
 
-impl GpuKnownSize for bool {
-    type GpuByteSize = U4;
-}
-
-impl GpuKnownSize for i32 {
-    type GpuByteSize = U4;
-}
-
-impl GpuKnownSize for f32 {
-    type GpuByteSize = U4;
-}
+impl GpuKnownSize for bool { type GpuByteSize = U4; }
+impl GpuKnownSize for i32  { type GpuByteSize = U4; }
+impl GpuKnownSize for f32  { type GpuByteSize = U4; }
 
 type Mul<A,B> = <A as DimMul<B>>::Output;
 impl<T:GpuKnownSize,R:DimName,C:DimName> GpuKnownSize for MatrixMN<T,R,C>
