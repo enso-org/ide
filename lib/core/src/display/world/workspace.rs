@@ -8,7 +8,7 @@ use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl;
+use crate::system::gpu::shader::Context;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text;
 use crate::display::world::scene::Scene;
@@ -110,7 +110,7 @@ impl ShapeData {
 #[derivative(Debug(bound=""))]
 pub struct Workspace {
     pub canvas        : web_sys::HtmlCanvasElement,
-    pub context       : webgl::Context,
+    pub context       : Context,
     pub symbols       : SymbolRegistry,
     pub symbols_dirty : SymbolRegistryDirty,
     pub scene         : Scene,
@@ -170,9 +170,9 @@ impl Workspace {
         variables.add("pixel_ratio", shape.pixel_ratio());
 
         // FIXME: use correct blending function and rething premultiplying the alpha.
-        context.enable(webgl::Context::BLEND);
-        // context.blend_func(webgl::Context::ONE, webgl::Context::ONE_MINUS_SRC_ALPHA);
-        context.blend_func(webgl::Context::SRC_ALPHA, webgl::Context::ONE);
+        context.enable(Context::BLEND);
+        // context.blend_func(Context::ONE, Context::ONE_MINUS_SRC_ALPHA);
+        context.blend_func(Context::SRC_ALPHA, Context::ONE);
 
         let this = Self {canvas,context,symbols,scene,symbols_dirty
             ,shape,shape_dirty,logger,listeners,variables,text_components};
@@ -232,7 +232,7 @@ impl Workspace {
 
             self.logger.info("Clearing the scene.");
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
-            self.context.clear(webgl::Context::COLOR_BUFFER_BIT);
+            self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.scene.camera);
             if !self.text_components.is_empty() {

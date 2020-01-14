@@ -10,7 +10,6 @@ use basegl_prelude::*;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 use web_sys::WebGl2RenderingContext;
 use web_sys::Performance;

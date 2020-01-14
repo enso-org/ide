@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::system::gpu::data::BufferItem;
-use crate::display::render::webgl::glsl;
+use crate::system::gpu::shader::glsl;
 use crate::display::symbol::shader::builder::CodeTemplete;
 
 

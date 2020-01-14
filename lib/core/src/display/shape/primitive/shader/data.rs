@@ -2,7 +2,7 @@
 
 use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::data::GpuDefault;
-use crate::display::render::webgl::glsl::Glsl;
+use crate::system::gpu::shader::glsl::Glsl;
 
 
 

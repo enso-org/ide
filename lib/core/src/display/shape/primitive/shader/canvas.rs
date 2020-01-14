@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 use crate::display::shape::primitive::shader::data::ShaderData;
-use crate::display::render::webgl::glsl::Glsl;
+use crate::system::gpu::shader::glsl::Glsl;
 
 
 

@@ -2,8 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::glsl::Glsl;
-use crate::display::render::webgl::glsl;
+use crate::system::gpu::shader::glsl::Glsl;
+use crate::system::gpu::shader::glsl;
 use crate::system::gpu::data::gl_enum::GlEnum;
 use crate::system::gpu::data::sized::GpuKnownSize;
 use crate::system::gpu::data::GpuDefault;

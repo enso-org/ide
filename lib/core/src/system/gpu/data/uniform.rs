@@ -7,7 +7,7 @@ use nalgebra::{Vector2,Vector3,Vector4,Matrix4};
 use shapely::shared;
 use web_sys::WebGlUniformLocation;
 
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::texture::*;
 
 

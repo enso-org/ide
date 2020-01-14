@@ -8,9 +8,8 @@ use crate::prelude::*;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
-use crate::display::render::webgl::glsl;
-use crate::display::render::webgl;
+use crate::system::gpu::shader::Context;
+use crate::system::gpu::shader::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material::VarDecl;
 use crate::display::symbol::shader;
@@ -117,15 +116,15 @@ impl Shader {
                 let fragment_code = self.material.code().clone();
                 shader_builder.compute(&shader_cfg,vertex_code,fragment_code);
                 let shader      = shader_builder.build();
-                let vert_shader = webgl::compile_vertex_shader  (&self.context,&shader.vertex);
-                let frag_shader = webgl::compile_fragment_shader(&self.context,&shader.fragment);
+                let vert_shader = compile_vertex_shader  (&self.context,&shader.vertex);
+                let frag_shader = compile_fragment_shader(&self.context,&shader.fragment);
                 if let Err(ref err) = frag_shader {
                     self.logger.error(|| format!("{}", err))
                 }
 
                 let vert_shader = vert_shader.unwrap();
                 let frag_shader = frag_shader.unwrap();
-                let program     = webgl::link_program(&self.context,&vert_shader,&frag_shader);
+                let program     = link_program(&self.context,&vert_shader,&frag_shader);
 
                 let program     = program.unwrap();
                 self.program    = Some(program);

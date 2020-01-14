@@ -22,8 +22,7 @@ use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
-use crate::display::render::webgl;
+use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::buffer::IsBuffer;
 use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyTextureUniform;
@@ -254,7 +253,7 @@ impl Symbol {
             let location     = location as u32;
             let buffer       = &scope.buffer(&binding.name).unwrap();
             let is_instanced = mesh_scope_type == mesh::ScopeType::Instance;
-            buffer.bind(webgl::Context::ARRAY_BUFFER);
+            buffer.bind(Context::ARRAY_BUFFER);
             buffer.vertex_attrib_pointer(location, is_instanced);
         }
     }
@@ -334,7 +333,7 @@ impl Symbol {
                     binding.uniform.upload(&self.context,&binding.location);
                 }
 
-                let mode           = webgl::Context::TRIANGLE_STRIP;
+                let mode           = Context::TRIANGLE_STRIP;
                 let first          = 0;
                 let count          = self.surface.scopes.point.size()    as i32;
                 let instance_count = self.surface.scopes.instance.size() as i32;

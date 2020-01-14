@@ -11,7 +11,7 @@ use crate::control::callback::CallbackFn;
 use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
 use crate::system::gpu::data::buffer::item::JsBufferView;

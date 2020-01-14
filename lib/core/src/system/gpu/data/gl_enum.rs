@@ -1,7 +1,7 @@
 //! This module defines a wrapper for WebGL enums and associated utils.
 
 use crate::prelude::*;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 
 
 

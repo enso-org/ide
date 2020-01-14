@@ -14,7 +14,7 @@ use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::prelude::*;
 
 use num_enum::IntoPrimitive;

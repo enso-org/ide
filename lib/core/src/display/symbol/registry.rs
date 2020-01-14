@@ -7,7 +7,7 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::camera::Camera2D;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 

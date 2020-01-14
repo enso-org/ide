@@ -4,7 +4,7 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;

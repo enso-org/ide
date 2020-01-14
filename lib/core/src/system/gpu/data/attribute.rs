@@ -4,13 +4,13 @@ use crate::prelude::*;
 
 use crate::closure;
 use crate::data::dirty;
-use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
-
+use crate::debug::Stats;
+use crate::system::gpu::shader::Context;
 use data::opt_vec::OptVec;
 
 use crate::data::dirty::traits::*;
 use crate::system::gpu::types::*;
+
 
 
 

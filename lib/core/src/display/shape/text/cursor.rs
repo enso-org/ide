@@ -2,8 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
-use crate::display::render::webgl::set_buffer_data;
+use crate::system::gpu::shader::Context;
+use crate::system::gpu::shader::set_buffer_data;
 use crate::display::shape::text::content::CharPosition;
 use crate::display::shape::text::content::TextComponentContent;
 use crate::display::shape::text::content::line::LineRef;
