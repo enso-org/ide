@@ -1,6 +1,7 @@
 //! This module implements utilities for managing WebGL buffers.
 
 pub mod usage;
+pub mod item;
 
 use crate::prelude::*;
 
@@ -14,10 +15,9 @@ use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
-use crate::system::gpu::data::class::JsBufferView;
+use crate::system::gpu::buffer::item::JsBufferView;
 use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::BufferItem;
-use crate::system::gpu::data::Item;
 use crate::system::web::info;
 use crate::system::web::internal_warning;
 use crate::system::web::Logger;
@@ -192,8 +192,8 @@ impl<T:BufferItem> {
 
 impl<T: BufferItem> BufferData<T> {
     /// View the data as slice of primitive elements.
-    pub fn as_prim_slice(&self) -> &[Item<T>] {
-        <T as BufferItem>::convert_prim_buffer(&self.buffer.data)
+    pub fn as_prim_slice(&self) -> &[item::Item<T>] {
+        <T as BufferItem>::slice_to_items(&self.buffer.data)
     }
 
     /// View the data as slice of elements.

@@ -150,9 +150,9 @@ impl<T, P> WithPhantom<T, P> {
 
 
 
-// ===================
-// === FromPhantom ===
-// ===================
+// ==========================
+// === PhantomConversions ===
+// ==========================
 
 /// A utility for easy driving of type-level computations from value level. Often we've got some
 /// type level relations, like a few singleton types, and for each such type we've got an associated
@@ -178,17 +178,29 @@ impl<T, P> WithPhantom<T, P> {
 /// Using this utility we can always write the following code instead:
 ///
 /// ```compile_fail
-/// let val = GlEnum::from_phantom::<Int>()
+/// let val = GlEnum::phantom_from::<Int>()
 /// ```
-pub trait FromPhantomImpl {
-    fn from_phantom<P>() -> Self where Self: From<PhantomData<P>> {
-        Self::from(PhantomData::<P>)
+pub trait PhantomConversions: Sized {
+    fn phantom_to<P>() -> P where Self:PhantomInto<P> {
+        PhantomData::<Self>.into()
+    }
+    fn phantom_from<P:PhantomInto<Self>>() -> Self {
+        PhantomData::<P>.into()
     }
 }
-impl<T> FromPhantomImpl for T {}
+impl<T> PhantomConversions for T {}
 
-/// Trait alias for `From<PhantomData<T>>`.
-pub trait FromPhantom<T> = From<PhantomData<T>>;
+/// Like `Into` but for phantom types.
+pub trait PhantomInto<T> = where PhantomData<Self>: Into<T>;
+
+
+/// Provides method `to`, which is just like `into` but allows fo superfish syntax.
+pub trait ToImpl: Sized {
+    fn to<P>(self) -> P where Self:Into<P> {
+        self.into()
+    }
+}
+impl<T> ToImpl for T {}
 
 
 

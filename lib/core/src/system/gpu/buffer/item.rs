@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! This module defines abstraction for items in buffers stored on GPU.
 
 use crate::prelude::*;
 
@@ -28,47 +28,46 @@ pub trait MatrixCtx<T,R,C> = where
 // === IsUniform ===
 // =================
 
-pub type UniformLocation = WebGlUniformLocation;
 
-pub trait ContextUniformOps<T> {
-    fn set_uniform(&self, location:&UniformLocation, value:&T);
-}
-
-impl ContextUniformOps<i32> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&i32) {
-        self.uniform1i(Some(location),*value);
-    }
-}
-
-impl ContextUniformOps<f32> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&f32) {
-        self.uniform1f(Some(location),*value);
-    }
-}
-
-impl ContextUniformOps<Vector2<f32>> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&Vector2<f32>) {
-        self.uniform_matrix2fv_with_f32_array(Some(location),false,value.data.as_slice());
-    }
-}
-
-impl ContextUniformOps<Vector3<f32>> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&Vector3<f32>) {
-        self.uniform_matrix3fv_with_f32_array(Some(location),false,value.data.as_slice());
-    }
-}
-
-impl ContextUniformOps<Vector4<f32>> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&Vector4<f32>) {
-        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
-    }
-}
-
-impl ContextUniformOps<Matrix4<f32>> for Context {
-    fn set_uniform(&self, location:&UniformLocation, value:&Matrix4<f32>) {
-        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
-    }
-}
+//pub trait ContextUniformOps<T> {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&T);
+//}
+//
+//impl ContextUniformOps<i32> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&i32) {
+//        self.uniform1i(Some(location),*value);
+//    }
+//}
+//
+//impl ContextUniformOps<f32> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&f32) {
+//        self.uniform1f(Some(location),*value);
+//    }
+//}
+//
+//impl ContextUniformOps<Vector2<f32>> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector2<f32>) {
+//        self.uniform_matrix2fv_with_f32_array(Some(location),false,value.data.as_slice());
+//    }
+//}
+//
+//impl ContextUniformOps<Vector3<f32>> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector3<f32>) {
+//        self.uniform_matrix3fv_with_f32_array(Some(location),false,value.data.as_slice());
+//    }
+//}
+//
+//impl ContextUniformOps<Vector4<f32>> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Vector4<f32>) {
+//        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
+//    }
+//}
+//
+//impl ContextUniformOps<Matrix4<f32>> for Context {
+//    fn set_uniform(&self, location:&WebGlUniformLocation, value:&Matrix4<f32>) {
+//        self.uniform_matrix4fv_with_f32_array(Some(location),false,value.data.as_slice());
+//    }
+//}
 
 
 
@@ -80,18 +79,25 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 
 pub trait JsBufferViewArr = Sized where [Self]:JsBufferView;
 
-pub trait T1 = where glsl::PrimType: From<PhantomData<Self>>;
-pub trait T2 = where GlEnum: From<PhantomData<Self>>;
+/// Super bounds of the `BufferItem::Item` type;
+pub trait ItemBounds = BufferItem + PhantomInto<GlEnum>;
 
-/// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
-/// for mapping the item to WebGL buffer and vice versa.
-pub trait BufferItem: Copy + ShaderDefault + JsBufferViewArr + T1 + Into<Glsl> {
+/// Super bounds of the `BufferItem` trait.
+pub trait BufferItemBounds =
+    Copy + ShaderDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl>;
+
+/// Class for buffer items, like `f32` or `Vector<f32>`.
+///
+/// WebGL buffers contain primitive values only, so for example, two `Vector3<f32>` are represented
+/// as six `f32` values. This trait defines fast conversions (views) for the underlying flat data
+/// storage.
+pub trait BufferItem: BufferItemBounds {
 
     // === Types ===
 
     /// The primitive type which this type is build of. In case of the most primitive types, like
     /// `f32` this type may be set to itself.
-    type Item: BufferItem + T2;
+    type Item: ItemBounds;
 
     /// The number of rows of the type encoded as 2d matrix.
     type Rows: DimName;
@@ -131,22 +137,22 @@ pub trait BufferItem: Copy + ShaderDefault + JsBufferViewArr + T1 + Into<Glsl> {
 
     // === Conversions ===
 
-    /// Conversion from slice of a buffer to the item. Buffers contain primitive
-    /// values only, so two `Vector3<f32>` are represented there as six `f32`
-    /// values. This allows us to view the buffers using desired types.
-    fn from_buffer(buffer: &[Self::Item]) -> &[Self];
+    /// Conversion from a slice of items to a buffer slice.
+    fn slice_from_items(buffer: &[Self::Item]) -> &[Self];
 
-    /// Mutable conversion from slice of a buffer to the item. See the docs for
-    /// `from_buffer` to learn more.
-    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self];
+    /// Conversion from a mutable slice of items to a mutable buffer slice.
+    fn slice_from_items_mut(buffer: &mut [Self::Item]) -> &mut [Self];
 
-    // TODO: simplify when this gets resolved: https://github.com/rustsim/nalgebra/issues/687
-    fn convert_prim_buffer(buffer: &[Self]) -> &[Self::Item];
-    fn convert_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Item];
+    /// Converts from a buffer slice to a slice of items.
+    fn slice_to_items(buffer: &[Self]) -> &[Self::Item];
+
+    /// Converts from a mutable buffer slice to a mutable slice of items.
+    fn slice_to_items_mut(buffer: &mut [Self]) -> &mut [Self::Item];
 
 
     // === GLSL ===
 
+    // TODO: Remove when it gets resolved: https://github.com/rust-lang/rust/issues/68210
     /// Returns the WebGL enum code representing the item type, like Context::FLOAT.
     fn glsl_item_type_code() -> GlEnum {
         Self::Item::gl_enum()
@@ -154,18 +160,20 @@ pub trait BufferItem: Copy + ShaderDefault + JsBufferViewArr + T1 + Into<Glsl> {
 
     /// Returns the GLSL type name, like `"float"` for `f32`.
     fn glsl_type_name() -> String {
-        glsl::PrimType::from_phantom::<Self>().to_code()
+        Self::phantom_to::<glsl::PrimType>().to_code()
     }
-
-//    /// Converts the data to GLSL value.
-//    fn to_glsl(&self) -> String;
 }
 
 
 // === Type Families ===
 
+/// Item accessor.
 pub type Item <T> = <T as BufferItem>::Item;
+
+/// Rows accessor.
 pub type Rows <T> = <T as BufferItem>::Rows;
+
+/// Cols accessor.
 pub type Cols <T> = <T as BufferItem>::Cols;
 
 
@@ -176,13 +184,11 @@ impl BufferItem for i32 {
     type Rows = U1;
     type Cols = U1;
 
-    fn gpu_byte_size           () -> usize { 4 }
-    fn from_buffer             (buffer: &    [Self::Item]) -> &    [Self] { buffer }
-    fn from_buffer_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
-    fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
-    fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
-    fn glsl_item_type_code     () -> GlEnum         { GlEnum::from(Context::INT) }
-//    fn to_glsl                 (&self) -> String    { self.to_string() }
+    fn gpu_byte_size        () -> usize { 4 }
+    fn slice_from_items     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn slice_from_items_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+    fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Item] { buffer }
+    fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
 }
 
 impl BufferItem for f32 {
@@ -191,26 +197,20 @@ impl BufferItem for f32 {
     type Cols = U1;
 
     fn gpu_byte_size           () -> usize { 4 }
-    fn from_buffer             (buffer: &    [Self::Item]) -> &    [Self] { buffer }
-    fn from_buffer_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
-    fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
-    fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
-    fn glsl_item_type_code     ()      -> GlEnum { GlEnum::from(Context::FLOAT) }
-//    fn to_glsl                 (&self) -> String {
-//        let is_int = self.fract() == 0.0;
-//        if is_int { format!("{}.0" , self) }
-//        else      { format!("{}"   , self) }
-//    }
+    fn slice_from_items             (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn slice_from_items_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+    fn slice_to_items     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
+    fn slice_to_items_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
 }
 
 
 impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:Default + T2, Self:MatrixCtx<T,R,C>, Self:ShaderDefault, Self:T1 {
+    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:ShaderDefault + PhantomInto<glsl::PrimType> {
     type Item = T;
     type Rows = R;
     type Cols = C;
 
-    fn from_buffer(buffer: &[Self::Item]) -> &[Self] {
+    fn slice_from_items(buffer: &[Self::Item]) -> &[Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
@@ -220,7 +220,7 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         }
     }
 
-    fn from_buffer_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
+    fn slice_from_items_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
@@ -230,7 +230,7 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         }
     }
 
-    fn convert_prim_buffer(buffer: &[Self]) -> &[Self::Item] {
+    fn slice_to_items(buffer: &[Self]) -> &[Self::Item] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
@@ -238,7 +238,7 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast(), len) }
     }
 
-    fn convert_prim_buffer_mut(buffer: &mut [Self]) -> &mut [Self::Item] {
+    fn slice_to_items_mut(buffer: &mut [Self]) -> &mut [Self::Item] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
@@ -247,11 +247,6 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
         }
     }
-
-//    fn to_glsl(&self) -> String {
-//        let vals:Vec<String> = self.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
-//        format!("{}({})",Self::glsl_type_name(),vals.join(","))
-//    }
 }
 
 
@@ -303,16 +298,16 @@ impl JsBufferView for [u8] {
 
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for [MatrixMN<T,R,C>]
     where Self                    : MatrixCtx<T,R,C>,
-          T                       : Default + T2,
+          T                       : ItemBounds,
           MatrixMN<T,R,C>         : BufferItem,
           [Item<MatrixMN<T,R,C>>] : JsBufferView {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
-        <MatrixMN<T,R,C> as BufferItem>::convert_prim_buffer(self).js_buffer_view()
+        <MatrixMN<T,R,C> as BufferItem>::slice_to_items(self).js_buffer_view()
     }
 }
 
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for MatrixMN<T,R,C>
-    where Self:MatrixCtx<T,R,C>, T:T2 {
+    where Self:MatrixCtx<T,R,C>, T:ItemBounds {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         self.as_slice().js_buffer_view()
     }

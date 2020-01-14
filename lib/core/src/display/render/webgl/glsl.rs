@@ -7,7 +7,7 @@ use crate::prelude::*;
 
 use crate::data::container::Add;
 use crate::display::render::webgl::glsl;
-use crate::system::gpu::data::class::MatrixCtx;
+use crate::system::gpu::buffer::item::MatrixCtx;
 
 use code_builder::{CodeBuilder, HasCodeRepr};
 use nalgebra::*;
@@ -90,9 +90,9 @@ impl From<f32> for Glsl {
 }
 
 impl<T,R,C> From<MatrixMN<T,R,C>> for Glsl
-where Self:MatrixCtx<T,R,C>, glsl::PrimType: From<PhantomData<MatrixMN<T,R,C>>> {
+where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
     fn from(t:MatrixMN<T,R,C>) -> Self {
-        let type_name = glsl::PrimType::from_phantom::<MatrixMN<T,R,C>>().to_code();
+        let type_name = PrimType::phantom_from::<MatrixMN<T,R,C>>().to_code();
         let vals:Vec<String> = t.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
         format!("{}({})",type_name,vals.join(",")).into()
     }

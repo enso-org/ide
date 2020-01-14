@@ -53,9 +53,10 @@ pub trait IsGlEnum {
     fn gl_enum<G:From<GlEnum>>() -> G;
 }
 
-impl<T> IsGlEnum for T where GlEnum: FromPhantom<T> {
+impl<T> IsGlEnum for T where PhantomData<T>:Into<GlEnum> {
     fn gl_enum<G:From<GlEnum>>() -> G {
-        GlEnum::from_phantom::<Self>().into()
+        let g:GlEnum = PhantomData::<T>.into();
+        g.into()
     }
 }
 

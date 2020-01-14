@@ -74,7 +74,7 @@ impl Material {
     }
 
     fn make_var_decl<T:GlslDeclaratible>(t:T) -> VarDecl {
-        VarDecl::new(glsl::PrimType::from_phantom::<T>(), t.try_into().ok())
+        VarDecl::new(glsl::PrimType::phantom_from::<T>(), t.try_into().ok())
     }
 }
 

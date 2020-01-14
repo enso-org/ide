@@ -6,7 +6,6 @@ use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl;
-use crate::system::gpu::data::class::JsBufferViewArr;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
