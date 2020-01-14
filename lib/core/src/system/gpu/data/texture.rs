@@ -487,9 +487,7 @@ impl<ElemType,S:Str> From<S> for TextureSource<ElemType> {
 // ===============
 
 /// Texture representation.
-#[derive(Derivative)]
-#[derivative(Clone(bound=""))]
-#[derivative(Debug(bound="ElemType:Debug"))]
+#[derive(Clone,Debug)]
 pub struct Texture<InternalFormat,ElemType> {
     source          : TextureSource<ElemType>,
     internal_format : PhantomData<InternalFormat>,
