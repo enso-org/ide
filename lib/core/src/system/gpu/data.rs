@@ -7,6 +7,7 @@
 
 pub mod attribute;
 pub mod class;
+pub mod shader_default;
 pub mod gl_enum;
 pub mod texture;
 pub mod uniform;
@@ -18,6 +19,7 @@ pub mod uniform;
 
 pub use attribute::*;
 pub use class::*;
+pub use shader_default::*;
 pub use uniform::*;
 
 /// ...

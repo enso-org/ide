@@ -14,6 +14,7 @@ use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::data::BufferItem;
+use crate::display::render::webgl::glsl::Glsl;
 
 
 
@@ -63,14 +64,14 @@ pub trait SdfShape {
 ///
 ///     #[derive(Debug,Clone)]
 ///     pub struct Circle {
-///         pub glsl_name : String,
-///         pub radius    : String,
+///         pub glsl_name : Glsl,
+///         pub radius    : Glsl,
 ///     }
 ///
 ///     impl Circle {
 ///         pub fn new<radius:ShaderData<f32>>(radius:radius) -> Self {
-///             let glsl_name = "circle".to_string();
-///             let radius    = radius.to_glsl();
+///             let glsl_name = "circle".into();
+///             let radius    = radius.into();
 ///             Self {glsl_name,radius}
 ///         }
 ///     }
@@ -172,16 +173,16 @@ macro_rules! _define_sdf_shape_mutable_part {
         #[allow(missing_docs)]
         #[derive(Debug,Clone)]
         pub struct $name {
-            pub glsl_name : String,
-            $(pub $field  : String),*
+            pub glsl_name : Glsl,
+            $(pub $field  : Glsl),*
         }
 
         impl $name {
             /// Constructor.
             #[allow(clippy::new_without_default)]
             pub fn new <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> Self {
-                let glsl_name = stringify!($name).to_snake_case();
-                $(let $field = $field.to_glsl();)*
+                let glsl_name = stringify!($name).to_snake_case().into();
+                $(let $field = $field.into();)*
                 Self {glsl_name,$($field),*}
             }
         }

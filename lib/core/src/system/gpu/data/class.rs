@@ -4,6 +4,9 @@ use crate::prelude::*;
 
 use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::gl_enum::*;
+use crate::system::gpu::data::ShaderDefault;
+use crate::display::render::webgl::glsl::Glsl;
 
 use nalgebra::*;
 use web_sys::WebGlUniformLocation;
@@ -18,30 +21,6 @@ pub trait MatrixCtx<T,R,C> = where
     T:Scalar, R:DimName, C:DimName,
     DefaultAllocator: nalgebra::allocator::Allocator<T,R,C>,
     <DefaultAllocator as nalgebra::allocator::Allocator<T,R,C>>::Buffer:Copy;
-
-
-
-
-
-
-// =============
-// === Empty ===
-// =============
-
-/// Trait for types which have empty value.
-pub trait Empty {
-    fn empty() -> Self;
-    fn is_empty(&self) -> bool where Self:Sized+PartialEq {
-        *self == Self::empty()
-    }
-}
-
-impl Empty for i32          { fn empty() -> Self { 0   } }
-impl Empty for f32          { fn empty() -> Self { 0.0 } }
-impl Empty for Vector2<f32> { fn empty() -> Self { Self::new(0.0,0.0)         } }
-impl Empty for Vector3<f32> { fn empty() -> Self { Self::new(0.0,0.0,0.0)     } }
-impl Empty for Vector4<f32> { fn empty() -> Self { Self::new(0.0,0.0,0.0,1.0) } }
-impl Empty for Matrix4<f32> { fn empty() -> Self { Self::identity()           } }
 
 
 
@@ -106,16 +85,17 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 pub trait JsBufferViewArr = Sized where [Self]:JsBufferView;
 
 pub trait T1 = where glsl::PrimType: From<PhantomData<Self>>;
+pub trait T2 = where GlEnum: From<PhantomData<Self>>;
 
 /// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
-pub trait BufferItem: Copy + Empty + JsBufferViewArr + T1 {
+pub trait BufferItem: Copy + ShaderDefault + JsBufferViewArr + T1 + Into<Glsl> {
 
     // === Types ===
 
     /// The primitive type which this type is build of. In case of the most primitive types, like
     /// `f32` this type may be set to itself.
-    type Item: BufferItem;
+    type Item: BufferItem + T2;
 
     /// The number of rows of the type encoded as 2d matrix.
     type Rows: DimName;
@@ -172,8 +152,8 @@ pub trait BufferItem: Copy + Empty + JsBufferViewArr + T1 {
     // === GLSL ===
 
     /// Returns the WebGL enum code representing the item type, like Context::FLOAT.
-    fn glsl_item_type_code() -> u32 {
-        Self::Item::glsl_item_type_code()
+    fn glsl_item_type_code() -> GlEnum {
+        Self::Item::gl_enum()
     }
 
     /// Returns the GLSL type name, like `"float"` for `f32`.
@@ -181,8 +161,8 @@ pub trait BufferItem: Copy + Empty + JsBufferViewArr + T1 {
         glsl::PrimType::from_phantom::<Self>().to_code()
     }
 
-    /// Converts the data to GLSL value. Returns None if data are not represented by GLSL literal.
-    fn to_glsl(&self) -> String;
+//    /// Converts the data to GLSL value.
+//    fn to_glsl(&self) -> String;
 }
 
 
@@ -205,10 +185,8 @@ impl BufferItem for i32 {
     fn from_buffer_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
-
-    fn glsl_item_type_code     () -> u32            { Context::INT }
-    fn to_glsl                 (&self) -> String    { self.to_string() }
-
+    fn glsl_item_type_code     () -> GlEnum         { GlEnum::from(Context::INT) }
+//    fn to_glsl                 (&self) -> String    { self.to_string() }
 }
 
 impl BufferItem for f32 {
@@ -221,17 +199,17 @@ impl BufferItem for f32 {
     fn from_buffer_mut         (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
-    fn glsl_item_type_code     ()      -> u32            { Context::FLOAT }
-    fn to_glsl                 (&self) -> String {
-        let is_int = self.fract() == 0.0;
-        if is_int { format!("{}.0" , self) }
-        else      { format!("{}"   , self) }
-    }
+    fn glsl_item_type_code     ()      -> GlEnum { GlEnum::from(Context::FLOAT) }
+//    fn to_glsl                 (&self) -> String {
+//        let is_int = self.fract() == 0.0;
+//        if is_int { format!("{}.0" , self) }
+//        else      { format!("{}"   , self) }
+//    }
 }
 
 
 impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty, Self:T1 {
+    where T:Default + T2, Self:MatrixCtx<T,R,C>, Self:ShaderDefault, Self:T1 {
     type Item = T;
     type Rows = R;
     type Cols = C;
@@ -274,46 +252,11 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         }
     }
 
-    fn to_glsl(&self) -> String {
-        let vals:Vec<String> = self.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
-        format!("{}({})",Self::glsl_type_name(),vals.join(","))
-    }
+//    fn to_glsl(&self) -> String {
+//        let vals:Vec<String> = self.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
+//        format!("{}({})",Self::glsl_type_name(),vals.join(","))
+//    }
 }
-
-
-// =================================
-// === GLSL PrimType Conversions ===
-// =================================
-
-macro_rules! define_prim_type_conversions {
-    ($($ty:ty => $name:ident),* $(,)?) => {$(
-        impl From<PhantomData<$ty>> for glsl::PrimType {
-            fn from(_:PhantomData<$ty>) -> Self {
-                Self::$name
-            }
-        }
-    )*}
-}
-
-define_prim_type_conversions! {
-    i32            => Int,
-    f32            => Float,
-    Vector2<f32>   => Vec2,
-    Vector3<f32>   => Vec3,
-    Vector4<f32>   => Vec4,
-    Matrix2<f32>   => Mat2,
-    Matrix3<f32>   => Mat3,
-    Matrix4<f32>   => Mat4,
-    Matrix2x3<f32> => Mat2x3,
-    Matrix2x4<f32> => Mat2x4,
-    Matrix3x2<f32> => Mat3x2,
-    Matrix3x4<f32> => Mat3x4,
-    Matrix4x2<f32> => Mat4x2,
-    Matrix4x3<f32> => Mat4x3,
-}
-
-
-
 
 
 
@@ -358,7 +301,7 @@ impl JsBufferView for [f32] {
 
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for [MatrixMN<T,R,C>]
     where Self                    : MatrixCtx<T,R,C>,
-          T                       : Default,
+          T                       : Default + T2,
           MatrixMN<T,R,C>         : BufferItem,
           [Item<MatrixMN<T,R,C>>] : JsBufferView {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
@@ -367,7 +310,7 @@ impl<T: BufferItem<Item=T>,R,C> JsBufferView for [MatrixMN<T,R,C>]
 }
 
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for MatrixMN<T,R,C>
-    where Self:MatrixCtx<T,R,C> {
+    where Self:MatrixCtx<T,R,C>, T:T2 {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         self.as_slice().js_buffer_view()
     }

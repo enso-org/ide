@@ -6,8 +6,97 @@
 use crate::prelude::*;
 
 use crate::data::container::Add;
+
 use code_builder::{CodeBuilder, HasCodeRepr};
+use nalgebra::*;
 use shapely::derive_clone_plus;
+use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::class::MatrixCtx;
+
+
+
+// =================================================================================================
+// === Glsl ========================================================================================
+// =================================================================================================
+
+/// A GLSL code representation.
+#[derive(Clone,Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct Glsl {
+    /// Raw, textual code representation.
+    pub str: String,
+}
+
+impl Display for Glsl {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.str,f)
+    }
+}
+
+
+// === Conversions from Glsl ===
+
+impl From<Glsl> for String {
+    fn from(t:Glsl) -> Self {
+        t.str
+    }
+}
+
+impl From<&Glsl> for String {
+    fn from(t:&Glsl) -> Self {
+        t.str.clone()
+    }
+}
+
+
+// === Conversions to Glsl ===
+
+impl From<&Glsl> for Glsl {
+    fn from(t:&Glsl) -> Self {
+        t.clone()
+    }
+}
+
+impl From<String> for Glsl {
+    fn from(t:String) -> Self {
+        Self {str:t}
+    }
+}
+
+impl From<&String> for Glsl {
+    fn from(t:&String) -> Self {
+        Self {str:t.into()}
+    }
+}
+
+impl From<&str> for Glsl {
+    fn from(t:&str) -> Self {
+        Self {str:(*t).into()}
+    }
+}
+
+impl From<i32> for Glsl {
+    fn from(t:i32) -> Self {
+        t.to_string().into()
+    }
+}
+
+impl From<f32> for Glsl {
+    fn from(t:f32) -> Self {
+        let is_int = t.fract() == 0.0;
+        if is_int { iformat!("{t}.0").into() }
+        else      { iformat!("{t}").into() }
+    }
+}
+
+impl<T,R,C> From<MatrixMN<T,R,C>> for Glsl
+where Self:MatrixCtx<T,R,C>, glsl::PrimType: From<PhantomData<MatrixMN<T,R,C>>> {
+    fn from(t:MatrixMN<T,R,C>) -> Self {
+        let type_name = glsl::PrimType::from_phantom::<MatrixMN<T,R,C>>().to_code();
+        let vals:Vec<String> = t.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
+        format!("{}({})",type_name,vals.join(",")).into()
+    }
+}
 
 
 
@@ -446,6 +535,7 @@ pub struct LinkageStorage {
 #[derive(Clone,Debug)]
 pub enum InterpolationStorage {Smooth, Flat}
 
+
 // === Printers ===
 
 impl HasCodeRepr for Layout {
@@ -632,4 +722,36 @@ impl HasCodeRepr for Module {
         }
         builder.add(&self.main);
     }
+}
+
+
+// ============================
+// === PrimType Conversions ===
+// ============================
+
+macro_rules! define_glsl_prim_type_conversions {
+    ($($ty:ty => $name:ident),* $(,)?) => {$(
+        impl From<PhantomData<$ty>> for PrimType {
+            fn from(_:PhantomData<$ty>) -> Self {
+                Self::$name
+            }
+        }
+    )*}
+}
+
+define_glsl_prim_type_conversions! {
+    i32            => Int,
+    f32            => Float,
+    Vector2<f32>   => Vec2,
+    Vector3<f32>   => Vec3,
+    Vector4<f32>   => Vec4,
+    Matrix2<f32>   => Mat2,
+    Matrix3<f32>   => Mat3,
+    Matrix4<f32>   => Mat4,
+    Matrix2x3<f32> => Mat2x3,
+    Matrix2x4<f32> => Mat2x4,
+    Matrix3x2<f32> => Mat3x2,
+    Matrix3x4<f32> => Mat3x4,
+    Matrix4x2<f32> => Mat4x2,
+    Matrix4x3<f32> => Mat4x3,
 }
