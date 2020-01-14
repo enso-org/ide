@@ -81,7 +81,7 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 pub trait JsBufferViewArr = Sized where [Self]:JsBufferView;
 
 pub trait T1 = where glsl::PrimType: From<PhantomData<Self>>;
-pub trait T2 = where GlEnum: From<PhantomData<Self>>;
+pub trait T2 = where PhantomData<Self>: Into<GlEnum>;
 
 /// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
@@ -156,9 +156,6 @@ pub trait BufferItem: Copy + ShaderDefault + JsBufferViewArr + T1 + Into<Glsl> {
     fn glsl_type_name() -> String {
         glsl::PrimType::from_phantom::<Self>().to_code()
     }
-
-//    /// Converts the data to GLSL value.
-//    fn to_glsl(&self) -> String;
 }
 
 
@@ -182,7 +179,6 @@ impl BufferItem for i32 {
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
     fn glsl_item_type_code     () -> GlEnum         { GlEnum::from(Context::INT) }
-//    fn to_glsl                 (&self) -> String    { self.to_string() }
 }
 
 impl BufferItem for f32 {
@@ -196,11 +192,6 @@ impl BufferItem for f32 {
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
     fn glsl_item_type_code     ()      -> GlEnum { GlEnum::from(Context::FLOAT) }
-//    fn to_glsl                 (&self) -> String {
-//        let is_int = self.fract() == 0.0;
-//        if is_int { format!("{}.0" , self) }
-//        else      { format!("{}"   , self) }
-//    }
 }
 
 
@@ -247,11 +238,6 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
         }
     }
-
-//    fn to_glsl(&self) -> String {
-//        let vals:Vec<String> = self.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
-//        format!("{}({})",Self::glsl_type_name(),vals.join(","))
-//    }
 }
 
 

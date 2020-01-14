@@ -169,6 +169,7 @@ impl<T:BufferItem> {
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
         let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
+//        let item_type      = <<T as BufferItem>::Item as IsGlEnum>::gl_enum().into();
         let item_type      = <T as BufferItem>::glsl_item_type_code().into();
         let rows           = <T as BufferItem>::rows() as i32;
         let cols           = <T as BufferItem>::cols() as i32;

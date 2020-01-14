@@ -10,7 +10,6 @@ use crate::data::container::Add;
 use code_builder::{CodeBuilder, HasCodeRepr};
 use nalgebra::*;
 use shapely::derive_clone_plus;
-use crate::display::render::webgl::glsl;
 use crate::system::gpu::data::class::MatrixCtx;
 
 
@@ -90,9 +89,9 @@ impl From<f32> for Glsl {
 }
 
 impl<T,R,C> From<MatrixMN<T,R,C>> for Glsl
-where Self:MatrixCtx<T,R,C>, glsl::PrimType: From<PhantomData<MatrixMN<T,R,C>>> {
+where Self:MatrixCtx<T,R,C>, PrimType: From<PhantomData<MatrixMN<T,R,C>>> {
     fn from(t:MatrixMN<T,R,C>) -> Self {
-        let type_name = glsl::PrimType::from_phantom::<MatrixMN<T,R,C>>().to_code();
+        let type_name = PrimType::from_phantom::<MatrixMN<T,R,C>>().to_code();
         let vals:Vec<String> = t.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
         format!("{}({})",type_name,vals.join(",")).into()
     }
