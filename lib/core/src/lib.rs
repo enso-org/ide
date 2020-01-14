@@ -52,4 +52,8 @@ pub mod examples;
 pub mod system;
 pub mod math;
 
-pub use basegl_prelude as prelude;
+/// Prelude - commonly used utilities.
+pub mod prelude {
+    pub use basegl_prelude::*;
+    pub use logger::*;
+}

@@ -160,7 +160,8 @@ impl BufferItem for f32 {
 
 
 impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:ItemBounds, Self:MatrixCtx<T,R,C>, Self:GpuDefault + PhantomInto<glsl::PrimType> + GpuKnownSize {
+    where T:ItemBounds, Self:MatrixCtx<T,R,C>,
+          Self:GpuDefault + PhantomInto<glsl::PrimType> + GpuKnownSize {
     type Item = T;
     type Rows = R;
     type Cols = C;

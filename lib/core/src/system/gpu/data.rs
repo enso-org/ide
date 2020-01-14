@@ -31,6 +31,7 @@ pub mod types {
     pub use attribute::AttributeScope;
     pub use buffer::AnyBuffer;
     pub use buffer::Buffer;
+    pub use buffer::IsBuffer;
     pub use buffer::BufferItem;
     pub use prim::*;
     pub use uniform::Uniform;

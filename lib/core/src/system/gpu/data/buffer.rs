@@ -15,9 +15,7 @@ use crate::display::render::webgl::Context;
 use crate::system::gpu::data::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
 use crate::system::gpu::data::buffer::item::JsBufferView;
-use crate::system::web::info;
-use crate::system::web::internal_warning;
-use crate::system::web::Logger;
+
 
 use crate::system::gpu::data::prim::*;
 use crate::data::dirty::traits::*;

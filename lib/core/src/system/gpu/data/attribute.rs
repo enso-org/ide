@@ -1,19 +1,16 @@
-#![allow(missing_docs)]
+//! This module defines attributes and related utilities.
 
 use crate::prelude::*;
-use crate::system::gpu::types::*;
 
 use crate::closure;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
-use crate::system::gpu::data::buffer::IsBuffer;
-use crate::system::gpu::data::BufferItem;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use data::opt_vec::OptVec;
 
 use crate::data::dirty::traits::*;
+use crate::system::gpu::types::*;
 
 
 

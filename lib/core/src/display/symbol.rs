@@ -30,8 +30,7 @@ use crate::system::gpu::data::uniform::AnyTextureUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use shader::Shader;
 
 use web_sys::WebGlVertexArrayObject;

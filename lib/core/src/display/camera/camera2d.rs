@@ -8,7 +8,7 @@ use crate::prelude::*;
 use crate::data::dirty;
 use crate::display::object::DisplayObjectData;
 use nalgebra::{Vector3, Matrix4, Perspective3};
-use basegl_system_web::Logger;
+use logger::*;
 use crate::data::dirty::traits::*;
 
 

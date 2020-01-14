@@ -24,8 +24,7 @@ use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
 use crate::system::gpu::data::texture::Texture;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use crate::system::web;
 use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;

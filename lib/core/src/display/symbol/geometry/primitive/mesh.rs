@@ -16,8 +16,7 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::webgl::Context;
 use crate::prelude::*;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use num_enum::IntoPrimitive;
 
 

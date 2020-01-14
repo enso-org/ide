@@ -14,9 +14,7 @@ use crate::display::shape::text;
 use crate::display::world::scene::Scene;
 use crate::display::symbol::Symbol;
 use crate::display::symbol::registry::SymbolRegistry;
-use crate::system::web::fmt;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::system::gpu::data::uniform::UniformScope;

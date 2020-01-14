@@ -14,8 +14,7 @@ use crate::display::render::webgl;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material::VarDecl;
 use crate::display::symbol::shader;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use crate::display::symbol::ScopeType;
 
 use web_sys::WebGlProgram;

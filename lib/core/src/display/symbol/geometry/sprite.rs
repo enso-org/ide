@@ -9,7 +9,7 @@ use crate::display::symbol::geometry::primitive::mesh::InstanceId;
 use crate::display::symbol::material::Material;
 use crate::display::world::*;
 
-use basegl_system_web::Logger;
+use logger::*;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;

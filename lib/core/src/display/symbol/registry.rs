@@ -10,8 +10,7 @@ use crate::display::camera::Camera2D;
 use crate::display::render::webgl::Context;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
-use crate::system::web::group;
-use crate::system::web::Logger;
+
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 
