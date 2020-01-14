@@ -14,6 +14,68 @@ use shapely::derive_clone_plus;
 
 
 // =================================================================================================
+// === Glsl ========================================================================================
+// =================================================================================================
+
+/// A GLSL code representation.
+#[derive(Clone,Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct Glsl {
+    /// Raw, textual code representation.
+    pub str: String,
+}
+
+impl Display for Glsl {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.str,f)
+    }
+}
+
+
+// === Conversions ===
+
+impl From<&Glsl> for Glsl {
+    fn from(t:&Glsl) -> Self {
+        t.clone()
+    }
+}
+
+impl From<String> for Glsl {
+    fn from(t:String) -> Self {
+        Self {str:t}
+    }
+}
+
+impl From<&String> for Glsl {
+    fn from(t:&String) -> Self {
+        Self {str:t.into()}
+    }
+}
+
+impl From<&str> for Glsl {
+    fn from(t:&str) -> Self {
+        Self {str:(*t).into()}
+    }
+}
+
+impl From<i32> for Glsl {
+    fn from(t:i32) -> Self {
+        t.to_string().into()
+    }
+}
+
+impl From<f32> for Glsl {
+    fn from(t:f32) -> Self {
+        let is_int = t.fract() == 0.0;
+        if is_int { iformat!("{t}.0").into() }
+        else      { iformat!("{t}").into() }
+    }
+}
+
+
+
+
+// =================================================================================================
 // === Expr ========================================================================================
 // =================================================================================================
 
