@@ -101,9 +101,11 @@ impl ContextUniformOps<Matrix4<f32>> for Context {
 
 pub trait JsBufferViewArr = Sized where [Self]:JsBufferView;
 
+pub trait T1 = where glsl::PrimType: From<PhantomData<Self>>;
+
 /// Class for buffer items, like `f32` or `Vector<f32>`. It defines utils
 /// for mapping the item to WebGL buffer and vice versa.
-pub trait BufferItem: Copy + Empty + JsBufferViewArr {
+pub trait BufferItem: Copy + Empty + JsBufferViewArr + T1 {
 
     // === Types ===
 
@@ -170,12 +172,9 @@ pub trait BufferItem: Copy + Empty + JsBufferViewArr {
         Self::Item::glsl_item_type_code()
     }
 
-    /// Returns the GLSL type as GLSL AST item.
-    fn glsl_type() -> glsl::PrimType;
-
     /// Returns the GLSL type name, like `"float"` for `f32`.
     fn glsl_type_name() -> String {
-        Self::glsl_type().to_code()
+        glsl::PrimType::from_phantom::<Self>().to_code()
     }
 
     /// Converts the data to GLSL value.
@@ -203,7 +202,6 @@ impl BufferItem for i32 {
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
     fn glsl_item_type_code     () -> u32            { Context::INT }
-    fn glsl_type               () -> glsl::PrimType { glsl::PrimType::Int }
     fn to_glsl                 (&self) -> String    { self.to_string() }
 }
 
@@ -218,7 +216,6 @@ impl BufferItem for f32 {
     fn convert_prim_buffer     (buffer: &    [Self]) -> &    [Self::Item] { buffer }
     fn convert_prim_buffer_mut (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
     fn glsl_item_type_code     ()      -> u32            { Context::FLOAT }
-    fn glsl_type               ()      -> glsl::PrimType { glsl::PrimType::Float }
     fn to_glsl                 (&self) -> String {
         let is_int = self.fract() == 0.0;
         if is_int { format!("{}.0" , self) }
@@ -228,7 +225,7 @@ impl BufferItem for f32 {
 
 
 impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
-    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty {
+    where T:Default, Self:MatrixCtx<T,R,C>, Self:Empty, Self:T1 {
     type Item = T;
     type Rows = R;
     type Cols = C;
@@ -268,24 +265,6 @@ impl<T: BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         unsafe {
             let len = buffer.len() * Self::item_count();
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        }
-    }
-
-    fn glsl_type() -> glsl::PrimType {
-        let cols = <Self as BufferItem>::cols();
-        let rows = <Self as BufferItem>::rows();
-        match (cols,rows) {
-            (1,2) => glsl::PrimType::Vec2,
-            (1,3) => glsl::PrimType::Vec3,
-            (1,4) => glsl::PrimType::Vec4,
-            (2,2) => glsl::PrimType::Mat2,
-            (2,3) => glsl::PrimType::Mat2x3,
-            (2,4) => glsl::PrimType::Mat2x4,
-            (3,2) => glsl::PrimType::Mat3x2,
-            (3,3) => glsl::PrimType::Mat3,
-            (3,4) => glsl::PrimType::Mat3x4,
-            (4,4) => glsl::PrimType::Mat4,
-            _     => panic!("Unsupported GLSL matrix shape {}x{}",cols,rows)
         }
     }
 

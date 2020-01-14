@@ -150,6 +150,46 @@ impl<T, P> WithPhantom<T, P> {
 
 
 
+// ===================
+// === FromPhantom ===
+// ===================
+
+/// A utility for easy driving of type-level computations from value level. Often we've got some
+/// type level relations, like a few singleton types, and for each such type we've got an associated
+/// value. For example, we can define types `Int` and `Float` and associate with them
+/// `WebGlContext::Int` and `WebGlContext::Float` constants encoded as `GlEnum`. In order to convert
+/// `Int` or `Float` to the `GlEnum` we do not need the instance of the types, only the information
+/// what type it was. So we can define:
+///
+/// ```compile_fail
+/// impl From<PhantomData<Int>> for u32 {
+///     from(_:PhantomData<Int>>) {
+///         GlEnum(WebGlContext::Int)
+///     }
+/// }
+/// ```
+///
+/// And use it like:
+///
+/// ```compile_fail
+/// let val = GlEnum::from(PhantomData::<Int>)
+/// ```
+///
+/// Using this utility we can always write the following code instead:
+///
+/// ```compile_fail
+/// let val = GlEnum::from_phantom::<Int>()
+/// ```
+pub trait FromPhantom {
+    fn from_phantom<P>() -> Self where Self: From<PhantomData<P>> {
+        Self::from(PhantomData::<P>)
+    }
+}
+impl<T> FromPhantom for T {}
+
+
+
+
 // =====================
 // === Rc Extensions ===
 // =====================
