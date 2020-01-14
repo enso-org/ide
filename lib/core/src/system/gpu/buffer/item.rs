@@ -2,14 +2,12 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
 use crate::display::render::webgl::glsl;
 use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::ShaderDefault;
 use crate::display::render::webgl::glsl::Glsl;
 
 use nalgebra::*;
-use web_sys::WebGlUniformLocation;
 use code_builder::HasCodeRepr;
 
 

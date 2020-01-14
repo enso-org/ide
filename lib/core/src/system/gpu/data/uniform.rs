@@ -85,15 +85,7 @@ pub trait IntoUniformValueImpl {
 /// Result of the binding operation.
 pub type AsUniformValue<T> = <T as IntoUniformValueImpl>::Result;
 
-impl<I:InternalFormat,T:PrimType> IntoUniformValueImpl for &Texture<I,T> {
-    type Result = BoundTexture<I,T>;
-    fn into_uniform_value(self, context:&Context) -> Self::Result {
-        BoundTexture::new(self,context)
-    }
-}
-
-
-// TODO: Make those generic with marcos:
+// TODO[wd]: Make those generic with marcos:
 
 impl IntoUniformValueImpl for f32 {
     type Result = f32;

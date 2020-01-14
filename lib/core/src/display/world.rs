@@ -24,6 +24,8 @@ use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
 use crate::system::gpu::data::texture::Texture;
+use crate::system::gpu::data::texture::TextureFromUrl;
+use crate::system::gpu::data::texture::Rgba;
 use crate::system::web::group;
 use crate::system::web::Logger;
 use crate::system::web;
@@ -254,7 +256,11 @@ impl WorldData {
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
 
-        let txt1 = Texture::Rgba("https://webgl2fundamentals.org/webgl/resources/f-texture.png");
+        let txt1 = TextureFromUrl {
+            url : "https://webgl2fundamentals.org/webgl/resources/f-texture.png".to_string(),
+            format : PhantomData::<Rgba>,
+            elem_type : PhantomData::<u8>
+        };
         variables.add_or_panic("sample_image",&txt1);
 
         let fonts                  = Fonts::new();
