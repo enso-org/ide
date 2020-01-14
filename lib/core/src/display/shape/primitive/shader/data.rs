@@ -1,7 +1,5 @@
 //! This module defines an abstraction for all types which can be used as GLSL code values.
 
-use crate::prelude::*;
-
 use crate::system::gpu::data::BufferItem;
 use crate::system::gpu::data::ShaderDefault;
 use crate::display::render::webgl::glsl::Glsl;

@@ -6,12 +6,13 @@
 use crate::prelude::*;
 
 use crate::data::container::Add;
+use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::class::MatrixCtx;
+use crate::system::gpu::data::texture::TextureSource;
 
 use code_builder::{CodeBuilder, HasCodeRepr};
 use nalgebra::*;
 use shapely::derive_clone_plus;
-use crate::display::render::webgl::glsl;
-use crate::system::gpu::data::class::MatrixCtx;
 
 
 
@@ -754,4 +755,5 @@ define_glsl_prim_type_conversions! {
     Matrix3x4<f32> => Mat3x4,
     Matrix4x2<f32> => Mat4x2,
     Matrix4x3<f32> => Mat4x3,
+    TextureSource  => Sampler2D,
 }
