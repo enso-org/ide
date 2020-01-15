@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::gl_enum::GlEnum;
 
 

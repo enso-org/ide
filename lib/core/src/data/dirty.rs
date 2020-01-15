@@ -9,8 +9,6 @@
 use crate::prelude::*;
 
 use crate::data::function::callback::*;
-use crate::system::web::group;
-use crate::system::web::Logger;
 use rustc_hash::FxHashSet;
 use std::hash::Hash;
 use std::mem;
@@ -69,10 +67,10 @@ use traits::*;
 /// logging and callback utilities to the underlying data. Moreover, it
 /// implements public API for working with dirty flags.
 #[derive(Derivative)]
-#[derivative(Debug(bound = "T:Debug"))]
+#[derivative(Debug(bound="T:Debug"))]
 pub struct DirtyFlag<T,OnMut> {
     pub data : T,
-    on_set   :Proc<OnMut>,
+    on_set   : Proc<OnMut>,
     logger   : Logger,
 }
 
@@ -151,7 +149,7 @@ HasSet1 for DirtyFlag<T,OnMut> {
         let is_set    = self.data.check(&arg);
         if !is_set {
             self.data.set(arg);
-            group!(self.logger, format!("Setting to {}.", self.data), {
+            group!(self.logger, "Setting to {self.data}.", {
                 if first_set { self.on_set.call() }
             })
         }
@@ -164,7 +162,7 @@ HasSet1 for DirtyFlag<T,OnMut> {
 impl<T:HasUnset0,OnMut>
 HasUnset0 for DirtyFlag<T,OnMut> {
     fn unset(&mut self) {
-        self.logger.info("Unsetting.");
+        info!(self.logger, "Unsetting.");
         self.data.unset()
     }
 }
@@ -173,7 +171,7 @@ impl<T:HasUnset1,OnMut>
 HasUnset1 for DirtyFlag<T,OnMut>
     where Arg<T>:Display {
     fn unset(&mut self, arg: &Self::Arg) {
-        self.logger.info(|| format!("Unsetting {}.", arg));
+        info!(self.logger, "Unsetting {arg}.");
         self.data.unset(arg)
     }
 }
@@ -189,8 +187,8 @@ HasUnset1 for DirtyFlag<T,OnMut>
 /// A version of `DirtyFlag` which uses internal mutability pattern. It is meant to expose the same
 /// API but without requiring `self` reference to be mutable.
 #[derive(Derivative)]
-#[derivative(Debug(bound = "T:Debug"))]
-#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound="T:Debug"))]
+#[derivative(Clone(bound=""))]
 pub struct SharedDirtyFlag<T,OnMut> {
     rc: Rc<RefCell<DirtyFlag<T,OnMut>>>
 }

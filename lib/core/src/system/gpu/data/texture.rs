@@ -4,10 +4,9 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::Context;
-use crate::display::render::webgl::glsl;
+use crate::system::gpu::data::buffer::item::JsBufferViewArr;
+use crate::system::gpu::shader::Context;
 use crate::system::web;
-use crate::system::gpu::buffer::item::{JsBufferViewArr, JsBufferView};
 use nalgebra::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
@@ -172,8 +171,6 @@ gen_prim_type_instances! {
 // ================
 // === GL Types ===
 // ================
-
-
 
 macro_rules! gl_variants {
     ( $($name:ident = $expr:expr),* $(,)? ) => {$(
@@ -463,6 +460,7 @@ with_texture_format_relations!(generate_internal_format_instances []);
 // === Texture trait ===
 // =====================
 
+/// Trait used for all texture representations.
 pub trait Texture<I:InternalFormat, T:PrimType> {
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
@@ -509,6 +507,7 @@ pub trait Texture<I:InternalFormat, T:PrimType> {
 
 // === Empty Texture ===
 
+/// An empty texture, created as 1x1 texture in Rgba format.
 pub struct EmptyTexture();
 
 //impl<I,T> Texture<I,T> for EmptyTexture {}
@@ -516,9 +515,14 @@ pub struct EmptyTexture();
 
 // === Texture from url ===
 
+/// Texture loaded from given url. It is loaded to gpu asynchronously, putting a mocked texture
+/// before
 pub struct TextureFromUrl<I,T> {
+    /// An url from where the texture is loaded.
     pub url       : String,
+    /// A type which defines a texture format.
     pub format    : PhantomData<I>,
+    /// A type representing an element type in texture.
     pub elem_type : PhantomData<T>
 }
 
@@ -537,11 +541,16 @@ impl<S:Str,I,T> From<S> for TextureFromUrl<I,T> {
 
 // === Texture from memory ===
 
+/// A texture created from slice.
 pub struct TextureFromMemory<'a,I,T> {
-    view   : &'a[T],
-    width  : i32,
-    height : i32,
-    format : PhantomData<I>,
+    /// A slice from which the texture data are taken.
+    pub view   : &'a[T],
+    /// Texture's width
+    pub width  : i32,
+    /// Texture's height
+    pub height : i32,
+    /// A type which defines a texture format.
+    pub format : PhantomData<I>,
 }
 
 impl<'a,I:InternalFormat,T:PrimType> Texture<I,T> for TextureFromMemory<'a,I,T> {}
@@ -628,7 +637,6 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
     /// Loads or re-loads the texture data from the provided source. This action will be performed
     /// asynchronously.
     pub fn reload_from_url(&self, texture:&TextureFromUrl<I,T>) {
-        let data            = self.rc.borrow();
         let internal_format = texture.gl_internal_format();
         let format          = texture.gl_format();
         let elem_type       = texture.gl_elem_type();
@@ -658,30 +666,38 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType/* + JsBufferViewArr*/> BoundTexture<I,T> {
+impl<I:InternalFormat,T:PrimType + JsBufferViewArr> BoundTexture<I,T> {
+    /// Constructs from memory view.
     pub fn new_from_memory(texture:&TextureFromMemory<'_,I,T>, context:&Context) -> Self {
         let data = BoundTextureData::new(context);
         let rc   = Rc::new(RefCell::new(data));
         let out  = Self {rc};
-//        out.reload_from_memory(texture);
+        out.reload_from_memory(texture);
         out
     }
 
-//    pub fn reload_from_memory(&self, texture:&TextureFromMemory<'_,I,T>) {
-//        let data            = &self.rc.borrow();
-//        let context         = &data.context;
-//        let internal_format = texture.gl_internal_format();
-//        let format          = texture.gl_format();
-//        let elem_type       = texture.gl_elem_type();
-//        let target          = Context::TEXTURE_2D;
-//        let level           = 0;
-//        let border          = 0;
-//        let width           = texture.width;
-//        let height          = texture.height;
-//        let view            = texture.view.js_buffer_view();
-//        context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
-//        (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
-//    }
+    /// Loads or re-loads the texture data from the provided source.
+    pub fn reload_from_memory(&self, texture:&TextureFromMemory<'_,I,T>) {
+        let data            = &self.rc.borrow();
+        let context         = &data.context;
+        let internal_format = texture.gl_internal_format();
+        let format          = texture.gl_format();
+        let elem_type       = texture.gl_elem_type();
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let width           = texture.width;
+        let height          = texture.height;
+        unsafe {
+            // We use unsafe array view which is used immediately, so no allocations should happen
+            // until we drop the view.
+            let view        = texture.view.js_buffer_view();
+            let result = context
+                .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
+                (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
+            result.unwrap();
+        }
+    }
 }
 
 // TODO[ao]: The both IntoUniformValueImpl implementations should be generated only for valid I,T
@@ -695,7 +711,9 @@ impl<I:InternalFormat,T:PrimType> IntoUniformValueImpl for &TextureFromUrl<I,T> 
     }
 }
 
-impl<'a,I:InternalFormat,T:PrimType> IntoUniformValueImpl for &TextureFromMemory<'a,I,T> {
+impl<'a,I,T> IntoUniformValueImpl for &TextureFromMemory<'a,I,T>
+where I : InternalFormat,
+      T : PrimType + JsBufferViewArr {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
         BoundTexture::new_from_memory(self,context)

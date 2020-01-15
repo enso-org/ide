@@ -2,13 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::display::render::webgl::glsl;
 use crate::display::symbol::shader::builder::CodeTemplete;
-use crate::display::render::webgl::glsl::Glsl;
-
-// =================
-// === GLSL Type ===
-// =================
+use crate::system::gpu::types::*;
 
 
 
@@ -37,6 +32,13 @@ impl VarDecl {
     }
 }
 
+impl<T:PhantomInto<glsl::PrimType> + Into<Glsl>>
+From<T> for VarDecl {
+    fn from(t:T) -> Self {
+        Self::new(<T>::glsl_prim_type(), t.glsl().into())
+    }
+}
+
 
 
 // ================
@@ -54,7 +56,8 @@ pub struct Material {
     outputs : BTreeMap<String,VarDecl>,
 }
 
-pub trait GlslDeclaratible = where Self:TryInto<Glsl>, glsl::PrimType:From<PhantomData<Self>>;
+/// Bounds for the material inputs.
+pub trait Input = Into<VarDecl> + GpuDefault;
 
 impl Material {
 
@@ -64,17 +67,23 @@ impl Material {
     }
 
     /// Adds a new input variable.
-    pub fn add_input<Name:Str,T:GlslDeclaratible>(&mut self, name:Name, t:T) {
-        self.inputs.insert(name.into(),Self::make_var_decl(t));
+    pub fn add_input<T:Input>(&mut self, name:&str, t:T) {
+        self.inputs.insert(name.into(),t.into());
     }
 
     /// Adds a new output variable.
-    pub fn add_output<Name:Str,T:GlslDeclaratible>(&mut self, name:Name, t:T) {
-        self.outputs.insert(name.into(),Self::make_var_decl(t));
+    pub fn add_output<T:Input>(&mut self, name:&str, t:T) {
+        self.outputs.insert(name.into(),t.into());
     }
 
-    fn make_var_decl<T:GlslDeclaratible>(t:T) -> VarDecl {
-        VarDecl::new(glsl::PrimType::phantom_from::<T>(), t.try_into().ok())
+    /// Adds a new input variable.
+    pub fn add_input_def<T:Input>(&mut self, name:&str) {
+        self.inputs.insert(name.into(),<T>::gpu_default().into());
+    }
+
+    /// Adds a new output variable.
+    pub fn add_output_def<T:Input>(&mut self, name:&str) {
+        self.outputs.insert(name.into(),<T>::gpu_default().into());
     }
 }
 

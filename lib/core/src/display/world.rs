@@ -23,11 +23,6 @@ use crate::debug::monitor::Panel;
 use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
-use crate::system::gpu::data::texture::Texture;
-use crate::system::gpu::data::texture::TextureFromUrl;
-use crate::system::gpu::data::texture::Rgba;
-use crate::system::web::group;
-use crate::system::web::Logger;
 use crate::system::web;
 use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;
@@ -234,7 +229,8 @@ impl WorldData {
             if      key == "0" { world_copy.borrow_mut().display_mode.set(0) }
             else if key == "1" { world_copy.borrow_mut().display_mode.set(1) }
         }));
-        web::document().unwrap().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
+        web::document().unwrap().add_event_listener_with_callback
+            ("keydown",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
         // -----------------------------------------------------------------------------------------
 
@@ -255,11 +251,6 @@ impl WorldData {
         let variables              = &workspace.variables;
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
-
-        let txt1 : TextureFromUrl<Rgba,u8> =
-            "https://webgl2fundamentals.org/webgl/resources/f-texture.png".into();
-        variables.add_or_panic("sample_image",&txt1);
-
         let fonts                  = Fonts::new();
         let event_loop             = EventLoop::new();
         let update_handle          = default();
@@ -270,7 +261,8 @@ impl WorldData {
         let stats_monitor_cp_2     = stats_monitor.clone();
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode,fonts,update_handle,stats,stats_monitor}
+        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
+             ,fonts,update_handle,stats,stats_monitor}
     }
 
     pub fn run(&mut self) {
@@ -284,11 +276,10 @@ impl WorldData {
         //TODO[WD]: Re-think when should we check the condition (uniform update):
         //          if self.workspace_dirty.check_all() {
         group!(self.logger, "Updating.", {
-        // FIXME render only needed workspaces.
-        self.workspace_dirty.unset_all();
-        let fonts = &mut self.fonts;
-        self.workspace.update(fonts);
-            });
+            self.workspace_dirty.unset_all();
+            let fonts = &mut self.fonts;
+            self.workspace.update(fonts);
+        });
     }
 
     /// Dispose the world object, cancel all handlers and events.
@@ -302,5 +293,3 @@ impl Drop for WorldData {
         self.logger.info("Dropping.");
     }
 }
-
-

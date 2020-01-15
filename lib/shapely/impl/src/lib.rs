@@ -20,6 +20,28 @@ use std::ops::GeneratorState;
 use std::pin::Pin;
 use basegl_prelude::*;
 
+#[macro_export]
+macro_rules! newtype_copy {
+    ($( $(#$meta:tt)* $name:ident($type:ty); )*) => {$(
+        $(#$meta)*
+        #[derive(Copy,Clone,Debug,Default,Display,From,Into)]
+        pub struct $name($type);
+
+        impl Deref for $name {
+            type Target = $type;
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+    )*}
+}
+
 
 #[macro_export]
 macro_rules! derive_clone_plus {

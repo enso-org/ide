@@ -8,19 +8,19 @@ use crate::prelude::*;
 use crate::closure;
 use crate::control::callback::Callback;
 use crate::control::callback::CallbackFn;
-use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
-use crate::display::render::webgl::Context;
-use crate::system::gpu::buffer::usage::BufferUsage;
+use crate::system::gpu::shader::Context;
+use crate::system::gpu::data::buffer::usage::BufferUsage;
 use crate::system::gpu::data::attribute::Attribute;
-use crate::system::gpu::buffer::item::JsBufferView;
-use crate::system::gpu::data::gl_enum::*;
-use crate::system::gpu::data::BufferItem;
-use crate::system::web::info;
-use crate::system::web::internal_warning;
-use crate::system::web::Logger;
+use crate::system::gpu::data::buffer::item::JsBufferView;
+
+
+use crate::system::gpu::data::prim::*;
+use crate::data::dirty::traits::*;
+use crate::system::gpu::data::gl_enum::traits::*;
+
 
 use nalgebra::Matrix4;
 use nalgebra::Vector2;
@@ -30,6 +30,10 @@ use shapely::shared;
 use std::iter::Extend;
 use std::ops::RangeInclusive;
 use web_sys::WebGlBuffer;
+
+
+pub use crate::system::gpu::data::BufferItem;
+
 
 
 
@@ -98,6 +102,16 @@ impl<T:BufferItem> {
         })
     }
 
+    /// Returns the number of elements in the buffer.
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Checks if the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
     /// Reads the usage pattern of the buffer.
     pub fn usage(&self) -> BufferUsage {
         self.usage
@@ -107,16 +121,6 @@ impl<T:BufferItem> {
     pub fn set_usage(&mut self, usage:BufferUsage) {
         self.usage = usage;
         self.resize_dirty.set();
-    }
-
-    /// Returns the number of elements in the buffer.
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
-
-    /// Checks if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
     }
 
     /// Gets a copy of the data by its index.
@@ -136,7 +140,7 @@ impl<T:BufferItem> {
 
     /// Adds multiple new elements initialized to default values.
     pub fn add_elements(&mut self, elem_count:usize) {
-        self.extend(iter::repeat(T::shader_default()).take(elem_count));
+        self.extend(iter::repeat(T::gpu_default()).take(elem_count));
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -168,10 +172,10 @@ impl<T:BufferItem> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as i32;
-        let item_type      = <T as BufferItem>::glsl_item_type_code().into();
-        let rows           = <T as BufferItem>::rows() as i32;
-        let cols           = <T as BufferItem>::cols() as i32;
+        let item_byte_size = T::item_gpu_byte_size() as i32;
+        let item_type      = T::item_gl_enum().into();
+        let rows           = T::rows() as i32;
+        let cols           = T::cols() as i32;
         let col_byte_size  = item_byte_size * rows;
         let stride         = col_byte_size  * cols;
         let normalize      = false;
@@ -181,7 +185,8 @@ impl<T:BufferItem> {
             self.context.enable_vertex_attrib_array(lloc);
             self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
             if instanced {
-                self.context.vertex_attrib_divisor(lloc, 1);
+                let instance_count = 1;
+                self.context.vertex_attrib_divisor(lloc,instance_count);
             }
         }
     }
@@ -227,27 +232,29 @@ impl<T: BufferItem> BufferData<T> {
 
     /// Replaces the whole GPU buffer by the local data.
     fn replace_gpu_buffer(&mut self) {
-        let data = self.as_slice();
+        let data    = self.as_slice();
+        let gl_enum = self.usage.into_gl_enum().into();
         unsafe { // Note [Safety]
             let js_array = data.js_buffer_view();
             self.context.buffer_data_with_array_buffer_view
-            (Context::ARRAY_BUFFER,&js_array,self.usage.to_gl_enum());
+            (Context::ARRAY_BUFFER,&js_array,gl_enum);
         }
         crate::if_compiled_with_stats! {
-            let item_byte_size = <T as BufferItem>::gpu_item_byte_size() as u32;
-            let item_count     = <T as BufferItem>::item_count() as u32;
+            let item_byte_size    = T::item_gpu_byte_size() as u32;
+            let item_count        = T::item_count() as u32;
+            let new_gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
             self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-            self.gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
-            self.stats.mod_gpu_memory_usage(|s| s + self.gpu_mem_usage);
-            self.stats.mod_data_upload_size(|s| s + self.gpu_mem_usage);
+            self.stats.mod_gpu_memory_usage(|s| s + new_gpu_mem_usage);
+            self.stats.mod_data_upload_size(|s| s + new_gpu_mem_usage);
+            self.gpu_mem_usage = new_gpu_mem_usage;
         }
     }
 
     /// Updates the GPU sub-buffer data by the provided index range.
     fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
         let data            = self.as_slice();
-        let item_byte_size  = <T as BufferItem>::gpu_item_byte_size() as u32;
-        let item_count      = <T as BufferItem>::item_count() as u32;
+        let item_byte_size  = T::item_gpu_byte_size() as u32;
+        let item_count      = T::item_count() as u32;
         let start           = *range.start() as u32;
         let end             = *range.end() as u32;
         let start_item      = start * item_count;
@@ -267,7 +274,7 @@ impl<T: BufferItem> BufferData<T> {
 
 impl<T: BufferItem> Buffer<T> {
     /// Get the attribute pointing to a given buffer index.
-    pub fn at(&self, index:usize) -> Attribute<T> {
+    pub fn at(&self, index:AttributeInstanceIndex) -> Attribute<T> {
         Attribute::new(index,self.clone_ref())
     }
 }
@@ -311,6 +318,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 // =================
 
 use enum_dispatch::*;
+use crate::system::gpu::data::AttributeInstanceIndex;
 
 // === Macros ===
 
@@ -319,7 +327,7 @@ use enum_dispatch::*;
 pub struct BadVariant;
 
 macro_rules! define_any_buffer {
-([$([$base:ident $param:ident])*]) => { paste::item! {
+([] [$([$base:ident $param:ident])*]) => { paste::item! {
 
     /// An enum with a variant per possible buffer type (i32, f32, Vector<f32>,
     /// and many, many more). It provides a faster alternative to dyn trait one:
@@ -355,19 +363,9 @@ macro_rules! define_any_buffer {
 }}}
 
 
-macro_rules! with_all_attribute_types {
-    ($f:ident) => {
-        shapely::cartesian!($f _ [Identity Vector2 Vector3 Vector4 Matrix4] [f32]);
-    }
-}
-
-
 // === Definition ===
 
-type Identity<T> = T;
-
-
-with_all_attribute_types!(define_any_buffer);
+crate::with_all_prim_types!([[define_any_buffer] []]);
 
 /// Collection of all methods common to every buffer variant.
 #[enum_dispatch]

@@ -9,7 +9,7 @@ use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
-use crate::display::render::webgl::glsl::Glsl;
+use crate::system::gpu::shader::glsl::Glsl;
 
 
 

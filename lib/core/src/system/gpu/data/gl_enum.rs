@@ -1,7 +1,7 @@
 //! This module defines a wrapper for WebGL enums and associated utils.
 
 use crate::prelude::*;
-use crate::display::render::webgl::Context;
+use crate::system::gpu::shader::Context;
 
 
 
@@ -9,54 +9,43 @@ use crate::display::render::webgl::Context;
 // === GlEnum ===
 // ==============
 
-/// The newtype for WebGL enums.
-#[derive(Clone,Copy,Debug)]
-pub struct GlEnum {
-    /// Raw value of the enum.
-    pub raw: u32,
+newtype_copy! {
+    /// The newtype for WebGL enums.
+    GlEnum(u32);
 }
 
-impl From<u32> for GlEnum {
-    fn from(raw:u32) -> Self {
-        Self {raw}
+
+
+// ==================
+// === Extensions ===
+// ==================
+
+/// Extension methods.
+pub mod traits {
+    use super::*;
+
+    /// Methods for every object which implements `Into<GlEnum>`.
+    pub trait IntoGlEnum {
+        /// Converts the current value to `GlEnum`.
+        fn into_gl_enum(&self) -> GlEnum;
     }
-}
 
-impl From<GlEnum> for u32 {
-    fn from(t:GlEnum) -> Self {
-        t.raw
+    impl<T> IntoGlEnum for T where for<'a> &'a T:Into<GlEnum> {
+        fn into_gl_enum(&self) -> GlEnum {
+            self.into()
+        }
     }
-}
 
-
-
-// =================
-// === GlEnumOps ===
-// =================
-
-/// Methods for every object which implements `Into<GlEnum>`.
-pub trait GlEnumOps {
-    /// Converts the current value to `GlEnum`.
-    fn to_gl_enum<G:From<GlEnum>>(&self) -> G;
-}
-
-impl<T> GlEnumOps for T where for<'a> &'a T:Into<GlEnum> {
-    fn to_gl_enum<G:From<GlEnum>>(&self) -> G {
-        let g:GlEnum = self.into();
-        g.into()
+    /// Methods for every object which implements `PhantomInto<GlEnum>`.
+    pub trait PhantomIntoGlEnum {
+        /// Converts the current value to `GlEnum`.
+        fn gl_enum() -> GlEnum;
     }
-}
 
-/// Methods for every object which implements `Into<GlEnum>`.
-pub trait IsGlEnum {
-    /// Converts the current value to `GlEnum`.
-    fn gl_enum<G:From<GlEnum>>() -> G;
-}
-
-impl<T> IsGlEnum for T where PhantomData<T>:Into<GlEnum> {
-    fn gl_enum<G:From<GlEnum>>() -> G {
-        let g:GlEnum = PhantomData::<T>.into();
-        g.into()
+    impl<T> PhantomIntoGlEnum for T where T:PhantomInto<GlEnum> {
+        fn gl_enum() -> GlEnum {
+            T::phantom_into::<GlEnum>()
+        }
     }
 }
 
@@ -126,6 +115,7 @@ macro_rules! define_singleton_enum_gl {
 // ================================
 
 define_gl_enum_conversions! {
-    i32 = Context::INT,
-    f32 = Context::FLOAT,
+    bool = Context::BOOL,
+    i32  = Context::INT,
+    f32  = Context::FLOAT,
 }
