@@ -8,11 +8,12 @@ use crate::display::object::*;
 use crate::display::symbol::material::Material;
 use crate::display::world::*;
 
-use logger::*;
+
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
 use crate::system::gpu::data::AttributeInstanceIndex;
+
 
 
 // =================
@@ -28,7 +29,7 @@ pub struct SymbolRef {
 
 impl SymbolRef {
     /// Constructor.
-    pub fn new(world: World, symbol_id:SymbolId) -> Self {
+    pub fn new(world:World, symbol_id:SymbolId) -> Self {
         Self {world,symbol_id}
     }
 }
@@ -131,16 +132,17 @@ struct SpriteData {
 
 impl SpriteData {
     pub fn new
-    (sprite_ref:SpriteRef, _transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
+    ( sprite_ref:SpriteRef
+    , _transform:Attribute<Matrix4<f32>>
+    , bbox:Attribute<Vector2<f32>>
+    ) -> Self {
         let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
         let display_object = DisplayObjectData::new(logger);
         let transform_cp   = _transform.clone();
         display_object.set_on_updated(move |t| {
             transform_cp.set(t.matrix().clone());
         });
-
         sprite_ref.symbol_ref.world.mod_stats(|stats| stats.inc_sprite_count());
-
         Self {sprite_ref,display_object,_transform,bbox}
     }
 }
@@ -180,11 +182,11 @@ impl Drop for SpriteData {
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 pub struct SpriteSystem {
-    display_object    : DisplayObjectData,
-    symbol_ref        : SymbolRef,
-    transform         : Buffer<Matrix4<f32>>,
-    _uv               : Buffer<Vector2<f32>>,
-    bbox              : Buffer<Vector2<f32>>,
+    display_object : DisplayObjectData,
+    symbol_ref     : SymbolRef,
+    transform      : Buffer<Matrix4<f32>>,
+    _uv            : Buffer<Vector2<f32>>,
+    bbox           : Buffer<Vector2<f32>>,
 }
 
 impl SpriteSystem {

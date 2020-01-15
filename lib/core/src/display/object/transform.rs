@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::data::dirty;
 use crate::data::function::callback::*;
-use logger::*;
+
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use nalgebra::Vector4;

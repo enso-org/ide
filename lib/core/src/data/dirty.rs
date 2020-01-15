@@ -187,8 +187,8 @@ HasUnset1 for DirtyFlag<T,OnMut>
 /// A version of `DirtyFlag` which uses internal mutability pattern. It is meant to expose the same
 /// API but without requiring `self` reference to be mutable.
 #[derive(Derivative)]
-#[derivative(Debug(bound = "T:Debug"))]
-#[derivative(Clone(bound = ""))]
+#[derivative(Debug(bound="T:Debug"))]
+#[derivative(Clone(bound=""))]
 pub struct SharedDirtyFlag<T,OnMut> {
     rc: Rc<RefCell<DirtyFlag<T,OnMut>>>
 }

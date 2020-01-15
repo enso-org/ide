@@ -9,7 +9,7 @@ use crate::closure;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 use data::opt_vec::OptVec;
-use logger::*;
+
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
 use transform::CachedTransform;

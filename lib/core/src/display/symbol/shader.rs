@@ -8,13 +8,13 @@ use crate::prelude::*;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::system::gpu::shader::Context;
-use crate::system::gpu::shader::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material::VarDecl;
-use crate::display::symbol::shader;
-
 use crate::display::symbol::ScopeType;
+use crate::display::symbol::shader;
+use crate::system::gpu::shader::*;
+use crate::system::gpu::shader::Context;
+use crate::control::callback::CallbackFn;
 
 use web_sys::WebGlProgram;
 
@@ -51,7 +51,7 @@ impl VarBinding {
 #[derivative(Debug(bound=""))]
 pub struct Shader {
     geometry_material : Material,
-    material          : Material,
+    surface_material  : Material,
     program           : Option<WebGlProgram>,
     dirty             : Dirty,
     logger            : Logger,
@@ -69,17 +69,17 @@ pub type Dirty = dirty::SharedBool<Box<dyn Fn()>>;
 impl Shader {
 
     /// Creates new shader with attached callback.
-    pub fn new<OnMut:Fn()+'static>(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    pub fn new<OnMut:CallbackFn>(logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_shader_count();
         let geometry_material = default();
-        let material          = default();
+        let surface_material  = default();
         let program           = default();
         let dirty_logger      = logger.sub("dirty");
         let dirty             = Dirty::new(dirty_logger,Box::new(on_mut));
         let context           = context.clone();
         let stats             = stats.clone_ref();
         dirty.set();
-        Self {geometry_material,material,program,dirty,logger,context,stats}
+        Self {geometry_material,surface_material,program,dirty,logger,context,stats}
     }
 
     // TODO: this is very work-in-progress function. It should be refactored in the next PR.
@@ -113,7 +113,7 @@ impl Shader {
                 shader_cfg.add_output("color", glsl::PrimType::Vec4);
 
                 let vertex_code   = self.geometry_material.code().clone();
-                let fragment_code = self.material.code().clone();
+                let fragment_code = self.surface_material.code().clone();
                 shader_builder.compute(&shader_cfg,vertex_code,fragment_code);
                 let shader      = shader_builder.build();
                 let vert_shader = compile_vertex_shader  (&self.context,&shader.vertex);
@@ -136,7 +136,7 @@ impl Shader {
     /// Traverses the shader definition and collects all attribute names.
     pub fn collect_variables(&self) -> BTreeMap<String,VarDecl> {
         let geometry_material_inputs = self.geometry_material.inputs().clone();
-        let surface_material_inputs  = self.material.inputs().clone();
+        let surface_material_inputs  = self.surface_material.inputs().clone();
         geometry_material_inputs.into_iter().chain(surface_material_inputs).collect()
     }
 }
@@ -166,7 +166,7 @@ impl Shader {
     }
 
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
-        self.material = material.into();
+        self.surface_material = material.into();
         self.dirty.set();
     }
 }

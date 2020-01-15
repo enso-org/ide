@@ -6,19 +6,15 @@ use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display::camera::Camera2D;
-use crate::system::gpu::shader::Context;
+use crate::display::camera::Camera2d;
+use crate::display::symbol::Symbol;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
+use crate::system::gpu::shader::Context;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 
-
-pub mod types {
-    pub use crate::display::symbol::Symbol;
-}
-pub use types::*;
 
 
 // ======================
@@ -34,7 +30,6 @@ pub struct SymbolRegistry {
     pub symbol_dirty    : SymbolDirty,
     pub logger          : Logger,
     pub view_projection : Uniform<Matrix4<f32>>,
-    pub zoom            : Uniform<f32>,
     variables           : UniformScope,
     context             : Context,
     stats               : Stats,
@@ -67,10 +62,9 @@ impl SymbolRegistry {
         let symbols         = default();
         let variables       = variables.clone();
         let view_projection = variables.add_or_panic("view_projection", Matrix4::<f32>::identity());
-        let zoom            = variables.add_or_panic("zoom"           , 1.0);
         let context         = context.clone();
         let stats           = stats.clone_ref();
-        Self {symbols,symbol_dirty,logger,view_projection,zoom,variables,context,stats}
+        Self {symbols,symbol_dirty,logger,view_projection,variables,context,stats}
     }
 
     /// Creates a new `Symbol` instance.
@@ -97,11 +91,10 @@ impl SymbolRegistry {
         })
     }
 
-    pub fn render(&self, camera:&Camera2D) {
+    pub fn render(&self, camera:&Camera2d) {
         let changed = camera.update();
         if changed {
             self.view_projection.set(camera.view_projection_matrix());
-            self.zoom.set(camera.zoom());
         }
         group!(self.logger, "Rendering.", {
             for symbol in &self.symbols {
