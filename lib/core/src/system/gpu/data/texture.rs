@@ -326,60 +326,9 @@ with_texture_format_relations!(generate_internal_format_instances []);
 
 
 
-
-
-
-
-pub trait TextureType {
-    type InternalFormat: InternalFormat;
-    type ElemType: TextureItemType;
-
-    /// Internal format instance of this texture. Please note, that this value could be computed
-    /// without taking self reference, however it was defined in such way for convenient usage.
-    fn internal_format() -> AnyInternalFormat {
-        <Self::InternalFormat>::default().into()
-    }
-
-    /// Format instance of this texture. Please note, that this value could be computed
-    /// without taking self reference, however it was defined in such way for convenient usage.
-    fn format() -> AnyFormat {
-        <Self::InternalFormat as InternalFormat>::Format::default().into()
-    }
-
-    /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
-    /// without taking self reference, however it was defined in such way for convenient usage.
-    fn gl_internal_format() -> i32 {
-        let GlEnum(u) = Self::internal_format().into_gl_enum();
-        u as i32
-    }
-
-    /// Format of this texture as `GlEnum`. Please note, that this value could be computed
-    /// without taking self reference, however it was defined in such way for convenient usage.
-    fn gl_format() -> GlEnum {
-        Self::format().into_gl_enum()
-    }
-
-    /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
-    /// without taking self reference, however it was defined in such way for convenient usage.
-    fn gl_elem_type() -> u32 {
-        <Self::ElemType>::gl_enum().into()
-    }
-}
-
-impl<I:InternalFormat,T:TextureItemType> TextureType for Texture<I,T> {
-    type InternalFormat = I;
-    type ElemType = T;
-}
-
-impl<I:InternalFormat,T:TextureItemType> TextureType for TextureData<I,T> {
-    type InternalFormat = I;
-    type ElemType = T;
-}
-
-
-// =====================
+// ===========================
 // === TextureProviderData ===
-// =====================
+// ===========================
 
 /// Source of the texture. Please note that the texture will be loaded asynchronously on demand.
 #[derive(Clone,Debug)]
@@ -396,9 +345,10 @@ impl<S:Str> From<S> for TextureProviderData {
 }
 
 
-// ===============
+
+// =======================
 // === TextureProvider ===
-// ===============
+// =======================
 
 /// Texture representation.
 #[derive(Derivative)]
@@ -448,30 +398,74 @@ impl<I,T> From<(i32,i32)> for TextureProvider<I,T> {
 // ===============
 
 /// Texture bound to GL context.
-#[derive(Debug,Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct Texture<InternalFormat,ItemType> {
-    rc: Rc<RefCell<TextureData<InternalFormat,ItemType>>>
-}
-
-/// Texture bound to GL context.
 #[derive(Debug)]
-pub struct TextureData<I,T> {
+pub struct Texture<I,T> {
     provider   : TextureProvider<I,T>,
     gl_texture : WebGlTexture,
     context    : Context,
 }
 
-impl<I,T> TextureData<I,T> {
-    /// Constructor.
-    pub fn new(context:&Context, provider:TextureProvider<I,T>) -> Self {
-        let gl_texture = context.create_texture().unwrap();
-        let context    = context.clone();
-        Self {provider,gl_texture,context}
+
+// === Type Level Utils ===
+
+impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+
+    /// Internal format instance of this texture. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
+    fn internal_format() -> AnyInternalFormat {
+        <I>::default().into()
+    }
+
+    /// Format instance of this texture. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
+    fn format() -> AnyFormat {
+        <I>::Format::default().into()
+    }
+
+    /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
+    fn gl_internal_format() -> i32 {
+        let GlEnum(u) = Self::internal_format().into_gl_enum();
+        u as i32
+    }
+
+    /// Format of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
+    fn gl_format() -> GlEnum {
+        Self::format().into_gl_enum()
+    }
+
+    /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
+    /// without taking self reference, however it was defined in such way for convenient usage.
+    fn gl_elem_type() -> u32 {
+        <T>::gl_enum().into()
     }
 }
 
-impl<I:InternalFormat,T:TextureItemType> TextureData<I,T> {
+
+// === Getters ===
+
+impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+    pub fn gl_texture(&self) -> &WebGlTexture {
+        &self.gl_texture
+    }
+}
+
+
+
+// === API ===
+
+impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+    /// Constructor.
+    pub fn new<P:Into<TextureProvider<I,T>>>(context:&Context, provider:P) -> Self {
+        let context    = context.clone();
+        let provider   = provider.into();
+        let gl_texture = context.create_texture().unwrap();
+        let out = Self {provider,gl_texture,context};
+        out.reload();
+        out
+    }
+
     /// Initializes default texture value. It is useful when the texture data needs to be downloaded
     /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
     /// until the download is complete.
@@ -490,36 +484,11 @@ impl<I:InternalFormat,T:TextureItemType> TextureData<I,T> {
         self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
         (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
     }
-}
-
-impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
-    /// Constructor.
-    pub fn new<P:Into<TextureProvider<I,T>>>(context:&Context, provider:P) -> Self {
-        let data = TextureData::new(context,provider.into());
-        let rc   = Rc::new(RefCell::new(data));
-        let out  = Self {rc};
-        out.init_mock();
-        out.reload();
-        out
-    }
-
-    /// Cheap clone.
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-
-    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
-    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
-    /// until the download is complete.
-    pub fn init_mock(&self) {
-        self.rc.borrow().init_mock()
-    }
 
     /// Loads or re-loads the texture data from the provided source. If the source involves
     /// downloading the data, this action will be performed asynchronously.
     pub fn reload(&self) {
-        let data = self.rc.borrow();
-        match &data.provider.source {
+        match &self.provider.source {
             TextureProviderData::Size(width,height) => {
                 let target          = Context::TEXTURE_2D;
                 let level           = 0;
@@ -528,13 +497,13 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
                 let format          = Self::gl_format().into();
                 let elem_type       = Self::gl_elem_type();
 
-                data.context.bind_texture(target,Some(&data.gl_texture));
-                data.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+                self.context.bind_texture(target,Some(&self.gl_texture));
+                self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
                 (target,level,internal_format,*width,*height,border,format,elem_type,None).unwrap();
 
-                data.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
-                data.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
-                data.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
+                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
+                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
+                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
             }
             TextureProviderData::Url(url) => {
                 let image         = HtmlImageElement::new().unwrap();
@@ -544,17 +513,18 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
                 let this          = self.clone();
                 let callback_ref2 = callback_ref.clone();
                 let image_ref_opt = image_ref.clone();
+                let context       = self.context.clone();
+                let gl_texture    = self.gl_texture.clone();
                 let callback: Closure<dyn FnMut()> = Closure::once(move || {
                     let _keep_alive     = callback_ref2;
-                    let data            = this.rc.borrow();
                     let image           = image_ref_opt.borrow();
                     let target          = Context::TEXTURE_2D;
                     let level           = 0;
                     let internal_format = Self::gl_internal_format();
                     let format          = Self::gl_format().into();
                     let elem_type       = Self::gl_elem_type();
-                    data.context.bind_texture(target,Some(&data.gl_texture));
-                    data.context.tex_image_2d_with_u32_and_u32_and_html_image_element
+                    context.bind_texture(target,Some(&gl_texture));
+                    context.tex_image_2d_with_u32_and_u32_and_html_image_element
                         (target,level,internal_format,format,elem_type,&image).unwrap();
                 });
                 let js_callback = callback.as_ref().unchecked_ref();
@@ -568,7 +538,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
     }
 }
 
-impl<I,T> Drop for TextureData<I,T> {
+impl<I,T> Drop for Texture<I,T> {
     fn drop(&mut self) {
         self.context.delete_texture(Some(&self.gl_texture));
     }

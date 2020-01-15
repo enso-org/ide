@@ -19,6 +19,11 @@ use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::system::gpu::data::uniform::UniformScope;
 
+use crate::system::gpu::data::texture;
+use crate::system::gpu::data::texture::Texture;
+use crate::system::gpu::data::texture::TextureProvider;
+use crate::system::gpu::data::texture::TextureProviderData;
+
 use wasm_bindgen::prelude::Closure;
 
 
@@ -231,6 +236,18 @@ impl Workspace {
                 self.symbols.update();
                 self.symbols_dirty.unset_all();
             }
+
+//            let shape = self.shape.screen_shape();
+//
+//            let texture1 = Texture::<texture::Rgba,u8>::new(&self.context,(shape.width as i32,shape.height as i32));
+//
+//            let fb = self.context.create_framebuffer().unwrap();
+//            self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
+//
+//            let level = 0;
+//            let attachment_point = Context::COLOR_ATTACHMENT0;
+//            self.context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(texture1.gl_texture()), level);
+//
 
             self.logger.info("Clearing the scene.");
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
