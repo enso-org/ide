@@ -17,7 +17,7 @@ paste        = "0.1"
 lazy_static  = "1.4"
 shrinkwraprs = "0.3.0"
 smallvec     = "1.0.0"
-#ifmt         = "0.2.0"
+ifmt         = "0.2.0"
 
 # TODO: should be behind a flag, as the `nalgebra` package is pretty big and this crate would be
 #       also useful for projects which do not require `nalgebra`.

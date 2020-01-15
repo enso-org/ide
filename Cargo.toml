@@ -22,8 +22,7 @@ debug     = true
 
 [profile.release]
 opt-level = 3
-lto       = true
-# TODO: consider if we need it here. See discussion here: https://github.com/luna/basegl/pull/105
+lto       = false
 debug     = false
 
 [profile.bench]

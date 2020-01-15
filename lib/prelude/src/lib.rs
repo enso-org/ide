@@ -12,7 +12,7 @@ pub use core::fmt::Debug;
 pub use derivative::Derivative;
 pub use derive_more::*;
 pub use failure::Fail;
-//pub use ifmt::*;
+pub use ifmt::*;
 pub use itertools::Itertools;
 pub use lazy_static::lazy_static;
 pub use num::Num;
@@ -363,8 +363,3 @@ impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
 //pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
 //    std::mem::transmute(t)
 //}
-
-#[macro_export]
-macro_rules! iformat {
-    ($($toks:tt)*) => { "".to_string() }
-}
