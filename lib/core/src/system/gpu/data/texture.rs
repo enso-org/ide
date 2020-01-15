@@ -4,9 +4,14 @@
 
 use crate::prelude::*;
 
+use crate::display::symbol::material::VarDecl;
+use crate::display::world::GpuDefault;
 use crate::system::gpu::data::buffer::item::JsBufferViewArr;
+use crate::system::gpu::data::IntoUniformValueImpl;
 use crate::system::gpu::types::*;
+use crate::system::gpu::types::glsl::PrimType;
 use crate::system::web;
+
 use nalgebra::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
@@ -184,10 +189,7 @@ pub mod internal_format {
     }
 }
 pub use internal_format::*;
-use crate::system::gpu::data::IntoUniformValueImpl;
-use crate::display::symbol::material::VarDecl;
-use crate::system::gpu::glsl;
-use crate::display::world::GpuDefault;
+
 
 
 // ======================
@@ -377,12 +379,15 @@ pub struct TextureFromMemory<'a,T> {
 // ===============
 
 /// A Texture.
-pub struct Texture<Source,InternalFormat,PrimType> {
+pub struct Texture<Source,InternalFormat,ElemType> {
     /// The source of texture data
     pub source : Source,
     /// A format and element type of this texture
-    pub phantom : PhantomData2<InternalFormat,PrimType>,
+    pub phantom : PhantomData2<InternalFormat,ElemType>,
 }
+
+/// Bounds for every texture item type.
+pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
 impl<S,I,T> Texture<S,I,T> {
     /// Create a new texture from given source.
@@ -448,7 +453,7 @@ impl<Source,I,T> From<Source> for Texture<Source,I,T> {
 
 impl<S,I,T> From<Texture<S,I,T>> for VarDecl {
     fn from(_:Texture<S,I,T>) -> Self {
-        VarDecl::new(glsl::PrimType::Sampler2D, None)
+        VarDecl::new(PrimType::Sampler2d, None)
     }
 }
 
@@ -473,7 +478,7 @@ where I : InternalFormat,
 
 impl<I,T> IntoUniformValueImpl for Texture<TextureFromUrl,I,T>
 where I : InternalFormat,
-      T : PrimType {
+      T : TextureItemType {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
         BoundTexture::new_from_url(&self,context)
@@ -482,7 +487,7 @@ where I : InternalFormat,
 
 impl<'a,I,T> IntoUniformValueImpl for Texture<TextureFromMemory<'a,T>,I,T>
 where I : InternalFormat,
-      T : PrimType + JsBufferViewArr {
+      T : TextureItemType + JsBufferViewArr {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
         BoundTexture::new_from_memory(&self,context)
@@ -571,7 +576,7 @@ impl<I:InternalFormat,T:TextureItemType> BoundTexture<I,T> {
     /// asynchronously.
     pub fn reload_from_url(&self, texture:&Texture<TextureFromUrl,I,T>) {
         let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format();
+        let format          = texture.gl_format().into();
         let elem_type       = texture.gl_elem_type();
         let target          = Context::TEXTURE_2D;
         let level           = 0;
@@ -599,7 +604,7 @@ impl<I:InternalFormat,T:TextureItemType> BoundTexture<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType + JsBufferViewArr> BoundTexture<I,T> {
+impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr> BoundTexture<I,T> {
     /// Constructs from memory view.
     pub fn new_from_memory(texture:&Texture<TextureFromMemory<'_,T>,I,T>, context:&Context) -> Self {
         let data = BoundTextureData::new(context);
@@ -614,7 +619,7 @@ impl<I:InternalFormat,T:PrimType + JsBufferViewArr> BoundTexture<I,T> {
         let data            = &self.rc.borrow();
         let context         = &data.context;
         let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format();
+        let format          = texture.gl_format().into();
         let elem_type       = texture.gl_elem_type();
         let target          = Context::TEXTURE_2D;
         let level           = 0;
