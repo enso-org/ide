@@ -112,26 +112,6 @@ macro_rules! fmt {
 }
 
 #[macro_export]
-macro_rules! group_old {
-    ($logger:expr, $message:expr, $body:tt) => {{
-        let __logger = $logger.clone();
-        __logger.group_begin(|| $message);
-        let out = $body;
-        __logger.group_end();
-        out
-    }};
-    ($logger:expr, $str:expr, $a1:expr, $body:tt) => {{
-        group_old!($logger, format!($str,$a1), $body)
-    }};
-    ($logger:expr, $str:expr, $a1:expr, $a2:expr, $body:tt) => {{
-        group_old!($logger, format!($str,$a1,$a2), $body)
-    }};
-    ($logger:expr, $str:expr, $a1:expr, $a2:expr, $a3:expr, $body:tt) => {{
-        group_old!($logger, format!($str,$a1,$a2,$a3), $body)
-    }};
-}
-
-#[macro_export]
 macro_rules! group {
     ($logger:expr, $message:tt, {$($body:tt)*}) => {{
         let __logger = $logger.clone();

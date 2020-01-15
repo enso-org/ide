@@ -185,7 +185,7 @@ impl Symbol {
     (global_scope:&UniformScope, logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();
-        group_old!(init_logger, "Initializing.", {
+        group!(init_logger, "Initializing.", {
             let on_mut2         = on_mut.clone();
             let surface_logger  = logger.sub("surface");
             let shader_logger   = logger.sub("shader");
@@ -210,7 +210,7 @@ impl Symbol {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
-        group_old!(self.logger, "Updating.", {
+        group!(self.logger, "Updating.", {
             if self.surface_dirty.check() {
                 self.surface.update();
                 self.surface_dirty.unset();
@@ -327,7 +327,7 @@ impl Symbol {
     }
 
     pub fn render(&self) {
-        group_old!(self.logger, "Rendering.", {
+        group!(self.logger, "Rendering.", {
             self.with_program(|_|{
                 for binding in &self.uniforms {
                     binding.uniform.upload(&self.context,&binding.location);

@@ -279,7 +279,7 @@ impl WorldData {
     pub fn update(&mut self) {
         //TODO[WD]: Re-think when should we check the condition (uniform update):
         //          if self.workspace_dirty.check_all() {
-        group_old!(self.logger, "Updating.", {
+        group!(self.logger, "Updating.", {
         // FIXME render only needed workspaces.
         self.workspace_dirty.unset_all();
         let fonts = &mut self.fonts;

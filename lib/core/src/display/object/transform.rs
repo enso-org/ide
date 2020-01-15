@@ -189,7 +189,7 @@ impl<OnChange> CachedTransform<OnChange> {
         let origin_changed = new_origin.is_some();
         let changed        = is_dirty || origin_changed;
         if changed {
-            group_old!(self.logger, "Update.", {
+            group!(self.logger, "Update.", {
                 if is_dirty {
                     self.transform_matrix = self.transform.matrix();
                     self.dirty.unset_all();

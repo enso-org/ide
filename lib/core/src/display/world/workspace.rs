@@ -189,7 +189,7 @@ impl Workspace {
         let shape  = shape.clone();
         let dirty  = dirty.clone();
         let on_resize = Closure::new(move |width, height| {
-            group_old!(logger, "Resize observer event.", {
+            group!(logger, "Resize observer event.", {
                 shape.set_screen_dimension(width as f32,height as f32);
                 dirty.set();
             })
@@ -218,7 +218,7 @@ impl Workspace {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self, fonts:&mut Fonts) {
-        group_old!(self.logger, "Updating.", {
+        group!(self.logger, "Updating.", {
             if self.shape_dirty.check_all() {
                 let screen = self.shape.screen_shape();
                 self.resize_canvas(&self.shape);

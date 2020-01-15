@@ -135,7 +135,7 @@ HasSet0 for  DirtyFlag<T,OnMut> {
         let is_set = self.data.check_all();
         if !is_set {
             self.data.set();
-            group_old!(self.logger, "Setting.", {
+            group!(self.logger, "Setting.", {
                 self.on_set.call()
             })
         }
@@ -149,7 +149,7 @@ HasSet1 for DirtyFlag<T,OnMut> {
         let is_set    = self.data.check(&arg);
         if !is_set {
             self.data.set(arg);
-            group_old!(self.logger, format!("Setting to {}.", self.data), {
+            group!(self.logger, "Setting to {self.data}.", {
                 if first_set { self.on_set.call() }
             })
         }
@@ -162,7 +162,7 @@ HasSet1 for DirtyFlag<T,OnMut> {
 impl<T:HasUnset0,OnMut>
 HasUnset0 for DirtyFlag<T,OnMut> {
     fn unset(&mut self) {
-        self.logger.info("Unsetting.");
+        info!(self.logger, "Unsetting.");
         self.data.unset()
     }
 }
@@ -171,7 +171,7 @@ impl<T:HasUnset1,OnMut>
 HasUnset1 for DirtyFlag<T,OnMut>
     where Arg<T>:Display {
     fn unset(&mut self, arg: &Self::Arg) {
-        self.logger.info(|| format!("Unsetting {}.", arg));
+        info!(self.logger, "Unsetting {arg}.");
         self.data.unset(arg)
     }
 }

@@ -19,7 +19,6 @@ use web_sys::WebGlShader;
 
 /// Common types.
 pub mod types {
-    use super::*;
     pub use super::glsl;
     pub use glsl::Glsl;
     pub use glsl::traits::*;

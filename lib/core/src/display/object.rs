@@ -162,7 +162,7 @@ impl DisplayObjectDataMut {
             if origin_changed {
                 self.logger.info("Self origin changed.");
                 if !self.children.is_empty() {
-                    group_old!(self.logger, "Updating all children.", {
+                    group!(self.logger, "Updating all children.", {
                         self.children.iter().for_each(|child| {
                             child.update_with(origin,true);
                         });
@@ -171,7 +171,7 @@ impl DisplayObjectDataMut {
             } else {
                 self.logger.info("Self origin did not change.");
                 if self.child_dirty.check_all() {
-                    group_old!(self.logger, "Updating dirty children.", {
+                    group!(self.logger, "Updating dirty children.", {
                         self.child_dirty.take().iter().for_each(|ix| {
                             self.children[*ix].update_with(origin,false)
                         });
