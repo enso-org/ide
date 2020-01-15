@@ -37,6 +37,7 @@ pub trait IntoUniformValueImpl {
 /// Result of the binding operation.
 pub type AsUniformValue<T> = <T as IntoUniformValueImpl>::Result;
 
+
 // === Instances ===
 
 macro_rules! define_identity_uniform_value_impl {
@@ -193,6 +194,7 @@ impl<Value> Uniform<Value> where Context : ContextTextureOps<Value,Guard=Texture
         context.bind_texture_unit(value,unit)
     }
 }
+
 
 
 // ======================

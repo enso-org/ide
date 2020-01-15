@@ -38,6 +38,7 @@ use web_sys::WebGlUniformLocation;
 use crate::system::gpu::data::texture::TextureBindingGuard;
 
 
+
 /// Binds input variable definition in shader to both its location and an uniform declaration.
 #[derive(Clone,Debug)]
 pub struct UniformBinding {
@@ -345,7 +346,7 @@ impl Symbol {
         self.context.use_program(None);
         out
     }
-
+    
     pub fn with_vao_mut<F:FnOnce(&mut Self) -> T,T>(&mut self, f:F) -> T {
         self.vao.as_ref().unwrap().bind();
         let out = f(self);

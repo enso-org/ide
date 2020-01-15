@@ -5,9 +5,8 @@
 use crate::prelude::*;
 
 use crate::display::symbol::material::VarDecl;
-use crate::display::world::GpuDefault;
 use crate::system::gpu::data::buffer::item::JsBufferViewArr;
-use crate::system::gpu::data::IntoUniformValueImpl;
+use crate::system::gpu::data::uniform::IntoUniformValueImpl;
 use crate::system::gpu::types::*;
 use crate::system::gpu::types::glsl::PrimType;
 use crate::system::web;
@@ -495,6 +494,7 @@ where I : InternalFormat,
 }
 
 
+
 // ====================
 // === BoundTexture ===
 // ====================
@@ -678,6 +678,7 @@ impl Drop for TextureBindingGuard {
         self.context.active_texture(Context::TEXTURE0);
     }
 }
+
 
 // === Utils ===
 
