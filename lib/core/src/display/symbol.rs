@@ -47,18 +47,19 @@ pub struct UniformBinding {
 }
 
 impl UniformBinding {
+    /// Create new uniform binding.
     pub fn new<Name:Str>(name:Name, location:WebGlUniformLocation, uniform:AnyPrimUniform) -> Self {
         let name = name.into();
         Self {name,location,uniform}
     }
 
+    /// Upload uniform value.
     pub fn upload(&self, context:&Context) {
         self.uniform.upload(context,&self.location);
     }
 }
 
-
-
+/// Binds input sampler definition in shader to its location, uniform declaration and texture unit.
 #[derive(Clone,Debug)]
 pub struct TextureBinding {
     name         : String,
@@ -68,6 +69,7 @@ pub struct TextureBinding {
 }
 
 impl TextureBinding {
+    /// Create new texture binding.
     pub fn new<Name:Str>
     ( name         : Name
     , location     : WebGlUniformLocation
@@ -78,10 +80,12 @@ impl TextureBinding {
         Self {name,location,uniform,texture_unit}
     }
 
+    /// Bind texture to proper texture unit.
     pub fn bind_texture_unit(&self, context:&Context) -> TextureBindingGuard {
         self.uniform.bind_texture_unit(context,self.texture_unit)
     }
 
+    /// Upload uniform value.
     pub fn upload_uniform(&self, context:&Context) {
         context.uniform1i(Some(&self.location),self.texture_unit as i32);
     }
@@ -233,10 +237,12 @@ impl Symbol {
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_variable_bindings(&mut self, var_bindings:&[shader::VarBinding]) {
-        let mut texture_unit_iter = Context::TEXTURE0..;
-        self.vao                  = Some(VertexArrayObject::new(&self.context));
-        self.uniforms             = default();
-        self.textures             = default();
+        const MAX_TEXTURE_UNITS:u32 = 16;
+        let last_texture_unit       = Context::TEXTURE0 + MAX_TEXTURE_UNITS - 1;
+        let mut texture_unit_iter   = Context::TEXTURE0..=last_texture_unit;
+        self.vao                    = Some(VertexArrayObject::new(&self.context));
+        self.uniforms               = default();
+        self.textures               = default();
         self.with_program_mut(|this,program|{
             for binding in var_bindings {
                 match binding.scope.as_ref() {
@@ -285,7 +291,9 @@ impl Symbol {
                 AnyUniform::Prim(uniform) =>
                     self.uniforms.push(UniformBinding::new(name,location,uniform)),
                 AnyUniform::Texture(uniform) => {
-                    let texture_unit = texture_unit_iter.next().unwrap();
+                    let texture_unit = texture_unit_iter.next().unwrap_or_else(|| {
+                        panic!("Texture unit limit exceeded.");
+                    });
                     let binding      = TextureBinding::new(name,location,uniform,texture_unit);
                     binding.upload_uniform(&self.context);
                     self.textures.push(binding);
