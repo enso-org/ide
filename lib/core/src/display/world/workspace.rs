@@ -174,10 +174,8 @@ impl Workspace {
         // context.blend_func(Context::ONE, Context::ONE_MINUS_SRC_ALPHA);
         context.blend_func(Context::SRC_ALPHA, Context::ONE);
 
-        let this = Self {canvas,context,symbols,scene,symbols_dirty
-            ,shape,shape_dirty,logger,listeners,variables,text_components};
-
-
+        let this = Self {canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
+                        ,listeners,variables,text_components};
         Ok(this)
     }
 
@@ -212,7 +210,7 @@ impl Workspace {
         self.logger.group(fmt!("Resized to {}px x {}px.", screen.width, screen.height), || {
             self.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
             self.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
-            self.context.viewport(0, 0, canvas.width as i32, canvas.height as i32);
+            self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
         });
     }
 
@@ -231,7 +229,7 @@ impl Workspace {
             }
 
             self.logger.info("Clearing the scene.");
-            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
+            self.context.clear_color(0.0,0.0,0.0,1.0);
             self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.scene.camera);

@@ -70,7 +70,7 @@ use traits::*;
 #[derivative(Debug(bound = "T:Debug"))]
 pub struct DirtyFlag<T,OnMut> {
     pub data : T,
-    on_set   :Proc<OnMut>,
+    on_set   : Proc<OnMut>,
     logger   : Logger,
 }
 
