@@ -32,8 +32,7 @@ pub mod traits {
 
     impl<T> IntoGlEnum for T where for<'a> &'a T:Into<GlEnum> {
         fn into_gl_enum(&self) -> GlEnum {
-            let g:GlEnum = self.into();
-            g.into()
+            self.into()
         }
     }
 
@@ -45,7 +44,7 @@ pub mod traits {
 
     impl<T> PhantomIntoGlEnum for T where T:PhantomInto<GlEnum> {
         fn gl_enum() -> GlEnum {
-            T::phantom_into::<GlEnum>().into()
+            T::phantom_into::<GlEnum>()
         }
     }
 }
