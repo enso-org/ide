@@ -58,45 +58,6 @@ impl Value for False {
 
 
 // ==============
-// === GlEnum ===
-// ==============
-
-/// Converts Rust types to `GlEnum` values.
-pub trait IsGlEnum {
-    /// `GlEnum` value of this type.
-    fn to_gl_enum(&self) -> GlEnum;
-}
-
-macro_rules! gl_enum {
-    (
-        $(#[$($meta:tt)*])*
-        $name:ident {
-            $($field:ident),* $(,)?
-        }
-    ) => {
-        $(#[$($meta)*])*
-        #[allow(missing_docs)]
-        pub enum $name { $($field),* }
-
-        impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> GlEnum {
-                match self {
-                    $(Self::$field => $field.to_gl_enum()),*
-                }
-            }
-        }
-
-        $(impl From<$field> for $name {
-            fn from(_:$field) -> Self {
-                Self::$field
-            }
-        })*
-    }
-}
-
-
-
-// ==============
 // === GlType ===
 // ==============
 
@@ -141,27 +102,7 @@ gen_prim_type_instances! {
 // === GL Types ===
 // ================
 
-macro_rules! gl_variants {
-    ( $($name:ident = $expr:expr),* $(,)? ) => {$(
-        #[allow(missing_docs)]
-        #[derive(Copy,Clone,Debug)]
-        pub struct $name;
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self
-            }
-        }
-
-        impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> GlEnum {
-                GlEnum($expr)
-            }
-        }
-    )*}
-}
-
-gl_variants! {
+crate::define_singletons_gl! {
     Alpha             = Context::ALPHA,
     Depth24Stencil8   = Context::DEPTH24_STENCIL8,
     Depth32fStencil8  = Context::DEPTH32F_STENCIL8,
@@ -241,7 +182,7 @@ gl_variants! {
 /// more: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod format {
     use super::*;
-    gl_enum! {
+    crate::define_singleton_enum_gl_from! {
         AnyFormat
             { Alpha, DepthComponent, DepthStencil, Luminance, LuminanceAlpha, Red, RedInteger, Rg
             , Rgb, Rgba, RgbaInteger, RgbInteger, RgInteger,
@@ -261,7 +202,7 @@ pub use format::*;
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod internal_format {
     use super::*;
-    gl_enum! {
+    crate::define_singleton_enum_gl_from! {
         AnyInternalFormat
             { Alpha, Luminance, LuminanceAlpha, Rgb, Rgba, R8, R8SNorm, R16f, R32f, R8ui, R8i
             , R16ui, R16i, R32ui, R32i, Rg8, Rg8SNorm, Rg16f, Rg32f, Rg8ui, Rg8i, Rg16ui, Rg16i
@@ -480,14 +421,14 @@ impl<I:InternalFormat,T:PrimType> Texture<I,T> {
     /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_internal_format(&self) -> i32 {
-        let GlEnum(u) = self.internal_format().to_gl_enum();
+        let GlEnum(u) = self.internal_format().into_gl_enum();
         u as i32
     }
 
     /// Format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_format(&self) -> GlEnum {
-        self.format().to_gl_enum()
+        self.format().into_gl_enum()
     }
 
     /// Element type of this texture as `GlEnum`. Please note, that this value could be computed

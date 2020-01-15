@@ -91,9 +91,7 @@ macro_rules! define_gl_enum_conversions {
     }
 }
 
-/// Defines singletons and an associated enum type, just like `define_singleton_enum`.
-/// It also defines conversions `From<$singleton>` and `From<PhantomData<$singleton>>` for every
-/// singleton type and for the whole enum type.
+/// Combination of `define_singletons_gl` and `define_singleton_enum_gl_from`.
 #[macro_export]
 macro_rules! define_singleton_enum_gl {
     (
@@ -102,11 +100,35 @@ macro_rules! define_singleton_enum_gl {
             $( $(#$field_meta:tt)* $field:ident = $expr:expr),* $(,)?
         }
     ) => {
-        $crate  :: define_singletons_gl!       { $($(#$field_meta)* $field = $expr),* }
-        shapely :: define_singleton_enum_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
+        $crate :: define_singletons_gl!          { $($(#$field_meta)* $field = $expr),* }
+        $crate :: define_singleton_enum_gl_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
+    }
+}
+
+
+/// Defines associated enum type for the provided variants, just like `define_singleton_enum_from`.
+/// It also defines conversions `From<$singleton>` and `From<PhantomData<$singleton>>` the enum
+/// type.
+#[macro_export]
+macro_rules! define_singleton_enum_gl_from {
+    (
+        $(#$meta:tt)*
+        $name:ident {
+            $( $(#$field_meta:tt)* $field:ident),* $(,)?
+        }
+    ) => {
+        shapely::define_singleton_enum_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
 
         impl From<&$name> for GlEnum {
             fn from(t:&$name) -> Self {
+                match t {
+                    $($name::$field => $field.into()),*
+                }
+            }
+        }
+
+        impl From<$name> for GlEnum {
+            fn from(t:$name) -> Self {
                 match t {
                     $($name::$field => $field.into()),*
                 }

@@ -35,6 +35,7 @@ pub mod types {
     pub use buffer::BufferItem;
     pub use default::GpuDefault;
     pub use gl_enum::GlEnum;
+    pub use gl_enum::traits::*;
     pub use prim::*;
     pub use uniform::Uniform;
     pub use uniform::UniformScope;
