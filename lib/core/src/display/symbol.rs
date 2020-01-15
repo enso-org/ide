@@ -335,8 +335,8 @@ impl Symbol {
 
                 let mode           = Context::TRIANGLE_STRIP;
                 let first          = 0;
-                let count          = self.surface.scopes.point.size()    as i32;
-                let instance_count = self.surface.scopes.instance.size() as i32;
+                let count          = self.surface.point.size()    as i32;
+                let instance_count = self.surface.instance.size() as i32;
 
                 self.stats.inc_draw_call_count();
                 self.context.draw_arrays_instanced(mode,first,count,instance_count);
