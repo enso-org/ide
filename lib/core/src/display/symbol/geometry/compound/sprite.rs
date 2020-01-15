@@ -242,12 +242,11 @@ impl SpriteSystem {
 
     fn geometry_material() -> Material {
         let mut material = Material::new();
-//        material.add_input  ("foo"             , 0);
-        material.add_input  ("bounds"          , Vector2::<f32>::zeros());
-        material.add_input  ("uv"              , Vector2::<f32>::zeros());
-        material.add_input  ("transform"       , Matrix4::<f32>::identity());
-        material.add_input  ("view_projection" , Matrix4::<f32>::identity());
-        material.add_output ("local"           , Vector3::<f32>::zeros());
+        material.add_input_def  :: <Vector2<f32>> ("bounds");
+        material.add_input_def  :: <Vector2<f32>> ("uv");
+        material.add_input_def  :: <Matrix4<f32>> ("transform");
+        material.add_input_def  :: <Matrix4<f32>> ("view_projection");
+        material.add_output_def :: <Vector3<f32>> ("local");
         material.set_main("
                 mat4 model_view_projection = input_view_projection * input_transform;
                 input_local                = vec3((input_uv - 0.5) * input_bounds, 0.0);

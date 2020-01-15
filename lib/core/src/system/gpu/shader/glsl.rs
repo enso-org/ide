@@ -799,11 +799,26 @@ pub mod traits {
     use super::*;
 
     /// Extension methods for every type which could be converted to `PrimType`.
-    pub trait IsPrimType: Sized + PhantomInto<PrimType> {
+    pub trait PhantomIntoPrimType: Sized + PhantomInto<PrimType> {
         /// `PrimType` representation of the current type.
         fn glsl_prim_type() -> PrimType {
             Self::phantom_into()
         }
     }
-    impl<T:PhantomInto<PrimType>> IsPrimType for T {}
+    impl<T:PhantomInto<PrimType>> PhantomIntoPrimType for T {}
+
+    pub trait IntoGlsl<'a> where Self:'a, &'a Self:Into<Glsl> {
+        fn glsl(&'a self) -> Glsl {
+            self.into()
+        }
+    }
+    impl<'a,T> IntoGlsl<'a> for T where T:'a, &'a T:Into<Glsl> {}
+
+    pub trait IntoGlsl2 where Self:Into<Glsl> {
+        fn glsl(self) -> Glsl {
+            self.into()
+        }
+    }
+    impl<T> IntoGlsl2 for T where T:Into<Glsl> {}
 }
+pub use traits::*;

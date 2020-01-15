@@ -13,6 +13,21 @@ use web_sys::WebGlShader;
 
 
 
+// ===============
+// === Exports ===
+// ===============
+
+/// Common types.
+pub mod types {
+    use super::*;
+    pub use super::glsl;
+    pub use glsl::Glsl;
+    pub use glsl::traits::*;
+}
+pub use types::*;
+
+
+
 // =============
 // === Types ===
 // =============

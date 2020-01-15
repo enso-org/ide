@@ -33,6 +33,7 @@ pub mod types {
     pub use buffer::Buffer;
     pub use buffer::IsBuffer;
     pub use buffer::BufferItem;
+    pub use default::GpuDefault;
     pub use prim::*;
     pub use uniform::Uniform;
     pub use uniform::UniformScope;
