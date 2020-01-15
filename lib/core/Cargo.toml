@@ -57,6 +57,7 @@ features = [
   'Node',
   'Url',
   'WebGlBuffer',
+  'WebGlFramebuffer',
   'WebGlProgram',
   'WebGlRenderingContext',
   'WebGlShader',

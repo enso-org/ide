@@ -29,6 +29,11 @@ use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 
+use crate::system::gpu::data::texture;
+use crate::system::gpu::data::texture::Texture;
+use crate::system::gpu::data::texture::TextureProvider;
+use crate::system::gpu::data::texture::TextureProviderData;
+
 use shader::Shader;
 
 use web_sys::WebGlVertexArrayObject;
@@ -321,6 +326,18 @@ impl Symbol {
                 for binding in &self.uniforms {
                     binding.uniform.upload(&self.context,&binding.location);
                 }
+
+//                let texture1 = Texture::<texture::Rgba,u8>::new(&self.context,(500,500));
+//
+//                let fb = self.context.create_framebuffer().unwrap();
+//                self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
+//
+//                let level = 0;
+//                const attachment_point = Context::COLOR_ATTACHMENT0;
+//                gl.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(texture1.), level);
+//
+
+
 
                 let mode           = Context::TRIANGLE_STRIP;
                 let first          = 0;

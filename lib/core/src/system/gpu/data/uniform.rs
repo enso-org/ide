@@ -52,10 +52,10 @@ macro_rules! define_identity_uniform_value_impl {
 }
 crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
 
-impl<I:InternalFormat,T:TextureItemType> IntoUniformValueImpl for Texture<I,T> {
-    type Result = BoundTexture<I,T>;
+impl<I:InternalFormat,T:TextureItemType> IntoUniformValueImpl for TextureProvider<I,T> {
+    type Result = Texture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
-        BoundTexture::new(self,context)
+        Texture::new(context,self)
     }
 }
 
@@ -232,7 +232,7 @@ macro_rules! gen_any_texture_uniform {
         #[enum_dispatch(AnyTextureUniformOps)]
         #[derive(Clone,Debug)]
         pub enum AnyTextureUniform {
-            $( [< $internal_format _ $type >] (Uniform<BoundTexture<$internal_format,$type>>) ),*
+            $( [< $internal_format _ $type >] (Uniform<Texture<$internal_format,$type>>) ),*
         }
     }}
 }
@@ -249,8 +249,8 @@ macro_rules! gen_prim_conversions {
 
 macro_rules! gen_texture_conversions {
     ( $([$internal_format:tt $type:tt])* ) => {$(
-        impl From<Uniform<BoundTexture<$internal_format,$type>>> for AnyUniform {
-            fn from(t:Uniform<BoundTexture<$internal_format,$type>>) -> Self {
+        impl From<Uniform<Texture<$internal_format,$type>>> for AnyUniform {
+            fn from(t:Uniform<Texture<$internal_format,$type>>) -> Self {
                 Self::Texture(t.into())
             }
         }

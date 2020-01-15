@@ -169,10 +169,14 @@ impl Workspace {
 
         variables.add("pixel_ratio", shape.pixel_ratio());
 
-        // FIXME: use correct blending function and rething premultiplying the alpha.
         context.enable(Context::BLEND);
-        // context.blend_func(Context::ONE, Context::ONE_MINUS_SRC_ALPHA);
-        context.blend_func(Context::SRC_ALPHA, Context::ONE);
+
+        // To learn more about the blending equations used here, please see the following articles:
+        // - http://www.realtimerendering.com/blog/gpus-prefer-premultiplication
+        // - https://www.khronos.org/opengl/wiki/Blending#Colors
+        context.blend_equation_separate ( Context::FUNC_ADD, Context::FUNC_ADD );
+        context.blend_func_separate     ( Context::ONE , Context::ONE_MINUS_SRC_ALPHA
+                                        , Context::ONE , Context::ONE_MINUS_SRC_ALPHA );
 
         let this = Self {canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
                         ,listeners,variables,text_components};
