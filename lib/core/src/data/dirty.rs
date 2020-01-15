@@ -67,7 +67,7 @@ use traits::*;
 /// logging and callback utilities to the underlying data. Moreover, it
 /// implements public API for working with dirty flags.
 #[derive(Derivative)]
-#[derivative(Debug(bound = "T:Debug"))]
+#[derivative(Debug(bound="T:Debug"))]
 pub struct DirtyFlag<T,OnMut> {
     pub data : T,
     on_set   : Proc<OnMut>,
