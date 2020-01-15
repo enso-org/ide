@@ -1,61 +1,17 @@
 #![allow(missing_docs)]
 
+pub mod upload;
+
 use crate::prelude::*;
 
 use enum_dispatch::*;
-use nalgebra::{Vector2,Vector3,Vector4,Matrix4};
 use shapely::shared;
+use upload::UniformUpload;
 use web_sys::WebGlUniformLocation;
 
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::texture::*;
-
-
-
-// =====================
-// === UniformUpload ===
-// =====================
-
-/// Abstraction for uploading uniforms to GPU based on their types.
-pub trait UniformUpload {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation);
-}
-
-impl UniformUpload for i32 {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform1i(Some(location),*self);
-    }
-}
-
-impl UniformUpload for f32 {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform1f(Some(location),*self);
-    }
-}
-
-impl UniformUpload for Vector2<f32> {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform_matrix2fv_with_f32_array(Some(location),false,self.data.as_slice());
-    }
-}
-
-impl UniformUpload for Vector3<f32> {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform_matrix3fv_with_f32_array(Some(location),false,self.data.as_slice());
-    }
-}
-
-impl UniformUpload for Vector4<f32> {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform_matrix4fv_with_f32_array(Some(location),false,self.data.as_slice());
-    }
-}
-
-impl UniformUpload for Matrix4<f32> {
-    fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
-        context.uniform_matrix4fv_with_f32_array(Some(location),false,self.data.as_slice());
-    }
-}
+use crate::system::gpu::data::prim::*;
 
 
 
@@ -81,6 +37,21 @@ pub trait IntoUniformValueImpl {
 /// Result of the binding operation.
 pub type AsUniformValue<T> = <T as IntoUniformValueImpl>::Result;
 
+
+// === Instances ===
+
+macro_rules! define_identity_uniform_value_impl {
+    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
+        impl IntoUniformValueImpl for $t1<$t2> {
+            type Result = $t1<$t2>;
+            fn into_uniform_value(self, _context:&Context) -> Self::Result {
+                self
+            }
+        }
+    )*}
+}
+crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
+
 impl<I:InternalFormat,T:PrimType> IntoUniformValueImpl for Texture<I,T> {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
@@ -88,29 +59,6 @@ impl<I:InternalFormat,T:PrimType> IntoUniformValueImpl for Texture<I,T> {
     }
 }
 
-
-// TODO: Make those generic with marcos:
-
-impl IntoUniformValueImpl for f32 {
-    type Result = f32;
-    fn into_uniform_value(self, _context:&Context) -> Self::Result {
-        self
-    }
-}
-
-impl IntoUniformValueImpl for i32 {
-    type Result = i32;
-    fn into_uniform_value(self, _context:&Context) -> Self::Result {
-        self
-    }
-}
-
-impl IntoUniformValueImpl for Matrix4<f32> {
-    type Result = Matrix4<f32>;
-    fn into_uniform_value(self, _context:&Context) -> Self::Result {
-        self
-    }
-}
 
 
 // ====================
@@ -184,9 +132,9 @@ impl UniformScopeData {
 
 
 
-// ===================
-// === UniformData ===
-// ===================
+// ===============
+// === Uniform ===
+// ===============
 
 shared! { Uniform
 
@@ -252,30 +200,24 @@ impl<Value:UniformValue> Uniform<Value> {
 // === AnyPrimUniform ===
 // ======================
 
-/// Existentially typed uniform value.
-#[allow(non_camel_case_types)]
-#[enum_dispatch(AnyPrimUniformOps)]
-#[derive(Clone,Debug)]
-pub enum AnyPrimUniform {
-    Variant_i32           (Uniform<i32>),
-    Variant_f32           (Uniform<f32>),
-    Variant_Vector3_of_f32(Uniform<Vector3<f32>>),
-    Variant_Matrix4_of_f32(Uniform<Matrix4<f32>>)
+macro_rules! define_any_prim_uniform {
+    ( [] [$([$t1:ident $t2:ident])*] ) => { paste::item! {
+        /// Existentially typed uniform value.
+        #[allow(non_camel_case_types)]
+        #[enum_dispatch(AnyPrimUniformOps)]
+        #[derive(Clone,Debug)]
+        pub enum AnyPrimUniform {
+            $([<Variant_ $t1 _ $t2>](Uniform<$t1<$t2>>)),*
+        }
+    }}
 }
+
+crate::with_all_prim_types!([[define_any_prim_uniform][]]);
 
 /// Set of operations exposed by the `AnyPrimUniform` value.
 #[enum_dispatch]
 pub trait AnyPrimUniformOps {
     fn upload(&self, context:&Context, location:&WebGlUniformLocation);
-}
-
-
-pub type Identity<T> = T;
-
-macro_rules! with_all_prim_types {
-    ( $f:ident ) => {
-        $f! { [Identity i32] [Identity f32] [Vector3 f32] [Matrix4 f32] }
-    }
 }
 
 
@@ -297,7 +239,7 @@ macro_rules! gen_any_texture_uniform {
 }
 
 macro_rules! gen_prim_conversions {
-    ( $([$t1:ident $t2:ident])* ) => {$(
+    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
         impl From<Uniform<$t1<$t2>>> for AnyUniform {
             fn from(t:Uniform<$t1<$t2>>) -> Self {
                 Self::Prim(t.into())
@@ -335,5 +277,5 @@ pub enum AnyUniform {
     Texture(AnyTextureUniform)
 }
 
-with_all_prim_types!(gen_prim_conversions);
+crate::with_all_prim_types!([[gen_prim_conversions][]]);
 crate::with_all_texture_types!(gen_texture_conversions);
