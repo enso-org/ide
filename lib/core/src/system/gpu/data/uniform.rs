@@ -52,7 +52,7 @@ macro_rules! define_identity_uniform_value_impl {
 }
 crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
 
-impl<I:InternalFormat,T:PrimType> IntoUniformValueImpl for Texture<I,T> {
+impl<I:InternalFormat,T:TextureItemType> IntoUniformValueImpl for Texture<I,T> {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
         BoundTexture::new(self,context)

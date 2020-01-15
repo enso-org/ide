@@ -57,47 +57,6 @@ impl Value for False {
 
 
 
-// ==============
-// === GlType ===
-// ==============
-
-/// Class of GL primitive types, including bytes, shorts, ints, etc.
-pub trait PrimType: Copy + 'static {
-    /// The `GlEnum` value of the type.
-    fn gl_type() -> u32;
-}
-
-macro_rules! gen_prim_type_instances {
-    ( $($name:ident = $expr:expr),* $(,)? ) => {$(
-        impl PrimType for $name {
-            fn gl_type() -> u32 {
-                $expr
-            }
-        }
-    )*}
-}
-
-gen_prim_type_instances! {
-    u8                  = Context::UNSIGNED_BYTE,
-    u16                 = Context::UNSIGNED_SHORT,
-    u32                 = Context::UNSIGNED_INT,
-    i8                  = Context::BYTE,
-    i16                 = Context::SHORT,
-    i32                 = Context::INT,
-    f16                 = Context::HALF_FLOAT,
-    f32                 = Context::FLOAT,
-    f32_u24_u8_REV      = Context::FLOAT_32_UNSIGNED_INT_24_8_REV,
-    u16_4_4_4_4         = Context::UNSIGNED_SHORT_4_4_4_4,
-    u16_5_5_5_1         = Context::UNSIGNED_SHORT_5_5_5_1,
-    u16_5_6_5           = Context::UNSIGNED_SHORT_5_6_5,
-    u32_f10_f11_f11_REV = Context::UNSIGNED_INT_10F_11F_11F_REV,
-    u32_24_8            = Context::UNSIGNED_INT_24_8,
-    u32_2_10_10_10_REV  = Context::UNSIGNED_INT_2_10_10_10_REV,
-    u32_5_9_9_9_REV     = Context::UNSIGNED_INT_5_9_9_9_REV,
-}
-
-
-
 // ================
 // === GL Types ===
 // ================
@@ -174,6 +133,15 @@ crate::define_singletons_gl! {
 
 
 
+// ==============
+// === Format ===
+// ==============
+
+/// Trait for every format of a texture.
+pub trait Format = Default + Into<AnyFormat>;
+
+
+
 // =================
 // === AnyFormat ===
 // =================
@@ -215,14 +183,6 @@ pub mod internal_format {
     }
 }
 pub use internal_format::*;
-
-
-
-// ==============
-// === Format ===
-// ==============
-
-pub trait Format = Default + Into<AnyFormat>;
 
 
 
@@ -398,7 +358,10 @@ pub struct Texture<InternalFormat,ElemType> {
     phantom : PhantomData2<InternalFormat,ElemType>,
 }
 
-impl<I:InternalFormat,T:PrimType> Texture<I,T> {
+/// Bounds for every texture item type.
+pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
+
+impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
     /// Constructor.
     pub fn new<S:Into<TextureSource>>(source:S) -> Self {
         let source  = source.into();
@@ -434,7 +397,7 @@ impl<I:InternalFormat,T:PrimType> Texture<I,T> {
     /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_elem_type(&self) -> u32 {
-        <T>::gl_type()
+        <T>::gl_enum().into()
     }
 }
 
@@ -478,7 +441,7 @@ impl<I,T> BoundTextureData<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
+impl<I:InternalFormat,T:TextureItemType> BoundTextureData<I,T> {
     /// Initializes default texture value. It is useful when the texture data needs to be downloaded
     /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
     /// until the download is complete.
@@ -499,7 +462,7 @@ impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
+impl<I:InternalFormat,T:TextureItemType> BoundTexture<I,T> {
     /// Constructor.
     pub fn new(texture:Texture<I,T>, context:&Context) -> Self {
         let data = BoundTextureData::new(texture,context);
