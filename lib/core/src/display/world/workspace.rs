@@ -19,11 +19,6 @@ use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::system::gpu::data::uniform::UniformScope;
 
-use crate::system::gpu::data::texture;
-use crate::system::gpu::data::texture::Texture;
-use crate::system::gpu::data::texture::TextureProvider;
-use crate::system::gpu::data::texture::TextureProviderData;
-
 use wasm_bindgen::prelude::Closure;
 
 

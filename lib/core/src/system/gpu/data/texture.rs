@@ -335,6 +335,8 @@ with_texture_format_relations!(generate_internal_format_instances []);
 pub enum TextureProviderData {
     /// URL the texture should be loaded from. This source implies asynchronous loading.
     Url(String),
+
+    /// Sized, uninitialized texture.
     Size(i32,i32),
 }
 
@@ -370,6 +372,7 @@ impl<I,T> TextureProvider<I,T> {
         Self {source,phantom}
     }
 
+    /// Smart constructor for a sized, uninitialized texture provider.
     pub fn size(width:i32, height:i32) -> Self {
         Self::new(TextureProviderData::Size(width,height))
     }
@@ -446,6 +449,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
 // === Getters ===
 
 impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+    /// Getter.
     pub fn gl_texture(&self) -> &WebGlTexture {
         &self.gl_texture
     }
@@ -470,7 +474,6 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
     /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
     /// until the download is complete.
     pub fn init_mock(&self) {
-        let provider        = &self.provider;
         let target          = Context::TEXTURE_2D;
         let level           = 0;
         let internal_format = Self::gl_internal_format();
@@ -510,7 +513,6 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
                 let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
                 let callback_ref  = Rc::new(RefCell::new(no_callback));
                 let image_ref     = Rc::new(RefCell::new(image));
-                let this          = self.clone();
                 let callback_ref2 = callback_ref.clone();
                 let image_ref_opt = image_ref.clone();
                 let context       = self.context.clone();
@@ -526,6 +528,10 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
                     context.bind_texture(target,Some(&gl_texture));
                     context.tex_image_2d_with_u32_and_u32_and_html_image_element
                         (target,level,internal_format,format,elem_type,&image).unwrap();
+
+                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
+                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
+                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
                 });
                 let js_callback = callback.as_ref().unchecked_ref();
                 let image       = image_ref.borrow();
