@@ -4,7 +4,7 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::shader::Context;
+use crate::system::gpu::types::*;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
@@ -61,15 +61,10 @@ impl Value for False {
 // === GlEnum ===
 // ==============
 
-
-
-
-
-
 /// Converts Rust types to `GlEnum` values.
 pub trait IsGlEnum {
     /// `GlEnum` value of this type.
-    fn to_gl_enum(&self) -> u32;
+    fn to_gl_enum(&self) -> GlEnum;
 }
 
 macro_rules! gl_enum {
@@ -84,7 +79,7 @@ macro_rules! gl_enum {
         pub enum $name { $($field),* }
 
         impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> u32 {
+            fn to_gl_enum(&self) -> GlEnum {
                 match self {
                     $(Self::$field => $field.to_gl_enum()),*
                 }
@@ -98,31 +93,6 @@ macro_rules! gl_enum {
         })*
     }
 }
-
-
-
-// =========================
-// === Unsupported Types ===
-// =========================
-
-macro_rules! gen_unsupported_types {
-    ( $($name:ident),* $(,)? ) => {$(
-        #[derive(Copy,Clone,Debug)]
-        pub struct $name {}
-    )*}
-}
-
-/// Types which are used in WebGL but are not (yet) bound to Rust types.
-#[allow(non_camel_case_types)]
-#[allow(missing_docs)]
-pub mod unsupported_types {
-    use super::*;
-    gen_unsupported_types!
-        { f16, f32_u24_u8_REV, u16_4_4_4_4, u16_5_5_5_1, u16_5_6_5, u32_f10_f11_f11_REV, u32_24_8
-        , u32_2_10_10_10_REV, u32_5_9_9_9_REV
-        }
-}
-pub use unsupported_types::*;
 
 
 
@@ -184,8 +154,8 @@ macro_rules! gl_variants {
         }
 
         impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> u32 {
-                $expr
+            fn to_gl_enum(&self) -> GlEnum {
+                GlEnum($expr)
             }
         }
     )*}
@@ -510,12 +480,13 @@ impl<I:InternalFormat,T:PrimType> Texture<I,T> {
     /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_internal_format(&self) -> i32 {
-        self.internal_format().to_gl_enum() as i32
+        let GlEnum(u) = self.internal_format().to_gl_enum();
+        u as i32
     }
 
     /// Format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn gl_format(&self) -> u32 {
+    pub fn gl_format(&self) -> GlEnum {
         self.format().to_gl_enum()
     }
 
@@ -575,7 +546,7 @@ impl<I:InternalFormat,T:PrimType> BoundTextureData<I,T> {
         let target          = Context::TEXTURE_2D;
         let level           = 0;
         let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format();
+        let format          = texture.gl_format().into();
         let elem_type       = texture.gl_elem_type();
         let width           = 1;
         let height          = 1;
@@ -626,7 +597,7 @@ impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
                     let target          = Context::TEXTURE_2D;
                     let level           = 0;
                     let internal_format = texture.gl_internal_format();
-                    let format          = texture.gl_format();
+                    let format          = texture.gl_format().into();
                     let elem_type       = texture.gl_elem_type();
                     data.context.bind_texture(target,Some(&data.gl_texture));
                     data.context.tex_image_2d_with_u32_and_u32_and_html_image_element

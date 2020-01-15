@@ -18,7 +18,6 @@ pub use types::*;
 
 use crate::prelude::*;
 
-use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
@@ -163,18 +162,6 @@ pub type GeometryDirty = dirty::SharedBool<Box<dyn Fn()>>;
 pub type ShaderDirty   = dirty::SharedBool<Box<dyn Fn()>>;
 
 
-// === Callbacks ===
-
-closure! {
-fn surface_on_mut(dirty:GeometryDirty) -> OnSurfaceMut {
-    || dirty.set()
-}}
-
-closure! {
-fn shader_on_mut(dirty:ShaderDirty) -> OnShaderMut {
-    || dirty.set()
-}}
-
 
 // === Implementation ===
 
@@ -193,10 +180,12 @@ impl Symbol {
             let mat_dirt_logger = logger.sub("shader_dirty");
             let surface_dirty   = GeometryDirty::new(geo_dirt_logger,Box::new(on_mut2));
             let shader_dirty    = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
-            let geo_on_mut      = surface_on_mut(surface_dirty.clone_ref());
-            let mat_on_mut      = shader_on_mut(shader_dirty.clone_ref());
-            let shader          = Shader::new(shader_logger,&stats,context,mat_on_mut);
-            let surface         = Mesh::new(surface_logger,&stats,context,geo_on_mut);
+            let surface_dirty2  = surface_dirty.clone_ref();
+            let shader_dirty2   = shader_dirty.clone_ref();
+            let surface_on_mut  = Box::new(move || { surface_dirty2.set() });
+            let shader_on_mut   = Box::new(move || { shader_dirty2.set() });
+            let shader          = Shader::new(shader_logger,&stats,context,shader_on_mut);
+            let surface         = Mesh::new(surface_logger,&stats,context,surface_on_mut);
             let symbol_scope    = UniformScope::new(logger.sub("uniform_scope"),context);
             let global_scope    = global_scope.clone();
             let vao             = default();

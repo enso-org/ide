@@ -229,7 +229,7 @@ impl Workspace {
             }
 
             self.logger.info("Clearing the scene.");
-            self.context.clear_color(0.0,0.0,0.0,1.0);
+            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.scene.camera);
