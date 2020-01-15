@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 use crate::system::gpu::shader::Context;
+use crate::system::gpu::data::prim::*;
 
 
 
@@ -9,9 +10,14 @@ use crate::system::gpu::shader::Context;
 // === GlEnum ===
 // ==============
 
-newtype_copy! {
-    /// The newtype for WebGL enums.
-    GlEnum(u32);
+/// The newtype for WebGL enums.
+#[derive(Copy,Clone,Debug,Default,Display)]
+pub struct GlEnum(pub u32);
+
+impl From<GlEnum> for u32 {
+    fn from(t:GlEnum) -> u32 {
+        t.0
+    }
 }
 
 
@@ -72,22 +78,20 @@ macro_rules! define_gl_enum_conversions {
         $(
             impl From<$type> for GlEnum {
                 fn from(_:$type) -> Self {
-                    $expr.into()
+                    GlEnum($expr)
                 }
             }
 
             impl From<PhantomData<$type>> for GlEnum {
                 fn from(_:PhantomData<$type>) -> Self {
-                    $expr.into()
+                    GlEnum($expr)
                 }
             }
         )*
     }
 }
 
-/// Defines singletons and an associated enum type, just like `define_singleton_enum`.
-/// It also defines conversions `From<$singleton>` and `From<PhantomData<$singleton>>` for every
-/// singleton type and for the whole enum type.
+/// Combination of `define_singletons_gl` and `define_singleton_enum_gl_from`.
 #[macro_export]
 macro_rules! define_singleton_enum_gl {
     (
@@ -96,11 +100,35 @@ macro_rules! define_singleton_enum_gl {
             $( $(#$field_meta:tt)* $field:ident = $expr:expr),* $(,)?
         }
     ) => {
-        $crate  :: define_singletons_gl!       { $($(#$field_meta)* $field = $expr),* }
-        shapely :: define_singleton_enum_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
+        $crate :: define_singletons_gl!          { $($(#$field_meta)* $field = $expr),* }
+        $crate :: define_singleton_enum_gl_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
+    }
+}
+
+
+/// Defines associated enum type for the provided variants, just like `define_singleton_enum_from`.
+/// It also defines conversions `From<$singleton>` and `From<PhantomData<$singleton>>` the enum
+/// type.
+#[macro_export]
+macro_rules! define_singleton_enum_gl_from {
+    (
+        $(#$meta:tt)*
+        $name:ident {
+            $( $(#$field_meta:tt)* $field:ident),* $(,)?
+        }
+    ) => {
+        shapely::define_singleton_enum_from! { $(#$meta)* $name {$($(#$field_meta)* $field),*}}
 
         impl From<&$name> for GlEnum {
             fn from(t:&$name) -> Self {
+                match t {
+                    $($name::$field => $field.into()),*
+                }
+            }
+        }
+
+        impl From<$name> for GlEnum {
+            fn from(t:$name) -> Self {
                 match t {
                     $($name::$field => $field.into()),*
                 }
@@ -115,7 +143,21 @@ macro_rules! define_singleton_enum_gl {
 // ================================
 
 define_gl_enum_conversions! {
-    bool = Context::BOOL,
-    i32  = Context::INT,
-    f32  = Context::FLOAT,
+    bool                = Context::BOOL,
+    u8                  = Context::UNSIGNED_BYTE,
+    u16                 = Context::UNSIGNED_SHORT,
+    u32                 = Context::UNSIGNED_INT,
+    i8                  = Context::BYTE,
+    i16                 = Context::SHORT,
+    i32                 = Context::INT,
+    f16                 = Context::HALF_FLOAT,
+    f32                 = Context::FLOAT,
+    f32_u24_u8_REV      = Context::FLOAT_32_UNSIGNED_INT_24_8_REV,
+    u16_4_4_4_4         = Context::UNSIGNED_SHORT_4_4_4_4,
+    u16_5_5_5_1         = Context::UNSIGNED_SHORT_5_5_5_1,
+    u16_5_6_5           = Context::UNSIGNED_SHORT_5_6_5,
+    u32_f10_f11_f11_REV = Context::UNSIGNED_INT_10F_11F_11F_REV,
+    u32_24_8            = Context::UNSIGNED_INT_24_8,
+    u32_2_10_10_10_REV  = Context::UNSIGNED_INT_2_10_10_10_REV,
+    u32_5_9_9_9_REV     = Context::UNSIGNED_INT_5_9_9_9_REV,
 }

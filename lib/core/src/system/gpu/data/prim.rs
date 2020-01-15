@@ -2,6 +2,25 @@
 
 
 
+// =================
+// === Reexports ===
+// =================
+
+pub use nalgebra::Vector2;
+pub use nalgebra::Vector3;
+pub use nalgebra::Vector4;
+pub use nalgebra::Matrix4;
+pub use nalgebra::Matrix2;
+pub use nalgebra::Matrix3;
+pub use nalgebra::Matrix2x3;
+pub use nalgebra::Matrix2x4;
+pub use nalgebra::Matrix3x2;
+pub use nalgebra::Matrix3x4;
+pub use nalgebra::Matrix4x2;
+pub use nalgebra::Matrix4x3;
+
+
+
 // =============
 // === Types ===
 // =============
@@ -9,22 +28,29 @@
 /// `Identity<A>` resolves to `A`.
 pub type Identity<T> = T;
 
+macro_rules! gen_unsupported_types {
+    ( $($name:ident),* $(,)? ) => {$(
+        #[derive(Copy,Clone,Debug)]
+        pub struct $name {}
+    )*}
+}
+
+/// Types which are used in WebGL but are not (yet) bound to Rust types.
+#[allow(non_camel_case_types)]
+#[allow(missing_docs)]
+pub mod unsupported_types {
+    gen_unsupported_types!
+    { f16, f32_u24_u8_REV, u16_4_4_4_4, u16_5_5_5_1, u16_5_6_5, u32_f10_f11_f11_REV, u32_24_8
+    , u32_2_10_10_10_REV, u32_5_9_9_9_REV
+    }
+}
+pub use unsupported_types::*;
+
 
 
 // ==============
 // === Macros ===
 // ==============
-
-/// Evaluates the argument macro with a list of all nalgebra types supported on GPU.
-#[macro_export]
-macro_rules! with_all_nalgebra_prim_types {
-    ([[$f:path] $args:tt]) => {
-        $f! { $args
-        [ Vector2 Vector3 Vector4 Matrix4 Matrix2 Matrix3
-          Matrix2x3 Matrix2x4 Matrix3x2 Matrix3x4 Matrix4x2 Matrix4x3
-        ] }
-    }
-}
 
 /// Evaluates the argument macro with a list of pairs `[container item]` for all container and for
 /// all primitive types supported on GPU. One of the container type is `Identity` which just
@@ -40,17 +66,3 @@ macro_rules! with_all_prim_types {
         }
     }
 }
-
-
-
-// ===============
-// === Imports ===
-// ===============
-
-macro_rules! define_pub_use {
-    ([$base:ident] [$($target:ident)*]) => {
-        $(pub use $base::$target;)*
-    }
-}
-
-with_all_nalgebra_prim_types!([[define_pub_use] [nalgebra]]);

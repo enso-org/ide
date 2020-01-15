@@ -4,15 +4,15 @@
 
 use crate::prelude::*;
 
-use crate::display::object::*;
 use crate::display::symbol::material::Material;
-use crate::display::world::*;
+use crate::system::gpu::data::AttributeInstanceIndex;
 
+use crate::display::object::*;
+use crate::display::world::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
-use crate::system::gpu::data::AttributeInstanceIndex;
 
 
 

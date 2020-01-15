@@ -5,7 +5,7 @@
 use crate::prelude::*;
 
 use crate::system::gpu::data::buffer::item::JsBufferViewArr;
-use crate::system::gpu::shader::Context;
+use crate::system::gpu::types::*;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
@@ -58,141 +58,11 @@ impl Value for False {
 
 
 
-// ==============
-// === GlEnum ===
-// ==============
-
-
-
-
-
-
-/// Converts Rust types to `GlEnum` values.
-pub trait IsGlEnum {
-    /// `GlEnum` value of this type.
-    fn to_gl_enum(&self) -> u32;
-}
-
-macro_rules! gl_enum {
-    (
-        $(#[$($meta:tt)*])*
-        $name:ident {
-            $($field:ident),* $(,)?
-        }
-    ) => {
-        $(#[$($meta)*])*
-        #[allow(missing_docs)]
-        pub enum $name { $($field),* }
-
-        impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> u32 {
-                match self {
-                    $(Self::$field => $field.to_gl_enum()),*
-                }
-            }
-        }
-
-        $(impl From<$field> for $name {
-            fn from(_:$field) -> Self {
-                Self::$field
-            }
-        })*
-    }
-}
-
-
-
-// =========================
-// === Unsupported Types ===
-// =========================
-
-macro_rules! gen_unsupported_types {
-    ( $($name:ident),* $(,)? ) => {$(
-        #[derive(Copy,Clone,Debug)]
-        pub struct $name {}
-    )*}
-}
-
-/// Types which are used in WebGL but are not (yet) bound to Rust types.
-#[allow(non_camel_case_types)]
-#[allow(missing_docs)]
-pub mod unsupported_types {
-    use super::*;
-    gen_unsupported_types!
-        { f16, f32_u24_u8_REV, u16_4_4_4_4, u16_5_5_5_1, u16_5_6_5, u32_f10_f11_f11_REV, u32_24_8
-        , u32_2_10_10_10_REV, u32_5_9_9_9_REV
-        }
-}
-pub use unsupported_types::*;
-
-
-
-// ==============
-// === GlType ===
-// ==============
-
-/// Class of GL primitive types, including bytes, shorts, ints, etc.
-pub trait PrimType: Copy + 'static {
-    /// The `GlEnum` value of the type.
-    fn gl_type() -> u32;
-}
-
-macro_rules! gen_prim_type_instances {
-    ( $($name:ident = $expr:expr),* $(,)? ) => {$(
-        impl PrimType for $name {
-            fn gl_type() -> u32 {
-                $expr
-            }
-        }
-    )*}
-}
-
-gen_prim_type_instances! {
-    u8                  = Context::UNSIGNED_BYTE,
-    u16                 = Context::UNSIGNED_SHORT,
-    u32                 = Context::UNSIGNED_INT,
-    i8                  = Context::BYTE,
-    i16                 = Context::SHORT,
-    i32                 = Context::INT,
-    f16                 = Context::HALF_FLOAT,
-    f32                 = Context::FLOAT,
-    f32_u24_u8_REV      = Context::FLOAT_32_UNSIGNED_INT_24_8_REV,
-    u16_4_4_4_4         = Context::UNSIGNED_SHORT_4_4_4_4,
-    u16_5_5_5_1         = Context::UNSIGNED_SHORT_5_5_5_1,
-    u16_5_6_5           = Context::UNSIGNED_SHORT_5_6_5,
-    u32_f10_f11_f11_REV = Context::UNSIGNED_INT_10F_11F_11F_REV,
-    u32_24_8            = Context::UNSIGNED_INT_24_8,
-    u32_2_10_10_10_REV  = Context::UNSIGNED_INT_2_10_10_10_REV,
-    u32_5_9_9_9_REV     = Context::UNSIGNED_INT_5_9_9_9_REV,
-}
-
-
-
 // ================
 // === GL Types ===
 // ================
 
-macro_rules! gl_variants {
-    ( $($name:ident = $expr:expr),* $(,)? ) => {$(
-        #[allow(missing_docs)]
-        #[derive(Copy,Clone,Debug)]
-        pub struct $name;
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self
-            }
-        }
-
-        impl IsGlEnum for $name {
-            fn to_gl_enum(&self) -> u32 {
-                $expr
-            }
-        }
-    )*}
-}
-
-gl_variants! {
+crate::define_singletons_gl! {
     Alpha             = Context::ALPHA,
     Depth24Stencil8   = Context::DEPTH24_STENCIL8,
     Depth32fStencil8  = Context::DEPTH32F_STENCIL8,
@@ -264,6 +134,15 @@ gl_variants! {
 
 
 
+// ==============
+// === Format ===
+// ==============
+
+/// Trait for every format of a texture.
+pub trait Format = Default + Into<AnyFormat>;
+
+
+
 // =================
 // === AnyFormat ===
 // =================
@@ -272,7 +151,7 @@ gl_variants! {
 /// more: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod format {
     use super::*;
-    gl_enum! {
+    crate::define_singleton_enum_gl_from! {
         AnyFormat
             { Alpha, DepthComponent, DepthStencil, Luminance, LuminanceAlpha, Red, RedInteger, Rg
             , Rgb, Rgba, RgbaInteger, RgbInteger, RgInteger,
@@ -292,7 +171,7 @@ pub use format::*;
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod internal_format {
     use super::*;
-    gl_enum! {
+    crate::define_singleton_enum_gl_from! {
         AnyInternalFormat
             { Alpha, Luminance, LuminanceAlpha, Rgb, Rgba, R8, R8SNorm, R16f, R32f, R8ui, R8i
             , R16ui, R16i, R32ui, R32i, Rg8, Rg8SNorm, Rg16f, Rg32f, Rg8ui, Rg8i, Rg16ui, Rg16i
@@ -309,14 +188,6 @@ use crate::system::gpu::data::IntoUniformValueImpl;
 use crate::display::symbol::material::VarDecl;
 use crate::system::gpu::glsl;
 use crate::display::world::GpuDefault;
-
-
-// ==============
-// === Format ===
-// ==============
-
-pub trait Format = Default + Into<AnyFormat>;
-
 
 
 // ======================
@@ -521,7 +392,7 @@ impl<S,I,T> Texture<S,I,T> {
     }
 }
 
-impl<S, I:InternalFormat, T:PrimType> Texture<S,I,T> {
+impl<S, I:InternalFormat, T:TextureItemType> Texture<S,I,T> {
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn internal_format(&self) -> AnyInternalFormat {
@@ -537,19 +408,20 @@ impl<S, I:InternalFormat, T:PrimType> Texture<S,I,T> {
     /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_internal_format(&self) -> i32 {
-        self.internal_format().to_gl_enum() as i32
+        let GlEnum(u) = self.internal_format().into_gl_enum();
+        u as i32
     }
 
     /// Format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn gl_format(&self) -> u32 {
-        self.format().to_gl_enum()
+    pub fn gl_format(&self) -> GlEnum {
+        self.format().into_gl_enum()
     }
 
     /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     pub fn gl_elem_type(&self) -> u32 {
-        <T>::gl_type()
+        <T>::gl_enum().into()
     }
 }
 
@@ -592,7 +464,7 @@ impl<I,T> GpuDefault for Texture<EmptyTexture,I,T> {
 
 impl<I,T> IntoUniformValueImpl for Texture<EmptyTexture,I,T>
 where I : InternalFormat,
-      T : PrimType {
+      T : TextureItemType {
     type Result = BoundTexture<I,T>;
     fn into_uniform_value(self, context:&Context) -> Self::Result {
         BoundTexture::new_empty(context)
@@ -668,7 +540,7 @@ impl<I,T> BoundTextureData<I,T> {
     }
 }
 
-impl<I:InternalFormat,T:PrimType> BoundTexture<I,T> {
+impl<I:InternalFormat,T:TextureItemType> BoundTexture<I,T> {
     /// Constructor for empty texture.
     pub fn new_empty(context:&Context) -> Self {
         let data = BoundTextureData::new(context);

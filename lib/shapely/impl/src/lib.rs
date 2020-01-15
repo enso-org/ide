@@ -20,6 +20,33 @@ use std::ops::GeneratorState;
 use std::pin::Pin;
 use basegl_prelude::*;
 
+
+/// Generates a newtype wrapper for the provided types. It also generates a lot of impls,
+/// including Copy, Clone, Debug, Default, Display, From, Into, Deref, and DerefMut.
+///
+/// For the following input:
+/// ```compile_fail
+/// newtype_copy! {
+///     AttributeIndex(usize)
+/// }
+/// ```
+///
+/// The following code is generated:
+/// ```compile_fail
+/// #[derive(Copy, Clone, Debug, Default, Display, From, Into)]
+/// pub struct AttributeIndex(usize);
+/// impl Deref for AttributeIndex {
+///     type Target = usize;
+///     fn deref(&self) -> &Self::Target {
+///         &self.0
+///     }
+/// }
+/// impl DerefMut for AttributeIndex {
+///     fn deref_mut(&mut self) -> &mut Self::Target {
+///         &mut self.0
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! newtype_copy {
     ($( $(#$meta:tt)* $name:ident($type:ty); )*) => {$(
@@ -41,7 +68,6 @@ macro_rules! newtype_copy {
         }
     )*}
 }
-
 
 #[macro_export]
 macro_rules! derive_clone_plus {
