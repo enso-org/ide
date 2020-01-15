@@ -13,8 +13,8 @@
 ///
 /// It expands to:
 ///
-/// ```compile_fail
-///#[allow(missing_docs)]
+/// ```
+/// #[allow(missing_docs)]
 /// #[derive(Copy, Clone, Debug)]
 /// #[doc = r###"A Foo!"###]
 /// pub struct Foo;

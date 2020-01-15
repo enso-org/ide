@@ -50,7 +50,6 @@ pub mod debug;
 pub mod display;
 pub mod examples;
 pub mod system;
-pub mod math;
 
 /// Prelude - commonly used utilities.
 pub mod prelude {

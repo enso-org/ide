@@ -211,7 +211,6 @@ macro_rules! define_any_prim_uniform {
         }
     }}
 }
-
 crate::with_all_prim_types!([[define_any_prim_uniform][]]);
 
 /// Set of operations exposed by the `AnyPrimUniform` value.
