@@ -193,7 +193,8 @@ impl Symbol {
             let textures        = default();
             let stats           = stats.clone_ref();
             let context         = context.clone();
-            Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context,vao,uniforms,textures,stats}
+            Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context
+                ,vao,uniforms,textures,stats}
         })
     }
 
@@ -232,7 +233,8 @@ impl Symbol {
     }
 
 
-    fn init_attribute_binding(&mut self, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
+    fn init_attribute_binding
+    (&mut self, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
         let vtx_name = shader::builder::mk_vertex_name(&binding.name);
         let scope    = self.surface.scope_by_type(mesh_scope_type);
         let location = self.context.get_attrib_location(program, &vtx_name);
@@ -326,6 +328,7 @@ impl Symbol {
                 let first          = 0;
                 let count          = self.surface.point.size()    as i32;
                 let instance_count = self.surface.instance.size() as i32;
+                let instance_count = std::cmp::max(instance_count,1);
 
                 self.stats.inc_draw_call_count();
                 self.context.draw_arrays_instanced(mode,first,count,instance_count);

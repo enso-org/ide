@@ -2,6 +2,7 @@
 
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::Sprite;
+use crate::display::symbol::geometry::Screen;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
 use crate::system::web::set_stdout;
@@ -35,6 +36,8 @@ fn init(world: &World) {
         t.x += 250.0;
         t.y += 100.0;
     });
+
+    let screen = Screen::new(world);
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
