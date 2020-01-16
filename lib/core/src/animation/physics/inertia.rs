@@ -276,7 +276,7 @@ impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
     pub fn new<T>
     ( mut event_loop:&mut EventLoop
-    , steps_per_second:f32
+    , steps_per_second:f64
     , mut object:T
     , mut properties:PhysicsProperties) -> Self
     where T:SimulationObject {
@@ -293,7 +293,7 @@ impl PhysicsSimulator {
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let position   = linear_interpolation(current_position,next_position,transition);
+            let position   = linear_interpolation(current_position,next_position,transition as f32);
             object.set_position(position);
         });
 
@@ -302,14 +302,15 @@ impl PhysicsSimulator {
 }
 
 /// Simulate the `KinematicProperties`.
-fn simulate_kinematics(kinematics:&mut KinematicsProperties, force:&Vector3<f32>, dt:f32) {
+fn simulate_kinematics(kinematics:&mut KinematicsProperties, force:&Vector3<f32>, dt:f64) {
+    let dt = dt as f32;
     kinematics.set_acceleration(force / kinematics.mass);
     kinematics.set_velocity(kinematics.velocity() + kinematics.acceleration() * dt);
     kinematics.set_position(kinematics.position() + kinematics.velocity()     * dt);
 }
 
 /// Runs a simulation step.
-fn simulate(properties:&mut PhysicsProperties, delta_ms:f32) -> Vector3<f32> {
+fn simulate(properties:&mut PhysicsProperties, delta_ms:f64) -> Vector3<f32> {
     let spring        = properties.spring();
     let drag          = properties.drag();
     let mut net_force = zero();

@@ -281,13 +281,13 @@ impl Example {
             easing_in_out.set_properties(properties);
         });
 
-        let _animator = ContinuousAnimator::new(&mut event_loop, move |time_ms:f32| {
+        let _animator = ContinuousAnimator::new(&mut event_loop, move |time_ms| {
             let _keep_alive = &_fixed_step;
             graph_canvas.clear();
             animation_canvas.clear();
-            easing_out_clone.render("green", time_ms as f64);
-            easing_in_out_clone.render("blue", time_ms as f64);
-            easing_in_clone.render("red", time_ms as f64);
+            easing_out_clone.render("green", time_ms);
+            easing_in_out_clone.render("blue", time_ms);
+            easing_in_clone.render("red", time_ms);
         });
         Self { _animator }
     }

@@ -14,8 +14,8 @@ use std::cell::RefCell;
 
 struct ContinuousTimeAnimatorProperties {
     callback                   : Box<dyn AnimationCallback>,
-    relative_start_ms          : f32,
-    absolute_start_ms          : Option<f32>,
+    relative_start_ms          : f64,
+    absolute_start_ms          : Option<f64>,
     event_loop_callback_handle : Option<CallbackHandle>
 }
 
@@ -45,7 +45,7 @@ impl ContinuousAnimatorData {
         Rc::new(Self {properties})
     }
 
-    fn on_animation_frame(&self, absolute_time_ms:f32) {
+    fn on_animation_frame(&self, absolute_time_ms:f64) {
         let absolute_start_ms = self.absolute_start_ms();
         let absolute_start_ms = absolute_start_ms.unwrap_or_else(|| {
             self.set_absolute_start_ms(Some(absolute_time_ms));
@@ -61,7 +61,7 @@ impl ContinuousAnimatorData {
 // === Setters ===
 
 impl ContinuousAnimatorData {
-    fn set_time(&self, time:f32) {
+    fn set_time(&self, time:f64) {
         let mut properties = self.properties.borrow_mut();
         properties.relative_start_ms = time;
         properties.absolute_start_ms = None;
@@ -71,7 +71,7 @@ impl ContinuousAnimatorData {
         self.properties.borrow_mut().event_loop_callback_handle = event_loop_callback_handle;
     }
 
-    fn set_absolute_start_ms(&self, absolute_start_ms:Option<f32>) {
+    fn set_absolute_start_ms(&self, absolute_start_ms:Option<f64>) {
         self.properties.borrow_mut().absolute_start_ms = absolute_start_ms
     }
 }
@@ -80,11 +80,11 @@ impl ContinuousAnimatorData {
 // === Getters ===
 
 impl ContinuousAnimatorData {
-    fn relative_start_ms(&self) -> f32 {
+    fn relative_start_ms(&self) -> f64 {
         self.properties.borrow().relative_start_ms
     }
 
-    fn absolute_start_ms(&self) -> Option<f32> {
+    fn absolute_start_ms(&self) -> Option<f64> {
         self.properties.borrow().absolute_start_ms
     }
 }
@@ -117,7 +117,7 @@ impl ContinuousAnimator {
 
 impl ContinuousAnimator {
     /// Sets the current playback time.
-    pub fn set_time(&mut self, time_ms:f32) {
+    pub fn set_time(&mut self, time_ms:f64) {
         self.data.set_time(time_ms);
     }
 }

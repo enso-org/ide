@@ -12,8 +12,8 @@ use wasm_bindgen::prelude::Closure;
 // === EventLoopCallback ===
 // =========================
 
-/// A callback to register in EventLoop, taking time_ms:f32 as its input.
-pub trait EventLoopCallback = FnMut(f32) + 'static;
+/// A callback to register in EventLoop, taking time_ms:f64 as its input.
+pub trait EventLoopCallback = FnMut(f64) + 'static;
 
 
 
@@ -81,8 +81,8 @@ impl EventLoop {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct EventLoopData {
-    main             : Option<Closure<dyn FnMut(f32)>>,
-    callbacks        : CallbackRegistry1<f32>,
+    main             : Option<Closure<dyn FnMut(f64)>>,
+    callbacks        : CallbackRegistry1<f64>,
     #[derivative(Debug="ignore")]
     on_loop_started  : Box<dyn FnMut()>,
     #[derivative(Debug="ignore")]
@@ -103,7 +103,7 @@ impl Default for EventLoopData {
 
 impl EventLoopData {
     /// Create new instance.
-    pub fn run(&mut self, time_ms:f32) {
+    pub fn run(&mut self, time_ms:f64) {
         (self.on_loop_started)();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {

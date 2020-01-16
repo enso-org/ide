@@ -14,7 +14,7 @@ use crate::control::event_loop::EventLoop;
 // === AnimationCallback ===
 // =========================
 
-pub trait AnimationCallback = FnMut(f32) + 'static;
+pub trait AnimationCallback = FnMut(f64) + 'static;
 
 
 
@@ -24,7 +24,7 @@ pub trait AnimationCallback = FnMut(f32) + 'static;
 
 struct AnimatorData {
     callback    : Box<dyn AnimationCallback>,
-    previous_ms : Option<f32>
+    previous_ms : Option<f64>
 }
 
 impl AnimatorData {

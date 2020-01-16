@@ -68,7 +68,7 @@ impl<T:Interpolable<T>+'static> EasingAnimator<T> {
                 let duration_ms   = data.duration_ms;
                 let initial_value = data.initial_value;
                 let final_value   = data.final_value;
-                let time_seconds  = time_ms as f64 / duration_ms;
+                let time_seconds  = time_ms / duration_ms;
                 let time_seconds  = clamp(time_seconds, 0.0, 1.0);
                 let time_seconds  = easing_function(time_seconds) as f32;
                 let value         = linear_interpolation(initial_value, final_value, time_seconds);
