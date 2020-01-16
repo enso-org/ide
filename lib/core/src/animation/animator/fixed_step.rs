@@ -17,6 +17,7 @@ use nalgebra::zero;
 pub struct IntervalCounter {
     /// Interval duration.
     pub interval_duration : f32,
+
     /// The amount of time accumulated by `IntervalCounter`'s `add_time`.
     pub accumulated_time  : f32
 }

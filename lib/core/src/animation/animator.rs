@@ -1,4 +1,5 @@
-//! This file implements Animator.
+//! This file implements the Animation struct which runs a callback once per frame with a time
+//! difference from the last frame as its input.
 
 pub mod continuous;
 pub mod fixed_step;
@@ -40,8 +41,8 @@ impl AnimatorData {
 // === Animator ===
 // ================
 
-/// This structure runs an animation every frame with the time difference from the last frame as
-/// its input.
+/// This struct which runs a callback once per frame with a time difference from the last frame
+/// as its input.
 pub struct Animator {
     _continuous_animator: ContinuousAnimator
 }

@@ -1,4 +1,5 @@
-//! This file provides several easing functions used for transition animation.
+//! This module implements easing formulas and related utilities. To learn more about easing
+//! functions, please refer to the following link: https://easings.net/en
 
 use core::f64::consts::PI;
 
