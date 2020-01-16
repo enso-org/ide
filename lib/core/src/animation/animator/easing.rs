@@ -47,7 +47,7 @@ impl<T:Interpolable<T>+'static> EasingAnimator<T> {
     /// Creates an EasingAnimator using a `easing_function` to interpolate between `initial_value`
     /// and `final_value` in `duration_seconds`, calling its value in `easing_animation_callback`.
     pub fn new<F:FnEasing,C:EasingAnimationCallback<T>>
-    ( mut event_loop                : &mut EventLoop
+    ( event_loop                    : &mut EventLoop
     , mut easing_animation_callback : C
     , easing_function               : F
     , initial_value                 : T
@@ -63,7 +63,7 @@ impl<T:Interpolable<T>+'static> EasingAnimator<T> {
         };
         let data = Rc::new(RefCell::new(data));
         let weak = Rc::downgrade(&data);
-        let continuous_animator = ContinuousAnimator::new(&mut event_loop, move |time_ms| {
+        let continuous_animator = ContinuousAnimator::new(event_loop, move |time_ms| {
             if let Some(data) = weak.upgrade() {
                 let data          = data.borrow();
                 let duration_ms   = data.duration_ms;

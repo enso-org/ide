@@ -276,7 +276,7 @@ pub struct PhysicsSimulator {
 impl PhysicsSimulator {
     /// Simulates `Properties` on `object`.
     pub fn new<T>
-    ( mut event_loop:&mut EventLoop
+    ( event_loop:&mut EventLoop
     , steps_per_second:f64
     , mut object:T
     , mut properties:PhysicsProperties) -> Self
@@ -286,7 +286,7 @@ impl PhysicsSimulator {
         let mut current_position = object.position();
         let mut next_position    = simulate(&mut properties, step_ms);
         let mut interval_counter = IntervalCounter::new(step_ms);
-        let _animator            = Animator::new(&mut event_loop, move |delta_ms| {
+        let _animator            = Animator::new(event_loop, move |delta_ms| {
             let intervals = interval_counter.add_time(delta_ms);
             for _ in 0..intervals {
                 current_position = next_position;

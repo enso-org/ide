@@ -35,9 +35,8 @@ pub struct Navigator {
 
 impl Navigator {
     // FIXME: Create a simplified constructor with dom defaulted to window.
-    pub fn new
-    (mut event_loop:&mut EventLoop, dom:&DOMContainer, camera:Camera) -> Result<Self> {
-        let (_simulator, properties) = Self::start_simulator(&mut event_loop, camera.clone());
+    pub fn new(event_loop:&mut EventLoop, dom:&DOMContainer, camera:Camera) -> Result<Self> {
+        let (_simulator, properties) = Self::start_simulator(event_loop, camera.clone());
         let zoom_speed             = 2.0;
         let min_zoom               = 10.0;
         let max_zoom               = 10000.0;
@@ -54,7 +53,7 @@ impl Navigator {
     }
 
     fn start_simulator
-    (mut event_loop:&mut EventLoop, camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
+    (event_loop:&mut EventLoop, camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.position();
@@ -67,12 +66,7 @@ impl Navigator {
         let camera             = camera.object;
         let steps_per_second   = 60.0;
         let properties_clone   = properties.clone();
-        let simulator          = PhysicsSimulator::new(
-            &mut event_loop,
-            steps_per_second,
-            camera,
-            properties_clone
-        );
+        let simulator = PhysicsSimulator::new(event_loop,steps_per_second,camera,properties_clone);
         (simulator, properties)
     }
 

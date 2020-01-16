@@ -80,10 +80,9 @@ pub struct FixedStepAnimator {
 impl FixedStepAnimator {
     /// Registers `FixedStepAnimator` in `EventLoop`, running `AnimationCallback` at a fixed rate
     /// determined by `steps_per_second`.
-    pub fn new<F:AnimationCallback>
-    (mut event_loop:&mut EventLoop, steps_per_second:f64, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, steps_per_second:f64, f:F) -> Self {
         let mut data = FixedStepAnimatorData::new(steps_per_second, f);
-        let _animator = Animator::new(&mut event_loop, move |delta_ms| {
+        let _animator = Animator::new(event_loop, move |delta_ms| {
             let intervals = data.counter.add_time(delta_ms);
             for _ in 0..intervals {
                 (data.callback)(data.counter.interval_duration);

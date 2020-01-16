@@ -1,3 +1,6 @@
+//! This module provides different kind of animation utilities, such as physics based animation and
+//! animation with easing functions.
+
 pub mod physics;
 pub mod animator;
 pub mod position;

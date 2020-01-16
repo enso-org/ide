@@ -170,7 +170,7 @@ struct SubExample {
 
 impl SubExample {
     fn new<F>
-    (mut event_loop   : &mut EventLoop
+    ( event_loop        : &mut EventLoop
      , graph_canvas     : Canvas
      , animation_canvas : Canvas
      , f                : &'static F
@@ -190,7 +190,7 @@ impl SubExample {
         let data = Rc::new(RefCell::new(data));
         let weak = Rc::downgrade(&data);
         let easing_animator = EasingAnimator::new(
-            &mut event_loop,
+            event_loop,
             move |value| { weak.upgrade().map(|data| data.borrow_mut().properties = value); },
             f,
             initial_value,
@@ -222,11 +222,11 @@ struct Example {
 
 impl Example {
     pub fn new<F1, F2, F3>
-    ( mut event_loop : &mut EventLoop
-    , name           : &str
-    , ease_in        : &'static F1
-    , ease_out       : &'static F2
-    , ease_in_out    : &'static F3) -> Self
+    ( event_loop  : &mut EventLoop
+    , name        : &str
+    , ease_in     : &'static F1
+    , ease_out    : &'static F2
+    , ease_in_out : &'static F3) -> Self
     where F1:FnEasing, F2:FnEasing, F3:FnEasing {
         let example : HtmlElement = create_element("div").unwrap().dyn_into().unwrap();
         example.set_attribute_or_panic("id", name);
@@ -245,7 +245,7 @@ impl Example {
         let final_value      = Properties::random();
 
         let mut easing_in = SubExample::new(
-            &mut event_loop,
+            event_loop,
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in,
@@ -255,7 +255,7 @@ impl Example {
         let easing_in_clone = easing_in.clone();
 
         let mut easing_out = SubExample::new(
-            &mut event_loop,
+            event_loop,
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_out,
@@ -265,7 +265,7 @@ impl Example {
         let easing_out_clone = easing_out.clone();
 
         let mut easing_in_out = SubExample::new(
-            &mut event_loop,
+            event_loop,
             graph_canvas.clone(),
             animation_canvas.clone(),
             ease_in_out,
@@ -274,14 +274,14 @@ impl Example {
         );
         let easing_in_out_clone = easing_in_out.clone();
 
-        let _fixed_step = FixedStepAnimator::new(&mut event_loop, 1.0 / 3.0, move |_| {
+        let _fixed_step = FixedStepAnimator::new(event_loop, 1.0 / 3.0, move |_| {
             let properties = Properties::random();
             easing_in.set_properties(properties);
             easing_out.set_properties(properties);
             easing_in_out.set_properties(properties);
         });
 
-        let _animator = ContinuousAnimator::new(&mut event_loop, move |time_ms| {
+        let _animator = ContinuousAnimator::new(event_loop, move |time_ms| {
             let _keep_alive = &_fixed_step;
             graph_canvas.clear();
             animation_canvas.clear();
