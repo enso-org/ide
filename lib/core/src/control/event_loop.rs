@@ -1,8 +1,10 @@
-//! This module contains implementation of `EventLoop`.
+//! This module contains implementation of `EventLoop`, a loop manager which runs a
+//! `EventLoopCallback` once per frame.
 
 use crate::prelude::*;
 
 use crate::control::callback::CallbackMut;
+use crate::control::callback::CallbackMutFn;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry1;
 use crate::system::web;
@@ -62,12 +64,12 @@ impl EventLoop {
     }
 
     /// Sets a callback which is called when the loop started.
-    pub fn set_on_loop_started<F:CallbackMut>(&self, f:F) {
+    pub fn set_on_loop_started<F:CallbackMutFn>(&self, f:F) {
         self.rc.borrow_mut().set_on_loop_started(f)
     }
 
     /// Sets a callback which is called when the loop finished.
-    pub fn set_on_loop_finished<F:CallbackMut>(&self, f:F) {
+    pub fn set_on_loop_finished<F:CallbackMutFn>(&self, f:F) {
         self.rc.borrow_mut().set_on_loop_finished(f);
     }
 }
@@ -85,9 +87,9 @@ pub struct EventLoopData {
     main             : Option<Closure<dyn EventLoopCallback>>,
     callbacks        : CallbackRegistry1<f64>,
     #[derivative(Debug="ignore")]
-    on_loop_started  : Box<dyn CallbackMut>,
+    on_loop_started  : CallbackMut,
     #[derivative(Debug="ignore")]
-    on_loop_finished : Box<dyn CallbackMut>,
+    on_loop_finished : CallbackMut,
     main_id          : i32,
 }
 
@@ -116,12 +118,12 @@ impl EventLoopData {
     }
 
     /// Sets a callback which is called when the loop started.
-    pub fn set_on_loop_started<F:CallbackMut>(&mut self, f:F) {
+    pub fn set_on_loop_started<F:CallbackMutFn>(&mut self, f:F) {
         self.on_loop_started = Box::new(f);
     }
 
     /// Sets a callback which is called when the loop finished.
-    pub fn set_on_loop_finished<F:CallbackMut>(&mut self, f:F) {
+    pub fn set_on_loop_finished<F:CallbackMutFn>(&mut self, f:F) {
         self.on_loop_finished = Box::new(f);
     }
 }

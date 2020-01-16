@@ -1,12 +1,13 @@
-//! This file provides the implementation of EasingAnimator.
+//! This module provides the implementation of EasingAnimator, an utility which uses a `FnEasing`
+//! function to feed a `EasingAnimationCallback` with a value between two `Interpolable` values.
 
 use crate::prelude::*;
 
 use super::ContinuousAnimator;
 use crate::animation::easing::FnEasing;
 use crate::control::event_loop::EventLoop;
-use crate::math::utils::linear_interpolation;
-use crate::math::utils::Interpolable;
+use crate::animation::linear_interpolation;
+use crate::animation::Interpolable;
 
 use nalgebra::clamp;
 
@@ -70,7 +71,7 @@ impl<T:Interpolable<T>+'static> EasingAnimator<T> {
                 let final_value   = data.final_value;
                 let time_seconds  = time_ms / duration_ms;
                 let time_seconds  = clamp(time_seconds, 0.0, 1.0);
-                let time_seconds  = easing_function(time_seconds) as f32;
+                let time_seconds  = easing_function(time_seconds as f32);
                 let value         = linear_interpolation(initial_value, final_value, time_seconds);
                 easing_animation_callback(value);
             }

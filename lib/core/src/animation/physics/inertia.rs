@@ -1,4 +1,4 @@
-//! This file implements physics components to simulate a rubber band dynamics.
+//! This module implements physics components to simulate a rubber band dynamics.
 //! The components has the potential to be further developed and extended in the future into a
 //! more sophisticated physics simulator.
 
@@ -6,8 +6,8 @@ use crate::prelude::*;
 
 use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
-use crate::math::utils::linear_interpolation;
 use crate::animation::position::HasPosition;
+use crate::animation::linear_interpolation;
 use crate::control::event_loop::EventLoop;
 
 use nalgebra::Vector3;
@@ -18,6 +18,7 @@ use nalgebra::zero;
 // ====================
 // === PhysicsForce ===
 // ====================
+
 /// A trait for implementing 3 dimensional forces.
 pub trait PhysicsForce {
     /// Gets the calculated force.

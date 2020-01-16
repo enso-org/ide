@@ -8,11 +8,31 @@ use crate::prelude::*;
 // === Callback ===
 // ================
 
-/// Callback used by `CallbackRegistry`.
-pub trait CallbackMut = FnMut() + 'static;
+/// Immutable callback type.
+pub trait CallbackFn = Fn() + 'static;
 
-/// Callback with one param used by `CallbackRegistry1`
-pub trait CallbackMut1<T> = FnMut(T) + 'static;
+/// Immutable callback object.
+pub type Callback = Box<dyn CallbackFn>;
+
+/// Callback object smart constructor.
+#[allow(non_snake_case)]
+pub fn Callback<F:CallbackFn>(f:F) -> Callback {
+    Box::new(f)
+}
+
+/// Mutable callback type.
+pub trait CallbackMutFn = FnMut() + 'static;
+
+/// Mutable callback object.
+pub type CallbackMut = Box<dyn CallbackMutFn>;
+
+/// Mutable callback type with one parameter.
+pub trait CallbackMut1Fn<T> = FnMut(T) + 'static;
+
+/// Mutable callback object with one parameter.
+pub type CallbackMut1<T> = Box<dyn CallbackMut1Fn<T>>;
+
+
 
 // ======================
 // === CallbackHandle ===
@@ -70,13 +90,13 @@ impl Guard {
 #[derivative(Debug, Default)]
 pub struct CallbackRegistry {
     #[derivative(Debug="ignore")]
-    callback_list: Vec<(Guard, Box<dyn CallbackMut>)>
+    callback_list: Vec<(Guard, CallbackMut)>
 }
 
 impl CallbackRegistry {
 
     /// Adds new callback and returns a new handle for it.
-    pub fn add<F:CallbackMut>(&mut self, callback:F) -> CallbackHandle {
+    pub fn add<F:CallbackMutFn>(&mut self, callback:F) -> CallbackHandle {
         let callback = Box::new(callback);
         let handle   = CallbackHandle::new();
         let guard    = handle.guard();
@@ -103,12 +123,12 @@ impl CallbackRegistry {
 #[derivative(Debug, Default)]
 pub struct CallbackRegistry1<T:Copy> {
     #[derivative(Debug="ignore")]
-    callback_list: Vec<(Guard, Box<dyn CallbackMut1<T>>)>
+    callback_list: Vec<(Guard, CallbackMut1<T>)>
 }
 
 impl<T:Copy> CallbackRegistry1<T> {
     /// Adds new callback and returns a new handle for it.
-    pub fn add<F:CallbackMut1<T>>(&mut self, callback:F) -> CallbackHandle {
+    pub fn add<F:CallbackMut1Fn<T>>(&mut self, callback:F) -> CallbackHandle {
         let callback = Box::new(callback);
         let handle   = CallbackHandle::new();
         let guard    = handle.guard();

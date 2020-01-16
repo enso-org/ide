@@ -1,7 +1,7 @@
 //! This module contains the `MouseManager` implementation, its associated structs such as
 //! `MousePositionEvent`, `MouseClickEvent` and `MouseWheelEvent`.
 
-use crate::display::render::css3d::DOMContainer;
+use crate::system::web::dom::DOMContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;

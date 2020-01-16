@@ -129,10 +129,10 @@ impl Canvas {
         self.context.scale(width, height / 2.0).ok();
         self.context.translate(0.0, 0.5).ok();
         self.context.set_line_width(1.0 / height);
-        self.context.move_to(0.0, f(0.0));
+        self.context.move_to(0.0, f(0.0) as f64);
         for x in 1..self.canvas.width() {
             let x = x as f64 / width;
-            let y = f(x);
+            let y = f(x as f32) as f64;
             self.context.line_to(x, y);
         }
         self.context.stroke();
@@ -142,7 +142,7 @@ impl Canvas {
         let height = 16.0 / height;
         let time_seconds = time_ms / 1000.0;
         let x      = (time_seconds % 3.0) / 2.0;
-        let y      = f(x);
+        let y      = f(x as f32) as f64;
         self.context.fill_rect(x - width / 2.0, y - height / 2.0, width, height);
         self.context.restore();
     }

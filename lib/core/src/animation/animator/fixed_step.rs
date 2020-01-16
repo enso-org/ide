@@ -1,4 +1,6 @@
-//! This module implements `FixedStepAnimator` and its helper `IntervalCounter`.
+//! This module implements `IntervalCounter`, a helper to determine how many
+//! intervals of an arbitrary length a time duration has and `FixedStepAnimator`, an utility to
+//! guarantee an `AnimationCallback` is running at a fixed rate.
 
 use super::Animator;
 use super::AnimationCallback;

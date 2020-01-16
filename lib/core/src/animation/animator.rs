@@ -1,4 +1,4 @@
-//! This file implements the Animation struct which runs a callback once per frame with a time
+//! This module implements the Animation struct which runs a callback once per frame with a time
 //! difference from the last frame as its input.
 
 pub mod continuous;

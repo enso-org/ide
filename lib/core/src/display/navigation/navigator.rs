@@ -6,9 +6,9 @@ use events::NavigatorEvents;
 use events::ZoomEvent;
 use events::PanEvent;
 use crate::system::web::Result;
-use crate::display::render::css3d::Camera;
-use crate::display::render::css3d::CameraType;
-use crate::display::render::css3d::DOMContainer;
+use crate::system::web::dom::Camera;
+use crate::system::web::dom::CameraType;
+use crate::system::web::dom::DOMContainer;
 use crate::animation::position::HasPosition;
 use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
@@ -54,8 +54,7 @@ impl Navigator {
     }
 
     fn start_simulator
-    ( mut event_loop:&mut EventLoop
-    , camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
+    (mut event_loop:&mut EventLoop, camera:Camera) -> (PhysicsSimulator, PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.position();
