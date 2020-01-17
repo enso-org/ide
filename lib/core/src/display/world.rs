@@ -97,14 +97,14 @@ impl World {
             symbol.symbol_scope.add_or_panic("texture",texture1)
         };
 
-//
-//            let fb = self.context.create_framebuffer().unwrap();
-//            self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
-//
-//            let level = 0;
-//            let attachment_point = Context::COLOR_ATTACHMENT0;
-//            self.context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(texture1.gl_texture()), level);
-//
+
+        let gl_texture = uniform.modify(|t| t.gl_texture().clone());
+        let fb = context.create_framebuffer().unwrap();
+        context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
+
+        let level = 0;
+        let attachment_point = Context::COLOR_ATTACHMENT0;
+        context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
     }
 }
 

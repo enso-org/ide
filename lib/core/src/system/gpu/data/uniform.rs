@@ -166,9 +166,9 @@ impl<Value> {
     }
 
     /// Modifies the value stored by the uniform.
-    pub fn modify<F:FnOnce(&mut Value)>(&mut self, f:F) {
+    pub fn modify<F:FnOnce(&mut Value)->T,T>(&mut self, f:F) -> T {
         self.set_dirty();
-        f(&mut self.value);
+        f(&mut self.value)
     }
 
     /// Checks whether the uniform was changed and not yet updated.
