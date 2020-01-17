@@ -29,35 +29,35 @@ mod tests {
     use web_sys::Performance;
     use nalgebra::Vector3;
 
-    #[web_test(no_container)]
-    fn invalid_container() {
-        let renderer = HTMLRenderer::new("nonexistent_id");
-        assert!(renderer.is_err(), "nonexistent_id should not exist");
-    }
-
-    #[web_test]
-    fn object_behind_camera() {
-        let mut scene : Scene<HTMLObject> = Scene::new();
-        let renderer = HTMLRenderer::new("object_behind_camera")
-                                    .expect("Renderer couldn't be created");
-        assert_eq!(scene.len(), 0, "Scene should be empty");
-
-        let view_dim = renderer.dimensions();
-        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
-
-        let mut object = HTMLObject::new("div").unwrap();
-        object.set_position(Vector3::new(0.0, 0.0, 0.0));
-        object.dom.set_property_or_panic("background-color", "black");
-        object.set_dimensions(100.0, 100.0);
-        scene.add(object);
-
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
-        // We move the Camera behind the object so we don't see it.
-        camera.set_position(Vector3::new(0.0, 0.0, -100.0));
-
-        renderer.render(&mut camera, &scene);
-    }
+//    #[web_test(no_container)]
+//    fn invalid_container() {
+//        let renderer = HTMLRenderer::new("nonexistent_id");
+//        assert!(renderer.is_err(), "nonexistent_id should not exist");
+//    }
+//
+//    #[web_test]
+//    fn object_behind_camera() {
+//        let mut scene : Scene<HTMLObject> = Scene::new();
+//        let renderer = HTMLRenderer::new("object_behind_camera")
+//                                    .expect("Renderer couldn't be created");
+//        assert_eq!(scene.len(), 0, "Scene should be empty");
+//
+//        let view_dim = renderer.dimensions();
+//        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
+//
+//        let mut object = HTMLObject::new("div").unwrap();
+//        object.set_position(Vector3::new(0.0, 0.0, 0.0));
+//        object.dom.set_property_or_panic("background-color", "black");
+//        object.set_dimensions(100.0, 100.0);
+//        scene.add(object);
+//
+//        let aspect_ratio = view_dim.x / view_dim.y;
+//        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+//        // We move the Camera behind the object so we don't see it.
+//        camera.set_position(Vector3::new(0.0, 0.0, -100.0));
+//
+//        renderer.render(&mut camera, &scene);
+//    }
 
     fn create_scene(renderer : &HTMLRenderer) -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -112,51 +112,51 @@ mod tests {
         renderer.render(&mut camera, &scene);
     }
 
-    #[web_test]
-    fn rhs_coordinates_from_back() {
-        use std::f32::consts::PI;
+//    #[web_test]
+//    fn rhs_coordinates_from_back() {
+//        use std::f32::consts::PI;
+//
+//        let renderer = HTMLRenderer::new("rhs_coordinates_from_back")
+//                                    .expect("Renderer couldn't be created");
+//        let scene = create_scene(&renderer);
+//
+//        let view_dim = renderer.dimensions();
+//        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
+//
+//        let aspect_ratio = view_dim.x / view_dim.y;
+//        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+//
+//        // We move the Camera -29 units away from the center.
+//        camera.set_position(Vector3::new(0.0, 0.0, -29.0));
+//        // We rotate it 180 degrees so we can see the center of the scene
+//        // from behind.
+//        camera.set_rotation(0.0, PI, 0.0);
+//
+//        renderer.render(&mut camera, &scene);
+//    }
 
-        let renderer = HTMLRenderer::new("rhs_coordinates_from_back")
-                                    .expect("Renderer couldn't be created");
-        let scene = create_scene(&renderer);
-
-        let view_dim = renderer.dimensions();
-        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
-
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
-
-        // We move the Camera -29 units away from the center.
-        camera.set_position(Vector3::new(0.0, 0.0, -29.0));
-        // We rotate it 180 degrees so we can see the center of the scene
-        // from behind.
-        camera.set_rotation(0.0, PI, 0.0);
-
-        renderer.render(&mut camera, &scene);
-    }
-
-    #[web_bench]
-    fn camera_movement(b: &mut Bencher) {
-        let renderer = HTMLRenderer::new("camera_movement")
-                                    .expect("Renderer couldn't be created");
-        let scene = create_scene(&renderer);
-
-        let view_dim = renderer.dimensions();
-        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
-
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
-        let performance = get_performance()
-                         .expect("Couldn't get performance obj");
-
-        b.iter(move || {
-            let t = (performance.now() / 1000.0) as f32;
-            // We move the Camera 29 units away from the center.
-            camera.set_position(Vector3::new(t.sin() * 5.0, t.cos() * 5.0, 29.0));
-
-            renderer.render(&mut camera, &scene);
-        })
-    }
+//    #[web_bench]
+//    fn camera_movement(b: &mut Bencher) {
+//        let renderer = HTMLRenderer::new("camera_movement")
+//                                    .expect("Renderer couldn't be created");
+//        let scene = create_scene(&renderer);
+//
+//        let view_dim = renderer.dimensions();
+//        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
+//
+//        let aspect_ratio = view_dim.x / view_dim.y;
+//        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+//        let performance = get_performance()
+//                         .expect("Couldn't get performance obj");
+//
+//        b.iter(move || {
+//            let t = (performance.now() / 1000.0) as f32;
+//            // We move the Camera 29 units away from the center.
+//            camera.set_position(Vector3::new(t.sin() * 5.0, t.cos() * 5.0, 29.0));
+//
+//            renderer.render(&mut camera, &scene);
+//        })
+//    }
 
     fn make_sphere(mut scene : &mut Scene<HTMLObject>, performance : &Performance) {
         use super::set_gradient_bg;
@@ -186,38 +186,38 @@ mod tests {
         }
     }
 
-    #[web_bench]
-    fn object_x100(b: &mut Bencher) {
-        let mut scene : Scene<HTMLObject> = Scene::new();
-        let renderer = HTMLRenderer::new("object_x100")
-                                    .expect("Renderer couldn't be created");
-        renderer.container.dom.set_property_or_panic("background-color", "black");
-
-        for _ in 0..100 {
-            let mut object = HTMLObject::new("div")
-                                    .expect("Failed to create object");
-            object.set_dimensions(1.0, 1.0);
-            object.set_scale(0.5, 0.5, 0.5);
-            scene.add(object);
-        }
-
-        let view_dim = renderer.dimensions();
-        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
-
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
-        let performance = get_performance()
-                         .expect("Couldn't get performance obj");
-
-        // We move the Camera 29 units away from the center.
-        camera.set_position(Vector3::new(0.0, 0.0, 29.0));
-
-        make_sphere(&mut scene, &performance);
-
-        b.iter(move || {
-            renderer.render(&mut camera, &scene);
-        })
-    }
+//    #[web_bench]
+//    fn object_x100(b: &mut Bencher) {
+//        let mut scene : Scene<HTMLObject> = Scene::new();
+//        let renderer = HTMLRenderer::new("object_x100")
+//                                    .expect("Renderer couldn't be created");
+//        renderer.container.dom.set_property_or_panic("background-color", "black");
+//
+//        for _ in 0..100 {
+//            let mut object = HTMLObject::new("div")
+//                                    .expect("Failed to create object");
+//            object.set_dimensions(1.0, 1.0);
+//            object.set_scale(0.5, 0.5, 0.5);
+//            scene.add(object);
+//        }
+//
+//        let view_dim = renderer.dimensions();
+//        assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
+//
+//        let aspect_ratio = view_dim.x / view_dim.y;
+//        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+//        let performance = get_performance()
+//                         .expect("Couldn't get performance obj");
+//
+//        // We move the Camera 29 units away from the center.
+//        camera.set_position(Vector3::new(0.0, 0.0, 29.0));
+//
+//        make_sphere(&mut scene, &performance);
+//
+//        b.iter(move || {
+//            renderer.render(&mut camera, &scene);
+//        })
+//    }
 
     #[web_bench]
     fn object_x50_update(b: &mut Bencher) {
