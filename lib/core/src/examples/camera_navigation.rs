@@ -6,7 +6,7 @@ use crate::system::web::dom::Scene;
 use crate::system::web::dom::Camera;
 use crate::system::web::dom::html::HTMLObject;
 use crate::system::web::dom::html::HTMLRenderer;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 use crate::system::web::StyleSetter;
 use crate::display::navigation::navigator::Navigator;
 

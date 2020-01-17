@@ -26,7 +26,7 @@ use crate::system::web;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Performance,KeyboardEvent};
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 
 

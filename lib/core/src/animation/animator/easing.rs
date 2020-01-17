@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 use super::ContinuousAnimator;
 use crate::animation::easing::FnEasing;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 use crate::animation::linear_interpolation;
 use crate::animation::Interpolable;
 
@@ -38,12 +38,15 @@ struct EasingAnimatorData<T:Interpolable<T>> {
 // === EasingAnimator ===
 // ======================
 
+/// Argument used in EasingAnimator's constructor.
+pub trait InterpolableArgument<T:Copy> = Interpolable<T> + 'static;
+
 /// This struct animates from `origin_position` to `target_position` using easing functions.
 pub struct EasingAnimator<T:Interpolable<T>> {
     data : Rc<RefCell<EasingAnimatorData<T>>>
 }
 
-impl<T:Interpolable<T>+'static> EasingAnimator<T> {
+impl<T:InterpolableArgument<T>> EasingAnimator<T> {
     /// Creates an EasingAnimator using a `easing_function` to interpolate between `initial_value`
     /// and `final_value` in `duration_seconds`, calling its value in `easing_animation_callback`.
     pub fn new<F:FnEasing,C:EasingAnimationCallback<T>>

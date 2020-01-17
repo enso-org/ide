@@ -7,7 +7,7 @@ use crate::system::web::create_element;
 use crate::system::web::NodeInserter;
 use crate::system::web::AttributeSetter;
 use crate::system::web::StyleSetter;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
@@ -187,15 +187,16 @@ impl SubExample {
             animation_canvas,
             easing_animator
         };
-        let data = Rc::new(RefCell::new(data));
-        let weak = Rc::downgrade(&data);
+        let data     = Rc::new(RefCell::new(data));
+        let weak     = Rc::downgrade(&data);
+        let duration = 2.0;
         let easing_animator = EasingAnimator::new(
             event_loop,
             move |value| { weak.upgrade().map(|data| data.borrow_mut().properties = value); },
             f,
             initial_value,
             final_value,
-            2.0
+            duration
         );
         data.borrow_mut().easing_animator = Some(easing_animator);
         Self {data}

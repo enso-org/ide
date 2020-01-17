@@ -7,14 +7,13 @@
 use core::f32::consts::PI;
 
 /// Easing function signature.
-pub trait FnEasing = Fn(f32) -> f32 + 'static;
+pub trait FnEasing = 'static + Fn(f32) -> f32;
 
 
 
 // ========================
 // === Easing functions ===
 // ========================
-// Reference: http://easings.net/en
 
 macro_rules! easing_fn {
     (pub fn $name:ident(t:f32) -> f32 $block:block) => { paste::item! {
@@ -34,7 +33,14 @@ macro_rules! easing_fn {
     } };
 }
 
-easing_fn!(pub fn bounce(t:f32) -> f32 {
+macro_rules! easing_fns {
+    ($(pub fn $name:ident(t:f32) -> f32 $block:block),*) => {
+        $(easing_fn!(pub fn $name(t:f32) -> f32 $block);)*
+    }
+}
+
+easing_fns!(
+pub fn bounce(t:f32) -> f32 {
     if t < 1.0 / 2.75 { (7.5625 * t * t) }
     else if t < 2.0 / 2.75 {
         let t = t - 1.5 / 2.75;
@@ -46,30 +52,35 @@ easing_fn!(pub fn bounce(t:f32) -> f32 {
         let t = t - 2.625 / 2.75;
         (7.5625 * t * t + 0.984375)
     }
-});
+},
 
-easing_fn!(pub fn circ(t:f32) -> f32 { 1.0 - (1.0 - t * t).sqrt() });
+pub fn circ(t:f32) -> f32 { 1.0 - (1.0 - t * t).sqrt() },
 
-/// A linear transition.
-pub fn linear(t:f32) -> f32 { t }
+pub fn quad(t:f32) -> f32 { t * t },
 
-easing_fn!(pub fn quad(t:f32) -> f32 { t * t });
+pub fn cubic(t:f32) -> f32 { t * t * t },
 
-easing_fn!(pub fn cubic(t:f32) -> f32 { t * t * t });
+pub fn quart(t:f32) -> f32 { t * t * t * t },
 
-easing_fn!(pub fn quart(t:f32) -> f32 { t * t * t * t });
+pub fn quint(t:f32) -> f32 { t * t * t * t },
 
-easing_fn!(pub fn quint(t:f32) -> f32 { t * t * t * t });
-
-easing_fn!(pub fn expo(t:f32) -> f32 {
+pub fn expo(t:f32) -> f32 {
     if t == 0.0 {
         0.0
     } else {
         2.0_f32.powf(10.0 * (t - 1.0))
     }
-});
+},
 
-easing_fn!(pub fn sine(t:f32) -> f32 { - (t * PI/2.0).cos() + 1.0 });
+pub fn sine(t:f32) -> f32 { - (t * PI/2.0).cos() + 1.0 },
+
+pub fn back(t:f32) -> f32 { back_in_params(t, 1.70158) },
+
+pub fn elastic(t:f32) -> f32 { elastic_in_params(t, 0.3, 1.0) }
+);
+
+/// A linear transition.
+pub fn linear(t:f32) -> f32 { t }
 
 /// A back-in transition with params.
 pub fn back_in_params(t:f32, overshoot:f32) -> f32 { t * t * ((overshoot + 1.0) * t - overshoot) }
@@ -88,8 +99,6 @@ pub fn back_in_out_params(t:f32, overshoot:f32) -> f32 {
         (back_out_params(t - 1.0, overshoot) + 1.0) / 2.0
     }
 }
-
-easing_fn!(pub fn back(t:f32) -> f32 { back_in_params(t, 1.70158) });
 
 /// An elastic-in transition with params.
 pub fn elastic_in_params(t:f32, period:f32, amplitude:f32) -> f32 {
@@ -118,5 +127,3 @@ pub fn elastic_in_out_params(t:f32, period:f32, amplitude:f32) -> f32 {
         (elastic_out_params(t - 1.0, period, amplitude) + 1.0) / 2.0
     }
 }
-
-easing_fn!(pub fn elastic(t:f32) -> f32 { elastic_in_params(t, 0.3, 1.0) });

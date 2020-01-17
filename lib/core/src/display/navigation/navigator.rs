@@ -15,7 +15,7 @@ use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
 use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::KinematicsProperties;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;

@@ -6,7 +6,7 @@ pub mod fixed_step;
 pub mod easing;
 
 use continuous::ContinuousAnimator;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 
 

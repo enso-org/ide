@@ -8,7 +8,7 @@ use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
 use crate::animation::position::HasPosition;
 use crate::animation::linear_interpolation;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 use nalgebra::Vector3;
 use nalgebra::zero;

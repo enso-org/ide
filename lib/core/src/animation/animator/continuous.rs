@@ -1,7 +1,7 @@
 //! This module implements `ContinuousAnimator`, an object used to run a callback with a continuous
 //! time in milliseconds as its input. It can be used to implement a playback mechanism.
 
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 use crate::control::callback::CallbackHandle;
 use super::AnimationCallback;
 

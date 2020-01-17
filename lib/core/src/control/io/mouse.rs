@@ -67,10 +67,13 @@ pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 pub enum MouseButton {
     /// Left mouse button.
     LEFT,
+
     /// Middle mouse button.
     MIDDLE,
+
     /// Right mouse button.
     RIGHT,
+
     /// For unknown mouse buttons IDs.
     UNKNOWN
 }
@@ -87,6 +90,7 @@ pub trait MouseClickCallback = FnMut(MouseClickEvent) + 'static;
 pub struct MouseClickEvent {
     /// The position where the MouseClickEvent occurred.
     pub position : Vector2<f32>,
+
     /// The button which triggered the event.
     pub button   : MouseButton
 }
@@ -117,6 +121,7 @@ pub trait MousePositionCallback = FnMut(MousePositionEvent)  + 'static;
 pub struct MousePositionEvent {
     /// The previous position where the mouse was.
     pub previous_position : Vector2<f32>,
+
     /// The current position where the mouse is.
     pub position          : Vector2<f32>
 }
@@ -146,8 +151,10 @@ pub trait MouseWheelCallback = FnMut(MouseWheelEvent) + 'static;
 pub struct MouseWheelEvent {
     /// A boolean indicating if the keyboard ctrl button is pressed.
     pub is_ctrl_pressed : bool,
+
     /// The horizontal movement in pixels.
     pub movement_x      : f32,
+
     /// The vertical movement in pixels.
     pub movement_y      : f32
 }

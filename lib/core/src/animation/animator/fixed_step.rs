@@ -4,7 +4,7 @@
 
 use super::Animator;
 use super::AnimationCallback;
-use crate::control::event_loop::EventLoop;
+use crate::control::EventLoop;
 
 use nalgebra::zero;
 
