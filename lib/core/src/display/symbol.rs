@@ -21,13 +21,8 @@ use crate::prelude::*;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::system::gpu::shader::Context;
-use crate::system::gpu::data::buffer::IsBuffer;
-use crate::system::gpu::data::uniform::AnyUniform;
-use crate::system::gpu::data::uniform::AnyTextureUniform;
-use crate::system::gpu::data::uniform::AnyTextureUniformOps;
-use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
+use crate::system::gpu::data::uniform::AnyTextureUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 
 use shader::Shader;
@@ -35,8 +30,7 @@ use shader::Shader;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
-use crate::system::gpu::data::texture::TextureBindingGuard;
-
+use wasm_bindgen::JsValue;
 
 
 /// Binds input variable definition in shader to both its location and an uniform declaration.
@@ -60,13 +54,15 @@ impl UniformBinding {
     }
 }
 
+type TextureUnit = u32;
+
 /// Binds input sampler definition in shader to its location, uniform declaration and texture unit.
 #[derive(Clone,Debug)]
 pub struct TextureBinding {
     name         : String,
     location     : WebGlUniformLocation,
     uniform      : AnyTextureUniform,
-    texture_unit : u32,
+    texture_unit : TextureUnit,
 }
 
 impl TextureBinding {
@@ -75,14 +71,14 @@ impl TextureBinding {
     ( name         : Name
     , location     : WebGlUniformLocation
     , uniform      : AnyTextureUniform
-    , texture_unit : u32
+    , texture_unit : TextureUnit
     ) -> Self {
         let name = name.into();
         Self {name,location,uniform,texture_unit}
     }
 
     /// Bind texture to proper texture unit.
-    pub fn bind_texture_unit(&self, context:&Context) -> TextureBindingGuard {
+    pub fn bind_texture_unit(&self, context:&Context) -> TextureBindGuard {
         self.uniform.bind_texture_unit(context,self.texture_unit)
     }
 
@@ -238,12 +234,18 @@ impl Symbol {
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_variable_bindings(&mut self, var_bindings:&[shader::VarBinding]) {
-        const MAX_TEXTURE_UNITS:u32 = 16;
-        let last_texture_unit       = Context::TEXTURE0 + MAX_TEXTURE_UNITS - 1;
-        let mut texture_unit_iter   = Context::TEXTURE0..=last_texture_unit;
-        self.vao                    = Some(VertexArrayObject::new(&self.context));
-        self.uniforms               = default();
-        self.textures               = default();
+        let max_texture_units     = self.context.get_parameter(Context::MAX_TEXTURE_IMAGE_UNITS);
+        let max_texture_units     = max_texture_units.unwrap_or_else(|err| {
+            self.logger.error(fmt!("Cannot retrieve max texture units: {:?}. Assuming minimal \
+                texture units possible",err));
+            JsValue::from_f64(2.0)
+        });
+        let max_texture_units     = max_texture_units.as_f64().unwrap() as u32;
+        let last_texture_unit     = Context::TEXTURE0 + max_texture_units - 1;
+        let mut texture_unit_iter = Context::TEXTURE0..=last_texture_unit;
+        self.vao                  = Some(VertexArrayObject::new(&self.context));
+        self.uniforms             = default();
+        self.textures             = default();
         self.with_program_mut(|this,program|{
             for binding in var_bindings {
                 match binding.scope.as_ref() {
@@ -279,7 +281,7 @@ impl Symbol {
     ( &mut self
     , program:&WebGlProgram
     , binding:&shader::VarBinding
-    , texture_unit_iter : &mut dyn Iterator<Item=u32>
+    , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);
@@ -292,12 +294,16 @@ impl Symbol {
                 AnyUniform::Prim(uniform) =>
                     self.uniforms.push(UniformBinding::new(name,location,uniform)),
                 AnyUniform::Texture(uniform) => {
-                    let texture_unit = texture_unit_iter.next().unwrap_or_else(|| {
-                        panic!("Texture unit limit exceeded.");
-                    });
-                    let binding      = TextureBinding::new(name,location,uniform,texture_unit);
-                    binding.upload_uniform(&self.context);
-                    self.textures.push(binding);
+                    match texture_unit_iter.next() {
+                        Some(texture_unit) => {
+                            let binding = TextureBinding::new(name,location,uniform,texture_unit);
+                            binding.upload_uniform(&self.context);
+                            self.textures.push(binding);
+                        }
+                        None => {
+                            self.logger.error("Texture unit limit exceeded.");
+                        }
+                    }
                 }
             }
         });

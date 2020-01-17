@@ -60,7 +60,6 @@ pub struct Material {
 pub trait Input = Into<VarDecl> + GpuDefault;
 
 impl Material {
-
     /// Constructor.
     pub fn new() -> Self {
         default()

@@ -4,18 +4,13 @@
 
 use crate::prelude::*;
 
-use crate::display::symbol::material::VarDecl;
 use crate::system::gpu::data::buffer::item::JsBufferViewArr;
-use crate::system::gpu::data::uniform::IntoUniformValueImpl;
 use crate::system::gpu::types::*;
-use crate::system::gpu::types::glsl::PrimType;
 use crate::system::web;
-
 use nalgebra::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlImageElement;
-use web_sys::Url;
 use web_sys::WebGlTexture;
 
 
@@ -62,9 +57,9 @@ impl Value for False {
 
 
 
-// ================
-// === GL Types ===
-// ================
+// ===============
+// === GLEnums ===
+// ===============
 
 crate::define_singletons_gl! {
     Alpha             = Context::ALPHA,
@@ -332,198 +327,194 @@ with_texture_format_relations!(generate_internal_format_instances []);
 
 
 // =======================
-// === Texture sources ===
+// === TextureProvider ===
 // =======================
 
-// === Empty Texture ===
+/// Bounds for every texture item type.
+pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
-/// An empty texture, created as 1x1 texture in Rgba format.
-pub struct EmptyTexture;
+/// Trait for structures providing texture data.
+pub trait TextureProvider : Sized {
+    /// An internal format of provided texture.
+    type InternalFormat : InternalFormat;
+    /// An element type of provided texture.
+    type ElemType       : TextureItemType;
 
-
-
-// === Texture from url ===
-
-/// Texture loaded from given url. It is loaded to gpu asynchronously, putting a mocked texture
-/// before
-pub struct TextureFromUrl {
-    /// An url from where the texture is loaded.
-    pub url       : String,
+    /// Create new texture.
+    fn new_texture(self, context:&Context) -> Texture<Self>;
 }
 
+// === Texture from URL ===
 
-impl<S:Str> From<S> for TextureFromUrl {
+/// Texture downloaded from URL. This source implies asynchronous loading.
+#[derive(Debug)]
+pub struct TextureFromUrl<InternalFormat,ElemType> {
+    /// An url from where the texture is downloaded.
+    pub url : String,
+    phantom : PhantomData2<InternalFormat,ElemType>,
+}
+
+impl<I,T> TextureFromUrl<I,T> {
+    fn new<S:Str>(url:S) -> Self {
+        Self {
+            url     : url.into(),
+            phantom : PhantomData
+        }
+    }
+}
+
+impl<I,T> TextureProvider for TextureFromUrl<I,T>
+where I : InternalFormat,
+      T : TextureItemType {
+    type InternalFormat = I;
+    type ElemType       = T;
+
+    fn new_texture(self, context:&Context) -> Texture<Self> {
+        Texture::new_from_url(context,self)
+    }
+}
+
+impl<S:Str,I,T> From<S> for TextureFromUrl<I,T> {
     fn from(s:S) -> Self {
-        Self{url:s.into()}
+        let url     = s.into();
+        let phantom = PhantomData;
+        TextureFromUrl{url,phantom}
     }
 }
 
 
-// === Texture from memory ===
+// === TextureWithSize ===
 
-/// A texture created from slice.
-pub struct TextureFromMemory<'a,T> {
-    /// A slice from which the texture data are taken.
-    pub view   : &'a[T],
-    /// Texture's width
+/// Sized, uninitialized texture.
+#[derive(Debug)]
+pub struct TextureWithSize<InternalFormat,ElemType> {
+    /// Texture width.
     pub width  : i32,
-    /// Texture's height
+    /// Texture height.
     pub height : i32,
+    phantom    : PhantomData2<InternalFormat,ElemType>,
 }
 
+impl<I,T> TextureWithSize<I,T> {
+    fn new(width:i32, height:i32) -> Self {
+        let phantom = PhantomData;
+        Self {width,height,phantom}
+    }
+}
+
+impl<I,T> TextureProvider for TextureWithSize<I,T>
+where I : InternalFormat,
+      T : TextureItemType {
+    type InternalFormat = I;
+    type ElemType       = T;
+
+    fn new_texture(self, context:&Context) -> Texture<Self> {
+        Texture::new_from_size(context,self)
+    }
+}
+
+
+// === TextureData ===
+
+/// Texture plain data.
+#[derive(Debug)]
+pub struct TextureData<InternalFormat,ElemType> {
+    /// An array containing texture data.
+    pub data : Vec<ElemType>,
+    /// Texture width.
+    pub width  : i32,
+    /// Texture height.
+    pub height : i32,
+    phantom   : PhantomData<InternalFormat>,
+}
+
+impl<I,T> TextureData<I,T> {
+    fn new(data:Vec<T>, width:i32, height:i32) -> Self {
+        let phantom = PhantomData;
+        Self {data,width,height,phantom}
+    }
+}
+
+impl<I,T> TextureProvider for TextureData<I,T>
+where I : InternalFormat,
+      T : TextureItemType + JsBufferViewArr {
+    type InternalFormat = I;
+    type ElemType       = T;
+
+    fn new_texture(self, context:&Context) -> Texture<Self> {
+        Texture::new_from_data(context,self)
+    }
+}
 
 
 // ===============
 // === Texture ===
 // ===============
 
-/// A Texture.
-pub struct Texture<Source,InternalFormat,ElemType> {
-    /// The source of texture data
-    pub source : Source,
-    /// A format and element type of this texture
-    pub phantom : PhantomData2<InternalFormat,ElemType>,
+/// Texture bound to GL context.
+#[derive(Debug)]
+pub struct Texture<Provider> {
+    provider   : Provider,
+    gl_texture : WebGlTexture,
+    context    : Context,
 }
 
-/// Bounds for every texture item type.
-pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
-impl<S,I,T> Texture<S,I,T> {
-    /// Create a new texture from given source.
-    pub fn new(source:S) -> Self {
-        let phantom = PhantomData;
-        Texture{source,phantom}
-    }
-}
+// === Type Level Utils ===
 
-impl<S, I:InternalFormat, T:TextureItemType> Texture<S,I,T> {
+impl<Provider:TextureProvider> Texture<Provider> {
+
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn internal_format(&self) -> AnyInternalFormat {
-        <I>::default().into()
+    fn internal_format() -> AnyInternalFormat {
+        <Provider::InternalFormat as Default>::default().into()
     }
 
     /// Format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn format(&self) -> AnyFormat {
-        <I::Format>::default().into()
+    fn format() -> AnyFormat {
+        <Provider::InternalFormat as InternalFormat>::Format::default().into()
     }
 
     /// Internal format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn gl_internal_format(&self) -> i32 {
-        let GlEnum(u) = self.internal_format().into_gl_enum();
+    fn gl_internal_format() -> i32 {
+        let GlEnum(u) = Self::internal_format().into_gl_enum();
         u as i32
     }
 
     /// Format of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn gl_format(&self) -> GlEnum {
-        self.format().into_gl_enum()
+    fn gl_format() -> GlEnum {
+        Self::format().into_gl_enum()
     }
 
     /// Element type of this texture as `GlEnum`. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
-    pub fn gl_elem_type(&self) -> u32 {
-        <T>::gl_enum().into()
-    }
-}
-
-impl<Source> Texture<Source,Rgba,u8> {
-    /// Constructor for rgba u8 texture.
-    pub fn rgba(source:Source) -> Self {
-        Self::new(source)
-    }
-}
-
-impl<Source> Texture<Source,Rgb,u8> {
-    /// Constructor for rgb u8 texture.
-    pub fn rgb(source:Source) -> Self {
-        Self::new(source)
-    }
-}
-
-impl<Source,I,T> From<Source> for Texture<Source,I,T> {
-    fn from(source:Source) -> Self {
-        let phantom = PhantomData;
-        Texture{source,phantom}
-    }
-}
-
-impl<S,I,T> From<Texture<S,I,T>> for VarDecl {
-    fn from(_:Texture<S,I,T>) -> Self {
-        VarDecl::new(PrimType::Sampler2d, None)
-    }
-}
-
-impl<I,T> GpuDefault for Texture<EmptyTexture,I,T> {
-    fn gpu_default() -> Self {
-        Self::new(EmptyTexture)
-    }
-}
-
-// TODO[ao]: The both IntoUniformValueImpl implementations should be generated only for valid I,T
-// combinations (see `with_texture_format_relations` macro above). Then possibly we can remove
-// I,T parameters from BoundTexture.
-
-impl<I,T> IntoUniformValueImpl for Texture<EmptyTexture,I,T>
-where I : InternalFormat,
-      T : TextureItemType {
-    type Result = BoundTexture<I,T>;
-    fn into_uniform_value(self, context:&Context) -> Self::Result {
-        BoundTexture::new_empty(context)
-    }
-}
-
-impl<I,T> IntoUniformValueImpl for Texture<TextureFromUrl,I,T>
-where I : InternalFormat,
-      T : TextureItemType {
-    type Result = BoundTexture<I,T>;
-    fn into_uniform_value(self, context:&Context) -> Self::Result {
-        BoundTexture::new_from_url(&self,context)
-    }
-}
-
-impl<'a,I,T> IntoUniformValueImpl for Texture<TextureFromMemory<'a,T>,I,T>
-where I : InternalFormat,
-      T : TextureItemType + JsBufferViewArr {
-    type Result = BoundTexture<I,T>;
-    fn into_uniform_value(self, context:&Context) -> Self::Result {
-        BoundTexture::new_from_memory(&self,context)
+    fn gl_elem_type() -> u32 {
+        <Provider::ElemType as PhantomIntoGlEnum>::gl_enum().into()
     }
 }
 
 
+// === Getters ===
 
-// ====================
-// === BoundTexture ===
-// ====================
-
-/// Texture bound to GL context.
-#[derive(Debug,Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct BoundTexture<I,T> {
-    rc: Rc<RefCell<BoundTextureData<I,T>>>
+impl<Provider> Texture<Provider> {
+    /// Getter.
+    pub fn gl_texture(&self) -> &WebGlTexture {
+        &self.gl_texture
+    }
 }
 
-/// Texture bound to GL context.
-#[derive(Debug)]
-pub struct BoundTextureData<I,T> {
-    gl_texture : WebGlTexture,
-    context    : Context,
-    format     : PhantomData<I>,
-    elem_type  : PhantomData<T>,
-}
 
-impl<I,T> BoundTextureData<I,T> {
+// === API ===
+
+impl<I:InternalFormat,T:TextureItemType> Texture<TextureFromUrl<I,T>> {
     /// Constructor.
-    pub fn new(context:&Context) -> Self {
-        Self {
-            gl_texture : context.create_texture().unwrap(),
-            context    : context.clone(),
-            format     : PhantomData,
-            elem_type  : PhantomData,
-        }
+    pub fn new_from_url<P:Into<TextureFromUrl<I,T>>>(context:&Context, provider:P) -> Self {
+        let out = Self::new_unitialized(context,provider);
+        out.reload();
+        out
     }
 
     /// Initializes default texture value. It is useful when the texture data needs to be downloaded
@@ -532,9 +523,9 @@ impl<I,T> BoundTextureData<I,T> {
     pub fn init_mock(&self) {
         let target          = Context::TEXTURE_2D;
         let level           = 0;
-        let internal_format = Context::RGBA as i32;
-        let format          = Context::RGBA;
-        let elem_type       = Context::UNSIGNED_BYTE;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
         let width           = 1;
         let height          = 1;
         let border          = 0;
@@ -543,139 +534,127 @@ impl<I,T> BoundTextureData<I,T> {
         self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
         (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
     }
-}
 
-impl<I:InternalFormat,T:TextureItemType> BoundTexture<I,T> {
-    /// Constructor for empty texture.
-    pub fn new_empty(context:&Context) -> Self {
-        let data = BoundTextureData::new(context);
-        let rc   = Rc::new(RefCell::new(data));
-        let out  = Self {rc};
-        out.init_mock();
-        out
-    }
-
-    /// Constructor from url.
-    pub fn new_from_url(texture:&Texture<TextureFromUrl,I,T>, context:&Context) -> Self {
-        let data = BoundTextureData::new(context);
-        let rc   = Rc::new(RefCell::new(data));
-        let out  = Self {rc};
-        out.init_mock();
-        out.reload_from_url(texture);
-        out
-    }
-
-    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
-    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
-    /// until the download is complete.
-    pub fn init_mock(&self) {
-        self.rc.borrow().init_mock()
-    }
-
-    /// Loads or re-loads the texture data from the provided source. This action will be performed
+    /// Loads or re-loads the texture data from the provided url. This action will be performed
     /// asynchronously.
-    pub fn reload_from_url(&self, texture:&Texture<TextureFromUrl,I,T>) {
-        let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format().into();
-        let elem_type       = texture.gl_elem_type();
-        let target          = Context::TEXTURE_2D;
-        let level           = 0;
-        let image           = HtmlImageElement::new().unwrap();
-        let no_callback     = <Option<Closure<dyn FnMut()>>>::None;
-        let callback_ref    = Rc::new(RefCell::new(no_callback));
-        let image_ref       = Rc::new(RefCell::new(image));
-        let this            = self.clone();
-        let callback_ref2   = callback_ref.clone();
-        let image_ref_opt   = image_ref.clone();
+    pub fn reload(&self) {
+        let url           = &self.provider.url;
+        let image         = HtmlImageElement::new().unwrap();
+        let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
+        let callback_ref  = Rc::new(RefCell::new(no_callback));
+        let image_ref     = Rc::new(RefCell::new(image));
+        let callback_ref2 = callback_ref.clone();
+        let image_ref_opt = image_ref.clone();
+        let context       = self.context.clone();
+        let gl_texture    = self.gl_texture.clone();
         let callback: Closure<dyn FnMut()> = Closure::once(move || {
-            let _keep_alive = callback_ref2;
-            let data        = this.rc.borrow();
-            let image       = image_ref_opt.borrow();
-            data.context.bind_texture(target,Some(&data.gl_texture));
-            data.context.tex_image_2d_with_u32_and_u32_and_html_image_element
-            (target,level,internal_format,format,elem_type,&image).unwrap();
+            let _keep_alive     = callback_ref2;
+            let image           = image_ref_opt.borrow();
+            let target          = Context::TEXTURE_2D;
+            let level           = 0;
+            let internal_format = Self::gl_internal_format();
+            let format          = Self::gl_format().into();
+            let elem_type       = Self::gl_elem_type();
+            context.bind_texture(target,Some(&gl_texture));
+            context.tex_image_2d_with_u32_and_u32_and_html_image_element
+                (target,level,internal_format,format,elem_type,&image).unwrap();
+
+            Self::set_texture_parameters(&context);
         });
         let js_callback = callback.as_ref().unchecked_ref();
         let image       = image_ref.borrow();
-        request_cors_if_not_same_origin(&image,&texture.source.url);
-        image.set_src(&texture.source.url);
+        request_cors_if_not_same_origin(&image,url);
+        image.set_src(url);
         image.add_event_listener_with_callback("load",js_callback).unwrap();
         *callback_ref.borrow_mut() = Some(callback);
     }
 }
 
-impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr> BoundTexture<I,T> {
-    /// Constructs from memory view.
-    pub fn new_from_memory(texture:&Texture<TextureFromMemory<'_,T>,I,T>, context:&Context) -> Self {
-        let data = BoundTextureData::new(context);
-        let rc   = Rc::new(RefCell::new(data));
-        let out  = Self {rc};
-        out.reload_from_memory(texture);
+impl<I:InternalFormat,T:TextureItemType> Texture<TextureWithSize<I,T>> {
+    /// Constructor.
+    pub fn new_from_size<P:Into<TextureWithSize<I,T>>>(context:&Context, provider:P) -> Self {
+        let out = Self::new_unitialized(context,provider);
+        out.reload();
         out
     }
 
-    /// Loads or re-loads the texture data from the provided source.
-    pub fn reload_from_memory(&self, texture:&Texture<TextureFromMemory<'_,T>,I,T>) {
-        let data            = &self.rc.borrow();
-        let context         = &data.context;
-        let internal_format = texture.gl_internal_format();
-        let format          = texture.gl_format().into();
-        let elem_type       = texture.gl_elem_type();
+    /// Loads or re-loads the texture data.
+    pub fn reload(&self) {
+        let width           = self.provider.width;
+        let height          = self.provider.height;
         let target          = Context::TEXTURE_2D;
         let level           = 0;
         let border          = 0;
-        let width           = texture.source.width;
-        let height          = texture.source.height;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
+        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+        (target,level,internal_format,width,height,border,format,elem_type,None).unwrap();
+
+        Self::set_texture_parameters(&self.context);
+    }
+}
+
+impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr> Texture<TextureData<I,T>> {
+    /// Constructor.
+    pub fn new_from_data<P:Into<TextureData<I,T>>>(context:&Context, provider:P)
+    -> Self {
+        let out = Self::new_unitialized(context,provider);
+        out.reload();
+        out
+    }
+
+    /// Loads or re-loads the texture data from provided source.
+    pub fn reload(&self) {
+        let width           = self.provider.width;
+        let height          = self.provider.height;
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
         unsafe {
             // We use unsafe array view which is used immediately, so no allocations should happen
             // until we drop the view.
-            let view        = texture.source.view.js_buffer_view();
-            let result = context
+            let view = self.provider.data.js_buffer_view();
+            let result = self.context
                 .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
                 (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
             result.unwrap();
         }
+
+        Self::set_texture_parameters(&self.context);
     }
 }
 
-
-// === ContextTextureOps ===
-
-/// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
-/// for making distinction in `Uniform` implementations.
-pub trait ContextTextureOps<Texture> {
-    /// A guard removing created binding at end of scope.
-    type Guard;
-    /// Bind texture for specific unit
-    fn bind_texture_unit(&self, texture:&Texture, unit:u32) -> Self::Guard;
-}
-
-impl<I,T> ContextTextureOps<BoundTexture<I,T>> for Context {
-    type Guard = TextureBindingGuard;
-
-    fn bind_texture_unit(&self, texture:&BoundTexture<I,T>, unit:u32) -> Self::Guard {
-        let context    = self.clone();
-        let target     = Context::TEXTURE_2D;
-        let gl_texture = &texture.rc.borrow().gl_texture;
-        context.active_texture(unit);
-        context.bind_texture(target,Some(gl_texture));
-        context.active_texture(Context::TEXTURE0);
-        TextureBindingGuard {context,target,unit}
-    }
-}
-
-/// Guard which unbinds texture in specific texture unit on drop.
-pub struct TextureBindingGuard {
-    context : Context,
-    target  : u32,
-    unit    : u32,
-}
-
-impl Drop for TextureBindingGuard {
+impl<Provider> Drop for Texture<Provider> {
     fn drop(&mut self) {
-        self.context.active_texture(self.unit);
-        self.context.bind_texture(self.target,None);
-        self.context.active_texture(Context::TEXTURE0);
+        self.context.delete_texture(Some(&self.gl_texture));
+    }
+}
+
+
+// === Private API ===
+
+impl<Provider> Texture<Provider> {
+    fn new_unitialized<P:Into<Provider>>(context:&Context, provider:P) -> Self {
+        let context    = context.clone();
+        let provider   = provider.into();
+        let gl_texture = context.create_texture().unwrap();
+        Self {provider,gl_texture,context}
+    }
+
+    fn set_texture_parameters(context:&Context) {
+        let target = Context::TEXTURE_2D;
+        let wrap   = Context::CLAMP_TO_EDGE as i32;
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,Context::LINEAR as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S    ,wrap);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T    ,wrap);
     }
 }
 
@@ -695,10 +674,54 @@ impl Drop for TextureBindingGuard {
 /// won't use the image for anything except img tags and or canvas2d then we don't want to set
 /// crossDomain because it will make things slower.
 fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
-    let url    = Url::new(url_str).unwrap();
+    let url    = web_sys::Url::new(url_str).unwrap();
     let origin = web::window().location().origin().unwrap();
     if url.origin() != origin {
         img.set_cross_origin(Some(""));
+    }
+}
+
+
+// === ContextTextureOps ===
+
+/// A texture unit representation in WebGl.
+pub type TextureUnit = u32;
+
+/// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
+/// for making distinction in `Uniform` implementations.
+pub trait ContextTextureOps<Texture> {
+    /// A guard removing created binding at end of scope.
+    type Guard;
+    /// Bind texture for specific unit
+    fn bind_texture_unit(&self, texture:&Texture, unit:TextureUnit) -> Self::Guard;
+}
+
+impl<Provider> ContextTextureOps<Texture<Provider>> for Context {
+    type Guard = TextureBindGuard;
+
+    fn bind_texture_unit(&self, texture:&Texture<Provider>, unit:TextureUnit) -> Self::Guard {
+        let context    = self.clone();
+        let target     = Context::TEXTURE_2D;
+        let gl_texture = &texture.gl_texture;
+        context.active_texture(unit);
+        context.bind_texture(target,Some(gl_texture));
+        context.active_texture(Context::TEXTURE0);
+        TextureBindGuard {context,target,unit}
+    }
+}
+
+/// Guard which unbinds texture in specific texture unit on drop.
+pub struct TextureBindGuard {
+    context : Context,
+    target  : u32,
+    unit    : TextureUnit,
+}
+
+impl Drop for TextureBindGuard {
+    fn drop(&mut self) {
+        self.context.active_texture(self.unit);
+        self.context.bind_texture(self.target,None);
+        self.context.active_texture(Context::TEXTURE0);
     }
 }
 
