@@ -24,12 +24,14 @@ use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
 use crate::display::object::*;
-
 use crate::system::web;
+
 use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{Performance,KeyboardEvent};
+use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
+use web_sys::Performance;
+use web_sys::KeyboardEvent;
 
 use crate::system::gpu::data::texture;
 use crate::system::gpu::data::texture::Texture;
@@ -79,33 +81,33 @@ impl World {
         f(&self.rc.borrow().stats);
     }
 
-    fn test(&self) {
-
-
-//        let shape = self.shape.screen_shape();
-        let width  = 512; // shape.width as i32;
-        let height = 512; // shape.height as i32;
-        let context = self.rc.borrow().workspace.context.clone();
-
-        let texture1 = Texture::<texture::Rgba,u8>::new(&context,(width,height));
-
-        let screen = Screen::new(self);
-
-        let uniform:Uniform<Texture<texture::Rgba,u8>> = {
-            let world_data = &mut self.borrow_mut();
-            let symbol = &mut world_data.workspace[screen.symbol_ref.symbol_id];
-            symbol.symbol_scope.add_or_panic("texture",texture1)
-        };
-
-
-        let gl_texture = uniform.modify(|t| t.gl_texture().clone());
-        let fb = context.create_framebuffer().unwrap();
-        context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
-
-        let level = 0;
-        let attachment_point = Context::COLOR_ATTACHMENT0;
-        context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
-    }
+//    fn test(&self) {
+//
+//
+////        let shape = self.shape.screen_shape();
+//        let width  = 512; // shape.width as i32;
+//        let height = 512; // shape.height as i32;
+//        let context = self.rc.borrow().workspace.context.clone();
+//
+//        let texture1 = Texture::<texture::Rgba,u8>::new(&context,(width,height));
+//
+//        let screen = Screen::new(self);
+//
+//        let uniform:Uniform<Texture<texture::Rgba,u8>> = {
+//            let world_data = &mut self.borrow_mut();
+//            let symbol = &mut world_data.workspace[screen.symbol_ref.symbol_id];
+//            symbol.symbol_scope.add_or_panic("texture",texture1)
+//        };
+//
+//
+//        let gl_texture = uniform.modify(|t| t.gl_texture().clone());
+//        let fb = context.create_framebuffer().unwrap();
+//        context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
+//
+//        let level = 0;
+//        let attachment_point = Context::COLOR_ATTACHMENT0;
+//        context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
+//    }
 }
 
 impl<T> Add<T> for World where WorldData: Add<T> {

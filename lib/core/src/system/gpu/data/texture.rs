@@ -4,13 +4,13 @@
 
 use crate::prelude::*;
 
+use crate::system::gpu::data::buffer::item::JsBufferViewArr;
 use crate::system::gpu::types::*;
 use crate::system::web;
 use nalgebra::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlImageElement;
-use web_sys::Url;
 use web_sys::WebGlTexture;
 
 
@@ -262,89 +262,68 @@ macro_rules! generate_internal_format_instances_item {
 macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
 //  INTERNAL_FORMAT   FORMAT         COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
     Alpha             Alpha          True  True  [u8:U1,f16:U2,f32:U4]
-    Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
-    LuminanceAlpha    LuminanceAlpha True  True  [u8:U2,f16:U4,f32:U8]
-    Rgb               Rgb            True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
-    Rgba              Rgba           True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
-    R8                Red            True  True  [u8:U1]
-    R8SNorm           Red            False True  [i8:U1]
-    R16f              Red            False True  [f32:U4,f16:U2]
-    R32f              Red            False False [f32:U4]
-    R8ui              RedInteger     True  False [u8:U1]
-    R8i               RedInteger     True  False [i8:U1]
-    R16ui             RedInteger     True  False [u16:U2]
-    R16i              RedInteger     True  False [i16:U2]
-    R32ui             RedInteger     True  False [u32:U4]
-    R32i              RedInteger     True  False [i32:U4]
-    Rg8               Rg             True  True  [u8:U2]
-    Rg8SNorm          Rg             False True  [i8:U2]
-    Rg16f             Rg             False True  [f32:U8,f16:U4]
-    Rg32f             Rg             False False [f32:U8]
-    Rg8ui             RgInteger      True  False [u8:U2]
-    Rg8i              RgInteger      True  False [i8:U2]
-    Rg16ui            RgInteger      True  False [u16:U4]
-    Rg16i             RgInteger      True  False [i16:U4]
-    Rg32ui            RgInteger      True  False [u32:U8]
-    Rg32i             RgInteger      True  False [i32:U8]
-    Rgb8              Rgb            True  True  [u8:U3]
-    SRgb8             Rgb            False True  [u8:U3]
-    Rgb565            Rgb            True  True  [u8:U3,u16_5_6_5:U2]
-    Rgb8SNorm         Rgb            False True  [i8:U3]
-    R11fG11fB10f      Rgb            False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
-    Rgb9E5            Rgb            False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
-    Rgb16f            Rgb            False True  [f32:U12,f16:U6]
-    Rgb32f            Rgb            False False [f32:U12]
-    Rgb8ui            RgbInteger     False False [u8:U3]
-    Rgb8i             RgbInteger     False False [i8:U3]
-    Rgb16ui           RgbInteger     False False [u16:U6]
-    Rgb16i            RgbInteger     False False [i16:U6]
-    Rgb32ui           RgbInteger     False False [u32:U12]
-    Rgb32i            RgbInteger     False False [i32:U12]
-    Rgba8             Rgba           True  True  [u8:U4]
-    SRgb8Alpha8       Rgba           True  True  [u8:U4]
-    Rgba8SNorm        Rgba           False True  [i8:U4]
-    Rgb5A1            Rgba           True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
-    Rgba4             Rgba           True  True  [u8:U4,u16_4_4_4_4:U2]
-    Rgb10A2           Rgba           True  True  [u32_2_10_10_10_REV:U4]
-    Rgba16f           Rgba           False True  [f32:U16,f16:U8]
-    Rgba32f           Rgba           False False [f32:U16]
-    Rgba8ui           RgbaInteger    True  False [u8:U4]
-    Rgba8i            RgbaInteger    True  False [i8:U4]
-    Rgb10A2ui         RgbaInteger    True  False [u32_2_10_10_10_REV:U4]
-    Rgba16ui          RgbaInteger    True  False [u16:U8]
-    Rgba16i           RgbaInteger    True  False [i16:U8]
-    Rgba32i           RgbaInteger    True  False [i32:U16]
-    Rgba32ui          RgbaInteger    True  False [u32:U16]
-    DepthComponent16  DepthComponent True  False [u16:U2,u32:U4]
-    DepthComponent24  DepthComponent True  False [u32:U4]
-    DepthComponent32f DepthComponent True  False [f32:U4]
-    Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
-    Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
+//    Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
+//    LuminanceAlpha    LuminanceAlpha True  True  [u8:U2,f16:U4,f32:U8]
+//    Rgb               Rgb            True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
+//    Rgba              Rgba           True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
+//    R8                Red            True  True  [u8:U1]
+//    R8SNorm           Red            False True  [i8:U1]
+//    R16f              Red            False True  [f32:U4,f16:U2]
+//    R32f              Red            False False [f32:U4]
+//    R8ui              RedInteger     True  False [u8:U1]
+//    R8i               RedInteger     True  False [i8:U1]
+//    R16ui             RedInteger     True  False [u16:U2]
+//    R16i              RedInteger     True  False [i16:U2]
+//    R32ui             RedInteger     True  False [u32:U4]
+//    R32i              RedInteger     True  False [i32:U4]
+//    Rg8               Rg             True  True  [u8:U2]
+//    Rg8SNorm          Rg             False True  [i8:U2]
+//    Rg16f             Rg             False True  [f32:U8,f16:U4]
+//    Rg32f             Rg             False False [f32:U8]
+//    Rg8ui             RgInteger      True  False [u8:U2]
+//    Rg8i              RgInteger      True  False [i8:U2]
+//    Rg16ui            RgInteger      True  False [u16:U4]
+//    Rg16i             RgInteger      True  False [i16:U4]
+//    Rg32ui            RgInteger      True  False [u32:U8]
+//    Rg32i             RgInteger      True  False [i32:U8]
+//    Rgb8              Rgb            True  True  [u8:U3]
+//    SRgb8             Rgb            False True  [u8:U3]
+//    Rgb565            Rgb            True  True  [u8:U3,u16_5_6_5:U2]
+
+//    Rgb8SNorm         Rgb            False True  [i8:U3]
+//    R11fG11fB10f      Rgb            False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
+//    Rgb9E5            Rgb            False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
+//    Rgb16f            Rgb            False True  [f32:U12,f16:U6]
+//    Rgb32f            Rgb            False False [f32:U12]
+//    Rgb8ui            RgbInteger     False False [u8:U3]
+//    Rgb8i             RgbInteger     False False [i8:U3]
+//    Rgb16ui           RgbInteger     False False [u16:U6]
+//    Rgb16i            RgbInteger     False False [i16:U6]
+//    Rgb32ui           RgbInteger     False False [u32:U12]
+//    Rgb32i            RgbInteger     False False [i32:U12]
+//    Rgba8             Rgba           True  True  [u8:U4]
+//    SRgb8Alpha8       Rgba           True  True  [u8:U4]
+//    Rgba8SNorm        Rgba           False True  [i8:U4]
+//    Rgb5A1            Rgba           True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
+//    Rgba4             Rgba           True  True  [u8:U4,u16_4_4_4_4:U2]
+//    Rgb10A2           Rgba           True  True  [u32_2_10_10_10_REV:U4]
+//    Rgba16f           Rgba           False True  [f32:U16,f16:U8]
+//    Rgba32f           Rgba           False False [f32:U16]
+//    Rgba8ui           RgbaInteger    True  False [u8:U4]
+//    Rgba8i            RgbaInteger    True  False [i8:U4]
+//    Rgb10A2ui         RgbaInteger    True  False [u32_2_10_10_10_REV:U4]
+//    Rgba16ui          RgbaInteger    True  False [u16:U8]
+//    Rgba16i           RgbaInteger    True  False [i16:U8]
+//    Rgba32i           RgbaInteger    True  False [i32:U16]
+//    Rgba32ui          RgbaInteger    True  False [u32:U16]
+//    DepthComponent16  DepthComponent True  False [u16:U2,u32:U4]
+//    DepthComponent24  DepthComponent True  False [u32:U4]
+//    DepthComponent32f DepthComponent True  False [f32:U4]
+//    Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
+//    Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
 }}}
 
 with_texture_format_relations!(generate_internal_format_instances []);
-
-
-
-// ===========================
-// === TextureProviderData ===
-// ===========================
-
-/// Source of the texture. Please note that the texture will be loaded asynchronously on demand.
-#[derive(Clone,Debug)]
-pub enum TextureProviderData {
-    /// URL the texture should be loaded from. This source implies asynchronous loading.
-    Url(String),
-
-    /// Sized, uninitialized texture.
-    Size(i32,i32),
-}
-
-impl<S:Str> From<S> for TextureProviderData {
-    fn from(s:S) -> Self {
-        Self::Url(s.into())
-    }
-}
 
 
 
@@ -352,48 +331,112 @@ impl<S:Str> From<S> for TextureProviderData {
 // === TextureProvider ===
 // =======================
 
-/// Texture representation.
-#[derive(Derivative)]
-#[derivative(Clone(bound=""))]
-#[derivative(Debug(bound=""))]
-pub struct TextureProvider<InternalFormat,ElemType> {
-    source  : TextureProviderData,
-    phantom : PhantomData2<InternalFormat,ElemType>,
-}
-
 /// Bounds for every texture item type.
 pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
-impl<I,T> TextureProvider<I,T> {
-    /// Constructor.
-    pub fn new<S:Into<TextureProviderData>>(source:S) -> Self {
-        let source  = source.into();
-        let phantom = PhantomData;
-        Self {source,phantom}
-    }
+///// Trait for structures providing texture data.
+//pub trait TextureProvider<I,T> {
+//    /// Create new texture.
+//    fn new_texture(self, context:&Context) -> Texture<S>;
+//}
 
-    /// Smart constructor for a sized, uninitialized texture provider.
-    pub fn size(width:i32, height:i32) -> Self {
-        Self::new(TextureProviderData::Size(width,height))
+
+// ===================
+// === RemoteImage ===
+// ===================
+
+#[derive(Debug)]
+pub struct RemoteImage;
+
+/// Texture downloaded from URL. This source implies asynchronous loading.
+#[derive(Debug)]
+pub struct RemoteImageData {
+    /// An url from where the texture is downloaded.
+    pub url : String,
+}
+
+impl RemoteImageData {
+    fn new<S:Str>(url:S) -> Self {
+        Self {url:url.into()}
     }
 }
 
-impl TextureProvider<Rgba,u8> {
-    /// Smart constructor.
-    #[allow(non_snake_case)]
-    pub fn Rgba<S:Into<TextureProviderData>>(source:S) -> Self {
-        let source  = source.into();
-        let phantom = PhantomData;
-        Self {source,phantom}
+impl<S:Str> From<S> for RemoteImageData {
+    fn from(s:S) -> Self {
+        Self::new(s)
     }
 }
 
-impl<I,T> From<(i32,i32)> for TextureProvider<I,T> {
-    fn from(size:(i32,i32)) -> Self {
-        Self::new(TextureProviderData::Size(size.0,size.1))
+impl<I,T> StorageRelation<I,T> for RemoteImage {
+    type Storage = RemoteImageData;
+}
+
+
+
+
+// === GpuOnly ===
+
+#[derive(Debug)]
+pub struct GpuOnly;
+
+/// Sized, uninitialized texture.
+#[derive(Debug)]
+pub struct GpuOnlyData {
+    /// Texture width.
+    pub width  : i32,
+    /// Texture height.
+    pub height : i32,
+}
+
+impl GpuOnlyData {
+    fn new(width:i32, height:i32) -> Self {
+        Self {width,height}
     }
 }
 
+impl<I,T> StorageRelation<I,T> for GpuOnly {
+    type Storage = GpuOnlyData;
+}
+
+
+// =============
+// === Owned ===
+// =============
+
+#[derive(Debug)]
+pub struct Owned;
+
+/// Texture plain data.
+#[derive(Debug)]
+pub struct OwnedData<T> {
+    /// An array containing texture data.
+    pub data: Vec<T>,
+    /// Texture width.
+    pub width: i32,
+    /// Texture height.
+    pub height: i32,
+}
+
+impl<T> OwnedData<T> {
+    fn new(data:Vec<T>, width:i32, height:i32) -> Self {
+        Self {data,width,height}
+    }
+}
+
+impl<I,T:Debug> StorageRelation<I,T> for Owned {
+    type Storage = OwnedData<T>;
+}
+
+
+
+
+
+
+pub trait StorageRelation<InternalFormat,ElemType> {
+    type Storage: Debug;
+}
+
+pub type Storage<S,I,T> = <S as StorageRelation<I,T>>::Storage;
 
 
 // ===============
@@ -402,8 +445,9 @@ impl<I,T> From<(i32,i32)> for TextureProvider<I,T> {
 
 /// Texture bound to GL context.
 #[derive(Debug)]
-pub struct Texture<I,T> {
-    provider   : TextureProvider<I,T>,
+pub struct Texture<StorageType,InternalFormat,ElemType>
+where StorageType: StorageRelation<InternalFormat,ElemType> {
+    storage    : Storage<StorageType,InternalFormat,ElemType>,
     gl_texture : WebGlTexture,
     context    : Context,
 }
@@ -411,8 +455,8 @@ pub struct Texture<I,T> {
 
 // === Type Level Utils ===
 
-impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
-
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:TextureItemType>
+Texture<S,I,T> {
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
     fn internal_format() -> AnyInternalFormat {
@@ -448,7 +492,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
 
 // === Getters ===
 
-impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
     /// Getter.
     pub fn gl_texture(&self) -> &WebGlTexture {
         &self.gl_texture
@@ -456,16 +500,12 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
 }
 
 
-
 // === API ===
 
-impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
+impl<I:InternalFormat,T:TextureItemType> Texture<RemoteImage,I,T> {
     /// Constructor.
-    pub fn new<P:Into<TextureProvider<I,T>>>(context:&Context, provider:P) -> Self {
-        let context    = context.clone();
-        let provider   = provider.into();
-        let gl_texture = context.create_texture().unwrap();
-        let out = Self {provider,gl_texture,context};
+    pub fn new_from_url<S:Into<RemoteImageData>>(context:&Context, storage:S) -> Self {
+        let out = Self::new_unitialized(context,storage);
         out.reload();
         out
     }
@@ -488,68 +528,127 @@ impl<I:InternalFormat,T:TextureItemType> Texture<I,T> {
         (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
     }
 
-    /// Loads or re-loads the texture data from the provided source. If the source involves
-    /// downloading the data, this action will be performed asynchronously.
+    /// Loads or re-loads the texture data from the provided url. This action will be performed
+    /// asynchronously.
     pub fn reload(&self) {
-        match &self.provider.source {
-            TextureProviderData::Size(width,height) => {
-                let target          = Context::TEXTURE_2D;
-                let level           = 0;
-                let border          = 0;
-                let internal_format = Self::gl_internal_format();
-                let format          = Self::gl_format().into();
-                let elem_type       = Self::gl_elem_type();
+        let url           = &self.storage.url;
+        let image         = HtmlImageElement::new().unwrap();
+        let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
+        let callback_ref  = Rc::new(RefCell::new(no_callback));
+        let image_ref     = Rc::new(RefCell::new(image));
+        let callback_ref2 = callback_ref.clone();
+        let image_ref_opt = image_ref.clone();
+        let context       = self.context.clone();
+        let gl_texture    = self.gl_texture.clone();
+        let callback: Closure<dyn FnMut()> = Closure::once(move || {
+            let _keep_alive     = callback_ref2;
+            let image           = image_ref_opt.borrow();
+            let target          = Context::TEXTURE_2D;
+            let level           = 0;
+            let internal_format = Self::gl_internal_format();
+            let format          = Self::gl_format().into();
+            let elem_type       = Self::gl_elem_type();
+            context.bind_texture(target,Some(&gl_texture));
+            context.tex_image_2d_with_u32_and_u32_and_html_image_element
+                (target,level,internal_format,format,elem_type,&image).unwrap();
 
-                self.context.bind_texture(target,Some(&self.gl_texture));
-                self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-                (target,level,internal_format,*width,*height,border,format,elem_type,None).unwrap();
-
-                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
-                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
-                self.context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
-            }
-            TextureProviderData::Url(url) => {
-                let image         = HtmlImageElement::new().unwrap();
-                let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
-                let callback_ref  = Rc::new(RefCell::new(no_callback));
-                let image_ref     = Rc::new(RefCell::new(image));
-                let callback_ref2 = callback_ref.clone();
-                let image_ref_opt = image_ref.clone();
-                let context       = self.context.clone();
-                let gl_texture    = self.gl_texture.clone();
-                let callback: Closure<dyn FnMut()> = Closure::once(move || {
-                    let _keep_alive     = callback_ref2;
-                    let image           = image_ref_opt.borrow();
-                    let target          = Context::TEXTURE_2D;
-                    let level           = 0;
-                    let internal_format = Self::gl_internal_format();
-                    let format          = Self::gl_format().into();
-                    let elem_type       = Self::gl_elem_type();
-                    context.bind_texture(target,Some(&gl_texture));
-                    context.tex_image_2d_with_u32_and_u32_and_html_image_element
-                        (target,level,internal_format,format,elem_type,&image).unwrap();
-
-                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32);
-                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32);
-                    context.tex_parameteri(Context::TEXTURE_2D, Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32);
-                });
-                let js_callback = callback.as_ref().unchecked_ref();
-                let image       = image_ref.borrow();
-                request_cors_if_not_same_origin(&image,&url);
-                image.set_src(url);
-                image.add_event_listener_with_callback("load",js_callback).unwrap();
-                *callback_ref.borrow_mut() = Some(callback);
-            }
-        }
+            Self::set_texture_parameters(&context);
+        });
+        let js_callback = callback.as_ref().unchecked_ref();
+        let image       = image_ref.borrow();
+        request_cors_if_not_same_origin(&image,url);
+        image.set_src(url);
+        image.add_event_listener_with_callback("load",js_callback).unwrap();
+        *callback_ref.borrow_mut() = Some(callback);
     }
 }
 
-impl<I,T> Drop for Texture<I,T> {
+impl<I:InternalFormat,T:TextureItemType> Texture<GpuOnly,I,T> {
+    /// Constructor.
+    pub fn new_from_size<S:Into<GpuOnlyData>>(context:&Context, storage:S) -> Self {
+        let out = Self::new_unitialized(context,storage);
+        out.reload();
+        out
+    }
+
+    /// Loads or re-loads the texture data.
+    pub fn reload(&self) {
+        let width           = self.storage.width;
+        let height          = self.storage.height;
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
+        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+        (target,level,internal_format,width,height,border,format,elem_type,None).unwrap();
+
+        Self::set_texture_parameters(&self.context);
+    }
+}
+
+impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr + Debug> Texture<Owned,I,T> {
+    /// Constructor.
+    pub fn new_from_data<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
+        let out = Self::new_unitialized(context,provider);
+        out.reload();
+        out
+    }
+
+    /// Loads or re-loads the texture data from provided source.
+    pub fn reload(&self) {
+        let width           = self.storage.width;
+        let height          = self.storage.height;
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
+        unsafe {
+            // We use unsafe array view which is used immediately, so no allocations should happen
+            // until we drop the view.
+            let view = self.storage.data.js_buffer_view();
+            let result = self.context
+                .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
+                (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
+            result.unwrap();
+        }
+
+        Self::set_texture_parameters(&self.context);
+    }
+}
+
+impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
     fn drop(&mut self) {
         self.context.delete_texture(Some(&self.gl_texture));
     }
 }
 
+
+// === Private API ===
+
+impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
+    fn new_unitialized<X:Into<Storage<S,I,T>>>(context:&Context, storage:X) -> Self {
+        let storage    = storage.into();
+        let context    = context.clone();
+        let gl_texture = context.create_texture().unwrap();
+        Self {storage,gl_texture,context}
+    }
+
+    fn set_texture_parameters(context:&Context) {
+        let target = Context::TEXTURE_2D;
+        let wrap   = Context::CLAMP_TO_EDGE as i32;
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,Context::LINEAR as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S    ,wrap);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T    ,wrap);
+    }
+}
 
 
 // === Utils ===
@@ -567,10 +666,54 @@ impl<I,T> Drop for Texture<I,T> {
 /// won't use the image for anything except img tags and or canvas2d then we don't want to set
 /// crossDomain because it will make things slower.
 fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
-    let url    = Url::new(url_str).unwrap();
+    let url    = web_sys::Url::new(url_str).unwrap();
     let origin = web::window().location().origin().unwrap();
     if url.origin() != origin {
         img.set_cross_origin(Some(""));
+    }
+}
+
+
+// === ContextTextureOps ===
+
+/// A texture unit representation in WebGl.
+pub type TextureUnit = u32;
+
+/// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
+/// for making distinction in `Uniform` implementations.
+pub trait ContextTextureOps<Texture> {
+    /// A guard removing created binding at end of scope.
+    type Guard;
+    /// Bind texture for specific unit
+    fn bind_texture_unit(&self, texture:&Texture, unit:TextureUnit) -> Self::Guard;
+}
+
+impl<S:StorageRelation<I,T>,I,T> ContextTextureOps<Texture<S,I,T>> for Context {
+    type Guard = TextureBindGuard;
+
+    fn bind_texture_unit(&self, texture:&Texture<S,I,T>, unit:TextureUnit) -> Self::Guard {
+        let context    = self.clone();
+        let target     = Context::TEXTURE_2D;
+        let gl_texture = &texture.gl_texture;
+        context.active_texture(unit);
+        context.bind_texture(target,Some(gl_texture));
+        context.active_texture(Context::TEXTURE0);
+        TextureBindGuard {context,target,unit}
+    }
+}
+
+/// Guard which unbinds texture in specific texture unit on drop.
+pub struct TextureBindGuard {
+    context : Context,
+    target  : u32,
+    unit    : TextureUnit,
+}
+
+impl Drop for TextureBindGuard {
+    fn drop(&mut self) {
+        self.context.active_texture(self.unit);
+        self.context.bind_texture(self.target,None);
+        self.context.active_texture(Context::TEXTURE0);
     }
 }
 
@@ -584,7 +727,7 @@ fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
 #[macro_export]
 macro_rules! with_all_texture_types_cartesians {
     ($f:ident [$($out:tt)*]) => {
-        $f! { $($out)* }
+        shapely::cartesian! { [[$f]] [Owned GpuOnly RemoteImage] [$($out)*] }
     };
     ($f:ident $out:tt [$a:tt []] $($in:tt)*) => {
         $crate::with_all_texture_types_cartesians! {$f $out $($in)*}

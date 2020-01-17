@@ -22,10 +22,10 @@ debug     = true
 
 [profile.release]
 opt-level = 3
-lto       = true
+lto       = false
 debug     = false
 
 [profile.bench]
 opt-level = 3
-lto       = true
+lto       = false
 debug     = false
