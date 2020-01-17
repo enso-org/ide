@@ -14,6 +14,7 @@ use crate::control::EventLoop;
 // === AnimationCallback ===
 // =========================
 
+/// AnimationCallback used by `Animator`, `ContinuousAnimator` and `FixedStepAnimator`.
 pub trait AnimationCallback = FnMut(f64) + 'static;
 
 

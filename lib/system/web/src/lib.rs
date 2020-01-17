@@ -154,6 +154,7 @@ pub fn get_performance() -> Result<Performance> {
 // === Other Helpers ===
 // =====================
 
+/// Trait used to set HtmlElement attributes.
 pub trait AttributeSetter {
     fn set_attribute_or_panic<T, U>(&self, name:T, value:U)
     where T : AsRef<str>,
@@ -172,6 +173,7 @@ impl AttributeSetter for web_sys::HtmlElement {
     }
 }
 
+/// Trait used to set css styles.
 pub trait StyleSetter {
     fn set_property_or_panic<T,U>(&self, name:T, value:U)
     where T : AsRef<str>,
@@ -190,6 +192,7 @@ impl StyleSetter for web_sys::HtmlElement {
     }
 }
 
+/// Trait used to insert `Node`s.
 pub trait NodeInserter {
     fn append_or_panic (&self, node:&Node);
     fn prepend_or_panic(&self, node:&Node);
@@ -220,6 +223,7 @@ impl NodeInserter for Node {
     }
 }
 
+/// Trait used to remove `Node`s.
 pub trait NodeRemover {
     fn remove_child_or_panic(&self, node:&Node);
 }

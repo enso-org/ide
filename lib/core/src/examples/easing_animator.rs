@@ -36,14 +36,15 @@ pub struct Canvas {
 pub struct Properties {
     /// Position property.
     pub position : Vector2<f32>,
+
     /// Size property.
-    pub size     : f64
+    pub size : f64
 }
 
 impl Properties {
     /// Creates new Properties instance.
     pub fn new(position:Vector2<f32>, size:f64) -> Self {
-        Self { position, size }
+        Self {position,size}
     }
 
     /// Creates random Properties.
@@ -60,7 +61,7 @@ impl Mul<f32> for Properties {
     fn mul(self, rhs:f32) -> Self {
         let position = self.position * rhs;
         let size     = self.size     * rhs as f64;
-        Properties { position, size }
+        Properties {position,size}
     }
 }
 
@@ -69,7 +70,7 @@ impl Add<Properties> for Properties {
     fn add(self, rhs:Self) -> Self {
         let position = self.position + rhs.position;
         let size     = self.size     + rhs.size;
-        Properties { position, size }
+        Properties {position,size}
     }
 }
 
@@ -290,7 +291,7 @@ impl Example {
             easing_in_out_clone.render("blue", time_ms);
             easing_in_clone.render("red", time_ms);
         });
-        Self { _animator }
+        Self {_animator}
     }
 }
 

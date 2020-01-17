@@ -148,7 +148,7 @@ impl Bencher {
             closure.forget();
         }
 
-        Self { data }
+        Self {data}
     }
 
     pub fn is_running(&self) -> bool {

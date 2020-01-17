@@ -84,6 +84,7 @@ pub enum MouseButton {
 // === MouseClickEvent ===
 // =======================
 
+/// Mouse click callback used by `MouseManager`.
 pub trait MouseClickCallback = FnMut(MouseClickEvent) + 'static;
 
 /// A struct storing information about mouse down and mouse up events.
@@ -92,7 +93,7 @@ pub struct MouseClickEvent {
     pub position : Vector2<f32>,
 
     /// The button which triggered the event.
-    pub button   : MouseButton
+    pub button : MouseButton
 }
 
 impl MouseClickEvent {
@@ -115,6 +116,7 @@ impl MouseClickEvent {
 // === MousePositionEvent ===
 // ==========================
 
+/// Mouse position callback used by `MouseManager`.
 pub trait MousePositionCallback = FnMut(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse move, mouse enter and mouse leave events.
@@ -123,7 +125,7 @@ pub struct MousePositionEvent {
     pub previous_position : Vector2<f32>,
 
     /// The current position where the mouse is.
-    pub position          : Vector2<f32>
+    pub position : Vector2<f32>
 }
 
 impl MousePositionEvent {
@@ -145,6 +147,7 @@ impl MousePositionEvent {
 // === MouseWheelEvent ===
 // =======================
 
+/// Mouse wheel callback used by `MouseManager`.
 pub trait MouseWheelCallback = FnMut(MouseWheelEvent) + 'static;
 
 /// A struct storing information about mouse wheel events.
@@ -153,10 +156,10 @@ pub struct MouseWheelEvent {
     pub is_ctrl_pressed : bool,
 
     /// The horizontal movement in pixels.
-    pub movement_x      : f32,
+    pub movement_x : f32,
 
     /// The vertical movement in pixels.
-    pub movement_y      : f32
+    pub movement_y : f32
 }
 
 impl MouseWheelEvent {
@@ -189,7 +192,7 @@ struct MouseManagerProperties {
 
 /// A struct used for storing shared MouseManager's mutable data.
 struct MouseManagerData {
-    properties: RefCell<MouseManagerProperties>
+    properties : RefCell<MouseManagerProperties>
 }
 
 impl MouseManagerData {

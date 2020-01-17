@@ -56,7 +56,7 @@ impl FixedStepAnimatorData {
         let callback         = Box::new(f);
         let step_duration    = 1000.0 / steps_per_second;
         let counter          = IntervalCounter::new(step_duration);
-        Self { callback,counter }
+        Self {callback,counter}
     }
 }
 

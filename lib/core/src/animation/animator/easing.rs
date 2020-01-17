@@ -17,6 +17,7 @@ use nalgebra::clamp;
 // === EasingAnimationCallback ===
 // ===============================
 
+/// Callback used by `EasingAnimator`.
 pub trait EasingAnimationCallback<T> = FnMut(T) + 'static;
 
 
@@ -80,7 +81,7 @@ impl<T:InterpolableArgument<T>> EasingAnimator<T> {
             }
         });
         data.borrow_mut().continuous_animator = Some(continuous_animator);
-        Self { data }
+        Self {data}
     }
 
     /// Starts a new animation with `initial_value` to `final_value` in

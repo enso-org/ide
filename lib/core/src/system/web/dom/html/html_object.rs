@@ -54,7 +54,7 @@ impl HTMLObject {
         let dom = element;
         let object = default();
         let dimensions = Vector2::new(0.0, 0.0);
-        Self { object, dom, dimensions }
+        Self {object,dom,dimensions}
     }
 
     /// Creates a HTMLObject from a HTML string.
