@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::BenchContainer;
 use crate::system::web::get_performance;
-use basegl::control::event_loop::EventLoop;
+use basegl::control::EventLoop;
 use basegl::control::callback::CallbackHandle;
 
 use wasm_bindgen::prelude::Closure;

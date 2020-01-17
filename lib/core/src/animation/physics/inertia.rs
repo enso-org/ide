@@ -6,7 +6,6 @@ use crate::prelude::*;
 
 use crate::animation::animator::Animator;
 use crate::animation::animator::fixed_step::IntervalCounter;
-use crate::animation::position::HasPosition;
 use crate::animation::linear_interpolation;
 use crate::control::EventLoop;
 
@@ -125,6 +124,11 @@ impl KinematicsProperties {
 // === Getters ===
 
 impl KinematicsProperties {
+    /// `Position` getter.
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
     /// `Velocity` getter.
     pub fn velocity(&self) -> Vector3<f32> {
         self.velocity
@@ -145,6 +149,11 @@ impl KinematicsProperties {
 // === Setters ===
 
 impl KinematicsProperties {
+    /// `Position` setter.
+    pub fn set_position(&mut self, position:Vector3<f32>) {
+        self.position = position
+    }
+
     /// `Velocity` setter.
     pub fn set_velocity(&mut self, velocity:Vector3<f32>) {
         self.velocity = velocity
@@ -159,11 +168,6 @@ impl KinematicsProperties {
     pub fn set_mass(&mut self, mass:f32) {
         self.mass = mass
     }
-}
-
-impl HasPosition for KinematicsProperties {
-    fn position    (&self) -> Vector3<f32>            { self.position }
-    fn set_position(&mut self, position:Vector3<f32>) { self.position = position }
 }
 
 
@@ -265,8 +269,8 @@ impl PhysicsProperties {
 // === PhysicsSimulator ===
 // ========================
 
-/// A trait defining the constraints of a SimulationObject.
-pub trait SimulationObject = HasPosition + 'static;
+/// A callback used by PhysicsSimulator.
+pub trait PhysicsCallback = FnMut(Vector3<f32>) + 'static;
 
 /// A fixed step physics simulator used to simulate `PhysicsProperties`.
 pub struct PhysicsSimulator {
@@ -274,16 +278,14 @@ pub struct PhysicsSimulator {
 }
 
 impl PhysicsSimulator {
-    /// Simulates `Properties` on `object`.
-    pub fn new<T>
+    /// Simulates `Properties` and inputs `Kinematics`' position in `PhysicsCallback`.
+    pub fn new<F:PhysicsCallback>
     ( event_loop:&mut EventLoop
     , steps_per_second:f64
-    , mut object:T
-    , mut properties:PhysicsProperties) -> Self
-    where T:SimulationObject {
-        properties.mod_kinematics(|kinematics| { kinematics.set_position(object.position()); });
+    , mut properties:PhysicsProperties
+    , mut callback:F) -> Self {
         let step_ms              = 1000.0 / steps_per_second;
-        let mut current_position = object.position();
+        let mut current_position = properties.kinematics().position();
         let mut next_position    = simulate(&mut properties, step_ms);
         let mut interval_counter = IntervalCounter::new(step_ms);
         let _animator            = Animator::new(event_loop, move |delta_ms| {
@@ -295,7 +297,7 @@ impl PhysicsSimulator {
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
             let position   = linear_interpolation(current_position,next_position,transition as f32);
-            object.set_position(position);
+            callback(position);
         });
 
         Self { _animator }

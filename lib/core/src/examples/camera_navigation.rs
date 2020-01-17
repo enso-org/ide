@@ -11,7 +11,6 @@ use crate::system::web::StyleSetter;
 use crate::display::navigation::navigator::Navigator;
 
 use crate::animation::animator::continuous::ContinuousAnimator;
-use crate::animation::physics::inertia::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
