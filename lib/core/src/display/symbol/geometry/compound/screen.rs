@@ -21,7 +21,7 @@ use nalgebra::Vector2;
 #[derive(Clone,Debug)]
 pub struct SymbolRef {
     world     : World,
-    symbol_id : SymbolId,
+    pub symbol_id : SymbolId,
 }
 
 impl SymbolRef {
@@ -39,7 +39,7 @@ impl SymbolRef {
 
 /// A whole-screen covering geometry.
 pub struct Screen {
-    symbol_ref : SymbolRef,
+    pub symbol_ref : SymbolRef,
     _uv        : Buffer<Vector2<f32>>,
 }
 

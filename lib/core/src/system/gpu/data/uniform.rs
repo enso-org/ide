@@ -59,6 +59,13 @@ impl<I:InternalFormat,T:TextureItemType> IntoUniformValueImpl for TextureProvide
     }
 }
 
+impl<I:InternalFormat,T:TextureItemType> IntoUniformValueImpl for Texture<I,T> {
+    type Result = Texture<I,T>;
+    fn into_uniform_value(self, context:&Context) -> Self::Result {
+        self
+    }
+}
+
 
 
 // ====================

@@ -169,6 +169,8 @@ impl Workspace {
 
         variables.add("pixel_ratio", shape.pixel_ratio());
 
+
+
         context.enable(Context::BLEND);
 
         // To learn more about the blending equations used here, please see the following articles:
@@ -232,17 +234,7 @@ impl Workspace {
                 self.symbols_dirty.unset_all();
             }
 
-//            let shape = self.shape.screen_shape();
-//
-//            let texture1 = Texture::<texture::Rgba,u8>::new(&self.context,(shape.width as i32,shape.height as i32));
-//
-//            let fb = self.context.create_framebuffer().unwrap();
-//            self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
-//
-//            let level = 0;
-//            let attachment_point = Context::COLOR_ATTACHMENT0;
-//            self.context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(texture1.gl_texture()), level);
-//
+
 
             self.logger.info("Clearing the scene.");
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);

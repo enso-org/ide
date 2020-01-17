@@ -141,7 +141,7 @@ pub struct Symbol {
     pub shader         : Shader,
     pub surface_dirty  : GeometryDirty,
     pub shader_dirty   : ShaderDirty,
-    symbol_scope       : UniformScope,
+    pub symbol_scope   : UniformScope,
     global_scope       : UniformScope,
     context            : Context,
     logger             : Logger,

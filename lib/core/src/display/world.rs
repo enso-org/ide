@@ -31,6 +31,9 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Performance,KeyboardEvent};
 
+use crate::system::gpu::data::texture;
+use crate::system::gpu::data::texture::Texture;
+
 
 
 // =============
@@ -74,6 +77,34 @@ impl World {
 
     pub fn mod_stats<F:FnOnce(&Stats)>(&self, f:F) {
         f(&self.rc.borrow().stats);
+    }
+
+    fn test(&self) {
+
+
+//        let shape = self.shape.screen_shape();
+        let width  = 512; // shape.width as i32;
+        let height = 512; // shape.height as i32;
+        let context = self.rc.borrow().workspace.context.clone();
+
+        let texture1 = Texture::<texture::Rgba,u8>::new(&context,(width,height));
+
+        let screen = Screen::new(self);
+
+        let uniform:Uniform<Texture<texture::Rgba,u8>> = {
+            let world_data = &mut self.borrow_mut();
+            let symbol = &mut world_data.workspace[screen.symbol_ref.symbol_id];
+            symbol.symbol_scope.add_or_panic("texture",texture1)
+        };
+
+//
+//            let fb = self.context.create_framebuffer().unwrap();
+//            self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
+//
+//            let level = 0;
+//            let attachment_point = Context::COLOR_ATTACHMENT0;
+//            self.context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(texture1.gl_texture()), level);
+//
     }
 }
 
@@ -222,15 +253,13 @@ impl WorldData {
     pub fn new<Dom:Str>(dom:Dom) -> World {
         println!("NOTICE! When profiling in Chrome check 'Disable JavaScript Samples' under the \
                   gear icon in the 'Performance' tab. It can drastically slow the rendering.");
-        let world     = World::new(Self::new_uninitialized(dom));
-        let world_ref = world.clone_ref();
-        let dp        = world.borrow().display_object.clone();
+        let world          = World::new(Self::new_uninitialized(dom));
+        let world_ref      = world.clone_ref();
+        let display_object = world.borrow().display_object.clone();
         with(world.borrow_mut(), |mut data| {
-            let update          = move || {
-                {
-                    world_ref.borrow_mut().run();
-                }
-                dp.render();
+            let update = move || {
+                world_ref.borrow_mut().run();
+                display_object.render();
             };
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
