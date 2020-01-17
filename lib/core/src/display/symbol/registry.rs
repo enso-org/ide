@@ -96,11 +96,11 @@ impl SymbolRegistry {
         if changed {
             self.view_projection.set(camera.view_projection_matrix());
         }
-        group!(self.logger, "Rendering.", {
-            for symbol in &self.symbols {
-                symbol.render();
-            }
-        })
+//        group!(self.logger, "Rendering.", {
+//            for symbol in &self.symbols {
+//                symbol.render();
+//            }
+//        })
     }
 }
 

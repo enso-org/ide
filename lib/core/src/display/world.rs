@@ -23,6 +23,7 @@ use crate::debug::monitor::Panel;
 use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
+use crate::display::object::*;
 
 use crate::system::web;
 use event_loop::EventLoop;
@@ -88,6 +89,13 @@ impl Deref for World {
 
     fn deref(&self) -> &Self::Target {
         &self.rc
+    }
+}
+
+impl Into<DisplayObjectData> for &World {
+    fn into(self) -> DisplayObjectData {
+        let data:&WorldData = &self.borrow();
+        data.into()
     }
 }
 
@@ -176,6 +184,7 @@ impl StatsMonitorData {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct WorldData {
+    display_object : DisplayObjectData,
     pub workspace       : Workspace,
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
@@ -215,8 +224,14 @@ impl WorldData {
                   gear icon in the 'Performance' tab. It can drastically slow the rendering.");
         let world     = World::new(Self::new_uninitialized(dom));
         let world_ref = world.clone_ref();
+        let dp        = world.borrow().display_object.clone();
         with(world.borrow_mut(), |mut data| {
-            let update          = move || world_ref.borrow_mut().run();
+            let update          = move || {
+                {
+                    world_ref.borrow_mut().run();
+                }
+                dp.render();
+            };
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
         });
@@ -243,6 +258,7 @@ impl WorldData {
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
         let stats                  = default();
         let logger                 = Logger::new("world");
+        let display_object         = DisplayObjectData::new(logger.clone());
         let workspace_logger       = logger.sub("workspace");
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
@@ -262,7 +278,7 @@ impl WorldData {
         let stats_monitor_cp_2     = stats_monitor.clone();
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
+        Self {display_object,workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
              ,fonts,update_handle,stats,stats_monitor}
     }
 
@@ -286,6 +302,12 @@ impl WorldData {
     /// Dispose the world object, cancel all handlers and events.
     pub fn dispose(&mut self) {
         self.update_handle = None;
+    }
+}
+
+impl Into<DisplayObjectData> for &WorldData {
+    fn into(self) -> DisplayObjectData {
+        self.display_object.clone()
     }
 }
 

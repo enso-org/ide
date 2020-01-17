@@ -114,7 +114,9 @@ pub struct DisplayObjectDataMut {
     pub child_dirty      : ChildDirty,
     pub new_parent_dirty : NewParentDirty,
     #[derivative(Debug="ignore")]
-    pub on_updated       : Option<Box<dyn Fn(&DisplayObjectDataMut)>>,
+    pub on_updated: Option<Box<dyn Fn(&DisplayObjectDataMut)>>,
+    #[derivative(Debug="ignore")]
+    pub on_render: Option<Box<dyn Fn()>>,
 }
 
 
@@ -141,7 +143,15 @@ impl DisplayObjectDataMut {
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty"),());
         let wrapped          = HierarchicalObjectData::new(logger);
         let on_updated       = None;
-        Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated}
+        let on_render        = None;
+        Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated,on_render}
+    }
+
+    pub fn render(&self) {
+        if let Some(f) = &self.on_render { f() }
+        self.children.iter().for_each(|child| {
+            child.render();
+        });
     }
 
     pub fn update(&mut self) {
@@ -288,6 +298,10 @@ impl DisplayObjectDataMut {
     pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&mut self, f:F) {
         self.on_updated = Some(Box::new(f))
     }
+
+    pub fn set_on_render<F:Fn()+'static>(&mut self, f:F) {
+        self.on_render = Some(Box::new(f))
+    }
 }
 
 
@@ -375,6 +389,11 @@ impl DisplayObjectData {
     /// Returns the number of children of this node.
     pub fn child_count(&self) -> usize {
         self.rc.borrow().child_count()
+    }
+
+    /// Renders the object to the screen.
+    pub fn render(&self) {
+        self.rc.borrow().render()
     }
 }
 
@@ -479,6 +498,10 @@ impl DisplayObjectData {
 
     pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&self, f:F) {
         self.rc.borrow_mut().set_on_updated(f)
+    }
+
+    pub fn set_on_render<F:Fn()+'static>(&self, f:F) {
+        self.rc.borrow_mut().set_on_render(f)
     }
 }
 

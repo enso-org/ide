@@ -249,6 +249,7 @@ impl Workspace {
             self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.scene.camera);
+
             if !self.text_components.is_empty() {
                 self.logger.info("Rendering text components");
                 for text_component in &mut self.text_components {

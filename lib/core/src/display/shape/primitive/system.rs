@@ -8,6 +8,7 @@ use crate::display::world::World;
 use crate::display::symbol::material::Material;
 use crate::display::shape::primitive::shader;
 use crate::display::shape::primitive::def::class::Shape;
+use crate::display::object::*;
 
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
@@ -36,5 +37,17 @@ impl ShapeSystem {
         let code = shader::builder::Builder::run(shape);
         material.set_code(code);
         material
+    }
+}
+
+impl From<&ShapeSystem> for DisplayObjectData {
+    fn from(t:&ShapeSystem) -> Self {
+        (&t.sprite_system).into()
+    }
+}
+
+impl<'t> Modify<&'t DisplayObjectData> for &'t ShapeSystem {
+    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
+        self.sprite_system.modify(f);
     }
 }

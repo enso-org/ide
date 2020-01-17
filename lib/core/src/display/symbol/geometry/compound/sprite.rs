@@ -223,6 +223,14 @@ impl SpriteSystem {
 
         let world      = world.clone_ref();
         let symbol_ref = SymbolRef::new(world,symbol_id);
+        let symbol_ref2 = symbol_ref.clone();
+
+        display_object.set_on_render(move || {
+            let world_data = &mut symbol_ref2.world.borrow_mut();
+            let symbol     = &mut world_data.workspace[symbol_ref2.symbol_id];
+            symbol.render();
+        });
+
         Self {display_object,symbol_ref,transform,_uv:uv,bbox}
     }
 

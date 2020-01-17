@@ -37,6 +37,9 @@ fn init(world: &World) {
         t.y += 100.0;
     });
 
+
+    world.add_child(&shape_system);
+
     let screen = Screen::new(world);
 
     let mut iter:i32 = 0;
