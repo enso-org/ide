@@ -31,7 +31,7 @@ fn init(world: &World) {
 
     let shape_system = ShapeSystem::new(&s3);
     let sprite = shape_system.new_instance();
-    sprite.set_bbox(Vector2::new(200.0,200.0));
+    sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {
         t.x += 250.0;
         t.y += 100.0;

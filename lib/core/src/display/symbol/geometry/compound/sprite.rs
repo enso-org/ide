@@ -68,14 +68,9 @@ impl {
         self.display_object.set_position(value)
     }
 
-    /// Modifies the bounding box dimensions of the sprite.
-    pub fn mod_bbox<F:FnOnce(&mut Vector2<f32>)>(&self, f:F) {
-        self.bbox.modify(f);
-    }
-
-    /// Sets the bounding box dimensions of the sprite.
-    pub fn set_bbox(&self, value:Vector2<f32>) {
-        self.bbox.set(value);
+    /// Size accessor.
+    pub fn size(&self) -> Attribute<Vector2<f32>> {
+        self.bbox.clone_ref()
     }
 }}
 
@@ -112,6 +107,7 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
+
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
@@ -127,47 +123,51 @@ pub struct SpriteSystem {
 impl SpriteSystem {
     /// Constructor.
     pub fn new() -> Self {
-        let world = get_world();
-        let stats = world.stats();
-
-        stats.inc_sprite_system_count();
-
+        let world          = get_world();
+        let stats          = world.stats();
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
         let symbol         = world.new_symbol();
         let mesh           = symbol.surface();
         let point_scope    = mesh.point_scope();
         let instance_scope = mesh.instance_scope();
+        let uv             = point_scope.add_buffer("uv");
+        let transform      = instance_scope.add_buffer("transform");
+        let bbox           = instance_scope.add_buffer("bounds");
 
-        // Attributes
+        stats.inc_sprite_system_count();
 
-        let uv        = point_scope.add_buffer("uv");
-        let transform = instance_scope.add_buffer("transform");
-        let bbox      = instance_scope.add_buffer("bounds");
+        let this = Self {display_object,symbol,transform,uv,bbox,stats};
+        this.init_attributes();
+        this.init_shader();
+        this.init_render();
+        this
+    }
 
-        let p1_index = point_scope.add_instance();
-        let p2_index = point_scope.add_instance();
-        let p3_index = point_scope.add_instance();
-        let p4_index = point_scope.add_instance();
+    fn init_attributes(&self) {
+        let mesh        = self.symbol.surface();
+        let point_scope = mesh.point_scope();
+        let p1_index    = point_scope.add_instance();
+        let p2_index    = point_scope.add_instance();
+        let p3_index    = point_scope.add_instance();
+        let p4_index    = point_scope.add_instance();
+        self.uv.at(p1_index).set(Vector2::new(0.0,0.0));
+        self.uv.at(p2_index).set(Vector2::new(0.0,1.0));
+        self.uv.at(p3_index).set(Vector2::new(1.0,0.0));
+        self.uv.at(p4_index).set(Vector2::new(1.0,1.0));
+    }
 
-        uv.at(p1_index).set(Vector2::new(0.0,0.0));
-        uv.at(p2_index).set(Vector2::new(0.0,1.0));
-        uv.at(p3_index).set(Vector2::new(1.0,0.0));
-        uv.at(p4_index).set(Vector2::new(1.0,1.0));
-
-        // Shader Initialization
-
-        let shader            = symbol.shader();
+    fn init_shader(&self) {
+        let shader            = self.symbol.shader();
         let surface_material  = Self::surface_material();
         let geometry_material = Self::geometry_material();
         shader.set_geometry_material (&geometry_material);
         shader.set_material          (&surface_material);
+    }
 
-        // Rendering
-
-        display_object.set_on_render(enclose!((symbol) move || {symbol.render()}));
-
-        Self {display_object,symbol,transform,uv,bbox,stats}
+    fn init_render(&self) {
+        let symbol = self.symbol.clone_ref();
+        self.display_object.set_on_render(move || {symbol.render()});
     }
 
     /// Creates a new sprite instance.
