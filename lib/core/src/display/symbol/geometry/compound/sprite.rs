@@ -191,7 +191,7 @@ pub struct SpriteSystem {
 
 impl SpriteSystem {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
+    pub fn new(world:&WorldData) -> Self {
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
         let world_data     = &mut world.borrow_mut();
