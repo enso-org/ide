@@ -42,8 +42,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-      - name: Install Firefox
-        run: sudo apt-get install firefox
+#      - name: Install Firefox
+#        run: sudo apt-get install firefox
       - name: Run wasm-pack tests
         uses: actions-rs/cargo@v1
         with:
