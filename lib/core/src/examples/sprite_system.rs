@@ -23,7 +23,7 @@ pub fn run_example_sprite_system() {
 }
 
 fn init(world: &World) {
-    let sprite_system = SpriteSystem::new(world);
+    let sprite_system = SpriteSystem::new(&world.borrow());
     let sprite1 = sprite_system.new_instance();
     sprite1.set_bbox(Vector2::new(10.0,10.0));
     sprite1.mod_position(|t| t.x += 10.0);

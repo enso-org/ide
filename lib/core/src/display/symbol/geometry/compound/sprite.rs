@@ -9,6 +9,7 @@ use crate::system::gpu::data::AttributeInstanceIndex;
 
 use crate::display::object::*;
 use crate::display::world::*;
+use crate::display::symbol::Symbol;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -103,8 +104,8 @@ impl Sprite {
 
 impl Sprite {
     fn new
-    (sprite:SpriteRef, transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
-        let data = SpriteData::new(sprite,transform,bbox);
+    (symbol:&Symbol, instance_id:AttributeInstanceIndex, transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
+        let data = SpriteData::new(symbol,instance_id,transform,bbox);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -124,7 +125,8 @@ impl From<&Sprite> for DisplayObjectData {
 
 #[derive(Debug)]
 struct SpriteData {
-    sprite_ref     : SpriteRef,
+    symbol         : Symbol,
+    instance_id    : AttributeInstanceIndex,
     display_object : DisplayObjectData,
     _transform     : Attribute<Matrix4<f32>>,
     bbox           : Attribute<Vector2<f32>>,
@@ -132,18 +134,20 @@ struct SpriteData {
 
 impl SpriteData {
     pub fn new
-    ( sprite_ref:SpriteRef
+    ( symbol:&Symbol
+    , instance_id: AttributeInstanceIndex
     , _transform:Attribute<Matrix4<f32>>
     , bbox:Attribute<Vector2<f32>>
     ) -> Self {
-        let logger         = Logger::new(format!("Sprite{}",sprite_ref.instance_id));
+        let symbol         = symbol.clone_ref();
+        let logger         = Logger::new(format!("Sprite{}",instance_id));
         let display_object = DisplayObjectData::new(logger);
         let transform_cp   = _transform.clone();
         display_object.set_on_updated(move |t| {
             transform_cp.set(t.matrix().clone());
         });
-        sprite_ref.symbol_ref.world.mod_stats(|stats| stats.inc_sprite_count());
-        Self {sprite_ref,display_object,_transform,bbox}
+//        sprite_ref.symbol_ref.world.mod_stats(|stats| stats.inc_sprite_count());
+        Self {symbol,instance_id,display_object,_transform,bbox}
     }
 }
 
@@ -161,13 +165,11 @@ impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteData {
 
 impl Drop for SpriteData {
     fn drop(&mut self) {
-        self.sprite_ref.symbol_ref.world.mod_stats(|stats| stats.dec_sprite_count());
+//        self.sprite_ref.symbol_ref.world.mod_stats(|stats| stats.dec_sprite_count());
 
-        let mut world = self.sprite_ref.symbol_ref.world.borrow_mut();
-        let symbol    = &mut world.workspace.index(self.sprite_ref.symbol_ref.symbol_id);
-        let mesh      = &mut symbol.surface();
+        let mesh = self.symbol.surface();
         self.bbox.set(Vector2::new(0.0,0.0));
-        mesh.instance_scope().dispose(self.sprite_ref.instance_id);
+        mesh.instance_scope().dispose(self.instance_id);
         self.display_object.unset_parent();
     }
 }
@@ -183,7 +185,7 @@ impl Drop for SpriteData {
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 pub struct SpriteSystem {
     display_object : DisplayObjectData,
-    symbol_ref     : SymbolRef,
+    symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
     _uv            : Buffer<Vector2<f32>>,
     bbox           : Buffer<Vector2<f32>>,
@@ -191,13 +193,12 @@ pub struct SpriteSystem {
 
 impl SpriteSystem {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
+    pub fn new(world_data:&WorldData) -> Self {
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
-        let world_data     = &mut world.borrow_mut();
-        let workspace      = &mut world_data.workspace;
+        let workspace      = &world_data.workspace;
         let symbol_id      = workspace.new_symbol();
-        let symbol         = &mut workspace.index(symbol_id);
+        let symbol         = workspace.index(symbol_id);
         let mesh           = &mut symbol.surface();
         let uv             = mesh.point_scope().add_buffer("uv");
         let transform      = mesh.instance_scope().add_buffer("transform");
@@ -221,31 +222,27 @@ impl SpriteSystem {
 
         world_data.stats.inc_sprite_system_count();
 
-        let world      = world.clone_ref();
-        let symbol_ref = SymbolRef::new(world,symbol_id);
-        let symbol_ref2 = symbol_ref.clone();
+//        let world      = world.clone_ref();
+//        let symbol_ref = SymbolRef::new(world,symbol_id);
+//        let symbol_ref2 = symbol_ref.clone();
+
+        let symbol2 = symbol.clone_ref();
 
         display_object.set_on_render(move || {
-            let world_data = &mut symbol_ref2.world.borrow_mut();
-            let symbol     = &mut world_data.workspace.index(symbol_ref2.symbol_id);
-            symbol.render();
+            symbol2.render();
         });
 
-        Self {display_object,symbol_ref,transform,_uv:uv,bbox}
+        Self {display_object,symbol,transform,_uv:uv,bbox}
     }
 
     /// Creates a new sprite instance.
     pub fn new_instance(&self) -> Sprite {
-        let instance_id = {
-            let world_data = &mut self.symbol_ref.world.borrow_mut();
-            let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
-            symbol.surface().instance_scope().add_instance()
-        };
-        let transform    = self.transform.at(instance_id);
-        let bbox         = self.bbox.at(instance_id);
-        let sprite_ref   = SpriteRef::new(self.symbol_ref.clone(),instance_id);
+        let instance_id = self.symbol.surface().instance_scope().add_instance();
+        let transform   = self.transform.at(instance_id);
+        let bbox        = self.bbox.at(instance_id);
+//        let sprite_ref  = SpriteRef::new(self.symbol_ref.clone(),instance_id);
         bbox.set(Vector2::new(1.0,1.0));
-        let sprite = Sprite::new(sprite_ref,transform,bbox);
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox);
         self.add_child(&sprite);
         sprite
     }
@@ -290,8 +287,6 @@ impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteSystem {
 impl SpriteSystem {
     /// Sets the material for all sprites in this system.
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
-        let world_data = &mut self.symbol_ref.world.borrow_mut();
-        let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
-        symbol.shader().set_material(material);
+        self.symbol.shader().set_material(material);
     }
 }

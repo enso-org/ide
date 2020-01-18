@@ -203,7 +203,7 @@ impl Workspace {
     }
 
     /// Create a new `Symbol` instance.
-    pub fn new_symbol(&mut self) -> SymbolId {
+    pub fn new_symbol(&self) -> SymbolId {
         self.symbols.new_symbol()
     }
 
