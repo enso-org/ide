@@ -4,20 +4,12 @@
 
 use crate::prelude::*;
 
-use crate::display::symbol::material::Material;
-use crate::system::gpu::data::AttributeInstanceIndex;
-
-use crate::display::object::*;
-use crate::display::world::*;
-use crate::display::symbol::Symbol;
-
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use nalgebra::Matrix4;
 use crate::debug::Stats;
-
-use shapely::shared;
-
+use crate::display::object::*;
+use crate::display::symbol::material::Material;
+use crate::display::symbol::Symbol;
+use crate::display::world;
+use crate::system::gpu::types::*;
 
 
 
@@ -42,6 +34,7 @@ pub struct SpriteData {
 }
 
 impl {
+    /// Constructor.
     pub fn new
     ( symbol      : &Symbol
     , instance_id : AttributeInstanceIndex
@@ -74,18 +67,6 @@ impl {
     }
 }}
 
-impl From<&SpriteData> for DisplayObjectData {
-    fn from(t:&SpriteData) -> Self {
-        t.display_object.clone_ref()
-    }
-}
-
-impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteData {
-    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
-        f(&self.display_object)
-    }
-}
-
 impl From<&Sprite> for DisplayObjectData {
     fn from(t:&Sprite) -> Self {
         t.rc.borrow().display_object.clone_ref()
@@ -107,11 +88,12 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
+shared! { SpriteSystem
 
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
-pub struct SpriteSystem {
+pub struct SpriteSystemData {
     display_object : DisplayObjectData,
     symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
@@ -120,10 +102,10 @@ pub struct SpriteSystem {
     stats          : Stats,
 }
 
-impl SpriteSystem {
+impl {
     /// Constructor.
     pub fn new() -> Self {
-        let world          = get_world();
+        let world          = world::get_world();
         let stats          = world.stats();
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
@@ -144,6 +126,27 @@ impl SpriteSystem {
         this
     }
 
+    /// Creates a new sprite instance.
+    pub fn new_instance(&self) -> Sprite {
+        let instance_id = self.symbol.surface().instance_scope().add_instance();
+        let transform   = self.transform.at(instance_id);
+        let bbox        = self.bbox.at(instance_id);
+        bbox.set(Vector2::new(1.0,1.0));
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox,&self.stats);
+        self.add_child(&sprite);
+        sprite
+    }
+
+    /// Sets the material for all sprites in this system.
+    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
+        self.symbol.shader().set_material(material);
+    }
+}}
+
+
+// === Initialization ===
+
+impl SpriteSystemData {
     fn init_attributes(&self) {
         let mesh        = self.symbol.surface();
         let point_scope = mesh.point_scope();
@@ -170,17 +173,6 @@ impl SpriteSystem {
         self.display_object.set_on_render(move || {symbol.render()});
     }
 
-    /// Creates a new sprite instance.
-    pub fn new_instance(&self) -> Sprite {
-        let instance_id = self.symbol.surface().instance_scope().add_instance();
-        let transform   = self.transform.at(instance_id);
-        let bbox        = self.bbox.at(instance_id);
-        bbox.set(Vector2::new(1.0,1.0));
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox,&self.stats);
-        self.add_child(&sprite);
-        sprite
-    }
-
     fn geometry_material() -> Material {
         let mut material = Material::new();
         material.add_input_def  :: <Vector2<f32>> ("bounds");
@@ -203,24 +195,14 @@ impl SpriteSystem {
     }
 }
 
-impl From<&SpriteSystem> for DisplayObjectData {
-    fn from(t:&SpriteSystem) -> Self {
+impl From<&SpriteSystemData> for DisplayObjectData {
+    fn from(t:&SpriteSystemData) -> Self {
         t.display_object.clone_ref()
     }
 }
 
-impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteSystem {
-    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
-        f(&self.display_object)
-    }
-}
-
-
-// === Setters ===
-
-impl SpriteSystem {
-    /// Sets the material for all sprites in this system.
-    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
-        self.symbol.shader().set_material(material);
+impl From<&SpriteSystem> for DisplayObjectData {
+    fn from(t:&SpriteSystem) -> Self {
+        t.rc.borrow().display_object.clone_ref()
     }
 }

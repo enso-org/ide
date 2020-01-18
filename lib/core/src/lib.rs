@@ -56,4 +56,5 @@ pub mod prelude {
     pub use basegl_prelude::*;
     pub use logger::*;
     pub use shapely::newtype_copy;
+    pub use shapely::shared;
 }

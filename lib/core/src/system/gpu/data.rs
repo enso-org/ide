@@ -29,6 +29,7 @@ pub mod types {
     use super::*;
     pub use attribute::Attribute;
     pub use attribute::AttributeScope;
+    pub use attribute::AttributeInstanceIndex;
     pub use buffer::AnyBuffer;
     pub use buffer::Buffer;
     pub use buffer::IsBuffer;

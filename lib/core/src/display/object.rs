@@ -551,17 +551,13 @@ where &'t Self:DisplayObject, Self:'t {
         self.display_object_description().add_child_take(child);
     }
 
-    fn update(&'t self) where &'t Self: Modify<&'t DisplayObjectData> {
-        self.modify(|t| t.update());
+    fn update(&'t self) {
+        self.display_object_description().update();
     }
 }
 
 impl<'t,T> DisplayObjectOps<'t> for T
 where T:'t, &'t T:DisplayObject {}
-
-pub trait Modify<T> {
-    fn modify<F:FnOnce(T)>(self, f:F);
-}
 
 
 

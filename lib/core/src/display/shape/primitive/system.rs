@@ -45,8 +45,8 @@ impl From<&ShapeSystem> for DisplayObjectData {
     }
 }
 
-impl<'t> Modify<&'t DisplayObjectData> for &'t ShapeSystem {
-    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
-        self.sprite_system.modify(f);
-    }
-}
+//impl<'t> Modify<&'t DisplayObjectData> for &'t ShapeSystem {
+//    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
+//        self.sprite_system.modify(f);
+//    }
+//}
