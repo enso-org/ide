@@ -61,74 +61,137 @@ impl Value for False {
 // === GLEnums ===
 // ===============
 
-crate::define_singletons_gl! {
-    Alpha             = Context::ALPHA,
-    Depth24Stencil8   = Context::DEPTH24_STENCIL8,
-    Depth32fStencil8  = Context::DEPTH32F_STENCIL8,
-    DepthComponent    = Context::DEPTH_COMPONENT,
-    DepthComponent16  = Context::DEPTH_COMPONENT16,
-    DepthComponent24  = Context::DEPTH_COMPONENT24,
-    DepthComponent32f = Context::DEPTH_COMPONENT32F,
-    DepthStencil      = Context::DEPTH_STENCIL,
-    Luminance         = Context::LUMINANCE,
-    LuminanceAlpha    = Context::LUMINANCE_ALPHA,
-    R11fG11fB10f      = Context::R11F_G11F_B10F,
-    R16f              = Context::R16F,
-    R16i              = Context::R16I,
-    R16ui             = Context::R16UI,
-    R32f              = Context::R32F,
-    R32i              = Context::R32I,
-    R32ui             = Context::R32UI,
-    R8                = Context::R8,
-    R8i               = Context::R8I,
-    R8SNorm           = Context::R8_SNORM,
-    R8ui              = Context::R8UI,
-    Red               = Context::RED,
-    RedInteger        = Context::RED_INTEGER,
-    Rg                = Context::RG,
-    Rg16f             = Context::RG16F,
-    Rg16i             = Context::RG16I,
-    Rg16ui            = Context::RG16UI,
-    Rg32f             = Context::RG32F,
-    Rg32i             = Context::RG32I,
-    Rg32ui            = Context::RG32UI,
-    Rg8               = Context::RG8,
-    Rg8i              = Context::RG8I,
-    Rg8SNorm          = Context::RG8_SNORM,
-    Rg8ui             = Context::RG8UI,
-    Rgb               = Context::RGB,
-    Rgb10A2           = Context::RGB10_A2,
-    Rgb10A2ui         = Context::RGB10_A2UI,
-    Rgb16f            = Context::RGB16F,
-    Rgb16i            = Context::RGB16I,
-    Rgb16ui           = Context::RGB16UI,
-    Rgb32f            = Context::RGB32F,
-    Rgb32i            = Context::RGB32I,
-    Rgb32ui           = Context::RGB32UI,
-    Rgb565            = Context::RGB565,
-    Rgb5A1            = Context::RGB5_A1,
-    Rgb8              = Context::RGB8,
-    Rgb8i             = Context::RGB8I,
-    Rgb8SNorm         = Context::RGB8_SNORM,
-    Rgb8ui            = Context::RGB8UI,
-    Rgb9E5            = Context::RGB9_E5,
-    Rgba              = Context::RGBA,
-    Rgba16f           = Context::RGBA16F,
-    Rgba16i           = Context::RGBA16I,
-    Rgba16ui          = Context::RGBA16UI,
-    Rgba32f           = Context::RGBA32F,
-    Rgba32i           = Context::RGBA32I,
-    Rgba32ui          = Context::RGBA32UI,
-    Rgba4             = Context::RGBA4,
-    Rgba8             = Context::RGBA8,
-    Rgba8i            = Context::RGBA8I,
-    Rgba8SNorm        = Context::RGBA8_SNORM,
-    Rgba8ui           = Context::RGBA8UI,
-    RgbaInteger       = Context::RGBA_INTEGER,
-    RgbInteger        = Context::RGB_INTEGER,
-    RgInteger         = Context::RG_INTEGER,
-    SRgb8             = Context::SRGB8,
-    SRgb8Alpha8       = Context::SRGB8_ALPHA8,
+crate::define_singletons_gl! { [GlEnum]
+    Alpha             = GlEnum(Context::ALPHA),
+    Depth24Stencil8   = GlEnum(Context::DEPTH24_STENCIL8),
+    Depth32fStencil8  = GlEnum(Context::DEPTH32F_STENCIL8),
+    DepthComponent    = GlEnum(Context::DEPTH_COMPONENT),
+    DepthComponent16  = GlEnum(Context::DEPTH_COMPONENT16),
+    DepthComponent24  = GlEnum(Context::DEPTH_COMPONENT24),
+    DepthComponent32f = GlEnum(Context::DEPTH_COMPONENT32F),
+    DepthStencil      = GlEnum(Context::DEPTH_STENCIL),
+    Luminance         = GlEnum(Context::LUMINANCE),
+    LuminanceAlpha    = GlEnum(Context::LUMINANCE_ALPHA),
+    R11fG11fB10f      = GlEnum(Context::R11F_G11F_B10F),
+    R16f              = GlEnum(Context::R16F),
+    R16i              = GlEnum(Context::R16I),
+    R16ui             = GlEnum(Context::R16UI),
+    R32f              = GlEnum(Context::R32F),
+    R32i              = GlEnum(Context::R32I),
+    R32ui             = GlEnum(Context::R32UI),
+    R8                = GlEnum(Context::R8),
+    R8i               = GlEnum(Context::R8I),
+    R8SNorm           = GlEnum(Context::R8_SNORM),
+    R8ui              = GlEnum(Context::R8UI),
+    Red               = GlEnum(Context::RED),
+    RedInteger        = GlEnum(Context::RED_INTEGER),
+    Rg                = GlEnum(Context::RG),
+    Rg16f             = GlEnum(Context::RG16F),
+    Rg16i             = GlEnum(Context::RG16I),
+    Rg16ui            = GlEnum(Context::RG16UI),
+    Rg32f             = GlEnum(Context::RG32F),
+    Rg32i             = GlEnum(Context::RG32I),
+    Rg32ui            = GlEnum(Context::RG32UI),
+    Rg8               = GlEnum(Context::RG8),
+    Rg8i              = GlEnum(Context::RG8I),
+    Rg8SNorm          = GlEnum(Context::RG8_SNORM),
+    Rg8ui             = GlEnum(Context::RG8UI),
+    Rgb               = GlEnum(Context::RGB),
+    Rgb10A2           = GlEnum(Context::RGB10_A2),
+    Rgb10A2ui         = GlEnum(Context::RGB10_A2UI),
+    Rgb16f            = GlEnum(Context::RGB16F),
+    Rgb16i            = GlEnum(Context::RGB16I),
+    Rgb16ui           = GlEnum(Context::RGB16UI),
+    Rgb32f            = GlEnum(Context::RGB32F),
+    Rgb32i            = GlEnum(Context::RGB32I),
+    Rgb32ui           = GlEnum(Context::RGB32UI),
+    Rgb565            = GlEnum(Context::RGB565),
+    Rgb5A1            = GlEnum(Context::RGB5_A1),
+    Rgb8              = GlEnum(Context::RGB8),
+    Rgb8i             = GlEnum(Context::RGB8I),
+    Rgb8SNorm         = GlEnum(Context::RGB8_SNORM),
+    Rgb8ui            = GlEnum(Context::RGB8UI),
+    Rgb9E5            = GlEnum(Context::RGB9_E5),
+    Rgba              = GlEnum(Context::RGBA),
+    Rgba16f           = GlEnum(Context::RGBA16F),
+    Rgba16i           = GlEnum(Context::RGBA16I),
+    Rgba16ui          = GlEnum(Context::RGBA16UI),
+    Rgba32f           = GlEnum(Context::RGBA32F),
+    Rgba32i           = GlEnum(Context::RGBA32I),
+    Rgba32ui          = GlEnum(Context::RGBA32UI),
+    Rgba4             = GlEnum(Context::RGBA4),
+    Rgba8             = GlEnum(Context::RGBA8),
+    Rgba8i            = GlEnum(Context::RGBA8I),
+    Rgba8SNorm        = GlEnum(Context::RGBA8_SNORM),
+    Rgba8ui           = GlEnum(Context::RGBA8UI),
+    RgbaInteger       = GlEnum(Context::RGBA_INTEGER),
+    RgbInteger        = GlEnum(Context::RGB_INTEGER),
+    RgInteger         = GlEnum(Context::RG_INTEGER),
+    SRgb8             = GlEnum(Context::SRGB8),
+    SRgb8Alpha8       = GlEnum(Context::SRGB8_ALPHA8),
+}
+
+
+// ===================
+// === SamplerType ===
+// ===================
+
+/// Trait for any texture sampler.
+pub trait Sampler = Into<AnySampler> + PhantomInto<glsl::PrimType>;
+
+crate::define_singleton_enum_gl! { [glsl::PrimType]
+    /// Defines a type of sampler used to access the texture.
+    AnySampler {
+        FloatSampler = Self::Sampler2d,
+        IntSampler   = Self::ISampler2d,
+        UIntSampler  = Self::USampler2d,
+    }
+}
+
+
+// === Defaults ===
+
+impl GpuDefault for FloatSampler {
+    fn gpu_default() -> Self {
+        default()
+    }
+}
+
+impl GpuDefault for IntSampler {
+    fn gpu_default() -> Self {
+        default()
+    }
+}
+
+impl GpuDefault for UIntSampler {
+    fn gpu_default() -> Self {
+        default()
+    }
+}
+
+
+// === Conversions ===
+// Note that Samplers cannot be created as GLSL values.
+
+impl TryFrom<FloatSampler> for Glsl {
+    type Error = ();
+    fn try_from(_:FloatSampler) -> Result<Self, Self::Error> {
+        Result::Err(())
+    }
+}
+
+impl TryFrom<IntSampler> for Glsl {
+    type Error = ();
+    fn try_from(_:IntSampler) -> Result<Self, Self::Error> {
+        Result::Err(())
+    }
+}
+
+impl TryFrom<UIntSampler> for Glsl {
+    type Error = ();
+    fn try_from(_:UIntSampler) -> Result<Self, Self::Error> {
+        Result::Err(())
+    }
 }
 
 
@@ -138,19 +201,13 @@ crate::define_singletons_gl! {
 // ==============
 
 /// Trait for every format of a texture.
-pub trait Format = Default + Into<AnyFormat>;
-
-
-
-// =================
-// === AnyFormat ===
-// =================
+pub trait Format = Default + Into<AnyFormat> + PhantomInto<GlEnum>;
 
 /// Texture formats. A `GlEnum` specifying the format of the texel data. Follow the link to learn
 /// more: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod format {
     use super::*;
-    crate::define_singleton_enum_gl_from! {
+    crate::define_singleton_enum_gl_from! { [GlEnum]
         AnyFormat
             { Alpha, DepthComponent, DepthStencil, Luminance, LuminanceAlpha, Red, RedInteger, Rg
             , Rgb, Rgba, RgbaInteger, RgbInteger, RgInteger,
@@ -158,7 +215,6 @@ pub mod format {
     }
 }
 pub use format::*;
-
 
 
 
@@ -170,7 +226,7 @@ pub use format::*;
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 pub mod internal_format {
     use super::*;
-    crate::define_singleton_enum_gl_from! {
+    crate::define_singleton_enum_gl_from! { [GlEnum]
         AnyInternalFormat
             { Alpha, Luminance, LuminanceAlpha, Rgb, Rgba, R8, R8SNorm, R16f, R32f, R8ui, R8i
             , R16ui, R16i, R32ui, R32i, Rg8, Rg8SNorm, Rg16f, Rg32f, Rg8ui, Rg8i, Rg16ui, Rg16i
@@ -198,10 +254,15 @@ pub trait TextureElement<Type> {
 
 /// Provides information about the suitable format and checks if the texture is color renderable
 /// and filterable for a given `InternalFormat`.
-pub trait InternalFormat : Default + Into<AnyInternalFormat> +'static {
+pub trait InternalFormat : Default + Into<AnyInternalFormat> + 'static {
     /// The `Format` associated with this `InternalFormat`. Please note that `InternalFormat`
     /// dictates which `Format` to use, but this relation is asymmetrical.
     type Format: Format;
+
+    /// The sampler associated to this `InternalFormat`. If the sampler used in GLSL does not match
+    /// the internal format of the texture, an undefined value is returned:
+    /// https://www.khronos.org/registry/webgl/specs/latest/2.0/#5.22
+    type Sampler: Sampler;
 
     /// Checks if the texture format can be rendered as color.
     type ColorRenderable: Value<Type=bool>;
@@ -228,11 +289,12 @@ pub trait InternalFormat : Default + Into<AnyInternalFormat> +'static {
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 #[macro_export]
 macro_rules! generate_internal_format_instances {
-    ([] $( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt $elem_descs:tt
+    ([] $( $internal_format:ident $format:ident $sampler:ident
+           $color_renderable:tt $filterable:tt $elem_descs:tt
     )*) => {
         $(
             $crate::generate_internal_format_instances_item!
-            { $internal_format $format $color_renderable $filterable $elem_descs }
+            { $internal_format $format $sampler $color_renderable $filterable $elem_descs }
         )*
     }
 }
@@ -240,7 +302,7 @@ macro_rules! generate_internal_format_instances {
 /// See docs of `generate_internal_format_instances`.
 #[macro_export]
 macro_rules! generate_internal_format_instances_item {
-    ( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
+    ( $internal_format:ident $format:ident $sampler:ident $color_renderable:tt $filterable:tt
       [$($possible_types:ident : $bytes_per_element:ident),*]
     ) => {
         $(impl TextureElement<$possible_types> for $internal_format {
@@ -249,6 +311,7 @@ macro_rules! generate_internal_format_instances_item {
 
         impl InternalFormat for $internal_format {
             type Format          = $format;
+            type Sampler         = $sampler;
             type ColorRenderable = $color_renderable;
             type Filterable      = $filterable;
         }
@@ -260,66 +323,66 @@ macro_rules! generate_internal_format_instances_item {
 /// https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 #[macro_export]
 macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
-//  INTERNAL_FORMAT   FORMAT         COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
-    Alpha             Alpha          True  True  [u8:U1,f16:U2,f32:U4]
-    Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
-    LuminanceAlpha    LuminanceAlpha True  True  [u8:U2,f16:U4,f32:U8]
-    Rgb               Rgb            True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
-    Rgba              Rgba           True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
-    R8                Red            True  True  [u8:U1]
-    R8SNorm           Red            False True  [i8:U1]
-    R16f              Red            False True  [f32:U4,f16:U2]
-    R32f              Red            False False [f32:U4]
-    R8ui              RedInteger     True  False [u8:U1]
-    R8i               RedInteger     True  False [i8:U1]
-    R16ui             RedInteger     True  False [u16:U2]
-    R16i              RedInteger     True  False [i16:U2]
-    R32ui             RedInteger     True  False [u32:U4]
-    R32i              RedInteger     True  False [i32:U4]
-    Rg8               Rg             True  True  [u8:U2]
-    Rg8SNorm          Rg             False True  [i8:U2]
-    Rg16f             Rg             False True  [f32:U8,f16:U4]
-    Rg32f             Rg             False False [f32:U8]
-    Rg8ui             RgInteger      True  False [u8:U2]
-    Rg8i              RgInteger      True  False [i8:U2]
-    Rg16ui            RgInteger      True  False [u16:U4]
-    Rg16i             RgInteger      True  False [i16:U4]
-    Rg32ui            RgInteger      True  False [u32:U8]
-    Rg32i             RgInteger      True  False [i32:U8]
-    Rgb8              Rgb            True  True  [u8:U3]
-    SRgb8             Rgb            False True  [u8:U3]
-    Rgb565            Rgb            True  True  [u8:U3,u16_5_6_5:U2]
-    Rgb8SNorm         Rgb            False True  [i8:U3]
-    R11fG11fB10f      Rgb            False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
-    Rgb9E5            Rgb            False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
-    Rgb16f            Rgb            False True  [f32:U12,f16:U6]
-    Rgb32f            Rgb            False False [f32:U12]
-    Rgb8ui            RgbInteger     False False [u8:U3]
-    Rgb8i             RgbInteger     False False [i8:U3]
-    Rgb16ui           RgbInteger     False False [u16:U6]
-    Rgb16i            RgbInteger     False False [i16:U6]
-    Rgb32ui           RgbInteger     False False [u32:U12]
-    Rgb32i            RgbInteger     False False [i32:U12]
-    Rgba8             Rgba           True  True  [u8:U4]
-    SRgb8Alpha8       Rgba           True  True  [u8:U4]
-    Rgba8SNorm        Rgba           False True  [i8:U4]
-    Rgb5A1            Rgba           True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
-    Rgba4             Rgba           True  True  [u8:U4,u16_4_4_4_4:U2]
-    Rgb10A2           Rgba           True  True  [u32_2_10_10_10_REV:U4]
-    Rgba16f           Rgba           False True  [f32:U16,f16:U8]
-    Rgba32f           Rgba           False False [f32:U16]
-    Rgba8ui           RgbaInteger    True  False [u8:U4]
-    Rgba8i            RgbaInteger    True  False [i8:U4]
-    Rgb10A2ui         RgbaInteger    True  False [u32_2_10_10_10_REV:U4]
-    Rgba16ui          RgbaInteger    True  False [u16:U8]
-    Rgba16i           RgbaInteger    True  False [i16:U8]
-    Rgba32i           RgbaInteger    True  False [i32:U16]
-    Rgba32ui          RgbaInteger    True  False [u32:U16]
-    DepthComponent16  DepthComponent True  False [u16:U2,u32:U4]
-    DepthComponent24  DepthComponent True  False [u32:U4]
-    DepthComponent32f DepthComponent True  False [f32:U4]
-    Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
-    Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
+//  INTERNAL_FORMAT   FORMAT         SAMPLER      COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
+    Alpha             Alpha          FloatSampler True  True  [u8:U1,f16:U2,f32:U4]
+    Luminance         Luminance      FloatSampler True  True  [u8:U1,f16:U2,f32:U4]
+    LuminanceAlpha    LuminanceAlpha FloatSampler True  True  [u8:U2,f16:U4,f32:U8]
+    Rgb               Rgb            FloatSampler True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
+    Rgba              Rgba           FloatSampler True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
+    R8                Red            FloatSampler True  True  [u8:U1]
+    R8SNorm           Red            FloatSampler False True  [i8:U1]
+    R16f              Red            FloatSampler False True  [f32:U4,f16:U2]
+    R32f              Red            FloatSampler False False [f32:U4]
+    R8ui              RedInteger     UIntSampler  True  False [u8:U1]
+    R8i               RedInteger     IntSampler   True  False [i8:U1]
+    R16ui             RedInteger     UIntSampler  True  False [u16:U2]
+    R16i              RedInteger     IntSampler   True  False [i16:U2]
+    R32ui             RedInteger     UIntSampler  True  False [u32:U4]
+    R32i              RedInteger     IntSampler   True  False [i32:U4]
+    Rg8               Rg             FloatSampler True  True  [u8:U2]
+    Rg8SNorm          Rg             FloatSampler False True  [i8:U2]
+    Rg16f             Rg             FloatSampler False True  [f32:U8,f16:U4]
+    Rg32f             Rg             FloatSampler False False [f32:U8]
+    Rg8ui             RgInteger      UIntSampler  True  False [u8:U2]
+    Rg8i              RgInteger      IntSampler   True  False [i8:U2]
+    Rg16ui            RgInteger      UIntSampler  True  False [u16:U4]
+    Rg16i             RgInteger      IntSampler   True  False [i16:U4]
+    Rg32ui            RgInteger      UIntSampler  True  False [u32:U8]
+    Rg32i             RgInteger      IntSampler   True  False [i32:U8]
+    Rgb8              Rgb            FloatSampler True  True  [u8:U3]
+    SRgb8             Rgb            FloatSampler False True  [u8:U3]
+    Rgb565            Rgb            FloatSampler True  True  [u8:U3,u16_5_6_5:U2]
+    Rgb8SNorm         Rgb            FloatSampler False True  [i8:U3]
+    R11fG11fB10f      Rgb            FloatSampler False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
+    Rgb9E5            Rgb            FloatSampler False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
+    Rgb16f            Rgb            FloatSampler False True  [f32:U12,f16:U6]
+    Rgb32f            Rgb            FloatSampler False False [f32:U12]
+    Rgb8ui            RgbInteger     UIntSampler  False False [u8:U3]
+    Rgb8i             RgbInteger     IntSampler   False False [i8:U3]
+    Rgb16ui           RgbInteger     UIntSampler  False False [u16:U6]
+    Rgb16i            RgbInteger     IntSampler   False False [i16:U6]
+    Rgb32ui           RgbInteger     UIntSampler  False False [u32:U12]
+    Rgb32i            RgbInteger     IntSampler   False False [i32:U12]
+    Rgba8             Rgba           FloatSampler True  True  [u8:U4]
+    SRgb8Alpha8       Rgba           FloatSampler True  True  [u8:U4]
+    Rgba8SNorm        Rgba           FloatSampler False True  [i8:U4]
+    Rgb5A1            Rgba           FloatSampler True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
+    Rgba4             Rgba           FloatSampler True  True  [u8:U4,u16_4_4_4_4:U2]
+    Rgb10A2           Rgba           FloatSampler True  True  [u32_2_10_10_10_REV:U4]
+    Rgba16f           Rgba           FloatSampler False True  [f32:U16,f16:U8]
+    Rgba32f           Rgba           FloatSampler False False [f32:U16]
+    Rgba8ui           RgbaInteger    UIntSampler  True  False [u8:U4]
+    Rgba8i            RgbaInteger    IntSampler   True  False [i8:U4]
+    Rgb10A2ui         RgbaInteger    UIntSampler  True  False [u32_2_10_10_10_REV:U4]
+    Rgba16ui          RgbaInteger    UIntSampler  True  False [u16:U8]
+    Rgba16i           RgbaInteger    IntSampler   True  False [i16:U8]
+    Rgba32i           RgbaInteger    IntSampler   True  False [i32:U16]
+    Rgba32ui          RgbaInteger    UIntSampler  True  False [u32:U16]
+    DepthComponent16  DepthComponent FloatSampler True  False [u16:U2,u32:U4]
+    DepthComponent24  DepthComponent FloatSampler True  False [u32:U4]
+    DepthComponent32f DepthComponent FloatSampler True  False [f32:U4]
+    Depth24Stencil8   DepthStencil   FloatSampler True  False [u32_24_8:U4]
+    Depth32fStencil8  DepthStencil   FloatSampler True  False [f32_u24_u8_REV:U4]
 }}}
 
 with_texture_format_relations!(generate_internal_format_instances []);
@@ -333,11 +396,6 @@ with_texture_format_relations!(generate_internal_format_instances []);
 /// Bounds for every texture item type.
 pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
-///// Trait for structures providing texture data.
-//pub trait TextureProvider<I,T> {
-//    /// Create new texture.
-//    fn new_texture(self, context:&Context) -> Texture<S>;
-//}
 
 
 // ===================
@@ -698,7 +756,7 @@ impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
         let context = context.clone();
         let target  = Context::TEXTURE_2D;
-        context.active_texture(unit);
+        context.active_texture(Context::TEXTURE0 + unit);
         context.bind_texture(target,Some(&self.gl_texture));
         context.active_texture(Context::TEXTURE0);
         TextureBindGuard {context,target,unit}
@@ -714,7 +772,7 @@ pub struct TextureBindGuard {
 
 impl Drop for TextureBindGuard {
     fn drop(&mut self) {
-        self.context.active_texture(self.unit);
+        self.context.active_texture(Context::TEXTURE0 + self.unit);
         self.context.bind_texture(self.target,None);
         self.context.active_texture(Context::TEXTURE0);
     }
@@ -752,11 +810,11 @@ macro_rules! with_all_texture_types_impl {
     }
 }
 
-/// Runs the argument macro providing it with list of all possible texture types:
-/// `arg! { [Alpha u8] [Alpha f16] [Alpha f32] [Luminance u8] ... }`
-#[macro_export]
-macro_rules! with_all_texture_types {
-    ($f:ident) => {
-        $crate::with_texture_format_relations! { with_all_texture_types_impl [$f] }
-    }
-}
+///// Runs the argument macro providing it with list of all possible texture types:
+///// `arg! { [Alpha u8] [Alpha f16] [Alpha f32] [Luminance u8] ... }`
+//#[macro_export]
+//macro_rules! with_all_texture_types {
+//    ($f:ident) => {
+//        $crate::with_texture_format_relations! { with_all_texture_types_impl [$f] }
+//    }
+//}

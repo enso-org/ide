@@ -196,22 +196,6 @@ impl<Value:UniformValue> Uniform<Value> {
 
 
 
-// =========================
-// === AnyTextureUniform ===
-// =========================
-
-macro_rules! gen_prim_conversions {
-    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
-        impl From<Uniform<$t1<$t2>>> for AnyUniform {
-            fn from(t:Uniform<$t1<$t2>>) -> Self {
-                Self::Prim(t.into())
-            }
-        }
-    )*}
-}
-
-
-
 // ======================
 // === AnyPrimUniform ===
 // ======================
@@ -299,7 +283,7 @@ pub enum AnyUniform {
 
 // === Conversions ===
 
-impl<T> From<Uniform<T>> for AnyUniform where Uniform<T>:IntoAnyUniform<AnyUniform> {
+impl<T> From<Uniform<T>> for AnyUniform where Uniform<T>:IntoAnyUniform {
     fn from(t:Uniform<T>) -> Self {
         t.into_any_uniform()
     }
@@ -318,6 +302,7 @@ impl<T:Into<AnyPrimUniform>> IntoAnyUniform for T {
 impl<S:StorageRelation<I,T>+Debug+'static,I:'static,T:'static>
 IntoAnyUniform for Uniform<Texture<S,I,T>> {
     fn into_any_uniform(self) -> AnyUniform {
-        AnyUniform::Texture(AnyTextureUniform { raw: Box::new(self) })
+        AnyUniform::Texture(AnyTextureUniform {raw: Box::new(self)})
     }
 }
+

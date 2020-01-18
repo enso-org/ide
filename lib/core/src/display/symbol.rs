@@ -88,6 +88,7 @@ impl TextureBinding {
 
     /// Upload uniform value.
     pub fn upload_uniform(&self, context:&Context) {
+        println!("UPLOAD: {}", self.texture_unit);
         context.uniform1i(Some(&self.location),self.texture_unit as i32);
     }
 }
@@ -246,8 +247,9 @@ impl Symbol {
             JsValue::from_f64(2.0)
         });
         let max_texture_units     = max_texture_units.as_f64().unwrap() as u32;
-        let last_texture_unit     = Context::TEXTURE0 + max_texture_units - 1;
-        let mut texture_unit_iter = Context::TEXTURE0..=last_texture_unit;
+//        let last_texture_unit     = Context::TEXTURE0 + max_texture_units - 1;
+//        let mut texture_unit_iter = Context::TEXTURE0..=last_texture_unit;
+        let mut texture_unit_iter = 0..max_texture_units;
         self.vao                  = Some(VertexArrayObject::new(&self.context));
         self.uniforms             = default();
         self.textures             = default();
@@ -290,10 +292,18 @@ impl Symbol {
     , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
+        println!(">>> {}",name);
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
+        println!("location {:?}",opt_location);
+
         opt_location.map(|location|{
-            let uniform = self.global_scope.get(name).unwrap_or_else(||{
+            let uniform = match &binding.scope {
+                Some(ScopeType::Symbol) => self.symbol_scope.get(name),
+                Some(ScopeType::Global) => self.global_scope.get(name),
+                _ => todo!()
+            };
+            let uniform = uniform.unwrap_or_else(||{
                 panic!("Internal error. Variable {} not found in program.",name)
             });
             match uniform {
@@ -302,6 +312,7 @@ impl Symbol {
                 AnyUniform::Texture(uniform) => {
                     match texture_unit_iter.next() {
                         Some(texture_unit) => {
+                            println!("Binding texture");
                             let binding = TextureBinding::new(name,location,uniform,texture_unit);
                             binding.upload_uniform(&self.context);
                             self.textures.push(binding);

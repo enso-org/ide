@@ -32,10 +32,10 @@ impl VarDecl {
     }
 }
 
-impl<T:PhantomInto<glsl::PrimType> + Into<Glsl>>
+impl<T:PhantomInto<glsl::PrimType> + TryInto<Glsl>>
 From<T> for VarDecl {
     fn from(t:T) -> Self {
-        Self::new(<T>::glsl_prim_type(), t.glsl().into())
+        Self::new(<T>::glsl_prim_type(), t.try_into().ok())
     }
 }
 

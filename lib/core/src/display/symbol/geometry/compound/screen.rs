@@ -7,6 +7,7 @@ use crate::prelude::*;
 
 use crate::display::symbol::material::Material;
 use crate::system::gpu::data::AttributeInstanceIndex;
+use crate::system::gpu::data::texture;
 use crate::display::world::*;
 
 use nalgebra::Vector2;
@@ -38,6 +39,7 @@ impl SymbolRef {
 // ==============
 
 /// A whole-screen covering geometry.
+#[derive(Debug)]
 pub struct Screen {
     pub symbol_ref : SymbolRef,
     _uv        : Buffer<Vector2<f32>>,
@@ -85,7 +87,11 @@ impl Screen {
 
     fn surface_material() -> Material {
         let mut material = Material::new();
-        material.set_main("output_color = vec4(0.0,1.0,0.0,1.0);");
+        material.add_input_def::<texture::FloatSampler>("previous_pass");
+        material.set_main("
+        vec4 test_color = texture(input_previous_pass, input_uv);
+        output_color = test_color;//vec4(0.0,1.0,0.0,1.0);
+        ");
         material
     }
 }

@@ -40,7 +40,6 @@ fn init(world: &World) {
 
     world.add_child(&shape_system);
 
-    let screen = Screen::new(world);
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
