@@ -164,8 +164,8 @@ impl Drop for SpriteData {
         self.sprite_ref.symbol_ref.world.mod_stats(|stats| stats.dec_sprite_count());
 
         let mut world = self.sprite_ref.symbol_ref.world.borrow_mut();
-        let symbol    = &mut world.workspace[self.sprite_ref.symbol_ref.symbol_id];
-        let mesh      = &mut symbol.surface;
+        let symbol    = &mut world.workspace.index(self.sprite_ref.symbol_ref.symbol_id);
+        let mesh      = &mut symbol.surface();
         self.bbox.set(Vector2::new(0.0,0.0));
         mesh.instance_scope().dispose(self.sprite_ref.instance_id);
         self.display_object.unset_parent();
@@ -191,14 +191,14 @@ pub struct SpriteSystem {
 
 impl SpriteSystem {
     /// Constructor.
-    pub fn new(world:&WorldData) -> Self {
+    pub fn new(world:&World) -> Self {
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
         let world_data     = &mut world.borrow_mut();
         let workspace      = &mut world_data.workspace;
         let symbol_id      = workspace.new_symbol();
-        let symbol         = &mut workspace[symbol_id];
-        let mesh           = &mut symbol.surface;
+        let symbol         = &mut workspace.index(symbol_id);
+        let mesh           = &mut symbol.surface();
         let uv             = mesh.point_scope().add_buffer("uv");
         let transform      = mesh.instance_scope().add_buffer("transform");
         let bbox           = mesh.instance_scope().add_buffer("bounds");
@@ -206,8 +206,8 @@ impl SpriteSystem {
         let geometry_material = Self::geometry_material();
         let material          = Self::material();
 
-        symbol.shader.set_geometry_material (&geometry_material);
-        symbol.shader.set_material          (&material);
+        symbol.shader().set_geometry_material (&geometry_material);
+        symbol.shader().set_material          (&material);
 
         let p1_index = mesh.point_scope().add_instance();
         let p2_index = mesh.point_scope().add_instance();
@@ -227,7 +227,7 @@ impl SpriteSystem {
 
         display_object.set_on_render(move || {
             let world_data = &mut symbol_ref2.world.borrow_mut();
-            let symbol     = &mut world_data.workspace[symbol_ref2.symbol_id];
+            let symbol     = &mut world_data.workspace.index(symbol_ref2.symbol_id);
             symbol.render();
         });
 
@@ -238,8 +238,8 @@ impl SpriteSystem {
     pub fn new_instance(&self) -> Sprite {
         let instance_id = {
             let world_data = &mut self.symbol_ref.world.borrow_mut();
-            let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
-            symbol.surface.instance_scope().add_instance()
+            let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
+            symbol.surface().instance_scope().add_instance()
         };
         let transform    = self.transform.at(instance_id);
         let bbox         = self.bbox.at(instance_id);
@@ -291,7 +291,7 @@ impl SpriteSystem {
     /// Sets the material for all sprites in this system.
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
         let world_data = &mut self.symbol_ref.world.borrow_mut();
-        let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
-        symbol.shader.set_material(material);
+        let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
+        symbol.shader().set_material(material);
     }
 }

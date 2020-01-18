@@ -36,6 +36,9 @@ use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
 use wasm_bindgen::JsValue;
 
+use shapely::shared;
+
+
 
 /// Binds input variable definition in shader to both its location and an uniform declaration.
 #[derive(Clone,Debug)]
@@ -154,25 +157,6 @@ impl Drop for VertexArrayObject {
 // === Symbol ===
 // ==============
 
-// === Definition ===
-
-/// Symbol is a surface with attached `Shader`.
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
-pub struct Symbol {
-    pub surface        : Mesh,
-    pub shader         : Shader,
-    pub surface_dirty  : GeometryDirty,
-    pub shader_dirty   : ShaderDirty,
-    pub symbol_scope   : UniformScope,
-    global_scope       : UniformScope,
-    context            : Context,
-    logger             : Logger,
-    vao                : Option<VertexArrayObject>,
-    uniforms           : Vec<UniformBinding>,
-    textures           : Vec<TextureBinding>,
-    stats              : Stats,
-}
 
 // === Types ===
 
@@ -186,9 +170,28 @@ pub type ShaderDirty   = dirty::SharedBool<Box<dyn Fn()>>;
 
 
 
-// === Implementation ===
 
-impl Symbol {
+// === Definition ===
+
+shared! { Symbol
+/// Symbol is a surface with attached `Shader`.
+#[derive(Debug)]
+pub struct SymbolData {
+    surface       : Mesh,
+    shader        : Shader,
+    surface_dirty : GeometryDirty,
+    shader_dirty  : ShaderDirty,
+    symbol_scope  : UniformScope,
+    global_scope  : UniformScope,
+    context       : Context,
+    logger        : Logger,
+    vao           : Option<VertexArrayObject>,
+    uniforms      : Vec<UniformBinding>,
+    textures      : Vec<TextureBinding>,
+    stats         : Stats,
+}
+
+impl {
 
     /// Create new instance with the provided on-dirty callback.
     pub fn new <OnMut:Fn()+Clone+'static>
@@ -221,6 +224,18 @@ impl Symbol {
         })
     }
 
+    pub fn surface(&self) -> Mesh {
+        self.surface.clone_ref()
+    }
+
+    pub fn shader(&self) -> Shader {
+        self.shader.clone_ref()
+    }
+
+    pub fn symbol_scope(&self) -> UniformScope {
+        self.symbol_scope.clone_ref()
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -236,6 +251,43 @@ impl Symbol {
             }
         })
     }
+
+    pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
+        let name = name.as_ref();
+        self.surface.lookup_variable(name).map(ScopeType::Mesh).or_else(|| {
+            if      self.symbol_scope.contains(name) { Some(ScopeType::Symbol) }
+            else if self.global_scope.contains(name) { Some(ScopeType::Global) }
+            else                                     { None }
+        })
+    }
+
+
+
+    pub fn render(&self) {
+        group!(self.logger, "Rendering.", {
+            self.with_program(|_|{
+                for binding in &self.uniforms {
+                    binding.upload(&self.context);
+                }
+                let bind_texture_unit  = |b:&TextureBinding| b.bind_texture_unit(&self.context);
+                let _tex_unit_bindings = self.textures.iter().map(bind_texture_unit).collect_vec();
+
+                let mode           = Context::TRIANGLE_STRIP;
+                let first          = 0;
+                let count          = self.surface.point_scope().size()    as i32;
+                let instance_count = self.surface.instance_scope().size() as i32;
+                let instance_count = std::cmp::max(instance_count,1);
+
+                self.stats.inc_draw_call_count();
+                self.context.draw_arrays_instanced(mode,first,count,instance_count);
+            });
+
+        })
+    }
+}}
+
+
+impl SymbolData {
 
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
@@ -287,9 +339,9 @@ impl Symbol {
     /// closure passed as argument to `with_program`).
     fn init_uniform_binding
     ( &mut self
-    , program:&WebGlProgram
-    , binding:&shader::VarBinding
-    , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
+      , program:&WebGlProgram
+      , binding:&shader::VarBinding
+      , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
         println!(">>> {}",name);
@@ -326,14 +378,6 @@ impl Symbol {
         });
     }
 
-    pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
-        let name = name.as_ref();
-        self.surface.lookup_variable(name).map(ScopeType::Mesh).or_else(|| {
-            if      self.symbol_scope.contains(name) { Some(ScopeType::Symbol) }
-            else if self.global_scope.contains(name) { Some(ScopeType::Global) }
-            else                                     { None }
-        })
-    }
 
     /// For each variable from the shader definition, looks up its position in geometry scopes.
     pub fn discover_variable_bindings(&self) -> Vec<shader::VarBinding> {
@@ -351,10 +395,10 @@ impl Symbol {
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
     pub fn with_program<F:FnOnce(&WebGlProgram) -> T,T>(&self, f:F) -> T {
-        let program = self.shader.program().as_ref().unwrap(); // FIXME
+        let program = self.shader.program().unwrap(); // FIXME
         self.context.use_program(Some(&program));
         let vao = self.vao.as_ref().unwrap(); // FIXME
-        let out = vao.with(||{ f(program) });
+        let out = vao.with(||{ f(&program) });
         self.context.use_program(None);
         out
     }
@@ -369,7 +413,7 @@ impl Symbol {
         self.context.use_program(None);
         out
     }
-    
+
     pub fn with_vao_mut<F:FnOnce(&mut Self) -> T,T>(&mut self, f:F) -> T {
         self.vao.as_ref().unwrap().bind();
         let out = f(self);
@@ -377,30 +421,9 @@ impl Symbol {
         out
     }
 
-    pub fn render(&self) {
-        group!(self.logger, "Rendering.", {
-            self.with_program(|_|{
-                for binding in &self.uniforms {
-                    binding.upload(&self.context);
-                }
-                let bind_texture_unit  = |b:&TextureBinding| b.bind_texture_unit(&self.context);
-                let _tex_unit_bindings = self.textures.iter().map(bind_texture_unit).collect_vec();
-
-                let mode           = Context::TRIANGLE_STRIP;
-                let first          = 0;
-                let count          = self.surface.point_scope().size()    as i32;
-                let instance_count = self.surface.instance_scope().size() as i32;
-                let instance_count = std::cmp::max(instance_count,1);
-
-                self.stats.inc_draw_call_count();
-                self.context.draw_arrays_instanced(mode,first,count,instance_count);
-            });
-
-        })
-    }
 }
 
-impl Drop for Symbol {
+impl Drop for SymbolData {
     fn drop(&mut self) {
         self.stats.dec_symbol_count();
     }

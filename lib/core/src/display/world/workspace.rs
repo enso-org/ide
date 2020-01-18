@@ -250,17 +250,21 @@ impl Workspace {
             }
         })
     }
-}
 
-impl Index<usize> for Workspace {
-    type Output = Symbol;
-    fn index(&self, ix: usize) -> &Self::Output {
+    pub fn index(&self, ix:usize) -> Symbol {
         self.symbols.index(ix)
     }
 }
 
-impl IndexMut<usize> for Workspace {
-    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
-        self.symbols.index_mut(ix)
-    }
-}
+//impl Index<usize> for Workspace {
+//    type Output = Symbol;
+//    fn index(&self, ix: usize) -> &Self::Output {
+//        self.symbols.index(ix)
+//    }
+//}
+//
+//impl IndexMut<usize> for Workspace {
+//    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
+//        self.symbols.index_mut(ix)
+//    }
+//}

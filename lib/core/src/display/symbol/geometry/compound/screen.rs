@@ -51,15 +51,15 @@ impl Screen {
         let world_data     = &mut world.borrow_mut();
         let workspace      = &mut world_data.workspace;
         let symbol_id      = workspace.new_symbol();
-        let symbol         = &mut workspace[symbol_id];
-        let mesh           = &mut symbol.surface;
+        let symbol         = &mut workspace.index(symbol_id);
+        let mesh           = &mut symbol.surface();
         let uv             = mesh.point_scope().add_buffer("uv");
 
         let geometry_material = Self::geometry_material();
         let surface_material  = Self::surface_material();
 
-        symbol.shader.set_geometry_material (&geometry_material);
-        symbol.shader.set_material          (&surface_material);
+        symbol.shader().set_geometry_material (&geometry_material);
+        symbol.shader().set_material          (&surface_material);
 
         let p1_index = mesh.point_scope().add_instance();
         let p2_index = mesh.point_scope().add_instance();
@@ -104,7 +104,7 @@ impl Screen {
     /// Sets the material for the geometry.
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
         let world_data = &mut self.symbol_ref.world.borrow_mut();
-        let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
-        symbol.shader.set_material(material);
+        let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
+        symbol.shader().set_material(material);
     }
 }

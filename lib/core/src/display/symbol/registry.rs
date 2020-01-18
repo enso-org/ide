@@ -19,42 +19,36 @@ use shapely::shared;
 
 
 
-// ======================
-// === SymbolRegistry ===
-// ======================
-
-// === Definition ===
-
-/// Registry for all the created symbols.
-#[derive(Debug)]
-pub struct SymbolRegistry {
-    pub symbols         : OptVec<Symbol>,
-    pub symbol_dirty    : SymbolDirty,
-    pub logger          : Logger,
-    pub view_projection : Uniform<Matrix4<f32>>,
-    variables           : UniformScope,
-    context             : Context,
-    stats               : Stats,
-}
-
-
 // === Types ===
 
 pub type SymbolId    = usize;
 pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
 
 
-// === Callbacks ===
-
-closure! {
-fn mesh_on_change(dirty:SymbolDirty, ix:SymbolId) -> OnSymbolChange {
-    || dirty.set(ix)
-}}
 
 
-// === Implementation ===
 
-impl SymbolRegistry {
+// ======================
+// === SymbolRegistry ===
+// ======================
+
+// === Definition ===
+
+shared! { SymbolRegistry
+
+/// Registry for all the created symbols.
+#[derive(Debug)]
+pub struct SymbolRegistryData {
+    symbols         : OptVec<Symbol>,
+    symbol_dirty    : SymbolDirty,
+    logger          : Logger,
+    view_projection : Uniform<Matrix4<f32>>,
+    variables       : UniformScope,
+    context         : Context,
+    stats           : Stats,
+}
+
+impl {
 
     /// Create new instance with the provided on-dirty callback.
     pub fn new<OnMut:Fn()+'static>(variables:&UniformScope, stats:&Stats, context:&Context, logger:Logger, on_mut:OnMut) -> Self {
@@ -83,6 +77,10 @@ impl SymbolRegistry {
         })
     }
 
+    pub fn index(&self, ix:usize) -> Symbol {
+        self.symbols[ix].clone_ref()
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -104,17 +102,17 @@ impl SymbolRegistry {
 //            }
 //        })
     }
-}
+}}
 
-impl Index<usize> for SymbolRegistry {
-    type Output = Symbol;
-    fn index(&self, ix:usize) -> &Self::Output {
-        self.symbols.index(ix)
-    }
-}
-
-impl IndexMut<usize> for SymbolRegistry {
-    fn index_mut(&mut self, ix:usize) -> &mut Self::Output {
-        self.symbols.index_mut(ix)
-    }
-}
+//impl Index<usize> for SymbolRegistry {
+//    type Output = Symbol;
+//    fn index(&self, ix:usize) -> &Self::Output {
+//        self.symbols.index(ix)
+//    }
+//}
+//
+//impl IndexMut<usize> for SymbolRegistry {
+//    fn index_mut(&mut self, ix:usize) -> &mut Self::Output {
+//        self.symbols.index_mut(ix)
+//    }
+//}
