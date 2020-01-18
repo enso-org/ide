@@ -41,13 +41,12 @@ pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
 // === AttributeScope ===
 // ======================
 
-
-shared! { AttributeScopeData
+shared! { AttributeScope
 /// Scope defines a view for geometry structure. For example, there is point
 /// scope or instance scope. Scope contains buffer of data for each item it
 /// describes.
 #[derive(Debug)]
-pub struct AttributeScope {
+pub struct AttributeScopeData {
     buffers         : OptVec<AnyBuffer>,
     buffer_dirty    : BufferDirty,
     shape_dirty     : ShapeDirty,

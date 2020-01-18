@@ -388,8 +388,8 @@ impl Symbol {
 
                 let mode           = Context::TRIANGLE_STRIP;
                 let first          = 0;
-                let count          = self.surface.point.size()    as i32;
-                let instance_count = self.surface.instance.size() as i32;
+                let count          = self.surface.point_scope().size()    as i32;
+                let instance_count = self.surface.instance_scope().size() as i32;
                 let instance_count = std::cmp::max(instance_count,1);
 
                 self.stats.inc_draw_call_count();

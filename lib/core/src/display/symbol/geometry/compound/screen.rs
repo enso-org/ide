@@ -53,7 +53,7 @@ impl Screen {
         let symbol_id      = workspace.new_symbol();
         let symbol         = &mut workspace[symbol_id];
         let mesh           = &mut symbol.surface;
-        let uv             = mesh.scopes.point.add_buffer("uv");
+        let uv             = mesh.point_scope().add_buffer("uv");
 
         let geometry_material = Self::geometry_material();
         let surface_material  = Self::surface_material();
@@ -61,10 +61,10 @@ impl Screen {
         symbol.shader.set_geometry_material (&geometry_material);
         symbol.shader.set_material          (&surface_material);
 
-        let p1_index = mesh.scopes.point.add_instance();
-        let p2_index = mesh.scopes.point.add_instance();
-        let p3_index = mesh.scopes.point.add_instance();
-        let p4_index = mesh.scopes.point.add_instance();
+        let p1_index = mesh.point_scope().add_instance();
+        let p2_index = mesh.point_scope().add_instance();
+        let p3_index = mesh.point_scope().add_instance();
+        let p4_index = mesh.point_scope().add_instance();
 
         uv.at(p1_index).set(Vector2::new(0.0, 0.0));
         uv.at(p2_index).set(Vector2::new(0.0, 1.0));

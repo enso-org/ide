@@ -167,7 +167,7 @@ impl Drop for SpriteData {
         let symbol    = &mut world.workspace[self.sprite_ref.symbol_ref.symbol_id];
         let mesh      = &mut symbol.surface;
         self.bbox.set(Vector2::new(0.0,0.0));
-        mesh.scopes.instance.dispose(self.sprite_ref.instance_id);
+        mesh.instance_scope().dispose(self.sprite_ref.instance_id);
         self.display_object.unset_parent();
     }
 }
@@ -199,9 +199,9 @@ impl SpriteSystem {
         let symbol_id      = workspace.new_symbol();
         let symbol         = &mut workspace[symbol_id];
         let mesh           = &mut symbol.surface;
-        let uv             = mesh.scopes.point.add_buffer("uv");
-        let transform      = mesh.scopes.instance.add_buffer("transform");
-        let bbox           = mesh.scopes.instance.add_buffer("bounds");
+        let uv             = mesh.point_scope().add_buffer("uv");
+        let transform      = mesh.instance_scope().add_buffer("transform");
+        let bbox           = mesh.instance_scope().add_buffer("bounds");
 
         let geometry_material = Self::geometry_material();
         let material          = Self::material();
@@ -209,10 +209,10 @@ impl SpriteSystem {
         symbol.shader.set_geometry_material (&geometry_material);
         symbol.shader.set_material          (&material);
 
-        let p1_index = mesh.scopes.point.add_instance();
-        let p2_index = mesh.scopes.point.add_instance();
-        let p3_index = mesh.scopes.point.add_instance();
-        let p4_index = mesh.scopes.point.add_instance();
+        let p1_index = mesh.point_scope().add_instance();
+        let p2_index = mesh.point_scope().add_instance();
+        let p3_index = mesh.point_scope().add_instance();
+        let p4_index = mesh.point_scope().add_instance();
 
         uv.at(p1_index).set(Vector2::new(0.0, 0.0));
         uv.at(p2_index).set(Vector2::new(0.0, 1.0));
@@ -239,7 +239,7 @@ impl SpriteSystem {
         let instance_id = {
             let world_data = &mut self.symbol_ref.world.borrow_mut();
             let symbol     = &mut world_data.workspace[self.symbol_ref.symbol_id];
-            symbol.surface.instance.add_instance()
+            symbol.surface.instance_scope().add_instance()
         };
         let transform    = self.transform.at(instance_id);
         let bbox         = self.bbox.at(instance_id);
