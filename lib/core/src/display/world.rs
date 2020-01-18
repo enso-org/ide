@@ -21,12 +21,13 @@ use crate::debug::monitor::Panel;
 use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
-
 use crate::system::web;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{Performance,KeyboardEvent};
 use crate::control::EventLoop;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
+use web_sys::Performance;
+use web_sys::KeyboardEvent;
 
 
 
