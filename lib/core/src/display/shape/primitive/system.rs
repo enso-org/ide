@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use crate::display::symbol::geometry::SpriteSystem;
-use crate::display::world::WorldData;
 use crate::display::symbol::material::Material;
 use crate::display::shape::primitive::shader;
 use crate::display::shape::primitive::def::class::Shape;
@@ -21,8 +20,8 @@ pub struct ShapeSystem {
 
 impl ShapeSystem {
     /// Constructor.
-    pub fn new<S:Shape>(world:&WorldData, shape:&S) -> Self {
-        let mut sprite_system = SpriteSystem::new(world);
+    pub fn new<S:Shape>(shape:&S) -> Self {
+        let mut sprite_system = SpriteSystem::new();
         sprite_system.set_material(Self::material(shape));
         Self {sprite_system}
     }

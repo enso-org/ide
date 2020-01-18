@@ -106,8 +106,7 @@ impl ShapeData {
 // === Workspace ===
 // =================
 
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derive(Debug)]
 pub struct Workspace {
     pub canvas        : web_sys::HtmlCanvasElement,
     pub context       : Context,
@@ -205,6 +204,11 @@ impl Workspace {
     /// Create a new `Symbol` instance.
     pub fn new_symbol(&self) -> SymbolId {
         self.symbols.new_symbol()
+    }
+
+    /// Create a new `Symbol` instance.
+    pub fn new_symbol2(&self) -> Symbol {
+        self.symbols.new_symbol2()
     }
 
     /// Resize the underlying canvas. This function should rather not be called

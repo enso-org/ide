@@ -25,6 +25,7 @@ use crate::debug::stats::Stats;
 use crate::display::shape::text::font::Fonts;
 use crate::display::object::*;
 use crate::system::web;
+use crate::display::symbol::Symbol;
 
 use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;
@@ -37,6 +38,15 @@ use crate::system::gpu::data::texture;
 use crate::system::gpu::data::texture::Texture;
 
 
+
+static mut WORLD: Option<World> = None;
+
+
+pub fn get_world() -> World {
+    unsafe {
+        WORLD.as_ref().unwrap().clone_ref()
+    }
+}
 
 // =============
 // === World ===
@@ -56,6 +66,9 @@ impl World {
         let rc = Rc::new(RefCell::new(world));
         let out = Self {rc};
         out.test();
+        unsafe {
+            WORLD = Some(out.clone_ref());
+        }
         out
     }
 
@@ -67,6 +80,14 @@ impl World {
     /// Dispose the world object, cancel all handlers and events.
     pub fn dispose(&self) {
         self.rc.borrow_mut().dispose()
+    }
+
+    pub fn stats(&self) -> Stats {
+        self.rc.borrow().stats.clone_ref()
+    }
+
+    pub fn new_symbol(&self) -> Symbol {
+        self.rc.borrow().workspace.new_symbol2()
     }
 
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,

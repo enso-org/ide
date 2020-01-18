@@ -238,19 +238,19 @@ impl DisplayObjectDataMut {
         self.transform.global_position()
     }
 
-    pub fn position(&self) -> &Vector3<f32> {
+    pub fn position(&self) -> Vector3<f32> {
         self.transform.position()
     }
 
-    pub fn scale(&self) -> &Vector3<f32> {
+    pub fn scale(&self) -> Vector3<f32> {
         self.transform.scale()
     }
 
-    pub fn rotation(&self) -> &Vector3<f32> {
+    pub fn rotation(&self) -> Vector3<f32> {
         self.transform.rotation()
     }
 
-    pub fn matrix(&self) -> &Matrix4<f32> {
+    pub fn matrix(&self) -> Matrix4<f32> {
         self.transform.matrix()
     }
 }
@@ -452,19 +452,19 @@ impl DisplayObjectData {
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        *self.rc.borrow().position()
+        self.rc.borrow().position()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        *self.rc.borrow().scale()
+        self.rc.borrow().scale()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        *self.rc.borrow().rotation()
+        self.rc.borrow().rotation()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        *self.rc.borrow().matrix()
+        self.rc.borrow().matrix()
     }
 }
 

@@ -11,6 +11,7 @@ pub use core::any::type_name;
 pub use core::fmt::Debug;
 pub use derivative::Derivative;
 pub use derive_more::*;
+pub use enclose::enclose;
 pub use failure::Fail;
 pub use ifmt::*;
 pub use itertools::Itertools;

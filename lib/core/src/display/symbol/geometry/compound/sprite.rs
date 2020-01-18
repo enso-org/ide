@@ -14,46 +14,10 @@ use crate::display::symbol::Symbol;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Matrix4;
+use crate::debug::Stats;
 
+use shapely::shared;
 
-
-// =================
-// === SymbolRef ===
-// =================
-
-/// Reference to a specific symbol inside the `World` object.
-#[derive(Clone,Debug)]
-pub struct SymbolRef {
-    world     : World,
-    symbol_id : SymbolId,
-}
-
-impl SymbolRef {
-    /// Constructor.
-    pub fn new(world:World, symbol_id:SymbolId) -> Self {
-        Self {world,symbol_id}
-    }
-}
-
-
-
-// =================
-// === SpriteRef ===
-// =================
-
-/// Reference to a specific sprite object inside a `SpriteSystem`.
-#[derive(Clone,Debug)]
-pub struct SpriteRef {
-    symbol_ref  : SymbolRef,
-    instance_id : AttributeInstanceIndex,
-}
-
-impl SpriteRef {
-    /// Constructor.
-    pub fn new(symbol_ref:SymbolRef, instance_id:AttributeInstanceIndex) -> Self {
-        Self {symbol_ref,instance_id}
-    }
-}
 
 
 
@@ -61,95 +25,59 @@ impl SpriteRef {
 // === Sprite ===
 // ==============
 
+shared! { Sprite
+
 /// Sprite is a simple rectangle object. In most cases, sprites always face the camera and can be
 /// freely rotated only by their local z-axis. This implementation, however, implements sprites as
 /// full 3D objects. We may want to fork this implementation in the future to create a specialized
 /// 2d representation as well.
-#[derive(Clone,Debug)]
-pub struct Sprite {
-    rc: Rc<RefCell<SpriteData>>
+#[derive(Debug)]
+pub struct SpriteData {
+    symbol         : Symbol,
+    instance_id    : AttributeInstanceIndex,
+    display_object : DisplayObjectData,
+    transform      : Attribute<Matrix4<f32>>,
+    bbox           : Attribute<Vector2<f32>>,
+    stats          : Stats,
 }
 
-// === Public API ===
+impl {
+    pub fn new
+    ( symbol      : &Symbol
+    , instance_id : AttributeInstanceIndex
+    , transform   : Attribute<Matrix4<f32>>
+    , bbox        : Attribute<Vector2<f32>>
+    , stats       : &Stats
+    ) -> Self {
+        stats.inc_sprite_count();
+        let symbol         = symbol.clone_ref();
+        let logger         = Logger::new(iformat!("Sprite{instance_id}"));
+        let display_object = DisplayObjectData::new(logger);
+        let stats          = stats.clone_ref();
+        display_object.set_on_updated(enclose!((transform) move |t| {transform.set(t.matrix())}));
+        Self {symbol,instance_id,display_object,transform,bbox,stats}
+    }
 
-impl Sprite {
     /// Modifies the position of the sprite.
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow().display_object.mod_position(f);
+        self.display_object.mod_position(f);
     }
 
     /// Sets the position of the sprite.
     pub fn set_position(&self, value:Vector3<f32>) {
-        self.rc.borrow().display_object.set_position(value)
+        self.display_object.set_position(value)
     }
 
     /// Modifies the bounding box dimensions of the sprite.
     pub fn mod_bbox<F:FnOnce(&mut Vector2<f32>)>(&self, f:F) {
-        self.rc.borrow().bbox.modify(f);
+        self.bbox.modify(f);
     }
 
     /// Sets the bounding box dimensions of the sprite.
     pub fn set_bbox(&self, value:Vector2<f32>) {
-        self.rc.borrow().bbox.set(value);
+        self.bbox.set(value);
     }
-
-    /// Updates the sprite and all of its children.
-    pub fn update(&self) {
-        self.rc.borrow().update();
-    }
-}
-
-
-// === Private API ===
-
-impl Sprite {
-    fn new
-    (symbol:&Symbol, instance_id:AttributeInstanceIndex, transform:Attribute<Matrix4<f32>>, bbox:Attribute<Vector2<f32>>) -> Self {
-        let data = SpriteData::new(symbol,instance_id,transform,bbox);
-        let rc   = Rc::new(RefCell::new(data));
-        Self {rc}
-    }
-}
-
-impl From<&Sprite> for DisplayObjectData {
-    fn from(t:&Sprite) -> Self {
-        t.rc.borrow().display_object.clone_ref()
-    }
-}
-
-
-
-// ==================
-// === SpriteData ===
-// ==================
-
-#[derive(Debug)]
-struct SpriteData {
-    symbol         : Symbol,
-    instance_id    : AttributeInstanceIndex,
-    display_object : DisplayObjectData,
-    _transform     : Attribute<Matrix4<f32>>,
-    bbox           : Attribute<Vector2<f32>>,
-}
-
-impl SpriteData {
-    pub fn new
-    ( symbol:&Symbol
-    , instance_id: AttributeInstanceIndex
-    , _transform:Attribute<Matrix4<f32>>
-    , bbox:Attribute<Vector2<f32>>
-    ) -> Self {
-        let symbol         = symbol.clone_ref();
-        let logger         = Logger::new(format!("Sprite{}",instance_id));
-        let display_object = DisplayObjectData::new(logger);
-        let transform_cp   = _transform.clone();
-        display_object.set_on_updated(move |t| {
-            transform_cp.set(t.matrix().clone());
-        });
-//        sprite_ref.symbol_ref.world.mod_stats(|stats| stats.inc_sprite_count());
-        Self {symbol,instance_id,display_object,_transform,bbox}
-    }
-}
+}}
 
 impl From<&SpriteData> for DisplayObjectData {
     fn from(t:&SpriteData) -> Self {
@@ -163,13 +91,17 @@ impl<'t> Modify<&'t DisplayObjectData> for &'t SpriteData {
     }
 }
 
+impl From<&Sprite> for DisplayObjectData {
+    fn from(t:&Sprite) -> Self {
+        t.rc.borrow().display_object.clone_ref()
+    }
+}
+
 impl Drop for SpriteData {
     fn drop(&mut self) {
-//        self.sprite_ref.symbol_ref.world.mod_stats(|stats| stats.dec_sprite_count());
-
-        let mesh = self.symbol.surface();
+        self.stats.dec_sprite_count();
         self.bbox.set(Vector2::new(0.0,0.0));
-        mesh.instance_scope().dispose(self.instance_id);
+        self.symbol.surface().instance_scope().dispose(self.instance_id);
         self.display_object.unset_parent();
     }
 }
@@ -187,52 +119,55 @@ pub struct SpriteSystem {
     display_object : DisplayObjectData,
     symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
-    _uv            : Buffer<Vector2<f32>>,
+    uv             : Buffer<Vector2<f32>>,
     bbox           : Buffer<Vector2<f32>>,
+    stats          : Stats,
 }
 
 impl SpriteSystem {
     /// Constructor.
-    pub fn new(world_data:&WorldData) -> Self {
+    pub fn new() -> Self {
+        let world = get_world();
+        let stats = world.stats();
+
+        stats.inc_sprite_system_count();
+
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
-        let workspace      = &world_data.workspace;
-        let symbol_id      = workspace.new_symbol();
-        let symbol         = workspace.index(symbol_id);
-        let mesh           = &mut symbol.surface();
-        let uv             = mesh.point_scope().add_buffer("uv");
-        let transform      = mesh.instance_scope().add_buffer("transform");
-        let bbox           = mesh.instance_scope().add_buffer("bounds");
+        let symbol         = world.new_symbol();
+        let mesh           = symbol.surface();
+        let point_scope    = mesh.point_scope();
+        let instance_scope = mesh.instance_scope();
 
+        // Attributes
+
+        let uv        = point_scope.add_buffer("uv");
+        let transform = instance_scope.add_buffer("transform");
+        let bbox      = instance_scope.add_buffer("bounds");
+
+        let p1_index = point_scope.add_instance();
+        let p2_index = point_scope.add_instance();
+        let p3_index = point_scope.add_instance();
+        let p4_index = point_scope.add_instance();
+
+        uv.at(p1_index).set(Vector2::new(0.0,0.0));
+        uv.at(p2_index).set(Vector2::new(0.0,1.0));
+        uv.at(p3_index).set(Vector2::new(1.0,0.0));
+        uv.at(p4_index).set(Vector2::new(1.0,1.0));
+
+        // Shader Initialization
+
+        let shader            = symbol.shader();
+        let surface_material  = Self::surface_material();
         let geometry_material = Self::geometry_material();
-        let material          = Self::material();
+        shader.set_geometry_material (&geometry_material);
+        shader.set_material          (&surface_material);
 
-        symbol.shader().set_geometry_material (&geometry_material);
-        symbol.shader().set_material          (&material);
+        // Rendering
 
-        let p1_index = mesh.point_scope().add_instance();
-        let p2_index = mesh.point_scope().add_instance();
-        let p3_index = mesh.point_scope().add_instance();
-        let p4_index = mesh.point_scope().add_instance();
+        display_object.set_on_render(enclose!((symbol) move || {symbol.render()}));
 
-        uv.at(p1_index).set(Vector2::new(0.0, 0.0));
-        uv.at(p2_index).set(Vector2::new(0.0, 1.0));
-        uv.at(p3_index).set(Vector2::new(1.0, 0.0));
-        uv.at(p4_index).set(Vector2::new(1.0, 1.0));
-
-        world_data.stats.inc_sprite_system_count();
-
-//        let world      = world.clone_ref();
-//        let symbol_ref = SymbolRef::new(world,symbol_id);
-//        let symbol_ref2 = symbol_ref.clone();
-
-        let symbol2 = symbol.clone_ref();
-
-        display_object.set_on_render(move || {
-            symbol2.render();
-        });
-
-        Self {display_object,symbol,transform,_uv:uv,bbox}
+        Self {display_object,symbol,transform,uv,bbox,stats}
     }
 
     /// Creates a new sprite instance.
@@ -240,9 +175,8 @@ impl SpriteSystem {
         let instance_id = self.symbol.surface().instance_scope().add_instance();
         let transform   = self.transform.at(instance_id);
         let bbox        = self.bbox.at(instance_id);
-//        let sprite_ref  = SpriteRef::new(self.symbol_ref.clone(),instance_id);
         bbox.set(Vector2::new(1.0,1.0));
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox);
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox,&self.stats);
         self.add_child(&sprite);
         sprite
     }
@@ -262,7 +196,7 @@ impl SpriteSystem {
         material
     }
 
-    fn material() -> Material {
+    fn surface_material() -> Material {
         let mut material = Material::new();
         material.set_main("output_color = vec4(1.0,1.0,1.0,1.0);");
         material

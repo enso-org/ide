@@ -198,4 +198,9 @@ impl<T: BufferItem> Attribute<T> {
         f(&mut value);
         self.set(value);
     }
+
+    /// Cheap reference clone.
+    pub fn clone_ref(&self) -> Self {
+        self.clone()
+    }
 }

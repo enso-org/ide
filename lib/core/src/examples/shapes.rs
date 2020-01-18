@@ -29,7 +29,7 @@ fn init(world: &World) {
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
 
-    let shape_system = ShapeSystem::new(&world.borrow(),&s3);
+    let shape_system = ShapeSystem::new(&s3);
     let sprite = shape_system.new_instance();
     sprite.set_bbox(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {

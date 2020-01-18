@@ -77,6 +77,12 @@ impl {
         })
     }
 
+    /// Creates a new `Symbol` instance.
+    pub fn new_symbol2(&mut self) -> Symbol {
+        let ix = self.new_symbol();
+        self.index(ix)
+    }
+
     pub fn index(&self, ix:usize) -> Symbol {
         self.symbols[ix].clone_ref()
     }
