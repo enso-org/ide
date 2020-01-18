@@ -12,27 +12,8 @@ use crate::system::gpu::Context;
 use crate::data::dirty::traits::*;
 use crate::system::gpu::types::*;
 
+use shapely::shared;
 
-
-// ======================
-// === AttributeScope ===
-// ======================
-
-/// Scope defines a view for geometry structure. For example, there is point
-/// scope or instance scope. Scope contains buffer of data for each item it
-/// describes.
-#[derive(Debug)]
-pub struct AttributeScope {
-    buffers         : OptVec<AnyBuffer>,
-    buffer_dirty    : BufferDirty,
-    shape_dirty     : ShapeDirty,
-    buffer_name_map : HashMap<String,BufferIndex>,
-    logger          : Logger,
-    free_ids        : Vec<AttributeInstanceIndex>,
-    size            : usize,
-    context         : Context,
-    stats           : Stats,
-}
 
 
 // === Types ===
@@ -52,22 +33,33 @@ pub type BufferDirty = dirty::SharedBitField<u64,Box<dyn Fn()>>;
 pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
 
 
-// === Callbacks ===
-
-closure! {
-fn buffer_on_set(dirty:BufferDirty, ix:usize) -> BufferOnSet {
-    || dirty.set(ix)
-}}
-
-closure! {
-fn buffer_on_resize(dirty:ShapeDirty) -> BufferOnResize {
-    || dirty.set()
-}}
 
 
-// === Implementation ===
 
-impl AttributeScope {
+
+// ======================
+// === AttributeScope ===
+// ======================
+
+
+shared! { AttributeScopeData
+/// Scope defines a view for geometry structure. For example, there is point
+/// scope or instance scope. Scope contains buffer of data for each item it
+/// describes.
+#[derive(Debug)]
+pub struct AttributeScope {
+    buffers         : OptVec<AnyBuffer>,
+    buffer_dirty    : BufferDirty,
+    shape_dirty     : ShapeDirty,
+    buffer_name_map : HashMap<String,BufferIndex>,
+    logger          : Logger,
+    free_ids        : Vec<AttributeInstanceIndex>,
+    size            : usize,
+    context         : Context,
+    stats           : Stats,
+}
+
+impl {
     /// Create a new scope with the provided dirty callback.
     pub fn new<OnMut:CallbackFn+Clone>
     (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
@@ -86,9 +78,7 @@ impl AttributeScope {
                  ,stats}
         })
     }
-}
 
-impl AttributeScope {
     /// Adds a new named buffer to the scope.
     pub fn add_buffer<Name:Str, T:BufferItem>(&mut self, name:Name) -> Buffer<T>
     where AnyBuffer: From<Buffer<T>> {
@@ -97,8 +87,8 @@ impl AttributeScope {
         let shape_dirty  = self.shape_dirty.clone();
         let ix           = self.buffers.reserve_ix();
         group!(self.logger, "Adding buffer '{name}' at index {ix}.", {
-            let on_set     = buffer_on_set(buffer_dirty, ix);
-            let on_resize  = buffer_on_resize(shape_dirty);
+            let on_set     = Box::new(move || { buffer_dirty.set(ix) });
+            let on_resize  = Box::new(move || { shape_dirty.set() });
             let logger     = self.logger.sub(&name);
             let context    = &self.context;
             let buffer     = Buffer::new(logger,&self.stats,context,on_set,on_resize);
@@ -111,8 +101,8 @@ impl AttributeScope {
     }
 
     /// Lookups buffer by a given name.
-    pub fn buffer(&self, name:&str) -> Option<&AnyBuffer> {
-        self.buffer_name_map.get(name).map(|i| &self.buffers[(*i).into()])
+    pub fn buffer(&self, name:&str) -> Option<AnyBuffer> {
+        self.buffer_name_map.get(name).map(|i| self.buffers[(*i).into()].clone())
     }
 
     /// Checks if a buffer with the given name was created in this scope.
@@ -168,7 +158,7 @@ impl AttributeScope {
     pub fn size(&self) -> usize {
         self.size
     }
-}
+}}
 
 
 
