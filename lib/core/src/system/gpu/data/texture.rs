@@ -262,65 +262,64 @@ macro_rules! generate_internal_format_instances_item {
 macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f! { $args
 //  INTERNAL_FORMAT   FORMAT         COL   FILT  [POSSIBLE_TYPE:BYTES_PER_TEXTURE_ELEM]
     Alpha             Alpha          True  True  [u8:U1,f16:U2,f32:U4]
-//    Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
-//    LuminanceAlpha    LuminanceAlpha True  True  [u8:U2,f16:U4,f32:U8]
-//    Rgb               Rgb            True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
-//    Rgba              Rgba           True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
-//    R8                Red            True  True  [u8:U1]
-//    R8SNorm           Red            False True  [i8:U1]
-//    R16f              Red            False True  [f32:U4,f16:U2]
-//    R32f              Red            False False [f32:U4]
-//    R8ui              RedInteger     True  False [u8:U1]
-//    R8i               RedInteger     True  False [i8:U1]
-//    R16ui             RedInteger     True  False [u16:U2]
-//    R16i              RedInteger     True  False [i16:U2]
-//    R32ui             RedInteger     True  False [u32:U4]
-//    R32i              RedInteger     True  False [i32:U4]
-//    Rg8               Rg             True  True  [u8:U2]
-//    Rg8SNorm          Rg             False True  [i8:U2]
-//    Rg16f             Rg             False True  [f32:U8,f16:U4]
-//    Rg32f             Rg             False False [f32:U8]
-//    Rg8ui             RgInteger      True  False [u8:U2]
-//    Rg8i              RgInteger      True  False [i8:U2]
-//    Rg16ui            RgInteger      True  False [u16:U4]
-//    Rg16i             RgInteger      True  False [i16:U4]
-//    Rg32ui            RgInteger      True  False [u32:U8]
-//    Rg32i             RgInteger      True  False [i32:U8]
-//    Rgb8              Rgb            True  True  [u8:U3]
-//    SRgb8             Rgb            False True  [u8:U3]
-//    Rgb565            Rgb            True  True  [u8:U3,u16_5_6_5:U2]
-
-//    Rgb8SNorm         Rgb            False True  [i8:U3]
-//    R11fG11fB10f      Rgb            False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
-//    Rgb9E5            Rgb            False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
-//    Rgb16f            Rgb            False True  [f32:U12,f16:U6]
-//    Rgb32f            Rgb            False False [f32:U12]
-//    Rgb8ui            RgbInteger     False False [u8:U3]
-//    Rgb8i             RgbInteger     False False [i8:U3]
-//    Rgb16ui           RgbInteger     False False [u16:U6]
-//    Rgb16i            RgbInteger     False False [i16:U6]
-//    Rgb32ui           RgbInteger     False False [u32:U12]
-//    Rgb32i            RgbInteger     False False [i32:U12]
-//    Rgba8             Rgba           True  True  [u8:U4]
-//    SRgb8Alpha8       Rgba           True  True  [u8:U4]
-//    Rgba8SNorm        Rgba           False True  [i8:U4]
-//    Rgb5A1            Rgba           True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
-//    Rgba4             Rgba           True  True  [u8:U4,u16_4_4_4_4:U2]
-//    Rgb10A2           Rgba           True  True  [u32_2_10_10_10_REV:U4]
-//    Rgba16f           Rgba           False True  [f32:U16,f16:U8]
-//    Rgba32f           Rgba           False False [f32:U16]
-//    Rgba8ui           RgbaInteger    True  False [u8:U4]
-//    Rgba8i            RgbaInteger    True  False [i8:U4]
-//    Rgb10A2ui         RgbaInteger    True  False [u32_2_10_10_10_REV:U4]
-//    Rgba16ui          RgbaInteger    True  False [u16:U8]
-//    Rgba16i           RgbaInteger    True  False [i16:U8]
-//    Rgba32i           RgbaInteger    True  False [i32:U16]
-//    Rgba32ui          RgbaInteger    True  False [u32:U16]
-//    DepthComponent16  DepthComponent True  False [u16:U2,u32:U4]
-//    DepthComponent24  DepthComponent True  False [u32:U4]
-//    DepthComponent32f DepthComponent True  False [f32:U4]
-//    Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
-//    Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
+    Luminance         Luminance      True  True  [u8:U1,f16:U2,f32:U4]
+    LuminanceAlpha    LuminanceAlpha True  True  [u8:U2,f16:U4,f32:U8]
+    Rgb               Rgb            True  True  [u8:U3,f16:U6,f32:U12,u16_5_6_5:U2]
+    Rgba              Rgba           True  True  [u8:U4,f16:U8,f32:U16,u16_4_4_4_4:U2,u16_5_5_5_1:U2]
+    R8                Red            True  True  [u8:U1]
+    R8SNorm           Red            False True  [i8:U1]
+    R16f              Red            False True  [f32:U4,f16:U2]
+    R32f              Red            False False [f32:U4]
+    R8ui              RedInteger     True  False [u8:U1]
+    R8i               RedInteger     True  False [i8:U1]
+    R16ui             RedInteger     True  False [u16:U2]
+    R16i              RedInteger     True  False [i16:U2]
+    R32ui             RedInteger     True  False [u32:U4]
+    R32i              RedInteger     True  False [i32:U4]
+    Rg8               Rg             True  True  [u8:U2]
+    Rg8SNorm          Rg             False True  [i8:U2]
+    Rg16f             Rg             False True  [f32:U8,f16:U4]
+    Rg32f             Rg             False False [f32:U8]
+    Rg8ui             RgInteger      True  False [u8:U2]
+    Rg8i              RgInteger      True  False [i8:U2]
+    Rg16ui            RgInteger      True  False [u16:U4]
+    Rg16i             RgInteger      True  False [i16:U4]
+    Rg32ui            RgInteger      True  False [u32:U8]
+    Rg32i             RgInteger      True  False [i32:U8]
+    Rgb8              Rgb            True  True  [u8:U3]
+    SRgb8             Rgb            False True  [u8:U3]
+    Rgb565            Rgb            True  True  [u8:U3,u16_5_6_5:U2]
+    Rgb8SNorm         Rgb            False True  [i8:U3]
+    R11fG11fB10f      Rgb            False True  [f32:U12,f16:U6,u32_f10_f11_f11_REV:U4]
+    Rgb9E5            Rgb            False True  [f32:U12,f16:U6,u32_5_9_9_9_REV:U4]
+    Rgb16f            Rgb            False True  [f32:U12,f16:U6]
+    Rgb32f            Rgb            False False [f32:U12]
+    Rgb8ui            RgbInteger     False False [u8:U3]
+    Rgb8i             RgbInteger     False False [i8:U3]
+    Rgb16ui           RgbInteger     False False [u16:U6]
+    Rgb16i            RgbInteger     False False [i16:U6]
+    Rgb32ui           RgbInteger     False False [u32:U12]
+    Rgb32i            RgbInteger     False False [i32:U12]
+    Rgba8             Rgba           True  True  [u8:U4]
+    SRgb8Alpha8       Rgba           True  True  [u8:U4]
+    Rgba8SNorm        Rgba           False True  [i8:U4]
+    Rgb5A1            Rgba           True  True  [u8:U4,u16_5_5_5_1:U2,u32_2_10_10_10_REV:U4]
+    Rgba4             Rgba           True  True  [u8:U4,u16_4_4_4_4:U2]
+    Rgb10A2           Rgba           True  True  [u32_2_10_10_10_REV:U4]
+    Rgba16f           Rgba           False True  [f32:U16,f16:U8]
+    Rgba32f           Rgba           False False [f32:U16]
+    Rgba8ui           RgbaInteger    True  False [u8:U4]
+    Rgba8i            RgbaInteger    True  False [i8:U4]
+    Rgb10A2ui         RgbaInteger    True  False [u32_2_10_10_10_REV:U4]
+    Rgba16ui          RgbaInteger    True  False [u16:U8]
+    Rgba16i           RgbaInteger    True  False [i16:U8]
+    Rgba32i           RgbaInteger    True  False [i32:U16]
+    Rgba32ui          RgbaInteger    True  False [u32:U16]
+    DepthComponent16  DepthComponent True  False [u16:U2,u32:U4]
+    DepthComponent24  DepthComponent True  False [u32:U4]
+    DepthComponent32f DepthComponent True  False [f32:U4]
+    Depth24Stencil8   DepthStencil   True  False [u32_24_8:U4]
+    Depth32fStencil8  DepthStencil   True  False [f32_u24_u8_REV:U4]
 }}}
 
 with_texture_format_relations!(generate_internal_format_instances []);
@@ -373,8 +372,9 @@ impl<I,T> StorageRelation<I,T> for RemoteImage {
 
 
 
-
+// ===============
 // === GpuOnly ===
+// ===============
 
 #[derive(Debug)]
 pub struct GpuOnly;
@@ -397,6 +397,13 @@ impl GpuOnlyData {
 impl<I,T> StorageRelation<I,T> for GpuOnly {
     type Storage = GpuOnlyData;
 }
+
+impl From<(i32,i32)> for GpuOnlyData {
+    fn from(t:(i32,i32)) -> Self {
+        Self::new(t.0,t.1)
+    }
+}
+
 
 
 // =============
@@ -444,7 +451,8 @@ pub type Storage<S,I,T> = <S as StorageRelation<I,T>>::Storage;
 // ===============
 
 /// Texture bound to GL context.
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug(bound="Storage<StorageType,InternalFormat,ElemType>:Debug"))]
 pub struct Texture<StorageType,InternalFormat,ElemType>
 where StorageType: StorageRelation<InternalFormat,ElemType> {
     storage    : Storage<StorageType,InternalFormat,ElemType>,
@@ -504,7 +512,7 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 
 impl<I:InternalFormat,T:TextureItemType> Texture<RemoteImage,I,T> {
     /// Constructor.
-    pub fn new_from_url<S:Into<RemoteImageData>>(context:&Context, storage:S) -> Self {
+    pub fn new<S:Into<RemoteImageData>>(context:&Context, storage:S) -> Self {
         let out = Self::new_unitialized(context,storage);
         out.reload();
         out
@@ -565,7 +573,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<RemoteImage,I,T> {
 
 impl<I:InternalFormat,T:TextureItemType> Texture<GpuOnly,I,T> {
     /// Constructor.
-    pub fn new_from_size<S:Into<GpuOnlyData>>(context:&Context, storage:S) -> Self {
+    pub fn new<S:Into<GpuOnlyData>>(context:&Context, storage:S) -> Self {
         let out = Self::new_unitialized(context,storage);
         out.reload();
         out
@@ -592,7 +600,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<GpuOnly,I,T> {
 
 impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr + Debug> Texture<Owned,I,T> {
     /// Constructor.
-    pub fn new_from_data<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
+    pub fn new<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
         let out = Self::new_unitialized(context,provider);
         out.reload();
         out
@@ -681,22 +689,17 @@ pub type TextureUnit = u32;
 
 /// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
 /// for making distinction in `Uniform` implementations.
-pub trait ContextTextureOps<Texture> {
-    /// A guard removing created binding at end of scope.
-    type Guard;
+pub trait ContextTextureOps {
     /// Bind texture for specific unit
-    fn bind_texture_unit(&self, texture:&Texture, unit:TextureUnit) -> Self::Guard;
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
 }
 
-impl<S:StorageRelation<I,T>,I,T> ContextTextureOps<Texture<S,I,T>> for Context {
-    type Guard = TextureBindGuard;
-
-    fn bind_texture_unit(&self, texture:&Texture<S,I,T>, unit:TextureUnit) -> Self::Guard {
-        let context    = self.clone();
-        let target     = Context::TEXTURE_2D;
-        let gl_texture = &texture.gl_texture;
+impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
+        let context = context.clone();
+        let target  = Context::TEXTURE_2D;
         context.active_texture(unit);
-        context.bind_texture(target,Some(gl_texture));
+        context.bind_texture(target,Some(&self.gl_texture));
         context.active_texture(Context::TEXTURE0);
         TextureBindGuard {context,target,unit}
     }

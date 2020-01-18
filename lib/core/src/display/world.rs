@@ -81,16 +81,16 @@ impl World {
         f(&self.rc.borrow().stats);
     }
 
-//    fn test(&self) {
-//
-//
-////        let shape = self.shape.screen_shape();
-//        let width  = 512; // shape.width as i32;
-//        let height = 512; // shape.height as i32;
-//        let context = self.rc.borrow().workspace.context.clone();
-//
-//        let texture1 = Texture::<texture::Rgba,u8>::new(&context,(width,height));
-//
+    fn test(&self) {
+
+
+//        let shape = self.shape.screen_shape();
+        let width  = 512; // shape.width as i32;
+        let height = 512; // shape.height as i32;
+        let context = self.rc.borrow().workspace.context.clone();
+
+        let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
+
 //        let screen = Screen::new(self);
 //
 //        let uniform:Uniform<Texture<texture::Rgba,u8>> = {
@@ -107,7 +107,7 @@ impl World {
 //        let level = 0;
 //        let attachment_point = Context::COLOR_ATTACHMENT0;
 //        context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
-//    }
+    }
 }
 
 impl<T> Add<T> for World where WorldData: Add<T> {

@@ -194,12 +194,20 @@ impl<Value:UniformValue> Uniform<Value> {
     }
 }
 
-impl<Value> Uniform<Value> where Context : ContextTextureOps<Value,Guard=TextureBindGuard> {
-    /// Bind texture in this WebGl context.
-    pub fn bind_texture_unit(&self, context:&Context, unit:u32) -> TextureBindGuard {
-        let value = &self.rc.borrow().value;
-        context.bind_texture_unit(value,unit)
-    }
+
+
+// =========================
+// === AnyTextureUniform ===
+// =========================
+
+macro_rules! gen_prim_conversions {
+    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
+        impl From<Uniform<$t1<$t2>>> for AnyUniform {
+            fn from(t:Uniform<$t1<$t2>>) -> Self {
+                Self::Prim(t.into())
+            }
+        }
+    )*}
 }
 
 
@@ -233,45 +241,47 @@ pub trait AnyPrimUniformOps {
 // === AnyTextureUniform ===
 // =========================
 
-macro_rules! gen_any_texture_uniform {
-    ( [$([$storage:tt [$internal_format:tt $type:tt]])*] ) => { paste::item! {
-        #[allow(missing_docs)]
-        #[allow(non_camel_case_types)]
-        #[enum_dispatch(AnyTextureUniformOps)]
-        #[derive(Clone,Debug)]
-        pub enum AnyTextureUniform {
-            $( [< $storage _ $internal_format _ $type >]
-                (Uniform<Texture<$storage,$internal_format,$type>>) ),*
-        }
-    }}
+// Note, we could do it using static dispatch instead (like in the AnyPrimUniform case) if this
+// gets fixed: https://github.com/rust-lang/rust/issues/68324 .
+
+#[derive(Clone,Debug)]
+pub struct AnyTextureUniform {
+    pub raw: Box<dyn AnyTextureUniformOps>
 }
 
-macro_rules! gen_prim_conversions {
-    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
-        impl From<Uniform<$t1<$t2>>> for AnyUniform {
-            fn from(t:Uniform<$t1<$t2>>) -> Self {
-                Self::Prim(t.into())
-            }
-        }
-    )*}
+
+// === AnyTextureUniformOps ===
+
+pub trait AnyTextureUniformOps:TextureUniformClone + Debug {
+    /// Bind texture for specific unit
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
 }
 
-macro_rules! gen_texture_conversions {
-    ( [$([$storage:tt [$internal_format:tt $type:tt]])*] ) => {$(
-        impl From<Uniform<Texture<$storage,$internal_format,$type>>> for AnyUniform {
-            fn from(t:Uniform<Texture<$storage,$internal_format,$type>>) -> Self {
-                Self::Texture(t.into())
-            }
-        }
-    )*}
+impl<T:ContextTextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T> {
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
+        let u:&T = &self.rc.borrow().value;
+        u.bind_texture_unit(context,unit)
+    }
 }
 
-crate::with_all_texture_types!(gen_any_texture_uniform);
 
+// === Clone ===
 
-#[enum_dispatch]
-pub trait AnyTextureUniformOps {
-    fn bind_texture_unit(&self, context:&Context, unit:u32) -> TextureBindGuard;
+pub trait TextureUniformClone {
+    fn clone_box(&self) -> Box<dyn AnyTextureUniformOps>;
+}
+
+impl<T> TextureUniformClone for T
+    where T: 'static + AnyTextureUniformOps + Clone {
+    fn clone_box(&self) -> Box<dyn AnyTextureUniformOps> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn AnyTextureUniformOps> {
+    fn clone(&self) -> Box<dyn AnyTextureUniformOps> {
+        self.clone_box()
+    }
 }
 
 
@@ -286,5 +296,28 @@ pub enum AnyUniform {
     Texture(AnyTextureUniform)
 }
 
-crate::with_all_prim_types!([[gen_prim_conversions][]]);
-crate::with_all_texture_types!(gen_texture_conversions);
+
+// === Conversions ===
+
+impl<T> From<Uniform<T>> for AnyUniform where Uniform<T>:IntoAnyUniform<AnyUniform> {
+    fn from(t:Uniform<T>) -> Self {
+        t.into_any_uniform()
+    }
+}
+
+pub trait IntoAnyUniform: Sized {
+    fn into_any_uniform(self) -> AnyUniform;
+}
+
+impl<T:Into<AnyPrimUniform>> IntoAnyUniform for T {
+    default fn into_any_uniform(self) -> AnyUniform {
+        AnyUniform::Prim(self.into())
+    }
+}
+
+impl<S:StorageRelation<I,T>+Debug+'static,I:'static,T:'static>
+IntoAnyUniform for Uniform<Texture<S,I,T>> {
+    fn into_any_uniform(self) -> AnyUniform {
+        AnyUniform::Texture(AnyTextureUniform { raw: Box::new(self) })
+    }
+}
