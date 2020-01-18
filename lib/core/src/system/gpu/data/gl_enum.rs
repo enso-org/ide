@@ -81,6 +81,7 @@ macro_rules! define_gl_enum_conversions {
     }
 }
 
+/// ...
 #[macro_export]
 macro_rules! define_gl_enum_conversions_2 {
     ( [$($target:tt)*] $(#$meta:tt)* $type:ty = $expr:expr ) => {

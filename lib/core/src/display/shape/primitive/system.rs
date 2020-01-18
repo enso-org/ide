@@ -21,7 +21,7 @@ pub struct ShapeSystem {
 impl ShapeSystem {
     /// Constructor.
     pub fn new<S:Shape>(shape:&S) -> Self {
-        let mut sprite_system = SpriteSystem::new();
+        let sprite_system = SpriteSystem::new();
         sprite_system.set_material(Self::material(shape));
         Self {sprite_system}
     }

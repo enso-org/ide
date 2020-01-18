@@ -6,7 +6,6 @@
 use crate::prelude::*;
 
 use crate::display::symbol::material::Material;
-use crate::system::gpu::data::AttributeInstanceIndex;
 use crate::system::gpu::data::texture;
 use crate::display::world::*;
 

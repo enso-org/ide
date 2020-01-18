@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::closure;
 use crate::control::callback::CallbackFn;
 use crate::data::dirty;
 use crate::data::OptVec;
@@ -11,8 +10,6 @@ use crate::system::gpu::Context;
 
 use crate::data::dirty::traits::*;
 use crate::system::gpu::types::*;
-
-use shapely::shared;
 
 
 

@@ -54,7 +54,7 @@ crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
 
 impl<S:StorageRelation<I,T>,I,T> IntoUniformValueImpl for Texture<S,I,T> {
     type Result = Texture<S,I,T>;
-    fn into_uniform_value(self, context:&Context) -> Self::Result {
+    fn into_uniform_value(self, _context:&Context) -> Self::Result {
         self
     }
 }

@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;

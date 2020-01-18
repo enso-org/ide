@@ -171,26 +171,28 @@ impl GpuDefault for UIntSampler {
 
 
 // === Conversions ===
-// Note that Samplers cannot be created as GLSL values.
+
+/// Samplers cannot be created as GLSL values.
+pub struct SamplerIsNotGlslExpr;
 
 impl TryFrom<FloatSampler> for Glsl {
-    type Error = ();
+    type Error = SamplerIsNotGlslExpr;
     fn try_from(_:FloatSampler) -> Result<Self, Self::Error> {
-        Result::Err(())
+        Err(SamplerIsNotGlslExpr)
     }
 }
 
 impl TryFrom<IntSampler> for Glsl {
-    type Error = ();
+    type Error = SamplerIsNotGlslExpr;
     fn try_from(_:IntSampler) -> Result<Self, Self::Error> {
-        Result::Err(())
+        Err(SamplerIsNotGlslExpr)
     }
 }
 
 impl TryFrom<UIntSampler> for Glsl {
-    type Error = ();
+    type Error = SamplerIsNotGlslExpr;
     fn try_from(_:UIntSampler) -> Result<Self, Self::Error> {
-        Result::Err(())
+        Err(SamplerIsNotGlslExpr)
     }
 }
 

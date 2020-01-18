@@ -13,6 +13,6 @@ pub mod sprite;
 /// Common types.
 pub mod types {
     use super::*;
-    pub use screen::{Screen};
+    pub use screen::Screen;
     pub use sprite::{SpriteSystem,Sprite};
 }

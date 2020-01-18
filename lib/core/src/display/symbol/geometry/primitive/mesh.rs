@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::closure;
 use crate::control::callback::CallbackFn;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
