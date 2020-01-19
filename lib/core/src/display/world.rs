@@ -65,10 +65,11 @@ impl World {
     pub fn new(world: WorldData) -> Self {
         let rc = Rc::new(RefCell::new(world));
         let out = Self {rc};
-        out.test();
         unsafe {
             WORLD = Some(out.clone_ref());
         }
+        out.test();
+
         out
     }
 
@@ -114,12 +115,12 @@ impl World {
 
         let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
 
-        let screen = Screen::new(self);
+        let screen = Screen::new();
 
         let uniform:Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>> = {
-            let world_data = &mut self.borrow_mut();
-            let symbol = &mut world_data.workspace.index(screen.symbol_ref.symbol_id);
-            symbol.symbol_scope().add_or_panic("previous_pass",texture1)
+//            let world_data = &mut self.borrow_mut();
+//            let symbol = &mut world_data.workspace.index(screen.symbol_ref.symbol_id);
+            screen.variables().add_or_panic("previous_pass",texture1)
         };
 
 
@@ -373,8 +374,10 @@ impl WorldData {
     pub fn run2(&mut self) {
         self.workspace.context.bind_framebuffer(Context::FRAMEBUFFER, None);
 
-        let sid = self.tmp_screen.as_ref().unwrap().symbol_ref.symbol_id;
-        self.workspace.symbols.index(sid).render();
+        self.tmp_screen.as_ref().unwrap().render();
+//
+//        let sid = self.tmp_screen.as_ref().unwrap().symbol_ref.symbol_id;
+//        self.workspace.symbols.index(sid).render();
     }
 
     /// Check dirty flags and update the state accordingly.

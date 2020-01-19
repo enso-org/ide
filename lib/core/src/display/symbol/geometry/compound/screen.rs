@@ -5,76 +5,38 @@
 
 use crate::prelude::*;
 
+use crate::display::symbol::geometry::Sprite;
+use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
+use crate::display::world;
 use crate::system::gpu::data::texture;
-use crate::display::world::*;
-
-use nalgebra::Vector2;
+use crate::system::gpu::data::types::*;
 
 
 
-// =================
-// === SymbolRef ===
-// =================
-
-/// Reference to a specific symbol inside the `World` object.
-#[derive(Clone,Debug)]
-pub struct SymbolRef {
-    world     : World,
-    pub symbol_id : SymbolId,
-}
-
-impl SymbolRef {
-    /// Constructor.
-    pub fn new(world:World, symbol_id:SymbolId) -> Self {
-        Self {world,symbol_id}
-    }
-}
-
-
-
-// ==============
-// === Screen ===
-// ==============
-
-/// A whole-screen covering geometry.
+/// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Debug)]
 pub struct Screen {
-    pub symbol_ref : SymbolRef,
-    _uv        : Buffer<Vector2<f32>>,
+    sprite        : Sprite,
+    sprite_system : SpriteSystem,
 }
 
 impl Screen {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
-        let world_data     = &mut world.borrow_mut();
-        let workspace      = &mut world_data.workspace;
-        let symbol_id      = workspace.new_symbol();
-        let symbol         = &mut workspace.index(symbol_id);
-        let mesh           = &mut symbol.surface();
-        let uv             = mesh.point_scope().add_buffer("uv");
+    pub fn new() -> Self {
+        let sprite_system = SpriteSystem::new();
+        sprite_system.set_geometry_material(Self::geometry_material());
+        sprite_system.set_material(Self::surface_material());
+        let sprite = sprite_system.new_instance();
+        Self {sprite_system,sprite}
+    }
 
-        let geometry_material = Self::geometry_material();
-        let surface_material  = Self::surface_material();
+    pub fn variables(&self) -> UniformScope {
+        self.sprite_system.symbol().variables()
+    }
 
-        symbol.shader().set_geometry_material (&geometry_material);
-        symbol.shader().set_material          (&surface_material);
-
-        let p1_index = mesh.point_scope().add_instance();
-        let p2_index = mesh.point_scope().add_instance();
-        let p3_index = mesh.point_scope().add_instance();
-        let p4_index = mesh.point_scope().add_instance();
-
-        uv.at(p1_index).set(Vector2::new(0.0, 0.0));
-        uv.at(p2_index).set(Vector2::new(0.0, 1.0));
-        uv.at(p3_index).set(Vector2::new(1.0, 0.0));
-        uv.at(p4_index).set(Vector2::new(1.0, 1.0));
-
-        world_data.stats.inc_sprite_system_count();
-
-        let world      = world.clone_ref();
-        let symbol_ref = SymbolRef::new(world,symbol_id);
-        Self {symbol_ref,_uv:uv}
+    pub fn render(&self) {
+        self.sprite_system.render()
     }
 
     fn geometry_material() -> Material {
@@ -95,15 +57,10 @@ impl Screen {
     }
 }
 
-
-
-// === Setters ===
-
-impl Screen {
-    /// Sets the material for the geometry.
-    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
-        let world_data = &mut self.symbol_ref.world.borrow_mut();
-        let symbol     = &mut world_data.workspace.index(self.symbol_ref.symbol_id);
-        symbol.shader().set_material(material);
+impl CloneRef for Screen {
+    fn clone_ref(&self) -> Self {
+        let sprite        = self.sprite.clone_ref();
+        let sprite_system = self.sprite_system.clone_ref();
+        Self {sprite,sprite_system}
     }
 }

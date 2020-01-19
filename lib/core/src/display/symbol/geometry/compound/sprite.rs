@@ -93,12 +93,13 @@ shared! { SpriteSystem
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
+#[derive(Debug)]
 pub struct SpriteSystemData {
     display_object : DisplayObjectData,
     symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
     uv             : Buffer<Vector2<f32>>,
-    bbox           : Buffer<Vector2<f32>>,
+    size           : Buffer<Vector2<f32>>,
     stats          : Stats,
 }
 
@@ -115,11 +116,11 @@ impl {
         let instance_scope = mesh.instance_scope();
         let uv             = point_scope.add_buffer("uv");
         let transform      = instance_scope.add_buffer("transform");
-        let bbox           = instance_scope.add_buffer("bounds");
+        let size           = instance_scope.add_buffer("bounds");
 
         stats.inc_sprite_system_count();
 
-        let this = Self {display_object,symbol,transform,uv,bbox,stats};
+        let this = Self {display_object,symbol,transform,uv,size,stats};
         this.init_attributes();
         this.init_shader();
         this.init_render();
@@ -130,14 +131,27 @@ impl {
     pub fn new_instance(&self) -> Sprite {
         let instance_id = self.symbol.surface().instance_scope().add_instance();
         let transform   = self.transform.at(instance_id);
-        let bbox        = self.bbox.at(instance_id);
-        bbox.set(Vector2::new(1.0,1.0));
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,bbox,&self.stats);
+        let size        = self.size.at(instance_id);
+        size.set(Vector2::new(10.0,10.0));
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
         self.add_child(&sprite);
         sprite
     }
 
-    /// Sets the material for all sprites in this system.
+    pub fn symbol(&self) -> Symbol {
+        self.symbol.clone_ref()
+    }
+
+    pub fn render(&self) {
+        self.symbol.render();
+    }
+
+    /// Sets the geometry material for all sprites in this system.
+    pub fn set_geometry_material<M:Into<Material>>(&mut self, material:M) {
+        self.symbol.shader().set_geometry_material(material);
+    }
+
+    /// Sets the surface material for all sprites in this system.
     pub fn set_material<M:Into<Material>>(&mut self, material:M) {
         self.symbol.shader().set_material(material);
     }

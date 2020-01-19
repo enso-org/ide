@@ -177,25 +177,25 @@ shared! { Symbol
 /// Symbol is a surface with attached `Shader`.
 #[derive(Debug)]
 pub struct SymbolData {
-    surface       : Mesh,
-    shader        : Shader,
-    surface_dirty : GeometryDirty,
-    shader_dirty  : ShaderDirty,
-    symbol_scope  : UniformScope,
-    global_scope  : UniformScope,
-    context       : Context,
-    logger        : Logger,
-    vao           : Option<VertexArrayObject>,
-    uniforms      : Vec<UniformBinding>,
-    textures      : Vec<TextureBinding>,
-    stats         : Stats,
+    surface          : Mesh,
+    shader           : Shader,
+    surface_dirty    : GeometryDirty,
+    shader_dirty     : ShaderDirty,
+    variables        : UniformScope,
+    global_variables : UniformScope,
+    context          : Context,
+    logger           : Logger,
+    vao              : Option<VertexArrayObject>,
+    uniforms         : Vec<UniformBinding>,
+    textures         : Vec<TextureBinding>,
+    stats            : Stats,
 }
 
 impl {
 
     /// Create new instance with the provided on-dirty callback.
     pub fn new <OnMut:Fn()+Clone+'static>
-    (global_scope:&UniformScope, logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    (global_variables:&UniformScope, logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();
         group!(init_logger, "Initializing.", {
@@ -212,14 +212,14 @@ impl {
             let shader_on_mut   = Box::new(move || { shader_dirty2.set() });
             let shader          = Shader::new(shader_logger,&stats,context,shader_on_mut);
             let surface         = Mesh::new(surface_logger,&stats,context,surface_on_mut);
-            let symbol_scope    = UniformScope::new(logger.sub("uniform_scope"),context);
-            let global_scope    = global_scope.clone();
+            let variables    = UniformScope::new(logger.sub("uniform_scope"),context);
+            let global_variables    = global_variables.clone();
             let vao             = default();
             let uniforms        = default();
             let textures        = default();
             let stats           = stats.clone_ref();
             let context         = context.clone();
-            Self{surface,shader,surface_dirty,shader_dirty,symbol_scope,global_scope,logger,context
+            Self{surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger,context
                 ,vao,uniforms,textures,stats}
         })
     }
@@ -232,8 +232,8 @@ impl {
         self.shader.clone_ref()
     }
 
-    pub fn symbol_scope(&self) -> UniformScope {
-        self.symbol_scope.clone_ref()
+    pub fn variables(&self) -> UniformScope {
+        self.variables.clone_ref()
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -255,8 +255,8 @@ impl {
     pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
         let name = name.as_ref();
         self.surface.lookup_variable(name).map(ScopeType::Mesh).or_else(|| {
-            if      self.symbol_scope.contains(name) { Some(ScopeType::Symbol) }
-            else if self.global_scope.contains(name) { Some(ScopeType::Global) }
+            if      self.variables.contains(name) { Some(ScopeType::Symbol) }
+            else if self.global_variables.contains(name) { Some(ScopeType::Global) }
             else                                     { None }
         })
     }
@@ -344,15 +344,13 @@ impl SymbolData {
       , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
-        println!(">>> {}",name);
         let uni_name     = shader::builder::mk_uniform_name(name);
         let opt_location = self.context.get_uniform_location(program,&uni_name);
-        println!("location {:?}",opt_location);
 
         opt_location.map(|location|{
             let uniform = match &binding.scope {
-                Some(ScopeType::Symbol) => self.symbol_scope.get(name),
-                Some(ScopeType::Global) => self.global_scope.get(name),
+                Some(ScopeType::Symbol) => self.variables.get(name),
+                Some(ScopeType::Global) => self.global_variables.get(name),
                 _ => todo!()
             };
             let uniform = uniform.unwrap_or_else(||{

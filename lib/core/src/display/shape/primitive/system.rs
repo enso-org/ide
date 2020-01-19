@@ -11,8 +11,7 @@ use crate::display::object::*;
 
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
-#[derive(Shrinkwrap)]
-#[shrinkwrap(mutable)]
+#[derive(Debug,Shrinkwrap)]
 pub struct ShapeSystem {
     /// The underlying `SpriteSystem`.
     pub sprite_system: SpriteSystem
@@ -44,9 +43,3 @@ impl From<&ShapeSystem> for DisplayObjectData {
         (&t.sprite_system).into()
     }
 }
-
-//impl<'t> Modify<&'t DisplayObjectData> for &'t ShapeSystem {
-//    fn modify<F:FnOnce(&'t DisplayObjectData)>(self, f:F) {
-//        self.sprite_system.modify(f);
-//    }
-//}
