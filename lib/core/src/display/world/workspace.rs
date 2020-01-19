@@ -106,7 +106,8 @@ impl ShapeData {
 // === Workspace ===
 // =================
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Workspace {
     pub canvas        : web_sys::HtmlCanvasElement,
     pub context       : Context,
@@ -118,6 +119,8 @@ pub struct Workspace {
     pub logger        : Logger,
     pub listeners     : Listeners,
     pub variables     : UniformScope,
+    #[derivative(Debug="ignore")]
+    pub on_resize     : Option<Box<dyn Fn(&Shape)>>,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
     pub text_components : Vec<text::TextComponent>,
 }
@@ -165,6 +168,7 @@ impl Workspace {
         let symbols_dirty   = dirty_flag;
         let scene           = Scene::new(logger.sub("scene"),&variables);
         let text_components = default();
+        let on_resize       = default();
 
         variables.add("pixel_ratio", shape.pixel_ratio());
 
@@ -180,7 +184,7 @@ impl Workspace {
                                         , Context::ONE , Context::ONE_MINUS_SRC_ALPHA );
 
         let this = Self {canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
-                        ,listeners,variables,text_components};
+                        ,listeners,variables,on_resize,text_components};
         Ok(this)
     }
 
@@ -221,6 +225,7 @@ impl Workspace {
             self.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
             self.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
             self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
+            self.on_resize.iter().for_each(|f| f(shape));
         });
     }
 

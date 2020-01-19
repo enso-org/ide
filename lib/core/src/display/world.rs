@@ -34,6 +34,7 @@ use wasm_bindgen::JsValue;
 use web_sys::Performance;
 use web_sys::KeyboardEvent;
 
+use crate::system::gpu::types::*;
 use crate::system::gpu::data::texture;
 use crate::system::gpu::data::texture::Texture;
 
@@ -48,119 +49,6 @@ pub fn get_world() -> World {
     }
 }
 
-// =============
-// === World ===
-// =============
-
-// === Definition ===
-
-/// Shared reference to the `World` object.
-#[derive(Clone,Debug)]
-pub struct World {
-    pub rc: Rc<RefCell<WorldData>>,
-}
-
-impl World {
-    /// Create new shared reference.
-    pub fn new(world: WorldData) -> Self {
-        let rc = Rc::new(RefCell::new(world));
-        let out = Self {rc};
-        unsafe {
-            WORLD = Some(out.clone_ref());
-        }
-        out.test();
-
-        out
-    }
-
-    /// Cheap clone of the world reference.
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-
-    /// Dispose the world object, cancel all handlers and events.
-    pub fn dispose(&self) {
-        self.rc.borrow_mut().dispose()
-    }
-
-    pub fn stats(&self) -> Stats {
-        self.rc.borrow().stats.clone_ref()
-    }
-
-    pub fn new_symbol(&self) -> Symbol {
-        self.rc.borrow().workspace.new_symbol2()
-    }
-
-    /// Run the provided callback on every frame. Returns a `CallbackHandle`,
-    /// which when dropped will cancel the callback. If you want the function
-    /// to run forever, you can use the `forget` method in the handle.
-    pub fn on_frame<F:FnMut(&World)+'static>
-    (&self, mut callback:F) -> CallbackHandle {
-        let this = self.clone_ref();
-        let func = move || callback(&this);
-        self.rc.borrow_mut().event_loop.add_callback(func)
-    }
-
-    pub fn mod_stats<F:FnOnce(&Stats)>(&self, f:F) {
-        f(&self.rc.borrow().stats);
-    }
-
-    fn test(&self) {
-
-
-//        let shape = self.shape.screen_shape();
-        let width  = 961*2; // shape.width as i32;
-        let height = 359*2; // shape.height as i32;
-        let context = self.rc.borrow().workspace.context.clone();
-
-        let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
-
-        let screen = Screen::new();
-
-        let uniform:Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>> = {
-//            let world_data = &mut self.borrow_mut();
-//            let symbol = &mut world_data.workspace.index(screen.symbol_ref.symbol_id);
-            screen.variables().add_or_panic("previous_pass",texture1)
-        };
-
-
-        let fb = context.create_framebuffer().unwrap();
-
-        self.borrow_mut().tmp_screen = Some(screen);
-        self.borrow_mut().tmp_uni = Some(uniform);
-        self.borrow_mut().tmp_fb  = Some(fb);
-
-//        let gl_texture = uniform.modify(|t| t.gl_texture().clone());
-//        context.bind_framebuffer(Context::FRAMEBUFFER, Some(&fb));
-
-//        let level = 0;
-//        let attachment_point = Context::COLOR_ATTACHMENT0;
-//        context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
-//        screen
-    }
-}
-
-impl<T> Add<T> for World where WorldData: Add<T> {
-    type Result = AddResult<WorldData,T>;
-    fn add(&mut self, t:T) -> Self::Result {
-        self.rc.borrow_mut().add(t)
-    }
-}
-
-impl Deref for World {
-    type Target = Rc<RefCell<WorldData>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.rc
-    }
-}
-
-impl Into<DisplayObjectData> for &World {
-    fn into(self) -> DisplayObjectData {
-        let data:&WorldData = &self.borrow();
-        data.into()
-    }
-}
 
 
 
@@ -235,6 +123,177 @@ impl StatsMonitorData {
 
 
 
+
+#[derive(Debug)]
+pub struct RenderComposer {
+    passes    : Vec<RenderPassRunner>,
+    variables : UniformScope,
+    context   : Context,
+    width     : i32,
+    height    : i32,
+}
+
+impl RenderComposer {
+    pub fn new(context:&Context, variables:&UniformScope, width:i32, height:i32) -> Self {
+        let passes    = default();
+        let context   = context.clone();
+        let variables = variables.clone_ref();
+        Self {passes,variables,context,width,height}
+    }
+
+    pub fn add<Pass:RenderPass>(&mut self, pass:Pass) {
+        let pass = RenderPassRunner::new(&self.context,&self.variables,pass,self.width,self.height);
+        self.passes.push(pass);
+    }
+}
+
+
+
+
+
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+struct RenderPassRunner {
+    #[derivative(Debug="ignore")]
+    pass        : Box<dyn RenderPass>,
+    outputs     : Vec<AnyTextureUniform>,
+    framebuffer : Option<web_sys::WebGlFramebuffer>,
+    variables   : UniformScope,
+    context     : Context,
+    width       : i32,
+    height      : i32,
+}
+
+impl RenderPassRunner {
+    pub fn new<Pass:RenderPass>(context:&Context, variables:&UniformScope, pass:Pass, width:i32, height:i32) -> Self {
+        let pass        = Box::new(pass);
+        let outputs     = default();
+        let framebuffer = Some(context.create_framebuffer().unwrap());
+        let variables   = variables.clone_ref();
+        let context     = context.clone();
+        let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
+        this.initialize();
+        this
+    }
+
+    pub fn run(&self) {
+        self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
+        self.pass.run();
+    }
+
+    fn initialize(&mut self) {
+        for output in &self.pass.outputs() {
+            let texture = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&self.context,(self.width,self.height));
+            let uniform = self.variables.add_or_panic(&output.name,texture);
+            self.add_output(uniform.into());
+        }
+    }
+
+    fn add_output(&mut self, texture:AnyTextureUniform) {
+        let context          = &self.context;
+        let target           = Context::FRAMEBUFFER;
+        let texture_target   = Context::TEXTURE_2D;
+        let index            = self.outputs.len() as u32;
+        let attachment_point = Context::COLOR_ATTACHMENT0 + index;
+        let gl_texture       = texture.gl_texture();
+        let gl_texture       = Some(&gl_texture);
+        let level            = 0;
+        self.outputs.push(texture);
+        context.bind_framebuffer(target,self.framebuffer.as_ref());
+        context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
+    }
+}
+
+
+
+
+
+
+
+pub struct RenderPassOutput {
+    name            : String,
+    internal_format : texture::AnyInternalFormat,
+    // type like u8
+}
+
+impl RenderPassOutput {
+    pub fn new<Name:Str>(name:Name, internal_format:texture::AnyInternalFormat) -> Self {
+        let name = name.into();
+        Self {name,internal_format}
+    }
+}
+
+
+pub trait RenderPass : 'static {
+    fn run(&self);
+    fn outputs(&self) -> Vec<RenderPassOutput> {
+        default()
+    }
+}
+
+
+
+
+#[derive(Debug)]
+struct WorldRenderPass {
+    world: World
+}
+
+impl WorldRenderPass {
+    pub fn new(world:&World) -> Self {
+        let world = world.clone_ref();
+        Self {world}
+    }
+}
+
+impl RenderPass for WorldRenderPass {
+    fn run(&self) {
+        self.world.render();
+    }
+
+    fn outputs(&self) -> Vec<RenderPassOutput> {
+        vec![RenderPassOutput::new("color",texture::AnyInternalFormat::Rgba)]
+    }
+}
+
+
+
+
+#[derive(Debug)]
+struct ScreenRenderPass {
+    screen: Screen,
+}
+
+impl ScreenRenderPass {
+    pub fn new() -> Self {
+        let screen = Screen::new();
+        Self {screen}
+    }
+}
+
+impl RenderPass for ScreenRenderPass {
+    fn run(&self) {
+        self.screen.render();
+    }
+}
+
+
+
+fn mk_render_composer(world:&World, width:i32, height:i32) -> RenderComposer {
+    let workspace = &world.rc.borrow().workspace;
+    let context   = &workspace.context;
+    let variables = &workspace.variables;
+//    let width     = workspace.shape.canvas_shape().width  as i32;
+//    let height    = workspace.shape.canvas_shape().height as i32;
+    let composer  = RenderComposer::new(context,variables,width,height);
+    let pass1     = WorldRenderPass::new(world);
+    let pass2     = ScreenRenderPass::new();
+    composer
+}
+
+
+
 // =================
 // === WorldData ===
 // =================
@@ -264,6 +323,9 @@ pub struct WorldData {
     pub tmp_screen: Option<Screen>,
     pub tmp_uni: Option<Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>>>,
     pub tmp_fb: Option<web_sys::WebGlFramebuffer>,
+    pub tmp_composer: Option<RenderComposer>,
+
+
 }
 
 
@@ -291,13 +353,13 @@ impl WorldData {
                   gear icon in the 'Performance' tab. It can drastically slow the rendering.");
         let world          = World::new(Self::new_uninitialized(dom));
         let world_ref      = world.clone_ref();
-        let display_object = world.borrow().display_object.clone();
-        with(world.borrow_mut(), |mut data| {
+        let display_object = world.rc.borrow().display_object.clone();
+        with(world.rc.borrow_mut(), |mut data| {
             let update = move || {
-                world_ref.borrow_mut().pre_run();
-                world_ref.borrow_mut().run();
+                world_ref.rc.borrow_mut().pre_run();
+                world_ref.rc.borrow_mut().run();
                 display_object.render();
-                world_ref.borrow_mut().run2();
+                world_ref.rc.borrow_mut().run2();
             };
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
@@ -309,8 +371,8 @@ impl WorldData {
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             let val = val.unchecked_into::<KeyboardEvent>();
             let key = val.key();
-            if      key == "0" { world_copy.borrow_mut().display_mode.set(0) }
-            else if key == "1" { world_copy.borrow_mut().display_mode.set(1) }
+            if      key == "0" { world_copy.rc.borrow_mut().display_mode.set(0) }
+            else if key == "1" { world_copy.rc.borrow_mut().display_mode.set(1) }
         }));
         web::document().unwrap().add_event_listener_with_callback
             ("keydown",c.as_ref().unchecked_ref()).unwrap();
@@ -347,11 +409,12 @@ impl WorldData {
         let tmp_screen = None;
         let tmp_uni = None;
         let tmp_fb = None;
+        let tmp_composer = None;
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {display_object,workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,fonts,update_handle,stats,stats_monitor,tmp_screen,tmp_uni,tmp_fb}
+             ,fonts,update_handle,stats,stats_monitor,tmp_screen,tmp_uni,tmp_fb,tmp_composer}
     }
 
     pub fn run(&mut self) {
@@ -373,11 +436,7 @@ impl WorldData {
 
     pub fn run2(&mut self) {
         self.workspace.context.bind_framebuffer(Context::FRAMEBUFFER, None);
-
         self.tmp_screen.as_ref().unwrap().render();
-//
-//        let sid = self.tmp_screen.as_ref().unwrap().symbol_ref.symbol_id;
-//        self.workspace.symbols.index(sid).render();
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -406,5 +465,113 @@ impl Into<DisplayObjectData> for &WorldData {
 impl Drop for WorldData {
     fn drop(&mut self) {
         self.logger.info("Dropping.");
+    }
+}
+
+
+
+// =============
+// === World ===
+// =============
+
+// === Definition ===
+
+/// Shared reference to the `World` object.
+#[derive(Clone,Debug)]
+pub struct World {
+    pub rc: Rc<RefCell<WorldData>>,
+}
+
+impl World {
+    /// Create new shared reference.
+    pub fn new(world: WorldData) -> Self {
+        let rc = Rc::new(RefCell::new(world));
+        let out = Self {rc};
+        unsafe {
+            WORLD = Some(out.clone_ref());
+        }
+        out.test();
+
+        out
+    }
+
+    /// Cheap clone of the world reference.
+    pub fn clone_ref(&self) -> Self {
+        self.clone()
+    }
+
+    /// Dispose the world object, cancel all handlers and events.
+    pub fn dispose(&self) {
+        self.rc.borrow_mut().dispose()
+    }
+
+    pub fn stats(&self) -> Stats {
+        self.rc.borrow().stats.clone_ref()
+    }
+
+    pub fn new_symbol(&self) -> Symbol {
+        self.rc.borrow().workspace.new_symbol2()
+    }
+
+    /// Run the provided callback on every frame. Returns a `CallbackHandle`,
+    /// which when dropped will cancel the callback. If you want the function
+    /// to run forever, you can use the `forget` method in the handle.
+    pub fn on_frame<F:FnMut(&World)+'static>
+    (&self, mut callback:F) -> CallbackHandle {
+        let this = self.clone_ref();
+        let func = move || callback(&this);
+        self.rc.borrow_mut().event_loop.add_callback(func)
+    }
+
+    pub fn mod_stats<F:FnOnce(&Stats)>(&self, f:F) {
+        f(&self.rc.borrow().stats);
+    }
+
+    pub fn render(&self) {
+        self.rc.borrow_mut().run();
+    }
+
+    fn test(&self) {
+        let width  = 961*2; // shape.width as i32;
+        let height = 359*2; // shape.height as i32;
+        let context = self.rc.borrow().workspace.context.clone();
+
+        let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
+
+        let screen = Screen::new();
+
+        let uniform:Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>> = {
+            screen.variables().add_or_panic("previous_pass",texture1)
+        };
+
+
+        let fb = context.create_framebuffer().unwrap();
+
+        let composer = mk_render_composer(self,width,height);
+        let world = self.clone_ref();
+//        self.rc.borrow_mut().workspace.on_resize = Some(Box::new(move |_| {
+//            println!("MAKING COMPOSER AFTER RESIZE");
+//            let composer = mk_render_composer(&world);
+//            world.rc.borrow_mut().tmp_composer = Some(composer);
+//        }));
+
+        self.rc.borrow_mut().tmp_screen = Some(screen);
+        self.rc.borrow_mut().tmp_uni = Some(uniform);
+        self.rc.borrow_mut().tmp_fb  = Some(fb);
+        self.rc.borrow_mut().tmp_composer = Some(composer);
+    }
+}
+
+impl<T> Add<T> for World where WorldData: Add<T> {
+    type Result = AddResult<WorldData,T>;
+    fn add(&mut self, t:T) -> Self::Result {
+        self.rc.borrow_mut().add(t)
+    }
+}
+
+impl Into<DisplayObjectData> for &World {
+    fn into(self) -> DisplayObjectData {
+        let data:&WorldData = &self.rc.borrow();
+        data.into()
     }
 }

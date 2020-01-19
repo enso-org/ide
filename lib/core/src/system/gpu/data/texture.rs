@@ -713,8 +713,8 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
         let target = Context::TEXTURE_2D;
         let wrap   = Context::CLAMP_TO_EDGE as i32;
         context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,Context::LINEAR as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_S    ,wrap);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_T    ,wrap);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,wrap);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,wrap);
     }
 }
 
@@ -752,6 +752,7 @@ pub type TextureUnit = u32;
 pub trait ContextTextureOps {
     /// Bind texture for specific unit
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
+    fn gl_texture(&self) -> WebGlTexture;
 }
 
 impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
@@ -762,6 +763,10 @@ impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
         context.bind_texture(target,Some(&self.gl_texture));
         context.active_texture(Context::TEXTURE0);
         TextureBindGuard {context,target,unit}
+    }
+
+    fn gl_texture(&self) -> WebGlTexture {
+        self.gl_texture.clone()
     }
 }
 

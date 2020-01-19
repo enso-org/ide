@@ -112,7 +112,10 @@ impl {
                     let name = &binding.name;
                     let tp   = &binding.decl.tp;
                     match binding.scope {
-                        None => todo!(),
+                        None => {
+                            self.logger.warning("TODO: default shader values.");
+                            shader_cfg.add_uniform(name,tp);
+                        },
                         Some(scope_type) => match scope_type {
                             ScopeType::Symbol => shader_cfg.add_uniform   (name,tp),
                             ScopeType::Global => shader_cfg.add_uniform   (name,tp),

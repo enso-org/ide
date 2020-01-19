@@ -8,6 +8,7 @@ use enum_dispatch::*;
 use shapely::shared;
 use upload::UniformUpload;
 use web_sys::WebGlUniformLocation;
+use web_sys::WebGlTexture;
 
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::texture::*;
@@ -228,7 +229,7 @@ pub trait AnyPrimUniformOps {
 // Note, we could do it using static dispatch instead (like in the AnyPrimUniform case) if this
 // gets fixed: https://github.com/rust-lang/rust/issues/68324 .
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct AnyTextureUniform {
     pub raw: Box<dyn AnyTextureUniformOps>
 }
@@ -239,12 +240,25 @@ pub struct AnyTextureUniform {
 pub trait AnyTextureUniformOps:TextureUniformClone + Debug {
     /// Bind texture for specific unit
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
+    fn gl_texture(&self) -> WebGlTexture;
 }
 
 impl<T:ContextTextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T> {
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
         let u:&T = &self.rc.borrow().value;
         u.bind_texture_unit(context,unit)
+    }
+
+    fn gl_texture(&self) -> WebGlTexture {
+        self.rc.borrow().value.gl_texture()
+    }
+}
+
+
+impl<T:AnyTextureUniformOps + 'static> From<T> for AnyTextureUniform {
+    fn from(t:T) -> Self {
+        let raw = Box::new(t);
+        Self {raw}
     }
 }
 
