@@ -106,55 +106,35 @@ impl ShapeData {
 // === Workspace ===
 // =================
 
+shared! { Workspace
+
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct Workspace {
-    pub canvas        : web_sys::HtmlCanvasElement,
-    pub context       : Context,
-    pub symbols       : SymbolRegistry,
-    pub symbols_dirty : SymbolRegistryDirty,
-    pub scene         : Scene,
-    pub shape         : Shape,
-    pub shape_dirty   : ShapeDirty,
-    pub logger        : Logger,
-    pub listeners     : Listeners,
-    pub variables     : UniformScope,
+pub struct WorkspaceData {
+    canvas        : web_sys::HtmlCanvasElement,
+    context       : Context,
+    symbols       : SymbolRegistry,
+    symbols_dirty : SymbolRegistryDirty,
+    scene         : Scene,
+    shape         : Shape,
+    shape_dirty   : ShapeDirty,
+    logger        : Logger,
+    listeners     : Listeners,
+    variables     : UniformScope,
     #[derivative(Debug="ignore")]
-    pub on_resize     : Option<Box<dyn Fn(&Shape)>>,
+    on_resize     : Option<Box<dyn Fn(&Shape)>>,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
-    pub text_components : Vec<text::TextComponent>,
+    text_components : Vec<text::TextComponent>,
 }
 
-
-// === Types ===
-
-pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
-pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
-
-
-// === Callbacks ===
-
-closure! {
-fn symbols_on_change(dirty:SymbolRegistryDirty) -> OnSymbolRegistryChange {
-    || dirty.set()
-}}
-
-
-// === Implementation ===
-
-#[derive(Debug)]
-pub struct Listeners {
-    resize: ResizeObserver,
-}
-
-impl Workspace {
+impl {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
-    (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Result<Self, Error> {
+    (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
         let dom             = dom.as_ref();
-        let canvas          = web::get_canvas(dom)?;
-        let context         = web::get_webgl2_context(&canvas)?;
+        let canvas          = web::get_canvas(dom).unwrap();
+        let context         = web::get_webgl2_context(&canvas).unwrap();
         let sub_logger      = logger.sub("shape_dirty");
         let shape_dirty     = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
         let sub_logger      = logger.sub("symbols_dirty");
@@ -185,8 +165,98 @@ impl Workspace {
 
         let this = Self {canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
                         ,listeners,variables,on_resize,text_components};
-        Ok(this)
+        this
     }
+
+    pub fn context(&self) -> Context {
+        self.context.clone()
+    }
+
+    pub fn variables(&self) -> UniformScope {
+        self.variables.clone_ref()
+    }
+
+    pub fn render(&mut self) {
+        group!(self.logger, "Updating.", {
+            if self.shape_dirty.check_all() {
+                let screen = self.shape.screen_shape();
+                self.resize_canvas(&self.shape);
+                self.scene.camera.set_screen(screen.width, screen.height);
+                self.shape_dirty.unset_all();
+            }
+            if self.symbols_dirty.check_all() {
+                self.symbols.update();
+                self.symbols_dirty.unset_all();
+            }
+            self.logger.info("Clearing the scene.");
+            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
+            self.context.clear(Context::COLOR_BUFFER_BIT);
+            self.logger.info("Rendering meshes.");
+            self.symbols.render(&self.scene.camera);
+        })
+    }
+
+    /// Check dirty flags and update the state accordingly.
+    pub fn update(&mut self, fonts:&mut Fonts) {
+        self.render();
+        if !self.text_components.is_empty() {
+            self.logger.info("Rendering text components");
+            for text_component in &mut self.text_components {
+                text_component.display(fonts);
+            }
+        }
+    }
+
+    pub fn index(&self, ix:usize) -> Symbol {
+        self.symbols.index(ix)
+    }
+
+    /// Create a new `Symbol` instance.
+    pub fn new_symbol(&self) -> SymbolId {
+        self.symbols.new_symbol()
+    }
+
+    /// Create a new `Symbol` instance.
+    pub fn new_symbol2(&self) -> Symbol {
+        self.symbols.new_symbol2()
+    }
+}
+
+}
+
+// === Types ===
+
+pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
+pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
+
+
+// === Callbacks ===
+
+closure! {
+fn symbols_on_change(dirty:SymbolRegistryDirty) -> OnSymbolRegistryChange {
+    || dirty.set()
+}}
+
+
+// === Implementation ===
+
+#[derive(Debug)]
+pub struct Listeners {
+    resize: ResizeObserver,
+}
+
+impl Workspace {
+    pub fn tmp_borrow_mut(&self) -> std::cell::RefMut<'_,WorkspaceData> {
+        self.rc.borrow_mut()
+    }
+}
+
+impl WorkspaceData {
+
+    pub fn tmp_text_components(&mut self) -> &mut Vec<text::TextComponent> {
+        &mut self.text_components
+    }
+
 
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
@@ -205,15 +275,7 @@ impl Workspace {
         Listeners {resize}
     }
 
-    /// Create a new `Symbol` instance.
-    pub fn new_symbol(&self) -> SymbolId {
-        self.symbols.new_symbol()
-    }
 
-    /// Create a new `Symbol` instance.
-    pub fn new_symbol2(&self) -> Symbol {
-        self.symbols.new_symbol2()
-    }
 
     /// Resize the underlying canvas. This function should rather not be called
     /// directly. If you want to change the canvas size, modify the `shape` and
@@ -229,40 +291,7 @@ impl Workspace {
         });
     }
 
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self, fonts:&mut Fonts) {
-        group!(self.logger, "Updating.", {
-            if self.shape_dirty.check_all() {
-                let screen = self.shape.screen_shape();
-                self.resize_canvas(&self.shape);
-                self.scene.camera.set_screen(screen.width, screen.height);
-                self.shape_dirty.unset_all();
-            }
-            if self.symbols_dirty.check_all() {
-                self.symbols.update();
-                self.symbols_dirty.unset_all();
-            }
 
-
-
-            self.logger.info("Clearing the scene.");
-            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
-            self.context.clear(Context::COLOR_BUFFER_BIT);
-            self.logger.info("Rendering meshes.");
-            self.symbols.render(&self.scene.camera);
-
-            if !self.text_components.is_empty() {
-                self.logger.info("Rendering text components");
-                for text_component in &mut self.text_components {
-                    text_component.display(fonts);
-                }
-            }
-        })
-    }
-
-    pub fn index(&self, ix:usize) -> Symbol {
-        self.symbols.index(ix)
-    }
 }
 
 //impl Index<usize> for Workspace {

@@ -132,7 +132,7 @@ impl {
         let instance_id = self.symbol.surface().instance_scope().add_instance();
         let transform   = self.transform.at(instance_id);
         let size        = self.size.at(instance_id);
-        size.set(Vector2::new(10.0,10.0));
+        size.set(Vector2::new(1.0,1.0));
         let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
         self.add_child(&sprite);
         sprite

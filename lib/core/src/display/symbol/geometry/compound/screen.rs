@@ -48,9 +48,9 @@ impl Screen {
 
     fn surface_material() -> Material {
         let mut material = Material::new();
-        material.add_input_def::<texture::FloatSampler>("previous_pass");
+        material.add_input_def::<texture::FloatSampler>("pass_color");
         material.set_main("
-        vec4 test_color = texture(input_previous_pass, input_uv);
+        vec4 test_color = texture(input_pass_color, input_uv);
         output_color = test_color;//vec4(0.0,1.0,0.0,1.0);
         ");
         material

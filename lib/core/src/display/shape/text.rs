@@ -261,7 +261,7 @@ impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
     /// Build a new text component rendering on given workspace
     pub fn build(mut self) -> TextComponent {
         self.load_all_chars();
-        let gl_context      = self.workspace.context.clone();
+        let gl_context      = self.workspace.context();
         let content_program = create_content_program(&gl_context);
         let cursors_program = create_cursors_program(&gl_context);
         let gl_msdf_texture = self.create_msdf_texture(&gl_context);

@@ -145,6 +145,12 @@ impl RenderComposer {
         let pass = RenderPassRunner::new(&self.context,&self.variables,pass,self.width,self.height);
         self.passes.push(pass);
     }
+
+    pub fn run(&self) {
+        for pass in &self.passes {
+            pass.run(&self.context);
+        }
+    }
 }
 
 
@@ -169,7 +175,7 @@ impl RenderPassRunner {
     pub fn new<Pass:RenderPass>(context:&Context, variables:&UniformScope, pass:Pass, width:i32, height:i32) -> Self {
         let pass        = Box::new(pass);
         let outputs     = default();
-        let framebuffer = Some(context.create_framebuffer().unwrap());
+        let framebuffer = if pass.outputs().is_empty() {None} else {Some(context.create_framebuffer().unwrap())};
         let variables   = variables.clone_ref();
         let context     = context.clone();
         let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
@@ -177,15 +183,15 @@ impl RenderPassRunner {
         this
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, context:&Context) {
         self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
-        self.pass.run();
+        self.pass.run(context);
     }
 
     fn initialize(&mut self) {
         for output in &self.pass.outputs() {
             let texture = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&self.context,(self.width,self.height));
-            let uniform = self.variables.add_or_panic(&output.name,texture);
+            let uniform = self.variables.add_or_panic(&format!("pass_{}",output.name),texture);
             self.add_output(uniform.into());
         }
     }
@@ -226,7 +232,7 @@ impl RenderPassOutput {
 
 
 pub trait RenderPass : 'static {
-    fn run(&self);
+    fn run(&self, context:&Context);
     fn outputs(&self) -> Vec<RenderPassOutput> {
         default()
     }
@@ -237,19 +243,21 @@ pub trait RenderPass : 'static {
 
 #[derive(Debug)]
 struct WorldRenderPass {
-    world: World
+    target: DisplayObjectData
 }
 
 impl WorldRenderPass {
-    pub fn new(world:&World) -> Self {
-        let world = world.clone_ref();
-        Self {world}
+    pub fn new(target:&DisplayObjectData) -> Self {
+        let target = target.clone_ref();
+        Self {target}
     }
 }
 
 impl RenderPass for WorldRenderPass {
-    fn run(&self) {
-        self.world.render();
+    fn run(&self, context:&Context) {
+        context.clear_color(0.0, 0.0, 0.0, 1.0);
+        context.clear(Context::COLOR_BUFFER_BIT);
+        self.target.render();
     }
 
     fn outputs(&self) -> Vec<RenderPassOutput> {
@@ -273,22 +281,21 @@ impl ScreenRenderPass {
 }
 
 impl RenderPass for ScreenRenderPass {
-    fn run(&self) {
+    fn run(&self, _:&Context) {
         self.screen.render();
     }
 }
 
 
 
-fn mk_render_composer(world:&World, width:i32, height:i32) -> RenderComposer {
-    let workspace = &world.rc.borrow().workspace;
-    let context   = &workspace.context;
-    let variables = &workspace.variables;
+fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, height:i32) -> RenderComposer {
+    let context   = &workspace.context();
+    let variables = &workspace.variables();
 //    let width     = workspace.shape.canvas_shape().width  as i32;
 //    let height    = workspace.shape.canvas_shape().height as i32;
-    let composer  = RenderComposer::new(context,variables,width,height);
-    let pass1     = WorldRenderPass::new(world);
-    let pass2     = ScreenRenderPass::new();
+    let mut composer  = RenderComposer::new(context,variables,width,height);
+    composer.add(WorldRenderPass::new(dp));
+    composer.add(ScreenRenderPass::new());
     composer
 }
 
@@ -320,9 +327,6 @@ pub struct WorldData {
     pub stats           : Stats,
     pub stats_monitor   : StatsMonitor,
 
-    pub tmp_screen: Option<Screen>,
-    pub tmp_uni: Option<Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>>>,
-    pub tmp_fb: Option<web_sys::WebGlFramebuffer>,
     pub tmp_composer: Option<RenderComposer>,
 
 
@@ -356,10 +360,7 @@ impl WorldData {
         let display_object = world.rc.borrow().display_object.clone();
         with(world.rc.borrow_mut(), |mut data| {
             let update = move || {
-                world_ref.rc.borrow_mut().pre_run();
                 world_ref.rc.borrow_mut().run();
-                display_object.render();
-                world_ref.rc.borrow_mut().run2();
             };
             let update_handle   = data.event_loop.add_callback(update);
             data.update_handle  = Some(update_handle);
@@ -393,8 +394,8 @@ impl WorldData {
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
         let workspace_dirty2       = workspace_dirty.clone();
         let on_change              = move || {workspace_dirty2.set()};
-        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change).unwrap(); // fixme unwrap
-        let variables              = &workspace.variables;
+        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change);
+        let variables              = &workspace.variables();
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
         let fonts                  = Fonts::new();
@@ -406,37 +407,20 @@ impl WorldData {
         let stats_monitor_cp_1     = stats_monitor.clone();
         let stats_monitor_cp_2     = stats_monitor.clone();
 
-        let tmp_screen = None;
-        let tmp_uni = None;
-        let tmp_fb = None;
         let tmp_composer = None;
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {display_object,workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,fonts,update_handle,stats,stats_monitor,tmp_screen,tmp_uni,tmp_fb,tmp_composer}
+             ,fonts,update_handle,stats,stats_monitor,tmp_composer}
     }
+
 
     pub fn run(&mut self) {
         let relative_time = self.performance.now() as f32 - self.start_time;
         self.time.set(relative_time);
         self.update();
-    }
-
-    pub fn pre_run(&mut self) {
-        let fb = self.tmp_fb.as_ref().unwrap();
-        let gl_texture = self.tmp_uni.as_ref().unwrap().modify(|t| t.gl_texture().clone());
-        self.workspace.context.bind_framebuffer(Context::FRAMEBUFFER, Some(fb));
-
-        let level = 0;
-        let attachment_point = Context::COLOR_ATTACHMENT0;
-        self.workspace.context.framebuffer_texture_2d(Context::FRAMEBUFFER, attachment_point, Context::TEXTURE_2D, Some(&gl_texture), level);
-//        screen
-    }
-
-    pub fn run2(&mut self) {
-        self.workspace.context.bind_framebuffer(Context::FRAMEBUFFER, None);
-        self.tmp_screen.as_ref().unwrap().render();
+        self.tmp_composer.as_ref().unwrap().run();
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -534,30 +518,24 @@ impl World {
     fn test(&self) {
         let width  = 961*2; // shape.width as i32;
         let height = 359*2; // shape.height as i32;
-        let context = self.rc.borrow().workspace.context.clone();
+        let context = self.rc.borrow().workspace.context();
 
         let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
 
         let screen = Screen::new();
 
         let uniform:Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>> = {
-            screen.variables().add_or_panic("previous_pass",texture1)
+            screen.variables().add_or_panic("pass_color",texture1)
         };
 
 
         let fb = context.create_framebuffer().unwrap();
 
-        let composer = mk_render_composer(self,width,height);
+        let composer = {
+            let dp = &self.rc.borrow().display_object;
+            mk_render_composer(&self.rc.borrow().workspace, dp, width, height)
+        };
         let world = self.clone_ref();
-//        self.rc.borrow_mut().workspace.on_resize = Some(Box::new(move |_| {
-//            println!("MAKING COMPOSER AFTER RESIZE");
-//            let composer = mk_render_composer(&world);
-//            world.rc.borrow_mut().tmp_composer = Some(composer);
-//        }));
-
-        self.rc.borrow_mut().tmp_screen = Some(screen);
-        self.rc.borrow_mut().tmp_uni = Some(uniform);
-        self.rc.borrow_mut().tmp_fb  = Some(fb);
         self.rc.borrow_mut().tmp_composer = Some(composer);
     }
 }

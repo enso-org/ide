@@ -41,7 +41,7 @@ pub fn run_example_text() {
                 }
             }.build();
             text_component.cursors.add_cursor(TextLocation { line: 0, column: 0 });
-            workspace.text_components.push(text_component);
+            workspace.tmp_borrow_mut().tmp_text_components().push(text_component);
             world.workspace_dirty.set();
         }
 
@@ -75,7 +75,8 @@ fn animate_text_component
 , start_scrolling:f64) {
     let world : &mut WorldData = &mut world.rc.borrow_mut();
     let workspace              = &mut world.workspace;
-    let editor                 = workspace.text_components.first_mut().unwrap();
+    let mut workspace          = workspace.tmp_borrow_mut();
+    let editor                 = workspace.tmp_text_components().first_mut().unwrap();
     let fonts                  = &mut world.fonts;
     let now                    = js_sys::Date::now();
 
