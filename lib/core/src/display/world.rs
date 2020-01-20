@@ -146,8 +146,8 @@ impl RenderComposer {
         self.passes.push(pass);
     }
 
-    pub fn run(&self) {
-        for pass in &self.passes {
+    pub fn run(&mut self) {
+        for pass in &mut self.passes {
             pass.run(&self.context);
         }
     }
@@ -183,7 +183,7 @@ impl RenderPassRunner {
         this
     }
 
-    pub fn run(&self, context:&Context) {
+    pub fn run(&mut self, context:&Context) {
         self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
         self.pass.run(context);
     }
@@ -232,7 +232,7 @@ impl RenderPassOutput {
 
 
 pub trait RenderPass : 'static {
-    fn run(&self, context:&Context);
+    fn run(&mut self, context:&Context);
     fn outputs(&self) -> Vec<RenderPassOutput> {
         default()
     }
@@ -254,7 +254,7 @@ impl WorldRenderPass {
 }
 
 impl RenderPass for WorldRenderPass {
-    fn run(&self, context:&Context) {
+    fn run(&mut self, context:&Context) {
         context.clear_color(0.0, 0.0, 0.0, 1.0);
         context.clear(Context::COLOR_BUFFER_BIT);
         self.target.render();
@@ -281,10 +281,85 @@ impl ScreenRenderPass {
 }
 
 impl RenderPass for ScreenRenderPass {
-    fn run(&self, _:&Context) {
+    fn run(&mut self, _:&Context) {
         self.screen.render();
     }
 }
+
+
+#[derive(Debug)]
+pub struct PixelReadPassData {
+    buffer: WebGlBuffer,
+}
+
+impl PixelReadPassData {
+    pub fn new(buffer:WebGlBuffer) -> Self {
+        Self {buffer}
+    }
+}
+
+
+#[derive(Debug,Default)]
+struct PixelReadPass {
+    data: Option<PixelReadPassData>,
+}
+
+impl PixelReadPass {
+    pub fn new() -> Self {
+        default()
+    }
+}
+
+impl RenderPass for PixelReadPass {
+    fn run(&mut self, context:&Context) {
+
+        let data = match &self.data {
+            Some(data) => data,
+            None => {
+                let buffer     = context.create_buffer().unwrap();
+                context.bind_buffer(Context::PIXEL_PACK_BUFFER,Some(&buffer));
+                let array      = ArrayBuffer::new(4);
+                let array_view = Some(&array);
+                let target     = Context::PIXEL_PACK_BUFFER;
+                let usage      = Context::DYNAMIC_READ;
+                context.buffer_data_with_opt_array_buffer(target,array_view,usage);
+                let data = PixelReadPassData::new(buffer);
+                self.data = Some(data);
+                self.data.as_ref().unwrap()
+            }
+        };
+
+        context.bind_buffer(Context::PIXEL_PACK_BUFFER,Some(&data.buffer));
+
+        // REMOVE ME
+        context.bind_buffer(Context::PIXEL_PACK_BUFFER,None);
+
+
+        let mousex = 228*2;
+        let mousey = 70*2;
+        let width  = 1;
+        let height = 1;
+        let format = Context::RGBA;
+        let typ    = Context::UNSIGNED_BYTE;
+        let offset = 0;
+        let mut dst: Vec<u8> = vec![0,0,0,0];
+        context.read_pixels_with_u8_array_and_dst_offset(mousex,mousey,width,height,format,typ,&mut dst,offset);
+
+        println!("GOT: {:?}", dst);
+
+    }
+}
+
+use js_sys::ArrayBuffer;
+use web_sys::WebGlBuffer;
+
+//pub fn buffer_data_with_opt_array_buffer(
+//    &self,
+//    target: u32,
+//    src_data: Option<&ArrayBuffer>,
+//    usage: u32
+//)
+
 
 
 
@@ -296,8 +371,14 @@ fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, he
     let mut composer  = RenderComposer::new(context,variables,width,height);
     composer.add(WorldRenderPass::new(dp));
     composer.add(ScreenRenderPass::new());
+    composer.add(PixelReadPass::new());
     composer
 }
+
+
+
+
+
 
 
 
@@ -420,7 +501,7 @@ impl WorldData {
         let relative_time = self.performance.now() as f32 - self.start_time;
         self.time.set(relative_time);
         self.update();
-        self.tmp_composer.as_ref().unwrap().run();
+        self.tmp_composer.as_mut().unwrap().run();
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -474,7 +555,7 @@ impl World {
         unsafe {
             WORLD = Some(out.clone_ref());
         }
-        out.test();
+        out.init_composer();
 
         out
     }
@@ -515,27 +596,13 @@ impl World {
         self.rc.borrow_mut().run();
     }
 
-    fn test(&self) {
+    fn init_composer(&self) {
         let width  = 961*2; // shape.width as i32;
         let height = 359*2; // shape.height as i32;
-        let context = self.rc.borrow().workspace.context();
-
-        let texture1 = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&context,(width,height));
-
-        let screen = Screen::new();
-
-        let uniform:Uniform<Texture<texture::GpuOnly,texture::Rgba,u8>> = {
-            screen.variables().add_or_panic("pass_color",texture1)
-        };
-
-
-        let fb = context.create_framebuffer().unwrap();
-
         let composer = {
             let dp = &self.rc.borrow().display_object;
             mk_render_composer(&self.rc.borrow().workspace, dp, width, height)
         };
-        let world = self.clone_ref();
         self.rc.borrow_mut().tmp_composer = Some(composer);
     }
 }
