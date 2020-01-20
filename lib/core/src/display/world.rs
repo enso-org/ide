@@ -134,14 +134,16 @@ pub struct RenderComposer {
 }
 
 impl RenderComposer {
-    pub fn new(context:&Context, variables:&UniformScope, width:i32, height:i32) -> Self {
+    pub fn new(pipeline:&RenderPipeline, context:&Context, variables:&UniformScope, width:i32, height:i32) -> Self {
         let passes    = default();
         let context   = context.clone();
         let variables = variables.clone_ref();
-        Self {passes,variables,context,width,height}
+        let mut this  = Self {passes,variables,context,width,height};
+        for pass in &pipeline.passes { this.add(pass); };
+        this
     }
 
-    pub fn add<Pass:RenderPass>(&mut self, pass:Pass) {
+    pub fn add(&mut self, pass:&Box<dyn RenderPass>) {
         let pass = RenderPassRunner::new(&self.context,&self.variables,pass,self.width,self.height);
         self.passes.push(pass);
     }
@@ -152,6 +154,27 @@ impl RenderComposer {
         }
     }
 }
+
+
+
+
+#[derive(Debug,Default)]
+pub struct RenderPipeline {
+    passes: Vec<Box<dyn RenderPass>>
+}
+
+impl RenderPipeline {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn add<Pass:RenderPass>(mut self, pass:Pass) -> Self {
+        let pass = Box::new(pass);
+        self.passes.push(pass);
+        self
+    }
+}
+
 
 
 
@@ -172,15 +195,16 @@ struct RenderPassRunner {
 }
 
 impl RenderPassRunner {
-    pub fn new<Pass:RenderPass>(context:&Context, variables:&UniformScope, pass:Pass, width:i32, height:i32) -> Self {
-        let pass        = Box::new(pass);
-        let outputs     = default();
-        let framebuffer = if pass.outputs().is_empty() {None} else {Some(context.create_framebuffer().unwrap())};
-        let variables   = variables.clone_ref();
-        let context     = context.clone();
-        let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
-        this.initialize();
-        this
+    pub fn new(context:&Context, variables:&UniformScope, pass:&Box<dyn RenderPass>, width:i32, height:i32) -> Self {
+        let pass = <Box<dyn RenderPass> as Clone>::clone(pass);
+//        let outputs     = default();
+//        let framebuffer = if pass.outputs().is_empty() {None} else {Some(context.create_framebuffer().unwrap())};
+//        let variables   = variables.clone_ref();
+//        let context     = context.clone();
+//        let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
+//        this.initialize();
+//        this
+        todo!()
     }
 
     pub fn run(&mut self, context:&Context) {
@@ -231,17 +255,19 @@ impl RenderPassOutput {
 }
 
 
-pub trait RenderPass : 'static {
+pub trait RenderPass : CloneBoxedForRenderPass + Debug + 'static {
     fn run(&mut self, context:&Context, variables:&UniformScope);
     fn outputs(&self) -> Vec<RenderPassOutput> {
         default()
     }
 }
 
+clone_boxed!(RenderPass);
 
 
 
-#[derive(Debug)]
+
+#[derive(Clone,Debug)]
 struct WorldRenderPass {
     target: DisplayObjectData
 }
@@ -268,7 +294,7 @@ impl RenderPass for WorldRenderPass {
 
 
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct ScreenRenderPass {
     screen: Screen,
 }
@@ -287,7 +313,7 @@ impl RenderPass for ScreenRenderPass {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct PixelReadPassData {
     uniform : Uniform<Vector4<i32>>,
     buffer  : WebGlBuffer,
@@ -300,7 +326,7 @@ impl PixelReadPassData {
 }
 
 
-#[derive(Debug,Default)]
+#[derive(Clone,Debug,Default)]
 struct PixelReadPass {
     data: Option<PixelReadPassData>,
     sync: Option<WebGlSync>,
@@ -392,11 +418,13 @@ fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, he
     let variables = &workspace.variables();
 //    let width     = workspace.shape.canvas_shape().width  as i32;
 //    let height    = workspace.shape.canvas_shape().height as i32;
-    let mut composer  = RenderComposer::new(context,variables,width,height);
-    composer.add(WorldRenderPass::new(dp));
-    composer.add(ScreenRenderPass::new());
-    composer.add(PixelReadPass::new());
-    composer
+
+    let pipeline = RenderPipeline::new()
+        .add(WorldRenderPass::new(dp))
+        .add(ScreenRenderPass::new())
+        .add(PixelReadPass::new());
+
+    RenderComposer::new(&pipeline,context,variables,width,height)
 }
 
 

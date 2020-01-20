@@ -119,8 +119,10 @@ impl<T> OptionOps for Option<T> {
 
 /// Like `Clone` but should be implemented only for cheap reference-based clones. Using `clone_ref`
 /// instead of `clone` makes the code more clear and makes it easier to predict its performance.
-pub trait CloneRef {
-    fn clone_ref(&self) -> Self;
+pub trait CloneRef: Clone {
+    fn clone_ref(&self) -> Self {
+        self.clone()
+    }
 }
 
 
@@ -364,3 +366,25 @@ impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
 //pub unsafe fn drop_lifetime_mut<'a,'b,T>(t: &'a mut T) -> &'b mut T {
 //    std::mem::transmute(t)
 //}
+
+
+#[macro_export]
+macro_rules! clone_boxed {
+    ( $name:ident ) => { paste::item! {
+        pub trait [<CloneBoxedFor $name>] {
+            fn clone_boxed(&self) -> Box<dyn $name>;
+        }
+
+        impl<T:Clone+$name> [<CloneBoxedFor $name>] for T {
+            fn clone_boxed(&self) -> Box<dyn $name> {
+                Box::new(self.clone())
+            }
+        }
+
+        impl Clone for Box<dyn $name> {
+            fn clone(&self) -> Self {
+                self.clone_boxed()
+            }
+        }
+    }}
+}

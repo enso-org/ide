@@ -206,10 +206,35 @@ macro_rules! shared_struct {
             }
         }
 
-        impl<$($params)*> $name <$($params)*> {
-            /// Cheap clone of the structure. Implemented as the `Rc::clone` under the hood.
-            pub fn clone_ref(&self) -> Self {
-                self.clone()
+        impl<$($params)*> CloneRef for $name <$($params)*> {}
+
+        paste::item! {
+            $(#[$($meta)*])*
+            pub struct [<Weak $name>] <$($params)*> { weak: Weak<RefCell<$name_mut<$($params)*>>> }
+
+            impl<$($params)*> $name <$($params)*> {
+                /// Downgrade the reference to weak ref.
+                pub fn downgrade(&self) -> [<Weak $name>] <$($params)*> {
+                    let weak = Rc::downgrade(&self.rc);
+                    [<Weak $name>] {weak}
+                }
+            }
+
+            impl<$($params)*> Clone for [<Weak $name>] <$($params)*> {
+                fn clone(&self) -> Self {
+                    let weak = self.weak.clone();
+                    Self {weak}
+                }
+            }
+
+            impl<$($params)*> CloneRef for [<Weak $name>] <$($params)*> {}
+
+            impl<$($params)*> [<Weak $name>] <$($params)*> {
+                /// Attempts to upgrade the weak pointer to an rc, delaying dropping of the inner
+                /// value if successful.
+                pub fn upgrade(&self) -> Option<$name <$($params)*>> {
+                    self.weak.upgrade().map(|rc| $name {rc})
+                }
             }
         }
     };

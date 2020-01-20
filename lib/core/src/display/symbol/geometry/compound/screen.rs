@@ -15,11 +15,13 @@ use crate::system::gpu::data::types::*;
 
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Screen {
     sprite        : Sprite,
     sprite_system : SpriteSystem,
 }
+
+impl CloneRef for Screen {}
 
 impl Screen {
     /// Constructor.
@@ -54,13 +56,5 @@ impl Screen {
         output_color = test_color;//vec4(0.0,1.0,0.0,1.0);
         ");
         material
-    }
-}
-
-impl CloneRef for Screen {
-    fn clone_ref(&self) -> Self {
-        let sprite        = self.sprite.clone_ref();
-        let sprite_system = self.sprite_system.clone_ref();
-        Self {sprite,sprite_system}
     }
 }
