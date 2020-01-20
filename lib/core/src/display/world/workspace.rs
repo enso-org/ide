@@ -22,6 +22,11 @@ use crate::system::gpu::data::uniform::UniformScope;
 use wasm_bindgen::prelude::Closure;
 
 
+use crate::display::world::RenderComposer;
+use crate::display::world::RenderPipeline;
+use crate::display::world::default_render_pipeline;
+use crate::display::object::DisplayObjectData;
+
 
 // =============
 // === Error ===
@@ -111,20 +116,24 @@ shared! { Workspace
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct WorkspaceData {
-    canvas        : web_sys::HtmlCanvasElement,
-    context       : Context,
-    symbols       : SymbolRegistry,
-    symbols_dirty : SymbolRegistryDirty,
-    scene         : Scene,
-    shape         : Shape,
-    shape_dirty   : ShapeDirty,
-    logger        : Logger,
-    listeners     : Listeners,
-    variables     : UniformScope,
+    display_object : DisplayObjectData,
+    canvas         : web_sys::HtmlCanvasElement,
+    context        : Context,
+    symbols        : SymbolRegistry,
+    symbols_dirty  : SymbolRegistryDirty,
+    scene          : Scene,
+    shape          : Shape,
+    shape_dirty    : ShapeDirty,
+    logger         : Logger,
+    listeners      : Listeners,
+    variables      : UniformScope,
     #[derivative(Debug="ignore")]
     on_resize     : Option<Box<dyn Fn(&Shape)>>,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
     text_components : Vec<text::TextComponent>,
+    pipeline       : RenderPipeline,
+    composer       : RenderComposer,
+
 }
 
 impl {
@@ -132,6 +141,7 @@ impl {
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
     (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
+        let display_object  = DisplayObjectData::new(logger.clone());
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom).unwrap();
         let context         = web::get_webgl2_context(&canvas).unwrap();
@@ -163,7 +173,13 @@ impl {
         context.blend_func_separate     ( Context::ONE , Context::ONE_MINUS_SRC_ALPHA
                                         , Context::ONE , Context::ONE_MINUS_SRC_ALPHA );
 
-        let this = Self {canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
+
+        let pipeline = default(); // default_render_pipeline(&display_object);
+        let width    = shape.canvas_shape().width  as i32;
+        let height   = shape.canvas_shape().height as i32;
+        let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
+
+        let this = Self {pipeline,composer,display_object,canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
                         ,listeners,variables,on_resize,text_components};
         this
     }
@@ -174,6 +190,18 @@ impl {
 
     pub fn variables(&self) -> UniformScope {
         self.variables.clone_ref()
+    }
+
+    pub fn set_render_pipeline<P:Into<RenderPipeline>>(&mut self, pipeline:P) {
+        self.pipeline = pipeline.into();
+        self.init_composer();
+    }
+
+    pub fn init_composer(&mut self) {
+        println!("INIT COMPOSER");
+        let width    = self.shape.canvas_shape().width  as i32;
+        let height   = self.shape.canvas_shape().height as i32;
+        let composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
     }
 
     pub fn render(&mut self) {
@@ -220,9 +248,22 @@ impl {
     pub fn new_symbol2(&self) -> Symbol {
         self.symbols.new_symbol2()
     }
+}}
+
+impl Into<DisplayObjectData> for &WorkspaceData {
+    fn into(self) -> DisplayObjectData {
+        self.display_object.clone()
+    }
 }
 
+impl Into<DisplayObjectData> for &Workspace {
+    fn into(self) -> DisplayObjectData {
+        let data:&WorkspaceData = &self.rc.borrow();
+        data.into()
+    }
 }
+
+
 
 // === Types ===
 

@@ -45,7 +45,7 @@ static mut WORLD: Option<World> = None;
 
 pub fn get_world() -> World {
     unsafe {
-        WORLD.as_ref().unwrap().clone_ref()
+        WORLD.as_ref().unwrap_or_else(|| panic!("World not initialized.")).clone_ref()
     }
 }
 
@@ -196,15 +196,14 @@ struct RenderPassRunner {
 
 impl RenderPassRunner {
     pub fn new(context:&Context, variables:&UniformScope, pass:&Box<dyn RenderPass>, width:i32, height:i32) -> Self {
-        let pass = <Box<dyn RenderPass> as Clone>::clone(pass);
-//        let outputs     = default();
-//        let framebuffer = if pass.outputs().is_empty() {None} else {Some(context.create_framebuffer().unwrap())};
-//        let variables   = variables.clone_ref();
-//        let context     = context.clone();
-//        let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
-//        this.initialize();
-//        this
-        todo!()
+        let pass        = <Box<dyn RenderPass> as Clone>::clone(pass);
+        let outputs     = default();
+        let framebuffer = if pass.outputs().is_empty() {None} else {Some(context.create_framebuffer().unwrap())};
+        let variables   = variables.clone_ref();
+        let context     = context.clone();
+        let mut this    = Self {pass,outputs,framebuffer,variables,context,width,height};
+        this.initialize();
+        this
     }
 
     pub fn run(&mut self, context:&Context) {
@@ -411,7 +410,12 @@ use web_sys::WebGlSync;
 //)
 
 
-
+fn default_render_pipeline(root:&DisplayObjectData) -> RenderPipeline {
+    RenderPipeline::new()
+        .add(WorldRenderPass::new(root))
+        .add(ScreenRenderPass::new())
+        .add(PixelReadPass::new())
+}
 
 fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, height:i32) -> RenderComposer {
     let context   = &workspace.context();
@@ -419,10 +423,7 @@ fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, he
 //    let width     = workspace.shape.canvas_shape().width  as i32;
 //    let height    = workspace.shape.canvas_shape().height as i32;
 
-    let pipeline = RenderPipeline::new()
-        .add(WorldRenderPass::new(dp))
-        .add(ScreenRenderPass::new())
-        .add(PixelReadPass::new());
+    let pipeline = default_render_pipeline(dp);
 
     RenderComposer::new(&pipeline,context,variables,width,height)
 }
@@ -446,7 +447,6 @@ fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, he
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct WorldData {
-    display_object : DisplayObjectData,
     pub workspace       : Workspace,
     pub workspace_dirty : WorkspaceDirty,
     pub logger          : Logger,
@@ -490,7 +490,6 @@ impl WorldData {
                   gear icon in the 'Performance' tab. It can drastically slow the rendering.");
         let world          = World::new(Self::new_uninitialized(dom));
         let world_ref      = world.clone_ref();
-        let display_object = world.rc.borrow().display_object.clone();
         with(world.rc.borrow_mut(), |mut data| {
             let update = move || {
                 world_ref.rc.borrow_mut().run();
@@ -521,7 +520,6 @@ impl WorldData {
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
         let stats                  = default();
         let logger                 = Logger::new("world");
-        let display_object         = DisplayObjectData::new(logger.clone());
         let workspace_logger       = logger.sub("workspace");
         let workspace_dirty_logger = logger.sub("workspace_dirty");
         let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
@@ -544,7 +542,7 @@ impl WorldData {
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {display_object,workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
+        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
              ,fonts,update_handle,stats,stats_monitor,tmp_composer}
     }
 
@@ -575,7 +573,7 @@ impl WorldData {
 
 impl Into<DisplayObjectData> for &WorldData {
     fn into(self) -> DisplayObjectData {
-        self.display_object.clone()
+        (&self.workspace).into()
     }
 }
 
@@ -652,7 +650,7 @@ impl World {
         let width  = 961*2; // shape.width as i32;
         let height = 359*2; // shape.height as i32;
         let composer = {
-            let dp = &self.rc.borrow().display_object;
+            let dp = &self.display_object_description();
             mk_render_composer(&self.rc.borrow().workspace, dp, width, height)
         };
         self.rc.borrow_mut().tmp_composer = Some(composer);
