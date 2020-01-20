@@ -65,6 +65,10 @@ impl {
     pub fn size(&self) -> Attribute<Vector2<f32>> {
         self.bbox.clone_ref()
     }
+
+    pub fn instance_id(&self) -> AttributeInstanceIndex {
+        self.instance_id
+    }
 }}
 
 impl From<&Sprite> for DisplayObjectData {

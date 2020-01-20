@@ -16,7 +16,6 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::object::*;
 use crate::display::scene::Scene;
-use crate::display::shape::text::font::Fonts;
 use crate::display::symbol::Symbol;
 use crate::system::web;
 
@@ -86,7 +85,6 @@ pub struct WorldData {
     pub start_time    : f32,
     pub time          : Uniform<f32>,
     pub display_mode  : Uniform<i32>,
-    pub fonts         : Fonts,
     pub update_handle : Option<CallbackHandle>,
     pub stats         : Stats,
     pub stats_monitor : StatsMonitor,
@@ -151,24 +149,23 @@ impl WorldData {
         let scene_dirty_logger = logger.sub("scene_dirty");
         let scene_dirty        = SceneDirty::new(scene_dirty_logger,());
         let scene_dirty2       = scene_dirty.clone();
-        let on_change              = move || {scene_dirty2.set()};
+        let on_change          = move || {scene_dirty2.set()};
         let scene              = Scene::new(dom,scene_logger,&stats,on_change);
-        let variables              = &scene.variables();
-        let time                   = variables.add_or_panic("time",0.0);
-        let display_mode           = variables.add_or_panic("display_mode",0);
-        let fonts                  = Fonts::new();
-        let event_loop             = EventLoop::new();
-        let update_handle          = default();
-        let stats_monitor          = StatsMonitor::new(&stats);
-        let performance            = web::get_performance().unwrap();
-        let start_time             = performance.now() as f32;
-        let stats_monitor_cp_1     = stats_monitor.clone();
-        let stats_monitor_cp_2     = stats_monitor.clone();
+        let variables          = &scene.variables();
+        let time               = variables.add_or_panic("time",0.0);
+        let display_mode       = variables.add_or_panic("display_mode",0);
+        let event_loop         = EventLoop::new();
+        let update_handle      = default();
+        let stats_monitor      = StatsMonitor::new(&stats);
+        let performance        = web::get_performance().unwrap();
+        let start_time         = performance.now() as f32;
+        let stats_monitor_cp_1 = stats_monitor.clone();
+        let stats_monitor_cp_2 = stats_monitor.clone();
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
-            ,fonts,update_handle,stats,stats_monitor}
+            ,update_handle,stats,stats_monitor}
     }
 
 
@@ -184,8 +181,7 @@ impl WorldData {
         //          if self.scene_dirty.check_all() {
         group!(self.logger, "Updating.", {
             self.scene_dirty.unset_all();
-            let fonts = &mut self.fonts;
-            self.scene.update(fonts);
+            self.scene.update();
         });
     }
 
@@ -248,6 +244,8 @@ impl World {
     pub fn new_symbol(&self) -> Symbol {
         self.rc.borrow().scene.new_symbol()
     }
+
+    pub fn scene(&self) -> Scene { self.rc.borrow().scene.clone() }
 
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,
     /// which when dropped will cancel the callback. If you want the function

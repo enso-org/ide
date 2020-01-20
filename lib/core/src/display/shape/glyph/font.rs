@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::text::msdf::MsdfTexture;
-use crate::display::shape::text::msdf::convert_msdf_transformation;
-use crate::display::shape::text::msdf::x_distance_from_msdf_value;
+use crate::display::shape::glyph::msdf::MsdfTexture;
+use crate::display::shape::glyph::msdf::x_distance_from_msdf_value;
 
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_embedded_fonts::EmbeddedFonts;
 use msdf_sys::MsdfParameters;
 use msdf_sys::MultichannelSignedDistanceField;
+use nalgebra::Vector2;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::hash_map::Entry::Vacant;
 
@@ -22,17 +22,18 @@ use std::collections::hash_map::Entry::Vacant;
 /// Each distance and transformation values are expressed in normalized coordinates, where
 /// (0.0, 0.0) is initial pen position for an character, and `y` = 1.0 is _ascender_.
 ///
-/// `from_base_layout` transforms the _base square_ for a character, such the glyph will be rendered
-/// correctly with assigned MSDF texture. The _base square_ corners are (0.0, 0.0), (1.0, 1.0).
-/// See also `glyph_render::GLYPH_SQUARE_VERTICES_BASE_LAYOUT`.
+/// `offset` and `scale` transforms the _base square_ for a character, such the glyph will be
+/// rendered correctly with assigned MSDF texture. The _base square_ corners are (0.0, 0.0),
+/// (1.0, 1.0).
 ///
 /// For explanation of various font-rendering terms, see
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 #[derive(Debug)]
 pub struct GlyphRenderInfo {
-    pub msdf_texture_rows : std::ops::Range<usize>,
-    pub from_base_layout  : nalgebra::Projective2<f64>,
-    pub advance           : f64
+    pub msdf_texture_glyph_id: usize,
+    pub offset               : Vector2<f32>,
+    pub scale                : Vector2<f32>,
+    pub advance              : f64
 }
 
 /// A single font data used for rendering
@@ -95,20 +96,18 @@ impl FontRenderInfo {
 
     /// Load char render info
     pub fn load_char(&mut self, ch:char) {
-        let handle              = &self.msdf_sys_font;
-        let unicode             = ch as u32;
-        let params              = Self::MSDF_PARAMS;
-        let msdf_height         = MsdfTexture::ONE_GLYPH_HEIGHT;
-        let msdf_tex_rows_begin = self.msdf_texture.rows();
-        let msdf_tex_rows_end   = msdf_tex_rows_begin + msdf_height;
+        let handle         = &self.msdf_sys_font;
+        let unicode        = ch as u32;
+        let params         = Self::MSDF_PARAMS;
+        let msdf_height    = MsdfTexture::ONE_GLYPH_HEIGHT;
 
-        let msdf                = MultichannelSignedDistanceField::generate(handle,unicode,&params);
-        let msdf_transformation = convert_msdf_transformation(&msdf);
-        let advance             = x_distance_from_msdf_value(msdf.advance);
+        let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
+        let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
         let glyph_info = GlyphRenderInfo {
-            msdf_texture_rows     : msdf_tex_rows_begin..msdf_tex_rows_end,
-            from_base_layout      : msdf_transformation.inverse(),
-            advance
+            msdf_texture_glyph_id : self.glyphs.len(),
+            offset                : nalgebra::convert(-msdf.translation),
+            scale                 : nalgebra::convert(inversed_scale),
+            advance               : x_distance_from_msdf_value(msdf.advance),
         };
         self.msdf_texture.extend(msdf.data.iter());
         self.glyphs.insert(ch, glyph_info);
@@ -154,8 +153,9 @@ impl FontRenderInfo {
         let msdf_data               = (0..data_size).map(|_| 0.12345);
 
         let char_info = GlyphRenderInfo {
-            msdf_texture_rows     : (msdf_texture_rows_begin..msdf_texture_rows_end),
-            from_base_layout      : nalgebra::Transform::identity(),
+            msdf_texture_glyph_id : self.glyphs.len(),
+            offset                : Vector2::new(0.0, 0.0),
+            scale                 : Vector2::new(1.0, 1.0),
             advance               : 0.0
         };
         self.msdf_texture.extend(msdf_data);
@@ -224,12 +224,14 @@ impl Default for Fonts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display::shape::text::msdf::MsdfTexture;
+    use crate::display::shape::glyph::msdf::MsdfTexture;
+
     use basegl_core_msdf_sys as msdf_sys;
     use basegl_core_embedded_fonts::EmbeddedFonts;
-    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
     use msdf_sys::test_utils::TestAfterInit;
     use std::future::Future;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     const TEST_FONT_NAME : &str = "DejaVuSansMono-Bold";
 
@@ -275,11 +277,11 @@ mod tests {
             let first_char  = font_render_info.glyphs.get(&'A').unwrap();
             let second_char = font_render_info.glyphs.get(&'B').unwrap();
 
-            let first_range  = 0..MsdfTexture::ONE_GLYPH_HEIGHT;
-            let second_range = MsdfTexture::ONE_GLYPH_HEIGHT..tex_height;
+            let first_index  = 0;
+            let second_index = 1;
 
-            assert_eq!(first_range  , first_char.msdf_texture_rows);
-            assert_eq!(second_range , second_char.msdf_texture_rows);
+            assert_eq!(first_index  , first_char.msdf_texture_glyph_id);
+            assert_eq!(second_index , second_char.msdf_texture_glyph_id);
         })
     }
 
@@ -290,13 +292,13 @@ mod tests {
 
             {
                 let char_info = font_render_info.get_glyph_info('A');
-                assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
+                assert_eq!(0, char_info.msdf_texture_glyph_id);
             }
             assert_eq!(1, font_render_info.glyphs.len());
 
             {
                 let char_info = font_render_info.get_glyph_info('A');
-                assert_eq!(0..MsdfTexture::WIDTH, char_info.msdf_texture_rows);
+                assert_eq!(0, char_info.msdf_texture_glyph_id);
             }
             assert_eq!(1, font_render_info.glyphs.len());
         })
