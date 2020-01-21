@@ -23,9 +23,9 @@ pub struct Scene {
 // === Implementation ===
 
 impl Scene {
-    pub fn new(logger:Logger, globals:&UniformScope) -> Self {
+    pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
         let root   = DisplayObjectData::new(logger.sub("root"));
-        let camera = Camera2d::new(logger.sub("camera"),globals);
+        let camera = Camera2d::new(logger.sub("camera"),width,height,globals);
         Self {root,camera}
     }
 }

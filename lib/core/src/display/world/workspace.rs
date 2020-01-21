@@ -164,7 +164,10 @@ impl Workspace {
         let shape           = Shape::default();
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
-        let scene           = Scene::new(logger.sub("scene"),&variables);
+        let shape_data      = shape.screen_shape();
+        let width           = shape_data.width;
+        let height          = shape_data.height;
+        let scene           = Scene::new(logger.sub("scene"),width,height,&variables);
         let text_components = default();
 
         variables.add("pixel_ratio", shape.pixel_ratio());

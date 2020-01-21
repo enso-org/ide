@@ -53,15 +53,11 @@ pub struct Screen {
     pub height : f32,
 }
 
-impl Default for Screen {
-    fn default() -> Self {
-        let width  = 100.0;
-        let height = 100.0;
-        Self {width,height}
-    }
-}
-
 impl Screen {
+    pub fn new(width:f32, height:f32) -> Self {
+        Self{width,height}
+    }
+
     pub fn aspect(&self) -> f32 {
         self.width / self.height
     }
@@ -135,8 +131,8 @@ type ProjectionDirty = dirty::SharedBool<()>;
 type TransformDirty2 = dirty::SharedBool<()>;
 
 impl Camera2dData {
-    pub fn new(logger:Logger, globals:&UniformScope) -> Self {
-        let screen                 = default();
+    pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
+        let screen                 = Screen::new(width,height);
         let projection             = default();
         let clipping               = default();
         let alignment              = default();
@@ -301,8 +297,8 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:Logger, globals:&UniformScope) -> Self {
-        let data = Camera2dData::new(logger,globals);
+    pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
+        let data = Camera2dData::new(logger,width,height,globals);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }

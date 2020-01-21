@@ -71,8 +71,7 @@ pub fn run_example_camera_navigation() {
                    .dyn_into().expect("Couldn't convert Canvas element");
     let context    = get_webgl2_context(&canvas).expect("Couldn't get WebGL2 context");
     let variables  = UniformScope::new(logger.sub("global_variables"),&context);
-    let mut camera = Camera2d::new(logger,&variables);
-    camera.set_screen(dimensions.x, dimensions.y);
+    let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y,&variables);
     camera.update();
 
     let y_scale = camera.projection_matrix().m11;

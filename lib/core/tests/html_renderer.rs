@@ -61,7 +61,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
         // We move the Camera behind the object so we don't see it.
         camera.set_position(Vector3::new(0.0, 0.0, -100.0));
 
@@ -118,7 +118,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
 
         // We move the Camera 29 units away from the center.
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
@@ -143,7 +143,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
 
         // We move the Camera -29 units away from the center.
         camera.set_position(Vector3::new(0.0, 0.0, -29.0));
@@ -168,7 +168,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
@@ -232,7 +232,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
@@ -269,7 +269,7 @@ mod tests {
         let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
-        let mut camera  = Camera2d::new(logger,&variables);
+        let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
