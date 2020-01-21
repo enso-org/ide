@@ -22,14 +22,20 @@ pub struct Screen {
 
 impl CloneRef for Screen {}
 
-impl Screen {
-    /// Constructor.
-    pub fn new() -> Self {
+impl Default for Screen {
+    fn default() -> Self {
         let sprite_system = SpriteSystem::new();
         sprite_system.set_geometry_material(Self::geometry_material());
         sprite_system.set_material(Self::surface_material());
         let sprite = sprite_system.new_instance();
         Self {sprite_system,sprite}
+    }
+}
+
+impl Screen {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
     }
 
     /// Local variables used by the screen object.

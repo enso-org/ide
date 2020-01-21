@@ -141,7 +141,8 @@ impl UniformScopeData {
     where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
         let context = self.context.clone();
         self.add_or_else(name,value,Some,move |_,value,uniform| {
-            let out = uniform.try_into().ok().map(|t:&Uniform<AsUniformValue<Value>>| t.clone());
+            let out:Option<&Uniform<AsUniformValue<Value>>> = uniform.try_into().ok();
+            let out = out.cloned();
             match &out {
                 Some(t) => {
                     let bound_value = value.into_uniform_value(&context);

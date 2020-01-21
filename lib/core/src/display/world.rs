@@ -137,6 +137,7 @@ impl RenderComposer {
         this
     }
 
+    #[allow(clippy::borrowed_box)]
     pub fn add(&mut self, pass:&Box<dyn RenderPass>) {
         let pass = RenderPassRunner::new(&self.context,&self.variables,pass,self.width,self.height);
         self.passes.push(pass);
@@ -162,16 +163,24 @@ impl RenderPipeline {
         default()
     }
 
-    pub fn add<Pass:RenderPass>(mut self, pass:Pass) -> Self {
+//    pub fn add<Pass:RenderPass>(mut self, pass:Pass) -> Self {
+//        let pass = Box::new(pass);
+//        self.passes.push(pass);
+//        self
+//    }
+}
+
+
+
+impl<Pass:RenderPass> Add<Pass> for RenderPipeline {
+    type Output = Self;
+
+    fn add(mut self, pass:Pass) -> Self::Output {
         let pass = Box::new(pass);
         self.passes.push(pass);
         self
     }
 }
-
-
-
-
 
 
 
@@ -189,6 +198,7 @@ struct RenderPassRunner {
 }
 
 impl RenderPassRunner {
+    #[allow(clippy::borrowed_box)]
     pub fn new(context:&Context, variables:&UniformScope, pass:&Box<dyn RenderPass>, width:i32, height:i32) -> Self {
         let pass        = <Box<dyn RenderPass> as Clone>::clone(pass);
         let outputs     = default();
@@ -640,9 +650,9 @@ impl World {
     }
 }
 
-impl<T> Add<T> for World where WorldData: Add<T> {
-    type Result = AddResult<WorldData,T>;
-    fn add(&mut self, t:T) -> Self::Result {
+impl<T> AddMut<T> for World where WorldData: AddMut<T> {
+    type Output = <WorldData as AddMut<T>>::Output;
+    fn add(&mut self, t:T) -> Self::Output {
         self.rc.borrow_mut().add(t)
     }
 }

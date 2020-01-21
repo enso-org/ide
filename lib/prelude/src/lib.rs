@@ -36,6 +36,7 @@ pub use std::hash::Hash;
 pub use std::iter::FromIterator;
 pub use std::iter;
 pub use std::marker::PhantomData;
+pub use std::ops::Add;
 pub use std::ops::Deref;
 pub use std::ops::DerefMut;
 pub use std::ops::Index;
