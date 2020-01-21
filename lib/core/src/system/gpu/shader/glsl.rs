@@ -105,6 +105,12 @@ where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
 }
 
 
+// === Wring Conversions ===
+
+/// Error indicating that a value cannot be converted to Glsl.
+pub struct NotGlslError;
+
+
 
 // =================================================================================================
 // === Expr ========================================================================================

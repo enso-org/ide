@@ -329,7 +329,7 @@ impl<T:AnyTextureUniformOps + 'static> From<T> for AnyTextureUniform {
 
 
 
-impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Item>
 TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
     type Error = TypeMismatch;
     fn try_from(value:&'t AnyTextureUniform) -> Result<Self,Self::Error> {
@@ -374,7 +374,7 @@ impl<T:Into<AnyPrimUniform>> IntoAnyUniform for T {
     }
 }
 
-impl<S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:Item>
 IntoAnyUniform for Uniform<Texture<S,I,T>> {
     fn into_any_uniform(self) -> AnyUniform {
         AnyUniform::Texture(AnyTextureUniform {raw: Box::new(self)})
@@ -400,7 +400,7 @@ macro_rules! foo {
 crate::with_all_prim_types!([[foo][]]);
 
 
-impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Item>
 TryFrom<&'t AnyUniform> for &'t Uniform<Texture<S,I,T>>
 where &'t Uniform<Texture<S,I,T>> : TryFrom<&'t AnyTextureUniform, Error=TypeMismatch> {
     type Error = TypeMismatch;
