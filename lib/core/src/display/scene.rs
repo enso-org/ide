@@ -195,7 +195,6 @@ impl {
     }
 
     pub fn init_composer(&mut self) {
-        println!("INIT COMPOSER");
         let width    = self.shape.canvas_shape().width  as i32;
         let height   = self.shape.canvas_shape().height as i32;
         self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);

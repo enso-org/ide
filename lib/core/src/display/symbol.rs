@@ -91,7 +91,6 @@ impl TextureBinding {
 
     /// Upload uniform value.
     pub fn upload_uniform(&self, context:&Context) {
-        println!("UPLOAD: {}", self.texture_unit);
         context.uniform1i(Some(&self.location),self.texture_unit as i32);
     }
 }
@@ -362,7 +361,6 @@ impl SymbolData {
                 AnyUniform::Texture(uniform) => {
                     match texture_unit_iter.next() {
                         Some(texture_unit) => {
-                            println!("Binding texture");
                             let binding = TextureBinding::new(name,location,uniform,texture_unit);
                             binding.upload_uniform(&self.context);
                             self.textures.push(binding);

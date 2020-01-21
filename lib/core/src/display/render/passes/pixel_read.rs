@@ -92,7 +92,8 @@ impl PixelReadPass {
             context.bind_buffer(target,Some(&data.buffer));
             context.get_buffer_sub_data_with_i32_and_u8_array(target,offset,&mut result);
             data.uniform.set(Vector4::from_iterator(result.iter().map(|t| *t as i32)));
-            println!("GOT: {:?}", result);
+            // TODO: Make the output variable more generic.
+            // println!("GOT: {:?}", result);
         }
     }
 }

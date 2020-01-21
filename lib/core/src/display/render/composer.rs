@@ -101,6 +101,7 @@ impl ComposerPass {
 
     fn initialize(&mut self) {
         for output in &self.pass.outputs() {
+            // FIXME: Hardcoded texture type.
             let texture = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&self.context,(self.width,self.height));
             let uniform = self.variables.get_or_add(&format!("pass_{}",output.name()),texture).unwrap();
             self.add_output(uniform.into());
