@@ -373,6 +373,7 @@ impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
 #[macro_export]
 macro_rules! clone_boxed {
     ( $name:ident ) => { paste::item! {
+        #[allow(missing_docs)]
         pub trait [<CloneBoxedFor $name>] {
             fn clone_boxed(&self) -> Box<dyn $name>;
         }

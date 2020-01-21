@@ -13,8 +13,8 @@ use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::symbol::Symbol;
-use crate::display::world::RenderComposer;
-use crate::display::world::RenderPipeline;
+use crate::display::render::RenderComposer;
+use crate::display::render::RenderPipeline;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 use crate::system::web::resize_observer::ResizeObserver;
@@ -129,6 +129,7 @@ pub struct SceneData {
     text_components : Vec<text::TextComponent>,
     pipeline       : RenderPipeline,
     composer       : RenderComposer,
+    stats          : Stats,
 
 }
 
@@ -155,6 +156,7 @@ impl {
         let camera          = Camera2d::new(logger.sub("camera"),&variables);
         let text_components = default();
         let on_resize       = default();
+        let stats           = stats.clone();
 
         variables.add("pixel_ratio", shape.pixel_ratio());
 
@@ -176,7 +178,7 @@ impl {
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
         Self {pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty,logger
-             ,listeners,variables,on_resize,text_components}
+             ,listeners,variables,on_resize,text_components,stats}
     }
 
     pub fn context(&self) -> Context {
@@ -233,18 +235,17 @@ impl {
         }
     }
 
+    pub fn stats(&self) -> Stats {
+        self.stats.clone_ref()
+    }
+
     pub fn index(&self, ix:usize) -> Symbol {
         self.symbols.index(ix)
     }
 
     /// Create a new `Symbol` instance.
-    pub fn new_symbol(&self) -> SymbolId {
+    pub fn new_symbol(&self) -> Symbol {
         self.symbols.new_symbol()
-    }
-
-    /// Create a new `Symbol` instance.
-    pub fn new_symbol2(&self) -> Symbol {
-        self.symbols.new_symbol2()
     }
 }}
 

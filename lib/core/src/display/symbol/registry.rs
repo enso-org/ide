@@ -63,7 +63,7 @@ impl {
     }
 
     /// Creates a new `Symbol` instance.
-    pub fn new_symbol(&mut self) -> SymbolId {
+    pub fn new_symbol_by_id(&mut self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
         let variables    = &self.variables;
         let logger       = &self.logger;
@@ -77,8 +77,8 @@ impl {
     }
 
     /// Creates a new `Symbol` instance.
-    pub fn new_symbol2(&mut self) -> Symbol {
-        let ix = self.new_symbol();
+    pub fn new_symbol(&mut self) -> Symbol {
+        let ix = self.new_symbol_by_id();
         self.index(ix)
     }
 

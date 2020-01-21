@@ -106,11 +106,11 @@ pub struct SpriteSystemData {
 impl {
     /// Constructor.
     pub fn new() -> Self {
-        let world          = world::get_world();
-        let stats          = world.stats();
+        let scene          = world::get_scene();
+        let stats          = scene.stats();
         let logger         = Logger::new("SpriteSystem");
         let display_object = DisplayObjectData::new(logger);
-        let symbol         = world.new_symbol();
+        let symbol         = scene.new_symbol();
         let mesh           = symbol.surface();
         let point_scope    = mesh.point_scope();
         let instance_scope = mesh.instance_scope();
