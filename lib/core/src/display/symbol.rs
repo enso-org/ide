@@ -86,7 +86,7 @@ impl TextureBinding {
 
     /// Bind texture to proper texture unit.
     pub fn bind_texture_unit(&self, context:&Context) -> TextureBindGuard {
-        self.uniform.raw.bind_texture_unit(context,self.texture_unit)
+        self.uniform.raw.bind_texture_unit(context,self.texture_unit.into())
     }
 
     /// Upload uniform value.
