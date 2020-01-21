@@ -52,8 +52,8 @@ mod tests {
         let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
         let variables   = UniformScope::new(logger.sub("global_variables"),&context);
         let mut camera  = Camera2d::new(logger,&variables);
-        camera.set_position(Vector3::new(0.0, 0.0, 29.0));
         camera.set_screen(view_dim.x, view_dim.y);
+        camera.set_position(Vector3::new(0.0, 0.0, 29.0));
         camera.update();
 
         let mut event_loop   = b.event_loop();
