@@ -1,40 +1,36 @@
 #![allow(missing_docs)]
 
-#[warn(missing_docs)]
-pub mod event_loop;
-#[warn(missing_docs)]
-pub mod workspace;
-
-pub use crate::display::symbol::types::*;
-pub use crate::display::world::workspace::Workspace;
-pub use crate::data::container::*;
-pub use crate::display::world::workspace::SymbolId;
-
 use crate::prelude::*;
+
+pub use crate::data::container::*;
+pub use crate::display::symbol::types::*;
+pub use crate::display::workspace::SymbolId;
+pub use crate::display::workspace::Workspace;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
+use crate::control::event_loop::EventLoop;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::monitor::Monitor;
 use crate::debug::monitor::Panel;
 use crate::debug::monitor;
 use crate::debug::stats::Stats;
-use crate::display::shape::text::font::Fonts;
 use crate::display::object::*;
-use crate::system::web;
+use crate::display::shape::text::font::Fonts;
 use crate::display::symbol::Symbol;
+use crate::system::gpu::data::texture::Texture;
+use crate::system::gpu::data::texture;
+use crate::system::gpu::types::*;
+use crate::system::web;
 
-use event_loop::EventLoop;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::Performance;
 use web_sys::KeyboardEvent;
 
-use crate::system::gpu::types::*;
-use crate::system::gpu::data::texture;
-use crate::system::gpu::data::texture::Texture;
+
 
 
 
