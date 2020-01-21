@@ -3,28 +3,25 @@
 use crate::prelude::*;
 
 pub use crate::display::symbol::registry::SymbolId;
-
 use crate::closure;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::system::gpu::shader::Context;
+use crate::display::camera::Camera2d;
+use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::font::Fonts;
 use crate::display::shape::text;
-use crate::display::world::scene::Scene;
-use crate::display::symbol::Symbol;
 use crate::display::symbol::registry::SymbolRegistry;
-
+use crate::display::symbol::Symbol;
+use crate::display::world::RenderComposer;
+use crate::display::world::RenderPipeline;
+use crate::system::gpu::data::uniform::UniformScope;
+use crate::system::gpu::shader::Context;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
-use crate::system::gpu::data::uniform::UniformScope;
 
 use wasm_bindgen::prelude::Closure;
 
-
-use crate::display::world::RenderComposer;
-use crate::display::world::RenderPipeline;
-use crate::display::object::DisplayObjectData;
 
 
 // =============
@@ -115,12 +112,12 @@ shared! { Workspace
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct WorkspaceData {
-    display_object : DisplayObjectData,
+    root : DisplayObjectData,
     canvas         : web_sys::HtmlCanvasElement,
     context        : Context,
     symbols        : SymbolRegistry,
     symbols_dirty  : SymbolRegistryDirty,
-    scene          : Scene,
+    camera         : Camera2d,
     shape          : Shape,
     shape_dirty    : ShapeDirty,
     logger         : Logger,
@@ -140,7 +137,7 @@ impl {
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
     (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
-        let display_object  = DisplayObjectData::new(logger.clone());
+        let root  = DisplayObjectData::new(logger.clone());
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom).unwrap();
         let context         = web::get_webgl2_context(&canvas).unwrap();
@@ -155,7 +152,7 @@ impl {
         let shape           = Shape::default();
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
-        let scene           = Scene::new(logger.sub("scene"),&variables);
+        let camera          = Camera2d::new(logger.sub("camera"),&variables);
         let text_components = default();
         let on_resize       = default();
 
@@ -173,14 +170,13 @@ impl {
                                         , Context::ONE , Context::ONE_MINUS_SRC_ALPHA );
 
 
-        let pipeline = default(); // default_render_pipeline(&display_object);
+        let pipeline = default();
         let width    = shape.canvas_shape().width  as i32;
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-        let this = Self {pipeline,composer,display_object,canvas,context,symbols,scene,symbols_dirty,shape,shape_dirty,logger
-                        ,listeners,variables,on_resize,text_components};
-        this
+        Self {pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty,logger
+             ,listeners,variables,on_resize,text_components}
     }
 
     pub fn context(&self) -> Context {
@@ -208,7 +204,7 @@ impl {
             if self.shape_dirty.check_all() {
                 let screen = self.shape.screen_shape();
                 self.resize_canvas(&self.shape);
-                self.scene.camera.set_screen(screen.width, screen.height);
+                self.camera.set_screen(screen.width, screen.height);
                 self.init_composer();
                 self.shape_dirty.unset_all();
             }
@@ -220,7 +216,7 @@ impl {
             self.context.clear_color(0.0, 0.0, 0.0, 1.0);
             self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
-            self.symbols.render(&self.scene.camera);
+            self.symbols.render(&self.camera);
 
             self.composer.run();
         })
@@ -254,7 +250,7 @@ impl {
 
 impl Into<DisplayObjectData> for &WorkspaceData {
     fn into(self) -> DisplayObjectData {
-        self.display_object.clone()
+        self.root.clone()
     }
 }
 

@@ -25,10 +25,11 @@ pub struct RemoteImageData {
     pub url : String,
 }
 
-impl RemoteImageData {
-    fn new<S:Str>(url:S) -> Self {
-        Self {url:url.into()}
-    }
+
+// === Instances ===
+
+impl<I,T> StorageRelation<I,T> for RemoteImage {
+    type Storage = RemoteImageData;
 }
 
 impl<S:Str> From<S> for RemoteImageData {
@@ -37,8 +38,13 @@ impl<S:Str> From<S> for RemoteImageData {
     }
 }
 
-impl<I,T> StorageRelation<I,T> for RemoteImage {
-    type Storage = RemoteImageData;
+
+// === API ===
+
+impl RemoteImageData {
+    fn new<S:Str>(url:S) -> Self {
+        Self {url:url.into()}
+    }
 }
 
 impl<I:InternalFormat,T:Item>

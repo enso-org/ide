@@ -3,8 +3,6 @@
 #[warn(missing_docs)]
 pub mod event_loop;
 #[warn(missing_docs)]
-pub mod scene;
-#[warn(missing_docs)]
 pub mod workspace;
 
 pub use crate::display::symbol::types::*;

@@ -25,16 +25,21 @@ pub struct OwnedData<T> {
     pub height: i32,
 }
 
+
+// === Instances ===
+
+impl<I,T:Debug> StorageRelation<I,T> for Owned {
+    type Storage = OwnedData<T>;
+}
+
 impl<T> OwnedData<T> {
     fn new(data:Vec<T>, width:i32, height:i32) -> Self {
         Self {data,width,height}
     }
 }
 
-impl<I,T:Debug> StorageRelation<I,T> for Owned {
-    type Storage = OwnedData<T>;
-}
 
+// === API ===
 
 impl<I:InternalFormat,T:Item+JsBufferViewArr>
 TextureReload for Texture<Owned,I,T> {

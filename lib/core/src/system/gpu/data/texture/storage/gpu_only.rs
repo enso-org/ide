@@ -23,11 +23,8 @@ pub struct GpuOnlyData {
     pub height : i32,
 }
 
-impl GpuOnlyData {
-    fn new(width:i32, height:i32) -> Self {
-        Self {width,height}
-    }
-}
+
+// === Instances ===
 
 impl<I,T> StorageRelation<I,T> for GpuOnly {
     type Storage = GpuOnlyData;
@@ -36,6 +33,15 @@ impl<I,T> StorageRelation<I,T> for GpuOnly {
 impl From<(i32,i32)> for GpuOnlyData {
     fn from(t:(i32,i32)) -> Self {
         Self::new(t.0,t.1)
+    }
+}
+
+
+// === API ===
+
+impl GpuOnlyData {
+    fn new(width:i32, height:i32) -> Self {
+        Self {width,height}
     }
 }
 
