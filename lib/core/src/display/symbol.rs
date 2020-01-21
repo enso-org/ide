@@ -298,8 +298,6 @@ impl SymbolData {
             JsValue::from_f64(2.0)
         });
         let max_texture_units     = max_texture_units.as_f64().unwrap() as u32;
-//        let last_texture_unit     = Context::TEXTURE0 + max_texture_units - 1;
-//        let mut texture_unit_iter = Context::TEXTURE0..=last_texture_unit;
         let mut texture_unit_iter = 0..max_texture_units;
         self.vao                  = Some(VertexArrayObject::new(&self.context));
         self.uniforms             = default();
@@ -338,9 +336,9 @@ impl SymbolData {
     /// closure passed as argument to `with_program`).
     fn init_uniform_binding
     ( &mut self
-      , program:&WebGlProgram
-      , binding:&shader::VarBinding
-      , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
+    , program:&WebGlProgram
+    , binding:&shader::VarBinding
+    , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);

@@ -113,23 +113,23 @@ shared! { Scene
 #[derivative(Debug)]
 pub struct SceneData {
     root : DisplayObjectData,
-    canvas         : web_sys::HtmlCanvasElement,
-    context        : Context,
-    symbols        : SymbolRegistry,
-    symbols_dirty  : SymbolRegistryDirty,
-    camera         : Camera2d,
-    shape          : Shape,
-    shape_dirty    : ShapeDirty,
-    logger         : Logger,
-    listeners      : Listeners,
-    variables      : UniformScope,
+    canvas          : web_sys::HtmlCanvasElement,
+    context         : Context,
+    symbols         : SymbolRegistry,
+    symbols_dirty   : SymbolRegistryDirty,
+    camera          : Camera2d,
+    shape           : Shape,
+    shape_dirty     : ShapeDirty,
+    logger          : Logger,
+    listeners       : Listeners,
+    variables       : UniformScope,
     #[derivative(Debug="ignore")]
-    on_resize     : Option<Box<dyn Fn(&Shape)>>,
+    on_resize       : Option<Box<dyn Fn(&Shape)>>,
     // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
     text_components : Vec<text::TextComponent>,
-    pipeline       : RenderPipeline,
-    composer       : RenderComposer,
-    stats          : Stats,
+    pipeline        : RenderPipeline,
+    composer        : RenderComposer,
+    stats           : Stats,
 
 }
 
@@ -159,8 +159,6 @@ impl {
         let stats           = stats.clone();
 
         variables.add("pixel_ratio", shape.pixel_ratio());
-
-
 
         context.enable(Context::BLEND);
 
@@ -262,7 +260,6 @@ impl Into<DisplayObjectData> for &Scene {
 }
 
 
-
 // === Types ===
 
 pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
@@ -329,19 +326,4 @@ impl SceneData {
             self.on_resize.iter().for_each(|f| f(shape));
         });
     }
-
-
 }
-
-//impl Index<usize> for Scene {
-//    type Output = Symbol;
-//    fn index(&self, ix: usize) -> &Self::Output {
-//        self.symbols.index(ix)
-//    }
-//}
-//
-//impl IndexMut<usize> for Scene {
-//    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
-//        self.symbols.index_mut(ix)
-//    }
-//}
