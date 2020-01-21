@@ -391,27 +391,19 @@ with_texture_format_relations!(generate_internal_format_instances []);
 
 
 
-// =======================
-// === TextureProvider ===
-// =======================
+// ================
+// === ItemType ===
+// ================
 
-/// Bounds for every texture item type.
-pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
-
-
-
-
-// ============
-// === Type ===
-// ============
-
-pub trait Type = Debug + PhantomInto<AnyType> + 'static;
+/// Trait describing every texture item type.
+pub trait ItemType = Debug + PhantomInto<AnyItemType> + PhantomInto<GlEnum> + 'static;
 
 shapely::define_singleton_enum_from! {
-    AnyType
+    AnyItemType
         {u8,u16,u32,i8,i16,i32,f16,f32,f32_u24_u8_REV,u16_4_4_4_4,u16_5_5_5_1,u16_5_6_5
         ,u32_f10_f11_f11_REV,u32_24_8,u32_2_10_10_10_REV,u32_5_9_9_9_REV}
 }
+
 
 
 // ===============
@@ -513,6 +505,41 @@ impl<I,T:Debug> StorageRelation<I,T> for Owned {
 }
 
 
+impl<I:InternalFormat,T:ItemType + JsBufferViewArr + Debug> Texture<Owned,I,T> {
+    /// Constructor.
+    pub fn new<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
+        let out = Self::new_unitialized(context,provider);
+        out.reload();
+        out
+    }
+
+    /// Loads or re-loads the texture data from provided source.
+    pub fn reload(&self) {
+        let width           = self.storage.width;
+        let height          = self.storage.height;
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
+        unsafe {
+            // We use unsafe array view which is used immediately, so no allocations should happen
+            // until we drop the view.
+            let view   = self.storage.data.js_buffer_view();
+            let result = self.context
+                .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
+                (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
+            result.unwrap();
+        }
+
+        Self::set_texture_parameters(&self.context);
+    }
+}
+
+
 
 
 
@@ -542,7 +569,7 @@ where StorageType: StorageRelation<InternalFormat,ElemType> {
 
 // === Type Level Utils ===
 
-impl<S:StorageRelation<I,T>,I:InternalFormat,T:TextureItemType>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
 Texture<S,I,T> {
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
@@ -589,7 +616,7 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 
 // === API ===
 
-impl<I:InternalFormat,T:TextureItemType> Texture<RemoteImage,I,T> {
+impl<I:InternalFormat,T:ItemType> Texture<RemoteImage,I,T> {
     /// Constructor.
     pub fn new<S:Into<RemoteImageData>>(context:&Context, storage:S) -> Self {
         let out = Self::new_unitialized(context,storage);
@@ -650,7 +677,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<RemoteImage,I,T> {
     }
 }
 
-impl<I:InternalFormat,T:TextureItemType> Texture<GpuOnly,I,T> {
+impl<I:InternalFormat,T:ItemType> Texture<GpuOnly,I,T> {
     /// Constructor.
     pub fn new<S:Into<GpuOnlyData>>(context:&Context, storage:S) -> Self {
         let out = Self::new_unitialized(context,storage);
@@ -677,39 +704,7 @@ impl<I:InternalFormat,T:TextureItemType> Texture<GpuOnly,I,T> {
     }
 }
 
-impl<I:InternalFormat,T:TextureItemType + JsBufferViewArr + Debug> Texture<Owned,I,T> {
-    /// Constructor.
-    pub fn new<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
-        let out = Self::new_unitialized(context,provider);
-        out.reload();
-        out
-    }
 
-    /// Loads or re-loads the texture data from provided source.
-    pub fn reload(&self) {
-        let width           = self.storage.width;
-        let height          = self.storage.height;
-        let target          = Context::TEXTURE_2D;
-        let level           = 0;
-        let border          = 0;
-        let internal_format = Self::gl_internal_format();
-        let format          = Self::gl_format().into();
-        let elem_type       = Self::gl_elem_type();
-
-        self.context.bind_texture(target,Some(&self.gl_texture));
-        unsafe {
-            // We use unsafe array view which is used immediately, so no allocations should happen
-            // until we drop the view.
-            let view = self.storage.data.js_buffer_view();
-            let result = self.context
-                .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view
-                (target,level,internal_format,width,height,border,format,elem_type,Some(&view));
-            result.unwrap();
-        }
-
-        Self::set_texture_parameters(&self.context);
-    }
-}
 
 impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
     fn drop(&mut self) {
@@ -763,53 +758,69 @@ fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
 
 use std::any::Any;
 
-// === ContextTextureOps ===
+// === WithContent ===
+
+
+pub trait WithContent {
+    type Content;
+    fn with_content<F:FnOnce(&Self::Content)->T,T>(&self, f:F) -> T;
+}
+
+impl<T:Deref> WithContent for T
+    where <T as Deref>::Target: WithContent {
+    type Content = <<T as Deref>::Target as WithContent>::Content;
+    default fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+        self.deref().with_content(f)
+    }
+}
+
+
+
+
+
+// === WithContent ===
+
+impl<S:StorageRelation<I,T>,I,T>
+WithContent for Texture<S,I,T> {
+    type Content = Texture<S,I,T>;
+    fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+        f(self)
+    }
+}
+
+
+
+
+
+pub trait TextureOps {
+    /// Bind texture for specific unit
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
+    fn gl_texture(&self) -> WebGlTexture;
+}
+
+impl<P:WithContent<Content=Texture<S,I,T>>,S:StorageRelation<I,T>,I,T>
+TextureOps for P {
+    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
+        self.with_content(|this| {
+            let context = context.clone();
+            let target  = Context::TEXTURE_2D;
+            context.active_texture(Context::TEXTURE0 + unit);
+            context.bind_texture(target,Some(&this.gl_texture));
+            context.active_texture(Context::TEXTURE0);
+            TextureBindGuard {context,target,unit}
+        })
+    }
+
+    fn gl_texture(&self) -> WebGlTexture {
+        self.with_content(|this| { this.gl_texture.clone() })
+    }
+}
+
 
 /// A texture unit representation in WebGl.
 pub type TextureUnit = u32;
 
-/// Trait with webgl context operations on texture `Texture`. Implemented for `BoundTexture`, made
-/// for making distinction in `Uniform` implementations.
-pub trait ContextTextureOps {
-    /// Bind texture for specific unit
-    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
-    fn gl_texture(&self) -> WebGlTexture;
-    fn storage(&self) -> AnyStorage;
-    fn internal_format(&self) -> AnyInternalFormat;
-    fn typ(&self) -> AnyType;
-    fn as_any(&self) -> &dyn Any;
-}
 
-impl<S:Storage + StorageRelation<I,T>,I:InternalFormat,T:Type> ContextTextureOps for Texture<S,I,T> {
-    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
-        let context = context.clone();
-        let target  = Context::TEXTURE_2D;
-        context.active_texture(Context::TEXTURE0 + unit);
-        context.bind_texture(target,Some(&self.gl_texture));
-        context.active_texture(Context::TEXTURE0);
-        TextureBindGuard {context,target,unit}
-    }
-
-    fn gl_texture(&self) -> WebGlTexture {
-        self.gl_texture.clone()
-    }
-
-    fn storage(&self) -> AnyStorage {
-        <S>::default().into()
-    }
-
-    fn internal_format(&self) -> AnyInternalFormat {
-        <I>::default().into()
-    }
-
-    fn typ(&self) -> AnyType {
-        PhantomData::<T>.into()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
 
 /// Guard which unbinds texture in specific texture unit on drop.
 pub struct TextureBindGuard {

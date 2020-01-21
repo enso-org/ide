@@ -229,6 +229,19 @@ impl<Value:UniformValue> Uniform<Value> {
 }
 
 
+// ========================
+// === Texture Uniforms ===
+// ========================
+
+/// Texture API redirection.
+impl<T> WithContent for Uniform<T> {
+    type Content = T;
+    fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+        f(&self.rc.borrow().value)
+    }
+}
+
+
 
 // ======================
 // === AnyPrimUniform ===
@@ -279,60 +292,17 @@ pub struct AnyTextureUniform {
     pub raw: Box<dyn AnyTextureUniformOps>
 }
 
-
-use std::any::Any;
-
-
-// === AnyTextureUniformOps ===
-
-pub trait AnyTextureUniformOps:TextureUniformClone + Debug {
-    /// Bind texture for specific unit
-    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
-    fn gl_texture(&self) -> WebGlTexture;
-    fn storage(&self) -> AnyStorage;
-    fn internal_format(&self) -> AnyInternalFormat;
-    fn typ(&self) -> AnyType;
+clone_boxed!(AnyTextureUniformOps);
+pub trait AnyTextureUniformOps:CloneBoxedForAnyTextureUniformOps + TextureOps + Debug {
     fn as_any(&self) -> &dyn Any;
 }
 
-impl<T:ContextTextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T> {
-    fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
-        let u:&T = &self.rc.borrow().value;
-        u.bind_texture_unit(context,unit)
-    }
-
-    fn gl_texture(&self) -> WebGlTexture {
-        self.rc.borrow().value.gl_texture()
-    }
-
-    fn storage(&self) -> AnyStorage {
-        let u:&T = &self.rc.borrow().value;
-        u.storage()
-    }
-    fn internal_format(&self) -> AnyInternalFormat {
-        let u:&T = &self.rc.borrow().value;
-        u.internal_format()
-    }
-
-    fn typ(&self) -> AnyType {
-        let u:&T = &self.rc.borrow().value;
-        u.typ()
-    }
-
+impl<T:TextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T>
+where Uniform<T>: TextureOps {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
-
-
-impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Type>
-TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
-    type Error = TypeMismatch;
-    fn try_from(value:&'t AnyTextureUniform) -> Result<Self,Self::Error> {
-        value.as_any().downcast_ref().ok_or(TypeMismatch)
-    }
-}
-
 
 impl<T:AnyTextureUniformOps + 'static> From<T> for AnyTextureUniform {
     fn from(t:T) -> Self {
@@ -342,24 +312,36 @@ impl<T:AnyTextureUniformOps + 'static> From<T> for AnyTextureUniform {
 }
 
 
-// === Clone ===
 
-pub trait TextureUniformClone {
-    fn clone_box(&self) -> Box<dyn AnyTextureUniformOps>;
-}
 
-impl<T> TextureUniformClone for T
-    where T: 'static + AnyTextureUniformOps + Clone {
-    fn clone_box(&self) -> Box<dyn AnyTextureUniformOps> {
-        Box::new(self.clone())
+//pub trait WithContent {
+//    type Texture;
+//    fn with_texture<F:FnOnce(&Self::Texture)->T,T>(&self, f:F) -> T;
+//}
+
+
+
+
+// === AnyTextureUniformOps ===
+
+
+
+
+
+
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
+TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
+    type Error = TypeMismatch;
+    fn try_from(value:&'t AnyTextureUniform) -> Result<Self,Self::Error> {
+        value.as_any().downcast_ref().ok_or(TypeMismatch)
     }
 }
 
-impl Clone for Box<dyn AnyTextureUniformOps> {
-    fn clone(&self) -> Box<dyn AnyTextureUniformOps> {
-        self.clone_box()
-    }
-}
+
+
+
+
+
 
 
 
@@ -392,7 +374,7 @@ impl<T:Into<AnyPrimUniform>> IntoAnyUniform for T {
     }
 }
 
-impl<S:StorageRelation<I,T>,I:InternalFormat,T:Type>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
 IntoAnyUniform for Uniform<Texture<S,I,T>> {
     fn into_any_uniform(self) -> AnyUniform {
         AnyUniform::Texture(AnyTextureUniform {raw: Box::new(self)})
@@ -418,7 +400,7 @@ macro_rules! foo {
 crate::with_all_prim_types!([[foo][]]);
 
 
-impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Type>
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
 TryFrom<&'t AnyUniform> for &'t Uniform<Texture<S,I,T>>
 where &'t Uniform<Texture<S,I,T>> : TryFrom<&'t AnyTextureUniform, Error=TypeMismatch> {
     type Error = TypeMismatch;

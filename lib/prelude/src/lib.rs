@@ -20,6 +20,7 @@ pub use num::Num;
 pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use smallvec::SmallVec;
+pub use std::any::Any;
 pub use std::cell::Ref;
 pub use std::cell::RefCell;
 pub use std::cell::RefMut;
@@ -375,7 +376,7 @@ macro_rules! clone_boxed {
             fn clone_boxed(&self) -> Box<dyn $name>;
         }
 
-        impl<T:Clone+$name> [<CloneBoxedFor $name>] for T {
+        impl<T:Clone+$name+'static> [<CloneBoxedFor $name>] for T {
             fn clone_boxed(&self) -> Box<dyn $name> {
                 Box::new(self.clone())
             }
