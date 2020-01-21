@@ -2,12 +2,8 @@
 //! Follow the link to learn more about many assumptions this module was built upon:
 //! https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
 
-pub mod gl_enums;
-pub mod sampler;
-pub mod format;
-pub mod internal_format;
-pub mod item;
-pub mod relations;
+pub mod types;
+pub mod storage;
 
 use crate::prelude::*;
 
@@ -21,12 +17,27 @@ use web_sys::HtmlImageElement;
 use web_sys::WebGlTexture;
 
 
-pub use gl_enums::*;
-pub use sampler::*;
-pub use format::*;
-pub use internal_format::*;
-pub use item::*;
-pub use relations::*;
+pub use types::*;
+pub use storage::*;
+
+
+
+// ===================
+// === WithContent ===
+// ===================
+
+pub trait WithContent {
+    type Content;
+    fn with_content<F:FnOnce(&Self::Content)->T,T>(&self, f:F) -> T;
+}
+
+impl<T:Deref> WithContent for T
+    where <T as Deref>::Target: WithContent {
+    type Content = <<T as Deref>::Target as WithContent>::Content;
+    default fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+        self.deref().with_content(f)
+    }
+}
 
 
 
@@ -85,16 +96,9 @@ impl Value for False {
 
 
 
-// ===============
-// === Storage ===
-// ===============
 
 
-pub trait Storage = Debug + Default + Into<AnyStorage> + PhantomInto<AnyStorage> + 'static;
 
-shapely::define_singleton_enum! {
-    AnyStorage {RemoteImage,GpuOnly,Owned}
-}
 
 
 
@@ -124,6 +128,90 @@ impl<S:Str> From<S> for RemoteImageData {
 impl<I,T> StorageRelation<I,T> for RemoteImage {
     type Storage = RemoteImageData;
 }
+
+impl<I:InternalFormat,T:Item>
+Texture<RemoteImage,I,T> {
+    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
+    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
+    /// until the download is complete.
+    pub fn init_mock(&self) {
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+        let width           = 1;
+        let height          = 1;
+        let border          = 0;
+        let color           = vec![0,0,255,255];
+        self.context.bind_texture(Context::TEXTURE_2D,Some(&self.gl_texture));
+        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+        (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
+    }
+}
+
+impl<I:InternalFormat,T:Item>
+TextureReload for Texture<RemoteImage,I,T> {
+    /// Loads or re-loads the texture data from the provided url.
+    /// This action will be performed asynchronously.
+    fn reload(&self) {
+        let url           = &self.storage.url;
+        let image         = HtmlImageElement::new().unwrap();
+        let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
+        let callback_ref  = Rc::new(RefCell::new(no_callback));
+        let image_ref     = Rc::new(RefCell::new(image));
+        let callback_ref2 = callback_ref.clone();
+        let image_ref_opt = image_ref.clone();
+        let context       = self.context.clone();
+        let gl_texture    = self.gl_texture.clone();
+        let callback: Closure<dyn FnMut()> = Closure::once(move || {
+            let _keep_alive     = callback_ref2;
+            let image           = image_ref_opt.borrow();
+            let target          = Context::TEXTURE_2D;
+            let level           = 0;
+            let internal_format = Self::gl_internal_format();
+            let format          = Self::gl_format().into();
+            let elem_type       = Self::gl_elem_type();
+            context.bind_texture(target,Some(&gl_texture));
+            context.tex_image_2d_with_u32_and_u32_and_html_image_element
+            (target,level,internal_format,format,elem_type,&image).unwrap();
+
+            Self::set_texture_parameters(&context);
+        });
+        let js_callback = callback.as_ref().unchecked_ref();
+        let image       = image_ref.borrow();
+        request_cors_if_not_same_origin(&image,url);
+        image.set_src(url);
+        image.add_event_listener_with_callback("load",js_callback).unwrap();
+        *callback_ref.borrow_mut() = Some(callback);
+    }
+}
+
+// === Utils ===
+
+/// CORS = Cross Origin Resource Sharing. It's a way for the webpage to ask the image server for
+/// permission to use the image. To do this we set the crossOrigin attribute to something and then
+/// when the browser tries to get the image from the server, if it's not the same domain, the browser
+/// will ask for CORS permission. The string we set `cross_origin` to is sent to the server.
+/// The server can look at that string and decide whether or not to give you permission. Most
+/// servers that support CORS don't look at the string, they just give permission to everyone.
+///
+/// **Note**
+/// Why don't want to just always see the permission because asking for permission takes 2 HTTP
+/// requests, so it's slower than not asking. If we know we're on the same domain or we know we
+/// won't use the image for anything except img tags and or canvas2d then we don't want to set
+/// crossDomain because it will make things slower.
+fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
+    let url    = web_sys::Url::new(url_str).unwrap();
+    let origin = web::window().location().origin().unwrap();
+    if url.origin() != origin {
+        img.set_cross_origin(Some(""));
+    }
+}
+
+
+
+
 
 
 
@@ -156,6 +244,29 @@ impl From<(i32,i32)> for GpuOnlyData {
     }
 }
 
+impl<I:InternalFormat,T:Item>
+TextureReload for Texture<GpuOnly,I,T> {
+    fn reload(&self) {
+        let width           = self.storage.width;
+        let height          = self.storage.height;
+        let target          = Context::TEXTURE_2D;
+        let level           = 0;
+        let border          = 0;
+        let internal_format = Self::gl_internal_format();
+        let format          = Self::gl_format().into();
+        let elem_type       = Self::gl_elem_type();
+
+        self.context.bind_texture(target,Some(&self.gl_texture));
+        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
+        (target,level,internal_format,width,height,border,format,elem_type,None).unwrap();
+
+        Self::set_texture_parameters(&self.context);
+    }
+}
+
+
+
+
 
 
 // =============
@@ -184,26 +295,8 @@ impl<I,T:Debug> StorageRelation<I,T> for Owned {
 }
 
 
-impl<I:InternalFormat,T:Item+JsBufferViewArr> Texture<Owned,I,T> {
-    /// Constructor.
-    pub fn new<S:Into<OwnedData<T>>>(context:&Context, provider:S) -> Self {
-        let out = Self::new_unitialized(context,provider);
-        out.reload();
-        out
-    }
-
-
-}
-
-
-pub trait TextureReload {
-    /// Loads or re-loads the texture data from provided source.
-    fn reload(&self);
-}
-
 impl<I:InternalFormat,T:Item+JsBufferViewArr>
 TextureReload for Texture<Owned,I,T> {
-    /// Loads or re-loads the texture data from provided source.
     fn reload(&self) {
         let width           = self.storage.width;
         let height          = self.storage.height;
@@ -233,11 +326,26 @@ TextureReload for Texture<Owned,I,T> {
 
 
 
-pub trait StorageRelation<InternalFormat,ElemType>: Storage {
-    type Storage: Debug;
-}
 
-pub type StorageOf<S,I,T> = <S as StorageRelation<I,T>>::Storage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // ===============
@@ -253,6 +361,14 @@ where StorageType: StorageRelation<InternalFormat,ElemType> {
     storage    : StorageOf<StorageType,InternalFormat,ElemType>,
     gl_texture : WebGlTexture,
     context    : Context,
+}
+
+
+// === Traits ===
+
+pub trait TextureReload {
+    /// Loads or re-loads the texture data from provided source.
+    fn reload(&self);
 }
 
 
@@ -303,101 +419,15 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 }
 
 
-// === API ===
+// === Constructors ===
 
-impl<I:InternalFormat,T:Item> Texture<RemoteImage,I,T> {
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:Item> Texture<S,I,T>
+    where Self: TextureReload {
     /// Constructor.
-    pub fn new<S:Into<RemoteImageData>>(context:&Context, storage:S) -> Self {
-        let out = Self::new_unitialized(context,storage);
-        out.reload();
-        out
-    }
-
-    /// Initializes default texture value. It is useful when the texture data needs to be downloaded
-    /// asynchronously. This method creates a mock 1px x 1px texture and uses it as a mock texture
-    /// until the download is complete.
-    pub fn init_mock(&self) {
-        let target          = Context::TEXTURE_2D;
-        let level           = 0;
-        let internal_format = Self::gl_internal_format();
-        let format          = Self::gl_format().into();
-        let elem_type       = Self::gl_elem_type();
-        let width           = 1;
-        let height          = 1;
-        let border          = 0;
-        let color           = vec![0,0,255,255];
-        self.context.bind_texture(Context::TEXTURE_2D,Some(&self.gl_texture));
-        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-        (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
-    }
-
-    /// Loads or re-loads the texture data from the provided url. This action will be performed
-    /// asynchronously.
-    pub fn reload(&self) {
-        let url           = &self.storage.url;
-        let image         = HtmlImageElement::new().unwrap();
-        let no_callback   = <Option<Closure<dyn FnMut()>>>::None;
-        let callback_ref  = Rc::new(RefCell::new(no_callback));
-        let image_ref     = Rc::new(RefCell::new(image));
-        let callback_ref2 = callback_ref.clone();
-        let image_ref_opt = image_ref.clone();
-        let context       = self.context.clone();
-        let gl_texture    = self.gl_texture.clone();
-        let callback: Closure<dyn FnMut()> = Closure::once(move || {
-            let _keep_alive     = callback_ref2;
-            let image           = image_ref_opt.borrow();
-            let target          = Context::TEXTURE_2D;
-            let level           = 0;
-            let internal_format = Self::gl_internal_format();
-            let format          = Self::gl_format().into();
-            let elem_type       = Self::gl_elem_type();
-            context.bind_texture(target,Some(&gl_texture));
-            context.tex_image_2d_with_u32_and_u32_and_html_image_element
-                (target,level,internal_format,format,elem_type,&image).unwrap();
-
-            Self::set_texture_parameters(&context);
-        });
-        let js_callback = callback.as_ref().unchecked_ref();
-        let image       = image_ref.borrow();
-        request_cors_if_not_same_origin(&image,url);
-        image.set_src(url);
-        image.add_event_listener_with_callback("load",js_callback).unwrap();
-        *callback_ref.borrow_mut() = Some(callback);
-    }
-}
-
-impl<I:InternalFormat,T:Item> Texture<GpuOnly,I,T> {
-    /// Constructor.
-    pub fn new<S:Into<GpuOnlyData>>(context:&Context, storage:S) -> Self {
-        let out = Self::new_unitialized(context,storage);
-        out.reload();
-        out
-    }
-
-    /// Loads or re-loads the texture data.
-    pub fn reload(&self) {
-        let width           = self.storage.width;
-        let height          = self.storage.height;
-        let target          = Context::TEXTURE_2D;
-        let level           = 0;
-        let border          = 0;
-        let internal_format = Self::gl_internal_format();
-        let format          = Self::gl_format().into();
-        let elem_type       = Self::gl_elem_type();
-
-        self.context.bind_texture(target,Some(&self.gl_texture));
-        self.context.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-        (target,level,internal_format,width,height,border,format,elem_type,None).unwrap();
-
-        Self::set_texture_parameters(&self.context);
-    }
-}
-
-
-
-impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
-    fn drop(&mut self) {
-        self.context.delete_texture(Some(&self.gl_texture));
+    pub fn new<P:Into<StorageOf<S,I,T>>>(context:&Context, provider:P) -> Self {
+        let this = Self::new_unitialized(context,provider);
+        this.reload();
+        this
     }
 }
 
@@ -422,52 +452,7 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 }
 
 
-// === Utils ===
-
-/// CORS = Cross Origin Resource Sharing. It's a way for the webpage to ask the image server for
-/// permission to use the image. To do this we set the crossOrigin attribute to something and then
-/// when the browser tries to get the image from the server, if it's not the same domain, the browser
-/// will ask for CORS permission. The string we set `cross_origin` to is sent to the server.
-/// The server can look at that string and decide whether or not to give you permission. Most
-/// servers that support CORS don't look at the string, they just give permission to everyone.
-///
-/// **Note**
-/// Why don't want to just always see the permission because asking for permission takes 2 HTTP
-/// requests, so it's slower than not asking. If we know we're on the same domain or we know we
-/// won't use the image for anything except img tags and or canvas2d then we don't want to set
-/// crossDomain because it will make things slower.
-fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
-    let url    = web_sys::Url::new(url_str).unwrap();
-    let origin = web::window().location().origin().unwrap();
-    if url.origin() != origin {
-        img.set_cross_origin(Some(""));
-    }
-}
-
-
-use std::any::Any;
-
-// === WithContent ===
-
-
-pub trait WithContent {
-    type Content;
-    fn with_content<F:FnOnce(&Self::Content)->T,T>(&self, f:F) -> T;
-}
-
-impl<T:Deref> WithContent for T
-    where <T as Deref>::Target: WithContent {
-    type Content = <<T as Deref>::Target as WithContent>::Content;
-    default fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
-        self.deref().with_content(f)
-    }
-}
-
-
-
-
-
-// === WithContent ===
+// === Instances ===
 
 impl<S:StorageRelation<I,T>,I,T>
 WithContent for Texture<S,I,T> {
@@ -476,6 +461,25 @@ WithContent for Texture<S,I,T> {
         f(self)
     }
 }
+
+
+// === Destructos ===
+
+impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
+    fn drop(&mut self) {
+        self.context.delete_texture(Some(&self.gl_texture));
+    }
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
