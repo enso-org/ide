@@ -118,7 +118,7 @@ impl WorldData {
         let world          = World::new(Self::new_uninitialized(dom));
         let world_ref      = world.clone_ref();
         with(world.rc.borrow_mut(), |mut data| {
-            let update = move || {
+            let update = move |_| {
                 world_ref.rc.borrow_mut().run();
             };
             let update_handle   = data.event_loop.add_callback(update);
@@ -135,7 +135,7 @@ impl WorldData {
             else if key == "1" { world_copy.rc.borrow_mut().display_mode.set(1) }
         }));
         web::document().unwrap().add_event_listener_with_callback
-            ("keydown",c.as_ref().unchecked_ref()).unwrap();
+        ("keydown",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
         // -----------------------------------------------------------------------------------------
 
@@ -168,7 +168,7 @@ impl WorldData {
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,fonts,update_handle,stats,stats_monitor}
+            ,fonts,update_handle,stats,stats_monitor}
     }
 
 
@@ -255,7 +255,7 @@ impl World {
     pub fn on_frame<F:FnMut(&World)+'static>
     (&self, mut callback:F) -> CallbackHandle {
         let this = self.clone_ref();
-        let func = move || callback(&this);
+        let func = move |_| callback(&this);
         self.rc.borrow_mut().event_loop.add_callback(func)
     }
 
