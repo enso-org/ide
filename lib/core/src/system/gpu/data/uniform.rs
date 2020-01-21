@@ -306,24 +306,6 @@ impl<T:AnyTextureUniformOps + 'static> From<T> for AnyTextureUniform {
     }
 }
 
-
-
-
-//pub trait WithContent {
-//    type Texture;
-//    fn with_texture<F:FnOnce(&Self::Texture)->T,T>(&self, f:F) -> T;
-//}
-
-
-
-
-// === AnyTextureUniformOps ===
-
-
-
-
-
-
 impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Item>
 TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
     type Error = TypeMismatch;
@@ -331,12 +313,6 @@ TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
         value.as_any().downcast_ref().ok_or(TypeMismatch)
     }
 }
-
-
-
-
-
-
 
 
 
@@ -376,10 +352,7 @@ IntoAnyUniform for Uniform<Texture<S,I,T>> {
     }
 }
 
-
-
-
-macro_rules! foo {
+macro_rules! generate_prim_type_downcasts {
     ( [] [$([$t1:ident $t2:ident])*] ) => {
         $(impl<'t> TryFrom<&'t AnyUniform> for &'t Uniform<$t1<$t2>> {
             type Error = TypeMismatch;
@@ -392,7 +365,7 @@ macro_rules! foo {
         })*
     }
 }
-crate::with_all_prim_types!([[foo][]]);
+crate::with_all_prim_types!([[generate_prim_type_downcasts][]]);
 
 
 impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Item>

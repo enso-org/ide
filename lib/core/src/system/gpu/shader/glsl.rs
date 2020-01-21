@@ -5,7 +5,6 @@
 
 use crate::prelude::*;
 
-use crate::data::container::AddMut;
 use crate::system::gpu::data::buffer::item::MatrixCtx;
 
 use code_builder::CodeBuilder;
@@ -105,7 +104,7 @@ where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
 }
 
 
-// === Wring Conversions ===
+// === Wrong Conversions ===
 
 /// Error indicating that a value cannot be converted to Glsl.
 pub struct NotGlslError;
