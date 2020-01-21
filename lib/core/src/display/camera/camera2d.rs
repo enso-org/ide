@@ -13,7 +13,6 @@ use crate::system::gpu::data::uniform::UniformScope;
 use crate::data::dirty::traits::*;
 
 
-
 // =================
 // === Alignment ===
 // =================
@@ -62,6 +61,12 @@ impl Default for Screen {
     }
 }
 
+impl Screen {
+    pub fn aspect(&self) -> f32 {
+        self.width / self.height
+    }
+}
+
 
 
 // ==================
@@ -69,7 +74,7 @@ impl Default for Screen {
 // ==================
 
 /// Camera's projection type.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Copy)]
 pub enum Projection {
     Perspective {fov:f32},
     Orthographic
@@ -164,7 +169,7 @@ impl Camera2dData {
     pub fn recompute_projection_matrix(&mut self) {
         self.projection_matrix = match &self.projection {
             Projection::Perspective {fov} => {
-                let aspect = self.screen.width / self.screen.height;
+                let aspect = self.screen.aspect();
                 let near   = self.clipping.near;
                 let far    = self.clipping.far;
                 *Perspective3::new(aspect,*fov,near,far).as_matrix()
@@ -253,6 +258,10 @@ impl Camera2dData {
     pub fn set_position(&mut self, value:Vector3<f32>) {
         self.mod_position(|p| *p = value);
     }
+
+    pub fn set_rotation(&mut self, yaw:f32, pitch:f32, roll:f32) {
+        self.transform.mod_rotation(|r| *r = Vector3::new(yaw,pitch,roll))
+    }
 }
 
 
@@ -318,8 +327,28 @@ impl Camera2d {
 // === Getters ===
 
 impl Camera2d {
+    pub fn clipping(&self) -> Clipping {
+        self.rc.borrow().clipping.clone()
+    }
+
+    pub fn screen(&self) -> Screen {
+        self.rc.borrow().screen.clone()
+    }
+
     pub fn zoom(&self) -> f32 {
         self.rc.borrow().zoom()
+    }
+
+    pub fn transform(&self) -> DisplayObjectData {
+        self.rc.borrow().transform.clone()
+    }
+
+    pub fn projection(&self) -> Projection {
+        self.rc.borrow().projection
+    }
+
+    pub fn projection_matrix(&self) -> Matrix4<f32> {
+        self.rc.borrow().projection_matrix.clone()
     }
 
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
@@ -337,5 +366,9 @@ impl Camera2d {
 
     pub fn set_position(&self, value:Vector3<f32>) {
         self.rc.borrow_mut().set_position(value)
+    }
+
+    pub fn set_rotation(&self, yaw:f32, pitch:f32, roll:f32) {
+        self.rc.borrow_mut().set_rotation(yaw,pitch,roll);
     }
 }

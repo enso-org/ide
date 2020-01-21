@@ -7,15 +7,20 @@ web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
+    use basegl::display::camera::Camera2d;
     use basegl::system::web::dom::Scene;
-    use basegl::system::web::dom::Camera;
     use basegl::system::web::dom::html::HTMLObject;
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::display::navigation::navigator::Navigator;
+    use basegl::system::web::create_element;
+    use basegl::system::web::get_webgl2_context;
+    use wasm_bindgen::JsCast;
     use web_test::*;
 
     use nalgebra::Vector3;
+    use logger::Logger;
+    use basegl::display::world::UniformScope;
 
     fn create_scene() -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -63,12 +68,19 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let mut camera  = Camera::perspective(45.0, 320.0 / 240.0, 1.0, 1000.0);
+        let logger      = Logger::new("navigator_test");
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
+        camera.set_screen(view_dim.x, view_dim.y); camera.update();
 
+        let y_scale = camera.projection_matrix().m11;
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;
-        let z = y * camera.get_y_scale();
+        let z = y * y_scale;
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();

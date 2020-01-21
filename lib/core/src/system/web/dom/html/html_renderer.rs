@@ -2,10 +2,10 @@
 
 use crate::prelude::*;
 
+use crate::display::camera::Camera2d;
+use crate::display::camera::camera2d::Projection;
 use crate::system::web::dom::GraphicsRenderer;
 use crate::system::web::dom::Scene;
-use crate::system::web::dom::Camera;
-use crate::system::web::dom::CameraType;
 use crate::system::web::dom::html::HTMLObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web::Result;
@@ -169,18 +169,20 @@ impl HTMLRenderer {
     }
 
     /// Renders the `Scene` from `Camera`'s point of view.
-    pub fn render(&self, camera: &mut Camera, scene: &Scene<HTMLObject>) {
-        let trans_cam    = camera.transform().to_homogeneous().try_inverse();
+    pub fn render(&self, camera: &mut Camera2d, scene: &Scene<HTMLObject>) {
+        camera.update();
+        let trans_cam    = camera.transform().matrix().try_inverse();
         let trans_cam    = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam    = trans_cam.map(eps);
         let trans_cam    = invert_y(trans_cam);
 
         let half_dim     = self.renderer.container.dimensions() / 2.0;
-        let y_scale      = camera.get_y_scale();
+        let projection   = camera.projection_matrix();
+        let y_scale      = projection.m11;
         let y_scale      = y_scale * half_dim.y;
 
-        match camera.camera_type() {
-            CameraType::Perspective(_) => {
+        match camera.projection() {
+            Projection::Perspective{fov:_} => {
                 js::setup_perspective(&self.data.div, &y_scale.into());
                 setup_camera_perspective(
                     &self.data.camera,
@@ -190,7 +192,7 @@ impl HTMLRenderer {
                     &trans_cam
                 );
             },
-            CameraType::Orthographic(_) => {
+            Projection::Orthographic => {
                 setup_camera_orthographic(&self.data.camera, &trans_cam);
             }
         }

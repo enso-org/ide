@@ -19,14 +19,19 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use basegl::system::web::dom::Scene;
-    use basegl::system::web::dom::Camera;
+    use basegl::display::camera::Camera2d;
     use basegl::system::web::dom::html::HTMLObject;
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
+    use basegl::system::web::create_element;
+    use basegl::system::web::get_webgl2_context;
     use web_test::*;
     use web_sys::Performance;
+    use wasm_bindgen::JsCast;
     use nalgebra::Vector3;
+    use logger::Logger;
+    use basegl::display::world::UniformScope;
 
     #[web_test(no_container)]
     fn invalid_container() {
@@ -36,6 +41,8 @@ mod tests {
 
     #[web_test]
     fn object_behind_camera() {
+        let logger = Logger::new("object_behind_camera");
+
         let mut scene : Scene<HTMLObject> = Scene::new();
         let renderer = HTMLRenderer::new("object_behind_camera")
                                     .expect("Renderer couldn't be created");
@@ -50,16 +57,19 @@ mod tests {
         object.set_dimensions(100.0, 100.0);
         scene.add(object);
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
         // We move the Camera behind the object so we don't see it.
         camera.set_position(Vector3::new(0.0, 0.0, -100.0));
 
-        renderer.render(&mut camera, &scene);
+        renderer.render(&mut camera,&scene);
     }
 
-    fn create_scene(renderer : &HTMLRenderer) -> Scene<HTMLObject> {
-        let mut scene : Scene<HTMLObject> = Scene::new();
+    fn create_scene(renderer:&HTMLRenderer) -> Scene<HTMLObject> {
+        let mut scene:Scene<HTMLObject> = Scene::new();
         assert_eq!(scene.len(), 0);
 
         renderer.container.dom.set_property_or_panic("background-color", "black");
@@ -95,6 +105,8 @@ mod tests {
 
     #[web_test]
     fn rhs_coordinates() {
+        let logger = Logger::new("rhs_coordinates");
+
         let renderer = HTMLRenderer::new("rhs_coordinates")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
@@ -102,8 +114,11 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
 
         // We move the Camera 29 units away from the center.
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
@@ -113,6 +128,8 @@ mod tests {
 
     #[web_test]
     fn rhs_coordinates_from_back() {
+        let logger = Logger::new("rhs_coordinates_from_back");
+
         use std::f32::consts::PI;
 
         let renderer = HTMLRenderer::new("rhs_coordinates_from_back")
@@ -122,8 +139,11 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
 
         // We move the Camera -29 units away from the center.
         camera.set_position(Vector3::new(0.0, 0.0, -29.0));
@@ -136,6 +156,7 @@ mod tests {
 
     #[web_bench]
     fn camera_movement(b: &mut Bencher) {
+        let logger = Logger::new("camera_movement");
         let renderer = HTMLRenderer::new("camera_movement")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
@@ -143,8 +164,11 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
@@ -187,6 +211,7 @@ mod tests {
 
     #[web_bench]
     fn object_x1000(b: &mut Bencher) {
+        let logger = Logger::new("object_x1000");
         let mut scene : Scene<HTMLObject> = Scene::new();
         let renderer = HTMLRenderer::new("object_x1000")
                                     .expect("Renderer couldn't be created");
@@ -203,8 +228,11 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 
@@ -220,6 +248,7 @@ mod tests {
 
     #[web_bench]
     fn object_x400_update(b: &mut Bencher) {
+        let logger = Logger::new("object_x400_update");
         let renderer = HTMLRenderer::new("object_x400_update")
                                     .expect("Renderer couldn't be created");
         let mut scene : Scene<HTMLObject> = Scene::new();
@@ -236,8 +265,11 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
         let performance = get_performance()
                          .expect("Couldn't get performance obj");
 

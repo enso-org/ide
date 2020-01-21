@@ -16,10 +16,15 @@ mod tests {
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::dom::html::HTMLObject;
     use basegl::system::web::dom::Scene;
-    use basegl::system::web::dom::Camera;
+    use basegl::system::web::create_element;
+    use basegl::system::web::get_webgl2_context;
+    use basegl::display::camera::Camera2d;
     use web_test::*;
     use nalgebra::{zero, Vector3};
     use js_sys::Math::random;
+    use wasm_bindgen::JsCast;
+    use logger::Logger;
+    use basegl::display::world::UniformScope;
 
     #[web_bench]
     fn simulator(b : &mut Bencher) {
@@ -41,9 +46,15 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let aspect_ratio = view_dim.x / view_dim.y;
-        let mut camera = Camera::perspective(45.0, aspect_ratio, 1.0, 1000.0);
+        let logger      = Logger::new("simulator");
+        let canvas      = create_element("canvas").expect("Couldn't create canvas");
+        let canvas      = canvas.dyn_into().expect("Couldn't convert canvas");
+        let context     = get_webgl2_context(&canvas).expect("Couldn't get context");
+        let variables   = UniformScope::new(logger.sub("global_variables"),&context);
+        let mut camera  = Camera2d::new(logger,&variables);
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
+        camera.set_screen(view_dim.x, view_dim.y);
+        camera.update();
 
         let mut event_loop   = b.event_loop();
         let mass             = 2.0;
