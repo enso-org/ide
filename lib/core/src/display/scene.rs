@@ -326,4 +326,8 @@ impl SceneData {
             self.on_resize.iter().for_each(|f| f(shape));
         });
     }
+
+    pub fn text_components_mut(&mut self) -> &mut Vec<text::TextComponent> {
+        &mut self.text_components
+    }
 }
