@@ -361,10 +361,10 @@ impl PixelReadPass {
         let target = Context::PIXEL_PACK_BUFFER;
         let offset = 0;
         context.bind_buffer(target,Some(&data.buffer));
-        context.read_pixels_with_i32(mousex,mousey,width,height,format,typ,offset);
+        context.read_pixels_with_i32(mousex,mousey,width,height,format,typ,offset).unwrap();
         let condition = Context::SYNC_GPU_COMMANDS_COMPLETE;
         let flags     = 0;
-        let sync      = context.fence_sync(condition,0).unwrap();
+        let sync      = context.fence_sync(condition,flags).unwrap();
         self.sync     = Some(sync);
         context.flush();
     }

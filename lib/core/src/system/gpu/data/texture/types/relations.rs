@@ -1,7 +1,6 @@
 //! This module defines relations between internal format, format, sampler type, and other
 //! properties of textures.
 
-use crate::system::gpu::data::prim::*;
 
 
 // ==============
@@ -74,3 +73,44 @@ macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f
     Depth24Stencil8   DepthStencil   FloatSampler True  False [u32_24_8:U4]
     Depth32fStencil8  DepthStencil   FloatSampler True  False [f32_u24_u8_REV:U4]
 }}}
+
+
+
+// ======================
+// === Meta Iterators ===
+// ======================
+
+/// See docs of `with_all_texture_types`.
+#[macro_export]
+macro_rules! with_all_texture_types_cartesians {
+    ($f:ident [$($out:tt)*]) => {
+        shapely::cartesian! { [[$f]] [Owned GpuOnly RemoteImage] [$($out)*] }
+    };
+    ($f:ident $out:tt [$a:tt []] $($in:tt)*) => {
+        $crate::with_all_texture_types_cartesians! {$f $out $($in)*}
+    };
+    ($f:ident [$($out:tt)*] [$a:tt [$b:tt $($bs:tt)*]] $($in:tt)*) => {
+        $crate::with_all_texture_types_cartesians! {$f [$($out)* [$a $b]] [$a [$($bs)*]]  $($in)* }
+    };
+}
+
+/// See docs of `with_all_texture_types`.
+#[macro_export]
+macro_rules! with_all_texture_types_impl {
+    ( [$f:ident]
+     $( $internal_format:ident $format:ident $color_renderable:tt $filterable:tt
+        [$($possible_types:ident : $bytes_per_element:ident),*]
+    )*) => {
+        $crate::with_all_texture_types_cartesians!
+            { $f [] $([$internal_format [$($possible_types)*]])* }
+    }
+}
+
+/// Runs the argument macro providing it with list of all possible texture types:
+/// `arg! { [Alpha u8] [Alpha f16] [Alpha f32] [Luminance u8] ... }`
+#[macro_export]
+macro_rules! with_all_texture_types {
+    ($f:ident) => {
+        $crate::with_texture_format_relations! { with_all_texture_types_impl [$f] }
+    }
+}

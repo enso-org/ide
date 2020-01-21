@@ -8,7 +8,6 @@ use crate::prelude::*;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
-use crate::display::world;
 use crate::system::gpu::data::texture;
 use crate::system::gpu::data::types::*;
 
@@ -33,10 +32,12 @@ impl Screen {
         Self {sprite_system,sprite}
     }
 
+    /// Local variables used by the screen object.
     pub fn variables(&self) -> UniformScope {
         self.sprite_system.symbol().variables()
     }
 
+    /// Render the shape.
     pub fn render(&self) {
         self.sprite_system.render()
     }

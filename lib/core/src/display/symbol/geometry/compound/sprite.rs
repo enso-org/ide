@@ -138,10 +138,12 @@ impl {
         sprite
     }
 
+    /// Accessor.
     pub fn symbol(&self) -> Symbol {
         self.symbol.clone_ref()
     }
 
+    /// Run the renderer.
     pub fn render(&self) {
         self.symbol.render();
     }

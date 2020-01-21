@@ -8,11 +8,11 @@ use enum_dispatch::*;
 use shapely::shared;
 use upload::UniformUpload;
 use web_sys::WebGlUniformLocation;
-use web_sys::WebGlTexture;
 
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::data::texture::*;
 use crate::system::gpu::data::prim::*;
+
 
 
 // ====================
@@ -140,11 +140,11 @@ impl UniformScopeData {
     (&mut self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>>
     where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
         let context = self.context.clone();
-        self.add_or_else(name,value,Some,move |name,v,uniform| {
+        self.add_or_else(name,value,Some,move |_,value,uniform| {
             let out = uniform.try_into().ok().map(|t:&Uniform<AsUniformValue<Value>>| t.clone());
             match &out {
                 Some(t) => {
-                    let bound_value = v.into_uniform_value(&context);
+                    let bound_value = value.into_uniform_value(&context);
                     t.set(bound_value);
                 }
                 None => {}

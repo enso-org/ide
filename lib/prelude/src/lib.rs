@@ -389,3 +389,63 @@ macro_rules! clone_boxed {
         }
     }}
 }
+
+
+// ===================
+// === WithContent ===
+// ===================
+
+pub trait WithContent {
+    type Content;
+    fn with_content<F:FnOnce(&Self::Content)->T,T>(&self, f:F) -> T;
+}
+
+impl<T:Deref> WithContent for T
+    where <T as Deref>::Target: WithContent {
+    type Content = <<T as Deref>::Target as WithContent>::Content;
+    default fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+        self.deref().with_content(f)
+    }
+}
+
+
+
+// =============
+// === Value ===
+// =============
+
+/// Defines relation between types and values, like between `True` and `true`.
+pub trait Value {
+
+    /// The value-level counterpart of this type-value.
+    type Type;
+
+    /// The value of this type-value.
+    fn value() -> Self::Type;
+}
+
+
+
+// =======================
+// === Type-level Bool ===
+// =======================
+
+/// Type level `true` value.
+pub struct True {}
+
+/// Type level `false` value.
+pub struct False {}
+
+impl Value for True {
+    type Type = bool;
+    fn value() -> Self::Type {
+        true
+    }
+}
+
+impl Value for False {
+    type Type = bool;
+    fn value() -> Self::Type {
+        false
+    }
+}

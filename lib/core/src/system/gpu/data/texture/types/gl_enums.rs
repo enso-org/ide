@@ -1,10 +1,9 @@
-/// This module defines all GLEnum bindings used by textures.
+//! This module defines all GLEnum bindings used by textures.
 
 
 use crate::prelude::*;
 
 use crate::system::gpu::Context;
-use crate::system::gpu::data::prim::*;
 use crate::system::gpu::data::gl_enum::GlEnum;
 
 

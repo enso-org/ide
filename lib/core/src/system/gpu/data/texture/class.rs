@@ -3,12 +3,10 @@
 use crate::prelude::*;
 
 use crate::system::gpu::Context;
-use crate::system::gpu::data::gl_enum::traits::*;
 use crate::system::gpu::data::gl_enum::*;
+use crate::system::gpu::data::gl_enum::traits::*;
 use crate::system::gpu::data::texture::storage::*;
 use crate::system::gpu::data::texture::types::*;
-
-use crate::system::gpu::data::texture::WithContent;
 
 use web_sys::WebGlTexture;
 
@@ -63,6 +61,7 @@ pub struct Texture<Storage,InternalFormat,ItemType>
 
 // === Traits ===
 
+/// Reloading functionality for textured. It is also used for initial data population.
 pub trait TextureReload {
     /// Loads or re-loads the texture data from provided source.
     fn reload(&self);
@@ -132,7 +131,7 @@ impl<S:StorageRelation<I,T>,I:InternalFormat,T:Item> Texture<S,I,T>
     where Self: TextureReload {
     /// Constructor.
     pub fn new<P:Into<StorageOf<S,I,T>>>(context:&Context, provider:P) -> Self {
-        let this = Self::new_unitialized(context,provider);
+        let this = Self::new_uninitialized(context,provider);
         this.reload();
         this
     }
@@ -151,13 +150,16 @@ impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
 // === Internal API ===
 
 impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
-    pub fn new_unitialized<X:Into<StorageOf<S,I,T>>>(context:&Context, storage:X) -> Self {
+    /// New, uninitialized constructor. If you are not implementing a custom texture format, you
+    /// should probably use `new` instead.
+    pub fn new_uninitialized<X:Into<StorageOf<S,I,T>>>(context:&Context, storage:X) -> Self {
         let storage    = storage.into();
         let context    = context.clone();
         let gl_texture = context.create_texture().unwrap();
         Self {storage,gl_texture,context}
     }
 
+    /// Sets the texture wrapping parameters.
     pub fn set_texture_parameters(context:&Context) {
         let target = Context::TEXTURE_2D;
         let wrap   = Context::CLAMP_TO_EDGE as i32;
@@ -187,8 +189,10 @@ WithContent for Texture<S,I,T> {
 /// API of the texture. It is defined as trait and uses the `WithContent` mechanism in order for
 /// uniforms to easily redirect the methods.
 pub trait TextureOps {
-    /// Bind texture for specific unit
+    /// Bind texture to a specific unit.
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
+
+    /// Accessor.
     fn gl_texture(&self) -> WebGlTexture;
 }
 

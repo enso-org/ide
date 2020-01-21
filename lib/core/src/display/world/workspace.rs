@@ -24,7 +24,6 @@ use wasm_bindgen::prelude::Closure;
 
 use crate::display::world::RenderComposer;
 use crate::display::world::RenderPipeline;
-use crate::display::world::default_render_pipeline;
 use crate::display::object::DisplayObjectData;
 
 
@@ -290,7 +289,7 @@ pub struct Listeners {
 }
 
 impl Workspace {
-    pub fn tmp_borrow_mut(&self) -> std::cell::RefMut<'_,WorkspaceData> {
+    pub fn tmp_borrow_mut(&self) -> RefMut<'_,WorkspaceData> {
         self.rc.borrow_mut()
     }
 }
