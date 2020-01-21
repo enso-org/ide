@@ -103,15 +103,15 @@ impl ShapeData {
 
 
 
-// =================
-// === Workspace ===
-// =================
+// =============
+// === Scene ===
+// =============
 
-shared! { Workspace
+shared! { Scene
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct WorkspaceData {
+pub struct SceneData {
     root : DisplayObjectData,
     canvas         : web_sys::HtmlCanvasElement,
     context        : Context,
@@ -248,15 +248,15 @@ impl {
     }
 }}
 
-impl Into<DisplayObjectData> for &WorkspaceData {
+impl Into<DisplayObjectData> for &SceneData {
     fn into(self) -> DisplayObjectData {
         self.root.clone()
     }
 }
 
-impl Into<DisplayObjectData> for &Workspace {
+impl Into<DisplayObjectData> for &Scene {
     fn into(self) -> DisplayObjectData {
-        let data:&WorkspaceData = &self.rc.borrow();
+        let data:&SceneData = &self.rc.borrow();
         data.into()
     }
 }
@@ -284,13 +284,13 @@ pub struct Listeners {
     resize: ResizeObserver,
 }
 
-impl Workspace {
-    pub fn tmp_borrow_mut(&self) -> RefMut<'_,WorkspaceData> {
+impl Scene {
+    pub fn tmp_borrow_mut(&self) -> RefMut<'_,SceneData> {
         self.rc.borrow_mut()
     }
 }
 
-impl WorkspaceData {
+impl SceneData {
 
     pub fn tmp_text_components(&mut self) -> &mut Vec<text::TextComponent> {
         &mut self.text_components
@@ -333,14 +333,14 @@ impl WorkspaceData {
 
 }
 
-//impl Index<usize> for Workspace {
+//impl Index<usize> for Scene {
 //    type Output = Symbol;
 //    fn index(&self, ix: usize) -> &Self::Output {
 //        self.symbols.index(ix)
 //    }
 //}
 //
-//impl IndexMut<usize> for Workspace {
+//impl IndexMut<usize> for Scene {
 //    fn index_mut(&mut self, ix: usize) -> &mut Self::Output {
 //        self.symbols.index_mut(ix)
 //    }

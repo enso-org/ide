@@ -4,8 +4,7 @@ use crate::prelude::*;
 
 pub use crate::data::container::*;
 pub use crate::display::symbol::types::*;
-pub use crate::display::workspace::SymbolId;
-pub use crate::display::workspace::Workspace;
+pub use crate::display::scene::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
@@ -17,6 +16,7 @@ use crate::debug::monitor::Panel;
 use crate::debug::monitor;
 use crate::debug::stats::Stats;
 use crate::display::object::*;
+use crate::display::scene::Scene;
 use crate::display::shape::text::font::Fonts;
 use crate::display::symbol::Symbol;
 use crate::system::gpu::data::texture::Texture;
@@ -411,11 +411,11 @@ fn default_render_pipeline(root:&DisplayObjectData) -> RenderPipeline {
         .add(PixelReadPass::new())
 }
 
-fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, height:i32) -> RenderComposer {
-    let context   = &workspace.context();
-    let variables = &workspace.variables();
-//    let width     = workspace.shape.canvas_shape().width  as i32;
-//    let height    = workspace.shape.canvas_shape().height as i32;
+fn mk_render_composer(scene:&Scene, dp:&DisplayObjectData, width:i32, height:i32) -> RenderComposer {
+    let context   = &scene.context();
+    let variables = &scene.variables();
+//    let width     = scene.shape.canvas_shape().width  as i32;
+//    let height    = scene.shape.canvas_shape().height as i32;
 
     let pipeline = default_render_pipeline(dp);
 
@@ -436,13 +436,13 @@ fn mk_render_composer(workspace:&Workspace, dp:&DisplayObjectData, width:i32, he
 // === Definition ===
 
 /// World is the top-level application structure. It used to manage several instances of
-/// `Workspace`, and there is probability that we will get back to this design in the future.
+/// `Scene`, and there is probability that we will get back to this design in the future.
 /// It is responsible for updating the system on every animation frame.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct WorldData {
-    pub workspace       : Workspace,
-    pub workspace_dirty : WorkspaceDirty,
+    pub scene       : Scene,
+    pub scene_dirty : SceneDirty,
     pub logger          : Logger,
     pub event_loop      : EventLoop,
     pub performance     : Performance,
@@ -458,14 +458,14 @@ pub struct WorldData {
 
 // === Types ===
 
-pub type WorkspaceID    = usize;
-pub type WorkspaceDirty = dirty::SharedBool;
+pub type SceneID    = usize;
+pub type SceneDirty = dirty::SharedBool;
 
 
 // === Callbacks ===
 
 closure! {
-fn workspace_on_change(dirty:WorkspaceDirty) -> WorkspaceOnChange {
+fn scene_on_change(dirty:SceneDirty) -> SceneOnChange {
     || dirty.set()
 }}
 
@@ -510,13 +510,13 @@ impl WorldData {
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
         let stats                  = default();
         let logger                 = Logger::new("world");
-        let workspace_logger       = logger.sub("workspace");
-        let workspace_dirty_logger = logger.sub("workspace_dirty");
-        let workspace_dirty        = WorkspaceDirty::new(workspace_dirty_logger,());
-        let workspace_dirty2       = workspace_dirty.clone();
-        let on_change              = move || {workspace_dirty2.set()};
-        let workspace              = Workspace::new(dom,workspace_logger,&stats,on_change);
-        let variables              = &workspace.variables();
+        let scene_logger       = logger.sub("scene");
+        let scene_dirty_logger = logger.sub("scene_dirty");
+        let scene_dirty        = SceneDirty::new(scene_dirty_logger,());
+        let scene_dirty2       = scene_dirty.clone();
+        let on_change              = move || {scene_dirty2.set()};
+        let scene              = Scene::new(dom,scene_logger,&stats,on_change);
+        let variables              = &scene.variables();
         let time                   = variables.add_or_panic("time",0.0);
         let display_mode           = variables.add_or_panic("display_mode",0);
         let fonts                  = Fonts::new();
@@ -530,7 +530,7 @@ impl WorldData {
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
-        Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
+        Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
              ,fonts,update_handle,stats,stats_monitor}
     }
 
@@ -544,11 +544,11 @@ impl WorldData {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         //TODO[WD]: Re-think when should we check the condition (uniform update):
-        //          if self.workspace_dirty.check_all() {
+        //          if self.scene_dirty.check_all() {
         group!(self.logger, "Updating.", {
-            self.workspace_dirty.unset_all();
+            self.scene_dirty.unset_all();
             let fonts = &mut self.fonts;
-            self.workspace.update(fonts);
+            self.scene.update(fonts);
         });
     }
 
@@ -560,7 +560,7 @@ impl WorldData {
 
 impl Into<DisplayObjectData> for &WorldData {
     fn into(self) -> DisplayObjectData {
-        (&self.workspace).into()
+        (&self.scene).into()
     }
 }
 
@@ -612,7 +612,7 @@ impl World {
     }
 
     pub fn new_symbol(&self) -> Symbol {
-        self.rc.borrow().workspace.new_symbol2()
+        self.rc.borrow().scene.new_symbol2()
     }
 
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,
@@ -636,7 +636,7 @@ impl World {
     fn init_composer(&self) {
         let dp = &self.display_object_description();
         let pipeline = default_render_pipeline(dp);
-        self.rc.borrow_mut().workspace.set_render_pipeline(pipeline);
+        self.rc.borrow_mut().scene.set_render_pipeline(pipeline);
     }
 }
 
