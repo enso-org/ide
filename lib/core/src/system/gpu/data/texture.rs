@@ -400,12 +400,36 @@ pub trait TextureItemType = PhantomInto<GlEnum> + 'static;
 
 
 
+
+// ============
+// === Type ===
+// ============
+
+pub trait Type = Debug + PhantomInto<AnyType> + 'static;
+
+shapely::define_singleton_enum_from! {
+    AnyType
+        {u8,u16,u32,i8,i16,i32,f16,f32,f32_u24_u8_REV,u16_4_4_4_4,u16_5_5_5_1,u16_5_6_5
+        ,u32_f10_f11_f11_REV,u32_24_8,u32_2_10_10_10_REV,u32_5_9_9_9_REV}
+}
+
+
+// ===============
+// === Storage ===
+// ===============
+
+
+pub trait Storage = Debug + Default + Into<AnyStorage> + PhantomInto<AnyStorage> + 'static;
+
+shapely::define_singleton_enum! {
+    AnyStorage {RemoteImage,GpuOnly,Owned}
+}
+
+
+
 // ===================
 // === RemoteImage ===
 // ===================
-
-#[derive(Debug)]
-pub struct RemoteImage;
 
 /// Texture downloaded from URL. This source implies asynchronous loading.
 #[derive(Debug)]
@@ -435,9 +459,6 @@ impl<I,T> StorageRelation<I,T> for RemoteImage {
 // ===============
 // === GpuOnly ===
 // ===============
-
-#[derive(Debug)]
-pub struct GpuOnly;
 
 /// Sized, uninitialized texture.
 #[derive(Debug)]
@@ -470,9 +491,6 @@ impl From<(i32,i32)> for GpuOnlyData {
 // === Owned ===
 // =============
 
-#[derive(Debug)]
-pub struct Owned;
-
 /// Texture plain data.
 #[derive(Debug)]
 pub struct OwnedData<T> {
@@ -499,11 +517,11 @@ impl<I,T:Debug> StorageRelation<I,T> for Owned {
 
 
 
-pub trait StorageRelation<InternalFormat,ElemType> {
+pub trait StorageRelation<InternalFormat,ElemType>: Storage {
     type Storage: Debug;
 }
 
-pub type Storage<S,I,T> = <S as StorageRelation<I,T>>::Storage;
+pub type StorageOf<S,I,T> = <S as StorageRelation<I,T>>::Storage;
 
 
 // ===============
@@ -512,10 +530,11 @@ pub type Storage<S,I,T> = <S as StorageRelation<I,T>>::Storage;
 
 /// Texture bound to GL context.
 #[derive(Derivative)]
-#[derivative(Debug(bound="Storage<StorageType,InternalFormat,ElemType>:Debug"))]
+#[derivative(Clone(bound="StorageOf<StorageType,InternalFormat,ElemType>:Clone"))]
+#[derivative(Debug(bound="StorageOf<StorageType,InternalFormat,ElemType>:Debug"))]
 pub struct Texture<StorageType,InternalFormat,ElemType>
 where StorageType: StorageRelation<InternalFormat,ElemType> {
-    storage    : Storage<StorageType,InternalFormat,ElemType>,
+    storage    : StorageOf<StorageType,InternalFormat,ElemType>,
     gl_texture : WebGlTexture,
     context    : Context,
 }
@@ -702,7 +721,7 @@ impl<S:StorageRelation<I,T>,I,T> Drop for Texture<S,I,T> {
 // === Private API ===
 
 impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
-    fn new_unitialized<X:Into<Storage<S,I,T>>>(context:&Context, storage:X) -> Self {
+    fn new_unitialized<X:Into<StorageOf<S,I,T>>>(context:&Context, storage:X) -> Self {
         let storage    = storage.into();
         let context    = context.clone();
         let gl_texture = context.create_texture().unwrap();
@@ -742,6 +761,8 @@ fn request_cors_if_not_same_origin(img:&HtmlImageElement, url_str:&str) {
 }
 
 
+use std::any::Any;
+
 // === ContextTextureOps ===
 
 /// A texture unit representation in WebGl.
@@ -753,9 +774,13 @@ pub trait ContextTextureOps {
     /// Bind texture for specific unit
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
     fn gl_texture(&self) -> WebGlTexture;
+    fn storage(&self) -> AnyStorage;
+    fn internal_format(&self) -> AnyInternalFormat;
+    fn typ(&self) -> AnyType;
+    fn as_any(&self) -> &dyn Any;
 }
 
-impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
+impl<S:Storage + StorageRelation<I,T>,I:InternalFormat,T:Type> ContextTextureOps for Texture<S,I,T> {
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
         let context = context.clone();
         let target  = Context::TEXTURE_2D;
@@ -767,6 +792,22 @@ impl<S:StorageRelation<I,T>,I,T> ContextTextureOps for Texture<S,I,T> {
 
     fn gl_texture(&self) -> WebGlTexture {
         self.gl_texture.clone()
+    }
+
+    fn storage(&self) -> AnyStorage {
+        <S>::default().into()
+    }
+
+    fn internal_format(&self) -> AnyInternalFormat {
+        <I>::default().into()
+    }
+
+    fn typ(&self) -> AnyType {
+        PhantomData::<T>.into()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

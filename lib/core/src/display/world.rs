@@ -214,7 +214,7 @@ impl RenderPassRunner {
     fn initialize(&mut self) {
         for output in &self.pass.outputs() {
             let texture = Texture::<texture::GpuOnly,texture::Rgba,u8>::new(&self.context,(self.width,self.height));
-            let uniform = self.variables.add_or_panic(&format!("pass_{}",output.name),texture);
+            let uniform = self.variables.get_or_add(&format!("pass_{}",output.name),texture).unwrap();
             self.add_output(uniform.into());
         }
     }
@@ -343,7 +343,7 @@ impl PixelReadPass {
             let array   = ArrayBuffer::new(4);
             let target  = Context::PIXEL_PACK_BUFFER;
             let usage   = Context::DYNAMIC_READ;
-            let uniform = variables.add_or_panic("pass_pixel_color",Vector4::new(0,0,0,0));
+            let uniform = variables.get_or_add("pass_pixel_color",Vector4::new(0,0,0,0)).unwrap();
             context.bind_buffer(target,Some(&buffer));
             context.buffer_data_with_opt_array_buffer(target,Some(&array),usage);
             self.data = Some(PixelReadPassData::new(uniform,buffer));
@@ -459,10 +459,6 @@ pub struct WorldData {
     pub update_handle   : Option<CallbackHandle>,
     pub stats           : Stats,
     pub stats_monitor   : StatsMonitor,
-
-    pub tmp_composer: Option<RenderComposer>,
-
-
 }
 
 
@@ -538,12 +534,10 @@ impl WorldData {
         let stats_monitor_cp_1     = stats_monitor.clone();
         let stats_monitor_cp_2     = stats_monitor.clone();
 
-        let tmp_composer = None;
-
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {workspace,workspace_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,fonts,update_handle,stats,stats_monitor,tmp_composer}
+             ,fonts,update_handle,stats,stats_monitor}
     }
 
 
@@ -551,7 +545,6 @@ impl WorldData {
         let relative_time = self.performance.now() as f32 - self.start_time;
         self.time.set(relative_time);
         self.update();
-        self.tmp_composer.as_mut().unwrap().run();
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -647,13 +640,9 @@ impl World {
     }
 
     fn init_composer(&self) {
-        let width  = 961*2; // shape.width as i32;
-        let height = 359*2; // shape.height as i32;
-        let composer = {
-            let dp = &self.display_object_description();
-            mk_render_composer(&self.rc.borrow().workspace, dp, width, height)
-        };
-        self.rc.borrow_mut().tmp_composer = Some(composer);
+        let dp = &self.display_object_description();
+        let pipeline = default_render_pipeline(dp);
+        self.rc.borrow_mut().workspace.set_render_pipeline(pipeline);
     }
 }
 

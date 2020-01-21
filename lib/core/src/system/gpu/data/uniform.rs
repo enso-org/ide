@@ -15,7 +15,6 @@ use crate::system::gpu::data::texture::*;
 use crate::system::gpu::data::prim::*;
 
 
-
 // ====================
 // === UniformValue ===
 // ====================
@@ -99,7 +98,7 @@ impl {
     /// Refer to the docs of `IntoUniformValue` to learn more.
     pub fn add<Name:Str, Value:IntoUniformValue>
     (&mut self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>> {
-        self.add_or_else(name,value,Some,|_|None)
+        self.add_or_else(name,value,Some,|_,_,_|None)
     }
 
     /// Add a new uniform with a given name and initial value. Panics if the name is in use.
@@ -107,27 +106,61 @@ impl {
     /// Refer to the docs of `IntoUniformValue` to learn more.
     pub fn add_or_panic<Name:Str, Value:IntoUniformValue>
     (&mut self, name:Name, value:Value) -> Uniform<AsUniformValue<Value>> {
-        self.add_or_else(name,value,|t|{t},|name| {
+        self.add_or_else(name,value,|t|{t},|name,_,_| {
             panic!("Trying to override uniform '{}'.", name.as_ref())
         })
     }
+
+
 }}
 
 impl UniformScopeData {
     /// Adds a new uniform with a given name and initial value. In case the name was already in use,
-    /// it fires the `fail` function. Otherwise, it fires the `ok` function on the newly created
-    /// uniform.
-    pub fn add_or_else<Name:Str,Value:IntoUniformValue,Ok,Fail,T>
-    (&mut self, name:Name, value:Value, ok:Ok, fail:Fail) -> T
-    where Ok   : Fn(Uniform<AsUniformValue<Value>>)->T,
-          Fail : Fn(Name)->T {
-        if self.map.contains_key(name.as_ref()) { fail(name) } else {
-            let bound_value = value.into_uniform_value(&self.context);
-            let uniform     = Uniform::new(bound_value);
-            let any_uniform = uniform.clone().into();
-            self.map.insert(name.into(),any_uniform);
-            ok(uniform)
+    /// it fires the `on_exist` function. Otherwise, it fires the `on_fresh` function on the newly
+    /// created uniform.
+    pub fn add_or_else<Name:Str,Value:IntoUniformValue,OnFresh,OnExist,T>
+    (&mut self, name:Name, value:Value, on_fresh:OnFresh, on_exist:OnExist) -> T
+    where OnFresh : FnOnce(Uniform<AsUniformValue<Value>>)->T,
+          OnExist : FnOnce(Name,Value,&AnyUniform)->T {
+        match self.map.get(name.as_ref()) {
+            Some(v) => on_exist(name,value,v),
+            None => {
+                let bound_value = value.into_uniform_value(&self.context);
+                let uniform     = Uniform::new(bound_value);
+                let any_uniform = uniform.clone().into();
+                self.map.insert(name.into(),any_uniform);
+                on_fresh(uniform)
+            }
         }
+    }
+
+    /// Gets an existing uniform or adds a new one in case it was missing. Returns `None` if the
+    /// uniform exists but its type does not match the requested one.
+    pub fn get_or_add<Name:Str, Value:IntoUniformValue>
+    (&mut self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>>
+    where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
+        let context = self.context.clone();
+        self.add_or_else(name,value,Some,move |name,v,uniform| {
+            let out = uniform.try_into().ok().map(|t:&Uniform<AsUniformValue<Value>>| t.clone());
+            match &out {
+                Some(t) => {
+                    let bound_value = v.into_uniform_value(&context);
+                    t.set(bound_value);
+                }
+                None => {}
+            }
+            out
+        })
+    }
+}
+
+impl UniformScope {
+    /// Gets an existing uniform or adds a new one in case it was missing. Returns `None` if the
+    /// uniform exists but its type does not match the requested one.
+    pub fn get_or_add<Name:Str, Value:IntoUniformValue>
+    (&self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>>
+    where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
+        self.rc.borrow_mut().get_or_add(name,value)
     }
 }
 
@@ -159,11 +192,11 @@ impl<Value> {
         self.value = value;
     }
 
-    /// Modifies the value stored by the uniform.
-    pub fn modify<F:FnOnce(&mut Value)->T,T>(&mut self, f:F) -> T {
-        self.set_dirty();
-        f(&mut self.value)
-    }
+//    /// Modifies the value stored by the uniform.
+//    pub fn modify<F:FnOnce(&mut Value)->T,T>(&mut self, f:F) -> T {
+//        self.set_dirty();
+//        f(&mut self.value)
+//    }
 
     /// Checks whether the uniform was changed and not yet updated.
     pub fn check_dirty(&self) -> bool {
@@ -201,6 +234,8 @@ impl<Value:UniformValue> Uniform<Value> {
 // === AnyPrimUniform ===
 // ======================
 
+pub struct TypeMismatch;
+
 macro_rules! define_any_prim_uniform {
     ( [] [$([$t1:ident $t2:ident])*] ) => { paste::item! {
         /// Existentially typed uniform value.
@@ -210,6 +245,16 @@ macro_rules! define_any_prim_uniform {
         pub enum AnyPrimUniform {
             $([<Variant_ $t1 _ $t2>](Uniform<$t1<$t2>>)),*
         }
+
+        $(impl<'t> TryFrom<&'t AnyPrimUniform> for &'t Uniform<$t1<$t2>> {
+            type Error = TypeMismatch;
+            fn try_from(value:&'t AnyPrimUniform) -> Result<Self,Self::Error> {
+                match value {
+                    AnyPrimUniform::[<Variant_ $t1 _ $t2>](t) => Ok(t),
+                    _ => Err(TypeMismatch)
+                }
+            }
+        })*
     }}
 }
 crate::with_all_prim_types!([[define_any_prim_uniform][]]);
@@ -235,12 +280,19 @@ pub struct AnyTextureUniform {
 }
 
 
+use std::any::Any;
+
+
 // === AnyTextureUniformOps ===
 
 pub trait AnyTextureUniformOps:TextureUniformClone + Debug {
     /// Bind texture for specific unit
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard;
     fn gl_texture(&self) -> WebGlTexture;
+    fn storage(&self) -> AnyStorage;
+    fn internal_format(&self) -> AnyInternalFormat;
+    fn typ(&self) -> AnyType;
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl<T:ContextTextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T> {
@@ -251,6 +303,33 @@ impl<T:ContextTextureOps+Debug+'static> AnyTextureUniformOps for Uniform<T> {
 
     fn gl_texture(&self) -> WebGlTexture {
         self.rc.borrow().value.gl_texture()
+    }
+
+    fn storage(&self) -> AnyStorage {
+        let u:&T = &self.rc.borrow().value;
+        u.storage()
+    }
+    fn internal_format(&self) -> AnyInternalFormat {
+        let u:&T = &self.rc.borrow().value;
+        u.internal_format()
+    }
+
+    fn typ(&self) -> AnyType {
+        let u:&T = &self.rc.borrow().value;
+        u.typ()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Type>
+TryFrom<&'t AnyTextureUniform> for &'t Uniform<Texture<S,I,T>> {
+    type Error = TypeMismatch;
+    fn try_from(value:&'t AnyTextureUniform) -> Result<Self,Self::Error> {
+        value.as_any().downcast_ref().ok_or(TypeMismatch)
     }
 }
 
@@ -313,10 +392,40 @@ impl<T:Into<AnyPrimUniform>> IntoAnyUniform for T {
     }
 }
 
-impl<S:StorageRelation<I,T>+Debug+'static,I:'static,T:'static>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:Type>
 IntoAnyUniform for Uniform<Texture<S,I,T>> {
     fn into_any_uniform(self) -> AnyUniform {
         AnyUniform::Texture(AnyTextureUniform {raw: Box::new(self)})
     }
 }
 
+
+
+
+macro_rules! foo {
+    ( [] [$([$t1:ident $t2:ident])*] ) => {
+        $(impl<'t> TryFrom<&'t AnyUniform> for &'t Uniform<$t1<$t2>> {
+            type Error = TypeMismatch;
+            fn try_from(value:&'t AnyUniform) -> Result<Self,Self::Error> {
+                match value {
+                    AnyUniform::Prim(t) => t.try_into(),
+                    _ => Err(TypeMismatch)
+                }
+            }
+        })*
+    }
+}
+crate::with_all_prim_types!([[foo][]]);
+
+
+impl<'t,S:StorageRelation<I,T>,I:InternalFormat,T:Type>
+TryFrom<&'t AnyUniform> for &'t Uniform<Texture<S,I,T>>
+where &'t Uniform<Texture<S,I,T>> : TryFrom<&'t AnyTextureUniform, Error=TypeMismatch> {
+    type Error = TypeMismatch;
+    fn try_from(value:&'t AnyUniform) -> Result<Self,Self::Error> {
+        match value {
+            AnyUniform::Texture(t) => t.try_into(),
+            _ => Err(TypeMismatch)
+        }
+    }
+}

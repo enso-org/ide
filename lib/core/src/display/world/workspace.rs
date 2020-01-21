@@ -201,7 +201,7 @@ impl {
         println!("INIT COMPOSER");
         let width    = self.shape.canvas_shape().width  as i32;
         let height   = self.shape.canvas_shape().height as i32;
-        let composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
+        self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
     }
 
     pub fn render(&mut self) {
@@ -210,6 +210,7 @@ impl {
                 let screen = self.shape.screen_shape();
                 self.resize_canvas(&self.shape);
                 self.scene.camera.set_screen(screen.width, screen.height);
+                self.init_composer();
                 self.shape_dirty.unset_all();
             }
             if self.symbols_dirty.check_all() {
@@ -221,6 +222,8 @@ impl {
             self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.scene.camera);
+
+            self.composer.run();
         })
     }
 
