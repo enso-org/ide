@@ -24,8 +24,10 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
-        let root   = DisplayObjectData::new(logger.sub("root"));
-        let camera = Camera2d::new(logger.sub("camera"),width,height,globals);
+        let root    = DisplayObjectData::new(logger.sub("root"));
+        let camera  = Camera2d::new(logger.sub("camera"),width,height);
+        let uniform = globals.add_or_panic("zoom", 1.0);
+        camera.add_zoom_update_callback(move |zoom| uniform.set(zoom));
         Self {root,camera}
     }
 }

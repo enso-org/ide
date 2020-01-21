@@ -8,8 +8,6 @@ use crate::prelude::*;
 use crate::data::dirty;
 use crate::display::object::DisplayObjectData;
 use nalgebra::{Vector3, Matrix4, Perspective3};
-use crate::system::gpu::data::uniform::Uniform;
-use crate::system::gpu::data::uniform::UniformScope;
 use crate::data::dirty::traits::*;
 
 
@@ -109,13 +107,17 @@ impl Default for Clipping {
 // === Camera2dData ===
 // ====================
 
+pub trait ZoomUpdateFn = FnMut(f32) + 'static;
+
+type ZoomUpdateCallback = Box<dyn ZoomUpdateFn>;
+
 /// Internal `Camera2d` representation. Please see `Camera2d` for full documentation.
-#[derive(Clone,Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Camera2dData {
     pub transform          : DisplayObjectData,
     screen                 : Screen,
     zoom                   : f32,
-    zoom_uniform           : Uniform<f32>,
     native_z               : f32,
     alignment              : Alignment,
     projection             : Projection,
@@ -124,14 +126,16 @@ pub struct Camera2dData {
     projection_matrix      : Matrix4<f32>,
     view_projection_matrix : Matrix4<f32>,
     projection_dirty       : ProjectionDirty,
-    transform_dirty        : TransformDirty2
+    transform_dirty        : TransformDirty2,
+    #[derivative(Debug="ignore")]
+    zoom_update_callback   : ZoomUpdateCallback
 }
 
 type ProjectionDirty = dirty::SharedBool<()>;
 type TransformDirty2 = dirty::SharedBool<()>;
 
 impl Camera2dData {
-    pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
+    pub fn new(logger:Logger, width:f32, height:f32) -> Self {
         let screen                 = Screen::new(width,height);
         let projection             = default();
         let clipping               = default();
@@ -145,12 +149,16 @@ impl Camera2dData {
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
         let transform_dirty_copy   = transform_dirty.clone();
         let transform              = DisplayObjectData::new(logger);
-        let zoom_uniform           = globals.add_or_panic("zoom",1.0);
+        let zoom_update_callback   = Box::new(|_| ());
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
-        Self {transform,screen,projection,clipping,alignment,zoom,zoom_uniform,native_z,view_matrix
-             ,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
+        Self {transform,screen,projection,clipping,alignment,zoom,zoom_update_callback,native_z,
+              view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
+    }
+
+    pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&mut self, f:F) {
+        self.zoom_update_callback = Box::new(f);
     }
 
     pub fn recompute_view_matrix(&mut self) {
@@ -191,7 +199,7 @@ impl Camera2dData {
         }
         if changed {
             self.view_projection_matrix = self.projection_matrix * self.view_matrix;
-            self.zoom_uniform.set(self.zoom);
+            (self.zoom_update_callback)(self.zoom);
         }
         changed
     }
@@ -297,8 +305,8 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:Logger, width:f32, height:f32, globals:&UniformScope) -> Self {
-        let data = Camera2dData::new(logger,width,height,globals);
+    pub fn new(logger:Logger, width:f32, height:f32) -> Self {
+        let data = Camera2dData::new(logger,width,height);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -316,6 +324,11 @@ impl Camera2d {
     /// Update all diry camera parameters and compute updated view-projection matrix.
     pub fn update(&self) -> bool {
         self.rc.borrow_mut().update()
+    }
+
+    /// Adds a callback to notify when `zoom` is updated.
+    pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&self, f:F) {
+        self.rc.borrow_mut().add_zoom_update_callback(f);
     }
 }
 

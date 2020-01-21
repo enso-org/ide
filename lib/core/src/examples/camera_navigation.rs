@@ -8,18 +8,14 @@ use crate::system::web::dom::html::HTMLObject;
 use crate::system::web::dom::html::HTMLRenderer;
 use crate::control::EventLoop;
 use crate::system::web::StyleSetter;
-use crate::system::web::create_element;
-use crate::system::web::get_webgl2_context;
 use crate::system::web::set_stdout;
 use crate::display::navigation::navigator::Navigator;
-use wasm_bindgen::JsCast;
 
 use crate::animation::animator::continuous::ContinuousAnimator;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use logger::Logger;
-use crate::display::world::UniformScope;
 
 fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     let mut scene : Scene<HTMLObject> = Scene::new();
@@ -67,11 +63,7 @@ pub fn run_example_camera_navigation() {
     let scene = create_scene(dimensions);
 
     let logger     = Logger::new("camera_navigation");
-    let canvas     = create_element("canvas").expect("Couldn't create Canvas element")
-                   .dyn_into().expect("Couldn't convert Canvas element");
-    let context    = get_webgl2_context(&canvas).expect("Couldn't get WebGL2 context");
-    let variables  = UniformScope::new(logger.sub("global_variables"),&context);
-    let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y,&variables);
+    let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
     let y_scale = camera.projection_matrix().m11;
