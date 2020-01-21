@@ -357,7 +357,7 @@ impl Camera2d {
     }
 
     pub fn projection_matrix(&self) -> Matrix4<f32> {
-        self.rc.borrow().projection_matrix.clone()
+        self.rc.borrow().projection_matrix
     }
 
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {

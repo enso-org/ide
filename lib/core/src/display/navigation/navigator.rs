@@ -55,7 +55,7 @@ impl Navigator {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.transform().position();
-        let kinematics         = KinematicsProperties::new(position.clone(), velocity, zero(), mass);
+        let kinematics         = KinematicsProperties::new(position, velocity, zero(), mass);
         let spring_coefficient = 10000.0;
         let fixed_point        = position;
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);

@@ -182,7 +182,7 @@ impl HTMLRenderer {
         let y_scale      = y_scale * half_dim.y;
 
         match camera.projection() {
-            Projection::Perspective{fov:_} => {
+            Projection::Perspective{ .. } => {
                 js::setup_perspective(&self.data.div, &y_scale.into());
                 setup_camera_perspective(
                     &self.data.camera,
