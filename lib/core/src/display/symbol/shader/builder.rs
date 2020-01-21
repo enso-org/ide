@@ -204,13 +204,13 @@ impl From<&glsl::PrimType> for UniformQualifier {
 /// A GLSL code template. It is used to provide a pre-defined GLSL code chunk and insert generated
 /// GLSL snippets in right places.
 #[derive(Clone,Debug,Default)]
-pub struct CodeTemplete {
+pub struct CodeTemplate {
     before_main : String,
     main        : String,
     after_main  : String,
 }
 
-impl CodeTemplete {
+impl CodeTemplate {
     /// Constructor.
     pub fn new(before_main:String, main:String, after_main:String) -> Self {
         Self {before_main,main,after_main}
@@ -225,7 +225,7 @@ impl CodeTemplete {
 
 // === Getters ===
 
-impl CodeTemplete {
+impl CodeTemplate {
     pub fn before_main(&self) -> &String {
         &self.before_main
     }
@@ -242,7 +242,7 @@ impl CodeTemplete {
 
 // === Setters ===
 
-impl CodeTemplete {
+impl CodeTemplate {
     pub fn set_before_main<S:Str>(&mut self, value:S) {
         self.before_main = value.into();
     }
@@ -272,7 +272,7 @@ impl ShaderBuilder {
     pub fn new() -> Self { default() }
 
     pub fn compute
-    (&mut self, cfg:&ShaderConfig, vertex_code:CodeTemplete, fragment_code:CodeTemplete) {
+    (&mut self, cfg:&ShaderConfig, vertex_code:CodeTemplate, fragment_code:CodeTemplate) {
         self.gen_precision_code(cfg);
         self.gen_attributes_code(cfg);
         self.gen_shared_attributes_code(cfg);
@@ -281,7 +281,7 @@ impl ShaderBuilder {
         self.add_template_code(vertex_code,fragment_code);
     }
 
-    fn add_template_code(&mut self, vertex_code:CodeTemplete, fragment_code:CodeTemplete) {
+    fn add_template_code(&mut self, vertex_code:CodeTemplate, fragment_code:CodeTemplate) {
         self.vertex.main.body.add(&vertex_code.main);
         self.vertex.add(glsl::Statement::Raw(glsl::RawCode::new(vertex_code.before_main)));
 
