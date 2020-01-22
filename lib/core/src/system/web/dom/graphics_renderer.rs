@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::prelude::*;
-use super::DOMContainer;
-use super::ResizeCallback;
+use crate::system::web::dom::DOMContainer;
+use crate::system::web::dom::ResizeCallback;
 use crate::system::web::Result;
 
 use nalgebra::Vector2;

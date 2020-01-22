@@ -18,8 +18,8 @@ extern "C" {
 
 #[cfg(test)]
 mod tests {
-    use basegl::system::web::dom::Scene;
     use basegl::display::camera::Camera2d;
+    use basegl::system::web::dom::html::HTMLScene;
     use basegl::system::web::dom::html::HTMLObject;
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
@@ -39,7 +39,7 @@ mod tests {
     fn object_behind_camera() {
         let logger = Logger::new("object_behind_camera");
 
-        let mut scene : Scene<HTMLObject> = Scene::new();
+        let mut scene = HTMLScene::new(logger.clone());
         let renderer = HTMLRenderer::new("object_behind_camera")
                                     .expect("Renderer couldn't be created");
         assert_eq!(scene.len(), 0, "Scene should be empty");
@@ -60,8 +60,8 @@ mod tests {
         renderer.render(&mut camera,&scene);
     }
 
-    fn create_scene(logger:Logger, renderer:&HTMLRenderer) -> Scene<HTMLObject> {
-        let mut scene:Scene<HTMLObject> = Scene::new();
+    fn create_scene(logger:Logger, renderer:&HTMLRenderer) -> HTMLScene {
+        let mut scene:HTMLScene = HTMLScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
         renderer.container.dom.set_property_or_panic("background-color", "black");
@@ -161,12 +161,12 @@ mod tests {
         })
     }
 
-    fn make_sphere(mut scene : &mut Scene<HTMLObject>, performance : &Performance) {
+    fn make_sphere(mut scene : &mut HTMLScene, performance : &Performance) {
         use super::set_gradient_bg;
 
         let t = (performance.now() / 1000.0) as f32;
         let length = scene.len() as f32;
-        let mut scene : &mut Scene<HTMLObject> = &mut scene;
+        let mut scene : &mut HTMLScene = &mut scene;
         for (i, object) in (&mut scene).into_iter().enumerate() {
             let i = i as f32;
             let d = (i / length - 0.5) * 2.0;
@@ -192,7 +192,7 @@ mod tests {
     #[web_bench]
     fn object_x1000(b: &mut Bencher) {
         let logger = Logger::new("object_x1000");
-        let mut scene : Scene<HTMLObject> = Scene::new();
+        let mut scene = HTMLScene::new(logger.clone());
         let renderer = HTMLRenderer::new("object_x1000")
                                     .expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
@@ -227,7 +227,7 @@ mod tests {
         let logger = Logger::new("object_x400_update");
         let renderer = HTMLRenderer::new("object_x400_update")
                                     .expect("Renderer couldn't be created");
-        let mut scene : Scene<HTMLObject> = Scene::new();
+        let mut scene = HTMLScene::new(logger.clone());
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {

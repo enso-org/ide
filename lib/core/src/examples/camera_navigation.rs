@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use crate::display::camera::Camera2d;
-use crate::system::web::dom::Scene;
+use crate::system::web::dom::html::HTMLScene;
 use crate::system::web::dom::html::HTMLObject;
 use crate::system::web::dom::html::HTMLRenderer;
 use crate::control::EventLoop;
@@ -17,8 +17,8 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use logger::Logger;
 
-fn create_scene(logger:Logger, dim:Vector2<f32>) -> Scene<HTMLObject> {
-    let mut scene : Scene<HTMLObject> = Scene::new();
+fn create_scene(logger:Logger, dim:Vector2<f32>) -> HTMLScene {
+    let mut scene = HTMLScene::new(logger.clone());
 
     let width  = dim.x / 2.0;
     let height = dim.y / 2.0;

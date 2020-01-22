@@ -1,16 +1,16 @@
-// This file contains the implementation of DOMContainer. A struct that aids us to handle html
-// elements, get its position and dimension avoiding style reflow.
-//
-// It relies on Resize Observer and Intersection Observer, which notifies us when the element's
-// rect and visibility rect is updated.
+//! This file contains the implementation of DOMContainer. A struct that aids us to handle html
+//! elements, get its position and dimension avoiding style reflow.
+//!
+//! It relies on Resize Observer and Intersection Observer, which notifies us when the element's
+//! rect and visibility rect is updated.
 
-use crate::prelude::*;
+use basegl_prelude::*;
 
-use crate::system::web::get_element_by_id;
-use crate::system::web::dyn_into;
-use crate::system::web::Result;
-use crate::system::web::StyleSetter;
-use crate::system::web::intersection_observer::IntersectionObserver;
+use crate::get_element_by_id;
+use crate::dyn_into;
+use crate::Result;
+use crate::StyleSetter;
+use crate::intersection_observer::IntersectionObserver;
 
 use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlElement;
@@ -64,8 +64,8 @@ struct DOMContainerData {
 
 impl DOMContainerData {
     pub fn new(position:Vector2<f32>, dimensions:Vector2<f32>) -> Rc<Self> {
-        let position_callbacks = default();
-        let resize_callbacks   = default();
+        let position_callbacks = Default::default();
+        let resize_callbacks   = Default::default();
         let properties         = RefCell::new(DOMContainerProperties {
             position,
             dimensions,

@@ -5,8 +5,7 @@ use crate::prelude::*;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::system::web::dom::GraphicsRenderer;
-use crate::system::web::dom::Scene;
-use crate::system::web::dom::html::HTMLObject;
+use crate::system::web::dom::html::HTMLScene;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web::Result;
 use crate::system::web::create_element;
@@ -169,7 +168,7 @@ impl HTMLRenderer {
     }
 
     /// Renders the `Scene` from `Camera`'s point of view.
-    pub fn render(&self, camera: &mut Camera2d, scene: &Scene<HTMLObject>) {
+    pub fn render(&self, camera: &mut Camera2d, scene: &HTMLScene) {
         camera.update();
         let trans_cam    = camera.transform().matrix().try_inverse();
         let trans_cam    = trans_cam.expect("Camera's matrix is not invertible.");
@@ -197,7 +196,7 @@ impl HTMLRenderer {
             }
         }
 
-        let scene : &Scene<HTMLObject> = &scene;
+        let scene : &HTMLScene = &scene;
         for object in &mut scene.into_iter() {
             object.update();
             let mut transform = object.matrix();

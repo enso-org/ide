@@ -15,7 +15,7 @@ mod tests {
     use basegl::animation::animator::fixed_step::FixedStepAnimator;
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::dom::html::HTMLObject;
-    use basegl::system::web::dom::Scene;
+    use basegl::system::web::dom::html::HTMLScene;
     use basegl::display::camera::Camera2d;
     use web_test::*;
     use nalgebra::{zero, Vector3};
@@ -27,9 +27,9 @@ mod tests {
         let renderer = HTMLRenderer::new("simulator").expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
-        let mut scene : Scene<HTMLObject> = Scene::new();
+        let logger    = Logger::new("simulator");
+        let mut scene = HTMLScene::new(logger.clone());
 
-        let logger     = Logger::new("simulator");
         let mut target = HTMLObject::new(logger.clone(), "div").unwrap();
         target.set_dimensions(1.0, 1.0);
         target.dom.set_property_or_panic("background-color", "green");

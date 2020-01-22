@@ -8,7 +8,7 @@ web_configure!(run_in_browser);
 #[cfg(test)]
 mod tests {
     use basegl::display::camera::Camera2d;
-    use basegl::system::web::dom::Scene;
+    use basegl::system::web::dom::html::HTMLScene;
     use basegl::system::web::dom::html::HTMLObject;
     use basegl::system::web::dom::html::HTMLRenderer;
     use basegl::system::web::StyleSetter;
@@ -18,8 +18,8 @@ mod tests {
     use nalgebra::Vector3;
     use logger::Logger;
 
-    fn create_scene(logger:Logger) -> Scene<HTMLObject> {
-        let mut scene : Scene<HTMLObject> = Scene::new();
+    fn create_scene(logger:Logger) -> HTMLScene {
+        let mut scene = HTMLScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
         let width  = 320.0 / 2.0;

@@ -23,9 +23,9 @@ use web_sys::HtmlElement;
 #[shrinkwrap(mutable)]
 pub struct HTMLObject {
     #[shrinkwrap(main_field)]
-    pub object     : DisplayObjectData,
-    pub dom        : HtmlElement,
-    dimensions     : Vector2<f32>,
+    pub display_object : DisplayObjectData,
+    pub dom            : HtmlElement,
+    dimensions         : Vector2<f32>,
 }
 
 impl HTMLObject {
@@ -40,10 +40,10 @@ impl HTMLObject {
         element.set_property_or_panic("position", "absolute");
         element.set_property_or_panic("width"   , "0px");
         element.set_property_or_panic("height"  , "0px");
-        let dom        = element;
-        let object     = DisplayObjectData::new(logger);
-        let dimensions = Vector2::new(0.0, 0.0);
-        Self {object,dom,dimensions}
+        let dom            = element;
+        let display_object = DisplayObjectData::new(logger);
+        let dimensions     = Vector2::new(0.0, 0.0);
+        Self {display_object,dom,dimensions}
     }
 
     /// Creates a HTMLObject from a HTML string.

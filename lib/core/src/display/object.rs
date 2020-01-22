@@ -648,9 +648,3 @@ mod tests {
         assert_eq!(obj1.child_count(),0);
     }
 }
-
-
-
-
-
-
