@@ -46,13 +46,7 @@ impl VarBinding {
 // === Shader ===
 // ==============
 
-// === Definition ===
-
-// === Types ===
-
 pub type Dirty = dirty::SharedBool<Box<dyn Fn()>>;
-
-
 
 shared! { Shader
 /// Shader keeps track of a shader and related WebGL Program.
@@ -129,6 +123,9 @@ impl {
                 });
 
                 shader_cfg.add_output("color", glsl::PrimType::Vec4);
+                self.surface_material.outputs().iter().for_each(|(name,decl)|{
+                    shader_cfg.add_output(name,&decl.tp);
+                });
 
                 let vertex_code   = self.geometry_material.code().clone();
                 let fragment_code = self.surface_material.code().clone();
@@ -136,6 +133,7 @@ impl {
                 let shader      = shader_builder.build();
                 let vert_shader = compile_vertex_shader  (&self.context,&shader.vertex);
                 let frag_shader = compile_fragment_shader(&self.context,&shader.fragment);
+                println!("{}",&shader.fragment);
                 if let Err(ref err) = frag_shader {
                     self.logger.error(|| format!("{}", err))
                 }

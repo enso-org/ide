@@ -14,3 +14,10 @@ if (input_display_mode == 0) {
     RGB col = distance_meter(shape.sdf.distance, 200.0 * input_zoom * input_pixel_ratio, 200.0/input_zoom * input_pixel_ratio);
     output_color = rgba(col).raw;
 }
+
+float alpha_no_aa = alpha > 0.5 ? 1.0 : 0.0;
+
+output_id = vec4(float(input_symbol_id)/255.0,0.0,0.0,1.0);
+output_id.r *= alpha_no_aa;
+output_id.g *= alpha_no_aa;
+output_id.b *= alpha_no_aa;

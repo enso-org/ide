@@ -28,7 +28,9 @@ impl DisplayObjectRenderPass {
 
 impl RenderPass for DisplayObjectRenderPass {
     fn outputs(&self) -> Vec<RenderPassOutput> {
-        vec![RenderPassOutput::new("color",texture::AnyInternalFormat::Rgba)]
+        vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8)
+            , RenderPassOutput::new("id",texture::Rgba,texture::item_type::u8)
+            ]
     }
 
     fn run(&mut self, context:&Context, _:&UniformScope) {

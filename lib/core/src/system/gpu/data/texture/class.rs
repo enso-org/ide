@@ -70,7 +70,7 @@ pub trait TextureReload {
 
 // === Type Level Utils ===
 
-impl<S:StorageRelation<I,T>,I:InternalFormat,T:Item>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
 Texture<S,I,T> {
     /// Internal format instance of this texture. Please note, that this value could be computed
     /// without taking self reference, however it was defined in such way for convenient usage.
@@ -127,7 +127,7 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 
 // === Constructors ===
 
-impl<S:StorageRelation<I,T>,I:InternalFormat,T:Item> Texture<S,I,T>
+impl<S:StorageRelation<I,T>,I:InternalFormat,T:ItemType> Texture<S,I,T>
     where Self: TextureReload {
     /// Constructor.
     pub fn new<P:Into<StorageOf<S,I,T>>>(context:&Context, provider:P) -> Self {
