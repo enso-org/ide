@@ -57,7 +57,7 @@ mod tests {
     fn navigator_test(b: &mut Bencher, name:&str) {
         let renderer = HTMLRenderer::new(name)
             .expect("Renderer couldn't be created");
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+        renderer.container().dom.set_property_or_panic("background-color", "black");
 
         let logger      = Logger::new("navigator_test");
         let scene = create_scene(logger.clone());
@@ -68,7 +68,7 @@ mod tests {
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.update();
 
-        let y_scale = camera.projection_matrix().m11;
+        let y_scale = camera.fov_slope();
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;
@@ -76,7 +76,7 @@ mod tests {
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();
-        let container      = &renderer.container;
+        let container      = &renderer.container();
         let camera_clone   = camera.clone();
         let navigator      = Navigator::new(&mut event_loop, container, camera_clone);
         let navigator      = navigator.expect("Couldn't create navigator");

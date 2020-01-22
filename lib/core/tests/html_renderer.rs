@@ -64,7 +64,7 @@ mod tests {
         let mut scene:HTMLScene = HTMLScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+        renderer.container().dom.set_property_or_panic("background-color", "black");
 
         // Iterate over 3 axes.
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
@@ -195,7 +195,7 @@ mod tests {
         let mut scene = HTMLScene::new(logger.clone());
         let renderer = HTMLRenderer::new("object_x1000")
                                     .expect("Renderer couldn't be created");
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+        renderer.container().dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..1000 {
             let mut object = HTMLObject::new(logger.clone(), "div")
@@ -228,7 +228,7 @@ mod tests {
         let renderer = HTMLRenderer::new("object_x400_update")
                                     .expect("Renderer couldn't be created");
         let mut scene = HTMLScene::new(logger.clone());
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+        renderer.container().dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {
             let mut object = HTMLObject::new(logger.clone(), "div")

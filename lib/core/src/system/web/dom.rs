@@ -1,9 +1,5 @@
 #![allow(missing_docs)]
 
-mod graphics_renderer;
-
-pub use graphics_renderer::*;
-
 #[warn(missing_docs)]
 pub mod html;
 

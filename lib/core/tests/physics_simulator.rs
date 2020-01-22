@@ -25,7 +25,7 @@ mod tests {
     #[web_bench]
     fn simulator(b : &mut Bencher) {
         let renderer = HTMLRenderer::new("simulator").expect("Renderer couldn't be created");
-        renderer.container.dom.set_property_or_panic("background-color", "black");
+        renderer.container().dom.set_property_or_panic("background-color", "black");
 
         let logger    = Logger::new("simulator");
         let mut scene = HTMLScene::new(logger.clone());

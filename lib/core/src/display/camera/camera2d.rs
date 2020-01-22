@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Camera implementation which is specialized for 2D view (it computes some additional parameters,
 //! like the zoom to the canvas).
 
@@ -18,15 +16,38 @@ use crate::data::dirty::traits::*;
 /// Camera alignment. It describes where the origin of the camera should be aligned to.
 #[derive(Clone,Debug)]
 pub struct Alignment {
+    /// Horizontal alignment.
     pub horizontal : HorizontalAlignment,
+
+    /// Vertical alignment.
     pub vertical   : VerticalAlignment,
 }
 
+/// Horizontal alignments.
 #[derive(Clone,Debug)]
-pub enum HorizontalAlignment {Left,Center,Right}
+pub enum HorizontalAlignment {
+    /// Left alignment.
+    Left,
 
+    /// Horizontal center alignment.
+    Center,
+
+    /// Right alignment.
+    Right
+}
+
+/// Vertical alignments.
 #[derive(Clone,Debug)]
-pub enum VerticalAlignment {Top,Center,Bottom}
+pub enum VerticalAlignment {
+    /// Top alignment.
+    Top,
+
+    /// Vertical center alignment.
+    Center,
+
+    /// Bottom alignemtn.
+    Bottom
+}
 
 impl Default for HorizontalAlignment { fn default() -> Self { Self::Center } }
 impl Default for VerticalAlignment   { fn default() -> Self { Self::Center } }
@@ -47,15 +68,20 @@ impl Default for Alignment {
 /// Camera's frustum screen dimensions.
 #[derive(Clone,Debug)]
 pub struct Screen {
+    /// Screen's width.
     pub width  : f32,
+
+    /// Screen's height.
     pub height : f32,
 }
 
 impl Screen {
+    /// Creates a new Screen.
     pub fn new(width:f32, height:f32) -> Self {
         Self{width,height}
     }
 
+    /// Gets Screen's aspect ratio.
     pub fn aspect(&self) -> f32 {
         self.width / self.height
     }
@@ -70,7 +96,13 @@ impl Screen {
 /// Camera's projection type.
 #[derive(Clone,Debug,Copy)]
 pub enum Projection {
-    Perspective {fov:f32},
+    /// Perspective projection.
+    Perspective {
+        /// Perspective projection's field of view.
+        fov : f32
+    },
+
+    /// Orthographic projection.
     Orthographic
 }
 
@@ -89,7 +121,10 @@ impl Default for Projection {
 /// Camera's frustum clipping range.
 #[derive(Clone,Debug)]
 pub struct Clipping {
+    /// Near clipping limit.
     pub near : f32,
+
+    /// Far clipping limit.
     pub far  : f32
 }
 
@@ -114,7 +149,7 @@ type ZoomUpdateCallback = Box<dyn ZoomUpdateFn>;
 /// Internal `Camera2d` representation. Please see `Camera2d` for full documentation.
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct Camera2dData {
+struct Camera2dData {
     pub transform          : DisplayObjectData,
     screen                 : Screen,
     zoom                   : f32,
@@ -336,30 +371,42 @@ impl Camera2d {
 // === Getters ===
 
 impl Camera2d {
+    /// Gets `Clipping`.
     pub fn clipping(&self) -> Clipping {
         self.rc.borrow().clipping.clone()
     }
 
+    /// Gets `Screen`.
     pub fn screen(&self) -> Screen {
         self.rc.borrow().screen.clone()
     }
 
+    /// Gets zoom.
     pub fn zoom(&self) -> f32 {
         self.rc.borrow().zoom()
     }
 
+    /// Gets transform.
     pub fn transform(&self) -> DisplayObjectData {
         self.rc.borrow().transform.clone()
     }
 
+    /// Gets `Projection` type.
     pub fn projection(&self) -> Projection {
         self.rc.borrow().projection
     }
 
+    /// Gets field of view slope.
+    pub fn fov_slope(&self) -> f32 {
+        self.projection_matrix().m11
+    }
+
+    /// Gets projection matrix.
     pub fn projection_matrix(&self) -> Matrix4<f32> {
         self.rc.borrow().projection_matrix
     }
 
+    /// Gets view x projection matrix.
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
         *self.rc.borrow().view_projection_matrix()
     }
@@ -369,14 +416,17 @@ impl Camera2d {
 // === Setters ===
 
 impl Camera2d {
+    /// Modifies position.
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.rc.borrow_mut().mod_position(f)
     }
 
+    /// Sets position.
     pub fn set_position(&self, value:Vector3<f32>) {
         self.rc.borrow_mut().set_position(value)
     }
 
+    /// Sets Camera2d's rotation.
     pub fn set_rotation(&self, yaw:f32, pitch:f32, roll:f32) {
         self.rc.borrow_mut().set_rotation(yaw,pitch,roll);
     }

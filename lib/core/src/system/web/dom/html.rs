@@ -1,5 +1,4 @@
-#![allow(missing_docs)]
-
+//! This module contains all the submodules of the CSS3D rendering system.
 
 mod html_scene;
 mod html_object;

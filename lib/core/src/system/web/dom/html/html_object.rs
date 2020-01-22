@@ -1,4 +1,5 @@
-#![allow(missing_docs)]
+//! This module contains the implementation of HTMLObject, a struct used to represent CSS3D
+//! elements.
 
 use crate::prelude::*;
 
@@ -23,8 +24,12 @@ use web_sys::HtmlElement;
 #[shrinkwrap(mutable)]
 pub struct HTMLObject {
     #[shrinkwrap(main_field)]
+    /// HTMLObject's hierarchical transforms.
     pub display_object : DisplayObjectData,
+
+    /// The DOM to be rendered with CSS3D.
     pub dom            : HtmlElement,
+
     dimensions         : Vector2<f32>,
 }
 

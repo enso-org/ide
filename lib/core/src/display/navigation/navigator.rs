@@ -79,7 +79,7 @@ impl Navigator {
         let camera_clone         = camera.clone();
         let mut properties_clone = properties.clone();
         let panning_callback     = move |pan: PanEvent| {
-            let y_scale = camera_clone.projection_matrix().m11;
+            let y_scale = camera_clone.fov_slope();
             // base_distance is a distance where the camera covers all the UI.
             let base_distance = dom_clone.dimensions().y / 2.0 * y_scale;
             // We can then scale the movement based on the camera distance. If we are closer, the
@@ -102,7 +102,7 @@ impl Navigator {
                 // Scale X and Y to compensate aspect and fov.
                 let x                     = -normalized.x * camera.screen().aspect();
                 let y                     =  normalized.y;
-                let fov_slope             = camera.projection_matrix().m11;
+                let fov_slope             = camera.fov_slope();
                 let z                     = fov_slope;
                 let direction             = Vector3::new(x, y, z).normalize();
                 let mut position          = properties.spring().fixed_point;

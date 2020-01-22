@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! This module contains `HTMLScene`, a struct to hold `HTMLObject`s.
 
 use crate::prelude::*;
 

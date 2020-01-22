@@ -58,7 +58,7 @@ pub fn run_example_camera_navigation() {
     let logger     = Logger::new("camera_navigation");
     set_stdout();
     let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
-    renderer.container.dom.set_property_or_panic("background-color", "black");
+    renderer.container().dom.set_property_or_panic("background-color", "black");
 
     let dimensions = renderer.dimensions();
     let scene = create_scene(logger.clone(), dimensions);
@@ -66,16 +66,16 @@ pub fn run_example_camera_navigation() {
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
-    let y_scale = camera.projection_matrix().m11;
+    let fov_slope = camera.fov_slope();
     let x = dimensions.x / 2.0;
     let y = dimensions.y / 2.0;
-    let z = y * y_scale;
+    let z = y * fov_slope;
     camera.set_position(Vector3::new(x, y, z));
 
     let mut event_loop = EventLoop::new();
 
     let camera_clone = camera.clone();
-    let navigator  = Navigator::new(&mut event_loop, &renderer.container, camera_clone);
+    let navigator  = Navigator::new(&mut event_loop, renderer.container(), camera_clone);
     let navigator  = navigator.expect("Couldn't create navigator");
 
     let animator = ContinuousAnimator::new(&mut event_loop, move |_| {
