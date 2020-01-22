@@ -68,7 +68,7 @@ mod tests {
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.update();
 
-        let y_scale = camera.fov_slope();
+        let y_scale = camera.fovy_slope();
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;

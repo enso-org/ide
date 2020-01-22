@@ -175,11 +175,11 @@ impl HTMLRenderer {
         let trans_cam  = trans_cam.map(eps);
         let trans_cam  = invert_y(trans_cam);
         let half_dim   = self.container.dimensions() / 2.0;
-        let fov_slope  = camera.fov_slope();
+        let fov_slope  = camera.fovy_slope();
         let y_scale    = fov_slope * half_dim.y;
 
         match camera.projection() {
-            Projection::Perspective{ .. } => {
+            Projection::Perspective{..} => {
                 js::setup_perspective(&self.data.dom, &y_scale.into());
                 setup_camera_perspective(
                     &self.data.camera,

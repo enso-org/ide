@@ -66,7 +66,7 @@ pub fn run_example_camera_navigation() {
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
-    let fov_slope = camera.fov_slope();
+    let fov_slope = camera.fovy_slope();
     let x = dimensions.x / 2.0;
     let y = dimensions.y / 2.0;
     let z = y * fov_slope;

@@ -163,7 +163,7 @@ struct Camera2dData {
     projection_dirty       : ProjectionDirty,
     transform_dirty        : TransformDirty2,
     #[derivative(Debug="ignore")]
-    zoom_update_callback   : ZoomUpdateCallback
+    zoom_update_callback   : Option<ZoomUpdateCallback>
 }
 
 type ProjectionDirty = dirty::SharedBool<()>;
@@ -184,7 +184,7 @@ impl Camera2dData {
         let transform_dirty        = TransformDirty2::new(logger.sub("transform_dirty"),());
         let transform_dirty_copy   = transform_dirty.clone();
         let transform              = DisplayObjectData::new(logger);
-        let zoom_update_callback   = Box::new(|_| ());
+        let zoom_update_callback   = None;
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
@@ -193,7 +193,7 @@ impl Camera2dData {
     }
 
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&mut self, f:F) {
-        self.zoom_update_callback = Box::new(f);
+        self.zoom_update_callback = Some(Box::new(f));
     }
 
     pub fn recompute_view_matrix(&mut self) {
@@ -234,7 +234,8 @@ impl Camera2dData {
         }
         if changed {
             self.view_projection_matrix = self.projection_matrix * self.view_matrix;
-            (self.zoom_update_callback)(self.zoom);
+            let zoom = self.zoom;
+            self.zoom_update_callback.as_mut().map(|f| f(zoom));
         }
         changed
     }
@@ -396,8 +397,8 @@ impl Camera2d {
         self.rc.borrow().projection
     }
 
-    /// Gets field of view slope.
-    pub fn fov_slope(&self) -> f32 {
+    /// Gets y field of view slope.
+    pub fn fovy_slope(&self) -> f32 {
         self.projection_matrix().m11
     }
 
