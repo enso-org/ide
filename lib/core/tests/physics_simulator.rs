@@ -29,12 +29,13 @@ mod tests {
 
         let mut scene : Scene<HTMLObject> = Scene::new();
 
-        let mut target = HTMLObject::new("div").unwrap();
+        let logger     = Logger::new("simulator");
+        let mut target = HTMLObject::new(logger.clone(), "div").unwrap();
         target.set_dimensions(1.0, 1.0);
         target.dom.set_property_or_panic("background-color", "green");
         scene.add(target.clone());
 
-        let mut object = HTMLObject::new("div").unwrap();
+        let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
         object.set_dimensions(1.0, 1.0);
         object.dom.set_property_or_panic("background-color", "red");
         scene.add(object.clone());
@@ -42,7 +43,6 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let logger      = Logger::new("simulator");
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.set_position(Vector3::new(0.0, 0.0, 29.0));
         camera.update();

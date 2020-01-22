@@ -47,7 +47,7 @@ mod tests {
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let mut object = HTMLObject::new("div").unwrap();
+        let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
         object.set_position(Vector3::new(0.0, 0.0, 0.0));
         object.dom.set_property_or_panic("background-color", "black");
         object.set_dimensions(100.0, 100.0);
@@ -60,7 +60,7 @@ mod tests {
         renderer.render(&mut camera,&scene);
     }
 
-    fn create_scene(renderer:&HTMLRenderer) -> Scene<HTMLObject> {
+    fn create_scene(logger:Logger, renderer:&HTMLRenderer) -> Scene<HTMLObject> {
         let mut scene:Scene<HTMLObject> = Scene::new();
         assert_eq!(scene.len(), 0);
 
@@ -70,7 +70,7 @@ mod tests {
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
             // Creates 10 HTMLObjects per axis.
             for i in 0 .. 10 {
-                let mut object = HTMLObject::new("div").unwrap();
+                let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
                 object.set_dimensions(1.0, 1.0);
 
                 // Using axis for masking.
@@ -101,7 +101,7 @@ mod tests {
 
         let renderer = HTMLRenderer::new("rhs_coordinates")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(&renderer);
+        let scene = create_scene(logger.clone(), &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -122,7 +122,7 @@ mod tests {
 
         let renderer = HTMLRenderer::new("rhs_coordinates_from_back")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(&renderer);
+        let scene = create_scene(logger.clone(), &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -143,7 +143,7 @@ mod tests {
         let logger = Logger::new("camera_movement");
         let renderer = HTMLRenderer::new("camera_movement")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(&renderer);
+        let scene = create_scene(logger.clone(), &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -198,10 +198,10 @@ mod tests {
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..1000 {
-            let mut object = HTMLObject::new("div")
+            let mut object = HTMLObject::new(logger.clone(), "div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
-            object.set_scale(0.5, 0.5, 0.5);
+            object.set_scale(Vector3::new(0.5, 0.5, 0.5));
             scene.add(object);
         }
 
@@ -231,10 +231,10 @@ mod tests {
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {
-            let mut object = HTMLObject::new("div")
+            let mut object = HTMLObject::new(logger.clone(), "div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
-            object.set_scale(0.5, 0.5, 0.5);
+            object.set_scale(Vector3::new(0.5, 0.5, 0.5));
             scene.add(object);
         }
 

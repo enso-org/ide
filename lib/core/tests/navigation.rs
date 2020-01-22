@@ -18,7 +18,7 @@ mod tests {
     use nalgebra::Vector3;
     use logger::Logger;
 
-    fn create_scene() -> Scene<HTMLObject> {
+    fn create_scene(logger:Logger) -> Scene<HTMLObject> {
         let mut scene : Scene<HTMLObject> = Scene::new();
         assert_eq!(scene.len(), 0);
 
@@ -40,7 +40,7 @@ mod tests {
         ];
 
         for i in 0..=3 {
-            let     object = HTMLObject::new("div");
+            let     object = HTMLObject::new(logger.clone(), "div");
             let mut object = object.expect("Couldn't create div");
             let (x, y)     = positions[i];
             object.set_dimensions(width, height);
@@ -59,12 +59,12 @@ mod tests {
             .expect("Renderer couldn't be created");
         renderer.container.dom.set_property_or_panic("background-color", "black");
 
-        let scene = create_scene();
+        let logger      = Logger::new("navigator_test");
+        let scene = create_scene(logger.clone());
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let logger      = Logger::new("navigator_test");
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.update();
 

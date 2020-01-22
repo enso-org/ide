@@ -199,7 +199,8 @@ impl HTMLRenderer {
 
         let scene : &Scene<HTMLObject> = &scene;
         for object in &mut scene.into_iter() {
-            let mut transform = object.transform().to_homogeneous();
+            object.update();
+            let mut transform = object.matrix();
             transform.iter_mut().for_each(|a| *a = eps(*a));
 
             let parent_node  = object.dom.parent_node();

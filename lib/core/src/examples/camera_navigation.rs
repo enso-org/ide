@@ -17,7 +17,7 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use logger::Logger;
 
-fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
+fn create_scene(logger:Logger, dim:Vector2<f32>) -> Scene<HTMLObject> {
     let mut scene : Scene<HTMLObject> = Scene::new();
 
     let width  = dim.x / 2.0;
@@ -38,7 +38,7 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
     ];
 
     for i in 0..=3 {
-        let     object = HTMLObject::new("div");
+        let     object = HTMLObject::new(logger.clone(), "div");
         let mut object = object.expect("Couldn't create div");
         let (p_x, p_y) = positions[i];
         object.set_dimensions(width, height);
@@ -55,14 +55,14 @@ fn create_scene(dim:Vector2<f32>) -> Scene<HTMLObject> {
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_camera_navigation() {
+    let logger     = Logger::new("camera_navigation");
     set_stdout();
     let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
     renderer.container.dom.set_property_or_panic("background-color", "black");
 
     let dimensions = renderer.dimensions();
-    let scene = create_scene(dimensions);
+    let scene = create_scene(logger.clone(), dimensions);
 
-    let logger     = Logger::new("camera_navigation");
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
