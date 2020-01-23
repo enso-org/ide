@@ -111,6 +111,39 @@ impl ShapeData {
 
 
 
+#[derive(Debug)]
+struct Mouse {
+    position        : Uniform<Vector2<i32>>,
+    hover_ids       : Uniform<Vector3<i32>>,
+    last_hover_ids  : Vector3<i32>,
+    on_move_closure : Closure<dyn Fn(JsValue)>,
+}
+
+impl Mouse {
+    pub fn new(shape:&Shape, variables:&UniformScope) -> Self {
+        let position       = variables.add_or_panic("mouse_position"  , Vector2::new(0,0));
+        let hover_ids      = variables.add_or_panic("mouse_hover_ids" , Vector3::new(0,0,0));
+        let last_hover_ids = Vector3::new(0,0,0);
+
+        let shape_ref      = shape.clone_ref();
+        let position_ref   = position.clone_ref();
+        let on_move_closure: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |event| {
+            let event       = event.unchecked_into::<MouseEvent>();
+            let pixel_ratio = shape_ref.pixel_ratio() as i32;
+            let screen_x    = event.offset_x();
+            let screen_y    = shape_ref.screen_shape().height as i32 - event.offset_y();
+            let canvas_x    = pixel_ratio * screen_x;
+            let canvas_y    = pixel_ratio * screen_y;
+            position_ref.set(Vector2::new(canvas_x,canvas_y))
+        }));
+        web::document().unwrap().add_event_listener_with_callback
+        ("mousemove",on_move_closure.as_ref().unchecked_ref()).unwrap();
+
+        Self {position,hover_ids,last_hover_ids,on_move_closure}
+    }
+}
+
+
 // =============
 // === Scene ===
 // =============
@@ -135,10 +168,8 @@ pub struct SceneData {
     composer        : RenderComposer,
     stats           : Stats,
     pixel_ratio     : Uniform<f32>,
-    mouse_position  : Uniform<Vector2<i32>>,
-    mouse_hover_ids : Uniform<Vector3<i32>>,
-    last_mouse_hover_ids : Vector3<i32>,
-    mouse_move_closure: Closure<dyn Fn(JsValue)>,
+    mouse           : Mouse,
+
 
     #[derivative(Debug="ignore")]
     on_resize: Option<Box<dyn Fn(&Shape)>>,
@@ -172,10 +203,8 @@ impl {
         let on_resize       = default();
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
+        let mouse           = Mouse::new(&shape,&variables);
 
-        let mouse_position  = variables.add_or_panic("mouse_position"  , Vector2::new(0,0));
-        let mouse_hover_ids = variables.add_or_panic("mouse_hover_ids" , Vector3::new(0,0,0));
-        let last_mouse_hover_ids = Vector3::new(0,0,0);
 
         context.enable(Context::BLEND);
 
@@ -192,26 +221,8 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-
-        let shape_ref          = shape.clone_ref();
-        let mouse_position_ref = mouse_position.clone_ref();
-        let mouse_move_closure: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |event| {
-            let event = event.unchecked_into::<MouseEvent>();
-            let pixel_ratio = shape_ref.pixel_ratio() as i32;
-            let screen_x    = event.offset_x();
-            let screen_y    = shape_ref.screen_shape().height as i32 - event.offset_y();
-            let canvas_x    = pixel_ratio * screen_x;
-            let canvas_y    = pixel_ratio * screen_y;
-            mouse_position_ref.set(Vector2::new(canvas_x,canvas_y))
-        }));
-        web::document().unwrap().add_event_listener_with_callback
-        ("mousemove",mouse_move_closure.as_ref().unchecked_ref()).unwrap();
-
-
-
-
         Self {pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty,logger
-             ,listeners,variables,on_resize,text_components,stats,pixel_ratio,mouse_position,mouse_hover_ids,last_mouse_hover_ids,mouse_move_closure}
+             ,listeners,variables,on_resize,text_components,stats,pixel_ratio,mouse}
     }
 
     pub fn context(&self) -> Context {
@@ -223,11 +234,11 @@ impl {
     }
 
     pub fn mouse_position_uniform(&self) -> Uniform<Vector2<i32>> {
-        self.mouse_position.clone_ref()
+        self.mouse.position.clone_ref()
     }
 
     pub fn mouse_hover_ids(&self) -> Uniform<Vector3<i32>> {
-        self.mouse_hover_ids.clone_ref()
+        self.mouse.hover_ids.clone_ref()
     }
 
     pub fn set_render_pipeline<P:Into<RenderPipeline>>(&mut self, pipeline:P) {
@@ -243,12 +254,12 @@ impl {
 
     pub fn render(&mut self) {
 
-        let mouse_hover_ids = self.mouse_hover_ids.get();
-        if mouse_hover_ids != self.last_mouse_hover_ids {
-            self.last_mouse_hover_ids = mouse_hover_ids;
+        let mouse_hover_ids = self.mouse.hover_ids.get();
+        if mouse_hover_ids != self.mouse.last_hover_ids {
+            self.mouse.last_hover_ids = mouse_hover_ids;
             let symbol_id = mouse_hover_ids.x;
             let symbol = self.symbols.index(symbol_id as usize);
-            println!("{:?}",self.mouse_hover_ids.get());
+            println!("{:?}",self.mouse.hover_ids.get());
             // TODO: finish
         }
 

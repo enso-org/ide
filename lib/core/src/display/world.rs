@@ -273,6 +273,8 @@ impl World {
         let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
         let mut pixel_read_pass = PixelReadPass::new(&mouse_position);
         pixel_read_pass.set_callback(move |v| {mouse_hover_ids.set(v.xyz())});
+        // TODO: We may want to enable it on weak hardware.
+        // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
             .add(DisplayObjectRenderPass::new(root))
             .add(ScreenRenderPass::new())
