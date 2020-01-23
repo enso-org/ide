@@ -263,9 +263,9 @@ impl {
     pub fn lookup_variable<S:Str>(&self, name:S) -> Option<ScopeType> {
         let name = name.as_ref();
         self.surface.lookup_variable(name).map(ScopeType::Mesh).or_else(|| {
-            if      self.variables.contains(name) { Some(ScopeType::Symbol) }
+            if      self.variables.contains(name)        { Some(ScopeType::Symbol) }
             else if self.global_variables.contains(name) { Some(ScopeType::Global) }
-            else                                     { None }
+            else                                         { None }
         })
     }
 

@@ -19,7 +19,7 @@ use web_sys::WebGlFramebuffer;
 /// Internal state for the `PixelReadPass`.
 #[derive(Clone,Debug)]
 pub struct PixelReadPassData {
-    uniform     : Uniform<Vector4<i32>>,
+    uniform     : Uniform<Vector4<u32>>,
     buffer      : WebGlBuffer,
     framebuffer : WebGlFramebuffer,
 }
@@ -27,7 +27,7 @@ pub struct PixelReadPassData {
 impl PixelReadPassData {
     /// Constructor.
     pub fn new
-    (uniform:Uniform<Vector4<i32>>, buffer:WebGlBuffer, framebuffer:WebGlFramebuffer) -> Self {
+    (uniform:Uniform<Vector4<u32>>, buffer:WebGlBuffer, framebuffer:WebGlFramebuffer) -> Self {
         Self {uniform,buffer,framebuffer}
     }
 }
@@ -48,7 +48,7 @@ pub struct PixelReadPass {
     threshold    : usize,
     to_next_read : usize,
     #[derivative(Debug="ignore")]
-    callback : Option<Rc<dyn Fn(Vector4<i32>)>>,
+    callback : Option<Rc<dyn Fn(Vector4<u32>)>>,
 }
 
 impl PixelReadPass {
@@ -63,7 +63,7 @@ impl PixelReadPass {
         Self {data,sync,position,threshold,to_next_read,callback}
     }
 
-    pub fn set_callback<F:Fn(Vector4<i32>)+'static>(&mut self, f:F) {
+    pub fn set_callback<F:Fn(Vector4<u32>)+'static>(&mut self, f:F) {
         self.callback = Some(Rc::new(f));
     }
 
@@ -77,12 +77,13 @@ impl PixelReadPass {
     fn init_if_fresh(&mut self, context:&Context, variables:&UniformScope) {
         if self.data.is_none() {
             let buffer  = context.create_buffer().unwrap();
-            let array   = ArrayBuffer::new(4);
+//            let array   = ArrayBuffer::new(4);
+            let array   = js_sys::Uint32Array::new_with_length(4);
             let target  = Context::PIXEL_PACK_BUFFER;
             let usage   = Context::DYNAMIC_READ;
-            let uniform = variables.get_or_add("pass_output_pixel_color",Vector4::new(0,0,0,0)).unwrap();
+            let uniform = variables.get_or_add("pass_output_pixel_color",Vector4::<u32>::new(0,0,0,0)).unwrap();
             context.bind_buffer(target,Some(&buffer));
-            context.buffer_data_with_opt_array_buffer(target,Some(&array),usage);
+            context.buffer_data_with_opt_array_buffer(target,Some(&array.buffer()),usage);
 
             let texture = match variables.get("pass_id").unwrap() {
                 uniform::AnyUniform::Texture(t) => t,
@@ -107,8 +108,8 @@ impl PixelReadPass {
         let position = self.position.get();
         let width    = 1;
         let height   = 1;
-        let format   = Context::RGBA;
-        let typ      = Context::UNSIGNED_BYTE;
+        let format   = Context::RGBA_INTEGER;
+        let typ      = Context::UNSIGNED_INT;
         let offset   = 0;
         context.bind_framebuffer(Context::FRAMEBUFFER,Some(&data.framebuffer));
         context.bind_buffer(Context::PIXEL_PACK_BUFFER,Some(&data.buffer));
@@ -128,10 +129,12 @@ impl PixelReadPass {
             self.sync          = None;
             let target         = Context::PIXEL_PACK_BUFFER;
             let offset         = 0;
-            let mut raw_result = vec![0,0,0,0];
+//            let mut raw_result = vec![0,0,0,0];
+            let js_buffer = js_sys::Uint32Array::new_with_length(4);
             context.bind_buffer(target,Some(&data.buffer));
-            context.get_buffer_sub_data_with_i32_and_u8_array(target,offset,&mut raw_result);
-            let result = Vector4::from_iterator(raw_result.iter().map(|t| *t as i32));
+//            context.get_buffer_sub_data_with_i32_and_u8_array(target,offset,&mut raw_result);
+            context.get_buffer_sub_data_with_i32_and_array_buffer_view(target,offset,&js_buffer);
+            let result = Vector4::from_iterator(js_buffer.to_vec());
             data.uniform.set(result);
             if let Some(f) = &self.callback {
                 f(result);
@@ -139,6 +142,8 @@ impl PixelReadPass {
         }
     }
 }
+
+//get_buffer_sub_data_with_i32_and_array_buffer_view
 
 impl RenderPass for PixelReadPass {
     fn run(&mut self, context:&Context, variables:&UniformScope) {

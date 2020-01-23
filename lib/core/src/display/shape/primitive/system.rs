@@ -35,7 +35,7 @@ impl ShapeSystem {
         material.add_input  ("time"         , 0.0);
         material.add_input  ("symbol_id"    , 0);
         material.add_input  ("display_mode" , 0);
-        material.add_output ("id"           , Vector4::<f32>::new(0.0,0.0,0.0,0.0));
+        material.add_output ("id"           , Vector4::<u32>::new(0,0,0,0));
         let code = shader::builder::Builder::run(shape);
         material.set_code(code);
         material

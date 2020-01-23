@@ -86,6 +86,12 @@ impl From<i32> for Glsl {
     }
 }
 
+impl From<u32> for Glsl {
+    fn from(t:u32) -> Self {
+        t.to_string().into()
+    }
+}
+
 impl From<f32> for Glsl {
     fn from(t:f32) -> Self {
         let is_int = t.fract() == 0.0;
@@ -771,6 +777,7 @@ macro_rules! define_glsl_prim_type_conversions {
 define_glsl_prim_type_conversions! {
     bool           => Bool,
     i32            => Int,
+    u32            => UInt,
     f32            => Float,
 
     Vector2<f32>   => Vec2,
@@ -780,6 +787,10 @@ define_glsl_prim_type_conversions! {
     Vector2<i32>   => IVec2,
     Vector3<i32>   => IVec3,
     Vector4<i32>   => IVec4,
+
+    Vector2<u32>   => UVec2,
+    Vector3<u32>   => UVec3,
+    Vector4<u32>   => UVec4,
 
     Vector2<bool>  => BVec2,
     Vector3<bool>  => BVec3,

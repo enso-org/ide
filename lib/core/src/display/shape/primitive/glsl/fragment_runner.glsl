@@ -15,9 +15,12 @@ if (input_display_mode == 0) {
     output_color = rgba(col).raw;
 }
 
-float alpha_no_aa = alpha > 0.5 ? 1.0 : 0.0;
+uint alpha_no_aa = alpha > 0.5 ? uint(1) : uint(0);
 
-output_id = vec4(float(input_symbol_id)/255.0,float(input_instance_id)/255.0,0.0,1.0);
+output_id = uvec4(input_symbol_id,input_instance_id,300,255);
 output_id.r *= alpha_no_aa;
 output_id.g *= alpha_no_aa;
 output_id.b *= alpha_no_aa;
+
+
+// output_color = vec4(float(output_id.x)/255.0,float(output_id.y)/255.0,float(output_id.z)/255.0,1.0);

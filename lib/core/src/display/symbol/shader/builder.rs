@@ -67,6 +67,7 @@ impl Default for ShaderPrecision {
     fn default() -> Self {
         let mut map = BTreeMap::new();
         map.insert(glsl::PrimType::Int   , glsl::Precision::High);
+        map.insert(glsl::PrimType::UInt  , glsl::Precision::High);
         map.insert(glsl::PrimType::Float , glsl::Precision::High);
         let vertex   = map.clone();
         let fragment = map;
