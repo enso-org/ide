@@ -79,7 +79,7 @@ impl Navigator {
         let camera_clone         = camera.clone();
         let mut properties_clone = properties.clone();
         let panning_callback     = move |pan: PanEvent| {
-            let fovy_slope = camera_clone.fovy_slope();
+            let fovy_slope = (camera_clone.fovy() / 2.0).tan();
             // base_distance is a distance where the camera covers all the UI.
             let base_distance = dom_clone.dimensions().y / 2.0 * fovy_slope;
             // We can then scale the movement based on the camera distance. If we are closer, the
@@ -100,16 +100,16 @@ impl Navigator {
                 let normalized = normalized_to_range2(normalized, -1.0, 1.0);
 
                 // Scale X and Y to compensate aspect and fov.
-                let x                     = -normalized.x * camera.screen().aspect();
-                let y                     =  normalized.y;
-                let fov_slope             = camera.fovy_slope();
-                let z                     = fov_slope;
-                let direction             = Vector3::new(x, y, z).normalize();
-                let mut position          = properties.spring().fixed_point;
-                let zoom_amount           = zoom.amount * position.z;
-                position                 += direction   * zoom_amount;
-                let min_zoom              = camera.clipping().near  + min_zoom;
-                position.z                = clamp(position.z, min_zoom, max_zoom);
+                let x            = -normalized.x * camera.screen().aspect();
+                let y            =  normalized.y;
+                let fovy_slope   = (camera.fovy() / 2.0).tan();
+                let z            = fovy_slope;
+                let direction    = Vector3::new(x, y, z).normalize();
+                let mut position = properties.spring().fixed_point;
+                let zoom_amount  = zoom.amount * position.z;
+                position        += direction   * zoom_amount;
+                let min_zoom     = camera.clipping().near  + min_zoom;
+                position.z       = clamp(position.z, min_zoom, max_zoom);
 
                 properties.mod_spring(|spring| spring.fixed_point = position);
         };

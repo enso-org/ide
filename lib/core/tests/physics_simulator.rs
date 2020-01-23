@@ -33,12 +33,12 @@ mod tests {
         let mut target = HTMLObject::new(logger.clone(), "div").unwrap();
         target.set_dimensions(1.0, 1.0);
         target.dom.set_property_or_panic("background-color", "green");
-        scene.add(target.clone());
+        scene.add_child(target.clone());
 
         let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
         object.set_dimensions(1.0, 1.0);
         object.dom.set_property_or_panic("background-color", "red");
-        scene.add(object.clone());
+        scene.add_child(object.clone());
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));

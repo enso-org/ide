@@ -48,7 +48,7 @@ mod tests {
             let (r, g, b) = colors[i];
             let color = format!("rgb({}, {}, {})", r, g, b);
             object.dom.set_property_or_panic("background-color", color);
-            scene.add(object);
+            scene.add_child(object);
         }
 
         scene
@@ -68,7 +68,7 @@ mod tests {
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.update();
 
-        let fovy_slope = camera.fovy_slope();
+        let fovy_slope = camera.half_fovy_slope();
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;

@@ -46,7 +46,7 @@ fn create_scene(logger:Logger, dim:Vector2<f32>) -> HTMLScene {
         let (c_r, c_g, c_b) = colors[i];
         let color = format!("rgb({}, {}, {})", c_r, c_g, c_b);
         object.dom.set_property_or_panic("background-color", color);
-        scene.add(object);
+        scene.add_child(object);
     }
 
     scene
@@ -66,10 +66,10 @@ pub fn run_example_camera_navigation() {
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
-    let fov_slope = camera.fovy_slope();
+    let fovy_slope = (camera.fovy() / 2.0).tan();
     let x = dimensions.x / 2.0;
     let y = dimensions.y / 2.0;
-    let z = y * fov_slope;
+    let z = y * fovy_slope;
     camera.set_position(Vector3::new(x, y, z));
 
     let mut event_loop = EventLoop::new();

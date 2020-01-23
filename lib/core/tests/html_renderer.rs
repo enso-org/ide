@@ -51,7 +51,7 @@ mod tests {
         object.set_position(Vector3::new(0.0, 0.0, 0.0));
         object.dom.set_property_or_panic("background-color", "black");
         object.set_dimensions(100.0, 100.0);
-        scene.add(object);
+        scene.add_child(object);
 
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         // We move the Camera behind the object so we don't see it.
@@ -88,7 +88,7 @@ mod tests {
                 let color = format!("rgba({}, {}, {}, {})", r, g, b, 1.0);
 
                 object.dom.set_property_or_panic("background-color", color);
-                scene.add(object);
+                scene.add_child(object);
             }
         }
         assert_eq!(scene.len(), 30, "We should have 30 HTMLObjects");
@@ -202,7 +202,7 @@ mod tests {
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
             object.set_scale(Vector3::new(0.5, 0.5, 0.5));
-            scene.add(object);
+            scene.add_child(object);
         }
 
         let view_dim = renderer.dimensions();
@@ -235,7 +235,7 @@ mod tests {
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
             object.set_scale(Vector3::new(0.5, 0.5, 0.5));
-            scene.add(object);
+            scene.add_child(object);
         }
 
         let view_dim = renderer.dimensions();

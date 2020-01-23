@@ -398,11 +398,13 @@ impl Camera2d {
     }
 
     /// Gets Camera2d's y field of view.
-    pub fn fovy(&self) -> f32 { self.fovy_slope().atan() }
+    pub fn fovy(&self) -> f32 {
+        (1.0 / self.projection_matrix()[(1, 1)]).atan() * 2.0
+    }
 
-    /// Gets Camera2d's y field of view slope, equivalent to `fovy().tan()`.
-    pub fn fovy_slope(&self) -> f32 {
-        self.projection_matrix().m11
+    /// Gets Camera2d's half y field of view's slope.
+    pub fn half_fovy_slope(&self) -> f32 {
+        (self.fovy() / 2.0).tan()
     }
 
     /// Gets projection matrix.
