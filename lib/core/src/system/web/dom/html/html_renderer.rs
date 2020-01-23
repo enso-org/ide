@@ -36,7 +36,7 @@ mod js {
         pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
         pub fn setup_camera_perspective
         ( dom          : &JsValue
-        , y_scale      : &JsValue
+        , near         : &JsValue
         , half_width   : &JsValue
         , half_height  : &JsValue
         , matrix_array : &JsValue
@@ -176,14 +176,14 @@ impl HTMLRenderer {
         let trans_cam  = invert_y(trans_cam);
         let half_dim   = self.container.dimensions() / 2.0;
         let fov_slope  = camera.fovy_slope();
-        let y_scale    = fov_slope * half_dim.y;
+        let near       = fov_slope * half_dim.y;
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.dom, &y_scale.into());
+                js::setup_perspective(&self.data.dom, &near.into());
                 setup_camera_perspective(
                     &self.data.camera,
-                    y_scale,
+                    near,
                     half_dim.x,
                     half_dim.y,
                     &trans_cam

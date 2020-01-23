@@ -68,11 +68,11 @@ mod tests {
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
         camera.update();
 
-        let y_scale = camera.fovy_slope();
+        let fovy_slope = camera.fovy_slope();
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;
-        let z = y * y_scale;
+        let z = y * fovy_slope;
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();

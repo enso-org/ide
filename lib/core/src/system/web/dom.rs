@@ -1,6 +1,5 @@
-#![allow(missing_docs)]
+//! This module exposes CSS3D rendering system and other DOM helpers.
 
-#[warn(missing_docs)]
 pub mod html;
 
 pub use basegl_system_web::dom::*;

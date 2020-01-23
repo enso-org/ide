@@ -13,9 +13,12 @@ use data::opt_vec::*;
 // =============
 
 /// A collection for holding 3D `Object`s.
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 pub struct HTMLScene {
-    display_object : DisplayObjectData,
-    objects        : OptVec<HTMLObject>
+    #[shrinkwrap(main_field)]
+    pub display_object : DisplayObjectData,
+    objects            : OptVec<HTMLObject>
 }
 
 impl HTMLScene {
@@ -28,7 +31,7 @@ impl HTMLScene {
 
     /// Moves a HTMLObject to the Scene and returns an index to it.
     pub fn add(&mut self, object: HTMLObject) -> Ix {
-        self.display_object.add_child(&object.display_object);
+        self.add_child(&object.display_object);
         self.objects.insert(object)
     }
 
@@ -36,7 +39,7 @@ impl HTMLScene {
     pub fn remove(&mut self, index: Ix) -> Option<HTMLObject> {
         let object = self.objects.remove(index);
         if let Some(object) = &object {
-            self.display_object.remove_child(&object.display_object);
+            self.remove_child(&object.display_object);
         }
         object
     }

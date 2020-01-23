@@ -397,7 +397,10 @@ impl Camera2d {
         self.rc.borrow().projection
     }
 
-    /// Gets y field of view slope.
+    /// Gets Camera2d's y field of view.
+    pub fn fovy(&self) -> f32 { self.fovy_slope().atan() }
+
+    /// Gets Camera2d's y field of view slope, equivalent to `fovy().tan()`.
     pub fn fovy_slope(&self) -> f32 {
         self.projection_matrix().m11
     }
