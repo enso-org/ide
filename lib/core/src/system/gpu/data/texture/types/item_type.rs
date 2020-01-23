@@ -14,7 +14,7 @@ use crate::system::gpu::data::gl_enum::*;
 /// Trait describing every texture item type.
 pub trait ItemType = Debug + PhantomInto<AnyItemType> + PhantomInto<GlEnum> + 'static;
 
-shapely::define_singleton_enum_from! {
+crate::define_singleton_enum_gl_from! { [GlEnum]
     /// Any data type which can be stored in a texture.
     #[allow(non_camel_case_types)]
     AnyItemType

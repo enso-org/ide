@@ -271,8 +271,10 @@ impl World {
         let root                = &self.display_object_description();
         let mouse_hover_ids     = self.rc.borrow().scene.mouse_hover_ids();
         let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
-        let mut pixel_read_pass = PixelReadPass::new(&mouse_position);
-        pixel_read_pass.set_callback(move |v| {mouse_hover_ids.set(v.xyz())});
+        let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
+        pixel_read_pass.set_callback(move |v| {
+            mouse_hover_ids.set(Vector4::from_iterator(v))
+        });
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()

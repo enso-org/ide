@@ -121,13 +121,13 @@ fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
 #[derive(Debug)]
 struct Mouse {
     position        : Uniform<Vector2<i32>>,
-    hover_ids       : Uniform<Vector3<u32>>,
+    hover_ids       : Uniform<Vector4<u32>>,
     button0_pressed : Uniform<bool>,
     button1_pressed : Uniform<bool>,
     button2_pressed : Uniform<bool>,
     button3_pressed : Uniform<bool>,
     button4_pressed : Uniform<bool>,
-    last_hover_ids  : Vector3<u32>,
+    last_hover_ids  : Vector4<u32>,
     on_move_closure : MouseEventClosure,
     on_down_closure : MouseEventClosure,
     on_up_closure   : MouseEventClosure,
@@ -135,14 +135,15 @@ struct Mouse {
 
 impl Mouse {
     pub fn new(shape:&Shape, variables:&UniformScope) -> Self {
+        let empty_hover_ids = Vector4::<u32>::new(0,0,0,0);
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
-        let hover_ids       = variables.add_or_panic("mouse_hover_ids",Vector3::<u32>::new(0,0,0));
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",empty_hover_ids);
         let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
         let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
-        let last_hover_ids  = Vector3::new(0,0,0);
+        let last_hover_ids  = empty_hover_ids;
         let document        = web::document().unwrap();
 
         let shape_ref       = shape.clone_ref();
@@ -297,7 +298,7 @@ impl {
         self.mouse.position.clone_ref()
     }
 
-    pub fn mouse_hover_ids(&self) -> Uniform<Vector3<u32>> {
+    pub fn mouse_hover_ids(&self) -> Uniform<Vector4<u32>> {
         self.mouse.hover_ids.clone_ref()
     }
 

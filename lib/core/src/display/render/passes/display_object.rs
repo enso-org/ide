@@ -35,7 +35,7 @@ impl RenderPass for DisplayObjectRenderPass {
 
     fn run(&mut self, context:&Context, _:&UniformScope) {
         let arr = vec![0.0,0.0,0.0,0.0];
-        let arr2 = vec![0,0,0,1];
+        let arr2 = vec![0,0,0,0];
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         context.clear_bufferuiv_with_u32_array(Context::COLOR,1,&arr2);
         self.target.render();
