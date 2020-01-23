@@ -132,8 +132,15 @@ impl AttributeQualifier {
 
 impl From<glsl::Type> for AttributeQualifier {
     fn from(typ:glsl::Type) -> Self {
-        let storage = default();
         let prec    = default();
+        let prim    = &typ.prim;
+        let storage = match prim {
+            glsl::PrimType::Int => glsl::LinkageStorage {
+                interpolation: Some(glsl::InterpolationStorage::Flat),
+                ..default()
+            },
+            _ => default()
+        };
         Self {storage,prec,typ}
     }
 }

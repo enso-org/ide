@@ -581,7 +581,7 @@ impl HasCodeRepr for InterpolationStorage {
 impl HasCodeRepr for LinkageStorage {
     fn build(&self, builder:&mut CodeBuilder) {
         if self.centroid { builder.add("centroid"); };
-
+        builder.add(&self.interpolation);
     }
 }
 
@@ -590,8 +590,8 @@ impl HasCodeRepr for GlobalVarStorage {
         match self {
             Self::ConstStorage        => builder.add("const"),
             Self::UniformStorage      => builder.add("uniform"),
-            Self::InStorage    (qual) => builder.add("in").add(qual),
-            Self::OutStorage   (qual) => builder.add("out").add(qual),
+            Self::InStorage    (qual) => builder.add(qual).add("in"),
+            Self::OutStorage   (qual) => builder.add(qual).add("out"),
         };
     }
 }

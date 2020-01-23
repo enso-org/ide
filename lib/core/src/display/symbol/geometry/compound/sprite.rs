@@ -196,10 +196,12 @@ impl SpriteSystemData {
         material.add_input_def  :: <Matrix4<f32>> ("transform");
         material.add_input_def  :: <Matrix4<f32>> ("view_projection");
         material.add_output_def :: <Vector3<f32>> ("local");
+        material.add_output_def :: <i32>          ("instance_id");
         material.set_main("
                 mat4 model_view_projection = input_view_projection * input_transform;
                 input_local                = vec3((input_uv - 0.5) * input_bounds, 0.0);
                 gl_Position                = model_view_projection * vec4(input_local,1.0);
+                input_instance_id          = gl_InstanceID;
                 ");
         material
     }
