@@ -33,6 +33,12 @@ pub trait CallbackMut1Fn<T> = FnMut(T) + 'static;
 pub type CallbackMut1<T> = Box<dyn CallbackMut1Fn<T>>;
 
 
+/// Mutable callback type with one parameter.
+pub trait XCallbackMut1Fn<T> = FnMut(&T) + 'static;
+
+/// Mutable callback object with one parameter.
+pub type XCallbackMut1<T> = Box<dyn XCallbackMut1Fn<T>>;
+
 
 // ======================
 // === CallbackHandle ===
@@ -138,6 +144,40 @@ impl<T:Copy> CallbackRegistry1<T> {
 
     /// Fires all registered callbacks.
     pub fn run_all(&mut self, t:T) {
+        self.clear_unused_callbacks();
+        self.callback_list.iter_mut().for_each(move |(_,callback)| callback(t));
+    }
+
+    /// Checks all registered callbacks and removes the ones which got dropped.
+    fn clear_unused_callbacks(&mut self) {
+        self.callback_list.retain(|(guard,_)| guard.exists());
+    }
+}
+
+
+
+/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
+/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
+/// as well.
+#[derive(Derivative)]
+#[derivative(Debug,Default(bound=""))]
+pub struct XCallbackRegistry1<T> {
+    #[derivative(Debug="ignore")]
+    callback_list: Vec<(Guard,XCallbackMut1<T>)>
+}
+
+impl<T> XCallbackRegistry1<T> {
+    /// Adds new callback and returns a new handle for it.
+    pub fn add<F:XCallbackMut1Fn<T>>(&mut self, callback:F) -> CallbackHandle {
+        let callback = Box::new(callback);
+        let handle   = CallbackHandle::new();
+        let guard    = handle.guard();
+        self.callback_list.push((guard,callback));
+        handle
+    }
+
+    /// Fires all registered callbacks.
+    pub fn run_all(&mut self, t:&T) {
         self.clear_unused_callbacks();
         self.callback_list.iter_mut().for_each(move |(_,callback)| callback(t));
     }
