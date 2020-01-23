@@ -111,23 +111,43 @@ impl ShapeData {
 
 
 
+pub trait MouseEventFn      = Fn(JsValue) + 'static;
+pub type  MouseEventClosure = Closure<dyn Fn(JsValue)>;
+
+fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
+    Closure::wrap(Box::new(f))
+}
+
 #[derive(Debug)]
 struct Mouse {
     position        : Uniform<Vector2<i32>>,
     hover_ids       : Uniform<Vector3<i32>>,
+    button0_pressed : Uniform<bool>,
+    button1_pressed : Uniform<bool>,
+    button2_pressed : Uniform<bool>,
+    button3_pressed : Uniform<bool>,
+    button4_pressed : Uniform<bool>,
     last_hover_ids  : Vector3<i32>,
-    on_move_closure : Closure<dyn Fn(JsValue)>,
+    on_move_closure : MouseEventClosure,
+    on_down_closure : MouseEventClosure,
+    on_up_closure   : MouseEventClosure,
 }
 
 impl Mouse {
     pub fn new(shape:&Shape, variables:&UniformScope) -> Self {
-        let position       = variables.add_or_panic("mouse_position"  , Vector2::new(0,0));
-        let hover_ids      = variables.add_or_panic("mouse_hover_ids" , Vector3::new(0,0,0));
-        let last_hover_ids = Vector3::new(0,0,0);
+        let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",Vector3::new(0,0,0));
+        let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
+        let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
+        let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
+        let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
+        let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
+        let last_hover_ids  = Vector3::new(0,0,0);
+        let document        = web::document().unwrap();
 
-        let shape_ref      = shape.clone_ref();
-        let position_ref   = position.clone_ref();
-        let on_move_closure: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |event| {
+        let shape_ref       = shape.clone_ref();
+        let position_ref    = position.clone_ref();
+        let on_move_closure = mouse_event_closure(move |event:JsValue| {
             let event       = event.unchecked_into::<MouseEvent>();
             let pixel_ratio = shape_ref.pixel_ratio() as i32;
             let screen_x    = event.offset_x();
@@ -135,13 +155,53 @@ impl Mouse {
             let canvas_x    = pixel_ratio * screen_x;
             let canvas_y    = pixel_ratio * screen_y;
             position_ref.set(Vector2::new(canvas_x,canvas_y))
-        }));
-        web::document().unwrap().add_event_listener_with_callback
-        ("mousemove",on_move_closure.as_ref().unchecked_ref()).unwrap();
+        });
+        let js_closure = on_move_closure.as_ref().unchecked_ref();
+        document.add_event_listener_with_callback("mousemove",js_closure).unwrap();
 
-        Self {position,hover_ids,last_hover_ids,on_move_closure}
+        let button0_pressed_ref = button0_pressed.clone_ref();
+        let button1_pressed_ref = button1_pressed.clone_ref();
+        let button2_pressed_ref = button2_pressed.clone_ref();
+        let button3_pressed_ref = button3_pressed.clone_ref();
+        let button4_pressed_ref = button4_pressed.clone_ref();
+        let on_down_closure     = mouse_event_closure(move |event:JsValue| {
+            let event = event.unchecked_into::<MouseEvent>();
+            match event.button() {
+                0 => button0_pressed_ref.set(true),
+                1 => button1_pressed_ref.set(true),
+                2 => button2_pressed_ref.set(true),
+                3 => button3_pressed_ref.set(true),
+                4 => button4_pressed_ref.set(true),
+                _ => {}
+            }
+        });
+        let js_closure = on_down_closure.as_ref().unchecked_ref();
+        document.add_event_listener_with_callback("mousedown",js_closure).unwrap();
+
+        let button0_pressed_ref = button0_pressed.clone_ref();
+        let button1_pressed_ref = button1_pressed.clone_ref();
+        let button2_pressed_ref = button2_pressed.clone_ref();
+        let button3_pressed_ref = button3_pressed.clone_ref();
+        let button4_pressed_ref = button4_pressed.clone_ref();
+        let on_up_closure       = mouse_event_closure(move |event:JsValue| {
+            let event = event.unchecked_into::<MouseEvent>();
+            match event.button() {
+                0 => button0_pressed_ref.set(false),
+                1 => button1_pressed_ref.set(false),
+                2 => button2_pressed_ref.set(false),
+                3 => button3_pressed_ref.set(false),
+                4 => button4_pressed_ref.set(false),
+                _ => {}
+            }
+        });
+        let js_closure = on_up_closure.as_ref().unchecked_ref();
+        document.add_event_listener_with_callback("mouseup",js_closure).unwrap();
+
+        Self {position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
+             ,button4_pressed,last_hover_ids,on_move_closure,on_down_closure,on_up_closure}
     }
 }
+
 
 
 // =============
