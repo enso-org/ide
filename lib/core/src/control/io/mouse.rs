@@ -1,9 +1,6 @@
 //! This module contains the `MouseManager` implementation, its associated structs such as
 //! `MousePositionEvent`, `MouseClickEvent` and `MouseWheelEvent`.
 
-pub mod button;
-pub mod event;
-
 use crate::system::web::dom::DOMContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;

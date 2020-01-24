@@ -26,6 +26,10 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
+use crate::control::io::mouse2::MouseManager;
+use crate::control::io::mouse2;
+use crate::control::callback::CallbackHandle;
+
 
 
 // =============
@@ -120,6 +124,7 @@ fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
 
 #[derive(Debug)]
 struct Mouse {
+    mouse_manager   : MouseManager,
     position        : Uniform<Vector2<i32>>,
     hover_ids       : Uniform<Vector4<u32>>,
     button0_pressed : Uniform<bool>,
@@ -128,13 +133,12 @@ struct Mouse {
     button3_pressed : Uniform<bool>,
     button4_pressed : Uniform<bool>,
     last_hover_ids  : Vector4<u32>,
-    on_move_closure : MouseEventClosure,
-    on_down_closure : MouseEventClosure,
-    on_up_closure   : MouseEventClosure,
+    handles         : Vec<CallbackHandle>,
 }
 
 impl Mouse {
     pub fn new(shape:&Shape, variables:&UniformScope) -> Self {
+
         let empty_hover_ids = Vector4::<u32>::new(0,0,0,0);
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
         let hover_ids       = variables.add_or_panic("mouse_hover_ids",empty_hover_ids);
@@ -145,11 +149,11 @@ impl Mouse {
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
         let last_hover_ids  = empty_hover_ids;
         let document        = web::document().unwrap();
+        let mouse_manager   = MouseManager::new(&document);
 
         let shape_ref       = shape.clone_ref();
         let position_ref    = position.clone_ref();
-        let on_move_closure = mouse_event_closure(move |event:JsValue| {
-            let event       = event.unchecked_into::<MouseEvent>();
+        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse2::Event| {
             let pixel_ratio = shape_ref.pixel_ratio() as i32;
             let screen_x    = event.offset_x();
             let screen_y    = shape_ref.screen_shape().height as i32 - event.offset_y();
@@ -157,49 +161,41 @@ impl Mouse {
             let canvas_y    = pixel_ratio * screen_y;
             position_ref.set(Vector2::new(canvas_x,canvas_y))
         });
-        let js_closure = on_move_closure.as_ref().unchecked_ref();
-        document.add_event_listener_with_callback("mousemove",js_closure).unwrap();
 
         let button0_pressed_ref = button0_pressed.clone_ref();
         let button1_pressed_ref = button1_pressed.clone_ref();
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_down_closure     = mouse_event_closure(move |event:JsValue| {
-            let event = event.unchecked_into::<MouseEvent>();
+        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse2::Event| {
             match event.button() {
-                0 => button0_pressed_ref.set(true),
-                1 => button1_pressed_ref.set(true),
-                2 => button2_pressed_ref.set(true),
-                3 => button3_pressed_ref.set(true),
-                4 => button4_pressed_ref.set(true),
-                _ => {}
+                mouse2::Button::_0 => button0_pressed_ref.set(true),
+                mouse2::Button::_1 => button1_pressed_ref.set(true),
+                mouse2::Button::_2 => button2_pressed_ref.set(true),
+                mouse2::Button::_3 => button3_pressed_ref.set(true),
+                mouse2::Button::_4 => button4_pressed_ref.set(true),
             }
         });
-        let js_closure = on_down_closure.as_ref().unchecked_ref();
-        document.add_event_listener_with_callback("mousedown",js_closure).unwrap();
 
         let button0_pressed_ref = button0_pressed.clone_ref();
         let button1_pressed_ref = button1_pressed.clone_ref();
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_up_closure       = mouse_event_closure(move |event:JsValue| {
-            let event = event.unchecked_into::<MouseEvent>();
+        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse2::Event| {
             match event.button() {
-                0 => button0_pressed_ref.set(false),
-                1 => button1_pressed_ref.set(false),
-                2 => button2_pressed_ref.set(false),
-                3 => button3_pressed_ref.set(false),
-                4 => button4_pressed_ref.set(false),
-                _ => {}
+                mouse2::Button::_0 => button0_pressed_ref.set(false),
+                mouse2::Button::_1 => button1_pressed_ref.set(false),
+                mouse2::Button::_2 => button2_pressed_ref.set(false),
+                mouse2::Button::_3 => button3_pressed_ref.set(false),
+                mouse2::Button::_4 => button4_pressed_ref.set(false),
             }
         });
-        let js_closure = on_up_closure.as_ref().unchecked_ref();
-        document.add_event_listener_with_callback("mouseup",js_closure).unwrap();
 
-        Self {position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
-             ,button4_pressed,last_hover_ids,on_move_closure,on_down_closure,on_up_closure}
+        let handles = vec![on_move_handle,on_down_handle,on_up_handle];
+
+        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
+             ,button4_pressed,last_hover_ids,handles}
     }
 }
 
@@ -214,22 +210,22 @@ shared! { Scene
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct SceneData {
-    root            : DisplayObjectData,
-    canvas          : web_sys::HtmlCanvasElement,
-    context         : Context,
-    symbols         : SymbolRegistry,
-    symbols_dirty   : SymbolRegistryDirty,
-    camera          : Camera2d,
-    shape           : Shape,
-    shape_dirty     : ShapeDirty,
-    logger          : Logger,
-    listeners       : Listeners,
-    variables       : UniformScope,
-    pipeline        : RenderPipeline,
-    composer        : RenderComposer,
-    stats           : Stats,
-    pixel_ratio     : Uniform<f32>,
-    mouse           : Mouse,
+    root          : DisplayObjectData,
+    canvas        : web_sys::HtmlCanvasElement,
+    context       : Context,
+    symbols       : SymbolRegistry,
+    symbols_dirty : SymbolRegistryDirty,
+    camera        : Camera2d,
+    shape         : Shape,
+    shape_dirty   : ShapeDirty,
+    logger        : Logger,
+    listeners     : Listeners,
+    variables     : UniformScope,
+    pipeline      : RenderPipeline,
+    composer      : RenderComposer,
+    stats         : Stats,
+    pixel_ratio   : Uniform<f32>,
+    mouse         : Mouse,
 
 
     #[derivative(Debug="ignore")]
@@ -265,7 +261,6 @@ impl {
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
         let mouse           = Mouse::new(&shape,&variables);
-
 
         context.enable(Context::BLEND);
 
