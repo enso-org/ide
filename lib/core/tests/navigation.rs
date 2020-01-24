@@ -72,7 +72,7 @@ mod tests {
         let dimensions = renderer.dimensions();
         let x = dimensions.x / 2.0;
         let y = dimensions.y / 2.0;
-        let z = y * fovy_slope;
+        let z = y / fovy_slope;
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();

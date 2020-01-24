@@ -1,18 +1,18 @@
 //! Test suite for the Web and headless browsers.
 #![cfg(target_arch = "wasm32")]
 
-use basegl::display::world::WorldData;
-use basegl::display::world::World;
-use basegl_system_web::create_element;
-use basegl_system_web::dyn_into;
-use basegl_system_web::Error;
-use basegl_system_web::get_element_by_id;
-use basegl_system_web::get_webgl2_context;
-use basegl_system_web::NodeInserter;
-use basegl_system_web::Result;
-use basegl_system_web::StyleSetter;
-use web_sys::HtmlElement;
-use web_sys::HtmlCanvasElement;
+//use basegl::display::world::WorldData;
+//use basegl::display::world::World;
+//use basegl_system_web::create_element;
+//use basegl_system_web::dyn_into;
+//use basegl_system_web::Error;
+//use basegl_system_web::get_element_by_id;
+//use basegl_system_web::get_webgl2_context;
+//use basegl_system_web::NodeInserter;
+//use basegl_system_web::Result;
+//use basegl_system_web::StyleSetter;
+//use web_sys::HtmlElement;
+//use web_sys::HtmlCanvasElement;
 
 //
 //// ==================

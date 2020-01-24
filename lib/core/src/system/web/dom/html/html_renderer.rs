@@ -175,8 +175,8 @@ impl HTMLRenderer {
         let trans_cam  = trans_cam.map(eps);
         let trans_cam  = invert_y(trans_cam);
         let half_dim   = self.container.dimensions() / 2.0;
-        let fovy_slope = (camera.fovy() / 2.0).tan();
-        let near       = fovy_slope * half_dim.y;
+        let fovy_slope = camera.half_fovy_slope();
+        let near       = half_dim.y / fovy_slope;
 
         match camera.projection() {
             Projection::Perspective{..} => {

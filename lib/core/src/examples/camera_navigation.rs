@@ -66,10 +66,10 @@ pub fn run_example_camera_navigation() {
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
 
-    let fovy_slope = (camera.fovy() / 2.0).tan();
+    let fovy_slope = camera.half_fovy_slope();
     let x = dimensions.x / 2.0;
     let y = dimensions.y / 2.0;
-    let z = y * fovy_slope;
+    let z = y / fovy_slope;
     camera.set_position(Vector3::new(x, y, z));
 
     let mut event_loop = EventLoop::new();
