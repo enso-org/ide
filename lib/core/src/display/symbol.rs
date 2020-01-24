@@ -313,7 +313,7 @@ impl Symbol {
         let rc       = Rc::new(RefCell::new(data));
         let this     = Self {rc};
         let this_ref = this.clone_ref();
-        this.display_object_description().set_on_render(move || {this_ref.render()});
+        this.display_object().set_on_render(move || {this_ref.render()});
         this
     }
 }

@@ -20,6 +20,7 @@ use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
+use crate::display::object::DisplayObjectOps;
 
 use web_sys::MouseEvent;
 use wasm_bindgen::prelude::Closure;
@@ -321,7 +322,7 @@ impl {
                 let symbol_id = mouse_hover_ids.x;
                 let symbol = self.symbols.index(symbol_id as usize);
 
-//                symbol.dispatch(DynEvent::new(()));
+                symbol.dispatch(&DynEvent::new(()));
 
 
                 println!("{:?}",self.mouse.hover_ids.get());

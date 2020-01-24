@@ -268,7 +268,7 @@ impl World {
     }
 
     fn init_composer(&self) {
-        let root                = &self.display_object_description();
+        let root                = &self.display_object();
         let mouse_hover_ids     = self.rc.borrow().scene.mouse_hover_ids();
         let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
         let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);

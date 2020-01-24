@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::display::object::DisplayObjectOps;
+use crate::display::object::{DisplayObjectOps, DisplayObject};
 use crate::display::symbol::geometry::Sprite;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::world::*;
@@ -106,5 +106,5 @@ pub fn on_frame
         }
     }
 
-    sprite_system.update();
+    sprite_system.display_object().update();
 }

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::display::object::DisplayObjectOps;
+use crate::display::object::{DisplayObjectOps, DisplayObject};
 use crate::display::symbol::geometry::Sprite;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
@@ -55,5 +55,5 @@ pub fn on_frame
 , _sprite1     : &Sprite
 , shape_system : &ShapeSystem) {
     *iter += 1;
-    shape_system.update();
+    shape_system.display_object().update();
 }

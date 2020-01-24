@@ -208,19 +208,24 @@ impl SpriteSystemData {
 
     fn surface_material() -> Material {
         let mut material = Material::new();
-        material.set_main("output_color = vec4(1.0,1.0,1.0,1.0);");
+        // FIXME We need to use this output, as we need to declare the same amount of shader
+        // FIXME outputs as the number of attachments to framebuffer. We should manage this more
+        // FIXME intelligent. For example, we could allow defining output shader fragments,
+        // FIXME which will be enabled only if pass of given attachment type was enabled.
+        material.add_output ("id", Vector4::<u32>::new(0,0,0,0));
+        material.set_main("output_color = vec4(0.0,0.0,0.0,1.0);");
         material
     }
 }
 
 impl From<&SpriteSystemData> for DisplayObjectData {
     fn from(t:&SpriteSystemData) -> Self {
-        t.symbol.display_object_description()
+        t.symbol.display_object()
     }
 }
 
 impl From<&SpriteSystem> for DisplayObjectData {
     fn from(t:&SpriteSystem) -> Self {
-        t.rc.borrow().display_object_description()
+        t.rc.borrow().display_object()
     }
 }
