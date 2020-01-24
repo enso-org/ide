@@ -36,6 +36,10 @@ impl ParentBind {
 }
 
 
+use crate::control::callback::DynEventDispatcher;
+use crate::control::callback::DynEvent;
+
+
 
 // =====================================
 // === HierarchicalObjectDescription ===
@@ -43,10 +47,11 @@ impl ParentBind {
 
 /// Hierarchical description of objects. Each object contains binding to its parent and to its
 /// children. This is the most underlying structure in the display object hierarchy.
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub struct HierarchicalObjectData {
     pub parent_bind : Option<ParentBind>,
     pub children    : OptVec<DisplayObjectData>,
+    pub dispatcher  : DynEventDispatcher,
     pub logger      : Logger,
 }
 
@@ -57,7 +62,13 @@ impl HierarchicalObjectData {
     pub fn new(logger:Logger) -> Self {
         let parent_bind = default();
         let children    = default();
-        Self {parent_bind,children,logger}
+        let dispatcher  = default();
+        Self {parent_bind,children,dispatcher,logger}
+    }
+
+    pub fn dispatch(&mut self, event:&DynEvent) {
+        self.dispatcher.dispatch(event);
+        self.parent_bind.iter().for_each(|bind| bind.parent.dispatch(event));
     }
 
     pub fn child_count(&self) -> usize {
@@ -333,6 +344,10 @@ impl DisplayObjectData {
         Self {rc}
     }
 
+    pub fn dispatch(&self, event:&DynEvent) {
+        self.rc.borrow_mut().dispatch(event)
+    }
+
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self) {
         self.rc.borrow_mut().update();
@@ -553,6 +568,10 @@ where &'t Self:DisplayObject, Self:'t {
 
     fn update(&'t self) {
         self.display_object_description().update();
+    }
+
+    fn dispatch(&'t self, event:&DynEvent) {
+        self.display_object_description().dispatch(event)
     }
 }
 

@@ -31,6 +31,9 @@ use crate::control::io::mouse2;
 use crate::control::callback::CallbackHandle;
 
 
+use crate::control::callback::DynEvent;
+
+
 
 // =============
 // === Error ===
@@ -313,10 +316,17 @@ impl {
         let mouse_hover_ids = self.mouse.hover_ids.get();
         if mouse_hover_ids != self.mouse.last_hover_ids {
             self.mouse.last_hover_ids = mouse_hover_ids;
-            let symbol_id = mouse_hover_ids.x;
-            let symbol = self.symbols.index(symbol_id as usize);
-            println!("{:?}",self.mouse.hover_ids.get());
-            // TODO: finish
+            let is_not_background = mouse_hover_ids.w != 0;
+            if is_not_background {
+                let symbol_id = mouse_hover_ids.x;
+                let symbol = self.symbols.index(symbol_id as usize);
+
+//                symbol.dispatch(DynEvent::new(()));
+
+
+                println!("{:?}",self.mouse.hover_ids.get());
+                // TODO: finish
+            }
         }
 
 

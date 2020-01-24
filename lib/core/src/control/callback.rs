@@ -187,3 +187,52 @@ impl<T> XCallbackRegistry1<T> {
         self.callback_list.retain(|(guard,_)| guard.exists());
     }
 }
+
+
+
+
+
+use std::any::TypeId;
+
+#[derive(Debug,Clone)]
+pub struct DynEvent {
+    any: Rc<dyn Any>
+}
+
+impl DynEvent {
+    pub fn new<T:'static>(t:T) -> Self {
+        let any = Rc::new(t);
+        DynEvent {any}
+    }
+}
+
+
+
+#[derive(Derivative)]
+#[derivative(Debug,Default(bound=""))]
+pub struct DynEventDispatcher {
+    #[derivative(Debug="ignore")]
+    listener_map: HashMap<TypeId,Vec<(Guard,XCallbackMut1<DynEvent>)>>
+}
+
+impl DynEventDispatcher {
+    pub fn add_listener<F:XCallbackMut1Fn<T>,T:'static>(&mut self, mut f:F) -> CallbackHandle {
+        let callback = Box::new(move |event:&DynEvent| {
+            event.any.downcast_ref::<T>().iter().for_each(|t| { f(t) })
+        });
+        let type_id   = (&PhantomData::<T> as &dyn Any).type_id();
+        let handle    = CallbackHandle::new();
+        let guard     = handle.guard();
+        let listeners = self.listener_map.entry(type_id).or_insert_with(|| default());
+        listeners.push((guard,callback));
+        handle
+    }
+
+    pub fn dispatch(&mut self, event:&DynEvent) {
+        let type_id = event.any.type_id();
+        self.listener_map.get_mut(&type_id).iter_mut().for_each(|listeners| {
+            listeners.retain(|(guard,_)| guard.exists());
+            listeners.iter_mut().for_each(move |(_,callback)| callback(event));
+        });
+    }
+}

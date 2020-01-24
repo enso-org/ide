@@ -28,6 +28,7 @@ use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 //use crate::system::gpu::data::uniform::AnyTextureUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
+use crate::display::object::*;
 
 use shader::Shader;
 
@@ -176,6 +177,7 @@ shared! { Symbol
 /// Symbol is a surface with attached `Shader`.
 #[derive(Debug)]
 pub struct SymbolData {
+    display_object    : DisplayObjectData,
     id                : i32,
     surface           : Mesh,
     shader            : Shader,
@@ -227,8 +229,9 @@ impl {
             let stats             = stats.clone_ref();
             let context           = context.clone();
             let symbol_id_uniform = variables.add_or_panic("symbol_id",id);
+            let display_object    = DisplayObjectData::new(logger.clone());
             Self{id,surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger,context
-                ,vao,uniforms,textures,stats,symbol_id_uniform}
+                ,vao,uniforms,textures,stats,symbol_id_uniform,display_object}
         })
     }
 
@@ -293,6 +296,18 @@ impl {
         })
     }
 }}
+
+//impl From<&SymbolData> for DisplayObjectData {
+//    fn from(t:&SymbolData) -> Self {
+//        t.display_object.clone_ref()
+//    }
+//}
+//
+//impl From<&Symbol> for DisplayObjectData {
+//    fn from(t:&Symbol) -> Self {
+//        t.rc.borrow().display_object.clone_ref()
+//    }
+//}
 
 
 impl SymbolData {
