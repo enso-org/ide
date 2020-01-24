@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Multichannel Signed Distance Field handling.
 
 use basegl_core_msdf_sys as msdf_sys;
 use msdf_sys::MultichannelSignedDistanceField;
@@ -15,14 +15,20 @@ use nalgebra::clamp;
 /// all loaded glyph, organized in vertical column.
 #[derive(Debug)]
 pub struct MsdfTexture {
+    /// A plain data of this texture.
     pub data : Vec<u8>
 }
 
 impl MsdfTexture {
+    /// Number of channels per cell in MSDF texture
     pub const CHANNELS_COUNT   : usize = MultichannelSignedDistanceField::CHANNELS_COUNT;
+    /// Width of single MSDF in cells.
     pub const WIDTH            : usize = 32;
+    /// Size of the texture row.
     pub const ROW_SIZE         : usize = Self::CHANNELS_COUNT * Self::WIDTH;
+    /// Height og single MSDF i cells.
     pub const ONE_GLYPH_HEIGHT : usize = 32;
+    /// Size of single MSDF.
     pub const ONE_GLYPH_SIZE   : usize = Self::ROW_SIZE * Self::ONE_GLYPH_HEIGHT;
 
     /// Number of rows in texture

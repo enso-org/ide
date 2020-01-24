@@ -3,4 +3,4 @@
 pub mod compound;
 pub mod glyph;
 pub mod primitive;
-pub mod text;
+//pub mod text;

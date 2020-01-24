@@ -86,7 +86,7 @@ impl Drop for Font {
 /// Parameters of MSDF generation
 ///
 /// The structure gathering MSDF generation parameters meant to be same for all
-/// rendered glyph
+/// rendered glyphs
 pub struct MsdfParameters {
     pub width                         : usize,
     pub height                        : usize,

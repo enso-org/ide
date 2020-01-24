@@ -1,8 +1,10 @@
+//! A main glyph system implementation.
+
 use crate::prelude::*;
 
 use crate::display::shape::glyph::font::FontId;
 use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::glyph::font::Fonts;
+use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::pen::PenIterator;
 use crate::display::shape::glyph::msdf::MsdfTexture;
 use crate::display::symbol::material::Material;
@@ -40,22 +42,23 @@ impl Glyph {
     }
 
     /// Change the displayed character.
-    pub fn set_glyph(&mut self, ch:char, fonts:&mut Fonts) {
+    pub fn set_glyph(&mut self, ch:char, fonts:&mut FontRegistry) {
         let font       = fonts.get_render_info(self.font_id);
         let glyph_info = font.get_glyph_info(ch);
         self.msdf_index_attr.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture(fonts);
     }
 
-    fn update_msdf_texture(&mut self, fonts:&mut Fonts) {
+    fn update_msdf_texture(&mut self, fonts:&mut FontRegistry) {
         let font = fonts.get_render_info(self.font_id);
         let texture_changed = self.msdf_uniform.with_content(|texture| {
-            texture.storage().height != font.msdf_texture.rows() as i32
+            texture.storage().height != font.msdf_texture().rows() as i32
         });
         if texture_changed {
-            let data   = font.msdf_texture.data.as_slice();
-            let width  = MsdfTexture::WIDTH       as i32;
-            let height = font.msdf_texture.rows() as i32;
+            let msdf_texture = font.msdf_texture();
+            let data         = msdf_texture.data.as_slice();
+            let width        = MsdfTexture::WIDTH         as i32;
+            let height       = msdf_texture.rows() as i32;
             let texture = Texture::<GpuOnly,Rgb,u8>::new(&self.context,(width,height));
             texture.reload_with_content(data);
             self.msdf_uniform.set(texture);
@@ -86,10 +89,10 @@ impl Line {
     /// Replace currently visible text.
     ///
     /// The replacing strings will reuse glyphs which increases performance of rendering text.
-    pub fn replace_text<Chars>(&mut self, chars:Chars, fonts:&mut Fonts)
+    pub fn replace_text<Chars>(&mut self, chars:Chars, fonts:&mut FontRegistry)
     where Chars : Iterator<Item=char> + Clone {
-        let font    = fonts.get_render_info(self.font_id);
-        let mut pen = PenIterator::new(self.baseline_start,self.height,chars.clone(),font);
+        let font = fonts.get_render_info(self.font_id);
+        let pen  = PenIterator::new(self.baseline_start,self.height,chars.clone(),font);
 
         for (glyph,(_,position)) in self.glyphs.iter_mut().zip(pen) {
             glyph.set_position(Vector3::new(position.x,position.y,0.0));
@@ -139,7 +142,7 @@ impl GlyphSystem {
         let texture       = Texture::<GpuOnly,Rgb,u8>::new(&context,(0,0));
         let mesh          = symbol.surface();
 
-        sprite_system.set_material(Self::material(&context));
+        sprite_system.set_material(Self::material());
         scene.variables().add("msdf_range",FontRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables().add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font_id,
@@ -190,7 +193,7 @@ impl GlyphSystem {
         , height         : f32
         , text           : &str
         , color          : Vector4<f32>
-        , fonts          : &mut Fonts) -> Line {
+        , fonts          : &mut FontRegistry) -> Line {
         let length   = text.chars().count();
         let mut line = self.new_empty_line(baseline_start,height,length,color);
         line.replace_text(text.chars(),fonts);
@@ -208,7 +211,7 @@ impl GlyphSystem {
 
 impl GlyphSystem {
     /// Defines a default material of this system.
-    fn material(context:&Context) -> Material {
+    fn material() -> Material {
         let mut material = Material::new();
         material.add_input("pixel_ratio"  , 1.0);
         material.add_input("zoom"         , 1.0);

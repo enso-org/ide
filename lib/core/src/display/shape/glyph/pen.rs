@@ -1,3 +1,7 @@
+//! The pen is a font-specific term (see
+//! [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
+//! and mainly it's required for proper glyphs positioning in line.
+
 use crate::prelude::*;
 
 use crate::display::shape::glyph::font::FontRenderInfo;
@@ -87,9 +91,9 @@ mod tests {
             font.mock_kerning_info('W', 'A', 0.0);
 
             let initial_position = Vector2::new(0.0,0.0);
-            let chars    = "AWA".chars();
-            let mut iter = PenIterator::new(initial_position,1.0,chars,&mut font);
-            let result   = iter.collect_vec();
+            let chars  = "AWA".chars();
+            let iter   = PenIterator::new(initial_position,1.0,chars,&mut font);
+            let result = iter.collect_vec();
             let expected = vec!
                 [ ('A', Vector2::new(0.0, 0.0))
                 , ('W', Vector2::new(0.4, 0.0))

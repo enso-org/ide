@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! In this module we handle the fonts information required for rendering glyphs.
 
 use crate::prelude::*;
 
@@ -12,6 +12,8 @@ use msdf_sys::MultichannelSignedDistanceField;
 use nalgebra::Vector2;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::hash_map::Entry::Vacant;
+
+
 
 // ========================
 // === Font render info ===
@@ -30,9 +32,14 @@ use std::collections::hash_map::Entry::Vacant;
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 #[derive(Debug)]
 pub struct GlyphRenderInfo {
+    /// An index of glyph in a msdf texture (counted from the top of column. For details, see
+    /// MsdfTexture documentation.
     pub msdf_texture_glyph_id: usize,
+    /// A required offset of the _base square_ see structure documentation for details.
     pub offset               : Vector2<f32>,
+    /// A required scale of the _base square_ see structure documentation for details.
     pub scale                : Vector2<f32>,
+    /// An advance value. Advance is a font-rendering specific term.
     pub advance              : f64
 }
 
@@ -45,36 +52,37 @@ pub struct GlyphRenderInfo {
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 #[derive(Debug)]
 pub struct FontRenderInfo {
-    pub name          : String,
-    pub msdf_sys_font : msdf_sys::Font,
-    pub msdf_texture  : MsdfTexture,
-    glyphs            : HashMap<char,GlyphRenderInfo>,
-    kerning           : HashMap<(char,char),f64>
+    /// Name of the font.
+    pub name      : String,
+    msdf_sys_font : msdf_sys::Font,
+    msdf_texture  : MsdfTexture,
+    glyphs        : HashMap<char,GlyphRenderInfo>,
+    kerning       : HashMap<(char,char),f64>
 }
 
 impl FontRenderInfo {
+    /// See `MSDF_PARAMS` docs.
     pub const MAX_MSDF_SHRINK_FACTOR : f64 = 4.; // Note [Picked MSDF parameters]
+    /// See `MSDF_PARAMS` docs.
     pub const MAX_MSDF_GLYPH_SCALE   : f64 = 2.; // Note [Picked MSDF parameters]
 
+    /// Parameters used for MSDF generation.
+    ///
+    /// The range was picked such way, that we avoid fitting range in one rendered pixel.
+    /// Otherwise the antialiasing won't work. I assumed some maximum `shrink factor` (how many
+    /// times rendered square will be smaller than MSDF size), and pick an arbitrary maximum glyph
+    /// scale up.
+    ///
+    /// The rest of parameters are the defaults taken from msdfgen library
     pub const MSDF_PARAMS : MsdfParameters = MsdfParameters {
         width                         : MsdfTexture::WIDTH,
         height                        : MsdfTexture::ONE_GLYPH_HEIGHT,
-        edge_coloring_angle_threshold : 3.0,   // Note [Picked MSDF parameters]
+        edge_coloring_angle_threshold : 3.0,
         range                         : Self::MAX_MSDF_SHRINK_FACTOR * Self::MAX_MSDF_GLYPH_SCALE,
         max_scale                     : Self::MAX_MSDF_GLYPH_SCALE,
-        edge_threshold                : 1.001, // Note [Picked MSDF parameters]
-        overlap_support               : true   // Note [Picked MSDF parameters]
+        edge_threshold                : 1.001,
+        overlap_support               : true
     };
-
-    /* Note [Picked MSDF parameters]
-     *
-     * The range was picked such way, that we avoid fitting range in one rendered pixel.
-     * Otherwise the antialiasing won't work. I assumed some maximum `shrink factor` (how many
-     * times rendered square will be smaller than MSDF size), and pick an arbitrary maximum glyph
-     * scale up.
-     *
-     * The rest of parameters are the defaults taken from msdfgen library
-     */
 
     /// Create render info based on font data in memory
     pub fn new(name:String, font_data:&[u8]) -> FontRenderInfo {
@@ -99,7 +107,6 @@ impl FontRenderInfo {
         let handle         = &self.msdf_sys_font;
         let unicode        = ch as u32;
         let params         = Self::MSDF_PARAMS;
-        let msdf_height    = MsdfTexture::ONE_GLYPH_HEIGHT;
 
         let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
         let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
@@ -134,6 +141,11 @@ impl FontRenderInfo {
         }
     }
 
+    /// A whole msdf texture bound for this font.
+    pub fn msdf_texture(&self) -> &MsdfTexture {
+        &self.msdf_texture
+    }
+
     #[cfg(test)]
     pub fn mock_font(name : String) -> FontRenderInfo {
         FontRenderInfo {
@@ -147,9 +159,6 @@ impl FontRenderInfo {
 
     #[cfg(test)]
     pub fn mock_char_info(&mut self, ch : char) -> &mut GlyphRenderInfo {
-        let msdf_height             = MsdfTexture::ONE_GLYPH_HEIGHT;
-        let msdf_texture_rows_begin = self.msdf_texture.rows();
-        let msdf_texture_rows_end   = msdf_texture_rows_begin + msdf_height;
         let data_size               = MsdfTexture::ONE_GLYPH_SIZE;
         let msdf_data               = (0..data_size).map(|_| 0.12345);
 
@@ -171,6 +180,7 @@ impl FontRenderInfo {
 }
 
 
+
 // ===================
 // === LoadedFonts ===
 // ===================
@@ -180,16 +190,16 @@ pub type FontId = usize;
 
 /// Structure keeping all fonts loaded from different sources.
 #[derive(Debug)]
-pub struct Fonts {
+pub struct FontRegistry {
     embedded : EmbeddedFonts,
     fonts    : HashMap<FontId,FontRenderInfo>,
     next_id  : FontId
 }
 
-impl Fonts {
+impl FontRegistry {
     /// Create empty `Fonts` structure (however it contains raw data of embedded fonts).
-    pub fn new() -> Fonts {
-        Fonts {
+    pub fn new() -> FontRegistry {
+        FontRegistry {
             embedded : EmbeddedFonts::create_and_fill(),
             fonts    : HashMap::new(),
             next_id  : 1
@@ -216,11 +226,13 @@ impl Fonts {
     }
 }
 
-impl Default for Fonts {
+impl Default for FontRegistry {
     fn default() -> Self {
         Self::new()
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

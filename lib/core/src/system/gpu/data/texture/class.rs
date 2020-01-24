@@ -54,9 +54,9 @@ impl Drop for TextureBindGuard {
 #[derivative(Debug(bound="StorageOf<Storage,InternalFormat,ItemType>:Debug"))]
 pub struct Texture<Storage,InternalFormat,ItemType>
     where Storage: StorageRelation<InternalFormat,ItemType> {
-    pub storage : StorageOf<Storage,InternalFormat,ItemType>,
-    gl_texture  : WebGlTexture,
-    context     : Context,
+    storage    : StorageOf<Storage,InternalFormat,ItemType>,
+    gl_texture : WebGlTexture,
+    context    : Context,
 }
 
 

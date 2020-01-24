@@ -66,6 +66,7 @@ impl {
         self.bbox.clone_ref()
     }
 
+    /// Id of instance bound to this sprite.
     pub fn instance_id(&self) -> AttributeInstanceIndex {
         self.instance_id
     }
