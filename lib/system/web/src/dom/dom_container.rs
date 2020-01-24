@@ -11,6 +11,7 @@ use crate::dyn_into;
 use crate::Result;
 use crate::StyleSetter;
 use crate::intersection_observer::IntersectionObserver;
+use crate::resize_observer::ResizeObserver;
 
 use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlElement;
@@ -136,6 +137,7 @@ impl DOMContainerData {
 pub struct DOMContainer {
     pub dom               : HtmlElement,
     intersection_observer : Option<IntersectionObserver>,
+    resize_observer       : Option<ResizeObserver>,
     data                  : Rc<DOMContainerData>
 }
 
@@ -156,7 +158,8 @@ impl DOMContainer {
         let position              = Vector2::new(x    , y);
         let data                  = DOMContainerData::new(position, dimensions);
         let intersection_observer = None;
-        let mut ret = Self {dom,intersection_observer,data};
+        let resize_observer       = None;
+        let mut ret = Self {dom,intersection_observer,resize_observer,data};
 
         ret.init_listeners();
         ret
@@ -168,16 +171,25 @@ impl DOMContainer {
 
     fn init_listeners(&mut self) {
         self.init_intersection_listener();
+        self.init_resize_listener();
     }
 
     fn init_intersection_listener(&mut self) {
         let data = self.data.clone();
-        let closure = Closure::new(move |x, y, width, height| {
+        let closure = Closure::new(move |x, y, _width, _height| {
             data.set_position(Vector2::new(x as f32, y as f32));
-            data.set_dimensions(Vector2::new(width as f32, height as f32));
         });
         let observer = IntersectionObserver::new(&self.dom, closure);
         self.intersection_observer = Some(observer);
+    }
+
+    fn init_resize_listener(&mut self) {
+        let data = self.data.clone();
+        let closure = Closure::new(move |width, height| {
+            data.set_dimensions(Vector2::new(width as f32, height as f32));
+        });
+        let observer = ResizeObserver::new(&self.dom, closure);
+        self.resize_observer = Some(observer);
     }
 
     /// Sets the Scene DOM's dimensions.

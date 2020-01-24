@@ -40,7 +40,7 @@ fn init(world: &World) {
     let z = screen.height / 2.0 / fovy_slope;
     camera.set_position(Vector3::new(x, y, z));
 
-    let navigator = Navigator::new(&mut event_loop, &container, camera.clone());
+    let navigator = Navigator::new(&mut event_loop, &container, camera);
     let navigator = navigator.expect("Couldn't create navigator");
     std::mem::forget(navigator);
 
