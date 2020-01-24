@@ -19,6 +19,7 @@ use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
+use crate::system::gpu::data::uniform::Uniform;
 
 use wasm_bindgen::prelude::Closure;
 
@@ -124,7 +125,7 @@ pub struct SceneData {
     pipeline        : RenderPipeline,
     composer        : RenderComposer,
     stats           : Stats,
-
+    uniform         : Uniform<f32>
 }
 
 impl {
@@ -158,8 +159,8 @@ impl {
         let text_components = default();
         let on_resize       = default();
         let stats           = stats.clone();
-
-        camera.add_zoom_update_callback(move |zoom| uniform.set(zoom));
+        let uniform_clone   = uniform.clone();
+        camera.add_zoom_update_callback(move |zoom| uniform_clone.set(zoom));
         variables.add("pixel_ratio", shape.pixel_ratio());
 
         context.enable(Context::BLEND);
@@ -178,7 +179,7 @@ impl {
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
         Self {pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty,logger
-             ,listeners,variables,on_resize,text_components,stats}
+             ,listeners,variables,on_resize,text_components,stats,uniform}
     }
 
     pub fn context(&self) -> Context {
