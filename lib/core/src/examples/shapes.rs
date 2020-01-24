@@ -13,6 +13,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::display::shape::primitive::def::*;
 
+use crate::control::frp;
+
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -45,6 +47,8 @@ fn init(world: &World) {
     world.on_frame(move |_| {
         on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
+
+    frp::test();
 }
 
 #[allow(clippy::too_many_arguments)]

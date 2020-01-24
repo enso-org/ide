@@ -28,29 +28,47 @@ pub struct Behavior<T> {
 
 
 pub trait HasOutput {
-    type Output;
+    type Output:Debug;
 }
 
 pub trait HasInput {
-    type Input;
+    type Input:Debug;
 }
 
 pub trait NodeOps {
 //    fn send_event()
 }
 
-pub trait IsNode:  HasOutput + NodeOps {}
+pub trait OutNodeOps: HasOutput + NodeOps {
+    fn add_target(&self, target:InEventNode<Self::Output>);
+}
 
-impl<T:HasInput+HasOutput+NodeOps> IsNode for T {}
+pub trait IsInOutNode: HasInput + HasOutput + NodeOps {}
+impl<T:HasInput+HasOutput+NodeOps> IsInOutNode for T {}
+
+pub trait IsOutNode: HasOutput + OutNodeOps {}
+impl<T:HasOutput+OutNodeOps> IsOutNode for T {}
+
+pub trait IsInNode: HasInput + NodeOps {}
+impl<T:HasInput+NodeOps> IsInNode for T {}
+
+
+pub trait IsInEventNode: HasInput + EventNodeOps {}
+impl<T:HasInput+EventNodeOps> IsInEventNode for T {}
+
+
+pub trait EventNodeOps: HasInput + NodeOps {
+    fn handle_event(&self, input:&Self::Input);
+}
 
 
 #[derive(Shrinkwrap)]
-pub struct Node<T> {
-    raw: Rc<dyn IsNode<Output=T>>,
+pub struct OutNode<Out> {
+    raw: Rc<dyn IsOutNode<Output=Out>>,
 }
 
-impl<T> Node<T> {
-    pub fn new<A:IsNode<Output=T>+'static>(a:A) -> Self {
+impl<Out:Debug> OutNode<Out> {
+    pub fn new<A:IsOutNode<Output=Out>+'static>(a:A) -> Self {
         let raw = Rc::new(a);
         Self {raw}
     }
@@ -59,13 +77,60 @@ impl<T> Node<T> {
         let raw = self.raw.clone();
         Self {raw}
     }
-
-//    pub fn to_any(&self) -> AnyNode {
-//
-//    }
 }
 
-impl<A:IsNode<Output=T>+CloneRef+'static,T> From<&A> for Node<T> {
+impl<A:IsOutNode<Output=Out>+CloneRef+'static,Out:Debug> From<&A> for OutNode<Out> {
+    fn from(a:&A) -> Self {
+        Self::new(a.clone_ref())
+    }
+}
+
+
+#[derive(Shrinkwrap)]
+pub struct InEventNode<In> {
+    raw: Rc<dyn IsInEventNode<Input=In>>,
+}
+
+impl<In:Debug> InEventNode<In> {
+    pub fn new<A:IsInEventNode<Input=In>+'static>(a:A) -> Self {
+        let raw = Rc::new(a);
+        Self {raw}
+    }
+
+    pub fn clone_ref(&self) -> Self {
+        let raw = self.raw.clone();
+        Self {raw}
+    }
+}
+
+impl<A:IsInEventNode<Input=In>+CloneRef+'static,In:Debug> From<&A> for InEventNode<In> {
+    fn from(a:&A) -> Self {
+        Self::new(a.clone_ref())
+    }
+}
+
+
+
+
+#[derive(Shrinkwrap)]
+pub struct InOutNode<In,Out> {
+    raw: Rc<dyn IsInOutNode<Input=In,Output=Out>>,
+}
+
+impl<In:Debug,Out:Debug> InOutNode<In,Out> {
+    pub fn new<A:IsInOutNode<Input=In,Output=Out>+'static>(a:A) -> Self {
+        let raw = Rc::new(a);
+        Self {raw}
+    }
+
+    pub fn clone_ref(&self) -> Self {
+        let raw = self.raw.clone();
+        Self {raw}
+    }
+}
+
+impl<A:IsInOutNode<Input=In,Output=Out>+CloneRef+'static,In:Debug,Out:Debug>
+From<&A> for InOutNode<In,Out> {
     fn from(a:&A) -> Self {
         Self::new(a.clone_ref())
     }
@@ -100,22 +165,22 @@ impl<T> {
     }
 }}
 
-impl<T> HasOutput for EventEmitter<T> {
+impl<T:Debug> HasOutput for EventEmitterShape<T> {
     type Output = T;
 }
 
-impl<T> HasInput for EventEmitter<T> {
+impl<T> HasInput for EventEmitterShape<T> {
     type Input = ();
 }
 
-impl<T> NodeOps for EventEmitter<T> {}
+impl<T:Debug> NodeOps for EventEmitter<T> {}
 
 
 
 type EventEmitter<T> = NodeTemplate<EventEmitterShape<T>>;
 
 
-impl<T> EventEmitter<T> {
+impl<T:Debug> EventEmitter<T> {
     pub fn new() -> Self {
         let shape   = EventEmitterShape::new();
         let targets = default();
@@ -133,19 +198,21 @@ impl<T> EventEmitter<T> {
 
 
 
+
+
 // ===============
-// === Lambda1 ===
+// === Map ===
 // ===============
 
-shared! { Lambda1
+shared! { MapShape
 
-pub struct LambdaData1<A,T> {
-    source : Node<A>,
+pub struct MapShapeData<A,T> {
+    source : OutNode<A>,
     func   : Rc<dyn Fn(&A) -> T>,
 }
 
 impl<A,T> {
-    pub fn new<F:'static + Fn(&A) -> T, Source:Into<Node<A>>>
+    pub fn new<F:'static + Fn(&A) -> T, Source:Into<OutNode<A>>>
     (source:Source, f:F) -> Self {
         let source = source.into();
         let func   = Rc::new(f);
@@ -154,15 +221,41 @@ impl<A,T> {
 }}
 
 
-impl<A,T> HasInput for Lambda1<A,T> {
+impl<A:Debug,T> HasInput for MapShape<A,T> {
     type Input = A;
 }
 
-impl<A,T> HasOutput for Lambda1<A,T> {
+impl<A,T:Debug> HasOutput for MapShape<A,T> {
     type Output = T;
 }
 
-impl<A,T> NodeOps for Lambda1<A,T> {}
+impl<A,T:Debug> NodeOps for Map<A,T> {}
+
+
+
+type Map<A,T> = NodeTemplate<MapShape<A,T>>;
+
+
+impl<A:Debug+'static,T:Debug+'static> Map<A,T> {
+    pub fn new<F:'static + Fn(&A) -> T, Source:Into<OutNode<A>>>
+    (source:Source, f:F) -> Self {
+        let source  = source.into();
+        let source_ref = source.clone_ref();
+        let shape   = MapShape::new(source,f);
+        let targets = default();
+        let this = Self {shape,targets};
+        let foo: InEventNode<A> = (&this).into();
+        source_ref.add_target(foo);
+        this
+    }
+}
+
+impl<A:Debug,T:Debug> EventNodeOps for Map<A,T> {
+    fn handle_event(&self, input:&Self::Input) {
+        println!("GOT {:?}",input)
+    }
+}
+
 
 
 
@@ -197,13 +290,21 @@ impl<A,T> NodeOps for Lambda1<A,T> {}
 
 
 #[derive(Clone)]
-pub struct NodeTemplate<T> {
+pub struct NodeTemplate<T:HasOutput> {
     pub shape   : T,
-    pub targets : Rc<RefCell<Vec<AnyNode>>>
+    pub targets : Rc<RefCell<Vec<InEventNode<  <T as HasOutput>::Output  >>>>
+}
+
+impl<T:HasInput+HasOutput> HasInput for NodeTemplate<T> {
+    type Input = <T as HasInput>::Input;
+}
+
+impl<T:HasOutput> HasOutput for NodeTemplate<T> {
+    type Output = <T as HasOutput>::Output;
 }
 
 
-impl<T:CloneRef> CloneRef for NodeTemplate<T> {
+impl<T:CloneRef+HasOutput> CloneRef for NodeTemplate<T> {
     fn clone_ref(&self) -> Self {
         let shape   = self.shape.clone_ref();
         let targets = self.targets.clone();
@@ -212,19 +313,41 @@ impl<T:CloneRef> CloneRef for NodeTemplate<T> {
 }
 
 
+impl<T:HasOutput> NodeTemplate<T> {
+    pub fn emit_event(&self, event: &<T as HasOutput>::Output) {
+        self.targets.borrow().iter().for_each(|target| {
+            target.handle_event(event)
+        })
+    }
+}
+
+
+impl<T:HasOutput> OutNodeOps for NodeTemplate<T>
+where NodeTemplate<T>:NodeOps {
+    fn add_target(&self, target:InEventNode<Self::Output>) {
+        self.targets.borrow_mut().push(target);
+    }
+}
+
+//impl<T:HasOutput> NodeOps for NodeTemplate<T> {
+//
+//}
+
+
 
 //////////////////////////////////////////////////////
 
 pub fn test () {
+    println!("\n\n\n--- FRP ---\n");
 
     let e1 = EventEmitter::<i32>::new();
 
-    let n1 = Lambda1::new(&e1, |i| {i+1});
-    let n2 = Lambda1::new(&e1, |i| {i+1});
+    let n1 = Map::new(&e1, |i| {i+1});
+    let n2 = Map::new(&e1, |i| {i+1});
 
 //    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 
 
-    e1.emit(&7);
+    e1.emit_event(&7);
 
 }
