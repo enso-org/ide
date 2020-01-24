@@ -199,7 +199,7 @@ impl Camera2dData {
     pub fn recompute_view_matrix(&mut self) {
         // TODO: Handle all alignments.
         let mut transform       = self.transform.matrix();
-        let div                 = 2.0 * self.zoom;
+        let div                 = 2.0;
         let alignment_transform = Vector3::new(self.screen.width/div, self.screen.height/div, 0.0);
         transform.append_translation_mut(&alignment_transform);
         self.view_matrix = transform.try_inverse().unwrap()

@@ -6,7 +6,7 @@ use crate::display::world::World;
 use crate::display::world::WorldData;
 use crate::data::dirty::traits::*;
 
-use nalgebra::Point2;
+use nalgebra::{Point2, Vector3};
 use nalgebra::Vector2;
 use crate::display::shape::text::content::TextLocation;
 use crate::display::shape::text::content::TextChange;
@@ -15,6 +15,8 @@ use crate::display::shape::text::Color;
 use crate::display::shape::text::TextComponentProperties;
 use crate::system::web::forward_panic_hook_to_console;
 use crate::display::shape::text::cursor::Step::Right;
+use basegl_system_web::dom::DOMContainer;
+use crate::display::navigation::navigator::Navigator;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -22,6 +24,25 @@ pub fn run_example_text() {
     forward_panic_hook_to_console();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world_ref = WorldData::new("canvas");
+
+        let container      = DOMContainer::from_id("app").expect("Couldn't get container");
+        let mut event_loop = world_ref.event_loop();
+        let mut camera     = None;
+        world_ref.scene(|scene| camera = Some(scene.camera()));
+        let camera     = camera.unwrap();
+        camera.update();
+
+        let screen = camera.screen();
+        let fovy_slope = camera.half_fovy_slope();
+        let x = 0.0;
+        let y = 0.0;
+        let z = screen.height / 2.0 / fovy_slope;
+        camera.set_position(Vector3::new(x, y, z));
+
+        let navigator = Navigator::new(&mut event_loop, &container, camera.clone());
+        let navigator = navigator.expect("Couldn't create navigator");
+        std::mem::forget(navigator);
+
         {
             let world: &mut WorldData = &mut world_ref.rc.borrow_mut();
             let scene = &mut world.scene;
@@ -49,8 +70,9 @@ pub fn run_example_text() {
         let animation_start = now + 3000.0;
         let start_scrolling = animation_start + 10000.0;
         let mut chars       = typed_character_list(animation_start,include_str!("../lib.rs"));
-        world_ref.on_frame(move |w| {
-            animate_text_component(w,&mut chars,start_scrolling)
+        let w = world_ref.clone_ref();
+        world_ref.on_frame(move |_| {
+            animate_text_component(&w,&mut chars,start_scrolling)
         }).forget();
     });
 }

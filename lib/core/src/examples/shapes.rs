@@ -12,6 +12,8 @@ use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
 use crate::display::shape::primitive::def::*;
+use crate::display::navigation::navigator::Navigator;
+use basegl_system_web::dom::DOMContainer;
 
 
 #[wasm_bindgen]
@@ -24,6 +26,24 @@ pub fn run_example_shapes() {
 }
 
 fn init(world: &World) {
+    let container      = DOMContainer::from_id("app").expect("Couldn't get container");
+    let mut event_loop = world.event_loop();
+    let mut camera     = None;
+    world.scene(|scene| camera = Some(scene.camera()));
+    let camera     = camera.unwrap();
+    camera.update();
+
+    let screen = camera.screen();
+    let fovy_slope = camera.half_fovy_slope();
+    let x = 0.0;
+    let y = 0.0;
+    let z = screen.height / 2.0 / fovy_slope;
+    camera.set_position(Vector3::new(x, y, z));
+
+    let navigator = Navigator::new(&mut event_loop, &container, camera.clone());
+    let navigator = navigator.expect("Couldn't create navigator");
+    std::mem::forget(navigator);
+
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
@@ -32,8 +52,8 @@ fn init(world: &World) {
     let sprite = shape_system.new_instance();
     sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {
-        t.x += 250.0;
-        t.y += 100.0;
+        t.x += screen.width / 2.0;
+        t.y += screen.height / 2.0;
     });
 
 
