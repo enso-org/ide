@@ -12,7 +12,7 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 use crate::display::navigation::navigator::Navigator;
-use basegl_system_web::dom::DOMContainer;
+use basegl_system_web::dom::DomContainer;
 use crate::display::camera::Camera2d;
 
 
@@ -25,7 +25,7 @@ pub fn run_example_sprite_system() {
 }
 
 fn init(world: &World) {
-    let container      = DOMContainer::from_id("app").expect("Couldn't get container");
+    let container      = DomContainer::from_id("app").expect("Couldn't get container");
     let mut event_loop = world.event_loop();
     let mut camera     = None;
     world.scene(|scene| camera = Some(scene.camera()));

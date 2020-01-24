@@ -16,13 +16,13 @@ use web_sys::HtmlElement;
 
 
 // ==================
-// === HTMLObject ===
+// === HtmlObject ===
 // ==================
 
 /// A structure for representing a 3D HTMLElement in a `HTMLScene`.
 #[derive(Shrinkwrap, Debug, Clone)]
 #[shrinkwrap(mutable)]
-pub struct HTMLObject {
+pub struct HtmlObject {
     #[shrinkwrap(main_field)]
     /// HTMLObject's hierarchical transforms.
     pub display_object : DisplayObjectData,
@@ -33,7 +33,7 @@ pub struct HTMLObject {
     dimensions         : Vector2<f32>,
 }
 
-impl HTMLObject {
+impl HtmlObject {
     /// Creates a HTMLObject from element name.
     pub fn new(logger:Logger, dom_name:&str) -> Result<Self> {
         let dom = dyn_into(create_element(dom_name)?)?;

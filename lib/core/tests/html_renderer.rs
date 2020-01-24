@@ -19,9 +19,9 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use basegl::display::camera::Camera2d;
-    use basegl::system::web::dom::html::HTMLScene;
-    use basegl::system::web::dom::html::HTMLObject;
-    use basegl::system::web::dom::html::HTMLRenderer;
+    use basegl::system::web::dom::html::HtmlScene;
+    use basegl::system::web::dom::html::HtmlObject;
+    use basegl::system::web::dom::html::HtmlRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
     use web_test::*;
@@ -31,7 +31,7 @@ mod tests {
 
     #[web_test(no_container)]
     fn invalid_container() {
-        let renderer = HTMLRenderer::new("nonexistent_id");
+        let renderer = HtmlRenderer::new("nonexistent_id");
         assert!(renderer.is_err(), "nonexistent_id should not exist");
     }
 
@@ -39,15 +39,15 @@ mod tests {
     fn object_behind_camera() {
         let logger = Logger::new("object_behind_camera");
 
-        let mut scene = HTMLScene::new(logger.clone());
-        let renderer = HTMLRenderer::new("object_behind_camera")
+        let mut scene = HtmlScene::new(logger.clone());
+        let renderer = HtmlRenderer::new("object_behind_camera")
                                     .expect("Renderer couldn't be created");
         assert_eq!(scene.len(), 0, "Scene should be empty");
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
-        let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
+        let mut object = HtmlObject::new(logger.clone(), "div").unwrap();
         object.set_position(Vector3::new(0.0, 0.0, 0.0));
         object.dom.set_property_or_panic("background-color", "black");
         object.set_dimensions(100.0, 100.0);
@@ -60,8 +60,8 @@ mod tests {
         renderer.render(&mut camera,&scene);
     }
 
-    fn create_scene(logger:Logger, renderer:&HTMLRenderer) -> HTMLScene {
-        let mut scene:HTMLScene = HTMLScene::new(logger.clone());
+    fn create_scene(logger:Logger, renderer:&HtmlRenderer) -> HtmlScene {
+        let mut scene: HtmlScene = HtmlScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
         renderer.container().dom.set_property_or_panic("background-color", "black");
@@ -70,7 +70,7 @@ mod tests {
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
             // Creates 10 HTMLObjects per axis.
             for i in 0 .. 10 {
-                let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
+                let mut object = HtmlObject::new(logger.clone(), "div").unwrap();
                 object.set_dimensions(1.0, 1.0);
 
                 // Using axis for masking.
@@ -99,7 +99,7 @@ mod tests {
     fn rhs_coordinates() {
         let logger = Logger::new("rhs_coordinates");
 
-        let renderer = HTMLRenderer::new("rhs_coordinates")
+        let renderer = HtmlRenderer::new("rhs_coordinates")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(logger.clone(), &renderer);
 
@@ -120,7 +120,7 @@ mod tests {
 
         use std::f32::consts::PI;
 
-        let renderer = HTMLRenderer::new("rhs_coordinates_from_back")
+        let renderer = HtmlRenderer::new("rhs_coordinates_from_back")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(logger.clone(), &renderer);
 
@@ -141,7 +141,7 @@ mod tests {
     #[web_bench]
     fn camera_movement(b: &mut Bencher) {
         let logger = Logger::new("camera_movement");
-        let renderer = HTMLRenderer::new("camera_movement")
+        let renderer = HtmlRenderer::new("camera_movement")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(logger.clone(), &renderer);
 
@@ -161,12 +161,12 @@ mod tests {
         })
     }
 
-    fn make_sphere(mut scene : &mut HTMLScene, performance : &Performance) {
+    fn make_sphere(mut scene : &mut HtmlScene, performance : &Performance) {
         use super::set_gradient_bg;
 
         let t = (performance.now() / 1000.0) as f32;
         let length = scene.len() as f32;
-        let mut scene : &mut HTMLScene = &mut scene;
+        let mut scene : &mut HtmlScene = &mut scene;
         for (i, object) in (&mut scene).into_iter().enumerate() {
             let i = i as f32;
             let d = (i / length - 0.5) * 2.0;
@@ -192,13 +192,13 @@ mod tests {
     #[web_bench]
     fn object_x1000(b: &mut Bencher) {
         let logger = Logger::new("object_x1000");
-        let mut scene = HTMLScene::new(logger.clone());
-        let renderer = HTMLRenderer::new("object_x1000")
+        let mut scene = HtmlScene::new(logger.clone());
+        let renderer = HtmlRenderer::new("object_x1000")
                                     .expect("Renderer couldn't be created");
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..1000 {
-            let mut object = HTMLObject::new(logger.clone(), "div")
+            let mut object = HtmlObject::new(logger.clone(), "div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
             object.set_scale(Vector3::new(0.5, 0.5, 0.5));
@@ -225,13 +225,13 @@ mod tests {
     #[web_bench]
     fn object_x400_update(b: &mut Bencher) {
         let logger = Logger::new("object_x400_update");
-        let renderer = HTMLRenderer::new("object_x400_update")
+        let renderer = HtmlRenderer::new("object_x400_update")
                                     .expect("Renderer couldn't be created");
-        let mut scene = HTMLScene::new(logger.clone());
+        let mut scene = HtmlScene::new(logger.clone());
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {
-            let mut object = HTMLObject::new(logger.clone(), "div")
+            let mut object = HtmlObject::new(logger.clone(), "div")
                                     .expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
             object.set_scale(Vector3::new(0.5, 0.5, 0.5));

@@ -55,15 +55,15 @@ struct DOMContainerProperties {
 }
 
 // ========================
-// === DOMContainerData ===
+// === DomContainerData ===
 // ========================
 
 #[derive(Debug)]
-struct DOMContainerData {
+struct DomContainerData {
     properties : RefCell<DOMContainerProperties>
 }
 
-impl DOMContainerData {
+impl DomContainerData {
     pub fn new(position:Vector2<f32>, dimensions:Vector2<f32>) -> Rc<Self> {
         let position_callbacks = Default::default();
         let resize_callbacks   = Default::default();
@@ -94,7 +94,7 @@ impl DOMContainerData {
 
 // === Getters ===
 
-impl DOMContainerData {
+impl DomContainerData {
     fn position  (&self) -> Vector2<f32> { self.properties.borrow().position }
     fn dimensions(&self) -> Vector2<f32> { self.properties.borrow().dimensions }
 }
@@ -102,7 +102,7 @@ impl DOMContainerData {
 
 // === Setters ===
 
-impl DOMContainerData {
+impl DomContainerData {
     fn set_position(&self, position:Vector2<f32>) {
         if position != self.position() {
             self.properties.borrow_mut().position = position;
@@ -128,26 +128,26 @@ impl DOMContainerData {
 
 
 // ====================
-// === DOMContainer ===
+// === DomContainer ===
 // ====================
 
 /// A struct used to keep track of HtmlElement dimensions and position without worrying about style
 /// reflow.
 #[derive(Debug)]
-pub struct DOMContainer {
+pub struct DomContainer {
     pub dom               : HtmlElement,
     intersection_observer : Option<IntersectionObserver>,
     resize_observer       : Option<ResizeObserver>,
-    data                  : Rc<DOMContainerData>
+    data                  : Rc<DomContainerData>
 }
 
-impl Clone for DOMContainer {
+impl Clone for DomContainer {
     fn clone(&self) -> Self {
-        DOMContainer::from_element(self.dom.clone())
+        DomContainer::from_element(self.dom.clone())
     }
 }
 
-impl DOMContainer {
+impl DomContainer {
     pub fn from_element(dom:HtmlElement) -> Self {
         let rect                  = dom.get_bounding_client_rect();
         let x                     = rect.x()      as f32;
@@ -156,7 +156,7 @@ impl DOMContainer {
         let height                = rect.height() as f32;
         let dimensions            = Vector2::new(width, height);
         let position              = Vector2::new(x    , y);
-        let data                  = DOMContainerData::new(position, dimensions);
+        let data                  = DomContainerData::new(position, dimensions);
         let intersection_observer = None;
         let resize_observer       = None;
         let mut ret = Self {dom,intersection_observer,resize_observer,data};

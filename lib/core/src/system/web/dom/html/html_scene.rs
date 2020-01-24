@@ -2,23 +2,23 @@
 
 use crate::prelude::*;
 
-use super::HTMLObject;
+use super::HtmlObject;
 use crate::display::object::DisplayObjectData;
 use data::opt_vec::*;
 
 
 
 // =============
-// === Scene ===
+// === HtmlScene ===
 // =============
 
 /// A collection for holding 3D `Object`s.
-pub struct HTMLScene {
+pub struct HtmlScene {
     display_object : DisplayObjectData,
-    objects        : OptVec<HTMLObject>
+    objects        : OptVec<HtmlObject>
 }
 
-impl HTMLScene {
+impl HtmlScene {
     /// Searches for a HtmlElement identified by id and appends to it.
     pub fn new(logger:Logger) -> Self {
         let display_object = DisplayObjectData::new(logger);
@@ -27,13 +27,13 @@ impl HTMLScene {
     }
 
     /// Moves a HTMLObject to the Scene and returns an index to it.
-    pub fn add_child(&mut self, object: HTMLObject) -> Ix {
+    pub fn add_child(&mut self, object: HtmlObject) -> Ix {
         self.display_object.add_child(&object.display_object);
         self.objects.insert(object)
     }
 
     /// Removes and retrieves a HTMLObject based on the index provided by
-    pub fn remove_child(&mut self, index: Ix) -> Option<HTMLObject> {
+    pub fn remove_child(&mut self, index: Ix) -> Option<HtmlObject> {
         let object = self.objects.remove(index);
         if let Some(object) = &object {
             self.display_object.remove_child(&object.display_object);
@@ -53,23 +53,23 @@ impl HTMLScene {
     }
 
     /// Gets mutable iterator.
-    pub fn iter_mut(&mut self) -> IterMut<'_, HTMLObject> { self.objects.iter_mut() }
+    pub fn iter_mut(&mut self) -> IterMut<'_, HtmlObject> { self.objects.iter_mut() }
 
     /// Gets iterator.
-    pub fn iter(&self) -> Iter<'_, HTMLObject> { self.objects.iter() }
+    pub fn iter(&self) -> Iter<'_, HtmlObject> { self.objects.iter() }
 }
 
-impl<'a> IntoIterator for &'a HTMLScene {
-    type Item = &'a HTMLObject;
-    type IntoIter = Iter<'a, HTMLObject>;
+impl<'a> IntoIterator for &'a HtmlScene {
+    type Item = &'a HtmlObject;
+    type IntoIter = Iter<'a, HtmlObject>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a> IntoIterator for &'a mut HTMLScene {
-    type Item = &'a mut HTMLObject;
-    type IntoIter = IterMut<'a, HTMLObject>;
+impl<'a> IntoIterator for &'a mut HtmlScene {
+    type Item = &'a mut HtmlObject;
+    type IntoIter = IterMut<'a, HtmlObject>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }

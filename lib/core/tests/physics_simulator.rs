@@ -13,9 +13,9 @@ mod tests {
     use basegl::animation::physics::inertia::PhysicsSimulator;
     use basegl::animation::physics::inertia::PhysicsProperties;
     use basegl::animation::animator::fixed_step::FixedStepAnimator;
-    use basegl::system::web::dom::html::HTMLRenderer;
-    use basegl::system::web::dom::html::HTMLObject;
-    use basegl::system::web::dom::html::HTMLScene;
+    use basegl::system::web::dom::html::HtmlRenderer;
+    use basegl::system::web::dom::html::HtmlObject;
+    use basegl::system::web::dom::html::HtmlScene;
     use basegl::display::camera::Camera2d;
     use web_test::*;
     use nalgebra::{zero, Vector3};
@@ -24,18 +24,18 @@ mod tests {
 
     #[web_bench]
     fn simulator(b : &mut Bencher) {
-        let renderer = HTMLRenderer::new("simulator").expect("Renderer couldn't be created");
+        let renderer = HtmlRenderer::new("simulator").expect("Renderer couldn't be created");
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
         let logger    = Logger::new("simulator");
-        let mut scene = HTMLScene::new(logger.clone());
+        let mut scene = HtmlScene::new(logger.clone());
 
-        let mut target = HTMLObject::new(logger.clone(), "div").unwrap();
+        let mut target = HtmlObject::new(logger.clone(), "div").unwrap();
         target.set_dimensions(1.0, 1.0);
         target.dom.set_property_or_panic("background-color", "green");
         scene.add_child(target.clone());
 
-        let mut object = HTMLObject::new(logger.clone(), "div").unwrap();
+        let mut object = HtmlObject::new(logger.clone(), "div").unwrap();
         object.set_dimensions(1.0, 1.0);
         object.dom.set_property_or_panic("background-color", "red");
         scene.add_child(object.clone());

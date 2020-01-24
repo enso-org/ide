@@ -3,9 +3,9 @@
 use wasm_bindgen::prelude::*;
 
 use crate::display::camera::Camera2d;
-use crate::system::web::dom::html::HTMLScene;
-use crate::system::web::dom::html::HTMLObject;
-use crate::system::web::dom::html::HTMLRenderer;
+use crate::system::web::dom::html::HtmlScene;
+use crate::system::web::dom::html::HtmlObject;
+use crate::system::web::dom::html::HtmlRenderer;
 use crate::control::EventLoop;
 use crate::system::web::StyleSetter;
 use crate::system::web::set_stdout;
@@ -17,8 +17,8 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use logger::Logger;
 
-fn create_scene(logger:Logger, dim:Vector2<f32>) -> HTMLScene {
-    let mut scene = HTMLScene::new(logger.clone());
+fn create_scene(logger:Logger, dim:Vector2<f32>) -> HtmlScene {
+    let mut scene = HtmlScene::new(logger.clone());
 
     let width  = dim.x / 2.0;
     let height = dim.y / 2.0;
@@ -38,7 +38,7 @@ fn create_scene(logger:Logger, dim:Vector2<f32>) -> HTMLScene {
     ];
 
     for i in 0..=3 {
-        let     object = HTMLObject::new(logger.clone(), "div");
+        let     object = HtmlObject::new(logger.clone(), "div");
         let mut object = object.expect("Couldn't create div");
         let (p_x, p_y) = positions[i];
         object.set_dimensions(width, height);
@@ -57,7 +57,7 @@ fn create_scene(logger:Logger, dim:Vector2<f32>) -> HTMLScene {
 pub fn run_example_camera_navigation() {
     let logger     = Logger::new("camera_navigation");
     set_stdout();
-    let renderer = HTMLRenderer::new("app").expect("Renderer couldn't be created");
+    let renderer = HtmlRenderer::new("app").expect("Renderer couldn't be created");
     renderer.container().dom.set_property_or_panic("background-color", "black");
 
     let dimensions = renderer.dimensions();

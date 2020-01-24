@@ -8,9 +8,9 @@ web_configure!(run_in_browser);
 #[cfg(test)]
 mod tests {
     use basegl::display::camera::Camera2d;
-    use basegl::system::web::dom::html::HTMLScene;
-    use basegl::system::web::dom::html::HTMLObject;
-    use basegl::system::web::dom::html::HTMLRenderer;
+    use basegl::system::web::dom::html::HtmlScene;
+    use basegl::system::web::dom::html::HtmlObject;
+    use basegl::system::web::dom::html::HtmlRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::display::navigation::navigator::Navigator;
     use web_test::*;
@@ -18,8 +18,8 @@ mod tests {
     use nalgebra::Vector3;
     use logger::Logger;
 
-    fn create_scene(logger:Logger) -> HTMLScene {
-        let mut scene = HTMLScene::new(logger.clone());
+    fn create_scene(logger:Logger) -> HtmlScene {
+        let mut scene = HtmlScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
         let width  = 320.0 / 2.0;
@@ -40,7 +40,7 @@ mod tests {
         ];
 
         for i in 0..=3 {
-            let     object = HTMLObject::new(logger.clone(), "div");
+            let     object = HtmlObject::new(logger.clone(), "div");
             let mut object = object.expect("Couldn't create div");
             let (x, y)     = positions[i];
             object.set_dimensions(width, height);
@@ -55,7 +55,7 @@ mod tests {
     }
 
     fn navigator_test(b: &mut Bencher, name:&str) {
-        let renderer = HTMLRenderer::new(name)
+        let renderer = HtmlRenderer::new(name)
             .expect("Renderer couldn't be created");
         renderer.container().dom.set_property_or_panic("background-color", "black");
 

@@ -7,7 +7,7 @@ use events::ZoomEvent;
 use events::PanEvent;
 use crate::display::camera::Camera2d;
 use crate::system::web::Result;
-use crate::system::web::dom::DOMContainer;
+use crate::system::web::dom::DomContainer;
 use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
@@ -33,7 +33,7 @@ pub struct Navigator {
 
 impl Navigator {
     // FIXME: Create a simplified constructor with dom defaulted to window.
-    pub fn new(event_loop:&mut EventLoop, dom:&DOMContainer, camera:Camera2d) -> Result<Self> {
+    pub fn new(event_loop:&mut EventLoop, dom:&DomContainer, camera:Camera2d) -> Result<Self> {
         let (_simulator, properties) = Self::start_simulator(event_loop, camera.clone());
         let zoom_speed             = 2.0;
         let min_zoom               = 10.0;
@@ -69,7 +69,7 @@ impl Navigator {
     }
 
     fn start_navigator_events
-    ( dom:&DOMContainer
+    ( dom:&DomContainer
     , camera:Camera2d
     , min_zoom:f32
     , max_zoom:f32
