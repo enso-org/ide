@@ -11,16 +11,40 @@ pub struct SwitchData {
 
 
 
+pub struct Event<T> {
+    phantom: PhantomData<T>,
+}
+
+
+pub struct Behavior<T> {
+    phantom: PhantomData<T>,
+}
+
+
+
 // ============
 // === Node ===
 // ============
 
 
-pub trait IsNode {
+pub trait HasOutput {
     type Output;
 }
 
+pub trait HasInput {
+    type Input;
+}
 
+pub trait NodeOps {
+//    fn send_event()
+}
+
+pub trait IsNode:  HasOutput + NodeOps {}
+
+impl<T:HasInput+HasOutput+NodeOps> IsNode for T {}
+
+
+#[derive(Shrinkwrap)]
 pub struct Node<T> {
     raw: Rc<dyn IsNode<Output=T>>,
 }
@@ -35,6 +59,10 @@ impl<T> Node<T> {
         let raw = self.raw.clone();
         Self {raw}
     }
+
+//    pub fn to_any(&self) -> AnyNode {
+//
+//    }
 }
 
 impl<A:IsNode<Output=T>+CloneRef+'static,T> From<&A> for Node<T> {
@@ -45,11 +73,21 @@ impl<A:IsNode<Output=T>+CloneRef+'static,T> From<&A> for Node<T> {
 
 
 
+#[derive(Shrinkwrap)]
+pub struct AnyNode {
+    raw: Rc<dyn NodeOps>,
+}
+
+
+
+
+
+
 // ====================
 // === EventEmitter ===
 // ====================
 
-shared! { EventEmitter
+shared! { EventEmitterShape
 
 pub struct EventEmitterData<T> {
     callbacks: Vec<Rc<dyn Fn(T)>>
@@ -60,14 +98,35 @@ impl<T> {
         let callbacks = default();
         Self {callbacks}
     }
-
-    pub fn emit(&self, value:&T) {
-
-    }
 }}
 
-impl<T> IsNode for EventEmitter<T> {
+impl<T> HasOutput for EventEmitter<T> {
     type Output = T;
+}
+
+impl<T> HasInput for EventEmitter<T> {
+    type Input = ();
+}
+
+impl<T> NodeOps for EventEmitter<T> {}
+
+
+
+type EventEmitter<T> = NodeTemplate<EventEmitterShape<T>>;
+
+
+impl<T> EventEmitter<T> {
+    pub fn new() -> Self {
+        let shape   = EventEmitterShape::new();
+        let targets = default();
+        Self {shape,targets}
+    }
+
+    pub fn emit(&self, value:&T) {
+        self.targets.borrow().iter().for_each(|target| {
+
+        })
+    }
 }
 
 
@@ -95,40 +154,62 @@ impl<A,T> {
 }}
 
 
-impl<A,T> IsNode for Lambda1<A,T> {
+impl<A,T> HasInput for Lambda1<A,T> {
+    type Input = A;
+}
+
+impl<A,T> HasOutput for Lambda1<A,T> {
     type Output = T;
 }
 
+impl<A,T> NodeOps for Lambda1<A,T> {}
 
 
-// ===============
-// === Lambda2 ===
-// ===============
 
-shared! { Lambda2
+//// ===============
+//// === Lambda2 ===
+//// ===============
+//
+//shared! { Lambda2
+//
+//pub struct LambdaData2<A,B,T> {
+//    source1 : Node<A>,
+//    source2 : Node<B>,
+//    func    : Rc<dyn Fn(&A,&B) -> T>,
+//}
+//
+//impl<A,B,T> {
+//    pub fn new<F:'static + Fn(&A,&B) -> T, Source1:Into<Node<A>>, Source2:Into<Node<B>>>
+//    (source1:Source1, source2:Source2, f:F) -> Self {
+//        let source1 = source1.into();
+//        let source2 = source2.into();
+//        let func    = Rc::new(f);
+//        Self {source1,source2,func}
+//    }
+//}}
+//
+//
+//impl<A,B,T> HasOutput for Lambda2<A,B,T> {
+//    type Output = T;
+//}
+//
+//impl<A,B,T> NodeOps for Lambda2<A,B,T> {}
 
-pub struct LambdaData2<A,B,T> {
-    source1 : Node<A>,
-    source2 : Node<B>,
-    func    : Rc<dyn Fn(&A,&B) -> T>,
+
+#[derive(Clone)]
+pub struct NodeTemplate<T> {
+    pub shape   : T,
+    pub targets : Rc<RefCell<Vec<AnyNode>>>
 }
 
-impl<A,B,T> {
-    pub fn new<F:'static + Fn(&A,&B) -> T, Source1:Into<Node<A>>, Source2:Into<Node<B>>>
-    (source1:Source1, source2:Source2, f:F) -> Self {
-        let source1 = source1.into();
-        let source2 = source2.into();
-        let func    = Rc::new(f);
-        Self {source1,source2,func}
+
+impl<T:CloneRef> CloneRef for NodeTemplate<T> {
+    fn clone_ref(&self) -> Self {
+        let shape   = self.shape.clone_ref();
+        let targets = self.targets.clone();
+        Self {shape,targets}
     }
-}}
-
-
-impl<A,B,T> IsNode for Lambda2<A,B,T> {
-    type Output = T;
 }
-
-
 
 
 
@@ -141,7 +222,7 @@ pub fn test () {
     let n1 = Lambda1::new(&e1, |i| {i+1});
     let n2 = Lambda1::new(&e1, |i| {i+1});
 
-    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
+//    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 
 
     e1.emit(&7);

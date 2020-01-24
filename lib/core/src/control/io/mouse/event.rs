@@ -24,4 +24,4 @@ macro_rules! define_events {
     )*};
 }
 
-define_events!(OnDown,OnUp,OnMove);
+define_events!(OnDown,OnUp,OnMove,OnWheel);

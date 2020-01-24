@@ -118,7 +118,8 @@ macro_rules! define_bindings {
 }
 
 define_bindings! {
-    mousedown => on_down (OnDown),
-    mouseup   => on_up   (OnUp),
-    mousemove => on_move (OnMove),
+    mousedown  => on_down  (OnDown),
+    mouseup    => on_up    (OnUp),
+    mousemove  => on_move  (OnMove),
+    mousewheel => on_wheel (OnWheel),
 }
