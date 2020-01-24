@@ -16,16 +16,17 @@ pub struct SwitchData {
 // ============
 
 
-pub trait HasOutput {
+pub trait IsNode {
     type Output;
 }
 
+
 pub struct Node<T> {
-    raw: Rc<dyn HasOutput<Output=T>>,
+    raw: Rc<dyn IsNode<Output=T>>,
 }
 
 impl<T> Node<T> {
-    pub fn new<A:HasOutput<Output=T>+'static>(a:A) -> Self {
+    pub fn new<A:IsNode<Output=T>+'static>(a:A) -> Self {
         let raw = Rc::new(a);
         Self {raw}
     }
@@ -36,7 +37,7 @@ impl<T> Node<T> {
     }
 }
 
-impl<A:HasOutput<Output=T>+CloneRef+'static,T> From<&A> for Node<T> {
+impl<A:IsNode<Output=T>+CloneRef+'static,T> From<&A> for Node<T> {
     fn from(a:&A) -> Self {
         Self::new(a.clone_ref())
     }
@@ -65,7 +66,7 @@ impl<T> {
     }
 }}
 
-impl<T> HasOutput for EventEmitter<T> {
+impl<T> IsNode for EventEmitter<T> {
     type Output = T;
 }
 
@@ -94,7 +95,7 @@ impl<A,T> {
 }}
 
 
-impl<A,T> HasOutput for Lambda1<A,T> {
+impl<A,T> IsNode for Lambda1<A,T> {
     type Output = T;
 }
 
@@ -123,7 +124,7 @@ impl<A,B,T> {
 }}
 
 
-impl<A,B,T> HasOutput for Lambda2<A,B,T> {
+impl<A,B,T> IsNode for Lambda2<A,B,T> {
     type Output = T;
 }
 

@@ -23,49 +23,9 @@ use web_sys::HtmlElement;
 use crate::control::callback::*;
 use basegl_prelude::default;
 
-
-
-// ===================
-// === MouseButton ===
-// ===================
-
-/// An enumeration representing the mouse buttons. Please note that we do not name the buttons
-/// left, right, and middle, as this assumes we use a mouse for right-hand people.
-///
-/// JS supports up to 5 mouse buttons currently:
-/// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
-#[derive(Debug,Clone,Copy)]
-pub enum Button {_0,_1,_2,_3,_4}
-
-impl Button {
-    pub fn from_code(code:i16) -> Self {
-        match code {
-            0 => Self::_0,
-            1 => Self::_1,
-            2 => Self::_2,
-            3 => Self::_3,
-            4 => Self::_4,
-            _ => panic!("Invalid button code"),
-        }
-    }
-}
-
-
-
-// =============
-// === Event ===
-// =============
-
-#[derive(Debug,Clone,From,Shrinkwrap)]
-pub struct Event {
-    raw: web_sys::MouseEvent
-}
-impl Event {
-    /// Translation of the button property to Rust `Button` enum.
-    pub fn button(&self) -> Button {
-        Button::from_code(self.raw.button())
-    }
-}
+pub use crate::control::io::mouse::event;
+pub use crate::control::io::mouse::button;
+pub use crate::control::io::mouse::button::*;
 
 
 
@@ -121,20 +81,20 @@ pub struct MouseManager {
 }
 
 macro_rules! define_bindings {
-    ( $( $js_name:ident => $name:ident),* $(,)? ) => {
-
-        #[derive(Debug,Default)]
-        pub struct MouseManagerDispatchers {
-            $(pub $name : EventDispatcher<Event>),*
-        }
+    ( $( $js_name:ident => $name:ident ($target:ident) ),* $(,)? ) => {
 
         #[derive(Debug)]
         pub struct MouseManagerClosures {
-            $(pub $name : MouseEventClosure),*
+            $($name : MouseEventClosure),*
+        }
+
+        #[derive(Debug,Default)]
+        pub struct MouseManagerDispatchers {
+            $(pub $name : EventDispatcher<event::$target>),*
         }
 
         impl MouseManager {
-            pub fn new(dom:&EventTarget) -> Self {
+            pub fn new (dom:&EventTarget) -> Self {
                 let dispatchers = MouseManagerDispatchers::default();
                 let dom         = dom.clone();
                 $(
@@ -158,7 +118,7 @@ macro_rules! define_bindings {
 }
 
 define_bindings! {
-    mousedown => on_down,
-    mouseup   => on_up,
-    mousemove => on_move,
+    mousedown => on_down (OnDown),
+    mouseup   => on_up   (OnUp),
+    mousemove => on_move (OnMove),
 }

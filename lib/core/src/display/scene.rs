@@ -157,7 +157,7 @@ impl Mouse {
 
         let shape_ref       = shape.clone_ref();
         let position_ref    = position.clone_ref();
-        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse2::Event| {
+        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
             let pixel_ratio = shape_ref.pixel_ratio() as i32;
             let screen_x    = event.offset_x();
             let screen_y    = shape_ref.screen_shape().height as i32 - event.offset_y();
@@ -171,7 +171,7 @@ impl Mouse {
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse2::Event| {
+        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
             match event.button() {
                 mouse2::Button::_0 => button0_pressed_ref.set(true),
                 mouse2::Button::_1 => button1_pressed_ref.set(true),
@@ -186,7 +186,7 @@ impl Mouse {
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse2::Event| {
+        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
             match event.button() {
                 mouse2::Button::_0 => button0_pressed_ref.set(false),
                 mouse2::Button::_1 => button1_pressed_ref.set(false),
