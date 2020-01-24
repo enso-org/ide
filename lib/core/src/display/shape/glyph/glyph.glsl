@@ -34,7 +34,6 @@ highp float opacity_from_msdf() {
 
 highp vec4 color_from_msdf() {
     highp float opacity = opacity_from_msdf();
-//    return vec4(input_color.xy * opacity, 1.0, opacity);
     return input_color * opacity;
 }
 

@@ -89,23 +89,24 @@ impl Line {
     pub fn replace_text<Chars>(&mut self, chars:Chars, fonts:&mut Fonts)
     where Chars : Iterator<Item=char> + Clone {
         let font    = fonts.get_render_info(self.font_id);
-        let mut pen = PenIterator::new(self.baseline_start,chars.clone(),font);
+        let mut pen = PenIterator::new(self.baseline_start,self.height,chars.clone(),font);
 
         for (glyph,(_,position)) in self.glyphs.iter_mut().zip(pen) {
             glyph.set_position(Vector3::new(position.x,position.y,0.0));
         }
         for (glyph,ch) in self.glyphs.iter_mut().zip(chars) {
-            let font            = fonts.get_render_info(self.font_id);
-            let glyph_info      = font.get_glyph_info(ch);
-            let scale_to_pixels = glyph_info.scale.scale(self.height);
-            let scaled_offset   = glyph_info.offset.component_mul(&scale_to_pixels);
+            let font       = fonts.get_render_info(self.font_id);
+            let glyph_info = font.get_glyph_info(ch);
+            let size       = glyph_info.scale.scale(self.height);
+            let offset     = glyph_info.offset.scale(self.height);
+            // Pen position is on bottom-left corner of glyph, but sprites are positioned by its
+            // center.
+            let offset     = offset + size.scale(0.5);
+            let offset3d   = offset.insert_row(2, 0.0);
             glyph.set_glyph(ch,fonts);
             glyph.color().set(self.base_color);
-            glyph.mod_position(|pos| {
-                pos.x += scaled_offset.x;
-                pos.y += scaled_offset.y;
-            });
-            glyph.size().set(scale_to_pixels);
+            glyph.mod_position(|pos| { *pos += offset3d; });
+            glyph.size().set(size);
         }
     }
 }

@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::glyph::msdf::MsdfTexture;
+use crate::display::shape::glyph::msdf::{MsdfTexture, convert_msdf_translation};
 use crate::display::shape::glyph::msdf::x_distance_from_msdf_value;
 
 use basegl_core_msdf_sys as msdf_sys;
@@ -103,9 +103,10 @@ impl FontRenderInfo {
 
         let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
         let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
+        let translation    = convert_msdf_translation(&msdf);
         let glyph_info = GlyphRenderInfo {
             msdf_texture_glyph_id : self.glyphs.len(),
-            offset                : nalgebra::convert(-msdf.translation),
+            offset                : nalgebra::convert(-translation),
             scale                 : nalgebra::convert(inversed_scale),
             advance               : x_distance_from_msdf_value(msdf.advance),
         };

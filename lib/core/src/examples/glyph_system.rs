@@ -20,12 +20,13 @@ pub fn run_example_glyph_system() {
 
 fn init(world: &World) {
     let mut fonts        = Fonts::new();
-    let font_id          = fonts.load_embedded_font("DejaVuSansMono").unwrap();
+    let font_id          = fonts.load_embedded_font("DejaVuSans").unwrap();
     let mut glyph_system = GlyphSystem::new(font_id);
-    let line_position    = Vector2::new(0.0, 0.0);
-    let height           = 30.0;
+    let line_position    = Vector2::new(100.0, 100.0);
+    let height           = 32.0;
     let color            = Vector4::new(0.0, 0.8, 0.0, 1.0);
-    let mut line         = glyph_system.new_line(line_position,height,"ABC",color,&mut fonts);
+    let text             = "Follow  the white rabbit...";
+    let mut line         = glyph_system.new_line(line_position,height,text,color,&mut fonts);
 
     world.add_child(glyph_system.sprite_system());
     world.on_frame(move |_| {

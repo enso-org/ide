@@ -18,6 +18,7 @@ use nalgebra::Vector2;
 #[derive(Debug)]
 pub struct PenIterator<'a,CharIterator> {
     position     : Vector2<f32>,
+    line_height  : f32,
     current_char : Option<char>,
     next_chars   : CharIterator,
     next_advance : f32,
@@ -36,8 +37,12 @@ where CharIterator : Iterator<Item=char> {
 impl<'a,CharIterator> PenIterator<'a,CharIterator>
 where CharIterator : Iterator<Item=char> {
     /// Create iterator wrapping `chars`, with pen starting from given position.
-    pub fn new(start_from:Vector2<f32>, chars:CharIterator, font:&'a mut FontRenderInfo) -> Self {
-        Self {font,
+    pub fn new
+    ( start_from:Vector2<f32>
+    , line_height:f32
+    , chars:CharIterator
+    , font:&'a mut FontRenderInfo) -> Self {
+        Self {font,line_height,
             position     : start_from,
             current_char : None,
             next_chars   : chars,
@@ -56,7 +61,7 @@ where CharIterator : Iterator<Item=char> {
 
     fn move_pen(&mut self, current:char, next:char) {
         let kerning   = self.font.get_kerning(current,next) as f32;
-        self.position.x += self.next_advance + kerning;
+        self.position.x += (self.next_advance + kerning) * self.line_height;
     }
 }
 
@@ -83,7 +88,7 @@ mod tests {
 
             let initial_position = Vector2::new(0.0,0.0);
             let chars    = "AWA".chars();
-            let mut iter = PenIterator::new(initial_position,chars,&mut font);
+            let mut iter = PenIterator::new(initial_position,1.0,chars,&mut font);
             let result   = iter.collect_vec();
             let expected = vec!
                 [ ('A', Vector2::new(0.0, 0.0))
