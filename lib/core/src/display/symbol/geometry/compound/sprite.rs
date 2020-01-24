@@ -95,7 +95,7 @@ shared! { SpriteSystem
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 #[derive(Debug)]
 pub struct SpriteSystemData {
-    display_object : DisplayObjectData,
+//    display_object : DisplayObjectData,
     symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
     uv             : Buffer<Vector2<f32>>,
@@ -109,7 +109,7 @@ impl {
         let scene          = world::get_scene();
         let stats          = scene.stats();
         let logger         = Logger::new("SpriteSystem");
-        let display_object = DisplayObjectData::new(logger);
+//        let display_object = DisplayObjectData::new(logger);
         let symbol         = scene.new_symbol();
         let mesh           = symbol.surface();
         let point_scope    = mesh.point_scope();
@@ -120,7 +120,7 @@ impl {
 
         stats.inc_sprite_system_count();
 
-        let this = Self {display_object,symbol,transform,uv,size,stats};
+        let this = Self {symbol,transform,uv,size,stats};//display_object
         this.init_attributes();
         this.init_shader();
         this.init_render();
@@ -185,8 +185,8 @@ impl SpriteSystemData {
     }
 
     fn init_render(&self) {
-        let symbol = self.symbol.clone_ref();
-        self.display_object.set_on_render(move || {symbol.render()});
+//        let symbol = self.symbol.clone_ref();
+//        self.display_object.set_on_render(move || {symbol.render()});
     }
 
     fn geometry_material() -> Material {
@@ -215,12 +215,12 @@ impl SpriteSystemData {
 
 impl From<&SpriteSystemData> for DisplayObjectData {
     fn from(t:&SpriteSystemData) -> Self {
-        t.display_object.clone_ref()
+        t.symbol.display_object_description()
     }
 }
 
 impl From<&SpriteSystem> for DisplayObjectData {
     fn from(t:&SpriteSystem) -> Self {
-        t.rc.borrow().display_object.clone_ref()
+        t.rc.borrow().display_object_description()
     }
 }

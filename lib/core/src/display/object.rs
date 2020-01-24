@@ -158,10 +158,10 @@ impl DisplayObjectDataMut {
         Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated,on_render}
     }
 
-    pub fn render(&self) {
+    pub fn dp_render(&self) {
         if let Some(f) = &self.on_render { f() }
         self.children.iter().for_each(|child| {
-            child.render();
+            child.dp_render();
         });
     }
 
@@ -407,8 +407,8 @@ impl DisplayObjectData {
     }
 
     /// Renders the object to the screen.
-    pub fn render(&self) {
-        self.rc.borrow().render()
+    pub fn dp_render(&self) {
+        self.rc.borrow().dp_render()
     }
 }
 

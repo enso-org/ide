@@ -91,7 +91,7 @@ impl {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             for mesh_id in self.symbol_dirty.take().iter() {
-                self.symbols[*mesh_id].update()
+                self.symbols[*mesh_id].xupdate()
             }
             self.symbol_dirty.unset_all();
         })

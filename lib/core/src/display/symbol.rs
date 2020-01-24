@@ -195,46 +195,6 @@ pub struct SymbolData {
 }
 
 impl {
-
-    /// Create new instance with the provided on-dirty callback.
-    pub fn new <OnMut:Fn()+Clone+'static>
-    ( logger           : Logger
-    , context          : &Context
-    , stats            : &Stats
-    , id               : i32
-    , global_variables : &UniformScope
-    , on_mut           : OnMut
-    ) -> Self {
-        stats.inc_symbol_count();
-        let init_logger = logger.clone();
-        group!(init_logger, "Initializing.", {
-            let on_mut2           = on_mut.clone();
-            let surface_logger    = logger.sub("surface");
-            let shader_logger     = logger.sub("shader");
-            let geo_dirt_logger   = logger.sub("surface_dirty");
-            let mat_dirt_logger   = logger.sub("shader_dirty");
-            let surface_dirty     = GeometryDirty::new(geo_dirt_logger,Box::new(on_mut2));
-            let shader_dirty      = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
-            let surface_dirty2    = surface_dirty.clone_ref();
-            let shader_dirty2     = shader_dirty.clone_ref();
-            let surface_on_mut    = Box::new(move || { surface_dirty2.set() });
-            let shader_on_mut     = Box::new(move || { shader_dirty2.set() });
-            let shader            = Shader::new(shader_logger,&stats,context,shader_on_mut);
-            let surface           = Mesh::new(surface_logger,&stats,context,surface_on_mut);
-            let variables         = UniformScope::new(logger.sub("uniform_scope"),context);
-            let global_variables  = global_variables.clone();
-            let vao               = default();
-            let uniforms          = default();
-            let textures          = default();
-            let stats             = stats.clone_ref();
-            let context           = context.clone();
-            let symbol_id_uniform = variables.add_or_panic("symbol_id",id);
-            let display_object    = DisplayObjectData::new(logger.clone());
-            Self{id,surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger,context
-                ,vao,uniforms,textures,stats,symbol_id_uniform,display_object}
-        })
-    }
-
     pub fn surface(&self) -> Mesh {
         self.surface.clone_ref()
     }
@@ -248,7 +208,7 @@ impl {
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
+    pub fn xupdate(&mut self) {
         group!(self.logger, "Updating.", {
             if self.surface_dirty.check() {
                 self.surface.update();
@@ -297,17 +257,78 @@ impl {
     }
 }}
 
-//impl From<&SymbolData> for DisplayObjectData {
-//    fn from(t:&SymbolData) -> Self {
-//        t.display_object.clone_ref()
-//    }
-//}
-//
-//impl From<&Symbol> for DisplayObjectData {
-//    fn from(t:&Symbol) -> Self {
-//        t.rc.borrow().display_object.clone_ref()
-//    }
-//}
+
+impl SymbolData {
+    /// Create new instance with the provided on-dirty callback.
+    pub fn new <OnMut:Fn()+Clone+'static>
+    ( logger           : Logger
+      , context          : &Context
+      , stats            : &Stats
+      , id               : i32
+      , global_variables : &UniformScope
+      , on_mut           : OnMut
+    ) -> Self {
+        stats.inc_symbol_count();
+        let init_logger = logger.clone();
+        group!(init_logger, "Initializing.", {
+            let on_mut2           = on_mut.clone();
+            let surface_logger    = logger.sub("surface");
+            let shader_logger     = logger.sub("shader");
+            let geo_dirt_logger   = logger.sub("surface_dirty");
+            let mat_dirt_logger   = logger.sub("shader_dirty");
+            let surface_dirty     = GeometryDirty::new(geo_dirt_logger,Box::new(on_mut2));
+            let shader_dirty      = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
+            let surface_dirty2    = surface_dirty.clone_ref();
+            let shader_dirty2     = shader_dirty.clone_ref();
+            let surface_on_mut    = Box::new(move || { surface_dirty2.set() });
+            let shader_on_mut     = Box::new(move || { shader_dirty2.set() });
+            let shader            = Shader::new(shader_logger,&stats,context,shader_on_mut);
+            let surface           = Mesh::new(surface_logger,&stats,context,surface_on_mut);
+            let variables         = UniformScope::new(logger.sub("uniform_scope"),context);
+            let global_variables  = global_variables.clone();
+            let vao               = default();
+            let uniforms          = default();
+            let textures          = default();
+            let stats             = stats.clone_ref();
+            let context           = context.clone();
+            let symbol_id_uniform = variables.add_or_panic("symbol_id",id);
+            let display_object    = DisplayObjectData::new(logger.clone());
+            Self{id,surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger,context
+                ,vao,uniforms,textures,stats,symbol_id_uniform,display_object}
+        })
+    }
+}
+
+impl Symbol {
+    /// Create new instance with the provided on-dirty callback.
+    pub fn new <OnMut:Fn()+Clone+'static>
+    ( logger           : Logger
+    , context          : &Context
+    , stats            : &Stats
+    , id               : i32
+    , global_variables : &UniformScope
+    , on_mut           : OnMut
+    ) -> Self {
+        let data     = SymbolData::new(logger,context,stats,id,global_variables,on_mut);
+        let rc       = Rc::new(RefCell::new(data));
+        let this     = Self {rc};
+        let this_ref = this.clone_ref();
+        this.display_object_description().set_on_render(move || {this_ref.render()});
+        this
+    }
+}
+
+impl From<&SymbolData> for DisplayObjectData {
+    fn from(t:&SymbolData) -> Self {
+        t.display_object.clone_ref()
+    }
+}
+
+impl From<&Symbol> for DisplayObjectData {
+    fn from(t:&Symbol) -> Self {
+        t.rc.borrow().display_object.clone_ref()
+    }
+}
 
 
 impl SymbolData {
