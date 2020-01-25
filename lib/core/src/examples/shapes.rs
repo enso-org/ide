@@ -13,7 +13,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::display::shape::primitive::def::*;
 use crate::display::navigation::navigator::Navigator;
-use basegl_system_web::dom::DomContainer;
 
 
 #[wasm_bindgen]
@@ -26,13 +25,9 @@ pub fn run_example_shapes() {
 }
 
 fn init(world: &World) {
-    let container      = DomContainer::from_id("app").expect("Couldn't get container");
     let mut event_loop = world.event_loop();
-    let mut camera     = None;
-    world.scene(|scene| camera = Some(scene.camera()));
-    let camera     = camera.unwrap();
+    let camera         = world.scene().camera();
     camera.update();
-
     let screen = camera.screen();
     let fovy_slope = camera.half_fovy_slope();
     let x = 0.0;
@@ -40,9 +35,8 @@ fn init(world: &World) {
     let z = screen.height / 2.0 / fovy_slope;
     camera.set_position(Vector3::new(x, y, z));
 
-    let navigator = Navigator::new(&mut event_loop, &container, camera);
+    let navigator = Navigator::new(&mut event_loop, "app", camera);
     let navigator = navigator.expect("Couldn't create navigator");
-    std::mem::forget(navigator);
 
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
@@ -63,6 +57,7 @@ fn init(world: &World) {
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {
+        let _keep_alive = &navigator;
         on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
 }

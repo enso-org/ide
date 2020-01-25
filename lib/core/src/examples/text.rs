@@ -15,7 +15,6 @@ use crate::display::shape::text::Color;
 use crate::display::shape::text::TextComponentProperties;
 use crate::system::web::forward_panic_hook_to_console;
 use crate::display::shape::text::cursor::Step::Right;
-use basegl_system_web::dom::DomContainer;
 use crate::display::navigation::navigator::Navigator;
 
 #[wasm_bindgen]
@@ -25,11 +24,8 @@ pub fn run_example_text() {
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world_ref = WorldData::new("canvas");
 
-        let container      = DomContainer::from_id("app").expect("Couldn't get container");
         let mut event_loop = world_ref.event_loop();
-        let mut camera     = None;
-        world_ref.scene(|scene| camera = Some(scene.camera()));
-        let camera     = camera.unwrap();
+        let camera         = world_ref.scene().camera();
         camera.update();
 
         let screen = camera.screen();
@@ -39,7 +35,7 @@ pub fn run_example_text() {
         let z = screen.height / 2.0 / fovy_slope;
         camera.set_position(Vector3::new(x, y, z));
 
-        let navigator = Navigator::new(&mut event_loop, &container, camera);
+        let navigator = Navigator::new(&mut event_loop, "app", camera);
         let navigator = navigator.expect("Couldn't create navigator");
         std::mem::forget(navigator);
 

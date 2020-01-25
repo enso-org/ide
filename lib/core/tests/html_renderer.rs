@@ -60,7 +60,7 @@ mod tests {
         renderer.render(&mut camera,&scene);
     }
 
-    fn create_scene(logger:Logger, renderer:&HtmlRenderer) -> HtmlScene {
+    fn create_scene(logger:&Logger, renderer:&HtmlRenderer) -> HtmlScene {
         let mut scene: HtmlScene = HtmlScene::new(logger.clone());
         assert_eq!(scene.len(), 0);
 
@@ -97,11 +97,10 @@ mod tests {
 
     #[web_test]
     fn rhs_coordinates() {
-        let logger = Logger::new("rhs_coordinates");
-
+        let logger   = Logger::new("rhs_coordinates");
         let renderer = HtmlRenderer::new("rhs_coordinates")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(logger.clone(), &renderer);
+        let scene = create_scene(&logger, &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -122,7 +121,7 @@ mod tests {
 
         let renderer = HtmlRenderer::new("rhs_coordinates_from_back")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(logger.clone(), &renderer);
+        let scene = create_scene(&logger, &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -143,7 +142,7 @@ mod tests {
         let logger = Logger::new("camera_movement");
         let renderer = HtmlRenderer::new("camera_movement")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(logger.clone(), &renderer);
+        let scene = create_scene(&logger, &renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));

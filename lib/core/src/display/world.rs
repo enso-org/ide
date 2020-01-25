@@ -270,8 +270,8 @@ impl World {
         self.rc.borrow().event_loop.clone()
     }
 
-    pub fn scene<F:FnMut(&Scene)>(&self, mut f:F) {
-        f(&self.rc.borrow().scene)
+    pub fn scene(&self) -> Scene {
+        self.rc.borrow().scene.clone()
     }
 
     fn init_composer(&self) {

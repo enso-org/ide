@@ -76,9 +76,8 @@ mod tests {
         camera.set_position(Vector3::new(x, y, z));
 
         let mut event_loop = b.event_loop();
-        let container      = &renderer.container();
         let camera_clone   = camera.clone();
-        let navigator      = Navigator::new(&mut event_loop, container, camera_clone);
+        let navigator      = Navigator::new(&mut event_loop, name, camera_clone);
         let navigator      = navigator.expect("Couldn't create navigator");
 
         b.iter(move || {

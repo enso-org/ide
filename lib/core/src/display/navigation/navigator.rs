@@ -33,14 +33,15 @@ pub struct Navigator {
 
 impl Navigator {
     // FIXME: Create a simplified constructor with dom defaulted to window.
-    pub fn new(event_loop:&mut EventLoop, dom:&DomContainer, camera:Camera2d) -> Result<Self> {
+    pub fn new<S:AsRef<str>>(event_loop:&mut EventLoop, dom_id:S, camera:Camera2d) -> Result<Self> {
+        let dom                      = DomContainer::from_id(dom_id.as_ref())?;
         let (_simulator, properties) = Self::start_simulator(event_loop, camera.clone());
-        let zoom_speed             = 2.0;
-        let min_zoom               = 10.0;
-        let max_zoom               = 10000.0;
-        let scaled_down_zoom_speed = zoom_speed / 1000.0;
+        let zoom_speed               = 2.0;
+        let min_zoom                 = 10.0;
+        let max_zoom                 = 10000.0;
+        let scaled_down_zoom_speed   = zoom_speed / 1000.0;
         let _events = Self::start_navigator_events(
-            dom,
+            &dom,
             camera,
             min_zoom,
             max_zoom,
@@ -95,15 +96,15 @@ impl Navigator {
 
         let dom_clone = dom.clone();
         let zoom_callback = move |zoom:ZoomEvent| {
-                let point      = zoom.focus;
-                let normalized = normalize_point2(point, dom_clone.dimensions());
-                let normalized = normalized_to_range2(normalized, -1.0, 1.0);
+                let point       = zoom.focus;
+                let normalized  = normalize_point2(point, dom_clone.dimensions());
+                let normalized  = normalized_to_range2(normalized, -1.0, 1.0);
+                let half_height = 1.0;
 
                 // Scale X and Y to compensate aspect and fov.
                 let x            = -normalized.x * camera.screen().aspect();
                 let y            =  normalized.y;
-                let fovy_slope   = camera.half_fovy_slope();
-                let z            = 1.0 / fovy_slope;
+                let z            = half_height / camera.half_fovy_slope();
                 let direction    = Vector3::new(x, y, z).normalize();
                 let mut position = properties.spring().fixed_point;
                 let zoom_amount  = zoom.amount * position.z;

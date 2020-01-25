@@ -125,7 +125,7 @@ pub struct SceneData {
     pipeline        : RenderPipeline,
     composer        : RenderComposer,
     stats           : Stats,
-    uniform         : Uniform<f32>
+    zoom_uniform    : Uniform<f32>
 }
 
 impl {
@@ -133,7 +133,7 @@ impl {
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
     (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
-        let root  = DisplayObjectData::new(logger.clone());
+        let root            = DisplayObjectData::new(logger.clone());
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom).unwrap();
         let context         = web::get_webgl2_context(&canvas).unwrap();
@@ -145,9 +145,9 @@ impl {
         let sub_logger      = logger.sub("symbols");
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
-        let window = crate::system::web::window();
-        let inner_width = window.inner_width().unwrap().as_f64().unwrap() as f32;
-        let inner_height = window.inner_height().unwrap().as_f64().unwrap() as f32;
+        let window          = crate::system::web::window();
+        let inner_width     = window.inner_width().unwrap().as_f64().unwrap() as f32;
+        let inner_height    = window.inner_height().unwrap().as_f64().unwrap() as f32;
         let shape           = Shape::new(inner_width, inner_height);
         let shape_data      = shape.screen_shape();
         let width           = shape_data.width;
@@ -155,12 +155,12 @@ impl {
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
-        let uniform         = variables.add_or_panic("zoom", 1.0);
+        let zoom_uniform    = variables.add_or_panic("zoom", 1.0);
         let text_components = default();
         let on_resize       = default();
         let stats           = stats.clone();
-        let uniform_clone   = uniform.clone();
-        camera.add_zoom_update_callback(move |zoom| uniform_clone.set(zoom));
+        let uniform         = zoom_uniform.clone();
+        camera.add_zoom_update_callback(move |zoom| uniform.set(zoom));
         variables.add("pixel_ratio", shape.pixel_ratio());
 
         context.enable(Context::BLEND);
@@ -179,7 +179,7 @@ impl {
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
         Self {pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty,logger
-             ,listeners,variables,on_resize,text_components,stats,uniform}
+             ,listeners,variables,on_resize,text_components,stats,zoom_uniform}
     }
 
     pub fn context(&self) -> Context {

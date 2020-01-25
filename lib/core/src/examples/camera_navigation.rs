@@ -17,7 +17,7 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use logger::Logger;
 
-fn create_scene(logger:Logger, dim:Vector2<f32>) -> HtmlScene {
+fn create_scene(logger:&Logger, dim:Vector2<f32>) -> HtmlScene {
     let mut scene = HtmlScene::new(logger.clone());
 
     let width  = dim.x / 2.0;
@@ -61,7 +61,7 @@ pub fn run_example_camera_navigation() {
     renderer.container().dom.set_property_or_panic("background-color", "black");
 
     let dimensions = renderer.dimensions();
-    let scene = create_scene(logger.clone(), dimensions);
+    let scene = create_scene(&logger, dimensions);
 
     let mut camera = Camera2d::new(logger,dimensions.x,dimensions.y);
     camera.update();
@@ -75,7 +75,7 @@ pub fn run_example_camera_navigation() {
     let mut event_loop = EventLoop::new();
 
     let camera_clone = camera.clone();
-    let navigator  = Navigator::new(&mut event_loop, renderer.container(), camera_clone);
+    let navigator  = Navigator::new(&mut event_loop, "app", camera_clone);
     let navigator  = navigator.expect("Couldn't create navigator");
 
     let animator = ContinuousAnimator::new(&mut event_loop, move |_| {
