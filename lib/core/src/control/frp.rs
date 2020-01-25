@@ -22,42 +22,58 @@ pub struct Behavior<T> {
 
 
 
+macro_rules! alias {
+    ($name:ident = $($tok:tt)*) => {
+        pub trait $name: $($tok)* {}
+        impl<T:$($tok)*> $name for T {}
+    }
+}
+
+
+macro_rules! type_property {
+    ($name:ident) => { paste::item! {
+        pub trait [<Known $name>] {
+            type $name:Debug;
+        }
+
+        pub type [<$name Of>]<T> = <T as [<Known $name>]>::$name;
+    }}
+}
+
+
+
 // ============
 // === Node ===
 // ============
 
+type_property! {Input}
+type_property! {Output}
 
-pub trait HasOutput {
-    type Output:Debug;
-}
 
-pub trait HasInput {
-    type Input:Debug;
-}
 
 pub trait NodeOps {
 //    fn send_event()
 }
 
-pub trait OutNodeOps: HasOutput + NodeOps {
+pub trait OutNodeOps: KnownOutput + NodeOps {
     fn add_target(&self, target:InEventNode<Self::Output>);
 }
 
-pub trait IsInOutNode: HasInput + HasOutput + NodeOps {}
-impl<T:HasInput+HasOutput+NodeOps> IsInOutNode for T {}
-
-pub trait IsOutNode: HasOutput + OutNodeOps {}
-impl<T:HasOutput+OutNodeOps> IsOutNode for T {}
-
-pub trait IsInNode: HasInput + NodeOps {}
-impl<T:HasInput+NodeOps> IsInNode for T {}
+alias! { Input  = Debug }
+alias! { Output = Debug }
 
 
-pub trait IsInEventNode: HasInput + EventNodeOps {}
-impl<T:HasInput+EventNodeOps> IsInEventNode for T {}
+
+alias! { IsInOutNode   = KnownInput + KnownOutput + NodeOps }
+alias! { IsOutNode     = KnownOutput + OutNodeOps }
+alias! { IsInNode      = KnownInput + NodeOps }
+alias! { IsInEventNode = KnownInput + EventNodeOps }
 
 
-pub trait EventNodeOps: HasInput + NodeOps {
+
+
+
+pub trait EventNodeOps: KnownInput + NodeOps {
     fn handle_event(&self, input:&Self::Input);
 }
 
@@ -67,7 +83,7 @@ pub struct OutNode<Out> {
     raw: Rc<dyn IsOutNode<Output=Out>>,
 }
 
-impl<Out:Debug> OutNode<Out> {
+impl<Out:Output> OutNode<Out> {
     pub fn new<A:IsOutNode<Output=Out>+'static>(a:A) -> Self {
         let raw = Rc::new(a);
         Self {raw}
@@ -165,11 +181,11 @@ impl<T> {
     }
 }}
 
-impl<T:Debug> HasOutput for EventEmitterShape<T> {
+impl<T:Debug> KnownOutput for EventEmitterShape<T> {
     type Output = T;
 }
 
-impl<T> HasInput for EventEmitterShape<T> {
+impl<T> KnownInput for EventEmitterShape<T> {
     type Input = ();
 }
 
@@ -221,11 +237,11 @@ impl<A,T> {
 }}
 
 
-impl<A:Debug,T> HasInput for MapShape<A,T> {
+impl<A:Debug,T> KnownInput for MapShape<A,T> {
     type Input = A;
 }
 
-impl<A,T:Debug> HasOutput for MapShape<A,T> {
+impl<A,T:Debug> KnownOutput for MapShape<A,T> {
     type Output = T;
 }
 
@@ -282,7 +298,7 @@ impl<A:Debug,T:Debug> EventNodeOps for Map<A,T> {
 //}}
 //
 //
-//impl<A,B,T> HasOutput for Lambda2<A,B,T> {
+//impl<A,B,T> KnownOutput for Lambda2<A,B,T> {
 //    type Output = T;
 //}
 //
@@ -290,21 +306,21 @@ impl<A:Debug,T:Debug> EventNodeOps for Map<A,T> {
 
 
 #[derive(Clone)]
-pub struct NodeTemplate<T:HasOutput> {
+pub struct NodeTemplate<T:KnownOutput> {
     pub shape   : T,
-    pub targets : Rc<RefCell<Vec<InEventNode<  <T as HasOutput>::Output  >>>>
+    pub targets : Rc<RefCell<Vec<InEventNode<  <T as KnownOutput>::Output  >>>>
 }
 
-impl<T:HasInput+HasOutput> HasInput for NodeTemplate<T> {
-    type Input = <T as HasInput>::Input;
+impl<T:KnownInput+KnownOutput> KnownInput for NodeTemplate<T> {
+    type Input = <T as KnownInput>::Input;
 }
 
-impl<T:HasOutput> HasOutput for NodeTemplate<T> {
-    type Output = <T as HasOutput>::Output;
+impl<T:KnownOutput> KnownOutput for NodeTemplate<T> {
+    type Output = <T as KnownOutput>::Output;
 }
 
 
-impl<T:CloneRef+HasOutput> CloneRef for NodeTemplate<T> {
+impl<T:CloneRef+KnownOutput> CloneRef for NodeTemplate<T> {
     fn clone_ref(&self) -> Self {
         let shape   = self.shape.clone_ref();
         let targets = self.targets.clone();
@@ -313,8 +329,8 @@ impl<T:CloneRef+HasOutput> CloneRef for NodeTemplate<T> {
 }
 
 
-impl<T:HasOutput> NodeTemplate<T> {
-    pub fn emit_event(&self, event: &<T as HasOutput>::Output) {
+impl<T:KnownOutput> NodeTemplate<T> {
+    pub fn emit_event(&self, event: &<T as KnownOutput>::Output) {
         self.targets.borrow().iter().for_each(|target| {
             target.handle_event(event)
         })
@@ -322,14 +338,14 @@ impl<T:HasOutput> NodeTemplate<T> {
 }
 
 
-impl<T:HasOutput> OutNodeOps for NodeTemplate<T>
+impl<T:KnownOutput> OutNodeOps for NodeTemplate<T>
 where NodeTemplate<T>:NodeOps {
     fn add_target(&self, target:InEventNode<Self::Output>) {
         self.targets.borrow_mut().push(target);
     }
 }
 
-//impl<T:HasOutput> NodeOps for NodeTemplate<T> {
+//impl<T:KnownOutput> NodeOps for NodeTemplate<T> {
 //
 //}
 
