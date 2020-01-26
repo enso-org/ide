@@ -103,6 +103,7 @@ impl<T:Debug> KnownValue for Behavior<T> {
 
 
 
+
 pub trait EventNodeOps: KnownInput + NodeOps {
     fn handle_event(&self, input:&Self::Input);
 }
@@ -281,7 +282,9 @@ impl<In:Input,Out:Output> Lambda<In,Out> {
 
 impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
     fn handle_event(&self, input:&Self::Input) {
-        println!("GOT {:?}",input)
+        println!("GOT {:?}",input);
+        let output = (self.rc.borrow().shape.func)(input);
+        self.emit_event(&output);
     }
 }
 
@@ -405,7 +408,7 @@ pub fn test () {
     let e1: Source<Event<i32>> = Source::new();
 //
     let n1: Lambda<Event<i32>,Event<i32>> = Lambda::new(&e1, |Event(i)| { Event(i+1) });
-//    let n2 = Lambda::new(&e1, |i| {i+1});
+    let n2: Lambda<Event<i32>,Event<i32>> = Lambda::new(&n1, |Event(i)| { Event(i*2) });
 
 //    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 
