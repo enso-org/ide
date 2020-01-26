@@ -71,21 +71,21 @@ pub trait NodeOps {
 //    fn send_event()
 }
 
-pub trait OutNodeOps: KnownOutput + NodeOps {
-    fn add_target(&self, target:InEventNode<OutputOf<Self>>);
+pub trait OutEventNodeOps: KnownOutput + NodeOps {
+    fn add_event_target(&self, target:InEventNode<OutputOf<Self>>);
 }
 
 
 alias! { InputData = Debug + 'static }
 
 
-alias! { Input  = KnownValue + InputData }
-alias! { Output = Debug + KnownValue + 'static }
+alias! { Input  = KnownValue + KnownOutNodeStorage + InputData }
+alias! { Output = Debug + KnownValue + KnownOutNodeStorage + 'static }
 
 
 
 alias! { IsInOutNode   = KnownInput + KnownOutput + NodeOps }
-alias! { IsOutNode     = KnownOutput + OutNodeOps }
+alias! { IsOutEventNode     = KnownOutput + OutEventNodeOps }
 alias! { IsInNode      = KnownInput + NodeOps }
 alias! { IsInEventNode = KnownInput + EventNodeOps }
 
@@ -105,39 +105,69 @@ impl<T:Debug> KnownValue for Behavior<T> {
 }
 
 
-
-
-
 pub trait EventNodeOps: KnownInput + NodeOps {
     fn handle_event(&self, input:&Self::Input);
 }
 
 
-type_property! {OutNodeStorage}
+type_property! {OutNodeStorage:Clone}
+
+impl<Out> KnownOutNodeStorage for Event<Out> {
+    type OutNodeStorage = Rc<dyn IsOutEventNode<Output=Event<Out>>>;
+}
 
 
-#[derive(Shrinkwrap)]
-pub struct OutNode<Out> {
-    raw: Rc<dyn IsOutNode<Output=Out>>,
+impl<Out> KnownOutNodeStorage for Behavior<Out> {
+    type OutNodeStorage = Rc<dyn IsOutEventNode<Output=Behavior<Out>>>; // FIXME
+}
+
+
+impl<Out:Output> KnownOutput for OutNode<Out> { type Output = Out; }
+
+
+pub struct OutNode<Out:KnownOutNodeStorage> {
+    storage: OutNodeStorageOf<Out>,
 }
 
 impl<Out:Output> OutNode<Out> {
-    pub fn new<A:IsOutNode<Output=Out>+'static>(a:A) -> Self {
-        let raw = Rc::new(a);
-        Self {raw}
+    pub fn newx(storage:OutNodeStorageOf<Out>) -> Self {
+        Self {storage}
     }
 
     pub fn clone_ref(&self) -> Self {
-        let raw = self.raw.clone();
-        Self {raw}
+        let storage = self.storage.clone();
+        Self {storage}
     }
 }
 
-impl<A:IsOutNode<Output=Out>+CloneRef+'static,Out:Output> From<&A> for OutNode<Out> {
-    fn from(a:&A) -> Self {
-        Self::new(a.clone_ref())
+impl<Out:KnownOutNodeStorage> Deref for OutNode<Out> {
+    type Target = OutNodeStorageOf<Out>;
+    fn deref(&self) -> &Self::Target {
+        &self.storage
     }
 }
+
+//impl<A:IsOutEventNode<Output=Out>+CloneRef+'static,Out:Output> From<&A> for OutNode<Out> {
+//    fn from(a:&A) -> Self {
+//        Self::new(a.clone_ref())
+//    }
+//}
+
+impl<A:IsOutEventNode<Output=Behavior<Out>>+CloneRef+'static,Out:InputData> From<&A> for OutNode<Behavior<Out>> {
+    fn from(a:&A) -> Self {
+        Self::newx(Rc::new(a.clone_ref()))
+    }
+}
+
+
+impl<A:IsOutEventNode<Output=Event<Out>>+CloneRef+'static,Out:InputData> From<&A> for OutNode<Event<Out>> {
+    fn from(a:&A) -> Self {
+        Self::newx(Rc::new(a.clone_ref()))
+    }
+}
+
+
+
 
 
 #[derive(Shrinkwrap)]
@@ -157,11 +187,11 @@ impl<In:Input> InEventNode<In> {
     }
 }
 
-impl<A:IsInEventNode<Input=In>+CloneRef+'static,In:Input> From<&A> for InEventNode<In> {
-    fn from(a:&A) -> Self {
-        Self::new(a.clone_ref())
-    }
-}
+//impl<A:IsInEventNode<Input=In>+CloneRef+'static,In:Input> From<&A> for InEventNode<In> {
+//    fn from(a:&A) -> Self {
+//        Self::new(a.clone_ref())
+//    }
+//}
 
 
 
@@ -254,7 +284,7 @@ impl<Out:Output+KnownSourceStorage> Source<Out> {
 
 pub type Lambda<In,Out> = Node<LambdaShape<In,Out>>;
 
-pub struct LambdaShape<In,Out> {
+pub struct LambdaShape<In:Input,Out:Output> {
     source : OutNode<In>,
     func   : Rc<dyn Fn(&In) -> Out>,
 }
@@ -274,16 +304,17 @@ impl<In:Input,Out:Output> KnownOutput for LambdaShape<In,Out> { type Output = Ou
 
 impl<In:Input,Out:Output> NodeOps for Lambda<In,Out> {}
 
-impl<In:Input,Out:Output> Lambda<In,Out> {
-    pub fn new<F:'static + Fn(&In) -> Out, Source:Into<OutNode<In>>>
+impl<In:InputData,Out:Output> Lambda<Event<In>,Out> {
+    pub fn new<F:'static + Fn(&Event<In>) -> Out, Source:Into<OutNode<Event<In>>>>
     (source:Source, f:F) -> Self {
-        let source     = source.into();
-        let source_ref = source.clone_ref();
+        let source : OutNode<Event<In>>    = source.into();
+        let source_ref : OutNode<Event<In>> = source.clone_ref();
         let shape      = LambdaShape::new(source,f);
         let targets    = default();
         let this       = Self::construct(shape,targets);
-        source_ref.add_target((&this).into());
+        source_ref.add_event_target((&this).into());
         this
+//        todo!()
     }
 }
 
@@ -296,7 +327,11 @@ impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
 }
 
 
-
+impl<A:IsInEventNode<Input=In>+CloneRef+'static,In:Input> From<&A> for InEventNode<In> {
+    fn from(a:&A) -> Self {
+        Self::new(a.clone_ref())
+    }
+}
 
 // ==============
 // === Lambda2 ===
@@ -304,13 +339,13 @@ impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
 
 pub type Lambda2<In1,In2,Out> = Node<Lambda2Shape<In1,In2,Out>>;
 
-pub struct Lambda2Shape<In1,In2,Out> {
+pub struct Lambda2Shape<In1:Input,In2:Input,Out:Output> {
     source1 : OutNode<In1>,
     source2 : OutNode<In2>,
     func    : Rc<dyn Fn(&In1,&In2) -> Out>,
 }
 
-impl<In1:InputData,In2:InputData,Out:Output>
+impl<In1:Input,In2:Input,Out:Output>
 Lambda2Shape<In1,In2,Out> {
     pub fn new
     < F:'static + Fn(&In1,&In2) -> Out
@@ -355,7 +390,7 @@ impl<In1:InputData,In2:InputData,Out:Output> Lambda2<Event<In1>,Behavior<In2>,Ou
         let shape      = Lambda2Shape::new(source1,source2,f);
         let targets    = default();
         let this       = Self::construct(shape,targets);
-        source_ref.add_target((&this).into());
+        source_ref.add_event_target((&this).into());
         this
 //        todo!()
     }
@@ -434,10 +469,11 @@ impl<Shape:KnownOutput> Node<Shape> {
 }
 
 
+
 impl<Shape:KnownOutput>
-OutNodeOps for Node<Shape>
-where Node<Shape>:NodeOps, OutputOf<Self>:'static {
-    fn add_target(&self, target:InEventNode<OutputOf<Self>>) {
+OutEventNodeOps for Node<Shape>
+where Node<Shape>:NodeOps, OutputOf<Self>:'static, OutputOf<Shape>:Output {
+    fn add_event_target(&self, target:InEventNode<OutputOf<Self>>) {
         self.rc.borrow_mut().targets.push(target);
     }
 }
