@@ -306,31 +306,26 @@ impl<Out:InputData> OutBehaviorNodeOps for SourceData<Behavior<Out>> {
 
 
 
-trait Infer1<T> {
+pub trait Infer<T> {
     type Result;
 }
 
-impl<T,T1> Infer1<Event<T1>> for T {
-    type Result = Event<T>;
+impl<X,T> Infer<Event<T>> for X {
+    type Result = Event<X>;
 }
 
-impl<T,T1> Infer1<Behavior<T1>> for T {
-    type Result = Behavior<T>;
+impl<X,T> Infer<Behavior<T>> for X {
+    type Result = Behavior<X>;
 }
 
-type Infered1<T,T1> = <T as Infer1<T1>>::Result;
-
-
-trait Infer2<T,S> {
-    type Result;
-}
+pub type Inferred<T,X> = <X as Infer<T>>::Result;
 
 
 
-impl<T,T1,T2> Infer2 < Event    <T1> , Event    <T2> > for T { type Result = Event<T>; }
-impl<T,T1,T2> Infer2 < Behavior <T1> , Event    <T2> > for T { type Result = Event<T>; }
-impl<T,T1,T2> Infer2 < Event    <T1> , Behavior <T2> > for T { type Result = Event<T>; }
-impl<T,T1,T2> Infer2 < Behavior <T1> , Behavior <T2> > for T { type Result = Behavior<T>; }
+impl<X,T1,T2> Infer <( Event    <T1> , Event    <T2> )> for X { type Result = Event    <X>; }
+impl<X,T1,T2> Infer <( Behavior <T1> , Event    <T2> )> for X { type Result = Event    <X>; }
+impl<X,T1,T2> Infer <( Event    <T1> , Behavior <T2> )> for X { type Result = Event    <X>; }
+impl<X,T1,T2> Infer <( Behavior <T1> , Behavior <T2> )> for X { type Result = Behavior <X>; }
 
 
 //
@@ -371,6 +366,15 @@ impl<In:Input,Out:Output> LambdaShape<In,Out> {
 }
 
 
+
+
+
+
+
+
+
+
+
 impl<In:Input,Out:Output> KnownInput  for LambdaShape<In,Out> { type Input  = In;  }
 impl<In:Input,Out:Output> KnownOutput for LambdaShape<In,Out> { type Output = Out; }
 
@@ -382,28 +386,17 @@ pub trait LambdaNew<Source,Func> {
     fn new(source:Source,f:Func) -> Self;
 }
 
-impl<In:InputData,Out:Output, Func:'static + Fn(&In) -> ValueOf<Out>, Source:Into<OutNode<Event<In>>>>
-LambdaNew<Source,Func> for Lambda<Event<In>,Out> {
-    fn new (source:Source, f:Func) -> Self {
-        let source : OutNode<Event<In>>    = source.into();
-        let source_ref : OutNode<Event<In>> = source.clone_ref();
-        let shape      = LambdaShape::new(source,f);
-        let targets    = default();
-        let this       = Self::construct(shape,targets);
-        source_ref.add_event_target((&this).into());
-        this
-    }
-}
 
-impl<In:InputData,Out:Output, Func:'static + Fn(&In) -> ValueOf<Out>, Source:Into<OutNode<Behavior<In>>>>
-LambdaNew<Source,Func> for Lambda<Behavior<In>,Out> {
+impl<In:Input,X:InputData+Infer<In>,Func:'static + Fn(&ValueOf<In>) -> X, Source:Into<OutNode<In>>>
+LambdaNew<Source,Func> for Lambda<In,Inferred<In,X>>
+where OutNode<In>:AddTarget<Self>, Inferred<In,X>:Output<Value=X> {
     fn new (source:Source, f:Func) -> Self {
-        let source : OutNode<Behavior<In>>    = source.into();
-        let source_ref : OutNode<Behavior<In>> = source.clone_ref();
+        let source     = source.into();
+        let source_ref = source.clone_ref();
         let shape      = LambdaShape::new(source,f);
         let targets    = default();
         let this       = Self::construct(shape,targets);
-        
+        source_ref.add_target(&this);
         this
     }
 }
@@ -411,17 +404,25 @@ LambdaNew<Source,Func> for Lambda<Behavior<In>,Out> {
 
 
 
-//impl<In:InputData,Out:Output> Lambda<Behavior<In>,Out> {
-//    pub fn new<F:'static + Fn(&Behavior<In>) -> Out, Source:Into<OutNode<Behavior<In>>>>
-//    (source:Source, f:F) -> Self {
-//        let source : OutNode<Behavior<In>>    = source.into();
-//        let source_ref : OutNode<Behavior<In>> = source.clone_ref();
-//        let shape      = LambdaShape::new(source,f);
-//        let targets    = default();
-//        let this       = Self::construct(shape,targets);
-//        this
-//    }
-//}
+
+pub trait AddTarget<T> {
+    fn add_target(&self,t:&T);
+}
+
+impl<S,T> AddTarget<S> for OutNode<Event<T>>
+where for<'t> &'t S : Into<InEventNode<Event<T>>> {
+    fn add_target(&self,t:&S) {
+        self.add_event_target(t.into())
+    }
+}
+
+impl<S,T> AddTarget<S> for OutNode<Behavior<T>> {
+    fn add_target(&self,t:&S) {}
+}
+
+
+
+
 
 impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
     fn handle_event(&self, input:&Self::Input) {
@@ -453,14 +454,14 @@ pub struct Lambda2Shape<In1:Input,In2:Input,Out:Output> {
 impl<In1:Input,In2:Input,Out:Output>
 Lambda2Shape<In1,In2,Out> {
     pub fn new
-    < F:'static + Fn(&ValueOf<In1>,&ValueOf<In2>) -> Out
+    < F:'static + Fn(&ValueOf<In1>,&ValueOf<In2>) -> ValueOf<Out>
     , Source1:Into<OutNode<In1>>
     , Source2:Into<OutNode<In2>>
     >
     (source1:Source1, source2:Source2, f:F) -> Self {
         let source1 = source1.into();
         let source2 = source2.into();
-        let func    = Rc::new(f);
+        let func    = Rc::new(move |a:&ValueOf<In1>,b:&ValueOf<In2>| { wrap_value(f(a,b)) });
         Self {source1,source2,func}
     }
 }
@@ -469,21 +470,23 @@ impl<In1:InputData,In2:InputData,Out:Output> KnownInput for Lambda2Shape<Event<I
 impl<In1:Input,In2:Input,Out:Output> KnownOutput for Lambda2Shape<In1,In2,Out> { type Output = Out; }
 impl<In1:Input,In2:Input,Out:Output> NodeOps for Lambda2<In1,In2,Out> { }
 
+
+
+
 impl<In1:InputData,In2:InputData,Out:InputData> Lambda2<Event<In1>,Behavior<In2>,Event<Out>> {
     pub fn new
     < F:'static + Fn(&In1,&In2) -> Out
-    , Source1: Into<OutNode<Event<In1>>>
-    , Source2: Into<OutNode<Behavior<In2>>>
+        , Source1: Into<OutNode<Event<In1>>>
+        , Source2: Into<OutNode<Behavior<In2>>>
     >
     (source1:Source1, source2:Source2, f:F) -> Self {
-        let f2         = move |a:&In1,b:&In2| { wrap_value(f(a,b)) };
         let source1    = source1.into();
         let source2    = source2.into();
         let source_ref = source1.clone_ref();
-        let shape      = Lambda2Shape::new(source1,source2,f2);
+        let shape      = Lambda2Shape::new(source1,source2,f);
         let targets    = default();
         let this       = Self::construct(shape,targets);
-        source_ref.add_event_target((&this).into());
+        source_ref.add_target(&this);
         this
     }
 }
@@ -606,7 +609,7 @@ pub fn test () {
     let e1: Source<Event<i32>> = Source::new();
 //
     let n1: Lambda<Event<i32>,Event<i32>> = Lambda::new(&e1, |i| { i+1 });
-    let n2: Lambda<Event<i32>,Event<i32>> = Lambda::new(&n1, |i| { i*2 });
+    let n2 = Lambda::new(&n1, |i| { i*2 });
 
     let n3: Lambda<Behavior<Position>,Behavior<Position>> = Lambda::new(&mouse_position, |t| { t.clone() });
 
