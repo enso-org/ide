@@ -13,9 +13,16 @@ pub struct SwitchData {
 #[derive(Clone,Copy,Debug)]
 pub struct Event<T>(T);
 
-
+#[derive(Clone,Debug,Default)]
 pub struct Behavior<T> {
-    phantom: PhantomData<T>,
+    rc: Rc<RefCell<T>>
+}
+
+impl<T> Behavior<T> {
+    pub fn new(t:T) -> Self {
+        let rc = Rc::new(RefCell::new(t));
+        Self {rc}
+    }
 }
 
 
@@ -29,9 +36,9 @@ macro_rules! alias {
 
 
 macro_rules! type_property {
-    ($name:ident) => { paste::item! {
+    ($name:ident $(:$($tok:tt)*)?) => { paste::item! {
         pub trait [<Known $name>] {
-            type $name:Debug;
+            type $name $(:$($tok)*)?;
         }
 
         pub type [<$name Of>]<T> = <T as [<Known $name>]>::$name;
@@ -46,7 +53,7 @@ macro_rules! type_property {
 
 //type_property! {Input}
 //type_property! {Output}
-type_property! {Value}
+type_property! {Value : Debug}
 
 
 pub trait KnownInput {
@@ -77,7 +84,6 @@ alias! { IsInOutNode   = KnownInput + KnownOutput + NodeOps }
 alias! { IsOutNode     = KnownOutput + OutNodeOps }
 alias! { IsInNode      = KnownInput + NodeOps }
 alias! { IsInEventNode = KnownInput + EventNodeOps }
-alias! { IsInEventNode2 = KnownInput + EventNodeOps + Clone }
 
 
 
@@ -87,6 +93,10 @@ impl KnownValue for () {
 
 
 impl<T:Debug> KnownValue for Event<T> {
+    type Value = T;
+}
+
+impl<T:Debug> KnownValue for Behavior<T> {
     type Value = T;
 }
 
@@ -184,41 +194,45 @@ pub struct AnyNode {
 
 
 
-// ====================
-// === Emitter ===
-// ====================
+// ===============
+// === Source ===
+// ===============
 
-shared! { EmitterShape
+type Source<Out> = Node<SourceData<Out>>;
 
-pub struct EmitterData<Out> {
-    callbacks: Vec<Rc<dyn Fn(Out)>>
+type_property! {SourceStorage:Default}
+
+impl<T> KnownSourceStorage for Event<T> {
+    type SourceStorage = ();
 }
 
-impl<Out> {
+impl<T:Default> KnownSourceStorage for Behavior<T> {
+    type SourceStorage = Behavior<T>;
+}
+
+
+
+#[derive(Derivative)]
+#[derivative(Default (bound="SourceStorageOf<Out>:Default"))]
+#[derivative(Debug   (bound="SourceStorageOf<Out>:Debug"))]
+pub struct SourceData<Out:KnownSourceStorage> {
+    storage: SourceStorageOf<Out>
+}
+
+impl<Out:KnownSourceStorage> SourceData<Out>{
     pub fn new() -> Self {
-        let callbacks = default();
-        Self {callbacks}
+        default()
     }
-}}
-
-impl<Out:Output> KnownOutput for EmitterShape<Out> {
-    type Output = Out;
 }
 
-impl<Out> KnownInput for EmitterShape<Out> {
-    type Input = ();
-}
+impl<Out:Output+KnownSourceStorage> KnownInput  for SourceData<Out> { type Input  = ();  }
+impl<Out:Output+KnownSourceStorage> KnownOutput for SourceData<Out> { type Output = Out; }
 
-impl<Out:Output> NodeOps for Emitter<Out> {}
+impl<Out:Output+KnownSourceStorage> NodeOps for Source<Out> {}
 
-
-
-type Emitter<Out> = NodeTemplate<EmitterShape<Out>>;
-
-
-impl<Out:Output> Emitter<Out> {
+impl<Out:Output+KnownSourceStorage> Source<Out> {
     pub fn new() -> Self {
-        let shape   = EmitterShape::new();
+        let shape   = SourceData::new();
         let targets = default();
         Self::construct(shape,targets)
     }
@@ -226,59 +240,46 @@ impl<Out:Output> Emitter<Out> {
 
 
 
-// ===============
-// === Map ===
-// ===============
+// ==============
+// === Lambda ===
+// ==============
 
-shared! { MapShape
+pub type Lambda<In,Out> = Node<LambdaShape<In,Out>>;
 
-pub struct MapShapeData<In,Out> {
+pub struct LambdaShape<In,Out> {
     source : OutNode<In>,
     func   : Rc<dyn Fn(&In) -> Out>,
 }
 
-impl<In,Out> {
+impl<In:Input,Out:Output> LambdaShape<In,Out> {
     pub fn new<F:'static + Fn(&In) -> Out, Source:Into<OutNode<In>>>
     (source:Source, f:F) -> Self {
         let source = source.into();
         let func   = Rc::new(f);
         Self {source,func}
     }
-}}
-
-
-impl<In:Input,Out:Output> KnownInput for MapShape<In,Out> {
-    type Input = In;
 }
 
-impl<In:Input,Out:Output> KnownOutput for MapShape<In,Out> {
-    type Output = Out;
-}
 
-impl<In:Input,Out:Output> NodeOps for Map<In,Out> {}
+impl<In:Input,Out:Output> KnownInput  for LambdaShape<In,Out> { type Input  = In;  }
+impl<In:Input,Out:Output> KnownOutput for LambdaShape<In,Out> { type Output = Out; }
 
+impl<In:Input,Out:Output> NodeOps for Lambda<In,Out> {}
 
-
-type Map<In,Out> = NodeTemplate<MapShape<In,Out>>;
-
-
-impl<In:Input,Out:Output> Map<In,Out> {
+impl<In:Input,Out:Output> Lambda<In,Out> {
     pub fn new<F:'static + Fn(&In) -> Out, Source:Into<OutNode<In>>>
     (source:Source, f:F) -> Self {
-        let source  = source.into();
+        let source     = source.into();
         let source_ref = source.clone_ref();
-        let shape   = MapShape::new(source,f);
-        let targets = default();
-        let this = Self::construct(shape,targets);
-        let foo: InEventNode<In> = (&this).into();
-//        ttt(this.clone_ref());
-//        let bar: impl IsInEventNode2 = this.clone_ref();
-        source_ref.add_target(foo);
+        let shape      = LambdaShape::new(source,f);
+        let targets    = default();
+        let this       = Self::construct(shape,targets);
+        source_ref.add_target((&this).into());
         this
     }
 }
 
-impl<In:Input,Out:Output> EventNodeOps for Map<In,Out> {
+impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
     fn handle_event(&self, input:&Self::Input) {
         println!("GOT {:?}",input)
     }
@@ -327,13 +328,13 @@ impl<Shape,Out> NodeTemplateData<Shape,Out> {
     }
 }
 
-pub struct NodeTemplateX<Shape,Out> {
+pub struct NodeTemplate<Shape,Out> {
     rc: Rc<RefCell<NodeTemplateData<Shape,Out>>>,
 }
 
-pub type NodeTemplate<Shape> = NodeTemplateX<Shape,OutputOf<Shape>>;
+pub type Node<Shape> = NodeTemplate<Shape,OutputOf<Shape>>;
 
-impl<Shape:KnownOutput> NodeTemplate<Shape> {
+impl<Shape:KnownOutput> Node<Shape> {
     pub fn construct(shape:Shape, targets:Vec<InEventNode<OutputOf<Shape>>>) -> Self {
         let data = NodeTemplateData::construct(shape,targets);
         let rc   = Rc::new(RefCell::new(data));
@@ -341,7 +342,7 @@ impl<Shape:KnownOutput> NodeTemplate<Shape> {
     }
 }
 
-impl<Shape:KnownOutput> NodeTemplate<Shape> {
+impl<Shape:KnownOutput> Node<Shape> {
     pub fn emit_event(&self, event:&OutputOf<Shape>) {
         self.rc.borrow().targets.iter().for_each(|target| {
             target.handle_event(event)
@@ -350,88 +351,61 @@ impl<Shape:KnownOutput> NodeTemplate<Shape> {
 }
 
 
-impl<Shape:KnownOutput> OutNodeOps for NodeTemplate<Shape>
-where NodeTemplate<Shape>:NodeOps, OutputOf<Self>:'static {
+impl<Shape:KnownOutput>
+OutNodeOps for Node<Shape>
+where Node<Shape>:NodeOps, OutputOf<Self>:'static {
     fn add_target(&self, target:InEventNode<OutputOf<Self>>) {
         self.rc.borrow_mut().targets.push(target);
     }
 }
 
 
-impl<Shape:KnownInput,Out> KnownInput for NodeTemplateX<Shape,Out> {
+impl<Shape:KnownInput,Out> KnownInput for NodeTemplate<Shape,Out> {
     type Input = InputOf<Shape>;
 }
 
-impl<Shape,Out:Output> KnownOutput for NodeTemplateX<Shape,Out> {
+impl<Shape,Out:Output> KnownOutput for NodeTemplate<Shape,Out> {
     type Output = Out;
 }
 
-impl<Shape,Out> Clone for NodeTemplateX<Shape,Out> {
+impl<Shape,Out> Clone for NodeTemplate<Shape,Out> {
     fn clone(&self) -> Self {
         let rc = self.rc.clone();
         Self {rc}
     }
 }
 
-impl<Shape,Out> CloneRef for NodeTemplateX<Shape,Out> {}
-
-
-//
-//#[derive(Clone)]
-//pub struct NodeTemplate<T:KnownOutput> {
-//    pub shape   : T,
-//    pub targets : Rc<RefCell<Vec<InEventNode<  OutputOf<T>  >>>>
-//}
-//
-//impl<T:KnownInput+KnownOutput> KnownInput for NodeTemplate<T> {
-//    type Input = <T as KnownInput>::Input;
-//}
-//
-//impl<T:KnownOutput> KnownOutput for NodeTemplate<T> {
-//    type Output = <T as KnownOutput>::Output;
-//}
-//
-//
-//impl<T:CloneRef+KnownOutput> CloneRef for NodeTemplate<T> {
-//    fn clone_ref(&self) -> Self {
-//        let shape   = self.shape.clone_ref();
-//        let targets = self.targets.clone();
-//        Self {shape,targets}
-//    }
-//}
-//
-//
-//impl<T:KnownOutput> NodeTemplate<T> {
-//    pub fn emit_event(&self, event:&OutputOf<T>) {
-//        self.targets.borrow().iter().for_each(|target| {
-//            target.handle_event(event)
-//        })
-//    }
-//}
-//
-//
-//impl<T:KnownOutput> OutNodeOps for NodeTemplate<T>
-//where NodeTemplate<T>:NodeOps {
-//    fn add_target(&self, target:InEventNode<OutputOf<Self>>) {
-//        self.targets.borrow_mut().push(target);
-//    }
-//}
-
-//impl<T:KnownOutput> NodeOps for NodeTemplate<T> {
-//
-//}
+impl<Shape,Out> CloneRef for NodeTemplate<Shape,Out> {}
 
 
 
 //////////////////////////////////////////////////////
 
+
+#[derive(Clone,Copy,Debug,Default)]
+pub struct Position {
+    x:i32,
+    y:i32,
+}
+
+impl Position {
+    pub fn new(x:i32, y:i32) -> Self {
+        Self {x,y}
+    }
+}
+
+
+
 pub fn test () {
     println!("\n\n\n--- FRP ---\n");
 
-    let e1: Emitter<Event<i32>> = Emitter::new();
+
+    let mouse_position : Source<Behavior<Position>> = Source::new();
+
+    let e1: Source<Event<i32>> = Source::new();
 //
-    let n1: Map<Event<i32>,Event<i32>> = Map::new(&e1, |Event(i)| { Event(i+1) });
-//    let n2 = Map::new(&e1, |i| {i+1});
+    let n1: Lambda<Event<i32>,Event<i32>> = Lambda::new(&e1, |Event(i)| { Event(i+1) });
+//    let n2 = Lambda::new(&e1, |i| {i+1});
 
 //    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 
