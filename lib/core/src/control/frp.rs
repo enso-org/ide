@@ -13,24 +13,15 @@ pub struct SwitchData {
 #[derive(Clone,Copy,Debug,Default)]
 pub struct Event<T>(T);
 
-#[derive(Clone,Debug,Default)]
-pub struct Behavior<T> {
-    rc: Rc<RefCell<T>>
-}
+#[derive(Clone,Copy,Debug,Default)]
+pub struct Behavior<T>(T);
 
-impl<T> Behavior<T> {
-    pub fn new(t:T) -> Self {
-        let rc = Rc::new(RefCell::new(t));
-        Self {rc}
-    }
-}
 
 impl<T:Clone> Behavior<T> {
     pub fn get(&self) -> T {
-        self.rc.borrow().clone()
+        self.0.clone()
     }
 }
-
 
 
 macro_rules! alias {
@@ -59,7 +50,25 @@ macro_rules! type_property {
 
 //type_property! {Input}
 //type_property! {Output}
-type_property! {Value : Debug}
+//type_property! {Value : Debug}
+
+
+
+pub trait KnownValue {
+    type Value : Debug;
+
+    fn wrap_value(t:Self::Value) -> Self;
+    fn value(&self) -> &Self::Value;
+}
+
+pub type ValueOf<T> = <T as KnownValue>::Value;
+
+
+pub fn wrap_value<T:KnownValue>(t:T::Value) -> T {
+    T::wrap_value(t)
+}
+
+
 
 
 pub trait KnownInput {
@@ -104,15 +113,21 @@ alias! { IsInEventNode = KnownInput + EventNodeOps }
 
 impl KnownValue for () {
     type Value = ();
+    fn wrap_value(t:()) -> Self { () }
+    fn value(&self) -> &() { self }
 }
 
 
 impl<T:Debug> KnownValue for Event<T> {
     type Value = T;
+    fn wrap_value(t:T) -> Self { Event(t) }
+    fn value(&self) -> &T { &self.0 }
 }
 
 impl<T:Debug> KnownValue for Behavior<T> {
     type Value = T;
+    fn wrap_value(t:T) -> Self { Behavior(t) }
+    fn value(&self) -> &T { &self.0 }
 }
 
 
@@ -141,7 +156,7 @@ pub struct OutNode<Out:KnownOutNodeStorage> {
 }
 
 impl<Out:Output> OutNode<Out> {
-    pub fn newx(storage:OutNodeStorageOf<Out>) -> Self {
+    pub fn new(storage:OutNodeStorageOf<Out>) -> Self {
         Self {storage}
     }
 
@@ -166,14 +181,14 @@ impl<Out:KnownOutNodeStorage> Deref for OutNode<Out> {
 
 impl<A:IsOutBehaviorNode<Output=Behavior<Out>>+CloneRef+'static,Out:InputData> From<&A> for OutNode<Behavior<Out>> {
     fn from(a:&A) -> Self {
-        Self::newx(Rc::new(a.clone_ref()))
+        Self::new(Rc::new(a.clone_ref()))
     }
 }
 
 
 impl<A:IsOutEventNode<Output=Event<Out>>+CloneRef+'static,Out:InputData> From<&A> for OutNode<Event<Out>> {
     fn from(a:&A) -> Self {
-        Self::newx(Rc::new(a.clone_ref()))
+        Self::new(Rc::new(a.clone_ref()))
     }
 }
 
@@ -197,12 +212,6 @@ impl<In:Input> InEventNode<In> {
         Self {raw}
     }
 }
-
-//impl<A:IsInEventNode<Input=In>+CloneRef+'static,In:Input> From<&A> for InEventNode<In> {
-//    fn from(a:&A) -> Self {
-//        Self::new(a.clone_ref())
-//    }
-//}
 
 
 
@@ -296,6 +305,51 @@ impl<Out:InputData> OutBehaviorNodeOps for SourceData<Behavior<Out>> {
 
 
 
+
+trait Infer1<T> {
+    type Result;
+}
+
+impl<T,T1> Infer1<Event<T1>> for T {
+    type Result = Event<T>;
+}
+
+impl<T,T1> Infer1<Behavior<T1>> for T {
+    type Result = Behavior<T>;
+}
+
+type Infered1<T,T1> = <T as Infer1<T1>>::Result;
+
+
+trait Infer2<T,S> {
+    type Result;
+}
+
+
+
+impl<T,T1,T2> Infer2 < Event    <T1> , Event    <T2> > for T { type Result = Event<T>; }
+impl<T,T1,T2> Infer2 < Behavior <T1> , Event    <T2> > for T { type Result = Event<T>; }
+impl<T,T1,T2> Infer2 < Event    <T1> , Behavior <T2> > for T { type Result = Event<T>; }
+impl<T,T1,T2> Infer2 < Behavior <T1> , Behavior <T2> > for T { type Result = Behavior<T>; }
+
+
+//
+//pub trait Wrapper {
+//    type Content;
+//    fn wrap(t:Self::Content) -> Self;
+//}
+//
+//pub type Wrapped<T> = <T as Wrapper>::Content;
+//
+//
+//pub fn wrap<T:Wrapper>(t:T::Content) -> T {
+//    T::wrap(t)
+//}
+
+
+
+
+
 // ==============
 // === Lambda ===
 // ==============
@@ -304,14 +358,14 @@ pub type Lambda<In,Out> = Node<LambdaShape<In,Out>>;
 
 pub struct LambdaShape<In:Input,Out:Output> {
     source : OutNode<In>,
-    func   : Rc<dyn Fn(&In) -> Out>,
+    func   : Rc<dyn Fn(&ValueOf<In>) -> Out>,
 }
 
 impl<In:Input,Out:Output> LambdaShape<In,Out> {
-    pub fn new<F:'static + Fn(&In) -> Out, Source:Into<OutNode<In>>>
+    pub fn new<F:'static + Fn(&ValueOf<In>) -> ValueOf<Out>, Source:Into<OutNode<In>>>
     (source:Source, f:F) -> Self {
         let source = source.into();
-        let func   = Rc::new(f);
+        let func   = Rc::new(move |t:&ValueOf<In>| {wrap_value(f(t))});
         Self {source,func}
     }
 }
@@ -325,12 +379,12 @@ impl<In:Input,Out:Output> NodeOps for Lambda<In,Out> {}
 
 
 pub trait LambdaNew<Source,Func> {
-    fn newx(source:Source,f:Func) -> Self;
+    fn new(source:Source,f:Func) -> Self;
 }
 
-impl<In:InputData,Out:Output, Func:'static + Fn(&Event<In>) -> Out, Source:Into<OutNode<Event<In>>>>
+impl<In:InputData,Out:Output, Func:'static + Fn(&In) -> ValueOf<Out>, Source:Into<OutNode<Event<In>>>>
 LambdaNew<Source,Func> for Lambda<Event<In>,Out> {
-    fn newx (source:Source, f:Func) -> Self {
+    fn new (source:Source, f:Func) -> Self {
         let source : OutNode<Event<In>>    = source.into();
         let source_ref : OutNode<Event<In>> = source.clone_ref();
         let shape      = LambdaShape::new(source,f);
@@ -341,14 +395,15 @@ LambdaNew<Source,Func> for Lambda<Event<In>,Out> {
     }
 }
 
-impl<In:InputData,Out:Output, Func:'static + Fn(&Behavior<In>) -> Out, Source:Into<OutNode<Behavior<In>>>>
+impl<In:InputData,Out:Output, Func:'static + Fn(&In) -> ValueOf<Out>, Source:Into<OutNode<Behavior<In>>>>
 LambdaNew<Source,Func> for Lambda<Behavior<In>,Out> {
-    fn newx (source:Source, f:Func) -> Self {
+    fn new (source:Source, f:Func) -> Self {
         let source : OutNode<Behavior<In>>    = source.into();
         let source_ref : OutNode<Behavior<In>> = source.clone_ref();
         let shape      = LambdaShape::new(source,f);
         let targets    = default();
         let this       = Self::construct(shape,targets);
+        
         this
     }
 }
@@ -371,7 +426,7 @@ LambdaNew<Source,Func> for Lambda<Behavior<In>,Out> {
 impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
     fn handle_event(&self, input:&Self::Input) {
         println!("GOT {:?}",input);
-        let output = (self.rc.borrow().shape.func)(input);
+        let output = (self.rc.borrow().shape.func)(input.value());
         self.emit_event(&output);
     }
 }
@@ -421,7 +476,7 @@ impl<In1:InputData,In2:InputData,Out:InputData> Lambda2<Event<In1>,Behavior<In2>
     , Source2: Into<OutNode<Behavior<In2>>>
     >
     (source1:Source1, source2:Source2, f:F) -> Self {
-        let f2         = move |a:&In1,b:&In2| { Event(f(a,b)) };
+        let f2         = move |a:&In1,b:&In2| { wrap_value(f(a,b)) };
         let source1    = source1.into();
         let source2    = source2.into();
         let source_ref = source1.clone_ref();
@@ -550,10 +605,10 @@ pub fn test () {
 
     let e1: Source<Event<i32>> = Source::new();
 //
-    let n1: Lambda<Event<i32>,Event<i32>> = Lambda::newx(&e1, |Event(i)| { Event(i+1) });
-    let n2: Lambda<Event<i32>,Event<i32>> = Lambda::newx(&n1, |Event(i)| { Event(i*2) });
+    let n1: Lambda<Event<i32>,Event<i32>> = Lambda::new(&e1, |i| { i+1 });
+    let n2: Lambda<Event<i32>,Event<i32>> = Lambda::new(&n1, |i| { i*2 });
 
-    let n3: Lambda<Behavior<Position>,Behavior<Position>> = Lambda::newx(&mouse_position, |t| { t.clone() });
+    let n3: Lambda<Behavior<Position>,Behavior<Position>> = Lambda::new(&mouse_position, |t| { t.clone() });
 
 
     let n3 = Lambda2::new(&n1,&mouse_position, |e,b| { e.clone() });
