@@ -7,15 +7,16 @@ use crate::display::shape::glyph::font::FontRenderInfo;
 use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::pen::PenIterator;
 use crate::display::shape::glyph::msdf::MsdfTexture;
+use crate::display::symbol::geometry::compound::sprite::alignment::BOTTOM;
+use crate::display::symbol::geometry::compound::sprite::alignment::LEFT;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::display::world::*;
-use crate::system::gpu::data::texture::*;
+use crate::system::gpu::texture::*;
 use crate::system::gpu::types::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-
 
 
 // =============
@@ -26,9 +27,9 @@ use nalgebra::Vector4;
 /// underlying sprite.
 #[derive(Shrinkwrap)]
 pub struct Glyph {
-    context         : Context,
     #[shrinkwrap(main_field)]
     sprite          : Sprite,
+    context         : Context,
     msdf_index_attr : Attribute<f32>,
     color_attr      : Attribute<Vector4<f32>>,
     font_id         : FontId,
@@ -102,13 +103,9 @@ impl Line {
             let glyph_info = font.get_glyph_info(ch);
             let size       = glyph_info.scale.scale(self.height);
             let offset     = glyph_info.offset.scale(self.height);
-            // Pen position is on bottom-left corner of glyph, but sprites are positioned by its
-            // center.
-            let offset     = offset + size.scale(0.5);
-            let offset3d   = offset.insert_row(2, 0.0);
             glyph.set_glyph(ch,fonts);
             glyph.color().set(self.base_color);
-            glyph.mod_position(|pos| { *pos += offset3d; });
+            glyph.mod_position(|pos| { *pos += Vector3::new(offset.x,offset.y,0.0); });
             glyph.size().set(size);
         }
     }
@@ -143,6 +140,7 @@ impl GlyphSystem {
         let mesh          = symbol.surface();
 
         sprite_system.set_material(Self::material());
+        sprite_system.alignment().set(Vector2::new(LEFT,BOTTOM));
         scene.variables().add("msdf_range",FontRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables().add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font_id,
@@ -174,10 +172,10 @@ impl GlyphSystem {
     /// For details, see also `Line` structure documentation.
     pub fn new_empty_line
     ( &mut self
-        , baseline_start : Vector2<f32>
-        , height         : f32
-        , length         : usize
-        , color          : Vector4<f32>) -> Line {
+    , baseline_start : Vector2<f32>
+    , height         : f32
+    , length         : usize
+    , color          : Vector4<f32>) -> Line {
         let glyphs     = (0..length).map(|_| self.new_glyph()).collect();
         let base_color = color;
         let font_id    = self.font_id;
@@ -189,11 +187,11 @@ impl GlyphSystem {
     /// For details, see also `Line` structure documentation.
     pub fn new_line
     ( &mut self
-        , baseline_start : Vector2<f32>
-        , height         : f32
-        , text           : &str
-        , color          : Vector4<f32>
-        , fonts          : &mut FontRegistry) -> Line {
+    , baseline_start : Vector2<f32>
+    , height         : f32
+    , text           : &str
+    , color          : Vector4<f32>
+    , fonts          : &mut FontRegistry) -> Line {
         let length   = text.chars().count();
         let mut line = self.new_empty_line(baseline_start,height,length,color);
         line.replace_text(text.chars(),fonts);
@@ -213,13 +211,13 @@ impl GlyphSystem {
     /// Defines a default material of this system.
     fn material() -> Material {
         let mut material = Material::new();
-        material.add_input("pixel_ratio"  , 1.0);
-        material.add_input("zoom"         , 1.0);
         material.add_input_def::<FloatSampler>("msdf_texture");
         material.add_input_def::<Vector2<f32>>("msdf_size");
-        material.add_input_def::<f32>("glyph_msdf_index");
-        material.add_input("msdf_range"   , FontRenderInfo::MSDF_PARAMS.range as f32);
-        material.add_input("color"        , Vector4::new(1.0,1.0,1.0,1.0));
+        material.add_input_def::<f32>         ("glyph_msdf_index");
+        material.add_input("pixel_ratio", 1.0);
+        material.add_input("zoom"       , 1.0);
+        material.add_input("msdf_range" , FontRenderInfo::MSDF_PARAMS.range as f32);
+        material.add_input("color"      , Vector4::new(1.0,1.0,1.0,1.0));
 
         let code = CodeTemplate::new(BEFORE_MAIN.to_string(),MAIN.to_string(),"".to_string());
         material.set_code(code);

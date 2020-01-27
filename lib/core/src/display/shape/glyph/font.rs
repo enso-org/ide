@@ -36,11 +36,11 @@ pub struct GlyphRenderInfo {
     /// MsdfTexture documentation.
     pub msdf_texture_glyph_id: usize,
     /// A required offset of the _base square_ see structure documentation for details.
-    pub offset               : Vector2<f32>,
+    pub offset: Vector2<f32>,
     /// A required scale of the _base square_ see structure documentation for details.
-    pub scale                : Vector2<f32>,
-    /// An advance value. Advance is a font-rendering specific term.
-    pub advance              : f64
+    pub scale: Vector2<f32>,
+    /// An advance. Advance is the distance between two successive pen positions for specific glyph.
+    pub advance: f64
 }
 
 /// A single font data used for rendering

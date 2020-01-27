@@ -1,6 +1,6 @@
-//! The pen is a font-specific term (see
+//! The pen is a point on the text _baseline_ used to locate glyph. It moves along the _baseline_
+//! with each glyph rendered. For details, see
 //! [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
-//! and mainly it's required for proper glyphs positioning in line.
 
 use crate::prelude::*;
 

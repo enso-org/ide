@@ -93,6 +93,21 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
+/// Constants used for specyfing sprites' alignment. The horizontal and vertical alignment are
+/// defined separately, e.g. `Vector2::new(alignment::LEFT,alignment::BOTTOM)`.
+pub mod alignment {
+    /// Align sprite to center.
+    pub const CENTER : f32 = 0.5;
+    /// Align sprite to left.
+    pub const LEFT   : f32 = 0.0;
+    /// Align sprite to right.
+    pub const RIGHT  : f32 = 1.0;
+    /// Align sprite to top.
+    pub const TOP    : f32 = 1.0;
+    /// Align sprite to bottom.
+    pub const BOTTOM : f32 = 0.0;
+}
+
 shared! { SpriteSystem
 
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
@@ -105,27 +120,30 @@ pub struct SpriteSystemData {
     transform      : Buffer<Matrix4<f32>>,
     uv             : Buffer<Vector2<f32>>,
     size           : Buffer<Vector2<f32>>,
+    alignment      : Uniform<Vector2<f32>>,
     stats          : Stats,
 }
 
 impl {
     /// Constructor.
     pub fn new() -> Self {
-        let scene          = world::get_scene();
-        let stats          = scene.stats();
-        let logger         = Logger::new("SpriteSystem");
-        let display_object = DisplayObjectData::new(logger);
-        let symbol         = scene.new_symbol();
-        let mesh           = symbol.surface();
-        let point_scope    = mesh.point_scope();
-        let instance_scope = mesh.instance_scope();
-        let uv             = point_scope.add_buffer("uv");
-        let transform      = instance_scope.add_buffer("transform");
-        let size           = instance_scope.add_buffer("bounds");
+        let scene             = world::get_scene();
+        let stats             = scene.stats();
+        let logger            = Logger::new("SpriteSystem");
+        let display_object    = DisplayObjectData::new(logger);
+        let symbol            = scene.new_symbol();
+        let mesh              = symbol.surface();
+        let point_scope       = mesh.point_scope();
+        let instance_scope    = mesh.instance_scope();
+        let uv                = point_scope.add_buffer("uv");
+        let transform         = instance_scope.add_buffer("transform");
+        let size              = instance_scope.add_buffer("bounds");
+        let initial_alignment = Vector2::new(alignment::CENTER,alignment::CENTER);
+        let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
 
         stats.inc_sprite_system_count();
 
-        let this = Self {display_object,symbol,transform,uv,size,stats};
+        let this = Self {display_object,symbol,transform,uv,size,alignment,stats};
         this.init_attributes();
         this.init_shader();
         this.init_render();
@@ -146,6 +164,11 @@ impl {
     /// Accessor.
     pub fn symbol(&self) -> Symbol {
         self.symbol.clone_ref()
+    }
+
+    /// Alignment value accessor.
+    pub fn alignment(&self) -> Uniform<Vector2<f32>> {
+        self.alignment.clone_ref()
     }
 
     /// Run the renderer.
@@ -200,10 +223,11 @@ impl SpriteSystemData {
         material.add_input_def  :: <Vector2<f32>> ("uv");
         material.add_input_def  :: <Matrix4<f32>> ("transform");
         material.add_input_def  :: <Matrix4<f32>> ("view_projection");
+        material.add_input_def  :: <Vector2<f32>> ("alignment");
         material.add_output_def :: <Vector3<f32>> ("local");
         material.set_main("
                 mat4 model_view_projection = input_view_projection * input_transform;
-                input_local                = vec3((input_uv - 0.5) * input_bounds, 0.0);
+                input_local                = vec3((input_uv - input_alignment) * input_bounds, 0.0);
                 gl_Position                = model_view_projection * vec4(input_local,1.0);
                 ");
         material
