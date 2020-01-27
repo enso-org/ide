@@ -102,29 +102,13 @@ impl<T> Wrapper for Behavior<T> {
 }
 
 
+
 // ============
 // === Node ===
 // ============
 
-//type_property! {Input}
-//type_property! {Output}
-//type_property! {Value : Debug}
-
-pub trait KnownValue = Wrapper where <Self as Wrapper>::Content:Debug;
-
-//pub trait KnownValue: Foo {
-////    type Value : Debug;
-//
-//    fn wrap_value(t:Self::Content) -> Self;
-//    fn value(&self) -> &Self::Content;
-//}
-//
-pub type ValueOf<T> = <T as Wrapper>::Content;
-//
-//
-//pub fn wrap_value<T:KnownValue>(t:T::Content) -> T {
-//    T::wrap_value(t)
-//}
+pub trait KnownValue = Wrapper where Unwrap<Self>:Debug;
+pub type ValueOf<T> = Unwrap<T>;
 
 
 
@@ -641,9 +625,9 @@ pub fn test () {
     println!("\n\n\n--- FRP ---\n");
 
 
-    let mouse_position : Source<Behavior<Position>> = Source::new();
+    let mouse_position = Source::<Behavior<Position>>::new();
 
-    let e1: Source<Event<i32>> = Source::new();
+    let e1 = Source::<Event<i32>>::new();
 //
     let n1  = Lambda::new(&e1, |i| { i+1 });
     let nn1: OutNode<Event<i32>> = (&n1).into();
