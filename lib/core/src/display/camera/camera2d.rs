@@ -188,8 +188,23 @@ impl Camera2dData {
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
-        Self {transform,screen,projection,clipping,alignment,zoom,zoom_update_callback,native_z,
-              view_matrix,projection_matrix,view_projection_matrix,projection_dirty,transform_dirty}
+        let mut camera = Self {
+            transform,
+            screen,
+            projection,
+            clipping,
+            alignment,
+            zoom,
+            zoom_update_callback,
+            native_z,
+            view_matrix,
+            projection_matrix,
+            view_projection_matrix,
+            projection_dirty,
+            transform_dirty
+        };
+        camera.set_screen(width, height);
+        camera
     }
 
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&mut self, f:F) {
@@ -197,10 +212,24 @@ impl Camera2dData {
     }
 
     pub fn recompute_view_matrix(&mut self) {
-        // TODO: Handle all alignments.
-        let mut transform       = self.transform.matrix();
-        let div                 = 2.0;
-        let alignment_transform = Vector3::new(self.screen.width/div, self.screen.height/div, 0.0);
+        let mut transform = self.transform.matrix();
+        let x_offset      = match self.alignment.horizontal {
+            HorizontalAlignment::Left   => 0.0,
+            HorizontalAlignment::Center => 1.0,
+            HorizontalAlignment::Right  => 2.0
+        };
+        let y_offset = match self.alignment.vertical {
+            VerticalAlignment::Top    => 0.0,
+            VerticalAlignment::Center => 1.0,
+            VerticalAlignment::Bottom => 2.0
+        };
+
+        let div = 2.0;
+        let half_width  = self.screen.width  / div;
+        let half_height = self.screen.height / div;
+        let x_offset = x_offset * half_width;
+        let y_offset = y_offset * half_height;
+        let alignment_transform = Vector3::new(x_offset, y_offset, 0.0);
         transform.append_translation_mut(&alignment_transform);
         self.view_matrix = transform.try_inverse().unwrap()
     }

@@ -1,11 +1,10 @@
-#![allow(missing_docs)]
-
 mod events;
 
 use events::NavigatorEvents;
 use events::ZoomEvent;
 use events::PanEvent;
 use crate::display::camera::Camera2d;
+use crate::display::Scene;
 use crate::system::web::Result;
 use crate::system::web::dom::DomContainer;
 use crate::animation::physics::inertia::PhysicsSimulator;
@@ -13,33 +12,33 @@ use crate::animation::physics::inertia::SpringProperties;
 use crate::animation::physics::inertia::DragProperties;
 use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::KinematicsProperties;
-use crate::control::EventLoop;
+use crate::system::web::dyn_into;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
 use nalgebra::clamp;
 
 
-
 // =================
 // === Navigator ===
 // =================
 
-/// Navigator enables camera navigation with mouse interactions on the specified DOM.
+/// Navigator enables camera navigation with mouse interactions.
 pub struct Navigator {
-    _events    : NavigatorEvents,
-    _simulator : PhysicsSimulator,
+    _events     : NavigatorEvents,
+    _simulator  : PhysicsSimulator,
 }
 
 impl Navigator {
-    // FIXME: Create a simplified constructor with dom defaulted to window.
-    pub fn new<S:AsRef<str>>(event_loop:&mut EventLoop, dom_id:S, camera:Camera2d) -> Result<Self> {
-        let dom                      = DomContainer::from_id(dom_id.as_ref())?;
-        let (_simulator, properties) = Self::start_simulator(event_loop, camera.clone());
+    pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
+        let dom                      = dyn_into(scene.canvas())?;
+        let dom                      = DomContainer::from_element(dom);
+        let (_simulator, properties) = Self::start_simulator(camera.clone());
         let zoom_speed               = 2.0;
         let min_zoom                 = 10.0;
         let max_zoom                 = 10000.0;
         let scaled_down_zoom_speed   = zoom_speed / 1000.0;
+        let camera                   = camera.clone();
         let _events = Self::start_navigator_events(
             &dom,
             camera,
@@ -48,11 +47,10 @@ impl Navigator {
             scaled_down_zoom_speed,
             properties
         )?;
-        Ok(Self {_events,_simulator})
+        Ok(Self {_simulator,_events})
     }
 
-    fn start_simulator
-    (event_loop:&mut EventLoop, camera:Camera2d) -> (PhysicsSimulator, PhysicsProperties) {
+    fn start_simulator(camera:Camera2d) -> (PhysicsSimulator, PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.transform().position();
@@ -65,7 +63,7 @@ impl Navigator {
         let steps_per_second   = 60.0;
         let properties_clone   = properties.clone();
         let callback           = move |position| camera.set_position(position);
-        let sim = PhysicsSimulator::new(event_loop,steps_per_second,properties_clone,callback);
+        let sim = PhysicsSimulator::new(steps_per_second,properties_clone,callback);
         (sim,properties)
     }
 

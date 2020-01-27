@@ -24,25 +24,13 @@ pub fn run_example_sprite_system() {
 }
 
 fn init(world: &World) {
-    let mut event_loop = world.event_loop();
-    let camera         = world.scene().camera();
-    camera.update();
-
-    let screen = camera.screen();
-    let fovy_slope = camera.half_fovy_slope();
-    let x = 0.0;
-    let y = 0.0;
-    let z = screen.height / 2.0 / fovy_slope;
-    camera.set_position(Vector3::new(x, y, z));
-
-    let navigator = Navigator::new(&mut event_loop, "app", camera.clone());
-    let navigator = navigator.expect("Couldn't create navigator");
-    std::mem::forget(navigator);
-
+    let scene         = world.scene();
+    let camera        = scene.camera()  ;
+    let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
     let sprite_system = SpriteSystem::new();
-    let sprite1 = sprite_system.new_instance();
+    let sprite1       = sprite_system.new_instance();
     sprite1.size().set(Vector2::new(10.0, 10.0));
-    sprite1.mod_position(|t| *t = Vector3::new(10.0, 10.0, 0.0));
+    sprite1.mod_position(|t| *t = Vector3::new(5.0, 5.0, 0.0));
 
     world.add_child(&sprite_system);
 
@@ -55,6 +43,7 @@ fn init(world: &World) {
 
     let mut iter:i32 = 0;
     world.on_frame(move |time_ms| {
+        let _keep_alive = &navigator;
         on_frame(&camera, time_ms,&mut iter,&sprite1,&mut sprites,&sprite_system)
     }).forget();
 }

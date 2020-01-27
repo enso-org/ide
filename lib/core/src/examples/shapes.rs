@@ -25,17 +25,11 @@ pub fn run_example_shapes() {
 }
 
 fn init(world: &World) {
-    let mut event_loop = world.event_loop();
-    let camera         = world.scene().camera();
-    camera.update();
+    let scene  = world.scene();
+    let camera = scene.camera();
     let screen = camera.screen();
-    let fovy_slope = camera.half_fovy_slope();
-    let x = 0.0;
-    let y = 0.0;
-    let z = screen.height / 2.0 / fovy_slope;
-    camera.set_position(Vector3::new(x, y, z));
 
-    let navigator = Navigator::new(&mut event_loop, "app", camera);
+    let navigator = Navigator::new(&scene, &camera);
     let navigator = navigator.expect("Couldn't create navigator");
 
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");

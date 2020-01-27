@@ -6,7 +6,7 @@ use crate::display::world::World;
 use crate::display::world::WorldData;
 use crate::data::dirty::traits::*;
 
-use nalgebra::{Point2, Vector3};
+use nalgebra::Point2;
 use nalgebra::Vector2;
 use crate::display::shape::text::content::TextLocation;
 use crate::display::shape::text::content::TextChange;
@@ -23,22 +23,10 @@ pub fn run_example_text() {
     forward_panic_hook_to_console();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world_ref = WorldData::new("canvas");
-
-        let mut event_loop = world_ref.event_loop();
-        let camera         = world_ref.scene().camera();
-        camera.update();
-
-        let screen = camera.screen();
-        let fovy_slope = camera.half_fovy_slope();
-        let x = 0.0;
-        let y = 0.0;
-        let z = screen.height / 2.0 / fovy_slope;
-        camera.set_position(Vector3::new(x, y, z));
-
-        let navigator = Navigator::new(&mut event_loop, "app", camera);
+        let scene     = world_ref.scene();
+        let camera    = scene.camera();
+        let navigator = Navigator::new(&scene, &camera);
         let navigator = navigator.expect("Couldn't create navigator");
-        std::mem::forget(navigator);
-
         {
             let world: &mut WorldData = &mut world_ref.rc.borrow_mut();
             let scene = &mut world.scene;
@@ -68,6 +56,7 @@ pub fn run_example_text() {
         let mut chars       = typed_character_list(animation_start,include_str!("../lib.rs"));
         let w = world_ref.clone_ref();
         world_ref.on_frame(move |_| {
+            let _keep_alive = &navigator;
             animate_text_component(&w,&mut chars,start_scrolling)
         }).forget();
     });

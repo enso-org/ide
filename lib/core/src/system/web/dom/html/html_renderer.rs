@@ -37,8 +37,6 @@ mod js {
         pub fn setup_camera_perspective
         ( dom          : &JsValue
         , near         : &JsValue
-        , half_width   : &JsValue
-        , half_height  : &JsValue
         , matrix_array : &JsValue
         );
     }
@@ -68,7 +66,7 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
 }
 
 fn setup_camera_perspective
-(dom:&JsValue, near:f32, half_width:f32, half_height:f32, matrix:&Matrix4<f32>) { // Views to WASM memory are only valid as long the backing buffer isn't
+(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) { // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
@@ -76,8 +74,6 @@ fn setup_camera_perspective
         js::setup_camera_perspective(
             &dom,
             &near.into(),
-            &half_width.into(),
-            &half_height.into(),
             &matrix_array
         )
     }
@@ -184,8 +180,6 @@ impl HtmlRenderer {
                 setup_camera_perspective(
                     &self.data.camera,
                     near,
-                    half_dim.x,
-                    half_dim.y,
                     &trans_cam
                 );
             },

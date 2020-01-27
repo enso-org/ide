@@ -182,6 +182,10 @@ impl {
              ,listeners,variables,on_resize,text_components,stats,zoom_uniform}
     }
 
+    pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
+        self.canvas.clone()
+    }
+
     pub fn context(&self) -> Context {
         self.context.clone()
     }
