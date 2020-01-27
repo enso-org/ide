@@ -220,10 +220,10 @@ TextureOps for P {
     }
 
     fn get_format(&self) -> AnyFormat {
-        self.with_content(|this| { <Texture<S,I,T>>::format() })
+        self.with_content(|_| { <Texture<S,I,T>>::format() })
     }
 
     fn get_item_type(&self) -> AnyItemType {
-        self.with_content(|this| { <Texture<S,I,T>>::item_type() })
+        self.with_content(|_| { <Texture<S,I,T>>::item_type() })
     }
 }

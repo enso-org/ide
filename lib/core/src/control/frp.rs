@@ -17,15 +17,6 @@ macro_rules! alias {
     )*}
 }
 
-macro_rules! type_property {
-    ($name:ident $(:$($tok:tt)*)?) => { paste::item! {
-        pub trait [<Known $name>] {
-            type $name $(:$($tok)*)?;
-        }
-        pub type $name<T> = <T as [<Known $name>]>::$name;
-    }}
-}
-
 
 
 // ===============
@@ -113,7 +104,7 @@ impl<T:Clone> BehaviorMessage<T> {
 
 impl Wrapper for () {
     type Content = ();
-    fn wrap   (t:())  -> Self {}
+    fn wrap   (_:())  -> Self {}
     fn unwrap (&self) -> &()  { self }
 }
 
@@ -290,7 +281,7 @@ impl<S,T> AddTarget<S> for Node<EventMessage<T>>
 }
 
 impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
-    fn add_target(&self,t:&S) {}
+    fn add_target(&self,_:&S) {}
 }
 
 
@@ -731,6 +722,7 @@ impl Position {
 // === Test ===
 // ============
 
+#[allow(unused_variables)]
 pub fn test () {
     println!("\n\n\n--- FRP ---\n");
 
@@ -743,10 +735,11 @@ pub fn test () {
     let nn1: Event<i32> = (&n1).into();
     let n2 = Lambda::new(&nn1, |i| { i*2 });
 
-    let n3: Lambda<BehaviorMessage<Position>, BehaviorMessage<Position>> = Lambda::new(&mouse_position, |t| { t.clone() });
+    let n3: Lambda<BehaviorMessage<Position>, BehaviorMessage<Position>> =
+        Lambda::new(&mouse_position, |t| { *t });
 
 
-    let n3 = Lambda2::new(&n1,&mouse_position, |e,b| { e.clone() });
+    let n3 = Lambda2::new(&n1,&mouse_position, |e,b| { *e });
 
 //    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 

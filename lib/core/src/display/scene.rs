@@ -22,9 +22,7 @@ use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::display::object::DisplayObjectOps;
 
-use web_sys::MouseEvent;
 use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
 use crate::control::io::mouse2::MouseManager;

@@ -95,7 +95,6 @@ shared! { SpriteSystem
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 #[derive(Debug)]
 pub struct SpriteSystemData {
-//    display_object : DisplayObjectData,
     symbol         : Symbol,
     transform      : Buffer<Matrix4<f32>>,
     uv             : Buffer<Vector2<f32>>,
@@ -108,8 +107,6 @@ impl {
     pub fn new() -> Self {
         let scene          = world::get_scene();
         let stats          = scene.stats();
-        let logger         = Logger::new("SpriteSystem");
-//        let display_object = DisplayObjectData::new(logger);
         let symbol         = scene.new_symbol();
         let mesh           = symbol.surface();
         let point_scope    = mesh.point_scope();
@@ -120,10 +117,9 @@ impl {
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,stats};//display_object
+        let this = Self {symbol,transform,uv,size,stats};
         this.init_attributes();
         this.init_shader();
-        this.init_render();
         this
     }
 
@@ -182,11 +178,6 @@ impl SpriteSystemData {
         let geometry_material = Self::geometry_material();
         shader.set_geometry_material (&geometry_material);
         shader.set_material          (&surface_material);
-    }
-
-    fn init_render(&self) {
-//        let symbol = self.symbol.clone_ref();
-//        self.display_object.set_on_render(move || {symbol.render()});
     }
 
     fn geometry_material() -> Material {

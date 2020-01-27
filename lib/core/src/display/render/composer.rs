@@ -117,7 +117,7 @@ impl ComposerPass {
     /// WebGL has to be informed to what attachments it is allowed to draw. This function enables
     /// every attachment bound to an output.
     fn initialize_draw_buffers(&mut self) {
-        if self.outputs.len() > 0 {
+        if !self.outputs.is_empty() {
             let draw_buffers = Array::new();
             self.outputs.iter().enumerate().for_each(|(i, _)| {
                 let attachment_point = Context::COLOR_ATTACHMENT0 + i as u32;

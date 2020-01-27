@@ -6,7 +6,6 @@ use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 use crate::system::js::*;
 
-use js_sys::ArrayBuffer;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlSync;
 use web_sys::WebGlFramebuffer;
@@ -71,6 +70,9 @@ impl<T:JsTypedArrayItem> PixelReadPass<T> {
         Self {data,sync,position,threshold,to_next_read,callback}
     }
 
+    /// Sets a callback which will be evaluated after a successful pixel read action. Please note
+    /// that it will not be evaluated after each run of this pass, as the read is performed in an
+    /// asynchronous fashion and can take longer than a single frame.
     pub fn set_callback<F:Fn(Vec<T>)+'static>(&mut self, f:F) {
         self.callback = Some(Rc::new(f));
     }

@@ -13,15 +13,21 @@ use std::fmt::Error;
 
 /// Abstraction for every type which can be an item of typed array in JavaScript.
 pub trait JsTypedArrayItem : Debug + Clone + Sized + 'static {
+    /// Internal JavaScript array type.
     type JsArrayType: JsTypedArrayOps<Item=Self>;
 }
 
 /// Abstraction for all operations on raw JavaScript typed arrays.
 pub trait JsTypedArrayOps : Debug + Clone {
+    /// Rust item type for a given JavaScript array type.
     type Item;
+    /// Constructs a new array with a given length.
     fn new_with_length(len:u32) -> Self;
+    /// Returns a JavaScripts `ArrayBuffer` view for this array.
     fn buffer(&self) -> js_sys::ArrayBuffer;
+    /// Converts the array to a vector.
     fn to_vec(&self) -> Vec<Self::Item>;
+    /// Views the array as JavaScript `Object`.
     fn to_object(&self) -> &js_sys::Object;
 }
 

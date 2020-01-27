@@ -49,9 +49,12 @@ impl<Pass:RenderPass> Add<Pass> for RenderPipeline {
 /// An output definition of a render pass. The output describes a format of framebuffer attachment,
 /// which will be the result of running the current pass.
 pub struct RenderPassOutput {
-    pub name            : String,
+    /// Name of the pass.
+    pub name : String,
+    /// Internal texture format of the pass framebuffer's attachment.
     pub internal_format : AnyInternalFormat,
-    pub item_type       : AnyItemType,
+    /// Item texture type of the pass framebuffer's attachment.
+    pub item_type : AnyItemType,
 }
 
 impl RenderPassOutput {

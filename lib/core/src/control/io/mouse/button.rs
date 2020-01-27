@@ -13,9 +13,12 @@ use crate::prelude::*;
 /// JS supports up to 5 mouse buttons currently:
 /// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
 #[derive(Debug,Clone,Copy)]
+#[allow(missing_docs)]
 pub enum Button {_0,_1,_2,_3,_4}
 
 impl Button {
+    /// Construct a button from the code point. Panics if the code is bigger than 4 or smaller
+    /// than 0.
     pub fn from_code(code:i16) -> Self {
         match code {
             0 => Self::_0,

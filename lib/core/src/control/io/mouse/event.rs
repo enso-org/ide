@@ -10,10 +10,11 @@ use crate::control::io::mouse::button::*;
 // =============
 
 macro_rules! define_events {
-    ( $( $name:ident ),* $(,)? ) => {$(
+    ( $( $js_event:ident :: $name:ident ),* $(,)? ) => {$(
         #[derive(Debug,Clone,From,Shrinkwrap)]
+        /// Mouse event wrapper.
         pub struct $name {
-            raw: web_sys::MouseEvent
+            raw: web_sys::$js_event
         }
         impl $name {
             /// Translation of the button property to Rust `Button` enum.
@@ -24,4 +25,9 @@ macro_rules! define_events {
     )*};
 }
 
-define_events!(OnDown,OnUp,OnMove,OnWheel);
+define_events! {
+    MouseEvent::OnDown,
+    MouseEvent::OnUp,
+    MouseEvent::OnMove,
+    WheelEvent::OnWheel,
+}
