@@ -71,8 +71,8 @@ pub fn unwrap<T:Wrapper>(t:&T) -> &T::Content {
 
 // === Definition ===
 
-pub type Event    <T> = OutNode<EventMessage<T>>;
-pub type Behavior <T> = OutNode<BehaviorMessage<T>>;
+pub type Event    <T> = Node<EventMessage<T>>;
+pub type Behavior <T> = Node<BehaviorMessage<T>>;
 
 #[derive(Clone,Copy,Debug,Default)]
 pub struct EventMessage<T>(T);
@@ -150,57 +150,42 @@ pub type Output<T> = <T as KnownOutput>::Output;
 
 
 
-pub trait OutEventNodeOps: KnownOutput {
-    fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
-}
 
-pub trait OutBehaviorNodeOps: KnownOutput {
+
+pub trait BehaviorConsumer: KnownOutput + Debug {
     fn current_value(&self) -> Value<Output<Self>>;
 }
 
 
 alias! { MessageValue = Clone + Debug + Default + 'static }
-alias! { Message      = MessageValue + DebugWrapper + KnownOutNodeStorage }
-
-alias! { IsOutEventNode    = KnownOutput + OutEventNodeOps + Debug }
-alias! { IsOutBehaviorNode = KnownOutput + OutBehaviorNodeOps + Debug }
-alias! { IsInNode          = KnownEventInput }
+alias! { Message      = MessageValue + DebugWrapper + KnownNodeStorage }
 
 
+type_property! {NodeStorage:Clone+Debug}
 
-
-
-
-
-
-
-
-
-type_property! {OutNodeStorage:Clone+Debug}
-
-impl KnownOutNodeStorage for () {
-    type OutNodeStorage = ();
+impl KnownNodeStorage for () {
+    type NodeStorage = ();
 }
 
-impl<Out> KnownOutNodeStorage for EventMessage<Out> {
-    type OutNodeStorage = Rc<dyn IsOutEventNode<Output=EventMessage<Out>>>;
+impl<Out> KnownNodeStorage for EventMessage<Out> {
+    type NodeStorage = Rc<dyn EventProducer<Output=EventMessage<Out>>>;
 }
 
 
-impl<Out> KnownOutNodeStorage for BehaviorMessage<Out> {
-    type OutNodeStorage = Rc<dyn IsOutBehaviorNode<Output=BehaviorMessage<Out>>>;
+impl<Out> KnownNodeStorage for BehaviorMessage<Out> {
+    type NodeStorage = Rc<dyn BehaviorConsumer<Output=BehaviorMessage<Out>>>;
 }
 
 
-impl<Out:Message> KnownOutput for OutNode<Out> { type Output = Out; }
+impl<Out:Message> KnownOutput for Node<Out> { type Output = Out; }
 
 #[derive(Debug)]
-pub struct OutNode<Out:KnownOutNodeStorage> {
-    storage: OutNodeStorageOf<Out>,
+pub struct Node<Out:KnownNodeStorage> {
+    storage: NodeStorageOf<Out>,
 }
 
-impl<Out:Message> OutNode<Out> {
-    pub fn new(storage:OutNodeStorageOf<Out>) -> Self {
+impl<Out:Message> Node<Out> {
+    pub fn new(storage:NodeStorageOf<Out>) -> Self {
         Self {storage}
     }
 
@@ -210,35 +195,30 @@ impl<Out:Message> OutNode<Out> {
     }
 }
 
-impl<Out:KnownOutNodeStorage> Deref for OutNode<Out> {
-    type Target = OutNodeStorageOf<Out>;
+impl<Out:KnownNodeStorage> Deref for Node<Out> {
+    type Target = NodeStorageOf<Out>;
     fn deref(&self) -> &Self::Target {
         &self.storage
     }
 }
 
-//impl<A:IsOutEventNode<Output=Out>+CloneRef+'static,Out:Message> From<&A> for OutNode<Out> {
-//    fn from(a:&A) -> Self {
-//        Self::new(a.clone_ref())
-//    }
-//}
 
-impl<A:IsOutBehaviorNode<Output=BehaviorMessage<Out>>+CloneRef+'static,Out:MessageValue> From<&A> for OutNode<BehaviorMessage<Out>> {
+impl<A:BehaviorConsumer<Output=BehaviorMessage<Out>>+CloneRef+'static,Out:MessageValue> From<&A> for Node<BehaviorMessage<Out>> {
     fn from(a:&A) -> Self {
         Self::new(Rc::new(a.clone_ref()))
     }
 }
 
 
-impl<A:IsOutEventNode<Output=EventMessage<Out>>+CloneRef+'static,Out:MessageValue> From<&A> for OutNode<EventMessage<Out>> {
+impl<A:EventProducer<Output=EventMessage<Out>>+CloneRef+'static,Out:MessageValue> From<&A> for Node<EventMessage<Out>> {
     fn from(a:&A) -> Self {
         Self::new(Rc::new(a.clone_ref()))
     }
 }
 
 
-impl<Out:KnownOutNodeStorage+Message> From<&OutNode<Out>> for OutNode<Out> {
-    fn from(t:&OutNode<Out>) -> Self {
+impl<Out:KnownNodeStorage+Message> From<&Node<Out>> for Node<Out> {
+    fn from(t:&Node<Out>) -> Self {
         t.clone_ref()
     }
 }
@@ -275,11 +255,24 @@ where T  : EventConsumer<EventInput=In> + Clone + 'static,
 
 
 
+// =====================
+// === EventProducer ===
+// =====================
+
+pub trait EventProducer: KnownOutput + Debug {
+    fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
+}
+
+
+
+
+
+
 // ===============
 // === Source ===
 // ===============
 
-type Source<Out> = Node<SourceData<Out>>;
+type Source<Out> = NodeWrapper<SourceData<Out>>;
 
 type_property! {SourceStorage:Default}
 
@@ -317,7 +310,7 @@ impl<Out:Message+KnownSourceStorage> Source<Out> {
     }
 }
 
-impl<Out:MessageValue> OutBehaviorNodeOps for SourceData<BehaviorMessage<Out>> {
+impl<Out:MessageValue> BehaviorConsumer for SourceData<BehaviorMessage<Out>> {
     fn current_value(&self) -> Out {
         self.storage.value()
     }
@@ -356,18 +349,18 @@ impl<X,T1,T2> Infer <(BehaviorMessage<T1>, BehaviorMessage<T2> )> for X { type R
 // === Lambda ===
 // ==============
 
-pub type Lambda<In,Out> = Node<LambdaShape<In,Out>>;
+pub type Lambda<In,Out> = NodeWrapper<LambdaShape<In,Out>>;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct LambdaShape<In:Message,Out:Message> {
-    source : OutNode<In>,
+    source : Node<In>,
     #[derivative(Debug="ignore")]
     func   : Rc<dyn Fn(&Value<In>) -> Out>,
 }
 
 impl<In:Message,Out:Message> LambdaShape<In,Out> {
-    pub fn new<F:'static + Fn(&Value<In>) -> Value<Out>, Source:Into<OutNode<In>>>
+    pub fn new<F:'static + Fn(&Value<In>) -> Value<Out>, Source:Into<Node<In>>>
     (source:Source, f:F) -> Self {
         let source = source.into();
         let func   = Rc::new(move |t:&Value<In>| {wrap(f(t))});
@@ -395,9 +388,9 @@ pub trait LambdaNew<Source,Func> {
 }
 
 
-impl<In:Message,X:Infer<In>,Func:'static + Fn(&Value<In>) -> X, Source:Into<OutNode<In>>>
+impl<In:Message,X:Infer<In>,Func:'static + Fn(&Value<In>) -> X, Source:Into<Node<In>>>
 LambdaNew<Source,Func> for Lambda<In,Inferred<In,X>>
-where OutNode<In>:AddTarget<Self>, Inferred<In,X>:Message<Content=X> {
+where Node<In>:AddTarget<Self>, Inferred<In,X>:Message<Content=X> {
     fn new (source:Source, f:Func) -> Self {
         let source     = source.into();
         let source_ref = source.clone_ref();
@@ -417,14 +410,14 @@ pub trait AddTarget<T> {
     fn add_target(&self,t:&T);
 }
 
-impl<S,T> AddTarget<S> for OutNode<EventMessage<T>>
+impl<S,T> AddTarget<S> for Node<EventMessage<T>>
 where for<'t> &'t S : Into<AnyEventConsumer<EventMessage<T>>> {
     fn add_target(&self,t:&S) {
         self.add_event_target(t.into())
     }
 }
 
-impl<S,T> AddTarget<S> for OutNode<BehaviorMessage<T>> {
+impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
     fn add_target(&self,t:&S) {}
 }
 
@@ -447,13 +440,13 @@ impl<In:Message,Out:Message> EventConsumer for Lambda<In,Out> {
 // === Lambda2 ===
 // ==============
 
-pub type Lambda2<In1,In2,Out> = Node<Lambda2Shape<In1,In2,Out>>;
+pub type Lambda2<In1,In2,Out> = NodeWrapper<Lambda2Shape<In1,In2,Out>>;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Lambda2Shape<In1:Message,In2:Message,Out:Message> {
-    source1 : OutNode<In1>,
-    source2 : OutNode<In2>,
+    source1 : Node<In1>,
+    source2 : Node<In2>,
     #[derivative(Debug="ignore")]
     func    : Rc<dyn Fn(&Value<In1>,&Value<In2>) -> Out>,
 }
@@ -462,8 +455,8 @@ impl<In1:Message,In2:Message,Out:Message>
 Lambda2Shape<In1,In2,Out> {
     pub fn new
     < F:'static + Fn(&Value<In1>,&Value<In2>) -> Value<Out>
-    , Source1:Into<OutNode<In1>>
-    , Source2:Into<OutNode<In2>>
+    , Source1:Into<Node<In1>>
+    , Source2:Into<Node<In2>>
     >
     (source1:Source1, source2:Source2, f:F) -> Self {
         let source1 = source1.into();
@@ -488,10 +481,10 @@ impl<In1:Message,In2:Message,X:Infer<(In1,In2)>,Source1,Source2,Function>
 Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),X>> where
     Inferred<(In1,In2),X> : Message<Content=X>,
     Function : 'static + Fn(&Value<In1>,&Value<In2>) -> X,
-    Source1  : Into<OutNode<In1>>,
-    Source2  : Into<OutNode<In2>>,
-    OutNode<In1>:AddTarget<Self>,
-    OutNode<In2>:AddTarget<Self>,
+    Source1  : Into<Node<In1>>,
+    Source2  : Into<Node<In2>>,
+    Node<In1>:AddTarget<Self>,
+    Node<In2>:AddTarget<Self>,
 {
     fn new (source1:Source1, source2:Source2, f:Function) -> Self {
         let source1     = source1.into();
@@ -522,33 +515,33 @@ impl<In1:MessageValue,In2:MessageValue,Out:Message> EventConsumer for Lambda2<Ev
 // ============
 
 #[derive(Debug)]
-pub struct NodeTemplateData<Shape,Out> {
+pub struct NodeWrapperTemplateData<Shape,Out> {
     shape   : Shape,
     targets : Vec<AnyEventConsumer<Out>>,
 }
 
-impl<Shape,Out> NodeTemplateData<Shape,Out> {
+impl<Shape,Out> NodeWrapperTemplateData<Shape,Out> {
     pub fn construct(shape:Shape, targets:Vec<AnyEventConsumer<Out>>) -> Self {
         Self {shape,targets}
     }
 }
 
 #[derive(Debug)]
-pub struct NodeTemplate<Shape,Out> {
-    rc: Rc<RefCell<NodeTemplateData<Shape,Out>>>,
+pub struct NodeWrapperTemplate<Shape,Out> {
+    rc: Rc<RefCell<NodeWrapperTemplateData<Shape,Out>>>,
 }
 
-pub type Node<Shape> = NodeTemplate<Shape,Output<Shape>>;
+pub type NodeWrapper<Shape> = NodeWrapperTemplate<Shape,Output<Shape>>;
 
-impl<Shape:KnownOutput> Node<Shape> {
+impl<Shape:KnownOutput> NodeWrapper<Shape> {
     pub fn construct(shape:Shape, targets:Vec<AnyEventConsumer<Output<Shape>>>) -> Self {
-        let data = NodeTemplateData::construct(shape,targets);
+        let data = NodeWrapperTemplateData::construct(shape,targets);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
 }
 
-impl<Shape:KnownOutput> Node<Shape> {
+impl<Shape:KnownOutput> NodeWrapper<Shape> {
     pub fn emit_event(&self, event:&Output<Shape>) {
         self.rc.borrow().targets.iter().for_each(|target| {
             target.on_event(event)
@@ -558,8 +551,8 @@ impl<Shape:KnownOutput> Node<Shape> {
 
 
 
-impl<Shape:KnownOutput>
-OutEventNodeOps for Node<Shape>
+impl<Shape:KnownOutput + Debug>
+EventProducer for NodeWrapper<Shape>
 where Output<Self>:'static, Output<Shape>:Message {
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>) {
         self.rc.borrow_mut().targets.push(target);
@@ -567,8 +560,8 @@ where Output<Self>:'static, Output<Shape>:Message {
 }
 
 
-impl<Shape:OutBehaviorNodeOps>
-OutBehaviorNodeOps for Node<Shape>
+impl<Shape:BehaviorConsumer + Debug>
+BehaviorConsumer for NodeWrapper<Shape>
 where Output<Shape>:Message {
     fn current_value(&self) -> Value<Output<Self>> {
         self.rc.borrow().shape.current_value()
@@ -577,23 +570,23 @@ where Output<Shape>:Message {
 
 
 
-impl<Shape:KnownEventInput,Out> KnownEventInput for NodeTemplate<Shape,Out>
+impl<Shape:KnownEventInput,Out> KnownEventInput for NodeWrapperTemplate<Shape,Out>
 where <<Shape as KnownEventInput>::EventInput as Wrapper>::Content : Debug {
     type EventInput = EventInput<Shape>;
 }
 
-impl<Shape,Out:Message> KnownOutput for NodeTemplate<Shape,Out> {
+impl<Shape,Out:Message> KnownOutput for NodeWrapperTemplate<Shape,Out> {
     type Output = Out;
 }
 
-impl<Shape,Out> Clone for NodeTemplate<Shape,Out> {
+impl<Shape,Out> Clone for NodeWrapperTemplate<Shape,Out> {
     fn clone(&self) -> Self {
         let rc = self.rc.clone();
         Self {rc}
     }
 }
 
-impl<Shape,Out> CloneRef for NodeTemplate<Shape,Out> {}
+impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 
 
 
@@ -616,7 +609,7 @@ impl Position {
 
 
 //
-//pub fn trace<Source:Into<OutNode<T>>,T:Input+Output>
+//pub fn trace<Source:Into<Node<T>>,T:Input+Output>
 //(source:Source) -> Lambda<T,T> {
 //    Lambda::new(source, |t| {t.clone()})
 //}
