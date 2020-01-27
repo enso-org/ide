@@ -49,8 +49,8 @@ pub enum VerticalAlignment {
     Bottom
 }
 
-impl Default for HorizontalAlignment { fn default() -> Self { Self::Center } }
-impl Default for VerticalAlignment   { fn default() -> Self { Self::Center } }
+impl Default for HorizontalAlignment { fn default() -> Self { Self::Left } }
+impl Default for VerticalAlignment   { fn default() -> Self { Self::Bottom } }
 impl Default for Alignment {
     fn default() -> Self {
         let horizontal = default();
@@ -213,22 +213,19 @@ impl Camera2dData {
 
     pub fn recompute_view_matrix(&mut self) {
         let mut transform = self.transform.matrix();
+        let half_width    = self.screen.width  / 2.0;
+        let half_height   = self.screen.height / 2.0;
         let x_offset      = match self.alignment.horizontal {
-            HorizontalAlignment::Left   => 0.0,
-            HorizontalAlignment::Center => 1.0,
-            HorizontalAlignment::Right  => 2.0
+            HorizontalAlignment::Left   =>  half_width,
+            HorizontalAlignment::Center =>  0.0,
+            HorizontalAlignment::Right  => -half_width
         };
         let y_offset = match self.alignment.vertical {
-            VerticalAlignment::Top    => 0.0,
-            VerticalAlignment::Center => 1.0,
-            VerticalAlignment::Bottom => 2.0
+            VerticalAlignment::Bottom =>  half_height,
+            VerticalAlignment::Center =>  0.0,
+            VerticalAlignment::Top    => -half_height
         };
 
-        let div = 2.0;
-        let half_width  = self.screen.width  / div;
-        let half_height = self.screen.height / div;
-        let x_offset = x_offset * half_width;
-        let y_offset = y_offset * half_height;
         let alignment_transform = Vector3::new(x_offset, y_offset, 0.0);
         transform.append_translation_mut(&alignment_transform);
         self.view_matrix = transform.try_inverse().unwrap()
