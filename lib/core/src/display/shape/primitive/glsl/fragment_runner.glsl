@@ -21,6 +21,3 @@ output_id = uvec4(input_symbol_id,input_instance_id,0,alpha_no_aa);
 output_id.r *= alpha_no_aa;
 output_id.g *= alpha_no_aa;
 output_id.b *= alpha_no_aa;
-
-
-// output_color = vec4(float(output_id.x)/255.0,float(output_id.y)/255.0,float(output_id.z)/255.0,1.0);

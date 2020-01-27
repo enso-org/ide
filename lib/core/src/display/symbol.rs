@@ -262,11 +262,11 @@ impl SymbolData {
     /// Create new instance with the provided on-dirty callback.
     pub fn new <OnMut:Fn()+Clone+'static>
     ( logger           : Logger
-      , context          : &Context
-      , stats            : &Stats
-      , id               : i32
-      , global_variables : &UniformScope
-      , on_mut           : OnMut
+    , context          : &Context
+    , stats            : &Stats
+    , id               : i32
+    , global_variables : &UniformScope
+    , on_mut           : OnMut
     ) -> Self {
         stats.inc_symbol_count();
         let init_logger = logger.clone();

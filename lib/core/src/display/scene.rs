@@ -65,10 +65,6 @@ impl Default for Shape {
 }
 
 impl Shape {
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-
     pub fn screen_shape(&self) -> ShapeData {
         self.rc.borrow().clone()
     }
@@ -88,6 +84,8 @@ impl Shape {
         self.rc.borrow().pixel_ratio
     }
 }
+
+impl CloneRef for Shape {}
 
 
 // === ShapeData ===
@@ -116,6 +114,10 @@ impl ShapeData {
 }
 
 
+
+// ======================
+// === Mouse Handling ===
+// ======================
 
 pub trait MouseEventFn      = Fn(JsValue) + 'static;
 pub type  MouseEventClosure = Closure<dyn Fn(JsValue)>;
@@ -319,12 +321,9 @@ impl {
             if is_not_background {
                 let symbol_id = mouse_hover_ids.x;
                 let symbol = self.symbols.index(symbol_id as usize);
-
                 symbol.dispatch(&DynEvent::new(()));
-
-
-                println!("{:?}",self.mouse.hover_ids.get());
-                // TODO: finish
+                // println!("{:?}",self.mouse.hover_ids.get());
+                // TODO: finish events sending, including OnOver and OnOut.
             }
         }
 
@@ -343,9 +342,6 @@ impl {
                 self.symbols.update();
                 self.symbols_dirty.unset_all();
             }
-            self.logger.info("Clearing the scene.");
-//            self.context.clear_color(0.0, 0.0, 0.0, 1.0);
-//            self.context.clear(Context::COLOR_BUFFER_BIT);
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.camera);
 

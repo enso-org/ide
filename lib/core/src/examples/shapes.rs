@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
-use crate::display::object::{DisplayObjectOps, DisplayObject};
+use crate::display::object::DisplayObject;
+use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::world::*;
