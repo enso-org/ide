@@ -1,4 +1,4 @@
-//! This module defines mouse event bindings.
+//! This module defines possible mouse events.
 
 use crate::prelude::*;
 

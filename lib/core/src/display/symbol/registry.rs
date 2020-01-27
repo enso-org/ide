@@ -91,7 +91,7 @@ impl {
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             for mesh_id in self.symbol_dirty.take().iter() {
-                self.symbols[*mesh_id].xupdate()
+                self.symbols[*mesh_id].update()
             }
             self.symbol_dirty.unset_all();
         })
@@ -109,16 +109,3 @@ impl {
 //        })
     }
 }}
-
-//impl Index<usize> for SymbolRegistry {
-//    type Output = Symbol;
-//    fn index(&self, ix:usize) -> &Self::Output {
-//        self.symbols.index(ix)
-//    }
-//}
-//
-//impl IndexMut<usize> for SymbolRegistry {
-//    fn index_mut(&mut self, ix:usize) -> &mut Self::Output {
-//        self.symbols.index_mut(ix)
-//    }
-//}

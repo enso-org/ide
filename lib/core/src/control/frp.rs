@@ -1,5 +1,6 @@
-#![allow(missing_docs)]
-
+//! This module implements an Functional Reactive Programming system. It is an advanced event
+//! handling framework which allows describing events and actions by creating declarative event
+//! flow diagrams.
 
 use crate::prelude::*;
 
@@ -78,9 +79,11 @@ pub trait ValueWrapper = Wrapper where Unwrap<Self>:Debug;
 
 // === Definition ===
 
+/// A newtype containing a value of an event.
 #[derive(Clone,Copy,Debug,Default)]
 pub struct EventMessage<T>(T);
 
+/// A newtype containing a value of a behavior.
 #[derive(Clone,Copy,Debug,Default)]
 pub struct BehaviorMessage<T>(T);
 
@@ -88,12 +91,14 @@ pub struct BehaviorMessage<T>(T);
 // === API ===
 
 impl<T:Clone> EventMessage<T> {
+    /// Get the unwrapped value of this message.
     pub fn value(&self) -> T {
         self.unwrap().clone()
     }
 }
 
 impl<T:Clone> BehaviorMessage<T> {
+    /// Get the unwrapped value of this message.
     pub fn value(&self) -> T {
         self.unwrap().clone()
     }
@@ -129,6 +134,7 @@ impl<T> Wrapper for BehaviorMessage<T> {
 /// Event input associated type. Please note that FRP nodes can have maximum one event input.
 /// In such a case this trait points to it.
 pub trait KnownEventInput {
+    /// The event input type.
     type EventInput : Message;
 }
 
@@ -138,6 +144,7 @@ pub type EventInput<T> = <T as KnownEventInput>::EventInput;
 
 /// Each FRP node has a single node, which type is described by this trait.
 pub trait KnownOutput {
+    /// The output type.
     type Output : Message;
 }
 
@@ -152,6 +159,7 @@ pub type Output<T> = <T as KnownOutput>::Output;
 
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
+    /// The node storage type.
     type NodeStorage: CloneRef + Debug;
 }
 
@@ -167,6 +175,8 @@ impl KnownNodeStorage for () {
 
 /// Event node operations.
 pub trait EventNodeStorage: KnownOutput + Debug {
+    /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
+    /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
 }
 
@@ -179,6 +189,7 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 
 /// Behavior node operations.
 pub trait BehaviorNodeStorage: KnownOutput + Debug {
+    /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
 
@@ -194,7 +205,14 @@ impl<Out> KnownNodeStorage for BehaviorMessage<Out> {
 
 // === Types ===
 
-pub type Event    <T> = Node<EventMessage<T>>;
+/// The type of any FRP node which produces event messages. Having a reference to a node is like
+/// having a reference to network endpoint which transmits messages of a given type. Thus, it is a
+/// nice mental simplification to think about it just like about an event (stream).
+pub type Event<T> = Node<EventMessage<T>>;
+
+/// The type of any FRP node which can be queried for behavior value. Having a reference to a node
+/// is like having a reference to network endpoint which transmits messages of a given type. Thus,
+/// it is a nice mental simplification to think about it just like about a behavior.
 pub type Behavior <T> = Node<BehaviorMessage<T>>;
 
 
@@ -269,7 +287,11 @@ where Storage : EventNodeStorage<Output=EventMessage<Out>> + Clone + 'static,
 
 // === AddTarget ===
 
+/// Abstraction for adding a target to a given node. Nodes which carry behaviors do not need to
+/// perform any operation here, while event streams want to register the nodes they want to send
+/// notifications to.
 pub trait AddTarget<T> {
+    /// Adds a node as a target of the current flow.
     fn add_target(&self,t:&T);
 }
 
@@ -423,6 +445,7 @@ where T  : EventConsumer<EventInput=In> + Clone + 'static,
 
 /// Message product type-level inference guidance.
 pub trait Infer<T> {
+    /// Inference results.
     type Result;
 }
 
@@ -483,7 +506,11 @@ inference_rules! {
 pub type SourceStorage<T> = <T as KnownSourceStorage>::SourceStorage;
 
 /// Internal source storage type.
-pub trait       KnownSourceStorage { type SourceStorage : Default; }
+pub trait KnownSourceStorage {
+    /// The result type.
+    type SourceStorage : Default;
+}
+
 impl<T>         KnownSourceStorage for EventMessage   <T> {type SourceStorage = ();}
 impl<T:Default> KnownSourceStorage for BehaviorMessage<T> {type SourceStorage = BehaviorMessage<T>;}
 
@@ -549,7 +576,9 @@ impl<In:Message,Out:Message> KnownOutput     for LambdaShape<In,Out> { type Outp
 
 // === Constructor ===
 
+/// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait LambdaNew<Source,Func> {
+    /// Constructor.
     fn new(source:Source,f:Func) -> Self;
 }
 
@@ -571,6 +600,7 @@ where In       : Message,
 }
 
 impl<In:Message,Out:Message> LambdaShape<In,Out> {
+    /// Constructor.
     pub fn new<Func,Source>(source:Source, f:Func) -> Self
     where Func   : 'static + Fn(&Value<In>) -> Value<Out>,
           Source : Into<Node<In>> {
@@ -611,6 +641,7 @@ pub struct Lambda2Shape<In1:Message,In2:Message,Out:Message> {
 
 impl<In1:Message,In2:Message,Out:Message>
 Lambda2Shape<In1,In2,Out> {
+    /// Constructor.
     pub fn new
     < F:'static + Fn(&Value<In1>,&Value<In2>) -> Value<Out>
     , Source1:Into<Node<In1>>
@@ -645,7 +676,9 @@ where In1:Message,In2:Message,Out:Message {
 
 // === Construction ===
 
+/// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait Lambda2New<Source1,Source2,Function> {
+    /// Constructor.
     fn new(source:Source1, source2:Source2,f:Function) -> Self;
 }
 
@@ -699,52 +732,55 @@ where In1:MessageValue, In2:MessageValue, Out:Message {
 // === Examples ====================================================================================
 // =================================================================================================
 
+#[allow(missing_docs)]
+mod tests {
+    use super::*;
 
-// ================
-// === Position ===
-// ================
+    // ================
+    // === Position ===
+    // ================
 
-#[derive(Clone,Copy,Debug,Default)]
-pub struct Position {
-    x:i32,
-    y:i32,
-}
+    #[derive(Clone,Copy,Debug,Default)]
+    pub struct Position {
+        x:i32,
+        y:i32,
+    }
 
-impl Position {
-    pub fn new(x:i32, y:i32) -> Self {
-        Self {x,y}
+    impl Position {
+        pub fn new(x:i32, y:i32) -> Self {
+            Self {x,y}
+        }
+    }
+
+
+
+    // ============
+    // === Test ===
+    // ============
+
+    #[allow(unused_variables)]
+    pub fn test () {
+        println!("\n\n\n--- FRP ---\n");
+
+
+        let mouse_position = Source::<BehaviorMessage<Position>>::new();
+
+        let e1 = Source::<EventMessage<i32>>::new();
+
+        let n1  = Lambda::new(&e1, |i| { i+1 });
+        let nn1: Event<i32> = (&n1).into();
+        let n2 = Lambda::new(&nn1, |i| { i*2 });
+
+        let n3: Lambda<BehaviorMessage<Position>, BehaviorMessage<Position>> =
+            Lambda::new(&mouse_position, |t| { *t });
+
+
+        let n3 = Lambda2::new(&n1,&mouse_position, |e,b| { *e });
+
+        //  let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
+
+        e1.emit_event(&EventMessage(7));
+
     }
 }
-
-
-
-// ============
-// === Test ===
-// ============
-
-#[allow(unused_variables)]
-pub fn test () {
-    println!("\n\n\n--- FRP ---\n");
-
-
-    let mouse_position = Source::<BehaviorMessage<Position>>::new();
-
-    let e1 = Source::<EventMessage<i32>>::new();
-//
-    let n1  = Lambda::new(&e1, |i| { i+1 });
-    let nn1: Event<i32> = (&n1).into();
-    let n2 = Lambda::new(&nn1, |i| { i*2 });
-
-    let n3: Lambda<BehaviorMessage<Position>, BehaviorMessage<Position>> =
-        Lambda::new(&mouse_position, |t| { *t });
-
-
-    let n3 = Lambda2::new(&n1,&mouse_position, |e,b| { *e });
-
-//    let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
-
-
-    e1.emit_event(&EventMessage(7));
-
-}
-
+pub use tests::*;

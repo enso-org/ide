@@ -173,11 +173,11 @@ impl Mouse {
         let button4_pressed_ref = button4_pressed.clone_ref();
         let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
             match event.button() {
-                mouse2::Button::_0 => button0_pressed_ref.set(true),
-                mouse2::Button::_1 => button1_pressed_ref.set(true),
-                mouse2::Button::_2 => button2_pressed_ref.set(true),
-                mouse2::Button::_3 => button3_pressed_ref.set(true),
-                mouse2::Button::_4 => button4_pressed_ref.set(true),
+                mouse2::Button0 => button0_pressed_ref.set(true),
+                mouse2::Button1 => button1_pressed_ref.set(true),
+                mouse2::Button2 => button2_pressed_ref.set(true),
+                mouse2::Button3 => button3_pressed_ref.set(true),
+                mouse2::Button4 => button4_pressed_ref.set(true),
             }
         });
 
@@ -188,11 +188,11 @@ impl Mouse {
         let button4_pressed_ref = button4_pressed.clone_ref();
         let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
             match event.button() {
-                mouse2::Button::_0 => button0_pressed_ref.set(false),
-                mouse2::Button::_1 => button1_pressed_ref.set(false),
-                mouse2::Button::_2 => button2_pressed_ref.set(false),
-                mouse2::Button::_3 => button3_pressed_ref.set(false),
-                mouse2::Button::_4 => button4_pressed_ref.set(false),
+                mouse2::Button0 => button0_pressed_ref.set(false),
+                mouse2::Button1 => button1_pressed_ref.set(false),
+                mouse2::Button2 => button2_pressed_ref.set(false),
+                mouse2::Button3 => button3_pressed_ref.set(false),
+                mouse2::Button4 => button4_pressed_ref.set(false),
             }
         });
 

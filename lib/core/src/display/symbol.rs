@@ -26,7 +26,6 @@ use crate::system::gpu::data::uniform::AnyUniform;
 use crate::system::gpu::data::uniform::AnyTextureUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
-//use crate::system::gpu::data::uniform::AnyTextureUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::display::object::*;
 
@@ -208,7 +207,7 @@ impl {
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn xupdate(&mut self) {
+    pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
             if self.surface_dirty.check() {
                 self.surface.update();
@@ -231,8 +230,6 @@ impl {
             else                                         { None }
         })
     }
-
-
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {

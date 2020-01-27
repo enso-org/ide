@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
+use js_sys::Array;
 
 
 
@@ -141,6 +142,3 @@ impl ComposerPass {
         context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
     }
 }
-
-use js_sys::Array;
-

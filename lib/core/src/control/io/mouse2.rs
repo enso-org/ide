@@ -62,7 +62,7 @@ pub struct MouseManager {
 }
 
 /// A JavaScript callback closure for any mouse event.
-pub type MouseEventClosure = Closure<dyn Fn(JsValue)>;
+pub type MouseEventJsClosure = Closure<dyn Fn(JsValue)>;
 
 macro_rules! define_bindings {
     ( $( $js_event:ident :: $js_name:ident => $name:ident ($target:ident) ),* $(,)? ) => {
@@ -70,7 +70,7 @@ macro_rules! define_bindings {
         /// Keeps references to JavaScript closures in order to keep them alive.
         #[derive(Debug)]
         pub struct MouseManagerClosures {
-            $($name : MouseEventClosure),*
+            $($name : MouseEventJsClosure),*
         }
 
         /// Set of dispatchers for various mouse events.
@@ -87,7 +87,7 @@ macro_rules! define_bindings {
                 let dom         = dom.clone();
                 $(
                     let dispatcher = dispatchers.$name.clone_ref();
-                    let $name : MouseEventClosure = Closure::wrap(Box::new(move |event:JsValue| {
+                    let $name : MouseEventJsClosure = Closure::wrap(Box::new(move |event:JsValue| {
                         let event = event.unchecked_into::<web_sys::$js_event>();
                         dispatcher.dispatch(&event.into())
                     }));
