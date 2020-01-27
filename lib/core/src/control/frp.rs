@@ -193,6 +193,13 @@ impl<A:IsOutEventNode<Output=Event<Out>>+CloneRef+'static,Out:InputData> From<&A
 }
 
 
+impl<Out:KnownOutNodeStorage+Output> From<&OutNode<Out>> for OutNode<Out> {
+    fn from(t:&OutNode<Out>) -> Self {
+        t.clone_ref()
+    }
+}
+
+
 
 
 
@@ -618,8 +625,9 @@ pub fn test () {
 
     let e1: Source<Event<i32>> = Source::new();
 //
-    let n1: Lambda<Event<i32>,Event<i32>> = Lambda::new(&e1, |i| { i+1 });
-    let n2 = Lambda::new(&n1, |i| { i*2 });
+    let n1  = Lambda::new(&e1, |i| { i+1 });
+    let nn1: OutNode<Event<i32>> = (&n1).into();
+    let n2 = Lambda::new(&nn1, |i| { i*2 });
 
     let n3: Lambda<Behavior<Position>,Behavior<Position>> = Lambda::new(&mouse_position, |t| { t.clone() });
 
