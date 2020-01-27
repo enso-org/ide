@@ -2,13 +2,11 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::Context;
-use crate::system::gpu::shader::set_buffer_data;
+use crate::display::shape::glyph::font::Fonts;
 use crate::display::shape::text::content::TextLocation;
-use crate::display::shape::text::content::TextComponentContent;
+use crate::display::shape::text::content::TextFieldContent;
 use crate::display::shape::text::content::line::LineRef;
 use crate::display::shape::text::buffer::glyph_square::point_to_iterable;
-use crate::display::shape::text::font::Fonts;
 
 use nalgebra::Point2;
 use nalgebra::Translation2;
@@ -63,7 +61,7 @@ impl Cursor {
     }
 
     /// Get `LineRef` object of this cursor's line.
-    pub fn current_line<'a>(&self, content:&'a mut TextComponentContent) -> LineRef<'a> {
+    pub fn current_line<'a>(&self, content:&'a mut TextFieldContent) -> LineRef<'a> {
         content.line(self.position.line)
     }
 
@@ -73,7 +71,7 @@ impl Cursor {
     ///
     /// _Baseline_ is a font specific term, for details see [freetype documentation]
     //  (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1).
-    pub fn render_position(&self, content:&mut TextComponentContent, fonts:&mut Fonts)
+    pub fn render_position(&self, content:&mut TextFieldContent, fonts:&mut Fonts)
     -> Point2<f64>{
         let x = Self::x_position_of_cursor_at(&self.position,content,fonts);
         let y = self.current_line(content).start_point().y;
@@ -81,7 +79,7 @@ impl Cursor {
     }
 
     fn x_position_of_cursor_at
-    (at:&TextLocation, content:&mut TextComponentContent, fonts:&mut Fonts)
+    (at:&TextLocation, content:&mut TextFieldContent, fonts:&mut Fonts)
     -> f64 {
         let font     = fonts.get_render_info(content.font);
         let mut line = content.line(at.line);
@@ -108,7 +106,7 @@ pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 /// A struct for cursor navigation process
 #[derive(Debug)]
 pub struct CursorNavigation<'a,'b> {
-    pub content   : &'a mut TextComponentContent,
+    pub content   : &'a mut TextFieldContent,
     pub fonts     : &'b mut Fonts,
     pub selecting : bool
 }
@@ -251,28 +249,16 @@ lazy_static! {
 pub struct Cursors {
     pub cursors : Vec<Cursor>,
     pub dirty   : bool,
-    pub buffer  : Option<WebGlBuffer>,
 }
 
 impl Cursors {
 
     /// Create empty `Cursors` structure.
-    pub fn new(gl_context:&Context) -> Self {
+    pub fn new() -> Self {
         Cursors {
             cursors : Vec::new(),
             dirty   : false,
-            buffer  : gl_context.create_buffer()
         }
-    }
-
-    /// Update the cursors' buffer data.
-    pub fn update_buffer_data
-    (&mut self, gl_context:&Context, content:&mut TextComponentContent, fonts:&mut Fonts) {
-        let cursors          = self.cursors.iter();
-        let cursors_vertices = cursors.map(|cursor| Self::cursor_vertices(cursor,content,fonts));
-        let buffer_data      = cursors_vertices.flatten().collect_vec();
-        set_buffer_data(gl_context,self.buffer.as_ref().unwrap(),buffer_data.as_slice());
-        self.dirty = false;
     }
 
     /// Removes all current cursors and replace them with single cursor without any selection.
@@ -347,7 +333,7 @@ impl Cursors {
         })
     }
 
-    fn cursor_vertices(cursor:&Cursor, content:&mut TextComponentContent, fonts:&mut Fonts)
+    fn cursor_vertices(cursor:&Cursor, content:&mut TextFieldContent, fonts:&mut Fonts)
     -> SmallVec<[f32;12]> {
         let position    = cursor.render_position(content,fonts);
         let to_position = Translation2::new(position.x as f32,position.y as f32);
@@ -360,7 +346,6 @@ impl Cursors {
     fn mock(cursors:Vec<Cursor>) -> Self {
         Cursors{cursors,
             dirty  : false,
-            buffer : None
         }
     }
 }
@@ -402,7 +387,7 @@ mod test {
 
             let mut fonts      = Fonts::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextComponentContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text);
             let mut navigation = CursorNavigation {
                 content: &mut content,
                 fonts: &mut fonts,
@@ -433,7 +418,7 @@ mod test {
 
             let mut fonts      = Fonts::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextComponentContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text);
             let mut navigation = CursorNavigation {
                 content: &mut content,
                 fonts: &mut fonts,
@@ -456,7 +441,7 @@ mod test {
 
             let mut fonts      = Fonts::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextComponentContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text);
             let mut navigation = CursorNavigation {
                 content: &mut content,
                 fonts: &mut fonts,

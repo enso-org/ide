@@ -62,6 +62,10 @@ impl {
         self.display_object.set_position(value)
     }
 
+    pub fn position(&self) -> Vector2<f32> {
+        self.display_objext.position()
+    }
+
     /// Size accessor.
     pub fn size(&self) -> Attribute<Vector2<f32>> {
         self.bbox.clone_ref()

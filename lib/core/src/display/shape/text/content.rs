@@ -1,17 +1,17 @@
-#![allow(missing_docs)]
 pub mod line;
 
 use crate::prelude::*;
 
-use crate::display::shape::text::font::FontId;
-use crate::display::shape::text::font::FontRenderInfo;
-use crate::display::shape::text::font::Fonts;
-use crate::display::shape::text::content::line::Line;
+use crate::display::shape::glyph::font::{FontId, FontRegistry};
+use crate::display::shape::glyph::font::FontRenderInfo;
+use crate::display::shape::glyph::font::Fonts;
+use crate::display::shape::text::content::line::{Line, LineCharsPositions};
 use crate::display::shape::text::content::line::LineRef;
 
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeInclusive;
+
 
 
 // ==================
@@ -67,6 +67,8 @@ impl DirtyLines {
         self.range.is_some() || !self.single_lines.is_empty()
     }
 }
+
+
 
 // ==============
 // === Change ===
@@ -127,7 +129,7 @@ impl TextChange {
     }
 
     fn mk_lines_as_char_vector(text:&str) -> Vec<Vec<char>> {
-        TextComponentContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
+        TextFieldContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
     }
 }
 
@@ -170,10 +172,11 @@ impl TextLocation {
 
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
-pub struct TextComponentContent {
+pub struct TextFieldContent {
     pub lines       : Vec<Line>,
     pub dirty_lines : DirtyLines,
     pub font        : FontId,
+    pub line_height : f32,
 }
 
 /// References to all needed stuff for generating buffer's data.
@@ -184,12 +187,12 @@ pub struct RefreshInfo<'a, 'b> {
     pub font             : &'b mut FontRenderInfo,
 }
 
-impl TextComponentContent {
+impl TextFieldContent {
     /// Create a text component containing `text`
     ///
     /// The text will be split to lines by `'\n'` characters.
-    pub fn new(font_id:FontId, text:&str) -> Self {
-        TextComponentContent {
+    pub fn new(font_id:FontId, text:&str, line_height:f32) -> Self {
+        TextFieldContent {line_height,
             lines       : Self::split_to_lines(text).map(Line::new).collect(),
             dirty_lines : DirtyLines::default(),
             font        : font_id,
@@ -214,6 +217,16 @@ impl TextComponentContent {
         LineRef {
             line    : &mut self.lines[index],
             line_id : index,
+        }
+    }
+
+    pub fn line_with_char_positions(&mut self, index:usize, fonts:&mut FontRegistry) -> LineCharsPositions {
+        let font_id = self.font;
+        let height  = self.line_height;
+        LineCharsPositions {
+            line: self.line(index),
+            font: fonts.get_render_info(font_id),
+            height
         }
     }
 
@@ -330,8 +343,8 @@ mod test {
         let single_line    = "Single line";
         let mutliple_lines = "Multiple\r\nlines\n";
 
-        let single_line_content = TextComponentContent::new(font_id,single_line);
-        let multiline_content   = TextComponentContent::new(font_id,mutliple_lines);
+        let single_line_content = TextFieldContent::new(font_id,single_line);
+        let multiline_content   = TextFieldContent::new(font_id,mutliple_lines);
         assert_eq!(1, single_line_content.lines.len());
         assert_eq!(3, multiline_content  .lines.len());
         assert_eq!(single_line, single_line_content.lines[0].chars().iter().collect::<String>());
@@ -350,7 +363,7 @@ mod test {
         let delete                 = TextChange::delete(deleted_range.clone());
         let replace                = TextChange::replace(deleted_range, "text");
 
-        let mut content            = TextComponentContent::new(0, text);
+        let mut content            = TextFieldContent::new(0, text);
 
         content.make_change(insert);
         let expected              = vec!["Line a", "Labine b", "Line c"];
@@ -380,7 +393,7 @@ mod test {
         let insert_in_middle = TextChange::insert(middle_loc,inserted);
         let insert_at_end    = TextChange::insert(end_loc   ,inserted);
 
-        let mut content      = TextComponentContent::new(0,text);
+        let mut content      = TextFieldContent::new(0,text);
 
         content.make_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
@@ -414,14 +427,14 @@ mod test {
         let deleted_range = delete_from..delete_to;
         let delete        = TextChange::delete(deleted_range);
 
-        let mut content   = TextComponentContent::new(0,text);
+        let mut content   = TextFieldContent::new(0,text);
         content.make_change(delete);
 
         let expected = vec!["Lie c"];
         assert_eq!(expected, get_lines_as_strings(&content));
     }
 
-    fn get_lines_as_strings(content:&TextComponentContent) -> Vec<String> {
+    fn get_lines_as_strings(content:&TextFieldContent) -> Vec<String> {
         content.lines.iter().map(|l| l.chars().iter().collect()).collect()
     }
 }

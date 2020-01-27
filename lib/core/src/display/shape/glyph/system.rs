@@ -16,7 +16,7 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-
+use std::ops::RangeInclusive;
 
 // =============
 // === Glyph ===
@@ -109,6 +109,24 @@ impl Line {
             glyph.size().set(size);
         }
     }
+
+    pub fn set_baseline_start(&mut self, new_start:Vector2<f32>) {
+        let offset = new_start - self.baseline_start;
+        for glyph in self.glyphs.iter_mut() {
+            glyph.mod_position(|pos| pos + offset);
+        }
+        self.baseline_start = new_start;
+    }
+}
+
+
+// === Getters ===
+
+impl Line {
+    pub fn baseline_start(&self) -> &Vector2<f32> { &self.baseline_start }
+    pub fn height        (&self) -> f32           { self.height          }
+    pub fn length        (&self) -> usize         { self.glyphs.len()    }
+    pub fn font_id       (&self) -> FontId        { self.font_id         }
 }
 
 

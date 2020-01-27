@@ -1,10 +1,9 @@
 use crate::prelude::*;
 
-use crate::display::shape::text::font::FontRenderInfo;
-use crate::display::shape::text::buffer::glyph_square::Pen;
-
 use nalgebra::Point2;
 use std::ops::Range;
+use crate::display::shape::glyph::font::FontRenderInfo;
+use crate::display::shape::glyph::pen::PenIterator;
 
 
 /// A line of text in TextComponent.
@@ -62,6 +61,32 @@ impl Line {
         self.char_x_positions.clear();
         &mut self.chars
     }
+}
+
+/// A line reference with it's index.
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct LineRef<'a> {
+    #[shrinkwrap(main_field)]
+    pub line    : &'a mut Line,
+    pub line_id : usize,
+}
+
+#[shrinkwrap(mutable)]
+pub struct LineCharsPositions<'a,'b> {
+    #[shrinkwrap(main_field)]
+    pub line   : LineRef<'a>,
+    pub font   : &'b mut FontRenderInfo,
+    pub height : f32,
+}
+
+impl<'a,'b> LineCharsPositions<'a,'b> {
+    /// Get the point where a _baseline_ of current line begins (The _baseline_ is a font specific
+    /// term, for details see [freetype documentation]
+    /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
+    pub fn baseline_start(&self) -> Point2<f64> {
+        Point2::new(0.0, (-(self.line_id as f32) - 1.0) / self.height)
+    }
 
     /// Get x position of character with given index. The position is in _text space_.
     pub fn get_char_x_position(&mut self, index:usize, font:&mut FontRenderInfo) -> f32 {
@@ -80,7 +105,7 @@ impl Line {
     /// characters under this x coordinate (e.g. due to a kerning) the char on the left will be
     /// returned.
     pub fn find_char_at_x_position(&mut self, x_position:f32, font:&mut FontRenderInfo)
-    -> Option<usize> {
+        -> Option<usize> {
         if self.chars.is_empty() {
             None
         } else {
@@ -101,15 +126,18 @@ impl Line {
     /// Fill the `chars_x_position` cache so it will contain information about character with given
     /// index.
     pub fn fill_chars_x_position_up_to(&mut self, index:usize, font:&mut FontRenderInfo) {
-        let new_len = index + 1;
-        let to_fill = new_len.saturating_sub(self.char_x_positions.len());
-        let pen_opt = self.last_cached_char_pen(font);
-        let mut pen = pen_opt.unwrap_or_else(|| Pen::new(Point2::new(0.0,0.0)));
-        let chars   = &self.chars[self.char_x_positions.len()..];
-        for ch in chars.iter().take(to_fill) {
-            pen.next_char(*ch,font);
-            let x_position = pen.position.x as f32;
-            self.char_x_positions.push(x_position);
+        let new_len    = index + 1;
+        let from_index = self.char_x_positions.len().saturating_sub(1);
+        let to_fill    = new_len.saturating_sub(self.char_x_positions.len());
+        let y_position = baseline_start.y;;
+        let x_position = self.char_x_positions.last().unwrap_or(baseline_start.x);
+        let start_from = Vector2::new(x_position,y_position);
+        let chars      = &self.chars[from_index..].iter();
+        let to_skip    = if self.char_x_position.is_empty() {0} else {1};
+        let pen        = PenIterator::new(start_from,self.height,chars,self.font);
+
+        for (_,position) in pen.skip(to_skip) {
+            self.char_x_positions.push(position.x);
         }
     }
 
@@ -127,35 +155,6 @@ impl Line {
                 }
             }
         }
-    }
-
-    fn last_cached_char_pen(&mut self, font:&mut FontRenderInfo) -> Option<Pen> {
-        let y_position = 0.0;
-        let x_position = self.char_x_positions.last().map(|f| *f as f64);
-        let index      = self.char_x_positions.len().checked_sub(1);
-        let char_opt   = index.map(|i| self.chars[i]);
-        match (x_position,char_opt) {
-            (Some(x),Some(ch)) => Some(Pen::new_with_char(Point2::new(x,y_position),ch,font)),
-            _                  => None,
-        }
-    }
-}
-
-/// A line reference with it's index.
-#[derive(Shrinkwrap,Debug)]
-#[shrinkwrap(mutable)]
-pub struct LineRef<'a> {
-    #[shrinkwrap(main_field)]
-    pub line    : &'a mut Line,
-    pub line_id : usize,
-}
-
-impl<'a> LineRef<'a> {
-    /// Get the point where a _baseline_ of current line begins (The _baseline_ is a font specific
-    /// term, for details see [freetype documentation]
-    /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
-    pub fn start_point(&self) -> Point2<f64> {
-        Point2::new(0.0, -(self.line_id as f64) - 1.0)
     }
 }
 
