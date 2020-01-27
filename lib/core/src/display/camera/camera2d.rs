@@ -25,29 +25,13 @@ pub struct Alignment {
 
 /// Horizontal alignments.
 #[derive(Clone,Debug)]
-pub enum HorizontalAlignment {
-    /// Left alignment.
-    Left,
-
-    /// Horizontal center alignment.
-    Center,
-
-    /// Right alignment.
-    Right
-}
+#[allow(missing_docs)]
+pub enum HorizontalAlignment {Left,Center,Right}
 
 /// Vertical alignments.
 #[derive(Clone,Debug)]
-pub enum VerticalAlignment {
-    /// Top alignment.
-    Top,
-
-    /// Vertical center alignment.
-    Center,
-
-    /// Bottom alignemtn.
-    Bottom
-}
+#[allow(missing_docs)]
+pub enum VerticalAlignment {Top,Center,Bottom}
 
 impl Default for HorizontalAlignment { fn default() -> Self { Self::Left } }
 impl Default for VerticalAlignment   { fn default() -> Self { Self::Bottom } }

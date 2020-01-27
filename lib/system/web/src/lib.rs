@@ -2,7 +2,6 @@
 #![feature(set_stdio)]
 
 pub mod resize_observer;
-pub mod intersection_observer;
 pub mod dom;
 
 use basegl_prelude::*;
