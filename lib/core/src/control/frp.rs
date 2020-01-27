@@ -10,20 +10,6 @@ pub struct SwitchData {
 }}
 
 
-#[derive(Clone,Copy,Debug,Default)]
-pub struct Event<T>(T);
-
-#[derive(Clone,Copy,Debug,Default)]
-pub struct Behavior<T>(T);
-
-
-impl<T:Clone> Behavior<T> {
-    pub fn get(&self) -> T {
-        self.0.clone()
-    }
-}
-
-
 macro_rules! alias {
     ($name:ident = $($tok:tt)*) => {
         pub trait $name: $($tok)* {}
@@ -44,6 +30,78 @@ macro_rules! type_property {
 
 
 
+// ===============
+// === Wrapper ===
+// ===============
+
+
+pub trait Wrapper {
+    type Content;
+    fn wrap   (t:Self::Content) -> Self;
+    fn unwrap (&self)           -> &Self::Content;
+}
+
+pub type Unwrap<T> = <T as Wrapper>::Content;
+
+pub fn wrap<T:Wrapper>(t:T::Content) -> T {
+    T::wrap(t)
+}
+
+pub fn unwrap<T:Wrapper>(t:&T) -> &T::Content {
+    T::unwrap(t)
+}
+
+
+
+// ========================
+// === Event & Behavior ===
+// ========================
+
+// === Definition ===
+
+#[derive(Clone,Copy,Debug,Default)]
+pub struct Event<T>(T);
+
+#[derive(Clone,Copy,Debug,Default)]
+pub struct Behavior<T>(T);
+
+
+// === API ===
+
+impl<T:Clone> Event<T> {
+    pub fn value(&self) -> T {
+        self.unwrap().clone()
+    }
+}
+
+impl<T:Clone> Behavior<T> {
+    pub fn value(&self) -> T {
+        self.unwrap().clone()
+    }
+}
+
+
+// === Wrappers ===
+
+impl Wrapper for () {
+    type Content = ();
+    fn wrap   (t:())  -> Self {}
+    fn unwrap (&self) -> &()  { self }
+}
+
+impl<T> Wrapper for Event<T> {
+    type Content = T;
+    fn wrap   (t:T)   -> Self { Event(t) }
+    fn unwrap (&self) -> &T   { &self.0 }
+}
+
+impl<T> Wrapper for Behavior<T> {
+    type Content = T;
+    fn wrap   (t:T)   -> Self { Behavior(t) }
+    fn unwrap (&self) -> &T   { &self.0 }
+}
+
+
 // ============
 // === Node ===
 // ============
@@ -52,21 +110,21 @@ macro_rules! type_property {
 //type_property! {Output}
 //type_property! {Value : Debug}
 
+pub trait KnownValue = Wrapper where <Self as Wrapper>::Content:Debug;
 
-
-pub trait KnownValue {
-    type Value : Debug;
-
-    fn wrap_value(t:Self::Value) -> Self;
-    fn value(&self) -> &Self::Value;
-}
-
-pub type ValueOf<T> = <T as KnownValue>::Value;
-
-
-pub fn wrap_value<T:KnownValue>(t:T::Value) -> T {
-    T::wrap_value(t)
-}
+//pub trait KnownValue: Foo {
+////    type Value : Debug;
+//
+//    fn wrap_value(t:Self::Content) -> Self;
+//    fn value(&self) -> &Self::Content;
+//}
+//
+pub type ValueOf<T> = <T as Wrapper>::Content;
+//
+//
+//pub fn wrap_value<T:KnownValue>(t:T::Content) -> T {
+//    T::wrap_value(t)
+//}
 
 
 
@@ -82,15 +140,12 @@ pub trait KnownOutput {
 pub type OutputOf<T> = <T as KnownOutput>::Output;
 
 
-pub trait NodeOps {
-//    fn send_event()
-}
 
-pub trait OutEventNodeOps: KnownOutput + NodeOps {
+pub trait OutEventNodeOps: KnownOutput {
     fn add_event_target(&self, target:InEventNode<OutputOf<Self>>);
 }
 
-pub trait OutBehaviorNodeOps: KnownOutput + NodeOps {
+pub trait OutBehaviorNodeOps: KnownOutput {
     fn current_value(&self) -> ValueOf<OutputOf<Self>>;
 }
 
@@ -103,35 +158,18 @@ alias! { Output = Debug + KnownValue + KnownOutNodeStorage + 'static }
 
 
 
-alias! { IsInOutNode   = KnownInput + KnownOutput + NodeOps }
+alias! { IsInOutNode   = KnownInput + KnownOutput }
 alias! { IsOutEventNode     = KnownOutput + OutEventNodeOps }
 alias! { IsOutBehaviorNode     = KnownOutput + OutBehaviorNodeOps }
-alias! { IsInNode      = KnownInput + NodeOps }
+alias! { IsInNode      = KnownInput }
 alias! { IsInEventNode = KnownInput + EventNodeOps }
 
 
 
-impl KnownValue for () {
-    type Value = ();
-    fn wrap_value(t:()) -> Self { () }
-    fn value(&self) -> &() { self }
-}
 
 
-impl<T:Debug> KnownValue for Event<T> {
-    type Value = T;
-    fn wrap_value(t:T) -> Self { Event(t) }
-    fn value(&self) -> &T { &self.0 }
-}
 
-impl<T:Debug> KnownValue for Behavior<T> {
-    type Value = T;
-    fn wrap_value(t:T) -> Self { Behavior(t) }
-    fn value(&self) -> &T { &self.0 }
-}
-
-
-pub trait EventNodeOps: KnownInput + NodeOps {
+pub trait EventNodeOps: KnownInput {
     fn handle_event(&self, input:&Self::Input);
 }
 
@@ -249,10 +287,10 @@ From<&A> for InOutNode<In,Out> {
 
 
 
-#[derive(Shrinkwrap)]
-pub struct AnyNode {
-    raw: Rc<dyn NodeOps>,
-}
+//#[derive(Shrinkwrap)]
+//pub struct AnyNode {
+//    raw: Rc<dyn NodeOps>,
+//}
 
 
 
@@ -293,9 +331,6 @@ impl<Out:KnownSourceStorage> SourceData<Out>{
 impl<Out:Output+KnownSourceStorage> KnownInput  for SourceData<Out> { type Input  = ();  }
 impl<Out:Output+KnownSourceStorage> KnownOutput for SourceData<Out> { type Output = Out; }
 
-impl<Out:Output+KnownSourceStorage> NodeOps for SourceData<Out> {}
-impl<Out:Output+KnownSourceStorage> NodeOps for Source<Out> {}
-
 impl<Out:Output+KnownSourceStorage> Source<Out> {
     pub fn new() -> Self {
         let shape   = SourceData::new();
@@ -306,7 +341,7 @@ impl<Out:Output+KnownSourceStorage> Source<Out> {
 
 impl<Out:InputData> OutBehaviorNodeOps for SourceData<Behavior<Out>> {
     fn current_value(&self) -> Out {
-        self.storage.get()
+        self.storage.value()
     }
 }
 
@@ -335,19 +370,6 @@ impl<X,T1,T2> Infer <( Event    <T1> , Behavior <T2> )> for X { type Result = Ev
 impl<X,T1,T2> Infer <( Behavior <T1> , Behavior <T2> )> for X { type Result = Behavior <X>; }
 
 
-//
-//pub trait Wrapper {
-//    type Content;
-//    fn wrap(t:Self::Content) -> Self;
-//}
-//
-//pub type Wrapped<T> = <T as Wrapper>::Content;
-//
-//
-//pub fn wrap<T:Wrapper>(t:T::Content) -> T {
-//    T::wrap(t)
-//}
-
 
 
 
@@ -367,7 +389,7 @@ impl<In:Input,Out:Output> LambdaShape<In,Out> {
     pub fn new<F:'static + Fn(&ValueOf<In>) -> ValueOf<Out>, Source:Into<OutNode<In>>>
     (source:Source, f:F) -> Self {
         let source = source.into();
-        let func   = Rc::new(move |t:&ValueOf<In>| {wrap_value(f(t))});
+        let func   = Rc::new(move |t:&ValueOf<In>| {wrap(f(t))});
         Self {source,func}
     }
 }
@@ -385,8 +407,6 @@ impl<In:Input,Out:Output> LambdaShape<In,Out> {
 impl<In:Input,Out:Output> KnownInput  for LambdaShape<In,Out> { type Input  = In;  }
 impl<In:Input,Out:Output> KnownOutput for LambdaShape<In,Out> { type Output = Out; }
 
-impl<In:Input,Out:Output> NodeOps for Lambda<In,Out> {}
-
 
 
 pub trait LambdaNew<Source,Func> {
@@ -396,7 +416,7 @@ pub trait LambdaNew<Source,Func> {
 
 impl<In:Input,X:InputData+Infer<In>,Func:'static + Fn(&ValueOf<In>) -> X, Source:Into<OutNode<In>>>
 LambdaNew<Source,Func> for Lambda<In,Inferred<In,X>>
-where OutNode<In>:AddTarget<Self>, Inferred<In,X>:Output<Value=X> {
+where OutNode<In>:AddTarget<Self>, Inferred<In,X>:Output<Content=X> {
     fn new (source:Source, f:Func) -> Self {
         let source     = source.into();
         let source_ref = source.clone_ref();
@@ -434,7 +454,7 @@ impl<S,T> AddTarget<S> for OutNode<Behavior<T>> {
 impl<In:Input,Out:Output> EventNodeOps for Lambda<In,Out> {
     fn handle_event(&self, input:&Self::Input) {
         println!("GOT {:?}",input);
-        let output = (self.rc.borrow().shape.func)(input.value());
+        let output = (self.rc.borrow().shape.func)(unwrap(input));
         self.emit_event(&output);
     }
 }
@@ -468,14 +488,13 @@ Lambda2Shape<In1,In2,Out> {
     (source1:Source1, source2:Source2, f:F) -> Self {
         let source1 = source1.into();
         let source2 = source2.into();
-        let func    = Rc::new(move |a:&ValueOf<In1>,b:&ValueOf<In2>| { wrap_value(f(a,b)) });
+        let func    = Rc::new(move |a:&ValueOf<In1>,b:&ValueOf<In2>| { wrap(f(a,b)) });
         Self {source1,source2,func}
     }
 }
 
 impl<In1:InputData,In2:InputData,Out:Output> KnownInput for Lambda2Shape<Event<In1>,Behavior<In2>,Out> { type Input  = Event<In1>;  }
 impl<In1:Input,In2:Input,Out:Output> KnownOutput for Lambda2Shape<In1,In2,Out> { type Output = Out; }
-impl<In1:Input,In2:Input,Out:Output> NodeOps for Lambda2<In1,In2,Out> { }
 
 
 
@@ -487,7 +506,7 @@ pub trait Lambda2New<Source1,Source2,Function> {
 
 impl<In1:Input,In2:Input,X:InputData+Infer<(In1,In2)>,Source1,Source2,Function>
 Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),X>> where
-    Inferred<(In1,In2),X> : Output<Value=X>,
+    Inferred<(In1,In2),X> : Output<Content=X>,
     Function : 'static + Fn(&ValueOf<In1>,&ValueOf<In2>) -> X,
     Source1  : Into<OutNode<In1>>,
     Source2  : Into<OutNode<In2>>,
@@ -560,7 +579,7 @@ impl<Shape:KnownOutput> Node<Shape> {
 
 impl<Shape:KnownOutput>
 OutEventNodeOps for Node<Shape>
-where Node<Shape>:NodeOps, OutputOf<Self>:'static, OutputOf<Shape>:Output {
+where OutputOf<Self>:'static, OutputOf<Shape>:Output {
     fn add_event_target(&self, target:InEventNode<OutputOf<Self>>) {
         self.rc.borrow_mut().targets.push(target);
     }
@@ -569,7 +588,7 @@ where Node<Shape>:NodeOps, OutputOf<Self>:'static, OutputOf<Shape>:Output {
 
 impl<Shape:OutBehaviorNodeOps>
 OutBehaviorNodeOps for Node<Shape>
-where Node<Shape>:NodeOps, OutputOf<Shape>:Output {
+where OutputOf<Shape>:Output {
     fn current_value(&self) -> ValueOf<OutputOf<Self>> {
         self.rc.borrow().shape.current_value()
     }
@@ -577,7 +596,8 @@ where Node<Shape>:NodeOps, OutputOf<Shape>:Output {
 
 
 
-impl<Shape:KnownInput,Out> KnownInput for NodeTemplate<Shape,Out> {
+impl<Shape:KnownInput,Out> KnownInput for NodeTemplate<Shape,Out>
+where <<Shape as KnownInput>::Input as Wrapper>::Content : Debug {
     type Input = InputOf<Shape>;
 }
 
