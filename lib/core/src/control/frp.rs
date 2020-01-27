@@ -473,20 +473,30 @@ impl<In1:Input,In2:Input,Out:Output> NodeOps for Lambda2<In1,In2,Out> { }
 
 
 
-impl<In1:InputData,In2:InputData,Out:InputData> Lambda2<Event<In1>,Behavior<In2>,Event<Out>> {
-    pub fn new
-    < F:'static + Fn(&In1,&In2) -> Out
-        , Source1: Into<OutNode<Event<In1>>>
-        , Source2: Into<OutNode<Behavior<In2>>>
-    >
-    (source1:Source1, source2:Source2, f:F) -> Self {
-        let source1    = source1.into();
-        let source2    = source2.into();
-        let source_ref = source1.clone_ref();
-        let shape      = Lambda2Shape::new(source1,source2,f);
-        let targets    = default();
-        let this       = Self::construct(shape,targets);
-        source_ref.add_target(&this);
+pub trait Lambda2New<Source1,Source2,Function> {
+    fn new(source:Source1, source2:Source2,f:Function) -> Self;
+}
+
+
+impl<In1:Input,In2:Input,X:InputData+Infer<(In1,In2)>,Source1,Source2,Function>
+Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),X>> where
+    Inferred<(In1,In2),X> : Output<Value=X>,
+    Function : 'static + Fn(&ValueOf<In1>,&ValueOf<In2>) -> X,
+    Source1  : Into<OutNode<In1>>,
+    Source2  : Into<OutNode<In2>>,
+    OutNode<In1>:AddTarget<Self>,
+    OutNode<In2>:AddTarget<Self>,
+{
+    fn new (source1:Source1, source2:Source2, f:Function) -> Self {
+        let source1     = source1.into();
+        let source2     = source2.into();
+        let source1_ref = source1.clone_ref();
+        let source2_ref = source2.clone_ref();
+        let shape       = Lambda2Shape::new(source1,source2,f);
+        let targets     = default();
+        let this        = Self::construct(shape,targets);
+        source1_ref.add_target(&this);
+        source2_ref.add_target(&this);
         this
     }
 }
