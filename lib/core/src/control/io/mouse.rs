@@ -25,6 +25,7 @@ use std::cell::RefCell;
 // =====================
 
 /// This struct keeps the register of the event listener and unregisters it when it's dropped.
+#[derive(Debug)]
 pub struct EventListener<T:?Sized> {
     target   : EventTarget,
     name     : String,

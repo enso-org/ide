@@ -92,6 +92,7 @@ impl RenderedFragment {
 /// Builder of buffer data of some consecutive buffer fragments
 ///
 /// The result is stored in `vertex_position_data` and `texture_coords_data` fields.
+#[derive(Debug)]
 pub struct FragmentsDataBuilder<'a> {
     pub vertex_position_data  : Vec<f32>,
     pub texture_coords_data   : Vec<f32>,

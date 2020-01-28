@@ -248,6 +248,7 @@ impl TextComponent {
 // ============================
 
 /// Text component builder
+#[derive(Debug)]
 pub struct TextComponentBuilder<'a, 'b, Str:AsRef<str>> {
     pub scene      : &'a Scene,
     pub fonts      : &'b mut Fonts,

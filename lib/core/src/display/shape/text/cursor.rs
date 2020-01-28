@@ -106,6 +106,7 @@ impl Cursor {
 pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
 /// A struct for cursor navigation process
+#[derive(Debug)]
 pub struct CursorNavigation<'a,'b> {
     pub content   : &'a mut TextComponentContent,
     pub fonts     : &'b mut Fonts,

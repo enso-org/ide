@@ -107,7 +107,7 @@ where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
 // === Wrong Conversions ===
 
 /// Error indicating that a value cannot be converted to Glsl.
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub struct NotGlslError;
 
 

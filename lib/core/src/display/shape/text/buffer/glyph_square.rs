@@ -172,6 +172,7 @@ impl<'a,'b> GlyphAttributeBuilder for GlyphVertexPositionBuilder<'a,'b> {
 // ======================================
 
 /// Builder for glyph MSDF texture coordinates
+#[derive(Debug)]
 pub struct GlyphTextureCoordsBuilder<'a> {
     pub font : &'a mut FontRenderInfo
 }

@@ -66,6 +66,7 @@ impl CallbackHandle {
 }
 
 /// CallbackHandle's guard. Used to check if the handle is still valid.
+#[derive(Debug)]
 pub struct Guard {
     weak: Weak<()>
 }
