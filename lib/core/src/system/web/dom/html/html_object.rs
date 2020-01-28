@@ -35,24 +35,24 @@ pub struct HtmlObject {
 
 impl HtmlObject {
     /// Creates a HTMLObject from element name.
-    pub fn new(logger:Logger, dom_name:&str) -> Result<Self> {
+    pub fn new<L:Into<Logger>>(logger:L, dom_name:&str) -> Result<Self> {
         let dom = dyn_into(create_element(dom_name)?)?;
         Ok(Self::from_element(logger,dom))
     }
 
     /// Creates a HTMLObject from a web_sys::HtmlElement.
-    pub fn from_element(logger:Logger, element:HtmlElement) -> Self {
+    pub fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Self {
         element.set_property_or_panic("position", "absolute");
         element.set_property_or_panic("width"   , "0px");
         element.set_property_or_panic("height"  , "0px");
         let dom            = element;
-        let display_object = DisplayObjectData::new(logger);
+        let display_object = DisplayObjectData::new(logger.into());
         let dimensions     = Vector2::new(0.0, 0.0);
         Self {display_object,dom,dimensions}
     }
 
     /// Creates a HTMLObject from a HTML string.
-    pub fn from_html_string<T:AsRef<str>>(logger:Logger, html_string:T) -> Result<Self> {
+    pub fn from_html_string<L:Into<Logger>, T:AsRef<str>>(logger:L, html_string:T) -> Result<Self> {
         let element = create_element("div")?;
         element.set_inner_html(html_string.as_ref());
         match element.first_element_child() {

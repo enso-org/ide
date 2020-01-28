@@ -351,9 +351,10 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:Logger, width:f32, height:f32) -> Self {
-        let data = Camera2dData::new(logger,width,height);
-        let rc   = Rc::new(RefCell::new(data));
+    pub fn new<L:Into<Logger>>(logger:L, width:f32, height:f32) -> Self {
+        let logger = logger.into();
+        let data   = Camera2dData::new(logger,width,height);
+        let rc     = Rc::new(RefCell::new(data));
         Self {rc}
     }
 }

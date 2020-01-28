@@ -327,8 +327,8 @@ pub struct DisplayObjectData {
 
 impl DisplayObjectData {
     /// Creates a new object instance.
-    pub fn new(logger:Logger) -> Self {
-        let data = DisplayObjectDataMut::new(logger);
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let data = DisplayObjectDataMut::new(logger.into());
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }

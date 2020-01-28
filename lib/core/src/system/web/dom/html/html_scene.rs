@@ -20,8 +20,8 @@ pub struct HtmlScene {
 
 impl HtmlScene {
     /// Searches for a HtmlElement identified by id and appends to it.
-    pub fn new(logger:Logger) -> Self {
-        let display_object = DisplayObjectData::new(logger);
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let display_object = DisplayObjectData::new(logger.into());
         let objects        = default();
         Self{display_object,objects}
     }

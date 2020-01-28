@@ -133,7 +133,7 @@ impl {
     pub fn new<Dom:Str, OnMut:Fn()+Clone+'static>
     (dom:Dom, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
-        let root            = DisplayObjectData::new(logger.clone());
+        let root            = DisplayObjectData::new(&logger);
         let dom             = dom.as_ref();
         let canvas          = web::get_canvas(dom).unwrap();
         let context         = web::get_webgl2_context(&canvas).unwrap();
