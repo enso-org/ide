@@ -5,7 +5,7 @@ authors = ["Enso Team <contact@luna-lang.org>"]
 edition = "2018"
 
 [dependencies]
-prelude        = { version = "0.1.0"  , path = "../prelude" }
+enso-prelude   = { version = "0.1.0"  , path = "../../prelude" }
 proc-macro2    = "1.0"
 quote          = "1.0"
 

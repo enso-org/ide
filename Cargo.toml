@@ -11,7 +11,7 @@ members = [
 #    "lib/ide/ast/macros",
 #    "lib/ide/file-manager",
 #    "lib/ide/json-rpc",
-#    "lib/ide/macro-utils",
+    "lib/ide/macro-utils",
 #    "lib/ide/parser",
 #    "lib/ide/shapely/core",
 #    "lib/ide/shapely/macros",

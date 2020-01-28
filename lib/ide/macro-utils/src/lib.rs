@@ -3,7 +3,9 @@
 //! A number of helper functions meant to be used in the procedural macros
 //! definitions.
 
-use prelude::*;
+pub use enso_prelude as prelude;
+
+use crate::prelude::*;
 
 use quote::quote;
 use syn;
