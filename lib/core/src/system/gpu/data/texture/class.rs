@@ -1,4 +1,4 @@
-//! The core texture data type and related operations.
+//! The impl texture data type and related operations.
 
 use crate::prelude::*;
 

@@ -10,6 +10,8 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+pub use enso_prelude as prelude;
+
 #[allow(unused)]
 use crate::prelude::*;
 
@@ -19,7 +21,6 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
-pub use enso_prelude as prelude;
 
 
 // ======================

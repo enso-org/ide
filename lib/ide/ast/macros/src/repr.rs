@@ -1,15 +1,18 @@
-use prelude::*;
+use crate::prelude::*;
 
-use macro_utils::{path_segment_generic_args};
+use macro_utils::path_segment_generic_args;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::punctuated::Punctuated;use syn::Expr;
+use syn::Expr;
+use syn::GenericArgument;
+use syn::PathSegment;
 use syn::Token;
+use syn::punctuated::Punctuated;
 
 /// Generates `HasRepr` and `HasSpan` that just panic when called.
 pub fn not_supported
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let target = syn::parse::<syn::PathSegment>(input).unwrap();
+    let target = syn::parse::<PathSegment>(input).unwrap();
     let ty_args = path_segment_generic_args(&target);
     let ret = quote!{
         // Sample expansion for: Import<T>
@@ -77,9 +80,9 @@ pub fn derive_for_enum
 /// sequence of expressions that yield values we use to obtain sub-repr or
 /// sub-spans.
 pub struct ReprDescription {
-    pub ty     :syn::PathSegment,
-    pub ty_args:Vec<syn::GenericArgument>,
-    pub exprs  :Vec<syn::Expr>,
+    pub ty      : PathSegment,
+    pub ty_args : Vec<GenericArgument>,
+    pub exprs   : Vec<Expr>,
 }
 
 impl syn::parse::Parse for ReprDescription {
@@ -89,7 +92,7 @@ impl syn::parse::Parse for ReprDescription {
     /// then arbitrary sequence of expressions.
     /// Panics on invalid input, which is actually fair for a macro code.
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let ty:syn::PathSegment = input.parse()?;
+        let ty:PathSegment = input.parse()?;
         input.parse::<Option<syn::token::Comma>>()?;
         let exprs   = Punctuated::<Expr,Token![,]>::parse_terminated(input)?;
         let exprs   = exprs.iter().cloned().collect::<Vec<_>>();

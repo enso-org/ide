@@ -6,14 +6,18 @@ extern crate proc_macro;
 
 mod repr;
 
-use prelude::*;
+use crate::prelude::*;
+use crate::repr::ReprDescription;
 
-use proc_macro2::{TokenStream, Ident, Span};
+use enso_prelude as prelude;
+use macro_utils::gather_all_type_reprs;
+use macro_utils::repr;
+use proc_macro2::TokenStream;
+use proc_macro2::Ident;
+use proc_macro2::Span;
 use quote::quote;
 use syn;
 
-use macro_utils::{gather_all_type_reprs, repr};
-use crate::repr::ReprDescription;
 
 // ==============
 // === Macros ===
