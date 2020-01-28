@@ -1,6 +1,8 @@
 //! This module contains the `MouseManager` implementation, its associated structs such as
 //! `MousePositionEvent`, `MouseClickEvent` and `MouseWheelEvent`.
 
+use crate::prelude::*;
+
 use crate::system::web::dom::DomContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
@@ -171,10 +173,13 @@ impl MouseWheelEvent {
 // === MouseManagerProperties ===
 // ==============================
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct MouseManagerProperties {
     dom                    : DomContainer,
     mouse_position         : Option<Vector2<f32>>,
     target                 : EventTarget,
+    #[derivative(Debug="ignore")]
     stop_tracking_listener : Option<MouseEventListener>
 }
 
@@ -185,6 +190,8 @@ struct MouseManagerProperties {
 // ========================
 
 /// A struct used for storing shared MouseManager's mutable data.
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct MouseManagerData {
     properties : RefCell<MouseManagerProperties>
 }
@@ -273,6 +280,8 @@ macro_rules! add_callback {
 // ====================
 
 /// This structs manages mouse events in a specified DOM object.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct MouseManager {
     data : Rc<MouseManagerData>
 }

@@ -25,10 +25,11 @@ pub trait EasingAnimationCallback<T> = FnMut(T) + 'static;
 // === EasingAnimatorData ===
 // ==========================
 
+#[derive(Debug)]
 struct EasingAnimatorData<T:Interpolable<T>> {
     initial_value       : T,
     final_value         : T,
-    duration_ms: f64,
+    duration_ms         : f64,
     continuous_animator : Option<ContinuousAnimator>
 }
 
@@ -42,6 +43,8 @@ struct EasingAnimatorData<T:Interpolable<T>> {
 pub trait InterpolableArgument<T:Copy> = Interpolable<T> + 'static;
 
 /// This struct animates from `origin_position` to `target_position` using easing functions.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct EasingAnimator<T:Interpolable<T>> {
     data : Rc<RefCell<EasingAnimatorData<T>>>
 }

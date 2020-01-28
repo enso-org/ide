@@ -72,6 +72,7 @@ impl FixedStepAnimatorData {
 /// (AnimationCallback(delta_ms)) will be 1000ms. But keep in mind that if the actual frame
 /// takes longer, say 2000ms, AnimationCallback will be called twice in the same moment, but
 /// its delta_ms parameter will always be fixed to 1 second.
+#[derive(Debug)]
 pub struct FixedStepAnimator {
     _animator: Animator
 }

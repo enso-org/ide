@@ -125,6 +125,7 @@ pub trait GlyphAttributeBuilder {
 /// Builder for glyph square vertex positions
 ///
 /// `pen` field points to the position of last built glyph.
+#[derive(Debug)]
 pub struct GlyphVertexPositionBuilder<'a,'b> {
     pub font          : &'a mut FontRenderInfo,
     pub pen           : &'b mut Pen,
