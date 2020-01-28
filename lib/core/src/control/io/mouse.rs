@@ -190,8 +190,7 @@ struct MouseManagerProperties {
 // ========================
 
 /// A struct used for storing shared MouseManager's mutable data.
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 struct MouseManagerData {
     properties : RefCell<MouseManagerProperties>
 }
@@ -280,8 +279,7 @@ macro_rules! add_callback {
 // ====================
 
 /// This structs manages mouse events in a specified DOM object.
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub struct MouseManager {
     data : Rc<MouseManagerData>
 }

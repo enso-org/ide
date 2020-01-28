@@ -31,8 +31,7 @@ struct ContinuousTimeAnimatorProperties {
 // === ContinuousTimeAnimatorData ===
 // ==================================
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 struct ContinuousAnimatorData {
     properties : RefCell<ContinuousTimeAnimatorProperties>
 }
@@ -103,8 +102,7 @@ impl ContinuousAnimatorData {
 
 /// `ContinuousAnimator` calls `AnimationCallback` with the playback time in millisecond as its
 /// input once per frame.
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub struct ContinuousAnimator {
     data       : Rc<ContinuousAnimatorData>,
     event_loop : EventLoop

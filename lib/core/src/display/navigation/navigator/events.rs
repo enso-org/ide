@@ -110,8 +110,7 @@ struct NavigatorEventsProperties {
 // === NavigatorEventsData ===
 // ===========================
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 struct NavigatorEventsData {
     properties : RefCell<NavigatorEventsProperties>
 }

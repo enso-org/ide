@@ -196,8 +196,7 @@ impl PhysicsPropertiesData {
 // =========================
 
 /// A structure including kinematics, drag and spring properties.
-#[derive(Clone,Derivative)]
-#[derivative(Debug)]
+#[derive(Clone,Debug)]
 pub struct PhysicsProperties {
     data : Rc<RefCell<PhysicsPropertiesData>>
 }

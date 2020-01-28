@@ -39,8 +39,7 @@ pub type CallbackMut1<T> = Box<dyn CallbackMut1Fn<T>>;
 // ======================
 
 /// Handle to a callback. When the handle is dropped, the callback is removed.
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug,Default)]
 pub struct CallbackHandle {
     rc: Rc<()>
 }
