@@ -13,7 +13,6 @@ members = [
 #    "lib/ide/json-rpc",
 #    "lib/ide/macro-utils",
 #    "lib/ide/parser",
-#    "lib/ide/prelude",
 #    "lib/ide/shapely/core",
 #    "lib/ide/shapely/macros",
     "lib/ide/utils",
