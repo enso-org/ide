@@ -24,11 +24,6 @@ impl Default for Stats {
 }
 
 impl Stats {
-    /// Cheap, reference-based clone.
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-
     /// Resets the per-frame statistics.
     pub fn reset_per_frame_statistics(&self) {
         self.rc.borrow_mut().reset_per_frame_statistics();
@@ -107,4 +102,10 @@ macro_rules! if_compiled_with_stats {
         #[cfg(not(feature = "statistics"))]
         {}
     };
+}
+
+impl CloneRef for Stats {
+    fn clone_ref(&self) -> Self {
+        self.clone()
+    }
 }

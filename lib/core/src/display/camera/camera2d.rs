@@ -365,11 +365,6 @@ impl Camera2d {
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&self, f:F) {
         self.rc.borrow_mut().add_zoom_update_callback(f);
     }
-
-    /// Cheap, reference-based clone.
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
 }
 
 
@@ -439,5 +434,11 @@ impl Camera2d {
     /// Sets Camera2d's rotation.
     pub fn set_rotation(&self, yaw:f32, pitch:f32, roll:f32) {
         self.rc.borrow_mut().set_rotation(yaw,pitch,roll);
+    }
+}
+
+impl CloneRef for Camera2d {
+    fn clone_ref(&self) -> Self {
+        self.clone()
     }
 }

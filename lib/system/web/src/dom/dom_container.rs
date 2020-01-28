@@ -147,7 +147,7 @@ impl DomContainer {
     }
 
     /// Gets the Scene DOM's position. Causes style reflow.
-    pub fn position(&self) -> Vector2<f32> {
+    pub fn position_with_style_reflow(&self) -> Vector2<f32> {
         let rect = self.dom.get_bounding_client_rect();
         Vector2::new(rect.x() as f32, rect.y() as f32)
     }

@@ -99,7 +99,7 @@ pub struct MouseClickEvent {
 impl MouseClickEvent {
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position  = Vector2::new(event.x() as f32, event.y() as f32);
-        let position  = position - data.dom().position();
+        let position  = position - data.dom().position_with_style_reflow();
         let button    = match event.button() {
             LEFT_MOUSE_BUTTON      => MouseButton::LEFT,
             MIDDLE_MOUSE_BUTTON    => MouseButton::MIDDLE,
@@ -131,7 +131,7 @@ pub struct MousePositionEvent {
 impl MousePositionEvent {
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position          = Vector2::new(event.x() as f32,event.y() as f32);
-        let position          = position - data.dom().position();
+        let position          = position - data.dom().position_with_style_reflow();
         let previous_position = match data.mouse_position() {
             Some(position) => position,
             None           => position
