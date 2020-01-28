@@ -412,7 +412,7 @@ mod test {
             for step in &[Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd] {
                 let mut cursors = Cursors::mock(initial_cursors.clone());
 
-                cursors.navigate_all_cursors(&mut navigation,step);
+                cursors.navigate_all_cursors(&mut navigation,*step);
                 let expected = expected_positions.get(step).unwrap();
                 let current  = cursors.cursors.iter().map(|c| (c.position.line, c.position.column));
                 assert_eq!(expected,&current.collect_vec(), "Error for step {:?}", step);
@@ -440,7 +440,7 @@ mod test {
                 selecting: false
             };
             let mut cursors    = Cursors::mock(initial_cursors.clone());
-            cursors.navigate_all_cursors(&mut navigation,&LineEnd);
+            cursors.navigate_all_cursors(&mut navigation,LineEnd);
             assert_eq!(new_position, cursors.cursors.first().unwrap().position);
             assert_eq!(new_position, cursors.cursors.first().unwrap().selected_to);
         })
@@ -463,7 +463,7 @@ mod test {
                 selecting: true
             };
             let mut cursors = Cursors::mock(initial_cursors.clone());
-            cursors.navigate_all_cursors(&mut navigation,&LineEnd);
+            cursors.navigate_all_cursors(&mut navigation,LineEnd);
             assert_eq!(new_loc    , cursors.cursors.first().unwrap().position);
             assert_eq!(initial_loc, cursors.cursors.first().unwrap().selected_to);
         })
