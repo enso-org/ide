@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 use crate::display::shape::primitive::def::*;
 use crate::display::navigation::navigator::Navigator;
 
-use crate::control::frp;
+use crate::control::frp2;
 
 
 #[wasm_bindgen]
@@ -50,15 +50,17 @@ fn init(world: &World) {
 
     world.add_child(&shape_system);
 
+    let out = frp2::test();
+
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
+        let _keep_alive = &out;
         on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
 
-    frp::test();
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -21,6 +21,7 @@ pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use smallvec::SmallVec;
 pub use std::any::Any;
+pub use std::cell::Cell;
 pub use std::cell::Ref;
 pub use std::cell::RefCell;
 pub use std::cell::RefMut;

@@ -625,6 +625,285 @@ macro_rules! define_node {
 
 
 
+// =============
+// === Merge ===
+// =============
+
+pub type Merge<T> = NodeWrapper<MergeShape<T>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct MergeShape<T:Message> {
+    source1 : Node<T>,
+    source2 : Node<T>,
+}
+
+impl<T:Message> KnownOutput     for MergeShape<T> { type Output     = T; }
+impl<T:Message> KnownEventInput for MergeShape<T> { type EventInput = T; }
+
+
+// === Constructor ===
+
+impl<T:Message> Merge<T>
+    where Node<T> : AddTarget<Self> {
+    fn new<Source1,Source2> (source1:Source1, source2:Source2) -> Self
+        where Source1  : Into<Node<T>>,
+              Source2  : Into<Node<T>> {
+        let source1     = source1.into();
+        let source2     = source2.into();
+        let source1_ref = source1.clone();
+        let source2_ref = source2.clone();
+        let this        = Self::construct(MergeShape{source1,source2});
+        source1_ref.add_target(&this);
+        source2_ref.add_target(&this);
+        this
+    }
+}
+
+impl<T:MessageValue> EventConsumer for Merge<EventMessage<T>> {
+    fn on_event(&self, event:&Self::EventInput) {
+        self.emit_event(event);
+    }
+}
+
+
+// ==============
+// === Toggle ===
+// ==============
+
+pub type Toggle<T> = NodeWrapper<ToggleShape<T>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct ToggleShape<T:Message> {
+    source : Node<T>,
+    status : Cell<bool>,
+}
+
+impl<T:Message> KnownOutput     for ToggleShape<T> { type Output     = EventMessage<bool>; }
+impl<T:Message> KnownEventInput for ToggleShape<T> { type EventInput = T; }
+
+
+// === Constructor ===
+
+impl<T:Message> Toggle<T>
+where Node<T> : AddTarget<Self> {
+    fn new<Source> (source:Source) -> Self
+    where Source : Into<Node<T>> {
+        let status     = default();
+        let source     = source.into();
+        let source_ref = source.clone();
+        let this       = Self::construct(ToggleShape{source,status});
+        source_ref.add_target(&this);
+        this
+    }
+}
+
+impl<T:MessageValue> EventConsumer for Toggle<EventMessage<T>> {
+    fn on_event(&self, _:&Self::EventInput) {
+        let val = !self.rc.borrow().shape.status.get();
+        self.rc.borrow().shape.status.set(val);
+        self.emit_event(&EventMessage(val));
+    }
+}
+
+
+// ============
+// === Hold ===
+// ============
+
+pub type Hold<T> = NodeWrapper<HoldShape<T>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct HoldShape<T:Message> {
+    source   : Node<T>,
+    last_val : RefCell<Value<T>>,
+}
+
+impl<T:MessageValue> KnownOutput for HoldShape<EventMessage<T>> {
+    type Output = BehaviorMessage<T>;
+}
+impl<T:Message> KnownEventInput for HoldShape<T> { type EventInput = T; }
+
+
+// === Constructor ===
+
+impl<T:MessageValue> Hold<EventMessage<T>>
+    where Node<EventMessage<T>> : AddTarget<Self> {
+    fn new<Source> (source:Source) -> Self
+        where Source : Into<Node<EventMessage<T>>> {
+        let last_val   = default();
+        let source     = source.into();
+        let source_ref = source.clone();
+        let this       = Self::construct(HoldShape{source,last_val});
+        source_ref.add_target(&this);
+        this
+    }
+}
+
+impl<T:MessageValue> EventConsumer for Hold<EventMessage<T>> {
+    fn on_event(&self, event:&Self::EventInput) {
+        *self.rc.borrow().shape.last_val.borrow_mut() = event.value().clone();
+    }
+}
+
+impl<T> BehaviorNodeStorage for HoldShape<EventMessage<T>>
+where T : MessageValue {
+    fn current_value(&self) -> T {
+        self.last_val.borrow().clone()
+    }
+}
+
+
+
+// ==============
+// === Sample ===
+// ==============
+
+pub type Sample<In1,In2> = NodeWrapper<SampleShape<In1,In2>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct SampleShape<In1:Message,In2:Message> {
+    source1 : Node<In1>,
+    source2 : Node<In2>,
+}
+
+impl<In1,In2> KnownOutput for SampleShape<EventMessage<In1>,BehaviorMessage<In2>>
+where In1:MessageValue, In2:MessageValue {
+    type Output = EventMessage<In2>;
+}
+
+impl<In1,In2> KnownOutput for SampleShape<BehaviorMessage<In1>,EventMessage<In2>>
+where In1:MessageValue, In2:MessageValue {
+    type Output = EventMessage<In1>;
+}
+
+impl<In1,In2> KnownEventInput for SampleShape<EventMessage<In1>,BehaviorMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type EventInput = EventMessage<In1>;
+}
+
+impl<In1,In2> KnownEventInput for SampleShape<BehaviorMessage<In1>,EventMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type EventInput = EventMessage<In2>;
+}
+
+
+// === Constructor ===
+
+impl<In1:Message, In2:Message> Sample<In1,In2>
+where Node<In1>            : AddTarget<Self>,
+      Node<In2>            : AddTarget<Self>,
+      SampleShape<In1,In2> : KnownOutput {
+    fn new<Source1,Source2> (source1:Source1, source2:Source2) -> Self
+    where Source1 : Into<Node<In1>>,
+          Source2 : Into<Node<In2>> {
+        let source1     = source1.into();
+        let source2     = source2.into();
+        let source1_ref = source1.clone();
+        let source2_ref = source2.clone();
+        let this        = Self::construct(SampleShape{source1,source2});
+        source1_ref.add_target(&this);
+        source2_ref.add_target(&this);
+        this
+    }
+}
+
+impl<In1,In2> EventConsumer for Sample<BehaviorMessage<In1>,EventMessage<In2>>
+where In1:MessageValue, In2:MessageValue {
+    fn on_event(&self, _:&Self::EventInput) {
+        let value = self.rc.borrow().shape.source1.current_value();
+        self.emit_event(&EventMessage(value));
+    }
+}
+
+impl<In1,In2> EventConsumer for Sample<EventMessage<In1>,BehaviorMessage<In2>>
+where In1:MessageValue, In2:MessageValue {
+    fn on_event(&self, _:&Self::EventInput) {
+        let value = self.rc.borrow().shape.source2.current_value();
+        self.emit_event(&EventMessage(value));
+    }
+}
+
+
+
+
+// ==============
+// === Sample ===
+// ==============
+
+pub type Gate<In1,In2> = NodeWrapper<GateShape<In1,In2>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct GateShape<In1:Message,In2:Message> {
+    source1 : Node<In1>,
+    source2 : Node<In2>,
+}
+
+impl<In1,In2> KnownOutput for GateShape<EventMessage<In1>,BehaviorMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type Output = EventMessage<In1>;
+}
+
+impl<In1,In2> KnownOutput for GateShape<BehaviorMessage<In1>,EventMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type Output = EventMessage<In2>;
+}
+
+impl<In1,In2> KnownEventInput for GateShape<EventMessage<In1>,BehaviorMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type EventInput = EventMessage<In1>;
+}
+
+impl<In1,In2> KnownEventInput for GateShape<BehaviorMessage<In1>,EventMessage<In2>>
+    where In1:MessageValue, In2:MessageValue {
+    type EventInput = EventMessage<In2>;
+}
+
+
+// === Constructor ===
+
+impl<In1:Message, In2:Message> Gate<In1,In2>
+    where Node<In1>          : AddTarget<Self>,
+          Node<In2>          : AddTarget<Self>,
+          GateShape<In1,In2> : KnownOutput {
+    fn new<Source1,Source2> (source1:Source1, source2:Source2) -> Self
+        where Source1 : Into<Node<In1>>,
+              Source2 : Into<Node<In2>> {
+        let source1     = source1.into();
+        let source2     = source2.into();
+        let source1_ref = source1.clone();
+        let source2_ref = source2.clone();
+        let this        = Self::construct(GateShape{source1,source2});
+        source1_ref.add_target(&this);
+        source2_ref.add_target(&this);
+        this
+    }
+}
+
+impl<In:MessageValue> EventConsumer for Gate<BehaviorMessage<bool>,EventMessage<In>> {
+    fn on_event(&self, event:&Self::EventInput) {
+        let check = self.rc.borrow().shape.source1.current_value();
+        if check {
+            self.emit_event(event);
+        }
+    }
+}
+
+impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bool>> {
+    fn on_event(&self, event:&Self::EventInput) {
+        let check = self.rc.borrow().shape.source2.current_value();
+        if check {
+            self.emit_event(event);
+        }
+    }
+}
+
+
+
 // ==============
 // === Lambda ===
 // ==============
@@ -685,11 +964,25 @@ impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,Out
 
 impl<In:MessageValue,Out:Message> EventConsumer for Lambda<EventMessage<In>,Out> {
     fn on_event(&self, input:&Self::EventInput) {
-        println!("GOT {:?}",input);
         let output = (self.rc.borrow().shape.func.raw)(unwrap(input));
         self.emit_event(&output);
     }
 }
+
+
+fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
+    where T        : Message,
+          Label    : Str,
+          Source   : Into<Node<T>>,
+          Value<T> : MessageValue + Infer<T,Result=T>,
+          Node<T>  : AddTarget<Lambda<T,T>> {
+    let label = label.into();
+    Lambda::new(source, move |t| {
+        println!("TRACE [{}]: {:?}", label, t);
+        t.clone()
+    })
+}
+
 
 
 
@@ -738,12 +1031,12 @@ pub trait Lambda2New<Source1,Source2,Function> {
 
 impl<In1,In2,OutVal,Source1,Source2,Function>
 Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutVal>>
-    where In1       :  Message,
-          In2       :  Message,
-          OutVal    :  Infer<(In1,In2)>,
-          Source1   :  Into<Node<In1>>,
-          Source2   :  Into<Node<In2>>,
-          Function  :  'static + Fn(&Value<In1>,&Value<In2>) -> OutVal,
+    where In1       : Message,
+          In2       : Message,
+          OutVal    : Infer<(In1,In2)>,
+          Source1   : Into<Node<In1>>,
+          Source2   : Into<Node<In2>>,
+          Function  : 'static + Fn(&Value<In1>,&Value<In2>) -> OutVal,
           Node<In1> : AddTarget<Self>,
           Node<In2> : AddTarget<Self>,
           Inferred<(In1,In2),OutVal> : Message<Content=OutVal> {
@@ -763,7 +1056,6 @@ Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutV
 impl<In1,In2,Out> EventConsumer for Lambda2<EventMessage<In1>,BehaviorMessage<In2>,Out>
     where In1:MessageValue, In2:MessageValue, Out:Message {
     fn on_event(&self, event:&Self::EventInput) {
-        println!("GOT {:?}",event);
         let value2 = self.rc.borrow().shape.source2.current_value();
         let output = (self.rc.borrow().shape.func.raw)(&event.value(),&value2);
         self.emit_event(&output);
@@ -773,7 +1065,6 @@ impl<In1,In2,Out> EventConsumer for Lambda2<EventMessage<In1>,BehaviorMessage<In
 impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In2>,Out>
     where In1:MessageValue, In2:MessageValue, Out:Message {
     fn on_event(&self, event:&Self::EventInput) {
-        println!("GOT {:?}",event);
         let value1 = self.rc.borrow().shape.source1.current_value();
         let output = (self.rc.borrow().shape.func.raw)(&value1,&event.value());
         self.emit_event(&output);
@@ -789,6 +1080,11 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In
 #[allow(missing_docs)]
 mod tests {
     use super::*;
+
+    use crate::system::web;
+    use crate::control::io::mouse2;
+    use crate::control::io::mouse2::MouseManager;
+
 
     // ================
     // === Position ===
@@ -813,7 +1109,13 @@ mod tests {
     // ============
 
     #[allow(unused_variables)]
-    pub fn test () {
+    pub fn test () -> MouseManager {
+
+        let document        = web::document().unwrap();
+        let mouse_manager   = MouseManager::new(&document);
+
+
+
         println!("\n\n\n--- FRP ---\n");
 
 
@@ -834,6 +1136,48 @@ mod tests {
         //  let n3 = Lambda2::new(&n1,&n2,|i,j| {i * j});
 
         e1.emit_event(&EventMessage(7));
+
+
+
+        let on_mouse_move = Source::<EventMessage<Position>>::new();
+        let on_mouse_down = Source::<EventMessage<()>>::new();
+        let on_mouse_up   = Source::<EventMessage<()>>::new();
+
+
+
+
+//        trace("Mouse Move" , &on_mouse_move);
+//        trace("Mouse Down" , &on_mouse_down);
+//        trace("Mouse Up"   , &on_mouse_up);
+
+
+        let on_up_or_down      = Merge::new(&on_mouse_down,&on_mouse_up);
+        let on_up_or_down_bool = Toggle::new(&on_up_or_down);
+        let is_down            = Hold::new(&on_up_or_down_bool);
+        let on_mouse_down_move = Gate::new(&is_down,&on_mouse_move);
+
+        let ttt = Sample::new(&is_down,&on_mouse_down_move);
+
+        trace("X"   , &on_mouse_down_move);
+
+
+
+        let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
+            on_mouse_move.emit_event(&EventMessage(Position::new(event.client_x(),event.client_y())));
+        });
+        handle.forget();
+
+        let handle = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
+            on_mouse_down.emit_event(&EventMessage(()));
+        });
+        handle.forget();
+
+        let handle = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
+            on_mouse_up.emit_event(&EventMessage(()));
+        });
+        handle.forget();
+
+        mouse_manager
 
     }
 }
