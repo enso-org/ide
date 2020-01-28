@@ -756,6 +756,51 @@ where T : MessageValue {
 }
 
 
+// =================
+// === Recursive ===
+// =================
+
+pub type Recursive<T> = NodeWrapper<RecursiveShape<T>>;
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct RecursiveShape<T> {
+    source : RefCell<Option<T>>,
+}
+
+impl<T:KnownOutput> KnownOutput for RecursiveShape<T> where Output<T>:Message {
+    type Output = Output<T>;
+}
+impl<T:KnownEventInput> KnownEventInput for RecursiveShape<T> where EventInput<T>:Message {
+    type EventInput = EventInput<T>;
+}
+
+
+// === Constructor ===
+
+impl<T:KnownOutput> Recursive<T> {
+    fn new () -> Self {
+        let source = default();
+        Self::construct(RecursiveShape{source})
+    }
+}
+
+impl<T> EventConsumer for Recursive<T>
+where T : KnownOutput + EventConsumer,
+      EventInput<T> : Message {
+    fn on_event(&self, event:&Self::EventInput) {
+        self.rc.borrow().shape.source.borrow().as_ref().unwrap().on_event(event);
+    }
+}
+
+impl<T> BehaviorNodeStorage for RecursiveShape<T>
+where T : BehaviorNodeStorage {
+    fn current_value(&self) -> Value<Output<T>> {
+        self.source.borrow().as_ref().unwrap().current_value()
+    }
+}
+
+
 
 // ==============
 // === Sample ===
