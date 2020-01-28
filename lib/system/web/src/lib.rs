@@ -1,3 +1,6 @@
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(trait_alias)]
 #![feature(set_stdio)]
 
