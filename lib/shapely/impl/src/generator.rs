@@ -1,13 +1,9 @@
-#![feature(generators, generator_trait)]
-#![feature(type_ascription)]
-#![warn(missing_docs)]
-
 //! Helper code meant to be used by the code generated through usage of macros
 //! from `shapely-macros` crate.
 
 pub use shapely_macros::*;
 
-use prelude::*;
+use crate::prelude::*;
 
 use std::ops::Generator;
 use std::ops::GeneratorState;

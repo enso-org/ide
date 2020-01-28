@@ -11,7 +11,6 @@
 #![warn(missing_debug_implementations)]
 
 #[allow(unused)]
-
 use crate::prelude::*;
 
 use futures::Stream;
@@ -20,7 +19,6 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
-/// This crate prelude.
 pub use enso_prelude as prelude;
 
 

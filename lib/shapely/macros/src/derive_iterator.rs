@@ -1,10 +1,7 @@
-use prelude::*;
+use crate::prelude::*;
 
-use quote::quote;
-use proc_macro2::{TokenStream,Ident,Span};
 use macro_utils::fields_list;
 use macro_utils::field_ident_token;
-use macro_utils::repr;
 use macro_utils::type_depends_on;
 use macro_utils::type_matches;
 use macro_utils::ty_path_type_args;
@@ -231,8 +228,8 @@ impl DerivingIterator<'_> {
         let ident      = &decl.ident;
         let t_iterator = format!("{}Iterator{}", ident, mut_or_not);
         let iterator   = t_iterator.to_snake_case();
-        let t_iterator = Ident::new(&t_iterator, Span::call_site());
-        let iterator   = Ident::new(&iterator  , Span::call_site());
+        let t_iterator = syn::Ident::new(&t_iterator, Span::call_site());
+        let iterator   = syn::Ident::new(&iterator  , Span::call_site());
         DerivingIterator {
             data,
             ident,
