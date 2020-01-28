@@ -37,7 +37,6 @@
 /// Uncomment the following lines in order to enable macro-expansion debugging during compilation.
 
 //#![feature(trace_macros)]
-//#![recursion_limit="256"]
 //trace_macros!(true);
 
 
