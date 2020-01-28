@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use basegl_prelude::*;
+use enso_prelude::*;
 
 use inflector::Inflector;
 use proc_macro2::{TokenStream, Ident, Span};

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use basegl_prelude::*;
-use basegl_prelude::fmt::{Formatter, Error};
+use enso_prelude::*;
+use enso_prelude::fmt::{Formatter, Error};
 
 /// A base of built-in fonts in application
 ///

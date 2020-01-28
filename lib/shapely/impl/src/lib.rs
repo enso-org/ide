@@ -18,7 +18,7 @@ pub use shapely_macros::*;
 use std::ops::Generator;
 use std::ops::GeneratorState;
 use std::pin::Pin;
-use basegl_prelude::*;
+use enso_prelude::*;
 
 
 /// Generates a newtype wrapper for the provided types. It also generates a lot of impls,

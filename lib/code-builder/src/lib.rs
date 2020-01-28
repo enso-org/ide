@@ -6,7 +6,7 @@
 #![allow(missing_docs)]
 
 
-use basegl_prelude::*;
+use enso_prelude::*;
 use std::fmt::Write;
 
 
