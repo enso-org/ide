@@ -625,31 +625,6 @@ macro_rules! define_node {
 
 
 
-
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct Lambda1Func<In1:Message,Out:Message> {
-    #[derivative(Debug="ignore")]
-    func : Rc<dyn Fn(&Value<In1>) -> Out>
-}
-
-impl<In1:Message,Out:Message,F:'static + Fn(&Value<In1>) -> Value<Out>> From<F> for Lambda1Func<In1,Out> {
-    fn from(f:F) -> Self {
-        let func = Rc::new(move |a:&Value<In1>| { wrap(f(a)) });
-        Self {func}
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct Lambda2Func<In1:Message,In2:Message,Out:Message> {
-    #[derivative(Debug="ignore")]
-    func : Rc<dyn Fn(&Value<In1>,&Value<In2>) -> Out>
-}
-
-
-
-
 // ==============
 // === Lambda ===
 // ==============
@@ -659,6 +634,26 @@ define_node! {
     /// message of the same type as the input message.
     pub struct Lambda LambdaShape [source] {
         func : Lambda1Func<source,Out>
+    }
+}
+
+
+// === LambdaFunc ===
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Lambda1Func<In1:Message,Out:Message> {
+    #[derivative(Debug="ignore")]
+    raw : Rc<dyn Fn(&Value<In1>) -> Out>
+}
+
+impl<In1,Out,Func> From<Func> for Lambda1Func<In1,Out>
+    where In1  : Message,
+          Out  : Message,
+          Func : 'static + Fn(&Value<In1>) -> Value<Out> {
+    fn from(func:Func) -> Self {
+        let raw = Rc::new(move |a:&Value<In1>| { wrap(func(a)) });
+        Self {raw}
     }
 }
 
@@ -681,28 +676,17 @@ impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,Out
     fn new (source:Source, func:Func) -> Self {
         let source     = source.into();
         let source_ref = source.clone();
-        let shape      = LambdaShape::new(source,func);
-        let this       = Self::construct(shape);
+        let func       = func.into();
+        let this       = Self::construct(LambdaShape{source,func});
         source_ref.add_target(&this);
         this
-    }
-}
-
-impl<In:Message,Out:Message> LambdaShape<In,Out> {
-    /// Constructor.
-    pub fn new<Func,Source>(source:Source, f:Func) -> Self
-        where Func   : Into<Lambda1Func<In,Out>>,
-              Source : Into<Node<In>> {
-        let source = source.into();
-        let func   = f.into();
-        Self {source,func}
     }
 }
 
 impl<In:MessageValue,Out:Message> EventConsumer for Lambda<EventMessage<In>,Out> {
     fn on_event(&self, input:&Self::EventInput) {
         println!("GOT {:?}",input);
-        let output = (self.rc.borrow().shape.func.func)(unwrap(input));
+        let output = (self.rc.borrow().shape.func.raw)(unwrap(input));
         self.emit_event(&output);
     }
 }
@@ -722,20 +706,24 @@ define_node! {
     }
 }
 
-impl<In1:Message,In2:Message,Out:Message>
-Lambda2Shape<In1,In2,Out> {
-    /// Constructor.
-    pub fn new
-    < F:'static + Fn(&Value<In1>,&Value<In2>) -> Value<Out>
-    , Source1:Into<Node<In1>>
-    , Source2:Into<Node<In2>>
-    >
-    (source1:Source1, source2:Source2, f:F) -> Self {
-        let source1 = source1.into();
-        let source2 = source2.into();
-        let func    = Rc::new(move |a:&Value<In1>,b:&Value<In2>| { wrap(f(a,b)) });
-        let func    = Lambda2Func {func};
-        Self {source1,source2,func}
+
+// === LambdaFunc ===
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Lambda2Func<In1:Message,In2:Message,Out:Message> {
+    #[derivative(Debug="ignore")]
+    raw : Rc<dyn Fn(&Value<In1>,&Value<In2>) -> Out>
+}
+
+impl<In1,In2,Out,Func> From<Func> for Lambda2Func<In1,In2,Out>
+    where In1  : Message,
+          In2  : Message,
+          Out  : Message,
+          Func : 'static + Fn(&Value<In1>,&Value<In2>) -> Value<Out> {
+    fn from(func:Func) -> Self {
+        let raw = Rc::new(move |a:&Value<In1>,b:&Value<In2>| { wrap(func(a,b)) });
+        Self {raw}
     }
 }
 
@@ -759,13 +747,13 @@ Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutV
           Node<In1> : AddTarget<Self>,
           Node<In2> : AddTarget<Self>,
           Inferred<(In1,In2),OutVal> : Message<Content=OutVal> {
-    fn new (source1:Source1, source2:Source2, f:Function) -> Self {
+    fn new (source1:Source1, source2:Source2, func:Function) -> Self {
         let source1     = source1.into();
         let source2     = source2.into();
         let source1_ref = source1.clone();
         let source2_ref = source2.clone();
-        let shape       = Lambda2Shape::new(source1,source2,f);
-        let this        = Self::construct(shape);
+        let func        = func.into();
+        let this        = Self::construct(Lambda2Shape{source1,source2,func});
         source1_ref.add_target(&this);
         source2_ref.add_target(&this);
         this
@@ -777,7 +765,7 @@ impl<In1,In2,Out> EventConsumer for Lambda2<EventMessage<In1>,BehaviorMessage<In
     fn on_event(&self, event:&Self::EventInput) {
         println!("GOT {:?}",event);
         let value2 = self.rc.borrow().shape.source2.current_value();
-        let output = (self.rc.borrow().shape.func.func)(&event.value(),&value2);
+        let output = (self.rc.borrow().shape.func.raw)(&event.value(),&value2);
         self.emit_event(&output);
     }
 }
@@ -787,7 +775,7 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In
     fn on_event(&self, event:&Self::EventInput) {
         println!("GOT {:?}",event);
         let value1 = self.rc.borrow().shape.source1.current_value();
-        let output = (self.rc.borrow().shape.func.func)(&value1,&event.value());
+        let output = (self.rc.borrow().shape.func.raw)(&value1,&event.value());
         self.emit_event(&output);
     }
 }
