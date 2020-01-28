@@ -172,21 +172,9 @@ impl Camera2dData {
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
-        let mut camera = Self {
-            transform,
-            screen,
-            projection,
-            clipping,
-            alignment,
-            zoom,
-            zoom_update_callback,
-            native_z,
-            view_matrix,
-            projection_matrix,
-            view_projection_matrix,
-            projection_dirty,
-            transform_dirty
-        };
+        let mut camera = Self {transform,screen,projection,clipping,alignment,zoom,
+            zoom_update_callback,native_z,view_matrix,projection_matrix,view_projection_matrix,
+            projection_dirty,transform_dirty};
         camera.set_screen(width, height);
         camera
     }
@@ -376,6 +364,11 @@ impl Camera2d {
     /// Adds a callback to notify when `zoom` is updated.
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&self, f:F) {
         self.rc.borrow_mut().add_zoom_update_callback(f);
+    }
+
+    /// Cheap, reference-based clone.
+    pub fn clone_ref(&self) -> Self {
+        self.clone()
     }
 }
 

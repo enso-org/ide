@@ -54,6 +54,14 @@ impl Shape {
         Self {rc}
     }
 
+    pub fn from_window(window:&web_sys::Window) -> Self {
+        let width  = window.inner_width().unwrap().as_f64().unwrap() as f32;
+        let height = window.inner_height().unwrap().as_f64().unwrap() as f32;
+        let rc     = Rc::new(RefCell::new(ShapeData::new(width,height)));
+        Self{rc}
+    }
+
+
     pub fn screen_shape(&self) -> ShapeData {
         self.rc.borrow().clone()
     }
@@ -146,9 +154,7 @@ impl {
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
         let window          = crate::system::web::window();
-        let inner_width     = window.inner_width().unwrap().as_f64().unwrap() as f32;
-        let inner_height    = window.inner_height().unwrap().as_f64().unwrap() as f32;
-        let shape           = Shape::new(inner_width, inner_height);
+        let shape           = Shape::from_window(&window);
         let shape_data      = shape.screen_shape();
         let width           = shape_data.width;
         let height          = shape_data.height;
@@ -159,8 +165,8 @@ impl {
         let text_components = default();
         let on_resize       = default();
         let stats           = stats.clone();
-        let uniform         = zoom_uniform.clone();
-        camera.add_zoom_update_callback(move |zoom| uniform.set(zoom));
+        let zoom_uniform_cp = zoom_uniform.clone();
+        camera.add_zoom_update_callback(move |zoom| zoom_uniform_cp.set(zoom));
         variables.add("pixel_ratio", shape.pixel_ratio());
 
         context.enable(Context::BLEND);
@@ -240,7 +246,7 @@ impl {
     }
 
     pub fn camera(&self) -> Camera2d {
-        self.camera.clone()
+        self.camera.clone_ref()
     }
 
     pub fn stats(&self) -> Stats {
