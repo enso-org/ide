@@ -4,6 +4,53 @@
 
 use crate::prelude::*;
 
+use crate::system::web;
+use percent_encoding;
+
+
+#[derive(Debug,Default)]
+pub struct Graphviz {
+    code : String,
+}
+
+impl Graphviz {
+    pub fn add_node<Label:Str>(&mut self, id:usize, label:Label) {
+        let label = label.as_ref();
+        let code  = iformat!("\n{id}[label=\"{label}\"]");
+        self.code.push_str(&code);
+    }
+}
+
+impl From<&Graphviz> for String {
+    fn from(t:&Graphviz) -> String {
+        t.code.clone()
+    }
+}
+
+impl From<Graphviz> for String {
+    fn from(t:Graphviz) -> String {
+        format!("digraph G {{\nrankdir=LR;\n{}\n}}",t.code)
+    }
+}
+
+
+pub trait GraphvizRepr {
+    fn graphviz_build(&self, builder:&mut Graphviz);
+
+    fn to_graphviz(&self) -> String {
+        let mut builder = Graphviz::default();
+        self.graphviz_build(&mut builder);
+        builder.into()
+    }
+
+    fn display_graphviz(&self) {
+        let code = self.to_graphviz();
+        let url  = percent_encoding::utf8_percent_encode(&code,percent_encoding::NON_ALPHANUMERIC);
+        let url  = format!("https://dreampuf.github.io/GraphvizOnline/#{}",url);
+        web::window().open_with_url_and_target(&url,"_blank").unwrap();
+    }
+}
+
 
 
 // ==============
@@ -160,7 +207,7 @@ pub type Output<T> = <T as KnownOutput>::Output;
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + Debug;
+    type NodeStorage: CloneRef + Debug + GraphvizRepr;
 }
 
 /// Internal node storage type accessor.
@@ -174,7 +221,7 @@ impl KnownNodeStorage for () {
 // === EventNodeStorage ===
 
 /// Event node operations.
-pub trait EventNodeStorage: KnownOutput + Debug {
+pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr {
     /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
     /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
@@ -188,13 +235,25 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 // === BehaviorNodeStorage ===
 
 /// Behavior node operations.
-pub trait BehaviorNodeStorage: KnownOutput + Debug {
+pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr {
     /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
 
 impl<Out> KnownNodeStorage for BehaviorMessage<Out> {
     type NodeStorage = Rc<dyn BehaviorNodeStorage<Output=BehaviorMessage<Out>>>;
+}
+
+
+
+impl GraphvizRepr for () {
+    fn graphviz_build(&self, builder:&mut Graphviz) {}
+}
+
+impl<T:?Sized+GraphvizRepr> GraphvizRepr for Rc<T> {
+    fn graphviz_build(&self, builder:&mut Graphviz) {
+        self.deref().graphviz_build(builder)
+    }
 }
 
 
@@ -307,6 +366,16 @@ impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
 }
 
 
+// === Debug ===
+
+//impl<Out:KnownNodeStorage> GraphvizRepr for Node<Out>
+//where NodeStorage<Out> : GraphvizRepr {
+//    fn graphviz_build(&self, builder:&mut Graphviz) {
+//        self.storage.graphviz_build(builder);
+//    }
+//}
+
+
 
 // ===================
 // === NodeWrapper ===
@@ -341,20 +410,21 @@ impl<Shape:KnownOutput> NodeWrapper<Shape> {
 
 impl<Shape:KnownOutput + Debug>
 EventNodeStorage for NodeWrapper<Shape>
-    where Output<Self>:'static, Output<Shape>:Message {
+where Output<Self>:'static, Output<Shape>:Message, Self:GraphvizRepr {
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>) {
         self.rc.borrow_mut().targets.push(target);
     }
 }
 
 
-impl<Shape:BehaviorNodeStorage + Debug>
-BehaviorNodeStorage for NodeWrapper<Shape>
-    where Output<Shape>:Message {
-    fn current_value(&self) -> Value<Output<Self>> {
-        self.rc.borrow().shape.current_value()
-    }
-}
+//impl<Shape:BehaviorNodeStorage + Debug>
+//BehaviorNodeStorage for NodeWrapper<Shape>
+//where Output<Shape>:Message {
+//    fn current_value(&self) -> Value<Output<Self>> {
+//        self.rc.borrow().shape.current_value()
+//    }
+//}
+
 
 
 // === NodeWrapperTemplate ===
@@ -367,6 +437,12 @@ pub struct NodeWrapperTemplate<Shape,Out> {
     rc: Rc<RefCell<NodeWrapperTemplateData<Shape,Out>>>,
 }
 
+impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
+    pub fn id(&self) -> usize {
+        Rc::downgrade(&self.rc).as_raw() as *const() as usize
+    }
+}
+
 impl<Shape,Out:Message> KnownOutput for NodeWrapperTemplate<Shape,Out> {
     type Output = Out;
 }
@@ -377,6 +453,12 @@ impl<Shape:KnownEventInput,Out> KnownEventInput for NodeWrapperTemplate<Shape,Ou
 }
 
 impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
+
+//impl<Shape:GraphvizRepr,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
+//    fn graphviz_build(&self, builder:&mut Graphviz) {
+//        self.rc.borrow().shape.graphviz_build(builder)
+//    }
+//}
 
 
 
@@ -571,24 +653,37 @@ pub struct SourceData<Out:KnownSourceStorage> {
 }
 
 impl<Out> KnownOutput for SourceData<Out>
-    where Out : KnownSourceStorage + Message {
+where Out : KnownSourceStorage + Message {
     type Output = Out;
 }
 
 impl<Out> Source<Out>
-    where Out : KnownSourceStorage + Message {
+where Out : KnownSourceStorage + Message {
     /// Constructor.
     pub fn new() -> Self {
         default()
     }
 }
 
-impl<Out> BehaviorNodeStorage for SourceData<BehaviorMessage<Out>>
+impl<Out> BehaviorNodeStorage for Source<BehaviorMessage<Out>>
     where Out : MessageValue {
     fn current_value(&self) -> Out {
-        self.storage.value()
+        self.rc.borrow().shape.storage.value()
     }
 }
+
+// TODO finish
+impl<Out:MessageValue> GraphvizRepr for Source<BehaviorMessage<Out>> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+// TODO finish
+impl<Out:MessageValue> GraphvizRepr for Source<EventMessage<Out>> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
 
 
 
@@ -666,6 +761,12 @@ impl<T:MessageValue> EventConsumer for Merge<EventMessage<T>> {
     }
 }
 
+impl<T:Message> GraphvizRepr for Merge<T> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+
 
 // ==============
 // === Toggle ===
@@ -706,6 +807,13 @@ impl<T:MessageValue> EventConsumer for Toggle<EventMessage<T>> {
         self.emit_event(&EventMessage(val));
     }
 }
+
+impl<T:Message> GraphvizRepr for Toggle<T> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+
 
 
 // ============
@@ -748,12 +856,20 @@ impl<T:MessageValue> EventConsumer for Hold<EventMessage<T>> {
     }
 }
 
-impl<T> BehaviorNodeStorage for HoldShape<EventMessage<T>>
+impl<T> BehaviorNodeStorage for Hold<EventMessage<T>>
 where T : MessageValue {
     fn current_value(&self) -> T {
-        self.last_val.borrow().clone()
+        self.rc.borrow().shape.last_val.borrow().clone()
     }
 }
+
+impl<T:MessageValue> GraphvizRepr for Hold<EventMessage<T>> {
+    fn graphviz_build(&self, builder:&mut Graphviz) {
+        builder.add_node(self.id(),"hold");
+        self.rc.borrow().shape.source.graphviz_build(builder);
+    }
+}
+
 
 
 // =================
@@ -779,9 +895,13 @@ impl<T:KnownEventInput> KnownEventInput for RecursiveShape<T> where EventInput<T
 // === Constructor ===
 
 impl<T:KnownOutput> Recursive<T> {
-    fn new () -> Self {
+    fn new() -> Self {
         let source = default();
         Self::construct(RecursiveShape{source})
+    }
+
+    fn initialize(&self, t:T) {
+        *self.rc.borrow().shape.source.borrow_mut() = Some(t);
     }
 }
 
@@ -793,12 +913,19 @@ where T : KnownOutput + EventConsumer,
     }
 }
 
-impl<T> BehaviorNodeStorage for RecursiveShape<T>
+impl<T> BehaviorNodeStorage for Recursive<T>
 where T : BehaviorNodeStorage {
     fn current_value(&self) -> Value<Output<T>> {
-        self.source.borrow().as_ref().unwrap().current_value()
+        self.rc.borrow().shape.source.borrow().as_ref().unwrap().current_value()
     }
 }
+
+// TODO finish
+impl<T:KnownOutput> GraphvizRepr for Recursive<T> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
 
 
 
@@ -872,12 +999,19 @@ where In1:MessageValue, In2:MessageValue {
     }
 }
 
+// TODO finish
+impl<In1:Message, In2:Message> GraphvizRepr for Sample<In1,In2>
+where SampleShape<In1,In2> : KnownOutput {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
 
 
 
-// ==============
-// === Sample ===
-// ==============
+
+// ============
+// === Gate ===
+// ============
 
 pub type Gate<In1,In2> = NodeWrapper<GateShape<In1,In2>>;
 
@@ -944,6 +1078,13 @@ impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bo
         if check {
             self.emit_event(event);
         }
+    }
+}
+
+// TODO finish
+impl<In1:Message, In2:Message> GraphvizRepr for Gate<In1,In2>
+where GateShape<In1,In2> : KnownOutput {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
@@ -1028,6 +1169,11 @@ fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
     })
 }
 
+// TODO finish
+impl<In1:Message, Out:Message> GraphvizRepr for Lambda<In1,Out> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
 
 
 
@@ -1116,6 +1262,12 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In
     }
 }
 
+// TODO finish
+impl<In1:Message, In2:Message, Out:Message> GraphvizRepr for Lambda2<In1,In2,Out> {
+    fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
 
 
 // =================================================================================================
@@ -1144,6 +1296,15 @@ mod tests {
     impl Position {
         pub fn new(x:i32, y:i32) -> Self {
             Self {x,y}
+        }
+    }
+
+    impl std::ops::Sub<&Position> for &Position {
+        type Output = Position;
+        fn sub(self, rhs: &Position) -> Self::Output {
+            let x = self.x - rhs.x;
+            let y = self.y - rhs.y;
+            Position {x,y}
         }
     }
 
@@ -1187,13 +1348,7 @@ mod tests {
         let on_mouse_move = Source::<EventMessage<Position>>::new();
         let on_mouse_down = Source::<EventMessage<()>>::new();
         let on_mouse_up   = Source::<EventMessage<()>>::new();
-
-
-
-
-//        trace("Mouse Move" , &on_mouse_move);
-//        trace("Mouse Down" , &on_mouse_down);
-//        trace("Mouse Up"   , &on_mouse_up);
+        let mouse_pos     = Hold::new(&on_mouse_move);
 
 
         let on_up_or_down      = Merge::new(&on_mouse_down,&on_mouse_up);
@@ -1201,9 +1356,24 @@ mod tests {
         let is_down            = Hold::new(&on_up_or_down_bool);
         let on_mouse_down_move = Gate::new(&is_down,&on_mouse_move);
 
-        let ttt = Sample::new(&is_down,&on_mouse_down_move);
+        let final_pos_ref      = Recursive::<Hold<EventMessage<Position>>>::new();
+        let on_mouse_down_pos  = Sample::new(&on_mouse_down,&mouse_pos);
 
-        trace("X"   , &on_mouse_down_move);
+        let pos_diff_on_down   = Lambda2::new(&on_mouse_down_pos,&final_pos_ref, |m,f| {m - f});
+        let pos_diff           = Hold::new(&pos_diff_on_down);
+
+        let final_pos_on_move  = Lambda2::new(&on_mouse_down_move,&pos_diff, |m,f| {m - f});
+        let final_pos          = Hold::new(&final_pos_on_move);
+
+        final_pos_ref.initialize(final_pos.clone());
+
+        let debug = Sample::new(&on_mouse_move,&final_pos);
+        trace("X" , &debug);
+
+
+//        println!("\n\n\n--- Graphviz ---\n");
+
+        final_pos.display_graphviz();
 
 
 
@@ -1227,3 +1397,6 @@ mod tests {
     }
 }
 pub use tests::*;
+
+
+
