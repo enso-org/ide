@@ -524,11 +524,7 @@ impl PartialEq for DisplayObjectData {
     }
 }
 
-impl CloneRef for DisplayObjectData {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for DisplayObjectData {}
 
 
 

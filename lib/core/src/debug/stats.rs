@@ -104,8 +104,4 @@ macro_rules! if_compiled_with_stats {
     };
 }
 
-impl CloneRef for Stats {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for Stats {}

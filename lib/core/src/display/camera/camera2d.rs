@@ -437,8 +437,4 @@ impl Camera2d {
     }
 }
 
-impl CloneRef for Camera2d {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for Camera2d {}
