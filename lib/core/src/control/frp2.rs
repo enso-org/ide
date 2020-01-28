@@ -279,7 +279,8 @@ pub type Behavior <T> = Node<BehaviorMessage<T>>;
 
 /// Node is used as a common types for frp operations. For example, `Event<T>` is just an alias to
 /// `Node<EventMessage<T>>`.
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
 pub struct Node<Out:KnownNodeStorage> {
     storage: NodeStorage<Out>,
 }
@@ -365,15 +366,40 @@ impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
     fn add_target(&self,_:&S) {}
 }
 
+impl<T:KnownNodeStorage> AnyNodeOps for Node<T> {}
 
-// === Debug ===
 
-//impl<Out:KnownNodeStorage> GraphvizRepr for Node<Out>
-//where NodeStorage<Out> : GraphvizRepr {
-//    fn graphviz_build(&self, builder:&mut Graphviz) {
-//        self.storage.graphviz_build(builder);
-//    }
-//}
+
+// ===============
+// === AnyNode ===
+// ===============
+
+
+pub trait AnyNodeOps : Debug {}
+
+#[derive(Debug)]
+pub struct AnyNode {
+    rc: Rc<dyn AnyNodeOps>,
+}
+
+impl<T:KnownNodeStorage+'static> From<&Node<T>> for AnyNode {
+    fn from(t:&Node<T>) -> Self {
+        t.clone().into()
+    }
+}
+
+impl<T:AnyNodeOps+'static> From<T> for AnyNode {
+    fn from(t:T) -> Self {
+        let rc = Rc::new(t);
+        Self {rc}
+    }
+}
+
+
+pub trait HasInputs {
+    fn inputs(&self) -> Vec<AnyNode>;
+}
+
 
 
 
@@ -426,7 +452,6 @@ where Output<Self>:'static, Output<Shape>:Message, Self:GraphvizRepr {
 //}
 
 
-
 // === NodeWrapperTemplate ===
 
 /// Internal representation for `NodeWrapper`.
@@ -454,12 +479,22 @@ impl<Shape:KnownEventInput,Out> KnownEventInput for NodeWrapperTemplate<Shape,Ou
 
 impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 
-//impl<Shape:GraphvizRepr,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
-//    fn graphviz_build(&self, builder:&mut Graphviz) {
-//        self.rc.borrow().shape.graphviz_build(builder)
-//    }
-//}
+impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
+    fn graphviz_build(&self, builder:&mut Graphviz) {
+        let name = base_type_name::<Shape>();
+        builder.add_node(self.id(),name);
+        self.rc.borrow().shape.graphviz_build(builder)
+    }
+}
 
+
+fn base_type_name<T>() -> String {
+    let qual_name = type_name::<T>();
+    let base_name = qual_name.split("<").collect::<Vec<_>>()[0];
+    let name      = base_name.rsplit("::").collect::<Vec<_>>()[0];
+    let name      = name.split("Shape").collect::<Vec<_>>()[0];
+    name.into()
+}
 
 
 // === NodeWrapperTemplateData ===
@@ -673,18 +708,16 @@ impl<Out> BehaviorNodeStorage for Source<BehaviorMessage<Out>>
 }
 
 // TODO finish
-impl<Out:MessageValue> GraphvizRepr for Source<BehaviorMessage<Out>> {
+impl<Out : KnownSourceStorage + Message> GraphvizRepr for SourceData<Out> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
-// TODO finish
-impl<Out:MessageValue> GraphvizRepr for Source<EventMessage<Out>> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
+impl<Out:KnownSourceStorage> HasInputs for SourceData<Out> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        default()
     }
 }
-
-
 
 
 macro_rules! define_node {
@@ -761,8 +794,14 @@ impl<T:MessageValue> EventConsumer for Merge<EventMessage<T>> {
     }
 }
 
-impl<T:Message> GraphvizRepr for Merge<T> {
+impl<T:Message> GraphvizRepr for MergeShape<T> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+impl<T:Message> HasInputs for MergeShape<T> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source1).into(), (&self.source2).into()]
     }
 }
 
@@ -808,11 +847,16 @@ impl<T:MessageValue> EventConsumer for Toggle<EventMessage<T>> {
     }
 }
 
-impl<T:Message> GraphvizRepr for Toggle<T> {
+impl<T:Message> GraphvizRepr for ToggleShape<T> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
+impl<T:Message> HasInputs for ToggleShape<T> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source).into()]
+    }
+}
 
 
 
@@ -863,10 +907,15 @@ where T : MessageValue {
     }
 }
 
-impl<T:MessageValue> GraphvizRepr for Hold<EventMessage<T>> {
+impl<T:MessageValue> GraphvizRepr for HoldShape<EventMessage<T>> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
-        builder.add_node(self.id(),"hold");
-        self.rc.borrow().shape.source.graphviz_build(builder);
+        self.source.graphviz_build(builder);
+    }
+}
+
+impl<T:Message> HasInputs for HoldShape<T> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source).into()]
     }
 }
 
@@ -921,8 +970,14 @@ where T : BehaviorNodeStorage {
 }
 
 // TODO finish
-impl<T:KnownOutput> GraphvizRepr for Recursive<T> {
+impl<T:KnownOutput> GraphvizRepr for RecursiveShape<T> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+impl<T> HasInputs for RecursiveShape<T> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![]
     }
 }
 
@@ -1000,12 +1055,17 @@ where In1:MessageValue, In2:MessageValue {
 }
 
 // TODO finish
-impl<In1:Message, In2:Message> GraphvizRepr for Sample<In1,In2>
+impl<In1:Message, In2:Message> GraphvizRepr for SampleShape<In1,In2>
 where SampleShape<In1,In2> : KnownOutput {
     fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
+impl<In1:Message, In2:Message> HasInputs for SampleShape<In1,In2> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source1).into(), (&self.source2).into()]
+    }
+}
 
 
 
@@ -1082,9 +1142,15 @@ impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bo
 }
 
 // TODO finish
-impl<In1:Message, In2:Message> GraphvizRepr for Gate<In1,In2>
+impl<In1:Message, In2:Message> GraphvizRepr for GateShape<In1,In2>
 where GateShape<In1,In2> : KnownOutput {
     fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+impl<In1:Message, In2:Message> HasInputs for GateShape<In1,In2> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source1).into(), (&self.source2).into()]
     }
 }
 
@@ -1170,8 +1236,14 @@ fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
 }
 
 // TODO finish
-impl<In1:Message, Out:Message> GraphvizRepr for Lambda<In1,Out> {
+impl<In1:Message, Out:Message> GraphvizRepr for LambdaShape<In1,Out> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+impl<In1:Message, Out:Message> HasInputs for LambdaShape<In1,Out> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source).into()]
     }
 }
 
@@ -1263,8 +1335,14 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In
 }
 
 // TODO finish
-impl<In1:Message, In2:Message, Out:Message> GraphvizRepr for Lambda2<In1,In2,Out> {
+impl<In1:Message, In2:Message, Out:Message> GraphvizRepr for Lambda2Shape<In1,In2,Out> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
+    }
+}
+
+impl<In1:Message, In2:Message, Out:Message> HasInputs for Lambda2Shape<In1,In2,Out> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        vec![(&self.source1).into(),(&self.source2).into()]
     }
 }
 
