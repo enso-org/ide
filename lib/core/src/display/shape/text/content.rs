@@ -76,6 +76,7 @@ impl DirtyLines {
 ///
 /// A change is simple if it's replace a fragment of one line with text without new lines. Otherwise
 /// its a multiline change.
+#[derive(Clone,Copy)]
 pub enum ChangeType {
     Simple, Multiline
 }

@@ -23,7 +23,7 @@ use web_sys::WebGlBuffer;
 // ==============
 
 /// Cursor in TextComponent with its selection
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct Cursor {
     pub position    : TextLocation,
     pub selected_to : TextLocation,
@@ -102,7 +102,7 @@ impl Cursor {
 
 /// An enum representing cursor moving step. The steps are based of possible keystrokes (arrows,
 /// Home, End, Ctrl+Home, etc.)
-#[derive(Debug,Eq,Hash,PartialEq)]
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
 /// A struct for cursor navigation process

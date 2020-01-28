@@ -14,7 +14,7 @@ use nalgebra::zero;
 // =======================
 
 /// This struct counts the intervals in a time period.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct IntervalCounter {
     /// Interval duration.
     pub interval_duration : f64,

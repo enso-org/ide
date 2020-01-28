@@ -176,7 +176,7 @@ impl<'a> FragmentsDataBuilder<'a> {
 /// During x scrolling we don't immediately refresh all the lines, but pick only one which is
 /// "centered" on current scroll - the rest of lines should still have data in buffers for
 /// shown glyphs.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct NextFragmentToRefreshAfterXScrolling {
     pub fragments_count : usize,
     pub next_fragment   : usize

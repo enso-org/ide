@@ -107,6 +107,7 @@ where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
 // === Wrong Conversions ===
 
 /// Error indicating that a value cannot be converted to Glsl.
+#[derive(Clone,Copy)]
 pub struct NotGlslError;
 
 
@@ -533,13 +534,13 @@ pub struct GlobalVar {
 }
 
 /// Global variable layout definition.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct Layout {
     pub location: usize,
 }
 
 /// Global variable storage definition.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum GlobalVarStorage {
     ConstStorage,
     InStorage(LinkageStorage),
@@ -548,14 +549,14 @@ pub enum GlobalVarStorage {
 }
 
 /// Storage definition for in- and out- attributes.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct LinkageStorage {
     pub centroid      : bool,
     pub interpolation : Option<InterpolationStorage>,
 }
 
 /// Interpolation storage type for attributes.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum InterpolationStorage {Smooth, Flat}
 
 
@@ -632,7 +633,7 @@ impl HasCodeRepr for LocalVar {
 // =================
 
 /// Type precision definition.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum Precision { Low, Medium, High }
 
 impl Display for Precision {

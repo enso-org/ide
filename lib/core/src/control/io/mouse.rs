@@ -64,19 +64,9 @@ pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 // ===================
 
 /// An enumeration representing the mouse buttons.
-pub enum MouseButton {
-    /// Left mouse button.
-    LEFT,
-
-    /// Middle mouse button.
-    MIDDLE,
-
-    /// Right mouse button.
-    RIGHT,
-
-    /// For unknown mouse buttons IDs.
-    UNKNOWN
-}
+#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+pub enum MouseButton {LEFT,MIDDLE,RIGHT,UNKNOWN }
 
 
 
@@ -88,6 +78,7 @@ pub enum MouseButton {
 pub trait MouseClickCallback = FnMut(MouseClickEvent) + 'static;
 
 /// A struct storing information about mouse down and mouse up events.
+#[derive(Clone,Copy,Debug)]
 pub struct MouseClickEvent {
     /// The position where the MouseClickEvent occurred.
     pub position : Vector2<f32>,
@@ -120,6 +111,7 @@ impl MouseClickEvent {
 pub trait MousePositionCallback = FnMut(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse move, mouse enter and mouse leave events.
+#[derive(Clone,Copy,Debug)]
 pub struct MousePositionEvent {
     /// The previous position where the mouse was.
     pub previous_position : Vector2<f32>,
@@ -151,6 +143,7 @@ impl MousePositionEvent {
 pub trait MouseWheelCallback = FnMut(MouseWheelEvent) + 'static;
 
 /// A struct storing information about mouse wheel events.
+#[derive(Clone,Copy,Debug)]
 pub struct MouseWheelEvent {
     /// A boolean indicating if the keyboard ctrl button is pressed.
     pub is_ctrl_pressed : bool,

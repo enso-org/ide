@@ -85,7 +85,7 @@ impl Shape {
 
 // === ShapeData ===
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct ShapeData {
     pub width       : f32,
     pub height      : f32,

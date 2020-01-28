@@ -323,7 +323,7 @@ use crate::system::gpu::data::AttributeInstanceIndex;
 // === Macros ===
 
 /// Variant mismatch error type.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct BadVariant;
 
 macro_rules! define_any_buffer {

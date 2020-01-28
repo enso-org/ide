@@ -242,6 +242,7 @@ impl<T> WithContent for Uniform<T> {
 // === AnyPrimUniform ===
 // ======================
 
+#[derive(Clone,Copy)]
 pub struct TypeMismatch;
 
 macro_rules! define_any_prim_uniform {
