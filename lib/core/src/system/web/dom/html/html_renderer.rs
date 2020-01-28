@@ -31,9 +31,16 @@ mod js {
     use super::*;
     #[wasm_bindgen(module = "/src/system/web/dom/html/snippets.js")]
     extern "C" {
+        #[allow(unsafe_code)]
         pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
+
+        #[allow(unsafe_code)]
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
+
+        #[allow(unsafe_code)]
         pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
+
+        #[allow(unsafe_code)]
         pub fn setup_camera_perspective
         ( dom          : &JsValue
         , near         : &JsValue

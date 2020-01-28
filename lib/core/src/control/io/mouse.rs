@@ -69,7 +69,7 @@ pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 /// An enumeration representing the mouse buttons.
 #[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
-pub enum MouseButton {LEFT,MIDDLE,RIGHT,UNKNOWN }
+pub enum MouseButton {LEFT,MIDDLE,RIGHT,UNKNOWN}
 
 
 

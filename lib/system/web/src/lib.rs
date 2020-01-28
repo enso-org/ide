@@ -241,6 +241,7 @@ impl NodeRemover for Node {
 
 #[wasm_bindgen(inline_js = "export function request_animation_frame2(f) { requestAnimationFrame(f) }")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn request_animation_frame2(closure: &Closure<dyn FnMut()>) -> i32;
 }
 
@@ -324,6 +325,7 @@ export function set_stack_trace_limit() {
 }
 ")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn set_stack_trace_limit();
 }
 

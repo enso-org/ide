@@ -660,7 +660,7 @@ impl HasCodeRepr for Precision {
 
 impl From<&Precision> for Precision {
     fn from(t: &Precision) -> Self {
-        t.clone()
+        *t
     }
 }
 

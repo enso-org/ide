@@ -123,8 +123,8 @@ impl<'a,'b> CursorNavigation<'a,'b> {
     }
 
     /// Move cursor by given step.
-    pub fn move_cursor(&mut self, cursor:&mut Cursor, step:&Step) {
-        let new_position = self.new_position(cursor.position,&step);
+    pub fn move_cursor(&mut self, cursor:&mut Cursor, step:Step) {
+        let new_position = self.new_position(cursor.position,step);
         self.move_cursor_to_position(cursor,new_position);
     }
 
@@ -184,7 +184,7 @@ impl<'a,'b> CursorNavigation<'a,'b> {
     }
 
     /// New position of cursor at `position` after applying `step`.
-    fn new_position(&mut self, position: TextLocation, step:&Step) -> TextLocation {
+    fn new_position(&mut self, position: TextLocation, step:Step) -> TextLocation {
         match step {
             Step::Left      => self.prev_char_position(&position).unwrap_or(position),
             Step::Right     => self.next_char_position(&position).unwrap_or(position),
@@ -292,8 +292,8 @@ impl Cursors {
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
-    pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:&Step) {
-        self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,&step));
+    pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:Step) {
+        self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,step));
         self.merge_overlapping_cursors();
         self.dirty = true;
     }

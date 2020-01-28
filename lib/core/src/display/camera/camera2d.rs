@@ -66,7 +66,7 @@ impl Screen {
     }
 
     /// Gets Screen's aspect ratio.
-    pub fn aspect(&self) -> f32 {
+    pub fn aspect(self) -> f32 {
         self.width / self.height
     }
 }
@@ -373,12 +373,12 @@ impl Camera2d {
 impl Camera2d {
     /// Gets `Clipping`.
     pub fn clipping(&self) -> Clipping {
-        self.rc.borrow().clipping.clone()
+        self.rc.borrow().clipping
     }
 
     /// Gets `Screen`.
     pub fn screen(&self) -> Screen {
-        self.rc.borrow().screen.clone()
+        self.rc.borrow().screen
     }
 
     /// Gets zoom.
