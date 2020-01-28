@@ -4,7 +4,7 @@
 pub mod event;
 pub mod button;
 
-use crate::system::web::dom::DOMContainer;
+use crate::system::web::dom::DomContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
@@ -108,7 +108,7 @@ impl MouseClickEvent {
     // FIXME: the position field.
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position  = Vector2::new(event.x() as f32, event.y() as f32);
-        let position  = position - data.dom().position();
+        let position  = position - data.dom().position_with_style_reflow();
         let button    = match event.button() {
             LEFT_MOUSE_BUTTON      => MouseButton::LEFT,
             MIDDLE_MOUSE_BUTTON    => MouseButton::MIDDLE,
@@ -143,7 +143,7 @@ impl MousePositionEvent {
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position          = Vector2::new(event.x() as f32,event.y() as f32);
         // FIXME: This does not work, as we were chatting on Discord.
-        let position          = position - data.dom().position();
+        let position          = position - data.dom().position_with_style_reflow();
         let previous_position = match data.mouse_position() {
             Some(position) => position,
             None           => position
@@ -194,7 +194,7 @@ impl MouseWheelEvent {
 // ==============================
 
 struct MouseManagerProperties {
-    dom                    : DOMContainer,
+    dom                    : DomContainer,
     mouse_position         : Option<Vector2<f32>>,
     target                 : EventTarget,
     stop_tracking_listener : Option<MouseEventListener>
@@ -213,7 +213,7 @@ struct MouseManagerData {
 }
 
 impl MouseManagerData {
-    fn new(target:EventTarget, dom:DOMContainer) -> Rc<Self> {
+    fn new(target:EventTarget, dom: DomContainer) -> Rc<Self> {
         let mouse_position         = None;
         let stop_tracking_listener = None;
         let p = MouseManagerProperties{dom,mouse_position,target,stop_tracking_listener};
@@ -247,7 +247,7 @@ impl MouseManagerData {
         self.properties.borrow().mouse_position
     }
 
-    fn dom(&self) -> DOMContainer {
+    fn dom(&self) -> DomContainer {
         self.properties.borrow().dom.clone()
     }
 }
@@ -309,7 +309,7 @@ const  RIGHT_MOUSE_BUTTON: i16 = 2;
 
 impl MouseManager {
     /// Creates a new instance to manage mouse events in the specified DOMContainer.
-    pub fn new(dom:&DOMContainer) -> Result<Self> {
+    pub fn new(dom:&DomContainer) -> Result<Self> {
         let target              = dyn_into::<_, EventTarget>(dom.dom.clone())?;
         let dom                 = dom.clone();
         let data                = MouseManagerData::new(target,dom);

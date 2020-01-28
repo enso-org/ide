@@ -338,8 +338,8 @@ pub struct DisplayObjectData {
 
 impl DisplayObjectData {
     /// Creates a new object instance.
-    pub fn new(logger:Logger) -> Self {
-        let data = DisplayObjectDataMut::new(logger);
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let data = DisplayObjectDataMut::new(logger.into());
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
     }
@@ -539,11 +539,7 @@ impl PartialEq for DisplayObjectData {
     }
 }
 
-impl CloneRef for DisplayObjectData {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for DisplayObjectData {}
 
 
 
@@ -682,9 +678,3 @@ mod tests {
         assert_eq!(obj1.child_count(),0);
     }
 }
-
-
-
-
-
-
