@@ -1,6 +1,10 @@
 //! This module implements an Functional Reactive Programming system. It is an advanced event
 //! handling framework which allows describing events and actions by creating declarative event
 //! flow diagrams.
+//!
+//! **WARNING**
+//! Please note that this file is under heavy development so it may be missing proper docs here and
+//! there and the API can drastically change day after day.
 
 use crate::prelude::*;
 
