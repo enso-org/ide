@@ -212,7 +212,7 @@ make_repr_span!(InvalidSuffix<T>, self.elem, self.suffix);
 /// Helper to represent that optional number base has additional character.
 struct NumberBase<T>(T);
 make_repr_span!(NumberBase<T>, self.0, NUMBER_BASE_SEPARATOR);
-make_repr_span!(Number       , self.base.as_ref().map(|b| NumberBase(b))
+make_repr_span!(Number       , self.base.as_ref().map(NumberBase)
                              , self.int);
 make_repr_span!(DanglingBase , self.base, NUMBER_BASE_SEPARATOR);
 
