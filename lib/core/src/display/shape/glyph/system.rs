@@ -7,8 +7,8 @@ use crate::display::shape::glyph::font::FontRenderInfo;
 use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::pen::PenIterator;
 use crate::display::shape::glyph::msdf::MsdfTexture;
-use crate::display::symbol::geometry::compound::sprite::alignment::BOTTOM;
-use crate::display::symbol::geometry::compound::sprite::alignment::LEFT;
+use crate::display::symbol::geometry::compound::sprite::HorizontalAlignment::Left;
+use crate::display::symbol::geometry::compound::sprite::VerticalAlignment::Bottom;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::display::world::*;
@@ -140,7 +140,7 @@ impl GlyphSystem {
         let mesh          = symbol.surface();
 
         sprite_system.set_material(Self::material());
-        sprite_system.alignment().set(Vector2::new(LEFT,BOTTOM));
+        sprite_system.set_alignment(Left,Bottom);
         scene.variables().add("msdf_range",FontRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables().add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font_id,

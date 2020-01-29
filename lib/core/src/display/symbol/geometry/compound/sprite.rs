@@ -93,20 +93,12 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
-/// Constants used for specyfing sprites' alignment. The horizontal and vertical alignment are
-/// defined separately, e.g. `Vector2::new(alignment::LEFT,alignment::BOTTOM)`.
-pub mod alignment {
-    /// Align sprite to center.
-    pub const CENTER : f32 = 0.5;
-    /// Align sprite to left.
-    pub const LEFT   : f32 = 0.0;
-    /// Align sprite to right.
-    pub const RIGHT  : f32 = 1.0;
-    /// Align sprite to top.
-    pub const TOP    : f32 = 1.0;
-    /// Align sprite to bottom.
-    pub const BOTTOM : f32 = 0.0;
-}
+/// Enum describing horizontal alignment.
+#[allow(missing_docs)]
+pub enum HorizontalAlignment {Left,Center,Right}
+/// Enum describing vertical alignment.
+#[allow(missing_docs)]
+pub enum VerticalAlignment {Top,Center,Bottom}
 
 shared! { SpriteSystem
 
@@ -138,7 +130,9 @@ impl {
         let uv                = point_scope.add_buffer("uv");
         let transform         = instance_scope.add_buffer("transform");
         let size              = instance_scope.add_buffer("bounds");
-        let initial_alignment = Vector2::new(alignment::CENTER,alignment::CENTER);
+        let horizontal        = HorizontalAlignment::Center;
+        let vertical          = VerticalAlignment::Center;
+        let initial_alignment = Self::uv_offset(horizontal,vertical);
         let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
 
         stats.inc_sprite_system_count();
@@ -166,9 +160,9 @@ impl {
         self.symbol.clone_ref()
     }
 
-    /// Alignment value accessor.
-    pub fn alignment(&self) -> Uniform<Vector2<f32>> {
-        self.alignment.clone_ref()
+    /// Set alignment of sprites.
+    pub fn set_alignment(&self, horizontal:HorizontalAlignment, vertical:VerticalAlignment) {
+        self.alignment.set(Self::uv_offset(horizontal,vertical));
     }
 
     /// Run the renderer.
@@ -237,6 +231,20 @@ impl SpriteSystemData {
         let mut material = Material::new();
         material.set_main("output_color = vec4(1.0,1.0,1.0,1.0);");
         material
+    }
+
+    fn uv_offset(horizontal:HorizontalAlignment, vertical:VerticalAlignment) -> Vector2<f32> {
+        let x_alignment = match horizontal {
+            HorizontalAlignment::Left   => 0.0,
+            HorizontalAlignment::Center => 0.5,
+            HorizontalAlignment::Right  => 1.0,
+        };
+        let y_alignment = match vertical {
+            VerticalAlignment::Top    => 1.0,
+            VerticalAlignment::Center => 0.5,
+            VerticalAlignment::Bottom => 0.0,
+        };
+        Vector2::new(x_alignment,y_alignment)
     }
 }
 
