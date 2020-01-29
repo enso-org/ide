@@ -75,7 +75,7 @@ impl Transport for MockTransport {
     fn send_text(&mut self, text:String) -> Result<(), Error> {
         self.with_mut_data(|data| {
             if data.is_closed {
-                Err(SendError::TransportClosed)?
+                Err(SendError::TransportClosed.into())
             } else {
                 data.sent_msgs.push_back(text.clone());
                 Ok(())

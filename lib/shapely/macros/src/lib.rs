@@ -55,8 +55,7 @@ use crate::derive_iterator::IsMut;
 #[proc_macro_derive(Iterator)]
 pub fn derive_iterator
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let output = derive_iterator::derive(input,IsMut::Immutable);
-    output
+    derive_iterator::derive(input,IsMut::Immutable)
 }
 
 /// Same as `derive(Iterator)` but generates mutable iterator.
@@ -66,8 +65,7 @@ pub fn derive_iterator
 #[proc_macro_derive(IteratorMut)]
 pub fn derive_iterator_mut
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let output = derive_iterator::derive(input,IsMut::Mutable);
-    output
+    derive_iterator::derive(input,IsMut::Mutable)
 }
 
 #[allow(missing_docs)]

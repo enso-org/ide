@@ -41,10 +41,10 @@ pub const UNICODE21_CLOSER:&str = "}";
 pub const UNICODE32_INTRODUCER:char = 'U';
 
 /// Quotes opening block of the raw text.
-pub const RAW_BLOCK_QUOTES:&'static str = "\"\"\"";
+pub const RAW_BLOCK_QUOTES:&str = "\"\"\"";
 
 /// Quotes opening block of the formatted text.
-pub const FMT_BLOCK_QUOTES:&'static str = "'''";
+pub const FMT_BLOCK_QUOTES:&str = "'''";
 
 
 
@@ -323,7 +323,7 @@ make_repr_span!(SectionSides<T>, self.opr);
 
 impl<T: HasSpan> HasSpan for Module<T> {
     fn span(&self) -> usize {
-        assert!(self.lines.len() > 0);
+        assert!(!self.lines.is_empty());
         let break_count = self.lines.len() - 1;
         let breaks_span = break_count * NEWLINE.span();
         let lines_span  = self.lines.span();

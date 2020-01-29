@@ -1,8 +1,11 @@
 #![feature(option_result_contains)]
-#![feature(trait_alias)]
 
-//! This build script ir responsible for ensuring that if parser targets wasm,
+//! This build script is responsible for ensuring that if parser targets wasm,
 //! the JS Parser package is available at the expected location.
+
+use basegl_build_utilities::PathRef;
+use basegl_build_utilities::absolute_path;
+use basegl_build_utilities::targeting_wasm;
 
 use std::fs::File;
 use std::fs::create_dir_all;
@@ -11,11 +14,7 @@ use std::fs::remove_file;
 use std::fs::write;
 use std::io::Result;
 use std::io::prelude::*;
-use std::env;
-use std::path::Path;
 use std::path::PathBuf;
-
-pub trait PathRef = AsRef<Path>;
 
 
 
@@ -70,22 +69,12 @@ async fn download_file
     file.flush().expect(&flush_error);
 }
 
-/// Converts path to an absolute form.
-pub fn absolute_path(path: impl PathRef) -> Result<PathBuf> {
-    use path_clean::PathClean;
-    let path = path.as_ref();
-    if path.is_absolute() {
-        Ok(path.to_path_buf().clean())
-    } else {
-        Ok(env::current_dir()?.join(path).clean())
-    }
-}
-
 
 
 // ===================
 // == ParserVersion ==
 // ===================
+
 /// Parser version described as commit hash from `enso` repository.
 #[derive(Clone,Debug,PartialEq)]
 pub struct ParserVersion{ pub commit:String }
@@ -184,8 +173,7 @@ impl ParserProvider {
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let targeting_wasm = env::var("TARGET")?.contains("wasm32");
-    if targeting_wasm {
+    if targeting_wasm() {
         let required_version = ParserVersion::required();
         let parser_path      = absolute_path(PARSER_PATH)?;
         let provider = ParserProvider::new(required_version,&parser_path);

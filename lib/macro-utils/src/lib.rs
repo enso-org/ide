@@ -57,7 +57,7 @@ pub fn rewrite_stream
 /// Is the given token an identifier matching to a given string?
 pub fn matching_ident(token:&TokenTree, name:&str) -> bool {
     match token {
-        TokenTree::Ident(ident) => ident.to_string() == name,
+        TokenTree::Ident(ident) => *ident == name,
         _                       => false,
     }
 }
@@ -146,17 +146,10 @@ pub fn last_type_arg(ty_path:&syn::TypePath) -> Option<&syn::GenericArgument> {
 // =====================
 
 /// Visitor that accumulates all visited `syn::TypePath`.
+#[derive(Default)]
 pub struct TypeGatherer<'ast> {
     /// Observed types accumulator.
     pub types: Vec<&'ast syn::TypePath>
-}
-
-impl TypeGatherer<'_> {
-    /// Create a new visitor value.
-    pub fn new() -> Self {
-        let types = default();
-        Self { types }
-    }
 }
 
 impl<'ast> Visit<'ast> for TypeGatherer<'ast> {
@@ -168,7 +161,7 @@ impl<'ast> Visit<'ast> for TypeGatherer<'ast> {
 
 /// All `TypePath`s in the given's `Type` subtree.
 pub fn gather_all_types(node:&syn::Type) -> Vec<&syn::TypePath> {
-    let mut type_gather = TypeGatherer::new();
+    let mut type_gather = TypeGatherer::default();
     type_gather.visit_type(node);
     type_gather.types
 }
@@ -198,8 +191,7 @@ pub fn type_matches(ty:&syn::Type, target_param:&syn::GenericParam) -> bool {
 pub fn type_depends_on(ty:&syn::Type, target_param:&syn::GenericParam) -> bool {
     let target_param = repr(target_param);
     let relevant_types = gather_all_types(ty);
-    let depends = relevant_types.iter().any(|ty| repr(ty) == target_param);
-    depends
+    relevant_types.iter().any(|ty| repr(ty) == target_param)
 }
 
 /// Does enum variant depend on the given type parameter.

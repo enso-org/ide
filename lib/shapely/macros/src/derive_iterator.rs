@@ -20,17 +20,17 @@ pub enum IsMut {
 }
 
 impl IsMut {
-    fn is_mut(&self) -> bool {
-        *self == IsMut::Mutable
+    fn is_mut(self) -> bool {
+        self == IsMut::Mutable
     }
 
     /// Returns `mut` token for mutable iterator derivation.
-    fn to_token(&self) -> Option<syn::Token![mut]> {
+    fn to_token(self) -> Option<syn::Token![mut]> {
         self.is_mut().as_some(<syn::Token![mut]>::default())
     }
 
     /// Name of method for generating iterator.
-    fn iter_method(&self) -> TokenStream {
+    fn iter_method(self) -> TokenStream {
         if self.is_mut() {
             quote!(iter_mut)
         } else {
@@ -307,15 +307,17 @@ impl DerivingIterator<'_> {
             (move || { #(#yield_fields)* })
         };
 
-        let iter_body = match matched_fields.is_empty() {
-            true => (empty_body),
-            false => (body)
+        let iter_body = if matched_fields.is_empty() {
+            empty_body
+        } else {
+            body
         };
         OutputParts{iterator_tydefs,iter_body,iterator_params}
     }
 
     /// Handles common (between enum and struct) code and assembles it all
     /// into a final derivation output.
+    #[allow(clippy::cognitive_complexity)]
     pub fn assemble_output(&self, parts:OutputParts) -> TokenStream {
         let iterator_tydefs = &parts.iterator_tydefs;
         let iter_body       = &parts.iter_body;

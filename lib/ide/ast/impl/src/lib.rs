@@ -253,10 +253,10 @@ impl<'de> Visitor<'de> for AstDeserializationVisitor {
             }
         }
 
-        let shape = shape.ok_or(serde::de::Error::missing_field(SHAPE))?;
+        let shape = shape.ok_or_else(|| serde::de::Error::missing_field(SHAPE))?;
         let id    = id.unwrap_or(None); // allow missing `id` field
-        let span  = span.ok_or(serde::de::Error::missing_field(SPAN))?;
-        Ok(Ast::new_with_span(shape, id, span))
+        let span  = span.ok_or_else(|| serde::de::Error::missing_field(SPAN))?;
+        Ok(Ast::new_with_span(shape,id,span))
     }
 }
 
@@ -922,7 +922,7 @@ impl<T> From<RawQuote> for SegmentFmt<T> {
 
 impl<T> From<Escape> for SegmentFmt<T> {
     fn from(value: Escape) -> Self {
-        SegmentEscape{ code: value.into() }.into()
+        SegmentEscape{ code: value }.into()
     }
 }
 

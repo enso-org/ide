@@ -23,9 +23,10 @@ wasm-bindgen             = "0.2"
 wasm-bindgen-test        = "0.2"
 
 [build-dependencies]
+basegl-build-utilities = { version = "0.1.0", path = "../../../build-utilities"   }
+bytes             = "0.5.4"
 futures = "0.3.1"
 reqwest = "0.10.1"
-path-clean = "0.1.0"
 tokio = { version = "0.2.10", features = ["macros"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -128,6 +128,7 @@ fn gen_variant_decl
 /// types back into primary enumeration.
 /// Generate `TryFrom` implementation from primary enumeration into each
 /// extracted type.
+#[allow(clippy::cognitive_complexity)]
 fn gen_from_impls
 ( ident  : &syn::Ident
 , decl   : &syn::DeriveInput

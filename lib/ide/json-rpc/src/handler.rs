@@ -38,7 +38,7 @@ pub fn decode_result<Ret:DeserializeOwned>
         messages::Result::Success(ret) =>
             Ok(serde_json::from_value::<Ret>(ret.result)?),
         messages::Result::Error(err) =>
-            Err(RpcError::RemoteError(err))?,
+            Err(RpcError::RemoteError(err)),
     }
 }
 
@@ -59,7 +59,7 @@ pub struct IdGenerator {
 
 impl IdGenerator {
     /// Obtain the new Id.
-    pub fn next(&mut self) -> Id {
+    pub fn generate(&mut self) -> Id {
         let id = self.counter;
         self.counter += 1;
         Id(id)
@@ -86,7 +86,7 @@ impl IdGenerator {
 ///
 /// The `Transport` callbacks store any input there. Then, `Handler` consumes it
 /// when prompted with `tick` method.
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct SharedBuffer {
     /// Incoming text messages.
     pub incoming: Vec<String>,
@@ -98,12 +98,7 @@ pub struct SharedBuffer {
 
 impl SharedBuffer {
     /// Create a new empty buffer.
-    pub fn new() -> SharedBuffer {
-        SharedBuffer {
-            incoming : Vec::new(),
-            closed   : false,
-        }
-    }
+    pub fn new() -> SharedBuffer { default() }
 
     /// Returns a new buffer with all the data moved from self.
     ///
@@ -196,7 +191,7 @@ impl<Notification> Handler<Notification> {
             decode_result(result)
         });
 
-        let id      = self.id_generator.next();
+        let id      = self.id_generator.generate();
         let message = api::into_request_message(input,id);
         self.ongoing_calls.insert(message.payload.id, sender);
 

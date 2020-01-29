@@ -34,12 +34,14 @@ where G: Generator<Return = ()> + Unpin {
 // =====================
 
 /// An `Iterator` type that yields no values of the given type `T`.
+#[derive(Derivative)]
+#[derivative(Default(bound=""))]
 pub struct EmptyIterator<T>(PhantomData<T>);
 
 impl<T> EmptyIterator<T> {
     /// Create a new empty iterator.
     pub fn new() -> Self {
-        Self(PhantomData)
+        default()
     }
 }
 

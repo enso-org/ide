@@ -12,8 +12,8 @@
 
 pub use enso_prelude as prelude;
 
-#[allow(unused)]
-use crate::prelude::*;
+//#[allow(unused)]
+//use crate::prelude::*;
 
 use futures::Stream;
 use std::future::Future;
