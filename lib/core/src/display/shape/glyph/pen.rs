@@ -59,13 +59,13 @@ where CharIterator : Iterator<Item=char> {
         if let Some(current_ch) = self.current_char {
             self.move_pen(current_ch,ch)
         }
-        self.next_advance = self.font.get_glyph_info(ch).advance as f32;
+        self.next_advance = self.font.get_glyph_info(ch).advance;
         self.current_char = Some(ch);
         (ch,self.position)
     }
 
     fn move_pen(&mut self, current:char, next:char) {
-        let kerning   = self.font.get_kerning(current,next) as f32;
+        let kerning   = self.font.get_kerning(current,next);
         self.position.x += (self.next_advance + kerning) * self.line_height;
     }
 }

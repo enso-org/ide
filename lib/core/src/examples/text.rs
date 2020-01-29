@@ -4,60 +4,40 @@ use wasm_bindgen::prelude::*;
 
 use crate::display::world::World;
 use crate::display::world::WorldData;
-use crate::data::dirty::traits::*;
+use crate::display::object::DisplayObjectOps;
 
-use nalgebra::Point2;
 use nalgebra::Vector2;
+use nalgebra::Vector4;
 use crate::display::shape::text::content::TextLocation;
 use crate::display::shape::text::content::TextChange;
-use crate::display::shape::text::TextComponentBuilder;
-use crate::display::shape::text::Color;
-use crate::display::shape::text::TextComponentProperties;
+use crate::display::shape::text::TextField;
 use crate::system::web::forward_panic_hook_to_console;
 use crate::display::shape::text::cursor::Step::Right;
-use crate::display::navigation::navigator::Navigator;
+use crate::display::shape::glyph::font::FontRegistry;
+use crate::display::world::*;
+use basegl_system_web::set_stdout;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_text() {
     forward_panic_hook_to_console();
+    set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
-        let world_ref = WorldData::new("canvas");
-        let scene     = world_ref.scene();
-        let camera    = scene.camera();
-        let navigator = Navigator::new(&scene, &camera);
-        let navigator = navigator.expect("Couldn't create navigator");
-        {
-            let world: &mut WorldData = &mut world_ref.rc.borrow_mut();
-            let scene = &mut world.scene;
-            let fonts = &mut world.fonts;
-            let font_id = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-
-            let mut text_component = TextComponentBuilder {
-                scene,
-                fonts,
-                font_id,
-                text: "".to_string(),
-                properties: TextComponentProperties {
-                    position: Point2::new(-0.95, -0.9),
-                    size: Vector2::new(1.8, 1.6),
-                    text_size: 0.032,
-                    color: Color { r: 0.0, g: 0.8, b: 0.0, a: 1.0 },
-                }
-            }.build();
-            text_component.cursors.add_cursor(TextLocation { line: 0, column: 0 });
-            scene.tmp_borrow_mut().tmp_text_components().push(text_component);
-            world.scene_dirty.set();
-        }
+        let world     = &WorldData::new("canvas");
+        let mut fonts = FontRegistry::new();
+        let font_id   = fonts.load_embedded_font("DejaVuSansMono").unwrap();
+        let mut text_field = TextField::new("AV",16.0,font_id,Vector4::new(0.0,0.8,0.0,1.0),Vector2::new(200.0, 100.0),&mut fonts);
+        println!("text_field: {:?}", text_field.content.lines.len());
+        text_field.cursors.add_cursor(TextLocation { line: 0, column: 0 });
+        text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
+        world.add_child(&text_field);
 
         let now             = js_sys::Date::now();
         let animation_start = now + 3000.0;
         let start_scrolling = animation_start + 10000.0;
         let mut chars       = typed_character_list(animation_start,include_str!("../lib.rs"));
-        let w = world_ref.clone_ref();
-        world_ref.on_frame(move |_| {
-            let _keep_alive = &navigator;
-            animate_text_component(&w,&mut chars,start_scrolling)
+        world.on_frame(move |w| {
+            animate_text_component(&mut fonts,&mut text_field,&mut chars,start_scrolling)
         }).forget();
     });
 }
@@ -77,26 +57,21 @@ fn typed_character_list(start_time:f64, text:&'static str) -> Vec<CharToPush> {
 }
 
 fn animate_text_component
-( world:&World
-, typed_chars:&mut Vec<CharToPush>
-, start_scrolling:f64) {
-    let world : &mut WorldData = &mut world.rc.borrow_mut();
-    let scene              = &mut world.scene;
-    let mut scene          = scene.tmp_borrow_mut();
-    let editor                 = scene.tmp_text_components().first_mut().unwrap();
-    let fonts                  = &mut world.fonts;
-    let now                    = js_sys::Date::now();
-
+( fonts           : &mut FontRegistry
+, text_field      : &mut TextField
+, typed_chars     : &mut Vec<CharToPush>
+, start_scrolling : f64) {
+    let now         = js_sys::Date::now();
     let to_type_now = typed_chars.drain_filter(|ch| ch.time <= now);
     for ch in to_type_now {
-        let cursor = editor.cursors.cursors.first_mut().unwrap();
+        let cursor = text_field.cursors.cursors.first_mut().unwrap();
         let string = ch.a_char.to_string();
         let change = TextChange::insert(cursor.position, string.as_str());
-        editor.content.make_change(change);
-        editor.navigate_cursors(Right,false,fonts);
+        text_field.make_change(change,fonts);
+        text_field.navigate_cursors(Right,false,fonts);
     }
     if start_scrolling <= js_sys::Date::now() {
-        editor.scroll(Vector2::new(0.0, -0.01));
+        text_field.scroll(Vector2::new(0.0,-0.4),fonts);
     }
-    world.scene_dirty.set();
+    text_field.update();
 }

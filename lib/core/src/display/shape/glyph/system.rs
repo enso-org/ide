@@ -16,7 +16,7 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-use std::ops::RangeInclusive;
+use crate::display::object::DisplayObjectData;
 
 // =============
 // === Glyph ===
@@ -113,7 +113,7 @@ impl Line {
     pub fn set_baseline_start(&mut self, new_start:Vector2<f32>) {
         let offset = new_start - self.baseline_start;
         for glyph in self.glyphs.iter_mut() {
-            glyph.mod_position(|pos| pos + offset);
+            glyph.mod_position(|pos| *pos += Vector3::new(offset.x,offset.y,0.0));
         }
         self.baseline_start = new_start;
     }
@@ -223,6 +223,11 @@ impl GlyphSystem {
     }
 }
 
+impl From<&GlyphSystem> for DisplayObjectData {
+    fn from(glyph_system: &GlyphSystem) -> Self {
+        (&glyph_system.sprite_system).into()
+    }
+}
 
 // === Private ===
 

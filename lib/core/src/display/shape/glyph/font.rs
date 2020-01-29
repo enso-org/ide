@@ -40,7 +40,7 @@ pub struct GlyphRenderInfo {
     /// A required scale of the _base square_ see structure documentation for details.
     pub scale: Vector2<f32>,
     /// An advance. Advance is the distance between two successive pen positions for specific glyph.
-    pub advance: f64
+    pub advance: f32
 }
 
 /// A single font data used for rendering
@@ -57,7 +57,7 @@ pub struct FontRenderInfo {
     msdf_sys_font : msdf_sys::Font,
     msdf_texture  : MsdfTexture,
     glyphs        : HashMap<char,GlyphRenderInfo>,
-    kerning       : HashMap<(char,char),f64>
+    kerning       : HashMap<(char,char),f32>
 }
 
 impl FontRenderInfo {
@@ -130,7 +130,7 @@ impl FontRenderInfo {
     }
 
     /// Get kerning between two characters
-    pub fn get_kerning(&mut self, left : char, right : char) -> f64 {
+    pub fn get_kerning(&mut self, left : char, right : char) -> f32 {
         match self.kerning.entry((left,right)) {
             Occupied(entry) => *entry.get(),
             Vacant(entry)   => {
@@ -174,8 +174,8 @@ impl FontRenderInfo {
     }
 
     #[cfg(test)]
-    pub fn mock_kerning_info(&mut self, l : char, r : char, value : f64) {
-        self.kerning.insert((l, r),value);
+    pub fn mock_kerning_info(&mut self, l : char, r : char, value : f32) {
+        self.kerning.insert((l,r),value);
     }
 }
 

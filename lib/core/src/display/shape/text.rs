@@ -5,30 +5,16 @@ pub mod rendered;
 
 use crate::prelude::*;
 
-use crate::display::Scene;
-use crate::system::gpu::shader::Context;
-use crate::display::shape::text::buffer::RenderedLines;
-use crate::display::shape::text::content::TextFieldContent;
+use crate::display::shape::text::content::{TextFieldContent, TextChange};
 use crate::display::shape::text::cursor::Cursors;
 use crate::display::shape::text::cursor::Step;
 use crate::display::shape::text::cursor::CursorNavigation;
-use crate::display::shape::text::font::FontId;
-use crate::display::shape::text::font::Fonts;
-use crate::display::shape::text::msdf::MsdfTexture;
-use crate::display::shape::text::program::MsdfProgram;
-use crate::display::shape::text::program::BasicProgram;
-use crate::display::shape::text::program::create_content_program;
-use crate::display::shape::text::program::create_cursors_program;
 
-use nalgebra::{Vector2, Vector4};
-use nalgebra::Similarity2;
-use nalgebra::Point2;
-use nalgebra::Projective2;
-use web_sys::WebGl2RenderingContext;
-use web_sys::WebGlTexture;
-use crate::display::shape::glyph::font::FontId;
+use nalgebra::{Vector2, Vector3, Vector4};
+use crate::display::shape::glyph::font::{FontId, FontRegistry};
 use crate::display::shape::text::rendered::RenderedContent;
 use crate::display::object::DisplayObjectData;
+use crate::display::shape::text::fragment::DisplayedLinesUpdate;
 
 
 // =====================
@@ -47,51 +33,89 @@ pub struct TextField {
     pub text_size    : f32,
     pub base_color   : Vector4<f32>,
     pub viewport_size: Vector2<f32>,
-    scroll_offset    : Vector2<f32>,
     rendered         : RenderedContent,
     display_object   : DisplayObjectData,
 }
 
 impl TextField {
-    pub fn new(text:&str, text_size:f32, font_id:FontId, color:Vector4<f32>, viewport_size: Vector2<f32>, logger:Logger) -> Self {
-        TextField {
+    pub fn new(text:&str, text_size:f32, font_id:FontId, color:Vector4<f32>, viewport_size: Vector2<f32>, fonts:&mut FontRegistry) -> Self {
+        let logger = Logger::new("TextField");
+        let mut text_field = TextField {
             content: TextFieldContent::new(font_id,text,text_size),
             cursors: Cursors::new(),
             text_size,
             base_color: color,
-            rendered: RenderedContent::new(viewport_size,text_size,color,font_id),
+            rendered:RenderedContent::new(viewport_size,text_size,color,font_id,fonts),
             viewport_size,
-            scroll_offset: Vector2::new(0.0,0.0),
             display_object: DisplayObjectData::new(logger),
-        }
+        };
+
+        text_field.display_object.add_child(text_field.rendered.display_object.clone_ref());
+        text_field.assignment_update(fonts).update_line_assignment();
+        println!("{:?}", text_field.rendered.assignment.assignment[0]);
+        text_field.rendered.display_object.set_position(Vector3::new(0.0,0.0,0.0));
+        text_field.rendered.update(&mut text_field.content,fonts);
+        text_field
+    }
+
+    pub fn set_position(&mut self, position:Vector3<f32>) {
+        self.display_object.set_position(position);
     }
 
     /// Scroll text by given offset.
     ///
     /// The value of 1.0 on both dimensions is equal to one line's height.
-    pub fn scroll(&mut self, offset:Vector2<f64>) {
-        self.rendered.scroll(offset);
+    pub fn scroll(&mut self, offset:Vector2<f32>, fonts:&mut FontRegistry) {
+        self.rendered.display_object.mod_position(|pos| *pos -= Vector3::new(offset.x,offset.y,0.0));
+        let mut update = self.assignment_update(fonts);
+        if offset.x != 0.0 {
+            update.update_after_x_scroll(offset.x);
+        }
+        if offset.y != 0.0 {
+            update.update_line_assignment();
+        }
+        self.rendered.update(&mut self.content,fonts);
     }
 
     /// Get current scroll position.
-    ///
-    /// The _scroll_position_ is a position of top-left corner of the first line.
-    /// The offset of 1.0 on both dimensions is equal to one line's height.
-    pub fn scroll_position(&self) -> &Vector2<f64> {
-        &self.rendered.window_offset
+    pub fn scroll_position(&self) -> Vector2<f32> {
+        self.rendered.display_object.position().xy()
     }
 
-    /// Jump to scroll position.
-    ///
-    /// The `scroll_position` is a position of top-left corner of the first line.
-    /// The offset of 1.0 on both dimensions is equal to one line's height.
-    pub fn jump_to_position(&mut self, scroll_position:Vector2<f64>) {
-        self.rendered.jump_to(scroll_position);
+//    /// Jump to scroll position.
+//    pub fn jump_to_position(&mut self, scroll_position:Vector2<f64>) {
+//        self.rendered.jump_to(scroll_position);
+//    }
+
+    pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut FontRegistry) {
+        let content        = self.content.full_info(fonts);
+        let mut navigation = CursorNavigation {content,selecting};
+        self.cursors.navigate_all_cursors(&mut navigation,&step);
     }
 
-    pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut Fonts) {
-        let content        = &mut self.content;
-        let mut navigation = CursorNavigation {content,fonts,selecting};
-        self.cursors.navigate_all_cursors(&mut navigation,step);
+    pub fn make_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
+        self.content.make_change(change);
+        self.assignment_update(fonts).update_after_text_edit();
+        self.rendered.update(&mut self.content,fonts);
+    }
+
+    fn assignment_update<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)
+    -> DisplayedLinesUpdate<'a,'b,'a> {
+        DisplayedLinesUpdate {
+            content: self.content.full_info(fonts),
+            assignment: &mut self.rendered.assignment,
+            scroll_offset: self.rendered.display_object.position().xy(),
+            view_size: self.viewport_size,
+        }
+    }
+
+    pub fn update(&self) {
+        self.display_object.update()
+    }
+}
+
+impl From<&TextField> for DisplayObjectData {
+    fn from(text_fields: &TextField) -> Self {
+        text_fields.display_object.clone_ref()
     }
 }

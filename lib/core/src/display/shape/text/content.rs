@@ -4,8 +4,7 @@ use crate::prelude::*;
 
 use crate::display::shape::glyph::font::{FontId, FontRegistry};
 use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::glyph::font::Fonts;
-use crate::display::shape::text::content::line::{Line, LineCharsPositions};
+use crate::display::shape::text::content::line::{Line, LineFullInfo};
 use crate::display::shape::text::content::line::LineRef;
 
 use std::ops::Range;
@@ -179,12 +178,12 @@ pub struct TextFieldContent {
     pub line_height : f32,
 }
 
-/// References to all needed stuff for generating buffer's data.
-#[derive(Debug)]
-pub struct RefreshInfo<'a, 'b> {
-    pub lines            : &'a mut [Line],
-    pub dirty_lines      : DirtyLines,
-    pub font             : &'b mut FontRenderInfo,
+#[derive(Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct TextFieldContentFullInfo<'a,'b> {
+    #[shrinkwrap(main_field)]
+    pub content : &'a mut TextFieldContent,
+    pub font    : &'b mut FontRenderInfo
 }
 
 impl TextFieldContent {
@@ -220,25 +219,11 @@ impl TextFieldContent {
         }
     }
 
-    pub fn line_with_char_positions(&mut self, index:usize, fonts:&mut FontRegistry) -> LineCharsPositions {
+    pub fn full_info<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry) -> TextFieldContentFullInfo<'a,'b> {
         let font_id = self.font;
-        let height  = self.line_height;
-        LineCharsPositions {
-            line: self.line(index),
+        TextFieldContentFullInfo {
+            content: self,
             font: fonts.get_render_info(font_id),
-            height
-        }
-    }
-
-    /// Get RefreshInfo for this content.
-    ///
-    /// The dirty flags for lines are moved to returned content, so the `self` dirty flags will be
-    /// cleared after this call.
-    pub fn refresh_info<'a,'b>(&'a mut self, fonts:&'b mut Fonts) -> RefreshInfo<'a,'b> {
-        RefreshInfo {
-            lines       : &mut self.lines,
-            dirty_lines : std::mem::take(&mut self.dirty_lines),
-            font        : fonts.get_render_info(self.font),
         }
     }
 
@@ -300,6 +285,16 @@ impl TextFieldContent {
     }
 }
 
+impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
+    pub fn line<'c>(&'c mut self, index:usize) -> LineFullInfo<'c> {
+        let height  = self.content.line_height;
+        LineFullInfo {
+            line: self.content.line(index),
+            font: self.font,
+            height,
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -343,8 +338,8 @@ mod test {
         let single_line    = "Single line";
         let mutliple_lines = "Multiple\r\nlines\n";
 
-        let single_line_content = TextFieldContent::new(font_id,single_line);
-        let multiline_content   = TextFieldContent::new(font_id,mutliple_lines);
+        let single_line_content = TextFieldContent::new(font_id,single_line,1.0);
+        let multiline_content   = TextFieldContent::new(font_id,mutliple_lines,1.0);
         assert_eq!(1, single_line_content.lines.len());
         assert_eq!(3, multiline_content  .lines.len());
         assert_eq!(single_line, single_line_content.lines[0].chars().iter().collect::<String>());
@@ -363,7 +358,7 @@ mod test {
         let delete                 = TextChange::delete(deleted_range.clone());
         let replace                = TextChange::replace(deleted_range, "text");
 
-        let mut content            = TextFieldContent::new(0, text);
+        let mut content            = TextFieldContent::new(0, text, 1.0);
 
         content.make_change(insert);
         let expected              = vec!["Line a", "Labine b", "Line c"];
@@ -393,7 +388,7 @@ mod test {
         let insert_in_middle = TextChange::insert(middle_loc,inserted);
         let insert_at_end    = TextChange::insert(end_loc   ,inserted);
 
-        let mut content      = TextFieldContent::new(0,text);
+        let mut content      = TextFieldContent::new(0,text,1.0);
 
         content.make_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
@@ -427,7 +422,7 @@ mod test {
         let deleted_range = delete_from..delete_to;
         let delete        = TextChange::delete(deleted_range);
 
-        let mut content   = TextFieldContent::new(0,text);
+        let mut content   = TextFieldContent::new(0,text,1.0);
         content.make_change(delete);
 
         let expected = vec!["Lie c"];

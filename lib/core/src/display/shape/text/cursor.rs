@@ -2,17 +2,12 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::glyph::font::Fonts;
-use crate::display::shape::text::content::TextLocation;
-use crate::display::shape::text::content::TextFieldContent;
-use crate::display::shape::text::content::line::LineRef;
-use crate::display::shape::text::buffer::glyph_square::point_to_iterable;
+use crate::display::shape::text::content::{TextLocation, TextFieldContentFullInfo};
+use crate::display::shape::text::content::line::LineFullInfo;
 
-use nalgebra::Point2;
-use nalgebra::Translation2;
+use nalgebra::{Point2, Vector2};
 use std::cmp::Ordering;
 use std::ops::Range;
-use web_sys::WebGlBuffer;
 
 
 
@@ -60,8 +55,8 @@ impl Cursor {
         self.selection_range().contains(&position)
     }
 
-    /// Get `LineRef` object of this cursor's line.
-    pub fn current_line<'a>(&self, content:&'a mut TextFieldContent) -> LineRef<'a> {
+    /// Get `LineFullInfo` object of this cursor's line.
+    pub fn current_line<'c>(&self, content:&'c mut TextFieldContentFullInfo) -> LineFullInfo<'c> {
         content.line(self.position.line)
     }
 
@@ -71,23 +66,20 @@ impl Cursor {
     ///
     /// _Baseline_ is a font specific term, for details see [freetype documentation]
     //  (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1).
-    pub fn render_position(&self, content:&mut TextFieldContent, fonts:&mut Fonts)
-    -> Point2<f64>{
-        let x = Self::x_position_of_cursor_at(&self.position,content,fonts);
-        let y = self.current_line(content).start_point().y;
-        Point2::new(x,y)
+    pub fn render_position(&self, content:&mut TextFieldContentFullInfo)
+    -> Vector2<f32>{
+        let mut line = self.current_line(content);
+        let x        = Self::x_position_of_cursor_at(self.position.column,&mut line);
+        let y        = line.baseline_start().y;
+        Vector2::new(x,y)
     }
 
-    fn x_position_of_cursor_at
-    (at:&TextLocation, content:&mut TextFieldContent, fonts:&mut Fonts)
-    -> f64 {
-        let font     = fonts.get_render_info(content.font);
-        let mut line = content.line(at.line);
-        if at.column > 0 {
-            let char_index = at.column - 1;
-            line.get_char_x_range(char_index,font).end.into()
+    fn x_position_of_cursor_at(column:usize, line:&mut LineFullInfo) -> f32 {
+        if column > 0 {
+            let char_index = column - 1;
+            line.get_char_x_range(char_index).end
         } else {
-            line.start_point().x
+            line.baseline_start().x
         }
     }
 }
@@ -106,8 +98,7 @@ pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 /// A struct for cursor navigation process
 #[derive(Debug)]
 pub struct CursorNavigation<'a,'b> {
-    pub content   : &'a mut TextFieldContent,
-    pub fonts     : &'b mut Fonts,
+    pub content   : TextFieldContentFullInfo<'a,'b>,
     pub selecting : bool
 }
 
@@ -197,23 +188,23 @@ impl<'a,'b> CursorNavigation<'a,'b> {
 
     /// Get the cursor position on another line, such that the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    fn near_same_x_in_another_line(&mut self, position:&TextLocation, line:usize)
+    fn near_same_x_in_another_line(&mut self, position:&TextLocation, line_index:usize)
     -> TextLocation {
-        let x_position = Cursor::x_position_of_cursor_at(position,self.content,self.fonts);
-        let column     = self.column_near_x(line,x_position);
-        TextLocation {line,column}
+        let mut line   = self.content.line(line_index);
+        let x_position = Cursor::x_position_of_cursor_at(position.column,&mut line);
+        let column     = self.column_near_x(line_index,x_position);
+        TextLocation {line:line_index, column}
     }
 
     /// Get the column number in given line, so the cursor will be as near as possible the
     /// `x_position` in _text space_. See `display::shape::text::content::line::Line`
     /// documentation for details about _text space_.
-    fn column_near_x(&mut self, line_index:usize, x_position:f64) -> usize {
-        let font                    = self.fonts.get_render_info(self.content.font);
+    fn column_near_x(&mut self, line_index:usize, x_position:f32) -> usize {
         let mut line                = self.content.line(line_index);
-        let x                       = x_position as f32;
-        let char_at_x               = line.find_char_at_x_position(x,font);
+        let x                       = x_position;
+        let char_at_x               = line.find_char_at_x_position(x);
         let nearer_to_end           = |range:Range<f32>| range.end - x < x - range.start;
-        let mut nearer_to_chars_end = |index| nearer_to_end(line.get_char_x_range(index,font));
+        let mut nearer_to_chars_end = |index| nearer_to_end(line.get_char_x_range(index));
         match char_at_x {
             Some(index) if nearer_to_chars_end(index) => index + 1,
             Some(index)                               => index,
@@ -333,15 +324,6 @@ impl Cursors {
         })
     }
 
-    fn cursor_vertices(cursor:&Cursor, content:&mut TextFieldContent, fonts:&mut Fonts)
-    -> SmallVec<[f32;12]> {
-        let position    = cursor.render_position(content,fonts);
-        let to_position = Translation2::new(position.x as f32,position.y as f32);
-        let base        = CURSOR_VERTICES_BASE_LAYOUT.iter();
-        let on_position = base.map(|p| to_position * p);
-        on_position.map(point_to_iterable).flatten().collect()
-    }
-
     #[cfg(test)]
     fn mock(cursors:Vec<Cursor>) -> Self {
         Cursors{cursors,
@@ -361,6 +343,8 @@ mod test {
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use crate::display::shape::text::cursor::Step::{LineBegin, DocBegin, LineEnd};
+    use crate::display::shape::glyph::font::FontRegistry;
+    use crate::display::shape::text::content::TextFieldContent;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -385,12 +369,11 @@ mod test {
             expected_positions.insert(DocBegin,  vec![(0,0)]);
             expected_positions.insert(DocEnd,    vec![(2,9)]);
 
-            let mut fonts      = Fonts::new();
+            let mut fonts      = FontRegistry::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text,1.0);
             let mut navigation = CursorNavigation {
-                content: &mut content,
-                fonts: &mut fonts,
+                content: content.full_info(&mut fonts),
                 selecting: false
             };
 
@@ -416,12 +399,11 @@ mod test {
             let initial_cursors   = vec![initial_cursor];
             let new_position      = TextLocation {line:1,column:10};
 
-            let mut fonts      = Fonts::new();
+            let mut fonts      = FontRegistry::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text,1.0);
             let mut navigation = CursorNavigation {
-                content: &mut content,
-                fonts: &mut fonts,
+                content: content.full_info(&mut fonts),
                 selecting: false
             };
             let mut cursors    = Cursors::mock(initial_cursors.clone());
@@ -439,12 +421,11 @@ mod test {
             let initial_cursors = vec![Cursor::new(initial_loc)];
             let new_loc         = TextLocation {line:0,column:9};
 
-            let mut fonts      = Fonts::new();
+            let mut fonts      = FontRegistry::new();
             let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text);
+            let mut content    = TextFieldContent::new(font,text,1.0);
             let mut navigation = CursorNavigation {
-                content: &mut content,
-                fonts: &mut fonts,
+                content: content.full_info(&mut fonts),
                 selecting: true
             };
             let mut cursors = Cursors::mock(initial_cursors.clone());
