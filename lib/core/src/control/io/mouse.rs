@@ -1,7 +1,12 @@
 //! This module contains the `MouseManager` implementation, its associated structs such as
 //! `MousePositionEvent`, `MouseClickEvent` and `MouseWheelEvent`.
 
-use crate::system::web::dom::DOMContainer;
+use crate::prelude::*;
+
+pub mod event;
+pub mod button;
+
+use crate::system::web::dom::DomContainer;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
@@ -25,6 +30,7 @@ use std::cell::RefCell;
 // =====================
 
 /// This struct keeps the register of the event listener and unregisters it when it's dropped.
+#[derive(Debug)]
 pub struct EventListener<T:?Sized> {
     target   : EventTarget,
     name     : String,
@@ -63,20 +69,12 @@ pub type WheelEventListener = EventListener<dyn FnMut(WheelEvent)>;
 // === MouseButton ===
 // ===================
 
+// FIXME: this does not handle all buttons (js defines 5 buttons) and assumes mouses for
+// FIXME: right hand people.
 /// An enumeration representing the mouse buttons.
-pub enum MouseButton {
-    /// Left mouse button.
-    LEFT,
-
-    /// Middle mouse button.
-    MIDDLE,
-
-    /// Right mouse button.
-    RIGHT,
-
-    /// For unknown mouse buttons IDs.
-    UNKNOWN
-}
+#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+pub enum MouseButton {LEFT,MIDDLE,RIGHT,UNKNOWN}
 
 
 
@@ -87,7 +85,9 @@ pub enum MouseButton {
 /// Mouse click callback used by `MouseManager`.
 pub trait MouseClickCallback = FnMut(MouseClickEvent) + 'static;
 
+// FIXME: "click" means mouse down and then up. This is misleading.
 /// A struct storing information about mouse down and mouse up events.
+#[derive(Clone,Copy,Debug)]
 pub struct MouseClickEvent {
     /// The position where the MouseClickEvent occurred.
     pub position : Vector2<f32>,
@@ -97,9 +97,12 @@ pub struct MouseClickEvent {
 }
 
 impl MouseClickEvent {
+    // FIXME: function from should be used only with From trait.
+    // FIXME: this impleementation is slow - it does a lot of computing although I may never need
+    // FIXME: the position field.
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position  = Vector2::new(event.x() as f32, event.y() as f32);
-        let position  = position - data.dom().position();
+        let position  = position - data.dom().position_with_style_reflow();
         let button    = match event.button() {
             LEFT_MOUSE_BUTTON      => MouseButton::LEFT,
             MIDDLE_MOUSE_BUTTON    => MouseButton::MIDDLE,
@@ -116,10 +119,13 @@ impl MouseClickEvent {
 // === MousePositionEvent ===
 // ==========================
 
+// FIXME: "Position" is not an action. In english, "position event" doesnt make sense.
+// FIXME: this is a "move event".
 /// Mouse position callback used by `MouseManager`.
 pub trait MousePositionCallback = FnMut(MousePositionEvent)  + 'static;
 
 /// A struct storing information about mouse move, mouse enter and mouse leave events.
+#[derive(Clone,Copy,Debug)]
 pub struct MousePositionEvent {
     /// The previous position where the mouse was.
     pub previous_position : Vector2<f32>,
@@ -131,7 +137,8 @@ pub struct MousePositionEvent {
 impl MousePositionEvent {
     fn from(event:MouseEvent, data:&Rc<MouseManagerData>) -> Self {
         let position          = Vector2::new(event.x() as f32,event.y() as f32);
-        let position          = position - data.dom().position();
+        // FIXME: This does not work, as we were chatting on Discord.
+        let position          = position - data.dom().position_with_style_reflow();
         let previous_position = match data.mouse_position() {
             Some(position) => position,
             None           => position
@@ -151,6 +158,7 @@ impl MousePositionEvent {
 pub trait MouseWheelCallback = FnMut(MouseWheelEvent) + 'static;
 
 /// A struct storing information about mouse wheel events.
+#[derive(Clone,Copy,Debug)]
 pub struct MouseWheelEvent {
     /// A boolean indicating if the keyboard ctrl button is pressed.
     pub is_ctrl_pressed : bool,
@@ -163,6 +171,10 @@ pub struct MouseWheelEvent {
 }
 
 impl MouseWheelEvent {
+    // FIXME: this is slow implementation. What if I dont need all the fields? I just need
+    // FIXME: `delta_x` - you still translate all values from JS to Rust.
+    // FIXME: Even worse - what if I need other fields than those? This implementation will grow
+    // FIXME: and will be slower and slower.
     fn from(event:WheelEvent) -> Self {
         let movement_x      = event.delta_x() as f32;
         let movement_y      = event.delta_y() as f32;
@@ -177,10 +189,13 @@ impl MouseWheelEvent {
 // === MouseManagerProperties ===
 // ==============================
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct MouseManagerProperties {
-    dom                    : DOMContainer,
+    dom                    : DomContainer,
     mouse_position         : Option<Vector2<f32>>,
     target                 : EventTarget,
+    #[derivative(Debug="ignore")]
     stop_tracking_listener : Option<MouseEventListener>
 }
 
@@ -191,12 +206,13 @@ struct MouseManagerProperties {
 // ========================
 
 /// A struct used for storing shared MouseManager's mutable data.
+#[derive(Debug)]
 struct MouseManagerData {
     properties : RefCell<MouseManagerProperties>
 }
 
 impl MouseManagerData {
-    fn new(target:EventTarget, dom:DOMContainer) -> Rc<Self> {
+    fn new(target:EventTarget, dom: DomContainer) -> Rc<Self> {
         let mouse_position         = None;
         let stop_tracking_listener = None;
         let p = MouseManagerProperties{dom,mouse_position,target,stop_tracking_listener};
@@ -230,7 +246,7 @@ impl MouseManagerData {
         self.properties.borrow().mouse_position
     }
 
-    fn dom(&self) -> DOMContainer {
+    fn dom(&self) -> DomContainer {
         self.properties.borrow().dom.clone()
     }
 }
@@ -240,6 +256,9 @@ impl MouseManagerData {
 // ==========================
 // === add_callback macro ===
 // ==========================
+
+// FIXME: This implementation uses paste::item unnecessary and thus intellij cannot expand it and give us hints
+// FIXME: this can be implemented faster, you do not need rc downgrade / upgrade here.
 
 /// Creates an add_callback method implementation.
 /// ```compile_fail
@@ -279,6 +298,7 @@ macro_rules! add_callback {
 // ====================
 
 /// This structs manages mouse events in a specified DOM object.
+#[derive(Debug)]
 pub struct MouseManager {
     data : Rc<MouseManagerData>
 }
@@ -289,7 +309,7 @@ const  RIGHT_MOUSE_BUTTON: i16 = 2;
 
 impl MouseManager {
     /// Creates a new instance to manage mouse events in the specified DOMContainer.
-    pub fn new(dom:&DOMContainer) -> Result<Self> {
+    pub fn new(dom:&DomContainer) -> Result<Self> {
         let target              = dyn_into::<_, EventTarget>(dom.dom.clone())?;
         let dom                 = dom.clone();
         let data                = MouseManagerData::new(target,dom);
@@ -341,6 +361,7 @@ impl MouseManager {
 // === Utils ===
 // =============
 
+// FIXME: these functions should be refactored out.
 fn add_event_listener_with_callback
 (target:&EventTarget, name:&str, function:&Function) -> Result<()> {
     match target.add_event_listener_with_callback(name, function) {

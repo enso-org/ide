@@ -5,6 +5,9 @@
 // This library is in a very early stage. It will be refactored and improved 
 // soon. It should not be reviewed now.
 
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(generators, generator_trait)]
 #![feature(specialization)]
 #![feature(type_ascription)]

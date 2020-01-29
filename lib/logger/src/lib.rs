@@ -1,5 +1,8 @@
 #![feature(trait_alias)]
 #![feature(set_stdio)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 use std::fmt::Debug;
 use wasm_bindgen::JsValue;
@@ -187,4 +190,10 @@ macro_rules! internal_warning {
     ($($toks:tt)*) => {
         $crate::log_internal_bug_template! {warning $($toks)*}
     };
+}
+
+impl Into<Logger> for &Logger {
+    fn into(self) -> Logger {
+        self.clone()
+    }
 }

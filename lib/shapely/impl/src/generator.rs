@@ -14,6 +14,7 @@ use std::pin::Pin;
 // ==========================
 
 /// Iterates over values yielded from the wrapped `Generator`.
+#[derive(Debug)]
 pub struct GeneratingIterator<G: Generator>(pub G);
 
 impl<G> Iterator for GeneratingIterator<G>
@@ -35,7 +36,7 @@ where G: Generator<Return = ()> + Unpin {
 
 /// An `Iterator` type that yields no values of the given type `T`.
 #[derive(Derivative)]
-#[derivative(Default(bound=""))]
+#[derivative(Debug,Default(bound=""))]
 pub struct EmptyIterator<T>(PhantomData<T>);
 
 impl<T> EmptyIterator<T> {

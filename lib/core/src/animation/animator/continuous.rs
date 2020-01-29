@@ -1,6 +1,8 @@
 //! This module implements `ContinuousAnimator`, an object used to run a callback with a continuous
 //! time in milliseconds as its input. It can be used to implement a playback mechanism.
 
+use crate::prelude::*;
+
 use crate::control::EventLoop;
 use crate::control::callback::CallbackHandle;
 use super::AnimationCallback;
@@ -13,7 +15,10 @@ use std::cell::RefCell;
 // === ContinuousTimeAnimatorProperties ===
 // ========================================
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct ContinuousTimeAnimatorProperties {
+    #[derivative(Debug="ignore")]
     callback                   : Box<dyn AnimationCallback>,
     relative_start_ms          : f64,
     absolute_start_ms          : Option<f64>,
@@ -26,6 +31,7 @@ struct ContinuousTimeAnimatorProperties {
 // === ContinuousTimeAnimatorData ===
 // ==================================
 
+#[derive(Debug)]
 struct ContinuousAnimatorData {
     properties : RefCell<ContinuousTimeAnimatorProperties>
 }
@@ -94,22 +100,25 @@ impl ContinuousAnimatorData {
 // === ContinuousAnimator ===
 // ==========================
 
-/// `ContinuousAnimator` registers itself in `EventLoop`, repeatedly calling an
-/// `AnimationCallback` with the playback time in millisecond as its input.
+/// `ContinuousAnimator` calls `AnimationCallback` with the playback time in millisecond as its
+/// input once per frame.
+#[derive(Debug)]
 pub struct ContinuousAnimator {
-    data : Rc<ContinuousAnimatorData>
+    data       : Rc<ContinuousAnimatorData>,
+    event_loop : EventLoop
 }
 
 impl ContinuousAnimator {
     /// Creates `ContinuousAnimator` with an `AnimationCallback`.
-    pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(f:F) -> Self {
+        let event_loop      = EventLoop::new();
         let data            = ContinuousAnimatorData::new(f);
         let weak_data       = Rc::downgrade(&data);
         let callback_handle = event_loop.add_callback(move |absolute_time_ms| {
             weak_data.upgrade().map(|data| data.on_animation_frame(absolute_time_ms));
         });
         data.set_event_loop_callback_handle(Some(callback_handle));
-        Self {data}
+        Self {data,event_loop}
     }
 }
 

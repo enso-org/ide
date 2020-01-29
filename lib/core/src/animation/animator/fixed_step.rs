@@ -4,7 +4,6 @@
 
 use super::Animator;
 use super::AnimationCallback;
-use crate::control::EventLoop;
 
 use nalgebra::zero;
 
@@ -15,7 +14,7 @@ use nalgebra::zero;
 // =======================
 
 /// This struct counts the intervals in a time period.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct IntervalCounter {
     /// Interval duration.
     pub interval_duration : f64,
@@ -73,6 +72,7 @@ impl FixedStepAnimatorData {
 /// (AnimationCallback(delta_ms)) will be 1000ms. But keep in mind that if the actual frame
 /// takes longer, say 2000ms, AnimationCallback will be called twice in the same moment, but
 /// its delta_ms parameter will always be fixed to 1 second.
+#[derive(Debug)]
 pub struct FixedStepAnimator {
     _animator: Animator
 }
@@ -80,9 +80,9 @@ pub struct FixedStepAnimator {
 impl FixedStepAnimator {
     /// Registers `FixedStepAnimator` in `EventLoop`, running `AnimationCallback` at a fixed rate
     /// determined by `steps_per_second`.
-    pub fn new<F:AnimationCallback>(event_loop:&mut EventLoop, steps_per_second:f64, f:F) -> Self {
+    pub fn new<F:AnimationCallback>(steps_per_second:f64, f:F) -> Self {
         let mut data = FixedStepAnimatorData::new(steps_per_second, f);
-        let _animator = Animator::new(event_loop, move |delta_ms| {
+        let _animator = Animator::new(move |delta_ms| {
             let intervals = data.counter.add_time(delta_ms);
             for _ in 0..intervals {
                 (data.callback)(data.counter.interval_duration);
