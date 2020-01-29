@@ -9,7 +9,7 @@ members = [
     "lib/data",
     "lib/eval-tt",
     "lib/ide/ast/impl",
-    "lib/ide/ast/macros",
+#    "lib/ide/ast/macros",
     "lib/ide/file-manager",
     "lib/ide/json-rpc",
     "lib/ide/parser",

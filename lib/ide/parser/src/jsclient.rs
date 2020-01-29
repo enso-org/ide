@@ -1,9 +1,13 @@
 #![cfg(target_arch = "wasm32")]
 
-use crate::{api, api::IsParser};
-use prelude::*;
+use crate::prelude::*;
+
+use crate::api;
+use crate::api::IsParser;
+use crate::api::Error::InteropError;
+use crate::api::Error::ParsingError;
+
 use wasm_bindgen::prelude::*;
-use crate::api::Error::{ParsingError, InteropError};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
