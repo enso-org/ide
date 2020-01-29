@@ -7,39 +7,14 @@ use crate::prelude::*;
 
 use crate::data::dirty;
 use crate::display::object::DisplayObjectData;
-use nalgebra::{Vector3, Matrix4, Perspective3};
+use crate::display::layout::types::*;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::data::dirty::traits::*;
 
-
-
-// =================
-// === Alignment ===
-// =================
-
-/// Camera alignment. It describes where the origin of the camera should be aligned to.
-#[derive(Clone,Debug)]
-pub struct Alignment {
-    pub horizontal : HorizontalAlignment,
-    pub vertical   : VerticalAlignment,
-}
-
-#[derive(Clone,Debug)]
-pub enum HorizontalAlignment {Left,Center,Right}
-
-#[derive(Clone,Debug)]
-pub enum VerticalAlignment {Top,Center,Bottom}
-
-impl Default for HorizontalAlignment { fn default() -> Self { Self::Center } }
-impl Default for VerticalAlignment   { fn default() -> Self { Self::Center } }
-impl Default for Alignment {
-    fn default() -> Self {
-        let horizontal = default();
-        let vertical   = default();
-        Self {horizontal,vertical}
-    }
-}
+use nalgebra::Vector3;
+use nalgebra::Matrix4;
+use nalgebra::Perspective3;
 
 
 

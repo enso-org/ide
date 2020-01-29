@@ -5,6 +5,7 @@
 use crate::prelude::*;
 
 use crate::debug::Stats;
+use crate::display::layout::types::*;
 use crate::display::object::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
@@ -93,13 +94,6 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
-/// Enum describing horizontal alignment.
-#[allow(missing_docs)]
-pub enum HorizontalAlignment {Left,Center,Right}
-/// Enum describing vertical alignment.
-#[allow(missing_docs)]
-pub enum VerticalAlignment {Top,Center,Bottom}
-
 shared! { SpriteSystem
 
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
@@ -129,7 +123,7 @@ impl {
         let instance_scope    = mesh.instance_scope();
         let uv                = point_scope.add_buffer("uv");
         let transform         = instance_scope.add_buffer("transform");
-        let size              = instance_scope.add_buffer("bounds");
+        let size              = instance_scope.add_buffer("size");
         let horizontal        = HorizontalAlignment::Center;
         let vertical          = VerticalAlignment::Center;
         let initial_alignment = Self::uv_offset(horizontal,vertical);
@@ -213,7 +207,7 @@ impl SpriteSystemData {
 
     fn geometry_material() -> Material {
         let mut material = Material::new();
-        material.add_input_def  :: <Vector2<f32>> ("bounds");
+        material.add_input_def  :: <Vector2<f32>> ("size");
         material.add_input_def  :: <Vector2<f32>> ("uv");
         material.add_input_def  :: <Matrix4<f32>> ("transform");
         material.add_input_def  :: <Matrix4<f32>> ("view_projection");
@@ -221,7 +215,7 @@ impl SpriteSystemData {
         material.add_output_def :: <Vector3<f32>> ("local");
         material.set_main("
                 mat4 model_view_projection = input_view_projection * input_transform;
-                input_local                = vec3((input_uv - input_alignment) * input_bounds, 0.0);
+                input_local                = vec3((input_uv - input_alignment) * input_size, 0.0);
                 gl_Position                = model_view_projection * vec4(input_local,1.0);
                 ");
         material
