@@ -92,8 +92,9 @@ impl Line {
     /// The replacing strings will reuse glyphs which increases performance of rendering text.
     pub fn replace_text<Chars>(&mut self, chars:Chars, fonts:&mut FontRegistry)
     where Chars : Iterator<Item=char> + Clone {
-        let font = fonts.get_render_info(self.font_id);
-        let pen  = PenIterator::new(self.baseline_start,self.height,chars.clone(),font);
+        let font        = fonts.get_render_info(self.font_id);
+        let chars_count = chars.clone().count();
+        let pen         = PenIterator::new(self.baseline_start,self.height,chars.clone(),font);
 
         for (glyph,(_,position)) in self.glyphs.iter_mut().zip(pen) {
             glyph.set_position(Vector3::new(position.x,position.y,0.0));
@@ -107,6 +108,9 @@ impl Line {
             glyph.color().set(self.base_color);
             glyph.mod_position(|pos| { *pos += Vector3::new(offset.x,offset.y,0.0); });
             glyph.size().set(size);
+        }
+        for glyph in self.glyphs.iter_mut().skip(chars_count) {
+            glyph.size().set(Vector2::new(0.0,0.0));
         }
     }
 

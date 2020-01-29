@@ -71,7 +71,7 @@ fn animate_text_component
         text_field.navigate_cursors(Right,false,fonts);
     }
     if start_scrolling <= js_sys::Date::now() {
-        text_field.scroll(Vector2::new(0.0,-0.4),fonts);
+        text_field.scroll(Vector2::new(0.0,-0.1),fonts);
     }
     text_field.update();
 }

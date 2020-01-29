@@ -71,9 +71,9 @@ impl RenderedContent {
         // their full size. But we have 2 more lines/glyph: one clipped from top or left, and one
         // from bottom or right.
         const ADDITIONAL: usize = 2;
-        let displayed_lines     = window_size.y.floor() as usize + ADDITIONAL;
+        let displayed_lines     = (window_size.y / line_height).floor() as usize + ADDITIONAL;
         let space_width         = fonts.get_render_info(font_id).get_glyph_info(' ').advance;
-        let displayed_chars     = (window_size.x/space_width).floor();
+        let displayed_chars     = (window_size.x / space_width).floor();
         // This margin is to ensure, that after x scrolling we won't need to refresh all the lines
         // at once.
         let x_margin           = (displayed_lines as f32) / space_width;

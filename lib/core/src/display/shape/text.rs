@@ -104,7 +104,7 @@ impl TextField {
         DisplayedLinesUpdate {
             content: self.content.full_info(fonts),
             assignment: &mut self.rendered.assignment,
-            scroll_offset: self.rendered.display_object.position().xy(),
+            scroll_offset: -self.rendered.display_object.position().xy(),
             view_size: self.viewport_size,
         }
     }
