@@ -42,6 +42,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+#      - name: Install Firefox
+#        run: sudo apt-get install firefox
       - name: Run wasm-pack tests
         uses: actions-rs/cargo@v1
         with:
@@ -51,36 +53,6 @@ jobs:
             --bin test-all
             -- --headless --firefox
 
-  test2:
-    name: Tests (Win)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-11-04
-          override: true
-      - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack          
-      - name: Install Firefox
-        run: |
-          curl -fSL -o firefox.exe "https://download.mozilla.org/?product=firefox-latest-ssl&os=win"
-          firefox.exe /S
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-      - name: Run wasm-pack tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: >
-            --manifest-path=script/rust/Cargo.toml
-            --bin test-all
-            -- --headless --firefox
 # TODO[AO] formatter does not work
 #  fmt:
 #    name: Formatter
