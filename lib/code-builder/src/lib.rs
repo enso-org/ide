@@ -4,7 +4,9 @@
 
 #![feature(specialization)]
 #![allow(missing_docs)]
-
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 use basegl_prelude::*;
 use std::fmt::Write;
@@ -156,7 +158,7 @@ pub trait HasCodeRepr {
     }
 }
 
-impl<T: HasCodeRepr> HasCodeRepr for Option<T> {
+impl<T:HasCodeRepr> HasCodeRepr for Option<T> {
     fn build(&self, builder:&mut CodeBuilder) {
         self.iter().for_each(|t| t.build(builder));
     }

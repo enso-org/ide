@@ -51,6 +51,7 @@ pub use stats::*;
 static mut SCENE: Option<Scene> = None;
 
 /// Very unsafe function. Do not use. See documentation of `WORLD` to learn more.
+#[allow(unsafe_code)]
 pub(crate) fn get_scene() -> Scene {
     unsafe {
         SCENE.as_ref().unwrap_or_else(|| panic!("World not initialized.")).clone_ref()
@@ -58,6 +59,7 @@ pub(crate) fn get_scene() -> Scene {
 }
 
 /// Very unsafe function. Do not use. See documentation of `WORLD` to learn more.
+#[allow(unsafe_code)]
 fn init_global_variables(world:&World) {
     unsafe {
         SCENE = Some(world.rc.borrow().scene.clone_ref());
@@ -145,25 +147,25 @@ impl WorldData {
     /// Create new uninitialized world instance. You should rather not need to
     /// call this function directly.
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
-        let stats                  = default();
-        let logger                 = Logger::new("world");
+        let stats              = default();
+        let logger             = Logger::new("world");
         let scene_logger       = logger.sub("scene");
         let scene_dirty_logger = logger.sub("scene_dirty");
         let scene_dirty        = SceneDirty::new(scene_dirty_logger,());
         let scene_dirty2       = scene_dirty.clone();
-        let on_change              = move || {scene_dirty2.set()};
+        let on_change          = move || {scene_dirty2.set()};
         let scene              = Scene::new(dom,scene_logger,&stats,on_change);
-        let variables              = &scene.variables();
-        let time                   = variables.add_or_panic("time",0.0);
-        let display_mode           = variables.add_or_panic("display_mode",0);
-        let fonts                  = Fonts::new();
-        let event_loop             = EventLoop::new();
-        let update_handle          = default();
-        let stats_monitor          = StatsMonitor::new(&stats);
-        let performance            = web::get_performance().unwrap();
-        let start_time             = performance.now() as f32;
-        let stats_monitor_cp_1     = stats_monitor.clone();
-        let stats_monitor_cp_2     = stats_monitor.clone();
+        let variables          = &scene.variables();
+        let time               = variables.add_or_panic("time",0.0);
+        let display_mode       = variables.add_or_panic("display_mode",0);
+        let fonts              = Fonts::new();
+        let event_loop         = EventLoop::new();
+        let update_handle      = default();
+        let stats_monitor      = StatsMonitor::new(&stats);
+        let performance        = web::get_performance().unwrap();
+        let start_time         = performance.now() as f32;
+        let stats_monitor_cp_1 = stats_monitor.clone();
+        let stats_monitor_cp_2 = stats_monitor.clone();
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
@@ -252,10 +254,9 @@ impl World {
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,
     /// which when dropped will cancel the callback. If you want the function
     /// to run forever, you can use the `forget` method in the handle.
-    pub fn on_frame<F:FnMut(&World)+'static>
+    pub fn on_frame<F:FnMut(f64)+'static>
     (&self, mut callback:F) -> CallbackHandle {
-        let this = self.clone_ref();
-        let func = move |_| callback(&this);
+        let func = move |time_ms| callback(time_ms);
         self.rc.borrow_mut().event_loop.add_callback(func)
     }
 
@@ -267,12 +268,28 @@ impl World {
         self.rc.borrow_mut().run();
     }
 
+    pub fn event_loop(&self) -> EventLoop {
+        self.rc.borrow().event_loop.clone()
+    }
+
+    pub fn scene(&self) -> Scene {
+        self.rc.borrow().scene.clone()
+    }
+
     fn init_composer(&self) {
-        let root     = &self.display_object_description();
+        let root                = &self.display_object();
+        let mouse_hover_ids     = self.rc.borrow().scene.mouse_hover_ids();
+        let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
+        let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
+        pixel_read_pass.set_callback(move |v| {
+            mouse_hover_ids.set(Vector4::from_iterator(v))
+        });
+        // TODO: We may want to enable it on weak hardware.
+        // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
             .add(DisplayObjectRenderPass::new(root))
             .add(ScreenRenderPass::new())
-            .add(PixelReadPass::new());
+            .add(pixel_read_pass);
         self.rc.borrow_mut().scene.set_render_pipeline(pipeline);
     }
 }

@@ -86,6 +86,12 @@ impl From<i32> for Glsl {
     }
 }
 
+impl From<u32> for Glsl {
+    fn from(t:u32) -> Self {
+        t.to_string().into()
+    }
+}
+
 impl From<f32> for Glsl {
     fn from(t:f32) -> Self {
         let is_int = t.fract() == 0.0;
@@ -107,6 +113,7 @@ where Self:MatrixCtx<T,R,C>, PhantomData<MatrixMN<T,R,C>>:Into<PrimType> {
 // === Wrong Conversions ===
 
 /// Error indicating that a value cannot be converted to Glsl.
+#[derive(Clone,Copy,Debug)]
 pub struct NotGlslError;
 
 
@@ -533,13 +540,13 @@ pub struct GlobalVar {
 }
 
 /// Global variable layout definition.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct Layout {
     pub location: usize,
 }
 
 /// Global variable storage definition.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum GlobalVarStorage {
     ConstStorage,
     InStorage(LinkageStorage),
@@ -548,14 +555,14 @@ pub enum GlobalVarStorage {
 }
 
 /// Storage definition for in- and out- attributes.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct LinkageStorage {
     pub centroid      : bool,
     pub interpolation : Option<InterpolationStorage>,
 }
 
 /// Interpolation storage type for attributes.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum InterpolationStorage {Smooth, Flat}
 
 
@@ -581,7 +588,7 @@ impl HasCodeRepr for InterpolationStorage {
 impl HasCodeRepr for LinkageStorage {
     fn build(&self, builder:&mut CodeBuilder) {
         if self.centroid { builder.add("centroid"); };
-
+        builder.add(&self.interpolation);
     }
 }
 
@@ -590,8 +597,8 @@ impl HasCodeRepr for GlobalVarStorage {
         match self {
             Self::ConstStorage        => builder.add("const"),
             Self::UniformStorage      => builder.add("uniform"),
-            Self::InStorage    (qual) => builder.add("in").add(qual),
-            Self::OutStorage   (qual) => builder.add("out").add(qual),
+            Self::InStorage    (qual) => builder.add(qual).add("in"),
+            Self::OutStorage   (qual) => builder.add(qual).add("out"),
         };
     }
 }
@@ -632,7 +639,7 @@ impl HasCodeRepr for LocalVar {
 // =================
 
 /// Type precision definition.
-#[derive(Clone,Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum Precision { Low, Medium, High }
 
 impl Display for Precision {
@@ -659,7 +666,7 @@ impl HasCodeRepr for Precision {
 
 impl From<&Precision> for Precision {
     fn from(t: &Precision) -> Self {
-        t.clone()
+        *t
     }
 }
 
@@ -771,6 +778,7 @@ macro_rules! define_glsl_prim_type_conversions {
 define_glsl_prim_type_conversions! {
     bool           => Bool,
     i32            => Int,
+    u32            => UInt,
     f32            => Float,
 
     Vector2<f32>   => Vec2,
@@ -780,6 +788,10 @@ define_glsl_prim_type_conversions! {
     Vector2<i32>   => IVec2,
     Vector3<i32>   => IVec3,
     Vector4<i32>   => IVec4,
+
+    Vector2<u32>   => UVec2,
+    Vector3<u32>   => UVec3,
+    Vector4<u32>   => UVec4,
 
     Vector2<bool>  => BVec2,
     Vector3<bool>  => BVec3,
