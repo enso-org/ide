@@ -9,8 +9,9 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-use prelude::*;
+use crate::prelude::*;
 
+pub use enso_prelude as prelude;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;

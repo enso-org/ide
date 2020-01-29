@@ -1,6 +1,6 @@
 #![feature(generators, generator_trait)]
 
-use prelude::*;
+use parser::prelude::*;
 
 use ast::*;
 use parser::api::IsParser;

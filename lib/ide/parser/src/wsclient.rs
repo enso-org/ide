@@ -1,6 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use prelude::*;
+use crate::prelude::*;
 
 use websocket::{
     stream::sync::TcpStream, ClientBuilder, Message, OwnedMessage,

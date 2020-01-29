@@ -1,6 +1,6 @@
 //! Traits providing abstraction over transport used by the JSON-RPC client.
 
-use prelude::*;
+use crate::prelude::*;
 
 use failure::Error;
 

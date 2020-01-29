@@ -1,10 +1,11 @@
 pub mod api;
 
-use prelude::*;
-
 mod jsclient;
 mod wsclient;
 
+pub use enso_prelude as prelude;
+
+use crate::prelude::*;
 
 use std::panic;
 use std::ops::DerefMut;

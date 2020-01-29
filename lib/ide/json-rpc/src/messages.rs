@@ -2,7 +2,7 @@
 //! serialization and deserialization using serde_json shall is compatible with
 //! JSON-RPC complaint peers.
 
-use prelude::*;
+use crate::prelude::*;
 
 use serde::Deserialize;
 use serde::Serialize;

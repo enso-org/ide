@@ -1,4 +1,4 @@
-use prelude::*;
+use crate::prelude::*;
 
 pub type Ast = ast::Ast;
 

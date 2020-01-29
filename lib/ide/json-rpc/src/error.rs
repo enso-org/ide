@@ -1,7 +1,7 @@
 //! Error types used by this crate. `RpcError` is used in remote call results,
 //! while `HandlingError` can be raised by `Handler`.
 
-use prelude::*;
+use crate::prelude::*;
 
 use crate::messages::Error;
 use crate::messages::Response;

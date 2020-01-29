@@ -1,6 +1,6 @@
 //! Module contains entities used by client implementor to describe remote API.
 
-use prelude::*;
+use crate::prelude::*;
 
 use crate::error::RpcError;
 use crate::messages::Id;

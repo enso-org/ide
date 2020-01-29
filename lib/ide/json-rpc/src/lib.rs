@@ -20,6 +20,7 @@ pub mod transport;
 
 pub use api::RemoteMethodCall;
 pub use api::Result;
+pub use enso_prelude as prelude;
 pub use transport::Transport;
 pub use transport::TransportEvent;
 pub use handler::Event;

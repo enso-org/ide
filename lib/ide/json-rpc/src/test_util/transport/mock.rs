@@ -3,7 +3,7 @@
 //! It is meant to be used in tests.
 
 
-use prelude::*;
+use crate::prelude::*;
 
 use crate::transport::Transport;
 use crate::transport::TransportEvent;

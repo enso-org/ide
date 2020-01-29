@@ -1,6 +1,6 @@
 //! Module providing `Handler` and related types used by its API.
 
-use prelude::*;
+use crate::prelude::*;
 
 use crate::api;
 use crate::api::Result;
