@@ -2,7 +2,6 @@
 //!
 //! It is meant to be used in tests.
 
-
 use crate::prelude::*;
 
 use crate::transport::Transport;

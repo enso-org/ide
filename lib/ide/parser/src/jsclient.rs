@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::api;
 use crate::api::IsParser;
-use crate::api::Error::InteropError;
 use crate::api::Error::ParsingError;
 
 use wasm_bindgen::prelude::*;

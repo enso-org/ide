@@ -1,8 +1,8 @@
-#![feature(option_result_contains)]
-
 //! This build script is responsible for ensuring that if parser targets wasm,
 //! the JS Parser package is available at the expected location for
 //! `wasm_bindgen` tool.
+
+#![feature(option_result_contains)]
 
 use basegl_build_utilities::PathRef;
 use basegl_build_utilities::absolute_path;

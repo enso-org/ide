@@ -8,17 +8,17 @@ use std::io::ErrorKind;
 pub trait PathRef = AsRef<path::Path>;
 
 /// A structure describing a concrete release package on github.
-pub struct GithubRelease<Str:AsRef<str>> {
+pub struct GithubRelease<Str> {
     pub project_url : Str,
     pub version     : Str,
     pub filename    : Str,
 }
 
-impl<Str:AsRef<str>> GithubRelease<Str> {
+impl<Str> GithubRelease<Str> {
     /// Download the release package from github
     ///
     /// The project_url should be a project's main page on github.
-    pub fn download(&self, destination_dir:&path::Path) {
+    pub fn download(&self, destination_dir:&path::Path) where Str:AsRef<str> {
         let url = format!(
             "{project}/releases/download/{version}/{filename}",
             project  = self.project_url.as_ref(),

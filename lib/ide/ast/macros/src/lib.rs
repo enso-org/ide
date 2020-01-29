@@ -1,6 +1,6 @@
-#![warn(missing_docs)]
-
 //! Helper macros used when defining AST structures.
+
+#![warn(missing_docs)]
 
 extern crate proc_macro;
 

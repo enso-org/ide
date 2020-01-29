@@ -1,7 +1,7 @@
-#![warn(missing_docs)]
-
 //! A number of helper functions meant to be used in the procedural macros
 //! definitions.
+
+#![warn(missing_docs)]
 
 pub use enso_prelude as prelude;
 
@@ -12,6 +12,8 @@ use syn;
 use syn::visit::Visit;
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
+
+
 
 // =========================
 // === Token Stream Utils ===

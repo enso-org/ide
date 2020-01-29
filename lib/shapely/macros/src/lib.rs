@@ -1,3 +1,7 @@
+//! This crate defines a custom derive macro `Iterator`. Should not be used
+//! directly, but only through `shapely` crate, as it provides utilities
+//! necessary for the generated code to compile.
+
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
@@ -6,10 +10,6 @@
 #![warn(unsafe_code)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
-
-//! This crate defines a custom derive macro `Iterator`. Should not be used
-//! directly, but only through `shapely` crate, as it provides utilities
-//! necessary for the generated code to compile.
 
 extern crate proc_macro;
 

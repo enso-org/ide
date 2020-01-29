@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 pub type Ast = ast::Ast;
 
+
+
 // ============
 // == Parser ==
 // ============
@@ -10,6 +12,8 @@ pub type Ast = ast::Ast;
 pub trait IsParser {
     fn parse(&mut self, program: String) -> Result<Ast>;
 }
+
+
 
 // ===========
 // == Error ==

@@ -6,6 +6,7 @@ use ast::*;
 use parser::api::IsParser;
 
 
+
 // ===============
 // === Helpers ===
 // ===============
@@ -54,6 +55,8 @@ fn validate_spans(ast:&Ast) {
     }
 }
 
+
+
 // ===================
 // === ExpectTuple ===
 // ===================
@@ -66,6 +69,7 @@ trait ExpectTuple<T> {
     /// elements.
     fn expect_tuple(self) -> T;
 }
+
 
 // === Implementations ===
 // TODO [MWU] boilerplate below should be generated with macro
@@ -106,6 +110,8 @@ for Collection {
     }
 }
 
+
+
 // ===============
 // === Fixture ===
 // ===============
@@ -115,6 +121,8 @@ for Collection {
 struct Fixture(parser::Parser);
 
 impl Fixture {
+
+
     // === Helper methods ===
 
     /// Create a new fixture, obtaining a default parser.
@@ -150,7 +158,9 @@ impl Fixture {
         tester(shape);
     }
 
+
     // === Test Methods ===
+    
     fn deserialize_unrecognized(&mut self) {
         let unfinished = "`";
         self.test_shape(unfinished,|shape:&Unrecognized| {

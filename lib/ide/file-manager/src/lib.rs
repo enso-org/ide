@@ -257,8 +257,8 @@ mod tests {
     use serde_json::json;
     use serde_json::Value;
     use std::future::Future;
-    use utils::poll_future_output;
-    use utils::poll_stream_output;
+    use utils::test::poll_future_output;
+    use utils::test::poll_stream_output;
 
     fn setup_fm() -> (MockTransport, Client) {
         let transport = MockTransport::new();

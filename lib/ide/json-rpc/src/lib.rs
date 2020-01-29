@@ -1,3 +1,6 @@
+//! This is a library aimed to facilitate implementing JSON-RPC protocol
+//! clients. The main type is `Handler` that a client should build upon.
+
 #![feature(trait_alias)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -8,8 +11,6 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-//! This is a library aimed to facilitate implementing JSON-RPC protocol
-//! clients. The main type is `Handler` that a client should build upon.
 
 pub mod api;
 pub mod error;

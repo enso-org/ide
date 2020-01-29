@@ -12,6 +12,8 @@ use Error::*;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
 
+
+
 // ==========================
 // == Constants & literals ==
 // ==========================
@@ -22,6 +24,8 @@ pub const DEFAULT_HOSTNAME: &str = LOCALHOST;
 
 pub const HOSTNAME_VAR: &str = "ENSO_PARSER_HOSTNAME";
 pub const PORT_VAR:     &str = "ENSO_PARSER_PORT";
+
+
 
 // ===========
 // == Error ==
@@ -71,6 +75,8 @@ impl From<serde_json::error::Error> for Error {
     }
 }
 
+
+
 // ==============
 // == Protocol ==
 // ==============
@@ -87,6 +93,8 @@ pub enum Response {
     Success { ast_json: String },
     Error   { message:  String },
 }
+
+
 
 // ============
 // == Config ==
@@ -119,6 +127,8 @@ impl Config {
 pub fn env_var_or(varname: &str, default_value: &str) -> String {
     std::env::var(varname).unwrap_or_else(|_| default_value.into())
 }
+
+
 
 // ============
 // == Client ==
@@ -202,10 +212,11 @@ impl api::IsParser for Client {
     }
 }
 
+
+
 // ===========
 // == tests ==
 // ===========
-
 
 #[test]
 fn wrong_url_reported() {

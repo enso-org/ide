@@ -16,8 +16,8 @@ use serde::Serialize;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::mpsc::TryRecvError;
-use utils::poll_future_output;
-use utils::poll_stream_output;
+use utils::test::poll_future_output;
+use utils::test::poll_stream_output;
 
 type MockEvent = json_rpc::handler::Event<MockNotification>;
 
