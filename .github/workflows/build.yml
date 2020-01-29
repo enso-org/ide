@@ -51,7 +51,7 @@ jobs:
             --bin test-all
             -- --headless --firefox
 
-  test:
+  test2:
     name: Tests (Win)
     runs-on: windows-latest
     steps:
