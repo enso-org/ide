@@ -26,7 +26,7 @@ impl MsdfTexture {
     pub const WIDTH            : usize = 32;
     /// Size of the texture row.
     pub const ROW_SIZE         : usize = Self::CHANNELS_COUNT * Self::WIDTH;
-    /// Height og single MSDF i cells.
+    /// Height of single MSDF in cells.
     pub const ONE_GLYPH_HEIGHT : usize = 32;
     /// Size of single MSDF.
     pub const ONE_GLYPH_SIZE   : usize = Self::ROW_SIZE * Self::ONE_GLYPH_HEIGHT;

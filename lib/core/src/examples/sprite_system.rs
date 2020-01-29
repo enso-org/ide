@@ -39,7 +39,7 @@ fn init(world: &World) {
         let sprite = sprite_system.new_instance();
         sprites.push(sprite);
     }
-//
+
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {

@@ -45,7 +45,8 @@ where CharIterator : Iterator<Item=char> {
     ( start_from:Vector2<f32>
     , line_height:f32
     , chars:CharIterator
-    , font:&'a mut FontRenderInfo) -> Self {
+    , font:&'a mut FontRenderInfo
+    ) -> Self {
         Self {font,line_height,
             position     : start_from,
             current_char : None,

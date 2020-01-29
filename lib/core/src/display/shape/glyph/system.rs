@@ -58,7 +58,7 @@ impl Glyph {
         if texture_changed {
             let msdf_texture = font.msdf_texture();
             let data         = msdf_texture.data.as_slice();
-            let width        = MsdfTexture::WIDTH         as i32;
+            let width        = MsdfTexture::WIDTH  as i32;
             let height       = msdf_texture.rows() as i32;
             let texture = Texture::<GpuOnly,Rgb,u8>::new(&self.context,(width,height));
             texture.reload_with_content(data);
