@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::display::shape::text::content::{TextLocation, TextFieldContentFullInfo};
 use crate::display::shape::text::content::line::LineFullInfo;
 
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Point2, Vector2, Vector3};
 use std::cmp::Ordering;
 use std::ops::Range;
 
@@ -66,12 +66,12 @@ impl Cursor {
     ///
     /// _Baseline_ is a font specific term, for details see [freetype documentation]
     //  (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1).
-    pub fn render_position(&self, content:&mut TextFieldContentFullInfo)
-    -> Vector2<f32>{
-        let mut line = self.current_line(content);
-        let x        = Self::x_position_of_cursor_at(self.position.column,&mut line);
+    pub fn render_position(position:&TextLocation, content:&mut TextFieldContentFullInfo)
+    -> Vector3<f32>{
+        let mut line = content.line(position.line);
+        let x        = Self::x_position_of_cursor_at(position.column,&mut line);
         let y        = line.baseline_start().y;
-        Vector2::new(x,y)
+        Vector3::new(x,y,0.0)
     }
 
     fn x_position_of_cursor_at(column:usize, line:&mut LineFullInfo) -> f32 {

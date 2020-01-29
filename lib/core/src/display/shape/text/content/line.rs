@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use nalgebra::Vector2;
+use nalgebra::{Vector2, Vector3};
 use std::ops::Range;
 use crate::display::shape::glyph::font::FontRenderInfo;
 use crate::display::shape::glyph::pen::PenIterator;
@@ -86,8 +86,8 @@ impl<'c> LineFullInfo<'c> {
     /// Get the point where a _baseline_ of current line begins (The _baseline_ is a font specific
     /// term, for details see [freetype documentation]
     /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
-    pub fn baseline_start(&self) -> Vector2<f32> {
-        Vector2::new(0.0, (-(self.line_id as f32) - 1.0) * self.height)
+    pub fn baseline_start(&self) -> Vector3<f32> {
+        Vector3::new(0.0, (-(self.line_id as f32) - 1.0) * self.height, 0.0)
     }
 
     /// Get x position of character with given index. The position is in _text space_.

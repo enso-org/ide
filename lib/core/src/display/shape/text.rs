@@ -5,7 +5,7 @@ pub mod rendered;
 
 use crate::prelude::*;
 
-use crate::display::shape::text::content::{TextFieldContent, TextChange};
+use crate::display::shape::text::content::{TextFieldContent, TextChange, TextLocation};
 use crate::display::shape::text::cursor::Cursors;
 use crate::display::shape::text::cursor::Step;
 use crate::display::shape::text::cursor::CursorNavigation;
@@ -52,9 +52,9 @@ impl TextField {
 
         text_field.display_object.add_child(text_field.rendered.display_object.clone_ref());
         text_field.assignment_update(fonts).update_line_assignment();
-        println!("{:?}", text_field.rendered.assignment.assignment[0]);
-        text_field.rendered.display_object.set_position(Vector3::new(0.0,0.0,0.0));
-        text_field.rendered.update(&mut text_field.content,fonts);
+        text_field.cursors.add_cursor(TextLocation::at_document_begin());
+        text_field.rendered.update_glyphs(&mut text_field.content,fonts);
+        text_field.rendered.update_cursors(&text_field.cursors, &mut text_field.content.full_info(fonts));
         text_field
     }
 
@@ -74,7 +74,7 @@ impl TextField {
         if offset.y != 0.0 {
             update.update_line_assignment();
         }
-        self.rendered.update(&mut self.content,fonts);
+        self.rendered.update_glyphs(&mut self.content,fonts);
     }
 
     /// Get current scroll position.
@@ -91,12 +91,13 @@ impl TextField {
         let content        = self.content.full_info(fonts);
         let mut navigation = CursorNavigation {content,selecting};
         self.cursors.navigate_all_cursors(&mut navigation,&step);
+        self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
     }
 
     pub fn make_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
         self.content.make_change(change);
         self.assignment_update(fonts).update_after_text_edit();
-        self.rendered.update(&mut self.content,fonts);
+        self.rendered.update_glyphs(&mut self.content,fonts);
     }
 
     fn assignment_update<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)

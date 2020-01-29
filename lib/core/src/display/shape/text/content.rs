@@ -286,7 +286,7 @@ impl TextFieldContent {
 }
 
 impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
-    pub fn line<'c>(&'c mut self, index:usize) -> LineFullInfo<'c> {
+    pub fn line(&mut self, index:usize) -> LineFullInfo {
         let height  = self.content.line_height;
         LineFullInfo {
             line: self.content.line(index),
