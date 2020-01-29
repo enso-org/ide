@@ -15,15 +15,32 @@ pub struct Graphviz {
 }
 
 impl Graphviz {
-    pub fn add_node<Label:Str>(&mut self, id:usize, label:Label) {
+    pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, tp:Tp, label:Label) {
+        let tp    = tp.as_ref();
         let label = label.as_ref();
-        let code  = iformat!("\n{id}[label=\"{label}\"]");
+        let color = match tp {
+            "Toggle"  => "6a2c70",
+            "Gate"    => "ffb400",
+            "Hold"    => "04837b",
+            "Lambda"  => "ea5455",
+            "Lambda2" => "e84545",
+            _         => "2d4059",
+        };
+        let code  = iformat!("\n{id}[label=\"{label}\\n{tp}\" fillcolor=\"#{color}\"]");
         self.nodes.insert(id);
         self.code.push_str(&code);
     }
 
-    pub fn add_link(&mut self, source:usize, target:usize) {
-        let code = iformat!("\n{source} -> {target}");
+    pub fn add_link(&mut self, source:usize, target:usize, tp:MessageType, data_type:&str) {
+        let style = match tp {
+            MessageType::Behavior => "[style=\"dashed\"]",
+            _                     => ""
+        };
+        let label = match data_type {
+            "()" => "",
+            s    => s
+        };
+        let code = iformat!("\n{source} -> {target} {style} [label=\"  {label}\"]");
         self.code.push_str(&code);
     }
 
@@ -41,10 +58,10 @@ impl From<&Graphviz> for String {
 impl From<Graphviz> for String {
     fn from(t:Graphviz) -> String {
         format!("digraph G {{
-rankdir=LR;
+rankdir=TD;
 graph [fontname=\"Helvetica Neue\"];
 node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 fontsize=10 style=\"rounded,filled\"  fillcolor=\"#5397dc\"];
-edge  [fontname=\"Helvetica Neue\"];
+edge  [fontname=\"Helvetica Neue\" fontsize=10 arrowsize=.7 fontcolor=\"#555555\"];
 
 {}
 }}",t.code)
@@ -129,7 +146,7 @@ pub fn unwrap<T:Wrapper>(t:&T) -> &T::Content {
 alias! {
     /// Message is a data send between FRP nodes.
     /// There are two important message implementation – the `BehaviorMessage` and `EventMessage`.
-    Message = { MessageValue + ValueWrapper + KnownNodeStorage }
+    Message = { MessageValue + ValueWrapper + KnownNodeStorage + PhantomInto<MessageType> }
 
     /// Abstraction for a value carried by a message.
     MessageValue = { Clone + Debug + Default + 'static }
@@ -143,6 +160,21 @@ pub trait ValueWrapper = Wrapper where Unwrap<Self>:Debug;
 
 
 // === Definition ===
+
+#[derive(Clone,Debug,Copy)]
+pub enum MessageType {Event,Behavior}
+
+impl<T> From<PhantomData<EventMessage<T>>> for MessageType {
+    fn from(_:PhantomData<EventMessage<T>>) -> Self {
+        Self::Event
+    }
+}
+
+impl<T> From<PhantomData<BehaviorMessage<T>>> for MessageType {
+    fn from(_:PhantomData<BehaviorMessage<T>>) -> Self {
+        Self::Behavior
+    }
+}
 
 /// A newtype containing a value of an event.
 #[derive(Clone,Copy,Debug,Default)]
@@ -211,6 +243,26 @@ pub type EventInput<T> = <T as KnownEventInput>::EventInput;
 pub trait KnownOutput {
     /// The output type.
     type Output : Message;
+}
+
+pub trait KnownOutputType {
+    fn output_type(&self) -> MessageType;
+    fn output_type_value_name(&self) -> String;
+}
+
+impl<T:KnownOutput> KnownOutputType for T
+where Output<Self> : Message {
+    fn output_type(&self) -> MessageType {
+        PhantomData::<Output<Self>>.into()
+    }
+
+    fn output_type_value_name(&self) -> String {
+        let qual_name = type_name::<Output<Self>>();
+        let param     = qual_name.split('<').skip(1).collect::<String>();
+        let param     = &param[0..param.len()-1];
+        let param     = param.rsplit("::").collect::<Vec<_>>()[0];
+        param.into()
+    }
 }
 
 /// Node output accessor.
@@ -384,7 +436,7 @@ impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
     fn add_target(&self,_:&S) {}
 }
 
-impl<T:KnownNodeStorage> AnyNodeOps for Node<T> {}
+impl<Out:Message + KnownNodeStorage> AnyNodeOps for Node<Out> {}
 
 
 impl<T:KnownNodeStorage> GraphvizRepr for Node<T> {
@@ -415,15 +467,15 @@ impl<T:?Sized+HasId> HasId for Rc<T> {
     }
 }
 
-pub trait AnyNodeOps : Debug + GraphvizRepr + HasId {}
+pub trait AnyNodeOps : Debug + GraphvizRepr + HasId + KnownOutputType {}
 
 #[derive(Debug)]
 pub struct AnyNode {
     rc: Rc<dyn AnyNodeOps>,
 }
 
-impl<T:KnownNodeStorage+'static> From<&Node<T>> for AnyNode {
-    fn from(t:&Node<T>) -> Self {
+impl<Out:Message+KnownNodeStorage+'static> From<&Node<Out>> for AnyNode {
+    fn from(t:&Node<Out>) -> Self {
         t.clone().into()
     }
 }
@@ -451,6 +503,15 @@ impl HasId for AnyNode {
     }
 }
 
+impl KnownOutputType for AnyNode {
+    fn output_type(&self) -> MessageType {
+        self.rc.output_type()
+    }
+
+    fn output_type_value_name(&self) -> String {
+        self.rc.output_type_value_name()
+    }
+}
 
 
 
@@ -462,7 +523,7 @@ impl HasId for AnyNode {
 // === NodeWrapper ===
 
 /// `NodeWrapper` is an outer layer for every FRP node. For example, the `Source<Out>` node is just
-/// an alias to `NodeWrapper<SourceData<Out>>`, where `SourceData` is it's internal representation.
+/// an alias to `NodeWrapper<SourceShape<Out>>`, where `SourceShape` is it's internal representation.
 /// This struct bundles each node with information about target edges. Although the edges are used
 /// only to send events, they are bundled to every node type in order to keep the implementation
 /// simple.
@@ -525,7 +586,7 @@ impl<Shape,Out:Message> KnownOutput for NodeWrapperTemplate<Shape,Out> {
 }
 
 impl<Shape:KnownEventInput,Out> KnownEventInput for NodeWrapperTemplate<Shape,Out>
-    where Value<EventInput<Shape>> : Debug {
+where EventInput<Shape> : Message {
     type EventInput = EventInput<Shape>;
 }
 
@@ -534,19 +595,20 @@ impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name = base_type_name::<Shape>();
-        let name      = self.rc.borrow().label;
-        let label     = iformat!("{name}\\n{type_name}");
-        let id   = self.id();
+        let label     = self.rc.borrow().label;
+        let id        = self.id();
         if !builder.has_node(id) {
-            builder.add_node(self.id(),label);
+            builder.add_node(self.id(),type_name,label);
             self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
-                builder.add_link(input.id(),id);
+                builder.add_link(input.id(),id,input.output_type(),&input.output_type_value_name());
                 input.graphviz_build(builder)
             }
         }
     }
 }
+
+//Dodac [constraint=false] do recursive
 
 
 fn base_type_name<T>() -> String {
@@ -746,17 +808,17 @@ impl<T:Default> KnownSourceStorage for BehaviorMessage<T> {type SourceStorage = 
 // === Definition ===
 
 /// Source is a begin point in the FRP network. It is able to emit events or initialize behaviors.
-type Source<Out> = NodeWrapper<SourceData<Out>>;
+type Source<Out> = NodeWrapper<SourceShape<Out>>;
 
 /// Internal definition of the source FRP node.
 #[derive(Derivative)]
 #[derivative(Default (bound="SourceStorage<Out>:Default"))]
 #[derivative(Debug   (bound="SourceStorage<Out>:Debug"))]
-pub struct SourceData<Out:KnownSourceStorage> {
+pub struct SourceShape<Out:KnownSourceStorage> {
     storage: SourceStorage<Out>
 }
 
-impl<Out> KnownOutput for SourceData<Out>
+impl<Out> KnownOutput for SourceShape<Out>
 where Out : KnownSourceStorage + Message {
     type Output = Out;
 }
@@ -777,12 +839,12 @@ impl<Out> BehaviorNodeStorage for Source<BehaviorMessage<Out>>
 }
 
 // TODO finish
-impl<Out : KnownSourceStorage + Message> GraphvizRepr for SourceData<Out> {
+impl<Out : KnownSourceStorage + Message> GraphvizRepr for SourceShape<Out> {
     fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
-impl<Out:KnownSourceStorage> HasInputs for SourceData<Out> {
+impl<Out:KnownSourceStorage> HasInputs for SourceShape<Out> {
     fn inputs(&self) -> Vec<AnyNode> {
         default()
     }
@@ -1526,6 +1588,3 @@ mod tests {
     }
 }
 pub use tests::*;
-
-
-
