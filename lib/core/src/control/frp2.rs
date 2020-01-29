@@ -26,7 +26,7 @@ impl Graphviz {
             "Lambda2" => "e84545",
             _         => "2d4059",
         };
-        let code  = iformat!("\n{id}[label=\"{label}\\n{tp}\" fillcolor=\"#{color}\"]");
+        let code = iformat!("\n{id}[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"3\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
         self.nodes.insert(id);
         self.code.push_str(&code);
     }
@@ -60,8 +60,8 @@ impl From<Graphviz> for String {
         format!("digraph G {{
 rankdir=TD;
 graph [fontname=\"Helvetica Neue\"];
-node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 fontsize=10 style=\"rounded,filled\"  fillcolor=\"#5397dc\"];
-edge  [fontname=\"Helvetica Neue\" fontsize=10 arrowsize=.7 fontcolor=\"#555555\"];
+node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 fontsize=11 style=\"rounded,filled\"  fillcolor=\"#5397dc\"];
+edge  [fontname=\"Helvetica Neue\" fontsize=11 arrowsize=.7 fontcolor=\"#555555\"];
 
 {}
 }}",t.code)
