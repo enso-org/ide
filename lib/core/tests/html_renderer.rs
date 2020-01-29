@@ -19,7 +19,6 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use basegl::display::camera::Camera2d;
-    use basegl::system::web::dom::html::HtmlScene;
     use basegl::system::web::dom::html::HtmlObject;
     use basegl::system::web::dom::html::HtmlRenderer;
     use basegl::system::web::StyleSetter;
@@ -28,24 +27,24 @@ mod tests {
     use web_sys::Performance;
     use nalgebra::Vector3;
     use logger::Logger;
+    use basegl::system::web::set_stdout;
 
     #[web_test(no_container)]
     fn invalid_container() {
-        let renderer = HtmlRenderer::new("nonexistent_id");
+        let logger   = Logger::new("invalid_container");
+        let renderer = HtmlRenderer::new(logger, "nonexistent_id");
         assert!(renderer.is_err(), "nonexistent_id should not exist");
     }
 
-    fn create_scene(logger:&Logger, renderer:&HtmlRenderer) -> HtmlScene {
-        let mut scene: HtmlScene = HtmlScene::new(logger);
-        assert_eq!(scene.len(), 0);
-
+    fn create_scene(renderer:&HtmlRenderer) -> Vec<HtmlObject> {
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
+        let mut objects = Vec::new();
         // Iterate over 3 axes.
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
             // Creates 10 HTMLObjects per axis.
             for i in 0 .. 10 {
-                let mut object = HtmlObject::new(logger, "div").unwrap();
+                let mut object = renderer.new_instance("div").unwrap();
                 object.set_dimensions(10.0, 10.0);
 
                 // Using axis for masking.
@@ -63,36 +62,44 @@ mod tests {
                 let g = (y * 25.5) as u8;
                 let b = (z * 25.5) as u8;
                 let color = format!("rgba({}, {}, {}, {})", r, g, b, 1.0);
-
                 object.dom.set_property_or_panic("background-color", color);
-                scene.add_child(object);
+                objects.push(object);
             }
         }
-        assert_eq!(scene.len(), 30, "We should have 30 HTMLObjects");
-        scene
+        objects
     }
 
     #[web_test]
     fn rhs_coordinates() {
+        set_stdout();
         let logger   = Logger::new("rhs_coordinates");
-        let renderer = HtmlRenderer::new("rhs_coordinates")
+        let renderer = HtmlRenderer::new(&logger, "rhs_coordinates")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(&logger, &renderer);
+        let mut scene = create_scene(&renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
 
         let mut camera  = Camera2d::new(logger,view_dim.x,view_dim.y);
 
-        renderer.render(&mut camera, &scene);
+        renderer.render(&mut camera);
+
+        // To remove the x-axis
+        for _ in 0..scene.len()/3 {
+            scene.remove(0);
+        }
+
+        renderer.render(&mut camera);
+
+        std::mem::forget(scene);
     }
 
     #[web_bench]
     fn camera_movement(b: &mut Bencher) {
         let logger = Logger::new("camera_movement");
-        let renderer = HtmlRenderer::new("camera_movement")
+        let renderer = HtmlRenderer::new(&logger, "camera_movement")
                                     .expect("Renderer couldn't be created");
-        let scene = create_scene(&logger, &renderer);
+        let scene = create_scene(&renderer);
 
         let view_dim = renderer.dimensions();
         assert_eq!((view_dim.x, view_dim.y), (320.0, 240.0));
@@ -102,20 +109,20 @@ mod tests {
                          .expect("Couldn't get performance obj");
 
         b.iter(move || {
+            let _keep_alive = &scene;
             let t = (performance.now() / 1000.0) as f32;
             // We move the Camera 29 units away from the center.
             camera.set_position(Vector3::new(t.sin() * 50.0, t.cos() * 50.0, 200.0));
 
-            renderer.render(&mut camera, &scene);
+            renderer.render(&mut camera);
         })
     }
 
-    fn make_sphere(mut scene : &mut HtmlScene, performance : &Performance) {
+    fn make_sphere(mut scene : &mut Vec<HtmlObject>, performance : &Performance) {
         use super::set_gradient_bg;
 
         let t = (performance.now() / 1000.0) as f32;
         let length = scene.len() as f32;
-        let mut scene : &mut HtmlScene = &mut scene;
         for (i, object) in (&mut scene).into_iter().enumerate() {
             let i = i as f32;
             let d = (i / length - 0.5) * 2.0;
@@ -144,17 +151,16 @@ mod tests {
     #[web_bench]
     fn object_x400_update(b: &mut Bencher) {
         let logger = Logger::new("object_x400_update");
-        let renderer = HtmlRenderer::new("object_x400_update")
+        let renderer = HtmlRenderer::new(&logger, "object_x400_update")
                                     .expect("Renderer couldn't be created");
-        let mut scene = HtmlScene::new(&logger);
+        let mut scene = Vec::new();
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
         for _ in 0..400 {
-            let mut object = HtmlObject::new(&logger, "div")
-                                    .expect("Failed to create object");
+            let mut object = renderer.new_instance("div").expect("Failed to create object");
             object.set_dimensions(1.0, 1.0);
             object.set_scale(Vector3::new(0.5, 0.5, 0.5));
-            scene.add_child(object);
+            scene.push(object);
         }
 
         let view_dim = renderer.dimensions();
@@ -169,7 +175,7 @@ mod tests {
 
         b.iter(move || {
             make_sphere(&mut scene, &performance);
-            renderer.render(&mut camera, &scene);
+            renderer.render(&mut camera);
         })
     }
 }

@@ -231,13 +231,20 @@ impl NodeInserter for Node {
 
 /// Trait used to remove `Node`s.
 pub trait NodeRemover {
+    fn remove_from_parent_or_panic(&self);
     fn remove_child_or_panic(&self, node:&Node);
 }
 
 impl NodeRemover for Node {
+    fn remove_from_parent_or_panic(&self) {
+        if let Some(parent) = self.parent_node() {
+            let panic_msg = |_|  panic!("Failed to remove {:?} from parent", self);
+            parent.remove_child(self).unwrap_or_else(panic_msg);
+        }
+    }
+
     fn remove_child_or_panic(&self, node:&Node) {
-        let panic_msg = |_|
-            panic!("Failed to remove child {:?} from {:?}",node,self);
+        let panic_msg = |_| panic!("Failed to remove child {:?} from {:?}",node,self);
         self.remove_child(node).unwrap_or_else(panic_msg);
     }
 }

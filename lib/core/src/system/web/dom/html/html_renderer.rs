@@ -2,9 +2,11 @@
 
 use crate::prelude::*;
 
+use crate::display::object::DisplayObjectOps;
+use crate::display::object::DisplayObjectData;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::HtmlScene;
+use crate::system::web::dom::html::HtmlObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web::Result;
 use crate::system::web::create_element;
@@ -13,8 +15,8 @@ use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web::dom::DomContainer;
 use crate::system::web::dom::ResizeCallback;
+use super::eps;
 
-use js_sys::Object;
 use nalgebra::Vector2;
 use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -32,9 +34,6 @@ mod js {
     #[wasm_bindgen(module = "/src/system/web/dom/html/snippets.js")]
     extern "C" {
         #[allow(unsafe_code)]
-        pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
-
-        #[allow(unsafe_code)]
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
 
         #[allow(unsafe_code)]
@@ -49,28 +48,12 @@ mod js {
     }
 }
 
-/// eps is used to round very small values to 0.0 for numerical stability
-pub fn eps(value: f32) -> f32 {
-    if value.abs() < 1e-10 { 0.0 } else { value }
-}
-
 /// Inverts Matrix Y coordinates.
 /// It's equivalent to scaling by (1.0, -1.0, 1.0).
 pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
     // Negating the second column to invert Y.
     m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
     m
-}
-
-#[allow(unsafe_code)]
-fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
-    // resized. Check documentation of IntoFloat32ArrayView trait for more
-    // details.
-    unsafe {
-        let matrix_array =  matrix.js_buffer_view();
-        js::set_object_transform(&dom, &matrix_array);
-    }
 }
 
 #[allow(unsafe_code)]
@@ -133,13 +116,16 @@ impl HTMLRendererData {
 /// A renderer for `HTMLObject`s.
 #[derive(Debug)]
 pub struct HtmlRenderer {
-    container : DomContainer,
-    data      : Rc<HTMLRendererData>
+    display_object : DisplayObjectData,
+    container      : DomContainer,
+    data           : Rc<HTMLRendererData>,
+    logger         : Logger
 }
 
 impl HtmlRenderer {
     /// Creates a HTMLRenderer.
-    pub fn new(dom_id: &str) -> Result<Self> {
+    pub fn new<L:Into<Logger>>(logger:L, dom_id: &str) -> Result<Self> {
+        let logger               = logger.into();
         let container            = DomContainer::from_id(dom_id)?;
         let dom: HtmlElement     = dyn_into(create_element("div")?)?;
         let camera : HtmlElement = dyn_into(create_element("div")?)?;
@@ -158,7 +144,8 @@ impl HtmlRenderer {
         dom.append_or_panic(&camera);
 
         let data             = Rc::new(HTMLRendererData::new(dom,camera));
-        let mut htmlrenderer = Self {container,data};
+        let display_object   = DisplayObjectData::new(&logger);
+        let mut htmlrenderer = Self {container,data,display_object,logger};
 
         htmlrenderer.init_listeners();
         Ok(htmlrenderer)
@@ -173,8 +160,7 @@ impl HtmlRenderer {
         self.set_dimensions(dimensions);
     }
 
-    /// Renders the `Scene` from `Camera`'s point of view.
-    pub fn render(&self, camera: &mut Camera2d, scene: &HtmlScene) {
+    fn render_camera(&self, camera:&Camera2d) {
         camera.update();
         let trans_cam  = camera.transform().matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
@@ -197,20 +183,26 @@ impl HtmlRenderer {
                 setup_camera_orthographic(&self.data.camera, &trans_cam);
             }
         }
+    }
 
-        let scene : &HtmlScene = &scene;
-        for object in &mut scene.into_iter() {
-            object.update();
-            let mut transform = object.matrix();
-            transform.iter_mut().for_each(|a| *a = eps(*a));
+    /// Creates a new instance of HtmlObject.
+    pub fn new_instance<S:AsRef<str>>(&self, dom_name:S) -> Result<HtmlObject> {
+        let object = HtmlObject::new(self.logger.sub("object"),dom_name,self.data.camera.clone());
+        object.as_ref().map(|object| {
+            self.add_child(object);
+        }).ok();
+        object
+    }
 
-            let parent_node  = object.dom.parent_node();
-            if !self.data.camera.is_same_node(parent_node.as_ref()) {
-                self.data.camera.append_or_panic(&object.dom);
-            }
+    fn render_object(&self, object:&HtmlObject) {
+        object.render_dom();
+    }
 
-            set_object_transform(&object.dom, &transform);
-        }
+    /// Renders the `Scene` from `Camera`'s point of view.
+    pub fn render(&self, camera: &Camera2d) {
+        self.render_camera(&camera);
+        self.display_object.update();
+        self.display_object.render();
     }
 
     /// Adds a ResizeCallback.
@@ -242,5 +234,11 @@ impl HtmlRenderer {
     /// Gets the Scene Renderer's dimensions.
     pub fn dimensions(&self) -> Vector2<f32> {
         self.container.dimensions()
+    }
+}
+
+impl From<&HtmlRenderer> for DisplayObjectData {
+    fn from(t:&HtmlRenderer) -> Self {
+        t.display_object.clone_ref()
     }
 }
