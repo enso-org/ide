@@ -19,12 +19,12 @@ impl Graphviz {
         let tp    = tp.as_ref();
         let label = label.as_ref();
         let color = match tp {
-            "Toggle"  => "6a2c70",
-            "Gate"    => "ffb400",
-            "Hold"    => "04837b",
-            "Lambda"  => "ea5455",
-            "Lambda2" => "e84545",
-            _         => "2d4059",
+            "Toggle"  => "534666",
+            "Gate"    => "e69d45",
+            "Hold"    => "308695",
+            "Lambda"  => "d45769",
+            "Lambda2" => "d45769",
+            _         => "455054",
         };
         let code = iformat!("\n{id}[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"3\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
         self.nodes.insert(id);
@@ -608,7 +608,7 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
     }
 }
 
-Dodac [constraint=false] do recursive
+//Dodac [constraint=false] do recursive
 
 
 fn base_type_name<T>() -> String {
