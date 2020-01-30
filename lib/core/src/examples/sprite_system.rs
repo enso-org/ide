@@ -28,7 +28,7 @@ fn init(world: &World) {
     let scene         = world.scene();
     let camera        = scene.camera()  ;
     let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
-    let sprite_system = SpriteSystem::new();
+    let sprite_system = SpriteSystem::new(world);
     let sprite1       = sprite_system.new_instance();
     sprite1.size().set(Vector2::new(10.0, 10.0));
     sprite1.mod_position(|t| *t = Vector3::new(5.0, 5.0, 0.0));
