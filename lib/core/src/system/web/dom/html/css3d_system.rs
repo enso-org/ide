@@ -16,14 +16,20 @@ pub struct Css3dSystem {
     logger         : Logger
 }
 
-impl Css3dSystem {
-    /// Creates a new instance of Css3dSystem.
-    pub fn new() -> Self {
+impl Default for Css3dSystem {
+    fn default() -> Self {
         let scene          = world::get_scene();
         let css3d_renderer = scene.css3d_renderer();
         let logger         = css3d_renderer.logger().sub("Css3dSystem");
         let display_object = DisplayObjectData::new(&logger);
         Self{display_object,css3d_renderer,logger}
+    }
+}
+
+impl Css3dSystem {
+    /// Creates a new instance of Css3dSystem.
+    pub fn new() -> Self {
+        default()
     }
 
     /// Creates a new instance of Css3dObject.

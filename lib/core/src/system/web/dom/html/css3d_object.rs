@@ -160,7 +160,7 @@ impl Css3dObjectData {
 // === Css3dObject ===
 // ===================
 
-/// A structure for representing a 3D HTMLElement in a `HTMLScene`.
+/// A structure for representing a HtmlElement in the 3d world.
 #[derive(Debug,Clone)]
 pub struct Css3dObject {
     data : Rc<Css3dObjectData>
@@ -192,7 +192,7 @@ impl Css3dObject {
         element.set_property_or_panic("width"   , "0px");
         element.set_property_or_panic("height"  , "0px");
         let dom            = element;
-        let display_object = DisplayObjectData::new(logger.clone());
+        let display_object = DisplayObjectData::new(logger);
         let dimensions     = Vector2::new(0.0, 0.0);
         let css3d_position = default();
         let data = Rc::new(Css3dObjectData::new(

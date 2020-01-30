@@ -1,4 +1,4 @@
-//! This module contains the HTMLRenderer, a struct used to render CSS3D elements.
+//! This module contains the Css3dRenderer, a struct used to render CSS3D elements.
 
 use crate::prelude::*;
 
@@ -83,19 +83,19 @@ fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
 
 
 
-// ========================
-// === HTMLRendererData ===
-// ========================
+// =========================
+// === Css3dRendererData ===
+// =========================
 
 #[derive(Debug)]
-pub struct HTMLRendererData {
+pub struct Css3dRendererData {
     pub front_dom    : HtmlElement,
     pub back_dom     : HtmlElement,
     pub front_camera : HtmlElement,
     pub back_camera  : HtmlElement
 }
 
-impl HTMLRendererData {
+impl Css3dRendererData {
     pub fn new
     ( front_dom:HtmlElement
     , back_dom:HtmlElement
@@ -105,8 +105,8 @@ impl HTMLRendererData {
     }
 }
 
-impl HTMLRendererData {
-    fn set_dimensions(&self, dimensions:&Vector2<f32>) {
+impl Css3dRendererData {
+    fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
         let doms   = vec![&self.front_dom,&self.back_dom,&self.front_camera,&self.back_camera];
@@ -118,14 +118,14 @@ impl HTMLRendererData {
 }
 
 // ====================
-// === HTMLRenderer ===
+// === Css3dRenderer ===
 // ====================
 
-/// A renderer for `HTMLObject`s.
+/// A renderer for `Css3dObject`s.
 #[derive(Clone,Debug)]
 pub struct Css3dRenderer {
     container      : DomContainer,
-    data           : Rc<HTMLRendererData>,
+    data           : Rc<Css3dRendererData>,
     logger         : Logger
 }
 
@@ -166,15 +166,15 @@ impl Css3dRenderer {
         front_dom.append_or_panic(&front_camera);
         back_dom.append_or_panic(&back_camera);
 
-        let data             = HTMLRendererData::new(front_dom,back_dom,front_camera,back_camera);
+        let data             = Css3dRendererData::new(front_dom, back_dom, front_camera, back_camera);
         let data             = Rc::new(data);
-        let mut htmlrenderer = Self {container,data,logger};
+        let mut renderer     = Self {container,data,logger};
 
-        htmlrenderer.init_listeners();
-        Ok(htmlrenderer)
+        renderer.init_listeners();
+        Ok(renderer)
     }
 
-    /// Creates a HTMLRenderer.
+    /// Creates a Css3dRenderer.
     pub fn new<L:Into<Logger>>(logger:L, dom_id: &str) -> Result<Self> {
         Self::from_element(logger,dyn_into(get_element_by_id(dom_id)?)?)
     }
@@ -188,7 +188,7 @@ impl Css3dRenderer {
         self.set_dimensions(dimensions);
         let data = self.data.clone();
         self.add_resize_callback(move |dimensions:&Vector2<f32>| {
-            data.set_dimensions(dimensions);
+            data.set_dimensions(*dimensions);
         });
     }
 
@@ -241,9 +241,9 @@ impl Css3dRenderer {
         self.container.add_resize_callback(callback);
     }
 
-    /// Sets HTMLRenderer's container dimensions.
+    /// Sets Css3dRenderer's container dimensions.
     pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
-        self.data.set_dimensions(&dimensions);
+        self.data.set_dimensions(dimensions);
         self.container.set_dimensions(dimensions);
     }
 }
@@ -252,17 +252,17 @@ impl Css3dRenderer {
 // === Getters ===
 
 impl Css3dRenderer {
-    /// Gets HTMLRenderer's container.
+    /// Gets Css3dRenderer's container.
     pub fn container(&self) -> &DomContainer {
         &self.container
     }
 
-    /// Gets HTMLRenderer's DOM.
+    /// Gets Css3dRenderer's DOM.
     pub fn dom(&self) -> &HtmlElement {
         &self.data.front_dom
     }
 
-    /// Gets the Scene Renderer's dimensions.
+    /// Gets the Css3dRenderer's dimensions.
     pub fn dimensions(&self) -> Vector2<f32> {
         self.container.dimensions()
     }
