@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! This module implements an Functional Reactive Programming system. It is an advanced event
 //! handling framework which allows describing events and actions by creating declarative event
 //! flow diagrams.
@@ -26,12 +28,13 @@ impl Graphviz {
             "Lambda2" => "d45769",
             _         => "455054",
         };
-        let code = iformat!("\n{id}[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"3\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
+        let code = iformat!("\n{id}[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
         self.nodes.insert(id);
         self.code.push_str(&code);
     }
 
-    pub fn add_link(&mut self, source:usize, target:usize, tp:MessageType, data_type:&str) {
+    pub fn add_link
+    (&mut self, source:usize, target:usize, tp:MessageType, data_type:&str, redirect:bool) {
         let style = match tp {
             MessageType::Behavior => "[style=\"dashed\"]",
             _                     => ""
@@ -40,7 +43,8 @@ impl Graphviz {
             "()" => "",
             s    => s
         };
-        let code = iformat!("\n{source} -> {target} {style} [label=\"  {label}\"]");
+        let params = if redirect { "[constraint=false]" } else { "" };
+        let code = iformat!("\n{source} -> {target} {style} [label=\"  {label}\"] {params}");
         self.code.push_str(&code);
     }
 
@@ -60,7 +64,7 @@ impl From<Graphviz> for String {
         format!("digraph G {{
 rankdir=TD;
 graph [fontname=\"Helvetica Neue\"];
-node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 fontsize=11 style=\"rounded,filled\"  fillcolor=\"#5397dc\"];
+node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 margin=0.12 fontsize=11 style=\"rounded,filled\"  fillcolor=\"#5397dc\"];
 edge  [fontname=\"Helvetica Neue\" fontsize=11 arrowsize=.7 fontcolor=\"#555555\"];
 
 {}
@@ -449,6 +453,10 @@ impl<T:KnownNodeStorage> HasId for Node<T> {
     fn id(&self) -> usize {
         self.storage.id()
     }
+
+    fn target_id(&self) -> usize {
+        self.storage.target_id()
+    }
 }
 
 
@@ -459,11 +467,18 @@ impl<T:KnownNodeStorage> HasId for Node<T> {
 
 pub trait HasId {
     fn id(&self) -> usize;
+    fn target_id(&self) -> usize;// {
+//        self.id()
+//    }
 }
 
 impl<T:?Sized+HasId> HasId for Rc<T> {
     fn id(&self) -> usize {
         self.deref().id()
+    }
+
+    fn target_id(&self) -> usize {
+        self.deref().target_id()
     }
 }
 
@@ -500,6 +515,10 @@ impl GraphvizRepr for AnyNode {
 impl HasId for AnyNode {
     fn id(&self) -> usize {
         self.rc.id()
+    }
+
+    fn target_id(&self) -> usize {
+        self.rc.target_id()
     }
 }
 
@@ -576,8 +595,12 @@ pub struct NodeWrapperTemplate<Shape,Out> {
 }
 
 impl<Shape,Out> HasId for NodeWrapperTemplate<Shape,Out> {
-    default fn id(&self) -> usize {
+    fn id(&self) -> usize {
         Rc::downgrade(&self.rc).as_raw() as *const() as usize
+    }
+
+    default fn target_id(&self) -> usize {
+        self.id()
     }
 }
 
@@ -596,12 +619,15 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name = base_type_name::<Shape>();
         let label     = self.rc.borrow().label;
-        let id        = self.id();
-        if !builder.has_node(id) {
+        let target_id = self.target_id();
+        if !builder.has_node(target_id) {
             builder.add_node(self.id(),type_name,label);
             self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
-                builder.add_link(input.id(),id,input.output_type(),&input.output_type_value_name());
+                let input_id        = input.id();
+                let input_target_id = input.target_id();
+                let is_redirect     = input_id != input_target_id;
+                builder.add_link(input_target_id,target_id,input.output_type(),&input.output_type_value_name(),is_redirect);
                 input.graphviz_build(builder)
             }
         }
@@ -1112,7 +1138,7 @@ impl<T:HasInputs> HasInputs for RecursiveShape<T> {
 }
 
 impl<T:HasId + KnownOutput> HasId for Recursive<T> {
-    fn id(&self) -> usize {
+    fn target_id(&self) -> usize {
         self.rc.borrow().shape.source.borrow().as_ref().unwrap().id()
     }
 }
