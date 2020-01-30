@@ -6,7 +6,7 @@ use crate::display::object::DisplayObjectOps;
 use crate::display::object::DisplayObjectData;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::HtmlObject;
+use crate::system::web::dom::html::Css3dObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web::Result;
 use crate::system::web::create_element;
@@ -22,7 +22,7 @@ use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
-
+use basegl_system_web::get_element_by_id;
 
 
 // ===================
@@ -114,19 +114,18 @@ impl HTMLRendererData {
 // ====================
 
 /// A renderer for `HTMLObject`s.
-#[derive(Debug)]
-pub struct HtmlRenderer {
-    display_object : DisplayObjectData,
+#[derive(Clone,Debug)]
+pub struct Css3dRenderer {
     container      : DomContainer,
     data           : Rc<HTMLRendererData>,
     logger         : Logger
 }
 
-impl HtmlRenderer {
-    /// Creates a HTMLRenderer.
-    pub fn new<L:Into<Logger>>(logger:L, dom_id: &str) -> Result<Self> {
+impl Css3dRenderer {
+    /// Creates a Css3dRenderer inside an element.
+    pub fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Result<Self> {
         let logger               = logger.into();
-        let container            = DomContainer::from_id(dom_id)?;
+        let container            = DomContainer::from_element(element);
         let dom: HtmlElement     = dyn_into(create_element("div")?)?;
         let camera : HtmlElement = dyn_into(create_element("div")?)?;
 
@@ -136,6 +135,7 @@ impl HtmlRenderer {
         dom.set_property_or_panic("overflow", "hidden");
         dom.set_property_or_panic("width"   , "100%");
         dom.set_property_or_panic("height"  , "100%");
+        dom.set_property_or_panic("pointer-events", "none");
         camera.set_property_or_panic("width"          , "100%");
         camera.set_property_or_panic("height"         , "100%");
         camera.set_property_or_panic("transform-style", "preserve-3d");
@@ -144,11 +144,19 @@ impl HtmlRenderer {
         dom.append_or_panic(&camera);
 
         let data             = Rc::new(HTMLRendererData::new(dom,camera));
-        let display_object   = DisplayObjectData::new(&logger);
-        let mut htmlrenderer = Self {container,data,display_object,logger};
+        let mut htmlrenderer = Self {container,data,logger};
 
         htmlrenderer.init_listeners();
         Ok(htmlrenderer)
+    }
+
+    /// Creates a HTMLRenderer.
+    pub fn new<L:Into<Logger>>(logger:L, dom_id: &str) -> Result<Self> {
+        Self::from_element(logger,dyn_into(get_element_by_id(dom_id)?)?)
+    }
+
+    pub(crate) fn logger(&self) -> Logger {
+        self.logger.clone()
     }
 
     fn init_listeners(&mut self) {
@@ -186,23 +194,22 @@ impl HtmlRenderer {
     }
 
     /// Creates a new instance of HtmlObject.
-    pub fn new_instance<S:AsRef<str>>(&self, dom_name:S) -> Result<HtmlObject> {
-        let object = HtmlObject::new(self.logger.sub("object"),dom_name,self.data.camera.clone());
+    pub(super) fn new_instance
+    <S:AsRef<str>>(&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
+        let object = Css3dObject::new(self.logger.sub("object"), dom_name, self.data.camera.clone());
         object.as_ref().map(|object| {
-            self.add_child(object);
+            parent.add_child(object);
         }).ok();
         object
     }
 
-    fn render_object(&self, object:&HtmlObject) {
+    fn render_object(&self, object:&Css3dObject) {
         object.render_dom();
     }
 
     /// Renders the `Scene` from `Camera`'s point of view.
     pub fn render(&self, camera: &Camera2d) {
         self.render_camera(&camera);
-        self.display_object.update();
-        self.display_object.render();
     }
 
     /// Adds a ResizeCallback.
@@ -220,7 +227,7 @@ impl HtmlRenderer {
 
 // === Getters ===
 
-impl HtmlRenderer {
+impl Css3dRenderer {
     /// Gets HTMLRenderer's container.
     pub fn container(&self) -> &DomContainer {
         &self.container
@@ -234,11 +241,5 @@ impl HtmlRenderer {
     /// Gets the Scene Renderer's dimensions.
     pub fn dimensions(&self) -> Vector2<f32> {
         self.container.dimensions()
-    }
-}
-
-impl From<&HtmlRenderer> for DisplayObjectData {
-    fn from(t:&HtmlRenderer) -> Self {
-        t.display_object.clone_ref()
     }
 }

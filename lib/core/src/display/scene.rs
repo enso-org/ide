@@ -22,6 +22,8 @@ use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
 use crate::display::object::DisplayObjectOps;
 use crate::system::gpu::data::uniform::Uniform;
+use crate::system::web::dom::html::Css3dRenderer;
+use crate::system::web::dyn_into;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
@@ -217,23 +219,24 @@ shared! { Scene
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct SceneData {
-    root          : DisplayObjectData,
-    canvas        : web_sys::HtmlCanvasElement,
-    context       : Context,
-    symbols       : SymbolRegistry,
-    symbols_dirty : SymbolRegistryDirty,
-    camera        : Camera2d,
-    shape         : Shape,
-    shape_dirty   : ShapeDirty,
-    logger        : Logger,
-    listeners     : Listeners,
-    variables     : UniformScope,
-    pipeline      : RenderPipeline,
-    composer      : RenderComposer,
-    stats         : Stats,
-    pixel_ratio   : Uniform<f32>,
-    zoom_uniform  : Uniform<f32>,
-    mouse         : Mouse,
+    root           : DisplayObjectData,
+    canvas         : web_sys::HtmlCanvasElement,
+    context        : Context,
+    css3d_renderer : Css3dRenderer,
+    symbols        : SymbolRegistry,
+    symbols_dirty  : SymbolRegistryDirty,
+    camera         : Camera2d,
+    shape          : Shape,
+    shape_dirty    : ShapeDirty,
+    logger         : Logger,
+    listeners      : Listeners,
+    variables      : UniformScope,
+    pipeline       : RenderPipeline,
+    composer       : RenderComposer,
+    stats          : Stats,
+    pixel_ratio    : Uniform<f32>,
+    zoom_uniform   : Uniform<f32>,
+    mouse          : Mouse,
 
 
     #[derivative(Debug="ignore")]
@@ -291,9 +294,17 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
+        let canvas_parent  = dyn_into(canvas.parent_node().unwrap()).unwrap();
+        let css3d_renderer = Css3dRenderer::from_element(logger.sub("Css3dRenderer"),canvas_parent);
+        let css3d_renderer = css3d_renderer.expect("Couldn't create Css3dRenderer");
+
         Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
              , logger,listeners,variables,on_resize,text_components,stats,pixel_ratio,mouse
-             , zoom_uniform }
+             , zoom_uniform,css3d_renderer }
+    }
+
+    pub fn css3d_renderer(&self) -> Css3dRenderer {
+        self.css3d_renderer.clone()
     }
 
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
@@ -359,6 +370,7 @@ impl {
             }
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.camera);
+            self.css3d_renderer.render(&self.camera);
 
             self.composer.run();
         })

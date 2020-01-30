@@ -19,8 +19,8 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use basegl::display::camera::Camera2d;
-    use basegl::system::web::dom::html::HtmlObject;
-    use basegl::system::web::dom::html::HtmlRenderer;
+    use basegl::system::web::dom::html::Css3dObject;
+    use basegl::system::web::dom::html::Css3dRenderer;
     use basegl::system::web::StyleSetter;
     use basegl::system::web::get_performance;
     use web_test::*;
@@ -32,11 +32,11 @@ mod tests {
     #[web_test(no_container)]
     fn invalid_container() {
         let logger   = Logger::new("invalid_container");
-        let renderer = HtmlRenderer::new(logger, "nonexistent_id");
+        let renderer = Css3dRenderer::new(logger, "nonexistent_id");
         assert!(renderer.is_err(), "nonexistent_id should not exist");
     }
 
-    fn create_scene(renderer:&HtmlRenderer) -> Vec<HtmlObject> {
+    fn create_scene(renderer:&Css3dRenderer) -> Vec<Css3dObject> {
         renderer.container().dom.set_property_or_panic("background-color", "black");
 
         let mut objects = Vec::new();
@@ -73,7 +73,7 @@ mod tests {
     fn rhs_coordinates() {
         set_stdout();
         let logger   = Logger::new("rhs_coordinates");
-        let renderer = HtmlRenderer::new(&logger, "rhs_coordinates")
+        let renderer = Css3dRenderer::new(&logger, "rhs_coordinates")
                                     .expect("Renderer couldn't be created");
         let mut scene = create_scene(&renderer);
 
@@ -97,7 +97,7 @@ mod tests {
     #[web_bench]
     fn camera_movement(b: &mut Bencher) {
         let logger = Logger::new("camera_movement");
-        let renderer = HtmlRenderer::new(&logger, "camera_movement")
+        let renderer = Css3dRenderer::new(&logger, "camera_movement")
                                     .expect("Renderer couldn't be created");
         let scene = create_scene(&renderer);
 
@@ -118,7 +118,7 @@ mod tests {
         })
     }
 
-    fn make_sphere(mut scene : &mut Vec<HtmlObject>, performance : &Performance) {
+    fn make_sphere(mut scene : &mut Vec<Css3dObject>, performance : &Performance) {
         use super::set_gradient_bg;
 
         let t = (performance.now() / 1000.0) as f32;
@@ -151,7 +151,7 @@ mod tests {
     #[web_bench]
     fn object_x400_update(b: &mut Bencher) {
         let logger = Logger::new("object_x400_update");
-        let renderer = HtmlRenderer::new(&logger, "object_x400_update")
+        let renderer = Css3dRenderer::new(&logger, "object_x400_update")
                                     .expect("Renderer couldn't be created");
         let mut scene = Vec::new();
         renderer.container().dom.set_property_or_panic("background-color", "black");

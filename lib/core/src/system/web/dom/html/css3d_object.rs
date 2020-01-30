@@ -57,7 +57,7 @@ fn set_object_transform(dom: &JsValue, matrix: &Matrix4<f32>) {
 /// A structure for representing a 3D HTMLElement in a `HTMLScene`.
 #[derive(Shrinkwrap, Debug, Clone)]
 #[shrinkwrap(mutable)]
-pub struct HtmlObject {
+pub struct Css3dObject {
     #[shrinkwrap(main_field)]
     /// HTMLObject's hierarchical transforms.
     pub display_object : DisplayObjectData,
@@ -68,14 +68,14 @@ pub struct HtmlObject {
     camera_node : HtmlElement
 }
 
-impl Drop for HtmlObject {
+impl Drop for Css3dObject {
     fn drop(&mut self) {
         self.dom.remove_from_parent_or_panic();
         self.display_object.unset_parent()
     }
 }
 
-impl HtmlObject {
+impl Css3dObject {
     /// Creates a HTMLObject from element name.
     pub fn new
     <L:Into<Logger>,S:AsRef<str>>(logger:L, dom_name:S, camera_node:HtmlElement) -> Result<Self> {
@@ -113,10 +113,10 @@ impl HtmlObject {
     }
 
     /// Sets the underlying HtmlElement dimension.
-    pub fn set_dimensions(&mut self, width: f32, height: f32) {
-        self.dimensions = Vector2::new(width, height);
-        self.dom.set_property_or_panic("width",  format!("{}px", width));
-        self.dom.set_property_or_panic("height", format!("{}px", height));
+    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
+        self.dimensions = dimensions;
+        self.dom.set_property_or_panic("width",  format!("{}px", dimensions.x));
+        self.dom.set_property_or_panic("height", format!("{}px", dimensions.y));
     }
 
     /// Gets the underlying HtmlElement dimension.
@@ -139,8 +139,8 @@ impl HtmlObject {
     }
 }
 
-impl From<&HtmlObject> for DisplayObjectData {
-    fn from(t:&HtmlObject) -> Self {
+impl From<&Css3dObject> for DisplayObjectData {
+    fn from(t:&Css3dObject) -> Self {
         t.display_object.clone_ref()
     }
 }

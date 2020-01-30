@@ -1,5 +1,8 @@
 #![allow(missing_docs)]
 
+use crate::system::web::dom::html::Css3dSystem;
+use crate::system::web::dom::html::Css3dObject;
+use crate::system::web::StyleSetter;
 use crate::display::object::DisplayObject;
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::Sprite;
@@ -28,23 +31,33 @@ fn init(world: &World) {
     let screen        = camera.screen();
     let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
     let sprite_system = SpriteSystem::new();
-//    let css3d_system  = Css3dSystem::new();
+    let css3d_system  = Css3dSystem::new();
     world.add_child(&sprite_system);
-//    world.add_child(&css3d_system);
+    world.add_child(&css3d_system);
 
     let mut sprites: Vec<Sprite> = default();
-//    let mut css3d_objects: Vec<Css3dObject> = default();
+    let mut css3d_objects: Vec<Css3dObject> = default();
     let count = 10;
     for i in 0 .. count {
+        let width = screen.width / count as f32;
+        let height = screen.height;
+        let dimensions = Vector2::new(width, screen.height);
+        let x = i as f32;
         if i % 2 == 0 {
-            let width = screen.width / count as f32;
-            let height = screen.height;
-            let dimensions = Vector2::new(width, screen.height);
-            let x = i as f32;
             let sprite = sprite_system.new_instance();
             sprite.size().set(dimensions);
             sprite.mod_position(|t| *t = Vector3::new(width * x + width / 2.0, height / 2.0, 0.0));
             sprites.push(sprite);
+        } else {
+            let mut object = css3d_system.new_instance("div").expect("Couldn't create div");
+            let r = ((x + 0.0) * 16.0) as u8;
+            let g = ((x + 2.0) * 32.0) as u8;
+            let b = ((x + 4.0) * 64.0) as u8;
+            let color = format!("rgb({},{},{})", r,g,b);
+            object.dom.set_property_or_panic("background-color", color);
+            object.set_dimensions(dimensions);
+            object.mod_position(|t| *t = Vector3::new(width * x + width / 2.0, height / 2.0, 0.0));
+            css3d_objects.push(object);
         }
     }
     world.display_object().update();
@@ -52,4 +65,6 @@ fn init(world: &World) {
     std::mem::forget(world);
     std::mem::forget(navigator);
     std::mem::forget(sprites);
+    std::mem::forget(css3d_objects);
+    std::mem::forget(css3d_system);
 }
