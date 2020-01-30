@@ -128,7 +128,7 @@ impl {
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,stats};
+        let this = Self {symbol,transform,uv,size,alignment,stats};
         this.init_attributes();
         this.init_shader();
         this

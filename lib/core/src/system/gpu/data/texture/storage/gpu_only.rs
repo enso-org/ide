@@ -66,7 +66,7 @@ TextureReload for Texture<GpuOnly,I,T> {
     }
 }
 
-impl<I:InternalFormat, T:Item+JsBufferViewArr> Texture<GpuOnly,I,T> {
+impl<I:InternalFormat, T:ItemType+JsBufferViewArr> Texture<GpuOnly,I,T> {
     /// Reload texture with given content. The data will be copied to gpu, but the texture will not
     /// take ownership.
     pub fn reload_with_content(&self, data:&[T]) {

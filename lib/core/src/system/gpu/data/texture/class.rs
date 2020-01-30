@@ -174,7 +174,7 @@ impl<S:StorageRelation<I,T>,I,T> Texture<S,I,T> {
 impl<S,I,T> Texture<S,I,T>
 where S : StorageRelation<I,T>,
       I : InternalFormat,
-      T : Item + JsBufferViewArr {
+      T : ItemType + JsBufferViewArr {
     /// Reloads gpu texture with data from given slice.
     pub fn reload_from_memory(&self, data:&[T], width:i32, height:i32) {
         let target          = Context::TEXTURE_2D;
@@ -185,6 +185,7 @@ where S : StorageRelation<I,T>,
         let elem_type       = Self::gl_elem_type();
 
         self.context.bind_texture(target,Some(&self.gl_texture));
+        #[allow(unsafe_code)]
         unsafe {
             // We use unsafe array view which is used immediately, so no allocations should happen
             // until we drop the view.

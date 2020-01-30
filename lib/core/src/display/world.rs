@@ -210,8 +210,6 @@ impl World {
         self.rc.borrow().scene.new_symbol()
     }
 
-    pub fn scene(&self) -> Scene { self.rc.borrow().scene.clone() }
-
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,
     /// which when dropped will cancel the callback. If you want the function
     /// to run forever, you can use the `forget` method in the handle.

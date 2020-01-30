@@ -2,7 +2,7 @@
 
 use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::system::GlyphSystem;
-use crate::display::object::DisplayObjectOps;
+use crate::display::object::{DisplayObjectOps, DisplayObject};
 use crate::display::world::*;
 
 use basegl_core_msdf_sys::run_once_initialized;
@@ -25,7 +25,7 @@ pub fn run_example_glyph_system() {
 fn init(world: &World) {
     let mut fonts        = FontRegistry::new();
     let font_id          = fonts.load_embedded_font("DejaVuSans").unwrap();
-    let mut glyph_system = GlyphSystem::new(font_id);
+    let mut glyph_system = GlyphSystem::new(world,font_id);
     let line_position    = Vector2::new(100.0, 100.0);
     let height           = 32.0;
     let color            = Vector4::new(0.0, 0.8, 0.0, 1.0);
@@ -35,6 +35,6 @@ fn init(world: &World) {
     world.add_child(glyph_system.sprite_system());
     world.on_frame(move |_| {
         let &_ = &line;
-        glyph_system.sprite_system().update()
+        glyph_system.sprite_system().display_object().update();
     }).forget();
 }

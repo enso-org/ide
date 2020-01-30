@@ -6,8 +6,6 @@ use crate::prelude::*;
 use crate::data::dirty;
 use crate::display::layout::types::*;
 use crate::display::object::DisplayObjectData;
-use crate::system::gpu::data::uniform::Uniform;
-use crate::system::gpu::data::uniform::UniformScope;
 use crate::data::dirty::traits::*;
 
 use nalgebra::Vector3;

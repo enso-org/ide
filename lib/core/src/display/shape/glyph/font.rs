@@ -30,7 +30,7 @@ use std::collections::hash_map::Entry::Vacant;
 ///
 /// For explanation of various font-rendering terms, see
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
-#[derive(Debug)]
+#[derive(Copy,Clone,Debug)]
 pub struct GlyphRenderInfo {
     /// An index of glyph in a msdf texture (counted from the top of column. For details, see
     /// MsdfTexture documentation.

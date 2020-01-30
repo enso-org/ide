@@ -24,7 +24,7 @@ use nalgebra::Vector4;
 
 /// A glyph rendered on screen. The displayed character will be stretched to fit the entire bbox of
 /// underlying sprite.
-#[derive(Shrinkwrap)]
+#[derive(Debug,Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
     sprite          : Sprite,
@@ -77,6 +77,7 @@ impl Glyph {
 /// Not all the glyphs in `glyphs` vector may be actually in use; this structure is meant to keep
 /// changing text, and for best performance it re-uses the created Glyphs (what means the specific
 /// buffer space). Therefore there is a cap for line length. See also `GlyphSystem::new_empty_line`.
+#[derive(Debug)]
 pub struct Line {
     glyphs         : Vec<Glyph>,
     baseline_start : Vector2<f32>,
@@ -117,6 +118,7 @@ impl Line {
 /// ===================
 
 /// A system for displaying glyphs.
+#[derive(Debug)]
 pub struct GlyphSystem {
     context          : Context,
     sprite_system    : SpriteSystem,
@@ -128,12 +130,12 @@ pub struct GlyphSystem {
 
 impl GlyphSystem {
     /// Constructor.
-    pub fn new(font_id:FontId) -> Self {
+    pub fn new(world:&World, font_id:FontId) -> Self {
         let msdf_width    = MsdfTexture::WIDTH as f32;
         let msdf_height   = MsdfTexture::ONE_GLYPH_HEIGHT as f32;
-        let scene         = get_scene();
+        let scene         = world.scene();
         let context       = scene.context();
-        let sprite_system = SpriteSystem::new();
+        let sprite_system = SpriteSystem::new(world);
         let symbol        = sprite_system.symbol();
         let texture       = Texture::<GpuOnly,Rgb,u8>::new(&context,(0,0));
         let mesh          = symbol.surface();
