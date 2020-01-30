@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use crate::display::object::DisplayObject;
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::shape::primitive::system::ShapeSystem;
@@ -12,6 +13,9 @@ use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
 use crate::display::shape::primitive::def::*;
+use crate::display::navigation::navigator::Navigator;
+
+use crate::control::frp;
 
 
 #[wasm_bindgen]
@@ -24,16 +28,23 @@ pub fn run_example_shapes() {
 }
 
 fn init(world: &World) {
+    let scene  = world.scene();
+    let camera = scene.camera();
+    let screen = camera.screen();
+
+    let navigator = Navigator::new(&scene, &camera);
+    let navigator = navigator.expect("Couldn't create navigator");
+
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
 
-    let shape_system = ShapeSystem::new(&s3);
+    let shape_system = ShapeSystem::new(world,&s3);
     let sprite = shape_system.new_instance();
     sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {
-        t.x += 250.0;
-        t.y += 100.0;
+        t.x += screen.width / 2.0;
+        t.y += screen.height / 2.0;
     });
 
 
@@ -43,8 +54,11 @@ fn init(world: &World) {
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {
+        let _keep_alive = &navigator;
         on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
+
+    frp::test();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -55,5 +69,5 @@ pub fn on_frame
 , _sprite1     : &Sprite
 , shape_system : &ShapeSystem) {
     *iter += 1;
-    shape_system.update();
+    shape_system.display_object().update();
 }

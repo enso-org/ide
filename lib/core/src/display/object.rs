@@ -36,6 +36,10 @@ impl ParentBind {
 }
 
 
+use crate::control::callback::DynEventDispatcher;
+use crate::control::callback::DynEvent;
+
+
 
 // =====================================
 // === HierarchicalObjectDescription ===
@@ -43,10 +47,11 @@ impl ParentBind {
 
 /// Hierarchical description of objects. Each object contains binding to its parent and to its
 /// children. This is the most underlying structure in the display object hierarchy.
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub struct HierarchicalObjectData {
     pub parent_bind : Option<ParentBind>,
     pub children    : OptVec<DisplayObjectData>,
+    pub dispatcher  : DynEventDispatcher,
     pub logger      : Logger,
 }
 
@@ -57,7 +62,13 @@ impl HierarchicalObjectData {
     pub fn new(logger:Logger) -> Self {
         let parent_bind = default();
         let children    = default();
-        Self {parent_bind,children,logger}
+        let dispatcher  = default();
+        Self {parent_bind,children,dispatcher,logger}
+    }
+
+    pub fn dispatch(&mut self, event:&DynEvent) {
+        self.dispatcher.dispatch(event);
+        self.parent_bind.iter().for_each(|bind| bind.parent.dispatch(event));
     }
 
     pub fn child_count(&self) -> usize {
@@ -78,7 +89,7 @@ impl HierarchicalObjectData {
     }
 
     fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
-        let child = child.display_object_description();
+        let child = child.display_object();
         self.children.insert(child)
     }
 
@@ -327,10 +338,14 @@ pub struct DisplayObjectData {
 
 impl DisplayObjectData {
     /// Creates a new object instance.
-    pub fn new(logger:Logger) -> Self {
-        let data = DisplayObjectDataMut::new(logger);
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let data = DisplayObjectDataMut::new(logger.into());
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
+    }
+
+    pub fn dispatch(&self, event:&DynEvent) {
+        self.rc.borrow_mut().dispatch(event)
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
@@ -346,7 +361,7 @@ impl DisplayObjectData {
     /// Adds a new `DisplayObject` as a child to the current one.
     pub fn add_child_take<T:DisplayObject>(self, child:T) {
         self.rc.borrow().logger.info("Adding new child.");
-        let child = child.display_object_description();
+        let child = child.display_object();
         child.unset_parent();
         let index = self.rc.borrow_mut().register_child(&child);
         self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
@@ -357,7 +372,7 @@ impl DisplayObjectData {
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
     pub fn remove_child<T:DisplayObject>(&self, child:T) {
-        let child = child.display_object_description();
+        let child = child.display_object();
         if self.has_child(&child) {
             child.unset_parent()
         }
@@ -365,7 +380,7 @@ impl DisplayObjectData {
 
     /// Replaces the parent binding with a new parent.
     pub fn set_parent<T:DisplayObject>(&self, parent:T) {
-        parent.display_object_description().add_child_take(self);
+        parent.display_object().add_child_take(self);
     }
 
     /// Removes the current parent binding.
@@ -380,7 +395,7 @@ impl DisplayObjectData {
 
     /// Returns the index of the provided object if it was a child of the current one.
     pub fn child_index<T:DisplayObject>(&self, child:T) -> Option<usize> {
-        let child = child.display_object_description();
+        let child = child.display_object();
         child.parent_bind().and_then(|bind| {
             if self == &bind.parent { Some(bind.index) } else { None }
         })
@@ -524,11 +539,7 @@ impl PartialEq for DisplayObjectData {
     }
 }
 
-impl CloneRef for DisplayObjectData {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for DisplayObjectData {}
 
 
 
@@ -537,7 +548,7 @@ impl CloneRef for DisplayObjectData {
 // =====================
 
 pub trait DisplayObject: Into<DisplayObjectData> {
-    fn display_object_description(self) -> DisplayObjectData {
+    fn display_object(self) -> DisplayObjectData {
         self.into()
     }
 }
@@ -548,11 +559,11 @@ impl<T:Into<DisplayObjectData>> DisplayObject for T {}
 pub trait DisplayObjectOps<'t>
 where &'t Self:DisplayObject, Self:'t {
     fn add_child<T:DisplayObject>(&'t self, child:T) {
-        self.display_object_description().add_child_take(child);
+        self.display_object().add_child_take(child);
     }
 
-    fn update(&'t self) {
-        self.display_object_description().update();
+    fn dispatch(&'t self, event:&DynEvent) {
+        self.display_object().dispatch(event)
     }
 }
 
@@ -667,9 +678,3 @@ mod tests {
         assert_eq!(obj1.child_count(),0);
     }
 }
-
-
-
-
-
-

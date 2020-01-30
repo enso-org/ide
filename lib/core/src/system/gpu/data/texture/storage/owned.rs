@@ -40,8 +40,9 @@ impl<T> OwnedData<T> {
 
 // === API ===
 
-impl<I:InternalFormat,T:Item+JsBufferViewArr>
+impl<I:InternalFormat,T:ItemType+JsBufferViewArr>
 TextureReload for Texture<Owned,I,T> {
+    #[allow(unsafe_code)]
     fn reload(&self) {
         let storage = &self.storage();
         let data    = storage.data.as_slice();

@@ -6,27 +6,28 @@ use crate::prelude::*;
 // === Alignment ===
 // =================
 
-/// Structure describing horizontal and vertical alignment separately.
-#[derive(Clone,Debug)]
+/// Camera alignment. It describes where the origin of the camera should be aligned to.
+#[derive(Clone,Copy,Debug)]
 pub struct Alignment {
     /// Horizontal alignment.
-    pub horizontal: HorizontalAlignment,
+    pub horizontal : HorizontalAlignment,
+
     /// Vertical alignment.
-    pub vertical: VerticalAlignment,
+    pub vertical   : VerticalAlignment,
 }
 
-/// Possible values of horizontal alignment.
-#[derive(Clone,Debug)]
+/// Horizontal alignments.
+#[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
 pub enum HorizontalAlignment {Left,Center,Right}
 
-/// Possible values of vertical alignment.
-#[derive(Clone,Debug)]
+/// Vertical alignments.
+#[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
 pub enum VerticalAlignment {Top,Center,Bottom}
 
-impl Default for HorizontalAlignment { fn default() -> Self { Self::Center } }
-impl Default for VerticalAlignment   { fn default() -> Self { Self::Center } }
+impl Default for HorizontalAlignment { fn default() -> Self { Self::Left } }
+impl Default for VerticalAlignment   { fn default() -> Self { Self::Bottom } }
 impl Default for Alignment {
     fn default() -> Self {
         let horizontal = default();

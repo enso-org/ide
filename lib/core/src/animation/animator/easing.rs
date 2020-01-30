@@ -5,7 +5,6 @@ use crate::prelude::*;
 
 use super::ContinuousAnimator;
 use crate::animation::easing::FnEasing;
-use crate::control::EventLoop;
 use crate::animation::linear_interpolation;
 use crate::animation::Interpolable;
 
@@ -26,10 +25,11 @@ pub trait EasingAnimationCallback<T> = FnMut(T) + 'static;
 // === EasingAnimatorData ===
 // ==========================
 
+#[derive(Debug)]
 struct EasingAnimatorData<T:Interpolable<T>> {
     initial_value       : T,
     final_value         : T,
-    duration_ms: f64,
+    duration_ms         : f64,
     continuous_animator : Option<ContinuousAnimator>
 }
 
@@ -43,6 +43,7 @@ struct EasingAnimatorData<T:Interpolable<T>> {
 pub trait InterpolableArgument<T:Copy> = Interpolable<T> + 'static;
 
 /// This struct animates from `origin_position` to `target_position` using easing functions.
+#[derive(Debug)]
 pub struct EasingAnimator<T:Interpolable<T>> {
     data : Rc<RefCell<EasingAnimatorData<T>>>
 }
@@ -51,8 +52,7 @@ impl<T:InterpolableArgument<T>> EasingAnimator<T> {
     /// Creates an EasingAnimator using a `easing_function` to interpolate between `initial_value`
     /// and `final_value` in `duration_seconds`, calling its value in `easing_animation_callback`.
     pub fn new<F:FnEasing,C:EasingAnimationCallback<T>>
-    ( event_loop                    : &mut EventLoop
-    , mut easing_animation_callback : C
+    ( mut easing_animation_callback : C
     , easing_function               : F
     , initial_value                 : T
     , final_value                   : T
@@ -67,7 +67,7 @@ impl<T:InterpolableArgument<T>> EasingAnimator<T> {
         };
         let data = Rc::new(RefCell::new(data));
         let weak = Rc::downgrade(&data);
-        let continuous_animator = ContinuousAnimator::new(event_loop, move |time_ms| {
+        let continuous_animator = ContinuousAnimator::new(move |time_ms| {
             if let Some(data) = weak.upgrade() {
                 let data          = data.borrow();
                 let duration_ms   = data.duration_ms;

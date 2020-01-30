@@ -1,10 +1,13 @@
 #![allow(missing_docs)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 mod internal;
 pub mod emscripten_data;
 pub mod test_utils;
 
-pub use basegl_prelude as prelude;
+pub use enso_prelude as prelude;
 use internal::*;
 
 use emscripten_data::ArrayMemoryView;
@@ -87,6 +90,7 @@ impl Drop for Font {
 ///
 /// The structure gathering MSDF generation parameters meant to be same for all
 /// rendered glyphs
+#[derive(Clone,Copy,Debug)]
 pub struct MsdfParameters {
     pub width                         : usize,
     pub height                        : usize,
@@ -97,6 +101,7 @@ pub struct MsdfParameters {
     pub overlap_support               : bool
 }
 
+#[derive(Debug)]
 pub struct MultichannelSignedDistanceField {
     handle          : JsValue,
     pub advance     : f64,

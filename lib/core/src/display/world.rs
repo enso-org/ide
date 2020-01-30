@@ -15,11 +15,10 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::object::*;
+use crate::display::render::*;
 use crate::display::scene::Scene;
 use crate::display::symbol::Symbol;
 use crate::system::web;
-
-use crate::display::render::*;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -29,39 +28,6 @@ use web_sys::KeyboardEvent;
 
 
 pub use stats::*;
-
-
-
-// ===========================
-// === UNSAFE GLOBAL STATE ===
-// ===========================
-
-/// The following code is very unsafe and should disappear in the future. We are using it in order
-/// to keep the API simple and future-proof. Each `Stage` is associated with HTML Canvas element,
-/// and we currently support a single stage only. Although this is very low-priority task, as we
-/// would not need it in our use case, it would be nice to have support for it in the library.
-/// Supporting multiple stages means, that we would be able to create a symbol, add it to a scene,
-/// and then add it to another scene (while disconnecting the previous one). This would require
-/// symbol to be associated with different contexts / different buffers depending on the root
-/// parent object. Currently this information is hardcoded while object creation and it is obtained
-/// from these global variables. By using them we simulate the final API, where symbols do not need
-/// to know scene in order to be constructed.
-
-static mut SCENE: Option<Scene> = None;
-
-/// Very unsafe function. Do not use. See documentation of `WORLD` to learn more.
-pub(crate) fn get_scene() -> Scene {
-    unsafe {
-        SCENE.as_ref().unwrap_or_else(|| panic!("World not initialized.")).clone_ref()
-    }
-}
-
-/// Very unsafe function. Do not use. See documentation of `WORLD` to learn more.
-fn init_global_variables(world:&World) {
-    unsafe {
-        SCENE = Some(world.rc.borrow().scene.clone_ref());
-    }
-}
 
 
 
@@ -143,8 +109,8 @@ impl WorldData {
     /// Create new uninitialized world instance. You should rather not need to
     /// call this function directly.
     fn new_uninitialized<Dom:Str>(dom:Dom) -> Self {
-        let stats                  = default();
-        let logger                 = Logger::new("world");
+        let stats              = default();
+        let logger             = Logger::new("world");
         let scene_logger       = logger.sub("scene");
         let scene_dirty_logger = logger.sub("scene_dirty");
         let scene_dirty        = SceneDirty::new(scene_dirty_logger,());
@@ -222,7 +188,6 @@ impl World {
     pub fn new(world_data: WorldData) -> Self {
         let rc = Rc::new(RefCell::new(world_data));
         let out = Self {rc};
-        init_global_variables(&out);
         out.init_composer();
         out
     }
@@ -250,10 +215,9 @@ impl World {
     /// Run the provided callback on every frame. Returns a `CallbackHandle`,
     /// which when dropped will cancel the callback. If you want the function
     /// to run forever, you can use the `forget` method in the handle.
-    pub fn on_frame<F:FnMut(&World)+'static>
+    pub fn on_frame<F:FnMut(f64)+'static>
     (&self, mut callback:F) -> CallbackHandle {
-        let this = self.clone_ref();
-        let func = move |_| callback(&this);
+        let func = move |time_ms| callback(time_ms);
         self.rc.borrow_mut().event_loop.add_callback(func)
     }
 
@@ -265,12 +229,28 @@ impl World {
         self.rc.borrow_mut().run();
     }
 
+    pub fn event_loop(&self) -> EventLoop {
+        self.rc.borrow().event_loop.clone()
+    }
+
+    pub fn scene(&self) -> Scene {
+        self.rc.borrow().scene.clone()
+    }
+
     fn init_composer(&self) {
-        let root     = &self.display_object_description();
+        let root                = &self.display_object();
+        let mouse_hover_ids     = self.rc.borrow().scene.mouse_hover_ids();
+        let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
+        let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
+        pixel_read_pass.set_callback(move |v| {
+            mouse_hover_ids.set(Vector4::from_iterator(v))
+        });
+        // TODO: We may want to enable it on weak hardware.
+        // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
             .add(DisplayObjectRenderPass::new(root))
-            .add(ScreenRenderPass::new())
-            .add(PixelReadPass::new());
+            .add(ScreenRenderPass::new(self))
+            .add(pixel_read_pass);
         self.rc.borrow_mut().scene.set_render_pipeline(pipeline);
     }
 }

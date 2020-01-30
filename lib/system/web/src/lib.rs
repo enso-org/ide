@@ -1,10 +1,13 @@
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(trait_alias)]
 #![feature(set_stdio)]
 
 pub mod resize_observer;
-pub mod intersection_observer;
+pub mod dom;
 
-use basegl_prelude::*;
+use enso_prelude::*;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -129,8 +132,11 @@ pub fn get_canvas(id:&str) -> Result<web_sys::HtmlCanvasElement> {
 
 pub fn get_webgl2_context
 (canvas:&HtmlCanvasElement) -> Result<WebGl2RenderingContext> {
+    let options = js_sys::Object::new();
+    js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
     let no_webgl = || Error::NoWebGL { version:2 };
-    let context = canvas.get_context("webgl2").map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
+    let context = canvas.get_context_with_context_options("webgl2",&options)
+        .map_err(|_| no_webgl())?.ok_or_else(no_webgl)?;
     context.dyn_into().map_err(|_| no_webgl())
 }
 
@@ -238,6 +244,7 @@ impl NodeRemover for Node {
 
 #[wasm_bindgen(inline_js = "export function request_animation_frame2(f) { requestAnimationFrame(f) }")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn request_animation_frame2(closure: &Closure<dyn FnMut()>) -> i32;
 }
 
@@ -321,6 +328,7 @@ export function set_stack_trace_limit() {
 }
 ")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn set_stack_trace_limit();
 }
 

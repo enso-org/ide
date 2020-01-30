@@ -4,6 +4,9 @@
 
 #![allow(dead_code)]
 
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
@@ -34,7 +37,6 @@
 /// Uncomment the following lines in order to enable macro-expansion debugging during compilation.
 
 //#![feature(trace_macros)]
-//#![recursion_limit="256"]
 //trace_macros!(true);
 
 
@@ -53,7 +55,7 @@ pub mod system;
 
 /// Prelude - commonly used utilities.
 pub mod prelude {
-    pub use basegl_prelude::*;
+    pub use enso_prelude::*;
     pub use logger::*;
     pub use shapely::newtype_copy;
     pub use shapely::shared;

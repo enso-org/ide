@@ -147,6 +147,17 @@ impl BufferItem for i32 {
     fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
 }
 
+impl BufferItem for u32 {
+    type Item = Self;
+    type Rows = U1;
+    type Cols = U1;
+
+    fn slice_from_items     (buffer: &    [Self::Item]) -> &    [Self] { buffer }
+    fn slice_from_items_mut (buffer: &mut [Self::Item]) -> &mut [Self] { buffer }
+    fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Item] { buffer }
+    fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Item] { buffer }
+}
+
 impl BufferItem for f32 {
     type Item = Self;
     type Rows = U1;
@@ -166,6 +177,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
     type Rows = R;
     type Cols = C;
 
+    #[allow(unsafe_code)]
     fn slice_from_items(buffer: &[Self::Item]) -> &[Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
@@ -174,6 +186,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast(), len) }
     }
 
+    #[allow(unsafe_code)]
     fn slice_from_items_mut(buffer: &mut [Self::Item]) -> &mut [Self] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
@@ -182,6 +195,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len) }
     }
 
+    #[allow(unsafe_code)]
     fn slice_to_items(buffer: &[Self]) -> &[Self::Item] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
@@ -190,6 +204,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
         unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast(), len) }
     }
 
+    #[allow(unsafe_code)]
     fn slice_to_items_mut(buffer: &mut [Self]) -> &mut [Self::Item] {
         // This code casts slice to matrix. This is safe because `MatrixMN`
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
@@ -206,6 +221,7 @@ impl<T:BufferItem<Item=T>,R,C> BufferItem for MatrixMN<T,R,C>
 // ====================
 
 /// Extension method for viewing into wasm's linear memory.
+#[allow(unsafe_code)]
 pub trait JsBufferView {
     /// Creates a JS typed array which is a view into wasm's linear memory at the slice specified.
     ///
@@ -229,6 +245,7 @@ pub trait JsBufferView {
 
 // === Instances ===
 
+#[allow(unsafe_code)]
 impl JsBufferView for [bool] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         let i32arr = self.iter().cloned().map(|t| if t {1} else {0}).collect::<Vec<i32>>();
@@ -236,24 +253,35 @@ impl JsBufferView for [bool] {
     }
 }
 
+#[allow(unsafe_code)]
 impl JsBufferView for [i32] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         js_sys::Int32Array::view(self).into()
     }
 }
 
+#[allow(unsafe_code)]
+impl JsBufferView for [u32] {
+    unsafe fn js_buffer_view(&self) -> js_sys::Object {
+        js_sys::Uint32Array::view(self).into()
+    }
+}
+
+#[allow(unsafe_code)]
 impl JsBufferView for [f32] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         js_sys::Float32Array::view(self).into()
     }
 }
 
+#[allow(unsafe_code)]
 impl JsBufferView for [u8] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
         js_sys::Uint8Array::view(self).into()
     }
 }
 
+#[allow(unsafe_code)]
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for [MatrixMN<T,R,C>]
     where Self                    : MatrixCtx<T,R,C>,
           T                       : ItemBounds,
@@ -264,6 +292,7 @@ impl<T: BufferItem<Item=T>,R,C> JsBufferView for [MatrixMN<T,R,C>]
     }
 }
 
+#[allow(unsafe_code)]
 impl<T: BufferItem<Item=T>,R,C> JsBufferView for MatrixMN<T,R,C>
     where Self:MatrixCtx<T,R,C>, T:ItemBounds {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {

@@ -3,6 +3,9 @@
 //! defines several aliases and utils which may find their place in new
 //! libraries in the future.
 
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(specialization)]
 #![feature(trait_alias)]
 
@@ -121,7 +124,17 @@ impl<T> OptionOps for Option<T> {
 
 /// Like `Clone` but should be implemented only for cheap reference-based clones. Using `clone_ref`
 /// instead of `clone` makes the code more clear and makes it easier to predict its performance.
-pub trait CloneRef: Clone {
+pub trait CloneRef: Sized + Clone {
+    fn clone_ref(&self) -> Self {
+        self.clone()
+    }
+}
+
+impl CloneRef for () {
+    fn clone_ref(&self) -> Self {}
+}
+
+impl<T:?Sized> CloneRef for Rc<T> {
     fn clone_ref(&self) -> Self {
         self.clone()
     }
@@ -247,7 +260,7 @@ impl<T> RcOps for Rc<T> {
 // ===================
 
 /// Like `Display` trait but for types. However, unlike `Display` it defaults to
-/// `core::any::type_name` if not provided with explicit implementation.
+/// `impl::any::type_name` if not provided with explicit implementation.
 pub trait TypeDisplay {
     fn type_display() -> String;
 }
@@ -333,8 +346,8 @@ impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
 /////
 /////    ```compile_fail
 /////    use std::rc::Rc;
-/////    use core::cell::RefCell;
-/////    use core::cell::Ref;
+/////    use impl::cell::RefCell;
+/////    use impl::cell::Ref;
 /////
 /////    pub struct SharedDirtyFlag<T> {
 /////        data: Rc<RefCell<T>>
@@ -433,9 +446,11 @@ pub trait Value {
 // =======================
 
 /// Type level `true` value.
+#[derive(Clone,Copy,Debug)]
 pub struct True {}
 
 /// Type level `false` value.
+#[derive(Clone,Copy,Debug)]
 pub struct False {}
 
 impl Value for True {

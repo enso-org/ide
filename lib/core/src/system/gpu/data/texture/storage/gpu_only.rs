@@ -16,7 +16,7 @@ use crate::system::gpu::data::texture::types::*;
 // ===============
 
 /// Sized, uninitialized texture.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct GpuOnlyData {
     /// Texture width.
     pub width  : i32,
@@ -46,7 +46,7 @@ impl GpuOnlyData {
     }
 }
 
-impl<I:InternalFormat,T:Item>
+impl<I:InternalFormat,T:ItemType>
 TextureReload for Texture<GpuOnly,I,T> {
     fn reload(&self) {
         let width           = self.storage().width;
