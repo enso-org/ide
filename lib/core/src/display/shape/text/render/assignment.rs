@@ -1,84 +1,129 @@
+//! Information about assignment displayed glyph lines to actual fragments of text field content.
+//!
+//! The proper assignment requires strong unit-test coverage, therefore it was separated from
+//! rendering.
+
 use crate::prelude::*;
 
-use std::ops::{Range, RangeInclusive};
 use crate::display::shape::text::content::TextFieldContentFullInfo;
+
 use nalgebra::Vector2;
+use std::ops::Range;
+use std::ops::RangeInclusive;
 
-/// ========================
-/// === RenderedFragment ===
-/// ========================
 
-/// Information what is currently rendered on screen for some specific _buffer fragment_.
+
+/// =====================
+/// === LineFragment ===
+/// =====================
+
+/// Struct describing specific one line's fragment.
 #[derive(Debug)]
 #[derive(Clone)]
+#[allow(missing_docs)]
 pub struct LineFragment {
     pub line_index  : usize,
     pub chars_range : Range<usize>,
 }
 
 impl LineFragment {
-
-    /// Tells if fragment needs to be updated because currently rendered content does not covers
-    /// all displayed part of line.
-    pub fn should_be_updated(&self, displayed_range:&RangeInclusive<f32>, content:&mut TextFieldContentFullInfo) -> bool {
+    /// Tells if rendering this line's fragment will cover the x range.
+    pub fn covers_displayed_range
+    ( &self
+    , displayed_range : &RangeInclusive<f32>
+    , content         : &mut TextFieldContentFullInfo
+    ) -> bool {
         let mut line       = content.line(self.line_index);
         let front_rendered = self.chars_range.start == 0;
         let back_rendered  = self.chars_range.end == line.len();
         let x_range_start  = line.get_char_x_position(self.chars_range.start);
         let x_range_end    = line.get_char_x_range(self.chars_range.end.saturating_sub(1)).end;
 
-        let has_on_left    = !front_rendered && *displayed_range.start() < x_range_start;
-        let has_on_right   = !back_rendered  && *displayed_range.end()   > x_range_end;
-        has_on_left || has_on_right
+        let from_left  = front_rendered || *displayed_range.start() >= x_range_start;
+        let from_right = back_rendered  || *displayed_range.end()   <= x_range_end;
+        from_left && from_right
     }
 }
 
+
+
+// ============================
+// === GlyphLinesAssignment ===
+// ============================
+
+/// Information about assignment displayed glyph lines to actual fragments of text field content.
+///
+/// Here we make distinction between _lines_ which are the line of text in our field, and
+/// _glyph lines_ which are sets of sprites designed to render text. So, each _glyph line_ has
+/// assigned line of text which it should render. We don't render the whole text, additionally after
+/// scroll we try to reassign only some of _glyph lines_ to make a minimum gpu data update.
 #[derive(Debug)]
-pub struct LineRenderersAssignment {
-    pub assignment                      : Vec<Option<LineFragment>>,
-    pub assigned_lines                  : RangeInclusive<usize>,
-    pub dirty_renderers                 : HashSet<usize>,
-    pub max_glyphs_in_line              : usize,
-    pub next_renderer_to_x_scroll_update: usize,
-    pub line_height                     : f32,
+pub struct GlyphLinesAssignment {
+    /// The assigned line fragments for specific _glyph line_.
+    pub glyph_lines_fragments: Vec<Option<LineFragment>>,
+    /// The range of currently assigned _lines_.
+    pub assigned_lines: RangeInclusive<usize>,
+    /// List of dirty _glyph lines_ after updating assignments. Once those will be refreshed, the
+    /// this set should be cleared.
+    pub dirty_glyph_lines: HashSet<usize>,
+    /// Maximum displayed glyphs in _glyph line_.
+    pub max_glyphs_in_line: usize,
+    /// Line height in pixels.
+    pub line_height: f32,
+    /// The x margin of rendered glyphs in pixels.
+    ///
+    /// To make a horizontal scrolling faster, each _glyph line_ renders not only the visible
+    /// glyphs, but also some on left and right.
+    pub x_margin: f32,
+    /// During x scrolling we don't immediately refresh all the lines, but pick only some which are
+    /// "centered" on current scroll - the rest should still have glyphs rendered in their margin.
+    /// This field keeps the id of the next _glyph line_ to do such update.
+    pub next_glyph_line_to_x_scroll_update: usize,
 }
 
-impl LineRenderersAssignment {
-    pub fn new(line_renderers:usize, max_glyphs_in_line:usize, line_height:f32) -> Self {
-        LineRenderersAssignment {max_glyphs_in_line,line_height,
-            assignment: (0..line_renderers).map(|_| None).collect(),
-            assigned_lines: 1..=0,
-            dirty_renderers: HashSet::new(),
-            next_renderer_to_x_scroll_update: 0,
+impl GlyphLinesAssignment {
+    /// Constructor making struct without any assignment set.
+    pub fn new(glyph_lines_count:usize, max_glyphs_in_line:usize, x_margin:f32, line_height:f32)
+    -> Self {
+        GlyphLinesAssignment {max_glyphs_in_line,line_height,x_margin,
+            glyph_lines_fragments              : (0..glyph_lines_count).map(|_| None).collect(),
+            assigned_lines                     : 1..=0,
+            dirty_glyph_lines                  : HashSet::new(),
+            next_glyph_line_to_x_scroll_update : 0,
         }
+    }
+
+    /// A number of glyph lines.
+    pub fn glyph_lines_count(&self) -> usize {
+        self.glyph_lines_fragments.len()
     }
 }
 
-pub struct DisplayedLinesUpdate<'a,'b,'c> {
-    pub content       : TextFieldContentFullInfo<'a,'b>,
-    pub assignment    : &'c mut LineRenderersAssignment,
-    pub scroll_offset : Vector2<f32>,
-    pub view_size     : Vector2<f32>,
 
+// === Assignment update ===
+
+/// A helper structure for making assignment updates. It takes references to GlyphLinesAssignment
+/// structure and all required data to make proper reassignments.
+pub struct GlyphLinesAssignmentUpdate<'a,'b,'c> {
+    /// A reference to assignment structure.
+    pub assignment: &'a mut GlyphLinesAssignment,
+    /// A reference to TextField content.
+    pub content: TextFieldContentFullInfo<'b,'c>,
+    /// Current scroll offset in pixels.
+    pub scroll_offset: Vector2<f32>,
+    /// Current view size in pixels.
+    pub view_size: Vector2<f32>,
 }
 
-impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
-    pub fn reassign(&mut self, renderer_id:usize, line_id:usize) {
+impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
+    /// Reassign _glyph line_ to currently displayed fragment of line.
+    pub fn reassign(&mut self, glyph_line_id:usize, line_id:usize) {
         let fragment = self.displayed_fragment(line_id);
-        self.assignment.assignment[renderer_id] = Some(fragment);
-        self.assignment.dirty_renderers.insert(renderer_id);
+        self.assignment.glyph_lines_fragments[glyph_line_id] = Some(fragment);
+        self.assignment.dirty_glyph_lines.insert(glyph_line_id);
     }
 
-    /// Basing of list of current displayed lines, this function tells if the fragment can be
-    /// assigned to another line.
-    fn can_be_reassigned(&self, renderer_id:usize, displayed_lines:&RangeInclusive<usize>) -> bool {
-        match &self.assignment.assignment[renderer_id] {
-            Some(fragment) => !displayed_lines.contains(&fragment.line_index),
-            None           => true
-        }
-    }
-
-    /// Make minimum fragments reassignment to cover the all displayed lines.
+    /// Make minimum line reassignment to cover the all displayed lines.
     pub fn update_line_assignment(&mut self) {
         let old_assignment  = self.assignment.assigned_lines.clone();
         let new_assignment  = self.new_assignment();
@@ -86,10 +131,10 @@ impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
         let new_on_bottom   = old_assignment.end()+1 ..=*new_assignment.end();
         let mut new_lines   = new_on_top.chain(new_on_bottom);
 
-        for renderer_id in 0..self.assignment.assignment.len() {
-            if self.can_be_reassigned(renderer_id,&new_assignment) {
+        for glyph_line_id in 0..self.assignment.glyph_lines_count() {
+            if self.assignment.can_be_reassigned(glyph_line_id,&new_assignment) {
                 if let Some(fragment) = new_lines.next() {
-                    self.reassign(renderer_id, fragment)
+                    self.reassign(glyph_line_id,fragment)
                 } else {
                     break;
                 }
@@ -98,9 +143,87 @@ impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
         self.assignment.assigned_lines = new_assignment;
     }
 
-    /// Returns new assignment for displayed lines, which makes minimal required reassignments of
-    /// currently rendered GlyphLines.
-    pub fn new_assignment(&self) -> RangeInclusive<usize> {
+    /// Update some line's fragments assigned to glyph_lines after horizontal scrolling.
+    pub fn update_after_x_scroll(&mut self, x_scroll:f32) {
+        let updated_count = (x_scroll.abs() / self.assignment.line_height).ceil() as usize;
+        let updated_count = updated_count.min(self.assignment.glyph_lines_count());
+        for glyph_line_id in 0..self.assignment.glyph_lines_count() {
+            if self.should_be_updated_after_x_scroll(glyph_line_id,updated_count) {
+                let fragment   = self.assignment.glyph_lines_fragments[glyph_line_id].as_ref();
+                let line_index = fragment.unwrap().line_index;
+                self.reassign(glyph_line_id,line_index);
+            }
+        }
+        self.assignment.increment_next_glyph_line_to_x_scroll_update(updated_count);
+    }
+
+    /// Update assigned fragments after text edit.
+    ///
+    /// Some new lines could be created after edit, and some lines can be longer, what should be
+    /// reflected in assigned fragments.
+    pub fn update_after_text_edit(&mut self) {
+        let dirty_lines = std::mem::take(&mut self.content.dirty_lines);
+        if self.content.dirty_lines.range.is_some() {
+            self.update_line_assignment();
+        }
+        for i in 0..self.assignment.glyph_lines_fragments.len() {
+            let assigned_fragment = &self.assignment.glyph_lines_fragments[i];
+            let assigned_line     = assigned_fragment.as_ref().map(|f| f.line_index);
+            match assigned_line {
+                Some(line) if dirty_lines.is_dirty(line) => self.reassign(i,line),
+                _                                        => {},
+            }
+        }
+    }
+}
+
+
+// === Private functions ===
+
+impl GlyphLinesAssignment {
+    /// Check if given _glyph line_ could be reassigned to another line assuming some set
+    /// of visible lines.
+    fn can_be_reassigned(&self, glyph_line_id:usize, displayed_lines:&RangeInclusive<usize>)
+    -> bool {
+        match &self.glyph_lines_fragments[glyph_line_id] {
+            Some(fragment) => !displayed_lines.contains(&fragment.line_index),
+            None           => true
+        }
+    }
+
+    /// Increment the `next_glyph_line_to_x_scroll_update` field after updating.
+    fn increment_next_glyph_line_to_x_scroll_update(&mut self, updated_count:usize) {
+        self.next_glyph_line_to_x_scroll_update += updated_count;
+        while self.next_glyph_line_to_x_scroll_update >= self.glyph_lines_fragments.len() {
+            self.next_glyph_line_to_x_scroll_update -= self.glyph_lines_fragments.len();
+        }
+    }
+}
+
+impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
+    /// Returns LineFragment of specific line which is currently visible.
+    fn displayed_fragment(&mut self, line_id:usize) -> LineFragment {
+        let mut line             = self.content.line(line_id);
+        let max_index            = line.len().saturating_sub(self.assignment.max_glyphs_in_line);
+        let displayed_from_x     = self.scroll_offset.x - self.assignment.x_margin;
+        let first_displayed      = line.find_char_at_x_position(displayed_from_x);
+        let line_front_displayed = self.scroll_offset.x <= 0.0;
+
+        let start = match first_displayed {
+            Some(index)                  => index.min(max_index),
+            None if line_front_displayed => 0,
+            None                         => max_index
+        };
+        let end = (start + self.assignment.max_glyphs_in_line).min(line.len());
+        LineFragment {
+            line_index: line_id,
+            chars_range: start..end,
+        }
+    }
+
+    /// Returns new required line assignment range, which makes minimal change from current
+    /// assignment state.
+    fn new_assignment(&self) -> RangeInclusive<usize> {
         let assigned_lines        = &self.assignment.assigned_lines;
         let visible_lines         = self.visible_lines_range();
         let lines_count           = |r:&RangeInclusive<usize>| r.end() + 1 - r.start();
@@ -118,6 +241,7 @@ impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
         }
     }
 
+    /// Returns range of currently visible lines.
     fn visible_lines_range(&self) -> RangeInclusive<usize> {
         let line_height              = self.assignment.line_height;
         let lines_count              = self.content.lines.len();
@@ -136,51 +260,25 @@ impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
         is_valid.and_option_from(|| Some(index as usize))
     }
 
-    fn displayed_fragment(&mut self, line_id:usize) -> LineFragment {
-        let mut line             = self.content.line(line_id);
-        let max_index            = line.len().saturating_sub(self.assignment.max_glyphs_in_line);
-        let first_displayed      = line.find_char_at_x_position(self.scroll_offset.x);
-        let line_front_displayed = self.scroll_offset.x <= 0.0;
+    /// Check if given _glyph line_ should be updated after x scroll.
+    fn should_be_updated_after_x_scroll(&mut self, glyph_line_id:usize, updated_count:usize)
+    -> bool {
+        if let Some(fragment) = &self.assignment.glyph_lines_fragments[glyph_line_id] {
+            let content           = &mut self.content;
+            let lines_count       = self.assignment.glyph_lines_count();
+            let first             = self.assignment.next_glyph_line_to_x_scroll_update;
+            let last              = first + updated_count - 1;
+            let last_overlap      = last as isize - lines_count as isize;
+            let displayed_start   = self.scroll_offset.x;
+            let displayed_end     = self.scroll_offset.x + self.view_size.x;
+            let displayed_range   = displayed_start..=displayed_end;
 
-        let start = match first_displayed {
-            Some(index)                  => index.min(max_index),
-            None if line_front_displayed => 0,
-            None                         => max_index
-        };
-        let end = (start + self.assignment.max_glyphs_in_line).min(line.len());
-        LineFragment {
-            line_index: line_id,
-            chars_range: start..end,
-        }
-    }
-
-    pub fn update_after_x_scroll(&mut self, x_scroll:f32) {
-        let updated_count = (x_scroll.abs() / self.assignment.line_height).ceil() as usize;
-        for _ in 0..updated_count {
-            let renderer_id         = self.assignment.next_renderer_to_x_scroll_update;
-            let renderer_assignment = &mut self.assignment.assignment[renderer_id];
-            let assigned_line       = renderer_assignment.as_ref().map(|f| f.line_index);
-            if let Some(index) = assigned_line {
-                self.reassign(renderer_id,index);
-            }
-            self.assignment.next_renderer_to_x_scroll_update += 1;
-            if self.assignment.next_renderer_to_x_scroll_update >= self.assignment.assignment.len() {
-                self.assignment.next_renderer_to_x_scroll_update = 0;
-            }
-        }
-    }
-
-    pub fn update_after_text_edit(&mut self) {
-        let dirty_lines = std::mem::take(&mut self.content.dirty_lines);
-        if dirty_lines.range.is_some() {
-            self.update_line_assignment();
-        }
-        for i in 0..self.assignment.assignment.len() {
-            let assigned_line = self.assignment.assignment[i].as_ref().map(|f| f.line_index);
-            match assigned_line {
-                Some(line) if dirty_lines.is_dirty(line) => self.reassign(i,line),
-                _                                        => {},
-            }
+            let not_covering      = !fragment.covers_displayed_range(&displayed_range,content);
+            let to_update         = (first..=last).contains(&glyph_line_id);
+            let to_update_overlap = (glyph_line_id as isize) < last_overlap;
+            not_covering || to_update || to_update_overlap
+        } else {
+            false
         }
     }
 }
@@ -191,8 +289,6 @@ impl<'a,'b,'c> DisplayedLinesUpdate<'a,'b,'c> {
 //mod tests {
 //    use super::*;
 //
-//    use crate::display::shape::text::buffer::glyph_square::GlyphAttributeBuilder;
-//    use crate::display::shape::text::buffer::glyph_square::GlyphVertexPositionBuilder;
 //
 //    use basegl_core_msdf_sys::test_utils::TestAfterInit;
 //    use std::future::Future;

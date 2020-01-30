@@ -1,11 +1,11 @@
-#![allow(missing_docs)]
+//! Module with structured describing cursors and their selectino in a TextField.
 
 use crate::prelude::*;
 
 use crate::display::shape::text::content::{TextLocation, TextFieldContentFullInfo};
 use crate::display::shape::text::content::line::LineFullInfo;
 
-use nalgebra::{Point2, Vector2, Vector3};
+use nalgebra::Vector2;
 use std::cmp::Ordering;
 use std::ops::Range;
 
@@ -15,11 +15,13 @@ use std::ops::Range;
 // === Cursor ===
 // ==============
 
-/// Cursor in TextComponent with its selection
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+/// Cursor in TextComponent with its selection.
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub struct Cursor {
-    pub position    : TextLocation,
-    pub selected_to : TextLocation,
+    /// Cursor's position in text.
+    pub position: TextLocation,
+    /// A position when the selection of cursor ends. It may be before or after the cursor position.
+    pub selected_to: TextLocation,
 }
 
 impl Cursor {
@@ -56,7 +58,7 @@ impl Cursor {
     }
 
     /// Get `LineFullInfo` object of this cursor's line.
-    pub fn current_line<'c>(&self, content:&'c mut TextFieldContentFullInfo) -> LineFullInfo<'c> {
+    pub fn current_line<'a>(&self, content:&'a mut TextFieldContentFullInfo) -> LineFullInfo<'a,'a> {
         content.line(self.position.line)
     }
 
@@ -66,12 +68,14 @@ impl Cursor {
     ///
     /// _Baseline_ is a font specific term, for details see [freetype documentation]
     //  (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1).
-    pub fn render_position(position:&TextLocation, content:&mut TextFieldContentFullInfo)
-    -> Vector3<f32>{
+    pub fn render_position
+    ( position : &TextLocation
+    , content  : &mut TextFieldContentFullInfo
+    ) -> Vector2<f32>{
         let mut line = content.line(position.line);
         let x        = Self::x_position_of_cursor_at(position.column,&mut line);
         let y        = line.baseline_start().y;
-        Vector3::new(x,y,0.0)
+        Vector2::new(x,y)
     }
 
     fn x_position_of_cursor_at(column:usize, line:&mut LineFullInfo) -> f32 {
@@ -92,13 +96,16 @@ impl Cursor {
 
 /// An enum representing cursor moving step. The steps are based of possible keystrokes (arrows,
 /// Home, End, Ctrl+Home, etc.)
-#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+#[derive(Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
-/// A struct for cursor navigation process
-#[derive(Debug)]
+/// A struct for cursor navigation process.
 pub struct CursorNavigation<'a,'b> {
+    /// A reference to text content. This is required to obtain the x positions of chars for proper
+    /// moving cursors up and down.
     pub content   : TextFieldContentFullInfo<'a,'b>,
+    /// Selecting navigation selects/unselects all text between current and new cursor position.
     pub selecting : bool
 }
 
@@ -219,27 +226,14 @@ impl<'a,'b> CursorNavigation<'a,'b> {
 // === Cursors ===
 // ===============
 
-/// The number of vertices of single cursor.
-const CURSOR_BASE_LAYOUT_SIZE : usize = 2;
-
-lazy_static! {
-    /// The base vertices position of single cursor. This position is then translated to the
-    /// actual cursor position.
-    pub static ref CURSOR_VERTICES_BASE_LAYOUT : [Point2<f32>;CURSOR_BASE_LAYOUT_SIZE] =
-        [ Point2::new(0.0, -0.2)
-        , Point2::new(0.0,  0.8)
-        ];
-}
-
 /// Structure handling many cursors.
 ///
 /// Usually there is only one cursor, but we have possibility of having many cursors in one text
-/// component enabling editing in multiple lines/places at once. This structure also owns
-/// a WebGL buffer with vertex positions of all cursors.
-#[derive(Debug)]
+/// component enabling editing in multiple lines/places at once.
+#[derive(Debug,Default)]
 pub struct Cursors {
+    /// All cursors' positions.
     pub cursors : Vec<Cursor>,
-    pub dirty   : bool,
 }
 
 impl Cursors {
@@ -248,21 +242,18 @@ impl Cursors {
     pub fn new() -> Self {
         Cursors {
             cursors : Vec::new(),
-            dirty   : false,
         }
     }
 
     /// Removes all current cursors and replace them with single cursor without any selection.
     pub fn set_cursor(&mut self, position: TextLocation) {
         self.cursors = vec![Cursor::new(position)];
-        self.dirty   = true;
     }
 
     /// Add new cursor without selection.
     pub fn add_cursor(&mut self, position: TextLocation) {
         self.cursors.push(Cursor::new(position));
         self.merge_overlapping_cursors();
-        self.dirty = true;
     }
 
     /// Do the navigation step of all cursors.
@@ -272,12 +263,6 @@ impl Cursors {
     pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:Step) {
         self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,step));
         self.merge_overlapping_cursors();
-        self.dirty = true;
-    }
-
-    /// Number of vertices in cursors' buffer.
-    pub fn vertices_count(&self) -> usize {
-        self.cursors.len() * CURSOR_BASE_LAYOUT_SIZE
     }
 
     /// Merge overlapping cursors
@@ -326,9 +311,7 @@ impl Cursors {
 
     #[cfg(test)]
     fn mock(cursors:Vec<Cursor>) -> Self {
-        Cursors{cursors,
-            dirty  : false,
-        }
+        Cursors{cursors}
     }
 }
 
@@ -345,6 +328,7 @@ mod test {
     use crate::display::shape::text::cursor::Step::{LineBegin, DocBegin, LineEnd};
     use crate::display::shape::glyph::font::FontRegistry;
     use crate::display::shape::text::content::TextFieldContent;
+    use crate::display::shape::text::TextFieldProperties;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -370,8 +354,8 @@ mod test {
             expected_positions.insert(DocEnd,    vec![(2,9)]);
 
             let mut fonts      = FontRegistry::new();
-            let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text,1.0);
+            let properties     = TextFieldProperties::default(&mut fonts);
+            let mut content    = TextFieldContent::new(text,&properties);
             let mut navigation = CursorNavigation {
                 content: content.full_info(&mut fonts),
                 selecting: false
@@ -400,8 +384,8 @@ mod test {
             let new_position      = TextLocation {line:1,column:10};
 
             let mut fonts      = FontRegistry::new();
-            let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text,1.0);
+            let properties     = TextFieldProperties::default(&mut fonts);
+            let mut content    = TextFieldContent::new(text,&properties);
             let mut navigation = CursorNavigation {
                 content: content.full_info(&mut fonts),
                 selecting: false
@@ -422,8 +406,8 @@ mod test {
             let new_loc         = TextLocation {line:0,column:9};
 
             let mut fonts      = FontRegistry::new();
-            let font           = fonts.load_embedded_font("DejaVuSansMono").unwrap();
-            let mut content    = TextFieldContent::new(font,text,1.0);
+            let properties     = TextFieldProperties::default(&mut fonts);
+            let mut content    = TextFieldContent::new(text,&properties);
             let mut navigation = CursorNavigation {
                 content: content.full_info(&mut fonts),
                 selecting: true

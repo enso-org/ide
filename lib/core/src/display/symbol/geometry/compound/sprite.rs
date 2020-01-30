@@ -62,6 +62,7 @@ impl {
         self.display_object.set_position(value)
     }
 
+    /// Position of the sprite.
     pub fn position(&self) -> Vector3<f32> {
         self.display_object.position()
     }

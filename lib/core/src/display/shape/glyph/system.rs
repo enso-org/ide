@@ -114,6 +114,7 @@ impl Line {
         }
     }
 
+    /// Set the baseline start point for this line.
     pub fn set_baseline_start(&mut self, new_start:Vector2<f32>) {
         let offset = new_start - self.baseline_start;
         for glyph in self.glyphs.iter_mut() {
@@ -127,9 +128,13 @@ impl Line {
 // === Getters ===
 
 impl Line {
+    /// Baseline starting point.
     pub fn baseline_start(&self) -> &Vector2<f32> { &self.baseline_start }
+    /// Line's height.
     pub fn height        (&self) -> f32           { self.height          }
+    /// Number of glyphs, giving the maximum length of displayed line.
     pub fn length        (&self) -> usize         { self.glyphs.len()    }
+    /// Font id.
     pub fn font_id       (&self) -> FontId        { self.font_id         }
 }
 

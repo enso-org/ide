@@ -1,16 +1,18 @@
+//! Module with all structures describing the content of the TextField.
 pub mod line;
 
 use crate::prelude::*;
 
-use crate::display::shape::glyph::font::{FontId, FontRegistry};
+use crate::display::shape::glyph::font::FontId;
+use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::text::content::line::{Line, LineFullInfo};
-use crate::display::shape::text::content::line::LineRef;
+use crate::display::shape::text::content::line::Line;
+use crate::display::shape::text::content::line::LineFullInfo;
 
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeInclusive;
-
+use crate::display::shape::text::TextFieldProperties;
 
 
 // ==================
@@ -20,8 +22,10 @@ use std::ops::RangeInclusive;
 /// Set of dirty lines' indices
 #[derive(Debug)]
 pub struct DirtyLines {
-    pub single_lines : HashSet<usize>,
-    pub range        : Option<RangeFrom<usize>>
+    /// A set of single edited lines.
+    pub single_lines: HashSet<usize>,
+    /// An open range of dirty lines. When the line is added or removed, all the lines below.
+    pub range: Option<RangeFrom<usize>>
 }
 
 impl Default for DirtyLines {
@@ -74,12 +78,11 @@ impl DirtyLines {
 // ==============
 
 /// A change type
-///
-/// A change is simple if it's replace a fragment of one line with text without new lines. Otherwise
-/// its a multiline change.
-#[derive(Clone,Copy,Debug)]
 pub enum ChangeType {
-    Simple, Multiline
+    /// A simple change fragment of one line with text without new lines.
+    Simple,
+    /// A multiline change is a change which is not a Simple change.
+    Multiline
 }
 
 /// A structure describing a text operation in one place.
@@ -141,8 +144,10 @@ impl TextChange {
 /// A position of character in a multiline text.
 #[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
 pub struct TextLocation {
-    pub line   : usize,
-    pub column : usize,
+    /// Line index.
+    pub line: usize,
+    /// Column is a index of char in given line.
+    pub column: usize,
 }
 
 impl TextLocation {
@@ -166,11 +171,12 @@ impl TextLocation {
 
 
 // ============================
-// === TextComponentContent ===
+// === TextFieldContent ===
 // ============================
 
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct TextFieldContent {
     pub lines       : Vec<Line>,
     pub dirty_lines : DirtyLines,
@@ -178,8 +184,11 @@ pub struct TextFieldContent {
     pub line_height : f32,
 }
 
+/// The wrapper for TextFieldContent reference with font. That allows to get specific information
+/// about lines and chars position in rendered text.
 #[derive(Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
+#[allow(missing_docs)]
 pub struct TextFieldContentFullInfo<'a,'b> {
     #[shrinkwrap(main_field)]
     pub content : &'a mut TextFieldContent,
@@ -190,11 +199,12 @@ impl TextFieldContent {
     /// Create a text component containing `text`
     ///
     /// The text will be split to lines by `'\n'` characters.
-    pub fn new(font_id:FontId, text:&str, line_height:f32) -> Self {
-        TextFieldContent {line_height,
+    pub fn new(text:&str, properties:&TextFieldProperties) -> Self {
+        TextFieldContent {
+            line_height : properties.text_size,
             lines       : Self::split_to_lines(text).map(Line::new).collect(),
             dirty_lines : DirtyLines::default(),
-            font        : font_id,
+            font        : properties.font_id,
         }
     }
 
@@ -211,19 +221,13 @@ impl TextFieldContent {
         }
     }
 
-    /// LineRef structure for line at given index.
-    pub fn line(&mut self, index:usize) -> LineRef {
-        LineRef {
-            line    : &mut self.lines[index],
-            line_id : index,
-        }
-    }
-
-    pub fn full_info<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry) -> TextFieldContentFullInfo<'a,'b> {
+    /// Get the full-info wrapper for this content.
+    pub fn full_info<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)
+    -> TextFieldContentFullInfo<'a,'b> {
         let font_id = self.font;
         TextFieldContentFullInfo {
-            content: self,
-            font: fonts.get_render_info(font_id),
+            content : self,
+            font    : fonts.get_render_info(font_id),
         }
     }
 
@@ -286,12 +290,13 @@ impl TextFieldContent {
 }
 
 impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
+    /// Get a handy wrapper for line under index.
     pub fn line(&mut self, index:usize) -> LineFullInfo {
-        let height  = self.content.line_height;
         LineFullInfo {
-            line: self.content.line(index),
-            font: self.font,
-            height,
+            height  : self.content.line_height,
+            line    : &mut self.content.lines[index],
+            line_id : index,
+            font    : self.font,
         }
     }
 }
@@ -299,6 +304,9 @@ impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    use nalgebra::Vector2;
+    use nalgebra::Vector4;
 
     #[test]
     fn mark_single_line_as_dirty() {
@@ -334,12 +342,11 @@ mod test {
 
     #[test]
     fn create_content() {
-        let font_id        = 0;
         let single_line    = "Single line";
         let mutliple_lines = "Multiple\r\nlines\n";
 
-        let single_line_content = TextFieldContent::new(font_id,single_line,1.0);
-        let multiline_content   = TextFieldContent::new(font_id,mutliple_lines,1.0);
+        let single_line_content = TextFieldContent::new(single_line   ,&mock_properties());
+        let multiline_content   = TextFieldContent::new(mutliple_lines,&mock_properties());
         assert_eq!(1, single_line_content.lines.len());
         assert_eq!(3, multiline_content  .lines.len());
         assert_eq!(single_line, single_line_content.lines[0].chars().iter().collect::<String>());
@@ -358,7 +365,7 @@ mod test {
         let delete                 = TextChange::delete(deleted_range.clone());
         let replace                = TextChange::replace(deleted_range, "text");
 
-        let mut content            = TextFieldContent::new(0, text, 1.0);
+        let mut content            = TextFieldContent::new(text,&mock_properties());
 
         content.make_change(insert);
         let expected              = vec!["Line a", "Labine b", "Line c"];
@@ -388,7 +395,7 @@ mod test {
         let insert_in_middle = TextChange::insert(middle_loc,inserted);
         let insert_at_end    = TextChange::insert(end_loc   ,inserted);
 
-        let mut content      = TextFieldContent::new(0,text,1.0);
+        let mut content      = TextFieldContent::new(text,&mock_properties());
 
         content.make_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
@@ -422,7 +429,7 @@ mod test {
         let deleted_range = delete_from..delete_to;
         let delete        = TextChange::delete(deleted_range);
 
-        let mut content   = TextFieldContent::new(0,text,1.0);
+        let mut content   = TextFieldContent::new(text,&mock_properties());
         content.make_change(delete);
 
         let expected = vec!["Lie c"];
@@ -431,5 +438,14 @@ mod test {
 
     fn get_lines_as_strings(content:&TextFieldContent) -> Vec<String> {
         content.lines.iter().map(|l| l.chars().iter().collect()).collect()
+    }
+
+    fn mock_properties()->  TextFieldProperties {
+        TextFieldProperties {
+            font_id    : 0,
+            text_size  : 0.0,
+            base_color : Vector4::new(1.0, 1.0, 1.0, 1.0),
+            size       : Vector2::new(1.0, 1.0)
+        }
     }
 }

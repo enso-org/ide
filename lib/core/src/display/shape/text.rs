@@ -1,7 +1,8 @@
+//! A module defining TextField. TextField is a basegl component displaying editable block of text.
+
 pub mod content;
 pub mod cursor;
-pub mod fragment;
-pub mod rendered;
+pub mod render;
 
 use crate::prelude::*;
 
@@ -12,14 +13,40 @@ use crate::display::shape::text::cursor::CursorNavigation;
 
 use nalgebra::{Vector2, Vector3, Vector4};
 use crate::display::shape::glyph::font::{FontId, FontRegistry};
-use crate::display::shape::text::rendered::RenderedContent;
+use crate::display::shape::text::render::RenderedContent;
 use crate::display::object::DisplayObjectData;
-use crate::display::shape::text::fragment::DisplayedLinesUpdate;
+use crate::display::shape::text::render::assignment::GlyphLinesAssignmentUpdate;
 
 
 // =====================
 // === TextComponent ===
 // =====================
+
+/// A display properties of TextField.
+#[derive(Debug)]
+pub struct TextFieldProperties {
+    /// FontId used for rendering text.
+    pub font_id: FontId,
+    /// Text size being a line height in pixels.
+    pub text_size: f32,
+    /// Base color of displayed text.
+    pub base_color: Vector4<f32>,
+    /// Size of this component.
+    pub size: Vector2<f32>,
+}
+
+impl TextFieldProperties {
+    const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
+
+    fn default(fonts:&mut FontRegistry) -> Self {
+        TextFieldProperties {
+            font_id   : fonts.load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
+            text_size : 16.0,
+            base_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+            size      : Vector2::new(100.0,100.0),
+        }
+    }
+}
 
 
 /// Component rendering text
@@ -28,43 +55,39 @@ use crate::display::shape::text::fragment::DisplayedLinesUpdate;
 /// commits.
 #[derive(Debug)]
 pub struct TextField {
-    pub content      : TextFieldContent,
-    pub cursors      : Cursors,
-    pub text_size    : f32,
-    pub base_color   : Vector4<f32>,
-    pub viewport_size: Vector2<f32>,
-    rendered         : RenderedContent,
-    display_object   : DisplayObjectData,
+    properties     : TextFieldProperties,
+    content        : TextFieldContent,
+    cursors        : Cursors,
+    rendered       : RenderedContent,
+    display_object : DisplayObjectData,
 }
 
 impl TextField {
-    pub fn new(text:&str, text_size:f32, font_id:FontId, color:Vector4<f32>, viewport_size: Vector2<f32>, fonts:&mut FontRegistry) -> Self {
-        let logger = Logger::new("TextField");
-        let mut text_field = TextField {
-            content: TextFieldContent::new(font_id,text,text_size),
-            cursors: Cursors::new(),
-            text_size,
-            base_color: color,
-            rendered:RenderedContent::new(viewport_size,text_size,color,font_id,fonts),
-            viewport_size,
-            display_object: DisplayObjectData::new(logger),
-        };
+    /// Create new TextField.
+    pub fn new(initial_content:&str, properties:TextFieldProperties, fonts:&mut FontRegistry)
+    -> Self {
+        let logger         = Logger::new("TextField");
+        let display_object = DisplayObjectData::new(logger);
+        let mut content    = TextFieldContent::new(initial_content,&properties);
+        let mut cursors    = Cursors::new();
+        let mut rendered   = RenderedContent::new(&properties,fonts);
+        display_object.add_child(rendered.display_object.clone_ref());
 
-        text_field.display_object.add_child(text_field.rendered.display_object.clone_ref());
+        cursors.add_cursor(TextLocation::at_document_begin());
+        rendered.update_glyphs(&mut content,fonts);
+        rendered.update_cursors(&cursors, &mut content.full_info(fonts));
+
+        let mut text_field = TextField {properties,content,cursors,rendered,display_object};
         text_field.assignment_update(fonts).update_line_assignment();
-        text_field.cursors.add_cursor(TextLocation::at_document_begin());
-        text_field.rendered.update_glyphs(&mut text_field.content,fonts);
-        text_field.rendered.update_cursors(&text_field.cursors, &mut text_field.content.full_info(fonts));
         text_field
     }
 
+    /// Set position of this TextField.
     pub fn set_position(&mut self, position:Vector3<f32>) {
         self.display_object.set_position(position);
     }
 
-    /// Scroll text by given offset.
-    ///
-    /// The value of 1.0 on both dimensions is equal to one line's height.
+    /// Scroll text by given offset in pixels.
     pub fn scroll(&mut self, offset:Vector2<f32>, fonts:&mut FontRegistry) {
         self.rendered.display_object.mod_position(|pos| *pos -= Vector3::new(offset.x,offset.y,0.0));
         let mut update = self.assignment_update(fonts);
@@ -82,11 +105,7 @@ impl TextField {
         self.rendered.display_object.position().xy()
     }
 
-//    /// Jump to scroll position.
-//    pub fn jump_to_position(&mut self, scroll_position:Vector2<f64>) {
-//        self.rendered.jump_to(scroll_position);
-//    }
-
+    /// Move all cursors by given step.
     pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut FontRegistry) {
         let content        = self.content.full_info(fonts);
         let mut navigation = CursorNavigation {content,selecting};
@@ -94,24 +113,39 @@ impl TextField {
         self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
     }
 
+    /// Make change in text content.
     pub fn make_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
         self.content.make_change(change);
         self.assignment_update(fonts).update_after_text_edit();
         self.rendered.update_glyphs(&mut self.content,fonts);
     }
 
-    fn assignment_update<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)
-    -> DisplayedLinesUpdate<'a,'b,'a> {
-        DisplayedLinesUpdate {
-            content: self.content.full_info(fonts),
-            assignment: &mut self.rendered.assignment,
-            scroll_offset: -self.rendered.display_object.position().xy(),
-            view_size: self.viewport_size,
-        }
-    }
-
+    /// Update underlying Display Object.
     pub fn update(&self) {
         self.display_object.update()
+    }
+
+    fn assignment_update<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)
+    -> GlyphLinesAssignmentUpdate<'a,'a,'b> {
+        GlyphLinesAssignmentUpdate {
+            content       : self.content.full_info(fonts),
+            assignment    : &mut self.rendered.assignment,
+            scroll_offset : -self.rendered.display_object.position().xy(),
+            view_size     : self.properties.size,
+        }
+    }
+}
+
+// === Getters ===
+
+impl TextField {
+    /// Content of this TextField.
+    pub fn content(&self) -> &TextFieldContent {
+        &self.content
+    }
+    /// Description of all cursors in text field.
+    pub fn cursors(&self) -> &Cursors {
+        &self.cursors
     }
 }
 

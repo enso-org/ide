@@ -1,11 +1,17 @@
+//! Structures and methods related to single line of TextField content.
 use crate::prelude::*;
 
-use nalgebra::{Vector2, Vector3};
-use std::ops::Range;
 use crate::display::shape::glyph::font::FontRenderInfo;
 use crate::display::shape::glyph::pen::PenIterator;
-use crate::display::shape::text::content::TextFieldContentFullInfo;
 
+use nalgebra::Vector2;
+use std::ops::Range;
+
+
+
+// ============
+// === Line ===
+// ============
 
 /// A line of text in TextComponent.
 ///
@@ -64,30 +70,31 @@ impl Line {
     }
 }
 
-/// A line reference with it's index.
+
+
+// ======================
+// === Line full info ===
+// ======================
+
+/// A structure wrapping line reference with information about line number and font. These
+/// information allows to get more information from line about chars position in rendered text.
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct LineRef<'a> {
+#[allow(missing_docs)]
+pub struct LineFullInfo<'a,'b> {
     #[shrinkwrap(main_field)]
     pub line    : &'a mut Line,
     pub line_id : usize,
+    pub font    : &'b mut FontRenderInfo,
+    pub height  : f32,
 }
 
-#[derive(Shrinkwrap)]
-#[shrinkwrap(mutable)]
-pub struct LineFullInfo<'c> {
-    #[shrinkwrap(main_field)]
-    pub line   : LineRef<'c>,
-    pub font   : &'c mut FontRenderInfo,
-    pub height : f32,
-}
-
-impl<'c> LineFullInfo<'c> {
+impl<'a,'b> LineFullInfo<'a,'b> {
     /// Get the point where a _baseline_ of current line begins (The _baseline_ is a font specific
     /// term, for details see [freetype documentation]
     /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
-    pub fn baseline_start(&self) -> Vector3<f32> {
-        Vector3::new(0.0, (-(self.line_id as f32) - 1.0) * self.height, 0.0)
+    pub fn baseline_start(&self) -> Vector2<f32> {
+        Vector2::new(0.0, (-(self.line_id as f32) - 1.0) * self.height)
     }
 
     /// Get x position of character with given index. The position is in _text space_.
@@ -135,7 +142,7 @@ impl<'c> LineFullInfo<'c> {
         let y_position     = baseline_start.y;
         let x_position     = self.char_x_positions.last().cloned().unwrap_or(baseline_start.x);
         let start_from     = Vector2::new(x_position,y_position);
-        let line           = &mut self.line.line;
+        let line           = &mut self.line;
         let chars          = line.chars[from_index..].iter().cloned();
         let to_skip        = if line.char_x_positions.is_empty() {0} else {1};
         let pen            = PenIterator::new(start_from,self.height,chars,self.font);
@@ -163,100 +170,125 @@ impl<'c> LineFullInfo<'c> {
 }
 
 
-//#[cfg(test)]
-//mod test {
-//    use super::*;
-//
-//    use basegl_core_msdf_sys::test_utils::TestAfterInit;
-//    use std::future::Future;
-//    use wasm_bindgen_test::wasm_bindgen_test;
-//
-//
-//    #[wasm_bindgen_test(async)]
-//    fn getting_chars_x_position() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font = prepare_font_with_ab();
-//            let mut line = Line::new("ABA");
-//
-//            assert_eq!(0, line.char_x_positions.len());
-//            let first_pos = line.get_char_x_position(0,&mut font);
-//            assert_eq!(1, line.char_x_positions.len());
-//            let third_pos = line.get_char_x_position(2,&mut font);
-//            assert_eq!(3, line.char_x_positions.len());
-//
-//            assert_eq!(0.0, first_pos);
-//            assert_eq!(2.5, third_pos);
-//        })
-//    }
-//
-//    #[wasm_bindgen_test(async)]
-//    fn finding_char_by_x_position() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font           = prepare_font_with_ab();
-//            let mut line           = Line::new("ABBA");
-//            let before_first       = line.find_char_at_x_position(-0.1, &mut font);
-//            assert_eq!(1, line.char_x_positions.len());
-//            let first              = line.find_char_at_x_position(0.5, &mut font);
-//            assert_eq!(2, line.char_x_positions.len());
-//            let first_again        = line.find_char_at_x_position(0.5, &mut font);
-//            assert_eq!(2, line.char_x_positions.len());
-//            let third              = line.find_char_at_x_position(3.0, &mut font);
-//            assert_eq!(4, line.char_x_positions.len());
-//            let last               = line.find_char_at_x_position(4.5, &mut font);
-//            assert_eq!(4, line.char_x_positions.len());
-//            let after_last         = line.find_char_at_x_position(5.5, &mut font);
-//            let third_again        = line.find_char_at_x_position(3.0, &mut font);
-//            let before_first_again = line.find_char_at_x_position(-0.5, &mut font);
-//
-//            assert_eq!(None, before_first);
-//            assert_eq!(Some(0), first);
-//            assert_eq!(Some(0), first_again);
-//            assert_eq!(Some(2), third);
-//            assert_eq!(Some(3), last);
-//            assert_eq!(None, after_last);
-//            assert_eq!(Some(2), third_again);
-//            assert_eq!(None, before_first_again);
-//        })
-//    }
-//
-//    #[wasm_bindgen_test(async)]
-//    fn finding_char_by_x_position_in_empty_line() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font = prepare_font_with_ab();
-//            let mut line = Line::new("");
-//            let below_0  = line.find_char_at_x_position(-0.1,&mut font);
-//            let above_0  = line.find_char_at_x_position( 0.1,&mut font);
-//            assert_eq!(None,below_0);
-//            assert_eq!(None,above_0);
-//        })
-//    }
-//
-//    #[wasm_bindgen_test(async)]
-//    fn modifying_line() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font = prepare_font_with_ab();
-//            let mut line = Line::new("AB");
-//            let before_edit = line.get_char_x_position(1,&mut font);
-//            assert_eq!(2, line.char_x_positions.len());
-//            line.modify().insert(0, 'B');
-//            assert_eq!(0, line.char_x_positions.len());
-//            let after_edit = line.get_char_x_position(1,&mut font);
-//
-//            assert_eq!(1.0, before_edit);
-//            assert_eq!(1.5, after_edit);
-//        })
-//    }
-//
-//    fn prepare_font_with_ab() -> FontRenderInfo {
-//        let mut font          = FontRenderInfo::mock_font("Test font".to_string());
-//        let mut a_info        = font.mock_char_info('A');
-//        a_info.advance        = 1.0;
-//        let mut b_info        = font.mock_char_info('B');
-//        b_info.advance        = 1.5;
-//        font.mock_kerning_info('A', 'B', 0.0);
-//        font.mock_kerning_info('B', 'A', 0.0);
-//        font.mock_kerning_info('A', 'A', 0.0);
-//        font.mock_kerning_info('B', 'B', 0.0);
-//        font
-//    }
-//}
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use basegl_core_msdf_sys::test_utils::TestAfterInit;
+    use std::future::Future;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+
+    #[wasm_bindgen_test(async)]
+    fn getting_chars_x_position() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font = prepare_font_with_ab();
+            let mut line = Line::new("ABA");
+            let mut line_ref = LineFullInfo {
+                line    : &mut line,
+                font    : &mut font,
+                line_id : 0,
+                height  : 1.0,
+            };
+
+            assert_eq!(0, line_ref.char_x_positions.len());
+            let first_pos = line_ref.get_char_x_position(0);
+            assert_eq!(1, line_ref.char_x_positions.len());
+            let third_pos = line_ref.get_char_x_position(2);
+            assert_eq!(3, line_ref.char_x_positions.len());
+
+            assert_eq!(0.0, first_pos);
+            assert_eq!(2.5, third_pos);
+        })
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn finding_char_by_x_position() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font           = prepare_font_with_ab();
+            let mut line           = Line::new("ABBA");
+            let mut line_ref = LineFullInfo {
+                line    : &mut line,
+                font    : &mut font,
+                line_id : 0,
+                height  : 1.0,
+            };
+
+            let before_first       = line_ref.find_char_at_x_position(-0.1);
+            assert_eq!(1, line_ref.char_x_positions.len());
+            let first              = line_ref.find_char_at_x_position(0.5);
+            assert_eq!(2, line_ref.char_x_positions.len());
+            let first_again        = line_ref.find_char_at_x_position(0.5);
+            assert_eq!(2, line_ref.char_x_positions.len());
+            let third              = line_ref.find_char_at_x_position(3.0);
+            assert_eq!(4, line_ref.char_x_positions.len());
+            let last               = line_ref.find_char_at_x_position(4.5);
+            assert_eq!(4, line_ref.char_x_positions.len());
+            let after_last         = line_ref.find_char_at_x_position(5.5);
+            let third_again        = line_ref.find_char_at_x_position(3.0);
+            let before_first_again = line_ref.find_char_at_x_position(-0.5);
+
+            assert_eq!(None, before_first);
+            assert_eq!(Some(0), first);
+            assert_eq!(Some(0), first_again);
+            assert_eq!(Some(2), third);
+            assert_eq!(Some(3), last);
+            assert_eq!(None, after_last);
+            assert_eq!(Some(2), third_again);
+            assert_eq!(None, before_first_again);
+        })
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn finding_char_by_x_position_in_empty_line() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font = prepare_font_with_ab();
+            let mut line = Line::new("");
+            let mut line_ref = LineFullInfo {
+                line    : &mut line,
+                font    : &mut font,
+                line_id : 0,
+                height  : 1.0,
+            };
+            let below_0  = line_ref.find_char_at_x_position(-0.1);
+            let above_0  = line_ref.find_char_at_x_position( 0.1);
+            assert_eq!(None,below_0);
+            assert_eq!(None,above_0);
+        })
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn modifying_line() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font = prepare_font_with_ab();
+            let mut line = Line::new("AB");
+            let mut line_ref = LineFullInfo {
+                line    : &mut line,
+                font    : &mut font,
+                line_id : 0,
+                height  : 1.0,
+            };
+            let before_edit = line_ref.get_char_x_position(1);
+            assert_eq!(2, line_ref.char_x_positions.len());
+            line_ref.modify().insert(0, 'B');
+            assert_eq!(0, line_ref.char_x_positions.len());
+            let after_edit = line_ref.get_char_x_position(1);
+
+            assert_eq!(1.0, before_edit);
+            assert_eq!(1.5, after_edit);
+        })
+    }
+
+    fn prepare_font_with_ab() -> FontRenderInfo {
+        let mut font          = FontRenderInfo::mock_font("Test font".to_string());
+        let mut a_info        = font.mock_char_info('A');
+        a_info.advance        = 1.0;
+        let mut b_info        = font.mock_char_info('B');
+        b_info.advance        = 1.5;
+        font.mock_kerning_info('A', 'B', 0.0);
+        font.mock_kerning_info('B', 'A', 0.0);
+        font.mock_kerning_info('A', 'A', 0.0);
+        font.mock_kerning_info('B', 'B', 0.0);
+        font
+    }
+}
