@@ -608,7 +608,7 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
     }
 }
 
-//Dodac [constraint=false] do recursive
+Dodac [constraint=false] do recursive
 
 
 fn base_type_name<T>() -> String {
