@@ -5,6 +5,7 @@ mod css3d_object;
 mod css3d_renderer;
 
 pub use css3d_object::Css3dObject;
+pub use css3d_object::Css3dPosition;
 pub use css3d_renderer::Css3dRenderer;
 pub use css3d_system::Css3dSystem;
 

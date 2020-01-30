@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::display::object::DisplayObjectOps;
 use crate::display::object::DisplayObjectData;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
@@ -90,22 +89,31 @@ fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
 
 #[derive(Debug)]
 pub struct HTMLRendererData {
-    pub dom    : HtmlElement,
-    pub camera : HtmlElement
+    pub front_dom    : HtmlElement,
+    pub back_dom     : HtmlElement,
+    pub front_camera : HtmlElement,
+    pub back_camera  : HtmlElement
 }
 
 impl HTMLRendererData {
-    pub fn new(dom:HtmlElement, camera:HtmlElement) -> Self {
-        Self {dom,camera}
+    pub fn new
+    ( front_dom:HtmlElement
+    , back_dom:HtmlElement
+    , front_camera:HtmlElement
+    , back_camera:HtmlElement) -> Self {
+        Self {front_dom,back_dom,front_camera,back_camera}
     }
+}
 
-    pub fn set_dimensions(&self, dimensions : Vector2<f32>) {
+impl HTMLRendererData {
+    fn set_dimensions(&self, dimensions:&Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        self.dom.set_property_or_panic("width", &width);
-        self.dom.set_property_or_panic("height", &height);
-        self.camera.set_property_or_panic("width" , &width);
-        self.camera.set_property_or_panic("height", &height);
+        let doms   = vec![&self.front_dom,&self.back_dom,&self.front_camera,&self.back_camera];
+        for dom in doms {
+            dom.set_property_or_panic("width" , &width);
+            dom.set_property_or_panic("height", &height);
+        }
     }
 }
 
@@ -124,26 +132,42 @@ pub struct Css3dRenderer {
 impl Css3dRenderer {
     /// Creates a Css3dRenderer inside an element.
     pub fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Result<Self> {
-        let logger               = logger.into();
-        let container            = DomContainer::from_element(element);
-        let dom: HtmlElement     = dyn_into(create_element("div")?)?;
-        let camera : HtmlElement = dyn_into(create_element("div")?)?;
+        let logger                     = logger.into();
+        let container                  = DomContainer::from_element(element);
+        let front_dom    : HtmlElement = dyn_into(create_element("div")?)?;
+        let back_dom     : HtmlElement = dyn_into(create_element("div")?)?;
+        let front_camera : HtmlElement = dyn_into(create_element("div")?)?;
+        let back_camera  : HtmlElement = dyn_into(create_element("div")?)?;
 
-        dom.set_property_or_panic("position", "absolute");
-        dom.set_property_or_panic("top"     , "0px");
-        dom.set_property_or_panic("overflow", "hidden");
-        dom.set_property_or_panic("overflow", "hidden");
-        dom.set_property_or_panic("width"   , "100%");
-        dom.set_property_or_panic("height"  , "100%");
-        dom.set_property_or_panic("pointer-events", "none");
-        camera.set_property_or_panic("width"          , "100%");
-        camera.set_property_or_panic("height"         , "100%");
-        camera.set_property_or_panic("transform-style", "preserve-3d");
+        front_dom.set_property_or_panic("position", "absolute");
+        front_dom.set_property_or_panic("top", "0px");
+        front_dom.set_property_or_panic("overflow", "hidden");
+        front_dom.set_property_or_panic("overflow", "hidden");
+        front_dom.set_property_or_panic("width", "100%");
+        front_dom.set_property_or_panic("height", "100%");
+        front_dom.set_property_or_panic("pointer-events", "none");
+        back_dom.set_property_or_panic("position", "absolute");
+        back_dom.set_property_or_panic("top", "0px");
+        back_dom.set_property_or_panic("overflow", "hidden");
+        back_dom.set_property_or_panic("overflow", "hidden");
+        back_dom.set_property_or_panic("width", "100%");
+        back_dom.set_property_or_panic("height", "100%");
+        back_dom.set_property_or_panic("pointer-events", "none");
+        back_dom.set_property_or_panic("z-index", "-1");
+        front_camera.set_property_or_panic("width", "100%");
+        front_camera.set_property_or_panic("height", "100%");
+        front_camera.set_property_or_panic("transform-style", "preserve-3d");
+        back_camera.set_property_or_panic("width", "100%");
+        back_camera.set_property_or_panic("height", "100%");
+        back_camera.set_property_or_panic("transform-style", "preserve-3d");
 
-        container.dom.append_or_panic(&dom);
-        dom.append_or_panic(&camera);
+        container.dom.append_or_panic(&front_dom);
+        container.dom.append_or_panic(&back_dom);
+        front_dom.append_or_panic(&front_camera);
+        back_dom.append_or_panic(&back_camera);
 
-        let data             = Rc::new(HTMLRendererData::new(dom,camera));
+        let data             = HTMLRendererData::new(front_dom,back_dom,front_camera,back_camera);
+        let data             = Rc::new(data);
         let mut htmlrenderer = Self {container,data,logger};
 
         htmlrenderer.init_listeners();
@@ -161,15 +185,27 @@ impl Css3dRenderer {
 
     fn init_listeners(&mut self) {
         let dimensions = self.dimensions();
-        let data       = self.data.clone();
-        self.add_resize_callback(move |dimensions:&Vector2<f32>| {
-            data.set_dimensions(*dimensions);
-        });
         self.set_dimensions(dimensions);
+        let data = self.data.clone();
+        self.add_resize_callback(move |dimensions:&Vector2<f32>| {
+            data.set_dimensions(dimensions);
+        });
     }
 
-    fn render_camera(&self, camera:&Camera2d) {
-        camera.update();
+    /// Creates a new instance of Css3dObject and adds it to parent.
+    pub(super) fn new_instance
+    <S:AsRef<str>>(&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
+        let front_camera = self.data.front_camera.clone();
+        let back_camera  = self.data.back_camera.clone();
+        let object = Css3dObject::new(self.logger.sub("object"),dom_name,front_camera,back_camera);
+        object.as_ref().map(|object| {
+            parent.add_child(object);
+        }).ok();
+        object
+    }
+
+    /// Renders `Camera`'s point of view.
+    pub fn render(&self, camera: &Camera2d) {
         let trans_cam  = camera.transform().matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
@@ -180,36 +216,24 @@ impl Css3dRenderer {
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.dom, &near.into());
+                js::setup_perspective(&self.data.front_dom, &near.into());
+                js::setup_perspective(&self.data.back_dom, &near.into());
                 setup_camera_perspective(
-                    &self.data.camera,
+                    &self.data.front_camera,
+                    near,
+                    &trans_cam
+                );
+                setup_camera_perspective(
+                    &self.data.back_camera,
                     near,
                     &trans_cam
                 );
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.camera, &trans_cam);
+                setup_camera_orthographic(&self.data.front_camera, &trans_cam);
+                setup_camera_orthographic(&self.data.back_camera, &trans_cam);
             }
         }
-    }
-
-    /// Creates a new instance of HtmlObject.
-    pub(super) fn new_instance
-    <S:AsRef<str>>(&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
-        let object = Css3dObject::new(self.logger.sub("object"), dom_name, self.data.camera.clone());
-        object.as_ref().map(|object| {
-            parent.add_child(object);
-        }).ok();
-        object
-    }
-
-    fn render_object(&self, object:&Css3dObject) {
-        object.render_dom();
-    }
-
-    /// Renders the `Scene` from `Camera`'s point of view.
-    pub fn render(&self, camera: &Camera2d) {
-        self.render_camera(&camera);
     }
 
     /// Adds a ResizeCallback.
@@ -219,8 +243,8 @@ impl Css3dRenderer {
 
     /// Sets HTMLRenderer's container dimensions.
     pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
+        self.data.set_dimensions(&dimensions);
         self.container.set_dimensions(dimensions);
-        self.data.set_dimensions(dimensions);
     }
 }
 
@@ -235,7 +259,7 @@ impl Css3dRenderer {
 
     /// Gets HTMLRenderer's DOM.
     pub fn dom(&self) -> &HtmlElement {
-        &self.data.dom
+        &self.data.front_dom
     }
 
     /// Gets the Scene Renderer's dimensions.
