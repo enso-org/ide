@@ -24,6 +24,7 @@ use crate::display::symbol::geometry::compound::sprite::Sprite;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use crate::display::shape::text::TextFieldProperties;
+use crate::display::world::World;
 
 
 // =======================
@@ -68,15 +69,15 @@ pub struct RenderedContent {
 impl RenderedContent {
 
     /// Create RenderedContent structure.
-    pub fn new(properties:&TextFieldProperties, fonts:&mut FontRegistry) -> Self {
+    pub fn new(world:&World, properties:&TextFieldProperties, fonts:&mut FontRegistry) -> Self {
         let line_height       = properties.text_size;
         let window_size       = properties.size;
         let color             = properties.base_color;
         let font              = fonts.get_render_info(properties.font_id);
-        let cursor_system     = Self::create_cursor_system(line_height);
-        let selection_system  = Self::create_selection_system();
+        let cursor_system     = Self::create_cursor_system(world,line_height);
+        let selection_system  = Self::create_selection_system(world);
         let cursors           = Vec::new();
-        let mut glyph_system  = GlyphSystem::new(properties.font_id);
+        let mut glyph_system  = GlyphSystem::new(world,properties.font_id);
         let display_object    = DisplayObjectData::new(Logger::new("RenderedContent"));
         display_object.add_child(&selection_system);
         display_object.add_child(&glyph_system);
@@ -95,19 +96,19 @@ impl RenderedContent {
             line_height,display_object,assignment}
     }
 
-    fn create_cursor_system(line_height:f32) -> ShapeSystem {
+    fn create_cursor_system(world:&World,line_height:f32) -> ShapeSystem {
         const WIDTH_FUNCTION:&str = "fract(input_time / 1000.0) < 0.5 ? 2.0 : 0.0";
         let cursor_definition     = SharpRect(WIDTH_FUNCTION,line_height);
-        ShapeSystem::new(&cursor_definition)
+        ShapeSystem::new(world,&cursor_definition)
     }
 
-    fn create_selection_system() -> ShapeSystem {
+    fn create_selection_system(world:&World) -> ShapeSystem {
         const ROUNDING:f32 = 3.0;
         let width          = "input_size.x";
         let height         = "input_size.y";
         let r              = ROUNDING;
         let selection_definition = RoundedRectByCorner(width,height,r,r,r,r);
-        ShapeSystem::new(&selection_definition)
+        ShapeSystem::new(world,&selection_definition)
     }
 
     fn create_assignment_structure

@@ -104,6 +104,7 @@ impl GlyphLinesAssignment {
 
 /// A helper structure for making assignment updates. It takes references to GlyphLinesAssignment
 /// structure and all required data to make proper reassignments.
+#[derive(Debug)]
 pub struct GlyphLinesAssignmentUpdate<'a,'b,'c> {
     /// A reference to assignment structure.
     pub assignment: &'a mut GlyphLinesAssignment,

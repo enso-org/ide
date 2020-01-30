@@ -16,6 +16,7 @@ use crate::display::shape::glyph::font::{FontId, FontRegistry};
 use crate::display::shape::text::render::RenderedContent;
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::render::assignment::GlyphLinesAssignmentUpdate;
+use crate::display::world::World;
 
 
 // =====================
@@ -23,7 +24,7 @@ use crate::display::shape::text::render::assignment::GlyphLinesAssignmentUpdate;
 // =====================
 
 /// A display properties of TextField.
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct TextFieldProperties {
     /// FontId used for rendering text.
     pub font_id: FontId,
@@ -64,13 +65,17 @@ pub struct TextField {
 
 impl TextField {
     /// Create new TextField.
-    pub fn new(initial_content:&str, properties:TextFieldProperties, fonts:&mut FontRegistry)
+    pub fn new
+    ( world           : &World
+    , initial_content : &str
+    , properties      : TextFieldProperties
+    , fonts           : &mut FontRegistry)
     -> Self {
         let logger         = Logger::new("TextField");
         let display_object = DisplayObjectData::new(logger);
         let mut content    = TextFieldContent::new(initial_content,&properties);
         let mut cursors    = Cursors::new();
-        let mut rendered   = RenderedContent::new(&properties,fonts);
+        let mut rendered   = RenderedContent::new(world,&properties,fonts);
         display_object.add_child(rendered.display_object.clone_ref());
 
         cursors.add_cursor(TextLocation::at_document_begin());
@@ -109,7 +114,7 @@ impl TextField {
     pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut FontRegistry) {
         let content        = self.content.full_info(fonts);
         let mut navigation = CursorNavigation {content,selecting};
-        self.cursors.navigate_all_cursors(&mut navigation,&step);
+        self.cursors.navigate_all_cursors(&mut navigation,step);
         self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
     }
 

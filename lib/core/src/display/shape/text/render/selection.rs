@@ -6,6 +6,7 @@ use nalgebra::Vector3;
 use crate::display::shape::text::cursor::Cursor;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 
+#[derive(Debug)]
 pub struct SelectionSpritesGenerator<'a,'b,'c,'d> {
     pub line_height : f32,
     pub system      : &'a ShapeSystem,

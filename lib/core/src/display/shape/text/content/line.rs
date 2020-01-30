@@ -78,7 +78,7 @@ impl Line {
 
 /// A structure wrapping line reference with information about line number and font. These
 /// information allows to get more information from line about chars position in rendered text.
-#[derive(Shrinkwrap)]
+#[derive(Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 #[allow(missing_docs)]
 pub struct LineFullInfo<'a,'b> {
@@ -114,7 +114,7 @@ impl<'a,'b> LineFullInfo<'a,'b> {
     /// characters under this x coordinate (e.g. due to a kerning) the char on the left will be
     /// returned.
     pub fn find_char_at_x_position(&mut self, x_position:f32)
-        -> Option<usize> {
+    -> Option<usize> {
         if self.chars.is_empty() {
             None
         } else {

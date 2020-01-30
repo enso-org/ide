@@ -78,6 +78,7 @@ impl DirtyLines {
 // ==============
 
 /// A change type
+#[derive(Copy,Clone,Debug)]
 pub enum ChangeType {
     /// A simple change fragment of one line with text without new lines.
     Simple,
