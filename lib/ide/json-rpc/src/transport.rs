@@ -1,5 +1,7 @@
 //! Traits providing abstraction over transport used by the JSON-RPC client.
 
+pub mod web;
+
 use crate::prelude::*;
 
 use failure::Error;

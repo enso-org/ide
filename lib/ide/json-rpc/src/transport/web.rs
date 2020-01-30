@@ -1,0 +1,2 @@
+//! WebSocket-based `Transport` implementation.
+
