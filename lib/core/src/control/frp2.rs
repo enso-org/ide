@@ -281,21 +281,19 @@ pub type Output<T> = <T as KnownOutput>::Output;
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId;
+    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasInputs;
 }
 
 /// Internal node storage type accessor.
 pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
 
-//impl KnownNodeStorage for () {
-//    type NodeStorage = ();
-//}
+
 
 
 // === EventNodeStorage ===
 
 /// Event node operations.
-pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId {
+pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + EventEmitter + HasInputs {
     /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
     /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
@@ -309,7 +307,7 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 // === BehaviorNodeStorage ===
 
 /// Behavior node operations.
-pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId {
+pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasInputs {
     /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
@@ -460,6 +458,13 @@ impl<T:KnownNodeStorage> HasId for Node<T> {
 }
 
 
+impl<T:MessageValue> EventEmitter for Node<EventMessage<T>> {
+    fn emit(&self, event:&Self::Output) {
+        self.storage.emit(event)
+    }
+}
+
+
 
 // ===============
 // === AnyNode ===
@@ -504,6 +509,12 @@ impl<T:AnyNodeOps+'static> From<T> for AnyNode {
 
 pub trait HasInputs {
     fn inputs(&self) -> Vec<AnyNode>;
+}
+
+impl<T:?Sized+HasInputs> HasInputs for Rc<T> {
+    fn inputs(&self) -> Vec<AnyNode> {
+        self.deref().inputs()
+    }
 }
 
 impl GraphvizRepr for AnyNode {
@@ -557,22 +568,24 @@ impl<Shape:KnownOutput> NodeWrapper<Shape> {
     }
 }
 
-impl<Shape:KnownOutput> NodeWrapper<Shape> {
+impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
     /// Sends an event to all the children.
-    pub fn emit_event(&self, event:&Output<Shape>) {
+    pub fn emit_event(&self, event:&Out) {
         self.rc.borrow().targets.iter().for_each(|target| {
             target.on_event(event)
         })
     }
 }
 
-impl<Shape:KnownOutput + Debug>
-EventNodeStorage for NodeWrapper<Shape>
-where Output<Self>:'static, Output<Shape>:Message, Self:GraphvizRepr {
-    fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>) {
+impl<Shape,T:MessageValue>
+EventNodeStorage for NodeWrapperTemplate<Shape,EventMessage<T>>
+where Self: HasInputs + KnownOutput<Output=EventMessage<T>> + Debug + GraphvizRepr + HasId + EventEmitter {
+    fn add_event_target(&self, target:AnyEventConsumer<EventMessage<T>>) {
         self.rc.borrow_mut().targets.push(target);
     }
 }
+
+//impl<Shape,T:MessageValue> EventEmitter for NodeWrapperTemplate<Shape,EventMessage<T>> {
 
 
 //impl<Shape:BehaviorNodeStorage + Debug>
@@ -634,7 +647,11 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
     }
 }
 
-//Dodac [constraint=false] do recursive
+impl<Shape,T:MessageValue> EventEmitter for NodeWrapperTemplate<Shape,EventMessage<T>> {
+    fn emit(&self, event:&Self::Output) {
+        self.emit_event(event);
+    }
+}
 
 
 fn base_type_name<T>() -> String {
@@ -709,6 +726,19 @@ impl<T,In> From<&T> for AnyEventConsumer<In>
     fn from(t:&T) -> Self {
         Self::new(t.clone())
     }
+}
+
+
+// =====================
+// === EventEmitter ===
+// =====================
+
+// === Definition ===
+
+/// Abstraction for nodes which are able to consume events.
+pub trait EventEmitter: KnownOutput {
+    /// Function called on every new received event.
+    fn emit(&self, event:&Self::Output);
 }
 
 
@@ -852,7 +882,7 @@ where Out : KnownSourceStorage + Message {
 impl<Out> Source<Out>
 where Out : KnownSourceStorage + Message {
     /// Constructor.
-    pub fn new(label:&'static str) -> Self {
+    pub fn new_named(label:&'static str) -> Self {
         Self::construct(label,default())
     }
 }
@@ -875,6 +905,12 @@ impl<Out:KnownSourceStorage> HasInputs for SourceShape<Out> {
         default()
     }
 }
+
+//impl<T:MessageValue> EventEmitter for Source<EventMessage<T>> {
+//    fn emit(&self, event:&Self::Output) {
+//        self.emit_event(event);
+//    }
+//}
 
 
 macro_rules! define_node {
@@ -931,7 +967,7 @@ impl<T:Message> KnownEventInput for MergeShape<T> { type EventInput = T; }
 
 impl<T:Message> Merge<T>
     where Node<T> : AddTarget<Self> {
-    fn new<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
+    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
         where Source1  : Into<Node<T>>,
               Source2  : Into<Node<T>> {
         let source1     = source1.into();
@@ -983,10 +1019,9 @@ impl<T:Message> KnownEventInput for ToggleShape<T> { type EventInput = T; }
 
 // === Constructor ===
 
-impl<T:Message> Toggle<T>
-where Node<T> : AddTarget<Self> {
-    fn new<Source> (label:&'static str, source:Source) -> Self
-    where Source : Into<Node<T>> {
+impl<T:MessageValue> Toggle<EventMessage<T>> {
+    fn new_named<Source> (label:&'static str, source:Source) -> Self
+    where Source : Into<Event<T>> {
         let status     = default();
         let source     = source.into();
         let source_ref = source.clone();
@@ -1040,7 +1075,7 @@ impl<T:Message> KnownEventInput for HoldShape<T> { type EventInput = T; }
 
 impl<T:MessageValue> Hold<EventMessage<T>>
     where Node<EventMessage<T>> : AddTarget<Self> {
-    fn new<Source> (label:&'static str, source:Source) -> Self
+    fn new_named<Source> (label:&'static str, source:Source) -> Self
         where Source : Into<Node<EventMessage<T>>> {
         let last_val   = default();
         let source     = source.into();
@@ -1081,63 +1116,63 @@ impl<T:Message> HasInputs for HoldShape<T> {
 // === Recursive ===
 // =================
 
-pub type Recursive<T> = NodeWrapper<RecursiveShape<T>>;
+pub type Recursive<T> = NodeWrapper<RecursiveShape2<T>>;
 
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct RecursiveShape<T> {
-    source : RefCell<Option<T>>,
+pub struct RecursiveShape2<T:Message> {
+    source : RefCell<Option<Node<T>>>,
 }
 
-impl<T:KnownOutput> KnownOutput for RecursiveShape<T> where Output<T>:Message {
-    type Output = Output<T>;
+impl<T:Message> KnownOutput for RecursiveShape2<T> {
+    type Output = T;
 }
-impl<T:KnownEventInput> KnownEventInput for RecursiveShape<T> where EventInput<T>:Message {
-    type EventInput = EventInput<T>;
+
+impl<T:Message> KnownEventInput for RecursiveShape2<T> {
+    type EventInput = T;
 }
 
 
 // === Constructor ===
 
-impl<T:KnownOutput> Recursive<T> {
-    fn new(label:&'static str) -> Self {
+impl<T:Message> Recursive<T> {
+    fn new_named(label:&'static str) -> Self {
         let source = default();
-        Self::construct(label,RecursiveShape{source})
+        Self::construct(label,RecursiveShape2{source})
     }
 
-    fn initialize(&self, t:T) {
-        *self.rc.borrow().shape.source.borrow_mut() = Some(t);
-    }
-}
-
-impl<T> EventConsumer for Recursive<T>
-where T : KnownOutput + EventConsumer,
-      EventInput<T> : Message {
-    fn on_event(&self, event:&Self::EventInput) {
-        self.rc.borrow().shape.source.borrow().as_ref().unwrap().on_event(event);
+    fn initialize<S:Into<Node<T>>>(&self, t:S) where Node<T>:AddTarget<Self> {
+        let node = t.into();
+        node.add_target(self);
+        *self.rc.borrow().shape.source.borrow_mut() = Some(node);
     }
 }
 
-impl<T> BehaviorNodeStorage for Recursive<T>
-where T : BehaviorNodeStorage + /*?*/ HasInputs {
-    fn current_value(&self) -> Value<Output<T>> {
+impl<T:Message> EventConsumer for Recursive<T> {
+    fn on_event(&self, event:&T) {
+        self.emit_event(event);
+    }
+}
+
+impl<T:MessageValue> BehaviorNodeStorage for Recursive<BehaviorMessage<T>> {
+    fn current_value(&self) -> T {
         self.rc.borrow().shape.source.borrow().as_ref().unwrap().current_value()
     }
 }
 
 // TODO finish
-impl<T:KnownOutput> GraphvizRepr for RecursiveShape<T> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
+impl<T:Message> GraphvizRepr for RecursiveShape2<T> {
+    fn graphviz_build(&self, builder:&mut Graphviz) {
     }
 }
 
-impl<T:HasInputs> HasInputs for RecursiveShape<T> {
+impl<T:Message> HasInputs for RecursiveShape2<T> {
     fn inputs(&self) -> Vec<AnyNode> {
         self.source.borrow().as_ref().unwrap().inputs()
     }
 }
 
-impl<T:HasId + KnownOutput> HasId for Recursive<T> {
+impl<T:Message> HasId for Recursive<T> {
     fn target_id(&self) -> usize {
         self.rc.borrow().shape.source.borrow().as_ref().unwrap().id()
     }
@@ -1185,7 +1220,7 @@ impl<In1:Message, In2:Message> Sample<In1,In2>
 where Node<In1>            : AddTarget<Self>,
       Node<In2>            : AddTarget<Self>,
       SampleShape<In1,In2> : KnownOutput {
-    fn new<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
+    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
     where Source1 : Into<Node<In1>>,
           Source2 : Into<Node<In2>> {
         let source1     = source1.into();
@@ -1266,13 +1301,10 @@ impl<In1,In2> KnownEventInput for GateShape<BehaviorMessage<In1>,EventMessage<In
 
 // === Constructor ===
 
-impl<In1:Message, In2:Message> Gate<In1,In2>
-    where Node<In1>          : AddTarget<Self>,
-          Node<In2>          : AddTarget<Self>,
-          GateShape<In1,In2> : KnownOutput {
-    fn new<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
-        where Source1 : Into<Node<In1>>,
-              Source2 : Into<Node<In2>> {
+impl<In2:MessageValue> Gate<BehaviorMessage<bool>,EventMessage<In2>> {
+    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
+        where Source1 : Into<Behavior<bool>>,
+              Source2 : Into<Event<In2>> {
         let source1     = source1.into();
         let source2     = source2.into();
         let source1_ref = source1.clone();
@@ -1293,14 +1325,14 @@ impl<In:MessageValue> EventConsumer for Gate<BehaviorMessage<bool>,EventMessage<
     }
 }
 
-impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bool>> {
-    fn on_event(&self, event:&Self::EventInput) {
-        let check = self.rc.borrow().shape.source2.current_value();
-        if check {
-            self.emit_event(event);
-        }
-    }
-}
+//impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bool>> {
+//    fn on_event(&self, event:&Self::EventInput) {
+//        let check = self.rc.borrow().shape.source2.current_value();
+//        if check {
+//            self.emit_event(event);
+//        }
+//    }
+//}
 
 // TODO finish
 impl<In1:Message, In2:Message> GraphvizRepr for GateShape<In1,In2>
@@ -1355,7 +1387,7 @@ impl<In1,Out,Func> From<Func> for Lambda1Func<In1,Out>
 /// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait LambdaNew<Source,Func> {
     /// Constructor.
-    fn new(label:&'static str, source:Source,f:Func) -> Self;
+    fn new_named(label:&'static str, source:Source,f:Func) -> Self;
 }
 
 impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,OutVal>>
@@ -1365,7 +1397,7 @@ impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,Out
           Source   : Into<Node<In>>,
           Node<In> : AddTarget<Self>,
           Inferred<In,OutVal> : Message<Content=OutVal> {
-    fn new (label:&'static str, source:Source, func:Func) -> Self {
+    fn new_named(label:&'static str, source:Source, func:Func) -> Self {
         let source     = source.into();
         let source_ref = source.clone();
         let func       = func.into();
@@ -1390,7 +1422,7 @@ fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
           Value<T> : MessageValue + Infer<T,Result=T>,
           Node<T>  : AddTarget<Lambda<T,T>> {
     let label = label.into();
-    Lambda::new("trace",source, move |t| {
+    Lambda::new_named("trace",source, move |t| {
         println!("TRACE [{}]: {:?}", label, t);
         t.clone()
     })
@@ -1450,7 +1482,7 @@ impl<In1,In2,Out,Func> From<Func> for Lambda2Func<In1,In2,Out>
 /// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait Lambda2New<Source1,Source2,Function> {
     /// Constructor.
-    fn new(label:&'static str, source:Source1, source2:Source2,f:Function) -> Self;
+    fn new_named(label:&'static str, source:Source1, source2:Source2, f:Function) -> Self;
 }
 
 impl<In1,In2,OutVal,Source1,Source2,Function>
@@ -1464,7 +1496,7 @@ Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutV
           Node<In1> : AddTarget<Self>,
           Node<In2> : AddTarget<Self>,
           Inferred<(In1,In2),OutVal> : Message<Content=OutVal> {
-    fn new (label:&'static str, source1:Source1, source2:Source2, func:Function) -> Self {
+    fn new_named(label:&'static str, source1:Source1, source2:Source2, func:Function) -> Self {
         let source1     = source1.into();
         let source2     = source2.into();
         let source1_ref = source1.clone();
@@ -1515,9 +1547,112 @@ impl<In1:Message, In2:Message, Out:Message> HasInputs for Lambda2Shape<In1,In2,O
 
 macro_rules! frp {
     ( $( $var:ident = $node:ident $(<$ty:ty>)*   ($($args:tt)*); )* ) => {$(
-        let $var = $node $(::<$ty>)* :: new(stringify!{$var}, $($args)* );
+        let $var = $node $(::<$ty>)* :: new_named(stringify!{$var}, $($args)* );
     )*}
 }
+
+
+pub struct Dynamic<Out> {
+    event    : Event    <Out>,
+    behavior : Behavior <Out>,
+}
+
+impl<Out:MessageValue> Dynamic<Out> {
+    pub fn new<E,B>(event:E, behavior:B) -> Self
+    where E:Into<Event<Out>>, B:Into<Behavior<Out>> {
+        let event    = event.into();
+        let behavior = behavior.into();
+        Self {event,behavior}
+    }
+
+    pub fn merge(&self,that:&Dynamic<Out>) -> Self {
+        let event    = Merge :: new_named("unnamed",self,that);
+        let behavior = Hold  :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Self {event,behavior}
+    }
+
+    pub fn toggle(&self) -> Dynamic<bool> {
+        let event    = Toggle :: new_named("unnamed",self);
+        let behavior = Hold   :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+
+    pub fn gate(&self, that:&Dynamic<bool>) -> Self {
+        let event    = Gate :: new_named("unnamed",that,self);
+        let behavior = Hold :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+
+    pub fn sample<T:MessageValue>(&self, that:&Dynamic<T>) -> Self {
+        let event    = Sample :: new_named("unnamed",&self.behavior,that);
+        let behavior = Hold :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+
+    pub fn map<F,R>(&self, f:F) -> Dynamic<R>
+        where R : MessageValue,
+              F : 'static + Fn(&Out) -> R {
+        let event    = Lambda::new_named("unnamed",&self.event,f);
+        let behavior = Hold :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+
+    pub fn map2<T,F,R>(&self, that:&Dynamic<T>, f:F) -> Dynamic<R>
+    where T : MessageValue,
+          R : MessageValue,
+          F : 'static + Fn(&Out,&T) -> R {
+        let event    = Lambda2::new_named("unnamed",&self.event,that,f);
+        let behavior = Hold :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+
+    pub fn constant<T:MessageValue>(&self, value:T) -> Dynamic<T> {
+        self.map(move |_| value.clone())
+    }
+}
+
+impl<Out:MessageValue> Dynamic<Out> {
+    pub fn source() -> Self {
+        let event = Source::<EventMessage<Out>>::new_named("unnamed");
+        (&event).into()
+    }
+}
+
+
+impl<Out:MessageValue, T:Into<Event<Out>>> From<T> for Dynamic<Out> {
+    fn from(t:T) -> Self {
+        let event    = t.into();
+        let behavior = Hold :: new_named("unnamed",&event);
+        let event    = (&event).into();
+        let behavior = (&behavior).into();
+        Dynamic {event,behavior}
+    }
+}
+
+impl<Out> From<&Dynamic<Out>> for Event<Out> {
+    fn from(t:&Dynamic<Out>) -> Self {
+        t.event.clone_ref()
+    }
+}
+
+impl<Out> From<&Dynamic<Out>> for Behavior<Out> {
+    fn from(t:&Dynamic<Out>) -> Self {
+        t.behavior.clone_ref()
+    }
+}
+
 
 #[allow(missing_docs)]
 mod tests {
@@ -1559,6 +1694,23 @@ mod tests {
     // === Test ===
     // ============
 
+    pub struct Mouse {
+        pub up       : Dynamic<()>,
+        pub down     : Dynamic<()>,
+        pub is_down  : Dynamic<bool>,
+        pub position : Dynamic<Position>,
+    }
+
+    impl Mouse {
+        pub fn new() -> Self {
+            let up       = Dynamic::source();
+            let down     = Dynamic::source();
+            let position = Dynamic::source();
+            let is_down  = down.constant(true).merge(&up.constant(false));
+            Self {up,down,is_down,position}
+        }
+    }
+
     #[allow(unused_variables)]
     pub fn test () -> MouseManager {
 
@@ -1569,43 +1721,56 @@ mod tests {
 
         println!("\n\n\n--- FRP ---\n");
 
+
+        let mouse = Mouse::new();
+
+        let mouse_down_position    = mouse.position.sample(&mouse.down);
+        let mouse_position_if_down = mouse.position.gate(&mouse.is_down);
+
         frp! {
-            on_mouse_move      = Source<EventMessage<Position>> ();
-            on_mouse_down      = Source<EventMessage<()>>       ();
-            on_mouse_up        = Source<EventMessage<()>>       ();
-            mouse_position     = Hold (&on_mouse_move);
-
-            final_position_ref = Recursive<Hold<EventMessage<Position>>>();
-            on_up_or_down      = Merge   (&on_mouse_down,&on_mouse_up);
-            on_up_or_down_bool = Toggle  (&on_up_or_down);
-            is_down            = Hold    (&on_up_or_down_bool);
-            on_mouse_down_move = Gate    (&is_down,&on_mouse_move);
-            on_mouse_down_pos  = Sample  (&on_mouse_down,&mouse_position);
-            pos_diff_on_down   = Lambda2 (&on_mouse_down_pos,&final_position_ref, |m,f| {m - f});
-            pos_diff           = Hold    (&pos_diff_on_down);
-            final_pos_on_move  = Lambda2 (&on_mouse_down_move,&pos_diff, |m,f| {m - f});
-            final_pos          = Hold    (&final_pos_on_move);
-
-            debug = Sample (&on_mouse_move,&final_pos);
+            final_position_ref  = Recursive<EventMessage<Position>>();
         }
 
-        final_position_ref.initialize(final_pos.clone());
+        let final_position     = Dynamic::from(&final_position_ref);
+        let pos_diff_on_down   = mouse_down_position.map2(&final_position, |m,f| {m - f});
+        let final_pos_on_move  = mouse_position_if_down.map2(&pos_diff_on_down, |m,f| {m - f});
+        let debug              = final_pos_on_move.sample(&mouse.position);
 
-        trace("X" , &debug);
-        final_pos.display_graphviz();
 
+
+        frp! {
+//            mouse_down_position  = Sample  (&mouse.down.event,&mouse.position);
+//            pos_diff_on_down   = Lambda2 (&mouse_down_position.event,&final_position, |m,f| {m - f});
+//            pos_diff           = Hold    (&pos_diff_on_down);
+//            final_pos_on_move  = Lambda2 (&mouse_position_if_down.event,&pos_diff_on_down, |m,f| {m - f});
+//            final_pos          = Hold    (&final_pos_on_move);
+
+//            debug = Sample (&mouse.position,&final_pos_on_move.behavior);
+        }
+
+
+
+//        final_position.initialize(final_pos.clone());
+        final_position_ref.initialize(&final_pos_on_move);
+
+        trace("X" , &debug.event);
+        final_pos_on_move.behavior.display_graphviz();
+
+        let target = mouse.position.event.clone_ref();
         let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
-            on_mouse_move.emit_event(&EventMessage(Position::new(event.client_x(),event.client_y())));
+            target.emit(&EventMessage(Position::new(event.client_x(),event.client_y())));
         });
         handle.forget();
 
+        let target = mouse.down.event.clone_ref();
         let handle = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
-            on_mouse_down.emit_event(&EventMessage(()));
+            target.emit(&EventMessage(()));
         });
         handle.forget();
 
+        let target = mouse.up.event.clone_ref();
         let handle = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
-            on_mouse_up.emit_event(&EventMessage(()));
+            target.emit(&EventMessage(()));
         });
         handle.forget();
 
