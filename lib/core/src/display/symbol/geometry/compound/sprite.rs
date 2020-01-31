@@ -120,7 +120,7 @@ impl {
         let instance_scope = mesh.instance_scope();
         let uv             = point_scope.add_buffer("uv");
         let transform      = instance_scope.add_buffer("transform");
-        let size           = instance_scope.add_buffer("bounds");
+        let size           = instance_scope.add_buffer("size");
         let horizontal        = HorizontalAlignment::Center;
         let vertical          = VerticalAlignment::Center;
         let initial_alignment = Self::uv_offset(horizontal,vertical);
