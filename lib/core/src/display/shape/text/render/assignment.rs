@@ -290,19 +290,19 @@ mod tests {
 
     fn mock_properties() -> TextFieldProperties {
         TextFieldProperties {
-            font_id: 0,
-            text_size: 10.0,
-            base_color: Vector4::new(0.0,0.0,0.0,1.0),
-            size: Vector2::new(20.0,40.0),
+            font_id    : 0,
+            text_size  : 10.0,
+            base_color : Vector4::new(0.0,0.0,0.0,1.0),
+            size       : Vector2::new(20.0,35.0),
         }
     }
 
     fn mock_font() -> FontRenderInfo {
-        let mut font          = FontRenderInfo::mock_font("Test".to_string());
-        let mut a_info        = font.mock_char_info('A');
-        a_info.advance        = 1.0;
-        let mut b_info        = font.mock_char_info('B');
-        b_info.advance        = 1.5;
+        let mut font   = FontRenderInfo::mock_font("Test".to_string());
+        let mut a_info = font.mock_char_info('A');
+        a_info.advance = 1.0;
+        let mut b_info = font.mock_char_info('B');
+        b_info.advance = 1.5;
         font.mock_kerning_info('A', 'A', 0.0);
         font.mock_kerning_info('B', 'B', 0.0);
         font.mock_kerning_info('A', 'B', 0.0);
@@ -313,113 +313,110 @@ mod tests {
     #[wasm_bindgen_test(async)]
     fn initial_assignment() -> impl Future<Output=()> {
         TestAfterInit::schedule(|| {
-            let mut font         = mock_font();
-            let properties       = mock_properties();
-            let mut content      = TextFieldContent::new("AAABBB\nABABAB\n\nA\nA",&properties);
+            let mut font    = mock_font();
+            let properties  = mock_properties();
+            let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA",&properties);
 
-            let mut assignment = GlyphLinesAssignment::new(4, 4, 1.0);
+            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
 
             let mut update     = GlyphLinesAssignmentUpdate {
                 assignment    : &mut assignment,
                 content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-                scroll_offset : Vector2::new(2.2,0.0),
+                scroll_offset : Vector2::new(22.0,0.0),
                 view_size     : properties.size
             };
             update.update_line_assignment();
             let expected_fragments = vec!
-            [ Some(LineFragment{line_index:0, chars_range: 2..6}),
-                Some(LineFragment{line_index:1, chars_range: 1..5}),
-                Some(LineFragment{line_index:2, chars_range: 0..0}),
-                Some(LineFragment{line_index:3, chars_range: 0..1}),
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
             ];
 
             assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
         })
     }
 
-//    #[wasm_bindgen_test(async)]
-//    fn lines_reassignment() {
-//        TestAfterInit::schedule(|| {
-//            let mut font         = mock_font();
-//            let properties       = mock_properties();
-//            let mut content      = TextFieldContent::new("AAABBB\nABABAB\n\nA\nA",&properties);
-//
-//            let mut assignment = GlyphLinesAssignment::new(4, 4, 1.0);
-//            assignment.glyph_lines_fragments = vec![
-//            ]
-//
-//            let mut update     = GlyphLinesAssignmentUpdate {
-//                assignment    : &mut assignment,
-//                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-//                scroll_offset : Vector2::new(2.2,0.0),
-//                view_size     : properties.size
-//            };
-//            update.update_line_assignment();
-//            let expected_fragments = vec![
-//                Some(LineFragment{line_index:0, chars_range: 2..6}),
-//                Some(LineFragment{line_index:1, chars_range: 1..5}),
-//                Some(LineFragment{line_index:2, chars_range: 0..0}),
-//                Some(LineFragment{line_index:3, chars_range: 0..1}),
-//            ];
-//
-//            assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
-//        })
-//        let assigned_lines   = 4..=6;
-//        let new_assignment_1 = 2..=5;
-//        let new_assignment_2 = 5..=8;
-//        let mut fragments = BufferFragments {
-//            assigned_indices: assigned_lines.clone(),
-//            rendered_lines: assigned_lines.map(make_assigned_fragment).collect(),
-//            next_to_refresh : NextGlyphLineToRefreshAfterXScrolling::new(4)
-//        };
-//        fragments.rendered_lines.push(GlyphLine::unassigned());
-//
-//        fragments.reassign_fragments(new_assignment_1.clone());
-//        let expected_assignments_1 = vec![4,5,2,3];
-//        let assignments_1_iter     = fragments.rendered_lines.iter().map(|f| f.assigned_index.unwrap());
-//        let assignments_1          = assignments_1_iter.collect::<Vec<usize>>();
-//        assert_eq!(new_assignment_1      , fragments.assigned_indices);
-//        assert_eq!(expected_assignments_1, assignments_1);
-//
-//        fragments.reassign_fragments(new_assignment_2.clone());
-//        let expected_assignments_2 = vec![6,5,7,8];
-//        let assignments_2_iter     = fragments.rendered_lines.iter().map(|f| f.assigned_index.unwrap());
-//        let assignments_2          = assignments_2_iter.collect::<Vec<usize>>();
-//        assert_eq!(new_assignment_2      , fragments.assigned_indices);
-//        assert_eq!(expected_assignments_2, assignments_2);
-//    }
-//
-//    #[test]
-//    fn marking_dirty_after_x_scrolling() {
-//        let make_rendered      = |x_range| LineFragment { chars_range:1..3, x_range};
-//        let displayed_range    = 4.0..=6.0;
-//        let rendered_not_dirty = make_rendered(3.0..=7.0);
-//        let rendered_dirty     = make_rendered(5.0..=7.0);
-//        let displayed_lines    = 5;
-//        let lines_iter         = (0..displayed_lines).map(|_| Line::new("AA".to_string()));
-//        let lines              = lines_iter.collect::<Vec<Line>>();
-//
-//        let mut fragments      = BufferFragments::new(displayed_lines);
-//        for (i,fragment) in fragments.rendered_lines.iter_mut().take(4).enumerate() {
-//            fragment.assigned_index = Some(i);
-//        }
-//        fragments.rendered_lines[0].glyphs = Some(rendered_dirty);
-//        fragments.rendered_lines[2].glyphs = Some(rendered_not_dirty.clone());
-//        fragments.rendered_lines[3].glyphs = Some(rendered_not_dirty);
-//        fragments.rendered_lines[3].dirty    = true;
-//
-//        fragments.mark_dirty_after_x_scrolling(0.0,displayed_range,&lines);
-//
-//        let dirties          = fragments.rendered_lines.iter().map(|f| f.dirty).collect::<Vec<bool>>();
-//        let expected_dirties = vec![true, true, false, true, false];
-//        assert_eq!(expected_dirties, dirties);
-//    }
-//
-//    fn make_assigned_fragment(line:usize) -> GlyphLine {
-//        GlyphLine {
-//            assigned_index: Some(line),
-//            glyphs: None,
-//            dirty         : true,
-//        }
-//    }
+    #[wasm_bindgen_test(async)]
+    fn lines_reassignment() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font    = mock_font();
+            let properties  = mock_properties();
+            let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA\nAB",&properties);
+
+            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
+            assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+            let assigned_lines        = 0..=3;
+            assignment.assigned_lines = assigned_lines;
+            // This line casues false warning about unnecessary parentheses
+            // assignment.assigned_lines = 0..3;
+
+            // scrolling down
+            let mut update     = GlyphLinesAssignmentUpdate {
+                assignment    : &mut assignment,
+                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
+                scroll_offset : Vector2::new(22.0,-21.0),
+                view_size     : properties.size
+            };
+            update.update_line_assignment();
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:4, chars_range: 0..1})
+            , Some(LineFragment{line_index:5, chars_range: 0..2})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(2..=5             , update.assignment.assigned_lines);
+
+            // scrolling up.
+            update.scroll_offset = Vector2::new(22.0,-11.0);
+            update.update_line_assignment();
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:4, chars_range: 0..1})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(1..=4             , update.assignment.assigned_lines);
+        })
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn marking_dirty_after_x_scrolling() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font    = mock_font();
+            let properties  = mock_properties();
+            let mut content = TextFieldContent::new("AAABBB\nBAABAB\nBBABAB\nA\nA",&properties);
+
+            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
+            assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 1..5})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+            assignment.next_glyph_line_to_x_scroll_update = 3;
+            let mut update     = GlyphLinesAssignmentUpdate {
+                assignment    : &mut assignment,
+                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
+                scroll_offset : Vector2::new(42.0,-21.0),
+                view_size     : properties.size
+            };
+            update.update_after_x_scroll(15.0);
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 2..6})
+            , Some(LineFragment{line_index:1, chars_range: 2..6})
+            , Some(LineFragment{line_index:2, chars_range: 1..5})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(1                 , update.assignment.next_glyph_line_to_x_scroll_update);
+        })
+    }
 }

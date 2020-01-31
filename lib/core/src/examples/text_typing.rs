@@ -49,7 +49,7 @@ pub fn run_example_text_typing() {
 
 struct CharToPush {
     time   : f64,
-    a_char: char,
+    a_char : char,
 }
 
 const ONE_CHAR_TYPING_DURATION_MS : f64 = 50.0;

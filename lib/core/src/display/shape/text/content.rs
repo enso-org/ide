@@ -308,7 +308,7 @@ impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
         let line_opt = self.line_at_y_position(point.y);
         let mut line = match line_opt {
             Some(line)             => line,
-            None if point.y <= 0.0 => self.line(0),
+            None if point.y >= 0.0 => self.line(0),
             None                   => self.line(self.lines.len()-1),
         };
         let column_opt = line.find_char_at_x_position(point.x);

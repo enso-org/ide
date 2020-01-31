@@ -159,6 +159,7 @@ impl RenderedContent {
                 glyph_line.replace_text(chars.iter().cloned(),fonts);
             }
         }
+        self.display_object.update();
     }
 
     /// Update all displayed cursors with their selections.
@@ -174,8 +175,10 @@ impl RenderedContent {
             let line_height   = self.line_height;
             let system        = &self.selection_system;
             let mut generator = SelectionSpritesGenerator {content,line_height,system};
+            sprites.selection.clear();
             sprites.selection = generator.generate(&selection);
         }
+        self.display_object.update();
     }
 
     fn baseline_start_for_fragment(fragment:&LineFragment, content:&mut TextFieldContentFullInfo)

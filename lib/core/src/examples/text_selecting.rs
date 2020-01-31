@@ -3,20 +3,22 @@
 use wasm_bindgen::prelude::*;
 
 use crate::display::world::WorldData;
-use crate::display::object::{DisplayObjectOps, DisplayObjectData};
-
-use nalgebra::Vector2;
-use nalgebra::Vector4;
+use crate::display::object::DisplayObjectOps;
+use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::text::TextField;
 use crate::display::shape::text::TextFieldProperties;
-use crate::system::web::forward_panic_hook_to_console;
-use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::world::*;
-use basegl_system_web::set_stdout;
 use crate::system::web;
+use crate::system::web::forward_panic_hook_to_console;
+
+
+use basegl_system_web::set_stdout;
+use nalgebra::Vector2;
+use nalgebra::Vector4;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::MouseEvent;
+
 
 
 const TEXT:&str =
@@ -55,11 +57,7 @@ pub fn run_example_text_selecting() {
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
         text_field.jump_cursor(Vector2::new(50.0, -40.0),false,&mut fonts);
         world.add_child(&text_field);
-
-        let display_object:DisplayObjectData = (&text_field).into();
-        world.on_frame(move |_| {
-            display_object.update();
-        }).forget();
+        text_field.update();
 
         let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
             let val = val.unchecked_into::<MouseEvent>();
