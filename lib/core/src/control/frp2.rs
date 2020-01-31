@@ -8,7 +8,57 @@ use crate::prelude::*;
 
 use crate::system::web;
 use percent_encoding;
+use std::borrow::Cow;
 
+
+// ==============
+// === StaticString ===
+// ==============
+
+#[derive(Clone,Debug,Default)]
+pub struct StaticString(Cow<'static,str>);
+
+impl AsRef<str> for StaticString {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl From<&StaticString> for String {
+    fn from(t:&StaticString) -> Self {
+        t.clone().into()
+    }
+}
+
+impl From<StaticString> for String {
+    fn from(t:StaticString) -> Self {
+        t.0.into()
+    }
+}
+
+impl From<&'static str> for StaticString {
+    fn from(t:&'static str) -> Self {
+        Self(t.into())
+    }
+}
+
+impl From<String> for StaticString {
+    fn from(t:String) -> Self {
+        Self(t.into())
+    }
+}
+
+impl From<&StaticString> for StaticString {
+    fn from(t:&StaticString) -> Self {
+        t.clone()
+    }
+}
+
+
+
+// ================
+// === Graphviz ===
+// ================
 
 #[derive(Debug,Default)]
 pub struct Graphviz {
@@ -281,7 +331,7 @@ pub type Output<T> = <T as KnownOutput>::Output;
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasInputs;
+    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasInputs + HasLabel;
 }
 
 /// Internal node storage type accessor.
@@ -293,7 +343,7 @@ pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
 // === EventNodeStorage ===
 
 /// Event node operations.
-pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + EventEmitter + HasInputs {
+pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + EventEmitter + HasInputs + HasLabel {
     /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
     /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
@@ -307,7 +357,7 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 // === BehaviorNodeStorage ===
 
 /// Behavior node operations.
-pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasInputs {
+pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasInputs + HasLabel {
     /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
@@ -325,6 +375,21 @@ impl GraphvizRepr for () {
 impl<T:?Sized+GraphvizRepr> GraphvizRepr for Rc<T> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         self.deref().graphviz_build(builder)
+    }
+}
+
+
+// =============
+// === Label ===
+// =============
+
+pub trait HasLabel {
+    fn label(&self) -> StaticString;
+}
+
+impl<T:?Sized+HasLabel> HasLabel for Rc<T> {
+    fn label(&self) -> StaticString {
+        self.deref().label()
     }
 }
 
@@ -464,6 +529,12 @@ impl<T:MessageValue> EventEmitter for Node<EventMessage<T>> {
     }
 }
 
+impl<Out:KnownNodeStorage> HasLabel for Node<Out> {
+    fn label(&self) -> StaticString {
+        self.storage.label()
+    }
+}
+
 
 
 // ===============
@@ -561,7 +632,7 @@ pub type NodeWrapper<Shape> = NodeWrapperTemplate<Shape,Output<Shape>>;
 
 impl<Shape:KnownOutput> NodeWrapper<Shape> {
     /// Constructor.
-    pub fn construct(label:&'static str,shape:Shape) -> Self {
+    pub fn construct<Label:Into<StaticString>>(label:Label, shape:Shape) -> Self {
         let data = NodeWrapperTemplateData::construct(label,shape);
         let rc   = Rc::new(RefCell::new(data));
         Self {rc}
@@ -631,7 +702,7 @@ impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name = base_type_name::<Shape>();
-        let label     = self.rc.borrow().label;
+        let label     = &self.rc.borrow().label;
         let target_id = self.target_id();
         if !builder.has_node(target_id) {
             builder.add_node(self.id(),type_name,label);
@@ -669,6 +740,12 @@ impl<Shape:HasInputs,Out> HasInputs for NodeWrapperTemplate<Shape,Out> {
 }
 
 
+impl<Shape,Out> HasLabel for NodeWrapperTemplate<Shape,Out> {
+    fn label(&self) -> StaticString {
+        self.rc.borrow().label.clone()
+    }
+}
+
 
 // === NodeWrapperTemplateData ===
 
@@ -676,14 +753,15 @@ impl<Shape:HasInputs,Out> HasInputs for NodeWrapperTemplate<Shape,Out> {
 #[derive(Debug,Derivative)]
 #[derivative(Default(bound="Shape:Default"))]
 pub struct NodeWrapperTemplateData<Shape,Out> {
-    label   : &'static str,
+    label   : StaticString,
     shape   : Shape,
     targets : Vec<AnyEventConsumer<Out>>,
 }
 
 impl<Shape,Out> NodeWrapperTemplateData<Shape,Out> {
     /// Constructor.
-    pub fn construct(label:&'static str, shape:Shape) -> Self {
+    pub fn construct<Label:Into<StaticString>>(label:Label, shape:Shape) -> Self {
+        let label   = label.into();
         let targets = default();
         Self {label,shape,targets}
     }
@@ -882,7 +960,7 @@ where Out : KnownSourceStorage + Message {
 impl<Out> Source<Out>
 where Out : KnownSourceStorage + Message {
     /// Constructor.
-    pub fn new_named(label:&'static str) -> Self {
+    pub fn new_named<Label:Into<StaticString>>(label:Label) -> Self {
         Self::construct(label,default())
     }
 }
@@ -967,9 +1045,10 @@ impl<T:Message> KnownEventInput for MergeShape<T> { type EventInput = T; }
 
 impl<T:Message> Merge<T>
     where Node<T> : AddTarget<Self> {
-    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
-        where Source1  : Into<Node<T>>,
-              Source2  : Into<Node<T>> {
+    fn new_named<Label,Source1,Source2>(label:Label, source1:Source1, source2:Source2) -> Self
+        where Label   : Into<StaticString>,
+              Source1 : Into<Node<T>>,
+              Source2 : Into<Node<T>> {
         let source1     = source1.into();
         let source2     = source2.into();
         let source1_ref = source1.clone();
@@ -1020,8 +1099,9 @@ impl<T:Message> KnownEventInput for ToggleShape<T> { type EventInput = T; }
 // === Constructor ===
 
 impl<T:MessageValue> Toggle<EventMessage<T>> {
-    fn new_named<Source> (label:&'static str, source:Source) -> Self
-    where Source : Into<Event<T>> {
+    fn new_named<Label,Source> (label:Label, source:Source) -> Self
+    where Label  : Into<StaticString>,
+          Source : Into<Event<T>> {
         let status     = default();
         let source     = source.into();
         let source_ref = source.clone();
@@ -1075,8 +1155,9 @@ impl<T:Message> KnownEventInput for HoldShape<T> { type EventInput = T; }
 
 impl<T:MessageValue> Hold<EventMessage<T>>
     where Node<EventMessage<T>> : AddTarget<Self> {
-    fn new_named<Source> (label:&'static str, source:Source) -> Self
-        where Source : Into<Node<EventMessage<T>>> {
+    fn new_named<Label,Source>(label:Label, source:Source) -> Self
+        where Label  : Into<StaticString>,
+              Source : Into<Node<EventMessage<T>>> {
         let last_val   = default();
         let source     = source.into();
         let source_ref = source.clone();
@@ -1136,12 +1217,15 @@ impl<T:Message> KnownEventInput for RecursiveShape2<T> {
 // === Constructor ===
 
 impl<T:Message> Recursive<T> {
-    fn new_named(label:&'static str) -> Self {
+    fn new_named<Label>(label:Label) -> Self
+    where Label : Into<StaticString> {
         let source = default();
         Self::construct(label,RecursiveShape2{source})
     }
 
-    fn initialize<S:Into<Node<T>>>(&self, t:S) where Node<T>:AddTarget<Self> {
+    fn initialize<S>(&self, t:S)
+    where S       : Into<Node<T>>,
+          Node<T> : AddTarget<Self> {
         let node = t.into();
         node.add_target(self);
         *self.rc.borrow().shape.source.borrow_mut() = Some(node);
@@ -1220,8 +1304,9 @@ impl<In1:Message, In2:Message> Sample<In1,In2>
 where Node<In1>            : AddTarget<Self>,
       Node<In2>            : AddTarget<Self>,
       SampleShape<In1,In2> : KnownOutput {
-    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
-    where Source1 : Into<Node<In1>>,
+    fn new_named<Label,Source1,Source2> (label:Label, source1:Source1, source2:Source2) -> Self
+    where Label   : Into<StaticString>,
+          Source1 : Into<Node<In1>>,
           Source2 : Into<Node<In2>> {
         let source1     = source1.into();
         let source2     = source2.into();
@@ -1302,8 +1387,9 @@ impl<In1,In2> KnownEventInput for GateShape<BehaviorMessage<In1>,EventMessage<In
 // === Constructor ===
 
 impl<In2:MessageValue> Gate<BehaviorMessage<bool>,EventMessage<In2>> {
-    fn new_named<Source1,Source2> (label:&'static str, source1:Source1, source2:Source2) -> Self
-        where Source1 : Into<Behavior<bool>>,
+    fn new_named<Label,Source1,Source2> (label:Label, source1:Source1, source2:Source2) -> Self
+        where Label   : Into<StaticString>,
+              Source1 : Into<Behavior<bool>>,
               Source2 : Into<Event<In2>> {
         let source1     = source1.into();
         let source2     = source2.into();
@@ -1387,7 +1473,7 @@ impl<In1,Out,Func> From<Func> for Lambda1Func<In1,Out>
 /// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait LambdaNew<Source,Func> {
     /// Constructor.
-    fn new_named(label:&'static str, source:Source,f:Func) -> Self;
+    fn new_named<Label:Into<StaticString>>(label:Label, source:Source,f:Func) -> Self;
 }
 
 impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,OutVal>>
@@ -1397,7 +1483,8 @@ impl<In,OutVal,Func,Source> LambdaNew<Source,Func> for Lambda<In,Inferred<In,Out
           Source   : Into<Node<In>>,
           Node<In> : AddTarget<Self>,
           Inferred<In,OutVal> : Message<Content=OutVal> {
-    fn new_named(label:&'static str, source:Source, func:Func) -> Self {
+    fn new_named<Label>(label:Label, source:Source, func:Func) -> Self
+    where Label : Into<StaticString> {
         let source     = source.into();
         let source_ref = source.clone();
         let func       = func.into();
@@ -1482,7 +1569,8 @@ impl<In1,In2,Out,Func> From<Func> for Lambda2Func<In1,In2,Out>
 /// Constructor abstraction. Used only to satisfy Rust type system.
 pub trait Lambda2New<Source1,Source2,Function> {
     /// Constructor.
-    fn new_named(label:&'static str, source:Source1, source2:Source2, f:Function) -> Self;
+    fn new_named<Label>(label:Label, source:Source1, source2:Source2, f:Function) -> Self
+        where Label : Into<StaticString>;
 }
 
 impl<In1,In2,OutVal,Source1,Source2,Function>
@@ -1496,7 +1584,8 @@ Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutV
           Node<In1> : AddTarget<Self>,
           Node<In2> : AddTarget<Self>,
           Inferred<(In1,In2),OutVal> : Message<Content=OutVal> {
-    fn new_named(label:&'static str, source1:Source1, source2:Source2, func:Function) -> Self {
+    fn new_named<Label>(label:Label, source1:Source1, source2:Source2, func:Function) -> Self
+    where Label : Into<StaticString> {
         let source1     = source1.into();
         let source2     = source2.into();
         let source1_ref = source1.clone();
@@ -1510,7 +1599,7 @@ Lambda2New<Source1,Source2,Function> for Lambda2<In1,In2,Inferred<(In1,In2),OutV
 }
 
 impl<In1,In2,Out> EventConsumer for Lambda2<EventMessage<In1>,BehaviorMessage<In2>,Out>
-    where In1:MessageValue, In2:MessageValue, Out:Message {
+where In1:MessageValue, In2:MessageValue, Out:Message {
     fn on_event(&self, event:&Self::EventInput) {
         let value2 = self.rc.borrow().shape.source2.current_value();
         let output = (self.rc.borrow().shape.func.raw)(&event.value(),&value2);
@@ -1559,73 +1648,58 @@ pub struct Dynamic<Out> {
 
 impl<Out:MessageValue> Dynamic<Out> {
     pub fn new<E,B>(event:E, behavior:B) -> Self
-    where E:Into<Event<Out>>, B:Into<Behavior<Out>> {
+        where E:Into<Event<Out>>, B:Into<Behavior<Out>> {
         let event    = event.into();
         let behavior = behavior.into();
         Self {event,behavior}
     }
 
-    pub fn merge(&self,that:&Dynamic<Out>) -> Self {
-        let event    = Merge :: new_named("unnamed",self,that);
-        let behavior = Hold  :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Self {event,behavior}
+    pub fn merge<Label>(&self, label:Label, that:&Dynamic<Out>) -> Self
+        where Label:Into<StaticString> {
+        (&Merge::new_named(label,self,that)).into()
     }
 
-    pub fn toggle(&self) -> Dynamic<bool> {
-        let event    = Toggle :: new_named("unnamed",self);
-        let behavior = Hold   :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Dynamic {event,behavior}
+    pub fn toggle<Label>(&self, label:Label) -> Dynamic<bool>
+        where Label:Into<StaticString> {
+        (&Toggle::new_named(label,self)).into()
     }
 
-    pub fn gate(&self, that:&Dynamic<bool>) -> Self {
-        let event    = Gate :: new_named("unnamed",that,self);
-        let behavior = Hold :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Dynamic {event,behavior}
+    pub fn gate<Label>(&self, label:Label, that:&Dynamic<bool>) -> Self
+        where Label:Into<StaticString> {
+        (&Gate::new_named(label,that,self)).into()
     }
 
-    pub fn sample<T:MessageValue>(&self, that:&Dynamic<T>) -> Self {
-        let event    = Sample :: new_named("unnamed",&self.behavior,that);
-        let behavior = Hold :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Dynamic {event,behavior}
+    pub fn sample<Label,T>(&self, label:Label, that:&Dynamic<T>) -> Self
+        where Label : Into<StaticString>,
+              T     : MessageValue {
+        (&Sample::new_named(label,&self.behavior,that)).into()
     }
 
-    pub fn map<F,R>(&self, f:F) -> Dynamic<R>
-        where R : MessageValue,
-              F : 'static + Fn(&Out) -> R {
-        let event    = Lambda::new_named("unnamed",&self.event,f);
-        let behavior = Hold :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Dynamic {event,behavior}
+    pub fn map<Label,F,R>(&self, label:Label, f:F) -> Dynamic<R>
+        where Label : Into<StaticString>,
+              R     : MessageValue,
+              F     : 'static + Fn(&Out) -> R {
+        (&Lambda::new_named(label,&self.event,f)).into()
     }
 
-    pub fn map2<T,F,R>(&self, that:&Dynamic<T>, f:F) -> Dynamic<R>
-    where T : MessageValue,
-          R : MessageValue,
-          F : 'static + Fn(&Out,&T) -> R {
-        let event    = Lambda2::new_named("unnamed",&self.event,that,f);
-        let behavior = Hold :: new_named("unnamed",&event);
-        let event    = (&event).into();
-        let behavior = (&behavior).into();
-        Dynamic {event,behavior}
+    pub fn map2<Label,T,F,R>(&self, label:Label, that:&Dynamic<T>, f:F) -> Dynamic<R>
+        where Label : Into<StaticString>,
+              T     : MessageValue,
+              R     : MessageValue,
+              F     : 'static + Fn(&Out,&T) -> R {
+        (&Lambda2::new_named(label,&self.event,that,f)).into()
     }
 
-    pub fn constant<T:MessageValue>(&self, value:T) -> Dynamic<T> {
-        self.map(move |_| value.clone())
+    pub fn constant<Label,T>(&self, label:Label, value:T) -> Dynamic<T>
+        where Label:Into<StaticString>, T:MessageValue {
+        self.map(label,move |_| value.clone())
     }
 }
 
 impl<Out:MessageValue> Dynamic<Out> {
-    pub fn source() -> Self {
-        let event = Source::<EventMessage<Out>>::new_named("unnamed");
+    pub fn source<Label>(label:Label) -> Self
+        where Label : Into<StaticString> {
+        let event = Source::<EventMessage<Out>>::new_named(label);
         (&event).into()
     }
 }
@@ -1634,7 +1708,7 @@ impl<Out:MessageValue> Dynamic<Out> {
 impl<Out:MessageValue, T:Into<Event<Out>>> From<T> for Dynamic<Out> {
     fn from(t:T) -> Self {
         let event    = t.into();
-        let behavior = Hold :: new_named("unnamed",&event);
+        let behavior = Hold :: new_named(event.label(),&event);
         let event    = (&event).into();
         let behavior = (&behavior).into();
         Dynamic {event,behavior}
@@ -1652,6 +1726,9 @@ impl<Out> From<&Dynamic<Out>> for Behavior<Out> {
         t.behavior.clone_ref()
     }
 }
+
+
+use std::concat;
 
 
 #[allow(missing_docs)]
@@ -1689,6 +1766,22 @@ mod tests {
     }
 
 
+    macro_rules! frp_def {
+        ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
+            let $var = Dynamic $(::<$ty>)? :: $fn $(.$fn2)*
+            ( concat! {stringify!{$var}}, $($args)* );
+        };
+
+        ($scope:ident . $var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
+            let $var = Dynamic $(::<$ty>)? :: $fn
+            ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
+        };
+
+        ($scope:ident . $var:ident = $fn1:ident . $fn2:ident $(.$fn3:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
+            let $var = $fn1 . $fn2 $(.$fn3)* $(::<$ty>)?
+            ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
+        };
+    }
 
     // ============
     // === Test ===
@@ -1703,10 +1796,12 @@ mod tests {
 
     impl Mouse {
         pub fn new() -> Self {
-            let up       = Dynamic::source();
-            let down     = Dynamic::source();
-            let position = Dynamic::source();
-            let is_down  = down.constant(true).merge(&up.constant(false));
+            frp_def! { mouse.up        = source() }
+            frp_def! { mouse.down      = source() }
+            frp_def! { mouse.position  = source() }
+            frp_def! { mouse.down_bool = down.constant(true) }
+            frp_def! { mouse.up_bool   = up.constant(false) }
+            frp_def! { mouse.is_down   = down_bool.merge(&up_bool) }
             Self {up,down,is_down,position}
         }
     }
@@ -1724,17 +1819,17 @@ mod tests {
 
         let mouse = Mouse::new();
 
-        let mouse_down_position    = mouse.position.sample(&mouse.down);
-        let mouse_position_if_down = mouse.position.gate(&mouse.is_down);
+        let mouse_down_position    = mouse.position.sample("mouse_down_position",&mouse.down);
+        let mouse_position_if_down = mouse.position.gate("mouse_position_if_down",&mouse.is_down);
 
         frp! {
             final_position_ref  = Recursive<EventMessage<Position>>();
         }
 
         let final_position     = Dynamic::from(&final_position_ref);
-        let pos_diff_on_down   = mouse_down_position.map2(&final_position, |m,f| {m - f});
-        let final_pos_on_move  = mouse_position_if_down.map2(&pos_diff_on_down, |m,f| {m - f});
-        let debug              = final_pos_on_move.sample(&mouse.position);
+        let pos_diff_on_down   = mouse_down_position.map2("pos_diff_on_down", &final_position, |m,f| {m - f});
+        let final_pos_on_move  = mouse_position_if_down.map2("final_pos_on_move", &pos_diff_on_down, |m,f| {m - f});
+        let debug              = final_pos_on_move.sample("debug", &mouse.position);
 
 
 
@@ -1754,6 +1849,9 @@ mod tests {
         final_position_ref.initialize(&final_pos_on_move);
 
         trace("X" , &debug.event);
+
+        trace("Y", mouse.is_down.event);
+
         final_pos_on_move.behavior.display_graphviz();
 
         let target = mouse.position.event.clone_ref();
