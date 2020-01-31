@@ -58,12 +58,13 @@ impl Cursor {
     }
 
     /// Get `LineFullInfo` object of this cursor's line.
-    pub fn current_line<'a>(&self, content:&'a mut TextFieldContentFullInfo) -> LineFullInfo<'a,'a> {
+    pub fn current_line<'a>(&self, content:&'a mut TextFieldContentFullInfo)
+    -> LineFullInfo<'a,'a> {
         content.line(self.position.line)
     }
 
     /// Get the position where the cursor should be rendered. The returned point is on the
-    /// _baseline_ of cursor's line, on the right side of character from the left side of the cursor
+    /// middle of line's height, on the right side of character from the left side of the cursor
     /// (where usually the cursor is displayed by text editors).
     ///
     /// _Baseline_ is a font specific term, for details see [freetype documentation]
@@ -72,9 +73,14 @@ impl Cursor {
     ( position : &TextLocation
     , content  : &mut TextFieldContentFullInfo
     ) -> Vector2<f32>{
-        let mut line = content.line(position.line);
-        let x        = Self::x_position_of_cursor_at(position.column,&mut line);
-        let y        = line.baseline_start().y;
+        // TODO[ao] these values should be read from Font information, but msdf_sys library does
+        // not provide it yet.
+        let descender = -0.2;
+        let ascender  = 0.8;
+        let middle    = (ascender - descender) / 2.0;
+        let mut line  = content.line(position.line);
+        let x         = Self::x_position_of_cursor_at(position.column,&mut line);
+        let y         = line.baseline_start().y + middle*content.line_height;
         Vector2::new(x,y)
     }
 
