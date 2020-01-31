@@ -62,14 +62,17 @@ impl From<&StaticString> for StaticString {
 
 #[derive(Debug,Default)]
 pub struct Graphviz {
-    nodes : HashSet<usize>,
-    code  : String,
+    nodes  : HashSet<usize>,
+    labels : HashMap<usize,String>,
+    links  : Vec<(usize,usize,MessageType,String,bool)>,
+    code   : String,
 }
 
 impl Graphviz {
-    pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, tp:Tp, label:Label) {
+    pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, target_id:usize, tp:Tp, label:Label) {
         let tp    = tp.as_ref();
-        let label = label.as_ref();
+        let label = label.into();
+        println!("ADD NODE {} {}",id,label);
         let color = match tp {
             "Toggle"  => "534666",
             "Gate"    => "e69d45",
@@ -78,28 +81,31 @@ impl Graphviz {
             "Lambda2" => "d45769",
             _         => "455054",
         };
-        let code = iformat!("\n{id}[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
+        let code = iformat!("\n\"{label}\"[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
         self.nodes.insert(id);
+        self.labels.insert(id,label);
         self.code.push_str(&code);
     }
 
     pub fn add_link
     (&mut self, source:usize, target:usize, tp:MessageType, data_type:&str, redirect:bool) {
-        let style = match tp {
-            MessageType::Behavior => "[style=\"dashed\"]",
-            _                     => ""
-        };
-        let label = match data_type {
-            "()" => "",
-            s    => s
-        };
-        let params = if redirect { "[constraint=false]" } else { "" };
-        let code = iformat!("\n{source} -> {target} {style} [label=\"  {label}\"] {params}");
-        self.code.push_str(&code);
+        self.links.push((source,target,tp,data_type.to_string(),redirect));
     }
 
-    pub fn has_node(&self, id:usize) -> bool {
-        self.nodes.contains(&id)
+    pub fn register_node<Tp:Str,Label:Str>(&mut self, id:usize, tp:Tp, label:Label) -> bool {
+        let tp    = tp.as_ref();
+        let label = label.into();
+        let node = self.nodes.get(&id);
+        match node {
+            None => {},
+            Some(n) => {
+                if self.labels.get(&id) == Some(&"Hold".into()) {
+                    self.labels.insert(id,label);
+                }
+            }
+        }
+        node.is_some()
+
     }
 }
 
@@ -111,6 +117,30 @@ impl From<&Graphviz> for String {
 
 impl From<Graphviz> for String {
     fn from(t:Graphviz) -> String {
+
+        let mut code = t.code.clone();
+
+        for link in &t.links {
+            let source    = &link.0;
+            let target    = &link.1;
+            let tp        = &link.2;
+            let data_type = &link.3;
+            let redirect  = &link.4;
+            let source_label = t.labels.get(&source).cloned().unwrap_or_else(|| format!("INVALID ID {}",source));
+            let target_label = t.labels.get(&target).cloned().unwrap_or_else(|| format!("INVALID ID {}",target));
+            if source_label != target_label {
+                let style = match tp {
+                    MessageType::Behavior => "[style=\"dashed\"]",
+                    _ => ""
+                };
+                let label = if data_type == "()" { "" } else { &data_type };
+                let params = if *redirect { "[constraint=false]" } else { "" };
+                let c = iformat!("\n\"{source_label}\" -> \"{target_label}\" {style} [label=\"  {label}\"] {params}");
+                code.push_str(&c);
+            }
+        }
+
+
         format!("digraph G {{
 rankdir=TD;
 graph [fontname=\"Helvetica Neue\"];
@@ -118,7 +148,7 @@ node  [fontname=\"Helvetica Neue\" shape=box fontcolor=white penwidth=0 margin=0
 edge  [fontname=\"Helvetica Neue\" fontsize=11 arrowsize=.7 fontcolor=\"#555555\"];
 
 {}
-}}",t.code)
+}}",code)
     }
 }
 
@@ -703,16 +733,17 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name = base_type_name::<Shape>();
         let label     = &self.rc.borrow().label;
+        let id        = self.id();
         let target_id = self.target_id();
-        if !builder.has_node(target_id) {
-            builder.add_node(self.id(),type_name,label);
+        if !builder.register_node(target_id,type_name.clone(),label) {
+            builder.add_node(id,target_id,type_name,label);
             self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
                 let input_id        = input.id();
                 let input_target_id = input.target_id();
                 let is_redirect     = input_id != input_target_id;
+                input.graphviz_build(builder);
                 builder.add_link(input_target_id,target_id,input.output_type(),&input.output_type_value_name(),is_redirect);
-                input.graphviz_build(builder)
             }
         }
     }
@@ -1252,7 +1283,7 @@ impl<T:Message> GraphvizRepr for RecursiveShape2<T> {
 
 impl<T:Message> HasInputs for RecursiveShape2<T> {
     fn inputs(&self) -> Vec<AnyNode> {
-        self.source.borrow().as_ref().unwrap().inputs()
+        vec![self.source.borrow().as_ref().unwrap().clone_ref().into()]
     }
 }
 
@@ -1822,37 +1853,22 @@ mod tests {
         let mouse_down_position    = mouse.position.sample("mouse_down_position",&mouse.down);
         let mouse_position_if_down = mouse.position.gate("mouse_position_if_down",&mouse.is_down);
 
-        frp! {
-            final_position_ref  = Recursive<EventMessage<Position>>();
-        }
-
+        let final_position_ref  = Recursive::<EventMessage<Position>>::new_named("final_position");
         let final_position     = Dynamic::from(&final_position_ref);
+
         let pos_diff_on_down   = mouse_down_position.map2("pos_diff_on_down", &final_position, |m,f| {m - f});
-        let final_pos_on_move  = mouse_position_if_down.map2("final_pos_on_move", &pos_diff_on_down, |m,f| {m - f});
-        let debug              = final_pos_on_move.sample("debug", &mouse.position);
+        let final_position_2  = mouse_position_if_down.map2("final_position_2", &pos_diff_on_down, |m,f| {m - f});
+        let debug              = final_position_2.sample("debug", &mouse.position);
 
 
 
-        frp! {
-//            mouse_down_position  = Sample  (&mouse.down.event,&mouse.position);
-//            pos_diff_on_down   = Lambda2 (&mouse_down_position.event,&final_position, |m,f| {m - f});
-//            pos_diff           = Hold    (&pos_diff_on_down);
-//            final_pos_on_move  = Lambda2 (&mouse_position_if_down.event,&pos_diff_on_down, |m,f| {m - f});
-//            final_pos          = Hold    (&final_pos_on_move);
-
-//            debug = Sample (&mouse.position,&final_pos_on_move.behavior);
-        }
-
-
-
-//        final_position.initialize(final_pos.clone());
-        final_position_ref.initialize(&final_pos_on_move);
+        final_position_ref.initialize(&final_position_2);
 
         trace("X" , &debug.event);
 
         trace("Y", mouse.is_down.event);
 
-        final_pos_on_move.behavior.display_graphviz();
+        final_position.behavior.display_graphviz();
 
         let target = mouse.position.event.clone_ref();
         let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
