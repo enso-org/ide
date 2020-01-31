@@ -167,7 +167,7 @@ pub trait AttributeSetter {
           U : AsRef<str>;
 }
 
-impl AttributeSetter for web_sys::HtmlElement {
+impl AttributeSetter for web_sys::Element {
     fn set_attribute_or_panic<T,U>(&self, name:T, value:U)
     where T : AsRef<str>,
           U : AsRef<str> {

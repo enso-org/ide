@@ -1,4 +1,4 @@
-//! This module contains the implementation of HTMLObject, a struct used to represent CSS3D
+//! This module contains the implementation of Css3dObject, a struct used to represent CSS3D
 //! elements.
 
 use crate::prelude::*;
@@ -27,8 +27,6 @@ use js_sys::Object;
 // =====================
 // === Css3dPosition ===
 // =====================
-
-//FIXME: Rename doc prefixed with Html
 
 #[allow(missing_docs)]
 #[derive(Debug,Clone,Copy)]
@@ -86,6 +84,15 @@ struct Css3dObjectProperties {
     css3d_position : Css3dPosition
 }
 
+impl Drop for Css3dObjectProperties {
+    fn drop(&mut self) {
+        self.dom.remove_from_parent_or_panic();
+        self.display_object.unset_parent();
+    }
+}
+
+
+
 // =======================
 // === Css3dObjectData ===
 // =======================
@@ -117,6 +124,10 @@ impl Css3dObjectData {
         self.properties.borrow().css3d_position
     }
 
+    fn position(&self) -> Vector3<f32> {
+        self.properties.borrow().display_object.position()
+    }
+
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let mut properties = self.properties.borrow_mut();
         properties.dimensions = dimensions;
@@ -134,6 +145,10 @@ impl Css3dObjectData {
 
     fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.properties.borrow().display_object.mod_position(f);
+    }
+
+    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.properties.borrow().display_object.mod_scale(f);
     }
 
     fn render_dom(&self) {
@@ -156,6 +171,8 @@ impl Css3dObjectData {
     }
 }
 
+
+
 // ===================
 // === Css3dObject ===
 // ===================
@@ -166,25 +183,17 @@ pub struct Css3dObject {
     data : Rc<Css3dObjectData>
 }
 
-impl Drop for Css3dObject {
-    fn drop(&mut self) {
-        let properties = self.data.properties.borrow();
-        properties.dom.remove_from_parent_or_panic();
-        properties.display_object.unset_parent()
-    }
-}
-
 impl Css3dObject {
-    /// Creates a HTMLObject from element name.
-    pub fn new
+    /// Creates a Css3dObject from element name.
+    pub(super) fn new
     <L,S>(logger:L, dom_name:S, front_camera:HtmlElement, back_camera:HtmlElement) -> Result<Self>
     where L:Into<Logger>, S:AsRef<str> {
         let dom = dyn_into(create_element(dom_name.as_ref())?)?;
         Ok(Self::from_element(logger,dom,front_camera,back_camera))
     }
 
-    /// Creates a HTMLObject from a web_sys::HtmlElement.
-    pub fn from_element
+    /// Creates a Css3dObject from a web_sys::HtmlElement.
+    pub(super) fn from_element
     <L>(logger:L, element:HtmlElement, front_camera:HtmlElement, back_camera:HtmlElement) -> Self
     where L:Into<Logger> {
         let logger = logger.into();
@@ -211,8 +220,8 @@ impl Css3dObject {
         object
     }
 
-    /// Creates a HTMLObject from a HTML string.
-    pub fn from_html_string<L:Into<Logger>,T:AsRef<str>>
+    /// Creates a Css3dObject from a HTML string.
+    pub(super) fn from_html_string<L:Into<Logger>,T:AsRef<str>>
     ( logger:L
     , html_string:T
     , front_camera:HtmlElement
@@ -258,9 +267,19 @@ impl Css3dObject {
         self.data.dom()
     }
 
+    /// Gets object's position.
+    pub fn position(&self) -> Vector3<f32> {
+        self.data.position()
+    }
+
     /// Modifies the position of the object.
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.data.mod_position(f);
+    }
+
+    /// Modifies the scale of the object.
+    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.data.mod_scale(f);
     }
 }
 

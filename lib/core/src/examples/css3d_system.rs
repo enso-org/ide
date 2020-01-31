@@ -32,8 +32,8 @@ fn init(world:World) {
     let camera        = scene.camera();
     let screen        = camera.screen();
     let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
-    let sprite_system = SpriteSystem::new();
-    let css3d_system  = Css3dSystem::new();
+    let sprite_system = SpriteSystem::new(&world);
+    let css3d_system  = Css3dSystem::new(&world);
     world.add_child(&sprite_system);
     world.add_child(&css3d_system);
 

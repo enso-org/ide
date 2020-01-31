@@ -27,6 +27,7 @@ use crate::system::web::dyn_into;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
+use web_sys::Element;
 
 use crate::control::io::mouse2::MouseManager;
 use crate::control::io::mouse2;
@@ -64,6 +65,14 @@ impl Shape {
     pub fn new(width:f32, height:f32) -> Shape {
         let rc = Rc::new(RefCell::new(ShapeData::new(width,height)));
         Self {rc}
+    }
+
+    pub fn from_element(element:&Element) -> Self {
+        let bb     = element.get_bounding_client_rect();
+        let width  = bb.width() as f32;
+        let height = bb.height() as f32;
+        let rc     = Rc::new(RefCell::new(ShapeData::new(width,height)));
+        Self{rc}
     }
 
     pub fn from_window(window:&web_sys::Window) -> Self {
@@ -263,11 +272,13 @@ impl {
         let sub_logger      = logger.sub("symbols");
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
-        let window          = crate::system::web::window();
-        let shape           = Shape::from_window(&window);
+        let parent_dom      = dyn_into(canvas.parent_node().unwrap()).unwrap();
+        println!("{:?}", parent_dom);
+        let shape           = Shape::from_element(&parent_dom);
         let shape_data      = shape.screen_shape();
         let width           = shape_data.width;
         let height          = shape_data.height;
+        println!("{} x {}", width, height);
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
@@ -278,6 +289,8 @@ impl {
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
         let mouse           = Mouse::new(&shape,&variables);
         let zoom_uniform_cp = zoom_uniform.clone();
+        canvas.set_width(width as u32);
+        canvas.set_height(height as u32);
         camera.add_zoom_update_callback(move |zoom| zoom_uniform_cp.set(zoom));
 
         context.enable(Context::BLEND);

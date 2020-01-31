@@ -1,8 +1,8 @@
 use crate::prelude::*;
 
 use super::Css3dObject;
-use crate::display::world;
 use crate::display::object::DisplayObjectData;
+use crate::display::world::World;
 use crate::system::web::Result;
 use crate::system::web::dom::html::Css3dRenderer;
 
@@ -16,20 +16,14 @@ pub struct Css3dSystem {
     logger         : Logger
 }
 
-impl Default for Css3dSystem {
-    fn default() -> Self {
-        let scene          = world::get_scene();
+impl Css3dSystem {
+    /// Creates a new instance of Css3dSystem.
+    pub fn new(world:&World) -> Self {
+        let scene          = world.scene();
         let css3d_renderer = scene.css3d_renderer();
         let logger         = css3d_renderer.logger().sub("Css3dSystem");
         let display_object = DisplayObjectData::new(&logger);
         Self{display_object,css3d_renderer,logger}
-    }
-}
-
-impl Css3dSystem {
-    /// Creates a new instance of Css3dSystem.
-    pub fn new() -> Self {
-        default()
     }
 
     /// Creates a new instance of Css3dObject.
