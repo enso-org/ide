@@ -18,8 +18,7 @@ use std::ops::RangeInclusive;
 /// =====================
 
 /// Struct describing specific one line's fragment.
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct LineFragment {
     pub line_index  : usize,
@@ -68,8 +67,6 @@ pub struct GlyphLinesAssignment {
     pub dirty_glyph_lines: HashSet<usize>,
     /// Maximum displayed glyphs in _glyph line_.
     pub max_glyphs_in_line: usize,
-    /// Line height in pixels.
-    pub line_height: f32,
     /// The x margin of rendered glyphs in pixels.
     ///
     /// To make a horizontal scrolling faster, each _glyph line_ renders not only the visible
@@ -83,9 +80,8 @@ pub struct GlyphLinesAssignment {
 
 impl GlyphLinesAssignment {
     /// Constructor making struct without any assignment set.
-    pub fn new(glyph_lines_count:usize, max_glyphs_in_line:usize, x_margin:f32, line_height:f32)
-    -> Self {
-        GlyphLinesAssignment {max_glyphs_in_line,line_height,x_margin,
+    pub fn new(glyph_lines_count:usize, max_glyphs_in_line:usize, x_margin:f32) -> Self {
+        GlyphLinesAssignment {max_glyphs_in_line,x_margin,
             glyph_lines_fragments              : (0..glyph_lines_count).map(|_| None).collect(),
             assigned_lines                     : 1..=0,
             dirty_glyph_lines                  : HashSet::new(),
@@ -146,7 +142,7 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 
     /// Update some line's fragments assigned to glyph_lines after horizontal scrolling.
     pub fn update_after_x_scroll(&mut self, x_scroll:f32) {
-        let updated_count = (x_scroll.abs() / self.assignment.line_height).ceil() as usize;
+        let updated_count = (x_scroll.abs() / self.content.line_height).ceil() as usize;
         let updated_count = updated_count.min(self.assignment.glyph_lines_count());
         for glyph_line_id in 0..self.assignment.glyph_lines_count() {
             if self.should_be_updated_after_x_scroll(glyph_line_id,updated_count) {
@@ -224,9 +220,9 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 
     /// Returns new required line assignment range, which makes minimal change from current
     /// assignment state.
-    fn new_assignment(&self) -> RangeInclusive<usize> {
-        let assigned_lines        = &self.assignment.assigned_lines;
+    fn new_assignment(&mut self) -> RangeInclusive<usize> {
         let visible_lines         = self.visible_lines_range();
+        let assigned_lines        = &self.assignment.assigned_lines;
         let lines_count           = |r:&RangeInclusive<usize>| r.end() + 1 - r.start();
         let assigned_lines_count  = lines_count(assigned_lines);
         let displayed_lines_count = lines_count(&visible_lines);
@@ -243,22 +239,15 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
     }
 
     /// Returns range of currently visible lines.
-    fn visible_lines_range(&self) -> RangeInclusive<usize> {
-        let line_height              = self.assignment.line_height;
+    fn visible_lines_range(&mut self) -> RangeInclusive<usize> {
         let lines_count              = self.content.lines.len();
         let top                      = self.scroll_offset.y;
         let bottom                   = self.scroll_offset.y - self.view_size.y;
-        let top_line_clipped         = Self::line_at_y_position(top,line_height,lines_count);
-        let bottom_line_clipped      = Self::line_at_y_position(bottom,line_height,lines_count);
-        let first_line_index         = top_line_clipped.unwrap_or(0);
-        let last_line_index          = bottom_line_clipped.unwrap_or(lines_count-1);
+        let top_line_clipped         = self.content.line_at_y_position(top);
+        let first_line_index         = top_line_clipped.map_or(0, |l| l.line_id);
+        let bottom_line_clipped      = self.content.line_at_y_position(bottom);
+        let last_line_index          = bottom_line_clipped.map_or(lines_count-1,|l| l.line_id);
         first_line_index..=last_line_index
-    }
-
-    fn line_at_y_position(y:f32, line_height:f32, lines_count:usize) -> Option<usize> {
-        let index    = -(y / line_height).ceil();
-        let is_valid = index >= 0.0 && index < lines_count as f32;
-        is_valid.and_option_from(|| Some(index as usize))
     }
 
     /// Check if given _glyph line_ should be updated after x scroll.
@@ -286,148 +275,95 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 
 
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//
-//    use basegl_core_msdf_sys::test_utils::TestAfterInit;
-//    use std::future::Future;
-//    use wasm_bindgen_test::wasm_bindgen_test;
-//
-//    #[test]
-//    fn fragment_reassignments() {
-//        let lines_range = 4..=6;
-//
-//        assert!( make_assigned_fragment(2)     .can_be_reassigned(&lines_range));
-//        assert!(!make_assigned_fragment(4)     .can_be_reassigned(&lines_range));
-//        assert!(!make_assigned_fragment(6)     .can_be_reassigned(&lines_range));
-//        assert!( make_assigned_fragment(7)     .can_be_reassigned(&lines_range));
-//        assert!( GlyphLine::unassigned().can_be_reassigned(&lines_range));
-//    }
-//
-//    #[test]
-//    fn rendered_fragment_updating() {
-//        let line            = Line::new("AAAĘĘĘ");
-//        let x_range         = 1.0..=12.8;
-//        let rendered_front  = LineFragment { chars_range:0..3, x_range:x_range.clone()};
-//        let rendered_middle = LineFragment { chars_range:2..5, x_range:x_range.clone()};
-//        let rendered_back   = LineFragment { chars_range:2..6, x_range:x_range.clone()};
-//        let not_scrolled    = 1.1..=12.7;
-//        let scrolled_left   = 0.9..=12.0;
-//        let scrolled_right  = 2.0..=13.0;
-//
-//        assert!(!rendered_middle.should_be_updated(&not_scrolled  ,&line));
-//        assert!( rendered_middle.should_be_updated(&scrolled_left ,&line));
-//        assert!( rendered_middle.should_be_updated(&scrolled_right,&line));
-//        assert!(!rendered_front .should_be_updated(&not_scrolled  ,&line));
-//        assert!(!rendered_front .should_be_updated(&scrolled_left ,&line));
-//        assert!( rendered_front .should_be_updated(&scrolled_right,&line));
-//        assert!(!rendered_back  .should_be_updated(&not_scrolled  ,&line));
-//        assert!( rendered_back  .should_be_updated(&scrolled_left ,&line));
-//        assert!(!rendered_back  .should_be_updated(&scrolled_right,&line));
-//    }
-//
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+    use basegl_core_msdf_sys::test_utils::TestAfterInit;
+    use std::future::Future;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use crate::display::shape::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::content::TextFieldContent;
+    use crate::display::shape::text::TextFieldProperties;
+    use nalgebra::Vector4;
+
+    fn mock_properties() -> TextFieldProperties {
+        TextFieldProperties {
+            font_id: 0,
+            text_size: 10.0,
+            base_color: Vector4::new(0.0,0.0,0.0,1.0),
+            size: Vector2::new(20.0,40.0),
+        }
+    }
+
+    fn mock_font() -> FontRenderInfo {
+        let mut font          = FontRenderInfo::mock_font("Test".to_string());
+        let mut a_info        = font.mock_char_info('A');
+        a_info.advance        = 1.0;
+        let mut b_info        = font.mock_char_info('B');
+        b_info.advance        = 1.5;
+        font.mock_kerning_info('A', 'A', 0.0);
+        font.mock_kerning_info('B', 'B', 0.0);
+        font.mock_kerning_info('A', 'B', 0.0);
+        font.mock_kerning_info('B', 'A', 0.0);
+        font
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn initial_assignment() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font         = mock_font();
+            let properties       = mock_properties();
+            let mut content      = TextFieldContent::new("AAABBB\nABABAB\n\nA\nA",&properties);
+
+            let mut assignment = GlyphLinesAssignment::new(4, 4, 1.0);
+
+            let mut update     = GlyphLinesAssignmentUpdate {
+                assignment    : &mut assignment,
+                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
+                scroll_offset : Vector2::new(2.2,0.0),
+                view_size     : properties.size
+            };
+            update.update_line_assignment();
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 2..6}),
+                Some(LineFragment{line_index:1, chars_range: 1..5}),
+                Some(LineFragment{line_index:2, chars_range: 0..0}),
+                Some(LineFragment{line_index:3, chars_range: 0..1}),
+            ];
+
+            assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
+        })
+    }
+
 //    #[wasm_bindgen_test(async)]
-//    fn build_data_for_empty_line() -> impl Future<Output=()> {
+//    fn lines_reassignment() {
 //        TestAfterInit::schedule(|| {
-//            let mut font     = FontRenderInfo::mock_font("Test font".to_string());
-//            let mut line     = Line::empty();
-//            let mut line_ref = LineRef {line:&mut line, line_id:0};
-//            let mut builder = FragmentsDataBuilder {
-//                vertex_position_data : Vec::new(),
-//                texture_coords_data  : Vec::new(),
-//                font                 : &mut font,
-//                line_clip            : 10.0..80.0,
-//                max_chars_in_fragment: 100
+//            let mut font         = mock_font();
+//            let properties       = mock_properties();
+//            let mut content      = TextFieldContent::new("AAABBB\nABABAB\n\nA\nA",&properties);
+//
+//            let mut assignment = GlyphLinesAssignment::new(4, 4, 1.0);
+//            assignment.glyph_lines_fragments = vec![
+//            ]
+//
+//            let mut update     = GlyphLinesAssignmentUpdate {
+//                assignment    : &mut assignment,
+//                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
+//                scroll_offset : Vector2::new(2.2,0.0),
+//                view_size     : properties.size
 //            };
+//            update.update_line_assignment();
+//            let expected_fragments = vec![
+//                Some(LineFragment{line_index:0, chars_range: 2..6}),
+//                Some(LineFragment{line_index:1, chars_range: 1..5}),
+//                Some(LineFragment{line_index:2, chars_range: 0..0}),
+//                Some(LineFragment{line_index:3, chars_range: 0..1}),
+//            ];
 //
-//            let result = builder.build_for_line(&mut line_ref);
-//
-//            let expected_data = vec![0.0; 12 * 100];
-//            assert!(result.is_none());
-//            assert_eq!(expected_data, builder.vertex_position_data);
-//            assert_eq!(expected_data, builder.texture_coords_data);
+//            assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
 //        })
-//    }
-//
-//    #[wasm_bindgen_test(async)]
-//    fn build_data_various_lines() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font          = FontRenderInfo::mock_font("Test font".to_string());
-//            let mut a_info        = font.mock_char_info('A');
-//            a_info.advance        = 1.0;
-//            let mut b_info        = font.mock_char_info('B');
-//            b_info.advance        = 1.5;
-//            font.mock_kerning_info('A', 'A', 0.0);
-//            font.mock_kerning_info('B', 'B', 0.0);
-//            font.mock_kerning_info('A', 'B', 0.0);
-//            font.mock_kerning_info('B', 'A', 0.0);
-//            let mut shortest_line = Line::new("AB"         .to_string());
-//            let mut short_line    = Line::new("ABBA"       .to_string());
-//            let mut medium_line   = Line::new("ABBAAB"     .to_string());
-//            let mut long_line     = Line::new("ABBAABBABBA".to_string());
-//
-//            let mut builder = FragmentsDataBuilder {
-//                vertex_position_data : Vec::new(),
-//                texture_coords_data  : Vec::new(),
-//                font                 : &mut font,
-//                line_clip            : 5.5..8.0,
-//                max_chars_in_fragment: 3
-//            };
-//            let shortest_result = builder.build_for_line(&mut LineRef {line:&mut shortest_line, line_id:1}).unwrap();
-//            let short_result    = builder.build_for_line(&mut LineRef {line:&mut short_line, line_id:2}).unwrap();
-//            let medium_result   = builder.build_for_line(&mut LineRef {line:&mut medium_line, line_id:3}).unwrap();
-//            let long_result     = builder.build_for_line(&mut LineRef {line:&mut long_line, line_id:4}).unwrap();
-//
-//            assert_eq!(0..2, shortest_result.chars_range);
-//            assert_eq!(1..4, short_result   .chars_range);
-//            assert_eq!(3..6, medium_result  .chars_range);
-//            assert_eq!(4..7, long_result    .chars_range);
-//
-//            assert_eq!(0.0..=2.5, shortest_result.x_range);
-//            assert_eq!(1.0..=5.0, short_result   .x_range);
-//            assert_eq!(4.0..=7.5, medium_result  .x_range);
-//            assert_eq!(5.0..=9.0, long_result    .x_range);
-//
-//            let vertex_glyph_data_size    = GlyphVertexPositionBuilder::OUTPUT_SIZE;
-//            let tex_coord_glyph_data_size = GlyphTextureCoordsBuilder::OUTPUT_SIZE;
-//            let glyphs_count              = builder.max_chars_in_fragment * 4;
-//            let vertex_data_size          = vertex_glyph_data_size * glyphs_count;
-//            let tex_coord_data_size       = tex_coord_glyph_data_size * glyphs_count;
-//            assert_eq!(vertex_data_size   , builder.vertex_position_data.len());
-//            assert_eq!([0.0, -2.0], builder.vertex_position_data[0..2]);
-//            assert_eq!(tex_coord_data_size, builder.texture_coords_data.len());
-//        })
-//    }
-//
-//    #[wasm_bindgen_test(async)]
-//    fn build_data_with_non_ascii() -> impl Future<Output=()> {
-//        TestAfterInit::schedule(|| {
-//            let mut font     = FontRenderInfo::mock_font("Test font".to_string());
-//            let mut a_info   = font.mock_char_info('Ą');
-//            a_info.advance   = 1.0;
-//            let mut b_info   = font.mock_char_info('B');
-//            b_info.advance   = 1.5;
-//            font.mock_kerning_info('Ą', 'B', 0.0);
-//            let mut line     = Line::new("ĄB".to_string());
-//            let mut line_ref = LineRef {line:&mut line, line_id:0};
-//
-//            let mut builder = FragmentsDataBuilder {
-//                vertex_position_data : Vec::new(),
-//                texture_coords_data  : Vec::new(),
-//                font                 : &mut font,
-//                line_clip            : 0.0..10.0,
-//                max_chars_in_fragment: 3
-//            };
-//            let result = builder.build_for_line(&mut line_ref).unwrap();
-//
-//            assert_eq!(0..2, result.chars_range);
-//        })
-//    }
-//
-//    #[test]
-//    fn fragments_reassign() {
 //        let assigned_lines   = 4..=6;
 //        let new_assignment_1 = 2..=5;
 //        let new_assignment_2 = 5..=8;
@@ -486,4 +422,4 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 //            dirty         : true,
 //        }
 //    }
-//}
+}

@@ -6,7 +6,8 @@ pub mod render;
 
 use crate::prelude::*;
 
-use crate::display::shape::text::content::{TextFieldContent, TextChange, TextLocation};
+use crate::display::shape::text::content::TextFieldContent;
+use crate::display::shape::text::content::TextChange;
 use crate::display::shape::text::cursor::Cursors;
 use crate::display::shape::text::cursor::Step;
 use crate::display::shape::text::cursor::CursorNavigation;
@@ -73,18 +74,20 @@ impl TextField {
     -> Self {
         let logger         = Logger::new("TextField");
         let display_object = DisplayObjectData::new(logger);
-        let mut content    = TextFieldContent::new(initial_content,&properties);
-        let mut cursors    = Cursors::new();
-        let mut rendered   = RenderedContent::new(world,&properties,fonts);
+        let content        = TextFieldContent::new(initial_content,&properties);
+        let cursors        = Cursors::default();
+        let rendered       = RenderedContent::new(world,&properties,fonts);
         display_object.add_child(rendered.display_object.clone_ref());
 
-        cursors.add_cursor(TextLocation::at_document_begin());
-        rendered.update_glyphs(&mut content,fonts);
-        rendered.update_cursors(&cursors, &mut content.full_info(fonts));
-
         let mut text_field = TextField {properties,content,cursors,rendered,display_object};
-        text_field.assignment_update(fonts).update_line_assignment();
+        text_field.initialize(fonts);
         text_field
+    }
+
+    fn initialize(&mut self, fonts:&mut FontRegistry) {
+        self.assignment_update(fonts).update_line_assignment();
+        self.rendered.update_glyphs(&mut self.content,fonts);
+        self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
     }
 
     /// Set position of this TextField.
@@ -115,6 +118,15 @@ impl TextField {
         let content        = self.content.full_info(fonts);
         let mut navigation = CursorNavigation {content,selecting};
         self.cursors.navigate_all_cursors(&mut navigation,step);
+        self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
+    }
+
+    /// Jump cursor to point on the screen.
+    pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool, fonts:&mut FontRegistry) {
+        let content        = self.content.full_info(fonts);
+        let mut navigation = CursorNavigation {content,selecting};
+        self.cursors.remove_additional_cursors();
+        self.cursors.jump_cursor(&mut navigation,point);
         self.rendered.update_cursors(&self.cursors, &mut self.content.full_info(fonts));
     }
 

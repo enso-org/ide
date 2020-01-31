@@ -8,11 +8,13 @@ use crate::display::shape::glyph::font::FontRegistry;
 use crate::display::shape::glyph::font::FontRenderInfo;
 use crate::display::shape::text::content::line::Line;
 use crate::display::shape::text::content::line::LineFullInfo;
+use crate::display::shape::text::TextFieldProperties;
 
+use nalgebra::Vector2;
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeInclusive;
-use crate::display::shape::text::TextFieldProperties;
+
 
 
 // ==================
@@ -299,6 +301,31 @@ impl<'a,'b> TextFieldContentFullInfo<'a,'b> {
             line_id : index,
             font    : self.font,
         }
+    }
+
+    /// Get the nearest text location from the point on the screen.
+    pub fn location_at_point(&mut self, point:Vector2<f32>) -> TextLocation {
+        let line_opt = self.line_at_y_position(point.y);
+        let mut line = match line_opt {
+            Some(line)             => line,
+            None if point.y <= 0.0 => self.line(0),
+            None                   => self.line(self.lines.len()-1),
+        };
+        let column_opt = line.find_char_at_x_position(point.x);
+        let column = match column_opt {
+            Some(column)           => column,
+            None if point.x <= 0.0 => 0,
+            None                   => line.len(),
+        };
+        TextLocation{line:line.line_id, column}
+    }
+
+    /// Get the index of line which is displayed at given y screen coordinate.
+    pub fn line_at_y_position(&mut self, y:f32) -> Option<LineFullInfo> {
+        let index    = -(y / self.line_height).ceil();
+        let is_valid = index >= 0.0 && index < self.lines.len() as f32;
+        let index    = is_valid.and_option_from(|| Some(index as usize));
+        index.map(move |i| self.line(i))
     }
 }
 

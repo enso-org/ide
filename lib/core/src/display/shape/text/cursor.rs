@@ -73,14 +73,13 @@ impl Cursor {
     ( position : &TextLocation
     , content  : &mut TextFieldContentFullInfo
     ) -> Vector2<f32>{
-        // TODO[ao] these values should be read from Font information, but msdf_sys library does
+        let line_height = content.line_height;
+        let mut line    = content.line(position.line);
+        // TODO[ao] this value should be read from font information, but msdf_sys library does
         // not provide it yet.
-        let descender = -0.2;
-        let ascender  = 0.8;
-        let middle    = (ascender - descender) / 2.0;
-        let mut line  = content.line(position.line);
+        let descender = line.baseline_start().y - 0.15 * line_height;
         let x         = Self::x_position_of_cursor_at(position.column,&mut line);
-        let y         = line.baseline_start().y + middle*content.line_height;
+        let y         = descender + line_height / 2.0;
         Vector2::new(x,y)
     }
 
@@ -123,6 +122,12 @@ impl<'a,'b> CursorNavigation<'a,'b> {
         if !self.selecting {
             cursor.selected_to = to;
         }
+    }
+
+    /// Jump cursor to the nearest position from given point on the screen.
+    pub fn move_cursor_to_point(&mut self, cursor:&mut Cursor, to:Vector2<f32>) {
+        let position = self.content.location_at_point(to);
+        self.move_cursor_to_position(cursor,position);
     }
 
     /// Move cursor by given step.
@@ -237,24 +242,34 @@ impl<'a,'b> CursorNavigation<'a,'b> {
 ///
 /// Usually there is only one cursor, but we have possibility of having many cursors in one text
 /// component enabling editing in multiple lines/places at once.
-#[derive(Debug,Default)]
+#[derive(Debug)]
 pub struct Cursors {
     /// All cursors' positions.
     pub cursors : Vec<Cursor>,
 }
 
-impl Cursors {
-
-    /// Create empty `Cursors` structure.
-    pub fn new() -> Self {
+impl Default for Cursors {
+    fn default() -> Self {
         Cursors {
-            cursors : Vec::new(),
+            cursors : vec![Cursor::new(TextLocation::at_document_begin())],
         }
     }
+}
 
+impl Cursors {
     /// Removes all current cursors and replace them with single cursor without any selection.
     pub fn set_cursor(&mut self, position: TextLocation) {
         self.cursors = vec![Cursor::new(position)];
+    }
+
+    /// Remove all cursors except the active one.
+    pub fn remove_additional_cursors(&mut self) {
+        self.cursors.drain(0..self.cursors.len()-1);
+    }
+
+    /// Return the active (last added) cursor.
+    pub fn active_cursor(&self) -> &Cursor {
+        self.cursors.last().unwrap()
     }
 
     /// Add new cursor without selection.
@@ -269,6 +284,15 @@ impl Cursors {
     /// area overlap, they are irreversibly merged.
     pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:Step) {
         self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,step));
+        self.merge_overlapping_cursors();
+    }
+
+    /// Jump the active (last) cursor to the nearest location from given point of the screen.
+    ///
+    /// If after this operation some of the cursors occupies the same position, or their selected
+    /// area overlap, they are irreversibly merged.
+    pub fn jump_cursor(&mut self, navigation:&mut CursorNavigation, point:Vector2<f32>) {
+        navigation.move_cursor_to_point(self.cursors.last_mut().unwrap(),point);
         self.merge_overlapping_cursors();
     }
 

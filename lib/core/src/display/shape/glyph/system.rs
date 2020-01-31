@@ -251,6 +251,7 @@ impl GlyphSystem {
         material.add_input("zoom"       , 1.0);
         material.add_input("msdf_range" , FontRenderInfo::MSDF_PARAMS.range as f32);
         material.add_input("color"      , Vector4::new(0.0,0.0,0.0,1.0));
+        material.add_output("id", Vector4::<u32>::new(0,0,0,0));
 
         let code = CodeTemplate::new(BEFORE_MAIN.to_string(),MAIN.to_string(),"".to_string());
         material.set_code(code);

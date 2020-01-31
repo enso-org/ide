@@ -18,7 +18,7 @@ use basegl_system_web::set_stdout;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_text() {
+pub fn run_example_text_typing() {
     forward_panic_hook_to_console();
     set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
@@ -33,7 +33,7 @@ pub fn run_example_text() {
             size       : Vector2::new(200.0, 200.0)
         };
 
-        let mut text_field = TextField::new(&world,"AV",properties,&mut fonts);
+        let mut text_field = TextField::new(&world,"",properties,&mut fonts);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
         world.add_child(&text_field);
 
@@ -73,7 +73,7 @@ fn animate_text_component
         let string = ch.a_char.to_string();
         let change = TextChange::insert(cursor.position, string.as_str());
         text_field.make_change(change,fonts);
-        text_field.navigate_cursors(Right,true,fonts);
+        text_field.navigate_cursors(Right,false,fonts);
     }
     if start_scrolling <= js_sys::Date::now() {
         text_field.scroll(Vector2::new(0.0,-0.1),fonts);

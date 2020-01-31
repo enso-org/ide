@@ -94,7 +94,7 @@ impl<'a,'b> LineFullInfo<'a,'b> {
     /// term, for details see [freetype documentation]
     /// (https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)).
     pub fn baseline_start(&self) -> Vector2<f32> {
-        Vector2::new(0.0, (-(self.line_id as f32) - 1.0) * self.height)
+        Vector2::new(0.0, (-(self.line_id as f32) - 0.85) * self.height)
     }
 
     /// Get x position of character with given index. The position is in _text space_.
@@ -106,7 +106,7 @@ impl<'a,'b> LineFullInfo<'a,'b> {
     /// Get range of x coordinates containing the given character.
     pub fn get_char_x_range(&mut self, index:usize) -> Range<f32> {
         let start   = self.get_char_x_position(index);
-        let advance = self.font.get_glyph_info(self.chars[index]).advance;
+        let advance = self.font.get_glyph_info(self.chars[index]).advance * self.height;
         start..(start + advance)
     }
 

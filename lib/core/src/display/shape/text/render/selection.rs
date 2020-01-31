@@ -1,12 +1,24 @@
+//! Drawing selection utilities.
+
 use crate::display::shape::primitive::system::ShapeSystem;
-use crate::display::shape::text::content::{TextFieldContentFullInfo, TextLocation};
-use std::ops::Range;
-use nalgebra::Vector2;
-use nalgebra::Vector3;
+use crate::display::shape::text::content::TextFieldContentFullInfo;
+use crate::display::shape::text::content::TextLocation;
 use crate::display::shape::text::cursor::Cursor;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 
+use nalgebra::Vector2;
+use nalgebra::Vector3;
+use std::ops::Range;
+
+
+
+// =================================
+// === SelectionSpritesGenerator ===
+// =================================
+
+/// A helper structure for generating selection sprites.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct SelectionSpritesGenerator<'a,'b,'c,'d> {
     pub line_height : f32,
     pub system      : &'a ShapeSystem,
@@ -14,6 +26,7 @@ pub struct SelectionSpritesGenerator<'a,'b,'c,'d> {
 }
 
 impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
+    /// Generate sprites for given selection.
     pub fn generate(&mut self, selection : &Range<TextLocation>) -> Vec<Sprite> {
         let mut return_value = Vec::new();
         if selection.start.line < selection.end.line {
@@ -24,7 +37,6 @@ impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
                 return_value.push(self.whole_line_selection_block(&lines));
             }
         } else if selection.start.column < selection.end.column {
-            println!("Single line");
             return_value.push(self.single_line_selection(&selection))
         }
         return_value
@@ -35,9 +47,9 @@ impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
     fn single_line_selection(&mut self, selection:&Range<TextLocation>) -> Sprite {
         let start  = Cursor::render_position(&selection.start,self.content);
         let end    = Cursor::render_position(&selection.end,self.content);
-        let width  = start.x - end.x;
+        let width  = end.x - start.x;
         let x      = start.x + width/2.0;
-        let y      = start.y + self.line_height/2.0;
+        let y      = start.y;
         let size   = Vector2::new(width,self.line_height);
         let sprite = self.system.new_instance();
         sprite.set_position(Vector3::new(x,y,-1.0));
@@ -49,7 +61,7 @@ impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
         let start  = Cursor::render_position(&selection.start,self.content);
         let width  = Self::FULL_LINE_WIDTH;
         let x      = start.x + width/2.0;
-        let y      = start.y + self.line_height/2.0;
+        let y      = start.y;
         let size   = Vector2::new(width,self.line_height);
         let sprite = self.system.new_instance();
         sprite.set_position(Vector3::new(x,y,-1.0));
@@ -61,7 +73,7 @@ impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
         let end    = Cursor::render_position(&selection.end,self.content);
         let width  = end.x;
         let x      = width/2.0;
-        let y      = end.y + self.line_height/2.0;
+        let y      = end.y;
         let size   = Vector2::new(width,self.line_height);
         let sprite = self.system.new_instance();
         sprite.set_position(Vector3::new(x,y,-1.0));
@@ -74,7 +86,9 @@ impl<'a,'b,'c,'d> SelectionSpritesGenerator<'a,'b,'c,'d> {
         let width  = Self::FULL_LINE_WIDTH;
         let height = (lines_count as f32) * self.line_height;
         let x      = width/2.0;
-        let y      = self.content.line(lines.end - 1).baseline_start().y + height/2.0;
+        let bottom = TextLocation::at_line_begin(lines.end - 1);
+        let min_y  = Cursor::render_position(&bottom,self.content).y - self.line_height / 2.0;
+        let y      = min_y + height/2.0;
         let size   = Vector2::new(width,height);
         let sprite = self.system.new_instance();
         sprite.set_position(Vector3::new(x,y,-1.0));

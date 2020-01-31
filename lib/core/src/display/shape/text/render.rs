@@ -1,7 +1,6 @@
 //! Rendering TextField.
 
 pub mod assignment;
-#[allow(missing_docs)]
 pub mod selection;
 
 use crate::prelude::*;
@@ -103,11 +102,10 @@ impl RenderedContent {
     }
 
     fn create_selection_system(world:&World) -> ShapeSystem {
-        const ROUNDING:f32 = 3.0;
-        let width          = "input_size.x";
-        let height         = "input_size.y";
-        let r              = ROUNDING;
-        let selection_definition = RoundedRectByCorner(width,height,r,r,r,r);
+        const ROUNDING:f32       = 3.0;
+        let width                = "input_size.x";
+        let height               = "input_size.y";
+        let selection_definition = SharpRect(width,height);
         ShapeSystem::new(world,&selection_definition)
     }
 
@@ -127,7 +125,7 @@ impl RenderedContent {
         // at once.
         let x_margin           = (displayed_lines as f32) * line_height / space_width;
         let max_glyphs_in_line = (displayed_chars + 2.0 * x_margin).floor() as usize + ADDITIONAL;
-        GlyphLinesAssignment::new(displayed_lines,max_glyphs_in_line,x_margin,line_height)
+        GlyphLinesAssignment::new(displayed_lines,max_glyphs_in_line,x_margin)
     }
 }
 
