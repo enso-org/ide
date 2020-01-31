@@ -27,7 +27,7 @@ use crate::system::web::dyn_into;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
-use web_sys::Element;
+use web_sys::HtmlElement;
 
 use crate::control::io::mouse2::MouseManager;
 use crate::control::io::mouse2;
@@ -67,7 +67,7 @@ impl Shape {
         Self {rc}
     }
 
-    pub fn from_element(element:&Element) -> Self {
+    pub fn from_element(element:&HtmlElement) -> Self {
         let bb     = element.get_bounding_client_rect();
         let width  = bb.width() as f32;
         let height = bb.height() as f32;
@@ -272,13 +272,11 @@ impl {
         let sub_logger      = logger.sub("symbols");
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
-        let parent_dom      = dyn_into(canvas.parent_node().unwrap()).unwrap();
-        println!("{:?}", parent_dom);
-        let shape           = Shape::from_element(&parent_dom);
+        let canvas_parent   = dyn_into::<_,HtmlElement>(canvas.parent_node().unwrap()).unwrap();
+        let shape           = Shape::from_element(&canvas_parent);
         let shape_data      = shape.screen_shape();
         let width           = shape_data.width;
         let height          = shape_data.height;
-        println!("{} x {}", width, height);
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
@@ -307,7 +305,6 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-        let canvas_parent  = dyn_into(canvas.parent_node().unwrap()).unwrap();
         let css3d_renderer = Css3dRenderer::from_element(logger.sub("Css3dRenderer"),canvas_parent);
         let css3d_renderer = css3d_renderer.expect("Couldn't create Css3dRenderer");
 
