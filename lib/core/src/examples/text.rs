@@ -29,7 +29,7 @@ pub fn run_example_text() {
         let properties = TextFieldProperties {
             font_id,
             text_size  : 16.0,
-            base_color : Vector4::new(0.0, 0.8, 0.0, 1.0),
+            base_color : Vector4::new(0.0, 0.0, 0.0, 1.0),
             size       : Vector2::new(200.0, 200.0)
         };
 
