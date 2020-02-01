@@ -60,28 +60,50 @@ impl From<&StaticString> for StaticString {
 // === Graphviz ===
 // ================
 
+#[derive(Debug,Clone)]
+pub struct VizNode {
+    display_id : usize,
+    variant    : String,
+    label      : String,
+}
+
+impl VizNode {
+    pub fn new(display_id:usize, variant:String, label:String) -> Self {
+        VizNode {display_id,variant,label}
+    }
+}
+
+
+//#[derive(Debug,Clone)]
+//pub struct VizLink {
+//    source_id    : usize,
+//    target_id    : usize,
+//    message_type : MessageType,
+//    data_type    : String,
+//}
+
 #[derive(Debug,Default)]
 pub struct Graphviz {
-    nodes  : HashMap<usize,(usize,String,String)>,
+    nodes  : HashMap<usize,VizNode>,
     labels : HashMap<usize,String>,
-    links  : Vec<(usize,usize,MessageType,String,bool)>,
+    links  : Vec<(usize,usize,MessageType,String)>,
     code   : String,
 }
 
 impl Graphviz {
-    pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, target_id:usize, tp:Tp, label:Label) {
+    pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, display_id:usize, tp:Tp, label:Label) {
         let tp    = tp.into();
         let label = label.into();
-        println!("ADD NODE {} {} {} {}",id,target_id,(id == target_id),label);
+        println!("ADD NODE {} {} {} {}",id,display_id,(id == display_id),label);
 
-        self.nodes.insert(id,(target_id,tp,label.clone()));
+        self.nodes.insert(id,VizNode::new(display_id,tp,label.clone()));
         self.labels.insert(id, label);
 //        self.code.push_str(&code);
     }
 
     pub fn add_link
-    (&mut self, source:usize, target:usize, tp:MessageType, data_type:&str, redirect:bool) {
-        self.links.push((source,target,tp,data_type.to_string(),redirect));
+    (&mut self, source:usize, target:usize, tp:MessageType, data_type:&str) {
+        self.links.push((source,target,tp,data_type.to_string()));
     }
 
     pub fn contains(&mut self, id:usize) -> bool {
@@ -100,32 +122,16 @@ impl From<Graphviz> for String {
 
         let mut code = t.code.clone();
 
+        let mut nodes2: HashMap<usize,VizNode> = default();
 
-        let mut rename_map : HashMap<String,String> = default();
-
-        for (nid,node) in &t.nodes {
-            println!("-- {} {}", nid, node.0);
-            if nid != &node.0 {
-                let target_label = t.labels.get(&node.0).unwrap();
-                rename_map.insert(node.2.clone(),target_label.clone());
-            }
+        for (_,node) in &t.nodes {
+            nodes2.insert(node.display_id,node.clone());
         }
 
-        println!("{:#?}",rename_map);
-
-
-        let mut nodes2: HashMap<String,String> = default();
-
-        for (nid,node) in &t.nodes {
-            match rename_map.get(&node.2) {
-                Some(n) => nodes2.insert(n.clone(),node.1.clone()),
-                None    => nodes2.insert(node.2.clone(),node.1.clone())
-            };
-        }
-
-        for (label,tp) in &nodes2 {
-            let tp:&str = &tp;
-            let color = match tp {
+        for (_,node) in &nodes2 {
+            let variant:&str = &node.variant;
+            let label        = &node.label;
+            let color = match variant {
                 "Toggle"  => "534666",
                 "Gate"    => "e69d45",
                 "Hold"    => "308695",
@@ -133,7 +139,7 @@ impl From<Graphviz> for String {
                 "Lambda2" => "d45769",
                 _         => "455054",
             };
-            let c = iformat!("\n\"{label}\"[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
+            let c = iformat!("\n\"{label}\"[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{variant}</FONT>>]");
             code.push_str(&c);
         }
 
@@ -142,18 +148,8 @@ impl From<Graphviz> for String {
             let target    = &link.1;
             let tp        = &link.2;
             let data_type = &link.3;
-            let redirect  = &link.4;
             let source_label = t.labels.get(&source).cloned().unwrap_or_else(|| format!("INVALID ID {}",source));
             let target_label = t.labels.get(&target).cloned().unwrap_or_else(|| format!("INVALID ID {}",target));
-
-            let source_label = match rename_map.get(&source_label) {
-                Some(n) => n.clone(),
-                None    => source_label
-            };
-            let target_label = match rename_map.get(&target_label) {
-                Some(n) => n.clone(),
-                None    => target_label
-            };
 
             if source_label != target_label {
                 let style = match tp {
@@ -161,8 +157,7 @@ impl From<Graphviz> for String {
                     _ => ""
                 };
                 let label = if data_type == "()" { "" } else { &data_type };
-                let params = if *redirect { "[constraint=false]" } else { "" };
-                let c = iformat!("\n\"{source_label}\" -> \"{target_label}\" {style} [label=\"  {label}\"] {params}");
+                let c = iformat!("\n\"{source_label}\" -> \"{target_label}\" {style} [label=\"  {label}\"]");
                 code.push_str(&c);
             }
         }
@@ -388,7 +383,7 @@ pub type Output<T> = <T as KnownOutput>::Output;
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasInputs + HasLabel;
+    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasDisplayId + HasInputs + HasLabel;
 }
 
 /// Internal node storage type accessor.
@@ -400,7 +395,7 @@ pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
 // === EventNodeStorage ===
 
 /// Event node operations.
-pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + EventEmitter + HasInputs + HasLabel {
+pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasDisplayId + EventEmitter + HasInputs + HasLabel {
     /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
     /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
@@ -414,7 +409,7 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 // === BehaviorNodeStorage ===
 
 /// Behavior node operations.
-pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasInputs + HasLabel {
+pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasDisplayId + HasInputs + HasLabel {
     /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
@@ -573,9 +568,15 @@ impl<T:KnownNodeStorage> HasId for Node<T> {
     fn id(&self) -> usize {
         self.storage.id()
     }
+}
 
-    fn target_id(&self) -> usize {
-        self.storage.target_id()
+impl<T:KnownNodeStorage> HasDisplayId for Node<T> {
+    fn display_id(&self) -> usize {
+        self.storage.display_id()
+    }
+
+    fn set_display_id(&self, id:usize) {
+        self.storage.set_display_id(id)
     }
 }
 
@@ -600,22 +601,33 @@ impl<Out:KnownNodeStorage> HasLabel for Node<Out> {
 
 pub trait HasId {
     fn id(&self) -> usize;
-    fn target_id(&self) -> usize;// {
-//        self.id()
-//    }
 }
 
 impl<T:?Sized+HasId> HasId for Rc<T> {
     fn id(&self) -> usize {
         self.deref().id()
     }
+}
 
-    fn target_id(&self) -> usize {
-        self.deref().target_id()
+
+pub trait HasDisplayId {
+    fn display_id(&self) -> usize;
+    fn set_display_id(&self, id:usize);
+}
+
+impl<T:?Sized+HasDisplayId> HasDisplayId for Rc<T> {
+    fn display_id(&self) -> usize {
+        self.deref().display_id()
+    }
+
+    fn set_display_id(&self, id:usize) {
+        self.deref().set_display_id(id)
     }
 }
 
-pub trait AnyNodeOps : Debug + GraphvizRepr + HasId + KnownOutputType {}
+
+
+pub trait AnyNodeOps : Debug + GraphvizRepr + HasId + HasDisplayId + KnownOutputType {}
 
 #[derive(Debug)]
 pub struct AnyNode {
@@ -655,9 +667,15 @@ impl HasId for AnyNode {
     fn id(&self) -> usize {
         self.rc.id()
     }
+}
 
-    fn target_id(&self) -> usize {
-        self.rc.target_id()
+impl HasDisplayId for AnyNode {
+    fn display_id(&self) -> usize {
+        self.rc.display_id()
+    }
+
+    fn set_display_id(&self, id:usize) {
+        self.rc.set_display_id(id)
     }
 }
 
@@ -689,10 +707,13 @@ pub type NodeWrapper<Shape> = NodeWrapperTemplate<Shape,Output<Shape>>;
 
 impl<Shape:KnownOutput> NodeWrapper<Shape> {
     /// Constructor.
-    pub fn construct<Label:Into<StaticString>>(label:Label, shape:Shape) -> Self {
+    pub fn construct<Label>(label:Label, shape:Shape) -> Self
+    where Label : Into<StaticString> {
         let data = NodeWrapperTemplateData::construct(label,shape);
         let rc   = Rc::new(RefCell::new(data));
-        Self {rc}
+        let this = Self {rc};
+        this.set_display_id(this.id());
+        this
     }
 }
 
@@ -735,21 +756,32 @@ pub struct NodeWrapperTemplate<Shape,Out> {
     rc: Rc<RefCell<NodeWrapperTemplateData<Shape,Out>>>
 }
 
-impl<Shape,Out> HasId for NodeWrapperTemplate<Shape,Out> {
+impl<Shape,Out>
+HasId for NodeWrapperTemplate<Shape,Out> {
     fn id(&self) -> usize {
         Rc::downgrade(&self.rc).as_raw() as *const() as usize
     }
+}
 
-    default fn target_id(&self) -> usize {
-        self.id()
+impl<Shape,Out>
+HasDisplayId for NodeWrapperTemplate<Shape,Out> {
+    fn display_id(&self) -> usize {
+        self.rc.borrow().display_id
+    }
+
+    fn set_display_id(&self, id:usize) {
+        self.rc.borrow_mut().display_id = id;
     }
 }
 
-impl<Shape,Out:Message> KnownOutput for NodeWrapperTemplate<Shape,Out> {
+
+impl<Shape,Out:Message>
+KnownOutput for NodeWrapperTemplate<Shape,Out> {
     type Output = Out;
 }
 
-impl<Shape:KnownEventInput,Out> KnownEventInput for NodeWrapperTemplate<Shape,Out>
+impl<Shape:KnownEventInput,Out>
+KnownEventInput for NodeWrapperTemplate<Shape,Out>
 where EventInput<Shape> : Message {
     type EventInput = EventInput<Shape>;
 }
@@ -758,19 +790,19 @@ impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 
 impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
-        let type_name = base_type_name::<Shape>();
-        let label     = &self.rc.borrow().label;
-        let id        = self.id();
-        let target_id = self.target_id();
+        let type_name  = base_type_name::<Shape>();
+        let label      = &self.rc.borrow().label;
+        let id         = self.id();
+        let display_id = self.display_id();
         if !builder.contains(id) {
-            builder.add_node(id,target_id,type_name,label);
+            builder.add_node(id,display_id,type_name,label);
             self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
-                let input_id        = input.id();
-                let input_target_id = input.target_id();
-                let is_redirect     = input_id != input_target_id;
+                let input_id         = input.id();
+                let input_display_id = input.display_id();
+                let is_redirect      = input_id != input_display_id;
                 input.graphviz_build(builder);
-                builder.add_link(input_target_id,target_id,input.output_type(),&input.output_type_value_name(),is_redirect);
+                builder.add_link(input_display_id,display_id,input.output_type(),&input.output_type_value_name());
             }
         }
     }
@@ -811,17 +843,20 @@ impl<Shape,Out> HasLabel for NodeWrapperTemplate<Shape,Out> {
 #[derive(Debug,Derivative)]
 #[derivative(Default(bound="Shape:Default"))]
 pub struct NodeWrapperTemplateData<Shape,Out> {
-    label   : StaticString,
-    shape   : Shape,
-    targets : Vec<AnyEventConsumer<Out>>,
+    label      : StaticString,
+    display_id : usize,
+    shape      : Shape,
+    targets    : Vec<AnyEventConsumer<Out>>,
 }
 
 impl<Shape,Out> NodeWrapperTemplateData<Shape,Out> {
     /// Constructor.
-    pub fn construct<Label:Into<StaticString>>(label:Label, shape:Shape) -> Self {
-        let label   = label.into();
-        let targets = default();
-        Self {label,shape,targets}
+    pub fn construct<Label>(label:Label, shape:Shape) -> Self
+    where Label : Into<StaticString> {
+        let label      = label.into();
+        let targets    = default();
+        let display_id = 0;
+        Self {label,display_id,shape,targets}
     }
 }
 
@@ -1042,11 +1077,6 @@ impl<Out:KnownSourceStorage> HasInputs for SourceShape<Out> {
     }
 }
 
-//impl<T:MessageValue> EventEmitter for Source<EventMessage<T>> {
-//    fn emit(&self, event:&Self::Output) {
-//        self.emit_event(event);
-//    }
-//}
 
 
 macro_rules! define_node {
@@ -1286,6 +1316,7 @@ impl<T:Message> Recursive<T> {
           Node<T> : AddTarget<Self> {
         let node = t.into();
         node.add_target(self);
+        self.set_display_id(node.display_id());
         *self.rc.borrow().shape.source.borrow_mut() = Some(node);
     }
 }
@@ -1314,11 +1345,6 @@ impl<T:Message> HasInputs for RecursiveShape2<T> {
     }
 }
 
-impl<T:Message> HasId for Recursive<T> {
-    fn target_id(&self) -> usize {
-        self.rc.borrow().shape.source.borrow().as_ref().unwrap().id()
-    }
-}
 
 
 
@@ -1767,6 +1793,7 @@ impl<Out:MessageValue, T:Into<Event<Out>>> From<T> for Dynamic<Out> {
     fn from(t:T) -> Self {
         let event    = t.into();
         let behavior = Hold :: new_named(event.label(),&event);
+        behavior.set_display_id(event.display_id());
         let event    = (&event).into();
         let behavior = (&behavior).into();
         Dynamic {event,behavior}
@@ -1881,7 +1908,7 @@ mod tests {
         let mouse_position_if_down = mouse.position.gate("mouse_position_if_down",&mouse.is_down);
 
         let final_position_ref_i  = Recursive::<EventMessage<Position>>::new_named("final_position_ref");
-        let final_position_ref     = Dynamic::from(&final_position_ref_i);
+        let final_position_ref    = Dynamic::from(&final_position_ref_i);
 
         let pos_diff_on_down   = mouse_down_position.map2("pos_diff_on_down", &final_position_ref, |m,f| {m - f});
         let final_position  = mouse_position_if_down.map2("final_position", &pos_diff_on_down, |m,f| {m - f});
@@ -1890,6 +1917,11 @@ mod tests {
 
 
         final_position_ref_i.initialize(&final_position);
+
+        final_position_ref.event.set_display_id(final_position.event.display_id());
+        final_position_ref.behavior.set_display_id(final_position.event.display_id());
+
+
 
         trace("X" , &debug.event);
 
