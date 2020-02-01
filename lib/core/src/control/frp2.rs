@@ -62,7 +62,7 @@ impl From<&StaticString> for StaticString {
 
 #[derive(Debug,Default)]
 pub struct Graphviz {
-    nodes  : HashSet<usize>,
+    nodes  : HashMap<usize,(usize,String,String)>,
     labels : HashMap<usize,String>,
     links  : Vec<(usize,usize,MessageType,String,bool)>,
     code   : String,
@@ -70,21 +70,13 @@ pub struct Graphviz {
 
 impl Graphviz {
     pub fn add_node<Tp:Str,Label:Str>(&mut self, id:usize, target_id:usize, tp:Tp, label:Label) {
-        let tp    = tp.as_ref();
+        let tp    = tp.into();
         let label = label.into();
-        println!("ADD NODE {} {}",id,label);
-        let color = match tp {
-            "Toggle"  => "534666",
-            "Gate"    => "e69d45",
-            "Hold"    => "308695",
-            "Lambda"  => "d45769",
-            "Lambda2" => "d45769",
-            _         => "455054",
-        };
-        let code = iformat!("\n\"{label}\"[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
-        self.nodes.insert(id);
-        self.labels.insert(id,label);
-        self.code.push_str(&code);
+        println!("ADD NODE {} {} {} {}",id,target_id,(id == target_id),label);
+
+        self.nodes.insert(id,(target_id,tp,label.clone()));
+        self.labels.insert(id, label);
+//        self.code.push_str(&code);
     }
 
     pub fn add_link
@@ -92,20 +84,8 @@ impl Graphviz {
         self.links.push((source,target,tp,data_type.to_string(),redirect));
     }
 
-    pub fn register_node<Tp:Str,Label:Str>(&mut self, id:usize, tp:Tp, label:Label) -> bool {
-        let tp    = tp.as_ref();
-        let label = label.into();
-        let node = self.nodes.get(&id);
-        match node {
-            None => {},
-            Some(n) => {
-                if self.labels.get(&id) == Some(&"Hold".into()) {
-                    self.labels.insert(id,label);
-                }
-            }
-        }
-        node.is_some()
-
+    pub fn contains(&mut self, id:usize) -> bool {
+        self.nodes.contains_key(&id)
     }
 }
 
@@ -120,6 +100,43 @@ impl From<Graphviz> for String {
 
         let mut code = t.code.clone();
 
+
+        let mut rename_map : HashMap<String,String> = default();
+
+        for (nid,node) in &t.nodes {
+            println!("-- {} {}", nid, node.0);
+            if nid != &node.0 {
+                let target_label = t.labels.get(&node.0).unwrap();
+                rename_map.insert(node.2.clone(),target_label.clone());
+            }
+        }
+
+        println!("{:#?}",rename_map);
+
+
+        let mut nodes2: HashMap<String,String> = default();
+
+        for (nid,node) in &t.nodes {
+            match rename_map.get(&node.2) {
+                Some(n) => nodes2.insert(n.clone(),node.1.clone()),
+                None    => nodes2.insert(node.2.clone(),node.1.clone())
+            };
+        }
+
+        for (label,tp) in &nodes2 {
+            let tp:&str = &tp;
+            let color = match tp {
+                "Toggle"  => "534666",
+                "Gate"    => "e69d45",
+                "Hold"    => "308695",
+                "Lambda"  => "d45769",
+                "Lambda2" => "d45769",
+                _         => "455054",
+            };
+            let c = iformat!("\n\"{label}\"[fillcolor=\"#{color}\"]  [label=<{label}<br/><FONT POINT-SIZE=\"5\"> </FONT><br/><FONT POINT-SIZE=\"9\">{tp}</FONT>>]");
+            code.push_str(&c);
+        }
+
         for link in &t.links {
             let source    = &link.0;
             let target    = &link.1;
@@ -128,6 +145,16 @@ impl From<Graphviz> for String {
             let redirect  = &link.4;
             let source_label = t.labels.get(&source).cloned().unwrap_or_else(|| format!("INVALID ID {}",source));
             let target_label = t.labels.get(&target).cloned().unwrap_or_else(|| format!("INVALID ID {}",target));
+
+            let source_label = match rename_map.get(&source_label) {
+                Some(n) => n.clone(),
+                None    => source_label
+            };
+            let target_label = match rename_map.get(&target_label) {
+                Some(n) => n.clone(),
+                None    => target_label
+            };
+
             if source_label != target_label {
                 let style = match tp {
                     MessageType::Behavior => "[style=\"dashed\"]",
@@ -735,7 +762,7 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
         let label     = &self.rc.borrow().label;
         let id        = self.id();
         let target_id = self.target_id();
-        if !builder.register_node(target_id,type_name.clone(),label) {
+        if !builder.contains(id) {
             builder.add_node(id,target_id,type_name,label);
             self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
@@ -1838,7 +1865,7 @@ mod tests {
     }
 
     #[allow(unused_variables)]
-    pub fn test () -> MouseManager {
+    pub fn test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
 
         let document        = web::document().unwrap();
         let mouse_manager   = MouseManager::new(&document);
@@ -1853,20 +1880,21 @@ mod tests {
         let mouse_down_position    = mouse.position.sample("mouse_down_position",&mouse.down);
         let mouse_position_if_down = mouse.position.gate("mouse_position_if_down",&mouse.is_down);
 
-        let final_position_ref  = Recursive::<EventMessage<Position>>::new_named("final_position");
-        let final_position     = Dynamic::from(&final_position_ref);
+        let final_position_ref_i  = Recursive::<EventMessage<Position>>::new_named("final_position_ref");
+        let final_position_ref     = Dynamic::from(&final_position_ref_i);
 
-        let pos_diff_on_down   = mouse_down_position.map2("pos_diff_on_down", &final_position, |m,f| {m - f});
-        let final_position_2  = mouse_position_if_down.map2("final_position_2", &pos_diff_on_down, |m,f| {m - f});
-        let debug              = final_position_2.sample("debug", &mouse.position);
+        let pos_diff_on_down   = mouse_down_position.map2("pos_diff_on_down", &final_position_ref, |m,f| {m - f});
+        let final_position  = mouse_position_if_down.map2("final_position", &pos_diff_on_down, |m,f| {m - f});
+        let debug              = final_position.sample("debug", &mouse.position);
 
 
 
-        final_position_ref.initialize(&final_position_2);
+        final_position_ref_i.initialize(&final_position);
 
         trace("X" , &debug.event);
 
-        trace("Y", mouse.is_down.event);
+
+        final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
 
         final_position.behavior.display_graphviz();
 

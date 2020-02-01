@@ -47,10 +47,14 @@ fn init(world: &World) {
         t.y += screen.height / 2.0;
     });
 
+    let sprite2 = sprite.clone();
+
 
     world.add_child(&shape_system);
 
-    let out = frp2::test();
+    let out = frp2::test(Box::new(move|x:f32,y:f32| {
+        sprite2.set_position(Vector3::new(x,y,0.0));
+    }));
 
 
     let mut iter:i32 = 0;
