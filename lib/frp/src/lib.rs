@@ -14,6 +14,7 @@
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(weak_into_raw)]
+#![feature(associated_type_defaults)]
 
 pub mod debug;
 
@@ -50,6 +51,8 @@ macro_rules! alias {
 pub trait HasContent {
     type Content : ?Sized;
 }
+
+
 
 /// Accessor for the wrapped value.
 pub type Content<T> = <T as HasContent>::Content;
@@ -123,11 +126,26 @@ pub fn unwrap<T:Unwrap>(t:&T) -> &T::Content {
 }
 
 
-// === Instances ===
+// === Default Impls ===
+
+default impl<T:Deref> HasContent for T {
+    type Content = <Self as Deref>::Target;
+}
+
+default impl<T> Unwrap for T
+where T:Deref<Target=Content<T>> {
+    fn unwrap (&self) -> &Self::Content {
+        self.deref()
+    }
+}
+
+
+
+// === Impls ===
 
 impl<T:?Sized> HasContent for Rc<T> { type Content = T; }
-impl<T>        Wrap       for Rc<T> { fn wrap   (t:T)   -> Self { Rc::new(t) } }
-impl<T:?Sized> Unwrap     for Rc<T> { fn unwrap (&self) -> &T   { self.deref() } }
+impl<T>        Wrap       for Rc<T> { fn wrap(t:T) -> Self { Rc::new(t) } }
+impl<T:?Sized> Unwrap     for Rc<T> {}
 
 
 
@@ -300,12 +318,7 @@ impl<Out> HasContent for XEventNodeStorage<Out> {
     type Content = <XEventNodeStorage<Out> as Deref>::Target;
 }
 
-impl<Out> Unwrap for XEventNodeStorage<Out> {
-    fn unwrap(&self) -> &Self::Content {
-        self.deref()
-    }
-}
-
+impl<Out> Unwrap for XEventNodeStorage<Out> {}
 impl<Out:MessageValue> CloneRef for XEventNodeStorage<Out> {}
 
 
@@ -320,9 +333,23 @@ pub trait BehaviorNodeStorage: NodeStorageBounds + KnownOutput {
     fn current_value(&self) -> Value<Output<Self>>;
 }
 
-impl<Out> KnownNodeStorage for BehaviorMessage<Out> {
-    type NodeStorage = Rc<dyn BehaviorNodeStorage<Output=BehaviorMessage<Out>>>;
+impl<Out:MessageValue> KnownNodeStorage for BehaviorMessage<Out> {
+    type NodeStorage = XBehaviorNodeStorage<Out>;
 }
+
+
+#[derive(Debug,Clone,Shrinkwrap)]
+pub struct XBehaviorNodeStorage<Out> {
+    rc: Rc<dyn BehaviorNodeStorage<Output=BehaviorMessage<Out>>>,
+}
+
+impl<Out> HasContent for XBehaviorNodeStorage<Out> {
+    type Content = <XBehaviorNodeStorage<Out> as Deref>::Target;
+}
+
+impl<Out> Unwrap for XBehaviorNodeStorage<Out> {}
+impl<Out:MessageValue> CloneRef for XBehaviorNodeStorage<Out> {}
+
 
 
 
@@ -433,7 +460,7 @@ impl<Storage,Out> From<&Storage> for Node<BehaviorMessage<Out>>
     where Storage : BehaviorNodeStorage<Output=BehaviorMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(Rc::new(storage.clone()))
+        Self::new(XBehaviorNodeStorage{rc:Rc::new(storage.clone())})
     }
 }
 
@@ -464,7 +491,7 @@ impl<S,T:MessageValue> AddTarget<S> for Node<EventMessage<T>>
     }
 }
 
-impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
+impl<S,T:MessageValue> AddTarget<S> for Node<BehaviorMessage<T>> {
     fn add_target(&self,_:&S) {}
 }
 
