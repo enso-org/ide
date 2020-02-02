@@ -46,7 +46,7 @@ jobs:
         with:
           command: test
       - name: Google Chrome version
-        - run: google-chrome --version
+        run: google-chrome --version
       - name: Run wasm-pack tests
         uses: actions-rs/cargo@v1
         with:
