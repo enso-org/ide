@@ -14,178 +14,16 @@
 #![feature(trait_alias)]
 #![feature(weak_into_raw)]
 
-use basegl_prelude::*;
+pub mod debug;
 
+use basegl_prelude    as prelude;
 use basegl_system_web as web;
+
+use crate::prelude::*;
+
+use debug::*;
 use percent_encoding;
 use std::borrow::Cow;
-
-
-
-// ================
-// === Graphviz ===
-// ================
-
-/// Visualization data for a nodes.
-#[derive(Debug,Clone)]
-pub struct VizNode {
-    display_id : usize,
-    variant    : String,
-    label      : String,
-}
-
-impl VizNode {
-    /// Constructor
-    pub fn new(display_id:usize, variant:String, label:String) -> Self {
-        VizNode {display_id,variant,label}
-    }
-}
-
-
-/// Visualization data for a link between nodes.
-#[derive(Debug,Clone)]
-pub struct VizLink {
-    source_display_id : usize,
-    target_display_id : usize,
-    message_type      : MessageType,
-    data_type         : String,
-}
-
-impl VizLink {
-    /// Constructor.
-    pub fn new
-    (source_display_id:usize, target_display_id:usize, message_type:MessageType, data_type:String)
-     -> Self {
-        Self {source_display_id,target_display_id,message_type,data_type}
-    }
-}
-
-
-/// Graphviz FRP system visualizer.
-#[derive(Debug,Default)]
-pub struct Graphviz {
-    nodes  : HashMap<usize,VizNode>,
-    labels : HashMap<usize,String>,
-    links  : Vec<VizLink>,
-}
-
-impl Graphviz {
-    /// Defines a new node.
-    pub fn add_node<Tp:Str,Label:Str>
-    (&mut self, id:usize, display_id:usize, tp:Tp, label:Label) {
-        let tp    = tp.into();
-        let label = label.into();
-        self.nodes.insert(id,VizNode::new(display_id,tp,label.clone()));
-        self.labels.insert(id,label);
-    }
-
-    /// Defines a new link between nodes.
-    pub fn add_link<DataType:Str>
-    (&mut self, source:usize, target:usize, message_type:MessageType, data_type:DataType) {
-        let link = VizLink::new(source,target,message_type,data_type.into());
-        self.links.push(link);
-    }
-
-    /// Checks if a node with the given id is already registered in the node map.
-    pub fn contains(&mut self, id:usize) -> bool {
-        self.nodes.contains_key(&id)
-    }
-
-    /// Takes a set of nodes and outputs a map from `display_id` to a particular node. In case the
-    /// `display_id` points to several nodes, the node types `Hold` and `Recursive` has weaker
-    /// preference.
-    fn create_node_map(&self) -> HashMap<usize,VizNode> {
-        let mut node_map : HashMap<usize,VizNode> = default();
-        for (_,node) in &self.nodes {
-            let entry        = node_map.entry(node.display_id);
-            let merged_entry = entry.and_modify(|node2|{
-                let variant = &node2.variant;
-                if variant == "Hold" || variant == "Recursive" {
-                    *node2 = node.clone();
-                }
-            });
-            merged_entry.or_insert(node.clone());
-        }
-        node_map
-    }
-
-    /// Outputs a Graphviz Dot code.
-    pub fn to_code(&self) -> String {
-        let mut code = String::default();
-        let node_map = self.create_node_map();
-
-        for (_,node) in &node_map {
-            let color = match &node.variant as &str {
-                "Toggle"  => "534666",
-                "Gate"    => "e69d45",
-                "Hold"    => "308695",
-                "Lambda"  => "d45769",
-                "Lambda2" => "d45769",
-                _         => "455054",
-            };
-            let fill    = iformat!("[fillcolor=\"#{color}\"]");
-            let spacing = "<br/><FONT POINT-SIZE=\"5\"> </FONT><br/>";
-            let variant = iformat!("<FONT POINT-SIZE=\"9\">{node.variant}</FONT>");
-            let label   = iformat!("[label=< {node.label} {spacing} {variant} >]");
-            let line    = iformat!("\n{node.display_id} {fill} {label}");
-            code.push_str(&line);
-        }
-
-        for link in &self.links {
-            let source    = &link.source_display_id;
-            let target    = &link.target_display_id;
-            let data_type = &link.data_type;
-            let not_loop  = source != target;
-            if not_loop {
-                let style = match link.message_type {
-                    MessageType::Behavior => "[style=\"dashed\"]",
-                    _ => ""
-                };
-                let label = if data_type == "()" { "" } else { &data_type };
-                let label = iformat!("[label=\"  {label}\"]");
-                let line  = iformat!("\n{source} -> {target} {style} {label}");
-                code.push_str(&line);
-            }
-        }
-
-        let fonts      = "[fontname=\"Helvetica Neue\" fontsize=11]";
-        let node_shape = "[shape=box penwidth=0 margin=0.12 style=\"rounded,filled\"]";
-        let node_style = "[fontcolor=white fillcolor=\"#5397dc\"]";
-        let edge_style = "[arrowsize=.7 fontcolor=\"#555555\"]";
-        let graph_cfg  = iformat!("rankdir=TD; graph {fonts};");
-        let nodes_cfg  = iformat!("node {fonts} {node_shape} {node_style};");
-        let edges_cfg  = iformat!("edge {fonts} {edge_style};");
-        iformat!("digraph G {{ \n{graph_cfg} \n{nodes_cfg} \n{edges_cfg} \n{code} \n}}")
-    }
-}
-
-
-
-
-
-impl From<Graphviz> for String {
-    fn from(cfg:Graphviz) -> String {
-        cfg.to_code()
-    }
-}
-
-
-pub trait GraphvizRepr {
-    fn graphviz_build(&self, builder:&mut Graphviz);
-
-    fn to_graphviz(&self) -> String {
-        let mut builder = Graphviz::default();
-        self.graphviz_build(&mut builder);
-        builder.into()
-    }
-
-    fn display_graphviz(&self) {
-        let code = self.to_graphviz();
-        let url  = percent_encoding::utf8_percent_encode(&code,percent_encoding::NON_ALPHANUMERIC);
-        let url  = format!("https://dreampuf.github.io/GraphvizOnline/#{}",url);
-        web::window().open_with_url_and_target(&url,"_blank").unwrap();
-    }
-}
 
 
 
@@ -375,10 +213,14 @@ pub type Output<T> = <T as KnownOutput>::Output;
 // === NodeStorage ===
 // ===================
 
+alias! {
+    NodeStorageBounds = { Debug + GraphvizBuilder + HasId + HasDisplayId + HasInputs + HasLabel }
+}
+
 /// Type level abstraction for node internal storage.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + Debug + GraphvizRepr + HasId + HasDisplayId + HasInputs + HasLabel;
+    type NodeStorage: CloneRef + NodeStorageBounds;
 }
 
 /// Internal node storage type accessor.
@@ -390,7 +232,7 @@ pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
 // === EventNodeStorage ===
 
 /// Event node operations.
-pub trait EventNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasDisplayId + EventEmitter + HasInputs + HasLabel {
+pub trait EventNodeStorage: NodeStorageBounds + KnownOutput + EventEmitter {
     /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
     /// registered targets.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
@@ -404,7 +246,7 @@ impl<Out> KnownNodeStorage for EventMessage<Out> {
 // === BehaviorNodeStorage ===
 
 /// Behavior node operations.
-pub trait BehaviorNodeStorage: KnownOutput + Debug + GraphvizRepr + HasId + HasDisplayId + HasInputs + HasLabel {
+pub trait BehaviorNodeStorage: NodeStorageBounds + KnownOutput {
     /// Returns the current value of the behavior.
     fn current_value(&self) -> Value<Output<Self>>;
 }
@@ -415,22 +257,18 @@ impl<Out> KnownNodeStorage for BehaviorMessage<Out> {
 
 
 
-impl GraphvizRepr for () {
-    fn graphviz_build(&self, builder:&mut Graphviz) {}
-}
 
-impl<T:?Sized+GraphvizRepr> GraphvizRepr for Rc<T> {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
-        self.deref().graphviz_build(builder)
-    }
-}
+
+
 
 
 // =============
 // === Label ===
 // =============
 
+/// Abstraction for labeled entities. Used mainly for debugging purposes.
 pub trait HasLabel {
+    /// Label of the entity.
     fn label(&self) -> CowString;
 }
 
@@ -553,7 +391,7 @@ impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
 impl<Out:Message + KnownNodeStorage> AnyNodeOps for Node<Out> {}
 
 
-impl<T:KnownNodeStorage> GraphvizRepr for Node<T> {
+impl<T:KnownNodeStorage> GraphvizBuilder for Node<T> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         self.storage.graphviz_build(builder)
     }
@@ -622,7 +460,7 @@ impl<T:?Sized+HasDisplayId> HasDisplayId for Rc<T> {
 
 
 
-pub trait AnyNodeOps : Debug + GraphvizRepr + HasId + HasDisplayId + KnownOutputType {}
+pub trait AnyNodeOps : Debug + GraphvizBuilder + HasId + HasDisplayId + KnownOutputType {}
 
 #[derive(Debug)]
 pub struct AnyNode {
@@ -652,7 +490,7 @@ impl<T:?Sized+HasInputs> HasInputs for Rc<T> {
     }
 }
 
-impl GraphvizRepr for AnyNode {
+impl GraphvizBuilder for AnyNode {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         self.rc.graphviz_build(builder)
     }
@@ -723,7 +561,7 @@ impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
 
 impl<Shape,T:MessageValue>
 EventNodeStorage for NodeWrapperTemplate<Shape,EventMessage<T>>
-    where Self: HasInputs + KnownOutput<Output=EventMessage<T>> + Debug + GraphvizRepr + HasId + EventEmitter {
+    where Self: HasInputs + KnownOutput<Output=EventMessage<T>> + Debug + GraphvizBuilder + HasId + EventEmitter {
     fn add_event_target(&self, target:AnyEventConsumer<EventMessage<T>>) {
         self.rc.borrow_mut().targets.push(target);
     }
@@ -783,7 +621,7 @@ KnownEventInput for NodeWrapperTemplate<Shape,Out>
 
 impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 
-impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Shape,Out> {
+impl<Shape:HasInputs,Out> GraphvizBuilder for NodeWrapperTemplate<Shape,Out> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name  = base_type_name::<Shape>();
         let label      = &self.rc.borrow().label;
@@ -791,7 +629,6 @@ impl<Shape:GraphvizRepr + HasInputs,Out> GraphvizRepr for NodeWrapperTemplate<Sh
         let display_id = self.display_id();
         if !builder.contains(id) {
             builder.add_node(id,display_id,type_name,label);
-            self.rc.borrow().shape.graphviz_build(builder);
             for input in &self.rc.borrow().shape.inputs() {
                 let input_id         = input.id();
                 let input_display_id = input.display_id();
@@ -1060,12 +897,6 @@ impl<Out> BehaviorNodeStorage for Source<BehaviorMessage<Out>>
     }
 }
 
-// TODO finish
-impl<Out : KnownSourceStorage + Message> GraphvizRepr for SourceShape<Out> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
-    }
-}
-
 impl<Out:KnownSourceStorage> HasInputs for SourceShape<Out> {
     fn inputs(&self) -> Vec<AnyNode> {
         default()
@@ -1149,11 +980,6 @@ impl<T:MessageValue> EventConsumer for Merge<EventMessage<T>> {
     }
 }
 
-impl<T:Message> GraphvizRepr for MergeShape<T> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
-    }
-}
-
 impl<T:Message> HasInputs for MergeShape<T> {
     fn inputs(&self) -> Vec<AnyNode> {
         vec![(&self.source1).into(), (&self.source2).into()]
@@ -1199,11 +1025,6 @@ impl<T:MessageValue> EventConsumer for Toggle<EventMessage<T>> {
         let val = !self.rc.borrow().shape.status.get();
         self.rc.borrow().shape.status.set(val);
         self.emit_event(&EventMessage(val));
-    }
-}
-
-impl<T:Message> GraphvizRepr for ToggleShape<T> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
@@ -1260,11 +1081,6 @@ impl<T> BehaviorNodeStorage for Hold<EventMessage<T>>
     where T : MessageValue {
     fn current_value(&self) -> T {
         self.rc.borrow().shape.last_val.borrow().clone()
-    }
-}
-
-impl<T:MessageValue> GraphvizRepr for HoldShape<EventMessage<T>> {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
     }
 }
 
@@ -1325,12 +1141,6 @@ impl<T:Message> EventConsumer for Recursive<T> {
 impl<T:MessageValue> BehaviorNodeStorage for Recursive<BehaviorMessage<T>> {
     fn current_value(&self) -> T {
         self.rc.borrow().shape.source.borrow().as_ref().unwrap().current_value()
-    }
-}
-
-// TODO finish
-impl<T:Message> GraphvizRepr for RecursiveShape2<T> {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
     }
 }
 
@@ -1414,13 +1224,6 @@ impl<In1,In2> EventConsumer for Sample<EventMessage<In1>,BehaviorMessage<In2>>
     }
 }
 
-// TODO finish
-impl<In1:Message, In2:Message> GraphvizRepr for SampleShape<In1,In2>
-    where SampleShape<In1,In2> : KnownOutput {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
-    }
-}
-
 impl<In1:Message, In2:Message> HasInputs for SampleShape<In1,In2> {
     fn inputs(&self) -> Vec<AnyNode> {
         vec![(&self.source1).into(), (&self.source2).into()]
@@ -1487,22 +1290,6 @@ impl<In:MessageValue> EventConsumer for Gate<BehaviorMessage<bool>,EventMessage<
         if check {
             self.emit_event(event);
         }
-    }
-}
-
-//impl<In:MessageValue> EventConsumer for Gate<EventMessage<In>,BehaviorMessage<bool>> {
-//    fn on_event(&self, event:&Self::EventInput) {
-//        let check = self.rc.borrow().shape.source2.current_value();
-//        if check {
-//            self.emit_event(event);
-//        }
-//    }
-//}
-
-// TODO finish
-impl<In1:Message, In2:Message> GraphvizRepr for GateShape<In1,In2>
-    where GateShape<In1,In2> : KnownOutput {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
@@ -1592,12 +1379,6 @@ pub fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
         println!("TRACE [{}]: {:?}", label, t);
         t.clone()
     })
-}
-
-// TODO finish
-impl<In1:Message, Out:Message> GraphvizRepr for LambdaShape<In1,Out> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
-    }
 }
 
 impl<In1:Message, Out:Message> HasInputs for LambdaShape<In1,Out> {
@@ -1692,12 +1473,6 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorMessage<In1>,EventMessage<In
         let value1 = self.rc.borrow().shape.source1.current_value();
         let output = (self.rc.borrow().shape.func.raw)(&value1,&event.value());
         self.emit_event(&output);
-    }
-}
-
-// TODO finish
-impl<In1:Message, In2:Message, Out:Message> GraphvizRepr for Lambda2Shape<In1,In2,Out> {
-    fn graphviz_build(&self, builder: &mut Graphviz) {
     }
 }
 
