@@ -11,6 +11,7 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
+#![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(weak_into_raw)]
 
@@ -45,34 +46,89 @@ macro_rules! alias {
 // === Wrapper ===
 // ===============
 
-/// Trait for objects which wrap values.
-///
-/// Please note that this implements safe wrappers, so the object - value relation must be
-/// bijective.
-pub trait Wrapper {
+/// Trait for any type which wraps other type. See docs of `Wrapper` to learn more.
+pub trait HasContent {
+    type Content : ?Sized;
+}
 
-    /// The wrapped value type.
-    type Content;
+/// Accessor for the wrapped value.
+pub type Content<T> = <T as HasContent>::Content;
 
+/// Trait which enables `Sized` super-bound on the `Content` type.
+pub trait SizedContent = HasContent where Content<Self> : Sized;
+
+/// Trait for objects which wrap values. Please note that this implements safe wrappers, so the
+/// object - value relation must be bijective.
+pub trait Wrapper = Wrap + Unwrap;
+
+/// Wrapping utility for values.
+pub trait Wrap : HasContent + SizedContent {
     /// Wraps the value and returns the wrapped type.
     fn wrap(t:Self::Content) -> Self;
+}
 
+/// Unwrapping utility for wrapped types.
+///
+/// Please note that this trait is very similar to the Deref trait. However, there is a very
+/// important difference. Unlike `Deref`, there is no `impl<'a, T> Unwrap for &'a T` defined. The
+/// existence of such impl is very error prone when writing complex impls. The `Deref` docs warn
+/// about it explicitly: "[...] Because of this, Deref should only be implemented for smart pointers
+/// to avoid confusion.". As an example, consider the following code which contains infinite loop:
+///
+/// ```compile_fail
+/// pub trait HasId {
+///     fn id(&self) -> usize;
+/// }
+///
+/// // Notice the lack of bound `<T as Deref>::Target : HasId`
+/// impl<T:Deref> HasId for T {
+///     fn id(&self) -> usize {
+///         self.deref().id()
+///     }
+/// }
+/// ```
+///
+/// And the correct version:
+///
+/// ```compile_fail
+/// pub trait HasId {
+///     fn id(&self) -> usize;
+/// }
+///
+/// // Notice the lack of bound `<T as Deref>::Target : HasId`
+/// impl<T:Deref> HasId for T where <T as Deref>::Target : HasId {
+///     fn id(&self) -> usize {
+///         self.deref().id()
+///     }
+/// }
+/// ```
+///
+/// Both versions compile fine, but the former loops for ever.
+pub trait Unwrap : HasContent {
     /// Unwraps this type to get the inner value.
     fn unwrap(&self) -> &Self::Content;
 }
 
-/// Accessor for the wrapped value.
-pub type Unwrap<T> = <T as Wrapper>::Content;
+
+// === Utils ===
 
 /// Wraps the value and returns the wrapped type.
-pub fn wrap<T:Wrapper>(t:T::Content) -> T {
+pub fn wrap<T:Wrap>(t:T::Content) -> T {
     T::wrap(t)
 }
 
 /// Unwraps this type to get the inner value.
-pub fn unwrap<T:Wrapper>(t:&T) -> &T::Content {
+pub fn unwrap<T:Unwrap>(t:&T) -> &T::Content {
     T::unwrap(t)
 }
+
+
+// === Instances ===
+
+impl<T:?Sized> HasContent for Rc<T> { type Content = T; }
+impl<T>        Wrap       for Rc<T> { fn wrap   (t:T)   -> Self { Rc::new(t) } }
+impl<T:?Sized> Unwrap     for Rc<T> { fn unwrap (&self) -> &T   { self.deref() } }
+
 
 
 
@@ -92,10 +148,10 @@ alias! {
 }
 
 /// Accessor to a value of a given message. For example, `Value<Behavior<i32>>` resolves to `i32`.
-pub type Value<T> = Unwrap<T>;
+pub type Value<T> = Content<T>;
 
 /// Alias to `Wrapper` with the inner type being `Debug`.
-pub trait ValueWrapper = Wrapper where Unwrap<Self>:Debug;
+pub trait ValueWrapper = Wrapper where Content<Self>:Debug;
 
 
 // === Definition ===
@@ -143,23 +199,15 @@ impl<T:Clone> BehaviorMessage<T> {
 
 // === Wrappers ===
 
-impl Wrapper for () {
-    type Content = ();
-    fn wrap   (_:())  -> Self {}
-    fn unwrap (&self) -> &()  { self }
-}
+impl<T> HasContent for EventMessage<T> { type Content = T; }
+impl<T> Wrap       for EventMessage<T> { fn wrap   (t:T)   -> Self { EventMessage(t) } }
+impl<T> Unwrap     for EventMessage<T> { fn unwrap (&self) -> &T   { &self.0 } }
 
-impl<T> Wrapper for EventMessage<T> {
-    type Content = T;
-    fn wrap   (t:T)   -> Self { EventMessage(t) }
-    fn unwrap (&self) -> &T   { &self.0 }
-}
+impl<T> HasContent for BehaviorMessage<T> { type Content = T; }
+impl<T> Wrap       for BehaviorMessage<T> { fn wrap   (t:T)   -> Self { BehaviorMessage(t) } }
+impl<T> Unwrap     for BehaviorMessage<T> { fn unwrap (&self) -> &T   { &self.0 } }
 
-impl<T> Wrapper for BehaviorMessage<T> {
-    type Content = T;
-    fn wrap   (t:T)   -> Self { BehaviorMessage(t) }
-    fn unwrap (&self) -> &T   { &self.0 }
-}
+
 
 
 
@@ -238,9 +286,30 @@ pub trait EventNodeStorage: NodeStorageBounds + KnownOutput + EventEmitter {
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
 }
 
-impl<Out> KnownNodeStorage for EventMessage<Out> {
-    type NodeStorage = Rc<dyn EventNodeStorage<Output=EventMessage<Out>>>;
+impl<Out:MessageValue> KnownNodeStorage for EventMessage<Out> {
+    type NodeStorage = XEventNodeStorage<Out>;
 }
+
+
+#[derive(Debug,Clone,Shrinkwrap)]
+pub struct XEventNodeStorage<Out> {
+    rc: Rc<dyn EventNodeStorage<Output=EventMessage<Out>>>,
+}
+
+impl<Out> HasContent for XEventNodeStorage<Out> {
+    type Content = <XEventNodeStorage<Out> as Deref>::Target;
+}
+
+impl<Out> Unwrap for XEventNodeStorage<Out> {
+    fn unwrap(&self) -> &Self::Content {
+        self.deref()
+    }
+}
+
+impl<Out:MessageValue> CloneRef for XEventNodeStorage<Out> {}
+
+
+
 
 
 // === BehaviorNodeStorage ===
@@ -272,9 +341,10 @@ pub trait HasLabel {
     fn label(&self) -> CowString;
 }
 
-impl<T:?Sized+HasLabel> HasLabel for Rc<T> {
-    fn label(&self) -> CowString {
-        self.deref().label()
+impl<T:Unwrap> HasLabel for T
+where Content<T> : HasLabel {
+    default fn label(&self) -> CowString {
+        self.unwrap().label()
     }
 }
 
@@ -326,6 +396,16 @@ impl<Out:KnownNodeStorage> Deref for Node<Out> {
     }
 }
 
+impl<Out:KnownNodeStorage> HasContent for Node<Out> {
+    type Content = NodeStorage<Out>;
+}
+
+impl<Out:KnownNodeStorage> Unwrap for Node<Out> {
+    fn unwrap(&self) -> &Self::Content {
+        &self.storage
+    }
+}
+
 impl<Out:KnownNodeStorage> Clone for Node<Out> {
     fn clone(&self) -> Self {
         let storage = self.storage.clone();
@@ -362,7 +442,7 @@ impl<Storage,Out> From<&Storage> for Node<EventMessage<Out>>
     where Storage : EventNodeStorage<Output=EventMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(Rc::new(storage.clone()))
+        Self::new(XEventNodeStorage{rc:Rc::new(storage.clone())})
     }
 }
 
@@ -377,7 +457,7 @@ pub trait AddTarget<T> {
     fn add_target(&self,t:&T);
 }
 
-impl<S,T> AddTarget<S> for Node<EventMessage<T>>
+impl<S,T:MessageValue> AddTarget<S> for Node<EventMessage<T>>
     where for<'t> &'t S : Into<AnyEventConsumer<EventMessage<T>>> {
     fn add_target(&self,t:&S) {
         self.add_event_target(t.into())
@@ -391,27 +471,6 @@ impl<S,T> AddTarget<S> for Node<BehaviorMessage<T>> {
 impl<Out:Message + KnownNodeStorage> AnyNodeOps for Node<Out> {}
 
 
-impl<T:KnownNodeStorage> GraphvizBuilder for Node<T> {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
-        self.storage.graphviz_build(builder)
-    }
-}
-
-impl<T:KnownNodeStorage> HasId for Node<T> {
-    fn id(&self) -> usize {
-        self.storage.id()
-    }
-}
-
-impl<T:KnownNodeStorage> HasDisplayId for Node<T> {
-    fn display_id(&self) -> usize {
-        self.storage.display_id()
-    }
-
-    fn set_display_id(&self, id:usize) {
-        self.storage.set_display_id(id)
-    }
-}
 
 
 impl<T:MessageValue> EventEmitter for Node<EventMessage<T>> {
@@ -420,41 +479,45 @@ impl<T:MessageValue> EventEmitter for Node<EventMessage<T>> {
     }
 }
 
-impl<Out:KnownNodeStorage> HasLabel for Node<Out> {
-    fn label(&self) -> CowString {
-        self.storage.label()
-    }
-}
 
 
 
-// ===============
-// === AnyNode ===
-// ===============
+// =============
+// === HasId ===
+// =============
 
+/// Each FRP node is assigned with an unique ID. This is currently used mainly for debugging
+/// purposes.
 pub trait HasId {
+    /// Id of the entity.
     fn id(&self) -> usize;
 }
 
-impl<T:?Sized+HasId> HasId for Rc<T> {
-    fn id(&self) -> usize {
-        self.deref().id()
+impl<T:Unwrap> HasId for T where
+Content<T> : HasId {
+    default fn id(&self) -> usize {
+        self.unwrap().id()
     }
 }
 
-
+/// Each FRP node can also be assigned with a `display_id`. Unlike `id`, the `display_id` does not
+/// have to be unique. Nodes with the same `display_id` are displayed as a single node in the graph
+/// view. Note that `display_id` defaults to `id` if not set explicitly to other value.
 pub trait HasDisplayId {
+    /// Getter.
     fn display_id(&self) -> usize;
+    /// Setter.
     fn set_display_id(&self, id:usize);
 }
 
-impl<T:?Sized+HasDisplayId> HasDisplayId for Rc<T> {
-    fn display_id(&self) -> usize {
-        self.deref().display_id()
+impl<T> HasDisplayId for T
+where T:Unwrap, Content<T> : HasDisplayId {
+    default fn display_id(&self) -> usize {
+        self.unwrap().display_id()
     }
 
-    fn set_display_id(&self, id:usize) {
-        self.deref().set_display_id(id)
+    default fn set_display_id(&self, id:usize) {
+        self.unwrap().set_display_id(id)
     }
 }
 
@@ -462,7 +525,7 @@ impl<T:?Sized+HasDisplayId> HasDisplayId for Rc<T> {
 
 pub trait AnyNodeOps : Debug + GraphvizBuilder + HasId + HasDisplayId + KnownOutputType {}
 
-#[derive(Debug)]
+#[derive(Debug,Shrinkwrap)]
 pub struct AnyNode {
     rc: Rc<dyn AnyNodeOps>,
 }
@@ -484,33 +547,13 @@ pub trait HasInputs {
     fn inputs(&self) -> Vec<AnyNode>;
 }
 
-impl<T:?Sized+HasInputs> HasInputs for Rc<T> {
+impl<T> HasInputs for T
+where T:Unwrap, Content<T> : HasInputs {
     fn inputs(&self) -> Vec<AnyNode> {
-        self.deref().inputs()
+        self.unwrap().inputs()
     }
 }
 
-impl GraphvizBuilder for AnyNode {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
-        self.rc.graphviz_build(builder)
-    }
-}
-
-impl HasId for AnyNode {
-    fn id(&self) -> usize {
-        self.rc.id()
-    }
-}
-
-impl HasDisplayId for AnyNode {
-    fn display_id(&self) -> usize {
-        self.rc.display_id()
-    }
-
-    fn set_display_id(&self, id:usize) {
-        self.rc.set_display_id(id)
-    }
-}
 
 impl KnownOutputType for AnyNode {
     fn output_type(&self) -> MessageType {
@@ -1495,7 +1538,7 @@ macro_rules! frp {
 }
 
 
-pub struct Dynamic<Out> {
+pub struct Dynamic<Out:MessageValue> {
     pub event    : Event    <Out>,
     pub behavior : Behavior <Out>,
 }
@@ -1570,13 +1613,13 @@ impl<Out:MessageValue, T:Into<Event<Out>>> From<T> for Dynamic<Out> {
     }
 }
 
-impl<Out> From<&Dynamic<Out>> for Event<Out> {
+impl<Out:MessageValue> From<&Dynamic<Out>> for Event<Out> {
     fn from(t:&Dynamic<Out>) -> Self {
         t.event.clone_ref()
     }
 }
 
-impl<Out> From<&Dynamic<Out>> for Behavior<Out> {
+impl<Out:MessageValue> From<&Dynamic<Out>> for Behavior<Out> {
     fn from(t:&Dynamic<Out>) -> Self {
         t.behavior.clone_ref()
     }

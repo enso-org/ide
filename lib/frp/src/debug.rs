@@ -169,8 +169,9 @@ pub trait GraphvizBuilder {
     }
 }
 
-impl<T:?Sized+GraphvizBuilder> GraphvizBuilder for Rc<T> {
-    fn graphviz_build(&self, builder:&mut Graphviz) {
+impl<T> GraphvizBuilder for T
+where T:Deref, <T as Deref>::Target:GraphvizBuilder {
+    default fn graphviz_build(&self, builder:&mut Graphviz) {
         self.deref().graphviz_build(builder)
     }
 }

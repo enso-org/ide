@@ -114,7 +114,7 @@ mod tests {
 
         final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
 
-//        final_position.behavior.display_graphviz();
+        final_position.behavior.display_graphviz();
 
         let target = mouse.position.event.clone_ref();
         let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
