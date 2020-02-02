@@ -8,9 +8,13 @@
 
 pub mod cow_string;
 pub mod macros;
+pub mod std_reexports;
+pub mod wrapper;
 
 pub use cow_string::*;
 pub use macros::*;
+pub use std_reexports::*;
+pub use wrapper::*;
 
 pub use boolinator::Boolinator;
 pub use core::any::type_name;
@@ -26,33 +30,7 @@ pub use num::Num;
 pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use smallvec::SmallVec;
-pub use std::any::Any;
-pub use std::borrow::Cow;
-pub use std::cell::Cell;
-pub use std::cell::Ref;
-pub use std::cell::RefCell;
-pub use std::cell::RefMut;
-pub use std::collections::BTreeMap;
-pub use std::collections::HashMap;
-pub use std::collections::HashSet;
-pub use std::convert::identity;
-pub use std::convert::TryFrom;
-pub use std::convert::TryInto;
-pub use std::fmt::Display;
-pub use std::fmt;
-pub use std::hash::Hash;
-pub use std::iter::FromIterator;
-pub use std::iter;
-pub use std::marker::PhantomData;
-pub use std::ops::Add;
-pub use std::ops::Deref;
-pub use std::ops::DerefMut;
-pub use std::ops::Index;
-pub use std::ops::IndexMut;
-pub use std::rc::Rc;
-pub use std::rc::Weak;
-pub use std::slice::SliceIndex;
-pub use std::slice;
+
 
 use nalgebra::Matrix;
 use nalgebra::DimName;

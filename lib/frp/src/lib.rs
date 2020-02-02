@@ -43,109 +43,7 @@ macro_rules! alias {
 
 
 
-// ===============
-// === Wrapper ===
-// ===============
 
-/// Trait for any type which wraps other type. See docs of `Wrapper` to learn more.
-pub trait HasContent {
-    type Content : ?Sized;
-}
-
-
-
-/// Accessor for the wrapped value.
-pub type Content<T> = <T as HasContent>::Content;
-
-/// Trait which enables `Sized` super-bound on the `Content` type.
-pub trait SizedContent = HasContent where Content<Self> : Sized;
-
-/// Trait for objects which wrap values. Please note that this implements safe wrappers, so the
-/// object - value relation must be bijective.
-pub trait Wrapper = Wrap + Unwrap;
-
-/// Wrapping utility for values.
-pub trait Wrap : HasContent + SizedContent {
-    /// Wraps the value and returns the wrapped type.
-    fn wrap(t:Self::Content) -> Self;
-}
-
-/// Unwrapping utility for wrapped types.
-///
-/// Please note that this trait is very similar to the Deref trait. However, there is a very
-/// important difference. Unlike `Deref`, there is no `impl<'a, T> Unwrap for &'a T` defined. The
-/// existence of such impl is very error prone when writing complex impls. The `Deref` docs warn
-/// about it explicitly: "[...] Because of this, Deref should only be implemented for smart pointers
-/// to avoid confusion.". As an example, consider the following code which contains infinite loop:
-///
-/// ```compile_fail
-/// pub trait HasId {
-///     fn id(&self) -> usize;
-/// }
-///
-/// // Notice the lack of bound `<T as Deref>::Target : HasId`
-/// impl<T:Deref> HasId for T {
-///     fn id(&self) -> usize {
-///         self.deref().id()
-///     }
-/// }
-/// ```
-///
-/// And the correct version:
-///
-/// ```compile_fail
-/// pub trait HasId {
-///     fn id(&self) -> usize;
-/// }
-///
-/// // Notice the lack of bound `<T as Deref>::Target : HasId`
-/// impl<T:Deref> HasId for T where <T as Deref>::Target : HasId {
-///     fn id(&self) -> usize {
-///         self.deref().id()
-///     }
-/// }
-/// ```
-///
-/// Both versions compile fine, but the former loops for ever.
-pub trait Unwrap : HasContent {
-    /// Unwraps this type to get the inner value.
-    fn unwrap(&self) -> &Self::Content;
-}
-
-
-// === Utils ===
-
-/// Wraps the value and returns the wrapped type.
-pub fn wrap<T:Wrap>(t:T::Content) -> T {
-    T::wrap(t)
-}
-
-/// Unwraps this type to get the inner value.
-pub fn unwrap<T:Unwrap>(t:&T) -> &T::Content {
-    T::unwrap(t)
-}
-
-
-// === Default Impls ===
-
-default impl<T:Deref> HasContent for T {
-    type Content = <Self as Deref>::Target;
-}
-
-default impl<T> Unwrap for T
-where T:Deref<Target=Content<T>> {
-    fn unwrap (&self) -> &Self::Content {
-        self.deref()
-    }
-}
-
-
-
-// === Impls ===
-
-impl<T:?Sized> HasContent for Rc<T> { type Content = T; }
-impl<T>        Wrap       for Rc<T> { fn wrap(t:T) -> Self { Rc::new(t) } }
-impl<T:?Sized> Unwrap     for Rc<T> {}
 
 
 
@@ -275,82 +173,95 @@ pub type Output<T> = <T as KnownOutput>::Output;
 
 
 
+pub trait HasEventTargets : KnownOutput {
+    fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
+}
+
+pub trait HasCurrentValue : KnownOutput {
+    fn current_value(&self) -> Value<Output<Self>>;
+}
+
+
+
 // ===================
 // === NodeStorage ===
 // ===================
 
 alias! {
-    NodeStorageBounds = { Debug + GraphvizBuilder + HasId + HasDisplayId + HasInputs + HasLabel }
+    /// Bounds required for every node storage type.
+    NodeStorageBounds = {
+        Debug + GraphvizBuilder + HasId + HasDisplayId + HasInputs + HasLabel + KnownOutput
+    }
 }
 
-/// Type level abstraction for node internal storage.
+/// Type level abstraction for node internal storage. The internal storage differs for events and
+/// behaviors, as they provide different functionality. For example, behaviors allow lookup for the
+/// current value, which does not make sense in case of events.
 pub trait KnownNodeStorage {
     /// The node storage type.
-    type NodeStorage: CloneRef + NodeStorageBounds;
+    type NodeStorage: NodeStorageBounds + CloneRef;
 }
 
 /// Internal node storage type accessor.
 pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
 
 
+// === EventNodeStorageBounds ===
 
+/// Newtype wrapper for any event node storage.
+#[derive(Debug,Derivative,Shrinkwrap)]
+#[derivative(Clone(bound=""))]
+pub struct EventNodeStorage<Out> {
+    rc: Rc<dyn EventNodeStorageBounds<Output=EventMessage<Out>>>,
+}
 
-// === EventNodeStorage ===
-
-/// Event node operations.
-pub trait EventNodeStorage: NodeStorageBounds + KnownOutput + EventEmitter {
-    /// Registers a new event target. Whenever a new event arrives it will be transmitted to all
-    /// registered targets.
-    fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
+alias! {
+    /// Bounds for any event node storage.
+    EventNodeStorageBounds = { NodeStorageBounds + HasEventTargets + EventEmitter }
 }
 
 impl<Out:MessageValue> KnownNodeStorage for EventMessage<Out> {
-    type NodeStorage = XEventNodeStorage<Out>;
+    type NodeStorage = EventNodeStorage<Out>;
+}
+
+impl<Out> Unwrap     for EventNodeStorage<Out> {}
+impl<Out> CloneRef   for EventNodeStorage<Out> {}
+impl<Out> HasContent for EventNodeStorage<Out> {
+    // TODO: Simplify after fixing https://github.com/rust-lang/rust/issues/68776
+    type Content = <EventNodeStorage<Out> as Deref>::Target;
+}
+impl<Out:MessageValue> KnownOutput for EventNodeStorage<Out> {
+    type Output = EventMessage<Out>;
 }
 
 
-#[derive(Debug,Clone,Shrinkwrap)]
-pub struct XEventNodeStorage<Out> {
-    rc: Rc<dyn EventNodeStorage<Output=EventMessage<Out>>>,
+// === BehaviorNodeStorageBounds ===
+
+/// Newtype wrapper for any behavior node storage.
+#[derive(Debug,Derivative,Shrinkwrap)]
+#[derivative(Clone(bound=""))]
+pub struct BehaviorNodeStorage<Out> {
+    rc: Rc<dyn BehaviorNodeStorageBounds<Output=BehaviorMessage<Out>>>,
 }
 
-impl<Out> HasContent for XEventNodeStorage<Out> {
-    type Content = <XEventNodeStorage<Out> as Deref>::Target;
-}
-
-impl<Out> Unwrap for XEventNodeStorage<Out> {}
-impl<Out:MessageValue> CloneRef for XEventNodeStorage<Out> {}
-
-
-
-
-
-// === BehaviorNodeStorage ===
-
-/// Behavior node operations.
-pub trait BehaviorNodeStorage: NodeStorageBounds + KnownOutput {
-    /// Returns the current value of the behavior.
-    fn current_value(&self) -> Value<Output<Self>>;
+alias! {
+    /// Bounds for any behavior node storage.
+    BehaviorNodeStorageBounds = { NodeStorageBounds + HasCurrentValue  }
 }
 
 impl<Out:MessageValue> KnownNodeStorage for BehaviorMessage<Out> {
-    type NodeStorage = XBehaviorNodeStorage<Out>;
+    type NodeStorage = BehaviorNodeStorage<Out>;
 }
 
-
-#[derive(Debug,Clone,Shrinkwrap)]
-pub struct XBehaviorNodeStorage<Out> {
-    rc: Rc<dyn BehaviorNodeStorage<Output=BehaviorMessage<Out>>>,
+impl<Out> Unwrap     for BehaviorNodeStorage<Out> {}
+impl<Out> CloneRef   for BehaviorNodeStorage<Out> {}
+impl<Out> HasContent for BehaviorNodeStorage<Out> {
+    // TODO: Simplify after fixing https://github.com/rust-lang/rust/issues/68776
+    type Content = <BehaviorNodeStorage<Out> as Deref>::Target;
 }
-
-impl<Out> HasContent for XBehaviorNodeStorage<Out> {
-    type Content = <XBehaviorNodeStorage<Out> as Deref>::Target;
+impl<Out:MessageValue> KnownOutput for BehaviorNodeStorage<Out> {
+    type Output = BehaviorMessage<Out>;
 }
-
-impl<Out> Unwrap for XBehaviorNodeStorage<Out> {}
-impl<Out:MessageValue> CloneRef for XBehaviorNodeStorage<Out> {}
-
-
 
 
 
@@ -457,19 +368,19 @@ impl<Out:KnownNodeStorage> From<&Node<Out>> for Node<Out> {
 // === Construction ===
 
 impl<Storage,Out> From<&Storage> for Node<BehaviorMessage<Out>>
-    where Storage : BehaviorNodeStorage<Output=BehaviorMessage<Out>> + Clone + 'static,
+    where Storage : BehaviorNodeStorageBounds<Output=BehaviorMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(XBehaviorNodeStorage{rc:Rc::new(storage.clone())})
+        Self::new(BehaviorNodeStorage{rc:Rc::new(storage.clone())})
     }
 }
 
 
 impl<Storage,Out> From<&Storage> for Node<EventMessage<Out>>
-    where Storage : EventNodeStorage<Output=EventMessage<Out>> + Clone + 'static,
+    where Storage : EventNodeStorageBounds<Output=EventMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(XEventNodeStorage{rc:Rc::new(storage.clone())})
+        Self::new(EventNodeStorage{rc:Rc::new(storage.clone())})
     }
 }
 
@@ -630,8 +541,7 @@ impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
 }
 
 impl<Shape,T:MessageValue>
-EventNodeStorage for NodeWrapperTemplate<Shape,EventMessage<T>>
-    where Self: HasInputs + KnownOutput<Output=EventMessage<T>> + Debug + GraphvizBuilder + HasId + EventEmitter {
+HasEventTargets for NodeWrapperTemplate<Shape,EventMessage<T>> {
     fn add_event_target(&self, target:AnyEventConsumer<EventMessage<T>>) {
         self.rc.borrow_mut().targets.push(target);
     }
@@ -640,8 +550,8 @@ EventNodeStorage for NodeWrapperTemplate<Shape,EventMessage<T>>
 //impl<Shape,T:MessageValue> EventEmitter for NodeWrapperTemplate<Shape,EventMessage<T>> {
 
 
-//impl<Shape:BehaviorNodeStorage + Debug>
-//BehaviorNodeStorage for NodeWrapper<Shape>
+//impl<Shape:BehaviorNodeStorageBounds + Debug>
+//BehaviorNodeStorageBounds for NodeWrapper<Shape>
 //where Output<Shape>:Message {
 //    fn current_value(&self) -> Value<Output<Self>> {
 //        self.rc.borrow().shape.current_value()
@@ -960,8 +870,8 @@ impl<Out> Source<Out>
     }
 }
 
-impl<Out> BehaviorNodeStorage for Source<BehaviorMessage<Out>>
-    where Out : MessageValue {
+impl<Out> HasCurrentValue for Source<BehaviorMessage<Out>>
+where Out : MessageValue {
     fn current_value(&self) -> Out {
         self.rc.borrow().shape.storage.value()
     }
@@ -1147,8 +1057,8 @@ impl<T:MessageValue> EventConsumer for Hold<EventMessage<T>> {
     }
 }
 
-impl<T> BehaviorNodeStorage for Hold<EventMessage<T>>
-    where T : MessageValue {
+impl<T> HasCurrentValue for Hold<EventMessage<T>>
+where T : MessageValue {
     fn current_value(&self) -> T {
         self.rc.borrow().shape.last_val.borrow().clone()
     }
@@ -1208,7 +1118,7 @@ impl<T:Message> EventConsumer for Recursive<T> {
     }
 }
 
-impl<T:MessageValue> BehaviorNodeStorage for Recursive<BehaviorMessage<T>> {
+impl<T:MessageValue> HasCurrentValue for Recursive<BehaviorMessage<T>> {
     fn current_value(&self) -> T {
         self.rc.borrow().shape.source.borrow().as_ref().unwrap().current_value()
     }
