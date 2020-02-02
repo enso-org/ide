@@ -19,6 +19,7 @@ basegl-prelude             = { version = "0.1.0"  , path = "../prelude"       }
 basegl-system-web          = { version = "0.1.0"  , path = "../system/web"    }
 code-builder               = { version = "0.1.0"  , path = "../code-builder"  }
 data                       = { version = "0.1.0"  , path = "../data"          }
+enso-frp                   = { version = "0.1.0"  , path = "../frp"   }
 eval-tt                    = { version = "0.1.0"  , path = "../eval-tt"       }
 logger                     = { version = "0.1.0"  , path = "../logger"        }
 optics                     = { version = "0.1.0"  , path = "../optics"        }
@@ -34,7 +35,6 @@ js-sys                     = { version = "0.3.28" }
 nalgebra                   = { version = "0.19.0" }
 num_enum                   = { version = "0.4.2"  }
 paste                      = { version = "0.1.6"  }
-percent-encoding           = { version = "2.1.0"  }
 rustc-hash                 = { version = "1.0.1"  }
 shrinkwraprs               = { version = "0.3.0"  }
 smallvec                   = { version = "1.0.0"  }

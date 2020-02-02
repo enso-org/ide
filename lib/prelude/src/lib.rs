@@ -6,6 +6,12 @@
 #![feature(specialization)]
 #![feature(trait_alias)]
 
+pub mod cow_string;
+pub mod macros;
+
+pub use cow_string::*;
+pub use macros::*;
+
 pub use boolinator::Boolinator;
 pub use core::any::type_name;
 pub use core::fmt::Debug;
@@ -21,6 +27,7 @@ pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use smallvec::SmallVec;
 pub use std::any::Any;
+pub use std::borrow::Cow;
 pub use std::cell::Cell;
 pub use std::cell::Ref;
 pub use std::cell::RefCell;
