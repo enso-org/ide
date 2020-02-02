@@ -87,9 +87,9 @@ pub fn unwrap<T:Unwrap>(t:&T) -> &T::Content {
 
 // === Default Impls ===
 
-default impl<T:Deref> HasContent for T {
-    type Content = <Self as Deref>::Target;
-}
+//default impl<T:Deref> HasContent for T {
+//    type Content = <Self as Deref>::Target;
+//}
 
 default impl<T> Unwrap for T
     where T:Deref<Target=Content<T>> {

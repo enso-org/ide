@@ -57,7 +57,7 @@ macro_rules! alias {
 alias! {
     /// Message is a data send between FRP nodes.
     /// There are two important message implementation – the `BehaviorMessage` and `EventMessage`.
-    Message = { MessageValue + ValueWrapper + KnownNodeStorage + PhantomInto<MessageType> }
+    Message = { MessageValue + ValueWrapper + KnownDynNode + PhantomInto<MessageType> }
 
     /// Abstraction for a value carried by a message.
     MessageValue = { Clone + Debug + Default + 'static }
@@ -183,13 +183,13 @@ pub trait HasCurrentValue : KnownOutput {
 
 
 
-// ===================
-// === NodeStorage ===
-// ===================
+// ===============
+// === DynNode ===
+// ===============
 
 alias! {
     /// Bounds required for every node storage type.
-    NodeStorageBounds = {
+    DynNodeBounds = {
         Debug + GraphvizBuilder + HasId + HasDisplayId + HasInputs + HasLabel + KnownOutput
     }
 }
@@ -197,69 +197,69 @@ alias! {
 /// Type level abstraction for node internal storage. The internal storage differs for events and
 /// behaviors, as they provide different functionality. For example, behaviors allow lookup for the
 /// current value, which does not make sense in case of events.
-pub trait KnownNodeStorage {
+pub trait KnownDynNode {
     /// The node storage type.
-    type NodeStorage: NodeStorageBounds + CloneRef;
+    type DynNode: DynNodeBounds + CloneRef;
 }
 
 /// Internal node storage type accessor.
-pub type NodeStorage<T> = <T as KnownNodeStorage>::NodeStorage;
+pub type DynNode<T> = <T as KnownDynNode>::DynNode;
 
 
-// === EventNodeStorageBounds ===
+// === EventDynNodeBounds ===
 
 /// Newtype wrapper for any event node storage.
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
-pub struct EventNodeStorage<Out> {
-    rc: Rc<dyn EventNodeStorageBounds<Output=EventMessage<Out>>>,
+pub struct EventDynNode<Out> {
+    rc: Rc<dyn EventDynNodeBounds<Output=EventMessage<Out>>>,
 }
 
 alias! {
     /// Bounds for any event node storage.
-    EventNodeStorageBounds = { NodeStorageBounds + HasEventTargets + EventEmitter }
+    EventDynNodeBounds = { DynNodeBounds + HasEventTargets + EventEmitter }
 }
 
-impl<Out:MessageValue> KnownNodeStorage for EventMessage<Out> {
-    type NodeStorage = EventNodeStorage<Out>;
+impl<Out:MessageValue> KnownDynNode for EventMessage<Out> {
+    type DynNode = EventDynNode<Out>;
 }
 
-impl<Out> Unwrap     for EventNodeStorage<Out> {}
-impl<Out> CloneRef   for EventNodeStorage<Out> {}
-impl<Out> HasContent for EventNodeStorage<Out> {
+impl<Out> Unwrap     for EventDynNode<Out> {}
+impl<Out> CloneRef   for EventDynNode<Out> {}
+impl<Out> HasContent for EventDynNode<Out> {
     // TODO: Simplify after fixing https://github.com/rust-lang/rust/issues/68776
-    type Content = <EventNodeStorage<Out> as Deref>::Target;
+    type Content = <EventDynNode<Out> as Deref>::Target;
 }
-impl<Out:MessageValue> KnownOutput for EventNodeStorage<Out> {
+impl<Out:MessageValue> KnownOutput for EventDynNode<Out> {
     type Output = EventMessage<Out>;
 }
 
 
-// === BehaviorNodeStorageBounds ===
+// === BehaviorDynNodeBounds ===
 
 /// Newtype wrapper for any behavior node storage.
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
-pub struct BehaviorNodeStorage<Out> {
-    rc: Rc<dyn BehaviorNodeStorageBounds<Output=BehaviorMessage<Out>>>,
+pub struct BehaviorDynNode<Out> {
+    rc: Rc<dyn BehaviorDynNodeBounds<Output=BehaviorMessage<Out>>>,
 }
 
 alias! {
     /// Bounds for any behavior node storage.
-    BehaviorNodeStorageBounds = { NodeStorageBounds + HasCurrentValue  }
+    BehaviorDynNodeBounds = { DynNodeBounds + HasCurrentValue  }
 }
 
-impl<Out:MessageValue> KnownNodeStorage for BehaviorMessage<Out> {
-    type NodeStorage = BehaviorNodeStorage<Out>;
+impl<Out:MessageValue> KnownDynNode for BehaviorMessage<Out> {
+    type DynNode = BehaviorDynNode<Out>;
 }
 
-impl<Out> Unwrap     for BehaviorNodeStorage<Out> {}
-impl<Out> CloneRef   for BehaviorNodeStorage<Out> {}
-impl<Out> HasContent for BehaviorNodeStorage<Out> {
+impl<Out> Unwrap     for BehaviorDynNode<Out> {}
+impl<Out> CloneRef   for BehaviorDynNode<Out> {}
+impl<Out> HasContent for BehaviorDynNode<Out> {
     // TODO: Simplify after fixing https://github.com/rust-lang/rust/issues/68776
-    type Content = <BehaviorNodeStorage<Out> as Deref>::Target;
+    type Content = <BehaviorDynNode<Out> as Deref>::Target;
 }
-impl<Out:MessageValue> KnownOutput for BehaviorNodeStorage<Out> {
+impl<Out:MessageValue> KnownOutput for BehaviorDynNode<Out> {
     type Output = BehaviorMessage<Out>;
 }
 
@@ -310,14 +310,15 @@ pub type Behavior <T> = Node<BehaviorMessage<T>>;
 /// Node is used as a common types for frp operations. For example, `Event<T>` is just an alias to
 /// `Node<EventMessage<T>>`.
 #[derive(Derivative)]
+#[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct Node<Out:KnownNodeStorage> {
-    storage: NodeStorage<Out>,
+pub struct Node<Out:KnownDynNode> {
+    storage: DynNode<Out>,
 }
 
 impl<Out:Message> Node<Out> {
     /// Constructor.
-    pub fn new(storage:NodeStorage<Out>) -> Self {
+    pub fn new(storage:DynNode<Out>) -> Self {
         Self {storage}
     }
 }
@@ -325,40 +326,33 @@ impl<Out:Message> Node<Out> {
 
 // === Instances ===
 
-impl<Out:Message> KnownOutput for Node<Out> { type Output = Out; }
+impl<Out:Message> KnownOutput for Node<Out> {
+    type Output = Out;
+}
 
-impl<Out:KnownNodeStorage> Deref for Node<Out> {
-    type Target = NodeStorage<Out>;
+impl<Out:Message> Deref for Node<Out> {
+    type Target = DynNode<Out>;
     fn deref(&self) -> &Self::Target {
         &self.storage
     }
 }
 
-impl<Out:KnownNodeStorage> HasContent for Node<Out> {
-    type Content = NodeStorage<Out>;
+impl<Out:Message> HasContent for Node<Out> {
+    type Content = DynNode<Out>;
 }
 
-impl<Out:KnownNodeStorage> Unwrap for Node<Out> {
-    fn unwrap(&self) -> &Self::Content {
-        &self.storage
-    }
-}
+impl<Out:Message> Unwrap for Node<Out> {}
 
-impl<Out:KnownNodeStorage> Clone for Node<Out> {
-    fn clone(&self) -> Self {
-        let storage = self.storage.clone();
-        Self {storage}
-    }
-}
 
-impl<Out:KnownNodeStorage> CloneRef for Node<Out> {
+
+impl<Out:Message> CloneRef for Node<Out> {
     fn clone_ref(&self) -> Self {
         let storage = self.storage.clone_ref();
         Self {storage}
     }
 }
 
-impl<Out:KnownNodeStorage> From<&Node<Out>> for Node<Out> {
+impl<Out:Message> From<&Node<Out>> for Node<Out> {
     fn from(t:&Node<Out>) -> Self {
         t.clone_ref()
     }
@@ -368,19 +362,19 @@ impl<Out:KnownNodeStorage> From<&Node<Out>> for Node<Out> {
 // === Construction ===
 
 impl<Storage,Out> From<&Storage> for Node<BehaviorMessage<Out>>
-    where Storage : BehaviorNodeStorageBounds<Output=BehaviorMessage<Out>> + Clone + 'static,
+    where Storage : BehaviorDynNodeBounds<Output=BehaviorMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(BehaviorNodeStorage{rc:Rc::new(storage.clone())})
+        Self::new(BehaviorDynNode{rc:Rc::new(storage.clone())})
     }
 }
 
 
 impl<Storage,Out> From<&Storage> for Node<EventMessage<Out>>
-    where Storage : EventNodeStorageBounds<Output=EventMessage<Out>> + Clone + 'static,
+    where Storage : EventDynNodeBounds<Output=EventMessage<Out>> + Clone + 'static,
           Out     : MessageValue {
     fn from(storage:&Storage) -> Self {
-        Self::new(EventNodeStorage{rc:Rc::new(storage.clone())})
+        Self::new(EventDynNode{rc:Rc::new(storage.clone())})
     }
 }
 
@@ -406,7 +400,7 @@ impl<S,T:MessageValue> AddTarget<S> for Node<BehaviorMessage<T>> {
     fn add_target(&self,_:&S) {}
 }
 
-impl<Out:Message + KnownNodeStorage> AnyNodeOps for Node<Out> {}
+impl<Out:Message + KnownDynNode> AnyNodeOps for Node<Out> {}
 
 
 
@@ -468,7 +462,7 @@ pub struct AnyNode {
     rc: Rc<dyn AnyNodeOps>,
 }
 
-impl<Out:Message+KnownNodeStorage+'static> From<&Node<Out>> for AnyNode {
+impl<Out:Message+KnownDynNode+'static> From<&Node<Out>> for AnyNode {
     fn from(t:&Node<Out>) -> Self {
         t.clone().into()
     }
@@ -550,8 +544,8 @@ HasEventTargets for NodeWrapperTemplate<Shape,EventMessage<T>> {
 //impl<Shape,T:MessageValue> EventEmitter for NodeWrapperTemplate<Shape,EventMessage<T>> {
 
 
-//impl<Shape:BehaviorNodeStorageBounds + Debug>
-//BehaviorNodeStorageBounds for NodeWrapper<Shape>
+//impl<Shape:BehaviorDynNodeBounds + Debug>
+//BehaviorDynNodeBounds for NodeWrapper<Shape>
 //where Output<Shape>:Message {
 //    fn current_value(&self) -> Value<Output<Self>> {
 //        self.rc.borrow().shape.current_value()
