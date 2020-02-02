@@ -413,14 +413,16 @@ impl<T:Deref> WithContent for T
 // =============
 
 /// Defines relation between types and values, like between `True` and `true`.
-pub trait Value {
+pub trait KnownTypeValue {
 
     /// The value-level counterpart of this type-value.
-    type Type;
+    type Value;
 
     /// The value of this type-value.
-    fn value() -> Self::Type;
+    fn value() -> Self::Value;
 }
+
+pub type TypeValue<T> = <T as KnownTypeValue>::Value;
 
 
 
@@ -434,16 +436,16 @@ pub struct True {}
 /// Type level `false` value.
 pub struct False {}
 
-impl Value for True {
-    type Type = bool;
-    fn value() -> Self::Type {
+impl KnownTypeValue for True {
+    type Value = bool;
+    fn value() -> Self::Value {
         true
     }
 }
 
-impl Value for False {
-    type Type = bool;
-    fn value() -> Self::Type {
+impl KnownTypeValue for False {
+    type Value = bool;
+    fn value() -> Self::Value {
         false
     }
 }

@@ -22,11 +22,32 @@
 /// This macro is meant to support many standard traits (like From) and should grow in the future.
 #[macro_export]
 macro_rules! impls {
-    ( From<$ty:ty> for $target:ty { |$arg:ident| $($lambda:tt)* } ) => {
-        impl From <$ty> for $target {
-            fn from ($arg:$ty) -> Self {
-                (|$arg:$ty| $($lambda)*)($arg)
+    ($([$($impl_params:tt)*])? From<$ty:ty> for $target:ty {
+        |$arg:tt| $($result:tt)*
+    } ) => {
+        impl <$($($impl_params)*)?> From <$ty> for $target {
+            fn from (arg:$ty) -> Self {
+                (|$arg:$ty| $($result)*)(arg)
             }
         }
-    }
+    };
+
+    ($([$($impl_params:tt)*])? PhantomFrom<$ty:ty> for $target:ty {
+        $($result:tt)*
+    } ) => {
+        impl <$($($impl_params)*)?> From <PhantomData<$ty>> for $target {
+            fn from (_:PhantomData<$ty>) -> Self {
+                $($result)*
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! alias {
+    ($( $(#$meta:tt)* $name:ident = {$($tok:tt)*} )*) => {$(
+        $(#$meta)*
+        pub trait $name: $($tok)* {}
+        impl<T:$($tok)*> $name for T {}
+    )*}
 }

@@ -87,6 +87,7 @@ pub fn unwrap<T:Unwrap>(t:&T) -> &T::Content {
 
 // === Default Impls ===
 
+// FIXME: https://github.com/rust-lang/rust/issues/68776
 //default impl<T:Deref> HasContent for T {
 //    type Content = <Self as Deref>::Target;
 //}
