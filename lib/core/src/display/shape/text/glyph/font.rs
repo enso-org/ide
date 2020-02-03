@@ -2,8 +2,9 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::glyph::msdf::{MsdfTexture, convert_msdf_translation};
-use crate::display::shape::glyph::msdf::x_distance_from_msdf_value;
+use crate::display::shape::text::glyph::msdf::MsdfTexture;
+use crate::display::shape::text::glyph::msdf::convert_msdf_translation;
+use crate::display::shape::text::glyph::msdf::x_distance_from_msdf_value;
 
 use basegl_core_msdf_sys as msdf_sys;
 use basegl_core_embedded_fonts::EmbeddedFonts;
@@ -237,7 +238,7 @@ impl Default for FontRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display::shape::glyph::msdf::MsdfTexture;
+    use crate::display::shape::text::glyph::msdf::MsdfTexture;
 
     use basegl_core_msdf_sys as msdf_sys;
     use basegl_core_embedded_fonts::EmbeddedFonts;

@@ -5,7 +5,7 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::text::content::TextFieldContentFullInfo;
+use crate::display::shape::text::text_field::content::TextFieldContentFullInfo;
 
 use nalgebra::Vector2;
 use std::ops::Range;
@@ -279,14 +279,14 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 mod tests {
     use super::*;
 
+    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::text_field::content::TextFieldContent;
+    use crate::display::shape::text::text_field::TextFieldProperties;
 
     use basegl_core_msdf_sys::test_utils::TestAfterInit;
+    use nalgebra::Vector4;
     use std::future::Future;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use crate::display::shape::glyph::font::FontRenderInfo;
-    use crate::display::shape::text::content::TextFieldContent;
-    use crate::display::shape::text::TextFieldProperties;
-    use nalgebra::Vector4;
 
     fn mock_properties() -> TextFieldProperties {
         TextFieldProperties {

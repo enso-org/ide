@@ -2,8 +2,9 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::text::content::{TextLocation, TextFieldContentFullInfo};
-use crate::display::shape::text::content::line::LineFullInfo;
+use crate::display::shape::text::text_field::content::TextLocation;
+use crate::display::shape::text::text_field::content::TextFieldContentFullInfo;
+use crate::display::shape::text::text_field::content::line::LineFullInfo;
 
 use nalgebra::Vector2;
 use std::cmp::Ordering;
@@ -356,10 +357,10 @@ mod test {
     use std::future::Future;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use crate::display::shape::text::cursor::Step::{LineBegin, DocBegin, LineEnd};
-    use crate::display::shape::glyph::font::FontRegistry;
-    use crate::display::shape::text::content::TextFieldContent;
-    use crate::display::shape::text::TextFieldProperties;
+    use crate::display::shape::text::text_field::cursor::Step::{LineBegin, DocBegin, LineEnd};
+    use crate::display::shape::text::glyph::font::FontRegistry;
+    use crate::display::shape::text::text_field::content::TextFieldContent;
+    use crate::display::shape::text::text_field::TextFieldProperties;
 
     wasm_bindgen_test_configure!(run_in_browser);
 

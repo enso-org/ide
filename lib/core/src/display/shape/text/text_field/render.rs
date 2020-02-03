@@ -6,31 +6,32 @@ pub mod selection;
 use crate::prelude::*;
 
 use crate::display::object::DisplayObjectData;
-use crate::display::shape::glyph::font::FontRegistry;
-use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::glyph::system::GlyphSystem;
-use crate::display::shape::text::content::TextFieldContent;
-use crate::display::shape::text::content::TextFieldContentFullInfo;
-use crate::display::shape::text::cursor::Cursor;
-use crate::display::shape::text::cursor::Cursors;
-use crate::display::shape::text::render::assignment::GlyphLinesAssignment;
-use crate::display::shape::text::render::assignment::LineFragment;
-use crate::display::shape::text::render::selection::SelectionSpritesGenerator;
+use crate::display::shape::text::glyph::font::FontRegistry;
+use crate::display::shape::text::glyph::font::FontRenderInfo;
+use crate::display::shape::text::glyph::system::GlyphSystem;
+use crate::display::shape::text::text_field::content::TextFieldContent;
+use crate::display::shape::text::text_field::content::TextFieldContentFullInfo;
+use crate::display::shape::text::text_field::cursor::Cursor;
+use crate::display::shape::text::text_field::cursor::Cursors;
+use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignment;
+use crate::display::shape::text::text_field::render::assignment::LineFragment;
+use crate::display::shape::text::text_field::render::selection::SelectionSpritesGenerator;
+use crate::display::shape::text::text_field::TextFieldProperties;
 use crate::display::shape::primitive::def::*;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
+use crate::display::world::World;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use crate::display::shape::text::TextFieldProperties;
-use crate::display::world::World;
+
 
 
 // =======================
 // === RenderedContent ===
 // =======================
 
-type GlyphLine = crate::display::shape::glyph::system::Line;
+type GlyphLine = crate::display::shape::text::glyph::system::Line;
 
 /// Structure containing sprites bound to one cursor with its selection.
 #[derive(Debug)]

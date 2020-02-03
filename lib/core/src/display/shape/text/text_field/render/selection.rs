@@ -1,9 +1,9 @@
 //! Drawing selection utilities.
 
 use crate::display::shape::primitive::system::ShapeSystem;
-use crate::display::shape::text::content::TextFieldContentFullInfo;
-use crate::display::shape::text::content::TextLocation;
-use crate::display::shape::text::cursor::Cursor;
+use crate::display::shape::text::text_field::content::TextFieldContentFullInfo;
+use crate::display::shape::text::text_field::content::TextLocation;
+use crate::display::shape::text::text_field::cursor::Cursor;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 
 use nalgebra::Vector2;

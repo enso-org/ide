@@ -1,8 +1,8 @@
 //! Structures and methods related to single line of TextField content.
 use crate::prelude::*;
 
-use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::glyph::pen::PenIterator;
+use crate::display::shape::text::glyph::font::FontRenderInfo;
+use crate::display::shape::text::glyph::pen::PenIterator;
 
 use nalgebra::Vector2;
 use std::ops::Range;

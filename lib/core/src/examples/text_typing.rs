@@ -2,17 +2,16 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::display::world::WorldData;
 use crate::display::object::DisplayObjectOps;
+use crate::display::shape::text::text_field::content::TextChange;
+use crate::display::shape::text::text_field::{TextField, TextFieldProperties};
+use crate::display::shape::text::text_field::cursor::Step::Right;
+use crate::display::shape::text::glyph::font::FontRegistry;
+use crate::display::world::*;
+use crate::system::web::forward_panic_hook_to_console;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-use crate::display::shape::text::content::TextChange;
-use crate::display::shape::text::{TextField, TextFieldProperties};
-use crate::system::web::forward_panic_hook_to_console;
-use crate::display::shape::text::cursor::Step::Right;
-use crate::display::shape::glyph::font::FontRegistry;
-use crate::display::world::*;
 use basegl_system_web::set_stdout;
 
 

@@ -4,9 +4,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::display::world::WorldData;
 use crate::display::object::DisplayObjectOps;
-use crate::display::shape::glyph::font::FontRegistry;
-use crate::display::shape::text::TextField;
-use crate::display::shape::text::TextFieldProperties;
+use crate::display::shape::text::glyph::font::FontRegistry;
+use crate::display::shape::text::text_field::TextField;
+use crate::display::shape::text::text_field::TextFieldProperties;
 use crate::display::world::*;
 use crate::system::web;
 use crate::system::web::forward_panic_hook_to_console;

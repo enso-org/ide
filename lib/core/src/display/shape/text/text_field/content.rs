@@ -3,12 +3,12 @@ pub mod line;
 
 use crate::prelude::*;
 
-use crate::display::shape::glyph::font::FontId;
-use crate::display::shape::glyph::font::FontRegistry;
-use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::text::content::line::Line;
-use crate::display::shape::text::content::line::LineFullInfo;
-use crate::display::shape::text::TextFieldProperties;
+use crate::display::shape::text::glyph::font::FontId;
+use crate::display::shape::text::glyph::font::FontRegistry;
+use crate::display::shape::text::glyph::font::FontRenderInfo;
+use crate::display::shape::text::text_field::content::line::Line;
+use crate::display::shape::text::text_field::content::line::LineFullInfo;
+use crate::display::shape::text::text_field::TextFieldProperties;
 
 use nalgebra::Vector2;
 use std::ops::Range;

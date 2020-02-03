@@ -3,11 +3,11 @@
 use crate::prelude::*;
 
 use crate::display::layout::types::*;
-use crate::display::shape::glyph::font::FontId;
-use crate::display::shape::glyph::font::FontRenderInfo;
-use crate::display::shape::glyph::font::FontRegistry;
-use crate::display::shape::glyph::pen::PenIterator;
-use crate::display::shape::glyph::msdf::MsdfTexture;
+use crate::display::shape::text::glyph::font::FontId;
+use crate::display::shape::text::glyph::font::FontRenderInfo;
+use crate::display::shape::text::glyph::font::FontRegistry;
+use crate::display::shape::text::glyph::pen::PenIterator;
+use crate::display::shape::text::glyph::msdf::MsdfTexture;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::display::world::*;
