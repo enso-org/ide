@@ -12,7 +12,7 @@ use crate::frp_def;
 // ================
 
 /// A 2-dimensional position. Used for storing the mouse position on the screen.
-#[derive(Clone,Copy,Debug,Default)]
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Position {
     pub x:i32,

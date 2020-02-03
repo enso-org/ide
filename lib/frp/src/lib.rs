@@ -20,15 +20,59 @@ pub mod data;
 pub mod debug;
 pub mod io;
 pub mod macros;
-pub mod node;
-pub mod nodes;
+pub mod core;
 
 pub use data::*;
 pub use debug::*;
 pub use io::*;
 pub use macros::*;
-pub use node::*;
-pub use nodes::*;
+pub use crate::core::*;
 
 use enso_prelude      as prelude;
 use basegl_system_web as web;
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drag_and_drop() {
+        let mouse = Mouse::new();
+
+        frp_def! { mouse_down_position    = mouse.position.sample (&mouse.down)    }
+        frp_def! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
+
+        let final_position_ref_event  = Recursive::<EventData<Position>>::new_named("final_position_ref");
+        let final_position_ref        = Dynamic::from(&final_position_ref_event);
+
+        frp_def! { pos_diff_on_down = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f}) }
+        frp_def! { final_position   = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f}) }
+
+        final_position_ref_event.initialize(&final_position);
+
+        final_position_ref.event.set_display_id(final_position.event.display_id());
+        final_position_ref.behavior.set_display_id(final_position.event.display_id());
+
+        assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
+        mouse.position.event.emit(&EventData(Position::new(3,4)));
+        assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
+        mouse.down.event.emit(&EventData(()));
+        assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
+        mouse.position.event.emit(&EventData(Position::new(4,6)));
+        assert_eq!(final_position.behavior.current_value(),Position::new(1,2));
+        mouse.position.event.emit(&EventData(Position::new(4,7)));
+        assert_eq!(final_position.behavior.current_value(),Position::new(1,3));
+        mouse.up.event.emit(&EventData(()));
+        mouse.position.event.emit(&EventData(Position::new(4,0)));
+        assert_eq!(final_position.behavior.current_value(),Position::new(1,3));
+        mouse.down.event.emit(&EventData(()));
+        mouse.position.event.emit(&EventData(Position::new(0,0)));
+        assert_eq!(final_position.behavior.current_value(),Position::new(-3,3));
+    }
+}
