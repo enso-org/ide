@@ -22,9 +22,7 @@ jobs:
       - name: Install wasm-opt
         uses: actions/setup-node@v1
         with:
-          run: |
-            sudo npm install binaryen -g
-            sudo npm install wasm-opt -g
+          run: sudo npm install binaryen -g && wasm-opt --version
       - name: Install wasm-pack
         uses: actions-rs/cargo@v1
         with:
