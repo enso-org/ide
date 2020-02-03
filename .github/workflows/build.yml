@@ -23,7 +23,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          
+      - name: Install binaryen
+        uses: actions/npm@latest
+        with:
+          command: install
+          args: binaryen -g
+      - name: Check wasm binary size
+        command: ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
   test:
     name: Tests
     runs-on: ${{ matrix.os }}
