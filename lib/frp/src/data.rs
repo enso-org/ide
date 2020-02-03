@@ -41,7 +41,7 @@ pub struct EventData<T>(pub T);
 pub struct BehaviorData<T>(pub T);
 
 /// Alias to `Wrapper` with the inner type being `Debug`.
-pub trait DebugWrapper = Wrapper where Content<Self>:Debug;
+pub trait DebugWrapper = Wrapper where Content<Self> : Default + Debug;
 
 
 // === DataType ===
