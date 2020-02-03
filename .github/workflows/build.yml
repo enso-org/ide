@@ -19,17 +19,18 @@ jobs:
         with:
           toolchain: nightly-2019-11-04
           override: true
+      - name: Install binaryen
+        uses: actions/setup-node@v1
+        with:
+          run: sudo npm install binaryen -g
       - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
           command: check
-      - name: Install binaryen
-        uses: actions/setup-node@v1
-        with:
-          command: install
-          args: binaryen -g
       - name: Check wasm binary size
-        run: ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
+        run: |
+          ./script/build.sh
+          ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
   test:
     name: Tests
     runs-on: ${{ matrix.os }}
