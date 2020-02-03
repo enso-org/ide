@@ -2,9 +2,7 @@
 
 echoerr() { echo "$@" 1>&2; }
 
-cd target/web || exit 1
-
-current_size=$(du -h basegl_bg_opt.wasm.gz | awk '{ print $1 }')
+current_size=$(cat file_size)
 current_size="${current_size::-1}"
 
 max_size=2.1 # MB
