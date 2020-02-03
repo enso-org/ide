@@ -1,10 +1,13 @@
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(trait_alias)]
 #![feature(set_stdio)]
 
 pub mod resize_observer;
 pub mod dom;
 
-use basegl_prelude::*;
+use enso_prelude::*;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -241,6 +244,7 @@ impl NodeRemover for Node {
 
 #[wasm_bindgen(inline_js = "export function request_animation_frame2(f) { requestAnimationFrame(f) }")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn request_animation_frame2(closure: &Closure<dyn FnMut()>) -> i32;
 }
 
@@ -324,6 +328,7 @@ export function set_stack_trace_limit() {
 }
 ")]
 extern "C" {
+    #[allow(unsafe_code)]
     pub fn set_stack_trace_limit();
 }
 

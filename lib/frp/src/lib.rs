@@ -28,11 +28,5 @@ pub use io::*;
 pub use node::*;
 pub use nodes::*;
 
-use basegl_prelude    as prelude;
+use enso_prelude      as prelude;
 use basegl_system_web as web;
-
-//macro_rules! frp {
-//    ( $( $var:ident = $node:ident $(<$ty:ty>)*   ($($args:tt)*); )* ) => {$(
-//        let $var = $node $(::<$ty>)* :: new_named(stringify!{$var}, $($args)* );
-//    )*}
-//}

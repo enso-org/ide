@@ -1,10 +1,13 @@
 #![feature(arbitrary_self_types)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 mod system {
     pub use basegl_system_web as web;
 }
 
-use basegl_prelude as prelude;
+use enso_prelude as prelude;
 
 pub use wasm_bindgen_test::wasm_bindgen_test_configure as web_configure;
 pub use web_test_proc_macro::*;

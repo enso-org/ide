@@ -4,9 +4,11 @@
 
 #![feature(specialization)]
 #![allow(missing_docs)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
-
-use basegl_prelude::*;
+use enso_prelude::*;
 use std::fmt::Write;
 
 

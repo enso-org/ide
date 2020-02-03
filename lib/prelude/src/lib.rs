@@ -3,6 +3,9 @@
 //! defines several aliases and utils which may find their place in new
 //! libraries in the future.
 
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 #![feature(specialization)]
 #![feature(trait_alias)]
 
@@ -243,7 +246,7 @@ impl<T> RcOps for Rc<T> {
 // ===================
 
 /// Like `Display` trait but for types. However, unlike `Display` it defaults to
-/// `core::any::type_name` if not provided with explicit implementation.
+/// `impl::any::type_name` if not provided with explicit implementation.
 pub trait TypeDisplay {
     fn type_display() -> String;
 }
@@ -329,8 +332,8 @@ impl <T:Scalar,R:DimName,C:DimName,S> TypeDisplay for Matrix<T,R,C,S> {
 /////
 /////    ```compile_fail
 /////    use std::rc::Rc;
-/////    use core::cell::RefCell;
-/////    use core::cell::Ref;
+/////    use impl::cell::RefCell;
+/////    use impl::cell::Ref;
 /////
 /////    pub struct SharedDirtyFlag<T> {
 /////        data: Rc<RefCell<T>>
@@ -431,9 +434,11 @@ pub type TypeValue<T> = <T as KnownTypeValue>::Value;
 // =======================
 
 /// Type level `true` value.
+#[derive(Clone,Copy,Debug)]
 pub struct True {}
 
 /// Type level `false` value.
+#[derive(Clone,Copy,Debug)]
 pub struct False {}
 
 impl KnownTypeValue for True {
