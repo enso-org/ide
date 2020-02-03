@@ -24,7 +24,7 @@ jobs:
         with:
           command: check
       - name: Install binaryen
-        uses: actions/npm@v1
+        uses: bahmutov/npm-install@v1
         with:
           command: install
           args: binaryen -g
