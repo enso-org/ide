@@ -15,30 +15,24 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
-#      - name: Install Rust Nightly Toolchain
-#        uses: actions-rs/toolchain@v1
-#        with:
-#          toolchain: nightly-2019-11-04
-#          override: true
-      - name: Install wasm-opt
-        run: |
-          npm install binaryen -g
-          wasm-opt --version
+      - name: Install Rust Nightly Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install binaryen
+        run: npm install binaryen -g
       - name: Install wasm-pack
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: wasm-pack
-#      - name: Run cargo check
-#        uses: actions-rs/cargo@v1
-#        with:
-#          command: check
+      - name: Build
+        run: ./script/build.sh
       - name: Check wasm-opt
         run: wasm-opt --version
       - name: Check wasm binary size
-        run: |
-          ./script/build.sh
-          ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
+        run: ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
   test:
     name: Tests
     runs-on: ${{ matrix.os }}
