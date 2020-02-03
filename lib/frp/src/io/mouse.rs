@@ -1,25 +1,9 @@
+//! Mouse FRP bindings.
+
 use crate::prelude::*;
+
 use crate::nodes::*;
-
-
-#[macro_export]
-macro_rules! frp_def {
-    ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $fn $(.$fn2)* $(::<$ty>)?
-        ( concat! {stringify!{$var}}, $($args)* );
-    };
-
-    ($scope:ident . $var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = Dynamic $(::<$ty>)? :: $fn
-        ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
-    };
-
-    ($scope:ident . $var:ident = $fn1:ident . $fn2:ident $(.$fn3:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $fn1 . $fn2 $(.$fn3)* $(::<$ty>)?
-        ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
-    };
-}
-
+use crate::frp_def;
 
 
 
@@ -27,13 +11,16 @@ macro_rules! frp_def {
 // === Position ===
 // ================
 
+/// A 2-dimensional position. Used for storing the mouse position on the screen.
 #[derive(Clone,Copy,Debug,Default)]
+#[allow(missing_docs)]
 pub struct Position {
     pub x:i32,
     pub y:i32,
 }
 
 impl Position {
+    /// Constructor.
     pub fn new(x:i32, y:i32) -> Self {
         Self {x,y}
     }
@@ -54,10 +41,16 @@ impl std::ops::Sub<&Position> for &Position {
 // === Mouse ===
 // =============
 
+/// Mouse FRP bindings.
+#[derive(Debug)]
 pub struct Mouse {
-    pub up       : Dynamic<()>,
-    pub down     : Dynamic<()>,
-    pub is_down  : Dynamic<bool>,
+    /// The mouse up event.
+    pub up : Dynamic<()>,
+    /// The mouse down event.
+    pub down : Dynamic<()>,
+    /// Mouse button press status.
+    pub is_down : Dynamic<bool>,
+    /// Current mouse position.
     pub position : Dynamic<Position>,
 }
 
@@ -74,6 +67,7 @@ impl Default for Mouse {
 }
 
 impl Mouse {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
