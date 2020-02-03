@@ -2,7 +2,7 @@
 
 echoerr() { echo "$@" 1>&2; }
 
-actual_size=$1
+actual_size=$(./script/minimize_wasm.sh)
 max_size=1.0M
 if (( $(echo "$actual_size <= $max_size" |bc -l) ));
 then
