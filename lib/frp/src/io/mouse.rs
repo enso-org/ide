@@ -2,9 +2,10 @@ use crate::prelude::*;
 use crate::nodes::*;
 
 
+#[macro_export]
 macro_rules! frp_def {
     ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = Dynamic $(::<$ty>)? :: $fn $(.$fn2)*
+        let $var = $fn $(.$fn2)* $(::<$ty>)?
         ( concat! {stringify!{$var}}, $($args)* );
     };
 

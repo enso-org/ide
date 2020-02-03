@@ -15,7 +15,13 @@ use wasm_bindgen::prelude::*;
 use crate::display::shape::primitive::def::*;
 use crate::display::navigation::navigator::Navigator;
 
-use crate::control::frp2;
+use crate::prelude::*;
+pub use enso_frp::*;
+
+use crate::system::web;
+use crate::control::io::mouse2;
+use crate::control::io::mouse2::MouseManager;
+
 
 
 #[wasm_bindgen]
@@ -52,7 +58,7 @@ fn init(world: &World) {
 
     world.add_child(&shape_system);
 
-    let out = frp2::test(Box::new(move|x:f32,y:f32| {
+    let out = frp_test(Box::new(move|x:f32,y:f32| {
         sprite2.set_position(Vector3::new(x,y,0.0));
     }));
 
@@ -76,4 +82,60 @@ pub fn on_frame
 , shape_system : &ShapeSystem) {
     *iter += 1;
     shape_system.display_object().update();
+}
+
+
+
+// ================
+// === FRP Test ===
+// ================
+
+#[allow(unused_variables)]
+pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
+
+    let document        = web::document().unwrap();
+    let mouse_manager   = MouseManager::new(&document);
+
+    let mouse = Mouse::new();
+
+    frp_def! { mouse_down_position    = mouse.position.sample (&mouse.down)    }
+    frp_def! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
+
+
+    let final_position_ref_event  = Recursive::<EventData<Position>>::new_named("final_position_ref");
+    let final_position_ref    = Dynamic::from(&final_position_ref_event);
+
+
+    frp_def! { pos_diff_on_down = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f}) }
+    frp_def! { final_position   = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f}) }
+    frp_def! { debug            = final_position.sample       (&mouse.position) }
+
+    final_position_ref_event.initialize(&final_position);
+
+    final_position_ref.event.set_display_id(final_position.event.display_id());
+    final_position_ref.behavior.set_display_id(final_position.event.display_id());
+
+    trace("X" , &debug.event);
+
+    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
+
+    let target = mouse.position.event.clone_ref();
+    let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
+        target.emit(&EventData(Position::new(event.client_x(),event.client_y())));
+    });
+    handle.forget();
+
+    let target = mouse.down.event.clone_ref();
+    let handle = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
+        target.emit(&EventData(()));
+    });
+    handle.forget();
+
+    let target = mouse.up.event.clone_ref();
+    let handle = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
+        target.emit(&EventData(()));
+    });
+    handle.forget();
+
+    mouse_manager
 }
