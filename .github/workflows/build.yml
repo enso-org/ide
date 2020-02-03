@@ -30,7 +30,7 @@ jobs:
       - name: Build
         run: ./script/build.sh
       - name: Minimize WASM
-        run: FILE_SIZE=./script/minimize_wasm.sh
+        run: FILE_SIZE=$(./script/minimize_wasm.sh)
       - name: Check WASM size
         run: ./script/assert_max_wasm_size.sh $FILE_SIZE
   test:
