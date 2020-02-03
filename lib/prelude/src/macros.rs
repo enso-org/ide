@@ -4,7 +4,7 @@
 /// Allows for nicer definition of impls, similar to what Haskell or Scala does. Reduces the needed
 /// boilerplate. For example, the following usage:
 ///
-/// ```
+/// ```compile_fail
 /// struct A { name:String };
 /// impls! { From<A> for String { |t| t.name.clone() } }
 /// ```
