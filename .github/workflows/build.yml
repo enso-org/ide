@@ -29,6 +29,8 @@ jobs:
           args: wasm-pack
       - name: Build
         run: ./script/build.sh
+      - name: Minimize WASM
+        run: ./script/minimize_wasm.sh > file_size
       - name: Check WASM size
         run: ./script/assert_max_wasm_size.sh
   test:

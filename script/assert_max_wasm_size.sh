@@ -2,12 +2,14 @@
 
 echoerr() { echo "$@" 1>&2; }
 
-actual_size=$(./script/minimize_wasm.sh)
-max_size=1.0M
-if (( $(echo "$actual_size <= $max_size" |bc -l) ));
+current_size=$(cat file_size)
+current_size="${current_size::-1}"
+max_size=2.1 # MB
+echo "Current size: ${current_size}M. expected maximum size: ${max_size}M"
+if (( $(echo "$current_size <= $max_size" |bc -l) ));
 then
   echo OK
 else
-  echoerr "FAIL. Expected maximum size: ${max_size} current size: ${actual_size}."
+  echoerr FAIL
   exit 1
 fi
