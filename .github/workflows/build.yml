@@ -29,10 +29,10 @@ jobs:
           args: wasm-pack
       - name: Build
         run: ./script/build.sh
-      - name: Check wasm-opt
-        run: wasm-opt --version
-      - name: Check wasm binary size
-        run: ./script/minimize_wasm.sh | xargs ./script/assert_max_wasm_size.sh
+      - name: Minimize WASM
+        run: FILE_SIZE=./script/minimize_wasm.sh
+      - name: Check WASM size
+        run: ./script/assert_max_wasm_size.sh $FILE_SIZE
   test:
     name: Tests
     runs-on: ${{ matrix.os }}

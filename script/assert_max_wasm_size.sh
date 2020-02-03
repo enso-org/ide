@@ -3,7 +3,7 @@
 echoerr() { echo "$@" 1>&2; }
 
 actual_size=$1
-max_size=4.0M
+max_size=1.0M
 if (( $(echo "$actual_size <= $max_size" |bc -l) ));
 then
   echo OK
