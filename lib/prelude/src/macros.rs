@@ -25,6 +25,7 @@ macro_rules! impls {
     ($([$($impl_params:tt)*])? From<$ty:ty> for $target:ty {
         |$arg:tt| $($result:tt)*
     } ) => {
+        #[allow(clippy::redundant_closure_call)]
         impl <$($($impl_params)*)?> From <$ty> for $target {
             fn from (arg:$ty) -> Self {
                 (|$arg:$ty| $($result)*)(arg)

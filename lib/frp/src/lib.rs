@@ -18,16 +18,21 @@
 
 pub mod data;
 pub mod debug;
+pub mod io;
 pub mod node;
 pub mod nodes;
 
 pub use data::*;
 pub use debug::*;
+pub use io::*;
 pub use node::*;
 pub use nodes::*;
 
-macro_rules! frp {
-    ( $( $var:ident = $node:ident $(<$ty:ty>)*   ($($args:tt)*); )* ) => {$(
-        let $var = $node $(::<$ty>)* :: new_named(stringify!{$var}, $($args)* );
-    )*}
-}
+use basegl_prelude    as prelude;
+use basegl_system_web as web;
+
+//macro_rules! frp {
+//    ( $( $var:ident = $node:ident $(<$ty:ty>)*   ($($args:tt)*); )* ) => {$(
+//        let $var = $node $(::<$ty>)* :: new_named(stringify!{$var}, $($args)* );
+//    )*}
+//}

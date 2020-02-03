@@ -1,3 +1,5 @@
+//! This module defines abstraction for FRP data types.
+
 use crate::prelude::*;
 use crate::KnownDynNode;
 use crate::AnyEventConsumer;
@@ -13,7 +15,9 @@ alias! {
     Value = { Clone + Debug + Default + 'static }
 }
 
+/// Trait for every FRP data which contains valid FRP value.
 pub trait KnownValue : HasContent {
+    /// The raw value of the data.
     fn value(&self) -> Content<Self>;
 }
 
@@ -48,6 +52,7 @@ pub trait DebugWrapper = Wrapper where Content<Self> : Default + Debug;
 
 /// A value-level information about the data type.
 #[derive(Clone,Debug,Copy)]
+#[allow(missing_docs)]
 pub enum DataType {Event,Behavior}
 
 impls!{[T] PhantomFrom<EventData<T>>    for DataType { Self::Event    }}
@@ -95,7 +100,9 @@ pub trait KnownEventInput {
 /// Event input accessor.
 pub type EventInput<T> = <T as KnownEventInput>::EventInput;
 
+/// Provides a list of all inputs to a node.
 pub trait HasInputs {
+    /// Accessor.
     fn inputs(&self) -> Vec<AnyNode>;
 }
 
@@ -126,11 +133,15 @@ pub type Output<T> = <T as KnownOutput>::Output;
 
 // === Traits ===
 
+/// Trait for nodes which can register an event target.
 pub trait HasEventTargets : KnownOutput {
+    /// Registers a new event target.
     fn add_event_target(&self, target:AnyEventConsumer<Output<Self>>);
 }
 
+/// Trait for nodes which remember the current value.
 pub trait HasCurrentValue : KnownOutput {
+    /// Gets the current value of the node.
     fn current_value(&self) -> Content<Output<Self>>;
 }
 

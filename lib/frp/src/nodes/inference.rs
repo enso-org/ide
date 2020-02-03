@@ -80,6 +80,7 @@ inference_rules! {
 /// From the given set of FRP data selects the first occurrence of `EventData` if any. For example,
 /// `SelectEventData<(BehaviorData<T1>,EventData<T2>,EventData<T3>)>` resolves to `EventData<T2>`.
 pub trait ContainsEventData {
+    /// The selected `EventData` type.
     type Result : Data;
 }
 
@@ -101,6 +102,7 @@ macro_rules! define_contains_event_data_impls {
 /// Internal utility for the `define_contains_event_data_impls` macro.
 macro_rules! define_contains_event_data_impls_item {
     ($( ($($pat:tt<$pat_type:ident>),*) => $result:ident<$result_type:ident> )*) => {$(
+        #[allow(unused_parens)]
         impl<$($pat_type),*> ContainsEventData for ($($pat<$pat_type>),*)
         where $result<$result_type> : Data {
             type Result = $result<$result_type>;

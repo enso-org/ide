@@ -21,9 +21,12 @@ macro_rules! define_node {
         $name:ident $shape_name:ident [$($poly_input:ident)*] $(-> [$($out:tt)*])?
             { $( $field:ident : $field_type:ty ),* }
     ) => {
+        /// The main type definition.
         $(#$meta)*
+        #[allow(non_camel_case_types)]
         pub type $name<$($poly_input,)*> = NodeWrapper<$shape_name<$($poly_input,)*>>;
 
+        /// Shape definition.
         $(#$meta)*
         #[derive(Debug)]
         #[allow(non_camel_case_types)]
@@ -34,6 +37,7 @@ macro_rules! define_node {
 
         define_node_output! { $shape_name [$($poly_input)*] $(-> [$($out)*])? }
 
+        #[allow(non_camel_case_types,unused_parens)]
         impl<$($poly_input:Data,)*>
         KnownEventInput for $shape_name<$($poly_input,)*>
         where ($($poly_input),*) : ContainsEventData,
@@ -43,11 +47,13 @@ macro_rules! define_node {
 
 
         paste::item! {
+            #[allow(non_camel_case_types)]
             impl<$($poly_input:Data,)*> $name<$($poly_input,)*>
             where $shape_name<$($poly_input),*> : KnownOutput,
                   $(Node<$poly_input>           : AddTarget<Self>,)*
                   $(Content<$poly_input>        : Value,)*
             {
+                /// Constructor.
                 pub fn new_named<Label,$([<T $poly_input>],)*>
                 (label:Label, $($poly_input:[<T $poly_input>],)*) -> Self
                 where Label               : Into<CowString>,
@@ -66,6 +72,7 @@ macro_rules! define_node {
             }
         }
 
+        #[allow(non_camel_case_types)]
         impl<$($poly_input:Data),*> HasInputs for $shape_name<$($poly_input),*> {
             fn inputs(&self) -> Vec<AnyNode> {
                 vec![$((&self.$poly_input).into()),*]
@@ -77,6 +84,7 @@ macro_rules! define_node {
 /// Internal utility for the `define_node` macro.
 macro_rules! define_node_output {
     ( $shape_name:ident [$($poly_input:ident)*] -> [$($out:tt)*] ) => {
+        #[allow(non_camel_case_types)]
         impl<$($poly_input:Data,)*>
         KnownOutput for $shape_name<$($poly_input,)*>
         where $($out)* : Data {
@@ -198,7 +206,7 @@ define_node! {
 
 impl<T:Value> EventConsumer for Hold<EventData<T>> {
     fn on_event(&self, event:&Self::EventInput) {
-        *self.rc.borrow().shape.last_val.borrow_mut() = event.value().clone();
+        *self.rc.borrow().shape.last_val.borrow_mut() = event.value();
     }
 }
 
@@ -278,8 +286,12 @@ impl<In:Value> EventConsumer for Gate<BehaviorData<bool>,EventData<In>> {
 // === Recursive ===
 // =================
 
+/// A very special FRP node. It allows the definition of recursive FRP flows. Please note that it
+/// has to be initialized with a target node before it can be evaluated. See the examples to learn
+/// more.
 pub type Recursive<T> = NodeWrapper<RecursiveShape<T>>;
 
+/// Shape definition.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct RecursiveShape<T:Data> {
@@ -298,12 +310,15 @@ impl<T:Data> KnownEventInput for RecursiveShape<T> {
 // === Constructor ===
 
 impl<T:Data> Recursive<T> {
+    /// Constructor.
     pub fn new_named<Label>(label:Label) -> Self
         where Label : Into<CowString> {
         let source = default();
         Self::construct(label,RecursiveShape{source})
     }
 
+    /// Initializes this node with a target node. Note that this node could not be evaluated before
+    /// the initialization.
     pub fn initialize<S>(&self, t:S)
         where S       : Into<Node<T>>,
               Node<T> : AddTarget<Self> {

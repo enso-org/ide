@@ -1,5 +1,7 @@
+//! This module defines FRP node identifiers. They are mainly used for debugging purposes.
 
 use crate::prelude::*;
+
 
 
 // =============

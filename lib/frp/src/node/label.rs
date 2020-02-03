@@ -1,4 +1,7 @@
+//! This module defines FRP node labels. They are mainly used for debugging purposes.
+
 use crate::prelude::*;
+
 
 
 // =============

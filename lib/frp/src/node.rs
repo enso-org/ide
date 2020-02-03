@@ -1,3 +1,5 @@
+//! Root module for FRP node related abstractions.
+
 pub mod class;
 pub mod id;
 pub mod label;

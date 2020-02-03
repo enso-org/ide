@@ -1,3 +1,5 @@
+//! Root module for FRP node definitions.
+
 pub mod dynamic;
 pub mod inference;
 pub mod lambda;

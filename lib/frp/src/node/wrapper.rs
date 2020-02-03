@@ -1,3 +1,4 @@
+//! This module defines a common template structure used to define FRP nodes.
 
 use crate::prelude::*;
 
@@ -119,9 +120,7 @@ GraphvizBuilder for NodeWrapperTemplate<Shape,Out> {
         if !builder.contains(id) {
             builder.add_node(id,display_id,type_name,label);
             for input in &self.rc.borrow().shape.inputs() {
-                let input_id         = input.id();
                 let input_display_id = input.display_id();
-                let is_redirect      = input_id != input_display_id;
                 let input_type       = input.output_type();
                 let input_type_name  = input.output_type_value_name();
                 input.graphviz_build(builder);
@@ -164,7 +163,7 @@ impl<Shape,Out> NodeWrapperTemplateData<Shape,Out> {
 
 fn base_type_name<T>() -> String {
     let qual_name = type_name::<T>();
-    let base_name = qual_name.split("<").collect::<Vec<_>>()[0];
+    let base_name = qual_name.split('<').collect::<Vec<_>>()[0];
     let name      = base_name.rsplit("::").collect::<Vec<_>>()[0];
     let name      = name.split("Shape").collect::<Vec<_>>()[0];
     name.into()

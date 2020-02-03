@@ -25,6 +25,7 @@ macro_rules! define_lambda_node {
             { $( $field:ident : $field_type:ty ),* }
     ) => {
         $(#$meta)*
+        #[allow(non_camel_case_types)]
         pub type $name<$($poly_input,)* Out> = NodeWrapper<$shape_name<$($poly_input,)* Out>>;
 
         $(#$meta)*
@@ -35,11 +36,13 @@ macro_rules! define_lambda_node {
             $( $field      : $field_type ),*
         }
 
+        #[allow(non_camel_case_types)]
         impl<$($poly_input:Data,)* Out:Data>
         KnownOutput for $shape_name<$($poly_input,)* Out> {
             type Output = Out;
         }
 
+        #[allow(non_camel_case_types,unused_parens)]
         impl<$($poly_input:Data,)* Out:Data>
         KnownEventInput for $shape_name<$($poly_input,)* Out>
         where ($($poly_input),*) : ContainsEventData,
@@ -48,11 +51,15 @@ macro_rules! define_lambda_node {
         }
 
         paste::item! {
+            /// A constructor trait. Used only in order to make Rust type checker happy.
+            #[allow(non_camel_case_types)]
             pub trait [<$name New>]<$($poly_input,)* Func> {
+                /// Constructor.
                 fn new_named<Label:Into<CowString>>
                 (label:Label, $($poly_input:$poly_input,)* f:Func) -> Self;
             }
 
+            #[allow(non_camel_case_types,unused_parens)]
             impl<$($poly_input,)* OutVal, $([<T $poly_input>],)* Function>
             [<$name New>]<$([<T $poly_input>],)* Function>
             for $name<$($poly_input,)* ProductType<($($poly_input),*),OutVal>>
@@ -78,6 +85,7 @@ macro_rules! define_lambda_node {
             }
         }
 
+        #[allow(non_camel_case_types)]
         impl<$($poly_input:Data,)* Out:Data> HasInputs for $shape_name<$($poly_input,)* Out> {
             fn inputs(&self) -> Vec<AnyNode> {
                 vec![$((&self.$poly_input).into()),*]
@@ -102,6 +110,7 @@ define_lambda_node! {
 
 // === LambdaFunc ===
 
+/// Newtype wrapper for function stored in the `Lambda` node.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Lambda1Func<In1:Data,Out:Data> {
@@ -144,6 +153,7 @@ define_lambda_node! {
 
 // === LambdaFunc ===
 
+/// Newtype wrapper for function stored in the `Lambda2` node.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Lambda2Func<In1:Data,In2:Data,Out:Data> {
@@ -184,6 +194,7 @@ impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorData<In1>,EventData<In2>,Out
 // === Utils ===
 // =============
 
+/// A debug trace utility. Prints every incoming event to the console.
 pub fn trace<T,Label,Source>(label:Label, source:Source) -> Lambda<T,T>
     where T          : Data,
           Label      : Str,

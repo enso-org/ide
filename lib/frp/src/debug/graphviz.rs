@@ -1,7 +1,10 @@
-
+//! This module defines FRP Graphviz bindings. It allows visualizing the FRP network as Graphviz
+//! diagram.
 
 use crate::prelude::*;
 use crate::DataType;
+
+
 
 // ================
 // === Graphviz ===
@@ -77,7 +80,7 @@ impl Graphviz {
     /// preference.
     fn create_node_map(&self) -> HashMap<usize,VizNode> {
         let mut node_map : HashMap<usize,VizNode> = default();
-        for (_,node) in &self.nodes {
+        for node in self.nodes.values() {
             let entry        = node_map.entry(node.display_id);
             let merged_entry = entry.and_modify(|node2|{
                 let variant = &node2.variant;
@@ -85,7 +88,7 @@ impl Graphviz {
                     *node2 = node.clone();
                 }
             });
-            merged_entry.or_insert(node.clone());
+            merged_entry.or_insert_with(|| node.clone());
         }
         node_map
     }
@@ -95,8 +98,11 @@ impl Graphviz {
         let mut code = String::default();
         let node_map = self.create_node_map();
 
-        for (_,node) in &node_map {
-            let color = match &node.variant as &str {
+        // FIXME: https://github.com/rust-lang/rust-clippy/issues/5128
+        #[allow(trivial_casts)]
+        for node in node_map.values() {
+            let variant = &node.variant as &str;
+            let color = match variant {
                 "Toggle"  => "534666",
                 "Gate"    => "e69d45",
                 "Hold"    => "308695",
@@ -152,15 +158,19 @@ impl From<Graphviz> for String {
 // === GraphvizBuilder ===
 // =======================
 
+/// Trait for every node which can be visualized.
 pub trait GraphvizBuilder {
+    /// Adds the current object to the builder.
     fn graphviz_build(&self, builder:&mut Graphviz);
 
+    /// Converts the current object to Graphviz Dot syntax.
     fn to_graphviz(&self) -> String {
         let mut builder = Graphviz::default();
         self.graphviz_build(&mut builder);
         builder.into()
     }
 
+    /// Converts the current object to Graphviz and displays it in a new tab in a web browser.
     fn display_graphviz(&self) {
         let code = self.to_graphviz();
         let url  = percent_encoding::utf8_percent_encode(&code,percent_encoding::NON_ALPHANUMERIC);

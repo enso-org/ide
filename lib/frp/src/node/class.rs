@@ -1,4 +1,4 @@
-
+//! Root module for FRP node related abstractions.
 
 use crate::prelude::*;
 use crate::debug::*;
@@ -204,12 +204,17 @@ impl<S,T:Value> AddTarget<S> for Behavior<T> {
 // === AnyNode ===
 // ===============
 
+/// A type for any possible node type. It hides the result type of a node, which makes it the most
+/// generic node type out there.
 #[derive(Debug,Shrinkwrap)]
 pub struct AnyNode {
     rc: Rc<dyn AnyNodeOps>,
 }
 
-alias! { AnyNodeOps = { Debug + GraphvizBuilder + HasId + HasDisplayId + KnownOutputType } }
+alias! {
+    /// Set of bounds which every node has to match.
+    AnyNodeOps = { Debug + GraphvizBuilder + HasId + HasDisplayId + KnownOutputType }
+}
 
 
 // === Instances ===
