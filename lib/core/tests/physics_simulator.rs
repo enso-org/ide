@@ -42,15 +42,15 @@ mod tests {
         let css3d_system  = Css3dSystem::new(&world);
         world.add_child(&css3d_system);
 
-        container.set_property_or_panic("background-color", "black");
+        container.set_style_or_panic("background-color", "black");
 
         let mut target = css3d_system.new_instance("div").unwrap();
         target.set_dimensions(Vector2::new(10.0, 10.0));
-        target.dom().set_property_or_panic("background-color", "green");
+        target.dom().set_style_or_panic("background-color", "green");
 
         let mut object = css3d_system.new_instance("div").unwrap();
         object.set_dimensions(Vector2::new(10.0, 10.0));
-        object.dom().set_property_or_panic("background-color", "red");
+        object.dom().set_style_or_panic("background-color", "red");
 
         let mass             = 2.0;
         let position         = object.position();

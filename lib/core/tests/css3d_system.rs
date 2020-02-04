@@ -56,7 +56,7 @@ mod tests {
         let world         = WorldData::new(&canvas_name);
         let css3d_system  = Css3dSystem::new(&world);
         set_stdout();
-        container.set_property_or_panic("background-color", color);
+        container.set_style_or_panic("background-color", color);
         world.add_child(&css3d_system);
         (world,css3d_system)
     }
@@ -85,7 +85,7 @@ mod tests {
                 let g = (y * 25.5) as u8;
                 let b = (z * 25.5) as u8;
                 let color = format!("rgba({}, {}, {}, {})", r, g, b, 1.0);
-                object.dom().set_property_or_panic("background-color", color);
+                object.dom().set_style_or_panic("background-color", color);
                 objects.push(object);
             }
         }

@@ -86,7 +86,9 @@ struct Css3dObjectProperties {
 
 impl Drop for Css3dObjectProperties {
     fn drop(&mut self) {
-        self.dom.remove_from_parent_or_panic();
+        self.display_object.ref_logger(|logger| {
+            self.dom.remove_from_parent_or_warn(logger);
+        });
         self.display_object.unset_parent();
     }
 }
@@ -131,8 +133,10 @@ impl Css3dObjectData {
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let mut properties = self.properties.borrow_mut();
         properties.dimensions = dimensions;
-        properties.dom.set_property_or_panic("width",  format!("{}px", dimensions.x));
-        properties.dom.set_property_or_panic("height", format!("{}px", dimensions.y));
+        properties.display_object.ref_logger(|logger| {
+            properties.dom.set_style_or_warn("width",  format!("{}px", dimensions.x), logger);
+            properties.dom.set_style_or_warn("height", format!("{}px", dimensions.y), logger);
+        });
     }
 
     fn dimensions(&self) -> Vector2<f32> {
@@ -163,8 +167,10 @@ impl Css3dObjectData {
 
         let parent_node = properties.dom.parent_node();
         if !camera_node.is_same_node(parent_node.as_ref()) {
-            properties.dom.remove_from_parent_or_panic();
-            camera_node.append_or_panic(&properties.dom);
+            properties.display_object.ref_logger(|logger| {
+                properties.dom.remove_from_parent_or_warn(logger);
+                camera_node.append_or_warn(&properties.dom,logger);
+            });
         }
 
         set_object_transform(&properties.dom, &transform);
@@ -196,9 +202,9 @@ impl Css3dObject {
     <L>(logger:L, element:HtmlElement, front_camera:HtmlElement, back_camera:HtmlElement) -> Self
     where L:Into<Logger> {
         let logger = logger.into();
-        element.set_property_or_panic("position", "absolute");
-        element.set_property_or_panic("width"   , "0px");
-        element.set_property_or_panic("height"  , "0px");
+        element.set_style_or_warn("position", "absolute", &logger);
+        element.set_style_or_warn("width"   , "0px"     , &logger);
+        element.set_style_or_warn("height"  , "0px"     , &logger);
         let dom            = element;
         let display_object = DisplayObjectData::new(logger);
         let dimensions     = Vector2::new(0.0, 0.0);

@@ -98,7 +98,8 @@ struct Css3dRendererData {
     pub front_dom    : HtmlElement,
     pub back_dom     : HtmlElement,
     pub front_camera : HtmlElement,
-    pub back_camera  : HtmlElement
+    pub back_camera  : HtmlElement,
+    logger           : Logger
 }
 
 impl Css3dRendererData {
@@ -106,19 +107,18 @@ impl Css3dRendererData {
     ( front_dom:HtmlElement
     , back_dom:HtmlElement
     , front_camera:HtmlElement
-    , back_camera:HtmlElement) -> Self {
-        Self {front_dom,back_dom,front_camera,back_camera}
+    , back_camera:HtmlElement
+    , logger:Logger) -> Self {
+        Self {logger,front_dom,back_dom,front_camera,back_camera}
     }
-}
 
-impl Css3dRendererData {
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
         let doms   = vec![&self.front_dom,&self.back_dom,&self.front_camera,&self.back_camera];
         for dom in doms {
-            dom.set_property_or_panic("width" , &width);
-            dom.set_property_or_panic("height", &height);
+            dom.set_style_or_warn("width" , &width, &self.logger);
+            dom.set_style_or_warn("height", &height, &self.logger);
         }
     }
 }
@@ -127,12 +127,17 @@ impl Css3dRendererData {
 // === Css3dRenderer ===
 // =====================
 
-/// A renderer for `Css3dObject`s.
+/// `Css3dRenderer` is a renderer for `Css3dObject`s. It integrates with other rendering contexts,
+/// such as WebGL, by placing two HtmlElements in front and behind of the Canvas element,
+/// allowing the move `Css3dObject`s between these two layers, mimicking z-index ordering.
+///
+/// To make use of its functionalities, the API user can create a `Css3dSystem` by using
+/// the `Css3dRenderer::new_system` method which creates and manages instances of
+/// `Css3dObject`s.
 #[derive(Clone,Debug)]
 pub struct Css3dRenderer {
     container : DomContainer,
-    data      : Rc<Css3dRendererData>,
-    logger    : Logger
+    data      : Rc<Css3dRendererData>
 }
 
 impl Css3dRenderer {
@@ -145,36 +150,36 @@ impl Css3dRenderer {
         let front_camera : HtmlElement = dyn_into(create_element("div")?)?;
         let back_camera  : HtmlElement = dyn_into(create_element("div")?)?;
 
-        front_dom.set_property_or_panic("position", "absolute");
-        front_dom.set_property_or_panic("top", "0px");
-        front_dom.set_property_or_panic("overflow", "hidden");
-        front_dom.set_property_or_panic("overflow", "hidden");
-        front_dom.set_property_or_panic("width", "100%");
-        front_dom.set_property_or_panic("height", "100%");
-        front_dom.set_property_or_panic("pointer-events", "none");
-        back_dom.set_property_or_panic("position", "absolute");
-        back_dom.set_property_or_panic("top", "0px");
-        back_dom.set_property_or_panic("overflow", "hidden");
-        back_dom.set_property_or_panic("overflow", "hidden");
-        back_dom.set_property_or_panic("width", "100%");
-        back_dom.set_property_or_panic("height", "100%");
-        back_dom.set_property_or_panic("pointer-events", "none");
-        back_dom.set_property_or_panic("z-index", "-1");
-        front_camera.set_property_or_panic("width", "100%");
-        front_camera.set_property_or_panic("height", "100%");
-        front_camera.set_property_or_panic("transform-style", "preserve-3d");
-        back_camera.set_property_or_panic("width", "100%");
-        back_camera.set_property_or_panic("height", "100%");
-        back_camera.set_property_or_panic("transform-style", "preserve-3d");
+        front_dom.set_style_or_warn("position","absolute",&logger);
+        front_dom.set_style_or_warn("top","0px",&logger);
+        front_dom.set_style_or_warn("overflow","hidden",&logger);
+        front_dom.set_style_or_warn("overflow","hidden",&logger);
+        front_dom.set_style_or_warn("width","100%",&logger);
+        front_dom.set_style_or_warn("height","100%",&logger);
+        front_dom.set_style_or_warn("pointer-events","none",&logger);
+        back_dom.set_style_or_warn("position","absolute",&logger);
+        back_dom.set_style_or_warn("top","0px",&logger);
+        back_dom.set_style_or_warn("overflow","hidden",&logger);
+        back_dom.set_style_or_warn("overflow","hidden",&logger);
+        back_dom.set_style_or_warn("width","100%",&logger);
+        back_dom.set_style_or_warn("height","100%",&logger);
+        back_dom.set_style_or_warn("pointer-events","none",&logger);
+        back_dom.set_style_or_warn("z-index","-1",&logger);
+        front_camera.set_style_or_warn("width","100%",&logger);
+        front_camera.set_style_or_warn("height","100%",&logger);
+        front_camera.set_style_or_warn("transform-style","preserve-3d",&logger);
+        back_camera.set_style_or_warn("width","100%",&logger);
+        back_camera.set_style_or_warn("height","100%",&logger);
+        back_camera.set_style_or_warn("transform-style","preserve-3d",&logger);
 
-        container.dom.append_or_panic(&front_dom);
-        container.dom.append_or_panic(&back_dom);
-        front_dom.append_or_panic(&front_camera);
-        back_dom.append_or_panic(&back_camera);
+        container.dom.append_or_warn(&front_dom,&logger);
+        container.dom.append_or_warn(&back_dom,&logger);
+        front_dom.append_or_warn(&front_camera,&logger);
+        back_dom.append_or_warn(&back_camera,&logger);
 
-        let data         = Css3dRendererData::new(front_dom, back_dom, front_camera, back_camera);
-        let data         = Rc::new(data);
-        Ok(Self{container,data,logger}.init())
+        let data = Css3dRendererData::new(front_dom,back_dom,front_camera,back_camera,logger);
+        let data = Rc::new(data);
+        Ok(Self{container,data}.init())
     }
 
     /// Creates a Css3dRenderer.
@@ -184,7 +189,7 @@ impl Css3dRenderer {
 
     pub(super) fn new_system(&self) -> Css3dSystem {
         let css3d_renderer = self.clone();
-        let logger         = self.logger.sub("Css3dSystem");
+        let logger         = self.data.logger.sub("Css3dSystem");
         let display_object = DisplayObjectData::new(&logger);
         Css3dSystem {display_object,css3d_renderer,logger}
     }
@@ -204,7 +209,8 @@ impl Css3dRenderer {
     (&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
         let front_camera = self.data.front_camera.clone();
         let back_camera  = self.data.back_camera.clone();
-        let object = Css3dObject::new(self.logger.sub("object"),dom_name,front_camera,back_camera);
+        let logger       = self.data.logger.sub("object");
+        let object       = Css3dObject::new(logger,dom_name,front_camera,back_camera);
         object.as_ref().map(|object| parent.add_child(object)).ok();
         object
     }

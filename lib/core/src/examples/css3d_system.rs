@@ -61,7 +61,7 @@ fn init(world:World) {
             let g          = ((x + 2.0) * 32.0) as u8;
             let b          = ((x + 4.0) * 64.0) as u8;
             let color      = iformat!("rgb({r},{g},{b})");
-            object.dom().set_property_or_panic("background-color",color);
+            object.dom().set_style_or_panic("background-color",color);
             object.set_dimensions(dimensions);
             object.mod_position(|t| *t = position);
             css3d_objects.push(object);
