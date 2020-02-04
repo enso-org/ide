@@ -11,8 +11,6 @@ use crate::display::camera::Camera2d;
 use crate::display::object::DisplayObjectData;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
-use crate::display::shape::text::font::Fonts;
-use crate::display::shape::text;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::symbol::Symbol;
 use crate::system::gpu::data::uniform::UniformScope;
@@ -248,9 +246,6 @@ pub struct SceneData {
 
     #[derivative(Debug="ignore")]
     on_resize: Option<Box<dyn Fn(&Shape)>>,
-
-    // TODO[AO] this is a very temporary solution. Need to develop some general component handling.
-    text_components : Vec<text::TextComponent>,
 }
 
 impl {
@@ -279,7 +274,6 @@ impl {
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
         let zoom_uniform    = variables.add_or_panic("zoom", 1.0);
-        let text_components = default();
         let on_resize       = default();
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
@@ -297,7 +291,6 @@ impl {
         context.blend_func_separate     ( Context::ONE , Context::ONE_MINUS_SRC_ALPHA
                                         , Context::ONE , Context::ONE_MINUS_SRC_ALPHA );
 
-
         let pipeline = default();
         let width    = shape.canvas_shape().width  as i32;
         let height   = shape.canvas_shape().height as i32;
@@ -306,8 +299,8 @@ impl {
         let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,canvas_parent);
 
         Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
-             , logger,listeners,variables,on_resize,text_components,stats,pixel_ratio,mouse
-             , zoom_uniform,css3d_renderer }
+             , logger,listeners,variables,on_resize,stats,pixel_ratio,mouse,zoom_uniform
+             , css3d_renderer }
     }
 
     pub fn css3d_renderer(&self) -> Css3dRenderer {
@@ -384,14 +377,8 @@ impl {
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self, fonts:&mut Fonts) {
+    pub fn update(&mut self) {
         self.render();
-        if !self.text_components.is_empty() {
-            self.logger.info("Rendering text components");
-            for text_component in &mut self.text_components {
-                text_component.display(fonts);
-            }
-        }
     }
 
     pub fn camera(&self) -> Camera2d {
@@ -454,12 +441,6 @@ impl Scene {
 }
 
 impl SceneData {
-
-    pub fn tmp_text_components(&mut self) -> &mut Vec<text::TextComponent> {
-        &mut self.text_components
-    }
-
-
     /// Initialize all listeners and attach them to DOM elements.
     fn init_listeners
     (logger:&Logger, canvas:&web_sys::HtmlCanvasElement, shape:&Shape, dirty:&ShapeDirty)
@@ -491,9 +472,5 @@ impl SceneData {
             self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
             self.on_resize.iter().for_each(|f| f(shape));
         });
-    }
-
-    pub fn text_components_mut(&mut self) -> &mut Vec<text::TextComponent> {
-        &mut self.text_components
     }
 }
