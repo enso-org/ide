@@ -73,7 +73,7 @@ impl Line {
 
 
 // ======================
-// === Line full info ===
+// === Line Full Info ===
 // ======================
 
 /// A structure wrapping line reference with information about line number and font. These

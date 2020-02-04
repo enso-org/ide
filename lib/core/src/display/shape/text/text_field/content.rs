@@ -26,7 +26,9 @@ use std::ops::RangeInclusive;
 pub struct DirtyLines {
     /// A set of single edited lines.
     pub single_lines: HashSet<usize>,
-    /// An open range of dirty lines. When the line is added or removed, all the lines below.
+    /// An open range of dirty lines. When the line is added or removed, all the lines below should
+    /// be marked as dirty. In that case we set this field instead of putting each line id to
+    /// HashSet.
     pub range: Option<RangeFrom<usize>>
 }
 
@@ -82,10 +84,10 @@ impl DirtyLines {
 /// A change type
 #[derive(Copy,Clone,Debug)]
 pub enum ChangeType {
-    /// A simple change fragment of one line with text without new lines.
-    Simple,
-    /// A multiline change is a change which is not a Simple change.
-    Multiline
+    /// A change where we replace fragment of one line with text without new lines.
+    SingleLine,
+    /// A multi-line change is a change which is not a single line change (see docs for SingleLine).
+    MultiLine
 }
 
 /// A structure describing a text operation in one place.
@@ -127,9 +129,9 @@ impl TextChange {
         let is_one_line_modified = self.replaced.start.line == self.replaced.end.line;
         let is_one_line_inserted = self.lines.len() == 1;
         if is_one_line_modified && is_one_line_inserted {
-            ChangeType::Simple
+            ChangeType::SingleLine
         } else {
-            ChangeType::Multiline
+            ChangeType::MultiLine
         }
     }
 
@@ -237,8 +239,8 @@ impl TextFieldContent {
     /// Apply change to content.
     pub fn make_change(&mut self, change:TextChange) {
         match change.change_type() {
-            ChangeType::Simple    => self.make_simple_change(change),
-            ChangeType::Multiline => self.make_multiline_change(change),
+            ChangeType::SingleLine => self.make_simple_change(change),
+            ChangeType::MultiLine => self.make_multiline_change(change),
         }
     }
 

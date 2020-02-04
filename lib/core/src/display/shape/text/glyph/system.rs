@@ -127,14 +127,14 @@ impl Line {
 
 // === Getters ===
 
+#[allow(missing_docs)]
 impl Line {
-    /// Baseline starting point.
+    /// The starting point of this line's baseline.
     pub fn baseline_start(&self) -> &Vector2<f32> { &self.baseline_start }
-    /// Line's height.
+    /// Line's height in pixels.
     pub fn height        (&self) -> f32           { self.height          }
     /// Number of glyphs, giving the maximum length of displayed line.
     pub fn length        (&self) -> usize         { self.glyphs.len()    }
-    /// Font id.
     pub fn font_id       (&self) -> FontId        { self.font_id         }
 }
 
@@ -251,6 +251,10 @@ impl GlyphSystem {
         material.add_input("zoom"       , 1.0);
         material.add_input("msdf_range" , FontRenderInfo::MSDF_PARAMS.range as f32);
         material.add_input("color"      , Vector4::new(0.0,0.0,0.0,1.0));
+        // FIXME We need to use this output, as we need to declare the same amount of shader
+        // FIXME outputs as the number of attachments to framebuffer. We should manage this more
+        // FIXME intelligent. For example, we could allow defining output shader fragments,
+        // FIXME which will be enabled only if pass of given attachment type was enabled.
         material.add_output("id", Vector4::<u32>::new(0,0,0,0));
 
         let code = CodeTemplate::new(BEFORE_MAIN.to_string(),MAIN.to_string(),"".to_string());

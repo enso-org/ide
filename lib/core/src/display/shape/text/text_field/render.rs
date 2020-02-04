@@ -31,6 +31,8 @@ use nalgebra::Vector3;
 // === RenderedContent ===
 // =======================
 
+/// Alias for line of glyph sprites. This is for distinct `glyph::system::Line` type from glyph
+/// system.from `text_field::content::line::Line` being a whole line of text in Text Field content.
 type GlyphLine = crate::display::shape::text::glyph::system::Line;
 
 /// Structure containing sprites bound to one cursor with its selection.
@@ -44,7 +46,7 @@ pub struct CursorSprites {
 
 /// Structure with all data and sprites required for rendering specific TextField.
 #[derive(Debug)]
-pub struct RenderedContent {
+pub struct TextFieldSprites {
     /// System used for rendering glyphs.
     pub glyph_system: GlyphSystem,
     /// System used for rendering cursors.
@@ -66,7 +68,7 @@ pub struct RenderedContent {
 
 // === Construction ===
 
-impl RenderedContent {
+impl TextFieldSprites {
 
     /// Create RenderedContent structure.
     pub fn new(world:&World, properties:&TextFieldProperties, fonts:&mut FontRegistry) -> Self {
@@ -92,7 +94,7 @@ impl RenderedContent {
         let glyph_lines = indexes.map(|_| {
             glyph_system.new_empty_line(bsl_start,line_height,length,color)
         }).collect();
-        RenderedContent {glyph_system,cursor_system,selection_system,glyph_lines,cursors,
+        TextFieldSprites {glyph_system,cursor_system,selection_system,glyph_lines,cursors,
             line_height,display_object,assignment}
     }
 
@@ -133,8 +135,8 @@ impl RenderedContent {
 
 // === DisplayObject ===
 
-impl From<&RenderedContent> for DisplayObjectData {
-    fn from(rendered_content:&RenderedContent) -> Self {
+impl From<&TextFieldSprites> for DisplayObjectData {
+    fn from(rendered_content:&TextFieldSprites) -> Self {
         rendered_content.display_object.clone_ref()
     }
 }
@@ -142,7 +144,7 @@ impl From<&RenderedContent> for DisplayObjectData {
 
 // === Update ===
 
-impl RenderedContent {
+impl TextFieldSprites {
     /// Update all displayed glyphs.
     pub fn update_glyphs(&mut self, content:&mut TextFieldContent, fonts:&mut FontRegistry) {
         let glyph_lines       = self.glyph_lines.iter_mut().enumerate();
@@ -164,7 +166,8 @@ impl RenderedContent {
     }
 
     /// Update all displayed cursors with their selections.
-    pub fn update_cursors(&mut self, cursors:&Cursors, content:&mut TextFieldContentFullInfo) {
+    pub fn update_cursor_sprites
+    (&mut self, cursors:&Cursors, content:&mut TextFieldContentFullInfo) {
         let cursor_system = &self.cursor_system;
         self.cursors.resize_with(cursors.cursors.len(),|| Self::new_cursor_sprites(cursor_system));
         for (sprites,cursor) in self.cursors.iter_mut().zip(cursors.cursors.iter()) {
@@ -182,6 +185,11 @@ impl RenderedContent {
         self.display_object.update();
     }
 
+    /// The baseline start for given line's fragment.
+    ///
+    /// Because we're not rendering the whole lines, but only visible fragment of it (with some
+    /// margin), the baseline used for placing glyph don't start on the line begin, but at the
+    /// position of first char of fragment.
     fn baseline_start_for_fragment(fragment:&LineFragment, content:&mut TextFieldContentFullInfo)
     -> Vector2<f32> {
         let mut line = content.line(fragment.line_index);
