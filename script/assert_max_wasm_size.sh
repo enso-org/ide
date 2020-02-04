@@ -3,7 +3,7 @@
 echoerr() { echo "$@" 1>&2; }
 
 current_size=$(cat file_size)
-current_size="${current_size::-1}"
+current_size="${current_size:0:$((${#current_size} - 1))}"
 
 max_size=2.1 # MB
 echo "Current size: ${current_size}M. expected maximum size: ${max_size}M"
