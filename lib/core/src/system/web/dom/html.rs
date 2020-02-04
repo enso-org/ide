@@ -1,7 +1,5 @@
 //! This module contains all the submodules of the CSS3D rendering system.
 
-mod math;
-
 mod css3d_system;
 mod css3d_object;
 mod css3d_renderer;

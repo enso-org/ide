@@ -11,17 +11,19 @@ use crate::system::web::Result;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
+use crate::system::web::NodeRemover;
 use crate::system::web::StyleSetter;
 use crate::system::web::dom::DomContainer;
 use crate::system::web::dom::ResizeCallback;
-use super::math::eps;
+use crate::system::web::get_element_by_id;
+use super::css3d_object::Css3dOrder;
 
 use nalgebra::Vector2;
 use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
-use basegl_system_web::get_element_by_id;
+use js_sys::Object;
 
 
 // ===================
@@ -44,6 +46,20 @@ mod js {
         , near         : &JsValue
         , matrix_array : &JsValue
         );
+
+        #[allow(unsafe_code)]
+        pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
+    }
+}
+
+#[allow(unsafe_code)]
+fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
+    // Views to WASM memory are only valid as long the backing buffer isn't
+    // resized. Check documentation of IntoFloat32ArrayView trait for more
+    // details.
+    unsafe {
+        let matrix_array = matrix.js_buffer_view();
+        js::set_object_transform(&dom,&matrix_array);
     }
 }
 
@@ -95,11 +111,11 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 
 #[derive(Debug)]
 struct Css3dRendererData {
-    pub front_dom    : HtmlElement,
-    pub back_dom     : HtmlElement,
-    pub front_camera : HtmlElement,
-    pub back_camera  : HtmlElement,
-    logger           : Logger
+    pub front_dom        : HtmlElement,
+    pub back_dom         : HtmlElement,
+    pub front_camera_dom : HtmlElement,
+    pub back_camera_dom  : HtmlElement,
+    logger               : Logger
 }
 
 impl Css3dRendererData {
@@ -109,13 +125,13 @@ impl Css3dRendererData {
     , front_camera:HtmlElement
     , back_camera:HtmlElement
     , logger:Logger) -> Self {
-        Self {logger,front_dom,back_dom,front_camera,back_camera}
+        Self {logger,front_dom,back_dom, front_camera_dom: front_camera, back_camera_dom: back_camera }
     }
 
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.front_dom,&self.back_dom,&self.front_camera,&self.back_camera];
+        let doms   = vec![&self.front_dom, &self.back_dom, &self.front_camera_dom, &self.back_camera_dom];
         for dom in doms {
             dom.set_style_or_warn("width" , &width, &self.logger);
             dom.set_style_or_warn("height", &height, &self.logger);
@@ -147,8 +163,8 @@ impl Css3dRenderer {
         let container    = DomContainer::from_element(element);
         let front_dom    = create_div();
         let back_dom     = create_div();
-        let front_camera = create_div();
-        let back_camera  = create_div();
+        let front_camera_dom = create_div();
+        let back_camera_dom = create_div();
 
         front_dom.set_style_or_warn("position","absolute",&logger);
         front_dom.set_style_or_warn("top","0px",&logger);
@@ -165,19 +181,24 @@ impl Css3dRenderer {
         back_dom.set_style_or_warn("height","100%",&logger);
         back_dom.set_style_or_warn("pointer-events","none",&logger);
         back_dom.set_style_or_warn("z-index","-1",&logger);
-        front_camera.set_style_or_warn("width","100%",&logger);
-        front_camera.set_style_or_warn("height","100%",&logger);
-        front_camera.set_style_or_warn("transform-style","preserve-3d",&logger);
-        back_camera.set_style_or_warn("width","100%",&logger);
-        back_camera.set_style_or_warn("height","100%",&logger);
-        back_camera.set_style_or_warn("transform-style","preserve-3d",&logger);
+        front_camera_dom.set_style_or_warn("width", "100%", &logger);
+        front_camera_dom.set_style_or_warn("height", "100%", &logger);
+        front_camera_dom.set_style_or_warn("transform-style", "preserve-3d", &logger);
+        back_camera_dom.set_style_or_warn("width", "100%", &logger);
+        back_camera_dom.set_style_or_warn("height", "100%", &logger);
+        back_camera_dom.set_style_or_warn("transform-style", "preserve-3d", &logger);
 
         container.dom.append_or_warn(&front_dom,&logger);
         container.dom.append_or_warn(&back_dom,&logger);
-        front_dom.append_or_warn(&front_camera,&logger);
-        back_dom.append_or_warn(&back_camera,&logger);
+        front_dom.append_or_warn(&front_camera_dom, &logger);
+        back_dom.append_or_warn(&back_camera_dom, &logger);
 
-        let data = Css3dRendererData::new(front_dom,back_dom,front_camera,back_camera,logger);
+        let data = Css3dRendererData::new(
+            front_dom,
+            back_dom,
+            front_camera_dom,
+            back_camera_dom,
+            logger);
         let data = Rc::new(data);
         Self{container,data}.init()
     }
@@ -207,11 +228,34 @@ impl Css3dRenderer {
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub(super) fn new_instance<S:Str>
     (&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
-        let front_camera = self.data.front_camera.clone();
-        let back_camera  = self.data.back_camera.clone();
+        let front_camera = self.data.front_camera_dom.clone();
+        let back_camera  = self.data.back_camera_dom.clone();
         let logger       = self.data.logger.sub("object");
-        let object       = Css3dObject::new(logger,dom_name,front_camera,back_camera);
-        object.as_ref().map(|object| parent.add_child(object)).ok();
+        let object       = Css3dObject::new(logger,dom_name);
+        object.as_ref().map(|object| {
+            parent.add_child(object);
+            let display_object : DisplayObjectData = object.into();
+            display_object.set_on_render(enclose!((object,display_object) move || {
+                let object_dom    = object.dom();
+                let mut transform = display_object.matrix();
+                transform.iter_mut().for_each(|a| *a = eps(*a));
+
+                let camera_node = match object.css3d_order() {
+                    Css3dOrder::Front => &front_camera,
+                    Css3dOrder::Back  => &back_camera
+                };
+
+                let parent_node = object.dom().parent_node();
+                if !camera_node.is_same_node(parent_node.as_ref()) {
+                    display_object.ref_logger(|logger| {
+                        object_dom.remove_from_parent_or_warn(logger);
+                        camera_node.append_or_warn(&object_dom,logger);
+                    });
+                }
+
+                set_object_transform(&object_dom, &transform);
+            }));
+        }).ok();
         object
     }
 
@@ -229,12 +273,12 @@ impl Css3dRenderer {
             Projection::Perspective{..} => {
                 js::setup_perspective(&self.data.front_dom, &near.into());
                 js::setup_perspective(&self.data.back_dom, &near.into());
-                setup_camera_perspective(&self.data.front_camera,near,&trans_cam);
-                setup_camera_perspective(&self.data.back_camera,near,&trans_cam);
+                setup_camera_perspective(&self.data.front_camera_dom, near, &trans_cam);
+                setup_camera_perspective(&self.data.back_camera_dom, near, &trans_cam);
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.front_camera, &trans_cam);
-                setup_camera_orthographic(&self.data.back_camera, &trans_cam);
+                setup_camera_orthographic(&self.data.front_camera_dom, &trans_cam);
+                setup_camera_orthographic(&self.data.back_camera_dom, &trans_cam);
             }
         }
     }
@@ -280,4 +324,9 @@ impl Css3dRenderer {
 fn create_div() -> HtmlElement {
     let element = create_element("div").expect("Couldn't create element");
     dyn_into(element).expect("Couldn't cast to HtmlElement")
+}
+
+/// eps is used to round very small values to 0.0 for numerical stability
+pub fn eps(value: f32) -> f32 {
+    if value.abs() < 1e-10 { 0.0 } else { value }
 }

@@ -196,7 +196,7 @@ impl StyleSetter for web_sys::HtmlElement {
         let value           = value.as_ref();
         let values          = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
         let warn_msg : &str = &format!("Failed to set style {}",values);
-        if let Err(_) = self.style().set_property(name, value) {
+        if self.style().set_property(name, value).is_err() {
             logger.warning(warn_msg);
         }
     }
@@ -226,7 +226,7 @@ impl NodeInserter for Node {
 
     fn append_or_warn(&self, node:&Node, logger:&Logger) {
         let warn_msg : &str = &format!("Failed to append child {:?} to {:?}",node,self);
-        if let Err(_) = self.append_child(node) {
+        if self.append_child(node).is_err() {
             logger.warning(warn_msg)
         };
     }
@@ -240,7 +240,7 @@ impl NodeInserter for Node {
     fn prepend_or_warn(&self, node:&Node, logger:&Logger) {
         let warn_msg : &str = &format!("Failed to prepend child \"{:?}\" to \"{:?}\"",node,self);
         let first_c = self.first_child();
-        if let Err(_) = self.insert_before(node, first_c.as_ref()) {
+        if self.insert_before(node, first_c.as_ref()).is_err() {
             logger.warning(warn_msg)
         }
     }
@@ -253,7 +253,7 @@ impl NodeInserter for Node {
     fn insert_before_or_warn(&self, node:&Node, ref_node:&Node, logger:&Logger) {
         let warn_msg : &str =
             &format!("Failed to insert {:?} before {:?} in {:?}",node,ref_node,self);
-        if let Err(_) = self.insert_before(node, Some(ref_node)) {
+        if self.insert_before(node, Some(ref_node)).is_err() {
             logger.warning(warn_msg)
         }
     }
@@ -281,7 +281,7 @@ impl NodeRemover for Node {
     fn remove_from_parent_or_warn(&self, logger:&Logger) {
         if let Some(parent) = self.parent_node() {
             let warn_msg : &str = &format!("Failed to remove {:?} from parent", self);
-            if let Err(_) = parent.remove_child(self) {
+            if parent.remove_child(self).is_err() {
                 logger.warning(warn_msg)
             }
         }
@@ -294,7 +294,7 @@ impl NodeRemover for Node {
 
     fn remove_child_or_warn(&self, node:&Node, logger:&Logger) {
         let warn_msg : &str = &format!("Failed to remove child {:?} from {:?}",node,self);
-        if let Err(_) = self.remove_child(node) {
+        if self.remove_child(node).is_err() {
             logger.warning(warn_msg)
         }
     }

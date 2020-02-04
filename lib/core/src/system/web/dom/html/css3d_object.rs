@@ -9,18 +9,11 @@ use crate::system::web::dyn_into;
 use crate::system::web::Result;
 use crate::system::web::Error;
 use crate::system::web::StyleSetter;
-use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
-use crate::system::gpu::data::JsBufferView;
-use super::math::eps;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use nalgebra::Matrix4;
 use web_sys::HtmlElement;
-use wasm_bindgen::prelude::wasm_bindgen;
-use wasm_bindgen::JsValue;
-use js_sys::Object;
 
 
 
@@ -43,33 +36,6 @@ impl Default for Css3dOrder {
 
 
 
-// ===================
-// === Js Bindings ===
-// ===================
-
-mod js {
-    use super::*;
-
-    #[wasm_bindgen(module = "/src/system/web/dom/html/snippets.js")]
-    extern "C" {
-        #[allow(unsafe_code)]
-        pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
-    }
-}
-
-#[allow(unsafe_code)]
-fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
-    // resized. Check documentation of IntoFloat32ArrayView trait for more
-    // details.
-    unsafe {
-        let matrix_array = matrix.js_buffer_view();
-        js::set_object_transform(&dom,&matrix_array);
-    }
-}
-
-
-
 // =============================
 // === Css3dObjectProperties ===
 // =============================
@@ -79,8 +45,6 @@ struct Css3dObjectProperties {
     display_object : DisplayObjectData,
     dom            : HtmlElement,
     dimensions     : Vector2<f32>,
-    front_camera   : HtmlElement,
-    back_camera    : HtmlElement,
     css3d_order    : Css3dOrder
 }
 
@@ -100,7 +64,7 @@ impl Drop for Css3dObjectProperties {
 // =======================
 
 #[derive(Clone,Debug)]
-struct Css3dObjectData {
+pub(super) struct Css3dObjectData {
     properties : Rc<RefCell<Css3dObjectProperties>>
 }
 
@@ -109,11 +73,9 @@ impl Css3dObjectData {
     (display_object : DisplayObjectData
      , dom          : HtmlElement
      , dimensions   : Vector2<f32>
-     , front_camera : HtmlElement
-     , back_camera  : HtmlElement
      , css3d_order  : Css3dOrder) -> Self {
         let properties = Css3dObjectProperties
-            {display_object,dom,dimensions,front_camera,back_camera,css3d_order};
+            {display_object,dom,dimensions,css3d_order};
         let properties = Rc::new(RefCell::new(properties));
         Self {properties}
     }
@@ -154,27 +116,6 @@ impl Css3dObjectData {
     fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.properties.borrow().display_object.mod_scale(f);
     }
-
-    fn render_dom(&self) {
-        let properties    = self.properties.borrow();
-        let mut transform = properties.display_object.matrix();
-        transform.iter_mut().for_each(|a| *a = eps(*a));
-
-        let camera_node = match properties.css3d_order {
-            Css3dOrder::Front => &properties.front_camera,
-            Css3dOrder::Back  => &properties.back_camera
-        };
-
-        let parent_node = properties.dom.parent_node();
-        if !camera_node.is_same_node(parent_node.as_ref()) {
-            properties.display_object.ref_logger(|logger| {
-                properties.dom.remove_from_parent_or_warn(logger);
-                camera_node.append_or_warn(&properties.dom,logger);
-            });
-        }
-
-        set_object_transform(&properties.dom, &transform);
-    }
 }
 
 
@@ -186,20 +127,20 @@ impl Css3dObjectData {
 /// A structure for representing a HtmlElement in the 3d world.
 #[derive(Debug,Clone)]
 pub struct Css3dObject {
-    data : Css3dObjectData
+    pub(super) data : Css3dObjectData
 }
 
 impl Css3dObject {
     /// Creates a Css3dObject from element name.
     pub(super) fn new<L:Into<Logger>,S:Str>
-    (logger:L, dom_name:S, front_camera:HtmlElement, back_camera:HtmlElement) -> Result<Self> {
+    (logger:L, dom_name:S) -> Result<Self> {
         let dom = dyn_into(create_element(dom_name.as_ref())?)?;
-        Ok(Self::from_element(logger,dom,front_camera,back_camera))
+        Ok(Self::from_element(logger,dom))
     }
 
     /// Creates a Css3dObject from a web_sys::HtmlElement.
     pub(super) fn from_element
-    <L>(logger:L, element:HtmlElement, front_camera:HtmlElement, back_camera:HtmlElement) -> Self
+    <L>(logger:L, element:HtmlElement) -> Self
     where L:Into<Logger> {
         let logger = logger.into();
         element.set_style_or_warn("position", "absolute", &logger);
@@ -213,29 +154,21 @@ impl Css3dObject {
             display_object,
             dom,
             dimensions,
-            front_camera,
-            back_camera,
             css3d_order
         );
-        let object = Self {data};
-        object.data.properties.borrow().display_object.set_on_render(enclose!((object) move || {
-            object.render_dom();
-        }));
-        object
+        Self {data}
     }
 
     /// Creates a Css3dObject from a HTML string.
     pub(super) fn from_html_string<L:Into<Logger>,T:Str>
     ( logger:L
-    , html_string:T
-    , front_camera:HtmlElement
-    , back_camera:HtmlElement) -> Result<Self> {
+    , html_string:T) -> Result<Self> {
         let element = create_element("div")?;
         element.set_inner_html(html_string.as_ref());
         match element.first_element_child() {
             Some(element) => {
                 let element = dyn_into(element)?;
-                Ok(Self::from_element(logger,element,front_camera,back_camera))
+                Ok(Self::from_element(logger,element))
             },
             None => Err(Error::missing("valid HTML")),
         }
@@ -259,11 +192,6 @@ impl Css3dObject {
     /// Gets the underlying HtmlElement dimension.
     pub fn dimensions(&self) -> Vector2<f32> {
         self.data.dimensions()
-    }
-
-    /// Renders the object's dom.
-    pub fn render_dom(&self) {
-        self.data.render_dom()
     }
 
     /// Gets Css3dObject's dom.
