@@ -303,8 +303,7 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-        let css3d_renderer = Css3dRenderer::from_element(logger.sub("Css3dRenderer"),canvas_parent);
-        let css3d_renderer = css3d_renderer.expect("Couldn't create Css3dRenderer");
+        let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,canvas_parent);
 
         Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
              , logger,listeners,variables,on_resize,text_components,stats,pixel_ratio,mouse

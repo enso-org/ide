@@ -142,13 +142,13 @@ pub struct Css3dRenderer {
 
 impl Css3dRenderer {
     /// Creates a Css3dRenderer inside an element.
-    pub fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Result<Self> {
-        let logger                     = logger.into();
-        let container                  = DomContainer::from_element(element);
-        let front_dom    : HtmlElement = dyn_into(create_element("div")?)?;
-        let back_dom     : HtmlElement = dyn_into(create_element("div")?)?;
-        let front_camera : HtmlElement = dyn_into(create_element("div")?)?;
-        let back_camera  : HtmlElement = dyn_into(create_element("div")?)?;
+    pub fn from_element_or_panic(logger:&Logger, element:HtmlElement) -> Self {
+        let logger       = logger.sub("Css3dRenderer");
+        let container    = DomContainer::from_element(element);
+        let front_dom    = create_div();
+        let back_dom     = create_div();
+        let front_camera = create_div();
+        let back_camera  = create_div();
 
         front_dom.set_style_or_warn("position","absolute",&logger);
         front_dom.set_style_or_warn("top","0px",&logger);
@@ -179,12 +179,12 @@ impl Css3dRenderer {
 
         let data = Css3dRendererData::new(front_dom,back_dom,front_camera,back_camera,logger);
         let data = Rc::new(data);
-        Ok(Self{container,data}.init())
+        Self{container,data}.init()
     }
 
     /// Creates a Css3dRenderer.
-    pub fn new<L:Into<Logger>>(logger:L, dom_id:&str) -> Result<Self> {
-        Self::from_element(logger,dyn_into(get_element_by_id(dom_id)?)?)
+    pub fn new(logger:&Logger, dom_id:&str) -> Result<Self> {
+        Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
     }
 
     pub(super) fn new_system(&self) -> Css3dSystem {
@@ -269,4 +269,15 @@ impl Css3dRenderer {
     pub fn dimensions(&self) -> Vector2<f32> {
         self.container.dimensions()
     }
+}
+
+
+
+// =============
+// === Utils ===
+// =============
+
+fn create_div() -> HtmlElement {
+    let element = create_element("div").expect("Couldn't create element");
+    dyn_into(element).expect("Couldn't cast to HtmlElement")
 }

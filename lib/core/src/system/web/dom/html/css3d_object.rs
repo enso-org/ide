@@ -99,9 +99,9 @@ impl Drop for Css3dObjectProperties {
 // === Css3dObjectData ===
 // =======================
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct Css3dObjectData {
-    properties : RefCell<Css3dObjectProperties>
+    properties : Rc<RefCell<Css3dObjectProperties>>
 }
 
 impl Css3dObjectData {
@@ -114,7 +114,7 @@ impl Css3dObjectData {
      , css3d_order  : Css3dOrder) -> Self {
         let properties = Css3dObjectProperties
             {display_object,dom,dimensions,front_camera,back_camera,css3d_order};
-        let properties = RefCell::new(properties);
+        let properties = Rc::new(RefCell::new(properties));
         Self {properties}
     }
 
@@ -186,7 +186,7 @@ impl Css3dObjectData {
 /// A structure for representing a HtmlElement in the 3d world.
 #[derive(Debug,Clone)]
 pub struct Css3dObject {
-    data : Rc<Css3dObjectData>
+    data : Css3dObjectData
 }
 
 impl Css3dObject {
@@ -209,14 +209,14 @@ impl Css3dObject {
         let display_object = DisplayObjectData::new(logger);
         let dimensions     = Vector2::new(0.0, 0.0);
         let css3d_order    = default();
-        let data = Rc::new(Css3dObjectData::new(
+        let data = Css3dObjectData::new(
             display_object,
             dom,
             dimensions,
             front_camera,
             back_camera,
             css3d_order
-        ));
+        );
         let object = Self {data};
         object.data.properties.borrow().display_object.set_on_render(enclose!((object) move || {
             object.render_dom();

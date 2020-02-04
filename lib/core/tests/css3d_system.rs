@@ -43,7 +43,7 @@ mod tests {
     #[web_test(no_container)]
     fn invalid_container() {
         let logger   = Logger::new("invalid_container");
-        let renderer = Css3dRenderer::new(logger, "nonexistent_id");
+        let renderer = Css3dRenderer::new(&logger, "nonexistent_id");
         assert!(renderer.is_err(), "nonexistent_id should not exist");
     }
 
