@@ -16,7 +16,7 @@ use crate::display::shape::primitive::def::*;
 use crate::display::navigation::navigator::Navigator;
 
 use crate::prelude::*;
-pub use enso_frp::*;
+use enso_frp::*;
 
 use crate::system::web;
 use crate::control::io::mouse2;
@@ -102,18 +102,24 @@ pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
     frp_def! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
 
 
-    let final_position_ref_event  = Recursive::<EventData<Position>>::new_named("final_position_ref");
-    let final_position_ref    = Dynamic::from(&final_position_ref_event);
+//    let final_position_ref_event  = Recursive::<EventData<Position>>::new_named("final_position_ref");
+//    let final_position_ref    = Dynamic::from(&final_position_ref_event);
+
+    let final_position_ref = Dynamic::<Position>::recursive("test");
 
 
     frp_def! { pos_diff_on_down = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f}) }
     frp_def! { final_position   = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f}) }
     frp_def! { debug            = final_position.sample       (&mouse.position) }
 
-    final_position_ref_event.initialize(&final_position);
+    final_position_ref.event.initialize(&final_position);
+
 
     final_position_ref.event.set_display_id(final_position.event.display_id());
     final_position_ref.behavior.set_display_id(final_position.event.display_id());
+
+
+//    final_position.event.display_graphviz();
 
     trace("X" , &debug.event);
 

@@ -87,7 +87,7 @@ macro_rules! define_lambda_node {
 
         #[allow(non_camel_case_types)]
         impl<$($poly_input:Data,)* Out:Data> HasInputs for $shape_name<$($poly_input,)* Out> {
-            fn inputs(&self) -> Vec<AnyNode> {
+            fn inputs(&self) -> Vec<NodeWithAnyOutput> {
                 vec![$((&self.$poly_input).into()),*]
             }
         }

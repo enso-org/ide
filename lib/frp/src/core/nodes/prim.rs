@@ -19,7 +19,7 @@ macro_rules! define_node {
     (
         $(#$meta:tt)*
         $name:ident $shape_name:ident [$($poly_input:ident)*] $(-> [$($out:tt)*])?
-            { $( $field:ident : $field_type:ty ),* }
+            { $( $field:ident : $field_type:ty ),* $(,)? }
     ) => {
         /// The main type definition.
         $(#$meta)*
@@ -74,7 +74,7 @@ macro_rules! define_node {
 
         #[allow(non_camel_case_types)]
         impl<$($poly_input:Data),*> HasInputs for $shape_name<$($poly_input),*> {
-            fn inputs(&self) -> Vec<AnyNode> {
+            fn inputs(&self) -> Vec<NodeWithAnyOutput> {
                 vec![$((&self.$poly_input).into()),*]
             }
         }
@@ -150,7 +150,7 @@ impl<Out> HasCurrentValue for Source<BehaviorData<Out>>
 }
 
 impl<Out:KnownSourceStorage> HasInputs for SourceShape<Out> {
-    fn inputs(&self) -> Vec<AnyNode> {
+    fn inputs(&self) -> Vec<NodeWithAnyOutput> {
         default()
     }
 }
@@ -189,6 +189,38 @@ impl<T:Value> EventConsumer for Toggle<EventData<T>> {
         let val = !self.rc.borrow().shape.status.get();
         self.rc.borrow().shape.status.set(val);
         self.emit_event(&EventData(val));
+    }
+}
+
+
+
+// ================
+// === AssertEq ===
+// ================
+
+define_node! {
+    AssertEq AssertEqShape [source] -> [source] {
+        expected_value : Content<source>,
+        success_count  : usize
+    }
+}
+
+impl<Out:Data> AssertEq<Out> {
+    pub fn expect(&self, value:Content<Out>) {
+        self.rc.borrow_mut().shape.expected_value = value;
+    }
+
+    pub fn success_count(&self) -> usize {
+        self.rc.borrow_mut().shape.success_count
+    }
+}
+
+impl<T:Value> EventConsumer for AssertEq<EventData<T>>
+where for<'t> &'t T : Eq {
+    fn on_event(&self, event:&Self::EventInput) {
+        assert_eq!(&event.value(),&self.rc.borrow().shape.expected_value);
+        self.rc.borrow_mut().shape.success_count += 1;
+        self.emit_event(event);
     }
 }
 
@@ -342,7 +374,7 @@ impl<T:Value> HasCurrentValue for Recursive<BehaviorData<T>> {
 }
 
 impl<T:Data> HasInputs for RecursiveShape<T> {
-    fn inputs(&self) -> Vec<AnyNode> {
+    fn inputs(&self) -> Vec<NodeWithAnyOutput> {
         vec![self.source.borrow().as_ref().unwrap().clone_ref().into()]
     }
 }

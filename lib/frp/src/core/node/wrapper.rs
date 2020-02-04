@@ -17,10 +17,10 @@ use crate::node::label::*;
 // === NodeWrapper ===
 
 /// `NodeWrapper` is an outer layer for every FRP node. For example, the `Source<Out>` node is just
-/// an alias to `NodeWrapper<SourceShape<Out>>`, where `SourceShape` is it's internal representation.
-/// This struct bundles each node with information about target edges. Although the edges are used
-/// only to send events, they are bundled to every node type in order to keep the implementation
-/// simple.
+/// an alias to `NodeWrapper<SourceShape<Out>>`, where `SourceShape` defines the data kept by the
+/// node. This struct bundles each node with information about target edges. Although the edges are
+/// used only to send events, they are bundled to every node type in order to keep the
+/// implementation simple.
 pub type NodeWrapper<Shape> = NodeWrapperTemplate<Shape,Output<Shape>>;
 
 impl<Shape:KnownOutput> NodeWrapper<Shape> {
@@ -54,7 +54,9 @@ HasEventTargets for NodeWrapperTemplate<Shape,EventData<T>> {
 
 // === NodeWrapperTemplate ===
 
-/// Internal representation for `NodeWrapper`.
+/// Internal representation for `NodeWrapper`. Please note that we define this structure and the
+/// `NodeWrapper` alias instead of just single struct in order not to keep bounds on struct
+/// definition (which is bad and you should never do it).
 #[derive(Debug,Derivative)]
 #[derivative(Default(bound="Shape:Default"))]
 #[derivative(Clone(bound=""))]
@@ -98,7 +100,7 @@ EventEmitter for NodeWrapperTemplate<Shape,EventData<T>> {
 
 impl<Shape:HasInputs,Out>
 HasInputs for NodeWrapperTemplate<Shape,Out> {
-    fn inputs(&self) -> Vec<AnyNode> {
+    fn inputs(&self) -> Vec<NodeWithAnyOutput> {
         self.rc.borrow().shape.inputs()
     }
 }

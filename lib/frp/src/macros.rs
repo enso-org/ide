@@ -8,14 +8,19 @@
 /// it automatically to the FRP node constructor.
 #[macro_export]
 macro_rules! frp_def {
-    ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $fn $(.$fn2)* $(::<$ty>)?
-        ( concat! {stringify!{$var}}, $($args)* );
+    ($var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
+        let $var = Dynamic $(::<$ty>)? :: $fn
+        ( stringify!{$var}, $($args)* );
     };
 
     ($scope:ident . $var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
         let $var = Dynamic $(::<$ty>)? :: $fn
         ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
+    };
+
+    ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
+        let $var = $fn $(.$fn2)* $(::<$ty>)?
+        ( concat! {stringify!{$var}}, $($args)* );
     };
 
     ($scope:ident . $var:ident = $fn1:ident . $fn2:ident $(.$fn3:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {

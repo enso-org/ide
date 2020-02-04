@@ -1,9 +1,9 @@
 //! This module defines abstraction for FRP data types.
 
 use crate::prelude::*;
-use crate::KnownDynNode;
+use crate::NodeAsTraitObjectForData;
 use crate::AnyEventConsumer;
-use crate::AnyNode;
+use crate::NodeWithAnyOutput;
 
 
 // =============
@@ -32,7 +32,7 @@ pub trait KnownValue : HasContent {
 alias! {
     /// Data is information sent between FRP nodes. There are two possible data types:
     /// `BehaviorData` and `EventData`.
-    Data = { Value + DebugWrapper + KnownDynNode + PhantomInto<DataType> }
+    Data = { Value + DebugWrapper + NodeAsTraitObjectForData + PhantomInto<DataType> }
 }
 
 
@@ -103,12 +103,12 @@ pub type EventInput<T> = <T as KnownEventInput>::EventInput;
 /// Provides a list of all inputs to a node.
 pub trait HasInputs {
     /// Accessor.
-    fn inputs(&self) -> Vec<AnyNode>;
+    fn inputs(&self) -> Vec<NodeWithAnyOutput>;
 }
 
 impl<T> HasInputs for T
 where T:Unwrap, Content<T>:HasInputs {
-    fn inputs(&self) -> Vec<AnyNode> {
+    fn inputs(&self) -> Vec<NodeWithAnyOutput> {
         self.unwrap().inputs()
     }
 }

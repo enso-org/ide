@@ -15,8 +15,8 @@ pub trait HasId {
     fn id(&self) -> usize;
 }
 
-impl<T:Unwrap> HasId for T where
-    Content<T> : HasId {
+impl<T:Unwrap> HasId for T
+where Content<T> : HasId {
     default fn id(&self) -> usize {
         self.unwrap().id()
     }

@@ -79,14 +79,14 @@ inference_rules! {
 
 /// From the given set of FRP data selects the first occurrence of `EventData` if any. For example,
 /// `SelectEventData<(BehaviorData<T1>,EventData<T2>,EventData<T3>)>` resolves to `EventData<T2>`.
+pub type SelectEventData<T> = <T as ContainsEventData>::Result;
+
+/// From the given set of FRP data selects the first occurrence of `EventData` if any.
 pub trait ContainsEventData {
     /// The selected `EventData` type.
     type Result : Data;
 }
 
-/// From the given set of FRP data selects the first occurrence of `EventData` if any. For example,
-/// `SelectEventData<(BehaviorData<T1>,EventData<T2>,EventData<T3>)>` resolves to `EventData<T2>`.
-pub type SelectEventData<T> = <T as ContainsEventData>::Result;
 
 
 // === Instances ===

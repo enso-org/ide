@@ -10,6 +10,40 @@ use crate::nodes::prim::*;
 use crate::nodes::lambda::*;
 
 
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound="Event:Clone"))]
+pub struct RefinedDynamic<Event>
+    where Event                  : KnownOutput,
+          Output<Event>          : HasContent,
+          Content<Output<Event>> : Value {
+    pub dynamic : Dynamic<Content<Output<Event>>>,
+    pub event   : Event,
+}
+
+impl<Event> Deref for RefinedDynamic<Event>
+    where Event                  : KnownOutput,
+          Output<Event>          : HasContent,
+          Content<Output<Event>> : Value {
+    type Target = Dynamic<Content<Output<Event>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.dynamic
+    }
+}
+
+impl<E> From<&E> for RefinedDynamic<E>
+    where E                  : CloneRef + KnownOutput,
+          for <'t> &'t E     : Into<Event<Content<Output<E>>>>,
+          Output<E>          : HasContent,
+          Content<Output<E>> : Value {
+    fn from(event:&E) -> Self {
+        let event2  = event.into();
+        let event   = event.clone_ref();
+        let dynamic = event2.into();
+        Self {event,dynamic}
+    }
+}
+
+
 
 // ===============
 // === Dynamic ===
@@ -26,6 +60,9 @@ pub struct Dynamic<Out:Value> {
     pub behavior : Behavior<Out>,
 }
 
+
+// === Constructors ===
+
 impl<Out:Value> Dynamic<Out> {
     /// Constructor.
     pub fn new<E,B>(event:E, behavior:B) -> Self
@@ -35,42 +72,62 @@ impl<Out:Value> Dynamic<Out> {
         Self {event,behavior}
     }
 
-    /// Drops the current value and outputs a constant.
+    /// Creates a new FRP source node.
+    pub fn source<Label>(label:Label) -> Self
+        where Label : Into<CowString> {
+        let event = Source::<EventData<Out>>::new_named(label);
+        (&event).into()
+    }
+
+    pub fn recursive<Label>(label:Label) -> RefinedDynamic<Recursive<EventData<Out>>>
+        where Label : Into<CowString> {
+        (&Recursive::<EventData<Out>>::new_named(label)).into()
+    }
+}
+
+
+// === Modifiers ===
+
+impl<Out:Value> Dynamic<Out> {
+    /// Create new node which drops the incoming event and emits a new event with the constant
+    /// value.
     pub fn constant<Label,T>(&self, label:Label, value:T) -> Dynamic<T>
         where Label:Into<CowString>, T:Value {
         self.map(label,move |_| value.clone())
     }
 
-    /// Merges two event streams. The output event will be emitted whenever one of the streams emit
-    /// an event.
+    /// Creates a new node which merges two event streams. The output event will be emitted
+    /// whenever one of the streams emit an event.
     pub fn merge<Label>(&self, label:Label, that:&Dynamic<Out>) -> Self
         where Label:Into<CowString> {
         (&Merge::new_named(label,&self.event,&that.event)).into()
     }
 
-    /// Consumes the input event and switches the output from `false` to `true` and vice versa.
+    /// Creates a new node which emits `true`, `false`, `true`, `false`, ... on every incoming
+    /// event.
     pub fn toggle<Label>(&self, label:Label) -> Dynamic<bool>
         where Label:Into<CowString> {
         (&Toggle::new_named(label,&self.event)).into()
     }
 
-    /// Passes the event trough only if its argument evaluates to `true`.
+    /// Creates a new node which passes the incoming event only if its second input is `true`.
     pub fn gate<Label>(&self, label:Label, that:&Dynamic<bool>) -> Self
         where Label:Into<CowString> {
         (&Gate::new_named(label,that,self)).into()
     }
 
-    /// Samples this behavior whenever a new event appears in the argument's event stream. The
-    /// input event is dropped and a new event of the behavior's value is generated.
+    /// Creates a node which samples this behavior on every incoming argument event. The incoming
+    /// event is dropped and a new event with the behavior value is emitted.
     pub fn sample<Label,T>(&self, label:Label, that:&Dynamic<T>) -> Self
         where Label : Into<CowString>,
               T     : Value {
         (&Sample::new_named(label,&self.behavior,that)).into()
     }
 
-    /// Maps the current value with the provided lambda. This is one of the most powerful utilities,
-    /// however, you should try not to use it too often. The reason is that it also makes
-    /// optimizations impossible, as lambdas are like "black-boxes" for the FRP engine.
+    /// Creates a node which maps the current value with the provided lambda. This is one of the
+    /// most powerful utilities, however, you should try not to use it too often. The reason is that
+    /// it also makes optimizations impossible, as lambdas are like "black-boxes" for the FRP
+    /// engine.
     pub fn map<Label,F,R>(&self, label:Label, f:F) -> Dynamic<R>
         where Label : Into<CowString>,
               R     : Value,
@@ -78,9 +135,10 @@ impl<Out:Value> Dynamic<Out> {
         (&Lambda::new_named(label,&self.event,f)).into()
     }
 
-    /// Maps the current value with the provided lambda. This is one of the most powerful utilities,
-    /// however, you should try not to use it too often. The reason is that it also makes
-    /// optimizations impossible, as lambdas are like "black-boxes" for the FRP engine.
+    /// Creates a node which maps the current value with the provided lambda. This is one of the
+    /// most powerful utilities, however, you should try not to use it too often. The reason is that
+    /// it also makes optimizations impossible, as lambdas are like "black-boxes" for the FRP
+    /// engine.
     pub fn map2<Label,T,F,R>(&self, label:Label, that:&Dynamic<T>, f:F) -> Dynamic<R>
         where Label : Into<CowString>,
               T     : Value,
@@ -90,14 +148,19 @@ impl<Out:Value> Dynamic<Out> {
     }
 }
 
-impl<Out:Value> Dynamic<Out> {
-    /// Creates a new FRP source.
-    pub fn source<Label>(label:Label) -> Self
-        where Label : Into<CowString> {
-        let event = Source::<EventData<Out>>::new_named(label);
-        (&event).into()
+
+// === Debug ===
+
+impl<Out:Value+Eq> Dynamic<Out> {
+    /// Creates a new node which passes the incoming event trough and panics if it was not equal to
+    /// the given value.
+    pub fn assert_eq<Label>(&self, label:Label) -> RefinedDynamic<AssertEq<EventData<Out>>>
+        where Label:Into<CowString> {
+        (&AssertEq::new_named(label,&self.event)).into()
     }
 }
+
+
 
 // === Instances ===
 
@@ -129,5 +192,106 @@ impl<Out:Value> From<&Dynamic<Out>> for Event<Out> {
 impl<Out:Value> From<&Dynamic<Out>> for Behavior<Out> {
     fn from(t:&Dynamic<Out>) -> Self {
         t.behavior.clone_ref()
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frp_def;
+    use std::panic::catch_unwind;
+
+    #[test]
+    #[should_panic]
+    fn assert() {
+        frp_def! { source = source::<i32>() }
+        frp_def! { check  = source.assert_eq() }
+        check.event.expect(1);
+        source.event.emit(&EventData(2));
+    }
+
+    #[test]
+    fn constant() {
+        frp_def! { source   = source::<i32>() }
+        frp_def! { constant = source.constant(7) }
+        frp_def! { check    = constant.assert_eq() }
+        check.event.expect(7);
+        source.event.emit(&EventData(0));
+        source.event.emit(&EventData(7));
+        source.event.emit(&EventData(1));
+        assert_eq!(check.event.success_count(),3);
+    }
+
+    #[test]
+    fn merge() {
+        frp_def! { source1 = source::<i32>() }
+        frp_def! { source2 = source::<i32>() }
+        frp_def! { merge   = source1.merge(&source2) }
+        frp_def! { check   = merge.assert_eq() }
+        check.event.expect(1);
+        source1.event.emit(&EventData(1));
+        source2.event.emit(&EventData(1));
+        check.event.expect(2);
+        source1.event.emit(&EventData(2));
+        source2.event.emit(&EventData(2));
+        assert_eq!(check.event.success_count(),4);
+    }
+
+    #[test]
+    fn toggle() {
+        frp_def! { source = source::<i32>() }
+        frp_def! { toggle = source.toggle() }
+        frp_def! { check  = toggle.assert_eq() }
+        check.event.expect(true);
+        source.event.emit(&EventData(0));
+        check.event.expect(false);
+        source.event.emit(&EventData(0));
+        check.event.expect(true);
+        source.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),3);
+    }
+
+    #[test]
+    fn gate() {
+        frp_def! { source1 = source::<i32>() }
+        frp_def! { source2 = source::<bool>() }
+        frp_def! { gate    = source1.gate(&source2) }
+        frp_def! { check   = gate.assert_eq() }
+        source1.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),0);
+        source2.event.emit(&EventData(true));
+        source1.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),1);
+        source2.event.emit(&EventData(false));
+        source1.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),1);
+    }
+
+    #[test]
+    fn sample() {
+        frp_def! { source1 = source::<i32>() }
+        frp_def! { source2 = source::<i32>() }
+        frp_def! { sample  = source1.sample(&source2) }
+        frp_def! { check   = sample.assert_eq() }
+        check.event.expect(1);
+        source1.event.emit(&EventData(1));
+        assert_eq!(check.event.success_count(),0);
+        source2.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),1);
+        source2.event.emit(&EventData(0));
+        assert_eq!(check.event.success_count(),2);
+    }
+
+    #[test]
+    fn map() {
+        frp_def! { source = source::<i32>() }
+        frp_def! { map    = source.map(|t| {t+1}) }
+        frp_def! { check  = map.assert_eq() }
+        check.event.expect(1);
+        source.event.emit(&EventData(0));
+        check.event.expect(2);
+        source.event.emit(&EventData(1));
+        assert_eq!(check.event.success_count(),2);
     }
 }

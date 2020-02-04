@@ -98,11 +98,8 @@ impl Graphviz {
         let mut code = String::default();
         let node_map = self.create_node_map();
 
-        // FIXME: https://github.com/rust-lang/rust-clippy/issues/5128
-        #[allow(trivial_casts)]
         for node in node_map.values() {
-            let variant = &node.variant as &str;
-            let color = match variant {
+            let color = match node.variant.as_str() {
                 "Toggle"  => "534666",
                 "Gate"    => "e69d45",
                 "Hold"    => "308695",

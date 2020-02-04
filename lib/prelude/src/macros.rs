@@ -50,5 +50,12 @@ macro_rules! alias {
         $(#$meta)*
         pub trait $name: $($tok)* {}
         impl<T:$($tok)*> $name for T {}
-    )*}
+    )*};
+
+    (no_docs $( $(#$meta:tt)* $name:ident = {$($tok:tt)*} )*) => {$(
+        $(#$meta)*
+        #[allow(missing_docs)]
+        pub trait $name: $($tok)* {}
+        impl<T:$($tok)*> $name for T {}
+    )*};
 }

@@ -1,4 +1,4 @@
-//! Root module for FRP node related abstractions.
+//! Defines FRP node related abstractions.
 
 use crate::prelude::*;
 use crate::debug::*;
@@ -8,28 +8,37 @@ use crate::data::*;
 
 
 
-// ===============
-// === DynNode ===
-// ===============
+// =============
+// === Types ===
+// =============
 
-/// Type level association between FRP data and dynamic node type. The associated `DynNode` type can
-/// differ depending on whether it is an event or behavior node, as they provide different APIs.
+alias! { no_docs
+    NodeReflection         = { HasInputs + HasLabel + KnownOutputType }
+    NodeDebug              = { Debug + GraphvizBuilder }
+    AnyNode                = { NodeDebug + NodeReflection + HasId + HasDisplayId }
+    AnyNodeWithKnownOutput = { AnyNode + KnownOutput }
+    AnyBehaviorNode        = { AnyNodeWithKnownOutput + HasCurrentValue  }
+    AnyEventNode           = { AnyNodeWithKnownOutput + HasEventTargets + EventEmitter }
+}
+
+
+
+// =========================
+// === NodeAsTraitObject ===
+// =========================
+
+/// Type level association between FRP data type and a node's trait object. The associated type
+/// differs depending on whether it is an event or behavior node, as they provide different APIs.
 /// For example, behaviors allow lookup for the current value, which does not make sense in case
 /// of events.
-pub trait KnownDynNode {
-    /// The node storage type.
-    type DynNode: DynNodeBounds + CloneRef;
+pub trait NodeAsTraitObjectForData {
+    /// The trait object representing the node.
+    type NodeAsTraitObject: AnyNodeWithKnownOutput + CloneRef;
 }
 
-/// Accessor.
-pub type DynNode<T> = <T as KnownDynNode>::DynNode;
+/// Accessor. See docs of `NodeAsTraitObjectForData` to learn more.
+pub type NodeAsTraitObject<T> = <T as NodeAsTraitObjectForData>::NodeAsTraitObject;
 
-alias! {
-    /// Bounds required for every node.
-    DynNodeBounds = {
-        Debug + GraphvizBuilder + HasId + HasDisplayId + HasInputs + HasLabel + KnownOutput
-    }
-}
 
 // === EventDynNode ===
 
@@ -37,16 +46,11 @@ alias! {
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 pub struct EventDynNode<Out> {
-    rc: Rc<dyn EventDynNodeBounds<Output=EventData<Out>>>,
+    rc: Rc<dyn AnyEventNode<Output=EventData<Out>>>,
 }
 
-alias! {
-    /// Bounds for any event node.
-    EventDynNodeBounds = { DynNodeBounds + HasEventTargets + EventEmitter }
-}
-
-impl<Out:Value> KnownDynNode for EventData<Out> {
-    type DynNode = EventDynNode<Out>;
+impl<Out:Value> NodeAsTraitObjectForData for EventData<Out> {
+    type NodeAsTraitObject = EventDynNode<Out>;
 }
 
 impl<Out> Unwrap     for EventDynNode<Out> {}
@@ -61,22 +65,17 @@ impl<Out:Value> KnownOutput for EventDynNode<Out> {
 }
 
 
-// === BehaviorDynNodeBounds ===
+// === AnyBehaviorNode ===
 
 /// Newtype wrapper for any behavior node.
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 pub struct BehaviorDynNode<Out> {
-    rc: Rc<dyn BehaviorDynNodeBounds<Output=BehaviorData<Out>>>,
+    rc: Rc<dyn AnyBehaviorNode<Output=BehaviorData<Out>>>,
 }
 
-alias! {
-    /// Bounds for any behavior node.
-    BehaviorDynNodeBounds = { DynNodeBounds + HasCurrentValue  }
-}
-
-impl<Out:Value> KnownDynNode for BehaviorData<Out> {
-    type DynNode = BehaviorDynNode<Out>;
+impl<Out:Value> NodeAsTraitObjectForData for BehaviorData<Out> {
+    type NodeAsTraitObject = BehaviorDynNode<Out>;
 }
 
 impl<Out> Unwrap     for BehaviorDynNode<Out> {}
@@ -98,14 +97,12 @@ impl<Out:Value> KnownOutput for BehaviorDynNode<Out> {
 
 // === Types ===
 
-/// The type of any FRP node which produces event messages. Having a reference to a node is like
-/// having a reference to network endpoint which transmits messages of a given type. Thus, it is a
-/// nice mental simplification to think about it just like about an event (stream).
+/// Events represents discrete point in time. At a specific time, there can be at most one event.
+/// Typical examples are mouse clicks, keyboard presses, status changes of the network connection.
 pub type Event<T> = Node<EventData<T>>;
 
-/// The type of any FRP node which can be queried for behavior value. Having a reference to a node
-/// is like having a reference to network endpoint which transmits messages of a given type. Thus,
-/// it is a nice mental simplification to think about it just like about a behavior.
+/// Behaviours represent a value over time that is always available. For example, mouse coordinates
+/// vary in time and always have some value.
 pub type Behavior <T> = Node<BehaviorData<T>>;
 
 
@@ -116,13 +113,13 @@ pub type Behavior <T> = Node<BehaviorData<T>>;
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct Node<Out:KnownDynNode> {
-    storage: DynNode<Out>,
+pub struct Node<Out:NodeAsTraitObjectForData> {
+    storage: NodeAsTraitObject<Out>,
 }
 
 impl<Out:Data> Node<Out> {
     /// Constructor.
-    pub fn new(storage:DynNode<Out>) -> Self {
+    pub fn new(storage:NodeAsTraitObject<Out>) -> Self {
         Self {storage}
     }
 }
@@ -131,14 +128,14 @@ impl<Out:Data> Node<Out> {
 // === Type Deps ===
 
 impl<Out:Data> KnownOutput for Node<Out> { type Output  = Out; }
-impl<Out:Data> HasContent  for Node<Out> { type Content = DynNode<Out>; }
+impl<Out:Data> HasContent  for Node<Out> { type Content = NodeAsTraitObject<Out>; }
 impl<Out:Data> Unwrap      for Node<Out> {}
 
 
 // === Instances ===
 
 impl<Out:Data> Deref for Node<Out> {
-    type Target = DynNode<Out>;
+    type Target = NodeAsTraitObject<Out>;
     fn deref(&self) -> &Self::Target {
         &self.storage
     }
@@ -162,7 +159,7 @@ impl<Out:Data> From<&Node<Out>> for Node<Out> {
 
 impl<Storage,Out:Value>
 From<&Storage> for Behavior<Out>
-    where Storage : BehaviorDynNodeBounds<Output=BehaviorData<Out>> + Clone + 'static {
+    where Storage : AnyBehaviorNode<Output=BehaviorData<Out>> + Clone + 'static {
     fn from(storage:&Storage) -> Self {
         Self::new(BehaviorDynNode{rc:Rc::new(storage.clone())})
     }
@@ -170,7 +167,7 @@ From<&Storage> for Behavior<Out>
 
 impl<Storage,Out:Value>
 From<&Storage> for Event<Out>
-    where Storage : EventDynNodeBounds<Output=EventData<Out>> + Clone + 'static {
+    where Storage : AnyEventNode<Output=EventData<Out>> + Clone + 'static {
     fn from(storage:&Storage) -> Self {
         Self::new(EventDynNode{rc:Rc::new(storage.clone())})
     }
@@ -200,29 +197,24 @@ impl<S,T:Value> AddTarget<S> for Behavior<T> {
 
 
 
-// ===============
-// === AnyNode ===
-// ===============
+// =========================
+// === NodeWithAnyOutput ===
+// =========================
 
 /// A type for any possible node type. It hides the result type of a node, which makes it the most
 /// generic node type out there.
 #[derive(Debug,Shrinkwrap)]
-pub struct AnyNode {
-    rc: Rc<dyn AnyNodeOps>,
-}
-
-alias! {
-    /// Set of bounds which every node has to match.
-    AnyNodeOps = { Debug + GraphvizBuilder + HasId + HasDisplayId + KnownOutputType }
+pub struct NodeWithAnyOutput {
+    rc: Rc<dyn AnyNode>,
 }
 
 
 // === Instances ===
 
-impls! { [Out:Data+'static] From <&Node<Out>> for AnyNode { |t| t.clone_ref().into() } }
-impls! { [Out:Data+'static] From  <Node<Out>> for AnyNode { |t| Self {rc:Rc::new(t)} } }
+impls! { [Out:Data+'static] From <&Node<Out>> for NodeWithAnyOutput { |t| t.clone_ref().into() } }
+impls! { [Out:Data+'static] From  <Node<Out>> for NodeWithAnyOutput { |t| Self {rc:Rc::new(t)} } }
 
-impl KnownOutputType for AnyNode {
+impl KnownOutputType for NodeWithAnyOutput {
     fn output_type(&self) -> DataType {
         self.rc.output_type()
     }
@@ -279,9 +271,9 @@ impl<T,In> From<&T> for AnyEventConsumer<In>
 
 // === Definition ===
 
-/// Abstraction for nodes which are able to consume events.
+/// Abstraction for nodes which are able to emit events.
 pub trait EventEmitter: KnownOutput {
-    /// Function called on every new received event.
+    /// Function for emitting new events.
     fn emit(&self, event:&Self::Output);
 }
 
