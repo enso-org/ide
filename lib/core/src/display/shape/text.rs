@@ -249,15 +249,15 @@ impl TextComponent {
 
 /// Text component builder
 #[derive(Debug)]
-pub struct TextComponentBuilder<'a, 'b, Str:AsRef<str>> {
+pub struct TextComponentBuilder<'a, 'b, S:Str> {
     pub scene      : &'a Scene,
     pub fonts      : &'b mut Fonts,
-    pub text       : Str,
+    pub text       : S,
     pub font_id    : FontId,
     pub properties : TextComponentProperties,
 }
 
-impl<'a,'b,Str:AsRef<str>> TextComponentBuilder<'a,'b,Str> {
+impl<'a,'b,S:Str> TextComponentBuilder<'a,'b,S> {
 
     /// Build a new text component rendering on given scene
     pub fn build(mut self) -> TextComponent {

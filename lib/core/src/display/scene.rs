@@ -71,15 +71,13 @@ impl Shape {
         let bb     = element.get_bounding_client_rect();
         let width  = bb.width() as f32;
         let height = bb.height() as f32;
-        let rc     = Rc::new(RefCell::new(ShapeData::new(width,height)));
-        Self{rc}
+        Self::new(width,height)
     }
 
     pub fn from_window(window:&web_sys::Window) -> Self {
         let width  = window.inner_width().unwrap().as_f64().unwrap() as f32;
         let height = window.inner_height().unwrap().as_f64().unwrap() as f32;
-        let rc     = Rc::new(RefCell::new(ShapeData::new(width,height)));
-        Self{rc}
+        Self::new(width,height)
     }
 
 

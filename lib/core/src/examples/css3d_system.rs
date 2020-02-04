@@ -2,7 +2,7 @@
 
 use crate::system::web::dom::html::Css3dSystem;
 use crate::system::web::dom::html::Css3dObject;
-use crate::system::web::dom::html::Css3dPosition;
+use crate::system::web::dom::html::Css3dOrder;
 use crate::system::web::StyleSetter;
 use crate::display::object::DisplayObject;
 use crate::display::object::DisplayObjectOps;
@@ -47,9 +47,9 @@ fn init(world:World) {
         if i % 2 == 0 {
             let height = height * 0.75;
             let dimensions = Vector2::new(width, height);
-            let y = screen.height / 2.0;
+            let y          = screen.height / 2.0;
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, y, 0.0);
-            let sprite = sprite_system.new_instance();
+            let sprite     = sprite_system.new_instance();
             sprite.size().set(dimensions);
             sprite.mod_position(|t| *t = position);
             sprites.push(sprite);
@@ -57,11 +57,11 @@ fn init(world:World) {
             let dimensions = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
             let mut object = css3d_system.new_instance("div").expect("Couldn't create div");
-            let r = ((x + 0.0) * 16.0) as u8;
-            let g = ((x + 2.0) * 32.0) as u8;
-            let b = ((x + 4.0) * 64.0) as u8;
-            let color = format!("rgb({},{},{})", r,g,b);
-            object.dom().set_property_or_panic("background-color", color);
+            let r          = ((x + 0.0) * 16.0) as u8;
+            let g          = ((x + 2.0) * 32.0) as u8;
+            let b          = ((x + 4.0) * 64.0) as u8;
+            let color      = iformat!("rgb({r},{g},{b})");
+            object.dom().set_property_or_panic("background-color",color);
             object.set_dimensions(dimensions);
             object.mod_position(|t| *t = position);
             css3d_objects.push(object);
@@ -69,7 +69,7 @@ fn init(world:World) {
     }
     world.display_object().update();
 
-    let css3d_position = vec![Css3dPosition::Front, Css3dPosition::Back];
+    let css3d_position = vec![Css3dOrder::Front, Css3dOrder::Back];
     let mut i = 0;
     let animator = FixedStepAnimator::new(2.0, move |_| {
         let _keep_alive = &world;
@@ -80,7 +80,7 @@ fn init(world:World) {
 
         i = (i + 1) % 2;
         for (j, object) in css3d_objects.iter_mut().enumerate() {
-            object.set_css3d_position(css3d_position[(i + j) % 2]);
+            object.set_css3d_order(css3d_position[(i + j) % 2]);
         }
     });
     std::mem::forget(animator);

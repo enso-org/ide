@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::display::object::DisplayObjectData;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::Css3dObject;
+use crate::system::web::dom::html::{Css3dObject, Css3dSystem};
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web::Result;
 use crate::system::web::create_element;
@@ -14,7 +14,7 @@ use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web::dom::DomContainer;
 use crate::system::web::dom::ResizeCallback;
-use super::eps;
+use super::math::eps;
 
 use nalgebra::Vector2;
 use nalgebra::Matrix4;
@@ -47,13 +47,6 @@ mod js {
     }
 }
 
-/// Inverts Matrix Y coordinates.
-/// It's equivalent to scaling by (1.0, -1.0, 1.0).
-pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
-    // Negating the second column to invert Y.
-    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
-    m
-}
 
 #[allow(unsafe_code)]
 fn setup_camera_perspective
@@ -83,12 +76,25 @@ fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
 
 
 
+// =============
+// === Utils ===
+// =============
+
+/// Inverts Matrix Y coordinates. It's equivalent to scaling by (1.0, -1.0, 1.0).
+pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
+    // Negating the second column to invert Y.
+    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+    m
+}
+
+
+
 // =========================
 // === Css3dRendererData ===
 // =========================
 
 #[derive(Debug)]
-pub struct Css3dRendererData {
+struct Css3dRendererData {
     pub front_dom    : HtmlElement,
     pub back_dom     : HtmlElement,
     pub front_camera : HtmlElement,
@@ -117,16 +123,16 @@ impl Css3dRendererData {
     }
 }
 
-// ====================
+// =====================
 // === Css3dRenderer ===
-// ====================
+// =====================
 
 /// A renderer for `Css3dObject`s.
 #[derive(Clone,Debug)]
 pub struct Css3dRenderer {
-    container      : DomContainer,
-    data           : Rc<Css3dRendererData>,
-    logger         : Logger
+    container : DomContainer,
+    data      : Rc<Css3dRendererData>,
+    logger    : Logger
 }
 
 impl Css3dRenderer {
@@ -166,46 +172,45 @@ impl Css3dRenderer {
         front_dom.append_or_panic(&front_camera);
         back_dom.append_or_panic(&back_camera);
 
-        let data             = Css3dRendererData::new(front_dom, back_dom, front_camera, back_camera);
-        let data             = Rc::new(data);
-        let mut renderer     = Self {container,data,logger};
-
-        renderer.init_listeners();
-        Ok(renderer)
+        let data         = Css3dRendererData::new(front_dom, back_dom, front_camera, back_camera);
+        let data         = Rc::new(data);
+        Ok(Self{container,data,logger}.init())
     }
 
     /// Creates a Css3dRenderer.
-    pub fn new<L:Into<Logger>>(logger:L, dom_id: &str) -> Result<Self> {
+    pub fn new<L:Into<Logger>>(logger:L, dom_id:&str) -> Result<Self> {
         Self::from_element(logger,dyn_into(get_element_by_id(dom_id)?)?)
     }
 
-    pub(crate) fn logger(&self) -> Logger {
-        self.logger.clone()
+    pub(super) fn new_system(&self) -> Css3dSystem {
+        let css3d_renderer = self.clone();
+        let logger         = self.logger.sub("Css3dSystem");
+        let display_object = DisplayObjectData::new(&logger);
+        Css3dSystem {display_object,css3d_renderer,logger}
     }
 
-    fn init_listeners(&mut self) {
+    fn init(mut self) -> Self {
         let dimensions = self.dimensions();
         self.set_dimensions(dimensions);
         let data = self.data.clone();
         self.add_resize_callback(move |dimensions:&Vector2<f32>| {
             data.set_dimensions(*dimensions);
         });
+        self
     }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
-    pub(super) fn new_instance
-    <S:AsRef<str>>(&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
+    pub(super) fn new_instance<S:Str>
+    (&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
         let front_camera = self.data.front_camera.clone();
         let back_camera  = self.data.back_camera.clone();
         let object = Css3dObject::new(self.logger.sub("object"),dom_name,front_camera,back_camera);
-        object.as_ref().map(|object| {
-            parent.add_child(object);
-        }).ok();
+        object.as_ref().map(|object| parent.add_child(object)).ok();
         object
     }
 
     /// Renders `Camera`'s point of view.
-    pub fn render(&self, camera: &Camera2d) {
+    pub fn render(&self, camera:&Camera2d) {
         let trans_cam  = camera.transform().matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
@@ -218,16 +223,8 @@ impl Css3dRenderer {
             Projection::Perspective{..} => {
                 js::setup_perspective(&self.data.front_dom, &near.into());
                 js::setup_perspective(&self.data.back_dom, &near.into());
-                setup_camera_perspective(
-                    &self.data.front_camera,
-                    near,
-                    &trans_cam
-                );
-                setup_camera_perspective(
-                    &self.data.back_camera,
-                    near,
-                    &trans_cam
-                );
+                setup_camera_perspective(&self.data.front_camera,near,&trans_cam);
+                setup_camera_perspective(&self.data.back_camera,near,&trans_cam);
             },
             Projection::Orthographic => {
                 setup_camera_orthographic(&self.data.front_camera, &trans_cam);
@@ -237,12 +234,12 @@ impl Css3dRenderer {
     }
 
     /// Adds a ResizeCallback.
-    pub fn add_resize_callback<T:ResizeCallback>(&mut self, callback : T) {
+    pub fn add_resize_callback<T:ResizeCallback>(&mut self, callback:T) {
         self.container.add_resize_callback(callback);
     }
 
     /// Sets Css3dRenderer's container dimensions.
-    pub fn set_dimensions(&mut self, dimensions : Vector2<f32>) {
+    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
         self.data.set_dimensions(dimensions);
         self.container.set_dimensions(dimensions);
     }

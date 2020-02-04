@@ -162,15 +162,11 @@ pub fn get_performance() -> Result<Performance> {
 
 /// Trait used to set HtmlElement attributes.
 pub trait AttributeSetter {
-    fn set_attribute_or_panic<T, U>(&self, name:T, value:U)
-    where T : AsRef<str>,
-          U : AsRef<str>;
+    fn set_attribute_or_panic<T:Str,U:Str>(&self, name:T, value:U);
 }
 
 impl AttributeSetter for web_sys::Element {
-    fn set_attribute_or_panic<T,U>(&self, name:T, value:U)
-    where T : AsRef<str>,
-          U : AsRef<str> {
+    fn set_attribute_or_panic<T:Str,U:Str>(&self, name:T, value:U) {
         let name   = name.as_ref();
         let value  = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
@@ -181,18 +177,14 @@ impl AttributeSetter for web_sys::Element {
 
 /// Trait used to set css styles.
 pub trait StyleSetter {
-    fn set_property_or_panic<T,U>(&self, name:T, value:U)
-    where T : AsRef<str>,
-          U : AsRef<str>;
+    fn set_property_or_panic<T:Str,U:Str>(&self, name:T, value:U);
 }
 
 impl StyleSetter for web_sys::HtmlElement {
-    fn set_property_or_panic<T,U>(&self, name:T, value:U)
-    where T : AsRef<str>,
-          U : AsRef<str> {
-        let name   = name.as_ref();
-        let value  = value.as_ref();
-        let values = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
+    fn set_property_or_panic<T:Str,U:Str>(&self, name:T, value:U) {
+        let name      = name.as_ref();
+        let value     = value.as_ref();
+        let values    = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
         let panic_msg = |_| panic!("Failed to set style {}",values);
         self.style().set_property(name, value).unwrap_or_else(panic_msg);
     }
