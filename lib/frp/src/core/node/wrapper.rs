@@ -104,7 +104,7 @@ EventEmitter for NodeWrapperTemplate<Shape,EventData<T>> {
 impl<Shape:HasInputs,Out>
 HasInputs for NodeWrapperTemplate<Shape,Out> {
     fn inputs(&self) -> Vec<NodeWithAnyOutput> {
-        self.inputs()
+        self.shape.inputs()
     }
 }
 
