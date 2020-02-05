@@ -166,7 +166,7 @@ define_node! {
 
 impl<T1:Data,T2:Data> EventConsumer for Merge<T1,T2>
     where MergeShape<T1,T2> : KnownEventInput<EventInput=Output<Self>> {
-    fn on_event(&self, event:&Self::EventInput) {
+    fn on_event(&self, event:&Content<Self::EventInput>) {
         self.emit_event_raw(event);
     }
 }
@@ -184,10 +184,10 @@ define_node! {
 }
 
 impl<T:Value> EventConsumer for Toggle<EventData<T>> {
-    fn on_event(&self, _:&Self::EventInput) {
+    fn on_event(&self, _:&Content<Self::EventInput>) {
         let val = !self.status.get();
         self.status.set(val);
-        self.emit_event_raw(&EventData(val));
+        self.emit_event_raw(&val);
     }
 }
 
@@ -219,8 +219,8 @@ impl<Out:Data> AssertEq<Out> {
 
 impl<T:Value> EventConsumer for AssertEq<EventData<T>>
 where for<'t> &'t T : Eq {
-    fn on_event(&self, event:&Self::EventInput) {
-        assert_eq!(&event.value(),&self.expected_value.borrow());
+    fn on_event(&self, event:&Content<Self::EventInput>) {
+        assert_eq!(event,&self.expected_value.borrow());
         let success_count = self.success_count.get();
         self.success_count.set(success_count + 1);
         self.emit_event_raw(event);
@@ -240,8 +240,8 @@ define_node! {
 }
 
 impl<T:Value> EventConsumer for Hold<EventData<T>> {
-    fn on_event(&self, event:&Self::EventInput) {
-        *self.last_val.borrow_mut() = event.value();
+    fn on_event(&self, event:&Content<Self::EventInput>) {
+        *self.last_val.borrow_mut() = event.clone();
     }
 }
 
@@ -274,17 +274,17 @@ impl<In1,In2> KnownOutput for SampleShape<BehaviorData<In1>,EventData<In2>>
 
 impl<In1,In2> EventConsumer for Sample<BehaviorData<In1>,EventData<In2>>
     where In1:Value, In2:Value {
-    fn on_event(&self, _:&Self::EventInput) {
+    fn on_event(&self, _:&Content<Self::EventInput>) {
         let value = self.source1.current_value();
-        self.emit_event_raw(&EventData(value));
+        self.emit_event_raw(&value);
     }
 }
 
 impl<In1,In2> EventConsumer for Sample<EventData<In1>,BehaviorData<In2>>
     where In1:Value, In2:Value {
-    fn on_event(&self, _:&Self::EventInput) {
+    fn on_event(&self, _:&Content<Self::EventInput>) {
         let value = self.source2.current_value();
-        self.emit_event_raw(&EventData(value));
+        self.emit_event_raw(&value);
     }
 }
 
@@ -309,7 +309,7 @@ impl<In1,In2> KnownOutput for GateShape<BehaviorData<In1>,EventData<In2>>
 }
 
 impl<In:Value> EventConsumer for Gate<BehaviorData<bool>,EventData<In>> {
-    fn on_event(&self, event:&Self::EventInput) {
+    fn on_event(&self, event:&Content<Self::EventInput>) {
         let check = self.source1.current_value();
         if check { self.emit_event_raw(event); }
     }
@@ -365,7 +365,7 @@ impl<T:Data> Recursive<T> {
 }
 
 impl<T:Data> EventConsumer for Recursive<T> {
-    fn on_event(&self, event:&T) {
+    fn on_event(&self, event:&Content<T>) {
         self.emit_event_raw(event);
     }
 }

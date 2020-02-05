@@ -36,9 +36,9 @@ impl<Shape:KnownOutput> NodeWrapper<Shape> {
     }
 }
 
-impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
+impl<Shape,Out:Data> NodeWrapperTemplate<Shape,Out> {
     /// Sends an event to all the children.
-    pub fn emit_event_raw(&self, event:&Out) {
+    pub fn emit_event_raw(&self, event:&Content<Out>) {
         self.config.borrow().targets.iter().for_each(|target| {
             target.on_event(event)
         })
@@ -97,7 +97,7 @@ KnownEventInput for NodeWrapperTemplate<Shape,Out>
 impl<Shape,T:Value>
 EventEmitter for NodeWrapperTemplate<Shape,EventData<T>> {
     fn emit_event(&self, event:&T) {
-        self.emit_event_raw(&EventData(event.clone()));
+        self.emit_event_raw(event);
     }
 }
 

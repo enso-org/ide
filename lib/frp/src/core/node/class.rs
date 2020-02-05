@@ -239,7 +239,7 @@ impl KnownOutputType for NodeWithAnyOutput {
 /// Abstraction for nodes which are able to consume events.
 pub trait EventConsumer: KnownEventInput + Debug {
     /// Function called on every new received event.
-    fn on_event(&self, input:&Self::EventInput);
+    fn on_event(&self, input:&Content<Self::EventInput>);
 }
 
 
