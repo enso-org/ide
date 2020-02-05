@@ -21,10 +21,10 @@ use web_sys::HtmlElement;
 // === Css3dOrder ===
 // ==================
 
-#[allow(missing_docs)]
-#[derive(Debug,Clone,Copy)]
 /// This enumeration is used for moving the object from front to back of the surrounding HtmlElement
 /// (usually a WebGL canvas).
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Copy)]
 pub enum Css3dOrder {
     Front,
     Back
@@ -72,12 +72,11 @@ pub(super) struct Css3dObjectData {
 
 impl Css3dObjectData {
     fn new
-    (display_object : DisplayObjectData
-     , dom          : HtmlElement
-     , dimensions   : Vector2<f32>
-     , css3d_order  : Css3dOrder) -> Self {
-        let properties = Css3dObjectProperties
-            {display_object,dom,dimensions,css3d_order};
+    ( display_object : DisplayObjectData
+    , dom            : HtmlElement
+    , dimensions     : Vector2<f32>
+    , css3d_order    : Css3dOrder) -> Self {
+        let properties = Css3dObjectProperties {display_object,dom,dimensions,css3d_order};
         let properties = Rc::new(RefCell::new(properties));
         Self {properties}
     }
