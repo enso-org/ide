@@ -110,8 +110,8 @@ HasInputs for NodeWrapperTemplate<Shape,Out> {
 
 impl<Shape,Out>
 HasLabel for NodeWrapperTemplate<Shape,Out> {
-    fn label(&self) -> CowString {
-        self.label.clone()
+    fn label(&self) -> &CowString {
+        &self.label
     }
 }
 
