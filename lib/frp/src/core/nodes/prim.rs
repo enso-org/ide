@@ -64,7 +64,7 @@ macro_rules! define_node {
                     let shape  = $shape_name { $($poly_input,)* $($field,)* };
                     let this  = Self::construct(label,shape);
                     {
-                        let shape = &this.rc.borrow().shape;
+                        let shape = &this.shape;
                         $(shape.$poly_input.add_target(&this);)*
                     }
                     this
@@ -145,7 +145,7 @@ impl<Out> Source<Out>
 impl<Out> HasCurrentValue for Source<BehaviorData<Out>>
     where Out : Value {
     fn current_value(&self) -> Out {
-        self.rc.borrow().shape.storage.value()
+        self.storage.value()
     }
 }
 
@@ -186,8 +186,8 @@ define_node! {
 
 impl<T:Value> EventConsumer for Toggle<EventData<T>> {
     fn on_event(&self, _:&Self::EventInput) {
-        let val = !self.rc.borrow().shape.status.get();
-        self.rc.borrow().shape.status.set(val);
+        let val = !self.status.get();
+        self.status.set(val);
         self.emit_event_raw(&EventData(val));
     }
 }
@@ -200,8 +200,8 @@ impl<T:Value> EventConsumer for Toggle<EventData<T>> {
 
 define_node! {
     AssertEq AssertEqShape [source] -> [source] {
-        expected_value : Content<source>,
-        success_count  : usize
+        expected_value : RefCell<Content<source>>,
+        success_count  : Cell<usize>
     }
 }
 
@@ -209,20 +209,21 @@ impl<Out:Data> AssertEq<Out> {
     /// Asserts that the next event value will be equal to this value. In other case, it will
     /// panic after next even occurs and it will behave just as `asser_eq`.
     pub fn expect(&self, value:Content<Out>) {
-        self.rc.borrow_mut().shape.expected_value = value;
+        *self.expected_value.borrow_mut() = value;
     }
 
     /// Provides the count of successful events which went trough this node.
     pub fn success_count(&self) -> usize {
-        self.rc.borrow_mut().shape.success_count
+        self.success_count.get()
     }
 }
 
 impl<T:Value> EventConsumer for AssertEq<EventData<T>>
 where for<'t> &'t T : Eq {
     fn on_event(&self, event:&Self::EventInput) {
-        assert_eq!(&event.value(),&self.rc.borrow().shape.expected_value);
-        self.rc.borrow_mut().shape.success_count += 1;
+        assert_eq!(&event.value(),&self.expected_value.borrow());
+        let success_count = self.success_count.get();
+        self.success_count.set(success_count + 1);
         self.emit_event_raw(event);
     }
 }
@@ -241,14 +242,14 @@ define_node! {
 
 impl<T:Value> EventConsumer for Hold<EventData<T>> {
     fn on_event(&self, event:&Self::EventInput) {
-        *self.rc.borrow().shape.last_val.borrow_mut() = event.value();
+        *self.last_val.borrow_mut() = event.value();
     }
 }
 
 impl<T> HasCurrentValue for Hold<EventData<T>>
     where T : Value {
     fn current_value(&self) -> T {
-        self.rc.borrow().shape.last_val.borrow().clone()
+        self.last_val.borrow().clone()
     }
 }
 
@@ -275,7 +276,7 @@ impl<In1,In2> KnownOutput for SampleShape<BehaviorData<In1>,EventData<In2>>
 impl<In1,In2> EventConsumer for Sample<BehaviorData<In1>,EventData<In2>>
     where In1:Value, In2:Value {
     fn on_event(&self, _:&Self::EventInput) {
-        let value = self.rc.borrow().shape.source1.current_value();
+        let value = self.source1.current_value();
         self.emit_event_raw(&EventData(value));
     }
 }
@@ -283,7 +284,7 @@ impl<In1,In2> EventConsumer for Sample<BehaviorData<In1>,EventData<In2>>
 impl<In1,In2> EventConsumer for Sample<EventData<In1>,BehaviorData<In2>>
     where In1:Value, In2:Value {
     fn on_event(&self, _:&Self::EventInput) {
-        let value = self.rc.borrow().shape.source2.current_value();
+        let value = self.source2.current_value();
         self.emit_event_raw(&EventData(value));
     }
 }
@@ -310,7 +311,7 @@ impl<In1,In2> KnownOutput for GateShape<BehaviorData<In1>,EventData<In2>>
 
 impl<In:Value> EventConsumer for Gate<BehaviorData<bool>,EventData<In>> {
     fn on_event(&self, event:&Self::EventInput) {
-        let check = self.rc.borrow().shape.source1.current_value();
+        let check = self.source1.current_value();
         if check { self.emit_event_raw(event); }
     }
 }
@@ -360,7 +361,7 @@ impl<T:Data> Recursive<T> {
         let node = t.into();
         node.add_target(self);
         self.set_display_id(node.display_id());
-        *self.rc.borrow().shape.source.borrow_mut() = Some(node);
+        *self.source.borrow_mut() = Some(node);
     }
 }
 
@@ -372,7 +373,7 @@ impl<T:Data> EventConsumer for Recursive<T> {
 
 impl<T:Value> HasCurrentValue for Recursive<BehaviorData<T>> {
     fn current_value(&self) -> T {
-        self.rc.borrow().shape.source.borrow().as_ref().unwrap().current_value()
+        self.source.borrow().as_ref().unwrap().current_value()
     }
 }
 

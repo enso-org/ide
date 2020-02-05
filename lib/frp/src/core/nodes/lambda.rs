@@ -77,7 +77,7 @@ macro_rules! define_lambda_node {
                     let shape       = $shape_name{$($poly_input,)* func};
                     let this        = Self::construct(label,shape);
                     {
-                        let shape = &this.rc.borrow().shape;
+                        let shape = &this.shape;
                         $(shape.$poly_input.add_target(&this);)*
                     }
                     this
@@ -130,7 +130,7 @@ impl<In1,Out,Func> From<Func> for Lambda1Func<In1,Out>
 
 impl<In:Value,Out:Data> EventConsumer for Lambda<EventData<In>,Out> {
     fn on_event(&self, input:&Self::EventInput) {
-        let output = (self.rc.borrow().shape.func.raw)(unwrap(input));
+        let output = (self.shape.func.raw)(unwrap(input));
         self.emit_event_raw(&output);
     }
 }
@@ -173,8 +173,8 @@ impl<In1,In2,Out,Func> From<Func> for Lambda2Func<In1,In2,Out>
 impl<In1,In2,Out> EventConsumer for Lambda2<EventData<In1>,BehaviorData<In2>,Out>
     where In1:Value, In2:Value, Out:Data {
     fn on_event(&self, event:&Self::EventInput) {
-        let value2 = self.rc.borrow().shape.source2.current_value();
-        let output = (self.rc.borrow().shape.func.raw)(&event.value(),&value2);
+        let value2 = self.shape.source2.current_value();
+        let output = (self.shape.func.raw)(&event.value(),&value2);
         self.emit_event_raw(&output);
     }
 }
@@ -182,8 +182,8 @@ impl<In1,In2,Out> EventConsumer for Lambda2<EventData<In1>,BehaviorData<In2>,Out
 impl<In1,In2,Out> EventConsumer for Lambda2<BehaviorData<In1>,EventData<In2>,Out>
     where In1:Value, In2:Value, Out:Data {
     fn on_event(&self, event:&Self::EventInput) {
-        let value1 = self.rc.borrow().shape.source1.current_value();
-        let output = (self.rc.borrow().shape.func.raw)(&value1,&event.value());
+        let value1 = self.shape.source1.current_value();
+        let output = (self.shape.func.raw)(&value1,&event.value());
         self.emit_event_raw(&output);
     }
 }

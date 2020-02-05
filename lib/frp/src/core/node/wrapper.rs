@@ -27,9 +27,10 @@ impl<Shape:KnownOutput> NodeWrapper<Shape> {
     /// Constructor.
     pub fn construct<Label>(label:Label, shape:Shape) -> Self
         where Label : Into<CowString> {
-        let data = NodeWrapperTemplateData::construct(label,shape);
-        let rc   = Rc::new(RefCell::new(data));
-        let this = Self {rc};
+        let data   = NodeWrapperTemplateData::construct(label);
+        let config = Rc::new(RefCell::new(data));
+        let shape  = Rc::new(shape);
+        let this   = Self {config,shape};
         this.set_display_id(this.id());
         this
     }
@@ -38,7 +39,7 @@ impl<Shape:KnownOutput> NodeWrapper<Shape> {
 impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
     /// Sends an event to all the children.
     pub fn emit_event_raw(&self, event:&Out) {
-        self.rc.borrow().targets.iter().for_each(|target| {
+        self.config.borrow().targets.iter().for_each(|target| {
             target.on_event(event)
         })
     }
@@ -47,7 +48,7 @@ impl<Shape,Out> NodeWrapperTemplate<Shape,Out> {
 impl<Shape,T:Value>
 HasEventTargets for NodeWrapperTemplate<Shape,EventData<T>> {
     fn add_event_target(&self, target:AnyEventConsumer<EventData<T>>) {
-        self.rc.borrow_mut().targets.push(target);
+        self.config.borrow_mut().targets.push(target);
     }
 }
 
@@ -57,12 +58,14 @@ HasEventTargets for NodeWrapperTemplate<Shape,EventData<T>> {
 /// Internal representation for `NodeWrapper`. Please note that we define this structure and the
 /// `NodeWrapper` alias instead of just single struct in order not to keep bounds on struct
 /// definition (which is bad and you should never do it).
-#[derive(Debug,Derivative)]
+#[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Default(bound="Shape:Default"))]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 pub struct NodeWrapperTemplate<Shape,Out> {
-    pub rc: Rc<RefCell<NodeWrapperTemplateData<Shape,Out>>>
+    #[shrinkwrap(main_field)]
+    pub shape  : Rc<Shape>,
+    pub config : Rc<RefCell<NodeWrapperTemplateData<Out>>>,
 }
 
 impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
@@ -70,14 +73,14 @@ impl<Shape,Out> CloneRef for NodeWrapperTemplate<Shape,Out> {}
 impl<Shape,Out>
 HasId for NodeWrapperTemplate<Shape,Out> {
     fn id(&self) -> usize {
-        Rc::downgrade(&self.rc).as_raw() as *const() as usize
+        Rc::downgrade(&self.config).as_raw() as *const() as usize
     }
 }
 
 impl<Shape,Out>
 HasDisplayId for NodeWrapperTemplate<Shape,Out> {
-    fn display_id     (&self) -> usize  { self.rc.borrow().display_id }
-    fn set_display_id (&self, id:usize) { self.rc.borrow_mut().display_id = id; }
+    fn display_id     (&self) -> usize  { self.config.borrow().display_id }
+    fn set_display_id (&self, id:usize) { self.config.borrow_mut().display_id = id; }
 }
 
 impl<Shape,Out:Data>
@@ -101,14 +104,14 @@ EventEmitter for NodeWrapperTemplate<Shape,EventData<T>> {
 impl<Shape:HasInputs,Out>
 HasInputs for NodeWrapperTemplate<Shape,Out> {
     fn inputs(&self) -> Vec<NodeWithAnyOutput> {
-        self.rc.borrow().shape.inputs()
+        self.inputs()
     }
 }
 
 impl<Shape,Out>
 HasLabel for NodeWrapperTemplate<Shape,Out> {
     fn label(&self) -> CowString {
-        self.rc.borrow().label.clone()
+        self.config.borrow().label.clone()
     }
 }
 
@@ -116,12 +119,12 @@ impl<Shape:HasInputs,Out>
 GraphvizBuilder for NodeWrapperTemplate<Shape,Out> {
     fn graphviz_build(&self, builder:&mut Graphviz) {
         let type_name  = base_type_name::<Shape>();
-        let label      = &self.rc.borrow().label;
+        let label      = &self.config.borrow().label;
         let id         = self.id();
         let display_id = self.display_id();
         if !builder.contains(id) {
             builder.add_node(id,display_id,type_name,label);
-            for input in &self.rc.borrow().shape.inputs() {
+            for input in &self.inputs() {
                 let input_display_id = input.display_id();
                 let input_type       = input.output_type();
                 let input_type_name  = input.output_type_value_name();
@@ -137,26 +140,24 @@ GraphvizBuilder for NodeWrapperTemplate<Shape,Out> {
 
 /// Internal representation for `NodeWrapperTemplate`.
 #[derive(Debug,Derivative)]
-#[derivative(Default(bound="Shape:Default"))]
-pub struct NodeWrapperTemplateData<Shape,Out> {
+#[derivative(Default(bound=""))]
+pub struct NodeWrapperTemplateData<Out> {
     /// The label of the node. Used for debugging purposes.
     pub label : CowString,
     /// The display id of the node. Used to group nodes together in the visualization view.
     pub display_id : usize,
-    /// The shape of the node.
-    pub shape : Shape,
     /// Event targets of the node.
     pub targets : Vec<AnyEventConsumer<Out>>,
 }
 
-impl<Shape,Out> NodeWrapperTemplateData<Shape,Out> {
+impl<Out> NodeWrapperTemplateData<Out> {
     /// Constructor.
-    pub fn construct<Label>(label:Label, shape:Shape) -> Self
+    pub fn construct<Label>(label:Label) -> Self
         where Label : Into<CowString> {
         let label      = label.into();
         let targets    = default();
         let display_id = 0;
-        Self {label,display_id,shape,targets}
+        Self {label,display_id,targets}
     }
 }
 
