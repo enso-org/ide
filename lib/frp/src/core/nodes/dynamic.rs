@@ -10,14 +10,25 @@ use crate::nodes::prim::*;
 use crate::nodes::lambda::*;
 
 
+
+// ======================
+// === RefinedDynamic ===
+// ======================
+
+/// Similar to `Dynamic` but with a known type of the `event` component. In most cases using
+/// `Dynamic` is just fine. Sometimes however, you want to use a non-generic utilities of nodes,
+/// like initializing a recursive one. By using `RefinedDynamic` you do not lose the information
+/// about the specific shape of the node and you can access all of its methods directly.
 #[derive(Debug,Derivative)]
 #[derivative(Clone(bound="Event:Clone"))]
 pub struct RefinedDynamic<Event>
     where Event                  : KnownOutput,
           Output<Event>          : HasContent,
           Content<Output<Event>> : Value {
+    /// The underlying dynamic.
     pub dynamic : Dynamic<Content<Output<Event>>>,
-    pub event   : Event,
+    /// The event with a known type. This is the same event as `dynamic.event`.
+    pub event : Event,
 }
 
 impl<Event> Deref for RefinedDynamic<Event>
@@ -79,6 +90,8 @@ impl<Out:Value> Dynamic<Out> {
         (&event).into()
     }
 
+    /// Create a new node which will be a placeholder (reference) to another node. Please note that
+    /// this node has to be initialized before the FRP network is run.
     pub fn recursive<Label>(label:Label) -> RefinedDynamic<Recursive<EventData<Out>>>
         where Label : Into<CowString> {
         (&Recursive::<EventData<Out>>::new_named(label)).into()
@@ -89,7 +102,7 @@ impl<Out:Value> Dynamic<Out> {
 // === Modifiers ===
 
 impl<Out:Value> Dynamic<Out> {
-    /// Create new node which drops the incoming event and emits a new event with the constant
+    /// Create a new node which drops the incoming event and emits a new event with the constant
     /// value.
     pub fn constant<Label,T>(&self, label:Label, value:T) -> Dynamic<T>
         where Label:Into<CowString>, T:Value {
@@ -208,7 +221,7 @@ mod tests {
         frp_def! { source = source::<i32>() }
         frp_def! { check  = source.assert_eq() }
         check.event.expect(1);
-        source.event.emit(&EventData(2));
+        source.event.emit(2);
     }
 
     #[test]
@@ -217,9 +230,9 @@ mod tests {
         frp_def! { constant = source.constant(7) }
         frp_def! { check    = constant.assert_eq() }
         check.event.expect(7);
-        source.event.emit(&EventData(0));
-        source.event.emit(&EventData(7));
-        source.event.emit(&EventData(1));
+        source.event.emit(0);
+        source.event.emit(7);
+        source.event.emit(1);
         assert_eq!(check.event.success_count(),3);
     }
 
@@ -230,11 +243,11 @@ mod tests {
         frp_def! { merge   = source1.merge(&source2) }
         frp_def! { check   = merge.assert_eq() }
         check.event.expect(1);
-        source1.event.emit(&EventData(1));
-        source2.event.emit(&EventData(1));
+        source1.event.emit(1);
+        source2.event.emit(1);
         check.event.expect(2);
-        source1.event.emit(&EventData(2));
-        source2.event.emit(&EventData(2));
+        source1.event.emit(2);
+        source2.event.emit(2);
         assert_eq!(check.event.success_count(),4);
     }
 
@@ -244,11 +257,11 @@ mod tests {
         frp_def! { toggle = source.toggle() }
         frp_def! { check  = toggle.assert_eq() }
         check.event.expect(true);
-        source.event.emit(&EventData(0));
+        source.event.emit(0);
         check.event.expect(false);
-        source.event.emit(&EventData(0));
+        source.event.emit(0);
         check.event.expect(true);
-        source.event.emit(&EventData(0));
+        source.event.emit(0);
         assert_eq!(check.event.success_count(),3);
     }
 
@@ -258,13 +271,13 @@ mod tests {
         frp_def! { source2 = source::<bool>() }
         frp_def! { gate    = source1.gate(&source2) }
         frp_def! { check   = gate.assert_eq() }
-        source1.event.emit(&EventData(0));
+        source1.event.emit(0);
         assert_eq!(check.event.success_count(),0);
-        source2.event.emit(&EventData(true));
-        source1.event.emit(&EventData(0));
+        source2.event.emit(true);
+        source1.event.emit(0);
         assert_eq!(check.event.success_count(),1);
-        source2.event.emit(&EventData(false));
-        source1.event.emit(&EventData(0));
+        source2.event.emit(false);
+        source1.event.emit(0);
         assert_eq!(check.event.success_count(),1);
     }
 
@@ -275,11 +288,11 @@ mod tests {
         frp_def! { sample  = source1.sample(&source2) }
         frp_def! { check   = sample.assert_eq() }
         check.event.expect(1);
-        source1.event.emit(&EventData(1));
+        source1.event.emit(1);
         assert_eq!(check.event.success_count(),0);
-        source2.event.emit(&EventData(0));
+        source2.event.emit(0);
         assert_eq!(check.event.success_count(),1);
-        source2.event.emit(&EventData(0));
+        source2.event.emit(0);
         assert_eq!(check.event.success_count(),2);
     }
 
@@ -289,9 +302,9 @@ mod tests {
         frp_def! { map    = source.map(|t| {t+1}) }
         frp_def! { check  = map.assert_eq() }
         check.event.expect(1);
-        source.event.emit(&EventData(0));
+        source.event.emit(0);
         check.event.expect(2);
-        source.event.emit(&EventData(1));
+        source.event.emit(1);
         assert_eq!(check.event.success_count(),2);
     }
 }

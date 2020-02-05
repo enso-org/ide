@@ -104,6 +104,19 @@ impl<T> OptionOps for Option<T> {
 
 
 
+// =============
+// === ToRef ===
+// =============
+
+/// Similar to `AsRef` but more specific and automatically implemented for every type. Allows for
+/// conversion `&T` to `&T` (identity) and `T` to `&T` for any type `T`. In contrast, `AsRef`
+/// requires explicit impls, so for example you cannot do `let t:&() = ().as_ref()`
+pub trait ToRef<T>        where T:?Sized { fn to_ref(&self) -> &T; }
+impl<T>   ToRef<T> for  T where T:?Sized { fn to_ref(&self) -> &T { self } }
+impl<T>   ToRef<T> for &T where T:?Sized { fn to_ref(&self) -> &T { self } }
+
+
+
 // ================
 // === CloneRef ===
 // ================

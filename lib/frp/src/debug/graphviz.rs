@@ -177,8 +177,8 @@ pub trait GraphvizBuilder {
 }
 
 impl<T> GraphvizBuilder for T
-where T:Deref, <T as Deref>::Target:GraphvizBuilder {
+where T:Unwrap, Content<T>:GraphvizBuilder {
     default fn graphviz_build(&self, builder:&mut Graphviz) {
-        self.deref().graphviz_build(builder)
+        self.unwrap().graphviz_build(builder)
     }
 }

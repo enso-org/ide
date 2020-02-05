@@ -60,19 +60,19 @@ mod tests {
         final_position_ref.behavior.set_display_id(final_position.event.display_id());
 
         assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
-        mouse.position.event.emit(&EventData(Position::new(3,4)));
+        mouse.position.event.emit(Position::new(3,4));
         assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
-        mouse.down.event.emit(&EventData(()));
+        mouse.down.event.emit(());
         assert_eq!(final_position.behavior.current_value(),Position::new(0,0));
-        mouse.position.event.emit(&EventData(Position::new(4,6)));
+        mouse.position.event.emit(Position::new(4,6));
         assert_eq!(final_position.behavior.current_value(),Position::new(1,2));
-        mouse.position.event.emit(&EventData(Position::new(4,7)));
+        mouse.position.event.emit(Position::new(4,7));
         assert_eq!(final_position.behavior.current_value(),Position::new(1,3));
-        mouse.up.event.emit(&EventData(()));
-        mouse.position.event.emit(&EventData(Position::new(4,0)));
+        mouse.up.event.emit(());
+        mouse.position.event.emit(Position::new(4,0));
         assert_eq!(final_position.behavior.current_value(),Position::new(1,3));
-        mouse.down.event.emit(&EventData(()));
-        mouse.position.event.emit(&EventData(Position::new(0,0)));
+        mouse.down.event.emit(());
+        mouse.position.event.emit(Position::new(0,0));
         assert_eq!(final_position.behavior.current_value(),Position::new(-3,3));
     }
 }

@@ -130,6 +130,12 @@ pub trait KnownOutput {
 /// Node output accessor.
 pub type Output<T> = <T as KnownOutput>::Output;
 
+impl<T:?Sized+KnownOutput> KnownOutput for Rc<T>
+where Output<T> : Data {
+    type Output = Output<T>;
+}
+
+
 
 // === Traits ===
 

@@ -129,7 +129,11 @@ impl<Out:Data> Node<Out> {
 
 impl<Out:Data> KnownOutput for Node<Out> { type Output  = Out; }
 impl<Out:Data> HasContent  for Node<Out> { type Content = NodeAsTraitObject<Out>; }
-impl<Out:Data> Unwrap      for Node<Out> {}
+impl<Out:Data> Unwrap      for Node<Out> {
+    fn unwrap(&self) -> &Self::Content {
+        &self.storage
+    }
+}
 
 
 // === Instances ===
@@ -187,7 +191,7 @@ pub trait AddTarget<T> {
 impl<S,T:Value> AddTarget<S> for Event<T>
     where for<'t> &'t S : Into<AnyEventConsumer<EventData<T>>> {
     fn add_target(&self,t:&S) {
-        self.add_event_target(t.into())
+        self.storage.add_event_target(t.into())
     }
 }
 
@@ -274,12 +278,28 @@ impl<T,In> From<&T> for AnyEventConsumer<In>
 /// Abstraction for nodes which are able to emit events.
 pub trait EventEmitter: KnownOutput {
     /// Function for emitting new events.
-    fn emit(&self, event:&Self::Output);
+    fn emit_event(&self, event:&Content<Self::Output>);
 }
 
 impl<T> EventEmitter for T
     where T:Unwrap+KnownOutput, Content<T>:EventEmitter<Output=Output<Self>> {
-    fn emit(&self, event:&Self::Output) {
-        self.unwrap().emit(event)
+    fn emit_event(&self, event:&Content<Self::Output>) {
+        self.unwrap().emit_event(event)
+    }
+}
+
+
+// === EventEmitterPoly ===
+
+/// Polymorphic version of `EventEmitter`. Please note that `EventEmitter` could not be implemented
+/// this way as we want to use it in a trait object, so all its methods have to be monomorphic.
+pub trait EventEmitterPoly : KnownOutput where Output<Self>:HasContent {
+    /// Function for emitting new events.
+    fn emit<E:ToRef<Content<Self::Output>>>(&self, event:E);
+}
+
+impl<T:EventEmitter> EventEmitterPoly for T {
+    fn emit<E:ToRef<Content<Self::Output>>>(&self, event:E) {
+        self.emit_event(event.to_ref())
     }
 }

@@ -127,19 +127,19 @@ pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
 
     let target = mouse.position.event.clone_ref();
     let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
-        target.emit(&EventData(Position::new(event.client_x(),event.client_y())));
+        target.emit(Position::new(event.client_x(),event.client_y()));
     });
     handle.forget();
 
     let target = mouse.down.event.clone_ref();
     let handle = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
-        target.emit(&EventData(()));
+        target.emit(());
     });
     handle.forget();
 
     let target = mouse.up.event.clone_ref();
     let handle = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
-        target.emit(&EventData(()));
+        target.emit(());
     });
     handle.forget();
 
