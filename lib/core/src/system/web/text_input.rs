@@ -1,8 +1,21 @@
+//! This module contains Rust wrappers for keyboard event handling.
+//!
+//! These keyboard events are taken from created invisible textarea element in html document body.
+//! We do it this way, because this is the only way for handling clipboard operations.
+
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Error;
 use wasm_bindgen::prelude::*;
 use web_sys::KeyboardEvent;
-use std::fmt::Debug;
-use failure::_core::fmt::{Formatter, Error};
 
+
+
+// ===========================
+// === JavaScript Bindings ===
+// ===========================
+
+/// A module with functions imported from JavaScript.
 mod js {
     use wasm_bindgen::prelude::*;
     use web_sys::KeyboardEvent;
@@ -34,10 +47,26 @@ mod js {
     }
 }
 
+
+
+// =======================
+// === KeyboardBinding ===
+// =======================
+
+/// Copy handler takes bool which is true on cut operations, and returns the string should be
+/// actually copied to clipboard.
 pub trait CopyHandler          = FnMut(bool) -> String + 'static;
+
+/// The paste handler takes in its argument the text from clipboard to paste.
 pub trait PasteHandler         = FnMut(String) + 'static;
+
+/// Keyboard event handler takes event as an argument.
 pub trait KeyboardEventHandler = FnMut(KeyboardEvent) + 'static;
 
+/// The keyboard event bindings.
+///
+/// This structure wraps the javascript content handling events in a way describing in this module
+/// docs.
 pub struct KeyboardBinding {
     js_handlers      : js::TextInputHandlers,
     copy_handler     : Option<Closure<dyn CopyHandler>>,
@@ -47,6 +76,7 @@ pub struct KeyboardBinding {
 }
 
 impl KeyboardBinding {
+    /// Create empty structure without any handlers.
     pub fn new() -> Self {
         KeyboardBinding {
             js_handlers      : js::TextInputHandlers::new(),
@@ -57,24 +87,28 @@ impl KeyboardBinding {
         }
     }
 
+    /// Set copy handler.
     pub fn set_copy_handler<Handler:CopyHandler>(&mut self, handler:Handler) {
         let handler_js : Closure<dyn CopyHandler> = Closure::wrap(Box::new(handler));
         self.js_handlers.set_copy_handler(&handler_js);
         self.copy_handler = Some(handler_js);
     }
 
+    /// Set paste handler.
     pub fn set_paste_handler<Handler:PasteHandler>(&mut self, handler:Handler) {
         let handler_js : Closure<dyn PasteHandler> = Closure::wrap(Box::new(handler));
         self.js_handlers.set_paste_handler(&handler_js);
         self.paste_handler = Some(handler_js);
     }
 
+    /// Set keydown handler.
     pub fn set_key_down_handler<Handler:KeyboardEventHandler>(&mut self, handler:Handler) {
         let handler_js : Closure<dyn KeyboardEventHandler> = Closure::wrap(Box::new(handler));
         self.js_handlers.set_event_handler("keydown", &handler_js);
         self.key_down_handler = Some(handler_js);
     }
 
+    /// Set keyup handler.
     pub fn set_key_up_handler<Handler:KeyboardEventHandler>(&mut self, handler:Handler) {
         let handler_js : Closure<dyn KeyboardEventHandler> = Closure::wrap(Box::new(handler));
         self.js_handlers.set_event_handler("keyup", &handler_js);
