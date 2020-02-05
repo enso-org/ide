@@ -223,7 +223,6 @@ impl<Out:Value> From<&Dynamic<Out>> for Behavior<Out> {
 mod tests {
     use super::*;
     use crate::frp_def;
-    use std::panic::catch_unwind;
 
     #[test]
     #[should_panic]
