@@ -7,7 +7,7 @@ current_size_len=$((${#current_size} - 1))
 current_size="${current_size:0:current_size_len}"
 
 max_size=2.1 # MB
-echo "Current size: ${current_size}MiB. expected maximum size: ${max_size}MiB"
+echo "Current size: ${current_size}MiB. Expected maximum size: ${max_size}MiB"
 if (( $(echo "$current_size <= $max_size" |bc -l) ));
 then
   echo OK

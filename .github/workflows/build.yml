@@ -25,6 +25,8 @@ jobs:
         with:
           command: install
           args: wasm-pack
+      - name: Install binaryen
+        run: npm install binaryen -g
       - name: Build
         run: ./script/build.sh
       - name: Minimize WASM
