@@ -120,6 +120,12 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
         self.assignment.dirty_glyph_lines.insert(glyph_line_id);
     }
 
+    /// Remove _glyph line_ assignment.
+    pub fn unassign(&mut self, glyph_line_id:usize) {
+        self.assignment.glyph_lines_fragments[glyph_line_id] = None;
+        self.assignment.dirty_glyph_lines.insert(glyph_line_id);
+    }
+
     /// Make minimum line reassignment to cover the all displayed lines.
     pub fn update_line_assignment(&mut self) {
         let old_assignment  = self.assignment.assigned_lines.clone();
@@ -167,8 +173,9 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
             let assigned_fragment = &self.assignment.glyph_lines_fragments[i];
             let assigned_line     = assigned_fragment.as_ref().map(|f| f.line_index);
             match assigned_line {
-                Some(line) if dirty_lines.is_dirty(line) => self.reassign(i,line),
-                _                                        => {},
+                Some(line) if line >= self.content.lines.len() => self.unassign(i),
+                Some(line) if dirty_lines.is_dirty(line)       => self.reassign(i,line),
+                _                                              => {},
             }
         }
     }
@@ -417,6 +424,47 @@ mod tests {
             ];
             assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
             assert_eq!(1                 , update.assignment.next_glyph_line_to_x_scroll_update);
+        })
+    }
+
+    #[wasm_bindgen_test(async)]
+    fn update_after_text_edit() -> impl Future<Output=()> {
+        TestAfterInit::schedule(|| {
+            let mut font    = mock_font();
+            let properties  = mock_properties();
+
+            let mut assignment = GlyphLinesAssignment::new(3, 4, 10.0);
+            assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , None
+            ];
+            let mut content = TextFieldContent::new("AAABBB\nBA",&properties);
+            content.dirty_lines.add_single_line(1);
+
+            let mut update     = GlyphLinesAssignmentUpdate {
+                assignment    : &mut assignment,
+                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
+                scroll_offset : Vector2::new(22.0,0.0),
+                view_size     : properties.size
+            };
+            update.update_after_text_edit();
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..2})
+            , None
+            ];
+            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+
+            update.content.content.lines.pop();
+            update.content.content.dirty_lines.add_lines_range_from(1..);
+            update.update_after_text_edit();
+            let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , None
+            , None
+            ];
+            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
         })
     }
 }

@@ -9,7 +9,7 @@ use crate::prelude::*;
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::content::TextChange;
-use crate::display::shape::text::text_field::cursor::Cursors;
+use crate::display::shape::text::text_field::cursor::{Cursors, Cursor};
 use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
 use crate::display::shape::text::glyph::font::FontId;
@@ -135,8 +135,31 @@ impl TextField {
     }
 
     /// Make change in text content.
+    ///
+    /// As an opposite to `edit` function, here we don't care about cursors, just do the change
+    /// described in `TextChange` structure.
     pub fn make_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
         self.content.make_change(change);
+        self.assignment_update(fonts).update_after_text_edit();
+        self.rendered.update_glyphs(&mut self.content,fonts);
+    }
+
+    /// Get the selected text.
+    pub fn get_selected_text(&self) -> String {
+        let cursor_select  = |c:&Cursor| self.content.copy_fragment(c.selection_range());
+        let mut selections = self.cursors.cursors.iter().map(cursor_select);
+        selections.join("\n")
+    }
+
+    /// Edit text.
+    ///
+    /// All the currently selected text will be removed, and the given string will be inserted
+    /// by each cursor.
+    pub fn edit(&mut self, insertion:&str, fonts:&mut FontRegistry) {
+        let selection = self.cursors.cursors.iter().map(Cursor::selection_range);
+        let changes   = selection.map(|range| TextChange::replace(range,insertion));
+        self.content.make_changes(changes);
+        // TODO[ao]: fix cursor positions after applying changes.
         self.assignment_update(fonts).update_after_text_edit();
         self.rendered.update_glyphs(&mut self.content,fonts);
     }
