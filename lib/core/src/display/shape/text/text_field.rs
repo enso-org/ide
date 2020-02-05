@@ -180,19 +180,6 @@ impl TextField {
     }
 }
 
-// === Getters ===
-
-impl TextField {
-    /// Content of this TextField.
-    pub fn content(&self) -> &TextFieldContent {
-        &self.content
-    }
-    /// Description of all cursors in text field.
-    pub fn cursors(&self) -> &Cursors {
-        &self.cursors
-    }
-}
-
 impl From<&TextField> for DisplayObjectData {
     fn from(text_fields: &TextField) -> Self {
         text_fields.display_object.clone_ref()

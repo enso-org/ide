@@ -83,7 +83,7 @@ pub fn run_example_text_selecting() {
         ("click",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
 
-        let mut keyboard = KeyboardBinding::new();
+        let mut keyboard = KeyboardBinding::create();
         keyboard.set_copy_handler(move |cut:bool| {
             let mut fonts      = fonts_on_copy.borrow_mut();
             let mut text_field = text_field_on_copy.borrow_mut();

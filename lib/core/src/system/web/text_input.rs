@@ -76,8 +76,9 @@ pub struct KeyboardBinding {
 }
 
 impl KeyboardBinding {
-    /// Create empty structure without any handlers.
-    pub fn new() -> Self {
+    /// Add the textarea element to document body and returns KeyboardBinding structure which uses
+    /// it, without any handlers.
+    pub fn create() -> Self {
         KeyboardBinding {
             js_handlers      : js::TextInputHandlers::new(),
             copy_handler     : None,
