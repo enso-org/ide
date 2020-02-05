@@ -23,26 +23,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-
-  size:
-    name: Check size
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install Rust Nightly Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-11-04
-          override: true
-      - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack --version 0.8.1
-      - name: Minimize WASM
-        run: ./script/minimize_wasm.sh > file_size
-      - name: Check WASM size
-        run: ./script/assert_max_wasm_size.sh
   test:
     name: Tests
     runs-on: ${{ matrix.os }}
@@ -90,6 +70,27 @@ jobs:
   #        with:
   #          command: fmt
   #          args: --all -- --check
+  size:
+    name: Check size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust Nightly Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install wasm-pack
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: wasm-pack --version 0.8.1
+      - name: Compile WASM
+        run: ./script/build.sh
+      - name: Minimize WASM
+        run: ./script/minimize_wasm.sh > file_size
+      - name: Check WASM size
+        run: ./script/assert_max_wasm_size.sh
 
   clippy:
     name: Linter
