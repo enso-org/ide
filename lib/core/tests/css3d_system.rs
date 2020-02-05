@@ -51,8 +51,10 @@ mod tests {
         web::set_stdout();
         let canvas_name   = format!("canvas_{}",name);
         let container     = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
-        let canvas        = create_element("canvas").unwrap();
+        let canvas        = dyn_into::<_,HtmlElement>(create_element("canvas").unwrap()).unwrap();
         canvas.set_attribute_or_panic("id", &canvas_name);
+        canvas.set_style_or_panic("width", "100%");
+        canvas.set_style_or_panic("height", "100%");
         container.append_or_panic(&canvas);
         let world         = WorldData::new(&canvas_name);
         let css3d_system  = Css3dSystem::new(&world);
@@ -107,7 +109,7 @@ mod tests {
             let _keep_alive = &scene;
             let _keep_alive = &css3d_system;
             let _keep_alive = &navigator;
-        });
+        }).forget();
         std::mem::forget(world);
     }
 

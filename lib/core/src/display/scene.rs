@@ -267,9 +267,9 @@ impl {
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
         let canvas_parent   = dyn_into::<_,HtmlElement>(canvas.parent_node().unwrap()).unwrap();
         let shape           = Shape::from_element(&canvas_parent);
-        let shape_data      = shape.screen_shape();
-        let width           = shape_data.width;
-        let height          = shape_data.height;
+        let screen_shape    = shape.screen_shape();
+        let width           = screen_shape.width;
+        let height          = screen_shape.height;
         let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
@@ -279,8 +279,6 @@ impl {
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
         let mouse           = Mouse::new(&shape,&variables);
         let zoom_uniform_cp = zoom_uniform.clone();
-        canvas.set_width(width as u32);
-        canvas.set_height(height as u32);
         camera.add_zoom_update_callback(move |zoom| zoom_uniform_cp.set(zoom));
 
         context.enable(Context::BLEND);
