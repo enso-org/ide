@@ -10,11 +10,25 @@ jobs:
     name: Build
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix: 
+      matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v1
-      - uses: actions/setup-node@v1
+      - name: Install Rust Nightly Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+  size:
+    name: Check size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
       - name: Install Rust Nightly Toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -24,11 +38,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: wasm-pack
-      - name: Install binaryen
-        run: npm install binaryen -g
-      - name: Build
-        run: ./script/build.sh
+          args: wasm-pack --version 0.8.1
       - name: Minimize WASM
         run: ./script/minimize_wasm.sh > file_size
       - name: Check WASM size
@@ -65,22 +75,21 @@ jobs:
             --manifest-path=script/rust/Cargo.toml
             --bin test-all
             -- --headless --firefox
-
-# TODO[AO] formatter does not work
-#  fmt:
-#    name: Formatter
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v1
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          toolchain: nightly-2019-11-04
-#          override: true
-#      - run: rustup component add rustfmt
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: fmt
-#          args: --all -- --check
+  # TODO[AO] formatter does not work
+  #  fmt:
+  #    name: Formatter
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - uses: actions/checkout@v1
+  #      - uses: actions-rs/toolchain@v1
+  #        with:
+  #          toolchain: nightly-2019-11-04
+  #          override: true
+  #      - run: rustup component add rustfmt
+  #      - uses: actions-rs/cargo@v1
+  #        with:
+  #          command: fmt
+  #          args: --all -- --check
 
   clippy:
     name: Linter
