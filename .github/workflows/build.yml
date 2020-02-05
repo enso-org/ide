@@ -23,6 +23,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+
   test:
     name: Tests
     runs-on: ${{ matrix.os }}
@@ -55,21 +56,7 @@ jobs:
             --manifest-path=script/rust/Cargo.toml
             --bin test-all
             -- --headless --firefox
-  # TODO[AO] formatter does not work
-  #  fmt:
-  #    name: Formatter
-  #    runs-on: ubuntu-latest
-  #    steps:
-  #      - uses: actions/checkout@v1
-  #      - uses: actions-rs/toolchain@v1
-  #        with:
-  #          toolchain: nightly-2019-11-04
-  #          override: true
-  #      - run: rustup component add rustfmt
-  #      - uses: actions-rs/cargo@v1
-  #        with:
-  #          command: fmt
-  #          args: --all -- --check
+
   size:
     name: Check size
     runs-on: ubuntu-latest
@@ -85,7 +72,7 @@ jobs:
         with:
           command: install
           args: wasm-pack --version 0.8.1
-      - name: Compile WASM
+      - name: Compile to WASM
         run: ./script/build.sh
       - name: Minimize WASM
         run: ./script/minimize_wasm.sh > file_size
