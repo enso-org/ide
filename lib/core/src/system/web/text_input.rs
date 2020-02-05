@@ -1,55 +1,95 @@
 use wasm_bindgen::prelude::*;
-use web_sys::HtmlElement;
 use web_sys::KeyboardEvent;
+use std::fmt::Debug;
+use failure::_core::fmt::{Formatter, Error};
 
-mod internal {
+mod js {
     use wasm_bindgen::prelude::*;
     use web_sys::KeyboardEvent;
-    use web_sys::HtmlElement;
 
     #[wasm_bindgen(module = "/src/system/web/text_input/text_input.js")]
     extern "C" {
-        #[allow(unsafe_code)]
-        pub fn bind_keyboard_events
-        ( copy_handler     : &Closure<dyn FnMut() -> String>
-        , paste_handler    : &Closure<dyn FnMut(String)>
-        , key_down_handler : &Closure<dyn FnMut(KeyboardEvent)>
-        , key_up_handler   : &Closure<dyn FnMut(KeyboardEvent)>
-        ) -> HtmlElement;
-    }
+        pub type TextInputHandlers;
 
+        #[allow(unsafe_code)]
+        #[wasm_bindgen(constructor)]
+        pub fn new() -> TextInputHandlers;
+
+        #[allow(unsafe_code)]
+        #[wasm_bindgen(method)]
+        pub fn set_copy_handler(this:&TextInputHandlers, handler:&Closure<dyn FnMut(bool) -> String>);
+
+        #[allow(unsafe_code)]
+        #[wasm_bindgen(method)]
+        pub fn set_paste_handler(this:&TextInputHandlers, handler:&Closure<dyn FnMut(String)>);
+
+        #[allow(unsafe_code)]
+        #[wasm_bindgen(method)]
+        pub fn set_event_handler
+        (this:&TextInputHandlers, name:&str, handler:&Closure<dyn FnMut(KeyboardEvent)>);
+
+        #[allow(unsafe_code)]
+        #[wasm_bindgen(method)]
+        pub fn stop_handling(this:&TextInputHandlers);
+    }
 }
 
-#[derive(Debug)]
+pub trait CopyHandler          = FnMut(bool) -> String + 'static;
+pub trait PasteHandler         = FnMut(String) + 'static;
+pub trait KeyboardEventHandler = FnMut(KeyboardEvent) + 'static;
+
 pub struct KeyboardBinding {
-    dom : HtmlElement,
-    copy_handler  : Closure<dyn FnMut() -> String>,
-    paste_handler : Closure<dyn FnMut(String)>,
-    event_handler : Closure<dyn FnMut(KeyboardEvent)>,
+    js_handlers      : js::TextInputHandlers,
+    copy_handler     : Option<Closure<dyn CopyHandler>>,
+    paste_handler    : Option<Closure<dyn PasteHandler>>,
+    key_down_handler : Option<Closure<dyn KeyboardEventHandler>>,
+    key_up_handler   : Option<Closure<dyn KeyboardEventHandler>>,
 }
 
 impl KeyboardBinding {
-    pub fn new<CopyHandler,PasteHandler,EventHandler>
-    (copy_handler:CopyHandler, paste_handler:PasteHandler, event_handler:EventHandler)
-    -> Self
-    where CopyHandler  : FnMut() -> String + 'static,
-          PasteHandler : FnMut(String) + 'static,
-          EventHandler : FnMut(KeyboardEvent) + 'static {
-        println!("Binding create");
-        let copy_handler_js  = Closure::<dyn FnMut() -> String>::wrap(Box::new(copy_handler));
-        let paste_handler_js = Closure::<dyn FnMut(String)>::wrap(Box::new(paste_handler));
-        let event_handler_js = Closure::<dyn FnMut(KeyboardEvent)>::wrap(Box::new(event_handler));
+    pub fn new() -> Self {
         KeyboardBinding {
-            dom : internal::bind_keyboard_events(&copy_handler_js,&paste_handler_js,&event_handler_js,&event_handler_js),
-            copy_handler  : copy_handler_js,
-            paste_handler : paste_handler_js,
-            event_handler : event_handler_js,
+            js_handlers      : js::TextInputHandlers::new(),
+            copy_handler     : None,
+            paste_handler    : None,
+            key_down_handler : None,
+            key_up_handler   : None
         }
+    }
+
+    pub fn set_copy_handler<Handler:CopyHandler>(&mut self, handler:Handler) {
+        let handler_js : Closure<dyn CopyHandler> = Closure::wrap(Box::new(handler));
+        self.js_handlers.set_copy_handler(&handler_js);
+        self.copy_handler = Some(handler_js);
+    }
+
+    pub fn set_paste_handler<Handler:PasteHandler>(&mut self, handler:Handler) {
+        let handler_js : Closure<dyn PasteHandler> = Closure::wrap(Box::new(handler));
+        self.js_handlers.set_paste_handler(&handler_js);
+        self.paste_handler = Some(handler_js);
+    }
+
+    pub fn set_key_down_handler<Handler:KeyboardEventHandler>(&mut self, handler:Handler) {
+        let handler_js : Closure<dyn KeyboardEventHandler> = Closure::wrap(Box::new(handler));
+        self.js_handlers.set_event_handler("keydown", &handler_js);
+        self.key_down_handler = Some(handler_js);
+    }
+
+    pub fn set_key_up_handler<Handler:KeyboardEventHandler>(&mut self, handler:Handler) {
+        let handler_js : Closure<dyn KeyboardEventHandler> = Closure::wrap(Box::new(handler));
+        self.js_handlers.set_event_handler("keyup", &handler_js);
+        self.key_up_handler = Some(handler_js);
     }
 }
 
 impl Drop for KeyboardBinding {
     fn drop(&mut self) {
-        println!("Binding drop");
+        self.js_handlers.stop_handling();
+    }
+}
+
+impl Debug for KeyboardBinding {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.write_str("<KeyboardBindings>")
     }
 }

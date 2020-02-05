@@ -68,6 +68,7 @@ pub fn run_example_text_selecting() {
 
         let fonts_rc       = Rc::new(RefCell::new(fonts));
         let fonts_on_click = fonts_rc.clone_rc();
+        let fonts_on_copy = fonts_rc.clone_rc();
         let fonts_on_paste = fonts_rc.clone_rc();
 
         let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
@@ -82,14 +83,21 @@ pub fn run_example_text_selecting() {
         ("click",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
 
-        let keyboard = KeyboardBinding::new(move || {
-            let text_field = text_field_on_copy.borrow();
-            text_field.get_selected_text()
-        }, move |pasted| {
+        let mut keyboard = KeyboardBinding::new();
+        keyboard.set_copy_handler(move |cut:bool| {
+            let mut fonts      = fonts_on_copy.borrow_mut();
+            let mut text_field = text_field_on_copy.borrow_mut();
+            let text_to_copy = text_field.get_selected_text();
+            if cut {
+                text_field.edit("", &mut fonts);
+            }
+            text_to_copy
+        });
+        keyboard.set_paste_handler(move |pasted:String| {
             let mut fonts      = fonts_on_paste.borrow_mut();
             let mut text_field = text_field_on_paste.borrow_mut();
             text_field.edit(pasted.as_str(),&mut fonts);
-        }, |_| {});
+        });
 
         world.on_frame(move |_| { let _keep_alive = &keyboard; }).forget();
     });

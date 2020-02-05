@@ -339,8 +339,10 @@ mod tests {
             , Some(LineFragment{line_index:2, chars_range: 0..0})
             , Some(LineFragment{line_index:3, chars_range: 0..1})
             ];
+            let expected_dirties : HashSet<usize> = [0,1,2,3].iter().cloned().collect();
 
             assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
+            assert_eq!(expected_dirties,   assignment.dirty_glyph_lines);
         })
     }
 
@@ -377,10 +379,13 @@ mod tests {
             , Some(LineFragment{line_index:2, chars_range: 0..0})
             , Some(LineFragment{line_index:3, chars_range: 0..1})
             ];
+            let expected_dirties : HashSet<usize> = [0,1].iter().cloned().collect();
             assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
             assert_eq!(2..=5             , update.assignment.assigned_lines);
 
             // scrolling up.
+            update.assignment.dirty_glyph_lines.clear();
             update.scroll_offset = Vector2::new(22.0,-11.0);
             update.update_line_assignment();
             let expected_fragments = vec!
@@ -389,7 +394,9 @@ mod tests {
             , Some(LineFragment{line_index:2, chars_range: 0..0})
             , Some(LineFragment{line_index:3, chars_range: 0..1})
             ];
+            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
             assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
             assert_eq!(1..=4             , update.assignment.assigned_lines);
         })
     }
@@ -454,8 +461,11 @@ mod tests {
             , Some(LineFragment{line_index:1, chars_range: 0..2})
             , None
             ];
+            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
             assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
 
+            update.assignment.dirty_glyph_lines.clear();
             update.content.content.lines.pop();
             update.content.content.dirty_lines.add_lines_range_from(1..);
             update.update_after_text_edit();
@@ -464,7 +474,9 @@ mod tests {
             , None
             , None
             ];
+            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
             assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
         })
     }
 }
