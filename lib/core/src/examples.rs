@@ -5,5 +5,5 @@ pub mod css3d_system;
 pub mod shapes;
 pub mod easing_animator;
 pub mod glyph_system;
-// TODO[ao] The Text example will be fixed during integration of TextField with GlyphSystem.
-//pub mod text;
+pub mod text_selecting;
+pub mod text_typing;
