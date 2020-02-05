@@ -71,8 +71,8 @@ mod tests {
         );
 
         // Updates spring's fixed point every two seconds.
-        let every = 2.0;
-        let animator  = FixedStepAnimator::new(1.0 / every, move |_| {
+        let every    = 2.0;
+        let animator = FixedStepAnimator::new(1.0 / every, move |_| {
             let _keep_alive = &simulator;
             let _keep_alive = &css3d_system;
 

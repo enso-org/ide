@@ -32,7 +32,36 @@ use js_sys::Object;
 
 mod js {
     use super::*;
-    #[wasm_bindgen(module = "/src/system/web/dom/html/snippets.js")]
+    #[wasm_bindgen(inline_js = "
+        function arr_to_css_matrix3d(a) {
+            return 'matrix3d(' + a.join(',') + ')'
+        }
+
+        // Sets object's CSS 3D transform.
+        export function set_object_transform(dom, matrix_array) {
+            let css = arr_to_css_matrix3d(matrix_array);
+            dom.style.transform = 'translate(-50%, -50%)' + css;
+        }
+
+        // Setup perspective CSS 3D projection on DOM.
+        export function setup_perspective(dom, perspective) {
+            dom.style.perspective = perspective + 'px';
+        }
+
+        // Setup Camera orthographic projection on DOM.
+        export function setup_camera_orthographic(dom, matrix_array) {
+            dom.style.transform = arr_to_css_matrix3d(matrix_array);
+        }
+
+        // Setup Camera perspective projection on DOM.
+        export function setup_camera_perspective
+        (dom, near, matrix_array) {
+            let translateZ  = 'translateZ(' + near + 'px)';
+            let matrix3d    = arr_to_css_matrix3d(matrix_array);
+            let transform   = translateZ + matrix3d;
+            dom.style.transform = transform;
+        }
+    ")]
     extern "C" {
         #[allow(unsafe_code)]
         pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
@@ -41,11 +70,7 @@ mod js {
         pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
 
         #[allow(unsafe_code)]
-        pub fn setup_camera_perspective
-        ( dom          : &JsValue
-        , near         : &JsValue
-        , matrix_array : &JsValue
-        );
+        pub fn setup_camera_perspective(dom:&JsValue, near:&JsValue, matrix_array:&JsValue);
 
         #[allow(unsafe_code)]
         pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
@@ -65,8 +90,8 @@ fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
 
 
 #[allow(unsafe_code)]
-fn setup_camera_perspective
-(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) { // Views to WASM memory are only valid as long the backing buffer isn't
+fn setup_camera_perspective(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) {
+    // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
@@ -111,27 +136,27 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 
 #[derive(Debug)]
 struct Css3dRendererData {
-    pub front_dom        : HtmlElement,
-    pub back_dom         : HtmlElement,
-    pub front_camera_dom : HtmlElement,
-    pub back_camera_dom  : HtmlElement,
-    logger               : Logger
+    pub front_dom                 : HtmlElement,
+    pub back_dom                  : HtmlElement,
+    pub front_dom_view_projection : HtmlElement,
+    pub back_dom_view_projection  : HtmlElement,
+    logger                        : Logger
 }
 
 impl Css3dRendererData {
     pub fn new
-    ( front_dom:HtmlElement
-    , back_dom:HtmlElement
-    , front_camera:HtmlElement
-    , back_camera:HtmlElement
-    , logger:Logger) -> Self {
-        Self {logger,front_dom,back_dom, front_camera_dom: front_camera, back_camera_dom: back_camera }
+    ( front_dom                 : HtmlElement
+    , back_dom                  : HtmlElement
+    , front_dom_view_projection : HtmlElement
+    , back_dom_view_projection  : HtmlElement
+    , logger                    : Logger) -> Self {
+        Self {logger,front_dom,back_dom, front_dom_view_projection, back_dom_view_projection }
     }
 
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.front_dom, &self.back_dom, &self.front_camera_dom, &self.back_camera_dom];
+        let doms   = vec![&self.front_dom, &self.back_dom, &self.front_dom_view_projection, &self.back_dom_view_projection];
         for dom in doms {
             dom.set_style_or_warn("width" , &width, &self.logger);
             dom.set_style_or_warn("height", &height, &self.logger);
@@ -228,8 +253,8 @@ impl Css3dRenderer {
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub(super) fn new_instance<S:Str>
     (&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
-        let front_camera = self.data.front_camera_dom.clone();
-        let back_camera  = self.data.back_camera_dom.clone();
+        let front_camera = self.data.front_dom_view_projection.clone();
+        let back_camera  = self.data.back_dom_view_projection.clone();
         let logger       = self.data.logger.sub("object");
         let object       = Css3dObject::new(logger,dom_name);
         object.as_ref().map(|object| {
@@ -247,7 +272,7 @@ impl Css3dRenderer {
 
                 let parent_node = object.dom().parent_node();
                 if !camera_node.is_same_node(parent_node.as_ref()) {
-                    display_object.ref_logger(|logger| {
+                    display_object.with_logger(|logger| {
                         object_dom.remove_from_parent_or_warn(logger);
                         camera_node.append_or_warn(&object_dom,logger);
                     });
@@ -273,12 +298,12 @@ impl Css3dRenderer {
             Projection::Perspective{..} => {
                 js::setup_perspective(&self.data.front_dom, &near.into());
                 js::setup_perspective(&self.data.back_dom, &near.into());
-                setup_camera_perspective(&self.data.front_camera_dom, near, &trans_cam);
-                setup_camera_perspective(&self.data.back_camera_dom, near, &trans_cam);
+                setup_camera_perspective(&self.data.front_dom_view_projection, near, &trans_cam);
+                setup_camera_perspective(&self.data.back_dom_view_projection, near, &trans_cam);
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.front_camera_dom, &trans_cam);
-                setup_camera_orthographic(&self.data.back_camera_dom, &trans_cam);
+                setup_camera_orthographic(&self.data.front_dom_view_projection, &trans_cam);
+                setup_camera_orthographic(&self.data.back_dom_view_projection, &trans_cam);
             }
         }
     }

@@ -23,6 +23,8 @@ use web_sys::HtmlElement;
 
 #[allow(missing_docs)]
 #[derive(Debug,Clone,Copy)]
+/// This enumeration is used for moving the object from front to back of the surrounding HtmlElement
+/// (usually a WebGL canvas).
 pub enum Css3dOrder {
     Front,
     Back
@@ -50,7 +52,7 @@ struct Css3dObjectProperties {
 
 impl Drop for Css3dObjectProperties {
     fn drop(&mut self) {
-        self.display_object.ref_logger(|logger| {
+        self.display_object.with_logger(|logger| {
             self.dom.remove_from_parent_or_warn(logger);
         });
         self.display_object.unset_parent();
@@ -95,7 +97,7 @@ impl Css3dObjectData {
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let mut properties = self.properties.borrow_mut();
         properties.dimensions = dimensions;
-        properties.display_object.ref_logger(|logger| {
+        properties.display_object.with_logger(|logger| {
             properties.dom.set_style_or_warn("width",  format!("{}px", dimensions.x), logger);
             properties.dom.set_style_or_warn("height", format!("{}px", dimensions.y), logger);
         });
@@ -110,7 +112,9 @@ impl Css3dObjectData {
     }
 
     fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.properties.borrow().display_object.mod_position(f);
+        let mut position = self.position();
+        f(&mut position);
+        self.properties.borrow().display_object.set_position(position);
     }
 
     fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
@@ -132,16 +136,13 @@ pub struct Css3dObject {
 
 impl Css3dObject {
     /// Creates a Css3dObject from element name.
-    pub(super) fn new<L:Into<Logger>,S:Str>
-    (logger:L, dom_name:S) -> Result<Self> {
+    pub(super) fn new<L:Into<Logger>,S:Str>(logger:L, dom_name:S) -> Result<Self> {
         let dom = dyn_into(create_element(dom_name.as_ref())?)?;
         Ok(Self::from_element(logger,dom))
     }
 
     /// Creates a Css3dObject from a web_sys::HtmlElement.
-    pub(super) fn from_element
-    <L>(logger:L, element:HtmlElement) -> Self
-    where L:Into<Logger> {
+    pub(super) fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Self {
         let logger = logger.into();
         element.set_style_or_warn("position", "absolute", &logger);
         element.set_style_or_warn("width"   , "0px"     , &logger);
@@ -160,9 +161,7 @@ impl Css3dObject {
     }
 
     /// Creates a Css3dObject from a HTML string.
-    pub(super) fn from_html_string<L:Into<Logger>,T:Str>
-    ( logger:L
-    , html_string:T) -> Result<Self> {
+    pub(super) fn from_html_string<L:Into<Logger>,T:Str>(logger:L, html_string:T) -> Result<Self> {
         let element = create_element("div")?;
         element.set_inner_html(html_string.as_ref());
         match element.first_element_child() {

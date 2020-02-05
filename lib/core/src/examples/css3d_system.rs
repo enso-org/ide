@@ -1,17 +1,16 @@
 #![allow(missing_docs)]
 
-use crate::system::web::dom::html::Css3dSystem;
-use crate::system::web::dom::html::Css3dObject;
-use crate::system::web::dom::html::Css3dOrder;
-use crate::system::web::StyleSetter;
+use crate::system::web;
+use web::dom::html::Css3dSystem;
+use web::dom::html::Css3dObject;
+use web::dom::html::Css3dOrder;
+use web::StyleSetter;
 use crate::display::object::DisplayObject;
 use crate::display::object::DisplayObjectOps;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::world::*;
 use crate::prelude::*;
-use crate::system::web::forward_panic_hook_to_console;
-use crate::system::web::set_stdout;
 use crate::animation::animator::fixed_step::FixedStepAnimator;
 
 use nalgebra::Vector2;
@@ -22,8 +21,8 @@ use crate::display::navigation::navigator::Navigator;
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_css3d_system() {
-    forward_panic_hook_to_console();
-    set_stdout();
+    web::forward_panic_hook_to_console();
+    web::set_stdout();
     init(WorldData::new("canvas"));
 }
 

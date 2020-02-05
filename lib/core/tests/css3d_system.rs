@@ -27,7 +27,7 @@ mod tests {
     use web_sys::Performance;
     use nalgebra::Vector3;
     use logger::Logger;
-    use basegl::system::web::set_stdout;
+    use basegl::system::web;
     use basegl::display::world::{WorldData, World};
     use basegl::display::navigation::navigator::Navigator;
     use basegl::display::object::DisplayObjectOps;
@@ -44,10 +44,11 @@ mod tests {
     fn invalid_container() {
         let logger   = Logger::new("invalid_container");
         let renderer = Css3dRenderer::new(&logger, "nonexistent_id");
-        assert!(renderer.is_err(), "nonexistent_id should not exist");
+        assert!(renderer.is_err(),"Tried to attach to a non-existent HtmlElement and succeeded.");
     }
 
     fn initialize_system(name:&str,color:&str) -> (World,Css3dSystem) {
+        web::set_stdout();
         let canvas_name   = format!("canvas_{}",name);
         let container     = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
         let canvas        = create_element("canvas").unwrap();
@@ -55,7 +56,6 @@ mod tests {
         container.append_or_panic(&canvas);
         let world         = WorldData::new(&canvas_name);
         let css3d_system  = Css3dSystem::new(&world);
-        set_stdout();
         container.set_style_or_panic("background-color", color);
         world.add_child(&css3d_system);
         (world,css3d_system)
@@ -103,10 +103,12 @@ mod tests {
 
         world.display_object().update();
 
+        world.on_frame(move |_| {
+            let _keep_alive = &scene;
+            let _keep_alive = &css3d_system;
+            let _keep_alive = &navigator;
+        });
         std::mem::forget(world);
-        std::mem::forget(scene);
-        std::mem::forget(css3d_system);
-        std::mem::forget(navigator);
     }
 
     fn make_sphere(mut scene : &mut Vec<Css3dObject>, performance : &Performance) {

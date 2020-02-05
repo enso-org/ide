@@ -66,9 +66,9 @@ impl Shape {
     }
 
     pub fn from_element(element:&HtmlElement) -> Self {
-        let bb     = element.get_bounding_client_rect();
-        let width  = bb.width() as f32;
-        let height = bb.height() as f32;
+        let bounding_box = element.get_bounding_client_rect();
+        let width        = bounding_box.width() as f32;
+        let height       = bounding_box.height() as f32;
         Self::new(width,height)
     }
 

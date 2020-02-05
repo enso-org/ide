@@ -344,7 +344,7 @@ impl DisplayObjectData {
         Self {rc}
     }
 
-    pub fn ref_logger<F:FnOnce(&Logger)>(&self, f:F) {
+    pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
         f(&self.rc.borrow().logger)
     }
 
