@@ -92,34 +92,21 @@ pub fn on_frame
 
 #[allow(unused_variables)]
 pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
-
     let document        = web::document().unwrap();
     let mouse_manager   = MouseManager::new(&document);
+    let mouse           = Mouse::new();
 
-    let mouse = Mouse::new();
+    frp! {
+        mouse_down_position    = mouse.position.sample       (&mouse.down);
+        mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
+        final_position_ref     = recursive::<Position>       ();
+        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
+        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
+        debug                  = final_position.sample       (&mouse.position);
+    }
+    final_position_ref.initialize(&final_position);
 
-    frp_def! { mouse_down_position    = mouse.position.sample (&mouse.down)    }
-    frp_def! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
-
-
-//    let final_position_ref_event  = Recursive::<EventData<Position>>::new_named("final_position_ref");
-//    let final_position_ref    = Dynamic::from(&final_position_ref_event);
-
-    let final_position_ref = Dynamic::<Position>::recursive("test");
-
-
-    frp_def! { pos_diff_on_down = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f}) }
-    frp_def! { final_position   = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f}) }
-    frp_def! { debug            = final_position.sample       (&mouse.position) }
-
-    final_position_ref.event.initialize(&final_position);
-
-
-    final_position_ref.event.set_display_id(final_position.event.display_id());
-    final_position_ref.behavior.set_display_id(final_position.event.display_id());
-
-
-//    final_position.event.display_graphviz();
+    // final_position.event.display_graphviz();
 
     trace("X" , &debug.event);
 

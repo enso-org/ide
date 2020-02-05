@@ -54,6 +54,16 @@ impl<E> From<&E> for RefinedDynamic<E>
     }
 }
 
+impl<Out:Value> RefinedDynamic<Recursive<EventData<Out>>> {
+    /// Initialize the recursive `Dynamic` with a value. You need to perform this operation before
+    /// running the FRP graph.
+    pub fn initialize(&self, target:&Dynamic<Out>) {
+        self.event.initialize(&target.event);
+        self.event.set_display_id(target.event.display_id());
+        self.behavior.set_display_id(target.event.display_id());
+    }
+}
+
 
 
 // ===============

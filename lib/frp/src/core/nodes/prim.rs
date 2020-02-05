@@ -64,8 +64,7 @@ macro_rules! define_node {
                     let shape  = $shape_name { $($poly_input,)* $($field,)* };
                     let this  = Self::construct(label,shape);
                     {
-                        let shape = &this.shape;
-                        $(shape.$poly_input.add_target(&this);)*
+                        $(this.$poly_input.add_target(&this);)*
                     }
                     this
                 }
