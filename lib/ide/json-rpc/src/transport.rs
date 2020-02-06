@@ -27,5 +27,7 @@ pub enum TransportEvent {
     /// A text message with has been received.
     TextMessage(String),
     /// A socket has been closed by the peer.
+    Opened,
+    /// A socket has been closed by the peer.
     Closed,
 }

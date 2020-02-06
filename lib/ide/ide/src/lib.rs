@@ -1,49 +1,61 @@
+#![feature(unboxed_closures)]
+#![feature(fn_traits)]
+#![feature(weak_counts)]
+
+pub mod controller_sync;
+pub mod controller_async;
+pub mod todo;
 pub mod web_transport;
 
 pub mod prelude {
     pub use wasm_bindgen::prelude::*;
     pub use enso_prelude::*;
+    pub use futures::{FutureExt, StreamExt};
+    pub use futures::{Future, Stream};
+
+    pub use futures::task::{Context, Poll};
+    pub use core::pin::Pin;
+    pub use crate::FallibleResult;
 }
 
-use crate::prelude::*;
-use crate::web_transport::MyWebSocket;
+pub type FallibleResult<T> = std::result::Result<T,failure::Error>;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::prelude::*;
+use crate::web_transport::WSTransport;
+
 use std::future::Future;
-//use futures::{FutureExt, StreamExt};
-use wasm_bindgen::JsCast;
+//use wasm_bindgen::JsCast;
 use futures::executor::{LocalSpawner, LocalPool};
 use futures::task::LocalSpawn;
 
 use file_manager_client::Client;
 use file_manager_client::Path;
-use futures::future::LocalFutureObj;
+//use futures::future::LocalFutureObj;
+use basegl::control::callback::CallbackHandle;
+use basegl::control::EventLoop;
+//use js_sys::buffer;
 
-
-pub struct JsExecutorTop {
+pub struct JsExecutor {
     #[allow(dead_code)]
     executor   : Rc<RefCell<LocalPool>>,
     #[allow(dead_code)]
-    event_loop : basegl::control::EventLoop,
+    event_loop : EventLoop,
     spawner    : LocalSpawner,
     #[allow(dead_code)]
     cb_handle  : basegl::control::callback::CallbackHandle,
 }
 
-impl JsExecutorTop {
-    pub fn new()-> JsExecutorTop {
-        let event_loop = basegl::control::EventLoop::new();
-        let executor   = default::<Rc<RefCell<LocalPool>>>();
-        let spawner    = executor.borrow_mut().spawner();
-
+impl JsExecutor {
+    pub fn new(event_loop:EventLoop) -> JsExecutor {
+        let executor = default::<Rc<RefCell<LocalPool>>>();
+        let spawner   = executor.borrow_mut().spawner();
         let executor_ = executor.clone();
         let cb_handle = event_loop.add_callback(move |_| {
-//            log!("frame!");
+//            log!("Tick...");
             executor_.borrow_mut().run_until_stalled();
         });
 
-        JsExecutorTop {executor,event_loop,spawner,cb_handle}
+        JsExecutor {executor,event_loop,spawner,cb_handle}
     }
 
     pub fn spawn
@@ -53,16 +65,40 @@ impl JsExecutorTop {
         self.spawner.spawn_local_obj(f.into())
     }
 
-    pub fn add_callback<F:EventLoopCallback>
-    (&self, callback:F) -> basegl::control::callback::CallbackHandle {
+    pub fn add_callback<F:basegl::control::EventLoopCallback>
+    (&mut self, callback:F) -> CallbackHandle {
         self.event_loop.add_callback(callback)
     }
 }
 
 
+const FILE_MANAGER_SERVER_URL: &str = "ws://localhost:9001";
 
+pub async fn setup_file_manager(url:&str) -> Client {
+    let ws = WSTransport::new(url).await;
+    Client::new(ws)
+}
 
+struct IDE {
+//    executor     : JsExecutor,
+    pub file_manager      : Rc<RefCell<Client>>,
+    pub file_manager_tick : CallbackHandle,
+}
 
+impl IDE {
+    pub async fn new() -> IDE {
+        log!("Creating IDE");
+        let file_manager = Rc::new(RefCell::new(setup_file_manager(FILE_MANAGER_SERVER_URL).await));
+        let file_manager_tick_owned_copy = file_manager.clone();
+        let event_loop = leak(EventLoop::new());
+        let file_manager_tick = event_loop.add_callback(move |_| {
+//            log!("Ticking FM");
+            file_manager_tick_owned_copy.borrow_mut().process_events();
+        });
+
+        IDE {file_manager,file_manager_tick}
+    }
+}
 
 
 
@@ -74,144 +110,78 @@ macro_rules! log {
     }
 }
 
-fn window() -> web_sys::Window {
-    web_sys::window().expect("no global `window` exists")
+pub fn leak<'a,T>(t:T) ->  &'a mut T {
+    Box::leak(Box::new(t))
 }
 
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register `requestAnimationFrame` OK");
-}
 
-fn document() -> web_sys::Document {
-    window()
-        .document()
-        .expect("should have a document on window")
-}
 
-fn body() -> web_sys::HtmlElement {
-    document().body().expect("document should have a body")
-}
-
-//fn prepend_text(line:&str) {
-//    let old_text = body().text_content().unwrap_or("".into());
-//    let new_text = format!("{}\n\n{}", line, old_text);
-//    body().set_text_content(Some(&new_text));
+//struct ModuleController {
+//    data   : Rc<RefCell<Str>>,
 //}
-
-pub async fn setup_file_manager(url:&str) -> Client {
-    let ws = MyWebSocket::new(url).await;
-    Client::new(ws)
-}
-
-trait Tickable {
-    fn tick(&mut self);
-}
-
-#[derive(Debug)]
-pub struct EventManager {
-    pub pool    : LocalPool,
-    pub spawner : LocalSpawner,
-}
-
-impl EventManager {
-    pub fn new() -> EventManager {
-        let pool = LocalPool::new();
-        let spawner = pool.spawner();
-        EventManager {
-            pool,
-            spawner,
-        }
-    }
-
-    pub fn execute<F:Future<Output=()>+'static>(&mut self, f:F) {
-        let f = Box::pin(f);
-        let _ = self.spawner.spawn_local_obj(f.into());
-    }
-
-    pub fn execute_cb<F,Cb>(&mut self, f:F, cb:Cb)
-        where F  : Future+'static,
-              Cb : FnOnce(F::Output)->()+'static {
-        let f = async {
-            cb(f.await);
-        };
-        self.execute(f);
-    }
-}
-
-impl Tickable for EventManager {
-    fn tick(&mut self) {
-//        log!("EM tick");
-        self.pool.run_until_stalled();
-    }
-}
+//
+//impl ModuleController {
+//    pub fn tick(&mut self) {
+//
+//    }
+//
+//    pub fn new() {
+//        let stream_from_tetxt;
+//
+//
+//
+//        stream_from_text_ctrl.map(move |elem| {
+//            self.buffer += "a";
+//        });
+//
+////        stream_from_text_ctrl.foreach(|event| {
+////            match event {
+////                TextAdded() => self.…
+////            }
+////        })
+//    }
+//}
 
 // This function is automatically invoked after the wasm module is instantiated.
 #[wasm_bindgen(start)]
 pub fn run() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
-    let f = Rc::new(RefCell::new(None));
-    let g = f.clone();
 
-    let mut executor = Box::new(JsExecutorTop::new());
-    let mut em = EventManager::new();
+    log!("Setting up the event loop");
+    let mut event_loop = EventLoop::new();
+    log!("Setting up the executor");
+    let mut executor: &'static mut JsExecutor = leak(JsExecutor::new(event_loop.clone()));
 
-    let file_manager: Rc<RefCell<Option<Client>>> = Rc::new(RefCell::new(None));
-    let fm2 = file_manager.clone();
+    log!("Spawning the first task");
 
-    let async_sequence = async move {
-        let call_exists = |path| {
-            fm2.borrow_mut().as_mut().unwrap().exists(path)
-        };
-        let fm = setup_file_manager("ws://localhost:9001").await;
-        log!("file manager created!");
-        *fm2.borrow_mut() = Some(fm);
+    executor.spawn(async move {
+        log!("Creating file manager");
+        let mut ide = IDE::new().await;
 
-        log!("first query");
-        let path = "C:/temp";
-        log!("{} exists? {:?}", path, call_exists(Path::new(path)).await);
+        log!("File manager ready, running query");
+        let path = Path::new(".");
+//        let entries = ide.file_manager.borrow_mut().list(path.clone()).await;
 
-        log!("second query");
-        let path = "C:/Windows";
-        log!("{} exists? {:?}", path, call_exists(Path::new(path)).await);
-
-        log!("third query");
-        let path = "C:/Windows";
-        log!("{} exists? {:?}", path, call_exists(Path::new(path)).await);
-
-        log!("future done");
-    };
-
-    executor.spawner.spawn_local_obj(LocalFutureObj::from(Box::pin(async_sequence))).unwrap();
-
-    Box::leak(executor);
-
-
-    let mut i = 0;
-    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        i += 1;
-//        log!("tick {}", i);
-//        let text = format!("Time now: {:?}", std::time::Instant::now());
-
-        let text = format!("requestAnimationFrame has been called {} times.", i);
-        body().set_text_content(Some(&text));
-        em.tick();
-//        lumpen_executor(&mut fut);
-
-        if let Ok(mut opt_fm) = file_manager.try_borrow_mut() {
-//            log!("opt_fm: {:?}", opt_fm);
-            if let Some(fm) = opt_fm.as_mut() {
-//                log!("will tick fm");
-                fm.process_events();
-//                log!("buffer now: {:?};\nongoing: {:?}\nem: {:?}", fm.handler.buffer.try_borrow_mut(), fm.handler.ongoing_calls, em)
-            }
-        } else {
-            log!("Canot tick FM, it is busy!");
+        let entries = with(ide.file_manager.borrow_mut(), |mut fm| {
+            fm.list(path.clone())
+        }).await.unwrap();
+        for entry in entries {
+            let target_path = Path(entry.0 + "-copy");
+            with(ide.file_manager.borrow_mut(), |mut fm|
+                fm.copy_file(path.clone(), target_path));
         }
-        request_animation_frame(f.borrow().as_ref().unwrap());
-    }) as Box<dyn FnMut()>));
 
-    request_animation_frame(g.borrow().as_ref().unwrap());
+        let touch = with(ide.file_manager.borrow_mut(), |mut fm|
+            fm.touch(Path::new("Bar.luna"))).await;
+        log!("Touching Bar.lune: {:?}", touch);
+
+        let touch2 = with(ide.file_manager.borrow_mut(), |mut fm|
+            fm.touch(Path::new("Baz.luna"))).await;
+        log!("Touching Baz.lune: {:?}", touch2);
+
+        log!("Asynchronous block done");
+//        log!("Exists result: {:?}", exists);
+    });
+
     Ok(())
 }
