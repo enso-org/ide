@@ -23,10 +23,22 @@ use std::task::Poll;
 /// Packs given value into a Rc<RefCell<T>>.
 pub fn strong<T>(t:T) -> StrongHandle<T> { Rc::new(RefCell::new(t)) }
 
+/// A strong (shared ownership) handle to some internally mutable data.
 pub type StrongHandle<T> = Rc<RefCell<T>>;
 
+/// A weak handle to some internally mutable data.
 pub type WeakHandle<T> = Weak<RefCell<T>>;
 
+/// Value or error if the data under handle was not available.
+pub type Result<T> = std::result::Result<T,Error>;
+
+
+
+// ===========
+// == Error ==
+// ===========
+
+/// Error that may occur when trying to access data through a `WeakHandle`.
 #[derive(Clone,Copy,Display,Debug,Fail)]
 pub enum Error {
     /// Happens when `Weak` cannot be upgraded.
@@ -35,9 +47,6 @@ pub enum Error {
     /// RefCell was already borrowed, cannot `borrow_mut`. Should never happen.
     AlreadyBorrowed,
 }
-
-/// Value or error if the data under handle was not available.
-pub type Result<T> = std::result::Result<T,Error>;
 
 
 
@@ -52,22 +61,6 @@ pub trait IsWeakHandle: Clone {
 
     /// Obtain weak handle to the data.
     fn weak_handle(&self) -> WeakHandle<Self::Data>;
-
-    #[deprecated]
-    fn with_data<T>(&self, f:impl FnOnce(&mut Self::Data) -> T) -> Result<T> {
-        if let Some(data_rc) = self.weak_handle().upgrade() {
-            with(data_rc.try_borrow_mut(), |data|
-                match data {
-                    Ok(mut data) =>
-                        Ok(f(&mut data)),
-                    _ =>
-                        Err(Error::AlreadyBorrowed),
-                }
-            )
-        } else {
-            Err(Error::HandleExpired)
-        }
-    }
 
     /// Obtain strong handle to the data.
     fn upgrade(&self) -> Option<StrongHandle<Self::Data>> {
@@ -107,6 +100,7 @@ impl<T> IsWeakHandle for WeakHandle<T> {
 // == StrongHandle ==
 // ==================
 
+/// A type that can provide a strong (`Rc`) handle to a value under `RefCell`.
 pub trait IsStrongHandle: Clone {
     /// Type of the data stored.
     type Data;
@@ -151,6 +145,7 @@ impl<T> IsStrongHandle for StrongHandle<T> {
 // ==============
 
 /// Future that shall call `cb` with the data under `handle`.
+#[derive(Debug)]
 pub struct WeakWith<Handle,Cb> {
     handle : Handle,
     cb     : Option<Cb>,
@@ -174,13 +169,13 @@ impl <Handle,Cb,Data,R> Future for WeakWith<Handle,Cb>
     where Handle : IsWeakHandle<Data = Data>,
           Cb     : FnOnce(&mut Data) -> R, {
     type Output = std::result::Result<R,Error>;
-    fn poll(mut self:Pin<&mut Self>, cx:&mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self:Pin<&mut Self>, _cx:&mut Context<'_>) -> Poll<Self::Output> {
         let result = if let Some(handle) = self.handle.upgrade() {
             let cb     = self.cb().take().unwrap();
             let result = with(handle.borrow_mut(), |mut data| cb(&mut data));
             Ok(result)
         } else {
-            Err(Error::HandleExpired)?
+            Err(Error::HandleExpired)
         };
         Poll::Ready(result)
     }
@@ -195,6 +190,7 @@ impl <Handle,Cb,Data,R> Future for WeakWith<Handle,Cb>
 /// A `Future` structure that allows processing data under the handle with
 /// given callback. As the handle is owning (`Rc`) the underlying data is always
 /// accessible.
+#[derive(Debug)]
 pub struct StrongWith<Handle,Cb> {
     handle : Handle,
     cb     : Option<Cb>,
@@ -218,7 +214,7 @@ impl <Handle,Cb,Data,R> Future for StrongWith<Handle,Cb>
               Cb : FnOnce(&mut Data) -> R, {
     type Output = R;
 
-    fn poll(mut self:Pin<&mut Self>, cx:&mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self:Pin<&mut Self>, _cx:&mut Context<'_>) -> Poll<Self::Output> {
         let handle = self.handle.strong_handle();
         let cb     = self.cb().take().unwrap();
         let result = with(handle.borrow_mut(), |mut data| cb(&mut data));
@@ -226,13 +222,20 @@ impl <Handle,Cb,Data,R> Future for StrongWith<Handle,Cb>
     }
 }
 
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
     use futures::executor::block_on;
 
     #[test]
-    pub fn strong_handle() {
+    fn strong_handle() {
         const INITIAL_VALUE: i32 = 1000;
         let data = strong(INITIAL_VALUE);
         let data2 = data.clone();
@@ -248,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    pub fn weak_handle() {
+    fn weak_handle() {
         const INITIAL_VALUE: i32 = 1000;
         let data = strong(INITIAL_VALUE);
         let data2 = data.downgrade();
