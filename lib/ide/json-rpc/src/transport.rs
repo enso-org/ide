@@ -1,5 +1,7 @@
 //! Traits providing abstraction over transport used by the JSON-RPC client.
 
+pub mod web;
+
 use crate::prelude::*;
 
 use failure::Error;
@@ -24,6 +26,8 @@ pub trait Transport : Debug {
 pub enum TransportEvent {
     /// A text message with has been received.
     TextMessage(String),
+    /// A socket has been closed by the peer.
+    Opened,
     /// A socket has been closed by the peer.
     Closed,
 }

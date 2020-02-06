@@ -266,6 +266,7 @@ impl<Notification> Handler<Notification> {
         match event {
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
+            TransportEvent::Opened => {}
             TransportEvent::Closed => {
                 // Dropping all ongoing calls will mark their futures as
                 // cancelled.
