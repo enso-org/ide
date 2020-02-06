@@ -214,3 +214,39 @@ DEF_TRANSITIVE_CONVERSIONS(RGB,RGBA,rgb,rgba,HSV,HSVA,hsv,hsva)
 //    float hue = lerpAng(a.z, b.z, x);
 //    return vec3(mix(b.xy, a.xy, x), hue);
 //}
+
+
+
+// ================
+// === Gradient ===
+// ================
+
+struct RgbGradientControlPoint {
+    float offset;
+    RGB   color;
+};
+
+RgbGradientControlPoint gradient_control_point(float offset, RGB color) {
+    return RgbGradientControlPoint(offset,color);
+}
+
+
+
+
+struct RgbGradient2 {
+    RgbGradientControlPoint control_point1;
+    RgbGradientControlPoint control_point2;
+};
+
+RgbGradient2 gradient
+(RgbGradientControlPoint control_point1, RgbGradientControlPoint control_point2) {
+    return RgbGradient2(control_point1,control_point2);
+}
+
+
+RGB samplex(float offset, RgbGradient2 gradient) {
+    float span = gradient.control_point2.offset - gradient.control_point1.offset;
+    float t    = (offset - gradient.control_point1.offset) / span;
+    float t2   = clamp(t);
+    return rgb(mix(gradient.control_point1.color.raw,gradient.control_point2.color.raw,t2));
+}

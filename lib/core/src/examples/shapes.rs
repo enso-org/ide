@@ -21,8 +21,9 @@ use enso_frp::*;
 use crate::system::web;
 use crate::control::io::mouse2;
 use crate::control::io::mouse2::MouseManager;
-use palette::Srgb;
-
+use crate::data::color::*;
+use crate::data::color::rgb::Rgb;
+use crate::data::color::encoding::Linear;
 
 
 #[wasm_bindgen]
@@ -45,7 +46,13 @@ fn init(world: &World) {
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
-    let s4 = s1.fill(Srgb::new(30.0/255.0,50.0/255.0,90.0/255.0));
+
+    let color = Srgb::new(30.0/255.0,50.0/255.0,90.0/255.0);
+
+    let gradient = Gradient::new(vec![(0.0,Srgb::new(0.0,0.0,1.0)),(1.0,Srgb::new(0.0,1.0,0.0))]);
+    let gradient = DistanceGradient::new(-20.0,0.0,gradient);
+//    let color:Rgb<Linear<encoding::Srgb>> = color.into_linear();
+    let s4 = s1.fill(gradient);
 
     let shape_system = ShapeSystem::new(world,&s4);
     let sprite = shape_system.new_instance();
