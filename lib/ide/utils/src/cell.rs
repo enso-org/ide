@@ -46,7 +46,8 @@ pub enum Error {
 // ================
 
 /// A weak handle to some internally mutable data.
-#[derive(Clone,Debug)]
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound=""))]
 pub struct WeakHandle<T>(Weak<RefCell<T>>);
 
 /// A type that can provide `Weak` handle to a value under `RefCell`.
@@ -82,7 +83,8 @@ impl<T> WeakHandle<T> {
 // ==================
 
 /// A strong, shared owning handle to some internally mutable data.
-#[derive(Clone,Debug)]
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound=""))]
 pub struct StrongHandle<T>(Rc<RefCell<T>>);
 
 impl<T> StrongHandle<T> {
