@@ -1,15 +1,19 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>IDE</title>
     <style>
-      body {
-        color: #f1f1f1;
-        background-color: rgba(37, 37, 38, 0.89);
-      }
+      html, body { width:100vw; height:100vh; }
+      body       { margin:0; }
     </style>
   </head>
   <body>
-    <body>
-    <p>A greeting from rust looks like...</p>
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <div id="app" style="height:100vh; width:100vw; display:block">
+        <canvas id="canvas" style="height:100vh; width:100vw; display:block"></canvas>
+    </div>
   </body>
+  <script src="./bootstrap.js"></script>
 </html>
