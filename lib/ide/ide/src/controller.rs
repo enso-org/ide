@@ -7,6 +7,8 @@ use futures::task::LocalSpawnExt;
 use utils::handle::*;
 use utils::handle;
 
+pub type FallibleResult<T> = std::result::Result<T,failure::Error>;
+
 /// Helper that generates wrapper tuple struct around Weak<RefCell<Data>>.
 macro_rules! make_weak_handle {
     ($handle_typename:ident, $data_type:ty) => {
@@ -30,7 +32,6 @@ macro_rules! make_weak_handle {
 
 mod ide {
     use super::*;
-    use crate::web_transport::WSTransport;
     use json_rpc::test_util::transport::mock::MockTransport;
 
     /// Top-level function that creates a project controller.
@@ -59,7 +60,6 @@ mod ide {
 mod project {
     //! Project controller.
     use super::*;
-    use crate::todo::executor::*;
     use json_rpc::Transport;
 
     /// Create a new project controller.
@@ -104,7 +104,7 @@ mod project {
         }
 
         /// Processes event from file manager.
-        pub fn process_file_event(&mut self, event:file_manager_client::Event) {
+        pub fn process_file_event(&mut self, _event:file_manager_client::Event) {
             // TODO push event to the appropriate module's input notification channel
             todo!()
         }
@@ -115,7 +115,7 @@ mod project {
             use file_manager_client::Notification::FilesystemEvent;
             match event {
                 Event::Closed          => None,
-                Event::Error(e)        => None,
+                Event::Error(_)        => None,
                 Event::Notification(n) => match n {
                     FilesystemEvent(e) => Some(module::Location(e.path.0.clone()))
                 }
@@ -159,12 +159,10 @@ mod project {
         /// Creates a new module controller.
         pub async fn create_module_controller
         (&self, loc:&module::Location) -> FallibleResult<module::StrongHandle> {
-            let path = loc.to_path();
-            let contents = self.read_module(loc.clone()).await?;
             let data = module::Data{
-                path:loc.clone(),
-                contents,
-                parent: self.clone(),
+                path     : loc.clone(),
+                contents : self.read_module(loc.clone()).await?,
+                parent   : self.clone(),
             };
             let module = self.insert_module(data).await?;
             Ok(module)
@@ -180,14 +178,12 @@ mod project {
         pub async fn open_module(&self, loc:&module::Location) -> FallibleResult<module::StrongHandle> {
             if let Some(existing_controller) = self.lookup_module(loc.clone()).await? {
                 Ok(existing_controller)
-            } else if let new_controller = self.create_module_controller(&loc).await? {
-                Ok(new_controller)
             } else {
-                panic!("Failed to create a controller for {}",loc.0);
+                Ok(self.create_module_controller(&loc).await?)
             }
         }
 
-        pub async fn open_file_text(&self, path:&std::path::Path) -> FallibleResult<text::StrongHandle> {
+        pub async fn open_file_text(&self, _path:&std::path::Path) -> FallibleResult<text::StrongHandle> {
             // TODO [mwu] similar to the above
             todo!()
         }
@@ -280,7 +276,6 @@ mod module {
 
 mod text {
     use super::*;
-    use file_manager_client::Client;
 
     pub type StrongHandle = handle::StrongHandle<Data>;
 

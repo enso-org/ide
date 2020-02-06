@@ -2,7 +2,6 @@ use crate::prelude::*;
 
 use futures::task::LocalSpawnExt;
 use futures::task::LocalSpawn;
-use futures::task::FutureObj;
 use futures::task::LocalFutureObj;
 use futures::task::SpawnError;
 use futures::executor::LocalPool;
