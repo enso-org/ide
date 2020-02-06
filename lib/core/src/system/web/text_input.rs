@@ -55,10 +55,10 @@ mod js {
 
 /// Copy handler takes bool which is true on cut operations, and returns the string should be
 /// actually copied to clipboard.
-pub trait CopyHandler          = FnMut(bool) -> String + 'static;
+pub trait CopyHandler = FnMut(bool) -> String + 'static;
 
 /// The paste handler takes in its argument the text from clipboard to paste.
-pub trait PasteHandler         = FnMut(String) + 'static;
+pub trait PasteHandler = FnMut(String) + 'static;
 
 /// Keyboard event handler takes event as an argument.
 pub trait KeyboardEventHandler = FnMut(KeyboardEvent) + 'static;

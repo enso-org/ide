@@ -61,14 +61,14 @@ pub fn run_example_text_selecting() {
         world.add_child(&text_field);
         text_field.update();
 
-        let text_field_on_click = text_field.clone();
-        let text_field_on_copy  = text_field.clone();
+        let text_field_on_click = text_field.clone_ref();
+        let text_field_on_copy  = text_field.clone_ref();
         let text_field_on_paste = text_field;
 
         let fonts_rc       = Rc::new(RefCell::new(fonts));
-        let fonts_on_click = fonts_rc.clone_rc();
-        let fonts_on_copy  = fonts_rc.clone_rc();
-        let fonts_on_paste = fonts_rc.clone_rc();
+        let fonts_on_click = fonts_rc.clone_ref();
+        let fonts_on_copy  = fonts_rc.clone_ref();
+        let fonts_on_paste = fonts_rc.clone_ref();
 
         let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
             let mut fonts  = fonts_on_click.borrow_mut();

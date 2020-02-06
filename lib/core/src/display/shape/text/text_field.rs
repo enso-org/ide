@@ -133,8 +133,8 @@ shared! { TextField
         ///
         /// As an opposite to `edit` function, here we don't care about cursors, just do the change
         /// described in `TextChange` structure.
-        pub fn make_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
-            self.content.make_change(change);
+        pub fn apply_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
+            self.content.apply_change(change);
             self.assignment_update(fonts).update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content,fonts);
         }
@@ -151,9 +151,18 @@ shared! { TextField
         /// All the currently selected text will be removed, and the given string will be inserted
         /// by each cursor.
         pub fn edit(&mut self, insertion:&str, fonts:&mut FontRegistry) {
-            let selection = self.cursors.cursors.iter().map(Cursor::selection_range);
-            let changes   = selection.map(|range| TextChange::replace(range,insertion));
-            self.content.make_changes(changes);
+            let trimmed                 = insertion.trim_end_matches('\n');
+            let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
+            let selection               = self.cursors.cursors.iter().map(Cursor::selection_range);
+
+            if is_line_per_cursor_edit {
+                let range_with_line = selection.zip(trimmed.split('\n'));
+                let changes         = range_with_line.map(|(r,l)| TextChange::replace(r,l));
+                self.content.apply_changes(changes);
+            } else {
+                let changes = selection.map(|range| TextChange::replace(range,insertion));
+                self.content.apply_changes(changes);
+            };
             // TODO[ao]: fix cursor positions after applying changes.
             self.assignment_update(fonts).update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content,fonts);

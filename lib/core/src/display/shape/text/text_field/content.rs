@@ -270,7 +270,7 @@ impl TextFieldContent {
 
 impl TextFieldContent {
     /// Apply change to content.
-    pub fn make_change(&mut self, change:TextChange) {
+    pub fn apply_change(&mut self, change:TextChange) {
         match change.change_type() {
             ChangeType::SingleLine => self.make_simple_change(change),
             ChangeType::MultiLine => self.make_multiline_change(change),
@@ -278,10 +278,10 @@ impl TextFieldContent {
     }
 
     /// Apply many changes to content.
-    pub fn make_changes<Changes:IntoIterator<Item=TextChange>>(&mut self, changes:Changes) {
+    pub fn apply_changes<Changes:IntoIterator<Item=TextChange>>(&mut self, changes:Changes) {
         let change_key  = |chg:&TextChange | chg.replaced.start;
         let changes_vec = changes.into_iter().sorted_by_key(change_key);
-        changes_vec.rev().for_each(|change| self.make_change(change));
+        changes_vec.rev().for_each(|change| self.apply_change(change));
     }
 
     fn make_simple_change(&mut self, change:TextChange) {
@@ -437,15 +437,15 @@ mod test {
 
         let mut content            = TextFieldContent::new(text,&mock_properties());
 
-        content.make_change(insert);
+        content.apply_change(insert);
         let expected              = vec!["Line a", "Labine b", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
-        content.make_change(delete);
+        content.apply_change(delete);
         let expected = vec!["Line a", "ne b", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
-        content.make_change(replace);
+        content.apply_change(replace);
         let expected = vec!["Line a", "text", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
@@ -467,7 +467,7 @@ mod test {
 
         let mut content      = TextFieldContent::new(text,&mock_properties());
 
-        content.make_change(insert_at_end);
+        content.apply_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
@@ -475,7 +475,7 @@ mod test {
         assert!( content.dirty_lines.is_dirty(2));
         content.dirty_lines = default();
 
-        content.make_change(insert_in_middle);
+        content.apply_change(insert_in_middle);
         let expected = vec!["Line a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
@@ -483,7 +483,7 @@ mod test {
         assert!( content.dirty_lines.is_dirty(2));
         content.dirty_lines = default();
 
-        content.make_change(insert_at_begin);
+        content.apply_change(insert_at_begin);
         let expected = vec!["Ins a", "Ins bLine a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!( content.dirty_lines.is_dirty(0));
@@ -500,7 +500,7 @@ mod test {
         let delete        = TextChange::delete(deleted_range);
 
         let mut content   = TextFieldContent::new(text,&mock_properties());
-        content.make_change(delete);
+        content.apply_change(delete);
 
         let expected = vec!["Lie c"];
         assert_eq!(expected, get_lines_as_strings(&content));
