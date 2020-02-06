@@ -1,14 +1,16 @@
-
-
 use crate::prelude::*;
-use std::collections::HashMap;
+
 use futures::task::LocalSpawnExt;
-use utils::cell;
+use std::collections::HashMap;
 
 pub type FallibleResult<T> = std::result::Result<T,failure::Error>;
 
-/// Helper that generates wrapper tuple struct around Weak<RefCell<Data>>.
-macro_rules! make_weak_handle {
+/// Macro defines `StrongHandle` and `WeakHandle` newtypes for handles storing
+/// the type given in the argument.
+///
+/// This allows treating handles as separate types and fitting them with impl
+/// methods of their own.
+macro_rules! make_handles {
     ($data_type:ty) => {
         #[derive(Shrinkwrap)]
         #[derive(Clone,Debug)]
@@ -16,7 +18,10 @@ macro_rules! make_weak_handle {
 
         impl StrongHandle {
             pub fn downgrade(&self) -> WeakHandle {
-                WeakHandle(Rc::downgrade(&self.0))
+                WeakHandle(self.0.downgrade())
+            }
+            pub fn new(data:$data_type) -> StrongHandle {
+                StrongHandle(utils::cell::StrongHandle::new(data))
             }
         }
 
@@ -30,33 +35,6 @@ macro_rules! make_weak_handle {
             }
         }
     };
-}
-
-mod ide {
-    use super::*;
-    use json_rpc::test_util::transport::mock::MockTransport;
-
-    /// Top-level function that creates a project controller.
-    /// Automatically establishes WS connections with endpoints given in `conf`.
-    pub async fn setup(conf:&SetupConfiguration) -> project::StrongHandle {
-        let file_manager_transport = conf.connect_fm().await;
-        project::new(file_manager_transport)
-    }
-
-    /// Configuration data necessary to setup the project controller.
-    pub struct SetupConfiguration {
-        /// URL of the websocket endpoint of the file manager server.
-        pub file_manager_endpoint:String,
-    }
-
-    impl SetupConfiguration {
-        /// Establishes connection with the remote file manager endpoint.
-        pub async fn connect_fm(&self) -> MockTransport {
-            // TODO [mwu] should not return mock transport but a real class
-            //      implementing the websocket-based transport.
-            todo!()
-        }
-    }
 }
 
 mod project {
@@ -93,15 +71,16 @@ mod project {
                 }
             }
         }
+
         /// Stores given module controller handle and returns it.
         ///
         /// Note: handle stored in the project controller is weak, so the caller
         /// remains responsible for managing the module's controller lifetime.
         pub fn insert_module(&mut self, data:module::Data) -> module::StrongHandle {
-            let path   = data.path.clone();
-            let module = StrongHandle::new(data);
+            let path   = data.loc.clone();
+            let module = module::StrongHandle::new(data);
             let module_weak = module.downgrade();
-            self.modules.insert(path, module::WeakHandle{ data: module_weak });
+            self.modules.insert(path,module_weak);
             module
         }
 
@@ -125,17 +104,38 @@ mod project {
         }
     }
 
-    make_weak_handle!(Data);
+    make_handles!(Data);
 
-//    #[derive(Shrinkwrap)]
-//    #[derive(Clone,Debug)]
-//    pub struct WeakHandle(pub utils::cell::WeakHandle<Data>);
+    impl StrongHandle {
+        /// Obtains the contents of the given module.
+        pub async fn read_module
+        (&self, loc:module::Location) ->  FallibleResult<String> {
+            println!("will fetch contents of module {:?}", loc);
+            let path = loc.to_path();
+            let read_future = self.call_fm(|fm| fm.read(path)).await;
+            Ok(read_future.await?)
+        }
 
-    impl WeakHandle {
+        /// Creates a new module controller.
+        pub async fn create_module_controller
+        (&self, loc:&module::Location) -> FallibleResult<module::StrongHandle> {
+            let data = module::Data{
+                loc      : loc.clone(),
+                contents : self.read_module(loc.clone()).await?,
+                parent   : self.clone(),
+            };
+            let module = self.insert_module(data).await;
+            Ok(module)
+        }
+
         /// Spawns the task that processes the file manager's events.
+        ///
+        /// Note that File Manager requires manually calling `process_events`
+        /// method to yield any events through its streams / futures.
+        /// (without such call, this processor will just wait indefinitely)
         pub async fn run_fm_events
         (&self, spawner:impl futures::task::LocalSpawn) -> FallibleResult<()> {
-            let fm_stream     = self.call_fm(|fm| fm.events()).await?;
+            let fm_stream     = self.call_fm(|fm| fm.events()).await;
             let handle        = self.clone();
             let processor_fut = fm_stream.for_each(move |event| {
                 handle
@@ -143,46 +143,15 @@ mod project {
                     .map(|_| ()) // TODO handle error?
             });
 
-            spawner.spawn_local(processor_fut)?;
-            Ok(())
+            Ok(spawner.spawn_local(processor_fut)?)
         }
 
-        /// Obtains the contents of the given module.
-        pub async fn read_module
-        (&self, loc:module::Location) ->  FallibleResult<String> {
-            println!("will fetch contents of module {:?}", loc);
-            let path = loc.to_path();
-            let result_read_future = self.call_fm(|fm| fm.read(path)).await;
-            // TODO how to map ok with async
-            match result_read_future{
-                Ok(read_future) =>
-                    Ok(read_future.await?),
-                Err(e) =>
-                    Err(e.into()),
-            }
-        }
-
-        /// Creates a new module controller.
-        pub async fn create_module_controller
-        (&self, loc:&module::Location) -> FallibleResult<module::StrongHandle> {
-            let data = module::Data{
-                path     : loc.clone(),
-                contents : self.read_module(loc.clone()).await?,
-                parent   : self.clone(),
-            };
-            let module = self.insert_module(data).await?;
-            Ok(module)
-        }
-    }
-    ////
-
-    impl WeakHandle {
         /// Returns a module controller for given module location.
         ///
         /// Reuses existing controller if possible.
         /// Creates a new controller if needed.
         pub async fn open_module(&self, loc:&module::Location) -> FallibleResult<module::StrongHandle> {
-            if let Some(existing_controller) = self.lookup_module(loc.clone()).await? {
+            if let Some(existing_controller) = self.lookup_module(loc.clone()).await {
                 Ok(existing_controller)
             } else {
                 Ok(self.create_module_controller(&loc).await?)
@@ -196,20 +165,20 @@ mod project {
     }
 
     /// boilerplate wrappers over stateful `Data` APIs
-    impl WeakHandle {
+    impl StrongHandle {
         pub async fn lookup_module
         (&self, loc:module::Location)
-        -> cell::Result<Option<module::StrongHandle>> {
+         -> Option<module::StrongHandle> {
             self.with(move |data| data.lookup_module(&loc)).await
         }
         pub async fn insert_module
         (&self, module:module::Data)
-        -> cell::Result<module::StrongHandle> {
+         -> module::StrongHandle {
             self.with(|data| data.insert_module(module)).await
         }
         pub async fn call_fm<R>
         (&self, f:impl FnOnce(&mut file_manager_client::Client) -> R)
-        -> cell::Result<R> {
+         -> R {
             self.with(|data| f(&mut data.file_manager)).await
         }
     }
@@ -219,6 +188,8 @@ mod project {
 mod module {
     use super::*;
 
+    /// Structure uniquely identifying module location in the project.
+    /// Mappable to filesystem path.
     #[derive(Clone,Debug,Eq,Hash,PartialEq)]
     pub struct Location(pub String);
     impl Location {
@@ -230,14 +201,17 @@ mod module {
 
     #[derive(Clone,Debug)]
     pub struct Data {
-        pub path     : Location,
+        /// This module's location.
+        pub loc      : Location,
+        /// Contents of the module file.
         pub contents : String,
-        pub parent   : project::WeakHandle,
+        /// Handle to the project.
+        pub parent   : project::StrongHandle,
     }
 
     impl Data {
         pub fn fetch_text(&self) -> impl Future<Output = FallibleResult<String>> {
-            let loc    = self.path.clone();
+            let loc    = self.loc.clone();
             let parent = self.parent.clone();
             async move {
                 parent.read_module(loc).await
@@ -245,11 +219,11 @@ mod module {
         }
     }
 
-    make_weak_handle!(Data);
+    make_handles!(Data);
 
-    impl WeakHandle {
-        pub async fn fetch_text(&self) -> FallibleResult<String> {
-            self.with(|data| data.fetch_text()).await?.await
+    impl StrongHandle {
+        pub fn fetch_text(&self) -> impl Future<Output = FallibleResult<String>> {
+            self.with(|data| data.fetch_text()).flatten()
         }
     }
 }
@@ -257,9 +231,16 @@ mod module {
 mod text {
     use super::*;
 
-    pub type StrongHandle = cell::StrongHandle<Data>;
-
+    /// A single set of edits. All edits use indices relative to the document's
+    /// state from before any edits being applied.
     pub type Edits = Vec<Edit>;
+
+    /// External context for this controller (underlying controller).
+    #[derive(Clone,Debug)]
+    pub enum Context {
+        TextFromModule(module::StrongHandle),
+        PlainTextFile(project::StrongHandle),
+    }
 
     #[derive(Clone,Debug)]
     pub enum EventToView {
@@ -268,35 +249,55 @@ mod text {
         SetNewContent(String),
     }
 
+    /// Edit action on the text document that replaces text on given span with
+    /// a new one.
     #[derive(Clone,Debug)]
     pub struct Edit {
+        /// Replaced range begin.
         pub from     : usize,
+        /// Replaced range end (after last replaced character).
+        /// If same value as `from` this is insert operation.
         pub to       : usize,
+        /// Text to be placed. May be empty to erase portion of text.
         pub new_text : String,
     }
 
+    /// Data stored by the text controller.
     #[derive(Clone,Debug)]
     pub struct Data {
-        parent    : module::WeakHandle,
-        tx_to_view: futures::channel::mpsc::UnboundedSender<EventToView>
+        /// Context, i.e. entity that we can query for externally-synchronized
+        /// text content.
+        pub context    : Context,
+        /// Sink where we put events to be consumed by the view.
+        pub tx_to_view : futures::channel::mpsc::UnboundedSender<EventToView>
     }
 
     impl Data {
+        /// Method called by the context when the file was externally modified.
+        /// (externally, as in not by the view we are connected with)
         pub async fn file_externally_modified(&mut self) -> FallibleResult<()> {
-            let new_text = self.parent.fetch_text().await?;
+            let new_text = match &self.context {
+                Context::TextFromModule(module) =>
+                    module.fetch_text().await?,
+                Context::PlainTextFile(project) =>
+                    todo!(),
+            };
             let event = EventToView::SetNewContent(new_text);
             self.tx_to_view.unbounded_send(event)?;
             Ok(())
         }
-    }
 
-    #[derive(Shrinkwrap)]
-    pub struct Handle(utils::cell::WeakHandle<Data>);
-    impl Handle {
-        pub fn apply_edits(edits: Vec<Edit>) {
-
+        /// View can at any point request setting up the channel, in such case
+        /// any previous channel is abandoned and subsequent event will be
+        /// obtainable through the returned receiver.
+        pub fn setup_stream_to_view(&mut self) -> futures::channel::mpsc::UnboundedReceiver<EventToView> {
+            let (tx,rx) = futures::channel::mpsc::unbounded();
+            self.tx_to_view = tx;
+            rx
         }
     }
+
+    make_handles!(Data);
 }
 
 
@@ -320,11 +321,11 @@ mod tests {
         let project = project::new(transport);
         let project_handle = project.downgrade();
         println!("has project");
-        project_handle.run_fm_events(global_spawner()).await?;
+        project.run_fm_events(global_spawner()).await?;
         println!("project loop started");
 
         let main_module_loc = module::Location("Luna".into());
-        let module = project_handle.open_module(&main_module_loc).await?;
+        let module = project.open_module(&main_module_loc).await?;
         println!("module opened");
 
         let module_handle = module.downgrade();
