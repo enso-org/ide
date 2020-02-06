@@ -80,13 +80,13 @@ impl TextLocationChange {
         let inserted            = change.inserted_text_range();
         let lines_removed       = (removed.end.line - removed.start.line) as isize;
         let lines_added         = (inserted.end.line - inserted.start.line) as isize;
-        let new_line_offset     = self.line_offset + lines_added - lines_removed;
-        let change_in_last_line = removed.start.line != self.last_changed_line;
+        let change_in_last_line = removed.start.line == self.last_changed_line;
         let drop_column_offset  = !change_in_last_line || lines_removed > 0;
-        if  drop_column_offset {
+        if drop_column_offset {
             self.column_offset = 0;
         }
-        self.column_offset += inserted.end.column as isize - removed.end.column as isize;
+        self.line_offset      += lines_added - lines_removed;
+        self.column_offset    += inserted.end.column as isize - removed.end.column as isize;
         self.last_changed_line = inserted.end.line;
     }
 }
