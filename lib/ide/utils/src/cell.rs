@@ -136,6 +136,8 @@ impl<Data,Callback> WeakWith<Data,Callback> {
         WeakWith {handle,callback:Some(callback)}
     }
 
+    // Explanations pertaining this pattern can be found on SO:
+    // https://stackoverflow.com/questions/56058494/
     pin_utils::unsafe_unpinned!(callback:Option<Callback>);
 }
 
@@ -175,6 +177,8 @@ impl<Data,Callback> StrongWith<Data,Callback> {
         StrongWith {handle,callback:Some(callback)}
     }
 
+    // Explanations pertaining this pattern can be found on SO:
+    // https://stackoverflow.com/questions/56058494/
     pin_utils::unsafe_unpinned!(callback:Option<Callback>);
 }
 
@@ -183,9 +187,9 @@ where Callback : FnOnce(&mut Data) -> R, {
     type Output = R;
 
     fn poll(self:Pin<&mut Self>, _cx:&mut Context<'_>) -> Poll<Self::Output> {
-        let handle = self.handle.clone();
-        let callback     = self.callback().take().unwrap();
-        let result = with(handle.borrow_mut(), |mut data| callback(&mut data));
+        let handle   = self.handle.clone();
+        let callback = self.callback().take().unwrap();
+        let result   = with(handle.borrow_mut(), |mut data| callback(&mut data));
         Poll::Ready(result)
     }
 }
