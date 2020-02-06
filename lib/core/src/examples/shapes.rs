@@ -21,6 +21,7 @@ use enso_frp::*;
 use crate::system::web;
 use crate::control::io::mouse2;
 use crate::control::io::mouse2::MouseManager;
+use palette::Srgb;
 
 
 
@@ -38,14 +39,15 @@ fn init(world: &World) {
     let camera = scene.camera();
     let screen = camera.screen();
 
-    let navigator = Navigator::new(&scene, &camera);
-    let navigator = navigator.expect("Couldn't create navigator");
+//    let navigator = Navigator::new(&scene, &camera);
+//    let navigator = navigator.expect("Couldn't create navigator");
 
     let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
     let s2 = s1.translate(25.0,0.0);
     let s3 = &s1 + &s2;
+    let s4 = s1.fill(Srgb::new(30.0/255.0,50.0/255.0,90.0/255.0));
 
-    let shape_system = ShapeSystem::new(world,&s3);
+    let shape_system = ShapeSystem::new(world,&s4);
     let sprite = shape_system.new_instance();
     sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {
@@ -66,7 +68,7 @@ fn init(world: &World) {
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     world.on_frame(move |_| {
-        let _keep_alive = &navigator;
+//        let _keep_alive = &navigator;
         let _keep_alive = &out;
         on_frame(&mut time,&mut iter,&sprite,&shape_system)
     }).forget();
@@ -108,9 +110,9 @@ pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
 
     // final_position.event.display_graphviz();
 
-    trace("X" , &debug.event);
+//    trace("X" , &debug.event);
 
-    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
+//    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
 
     let target = mouse.position.event.clone_ref();
     let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {

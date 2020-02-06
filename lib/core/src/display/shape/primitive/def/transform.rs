@@ -10,6 +10,7 @@ use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
+use palette::Srgb;
 
 
 
@@ -112,6 +113,7 @@ macro_rules! _define_compound_shape {
 }
 
 
+
 // =======================
 // === Compound Shapes ===
 // =======================
@@ -121,6 +123,7 @@ use immutable::*;
 define_compound_shapes! {
     Translate(child)(x:f32,y:f32)
     Union(child1,child2)()
+    Fill(child)(color:Srgb)
 }
 
 impl<Child:Shape> Shape for Translate<Child> {
@@ -135,5 +138,12 @@ impl<Child1:Shape,Child2:Shape> Shape for Union<Child1,Child2> {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
         canvas.union(self.id(),s1,s2)
+    }
+}
+
+impl<Child:Shape> Shape for Fill<Child> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s = self.child.draw(canvas);
+        canvas.fill(self.id(),s,&self.color)
     }
 }

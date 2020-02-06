@@ -3,6 +3,7 @@
 use crate::prelude::*;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
+use palette::*;
 
 
 
@@ -200,6 +201,19 @@ impl Canvas {
             this.add_current_function_code_line(trans);
             let mut shape = this.new_shape_from_expr(num,&expr);
             shape.add_ids(&s1.ids);
+            shape
+        })
+    }
+
+    pub fn fill<Color:ShaderData<Srgb>>
+    (&mut self, num:usize, s:CanvasShape, color:Color) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let color:Glsl = color.into();
+            this.add_current_function_code_line(iformat!("Shape shape = {s.getter()};"));
+            this.add_current_function_code_line(iformat!("shape.color = lcha({color});"));
+            let expr = iformat!("return shape;");
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s.ids);
             shape
         })
     }
