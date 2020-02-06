@@ -3,28 +3,30 @@
 use crate::prelude::*;
 use std::collections::HashMap;
 use futures::task::LocalSpawnExt;
-
-use utils::handle::*;
-use utils::handle;
+use utils::cell;
 
 pub type FallibleResult<T> = std::result::Result<T,failure::Error>;
 
 /// Helper that generates wrapper tuple struct around Weak<RefCell<Data>>.
 macro_rules! make_weak_handle {
-    ($handle_typename:ident, $data_type:ty) => {
+    ($data_type:ty) => {
+        #[derive(Shrinkwrap)]
         #[derive(Clone,Debug)]
-        pub struct $handle_typename(pub utils::handle::WeakHandle<$data_type>);
+        pub struct StrongHandle(pub utils::cell::StrongHandle<$data_type>);
 
-        impl $handle_typename {
-            pub fn new(handle:utils::handle::WeakHandle<$data_type>) -> $handle_typename {
-                $handle_typename(handle)
+        impl StrongHandle {
+            pub fn downgrade(&self) -> WeakHandle {
+                WeakHandle(Rc::downgrade(&self.0))
             }
         }
 
-        impl IsWeakHandle for $handle_typename {
-            type Data = $data_type;
-            fn weak_handle(&self) -> Weak<RefCell<Self::Data>> {
-                self.0.clone()
+        #[derive(Shrinkwrap)]
+        #[derive(Clone,Debug)]
+        pub struct WeakHandle(pub utils::cell::WeakHandle<$data_type>);
+
+        impl WeakHandle {
+            pub fn upgrade(&self) -> Option<StrongHandle> {
+                self.0.upgrade().map(StrongHandle)
             }
         }
     };
@@ -36,7 +38,7 @@ mod ide {
 
     /// Top-level function that creates a project controller.
     /// Automatically establishes WS connections with endpoints given in `conf`.
-    pub async fn setup(conf:&SetupConfiguration) -> StrongHandle<project::Data> {
+    pub async fn setup(conf:&SetupConfiguration) -> project::StrongHandle {
         let file_manager_transport = conf.connect_fm().await;
         project::new(file_manager_transport)
     }
@@ -63,13 +65,13 @@ mod project {
     use json_rpc::Transport;
 
     /// Create a new project controller.
-    pub fn new(file_manager_transport:impl Transport + 'static) -> StrongHandle<project::Data> {
+    pub fn new(file_manager_transport:impl Transport + 'static) -> StrongHandle {
         let file_manager = file_manager_client::Client::new(file_manager_transport);
         let ret = Data {
             file_manager,
             modules: default(),
         };
-        strong(ret)
+        StrongHandle::new(ret)
     }
 
     /// Project controller's state.
@@ -97,9 +99,9 @@ mod project {
         /// remains responsible for managing the module's controller lifetime.
         pub fn insert_module(&mut self, data:module::Data) -> module::StrongHandle {
             let path   = data.path.clone();
-            let module = strong(data);
-            // TODO what if already exists?
-            self.modules.insert(path, module::WeakHandle{ data: Rc::downgrade(&module)});
+            let module = StrongHandle::new(data);
+            let module_weak = module.downgrade();
+            self.modules.insert(path, module::WeakHandle{ data: module_weak });
             module
         }
 
@@ -123,7 +125,11 @@ mod project {
         }
     }
 
-    make_weak_handle!(WeakHandle,Data);
+    make_weak_handle!(Data);
+
+//    #[derive(Shrinkwrap)]
+//    #[derive(Clone,Debug)]
+//    pub struct WeakHandle(pub utils::cell::WeakHandle<Data>);
 
     impl WeakHandle {
         /// Spawns the task that processes the file manager's events.
@@ -193,17 +199,17 @@ mod project {
     impl WeakHandle {
         pub async fn lookup_module
         (&self, loc:module::Location)
-        -> handle::Result<Option<module::StrongHandle>> {
+        -> cell::Result<Option<module::StrongHandle>> {
             self.with(move |data| data.lookup_module(&loc)).await
         }
         pub async fn insert_module
         (&self, module:module::Data)
-        -> handle::Result<module::StrongHandle> {
+        -> cell::Result<module::StrongHandle> {
             self.with(|data| data.insert_module(module)).await
         }
         pub async fn call_fm<R>
         (&self, f:impl FnOnce(&mut file_manager_client::Client) -> R)
-        -> handle::Result<R> {
+        -> cell::Result<R> {
             self.with(|data| f(&mut data.file_manager)).await
         }
     }
@@ -212,14 +218,6 @@ mod project {
 /// Module controller.
 mod module {
     use super::*;
-
-    pub enum FromParent {
-        FileChanged,
-    }
-    pub enum ToParent {
-
-    }
-
 
     #[derive(Clone,Debug,Eq,Hash,PartialEq)]
     pub struct Location(pub String);
@@ -247,25 +245,7 @@ mod module {
         }
     }
 
-    pub type StrongHandle = Rc<RefCell<Data>>;
-
-    #[derive(Clone,Debug)]
-    pub struct WeakHandle {
-        pub data: Weak<RefCell<Data>>,
-    }
-
-    impl WeakHandle {
-        fn from_weak(data:Weak<RefCell<Data>>) -> Self {
-            WeakHandle { data }
-        }
-    }
-
-    impl IsWeakHandle for WeakHandle {
-        type Data = Data;
-        fn weak_handle(&self) -> Weak<RefCell<Self::Data>> {
-            self.data.clone()
-        }
-    }
+    make_weak_handle!(Data);
 
     impl WeakHandle {
         pub async fn fetch_text(&self) -> FallibleResult<String> {
@@ -277,7 +257,7 @@ mod module {
 mod text {
     use super::*;
 
-    pub type StrongHandle = handle::StrongHandle<Data>;
+    pub type StrongHandle = cell::StrongHandle<Data>;
 
     pub type Edits = Vec<Edit>;
 
@@ -310,9 +290,12 @@ mod text {
         }
     }
 
-    make_weak_handle!(Handle, Data);
+    #[derive(Shrinkwrap)]
+    pub struct Handle(utils::cell::WeakHandle<Data>);
     impl Handle {
-        pub fn apply_edits(edits: Vec<Edit>) {}
+        pub fn apply_edits(edits: Vec<Edit>) {
+
+        }
     }
 }
 
@@ -335,7 +318,7 @@ mod tests {
 
 //        let project = project::setup(&project_conf).await;
         let project = project::new(transport);
-        let project_handle = project::WeakHandle(Rc::downgrade(&project));
+        let project_handle = project.downgrade();
         println!("has project");
         project_handle.run_fm_events(global_spawner()).await?;
         println!("project loop started");
@@ -344,7 +327,7 @@ mod tests {
         let module = project_handle.open_module(&main_module_loc).await?;
         println!("module opened");
 
-        let module_handle = module::WeakHandle{data: Rc::downgrade(&module)};
+        let module_handle = module.downgrade();
         println!("done");
 
 

@@ -12,5 +12,5 @@
 
 pub use enso_prelude as prelude;
 
-pub mod handle;
+pub mod cell;
 pub mod test;
