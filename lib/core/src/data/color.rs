@@ -20,14 +20,20 @@ use crate::system::gpu::shader::glsl::traits::*;
 
 
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Derivative)]
+#[derivative(Default(bound=""))]
 pub struct Gradient<Color> {
     pub control_points : Vec<(f32,Color)>,
 }
 
 impl<Color> Gradient<Color> {
-    pub fn new(control_points:Vec<(f32,Color)>) -> Self {
-        Self {control_points}
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn add(mut self, offset:f32, color:Color) -> Self {
+        self.control_points.push((offset,color));
+        self
     }
 }
 

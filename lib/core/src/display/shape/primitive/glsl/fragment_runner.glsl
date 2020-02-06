@@ -6,10 +6,10 @@ Shape shape    = run(env,position);
 float alpha    = render(shape);
 
 if (input_display_mode == 0) {
-    output_color = rgba(shape.color).raw;
+    output_color = srgba(shape.color).raw;
     output_color *= alpha;
 } else if (input_display_mode == 1) {
-    RGB col = distance_meter(shape.sdf.distance, 200.0 * input_zoom * input_pixel_ratio, 200.0/input_zoom * input_pixel_ratio);
+    Rgb col = distance_meter(shape.sdf.distance, 200.0 * input_zoom * input_pixel_ratio, 200.0/input_zoom * input_pixel_ratio);
     output_color = rgba(col).raw;
 }
 

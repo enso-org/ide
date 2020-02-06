@@ -120,10 +120,10 @@ Id new_id_layer (BoundSdf sdf, int i) {
 struct Shape {
     Id       id;
     BoundSdf sdf;
-    LCHA    color;
+    Rgba     color;
 };
 
-Shape shape (Id id, BoundSdf bound_sdf, LCHA color) {
+Shape shape (Id id, BoundSdf bound_sdf, Rgba color) {
     return Shape(id,bound_sdf,color);
 }
 

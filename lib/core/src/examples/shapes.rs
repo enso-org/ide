@@ -49,7 +49,9 @@ fn init(world: &World) {
 
     let color = Srgb::new(30.0/255.0,50.0/255.0,90.0/255.0);
 
-    let gradient = Gradient::new(vec![(0.0,Srgb::new(0.0,0.0,1.0)),(1.0,Srgb::new(0.0,1.0,0.0))]);
+    let gradient = Gradient::new()
+        .add(0.0,Srgb::new(0.0,0.0,1.0).into_linear())
+        .add(1.0,Srgb::new(0.0,1.0,0.0).into_linear());
     let gradient = DistanceGradient::new(-20.0,0.0,gradient);
 //    let color:Rgb<Linear<encoding::Srgb>> = color.into_linear();
     let s4 = s1.fill(gradient);

@@ -6,11 +6,11 @@
 use crate::prelude::*;
 
 use crate::system::gpu::data::buffer::item::MatrixCtx;
+use crate::data::color::*;
 
 use code_builder::CodeBuilder;
 use code_builder::HasCodeRepr;
 use nalgebra::*;
-use palette::*;
 use shapely::derive_clone_plus;
 
 
@@ -76,11 +76,19 @@ impls! { [T,R,C] From<MatrixMN<T,R,C>> for Glsl
 
 // === From Colors to Glsl ===
 
-impls! { From<Srgb> for Glsl {
+impls! { From<Rgb<encoding::Srgb>> for Glsl {
+    |t| iformat!("srgb({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()})").into()
+} }
+
+impls! { From<Rgba<encoding::Srgb>> for Glsl {
+    |t| iformat!("srgba({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()},{t.alpha.glsl()})").into()
+} }
+
+impls! { From<Rgb<encoding::Linear<encoding::Srgb>>> for Glsl {
     |t| iformat!("rgb({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()})").into()
 } }
 
-impls! { From<Srgba> for Glsl {
+impls! { From<Rgba<encoding::Linear<encoding::Srgb>>> for Glsl {
     |t| iformat!("rgba({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()},{t.alpha.glsl()})").into()
 } }
 
