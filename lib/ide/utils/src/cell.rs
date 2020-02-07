@@ -46,7 +46,8 @@ pub enum Error {
 // ================
 
 /// A weak handle to some internally mutable data.
-#[derive(Clone,Debug)]
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound=""))]
 pub struct WeakHandle<T>(Weak<RefCell<T>>);
 
 /// A type that can provide `Weak` handle to a value under `RefCell`.
@@ -60,7 +61,7 @@ impl<T> WeakHandle<T> {
     /// borrowed data. Safe, as long as the returned `Future` is run only
     /// through the executor and not manually polled.
     pub fn with<Callback,R> (&self, callback:Callback) -> WeakWith<T,Callback>
-        where for<'a> Callback: FnOnce(&'a mut T) -> R {
+    where for<'a> Callback: FnOnce(&'a mut T) -> R {
         WeakWith::new(self.0.clone(),callback)
     }
 
@@ -82,7 +83,8 @@ impl<T> WeakHandle<T> {
 // ==================
 
 /// A strong, shared owning handle to some internally mutable data.
-#[derive(Clone,Debug)]
+#[derive(Debug,Derivative)]
+#[derivative(Clone(bound=""))]
 pub struct StrongHandle<T>(Rc<RefCell<T>>);
 
 impl<T> StrongHandle<T> {
@@ -100,7 +102,7 @@ impl<T> StrongHandle<T> {
     /// borrowed data. Safe, as long as the returned `Future` is run only
     /// through the executor and not manually polled.
     pub fn with<Callback,R> (&self, callback:Callback) -> StrongWith<T,Callback>
-        where Callback: FnOnce(&mut T) -> R {
+    where Callback: FnOnce(&mut T) -> R {
         StrongWith::new(self.0.clone(),callback)
     }
 
@@ -134,11 +136,13 @@ impl<Data,Callback> WeakWith<Data,Callback> {
         WeakWith {handle,callback:Some(callback)}
     }
 
+    // Explanations pertaining this pattern can be found on SO:
+    // https://stackoverflow.com/questions/56058494/
     pin_utils::unsafe_unpinned!(callback:Option<Callback>);
 }
 
 impl <Data,Callback,R> Future for WeakWith<Data,Callback>
-    where Callback: FnOnce(&mut Data) -> R, {
+where Callback: FnOnce(&mut Data) -> R, {
     type Output = std::result::Result<R,Error>;
     fn poll(self:Pin<&mut Self>, _cx:&mut Context<'_>) -> Poll<Self::Output> {
         let result = if let Some(handle) = self.handle.upgrade() {
@@ -173,17 +177,19 @@ impl<Data,Callback> StrongWith<Data,Callback> {
         StrongWith {handle,callback:Some(callback)}
     }
 
+    // Explanations pertaining this pattern can be found on SO:
+    // https://stackoverflow.com/questions/56058494/
     pin_utils::unsafe_unpinned!(callback:Option<Callback>);
 }
 
 impl <Data,Callback,R> Future for StrongWith<Data,Callback>
-    where Callback : FnOnce(&mut Data) -> R, {
+where Callback : FnOnce(&mut Data) -> R, {
     type Output = R;
 
     fn poll(self:Pin<&mut Self>, _cx:&mut Context<'_>) -> Poll<Self::Output> {
-        let handle = self.handle.clone();
-        let callback     = self.callback().take().unwrap();
-        let result = with(handle.borrow_mut(), |mut data| callback(&mut data));
+        let handle   = self.handle.clone();
+        let callback = self.callback().take().unwrap();
+        let result   = with(handle.borrow_mut(), |mut data| callback(&mut data));
         Poll::Ready(result)
     }
 }
