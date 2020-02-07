@@ -63,12 +63,20 @@ pub struct DistanceGradient<Gradient> {
 
 impl<Gradient> DistanceGradient<Gradient> {
     pub fn new(gradient:Gradient) -> Self {
-        let min_distance = -10.0;
-        let max_distance = 0.0;
+        let min_distance = 0.0;
+        let max_distance = 10.0;
         let slope        = Slope::Smooth;
         Self {min_distance,max_distance,slope,gradient}
     }
+
+    pub fn max_distance(mut self, t:f32) -> Self {
+        self.max_distance = t;
+        self
+    }
 }
+
+
+// === Instances ===
 
 impl<Gradient> HasContent for DistanceGradient<Gradient> {
     type Content = Gradient;
@@ -83,7 +91,7 @@ impl<Gradient> Unwrap for DistanceGradient<Gradient> {
 impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
     |g| {
         let span   = iformat!("{g.max_distance.glsl()} - {g.min_distance.glsl()}");
-        let offset = iformat!("shape.sdf.distance - {g.min_distance.glsl()}");
+        let offset = iformat!("shape.sdf.distance + {g.max_distance.glsl()}");
         let norm   = iformat!("({offset}) / ({span})");
         let t      = match g.slope {
             Slope::Linear => norm,

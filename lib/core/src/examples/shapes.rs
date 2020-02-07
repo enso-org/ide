@@ -52,10 +52,10 @@ fn init(world: &World) {
     let node = node.fill(node_color);
 
     let shadow_color = Gradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,1.0).into_linear())
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-    let shadow_color = DistanceGradient::new(shadow_color);
-    let shadow = shadow.fill(shadow_color);
+    let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span);
+    let shadow       = shadow.fill(shadow_color);
 
     let out = &shadow + &node;
 
