@@ -1,10 +1,10 @@
 //! An example showing usage of GlyphSystem.
 
-use crate::display::object::DisplayObjectOps;
-use crate::display::object::DisplayObject;
-use crate::display::shape::text::glyph::font::FontRegistry;
-use crate::display::shape::text::glyph::system::GlyphSystem;
-use crate::display::world::*;
+use basegl::display::object::DisplayObjectOps;
+use basegl::display::object::DisplayObject;
+use basegl::display::shape::text::glyph::font::FontRegistry;
+use basegl::display::shape::text::glyph::system::GlyphSystem;
+use basegl::display::world::*;
 
 use basegl_core_msdf_sys::run_once_initialized;
 use basegl_system_web::forward_panic_hook_to_console;

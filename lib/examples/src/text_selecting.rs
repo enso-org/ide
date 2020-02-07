@@ -2,14 +2,14 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::display::world::WorldData;
-use crate::display::object::DisplayObjectOps;
-use crate::display::shape::text::glyph::font::FontRegistry;
-use crate::display::shape::text::text_field::TextField;
-use crate::display::shape::text::text_field::TextFieldProperties;
-use crate::display::world::*;
-use crate::system::web;
-use crate::system::web::forward_panic_hook_to_console;
+use basegl::display::world::WorldData;
+use basegl::display::object::DisplayObjectOps;
+use basegl::display::shape::text::glyph::font::FontRegistry;
+use basegl::display::shape::text::text_field::TextField;
+use basegl::display::shape::text::text_field::TextFieldProperties;
+use basegl::display::world::*;
+use basegl::system::web;
+use basegl::system::web::forward_panic_hook_to_console;
 
 
 use basegl_system_web::set_stdout;

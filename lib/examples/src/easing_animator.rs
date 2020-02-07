@@ -1,12 +1,14 @@
 //! EasingAnimator examples.
 
+use crate::prelude::*;
+
 use wasm_bindgen::prelude::*;
-use crate::animation::easing::*;
-use crate::animation::animator::easing::EasingAnimator;
-use crate::system::web::create_element;
-use crate::system::web::NodeInserter;
-use crate::system::web::AttributeSetter;
-use crate::system::web::StyleSetter;
+use basegl::animation::easing::*;
+use basegl::animation::animator::easing::EasingAnimator;
+use basegl::system::web::create_element;
+use basegl::system::web::NodeInserter;
+use basegl::system::web::AttributeSetter;
+use basegl::system::web::StyleSetter;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
@@ -15,9 +17,9 @@ use web_sys::HtmlElement;
 use web_sys::HtmlCanvasElement;
 use web_sys::CanvasRenderingContext2d;
 use wasm_bindgen::JsCast;
-use crate::system::web::get_element_by_id;
-use crate::animation::animator::continuous::ContinuousAnimator;
-use crate::animation::animator::fixed_step::FixedStepAnimator;
+use basegl::system::web::get_element_by_id;
+use basegl::animation::animator::continuous::ContinuousAnimator;
+use basegl::animation::animator::fixed_step::FixedStepAnimator;
 use js_sys::Math;
 
 use std::rc::Rc;

@@ -1,29 +1,29 @@
 #![allow(missing_docs)]
 
-use crate::display::object::DisplayObject;
-use crate::display::object::DisplayObjectOps;
-use crate::display::symbol::geometry::Sprite;
-use crate::display::shape::primitive::system::ShapeSystem;
-use crate::display::world::*;
-use crate::system::web::set_stdout;
-use crate::system::web::set_stack_trace_limit;
-use crate::system::web::forward_panic_hook_to_console;
+use basegl::display::object::DisplayObject;
+use basegl::display::object::DisplayObjectOps;
+use basegl::display::symbol::geometry::Sprite;
+use basegl::display::shape::primitive::system::ShapeSystem;
+use basegl::display::world::*;
+use basegl::system::web::set_stdout;
+use basegl::system::web::set_stack_trace_limit;
+use basegl::system::web::forward_panic_hook_to_console;
 
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
-use crate::display::shape::primitive::def::*;
-use crate::display::navigation::navigator::Navigator;
+use basegl::display::shape::primitive::def::*;
+use basegl::display::navigation::navigator::Navigator;
 
-use crate::prelude::*;
+use basegl::prelude::*;
 use enso_frp::*;
 
-use crate::system::web;
-use crate::control::io::mouse2;
-use crate::control::io::mouse2::MouseManager;
-use crate::data::color::*;
-use crate::data::color::rgb::Rgb;
-use crate::data::color::encoding::Linear;
+use basegl::system::web;
+use basegl::control::io::mouse2;
+use basegl::control::io::mouse2::MouseManager;
+use basegl::data::color::*;
+use basegl::data::color::rgb::Rgb;
+use basegl::data::color::encoding::Linear;
 
 
 #[wasm_bindgen]
@@ -52,7 +52,7 @@ fn init(world: &World) {
     let node = node.fill(node_color);
 
     let shadow_color = Gradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear())
+        .add(0.0,Srgba::new(1.0,0.0,0.0,0.3).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
     let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span);
     let shadow       = shadow.fill(shadow_color);

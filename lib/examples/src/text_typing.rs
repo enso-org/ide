@@ -2,13 +2,13 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::display::object::DisplayObjectOps;
-use crate::display::shape::text::text_field::content::TextChange;
-use crate::display::shape::text::text_field::{TextField, TextFieldProperties};
-use crate::display::shape::text::text_field::cursor::Step::Right;
-use crate::display::shape::text::glyph::font::FontRegistry;
-use crate::display::world::*;
-use crate::system::web::forward_panic_hook_to_console;
+use basegl::display::object::DisplayObjectOps;
+use basegl::display::shape::text::text_field::content::TextChange;
+use basegl::display::shape::text::text_field::{TextField, TextFieldProperties};
+use basegl::display::shape::text::text_field::cursor::Step::Right;
+use basegl::display::shape::text::glyph::font::FontRegistry;
+use basegl::display::world::*;
+use basegl::system::web::forward_panic_hook_to_console;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
@@ -39,7 +39,7 @@ pub fn run_example_text_typing() {
         let now             = js_sys::Date::now();
         let animation_start = now + 3000.0;
         let start_scrolling = animation_start + 10000.0;
-        let mut chars       = typed_character_list(animation_start,include_str!("../lib.rs"));
+        let mut chars       = typed_character_list(animation_start,include_str!("../../core/src/lib.rs"));
         world.on_frame(move |_| {
             animate_text_component(&mut fonts,&mut text_field,&mut chars,start_scrolling)
         }).forget();
