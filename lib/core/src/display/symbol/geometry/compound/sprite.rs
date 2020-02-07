@@ -5,6 +5,7 @@
 use crate::prelude::*;
 
 use crate::debug::Stats;
+use crate::display::layout::types::*;
 use crate::display::object::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
@@ -61,9 +62,19 @@ impl {
         self.display_object.set_position(value)
     }
 
+    /// Position of the sprite.
+    pub fn position(&self) -> Vector3<f32> {
+        self.display_object.position()
+    }
+
     /// Size accessor.
     pub fn size(&self) -> Attribute<Vector2<f32>> {
         self.bbox.clone_ref()
+    }
+
+    /// Id of instance bound to this sprite.
+    pub fn instance_id(&self) -> AttributeInstanceIndex {
+        self.instance_id
     }
 }}
 
@@ -99,6 +110,7 @@ pub struct SpriteSystemData {
     transform      : Buffer<Matrix4<f32>>,
     uv             : Buffer<Vector2<f32>>,
     size           : Buffer<Vector2<f32>>,
+    alignment      : Uniform<Vector2<f32>>,
     stats          : Stats,
 }
 
@@ -113,11 +125,15 @@ impl {
         let instance_scope = mesh.instance_scope();
         let uv             = point_scope.add_buffer("uv");
         let transform      = instance_scope.add_buffer("transform");
-        let size           = instance_scope.add_buffer("bounds");
+        let size           = instance_scope.add_buffer("size");
+        let horizontal        = HorizontalAlignment::Center;
+        let vertical          = VerticalAlignment::Center;
+        let initial_alignment = Self::uv_offset(horizontal,vertical);
+        let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,stats};
+        let this = Self {symbol,transform,uv,size,alignment,stats};
         this.init_attributes();
         this.init_shader();
         this
@@ -137,6 +153,11 @@ impl {
     /// Accessor.
     pub fn symbol(&self) -> Symbol {
         self.symbol.clone_ref()
+    }
+
+    /// Set alignment of sprites.
+    pub fn set_alignment(&self, horizontal:HorizontalAlignment, vertical:VerticalAlignment) {
+        self.alignment.set(Self::uv_offset(horizontal,vertical));
     }
 
     /// Run the renderer.
@@ -182,15 +203,16 @@ impl SpriteSystemData {
 
     fn geometry_material() -> Material {
         let mut material = Material::new();
-        material.add_input_def  :: <Vector2<f32>> ("bounds");
+        material.add_input_def  :: <Vector2<f32>> ("size");
         material.add_input_def  :: <Vector2<f32>> ("uv");
         material.add_input_def  :: <Matrix4<f32>> ("transform");
         material.add_input_def  :: <Matrix4<f32>> ("view_projection");
+        material.add_input_def  :: <Vector2<f32>> ("alignment");
         material.add_output_def :: <Vector3<f32>> ("local");
         material.add_output_def :: <i32>          ("instance_id");
         material.set_main("
                 mat4 model_view_projection = input_view_projection * input_transform;
-                input_local                = vec3((input_uv - 0.5) * input_bounds, 0.0);
+                input_local                = vec3((input_uv - input_alignment) * input_size, 0.0);
                 gl_Position                = model_view_projection * vec4(input_local,1.0);
                 input_instance_id          = gl_InstanceID;
                 ");
@@ -206,6 +228,20 @@ impl SpriteSystemData {
         material.add_output ("id", Vector4::<u32>::new(0,0,0,0));
         material.set_main("output_color = vec4(0.0,0.0,0.0,1.0);");
         material
+    }
+
+    fn uv_offset(horizontal:HorizontalAlignment, vertical:VerticalAlignment) -> Vector2<f32> {
+        let x_alignment = match horizontal {
+            HorizontalAlignment::Left   => 0.0,
+            HorizontalAlignment::Center => 0.5,
+            HorizontalAlignment::Right  => 1.0,
+        };
+        let y_alignment = match vertical {
+            VerticalAlignment::Top    => 1.0,
+            VerticalAlignment::Center => 0.5,
+            VerticalAlignment::Bottom => 0.0,
+        };
+        Vector2::new(x_alignment,y_alignment)
     }
 }
 
