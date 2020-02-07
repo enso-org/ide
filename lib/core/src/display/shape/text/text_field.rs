@@ -16,7 +16,7 @@ use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
 use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
-use crate::display::shape::text::glyph::font::FontId;
+use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
@@ -33,10 +33,10 @@ use nalgebra::Vector4;
 // =====================
 
 /// A display properties of TextField.
-#[derive(Clone,Copy,Debug)]
+#[derive(Debug)]
 pub struct TextFieldProperties {
-    /// FontId used for rendering text.
-    pub font_id: FontId,
+    /// FontHandle used for rendering text.
+    pub font: FontHandle,
     /// Text size being a line height in pixels.
     pub text_size: f32,
     /// Base color of displayed text.
@@ -50,7 +50,7 @@ impl TextFieldProperties {
 
     fn default(fonts:&mut FontRegistry) -> Self {
         TextFieldProperties {
-            font_id   : fonts.load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
+            font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
             text_size : 16.0,
             base_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
             size      : Vector2::new(100.0,100.0),
@@ -75,21 +75,16 @@ shared! { TextField
 
     impl {
         /// Create new TextField.
-        pub fn new
-        ( world           : &World
-        , initial_content : &str
-        , properties      : TextFieldProperties
-        , fonts           : &mut FontRegistry)
-        -> Self {
+        pub fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
             let logger         = Logger::new("TextField");
             let display_object = DisplayObjectData::new(logger);
             let content        = TextFieldContent::new(initial_content,&properties);
             let cursors        = Cursors::default();
-            let rendered       = TextFieldSprites::new(world, &properties, fonts);
+            let rendered       = TextFieldSprites::new(world,&properties);
             display_object.add_child(rendered.display_object.clone_ref());
 
             let mut text_field = Self {properties,content,cursors,rendered,display_object};
-            text_field.initialize(fonts);
+            text_field.initialize();
             text_field
         }
 
@@ -99,16 +94,17 @@ shared! { TextField
         }
 
         /// Scroll text by given offset in pixels.
-        pub fn scroll(&mut self, offset:Vector2<f32>, fonts:&mut FontRegistry) {
-            self.rendered.display_object.mod_position(|pos| *pos -= Vector3::new(offset.x,offset.y,0.0));
-            let mut update = self.assignment_update(fonts);
+        pub fn scroll(&mut self, offset:Vector2<f32>) {
+            let position_change = -Vector3::new(offset.x,offset.y,0.0);
+            self.rendered.display_object.mod_position(|pos| *pos += position_change );
+            let mut update = self.assignment_update();
             if offset.x != 0.0 {
                 update.update_after_x_scroll(offset.x);
             }
             if offset.y != 0.0 {
                 update.update_line_assignment();
             }
-            self.rendered.update_glyphs(&mut self.content,fonts);
+            self.rendered.update_glyphs(&mut self.content);
         }
 
         /// Get current scroll position.
@@ -117,36 +113,36 @@ shared! { TextField
         }
 
         /// Add cursor.
-        pub fn add_cursor(&mut self, position:TextLocation, fonts:&mut FontRegistry) {
+        pub fn add_cursor(&mut self, position:TextLocation) {
             self.cursors.add_cursor(position);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content.full_info(fonts));
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
         /// Move all cursors by given step.
-        pub fn navigate_cursors(&mut self, step:Step, selecting:bool, fonts:&mut FontRegistry) {
-            let content        = self.content.full_info(fonts);
+        pub fn navigate_cursors(&mut self, step:Step, selecting:bool) {
+            let content        = &mut self.content;
             let mut navigation = CursorNavigation {content,selecting};
             self.cursors.navigate_all_cursors(&mut navigation,step);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content.full_info(fonts));
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
         /// Jump cursor to point on the screen.
-        pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool, fonts:&mut FontRegistry) {
-            let content        = self.content.full_info(fonts);
+        pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool) {
+            let content        = &mut self.content;
             let mut navigation = CursorNavigation {content,selecting};
             self.cursors.remove_additional_cursors();
             self.cursors.jump_cursor(&mut navigation,point);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content.full_info(fonts));
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
         /// Make change in text content.
         ///
         /// As an opposite to `edit` function, here we don't care about cursors, just do the change
         /// described in `TextChange` structure.
-        pub fn apply_change(&mut self, change:TextChange, fonts:&mut FontRegistry) {
+        pub fn apply_change(&mut self, change:TextChange) {
             self.content.apply_change(change);
-            self.assignment_update(fonts).update_after_text_edit();
-            self.rendered.update_glyphs(&mut self.content,fonts);
+            self.assignment_update().update_after_text_edit();
+            self.rendered.update_glyphs(&mut self.content);
         }
 
         /// Get the selected text.
@@ -160,7 +156,7 @@ shared! { TextField
         ///
         /// All the currently selected text will be removed, and the given string will be inserted
         /// by each cursor.
-        pub fn edit(&mut self, insertion:&str, fonts:&mut FontRegistry) {
+        pub fn edit(&mut self, insertion:&str) {
             let trimmed                 = insertion.trim_end_matches('\n');
             let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
             let cursor_ids              = self.cursors.sorted_cursor_indices();
@@ -172,9 +168,9 @@ shared! { TextField
                 let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,insertion));
                 self.edit_per_cursor(cursor_with_line);
             };
-            self.assignment_update(fonts).update_after_text_edit();
-            self.rendered.update_glyphs(&mut self.content,fonts);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content.full_info(fonts));
+            self.assignment_update().update_after_text_edit();
+            self.rendered.update_glyphs(&mut self.content);
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
         /// Update underlying Display Object.
@@ -188,16 +184,15 @@ shared! { TextField
 // === Private ===
 
 impl TextFieldData {
-    fn initialize(&mut self, fonts:&mut FontRegistry) {
-        self.assignment_update(fonts).update_line_assignment();
-        self.rendered.update_glyphs(&mut self.content,fonts);
-        self.rendered.update_cursor_sprites(&self.cursors, &mut self.content.full_info(fonts));
+    fn initialize(&mut self) {
+        self.assignment_update().update_line_assignment();
+        self.rendered.update_glyphs(&mut self.content);
+        self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
     }
 
-    fn assignment_update<'a,'b>(&'a mut self, fonts:&'b mut FontRegistry)
-    -> GlyphLinesAssignmentUpdate<'a,'a,'b> {
+    fn assignment_update(&mut self) -> GlyphLinesAssignmentUpdate {
         GlyphLinesAssignmentUpdate {
-            content       : self.content.full_info(fonts),
+            content       : &mut self.content,
             assignment    : &mut self.rendered.assignment,
             scroll_offset : -self.rendered.display_object.position().xy(),
             view_size     : self.properties.size,

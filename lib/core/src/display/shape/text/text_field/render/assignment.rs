@@ -5,7 +5,7 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::text::text_field::content::TextFieldContentFullInfo;
+use crate::display::shape::text::text_field::content::TextFieldContent;
 
 use nalgebra::Vector2;
 use std::ops::Range;
@@ -28,10 +28,7 @@ pub struct LineFragment {
 impl LineFragment {
     /// Tells if rendering this line's fragment will cover the x range.
     pub fn covers_displayed_range
-    ( &self
-    , displayed_range : &RangeInclusive<f32>
-    , content         : &mut TextFieldContentFullInfo
-    ) -> bool {
+    (&self, displayed_range:&RangeInclusive<f32>, content:&mut TextFieldContent) -> bool {
         let mut line       = content.line(self.line_index);
         let front_rendered = self.chars_range.start == 0;
         let back_rendered  = self.chars_range.end == line.len();
@@ -101,18 +98,18 @@ impl GlyphLinesAssignment {
 /// A helper structure for making assignment updates. It takes references to GlyphLinesAssignment
 /// structure and all required data to make proper reassignments.
 #[derive(Debug)]
-pub struct GlyphLinesAssignmentUpdate<'a,'b,'c> {
+pub struct GlyphLinesAssignmentUpdate<'a,'b> {
     /// A reference to assignment structure.
     pub assignment: &'a mut GlyphLinesAssignment,
     /// A reference to TextField content.
-    pub content: TextFieldContentFullInfo<'b,'c>,
+    pub content: &'b mut TextFieldContent,
     /// Current scroll offset in pixels.
     pub scroll_offset: Vector2<f32>,
     /// Current view size in pixels.
     pub view_size: Vector2<f32>,
 }
 
-impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
+impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
     /// Reassign _glyph line_ to currently displayed fragment of line.
     pub fn reassign(&mut self, glyph_line_id:usize, line_id:usize) {
         let fragment = self.displayed_fragment(line_id);
@@ -204,7 +201,7 @@ impl GlyphLinesAssignment {
     }
 }
 
-impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
+impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
     /// Returns LineFragment of specific line which is currently visible.
     fn displayed_fragment(&mut self, line_id:usize) -> LineFragment {
         let mut line             = self.content.line(line_id);
@@ -286,197 +283,187 @@ impl<'a,'b,'c> GlyphLinesAssignmentUpdate<'a,'b,'c> {
 mod tests {
     use super::*;
 
-    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::glyph::font::{FontRenderInfo, FontHandle};
     use crate::display::shape::text::text_field::content::TextFieldContent;
     use crate::display::shape::text::text_field::TextFieldProperties;
 
-    use basegl_core_msdf_sys::test_utils::TestAfterInit;
     use nalgebra::Vector4;
-    use std::future::Future;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     fn mock_properties() -> TextFieldProperties {
         TextFieldProperties {
-            font_id    : 0,
+            font       : mock_font(),
             text_size  : 10.0,
             base_color : Vector4::new(0.0,0.0,0.0,1.0),
             size       : Vector2::new(20.0,35.0),
         }
     }
 
-    fn mock_font() -> FontRenderInfo {
-        let mut font   = FontRenderInfo::mock_font("Test".to_string());
-        let mut a_info = font.mock_char_info('A');
-        a_info.advance = 1.0;
-        let mut b_info = font.mock_char_info('B');
-        b_info.advance = 1.5;
+    fn mock_font() -> FontHandle {
+        let font   = FontRenderInfo::mock_font("Test".to_string());
+        let scale  = Vector2::new(1.0, 1.0);
+        let offset = Vector2::new(0.0, 0.0);
+        font.mock_char_info('A',scale,offset,1.0);
+        font.mock_char_info('B',scale,offset,1.5);
         font.mock_kerning_info('A', 'A', 0.0);
         font.mock_kerning_info('B', 'B', 0.0);
         font.mock_kerning_info('A', 'B', 0.0);
         font.mock_kerning_info('B', 'A', 0.0);
-        font
+        FontHandle::new(font)
     }
 
     #[wasm_bindgen_test(async)]
-    fn initial_assignment() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            let mut font    = mock_font();
-            let properties  = mock_properties();
-            let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA",&properties);
+    async fn initial_assignment() {
+        basegl_core_msdf_sys::initialized().await;
+        let properties  = mock_properties();
+        let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA",&properties);
 
-            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
+        let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
 
-            let mut update     = GlyphLinesAssignmentUpdate {
-                assignment    : &mut assignment,
-                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-                scroll_offset : Vector2::new(22.0,0.0),
-                view_size     : properties.size
-            };
-            update.update_line_assignment();
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , Some(LineFragment{line_index:1, chars_range: 0..4})
-                , Some(LineFragment{line_index:2, chars_range: 0..0})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            let expected_dirties : HashSet<usize> = [0,1,2,3].iter().cloned().collect();
+        let mut update     = GlyphLinesAssignmentUpdate {
+            assignment    : &mut assignment,
+            content       : &mut content,
+            scroll_offset : Vector2::new(22.0,0.0),
+            view_size     : properties.size
+        };
+        update.update_line_assignment();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        let expected_dirties : HashSet<usize> = [0,1,2,3].iter().cloned().collect();
 
-            assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
-            assert_eq!(expected_dirties,   assignment.dirty_glyph_lines);
-        })
+        assert_eq!(expected_fragments, assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties,   assignment.dirty_glyph_lines);
     }
 
     #[wasm_bindgen_test(async)]
-    fn lines_reassignment() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            let mut font    = mock_font();
-            let properties  = mock_properties();
-            let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA\nAB",&properties);
+    async fn lines_reassignment() {
+        basegl_core_msdf_sys::initialized().await;
+        let properties  = mock_properties();
+        let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA\nAB",&properties);
 
-            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
-            assignment.glyph_lines_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , Some(LineFragment{line_index:1, chars_range: 0..4})
-                , Some(LineFragment{line_index:2, chars_range: 0..0})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            let assigned_lines        = 0..=3;
-            assignment.assigned_lines = assigned_lines;
-            // This line casues false warning about unnecessary parentheses
-            // assignment.assigned_lines = 0..3;
+        let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
+        assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        let assigned_lines        = 0..=3;
+        assignment.assigned_lines = assigned_lines;
+        // This line casues false warning about unnecessary parentheses
+        // assignment.assigned_lines = 0..3;
 
-            // scrolling down
-            let mut update     = GlyphLinesAssignmentUpdate {
-                assignment    : &mut assignment,
-                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-                scroll_offset : Vector2::new(22.0,-21.0),
-                view_size     : properties.size
-            };
-            update.update_line_assignment();
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:4, chars_range: 0..1})
-                , Some(LineFragment{line_index:5, chars_range: 0..2})
-                , Some(LineFragment{line_index:2, chars_range: 0..0})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            let expected_dirties : HashSet<usize> = [0,1].iter().cloned().collect();
-            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
-            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
-            assert_eq!(2..=5             , update.assignment.assigned_lines);
+        // scrolling down
+        let mut update     = GlyphLinesAssignmentUpdate {
+            assignment    : &mut assignment,
+            content       : &mut content,
+            scroll_offset : Vector2::new(22.0,-21.0),
+            view_size     : properties.size
+        };
+        update.update_line_assignment();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:4, chars_range: 0..1})
+            , Some(LineFragment{line_index:5, chars_range: 0..2})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        let expected_dirties : HashSet<usize> = [0,1].iter().cloned().collect();
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
+        assert_eq!(2..=5             , update.assignment.assigned_lines);
 
-            // scrolling up.
-            update.assignment.dirty_glyph_lines.clear();
-            update.scroll_offset = Vector2::new(22.0,-11.0);
-            update.update_line_assignment();
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:4, chars_range: 0..1})
-                , Some(LineFragment{line_index:1, chars_range: 0..4})
-                , Some(LineFragment{line_index:2, chars_range: 0..0})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
-            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
-            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
-            assert_eq!(1..=4             , update.assignment.assigned_lines);
-        })
+        // scrolling up.
+        update.assignment.dirty_glyph_lines.clear();
+        update.scroll_offset = Vector2::new(22.0,-11.0);
+        update.update_line_assignment();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:4, chars_range: 0..1})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 0..0})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
+        assert_eq!(1..=4             , update.assignment.assigned_lines);
     }
 
     #[wasm_bindgen_test(async)]
-    fn marking_dirty_after_x_scrolling() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            let mut font    = mock_font();
-            let properties  = mock_properties();
-            let mut content = TextFieldContent::new("AAABBB\nBAABAB\nBBABAB\nA\nA",&properties);
+    async fn marking_dirty_after_x_scrolling() {
+        basegl_core_msdf_sys::initialized().await;
+        let properties  = mock_properties();
+        let mut content = TextFieldContent::new("AAABBB\nBAABAB\nBBABAB\nA\nA",&properties);
 
-            let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
-            assignment.glyph_lines_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , Some(LineFragment{line_index:1, chars_range: 0..4})
-                , Some(LineFragment{line_index:2, chars_range: 1..5})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            assignment.next_glyph_line_to_x_scroll_update = 3;
-            let mut update     = GlyphLinesAssignmentUpdate {
-                assignment    : &mut assignment,
-                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-                scroll_offset : Vector2::new(42.0,-21.0),
-                view_size     : properties.size
-            };
-            update.update_after_x_scroll(15.0);
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 2..6})
-                , Some(LineFragment{line_index:1, chars_range: 2..6})
-                , Some(LineFragment{line_index:2, chars_range: 1..5})
-                , Some(LineFragment{line_index:3, chars_range: 0..1})
-                ];
-            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
-            assert_eq!(1                 , update.assignment.next_glyph_line_to_x_scroll_update);
-        })
+        let mut assignment = GlyphLinesAssignment::new(4, 4, 10.0);
+        assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , Some(LineFragment{line_index:2, chars_range: 1..5})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        assignment.next_glyph_line_to_x_scroll_update = 3;
+        let mut update     = GlyphLinesAssignmentUpdate {
+            assignment    : &mut assignment,
+            content       : &mut content,
+            scroll_offset : Vector2::new(42.0,-21.0),
+            view_size     : properties.size
+        };
+        update.update_after_x_scroll(15.0);
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 2..6})
+            , Some(LineFragment{line_index:1, chars_range: 2..6})
+            , Some(LineFragment{line_index:2, chars_range: 1..5})
+            , Some(LineFragment{line_index:3, chars_range: 0..1})
+            ];
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(1                 , update.assignment.next_glyph_line_to_x_scroll_update);
     }
 
     #[wasm_bindgen_test(async)]
-    fn update_after_text_edit() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            let mut font    = mock_font();
-            let properties  = mock_properties();
+    async fn update_after_text_edit() {
+        basegl_core_msdf_sys::initialized().await;
+        let properties  = mock_properties();
 
-            let mut assignment = GlyphLinesAssignment::new(3, 4, 10.0);
-            assignment.glyph_lines_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , Some(LineFragment{line_index:1, chars_range: 0..4})
-                , None
-                ];
-            let mut content = TextFieldContent::new("AAABBB\nBA",&properties);
-            content.dirty_lines.add_single_line(1);
+        let mut assignment = GlyphLinesAssignment::new(3, 4, 10.0);
+        assignment.glyph_lines_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..4})
+            , None
+            ];
+        let mut content = TextFieldContent::new("AAABBB\nBA",&properties);
+        content.dirty_lines.add_single_line(1);
 
-            let mut update     = GlyphLinesAssignmentUpdate {
-                assignment    : &mut assignment,
-                content       : TextFieldContentFullInfo {content:&mut content, font:&mut font},
-                scroll_offset : Vector2::new(22.0,0.0),
-                view_size     : properties.size
-            };
-            update.update_after_text_edit();
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , Some(LineFragment{line_index:1, chars_range: 0..2})
-                , None
-                ];
-            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
-            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
-            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
+        let mut update     = GlyphLinesAssignmentUpdate {
+            assignment    : &mut assignment,
+            content       : &mut content,
+            scroll_offset : Vector2::new(22.0,0.0),
+            view_size     : properties.size
+        };
+        update.update_after_text_edit();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 0..2})
+            , None
+            ];
+        let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
 
-            update.assignment.dirty_glyph_lines.clear();
-            update.content.content.lines.pop();
-            update.content.content.dirty_lines.add_lines_range_from(1..);
-            update.update_after_text_edit();
-            let expected_fragments = vec!
-                [ Some(LineFragment{line_index:0, chars_range: 1..5})
-                , None
-                , None
-                ];
-            let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
-            assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
-            assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
-        })
+        update.assignment.dirty_glyph_lines.clear();
+        update.content.lines.pop();
+        update.content.dirty_lines.add_lines_range_from(1..);
+        update.update_after_text_edit();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , None
+            , None
+            ];
+        let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
     }
 }

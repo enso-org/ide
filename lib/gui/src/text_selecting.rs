@@ -44,19 +44,19 @@ pub fn run_example_text_selecting() {
         let camera    = scene.camera();
         let screen    = camera.screen();
         let mut fonts = FontRegistry::new();
-        let font_id   = fonts.load_embedded_font("DejaVuSansMono").unwrap();
+        let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
 
         let properties = TextFieldProperties {
-            font_id,
+            font,
             text_size  : 16.0,
             base_color : Vector4::new(0.0, 0.0, 0.0, 1.0),
             size       : Vector2::new(200.0, 200.0)
         };
 
-        let text_field = TextField::new(&world,TEXT,properties,&mut fonts);
+        let text_field = TextField::new(&world,TEXT,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
-        text_field.jump_cursor(Vector2::new(50.0, -40.0),false,&mut fonts);
-        text_field.add_cursor(TextLocation{line:1, column:0}, &mut fonts);
+        text_field.jump_cursor(Vector2::new(50.0, -40.0),false);
+        text_field.add_cursor(TextLocation{line:1, column:0});
         world.add_child(&text_field);
         text_field.update();
 
@@ -64,18 +64,12 @@ pub fn run_example_text_selecting() {
         let text_field_on_copy  = text_field.clone_ref();
         let text_field_on_paste = text_field;
 
-        let fonts_rc       = Rc::new(RefCell::new(fonts));
-        let fonts_on_click = fonts_rc.clone_ref();
-        let fonts_on_copy  = fonts_rc.clone_ref();
-        let fonts_on_paste = fonts_rc.clone_ref();
-
         let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
-            let mut fonts  = fonts_on_click.borrow_mut();
             let text_field = &text_field_on_click;
             let val = val.unchecked_into::<MouseEvent>();
             let x = val.x() as f32 - 10.0;
             let y = (screen.height - val.y() as f32) - 600.0;
-            text_field.jump_cursor(Vector2::new(x,y),true,&mut fonts);
+            text_field.jump_cursor(Vector2::new(x,y),true);
         }));
         web::document().unwrap().add_event_listener_with_callback
         ("click",c.as_ref().unchecked_ref()).unwrap();
@@ -83,18 +77,16 @@ pub fn run_example_text_selecting() {
 
         let mut keyboard = KeyboardBinding::create();
         keyboard.set_copy_handler(move |cut:bool| {
-            let mut fonts    = fonts_on_copy.borrow_mut();
             let text_field   = &text_field_on_copy;
             let text_to_copy = text_field.get_selected_text();
             if cut {
-                text_field.edit("", &mut fonts);
+                text_field.edit("");
             }
             text_to_copy
         });
         keyboard.set_paste_handler(move |pasted:String| {
-            let mut fonts  = fonts_on_paste.borrow_mut();
             let text_field = &text_field_on_paste;
-            text_field.edit(pasted.as_str(),&mut fonts);
+            text_field.edit(pasted.as_str());
         });
 
         world.on_frame(move |_| { let _keep_alive = &keyboard; }).forget();

@@ -13,7 +13,7 @@ use nalgebra::clamp;
 /// This structure keeps texture data in 8-bit-per-channel RGB format, which
 /// is ready to be passed to webgl texImage2D. The texture contains MSDFs for
 /// all loaded glyph, organized in vertical column.
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct MsdfTexture {
     /// A plain data of this texture.
     pub data : Vec<u8>
@@ -98,9 +98,7 @@ pub fn convert_msdf_translation(msdf:&MultichannelSignedDistanceField)
 mod test {
     use super::*;
 
-    use basegl_core_msdf_sys::test_utils::TestAfterInit;
     use nalgebra::Vector2;
-    use std::future::Future;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     #[test]
@@ -126,15 +124,14 @@ mod test {
     }
 
     #[wasm_bindgen_test(async)]
-    fn msdf_translation_converting() -> impl Future<Output=()> {
-        TestAfterInit::schedule(|| {
-            let mut msdf = MultichannelSignedDistanceField::mock_results();
-            msdf.translation = Vector2::new(16.0, 4.0);
+    async fn msdf_translation_converting() {
+        basegl_core_msdf_sys::initialized().await;
+        let mut msdf = MultichannelSignedDistanceField::mock_results();
+        msdf.translation = Vector2::new(16.0, 4.0);
 
-            let converted = convert_msdf_translation(&msdf);
-            let expected = nalgebra::Vector2::new(0.5, 1.0/8.0);
+        let converted = convert_msdf_translation(&msdf);
+        let expected = nalgebra::Vector2::new(0.5, 1.0/8.0);
 
-            assert_eq!(expected, converted);
-        })
+        assert_eq!(expected, converted);
     }
 }
