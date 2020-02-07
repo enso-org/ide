@@ -210,8 +210,8 @@ impl Canvas {
         self.if_not_defined(num, |this| {
             let color:Glsl = color.into();
             this.add_current_function_code_line(iformat!("Shape shape = {s.getter()};"));
-            this.add_current_function_code_line(iformat!("shape.color = rgba({color});"));
-            let expr = iformat!("return shape;");
+            this.add_current_function_code_line(iformat!("Rgba  color = rgba({color});"));
+            let expr = iformat!("return set_color(shape,color);");
             let mut shape = this.new_shape_from_expr(num,&expr);
             shape.add_ids(&s.ids);
             shape

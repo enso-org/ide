@@ -57,12 +57,16 @@ where [Color:Copy+Into<Glsl>] {
 pub struct DistanceGradient<Gradient> {
     pub min_distance : f32,
     pub max_distance : f32,
+    pub slope        : Slope,
     pub gradient     : Gradient
 }
 
 impl<Gradient> DistanceGradient<Gradient> {
-    pub fn new(min_distance:f32, max_distance:f32, gradient:Gradient) -> Self {
-        Self {min_distance,max_distance,gradient}
+    pub fn new(gradient:Gradient) -> Self {
+        let min_distance = -10.0;
+        let max_distance = 0.0;
+        let slope        = Slope::Smooth;
+        Self {min_distance,max_distance,slope,gradient}
     }
 }
 
@@ -76,20 +80,22 @@ impl<Gradient> Unwrap for DistanceGradient<Gradient> {
     }
 }
 
-
 impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
-    |t| {
-        let span   = iformat!("{t.max_distance.glsl()} - {t.min_distance.glsl()}");
-        let offset = iformat!("shape.sdf.distance - {t.min_distance.glsl()}");
+    |g| {
+        let span   = iformat!("{g.max_distance.glsl()} - {g.min_distance.glsl()}");
+        let offset = iformat!("shape.sdf.distance - {g.min_distance.glsl()}");
         let norm   = iformat!("({offset}) / ({span})");
-        let expr   = iformat!("samplex({norm},{t.gradient.glsl()})");
+        let t      = match g.slope {
+            Slope::Linear => norm,
+            Slope::Smooth => iformat!("smoothstep(0.0,1.0,{norm})"),
+        };
+        let expr   = iformat!("sample({g.gradient.glsl()},{t})");
         expr.into()
     }
 }}
 
-//
-//impls! {[C:Mix+Clone] From<Gradient<C>> for Glsl {
-//    |t| t.0
-//}}
-
-
+#[derive(Copy,Clone,Debug)]
+pub enum Slope {
+    Linear,
+    Smooth,
+}

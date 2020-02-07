@@ -42,21 +42,24 @@ fn init(world: &World) {
 
 //    let navigator = Navigator::new(&scene, &camera);
 //    let navigator = navigator.expect("Couldn't create navigator");
+    let node_radius = 25.0;
+    let shadow_span = 10.0;
+    let node   = Circle(node_radius);
+    let shadow = Circle(node_radius + shadow_span);
 
-    let s1 = Circle("25.0 + 20.0*sin(input_time/1000.0)");
-    let s2 = s1.translate(25.0,0.0);
-    let s3 = &s1 + &s2;
 
-    let color = Srgb::new(30.0/255.0,50.0/255.0,90.0/255.0);
+    let node_color = Srgb::new(1.0,1.0,1.0);
+    let node = node.fill(node_color);
 
-    let gradient = Gradient::new()
-        .add(0.0,Srgb::new(0.0,0.0,1.0).into_linear())
-        .add(1.0,Srgb::new(0.0,1.0,0.0).into_linear());
-    let gradient = DistanceGradient::new(-20.0,0.0,gradient);
-//    let color:Rgb<Linear<encoding::Srgb>> = color.into_linear();
-    let s4 = s1.fill(gradient);
+    let shadow_color = Gradient::new()
+        .add(0.0,Srgba::new(0.0,0.0,0.0,1.0).into_linear())
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+    let shadow_color = DistanceGradient::new(shadow_color);
+    let shadow = shadow.fill(shadow_color);
 
-    let shape_system = ShapeSystem::new(world,&s4);
+    let out = &shadow + &node;
+
+    let shape_system = ShapeSystem::new(world,&out);
     let sprite = shape_system.new_instance();
     sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {

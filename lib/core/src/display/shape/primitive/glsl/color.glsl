@@ -179,7 +179,6 @@ DEF_TRANSITIVE_CONVERSIONS(Srgb,SRgba,srgb,srgba,Rgb,Rgba,rgb,rgba)
 
 
 
-
 // ====================
 // === Srgb <-> Lch ===
 // ====================
@@ -246,23 +245,6 @@ Srgb srgb(HSV hsv) {
 DEF_TRANSITIVE_CONVERSIONS(Srgb,SRgba,srgb,srgba,HSV,HSVA,hsv,hsva)
 
 
-// TODO: we will use it for color mixing. Should be enabled / removed in next PR.
-
-////cheaply lerp around a circle
-//float lerpAng(in float a, in float b, in float x)
-//{
-//    float ang = mod(mod((a-b), TAU) + PI*3., TAU)-PI;
-//    return ang*x+b;
-//}
-//
-////Linear interpolation between two colors in Lch space
-//vec3 lerpLch(in vec3 a, in vec3 b, in float x)
-//{
-//    float hue = lerpAng(a.z, b.z, x);
-//    return vec3(mix(b.xy, a.xy, x), hue);
-//}
-
-
 
 // =================================================================================================
 // === Mixing ======================================================================================
@@ -283,32 +265,134 @@ Rgba mix(Rgba color1, Rgba color2, float t) {
 // === Gradient ===
 // ================
 
-struct RgbGradientControlPoint {
-    float offset;
-    Rgb   color;
-};
 
-RgbGradientControlPoint gradient_control_point(float offset, Rgb color) {
-    return RgbGradientControlPoint(offset,color);
-}
+#define DEF_GRADIENT(COLOR,COLOR_CONS,CONTROL_POINT,GRADIENT1,GRADIENT2,GRADIENT3,GRADIENT4,GRADIENT5) \
+struct CONTROL_POINT {                                                                             \
+    float offset;                                                                                  \
+    COLOR color;                                                                                   \
+};                                                                                                 \
+                                                                                                   \
+CONTROL_POINT gradient_control_point(float offset, COLOR color) {                                  \
+    return CONTROL_POINT(offset,color);                                                            \
+}                                                                                                  \
+                                                                                                   \
+struct GRADIENT1 {                                                                                 \
+    CONTROL_POINT control_point1;                                                                  \
+};                                                                                                 \
+                                                                                                   \
+struct GRADIENT2 {                                                                                 \
+    CONTROL_POINT control_point1;                                                                  \
+    CONTROL_POINT control_point2;                                                                  \
+};                                                                                                 \
+                                                                                                   \
+struct GRADIENT3 {                                                                                 \
+    CONTROL_POINT control_point1;                                                                  \
+    CONTROL_POINT control_point2;                                                                  \
+    CONTROL_POINT control_point3;                                                                  \
+};                                                                                                 \
+                                                                                                   \
+struct GRADIENT4 {                                                                                 \
+    CONTROL_POINT control_point1;                                                                  \
+    CONTROL_POINT control_point2;                                                                  \
+    CONTROL_POINT control_point3;                                                                  \
+    CONTROL_POINT control_point4;                                                                  \
+};                                                                                                 \
+                                                                                                   \
+struct GRADIENT5 {                                                                                 \
+    CONTROL_POINT control_point1;                                                                  \
+    CONTROL_POINT control_point2;                                                                  \
+    CONTROL_POINT control_point3;                                                                  \
+    CONTROL_POINT control_point4;                                                                  \
+    CONTROL_POINT control_point5;                                                                  \
+};                                                                                                 \
+                                                                                                   \
+GRADIENT2 gradient                                                                                 \
+( CONTROL_POINT control_point1                                                                     \
+, CONTROL_POINT control_point2 ) {                                                                 \
+    return GRADIENT2(control_point1,control_point2);                                               \
+}                                                                                                  \
+                                                                                                   \
+GRADIENT3 gradient                                                                                 \
+( CONTROL_POINT control_point1                                                                     \
+, CONTROL_POINT control_point2                                                                     \
+, CONTROL_POINT control_point3 ) {                                                                 \
+    return GRADIENT3(control_point1,control_point2,control_point3);                                \
+}                                                                                                  \
+                                                                                                   \
+GRADIENT4 gradient                                                                                 \
+( CONTROL_POINT control_point1                                                                     \
+, CONTROL_POINT control_point2                                                                     \
+, CONTROL_POINT control_point3                                                                     \
+, CONTROL_POINT control_point4 ) {                                                                 \
+    return GRADIENT4(control_point1,control_point2,control_point3,control_point4);                 \
+}                                                                                                  \
+                                                                                                   \
+GRADIENT5 gradient                                                                                 \
+( CONTROL_POINT control_point1                                                                     \
+, CONTROL_POINT control_point2                                                                     \
+, CONTROL_POINT control_point3                                                                     \
+, CONTROL_POINT control_point4                                                                     \
+, CONTROL_POINT control_point5 ) {                                                                 \
+    return GRADIENT5(control_point1,control_point2,control_point3,control_point4,control_point5);  \
+}                                                                                                  \
+                                                                                                   \
+COLOR sample(GRADIENT2 gradient, float offset) {                                                   \
+    float span = gradient.control_point2.offset - gradient.control_point1.offset;                  \
+    float t    = clamp((offset - gradient.control_point1.offset)/span);                            \
+    return COLOR_CONS(mix(gradient.control_point1.color.raw,gradient.control_point2.color.raw,t)); \
+}                                                                                                  \
+                                                                                                   \
+COLOR sample(GRADIENT3 gradient, float offset) {                                                   \
+    if (offset < gradient.control_point1.offset) {                                                 \
+        return gradient.control_point1.color;                                                      \
+    } else if (offset < gradient.control_point2.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point1,gradient.control_point2),offset);          \
+    } else if (offset < gradient.control_point3.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point2,gradient.control_point3),offset);          \
+    } else {                                                                                       \
+        return gradient.control_point3.color;                                                      \
+    }                                                                                              \
+}                                                                                                  \
+                                                                                                   \
+COLOR sample(GRADIENT4 gradient, float offset) {                                                   \
+    if (offset < gradient.control_point1.offset) {                                                 \
+        return gradient.control_point1.color;                                                      \
+    } else if (offset < gradient.control_point2.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point1,gradient.control_point2),offset);          \
+    } else if (offset < gradient.control_point3.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point2,gradient.control_point3),offset);          \
+    } else if (offset < gradient.control_point4.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point3,gradient.control_point4),offset);          \
+    } else {                                                                                       \
+        return gradient.control_point4.color;                                                      \
+    }                                                                                              \
+}                                                                                                  \
+                                                                                                   \
+COLOR sample(GRADIENT5 gradient, float offset) {                                                   \
+    if (offset < gradient.control_point1.offset) {                                                 \
+        return gradient.control_point1.color;                                                      \
+    } else if (offset < gradient.control_point2.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point1,gradient.control_point2),offset);          \
+    } else if (offset < gradient.control_point3.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point2,gradient.control_point3),offset);          \
+    } else if (offset < gradient.control_point4.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point3,gradient.control_point4),offset);          \
+    } else if (offset < gradient.control_point5.offset) {                                          \
+        return sample(GRADIENT2(gradient.control_point4,gradient.control_point5),offset);          \
+    } else {                                                                                       \
+        return gradient.control_point5.color;                                                      \
+    }                                                                                              \
+}                                                                                                  \
+
+
+DEF_GRADIENT(Rgb,rgb,RgbGradientControlPoint,RgbGradient1,RgbGradient2,RgbGradient3,RgbGradient4,RgbGradient5)
+DEF_GRADIENT(Rgba,rgba,RgbaGradientControlPoint,RgbaGradient1,RgbaGradient2,RgbaGradient3,RgbaGradient4,RgbaGradient5)
 
 
 
 
-struct RgbGradient2 {
-    RgbGradientControlPoint control_point1;
-    RgbGradientControlPoint control_point2;
-};
-
-RgbGradient2 gradient
-(RgbGradientControlPoint control_point1, RgbGradientControlPoint control_point2) {
-    return RgbGradient2(control_point1,control_point2);
-}
-
-
-Rgb samplex(float offset, RgbGradient2 gradient) {
-    float span = gradient.control_point2.offset - gradient.control_point1.offset;
-    float t    = (offset - gradient.control_point1.offset) / span;
-    float t2   = clamp(t);
-    return rgb(mix(gradient.control_point1.color.raw,gradient.control_point2.color.raw,t2));
-}
+//Rgba blend(Rgba bottom, Rgba top, float t) {
+//    float weight = t * a(top);
+//    float rgb    = mix(bottom.raw.rgb, top.raw.rgb, weight);
+//    float alpha  = a(bottom) + a(top);
+//}
