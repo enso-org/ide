@@ -58,6 +58,12 @@ macro_rules! make_handles {
     };
 }
 
+
+
+// =======================
+// === Text controller ===
+// =======================
+
 pub mod project {
     //! Project controller.
     ///
@@ -229,6 +235,12 @@ pub mod project {
     }
 }
 
+
+
+// =======================
+// === Text controller ===
+// =======================
+
 /// Module controller.
 pub mod module {
     use super::*;
@@ -287,6 +299,12 @@ pub mod module {
         }
     }
 }
+
+
+
+// =======================
+// === Text controller ===
+// =======================
 
 /// Text controller.
 pub mod text {
@@ -368,7 +386,10 @@ pub mod text {
 }
 
 
-/////////////////////////////////////////////////
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {

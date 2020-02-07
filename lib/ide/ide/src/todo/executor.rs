@@ -39,7 +39,7 @@ pub fn unset_global_spawner() {
 }
 
 #[allow(unsafe_code)]
-pub fn current_spawner() -> &'static mut Box<dyn LocalSpawn> {
+pub fn current_spawner() -> &'static mut dyn LocalSpawn {
     unsafe {
         CURRENT_SPAWNER.as_mut().expect("no global executor has been provided")
     }
