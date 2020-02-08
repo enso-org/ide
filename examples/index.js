@@ -5,32 +5,225 @@ let pfx = "run_example_"
 
 
 
+
+
+
+// =================
+// === Animation ===
+// =================
+
+function ease_in_out_cubic(t) {
+    return t<.5 ? 4*t*t*t : 1 - (-2*t+2) * (-2*t+2) * (-2*t+2) / 2
+}
+
+function ease_in_out_quad(t) {
+    return t<.5 ? 2*t*t : 1 - (-2*t+2)*(-2*t+2) / 2;
+}
+
+function ease_out_quart(t) {
+    return 1-(--t)*t*t*t
+}
+
+
+
+// ============
+// === Math ===
+// ============
+
+function polar_to_cartesian(radius, angle_degrees) {
+    let angle = (angle_degrees-90) * Math.PI / 180.0
+    return {
+        x : radius * Math.cos(angle),
+        y : radius * Math.sin(angle)
+    }
+}
+
+
+
+// ===========
+// === SVG ===
+// ===========
+
+function new_svg(width, height, str) {
+    return `
+    <svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         height="${height}" width="${width}" viewBox="0 0 ${height} ${width}">
+    ${str}
+    </svg>`
+}
+
+function svg_arc(radius, end_angle){
+    let start_angle = 0;
+    if (end_angle < 0) {
+        start_angle = end_angle
+        end_angle   = 0
+    }
+    let start       = polar_to_cartesian(radius, end_angle)
+    let end         = polar_to_cartesian(radius, start_angle)
+    let large_arc   = end_angle - start_angle <= 180 ? "0" : "1"
+    return `M 0 0 L ${start.x} ${start.y} A ${radius} ${radius} 0 ${large_arc} 0 ${end.x} ${end.y}`
+}
+
+
+
+// =========================
+// === ProgressIndicator ===
+// =========================
+
+let bg_color     = "#ffffff"
+let loader_color = "#303030"
+
+function new_loader_progress_indicator_svg() {
+    let width        = 128
+    let height       = 128
+    let alpha        = 0.9
+    let inner_radius = 48
+    let outer_radius = 60
+    let mid_radius = (inner_radius + outer_radius) / 2
+    let bar_width = outer_radius - inner_radius
+
+    return new_svg(width,height,`
+        <defs>
+            <g id="progress_bar">
+                <circle fill="${loader_color}" r="${outer_radius}"                               />
+                <circle fill="${bg_color}"     r="${inner_radius}"                               />
+                <path   fill="${bg_color}"     opacity="${alpha}" id="progress_indicator_mask"   />
+                <circle fill="${loader_color}" r="${bar_width/2}" id="progress_indicator_corner" />
+                <circle fill="${loader_color}" r="${bar_width/2}" cy="-${mid_radius}"            />
+            </g>
+        </defs>
+        <g transform="translate(${width/2},${height/2})">
+            <g transform="rotate(0,0,0)" id="progress_indicator">
+                <use xlink:href="#progress_bar"></use>
+            </g>
+        </g>
+    `)
+}
+
+class ProgressIndicator {
+    constructor() {
+        let center = document.createElement('div')
+        center.style.width          = '100%'
+        center.style.height         = '100%'
+        center.style.display        = 'flex'
+        center.style.justifyContent = 'center'
+        center.style.alignItems     = 'center'
+        document.body.appendChild(center)
+
+        let progress_bar_svg   = new_loader_progress_indicator_svg()
+        let progress_bar       = document.createElement('div')
+        progress_bar.innerHTML = progress_bar_svg
+        center.appendChild(progress_bar)
+
+        this.progress_indicator        = document.getElementById("progress_indicator")
+        this.progress_indicator_mask   = document.getElementById("progress_indicator_mask");
+        this.progress_indicator_corner = document.getElementById("progress_indicator_corner");
+
+        this.set(0)
+        this.set_opacity(0)
+    }
+
+    set(value) {
+        let min_angle  = 0
+        let max_angle  = 359
+        let angle_span = max_angle - min_angle
+        let mask_angle = (1-value)*angle_span - min_angle
+        let corner_pos = polar_to_cartesian(54, -mask_angle)
+        this.progress_indicator_mask.setAttribute("d", svg_arc(128, -mask_angle))
+        this.progress_indicator_corner.setAttribute("cx", corner_pos.x)
+        this.progress_indicator_corner.setAttribute("cy", corner_pos.y)
+    }
+
+    set_opacity(val) {
+        this.progress_indicator.setAttribute("opacity",val)
+    }
+
+    set_rotation(val) {
+        this.progress_indicator.setAttribute("transform",`rotate(${val},0,0)`)
+    }
+}
+
+
+
+// ============
+// === Main ===
+// ============
+
+let progress_indicator = new ProgressIndicator
+
+
+
+
+
+
+
 function format_mb(bytes) {
    return Math.round(10 * bytes / (1042 * 1024)) / 10
 }
 
-async function run() {
-    let imports             = wasm.get_imports()
-    let response            = await fetch('dist/wasm/basegl_examples_bg.wasm')
-    let wasm_total_bytes    = response.headers.get('Content-Length')
-    let wasm_received_bytes = 0
-    let last_receive_time   = performance.now()
 
-    console.groupCollapsed(`Loading WASM (${format_mb(wasm_total_bytes)} MB).`)
+class Loader {
+    constructor(total_bytes) {
+        this.total_bytes       = total_bytes
+        this.received_bytes    = 0
+        this.download_speed    = 0
+        this.last_receive_time = performance.now()
+    }
+
+    value() {
+        return this.received_bytes / this.total_bytes
+    }
+
+    done() {
+        return this.received_bytes == this.total_bytes
+    }
+
+    on_receive(new_bytes) {
+        this.received_bytes += new_bytes
+        let time      = performance.now()
+        let time_diff = time - this.last_receive_time
+        this.download_speed = new_bytes / time_diff
+        this.last_receive_time = time
+    }
+
+    show_percentage_value() {
+        Math.round(100 * this.value())
+    }
+
+    show_total_bytes() {
+        return `${format_mb(this.total_bytes)} MB`
+    }
+
+    show_received_bytes() {
+        return `${format_mb(this.received_bytes)} MB`
+    }
+
+    show_download_speed() {
+        return `${format_mb(1000 * this.download_speed)} MB/s`
+    }
+
+}
+
+async function run() {
+    let imports          = wasm.get_imports()
+    let response         = await fetch('dist/wasm/basegl_examples_bg.wasm')
+    let wasm_total_bytes = response.headers.get('Content-Length')
+    let loader           = new Loader(wasm_total_bytes)
+
+    run_loader_indicator(loader)
+
+    console.groupCollapsed(`Loading WASM (${loader.show_total_bytes()}).`)
 
     response.clone().body.pipeTo(
         new WritableStream({
              write(t) {
-                 let new_bytes = t.length
-                 wasm_received_bytes += new_bytes
-                 let time      = performance.now()
-                 let time_diff = time - last_receive_time
-                 let percent   = Math.round(100 * wasm_received_bytes / wasm_total_bytes)
-                 let speed     = `${format_mb(1000 * new_bytes / time_diff)} MB/s`
-                 let received  = `${format_mb(wasm_received_bytes)} MB`
-                 last_receive_time = time
+                 loader.on_receive(t.length)
+                 let percent  = loader.show_percentage_value()
+                 let speed    = loader.show_download_speed()
+                 let received = loader.show_received_bytes()
                  console.log(`${percent}% (${received}) (${speed}).`)
-                 if (wasm_received_bytes == wasm_total_bytes) {
+                 if (loader.done()) {
                      console.groupEnd()
                      console.log("Compiling WASM.")
                  }
@@ -56,142 +249,38 @@ async function run() {
 
 run()
 
-var center = document.createElement('div')
-center.style.width          = '100%'
-center.style.height         = '100%'
-center.style.display        = 'flex'
-center.style.justifyContent = 'center'
-center.style.alignItems     = 'center'
-document.body.appendChild(center)
-
-let svg = `
-<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="128" width="128" viewBox="0 0 128 128">
-  <defs>
-    <circle id="innerCircle" cx="32" cy="32" r="20.816326530612244"></circle>
-    <circle id="leftAtom" cx="17.591836734693878" cy="32" r="14.408163265306122"></circle>
-    <circle id="rightAtom" cx="42.40816326530612" cy="32" r="10.408163265306122"></circle>
-    <mask id="innerCircleMask">
-      <use xlink:href="#innerCircle" fill="white"></use>
-    </mask>
-
-    <rect id="bg" width="64" height="64" fill="white"></rect>
-
-    <mask id="mainShapeMask">
-      <use xlink:href="#bg"></use>
-      <use xlink:href="#leftAtom" fill="black"></use>
-      <rect cy="32" width="64" height="32" fill="black"></rect>
-    </mask>
-
-    <g id="front">
-      <use xlink:href="#innerCircle" mask="url(#mainShapeMask)"></use>
-      <use xlink:href="#rightAtom"></use>
-    </g>
-
-    <g id="logo">
-    <use xlink:href="#border"></use>
-      <use xlink:href="#front" transform="rotate(35 32 32)"></use>
-    </g>
-
-    </defs>
 
 
-    <g transform="scale(2)"><use xlink:href="#logo" fill="#252525"></use></g>
-</svg>
-`
-
-let progress_bar_svg = `
-<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="128" width="128" viewBox="0 0 128 128">
-    <defs>
-        <g id="progress_bar">
-            <circle cx="64" cy="64" r="60" fill="#252525" />
-            <circle cx="64" cy="64" r="48" fill="white" />
-            <path id="load_progress_indicator" fill="#FFFFFFDD" />
-            <circle cx="64" cy="10" r="6" fill="#252525" />
-            <circle id="load_progress_indicator_corner" cx="64" cy="10" r="6" fill="#252525" />
-        </g>
-    </defs>
-    <g id="gg" transform="rotate(45,64,64)"><use xlink:href="#progress_bar" fill="#252525"></use></g>
-</svg>
-
-`
-
-var logo = document.createElement('div')
-logo.style.position = "absolute"
-logo.style.zIndex = 10
-logo.innerHTML = svg
-//center.appendChild(logo)
-
-var progress_bar = document.createElement('div')
-//progress_bar.style.position = "absolute"
-progress_bar.innerHTML = progress_bar_svg
-center.appendChild(progress_bar)
-
-
-function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
-  var angleInRadians = (angleInDegrees-90) * Math.PI / 180.0
-
-  return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
-  }
-}
-
-function describeArc(x, y, radius, startAngle, endAngle){
-
-    var start = polarToCartesian(x, y, radius, endAngle)
-    var end = polarToCartesian(x, y, radius, startAngle)
-
-    var largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1"
-
-    var d = [
-        "M", 64, 64,
-        "L", start.x, start.y,
-        "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
-    ].join(" ")
-
-    return d
-}
-
-let load_progress_indicator        = document.getElementById("load_progress_indicator");
-let load_progress_indicator_corner = document.getElementById("load_progress_indicator_corner");
-
-function set_progress(value) {
-    let angle = (1-value)*359
-    let corner_pos = polarToCartesian(64, 64, 54, angle)
-    load_progress_indicator.setAttribute("d", describeArc(64, 64, 128, 0, angle))
-    load_progress_indicator_corner.setAttribute("cx", corner_pos.x)
-    load_progress_indicator_corner.setAttribute("cy", corner_pos.y)
-}
-
-let foo = polarToCartesian(64, 64, 54, 130)
-document.getElementById("load_progress_indicator").setAttribute("d", describeArc(64, 64, 128, 0, 130))
-document.getElementById("load_progress_indicator_corner").setAttribute("cx", foo.x)
-document.getElementById("load_progress_indicator_corner").setAttribute("cy", foo.y)
-
-let gg = document.getElementById("gg")
-
-let rotation = 0
-
-let value = 0
-
-function loading_step(timestamp) {
-    value += 0.003
-    if (value > 1) {
-        value = 1
+function run_loader_indicator(loader) {
+    let rotation = 0
+    let alpha = 0
+    function show_step() {
+        progress_indicator.set_opacity(ease_in_out_quad(alpha))
+        alpha += 0.02
+        if (alpha > 1) {
+            alpha = 1
+        } else {
+            window.requestAnimationFrame(show_step)
+        }
     }
-    rotation += 6
+    window.requestAnimationFrame(show_step)
 
-    let angle = (1-value)*359
-    let foo = polarToCartesian(64, 64, 54, angle)
-    document.getElementById("load_progress_indicator").setAttribute("d", describeArc(64, 64, 128, 0, angle))
-    document.getElementById("load_progress_indicator_corner").setAttribute("cx", foo.x)
-    document.getElementById("load_progress_indicator_corner").setAttribute("cy", foo.y)
 
-    gg.setAttribute("transform", `rotate(${rotation},64,64)`)
+    function loading_step(timestamp) {
+        let value = loader.value()
+        if (value > 1) {
+            value = 1
+        }
+        progress_indicator.set(value)
+        progress_indicator.set_rotation(rotation)
+
+        rotation += 6
+        if (value < 1) {
+            window.requestAnimationFrame(loading_step)
+        }
+    }
     window.requestAnimationFrame(loading_step)
 }
-
-window.requestAnimationFrame(loading_step)
 
 
 
