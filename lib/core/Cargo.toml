@@ -40,7 +40,7 @@ rustc-hash                 = { version = "1.0.1"  }
 shrinkwraprs               = { version = "0.3.0"  }
 smallvec                   = { version = "1.0.0"  }
 typenum                    = { version = "1.11.2" }
-wasm-bindgen               = { version = "^0.2"   , features = ["nightly"]    }
+wasm-bindgen               = { version = "0.2.58" , features = ["nightly"]    }
 
 [dependencies.web-sys]
 version = "0.3.4"

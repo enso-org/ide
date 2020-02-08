@@ -4,10 +4,10 @@ const path = require('path');
 const mb = 1024 * 1024;
 
 module.exports = {
-    entry: "./bootstrap.js",
+    entry: "./index.js",
     output: {
         path: path.resolve(__dirname, "dist"),
-        filename: "bootstrap.js",
+        filename: "index.js",
     },
     node: {
         fs: 'empty'
@@ -24,7 +24,11 @@ module.exports = {
         modules: [path.resolve(__dirname, "node_modules")]
     },
     performance: {
-        hints: 'error',
-        maxAssetSize: 5.0 * mb,
+        hints: false,
+//        maxAssetSize: 5.0 * mb,
+    },
+
+    devServer: {
+        mimeTypes: { typeMap:{'application/wasm': ['wasm']}, force:true },
     },
 };
