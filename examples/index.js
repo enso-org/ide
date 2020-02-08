@@ -205,6 +205,12 @@ class Loader {
 
 }
 
+
+let incorrect_mime_type_warning = `
+'WebAssembly.instantiateStreaming' failed because your server does not serve wasm with
+'application/wasm' MIME type. Falling back to 'WebAssembly.instantiate' which is slower.
+`
+
 async function run() {
     let imports          = wasm.get_imports()
     let response         = await fetch('dist/wasm/basegl_examples_bg.wasm')
@@ -232,18 +238,16 @@ async function run() {
     )
 
     let result = await WebAssembly.instantiateStreaming(response, imports).catch(e => {
-        return response
-        .then(r => {
+        return response.then(r => {
             if (r.headers.get('Content-Type') != 'application/wasm') {
-                console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e)
+                console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
                 return r.arrayBuffer()
             } else {
-                throw e
+                todo
             }
         })
         .then(bytes => WebAssembly.instantiate(bytes, imports))
     })
-
     console.log("WASM Compiled.")
 }
 
