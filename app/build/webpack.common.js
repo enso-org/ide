@@ -19,17 +19,22 @@ module.exports = {
     },
     plugins: [
         new CompressionPlugin(),
-        new CopyWebpackPlugin([path.resolve(root,'src','index.html')]),
+        new CopyWebpackPlugin([
+            path.resolve(root,'src','index.html'),
+            path.resolve(root,'src-rust-gen','app.wasm'),
+            path.resolve(root,'src-rust-gen','app.wasm.gz'),
+        ]),
     ],
     devServer: {
+        publicPath: '/assets/',
         historyApiFallback: {
-            index: 'index.html'
+            index: '/assets/index.html'
         }
     },
     resolve: {
         modules: [path.resolve(root, 'node_modules')],
         alias: {
-            wasm_rust_glue$: path.resolve(root, 'dist', 'wasm', 'basegl_examples.js')
+            wasm_rust_glue$: path.resolve(root, 'src-rust-gen', 'app.js')
         }
     },
     performance: {
