@@ -245,7 +245,7 @@ async function log_group_collapsed(msg,f) {
 
 async function run() {
     let wasm_imports_fetch = await fetch('assets/wasm_imports.js')
-    let wasm_fetch         = await fetch('assets/app.wasm')
+    let wasm_fetch         = await fetch('assets/gui.wasm')
     let wasm_imports_bytes = parseInt(wasm_imports_fetch.headers.get('Content-Length'))
     let wasm_bytes         = parseInt(wasm_fetch.headers.get('Content-Length'))
     let total_bytes        = wasm_imports_bytes + wasm_bytes
