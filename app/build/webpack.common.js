@@ -2,15 +2,15 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 const CompressionPlugin = require('compression-webpack-plugin')
 
 const path = require('path');
-const mb = 1024 * 1024;
+const root = path.resolve(__dirname, '..')
 
 module.exports = {
     entry: {
-        index: './index.js',
-        wasm_imports: './wasm_imports.js',
+        index: './src/index.js',
+        wasm_imports: './src/wasm_imports.js',
     },
     output: {
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(root, 'dist'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
@@ -19,7 +19,7 @@ module.exports = {
     },
     plugins: [
         new CompressionPlugin(),
-        new CopyWebpackPlugin(['index.html']),
+        new CopyWebpackPlugin([path.resolve(root,'src','index.html')]),
     ],
     devServer: {
         historyApiFallback: {
@@ -27,14 +27,12 @@ module.exports = {
         }
     },
     resolve: {
-        modules: [path.resolve(__dirname, 'node_modules')]
+        modules: [path.resolve(root, 'node_modules')],
+        alias: {
+            wasm_rust_glue$: path.resolve(root, 'dist', 'wasm', 'basegl_examples.js')
+        }
     },
     performance: {
         hints: false,
-//        maxAssetSize: 5.0 * mb,
-    },
-
-    devServer: {
-//        compress: true
     },
 };
