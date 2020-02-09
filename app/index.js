@@ -1,5 +1,4 @@
-//import * as wasm from "basegl"
-import * as wasm from "./dist/wasm/basegl_examples"
+//import * as wasm from "./dist/wasm/basegl_examples"
 
 let pfx = "run_example_"
 
@@ -17,7 +16,7 @@ function ease_in_out_cubic(t) {
 }
 
 function ease_in_out_quad(t) {
-    return t<.5 ? 2*t*t : 1 - (-2*t+2)*(-2*t+2) / 2;
+    return t<.5 ? 2*t*t : 1 - (-2*t+2)*(-2*t+2) / 2
 }
 
 function ease_out_quart(t) {
@@ -54,7 +53,7 @@ function new_svg(width, height, str) {
 }
 
 function svg_arc(radius, end_angle){
-    let start_angle = 0;
+    let start_angle = 0
     if (end_angle < 0) {
         start_angle = end_angle
         end_angle   = 0
@@ -117,8 +116,8 @@ class ProgressIndicator {
         center.appendChild(progress_bar)
 
         this.progress_indicator        = document.getElementById("progress_indicator")
-        this.progress_indicator_mask   = document.getElementById("progress_indicator_mask");
-        this.progress_indicator_corner = document.getElementById("progress_indicator_corner");
+        this.progress_indicator_mask   = document.getElementById("progress_indicator_mask")
+        this.progress_indicator_corner = document.getElementById("progress_indicator_corner")
 
         this.set(0)
         this.set_opacity(0)
@@ -169,10 +168,15 @@ class Loader {
         this.received_bytes    = 0
         this.download_speed    = 0
         this.last_receive_time = performance.now()
+        this.on_done = () => {}
     }
 
     value() {
-        return this.received_bytes / this.total_bytes
+        if (this.total_bytes == 0) {
+            return 0.3
+        } else {
+            return this.received_bytes / this.total_bytes
+        }
     }
 
     done() {
@@ -185,10 +189,16 @@ class Loader {
         let time_diff = time - this.last_receive_time
         this.download_speed = new_bytes / time_diff
         this.last_receive_time = time
+
+        let percent  = this.show_percentage_value()
+        let speed    = this.show_download_speed()
+        let received = this.show_received_bytes()
+        console.log(`${percent}% (${received}) (${speed}).`)
+        if (this.done()) { this.on_done() }
     }
 
     show_percentage_value() {
-        Math.round(100 * this.value())
+        return Math.round(100 * this.value())
     }
 
     show_total_bytes() {
@@ -203,6 +213,14 @@ class Loader {
         return `${format_mb(1000 * this.download_speed)} MB/s`
     }
 
+    input_stream() {
+        let loader = this
+        return new WritableStream({
+             write(t) {
+                 loader.on_receive(t.length)
+             }
+        })
+    }
 }
 
 
@@ -211,42 +229,70 @@ let incorrect_mime_type_warning = `
 'application/wasm' MIME type. Falling back to 'WebAssembly.instantiate' which is slower.
 `
 
-async function run() {
-    let imports          = wasm.get_imports()
-    let response         = await fetch('dist/wasm/basegl_examples_bg.wasm')
-    let wasm_total_bytes = response.headers.get('Content-Length')
-    let loader           = new Loader(wasm_total_bytes)
 
+async function log_group_collapsed(msg,f) {
+    console.groupCollapsed(msg)
+    let out
+    try {
+        out = await f()
+    } catch (error) {
+        console.groupEnd()
+        throw error
+    }
+    console.groupEnd()
+    return out
+}
+
+async function run() {
+    let wasm_imports_fetch = await fetch('wasm_imports.js')
+    let wasm_fetch         = await fetch('dist/wasm/basegl_examples_bg.wasm')
+    let wasm_imports_bytes = parseInt(wasm_imports_fetch.headers.get('Content-Length'))
+    let wasm_bytes         = parseInt(wasm_fetch.headers.get('Content-Length'))
+    let total_bytes        = wasm_imports_bytes + wasm_bytes
+
+    if (Number.isNaN(total_bytes)) {
+        console.error("Loader corrupted. Server is not configured to send the 'Content-Length'.")
+        total_bytes = 0
+    }
+    let loader = new Loader(total_bytes)
     run_loader_indicator(loader)
 
-    console.groupCollapsed(`Loading WASM (${loader.show_total_bytes()}).`)
+    let download_size = loader.show_total_bytes();
 
-    response.clone().body.pipeTo(
-        new WritableStream({
-             write(t) {
-                 loader.on_receive(t.length)
-                 let percent  = loader.show_percentage_value()
-                 let speed    = loader.show_download_speed()
-                 let received = loader.show_received_bytes()
-                 console.log(`${percent}% (${received}) (${speed}).`)
-                 if (loader.done()) {
-                     console.groupEnd()
-                     console.log("Compiling WASM.")
-                 }
-             }
-        })
-    )
+    let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
 
-    let result = await WebAssembly.instantiateStreaming(response, imports).catch(e => {
-        return response.then(r => {
-            if (r.headers.get('Content-Type') != 'application/wasm') {
-                console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
-                return r.arrayBuffer()
-            } else {
-                todo
-            }
+    await log_group_collapsed(download_info, async () => {
+
+        loader.on_done = () => {
+            console.groupEnd()
+            console.log("Download finished. Finishing WASM compilation.")
+        }
+
+
+
+        wasm_imports_fetch.clone().body.pipeTo(loader.input_stream())
+        wasm_fetch.clone().body.pipeTo(loader.input_stream())
+
+
+        let wasm_imports_js = await wasm_imports_fetch.text()
+
+        console.log("WASM dependencies loaded.")
+        console.log("Starting online WASM compilation.")
+
+        let out = Function("let exports = {};" + wasm_imports_js + ";return exports")()
+        let imports = out.wasm_imports()
+
+        let result = await WebAssembly.instantiateStreaming(wasm_fetch, imports).catch(e => {
+            return wasm_fetch.then(r => {
+                if (r.headers.get('Content-Type') != 'application/wasm') {
+                    console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
+                    return r.arrayBuffer()
+                } else {
+                    todo
+                }
+            })
+            .then(bytes => WebAssembly.instantiate(bytes, imports))
         })
-        .then(bytes => WebAssembly.instantiate(bytes, imports))
     })
     console.log("WASM Compiled.")
 }
