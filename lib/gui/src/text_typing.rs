@@ -4,11 +4,9 @@ use wasm_bindgen::prelude::*;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
-use basegl::display::shape::text::text_field::content::TextChange;
 use basegl::display::shape::text::text_field::cursor::Step::Right;
 use basegl::display::shape::text::text_field::{TextField, TextFieldProperties};
 use basegl::display::world::*;
-use basegl::system::web::forward_panic_hook_to_console;
 use basegl::system::web;
 use nalgebra::Vector2;
 use nalgebra::Vector4;
@@ -17,7 +15,7 @@ use nalgebra::Vector4;
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_text_typing() {
-    forward_panic_hook_to_console();
+    web::forward_panic_hook_to_console();
     web::set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world     = &WorldData::new(&web::body());
@@ -67,10 +65,8 @@ fn animate_text_component
     let now         = js_sys::Date::now();
     let to_type_now = typed_chars.drain_filter(|ch| ch.time <= now);
     for ch in to_type_now {
-        let cursor = text_field.cursors().cursors.first().unwrap();
         let string = ch.a_char.to_string();
-        let change = TextChange::insert(cursor.position, string.as_str());
-        text_field.make_change(change,fonts);
+        text_field.edit(string.as_str(),fonts);
         text_field.navigate_cursors(Right,false,fonts);
     }
     if start_scrolling <= js_sys::Date::now() {
