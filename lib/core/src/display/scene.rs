@@ -226,7 +226,7 @@ pub struct SceneData {
     root           : DisplayObjectData,
     canvas         : web_sys::HtmlCanvasElement,
     context        : Context,
-//    css3d_renderer : Css3dRenderer,
+    css3d_renderer : Css3dRenderer,
     symbols        : SymbolRegistry,
     symbols_dirty  : SymbolRegistryDirty,
     camera         : Camera2d,
@@ -301,16 +301,15 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-//        let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,canvas_parent);
+        let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,canvas_parent);
 
         Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
              , logger,listeners,variables,on_resize,stats,pixel_ratio,mouse,zoom_uniform
-             }//, css3d_renderer }
+             , css3d_renderer }
     }
 
     pub fn css3d_renderer(&self) -> Css3dRenderer {
-        todo!()
-//        self.css3d_renderer.clone()
+        self.css3d_renderer.clone()
     }
 
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {

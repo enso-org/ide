@@ -114,6 +114,12 @@ impl<Gradient> DistanceGradient<Gradient> {
         self.max_distance = t;
         self
     }
+
+    /// Constructor setter for the `slope` field.
+    pub fn slope(mut self, t:Slope) -> Self {
+        self.slope = t;
+        self
+    }
 }
 
 
@@ -132,11 +138,12 @@ impl<Gradient> Unwrap for DistanceGradient<Gradient> {
 impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
     |g| {
         let span   = iformat!("{g.max_distance.glsl()} - {g.min_distance.glsl()}");
-        let offset = iformat!("shape.sdf.distance + {g.max_distance.glsl()}");
-        let norm   = iformat!("({offset}) / ({span})");
+        let offset = iformat!("-shape.sdf.distance - {g.min_distance.glsl()}");
+        let norm   = iformat!("clamp(({offset}) / ({span}))");
         let t      = match g.slope {
-            Slope::Linear => norm,
-            Slope::Smooth => iformat!("smoothstep(0.0,1.0,{norm})"),
+            Slope::Linear        => norm,
+            Slope::Smooth        => iformat!("smoothstep(0.0,1.0,{norm})"),
+            Slope::Exponent(exp) => iformat!("pow({norm},{exp.glsl()})"),
         };
         let expr   = iformat!("sample({g.gradient.glsl()},{t})");
         expr.into()
@@ -151,4 +158,7 @@ pub enum Slope {
     /// Perform Hermite interpolation between gradient values. See `GLSL` `smoothstep` for
     /// reference.
     Smooth,
+    /// Raises the normalized gradient offset to the given power and uses it as the interpolation
+    /// step.
+    Exponent(f32)
 }
