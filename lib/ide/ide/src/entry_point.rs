@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 use basegl::system::web;
 
-use super::project_view::ProjectView;
+use super::view::project_view::ProjectView;
 
 #[wasm_bindgen]
 #[allow(dead_code)]

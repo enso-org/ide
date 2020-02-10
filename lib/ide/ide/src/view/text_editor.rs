@@ -1,9 +1,14 @@
+use basegl::prelude::*;
+
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
 use basegl::system::web;
+use basegl::display::object::DisplayObject;
+
+use super::ui_component::UiComponent;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
@@ -23,8 +28,9 @@ The heart-ache and the thousand natural shocks
 That flesh is heir to: 'tis a consummation
 Devoutly to be wish'd.";
 
+#[derive(Clone,Debug)]
 pub struct TextEditor {
-    text_field : TextField
+    text_field    : TextField
 }
 
 impl TextEditor {
@@ -48,15 +54,40 @@ impl TextEditor {
         world.add_child(&text_field);
         text_field.update();
 
-//        let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
-//            let val = val.unchecked_into::<MouseEvent>();
-//            let x = val.x() as f32 - 10.0;
-//            let y = (screen.height - val.y() as f32) - 600.0;
-//            text_field.jump_cursor(Vector2::new(x,y),true,&mut fonts);
-//        }));
-//        web::document().unwrap().add_event_listener_with_callback
-//        ("click",c.as_ref().unchecked_ref()).unwrap();
-//        c.forget();
+        let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(enclose!((text_field) move
+        |val:JsValue| {
+            let position = text_field.position();
+            let val = val.unchecked_into::<MouseEvent>();
+            let x = val.x() as f32 - position.x;
+            let y = (screen.height - val.y() as f32) - position.y;
+            text_field.jump_cursor(Vector2::new(x,y),true,&mut fonts);
+        })));
+        web::document().unwrap().add_event_listener_with_callback
+        ("click",c.as_ref().unchecked_ref()).unwrap();
+        c.forget();
         Self {text_field}
+    }
+
+    pub fn update(&self) {
+        self.text_field.update();
+    }
+}
+
+impl UiComponent for TextEditor {
+    fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
+        self.text_field.set_size(dimensions);
+    }
+
+    fn dimensions(&self) -> Vector2<f32> {
+        self.text_field.size()
+    }
+
+    fn set_position(&mut self, position:Vector2<f32>) {
+        self.text_field.set_position(Vector3::new(position.x, position.y, 0.0));
+    }
+
+    fn position(&self) -> Vector2<f32> {
+        let position = self.text_field.position();
+        Vector2::new(position.x, position.y)
     }
 }

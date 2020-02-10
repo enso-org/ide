@@ -94,6 +94,11 @@ shared! { TextField
             self.display_object.set_position(position);
         }
 
+        /// Get position.
+        pub fn position(&self) -> Vector3<f32> {
+            self.display_object.position()
+        }
+
         /// Scroll text by given offset in pixels.
         pub fn scroll(&mut self, offset:Vector2<f32>, fonts:&mut FontRegistry) {
             self.rendered.display_object.mod_position(|pos| *pos -= Vector3::new(offset.x,offset.y,0.0));
@@ -137,6 +142,16 @@ shared! { TextField
             self.content.apply_change(change);
             self.assignment_update(fonts).update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content,fonts);
+        }
+
+        /// Set size.
+        pub fn set_size(&mut self, size:Vector2<f32>) {
+            self.properties.size = size;
+        }
+
+        /// Get size.
+        pub fn size(&self) -> Vector2<f32> {
+            self.properties.size
         }
 
         /// Get the selected text.

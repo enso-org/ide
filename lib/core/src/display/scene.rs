@@ -48,6 +48,14 @@ pub enum Error {
 
 
 
+// ================
+// === FnResize ===
+// ================
+
+pub trait FnResize = FnMut(f64,f64) + 'static;
+
+
+
 // =============
 // === Shape ===
 // =============
@@ -377,6 +385,10 @@ impl {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         self.render();
+    }
+
+    pub fn add_resize_observer<F:FnResize>(&mut self, f:F) -> ResizeObserver {
+        ResizeObserver::new(&self.canvas(), Closure::new(f))
     }
 
     pub fn camera(&self) -> Camera2d {
