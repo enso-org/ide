@@ -76,24 +76,23 @@ fn init(world: &World) {
         sprite2.set_position(Vector3::new(x,y,0.0));
     }));
 
-
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     let mut was_rendered = false;
+    let mut loader_hidden = false;
     world.on_frame(move |_| {
         let _keep_alive = &out;
         on_frame(&mut time,&mut iter,&sprite,&shape_system);
-        if was_rendered {
+        if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
                     p.remove_child(&t).unwrap()
                 })
             });
+            loader_hidden = true;
         }
         was_rendered = true;
     }).forget();
-
-
 }
 
 #[allow(clippy::too_many_arguments)]
