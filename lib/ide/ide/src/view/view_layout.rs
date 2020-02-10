@@ -1,18 +1,22 @@
+//! This module contains implementation of ViewLayout with a single TextEditor temporarily
+//! occupying half bottom of the screen temporarily as the default layout.
+
+use wasm_bindgen::prelude::*;
+
 use super::text_editor::TextEditor;
-use basegl::system::web::*;
-
-use js_sys::Function;
-use web_sys::KeyboardEvent;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
-
-use basegl::display::world::World;
 use super::ui_component::UiComponent;
+
+use basegl::system::web::*;
+use basegl::display::world::World;
 
 use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
+use js_sys::Function;
+use web_sys::KeyboardEvent;
+use wasm_bindgen::JsCast;
+
 
 
 //TODO: ViewMode is a temporary enumeration, it will be replaced by proper Panel impl.
@@ -20,7 +24,8 @@ use std::cell::RefCell;
 // === ViewMode ===
 // ================
 
-pub enum ViewMode {
+#[derive(Clone,Copy,Debug)]
+enum ViewMode {
     Full,
     Half
 }
@@ -31,6 +36,7 @@ pub enum ViewMode {
 // === ViewLayoutData ===
 // ======================
 
+#[derive(Debug)]
 struct ViewLayoutData {
     text_editor      : TextEditor,
     keyboard_closure : Option<Closure<dyn FnMut(KeyboardEvent)>>,
@@ -86,16 +92,22 @@ impl ViewLayoutData {
     }
 }
 
+
+
 // ==================
 // === ViewLayout ===
 // ==================
 
+/// Initial implementation of ViewLayout with a single TextEditor. Pressing ctrl+f toggles
+/// fullscreen mode.
+#[derive(Debug,Clone)]
 pub struct ViewLayout {
     data : Rc<RefCell<ViewLayoutData>>
 }
 
 impl ViewLayout {
-    pub fn new(world:&World) -> Self {
+    /// Creates a new ViewLayout with a single TextEditor.
+    pub fn default(world:&World) -> Self {
         let text_editor      = TextEditor::new(&world);
         let keyboard_closure = None;
         let view_mode        = ViewMode::Half;
@@ -105,7 +117,7 @@ impl ViewLayout {
         Self {data}.init(world)
     }
 
-    fn init_keyboard(mut self) -> Self {
+    fn init_keyboard(self) -> Self {
         let data    = Rc::downgrade(&self.data);
         let closure = move |event:KeyboardEvent| {
             const F_KEY : u32 = 70;
@@ -116,9 +128,9 @@ impl ViewLayout {
                 event.prevent_default();
             }
         };
-        let closure              = Box::new(closure) as Box<dyn FnMut(KeyboardEvent)>;
-        let keyboard_closure     = Closure::wrap(closure);
-        let callback : &Function = keyboard_closure.as_ref().unchecked_ref();
+        let closure : Box<dyn FnMut(KeyboardEvent)> = Box::new(closure);
+        let keyboard_closure                        = Closure::wrap(closure);
+        let callback : &Function                    = keyboard_closure.as_ref().unchecked_ref();
         let body = document().unwrap().body().unwrap();
         body.add_event_listener_with_callback("keydown", callback).ok();
         self.data.borrow_mut().keyboard_closure = Some(keyboard_closure);
@@ -132,11 +144,8 @@ impl ViewLayout {
         self.init_keyboard()
     }
 
+    /// Sets dimensions.
     pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
         self.data.borrow_mut().set_dimensions(dimensions)
-    }
-
-    pub fn set_view_mode(&mut self, view_mode:ViewMode) {
-        self.data.borrow_mut().set_view_mode(view_mode)
     }
 }

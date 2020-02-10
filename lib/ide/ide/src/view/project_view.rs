@@ -1,3 +1,6 @@
+//! This module contains ProjectView, the main view, responsible for managing TextEditor and
+//! GraphEditor.
+
 use super::view_layout::ViewLayout;
 
 use basegl::display::world::WorldData;
@@ -8,10 +11,13 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use nalgebra::Vector2;
 
+
+
 // =======================
 // === ProjectViewData ===
 // =======================
 
+#[derive(Debug)]
 struct ProjectViewData {
     world           : World,
     layout          : ViewLayout,
@@ -30,18 +36,27 @@ impl ProjectViewData {
 // === ProjectView ===
 // ===================
 
+/// ProjectView is the main view of the project, holding instances of TextEditor and GraphEditor.
+#[derive(Debug,Clone)]
 pub struct ProjectView {
     data : Rc<RefCell<ProjectViewData>>
 }
 
-impl ProjectView {
-    pub fn new() -> ProjectView {
+impl Default for ProjectView {
+    fn default() -> Self {
         let world           = WorldData::new("canvas");
-        let layout          = ViewLayout::new(&world);
+        let layout          = ViewLayout::default(&world);
         let resize_observer = None;
         let data            = ProjectViewData{world,layout,resize_observer};
         let data            = Rc::new(RefCell::new(data));
         Self {data}.init()
+    }
+}
+
+impl ProjectView {
+    /// Creates a new ProjectView.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn init(self) -> Self {
@@ -55,10 +70,12 @@ impl ProjectView {
         self
     }
 
+    /// Sets dimensions.
     pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
         self.data.borrow_mut().set_dimensions(dimensions);
     }
 
+    /// Forgets ProjectView, so it won't get dropped when it goes out of scope.
     pub fn forget(self) {
         std::mem::forget(self)
     }

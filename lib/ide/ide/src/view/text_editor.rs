@@ -1,3 +1,5 @@
+//! This module contains TextEditor, an UiComponent to edit Enso Modules or Text Files.
+
 use basegl::prelude::*;
 
 use basegl::display::object::DisplayObjectOps;
@@ -6,7 +8,6 @@ use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
 use basegl::system::web;
-use basegl::display::object::DisplayObject;
 
 use super::ui_component::UiComponent;
 
@@ -28,12 +29,15 @@ The heart-ache and the thousand natural shocks
 That flesh is heir to: 'tis a consummation
 Devoutly to be wish'd.";
 
+/// TextEditor allows us to edit text files or Enso Modules. Extensible code highlighting is
+/// planned to be implemented for it.
 #[derive(Clone,Debug)]
 pub struct TextEditor {
-    text_field    : TextField
+    text_field : TextField
 }
 
 impl TextEditor {
+    /// Creates a new TextEditor.
     pub fn new(world:&World) -> Self {
         let scene     = world.scene();
         let camera    = scene.camera();
@@ -48,12 +52,13 @@ impl TextEditor {
             size       : Vector2::new(screen.width, screen.height)
         };
 
-        let mut text_field = TextField::new(&world,TEXT,properties,&mut fonts);
+        let text_field = TextField::new(&world,TEXT,properties,&mut fonts);
         text_field.set_position(Vector3::new(0.0, screen.height, 0.0));
         text_field.jump_cursor(Vector2::new(50.0, -40.0),false,&mut fonts);
         world.add_child(&text_field);
         text_field.update();
 
+        //TODO: This section is planned to be moved to TextField.
         let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(enclose!((text_field) move
         |val:JsValue| {
             let position = text_field.position();
@@ -65,9 +70,12 @@ impl TextEditor {
         web::document().unwrap().add_event_listener_with_callback
         ("click",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
+        //
+
         Self {text_field}
     }
 
+    /// Updates the underlying display object.
     pub fn update(&self) {
         self.text_field.update();
     }
