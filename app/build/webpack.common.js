@@ -28,7 +28,7 @@ module.exports = {
     devServer: {
         publicPath: '/assets/',
         historyApiFallback: {
-            index: '/assets/index.html'
+            index: '/assets/'
         }
     },
     resolve: {

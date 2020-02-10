@@ -39,7 +39,7 @@ pub fn run_example_text_selecting() {
     forward_panic_hook_to_console();
     set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
-        let world     = &WorldData::new("canvas");
+        let world     = &WorldData::new(&web::body());
         let scene     = world.scene();
         let camera    = scene.camera();
         let screen    = camera.screen();

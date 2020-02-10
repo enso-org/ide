@@ -9,6 +9,7 @@ use basegl::display::shape::text::text_field::cursor::Step::Right;
 use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::world::*;
 use basegl::system::web::forward_panic_hook_to_console;
+use basegl::system::web;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
@@ -21,7 +22,7 @@ pub fn run_example_text_typing() {
     forward_panic_hook_to_console();
     set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
-        let world     = &WorldData::new("canvas");
+        let world     = &WorldData::new(&web::body());
         let mut fonts = FontRegistry::new();
         let font_id   = fonts.load_embedded_font("DejaVuSansMono").unwrap();
 

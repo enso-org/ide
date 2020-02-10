@@ -53,6 +53,7 @@ features = [
   'KeyboardEvent',
   'HtmlCanvasElement',
   'HtmlCollection',
+  'HtmlDivElement',
   'HtmlElement',
   'HtmlImageElement',
   'Location',

@@ -1,9 +1,6 @@
-//import * as wasm from "./dist/wasm/basegl_examples"
-
-let pfx = "run_example_"
-
-
-
+/// This module is responsible for loading the WASM binary, its dependencies, and providing the
+/// user with a visual representation of this process (welcome screen). It also implements a view
+/// allowing to choose a debug rendering test from.
 
 
 
@@ -35,6 +32,10 @@ function polar_to_cartesian(radius, angle_degrees) {
         x : radius * Math.cos(angle),
         y : radius * Math.sin(angle)
     }
+}
+
+function format_mb(bytes) {
+   return Math.round(10 * bytes / (1042 * 1024)) / 10
 }
 
 
@@ -69,6 +70,25 @@ function svg_arc(radius, end_angle){
 // =========================
 // === ProgressIndicator ===
 // =========================
+
+function remove_node(node) {
+    if (node) {
+        node.parentNode.removeChild(node)
+    }
+}
+
+function initialize_top_level_div() {
+    let node = document.createElement('div')
+    node.style.width  = '100%'
+    node.style.height = '100%'
+    document.body.appendChild(node)
+    return node
+}
+
+let loader_div = initialize_top_level_div()
+
+
+
 
 let bg_color     = "#ffffff"
 let loader_color = "#303030"
@@ -108,7 +128,7 @@ class ProgressIndicator {
         center.style.display        = 'flex'
         center.style.justifyContent = 'center'
         center.style.alignItems     = 'center'
-        document.body.appendChild(center)
+        loader_div.appendChild(center)
 
         let progress_bar_svg   = new_loader_progress_indicator_svg()
         let progress_bar       = document.createElement('div')
@@ -145,22 +165,11 @@ class ProgressIndicator {
 
 
 
-// ============
-// === Main ===
-// ============
+// ====================
+// === WASM Loading ===
+// ====================
 
 let progress_indicator = new ProgressIndicator
-
-
-
-
-
-
-
-function format_mb(bytes) {
-   return Math.round(10 * bytes / (1042 * 1024)) / 10
-}
-
 
 class Loader {
     constructor(total_bytes) {
@@ -243,9 +252,9 @@ async function log_group_collapsed(msg,f) {
     return out
 }
 
-async function run() {
-    let wasm_imports_fetch = await fetch('assets/wasm_imports.js')
-    let wasm_fetch         = await fetch('assets/gui.wasm')
+async function main() {
+    let wasm_imports_fetch = await fetch('/assets/wasm_imports.js')
+    let wasm_fetch         = await fetch('/assets/gui.wasm')
     let wasm_imports_bytes = parseInt(wasm_imports_fetch.headers.get('Content-Length'))
     let wasm_bytes         = parseInt(wasm_fetch.headers.get('Content-Length'))
     let total_bytes        = wasm_imports_bytes + wasm_bytes
@@ -254,22 +263,17 @@ async function run() {
         console.error("Loader corrupted. Server is not configured to send the 'Content-Length'.")
         total_bytes = 0
     }
-    let loader = new Loader(total_bytes)
-    run_loader_indicator(loader)
+    let loader           = new Loader(total_bytes)
+    let loader_animation = run_loader_indicator(loader)
+
+    loader.on_done = () => {
+        console.groupEnd()
+        console.log("Download finished. Finishing WASM compilation.")
+    }
 
     let download_size = loader.show_total_bytes();
-
     let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
-
-    await log_group_collapsed(download_info, async () => {
-
-        loader.on_done = () => {
-            console.groupEnd()
-            console.log("Download finished. Finishing WASM compilation.")
-        }
-
-
-
+    let wasm_loader   = log_group_collapsed(download_info, async () => {
         wasm_imports_fetch.clone().body.pipeTo(loader.input_stream())
         wasm_fetch.clone().body.pipeTo(loader.input_stream())
 
@@ -282,7 +286,7 @@ async function run() {
         let out = Function("let exports = {};" + wasm_imports_js + ";return exports")()
         let imports = out.wasm_imports()
 
-        let result = await WebAssembly.instantiateStreaming(wasm_fetch, imports).catch(e => {
+        let wasm_loader = await WebAssembly.instantiateStreaming(wasm_fetch, imports).catch(e => {
             return wasm_fetch.then(r => {
                 if (r.headers.get('Content-Type') != 'application/wasm') {
                     console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
@@ -293,82 +297,127 @@ async function run() {
             })
             .then(bytes => WebAssembly.instantiate(bytes, imports))
         })
+
+        wasm_loader.out = out
+        return wasm_loader
     })
+
+    let {wasm,module,out} = await wasm_loader.then(({instance, module, out}) => {
+        let wasm = instance.exports;
+        // init.__wbindgen_wasm_module = module;
+        return {wasm,module,out};
+    });
+
     console.log("WASM Compiled.")
+
+    out.after_load(wasm,module)
+
+    loader_animation.then(() => { main2(wasm) })
 }
-
-run()
-
-
 
 function run_loader_indicator(loader) {
-    let rotation = 0
-    let alpha = 0
-    function show_step() {
-        progress_indicator.set_opacity(ease_in_out_quad(alpha))
-        alpha += 0.02
-        if (alpha > 1) {
-            alpha = 1
-        } else {
-            window.requestAnimationFrame(show_step)
-        }
-    }
-    window.requestAnimationFrame(show_step)
+    return new Promise(function(resolve, reject) {
+        let rotation = 0
+        let alpha    = 0
 
+        let show_done = false
+        let load_done = false
 
-    function loading_step(timestamp) {
-        let value = loader.value()
-        if (value > 1) {
-            value = 1
+        function show_step() {
+            if (alpha > 1) { alpha = 1 }
+            progress_indicator.set_opacity(ease_in_out_quad(alpha))
+            alpha += 0.02
+            if (alpha < 1) {
+                window.requestAnimationFrame(show_step)
+            } else {
+                show_done = true
+                on_done()
+            }
         }
-        progress_indicator.set(value)
-        progress_indicator.set_rotation(rotation)
+        window.requestAnimationFrame(show_step)
 
-        rotation += 6
-        if (value < 1) {
-            window.requestAnimationFrame(loading_step)
+        function loading_step(timestamp) {
+            let value = loader.value()
+            if (value > 1) {
+                value = 1
+            }
+            progress_indicator.set(value)
+            progress_indicator.set_rotation(rotation)
+
+            rotation += 6
+            if (value < 1) {
+                window.requestAnimationFrame(loading_step)
+            } else {
+                load_done = true
+                on_done()
+            }
         }
-    }
-    window.requestAnimationFrame(loading_step)
+        window.requestAnimationFrame(loading_step)
+
+        function on_done() {
+            if (show_done && load_done) {
+                resolve()
+            }
+        }
+    })
 }
 
 
 
 
-//function hello_screen(msg) {
-//    let names = []
-//    for (let fn of Object.getOwnPropertyNames(wasm)) {
-//        if (fn.startsWith(pfx)) {
-//            let name = fn.replace(pfx,"")
-//            names.push(name)
-//        }
-//    }
-//
-//    if(msg==="" || msg===null || msg===undefined) {
-//        msg = ""
-//    }
-//    let newDiv     = document.createElement("div")
-//    let newContent = document.createTextNode(msg + "Choose an example:")
-//    let currentDiv = document.getElementById("app")
-//    let ul         = document.createElement('ul')
-//    newDiv.appendChild(newContent)
+function remove_loader() {
+    remove_node(loader_div)
+}
+
+
+let pfx = "run_example_"
+
+
+function debug_screen(wasm,msg) {
+    let names = []
+    for (let fn of Object.getOwnPropertyNames(wasm)) {
+        if (fn.startsWith(pfx)) {
+            let name = fn.replace(pfx,"")
+            names.push(name)
+        }
+    }
+
+    if(msg==="" || msg===null || msg===undefined) { msg = "" }
+    let debug_screen_div = initialize_top_level_div()
+    let newDiv     = document.createElement("div")
+    let newContent = document.createTextNode(msg + "Choose an example:")
+    let currentDiv = document.getElementById("app")
+    let ul         = document.createElement('ul')
+    newDiv.appendChild(newContent)
+    debug_screen_div.appendChild(newDiv)
 //    document.body.insertBefore(newDiv, currentDiv)
-//    newDiv.appendChild(ul)
-//
-//    for (let name of names) {
-//        let li       = document.createElement('li')
-//        let a        = document.createElement('a')
-//        let linkText = document.createTextNode(name)
-//        ul.appendChild(li)
-//        a.appendChild(linkText)
-//        a.title = name
-//        a.href  = "/" + name
-//        li.appendChild(a)
-//    }
-//}
-//
-//function main() {
-//    let target = window.location.href.split('/')[3]
+    newDiv.appendChild(ul)
+
+    for (let name of names) {
+        let li       = document.createElement('li')
+        let a        = document.createElement('a')
+        let linkText = document.createTextNode(name)
+        ul.appendChild(li)
+        a.appendChild(linkText)
+        a.title   = name
+        a.href    = "javascript:{}"
+        a.onclick = () => {
+            remove_node(debug_screen_div)
+            let fn_name = pfx + name
+            let fn = wasm[fn_name]
+            fn()
+        }
+        li.appendChild(a)
+    }
+}
+
+function main2(wasm) {
+    let target = window.location.href.split('/')
+    target.splice(0,3)
+    if (target[0] == "debug") {
+        remove_loader()
+        debug_screen(wasm)
+    }
 //    if (target === "") {
 //        hello_screen()
 //    } else {
@@ -378,7 +427,7 @@ function run_loader_indicator(loader) {
 //            hello_screen("WASM function '" + fn_name + "' not found! ")
 //        }
 //    }
-//}
+}
 //
 //main()
 
@@ -428,3 +477,11 @@ function run_loader_indicator(loader) {
 //
 //main()
 //
+
+
+
+// ========================
+// === Main Entry Point ===
+// ========================
+
+main()

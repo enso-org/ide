@@ -8,6 +8,7 @@ use basegl::display::world::*;
 use basegl::prelude::*;
 use basegl::system::web::forward_panic_hook_to_console;
 use basegl::system::web::set_stdout;
+use basegl::system::web;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -21,7 +22,7 @@ use basegl::display::camera::Camera2d;
 pub fn run_example_sprite_system() {
     forward_panic_hook_to_console();
     set_stdout();
-    init(&WorldData::new("canvas"));
+    init(&WorldData::new(&web::body()));
 }
 
 fn init(world:&World) {

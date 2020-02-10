@@ -32,7 +32,7 @@ pub fn run_example_shapes() {
     forward_panic_hook_to_console();
     set_stdout();
     set_stack_trace_limit();
-    init(&WorldData::new("canvas"));
+    init(&WorldData::new(&web::body()));
 }
 
 fn init(world: &World) {

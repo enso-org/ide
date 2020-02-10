@@ -5,6 +5,7 @@ use basegl::display::object::DisplayObject;
 use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::glyph::system::GlyphSystem;
 use basegl::display::world::*;
+use basegl::system::web;
 
 use basegl_core_msdf_sys::run_once_initialized;
 use basegl_system_web::forward_panic_hook_to_console;
@@ -20,7 +21,7 @@ use wasm_bindgen::prelude::*;
 pub fn run_example_glyph_system() {
     forward_panic_hook_to_console();
     set_stdout();
-    run_once_initialized(|| init(&WorldData::new("canvas")));
+    run_once_initialized(|| init(&WorldData::new(&web::body())));
 }
 
 fn init(world: &World) {
