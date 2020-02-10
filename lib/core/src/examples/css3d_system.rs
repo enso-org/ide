@@ -30,7 +30,7 @@ fn init(world:World) {
     let scene         = world.scene();
     let camera        = scene.camera();
     let screen        = camera.screen();
-    let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
+//    let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
     let sprite_system = SpriteSystem::new(&world);
     let css3d_system  = Css3dSystem::new(&world);
     world.add_child(&sprite_system);
@@ -53,8 +53,12 @@ fn init(world:World) {
             sprite.mod_position(|t| *t = position);
             sprites.push(sprite);
         } else {
+//            let dimensions = Vector2::new(width, height);
+//            let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
+            let height = height * 0.75;
             let dimensions = Vector2::new(width, height);
-            let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
+            let y          = screen.height / 2.0;
+            let position   = Vector3::new(width / 1.5 * x + width / 2.0, y, 0.0);
             let mut object = css3d_system.new_instance("div").expect("Couldn't create div");
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
@@ -72,7 +76,7 @@ fn init(world:World) {
     let mut i = 0;
     let animator = FixedStepAnimator::new(2.0, move |_| {
         let _keep_alive = &world;
-        let _keep_alive = &navigator;
+//        let _keep_alive = &navigator;
         let _keep_alive = &sprites;
         let _keep_alive = &sprite_system;
         let _keep_alive = &css3d_system;
