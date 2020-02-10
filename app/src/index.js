@@ -2,257 +2,21 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
-
-
-// =================
-// === Animation ===
-// =================
-
-function ease_in_out_cubic(t) {
-    return t<.5 ? 4*t*t*t : 1 - (-2*t+2) * (-2*t+2) * (-2*t+2) / 2
-}
-
-function ease_in_out_quad(t) {
-    return t<.5 ? 2*t*t : 1 - (-2*t+2)*(-2*t+2) / 2
-}
-
-function ease_out_quart(t) {
-    return 1-(--t)*t*t*t
-}
+import * as loader_module from './loader'
+import * as html_utils    from './html_utils'
 
 
 
-// ============
-// === Math ===
-// ============
-
-function polar_to_cartesian(radius, angle_degrees) {
-    let angle = (angle_degrees-90) * Math.PI / 180.0
-    return {
-        x : radius * Math.cos(angle),
-        y : radius * Math.sin(angle)
-    }
-}
-
-function format_mb(bytes) {
-   return Math.round(10 * bytes / (1042 * 1024)) / 10
-}
-
-
-
-// ===========
-// === SVG ===
-// ===========
-
-function new_svg(width, height, str) {
-    return `
-    <svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"
-         xmlns:xlink="http://www.w3.org/1999/xlink"
-         height="${height}" width="${width}" viewBox="0 0 ${height} ${width}">
-    ${str}
-    </svg>`
-}
-
-function svg_arc(radius, end_angle){
-    let start_angle = 0
-    if (end_angle < 0) {
-        start_angle = end_angle
-        end_angle   = 0
-    }
-    let start       = polar_to_cartesian(radius, end_angle)
-    let end         = polar_to_cartesian(radius, start_angle)
-    let large_arc   = end_angle - start_angle <= 180 ? "0" : "1"
-    return `M 0 0 L ${start.x} ${start.y} A ${radius} ${radius} 0 ${large_arc} 0 ${end.x} ${end.y}`
-}
-
-
-
-// =========================
-// === ProgressIndicator ===
-// =========================
-
-function remove_node(node) {
-    if (node) {
-        node.parentNode.removeChild(node)
-    }
-}
-
-function initialize_top_level_div() {
-    let node = document.createElement('div')
-    node.style.width  = '100%'
-    node.style.height = '100%'
-    document.body.appendChild(node)
-    return node
-}
-
-let loader_div = initialize_top_level_div()
-
-
-
-
-let bg_color     = "#ffffff"
-let loader_color = "#303030"
-
-function new_loader_progress_indicator_svg() {
-    let width        = 128
-    let height       = 128
-    let alpha        = 0.9
-    let inner_radius = 48
-    let outer_radius = 60
-    let mid_radius = (inner_radius + outer_radius) / 2
-    let bar_width = outer_radius - inner_radius
-
-    return new_svg(width,height,`
-        <defs>
-            <g id="progress_bar">
-                <circle fill="${loader_color}" r="${outer_radius}"                               />
-                <circle fill="${bg_color}"     r="${inner_radius}"                               />
-                <path   fill="${bg_color}"     opacity="${alpha}" id="progress_indicator_mask"   />
-                <circle fill="${loader_color}" r="${bar_width/2}" id="progress_indicator_corner" />
-                <circle fill="${loader_color}" r="${bar_width/2}" cy="-${mid_radius}"            />
-            </g>
-        </defs>
-        <g transform="translate(${width/2},${height/2})">
-            <g transform="rotate(0,0,0)" id="progress_indicator">
-                <use xlink:href="#progress_bar"></use>
-            </g>
-        </g>
-    `)
-}
-
-class ProgressIndicator {
-    constructor() {
-        let center = document.createElement('div')
-        center.style.width          = '100%'
-        center.style.height         = '100%'
-        center.style.display        = 'flex'
-        center.style.justifyContent = 'center'
-        center.style.alignItems     = 'center'
-        loader_div.appendChild(center)
-
-        let progress_bar_svg   = new_loader_progress_indicator_svg()
-        let progress_bar       = document.createElement('div')
-        progress_bar.innerHTML = progress_bar_svg
-        center.appendChild(progress_bar)
-
-        this.progress_indicator        = document.getElementById("progress_indicator")
-        this.progress_indicator_mask   = document.getElementById("progress_indicator_mask")
-        this.progress_indicator_corner = document.getElementById("progress_indicator_corner")
-
-        this.set(0)
-        this.set_opacity(0)
-    }
-
-    set(value) {
-        let min_angle  = 0
-        let max_angle  = 359
-        let angle_span = max_angle - min_angle
-        let mask_angle = (1-value)*angle_span - min_angle
-        let corner_pos = polar_to_cartesian(54, -mask_angle)
-        this.progress_indicator_mask.setAttribute("d", svg_arc(128, -mask_angle))
-        this.progress_indicator_corner.setAttribute("cx", corner_pos.x)
-        this.progress_indicator_corner.setAttribute("cy", corner_pos.y)
-    }
-
-    set_opacity(val) {
-        this.progress_indicator.setAttribute("opacity",val)
-    }
-
-    set_rotation(val) {
-        this.progress_indicator.setAttribute("transform",`rotate(${val},0,0)`)
-    }
-}
-
-
-
-// ====================
-// === WASM Loading ===
-// ====================
-
-let progress_indicator = new ProgressIndicator
-
-class Loader {
-    constructor(total_bytes) {
-        this.total_bytes       = total_bytes
-        this.received_bytes    = 0
-        this.download_speed    = 0
-        this.last_receive_time = performance.now()
-        this.on_done = () => {}
-    }
-
-    value() {
-        if (this.total_bytes == 0) {
-            return 0.3
-        } else {
-            return this.received_bytes / this.total_bytes
-        }
-    }
-
-    done() {
-        return this.received_bytes == this.total_bytes
-    }
-
-    on_receive(new_bytes) {
-        this.received_bytes += new_bytes
-        let time      = performance.now()
-        let time_diff = time - this.last_receive_time
-        this.download_speed = new_bytes / time_diff
-        this.last_receive_time = time
-
-        let percent  = this.show_percentage_value()
-        let speed    = this.show_download_speed()
-        let received = this.show_received_bytes()
-        console.log(`${percent}% (${received}) (${speed}).`)
-        if (this.done()) { this.on_done() }
-    }
-
-    show_percentage_value() {
-        return Math.round(100 * this.value())
-    }
-
-    show_total_bytes() {
-        return `${format_mb(this.total_bytes)} MB`
-    }
-
-    show_received_bytes() {
-        return `${format_mb(this.received_bytes)} MB`
-    }
-
-    show_download_speed() {
-        return `${format_mb(1000 * this.download_speed)} MB/s`
-    }
-
-    input_stream() {
-        let loader = this
-        return new WritableStream({
-             write(t) {
-                 loader.on_receive(t.length)
-             }
-        })
-    }
-}
-
+// ========================
+// === Content Download ===
+// ========================
 
 let incorrect_mime_type_warning = `
 'WebAssembly.instantiateStreaming' failed because your server does not serve wasm with
 'application/wasm' MIME type. Falling back to 'WebAssembly.instantiate' which is slower.
 `
 
-
-async function log_group_collapsed(msg,f) {
-    console.groupCollapsed(msg)
-    let out
-    try {
-        out = await f()
-    } catch (error) {
-        console.groupEnd()
-        throw error
-    }
-    console.groupEnd()
-    return out
-}
-
-async function main() {
+async function download_content(cfg) {
     let wasm_imports_fetch = await fetch('/assets/wasm_imports.js')
     let wasm_fetch         = await fetch('/assets/gui.wasm')
     let wasm_imports_bytes = parseInt(wasm_imports_fetch.headers.get('Content-Length'))
@@ -263,8 +27,7 @@ async function main() {
         console.error("Loader corrupted. Server is not configured to send the 'Content-Length'.")
         total_bytes = 0
     }
-    let loader           = new Loader(total_bytes)
-    let loader_animation = run_loader_indicator(loader)
+    let loader = new loader_module.Loader(total_bytes, cfg)
 
     loader.on_done = () => {
         console.groupEnd()
@@ -273,7 +36,7 @@ async function main() {
 
     let download_size = loader.show_total_bytes();
     let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
-    let wasm_loader   = log_group_collapsed(download_info, async () => {
+    let wasm_loader   = html_utils.log_group_collapsed(download_info, async () => {
         wasm_imports_fetch.clone().body.pipeTo(loader.input_stream())
         wasm_fetch.clone().body.pipeTo(loader.input_stream())
 
@@ -292,7 +55,7 @@ async function main() {
                     console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
                     return r.arrayBuffer()
                 } else {
-                    todo
+                    throw("Server not configured to serve WASM with 'application/wasm' mime type.")
                 }
             })
             .then(bytes => WebAssembly.instantiate(bytes, imports))
@@ -309,88 +72,39 @@ async function main() {
     });
 
     console.log("WASM Compiled.")
-
     out.after_load(wasm,module)
 
-    loader_animation.then(() => { main2(wasm) })
-}
-
-function run_loader_indicator(loader) {
-    return new Promise(function(resolve, reject) {
-        let rotation = 0
-        let alpha    = 0
-
-        let show_done = false
-        let load_done = false
-
-        function show_step() {
-            if (alpha > 1) { alpha = 1 }
-            progress_indicator.set_opacity(ease_in_out_quad(alpha))
-            alpha += 0.02
-            if (alpha < 1) {
-                window.requestAnimationFrame(show_step)
-            } else {
-                show_done = true
-                on_done()
-            }
-        }
-        window.requestAnimationFrame(show_step)
-
-        function loading_step(timestamp) {
-            let value = loader.value()
-            if (value > 1) {
-                value = 1
-            }
-            progress_indicator.set(value)
-            progress_indicator.set_rotation(rotation)
-
-            rotation += 6
-            if (value < 1) {
-                window.requestAnimationFrame(loading_step)
-            } else {
-                load_done = true
-                on_done()
-            }
-        }
-        window.requestAnimationFrame(loading_step)
-
-        function on_done() {
-            if (show_done && load_done) {
-                resolve()
-            }
-        }
-    })
+    await loader.initialized
+    return {wasm,loader}
 }
 
 
 
+// ====================
+// === Debug Screen ===
+// ====================
 
-function remove_loader() {
-    remove_node(loader_div)
-}
-
-
-let pfx = "run_example_"
+let wasm_fn_pfx = "run_example_"
 
 
-function debug_screen(wasm,msg) {
+/// Displays a debug screen which allows the user to run one of predefined debug examples.
+function show_debug_screen(wasm,msg) {
     let names = []
     for (let fn of Object.getOwnPropertyNames(wasm)) {
-        if (fn.startsWith(pfx)) {
-            let name = fn.replace(pfx,"")
+        if (fn.startsWith(wasm_fn_pfx)) {
+            let name = fn.replace(wasm_fn_pfx,"")
             names.push(name)
         }
     }
 
     if(msg==="" || msg===null || msg===undefined) { msg = "" }
-    let debug_screen_div = initialize_top_level_div()
+    let debug_screen_div = html_utils.new_top_level_div()
     let newDiv     = document.createElement("div")
     let newContent = document.createTextNode(msg + "Choose an example:")
     let currentDiv = document.getElementById("app")
     let ul         = document.createElement('ul')
     newDiv.appendChild(newContent)
     debug_screen_div.appendChild(newDiv)
-//    document.body.insertBefore(newDiv, currentDiv)
     newDiv.appendChild(ul)
 
     for (let name of names) {
@@ -402,8 +116,8 @@ function debug_screen(wasm,msg) {
         a.title   = name
         a.href    = "javascript:{}"
         a.onclick = () => {
-            remove_node(debug_screen_div)
-            let fn_name = pfx + name
+            html_utils.remove_node(debug_screen_div)
+            let fn_name = wasm_fn_pfx + name
             let fn = wasm[fn_name]
             fn()
         }
@@ -411,77 +125,36 @@ function debug_screen(wasm,msg) {
     }
 }
 
-function main2(wasm) {
-    let target = window.location.href.split('/')
-    target.splice(0,3)
-    if (target[0] == "debug") {
-        remove_loader()
-        debug_screen(wasm)
-    }
-//    if (target === "") {
-//        hello_screen()
-//    } else {
-//        let fn_name = pfx + target
-//        let fn      = wasm[fn_name]
-//        if (fn) { fn() } else {
-//            hello_screen("WASM function '" + fn_name + "' not found! ")
-//        }
-//    }
-}
-//
-//main()
-
-
-
-//async function main() {
-//    let response = await fetch('dist/wasm/basegl_examples.js')
-//    const reader = response.body.getReader()
-//    const total_bytes = +response.headers.get('Content-Length')
-//
-//    let received_bytes = 0 // received that many bytes at the moment
-//    let chunks = [] // array of received binary chunks (comprises the body)
-//    while(true) {
-//        const {done, value} = await reader.read()
-//
-//        if (done) {
-//          break
-//        }
-//
-//        chunks.push(value)
-//        received_bytes += value.length
-//
-//        console.log(`Received ${received_bytes} of ${total_bytes}`)
-//    }
-//
-//    // Step 4: concatenate chunks into single Uint8Array
-//    let chunksAll = new Uint8Array(received_bytes) // (4.1)
-//    let position = 0
-//    for(let chunk of chunks) {
-//      chunksAll.set(chunk, position) // (4.2)
-//      position += chunk.length
-//    }
-//
-//    // Step 5: decode into a string
-//    let result = new TextDecoder("utf-8").decode(chunksAll)
-//
-//    // We're done!
-//    console.log("DONE")
-////    console.log(result)
-//    let out = Function(result)()
-//    console.log(out)
-//    out.init('dist/wasm/basegl_examples_bg.wasm')
-////    let commits = JSON.parse(result)
-////    alert(commits[0].author.login)
-//
-//}
-//
-//main()
-//
-
 
 
 // ========================
 // === Main Entry Point ===
 // ========================
+
+/// Main entry point. Loads WASM, initializes it, chooses the scene to run.
+async function main() {
+    let target = window.location.href.split('/')
+    target.splice(0,3)
+
+    let debug_mode    = target[0] == "debug"
+    let debug_target  = target[1]
+    let no_animation  = debug_mode && debug_target
+    let {wasm,loader} = await download_content({no_animation})
+//    loader.destroy()
+
+    if (debug_mode) {
+        if (debug_target) {
+            let fn_name = wasm_fn_pfx + debug_target
+            let fn      = wasm[fn_name]
+            if (fn) { fn() } else {
+                show_debug_screen(wasm,"WASM function '" + fn_name + "' not found! ")
+            }
+        } else {
+            show_debug_screen(wasm)
+        }
+    } else {
+        wasm[wasm_fn_pfx + 'shapes']()
+    }
+}
 
 main()

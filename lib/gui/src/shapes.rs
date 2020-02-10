@@ -52,7 +52,7 @@ fn init(world: &World) {
     let node = node.fill(node_color);
 
     let shadow_color = Gradient::new()
-        .add(0.0,Srgba::new(1.0,0.0,0.0,0.3).into_linear())
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
     let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span);
     let shadow       = shadow.fill(shadow_color);
@@ -79,11 +79,20 @@ fn init(world: &World) {
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
+    let mut was_rendered = false;
     world.on_frame(move |_| {
-//        let _keep_alive = &navigator;
         let _keep_alive = &out;
-        on_frame(&mut time,&mut iter,&sprite,&shape_system)
+        on_frame(&mut time,&mut iter,&sprite,&shape_system);
+        if was_rendered {
+            web::get_element_by_id("loader").map(|t| {
+                t.parent_node().map(|p| {
+                    p.remove_child(&t).unwrap()
+                })
+            });
+        }
+        was_rendered = true;
     }).forget();
+
 
 }
 
