@@ -86,7 +86,7 @@ fn init(world: &World) {
                 t.parent_node().map(|p| {
                     p.remove_child(&t).unwrap()
                 })
-            }).unwrap();
+            }).ok();
             loader_hidden = true;
         }
         was_rendered = true;

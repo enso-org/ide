@@ -39,3 +39,8 @@ debug     = false
 opt-level = 3
 lto       = true
 debug     = false
+
+[profile.test]
+opt-level = 0
+lto       = false
+debug     = false

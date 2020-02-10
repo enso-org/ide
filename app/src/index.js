@@ -16,63 +16,51 @@ let incorrect_mime_type_warning = `
 'application/wasm' MIME type. Falling back to 'WebAssembly.instantiate' which is slower.
 `
 
+function wasm_instantiate_streaming(resource,imports) {
+    return WebAssembly.instantiateStreaming(resource,imports).catch(e => {
+        return wasm_fetch.then(r => {
+            if (r.headers.get('Content-Type') != 'application/wasm') {
+                console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
+                return r.arrayBuffer()
+            } else {
+                throw("Server not configured to serve WASM with 'application/wasm' mime type.")
+            }
+        }).then(bytes => WebAssembly.instantiate(bytes,imports))
+    })
+}
+
+
+/// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
+/// with `{no_loader:true}` option.
 async function download_content(cfg) {
-    let wasm_imports_fetch = await fetch('/assets/wasm_imports.js')
-    let wasm_fetch         = await fetch('/assets/gui.wasm')
-    let wasm_imports_bytes = parseInt(wasm_imports_fetch.headers.get('Content-Length'))
-    let wasm_bytes         = parseInt(wasm_fetch.headers.get('Content-Length'))
-    let total_bytes        = wasm_imports_bytes + wasm_bytes
+    let wasm_glue_fetch = await fetch('/assets/wasm_imports.js')
+    let wasm_fetch      = await fetch('/assets/gui.wasm')
+    let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
 
-    if (Number.isNaN(total_bytes)) {
-        console.error("Loader corrupted. Server is not configured to send the 'Content-Length'.")
-        total_bytes = 0
-    }
-    let loader = new loader_module.Loader(total_bytes, cfg)
-
-    loader.on_done = () => {
+    loader.done.then(() => {
         console.groupEnd()
         console.log("Download finished. Finishing WASM compilation.")
-    }
+    })
 
     let download_size = loader.show_total_bytes();
     let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
     let wasm_loader   = html_utils.log_group_collapsed(download_info, async () => {
-        wasm_imports_fetch.clone().body.pipeTo(loader.input_stream())
-        wasm_fetch.clone().body.pipeTo(loader.input_stream())
-
-
-        let wasm_imports_js = await wasm_imports_fetch.text()
-
+        let wasm_glue_js = await wasm_glue_fetch.text()
+        let wasm_glue    = Function("let exports = {};" + wasm_glue_js + "; return exports")()
+        let imports      = wasm_glue.wasm_imports()
         console.log("WASM dependencies loaded.")
         console.log("Starting online WASM compilation.")
-
-        let out = Function("let exports = {};" + wasm_imports_js + ";return exports")()
-        let imports = out.wasm_imports()
-
-        let wasm_loader = await WebAssembly.instantiateStreaming(wasm_fetch, imports).catch(e => {
-            return wasm_fetch.then(r => {
-                if (r.headers.get('Content-Type') != 'application/wasm') {
-                    console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
-                    return r.arrayBuffer()
-                } else {
-                    throw("Server not configured to serve WASM with 'application/wasm' mime type.")
-                }
-            })
-            .then(bytes => WebAssembly.instantiate(bytes, imports))
-        })
-
-        wasm_loader.out = out
+        let wasm_loader       = await wasm_instantiate_streaming(wasm_fetch,imports)
+        wasm_loader.wasm_glue = wasm_glue
         return wasm_loader
     })
 
-    let {wasm,module,out} = await wasm_loader.then(({instance, module, out}) => {
+    let wasm = await wasm_loader.then(({instance,module,wasm_glue}) => {
         let wasm = instance.exports;
-        // init.__wbindgen_wasm_module = module;
-        return {wasm,module,out};
+        wasm_glue.after_load(wasm,module)
+        return wasm
     });
-
     console.log("WASM Compiled.")
-    out.after_load(wasm,module)
 
     await loader.initialized
     return {wasm,loader}
@@ -84,6 +72,10 @@ async function download_content(cfg) {
 // === Debug Screen ===
 // ====================
 
+/// The name of the main scene in the WASM binary.
+let main_scene_name = 'shapes'
+
+/// Prefix name of each scene defined in the WASM binary.
 let wasm_fn_pfx = "run_example_"
 
 
@@ -138,11 +130,11 @@ async function main() {
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]
-    let no_animation  = debug_mode && debug_target
-    let {wasm,loader} = await download_content({no_animation})
-//    loader.destroy()
+    let no_loader     = debug_mode && debug_target
+    let {wasm,loader} = await download_content({no_loader})
 
     if (debug_mode) {
+        loader.destroy()
         if (debug_target) {
             let fn_name = wasm_fn_pfx + debug_target
             let fn      = wasm[fn_name]
@@ -153,7 +145,7 @@ async function main() {
             show_debug_screen(wasm)
         }
     } else {
-        wasm[wasm_fn_pfx + 'shapes']()
+        wasm[wasm_fn_pfx + main_scene_name]()
     }
 }
 

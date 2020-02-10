@@ -12,6 +12,7 @@ import * as svg        from './svg'
 let bg_color     = "#ffffff"
 let loader_color = "#303030"
 
+/// Visual representation of the loader.
 export class ProgressIndicator {
     constructor(cfg) {
         this.dom                = html_utils.new_top_level_div()
@@ -27,8 +28,7 @@ export class ProgressIndicator {
         center.style.alignItems     = 'center'
         this.dom.appendChild(center)
 
-
-        let progress_bar_svg   = this.new_svg()
+        let progress_bar_svg   = this.init_svg()
         let progress_bar       = document.createElement('div')
         progress_bar.innerHTML = progress_bar_svg
         center.appendChild(progress_bar)
@@ -40,15 +40,17 @@ export class ProgressIndicator {
         this.set(0)
         this.set_opacity(0)
 
-        if(!cfg.no_animation) {
+        if(!cfg.no_loader) {
             this.initialized = this.animate_show()
         } else {
             this.initialized = new Promise((resolve) => {resolve()})
         }
+        this.animate_rotation()
         this.destroyed = false
     }
 
-    new_svg() {
+    /// Initializes the SVG view.
+    init_svg() {
         let width        = 128
         let height       = 128
         let alpha        = 0.9
@@ -75,11 +77,13 @@ export class ProgressIndicator {
         `)
     }
 
+    /// Destroys the component. Removes it from the stage and destroys attached callbacks.
     destroy() {
         html_utils.remove_node(this.dom)
         this.destroyed = true
     }
 
+    /// Set the value of the loader [0..1].
     set(value) {
         let min_angle  = 0
         let max_angle  = 359
@@ -91,14 +95,17 @@ export class ProgressIndicator {
         this.progress_indicator_corner.setAttribute("cy", corner_pos.y)
     }
 
+    /// Set the opacity of the loader.
     set_opacity(val) {
         this.progress_indicator.setAttribute("opacity",val)
     }
 
+    /// Set the rotation of the loader (angles).
     set_rotation(val) {
         this.progress_indicator.setAttribute("transform",`rotate(${val},0,0)`)
     }
 
+    /// Start show animation. It is used after the loader is created.
     animate_show() {
         let indicator = this
         return new Promise(function(resolve, reject) {
@@ -118,6 +125,7 @@ export class ProgressIndicator {
         })
     }
 
+    /// Start the spinning animation.
     animate_rotation() {
         let indicator = this
         let rotation  = 0
@@ -138,17 +146,32 @@ export class ProgressIndicator {
 // === Loader ===
 // ==============
 
+/// The main loader class. It connects to the provided fetch responses and tracks their status.
 export class Loader {
-    constructor(total_bytes, cfg) {
+    constructor(resources, cfg) {
         this.indicator         = new ProgressIndicator(cfg)
-        this.total_bytes       = total_bytes
+        this.total_bytes       = 0
         this.received_bytes    = 0
         this.download_speed    = 0
         this.last_receive_time = performance.now()
-        this.on_done = () => {}
-        this.initialized = this.indicator.initialized
+        this.initialized       = this.indicator.initialized
+
+        let self          = this
+        this.done_resolve = null
+        this.done         = new Promise((resolve) => {self.done_resolve = resolve})
+
+        for (let resource of resources) {
+            this.total_bytes += parseInt(resource.headers.get('Content-Length'))
+            resource.clone().body.pipeTo(this.input_stream())
+        }
+
+        if (Number.isNaN(this.total_bytes)) {
+            console.error("Loader error. Server is not configured to send the 'Content-Length' metadata.")
+            this.total_bytes = 0
+        }
     }
 
+    /// The current loading progress [0..1].
     value() {
         if (this.total_bytes == 0) {
             return 0.3
@@ -157,14 +180,17 @@ export class Loader {
         }
     }
 
-    done() {
+    /// Returns true if the loader finished.
+    is_done() {
         return this.received_bytes == this.total_bytes
     }
 
+    /// Removes the loader with it's dom element.
     destroy() {
         this.indicator.destroy()
     }
 
+    /// Callback run on every new received byte stream.
     on_receive(new_bytes) {
         this.received_bytes += new_bytes
         let time      = performance.now()
@@ -178,26 +204,30 @@ export class Loader {
         console.log(`${percent}% (${received}) (${speed}).`)
 
         this.indicator.set(this.value())
-
-        if (this.done()) { this.on_done() }
+        if (this.is_done()) { this.done_resolve() }
     }
 
+    /// Download percentage value.
     show_percentage_value() {
         return Math.round(100 * this.value())
     }
 
+    /// Download total size value.
     show_total_bytes() {
         return `${math.format_mb(this.total_bytes)} MB`
     }
 
+    /// Download received bytes value.
     show_received_bytes() {
         return `${math.format_mb(this.received_bytes)} MB`
     }
 
+    /// Download speed value.
     show_download_speed() {
         return `${math.format_mb(1000 * this.download_speed)} MB/s`
     }
 
+    /// Internal function for attaching new fetch responses.
     input_stream() {
         let loader = this
         return new WritableStream({

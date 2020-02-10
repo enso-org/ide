@@ -25,6 +25,7 @@ features = [
   'Node',
   'Element',
   'HtmlElement',
+  'HtmlDivElement',
   'HtmlCollection',
   'CssStyleDeclaration',
   'HtmlCanvasElement',

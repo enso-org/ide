@@ -7,9 +7,10 @@
     "create-wasm-app": ".bin/create-wasm-app.js"
   },
   "scripts": {
-    "build": "webpack --config build/webpack.prod.js",
-    "build-dev": "webpack --config build/webpack.dev.js",
-    "start": "webpack-dev-server --config build/webpack.dev.js",
+    "build": "webpack --mode production",
+    "build-dev": "webpack --mode development",
+    "start": "webpack-dev-server --mode development",
+    "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
     "prod-server": "npx http-server -p 3000 --proxy http://localhost:3000\\? dist"
   },
   "repository": {
