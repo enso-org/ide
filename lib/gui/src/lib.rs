@@ -16,6 +16,7 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
+#[allow(clippy::option_map_unit_fn)]
 
 pub mod easing_animator;
 pub mod glyph_system;

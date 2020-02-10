@@ -124,7 +124,7 @@ use immutable::*;
 define_compound_shapes! {
     Translate(child)(x:f32,y:f32)
     Union(child1,child2)()
-    Fill(child)(color:Any)
+    Fill(child)(color:dyn Any)
 }
 
 impl<Child:Shape> Shape for Translate<Child> {

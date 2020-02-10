@@ -205,6 +205,7 @@ impl Canvas {
         })
     }
 
+    /// Fill the shape with the provided color.
     pub fn fill<Color:ShaderData<Srgb>>
     (&mut self, num:usize, s:CanvasShape, color:Color) -> CanvasShape {
         self.if_not_defined(num, |this| {

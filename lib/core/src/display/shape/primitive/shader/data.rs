@@ -2,8 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::Storable;
-use crate::system::gpu::data::GpuDefault;
 use crate::system::gpu::shader::glsl::Glsl;
 
 

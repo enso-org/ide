@@ -62,6 +62,7 @@ impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
         Union(self,that)
     }
 
+    /// Fill the shape with the provided color.
     pub fn fill<Color:Into<Glsl>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
     }

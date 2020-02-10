@@ -13,7 +13,7 @@ use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
 use basegl::display::shape::primitive::def::*;
-use basegl::display::navigation::navigator::Navigator;
+//use basegl::display::navigation::navigator::Navigator;
 
 use basegl::prelude::*;
 use enso_frp::*;
@@ -22,8 +22,6 @@ use basegl::system::web;
 use basegl::control::io::mouse2;
 use basegl::control::io::mouse2::MouseManager;
 use basegl::data::color::*;
-use basegl::data::color::rgb::Rgb;
-use basegl::data::color::encoding::Linear;
 
 
 #[wasm_bindgen]
@@ -88,7 +86,7 @@ fn init(world: &World) {
                 t.parent_node().map(|p| {
                     p.remove_child(&t).unwrap()
                 })
-            });
+            }).unwrap();
             loader_hidden = true;
         }
         was_rendered = true;

@@ -41,8 +41,9 @@ pub trait ItemBounds = Storable + PhantomInto<GlEnum>;
 pub trait BufferItemBounds =
     Copy + GpuDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl> + GpuKnownSize;
 
-
+/// GPU Buffer item.
 pub trait Item {
+    /// Storable representation of the item.
     type Storable : Storable;
 }
 

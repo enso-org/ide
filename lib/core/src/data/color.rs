@@ -1,6 +1,10 @@
+#![allow(missing_docs)]
+
+/// This module defines color structures and associated modifiers.
+
+
 use crate::prelude::*;
 
-//pub use palette::*;
 pub use palette::rgb;
 pub use palette::rgb::*;
 pub use palette::encoding;
@@ -12,11 +16,6 @@ use crate::system::gpu::shader::glsl::traits::*;
 //// ===============
 //// === Sampler ===
 //// ===============
-//
-//trait Sampler {
-//    type Output;
-//    fn sample(&self, t:f32) -> Self::Output;
-//}
 
 
 
