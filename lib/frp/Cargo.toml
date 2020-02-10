@@ -11,3 +11,4 @@ enso-prelude      = { version = "0.1.0"  , path = "../prelude"       }
 basegl-system-web = { version = "0.1.0"  , path = "../system/web"    }
 percent-encoding  = { version = "2.1.0"  }
 rust-dense-bitset = "0.1.1"
+keyboard-types    = "0.4.4"
