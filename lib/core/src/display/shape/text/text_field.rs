@@ -23,6 +23,7 @@ use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::world::World;
+use crate::system::web::text_input::KeyboardBinding;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -78,20 +79,6 @@ shared! { TextField
     }
 
     impl {
-        /// Create new TextField.
-        pub fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-            let logger         = Logger::new("TextField");
-            let display_object = DisplayObjectData::new(logger);
-            let content        = TextFieldContent::new(initial_content,&properties);
-            let cursors        = Cursors::default();
-            let rendered       = TextFieldSprites::new(world,&properties);
-            display_object.add_child(rendered.display_object.clone_ref());
-
-            let mut text_field = Self {properties,content,cursors,rendered,display_object};
-            text_field.initialize();
-            text_field
-        }
-
         /// Set position of this TextField.
         pub fn set_position(&mut self, position:Vector3<f32>) {
             self.display_object.set_position(position);
@@ -188,12 +175,14 @@ shared! { TextField
 // === Constructor ===
 
 impl TextField {
-    fn new() -> Self {
-        let rc        = Rc::new(RefCell::new(TextFieldData::new()));
-        let frp       = TextFieldFrp::new(rc);
-        let mut data  = rc.borrow_mut();
-        data.bindings = keyboard::bind_frp_to_js_text_input_actions(&frp);
-        data.frp      = Some(frp);
+    /// Create new TextField.
+    pub fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
+        let data              = TextFieldData::new(world,initial_content,properties);
+        let rc                = Rc::new(RefCell::new(data));
+        let frp               = TextFieldFrp::new(Rc::downgrade(&rc));
+        let mut data          = rc.borrow_mut();
+        data.keyboard_binding = Some(frp.bind_frp_to_js_text_input_actions());
+        data.frp              = Some(frp);
         Self{rc}
     }
 }
@@ -202,6 +191,22 @@ impl TextField {
 // === Private ===
 
 impl TextFieldData {
+    fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
+        let logger           = Logger::new("TextField");
+        let display_object   = DisplayObjectData::new(logger);
+        let content          = TextFieldContent::new(initial_content,&properties);
+        let cursors          = Cursors::default();
+        let rendered         = TextFieldSprites::new(world,&properties);
+        let frp              = None;
+        let keyboard_binding = None;
+        display_object.add_child(rendered.display_object.clone_ref());
+
+        let mut text_field = Self
+            {properties,content,cursors,rendered,display_object,frp,keyboard_binding};
+        text_field.initialize();
+        text_field
+    }
+
     fn initialize(&mut self) {
         self.assignment_update().update_line_assignment();
         self.rendered.update_glyphs(&mut self.content);

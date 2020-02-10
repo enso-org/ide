@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use enso_frp::*;
-use enso_frp::io::keyboard::{KeyboardActions, Keyboard, Key};
+use enso_frp::io::keyboard::{KeyboardActions, Keyboard, Key, KeyType};
+use crate::display::shape::text::text_field::TextFieldData;
 use crate::system::web::text_input::KeyboardBinding;
 use web_sys::KeyboardEvent;
+use std::str::FromStr;
 
 
 
@@ -19,6 +21,7 @@ use web_sys::KeyboardEvent;
 ///    text area component. See `system::web::text_input` crate.
 ///  * *text input operations* - here we want to handle all the keyboard mapping set by user, so
 ///    we connect this action directly to `key_press` node from `keyboard`.
+#[derive(Debug)]
 pub struct TextFieldFrp {
     /// A "keyboard" part of graph derived from frp crate.
     keyboard: Keyboard,
@@ -45,21 +48,21 @@ pub struct TextFieldFrp {
 
 impl TextFieldFrp {
     /// Create FRP graph operating on given TextField pointer.
-    pub fn new(text_field_ptr:Rc<RefCell<TextFieldData>>) -> TextFieldFrp {
+    pub fn new(text_field_ptr:Weak<RefCell<TextFieldData>>) -> TextFieldFrp {
         let keyboard          = Keyboard::default();
         let actions           = KeyboardActions::new(&keyboard);
-        let cut_action        = Self::copy_action_lambda(true,text_field_ptr.downgrade());
-        let copy_action       = Self::copy_action_lambda(false,text_field_ptr.downgrade());
-        let paste_action      = Self::paste_action_lambda(text_field_ptr.downgrade());
-        let char_typed_action = Self::char_typed_lambda(text_field_ptr.downgrade());
+        let cut_action        = Self::copy_action_lambda(true,text_field_ptr.clone());
+        let copy_action       = Self::copy_action_lambda(false,text_field_ptr.clone());
+        let paste_action      = Self::paste_action_lambda(text_field_ptr.clone());
+        let char_typed_action = Self::char_typed_lambda(text_field_ptr.clone());
         frp! {
-            text_field.cut              = source();
-            text_field.copy             = source();
-            text_field.paste            = source();
-            text_field.copy_action      = copy.map(copy_action);
-            text_field.cut_action       = cut.map(cut_action);
-            text_field.paste_action     = paste.map(paste_action);
-            text_field.key_typed_action = keyboard.key_pressed.map(char_typed_action);
+            text_field.cut               = source();
+            text_field.copy              = source();
+            text_field.paste             = source();
+            text_field.copy_action       = copy.map(|()| copy_action());
+            text_field.cut_action        = cut.map(|()| cut_action());
+            text_field.paste_action      = paste.map(paste_action);
+            text_field.char_typed_action = keyboard.key_pressed.map(char_typed_action);
         }
         TextFieldFrp
             {keyboard,actions,cut,copy,paste,cut_action,copy_action,paste_action,char_typed_action}
@@ -69,25 +72,30 @@ impl TextFieldFrp {
     ///
     /// Until the returned `KeyboardBinding` structure lives, the js events will emit the proper
     /// source events in this graph.
-    pub fn bind_frp_to_js_text_input_actions(frp:&TextFieldFrp) -> KeyboardBinding {
+    pub fn bind_frp_to_js_text_input_actions(&self) -> KeyboardBinding {
         let mut binding      = KeyboardBinding::create();
-        let frp_key_pressed  = frp.keyboard.key_pressed.clone_ref();
-        let frp_key_released = frp.keyboard.key_released.clone_ref();
-        let frp_copy         = frp.copy.clone_ref();
-        let frp_paste        = frp.paste.clone_ref();
-        let frp_text_to_copy = frp.copy_action.clone_ref();
-        binding.set_key_up_handler(|event| {
-            if Ok(key) = key_from_event(&event) {
+        let frp_key_pressed  = self.keyboard.key_pressed.clone_ref();
+        let frp_key_released = self.keyboard.key_released.clone_ref();
+        let frp_cut          = self.cut.clone_ref();
+        let frp_copy         = self.copy.clone_ref();
+        let frp_paste        = self.paste.clone_ref();
+        let frp_text_to_copy = self.copy_action.clone_ref();
+        binding.set_key_up_handler(|event:KeyboardEvent| {
+            if let Ok(key) = event.key().parse() {
                 frp_key_pressed.event.emit(key);
             }
         });
-        binding.set_key_down_handler(|event| {
-            if Ok(key) = key_from_event(&event) {
+        binding.set_key_down_handler(|event:KeyboardEvent| {
+            if let Ok(key) = event.key().parse() {
                 frp_key_released.event.emit(key);
             }
         });
-        binding.set_copy_handler(|| {
-            frp_copy.event.emit();
+        binding.set_copy_handler(|is_cut| {
+            if is_cut {
+                frp_cut.event.emit(())
+            } else {
+                frp_copy.event.emit(());
+            }
             frp_text_to_copy.behavior.current_value()
         });
         binding.set_paste_handler(|text_to_paste| {
@@ -103,7 +111,7 @@ impl TextFieldFrp {
 impl TextFieldFrp {
 
     fn copy_action_lambda(cut:bool, text_field_ptr:Weak<RefCell<TextFieldData>>)
-    -> impl FnMut() -> String {
+    -> impl Fn() -> String {
         || {
             match text_field_ptr.upgrade() {
                 Some(text_field) => {
@@ -117,31 +125,26 @@ impl TextFieldFrp {
         }
     }
 
-    fn paste_action_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl FnMut(String) {
+    fn paste_action_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&String) {
         |text_to_paste| {
-            text_field_ptr.upgrade().for_each(|text_field| { text_field.edit(pasted.as_str()) })
+            let inserted = text_to_paste.as_str();
+            text_field_ptr.upgrade().for_each(|tf| { tf.borrow_mut().edit(inserted) })
         }
     }
 
-    fn char_typed_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl FnMut(&Key) {
+    fn char_typed_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&Key) {
         |key| {
             text_field_ptr.upgrade().for_each(|text_field| {
-                if let Key::Character(string) = key {
-                    text_field.edit(string);
+                if let Key(KeyType::Character(string)) = key {
+                    text_field.borrow_mut().edit(string);
                 }
             })
         }
     }
 
-    fn initialize_actions_map(actions:&mut KeyboardActions, text_field_ptr:Weak<RefCell<TextFieldData>>)
+//    fn initialize_actions_map(actions:&mut KeyboardActions, text_field_ptr:Weak<RefCell<TextFieldData>>)
 }
 
-fn key_from_event(event:&KeyboardEvent) -> Result<Key,FromStr::Err> {
-    let key:String                     = event.key();
-    let first_chars:SmallVec<[char;2]> = key.chars().take(2).collect();
-    if first_chars.len() == 1 {
-        Ok(Key::Character(key))
-    } else {
-        key.parse()
-    }
+fn key_from_event(event:&KeyboardEvent) -> Result<Key,<Key as FromStr>::Err> {
+    event.key().parse()
 }

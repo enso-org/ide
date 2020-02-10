@@ -1,28 +1,29 @@
 //! Keboard FRP bindings.
-
 use crate::prelude::*;
 
 use crate::*;
 use rust_dense_bitset::BitSet;
 use rust_dense_bitset::DenseBitSetExtended;
 use std::collections::hash_map::Entry;
-use parse_display::{Display, FromStr};
-
+use crate::core::fmt::{Formatter, Error};
 
 
 // ===========
 // === Key ===
 // ===========
 
+/// A type of key.
+pub type KeyType = keyboard_types::Key;
+
 /// A keyboard key representation. This newtype extends the `Key` structure taken from
 /// `keyboard_types` crate, e.g. adding possibility to create Key from String,
 /// and implements `Default`.
-#[derive(Clone,Debug,Display,Eq,PartialEq,FromStr,Shrinkwrap)]
-pub struct Key(keyboard_types::Key);
+#[derive(Clone,Debug,Eq,FromStr,PartialEq,Shrinkwrap)]
+pub struct Key(pub KeyType);
 
 impl Default for Key {
     fn default() -> Self {
-        Key::Unidentified
+        Self(KeyType::Unidentified)
     }
 }
 
@@ -57,6 +58,13 @@ impl FromIterator<Key> for KeyMask {
             key_mask.set_bit(bit,true);
         }
         key_mask
+    }
+}
+
+impl FromIterator<KeyType> for KeyMask {
+    fn from_iter<T: IntoIterator<Item=KeyType>>(iter:T) -> Self {
+        let mapped = iter.into_iter().map(|k| Key(k));
+        <KeyMask as FromIterator<Key>>::from_iter(mapped)
     }
 }
 
@@ -148,7 +156,7 @@ pub type  ActionMap = HashMap<KeyMask,Box<dyn Action>>;
 /// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
 pub struct KeyboardActions {
     action_map : Rc<RefCell<ActionMap>>,
-    action     : Dynamic<()>,
+    _action    : Dynamic<()>,
 }
 
 impl KeyboardActions {
@@ -159,7 +167,7 @@ impl KeyboardActions {
         frp! {
             keyboard.action = keyboard.key_mask.map(Self::perform_action_lambda(action_map.clone()));
         }
-        KeyboardActions{action_map,action}
+        KeyboardActions{action_map, _action:action}
     }
 
     fn perform_action_lambda(action_map:Rc<RefCell<ActionMap>>) -> impl Fn(&KeyMask) {
@@ -184,6 +192,11 @@ impl KeyboardActions {
     }
 }
 
+impl Debug for KeyboardActions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "<KeyboardActions>")
+    }
+}
 
 
 #[cfg(test)]
@@ -195,8 +208,8 @@ mod test {
         let keyboard                  = Keyboard::default();
         let expected_key_mask:KeyMask = default();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
-        let key1 = Key::Character("x".to_string());
-        let key2 = Key::Control;
+        let key1 = Key(KeyType::Character("x".to_string()));
+        let key2 = Key(KeyType::Control);
 
         keyboard.key_pressed.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(key1.clone()).collect();
@@ -213,37 +226,38 @@ mod test {
 
     #[test]
     fn key_actions() {
+        use keyboard_types::Key::*;
         let undone            = Rc::new(RefCell::new(false));
         let undone1           = undone.clone();
         let redone            = Rc::new(RefCell::new(false));
         let redone1           = redone.clone();
-        let undo_keys:KeyMask = [Key::Control, Key::Character("z".to_string())].iter().cloned().collect();
-        let redo_keys:KeyMask = [Key::Control, Key::Character("y".to_string())].iter().cloned().collect();
+        let undo_keys:KeyMask = [Control, Character("z".to_string())].iter().cloned().collect();
+        let redo_keys:KeyMask = [Control, Character("y".to_string())].iter().cloned().collect();
 
         let keyboard    = Keyboard::default();
         let mut actions = KeyboardActions::new(&keyboard);
         actions.set_action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true });
         actions.set_action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true });
-        keyboard.key_pressed.event.emit(Key::Character("Z".to_string()));
+        keyboard.key_pressed.event.emit(Key(Character("Z".to_string())));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Key::Control);
+        keyboard.key_pressed.event.emit(Key(Control));
         assert!( *undone.borrow());
         assert!(!*redone.borrow());
         *undone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Key::Character("z".to_string()));
+        keyboard.key_released.event.emit(Key(Character("z".to_string())));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Key::Character("y".to_string()));
+        keyboard.key_pressed.event.emit(Key(Character("y".to_string())));
         assert!(!*undone.borrow());
         assert!( *redone.borrow());
         *redone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Key::Character("y".to_string()));
-        keyboard.key_released.event.emit(Key::Control);
+        keyboard.key_released.event.emit(Key(Character("y".to_string())));
+        keyboard.key_released.event.emit(Key(Control));
 
         actions.unset_action(&undo_keys);
-        keyboard.key_pressed.event.emit(Key::Character("Z".to_string()));
-        keyboard.key_pressed.event.emit(Key::Control);
+        keyboard.key_pressed.event.emit(Key(Character("Z".to_string())));
+        keyboard.key_pressed.event.emit(Key(Control));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
     }
