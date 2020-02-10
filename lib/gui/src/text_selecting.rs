@@ -2,21 +2,19 @@
 
 use wasm_bindgen::prelude::*;
 
-use basegl::display::world::WorldData;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
-use basegl::system::web;
+use basegl::display::world::WorldData;
 use basegl::system::web::forward_panic_hook_to_console;
-
-
+use basegl::system::web;
 use basegl_system_web::set_stdout;
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::Closure;
 use web_sys::MouseEvent;
 
 

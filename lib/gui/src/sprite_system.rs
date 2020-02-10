@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+use basegl::display::camera::Camera2d;
+use basegl::display::navigation::navigator::Navigator;
 use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
@@ -9,12 +11,9 @@ use basegl::prelude::*;
 use basegl::system::web::forward_panic_hook_to_console;
 use basegl::system::web::set_stdout;
 use basegl::system::web;
-
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
-use basegl::display::navigation::navigator::Navigator;
-use basegl::display::camera::Camera2d;
 
 
 #[wasm_bindgen]

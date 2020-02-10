@@ -133,7 +133,6 @@ impl {
                 let shader      = shader_builder.build();
                 let vert_shader = compile_vertex_shader  (&self.context,&shader.vertex);
                 let frag_shader = compile_fragment_shader(&self.context,&shader.fragment);
-                println!("{}",&shader.fragment);
                 if let Err(ref err) = frag_shader {
                     self.logger.error(|| format!("{}", err))
                 }

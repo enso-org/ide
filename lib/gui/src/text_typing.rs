@@ -3,24 +3,22 @@
 use wasm_bindgen::prelude::*;
 
 use basegl::display::object::DisplayObjectOps;
-use basegl::display::shape::text::text_field::content::TextChange;
-use basegl::display::shape::text::text_field::{TextField, TextFieldProperties};
-use basegl::display::shape::text::text_field::cursor::Step::Right;
 use basegl::display::shape::text::glyph::font::FontRegistry;
+use basegl::display::shape::text::text_field::content::TextChange;
+use basegl::display::shape::text::text_field::cursor::Step::Right;
+use basegl::display::shape::text::text_field::{TextField, TextFieldProperties};
 use basegl::display::world::*;
 use basegl::system::web::forward_panic_hook_to_console;
 use basegl::system::web;
-
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-use basegl_system_web::set_stdout;
 
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_text_typing() {
     forward_panic_hook_to_console();
-    set_stdout();
+    web::set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world     = &WorldData::new(&web::body());
         let mut fonts = FontRegistry::new();

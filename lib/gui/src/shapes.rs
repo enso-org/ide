@@ -1,5 +1,9 @@
 #![allow(missing_docs)]
 
+//! NOTE
+//! This file is under a heavy development. It contains commented lines of code and some code may
+//! be of poor quality. Expect drastic changes.
+
 use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
@@ -8,11 +12,11 @@ use basegl::display::world::*;
 use basegl::system::web::set_stdout;
 use basegl::system::web::set_stack_trace_limit;
 use basegl::system::web::forward_panic_hook_to_console;
+use basegl::display::shape::primitive::def::*;
 
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
-use basegl::display::shape::primitive::def::*;
 //use basegl::display::navigation::navigator::Navigator;
 
 use basegl::prelude::*;

@@ -2,28 +2,27 @@
 
 use crate::prelude::*;
 
-use wasm_bindgen::prelude::*;
-use basegl::animation::easing::*;
+use basegl::animation::animator::continuous::ContinuousAnimator;
 use basegl::animation::animator::easing::EasingAnimator;
-use basegl::system::web::create_element;
-use basegl::system::web::NodeInserter;
+use basegl::animation::animator::fixed_step::FixedStepAnimator;
+use basegl::animation::easing::*;
 use basegl::system::web::AttributeSetter;
+use basegl::system::web::create_element;
+use basegl::system::web::get_element_by_id;
+use basegl::system::web::NodeInserter;
 use basegl::system::web::StyleSetter;
-
+use js_sys::Math;
 use nalgebra::Vector2;
 use nalgebra::zero;
-
-use web_sys::HtmlElement;
-use web_sys::HtmlCanvasElement;
-use web_sys::CanvasRenderingContext2d;
-use wasm_bindgen::JsCast;
-use basegl::system::web::get_element_by_id;
-use basegl::animation::animator::continuous::ContinuousAnimator;
-use basegl::animation::animator::fixed_step::FixedStepAnimator;
-use js_sys::Math;
-
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
+use web_sys::CanvasRenderingContext2d;
+use web_sys::HtmlCanvasElement;
+use web_sys::HtmlElement;
+
+
 
 #[derive(Clone,Debug)]
 /// A simplified Canvas object used in the EasingAnimator example.

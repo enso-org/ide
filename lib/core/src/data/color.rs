@@ -11,6 +11,29 @@ use crate::system::gpu::shader::glsl::traits::*;
 
 
 
+// ====================
+// === ControlPoint ===
+// ====================
+
+/// Control point of the gradient. It defines a color at a specific gradient offset. The offset
+/// of `0` means the beginning of the gradient. The offset of `1` means its end.
+#[derive(Clone,Debug,Default)]
+pub struct ControlPoint<Color> {
+    /// Offset of the control point in [0..1] range.
+    pub offset : f32,
+    /// Color of this control point.
+    pub color  : Color
+}
+
+impl<Color> ControlPoint<Color> {
+    /// Constructor.
+    pub fn new(offset:f32, color:Color) -> Self {
+        Self {offset,color}
+    }
+}
+
+
+
 // ================
 // === Gradient ===
 // ================
@@ -20,7 +43,7 @@ use crate::system::gpu::shader::glsl::traits::*;
 #[derive(Clone,Debug,Derivative)]
 #[derivative(Default(bound=""))]
 pub struct Gradient<Color> {
-    control_points : Vec<(f32,Color)>,
+    control_points : Vec<ControlPoint<Color>>,
 }
 
 impl<Color> Gradient<Color> {
@@ -31,7 +54,7 @@ impl<Color> Gradient<Color> {
 
     /// Add a new control point. The offset needs to be in range [0..1].
     pub fn add(mut self, offset:f32, color:Color) -> Self {
-        self.control_points.push((offset,color));
+        self.control_points.push(ControlPoint::new(offset,color));
         self
     }
 }
@@ -39,8 +62,10 @@ impl<Color> Gradient<Color> {
 impls! { [Color] From<Gradient<Color>> for Glsl
 where [Color:Copy+Into<Glsl>] {
     |t| {
-        let args = t.control_points.iter().map(|(t,color)| {
-            iformat!("gradient_control_point({t.glsl()},{(*color).glsl()})")
+        let args = t.control_points.iter().map(|control_point| {
+            let offset = control_point.offset.glsl();
+            let color  = control_point.color.glsl();
+            iformat!("gradient_control_point({offset},{color})")
         }).join(",");
         iformat!("gradient({args})").into()
     }
@@ -51,6 +76,12 @@ where [Color:Copy+Into<Glsl>] {
 // ========================
 // === DistanceGradient ===
 // ========================
+
+/// Default start distance of the distance gradient.
+pub const DEFAULT_DISTANCE_GRADIENT_MIN_DISTANCE : f32 = 0.0;
+
+/// Default end distance of the distance gradient.
+pub const DEFAULT_DISTANCE_GRADIENT_MAX_DISTANCE : f32 = 10.0;
 
 /// A gradient which transforms a linear gradient to a gradient along the signed distance field.
 /// The slope parameter modifies how fast the gradient values are changed, allowing for nice,
@@ -68,15 +99,17 @@ pub struct DistanceGradient<Gradient> {
 }
 
 impl<Gradient> DistanceGradient<Gradient> {
-    /// Constructor.
+    /// Constructs a new gradient with `min_distance` and `max_distance` set to
+    /// `DEFAULT_DISTANCE_GRADIENT_MIN_DISTANCE` and `DEFAULT_DISTANCE_GRADIENT_MAX_DISTANCE`
+    /// respectively.
     pub fn new(gradient:Gradient) -> Self {
-        let min_distance = 0.0;
-        let max_distance = 10.0;
+        let min_distance = DEFAULT_DISTANCE_GRADIENT_MIN_DISTANCE;
+        let max_distance = DEFAULT_DISTANCE_GRADIENT_MAX_DISTANCE;
         let slope        = Slope::Smooth;
         Self {min_distance,max_distance,slope,gradient}
     }
 
-    /// Setter for the `max_distance` field.
+    /// Constructor setter for the `max_distance` field.
     pub fn max_distance(mut self, t:f32) -> Self {
         self.max_distance = t;
         self

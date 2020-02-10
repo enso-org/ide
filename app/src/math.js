@@ -17,5 +17,5 @@ export function polar_to_cartesian(radius, angle_degrees) {
 
 /// Format bytes as megabytes with a single precision number.
 export function format_mb(bytes) {
-   return Math.round(10 * bytes / (1042 * 1024)) / 10
+   return Math.round(10 * bytes / (1024 * 1024)) / 10
 }
