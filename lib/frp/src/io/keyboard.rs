@@ -1,18 +1,41 @@
+//! Keboard FRP bindings.
+
 use crate::prelude::*;
 
 use crate::*;
 use rust_dense_bitset::BitSet;
 use rust_dense_bitset::DenseBitSetExtended;
-use keyboard_types::Key;
 use std::collections::hash_map::Entry;
+use parse_display::{Display, FromStr};
+
+
+
+// ===========
+// === Key ===
+// ===========
+
+/// A keyboard key representation. This newtype extends the `Key` structure taken from
+/// `keyboard_types` crate, e.g. adding possibility to create Key from String,
+/// and implements `Default`.
+#[derive(Clone,Debug,Display,Eq,PartialEq,FromStr,Shrinkwrap)]
+pub struct Key(keyboard_types::Key);
+
+impl Default for Key {
+    fn default() -> Self {
+        Key::Unidentified
+    }
+}
+
 
 
 // ===============
 // === KeyMask ===
 // ===============
 
+/// The assumed maximum key code, used as size of KeyMask bitset.
 const MAX_KEY_CODE : usize = 255;
 
+/// The key bitmask - each bit represents one key. Used for matching key combinations.
 #[derive(BitXor,Clone,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct KeyMask(pub DenseBitSetExtended);
@@ -43,6 +66,7 @@ impl FromIterator<Key> for KeyMask {
 // === KeyState ===
 // ================
 
+/// A helper structure used for describing specific key state.
 #[derive(Clone,Debug,Default)]
 struct KeyState {
     key     : Key,
@@ -50,18 +74,21 @@ struct KeyState {
 }
 
 impl KeyState {
+    /// Create _pressed_ state for given key.
     fn key_pressed(key:&Key) -> Self {
         let pressed = true;
         let key    = key.clone();
         KeyState{key,pressed}
     }
 
+    /// Create _released_ state for given key.
     fn key_released(key:&Key) -> Self {
         let pressed = false;
         let key     = key.clone();
         KeyState{key,pressed}
     }
 
+    /// Returns copy of given KeyMask with updated key state.
     fn updated_mask(&self, mask:&KeyMask) -> KeyMask {
         let mut mask = mask.clone();
         let bit      = self.key.legacy_keycode() as usize;
@@ -72,12 +99,11 @@ impl KeyState {
 
 
 
-
 // ================
 // === Keyboard ===
 // ================
 
-/// Keyboard FRP bindings.
+/// A FRP graph for basic keyboard events.
 #[derive(Debug)]
 pub struct Keyboard {
     /// The mouse up event.
@@ -112,16 +138,23 @@ impl Default for Keyboard {
 // === KeyboardActions ===
 // =======================
 
+/// An action defined for specific key combinations. For convenience, the key mask is passed as
+/// argument.
 pub trait Action    = FnMut(&KeyMask) + 'static;
+
+/// A mapping between key combinations and actions.
 pub type  ActionMap = HashMap<KeyMask,Box<dyn Action>>;
 
+/// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
 pub struct KeyboardActions {
-    action_map: Rc<RefCell<ActionMap>>,
-    action: Dynamic<()>,
+    action_map : Rc<RefCell<ActionMap>>,
+    action     : Dynamic<()>,
 }
 
 impl KeyboardActions {
-    fn new(keyboard:&Keyboard) -> Self {
+    /// Create structure without any actions defined yet. It will be listening for events from
+    /// passed `Keyboard` structure.
+    pub fn new(keyboard:&Keyboard) -> Self {
         let action_map = Rc::new(RefCell::new(HashMap::new()));
         frp! {
             keyboard.action = keyboard.key_mask.map(Self::perform_action_lambda(action_map.clone()));
@@ -140,33 +173,18 @@ impl KeyboardActions {
         }
     }
 
-    fn set_action<F:FnMut(&KeyMask) + 'static>(&mut self, key_mask:KeyMask, action:F) {
+    /// Set action binding for given key mask.
+    pub fn set_action<F:FnMut(&KeyMask) + 'static>(&mut self, key_mask:KeyMask, action:F) {
         self.action_map.borrow_mut().insert(key_mask,Box::new(action));
     }
 
-    fn unset_action(&mut self, key_mask:&KeyMask) {
+    /// Remove action binding for given key mask.
+    pub fn unset_action(&mut self, key_mask:&KeyMask) {
         self.action_map.borrow_mut().remove(key_mask);
     }
 }
 
 
-
-
-// =================
-// === TextInput ===
-// =================
-
-#[derive(Debug)]
-pub struct TextInput {
-    pub keyboard: Keyboard,
-    pub copy: Dynamic<()>,
-    pub paste: Dynamic<String>,
-    pub text_to_copy: Dynamic<String>,
-}
-
-impl TextInput {
-
-}
 
 #[cfg(test)]
 mod test {

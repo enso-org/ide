@@ -2,6 +2,7 @@
 
 pub mod content;
 pub mod cursor;
+pub mod keyboard;
 pub mod location;
 pub mod render;
 
@@ -16,6 +17,7 @@ use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
 use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
+use crate::display::shape::text::text_field::keyboard::TextFieldFrp;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
@@ -66,11 +68,13 @@ shared! { TextField
     /// commits.
     #[derive(Debug)]
     pub struct TextFieldData {
-        properties     : TextFieldProperties,
-        content        : TextFieldContent,
-        cursors        : Cursors,
-        rendered       : TextFieldSprites,
-        display_object : DisplayObjectData,
+        properties       : TextFieldProperties,
+        content          : TextFieldContent,
+        cursors          : Cursors,
+        rendered         : TextFieldSprites,
+        display_object   : DisplayObjectData,
+        frp              : Option<TextFieldFrp>,
+        keyboard_binding : Option<KeyboardBinding>,
     }
 
     impl {
@@ -177,6 +181,20 @@ shared! { TextField
         pub fn update(&self) {
             self.display_object.update()
         }
+    }
+}
+
+
+// === Constructor ===
+
+impl TextField {
+    fn new() -> Self {
+        let rc        = Rc::new(RefCell::new(TextFieldData::new()));
+        let frp       = TextFieldFrp::new(rc);
+        let mut data  = rc.borrow_mut();
+        data.bindings = keyboard::bind_frp_to_js_text_input_actions(&frp);
+        data.frp      = Some(frp);
+        Self{rc}
     }
 }
 

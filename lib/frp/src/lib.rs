@@ -15,6 +15,7 @@
 #![feature(trait_alias)]
 #![feature(weak_into_raw)]
 #![feature(associated_type_defaults)]
+#![feature(trivial_bounds)]
 
 pub mod data;
 pub mod debug;
