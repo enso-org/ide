@@ -1,7 +1,4 @@
-#![allow(missing_docs)]
-
-/// This module defines color structures and associated modifiers.
-
+//! This module defines color structures and associated modifiers.
 
 use crate::prelude::*;
 
@@ -13,23 +10,26 @@ use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
 
 
-//// ===============
-//// === Sampler ===
-//// ===============
 
+// ================
+// === Gradient ===
+// ================
 
-
+/// A linear color gradient implementation. It accepts control points which base on colors for
+/// a given palette. The palette need to define `mix` operation on GPU.
 #[derive(Clone,Debug,Derivative)]
 #[derivative(Default(bound=""))]
 pub struct Gradient<Color> {
-    pub control_points : Vec<(f32,Color)>,
+    control_points : Vec<(f32,Color)>,
 }
 
 impl<Color> Gradient<Color> {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
+    /// Add a new control point. The offset needs to be in range [0..1].
     pub fn add(mut self, offset:f32, color:Color) -> Self {
         self.control_points.push((offset,color));
         self
@@ -52,15 +52,23 @@ where [Color:Copy+Into<Glsl>] {
 // === DistanceGradient ===
 // ========================
 
+/// A gradient which transforms a linear gradient to a gradient along the signed distance field.
+/// The slope parameter modifies how fast the gradient values are changed, allowing for nice,
+/// smooth transitions.
 #[derive(Copy,Clone,Debug)]
 pub struct DistanceGradient<Gradient> {
+    /// The distance from the shape border at which the gradient should start.
     pub min_distance : f32,
+    /// The distance from the shape border at which the gradient should finish.
     pub max_distance : f32,
-    pub slope        : Slope,
-    pub gradient     : Gradient
+    /// The gradient slope modifier. Defines how fast the gradient values change.
+    pub slope : Slope,
+    /// The underlying gradient.
+    pub gradient : Gradient
 }
 
 impl<Gradient> DistanceGradient<Gradient> {
+    /// Constructor.
     pub fn new(gradient:Gradient) -> Self {
         let min_distance = 0.0;
         let max_distance = 10.0;
@@ -68,6 +76,7 @@ impl<Gradient> DistanceGradient<Gradient> {
         Self {min_distance,max_distance,slope,gradient}
     }
 
+    /// Setter for the `max_distance` field.
     pub fn max_distance(mut self, t:f32) -> Self {
         self.max_distance = t;
         self
@@ -101,8 +110,12 @@ impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
     }
 }}
 
+/// Defines how fast gradient values change.
 #[derive(Copy,Clone,Debug)]
 pub enum Slope {
+    /// Defines a linear gradient.
     Linear,
+    /// Perform Hermite interpolation between gradient values. See `GLSL` `smoothstep` for
+    /// reference.
     Smooth,
 }
