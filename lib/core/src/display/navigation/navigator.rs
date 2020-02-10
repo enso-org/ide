@@ -1,5 +1,7 @@
 mod events;
 
+use crate::prelude::*;
+
 use events::NavigatorEvents;
 use events::ZoomEvent;
 use events::PanEvent;
@@ -17,6 +19,7 @@ use crate::system::web::dyn_into;
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
 use nalgebra::clamp;
+
 
 
 // =================
@@ -62,9 +65,21 @@ impl Navigator {
         let drag               = DragProperties::new(1500.0);
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second   = 60.0;
-        let properties_clone   = properties.clone();
-        let callback           = move |position| camera.set_position(position);
-        let sim = PhysicsSimulator::new(steps_per_second,properties_clone,callback);
+        let callback           = enclose!((properties) move |interpolated_position:Vector3<f32>| {
+            let fixed_point       = properties.spring().fixed_point;
+            let position          = properties.kinematics().position();
+            let distance          = (position - fixed_point).magnitude();
+            const THRESHOLD : f32 = 1.0;
+            let position = if distance < THRESHOLD {
+                fixed_point
+            } else {
+                interpolated_position
+            };
+            if camera.transform().position() != position {
+                camera.set_position(position);
+            }
+        });
+        let sim = PhysicsSimulator::new(steps_per_second,properties.clone(),callback);
         (sim,properties)
     }
 
@@ -77,8 +92,7 @@ impl Navigator {
     , mut properties:PhysicsProperties) -> Result<NavigatorEvents> {
         let dom_clone            = dom.clone();
         let camera_clone         = camera.clone();
-        let mut properties_clone = properties.clone();
-        let panning_callback     = move |pan: PanEvent| {
+        let panning_callback     = enclose!((mut properties) move |pan: PanEvent| {
             let fovy_slope = camera_clone.half_fovy_slope();
             // base_distance is a distance where the camera covers all the UI.
             let base_distance = dom_clone.dimensions().y / 2.0 / fovy_slope;
@@ -90,10 +104,22 @@ impl Navigator {
             let y = pan.movement.y * scale;
             let z = 0.0;
 
-            properties_clone.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
-        };
+            properties.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
+        });
 
-        let dom_clone = dom.clone();
+        let mut dom_clone = dom.clone();
+        dom_clone.add_resize_callback(
+            enclose!((camera,mut properties) move |dimensions:&Vector2<f32>| {
+                camera.set_screen(dimensions.x, dimensions.y);
+                camera.update();
+                let position = camera.transform().position();
+                properties.mod_kinematics(|kinematics| {
+                    kinematics.set_position(position);
+                    kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
+                });
+                properties.mod_spring(|spring| spring.fixed_point = position);
+            })
+        );
         let zoom_callback = move |zoom:ZoomEvent| {
                 let point       = zoom.focus;
                 let normalized  = normalize_point2(point, dom_clone.dimensions());
