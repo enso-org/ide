@@ -96,7 +96,7 @@ impl Navigator {
         });
 
         camera.add_screen_update_callback(
-            enclose!((mut properties) move |width,height,display_object_data:DisplayObjectData| {
+            enclose!((mut properties) move |_,_,display_object_data:DisplayObjectData| {
                 let position = display_object_data.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
