@@ -1,3 +1,11 @@
+//! TODO [mwu] This module is still provisional work in progress. Currently
+//!            provided only for tests purposes, needs to be completed and
+//!            properly reviewed.
+//!
+//! Module providing the executor-related types and functions.
+
+#![allow(missing_docs)] // TODO [mwu] remove once module is done
+
 use crate::prelude::*;
 
 use futures::task::LocalSpawnExt;
@@ -10,19 +18,28 @@ use futures::executor::LocalSpawner;
 use basegl::control::callback::CallbackHandle;
 use basegl::control::EventLoop;
 
+// TODO [mwu] If anything, likely thread local variable should be preferred.
 static mut CURRENT_SPAWNER: Option<Box<dyn LocalSpawn>> = None;
 
-pub fn set_global_spawner(spawner:impl LocalSpawn + 'static) {
+// TODO [mwu] consider whether it is the "current" spawner or rather
+//            "the global" spawner. Is it available from outside the async
+//             context? Do we allow using more than one executor in the IDE?
+#[allow(unsafe_code)]
+pub fn set_global_spawner(spawner: impl LocalSpawn + 'static) {
     unsafe {
         CURRENT_SPAWNER = Some(Box::new(spawner));
     }
 }
+
+#[allow(unsafe_code)]
 pub fn unset_global_spawner() {
     unsafe {
         CURRENT_SPAWNER = None;
     }
 }
-pub fn global_spawner() -> &'static mut Box<dyn LocalSpawn> {
+
+#[allow(unsafe_code)]
+pub fn current_spawner() -> &'static mut dyn LocalSpawn {
     unsafe {
         CURRENT_SPAWNER.as_mut().expect("no global executor has been provided")
     }
@@ -31,15 +48,12 @@ pub fn global_spawner() -> &'static mut Box<dyn LocalSpawn> {
 /// Spawn a task scheduled within a current executor.
 /// Panics, if called when there is no active asynchronous execution.
 pub fn spawn_task(f:impl Future<Output=()> + 'static) {
-    global_spawner().spawn_local(f).ok();
+    current_spawner().spawn_local(f).ok();
 }
 
-//////////////////////////////////////
 
-trait LocalExecutor {
-    fn spawn(&self, f:impl Future<Output=()> + 'static);
-}
 
+#[derive(Debug)]
 pub struct JsExecutor {
     #[allow(dead_code)]
     executor   : Rc<RefCell<LocalPool>>,
@@ -47,7 +61,7 @@ pub struct JsExecutor {
     event_loop : EventLoop,
     spawner    : LocalSpawner,
     #[allow(dead_code)]
-    cb_handle  : basegl::control::callback::CallbackHandle,
+    cb_handle  : CallbackHandle,
 }
 
 impl JsExecutor {
@@ -73,7 +87,7 @@ impl JsExecutor {
 
     pub fn spawn
     (&self, f:impl Future<Output = ()> + 'static)
-     -> Result<(), futures::task::SpawnError> {
+     -> Result<(), SpawnError> {
         self.spawner.spawn_local(f)
     }
 
