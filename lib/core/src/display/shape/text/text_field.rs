@@ -180,9 +180,10 @@ impl TextField {
         let data              = TextFieldData::new(world,initial_content,properties);
         let rc                = Rc::new(RefCell::new(data));
         let frp               = TextFieldFrp::new(Rc::downgrade(&rc));
-        let mut data          = rc.borrow_mut();
-        data.keyboard_binding = Some(frp.bind_frp_to_js_text_input_actions());
-        data.frp              = Some(frp);
+        with(rc.borrow_mut(), move |mut data| {
+            data.keyboard_binding = Some(frp.bind_frp_to_js_text_input_actions());
+            data.frp              = Some(frp);
+        });
         Self{rc}
     }
 }

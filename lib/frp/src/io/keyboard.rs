@@ -50,8 +50,15 @@ impl Default for KeyMask {
     }
 }
 
-impl FromIterator<Key> for KeyMask {
-    fn from_iter<T: IntoIterator<Item=Key>>(iter:T) -> Self {
+//impl FromIterator<Key> for KeyMask {
+//    fn from_iter<T: IntoIterator<Item=Key>>(iter:T) -> Self {
+//        let mapped = iter.into_iter().map(|Key(ref key_type)| key_type);
+//        <Self as FromIterator<&KeyType>>::from_iter(mapped)
+//    }
+//}
+
+impl<'a> FromIterator<&'a KeyType> for KeyMask {
+    fn from_iter<T: IntoIterator<Item=&'a KeyType>>(iter:T) -> Self {
         let mut key_mask = KeyMask::default();
         for key in iter {
             let bit = key.legacy_keycode() as usize;
@@ -61,13 +68,11 @@ impl FromIterator<Key> for KeyMask {
     }
 }
 
-impl FromIterator<KeyType> for KeyMask {
-    fn from_iter<T: IntoIterator<Item=KeyType>>(iter:T) -> Self {
-        let mapped = iter.into_iter().map(|k| Key(k));
-        <KeyMask as FromIterator<Key>>::from_iter(mapped)
+impl From<&[KeyType]> for KeyMask {
+    fn from(keys: &[KeyType]) -> Self {
+        <KeyMask as FromIterator<&KeyType>>::from_iter(keys)
     }
 }
-
 
 
 // ================
@@ -208,19 +213,19 @@ mod test {
         let keyboard                  = Keyboard::default();
         let expected_key_mask:KeyMask = default();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
-        let key1 = Key(KeyType::Character("x".to_string()));
-        let key2 = Key(KeyType::Control);
+        let key1 = KeyType::Character("x".to_string());
+        let key2 = KeyType::Control;
 
-        keyboard.key_pressed.event.emit(key1.clone());
-        let expected_key_mask:KeyMask = std::iter::once(key1.clone()).collect();
+        keyboard.key_pressed.event.emit(Key(key1.clone()));
+        let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_pressed.event.emit(key2.clone());
-        let expected_key_mask:KeyMask = [key1.clone(),key2.clone()].iter().cloned().collect();
+        keyboard.key_pressed.event.emit(Key(key2.clone()));
+        let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_released.event.emit(key1.clone());
-        let expected_key_mask:KeyMask = std::iter::once(key2.clone()).collect();
+        keyboard.key_released.event.emit(Key(key1.clone()));
+        let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
     }
 
@@ -231,8 +236,8 @@ mod test {
         let undone1           = undone.clone();
         let redone            = Rc::new(RefCell::new(false));
         let redone1           = redone.clone();
-        let undo_keys:KeyMask = [Control, Character("z".to_string())].iter().cloned().collect();
-        let redo_keys:KeyMask = [Control, Character("y".to_string())].iter().cloned().collect();
+        let undo_keys:KeyMask = [Control, Character("z".to_string())].iter().collect();
+        let redo_keys:KeyMask = [Control, Character("y".to_string())].iter().collect();
 
         let keyboard    = Keyboard::default();
         let mut actions = KeyboardActions::new(&keyboard);
