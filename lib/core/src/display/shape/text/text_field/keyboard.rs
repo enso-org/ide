@@ -15,8 +15,6 @@ use web_sys::KeyboardEvent;
 // === TextFieldFrp ===
 // ====================
 
-enum ClipboardWriteOperation {Cut,Copy}
-
 /// This structure contains all nodes in FRP graph handling keyboards events of one TextField
 /// component.
 ///
@@ -86,12 +84,12 @@ impl TextFieldFrp {
         let frp_copy         = self.copy.clone_ref();
         let frp_paste        = self.paste.clone_ref();
         let frp_text_to_copy = self.copy_action.clone_ref();
-        binding.set_key_up_handler(move |event:KeyboardEvent| {
+        binding.set_key_down_handler(move |event:KeyboardEvent| {
             if let Ok(key) = event.key().parse::<Key>() {
                 frp_key_pressed.event.emit(key);
             }
         });
-        binding.set_key_down_handler(move |event:KeyboardEvent| {
+        binding.set_key_up_handler(move |event:KeyboardEvent| {
             if let Ok(key) = event.key().parse::<Key>() {
                 frp_key_released.event.emit(key);
             }
@@ -138,10 +136,10 @@ impl TextFieldFrp {
         }
     }
 
-    fn char_typed_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&Key) {
-        move |key| {
+    fn char_typed_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&Key,&KeyMask) {
+        move |key,mask| {
             text_field_ptr.upgrade().for_each(|text_field| {
-                if let Key(KeyType::Character(string)) = key {
+                if let Key::Character(string) = key {
                     text_field.borrow_mut().edit(string);
                 }
             })
@@ -150,15 +148,19 @@ impl TextFieldFrp {
 
     fn initialize_actions_map
     (actions:&mut KeyboardActions, text_field_ptr:Weak<RefCell<TextFieldData>>) {
+        use Key::*;
         let mut setter = TextFieldActionsSetter{actions,text_field_ptr};
-        setter.set_action(&[KeyType::ArrowLeft],  |t| t.navigate_cursors(Step::Left,false));
-        setter.set_action(&[KeyType::ArrowRight], |t| t.navigate_cursors(Step::Right,false));
-        setter.set_action(&[KeyType::ArrowUp],    |t| t.navigate_cursors(Step::Up,false));
-        setter.set_action(&[KeyType::ArrowDown],  |t| t.navigate_cursors(Step::Down,false));
-        setter.set_action(&[KeyType::Shift, KeyType::ArrowLeft],  |t| t.navigate_cursors(Step::Left,true));
-        setter.set_action(&[KeyType::Shift, KeyType::ArrowRight], |t| t.navigate_cursors(Step::Right,true));
-        setter.set_action(&[KeyType::Shift, KeyType::ArrowUp],    |t| t.navigate_cursors(Step::Up,true));
-        setter.set_action(&[KeyType::Shift, KeyType::ArrowDown],  |t| t.navigate_cursors(Step::Down,true));
+        setter.set_navigation_action(&[ArrowLeft],    Step::Left);
+        setter.set_navigation_action(&[ArrowRight],   Step::Right);
+        setter.set_navigation_action(&[ArrowUp],      Step::Up);
+        setter.set_navigation_action(&[ArrowDown],    Step::Down);
+        setter.set_navigation_action(&[Home],         Step::LineBegin);
+        setter.set_navigation_action(&[End],          Step::LineEnd);
+        setter.set_navigation_action(&[Control,Home], Step::DocBegin);
+        setter.set_navigation_action(&[Control,End],  Step::DocEnd);
+        setter.set_action(&[Enter],     |t| t.edit("\n"));
+        setter.set_action(&[Delete],    |t| t.do_delete_operation(Step::Right));
+        setter.set_action(&[Backspace], |t| t.do_delete_operation(Step::Left));
     }
 }
 
@@ -173,8 +175,8 @@ struct TextFieldActionsSetter<'a> {
 }
 
 impl<'a> TextFieldActionsSetter<'a> {
-    fn set_action<F>(&mut self, keys:&[KeyType], action:F)
-        where F : Fn(&mut TextFieldData) + 'static {
+    fn set_action<F>(&mut self, keys:&[Key], action:F)
+    where F : Fn(&mut TextFieldData) + 'static {
         let ptr = self.text_field_ptr.clone();
         self.actions.set_action(keys.into(), move |_| {
             if let Some(ptr) = ptr.upgrade() {
@@ -182,5 +184,11 @@ impl<'a> TextFieldActionsSetter<'a> {
                 action(&mut text_field_ref);
             }
         });
+    }
+
+    fn set_navigation_action(&mut self, base_keys:&[Key], step:Step) {
+        self.set_action(base_keys, move |t| t.navigate_cursors(step,false));
+        let selecting_keys = base_keys.iter().cloned().chain(std::iter::once(Key::Shift)).collect_vec();
+        self.set_action(selecting_keys.as_ref(), move |t| t.navigate_cursors(step,true));
     }
 }

@@ -13,20 +13,13 @@ use crate::core::fmt::{Formatter, Error};
 // ===========
 
 /// A type of key.
-pub type KeyType = keyboard_types::Key;
+pub use keyboard_types::Key;
 
-/// A keyboard key representation. This newtype extends the `Key` structure taken from
-/// `keyboard_types` crate, e.g. adding possibility to create Key from String,
-/// and implements `Default`.
-#[derive(Clone,Debug,Eq,FromStr,PartialEq,Shrinkwrap)]
-pub struct Key(pub KeyType);
-
-impl Default for Key {
-    fn default() -> Self {
-        Self(KeyType::Unidentified)
-    }
-}
-
+///// A keyboard key representation. This newtype extends the `Key` structure taken from
+///// `keyboard_types` crate, e.g. adding possibility to create Key from String,
+///// and implements `Default`.
+//#[derive(Clone,Debug,Eq,FromStr,PartialEq,Shrinkwrap)]
+//pub struct Key(pub KeyType);
 
 
 // ===============
@@ -45,20 +38,14 @@ impl Default for KeyMask {
     fn default() -> Self {
         let mut bitset = DenseBitSetExtended::with_capacity(MAX_KEY_CODE + 1);
         // This is the only way to set bitset length.
-        bitset.set_bit(MAX_KEY_CODE, false);
+        bitset.set_bit(MAX_KEY_CODE,true);
+        bitset.set_bit(MAX_KEY_CODE,false);
         Self(bitset)
     }
 }
 
-//impl FromIterator<Key> for KeyMask {
-//    fn from_iter<T: IntoIterator<Item=Key>>(iter:T) -> Self {
-//        let mapped = iter.into_iter().map(|Key(ref key_type)| key_type);
-//        <Self as FromIterator<&KeyType>>::from_iter(mapped)
-//    }
-//}
-
-impl<'a> FromIterator<&'a KeyType> for KeyMask {
-    fn from_iter<T: IntoIterator<Item=&'a KeyType>>(iter:T) -> Self {
+impl<'a> FromIterator<&'a Key> for KeyMask {
+    fn from_iter<T: IntoIterator<Item=&'a Key>>(iter:T) -> Self {
         let mut key_mask = KeyMask::default();
         for key in iter {
             let bit = key.legacy_keycode() as usize;
@@ -68,9 +55,9 @@ impl<'a> FromIterator<&'a KeyType> for KeyMask {
     }
 }
 
-impl From<&[KeyType]> for KeyMask {
-    fn from(keys: &[KeyType]) -> Self {
-        <KeyMask as FromIterator<&KeyType>>::from_iter(keys)
+impl From<&[Key]> for KeyMask {
+    fn from(keys: &[Key]) -> Self {
+        <KeyMask as FromIterator<&Key>>::from_iter(keys)
     }
 }
 
@@ -213,18 +200,18 @@ mod test {
         let keyboard                  = Keyboard::default();
         let expected_key_mask:KeyMask = default();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
-        let key1 = KeyType::Character("x".to_string());
-        let key2 = KeyType::Control;
+        let key1 = Key::Character("x".to_string());
+        let key2 = Key::Control;
 
-        keyboard.key_pressed.event.emit(Key(key1.clone()));
+        keyboard.key_pressed.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_pressed.event.emit(Key(key2.clone()));
+        keyboard.key_pressed.event.emit(key2.clone());
         let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_released.event.emit(Key(key1.clone()));
+        keyboard.key_released.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
     }
@@ -243,26 +230,26 @@ mod test {
         let mut actions = KeyboardActions::new(&keyboard);
         actions.set_action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true });
         actions.set_action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true });
-        keyboard.key_pressed.event.emit(Key(Character("Z".to_string())));
+        keyboard.key_pressed.event.emit(Character("Z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Key(Control));
+        keyboard.key_pressed.event.emit(Control);
         assert!( *undone.borrow());
         assert!(!*redone.borrow());
         *undone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Key(Character("z".to_string())));
+        keyboard.key_released.event.emit(Character("z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Key(Character("y".to_string())));
+        keyboard.key_pressed.event.emit(Character("y".to_string()));
         assert!(!*undone.borrow());
         assert!( *redone.borrow());
         *redone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Key(Character("y".to_string())));
-        keyboard.key_released.event.emit(Key(Control));
+        keyboard.key_released.event.emit(Character("y".to_string()));
+        keyboard.key_released.event.emit(Control);
 
         actions.unset_action(&undo_keys);
-        keyboard.key_pressed.event.emit(Key(Character("Z".to_string())));
-        keyboard.key_pressed.event.emit(Key(Control));
+        keyboard.key_pressed.event.emit(Character("Z".to_string()));
+        keyboard.key_pressed.event.emit(Control);
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
     }

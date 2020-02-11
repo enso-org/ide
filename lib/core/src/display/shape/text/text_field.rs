@@ -164,6 +164,19 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+        /// Do delete operation on text.
+        ///
+        /// For cursors with selection it will just remove the selected text. For the rest, it will
+        /// remove all content covered by `step`.
+        pub fn do_delete_operation(&mut self, step:Step) {
+            let content           = &mut self.content;
+            let selecting         = true;
+            let mut navigation    = CursorNavigation {content,selecting};
+            let without_selection = |c:&Cursor| !c.has_selection();
+            self.cursors.navigate_cursors(&mut navigation,step,without_selection);
+            self.edit("");
+        }
+
         /// Update underlying Display Object.
         pub fn update(&self) {
             self.display_object.update()

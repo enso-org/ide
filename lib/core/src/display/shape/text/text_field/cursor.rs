@@ -32,6 +32,11 @@ impl Cursor {
         }
     }
 
+    /// Returns true if some selection is bound to this cursor.
+    pub fn has_selection(&self) -> bool {
+        self.position != self.selected_to
+    }
+
     /// Get range of selected text by this cursor.
     pub fn selection_range(&self) -> Range<TextLocation> {
         match self.position.cmp(&self.selected_to) {
@@ -280,8 +285,19 @@ impl Cursors {
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
-    pub fn navigate_all_cursors(&mut self, navigaton:&mut CursorNavigation, step:Step) {
-        self.cursors.iter_mut().for_each(|cursor| navigaton.move_cursor(cursor,step));
+    pub fn navigate_all_cursors(&mut self, navigation:&mut CursorNavigation, step:Step) {
+        self.navigate_cursors(navigation,step,|_| true)
+    }
+
+    /// Do the navigation step of all cursors satisfying given predicate.
+    ///
+    /// If after this operation some of the cursors occupies the same position, or their selected
+    /// area overlap, they are irreversibly merged.
+    pub fn navigate_cursors<Predicate>
+    (&mut self, navigation:&mut CursorNavigation, step:Step, mut predicate:Predicate)
+    where Predicate : FnMut(&Cursor) -> bool {
+        let filtered = self.cursors.iter_mut().filter(|c| predicate(c));
+        filtered.for_each(|cursor| navigation.move_cursor(cursor, step));
         self.merge_overlapping_cursors();
     }
 
