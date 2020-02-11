@@ -8,6 +8,7 @@ use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::glyph::font::FontRenderInfo;
 use crate::display::shape::text::text_field::content::line::Line;
 use crate::display::shape::text::text_field::content::line::LineFullInfo;
+use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::TextFieldProperties;
 
 use nalgebra::Vector2;
@@ -93,8 +94,12 @@ pub enum ChangeType {
 /// A structure describing a text operation in one place.
 #[derive(Debug)]
 pub struct TextChange {
-    replaced : Range<TextLocation>,
-    lines    : Vec<Vec<char>>,
+    /// Text fragment to be replaced. If we don't mean to remove any text, this should be an empty
+    /// range with start set at position there `lines` will be inserted (see `TextChange::insert`
+    /// definition).
+    pub replaced : Range<TextLocation>,
+    /// Lines to insert instead of replaced fragment.
+    pub lines : Vec<Vec<char>>,
 }
 
 impl TextChange {
@@ -135,41 +140,21 @@ impl TextChange {
         }
     }
 
+    /// Returns text location range where the inserted text will appear after making this change.
+    pub fn inserted_text_range(&self) -> Range<TextLocation> {
+        let start         = self.replaced.start;
+        let end_line      = start.line + self.lines.len().saturating_sub(1);
+        let last_line_len = self.lines.last().map_or(0, |l| l.len());
+        let end_column = if start.line == end_line {
+            start.column + last_line_len
+        } else {
+            last_line_len
+        };
+        start..TextLocation{line:end_line, column:end_column}
+    }
+
     fn mk_lines_as_char_vector(text:&str) -> Vec<Vec<char>> {
         TextFieldContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
-    }
-}
-
-
-
-// ====================
-// === TextLocation ===
-// ====================
-
-/// A position of character in a multiline text.
-#[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
-pub struct TextLocation {
-    /// Line index.
-    pub line: usize,
-    /// Column is a index of char in given line.
-    pub column: usize,
-}
-
-impl TextLocation {
-    /// Create location at begin of given line.
-    pub fn at_line_begin(line_index:usize) -> TextLocation {
-        TextLocation {
-            line   : line_index,
-            column : 0,
-        }
-    }
-
-    /// Create location at begin of the whole document.
-    pub fn at_document_begin() -> TextLocation {
-        TextLocation {
-            line   : 0,
-            column : 0,
-        }
     }
 }
 
@@ -236,12 +221,52 @@ impl TextFieldContent {
         }
     }
 
+    /// Copy the fragment of text and return as String.
+    pub fn copy_fragment(&self, fragment:Range<TextLocation>) -> String {
+        let mut output = String::new();
+        self.copy_fragment_to(fragment,&mut output);
+        output
+    }
+
+    /// Extend the `output` with the specified fragment including `'\n'` between lines.
+    pub fn copy_fragment_to<Output>(&self, fragment:Range<TextLocation>, output:&mut Output)
+    where Output : Extend<char> {
+        if fragment.start.line == fragment.end.line {
+            let line_chars     = &self.lines[fragment.start.line].chars();
+            let chars_fragment = &line_chars[fragment.start.column..fragment.end.column];
+            output.extend(chars_fragment.iter().cloned())
+        } else {
+            let first_line = &self.lines[fragment.start.line];
+            output.extend(first_line.chars()[fragment.start.column..].iter().cloned());
+            output.extend(std::iter::once('\n'));
+            let whole_lines = (fragment.start.line+1)..fragment.end.line;
+            for line in &self.lines[whole_lines] {
+                output.extend(line.chars().iter().cloned());
+                output.extend(std::iter::once('\n'));
+            }
+            let last_line = &self.lines[fragment.end.line];
+            output.extend(last_line.chars()[..fragment.end.column].iter().cloned());
+        }
+
+    }
+}
+
+// === Implementing Changes ===
+
+impl TextFieldContent {
     /// Apply change to content.
-    pub fn make_change(&mut self, change:TextChange) {
+    pub fn apply_change(&mut self, change:TextChange) {
         match change.change_type() {
             ChangeType::SingleLine => self.make_simple_change(change),
             ChangeType::MultiLine => self.make_multiline_change(change),
         }
+    }
+
+    /// Apply many changes to content.
+    pub fn apply_changes<Changes:IntoIterator<Item=TextChange>>(&mut self, changes:Changes) {
+        let change_key  = |chg:&TextChange | chg.replaced.start;
+        let changes_vec = changes.into_iter().sorted_by_key(change_key);
+        changes_vec.rev().for_each(|change| self.apply_change(change));
     }
 
     fn make_simple_change(&mut self, change:TextChange) {
@@ -397,15 +422,15 @@ mod test {
 
         let mut content            = TextFieldContent::new(text,&mock_properties());
 
-        content.make_change(insert);
+        content.apply_change(insert);
         let expected              = vec!["Line a", "Labine b", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
-        content.make_change(delete);
+        content.apply_change(delete);
         let expected = vec!["Line a", "ne b", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
-        content.make_change(replace);
+        content.apply_change(replace);
         let expected = vec!["Line a", "text", "Line c"];
         assert_eq!(expected, get_lines_as_strings(&content));
 
@@ -427,7 +452,7 @@ mod test {
 
         let mut content      = TextFieldContent::new(text,&mock_properties());
 
-        content.make_change(insert_at_end);
+        content.apply_change(insert_at_end);
         let expected = vec!["Line a", "Line b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
@@ -435,7 +460,7 @@ mod test {
         assert!( content.dirty_lines.is_dirty(2));
         content.dirty_lines = default();
 
-        content.make_change(insert_in_middle);
+        content.apply_change(insert_in_middle);
         let expected = vec!["Line a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!(!content.dirty_lines.is_dirty(0));
@@ -443,7 +468,7 @@ mod test {
         assert!( content.dirty_lines.is_dirty(2));
         content.dirty_lines = default();
 
-        content.make_change(insert_at_begin);
+        content.apply_change(insert_at_begin);
         let expected = vec!["Ins a", "Ins bLine a", "LiIns a", "Ins bne b", "Line cIns a", "Ins b"];
         assert_eq!(expected, get_lines_as_strings(&content));
         assert!( content.dirty_lines.is_dirty(0));
@@ -460,10 +485,42 @@ mod test {
         let delete        = TextChange::delete(deleted_range);
 
         let mut content   = TextFieldContent::new(text,&mock_properties());
-        content.make_change(delete);
+        content.apply_change(delete);
 
         let expected = vec!["Lie c"];
         assert_eq!(expected, get_lines_as_strings(&content));
+    }
+
+    #[test]
+    fn get_line_fragment() {
+        let text = "Line a\nLine b\nLine c";
+        let single_line   = TextLocation {line:1, column:1} .. TextLocation {line:1, column:4};
+        let line_with_eol = TextLocation {line:1, column:1} .. TextLocation {line:2, column:0};
+        let eol_with_line = TextLocation {line:0, column:6} .. TextLocation {line:1, column:4};
+        let multi_line    = TextLocation {line:0, column:4} .. TextLocation {line:1, column:4};
+        let whole_content = TextLocation {line:0, column:0} .. TextLocation {line:2, column:6};
+
+        let content = TextFieldContent::new(text,&mock_properties());
+        assert_eq!("ine"     , content.copy_fragment(single_line));
+        assert_eq!("ine b\n" , content.copy_fragment(line_with_eol));
+        assert_eq!("\nLine"  , content.copy_fragment(eol_with_line));
+        assert_eq!(" a\nLine", content.copy_fragment(multi_line));
+        assert_eq!(text      , content.copy_fragment(whole_content));
+    }
+
+    #[test]
+    fn get_inserted_text_location_of_change() {
+        let one_line         = "One line";
+        let two_lines        = "Two\nlines";
+        let replaced_range   = TextLocation{line:1,column:2}..TextLocation{line:2,column:2};
+
+        let one_line_change  = TextChange::replace(replaced_range.clone(),one_line);
+        let two_lines_change = TextChange::replace(replaced_range.clone(),two_lines);
+
+        let one_line_expected  = replaced_range.start..TextLocation{line:1, column:10};
+        let two_lines_expected = replaced_range.start..TextLocation{line:2, column:5 };
+        assert_eq!(one_line_expected , one_line_change .inserted_text_range());
+        assert_eq!(two_lines_expected, two_lines_change.inserted_text_range());
     }
 
     fn get_lines_as_strings(content:&TextFieldContent) -> Vec<String> {
