@@ -144,6 +144,7 @@ impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
             Slope::Linear        => norm,
             Slope::Smooth        => iformat!("smoothstep(0.0,1.0,{norm})"),
             Slope::Exponent(exp) => iformat!("pow({norm},{exp.glsl()})"),
+            Slope::InvExponent(exp) => iformat!("1.0-pow(1.0-{norm},{exp.glsl()})"),
         };
         let expr   = iformat!("sample({g.gradient.glsl()},{t})");
         expr.into()
@@ -160,5 +161,6 @@ pub enum Slope {
     Smooth,
     /// Raises the normalized gradient offset to the given power and uses it as the interpolation
     /// step.
-    Exponent(f32)
+    Exponent(f32),
+    InvExponent(f32),
 }

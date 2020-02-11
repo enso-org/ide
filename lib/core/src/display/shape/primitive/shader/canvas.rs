@@ -190,6 +190,17 @@ impl Canvas {
         })
     }
 
+    /// Create a difference shape from the provided shape components.
+    pub fn difference(&mut self, num:usize, s1:CanvasShape, s2:CanvasShape) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let expr      = iformat!("return difference({s1.getter()},{s2.getter()});");
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s1.ids);
+            shape.add_ids(&s2.ids);
+            shape
+        })
+    }
+
     /// Translate the current canvas origin.
     pub fn translate<X:ShaderData<f32>, Y:ShaderData<f32>>
     (&mut self, num:usize, s1:CanvasShape, x:X, y:Y) -> CanvasShape {

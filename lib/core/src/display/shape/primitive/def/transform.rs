@@ -124,6 +124,7 @@ use immutable::*;
 define_compound_shapes! {
     Translate(child)(x:f32,y:f32)
     Union(child1,child2)()
+    Difference(child1,child2)()
     Fill(child)(color:dyn Any)
 }
 
@@ -139,6 +140,14 @@ impl<Child1:Shape,Child2:Shape> Shape for Union<Child1,Child2> {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
         canvas.union(self.id(),s1,s2)
+    }
+}
+
+impl<Child1:Shape,Child2:Shape> Shape for Difference<Child1,Child2> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s1 = self.child1.draw(canvas);
+        let s2 = self.child2.draw(canvas);
+        canvas.difference(self.id(),s1,s2)
     }
 }
 

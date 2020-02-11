@@ -44,24 +44,66 @@ fn init(world: &World) {
 
 //    let navigator = Navigator::new(&scene, &camera);
 //    let navigator = navigator.expect("Couldn't create navigator");
-    let node_radius = 25.0;
-    let shadow_span = 10.0;
+
+
+//    let node_radius = 25.0;
+//    let shadow_span = 10.0;
+//    let node   = Circle(node_radius);
+//    let shadow = Circle(node_radius + shadow_span);
+//    let node_color = Srgb::new(1.0,1.0,1.0);
+//    let node = node.fill(node_color);
+//    let shadow_color = Gradient::new()
+//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.1).into_linear());
+//    let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span).slope(Slope::Exponent(2.0));
+//    let shadow       = shadow.fill(shadow_color);
+//    let out = &shadow + &node;
+//    let shape_system = ShapeSystem::new(world,&out);
+
+
+    let node_radius = 40.0;
+    let border_size = 10.0;
     let node   = Circle(node_radius);
-    let shadow = Circle(node_radius + shadow_span);
+    let border = Circle(node_radius + border_size);
+    let node   = node.fill(Srgb::new(0.96,0.96,0.96));
+    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.08));
 
+    let shadow1 = Circle(node_radius + border_size);
+    let shadow1_color = Gradient::new()
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+    let shadow1       = shadow1.fill(shadow1_color);
 
-    let node_color = Srgb::new(1.0,1.0,1.0);
-    let node = node.fill(node_color);
-
-    let shadow_color = Gradient::new()
+    let shadow2 = Circle(node_radius + border_size);
+    let shadow2_color = Gradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.1).into_linear());
-    let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span).slope(Slope::Exponent(2.0));
-    let shadow       = shadow.fill(shadow_color);
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear());
+    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
+    let shadow2       = shadow2.fill(shadow2_color);
 
-    let out = &shadow + &node;
+    let out = border.clone();
+
+
+
+    let loader_margin = 0.0;
+    let loader_outer = Circle(node_radius + border_size - loader_margin);
+    let loader_inner = Circle(node_radius + loader_margin + 1.0);
+    let loader = &loader_outer - &loader_inner;
+
+    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0));
+
+    let out = &out + &loader;
+    let out = &out + &shadow1;
+    let out = &out + &shadow2;
+    let out = &out + &node;
+
 
     let shape_system = ShapeSystem::new(world,&out);
+
+
+
+
     let sprite = shape_system.new_instance();
     sprite.size().set(Vector2::new(200.0,200.0));
     sprite.mod_position(|t| {

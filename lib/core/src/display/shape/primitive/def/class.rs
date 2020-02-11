@@ -7,6 +7,8 @@ use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::system::gpu::shader::glsl::Glsl;
 
+use std::ops::Sub;
+
 
 
 // =============
@@ -62,6 +64,11 @@ impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
         Union(self,that)
     }
 
+    /// Unify the shape with another one.
+    pub fn difference<S:Shape>(&self, that:&S) -> Difference<Self,S> {
+        Difference(self,that)
+    }
+
     /// Fill the shape with the provided color.
     pub fn fill<Color:Into<Glsl>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
@@ -72,5 +79,12 @@ impl<T,S:Shape> Add<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
     type Output = Union<ShapeRef<T>,S>;
     fn add(self, that:&S) -> Self::Output {
         self.union(that)
+    }
+}
+
+impl<T,S:Shape> Sub<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
+    type Output = Difference<ShapeRef<T>,S>;
+    fn sub(self, that:&S) -> Self::Output {
+        self.difference(that)
     }
 }
