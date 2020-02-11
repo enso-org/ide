@@ -89,13 +89,11 @@ macro_rules! _define_compound_shape_data {
             $(pub $shape_field : $shape_field),*,
             $(pub $field       : Glsl),*
         }
-
-        impl<$($shape_field:Clone),*> $name<$($shape_field),*> {
+        impl<$($shape_field),*> $name<$($shape_field),*> {
             /// Constructor.
             pub fn new<$($field:ShaderData<$field_type>),*>
-            ($($shape_field:&$shape_field),*,$($field:$field),*) -> Self {
-                $(let $shape_field = $shape_field.clone();)*
-                $(let $field       = $field.into();)*
+            ($($shape_field:$shape_field),*,$($field:$field),*) -> Self {
+                $(let $field = $field.into();)*
                 Self {$($shape_field),*,$($field),*}
             }
         }
@@ -112,13 +110,12 @@ macro_rules! _define_compound_shape {
             ShapeRef<mutable::$name<$($shape_field),*>>;
 
         /// Smart constructor.
-        pub fn $name<$($shape_field:Clone),*,$($field:ShaderData<$field_type>),*>
-        ( $($shape_field:&$shape_field),*,$($field:$field),*) -> $name<$($shape_field),*> {
-            ShapeRef::new(mutable::$name::new($($shape_field),*,$($field),*))
+        pub fn $name<$($shape_field:IntoOwned),*,$($field:ShaderData<$field_type>),*>
+        ( $($shape_field:$shape_field),*,$($field:$field),*) -> $name<$(Owned<$shape_field>),*> {
+            ShapeRef::new(mutable::$name::new($($shape_field.into()),*,$($field),*))
         }
 
         impl<$($shape_field),*> AsOwned for $name<$($shape_field),*> { type Owned = $name<$($shape_field),*>; }
-
     }
 }
 

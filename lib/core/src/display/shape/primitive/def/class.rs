@@ -34,7 +34,7 @@ pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
 /// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, we do not use
 /// specific `ShapeRef<P>` field here, as it is much easier to express any bounds when using
 /// more generic types.
-pub trait Shape: Clone {
+pub trait Shape: Clone + for<'t> From<&'t Self> {
     /// Draw the element on the canvas.
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape;
 }
@@ -50,6 +50,12 @@ pub trait Shape: Clone {
 #[derivative(Clone(bound=""))]
 pub struct ShapeRef<T> {
     rc:Rc<T>
+}
+
+impl<T> From<&ShapeRef<T>> for ShapeRef<T> {
+    fn from(t:&ShapeRef<T>) -> Self {
+        t.clone()
+    }
 }
 
 impl<T> ShapeRef<T> {
@@ -69,7 +75,7 @@ impl<T> ShapeRef<T> {
     }
 }
 
-impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
+impl<T> ShapeRef<T> {
     /// Translate the shape by a given offset.
     pub fn translate<X:ShaderData<f32>,Y:ShaderData<f32>>(&self, x:X, y:Y) -> Translate<Self> {
         Translate(self,x,y)
@@ -81,17 +87,17 @@ impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
     }
 
     /// Unify the shape with another one.
-    pub fn union<S:Shape>(&self, that:&S) -> Union<Self,S> {
+    pub fn union<S:IntoOwned>(&self, that:S) -> Union<Self,Owned<S>> {
         Union(self,that)
     }
 
     /// Subtracts the argument from this shape.
-    pub fn difference<S:Shape>(&self, that:&S) -> Difference<Self,S> {
+    pub fn difference<S:IntoOwned>(&self, that:S) -> Difference<Self,Owned<S>> {
         Difference(self,that)
     }
 
     /// Computes the intersection of the shapes.
-    pub fn intersection<S:Shape>(&self, that:&S) -> Intersection<Self,S> {
+    pub fn intersection<S:IntoOwned>(&self, that:S) -> Intersection<Self,Owned<S>> {
         Intersection(self,that)
     }
 
@@ -101,23 +107,26 @@ impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
     }
 }
 
-impl<T,S:Shape> Add<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
-    type Output = Union<ShapeRef<T>,S>;
-    fn add(self, that:&S) -> Self::Output {
-        self.union(that)
-    }
+macro_rules! define_shape_operator {
+    ($($op_trait:ident :: $op:ident => $shape_trait:ident :: $shape:ident)*) => {$(
+        impl<T,S:IntoOwned> $op_trait<S> for &ShapeRef<T> {
+            type Output = $shape_trait<ShapeRef<T>,Owned<S>>;
+            fn $op(self, that:S) -> Self::Output {
+                self.$shape(that)
+            }
+        }
+
+        impl<T,S:IntoOwned> $op_trait<S> for ShapeRef<T> {
+            type Output = $shape_trait<ShapeRef<T>,Owned<S>>;
+            fn $op(self, that:S) -> Self::Output {
+                self.$shape(that)
+            }
+        }
+    )*}
 }
 
-impl<T,S:Shape> Sub<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
-    type Output = Difference<ShapeRef<T>,S>;
-    fn sub(self, that:&S) -> Self::Output {
-        self.difference(that)
-    }
-}
-
-impl<T,S:Shape> Mul<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
-    type Output = Intersection<ShapeRef<T>,S>;
-    fn mul(self, that:&S) -> Self::Output {
-        self.intersection(that)
-    }
+define_shape_operator! {
+    Add :: add => Union        :: union
+    Sub :: sub => Difference   :: difference
+    Mul :: mul => Intersection :: intersection
 }

@@ -60,27 +60,23 @@ fn nodes1(world:&World) -> ShapeSystem {
     let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
-    let out = border.clone();
 
 
 
-    let loader_margin = 0.0;
-    let loader_outer = Circle(node_radius + border_size - loader_margin);
-    let loader_inner = Circle(node_radius + loader_margin);
-    let loader_part  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
+    let loader_margin   = 0.0;
+    let loader_outer    = Circle(node_radius + border_size - loader_margin);
+    let loader_inner    = Circle(node_radius + loader_margin);
+    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
     let loader_corner_1 = Circle(border_size/2.0).translate(0.0,45.0);
     let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
     let loader = &loader_outer - &loader_inner;
-    let loader = &loader * &loader_part;
+    let loader = &loader * &loader_section;
     let loader = &loader + &loader_corner_1;
     let loader = &loader + &loader_corner_2;
 
     let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
 
-    let out = &out + &loader;
-    let out = &out + &shadow1;
-    let out = &out + &shadow2;
-    let out = &out + &node;
+    let out = border + loader + shadow1 + shadow2 + node;
     ShapeSystem::new(world,&out)
 }
 
