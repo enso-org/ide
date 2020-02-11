@@ -7,6 +7,7 @@ use events::ZoomEvent;
 use events::PanEvent;
 use crate::display::camera::Camera2d;
 use crate::display::Scene;
+use crate::display::object::DisplayObjectData;
 use crate::system::web::Result;
 use crate::system::web::dom::DomContainer;
 use crate::animation::physics::inertia::PhysicsSimulator;
@@ -94,12 +95,9 @@ impl Navigator {
             properties.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
         });
 
-        let mut dom_clone = dom.clone();
-        dom_clone.add_resize_callback(
-            enclose!((camera,mut properties) move |dimensions:&Vector2<f32>| {
-                camera.set_screen(dimensions.x, dimensions.y);
-                camera.update();
-                let position = camera.transform().position();
+        camera.add_screen_update_callback(
+            enclose!((mut properties) move |width,height,display_object_data:DisplayObjectData| {
+                let position = display_object_data.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
                     kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
@@ -107,6 +105,7 @@ impl Navigator {
                 properties.mod_spring(|spring| spring.fixed_point = position);
             })
         );
+        let dom_clone     = dom.clone();
         let zoom_callback = move |zoom:ZoomEvent| {
                 let point       = zoom.focus;
                 let normalized  = normalize_point2(point, dom_clone.dimensions());

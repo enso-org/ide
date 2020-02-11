@@ -95,6 +95,12 @@ impl Default for Clipping {
 // === Camera2dData ===
 // ====================
 
+/// Function used to return the updated screen width, height and `Camera2d`'s `DisplayObjectData`.
+pub trait ScreenUpdateFn = FnMut(f32,f32,DisplayObjectData) + 'static;
+
+type ScreenUpdateCallback = Box<dyn ScreenUpdateFn>;
+
+/// Function used to return the updated `Camera2d`'s zoom.
 pub trait ZoomUpdateFn = FnMut(f32) + 'static;
 
 type ZoomUpdateCallback = Box<dyn ZoomUpdateFn>;
@@ -116,7 +122,9 @@ struct Camera2dData {
     projection_dirty       : ProjectionDirty,
     transform_dirty        : TransformDirty2,
     #[derivative(Debug="ignore")]
-    zoom_update_callback   : Option<ZoomUpdateCallback>
+    zoom_update_callback   : Option<ZoomUpdateCallback>,
+    #[derivative(Debug="ignore")]
+    screen_update_callback : Option<ScreenUpdateCallback>
 }
 
 type ProjectionDirty = dirty::SharedBool<()>;
@@ -138,18 +146,23 @@ impl Camera2dData {
         let transform_dirty_copy   = transform_dirty.clone();
         let transform              = DisplayObjectData::new(logger);
         let zoom_update_callback   = None;
+        let screen_update_callback = None;
         transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
         let mut camera = Self {transform,screen,projection,clipping,alignment,zoom,
             zoom_update_callback,native_z,view_matrix,projection_matrix,view_projection_matrix,
-            projection_dirty,transform_dirty};
+            projection_dirty,transform_dirty,screen_update_callback};
         camera.set_screen(width, height);
         camera
     }
 
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&mut self, f:F) {
         self.zoom_update_callback = Some(Box::new(f));
+    }
+
+    pub fn add_screen_update_callback<F:ScreenUpdateFn>(&mut self, f:F) {
+        self.screen_update_callback = Some(Box::new(f));
     }
 
     pub fn recompute_view_matrix(&mut self) {
@@ -250,6 +263,8 @@ impl Camera2dData {
             }
             _ => unimplemented!()
         };
+        let display_object_data = self.transform.clone_ref();
+        self.screen_update_callback.as_mut().map(|f| f(width,height,display_object_data));
     }
 }
 
@@ -333,6 +348,11 @@ impl Camera2d {
     /// Adds a callback to notify when `zoom` is updated.
     pub fn add_zoom_update_callback<F:ZoomUpdateFn>(&self, f:F) {
         self.rc.borrow_mut().add_zoom_update_callback(f);
+    }
+
+    /// Adds a callback to notify when `screen` is updated.
+    pub fn add_screen_update_callback<F:ScreenUpdateFn>(&self, f:F) {
+        self.rc.borrow_mut().add_screen_update_callback(f);
     }
 }
 
