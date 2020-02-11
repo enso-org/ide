@@ -34,6 +34,14 @@ const MAX_KEY_CODE : usize = 255;
 #[shrinkwrap(mutable)]
 pub struct KeyMask(pub DenseBitSetExtended);
 
+impl KeyMask {
+    /// Check if key bit is on.
+    pub fn has_key(&self, key:&Key) -> bool {
+        let KeyMask(bit_set) = self;
+        bit_set.get_bit(key.legacy_keycode() as usize)
+    }
+}
+
 impl Default for KeyMask {
     fn default() -> Self {
         let mut bitset = DenseBitSetExtended::with_capacity(MAX_KEY_CODE + 1);

@@ -162,17 +162,17 @@ impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
     /// Some new lines could be created after edit, and some lines can be longer, what should be
     /// reflected in assigned fragments.
     pub fn update_after_text_edit(&mut self) {
-        let dirty_lines = std::mem::take(&mut self.content.dirty_lines);
         if self.content.dirty_lines.range.is_some() {
             self.update_line_assignment();
         }
         for i in 0..self.assignment.glyph_lines_fragments.len() {
             let assigned_fragment = &self.assignment.glyph_lines_fragments[i];
             let assigned_line     = assigned_fragment.as_ref().map(|f| f.line_index);
+
             match assigned_line {
-                Some(line) if line >= self.content.lines.len() => self.unassign(i),
-                Some(line) if dirty_lines.is_dirty(line)       => self.reassign(i,line),
-                _                                              => {},
+                Some(line) if line >= self.content.lines.len()        => self.unassign(i),
+                Some(line) if self.content.dirty_lines.is_dirty(line) => self.reassign(i,line),
+                _                                                     => {},
             }
         }
     }
@@ -227,6 +227,7 @@ impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
     fn new_assignment(&mut self) -> RangeInclusive<usize> {
         let visible_lines         = self.visible_lines_range();
         let assigned_lines        = &self.assignment.assigned_lines;
+        let max_line_id           = self.content.lines.len().saturating_sub(1);
         let lines_count           = |r:&RangeInclusive<usize>| r.end() + 1 - r.start();
         let assigned_lines_count  = lines_count(assigned_lines);
         let displayed_lines_count = lines_count(&visible_lines);
@@ -235,7 +236,7 @@ impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
             let new_start = visible_lines.start() - hidden_lines_to_keep;
             new_start..=*visible_lines.end()
         } else if assigned_lines.end() > visible_lines.end() {
-            let new_end = visible_lines.end() + hidden_lines_to_keep;
+            let new_end = (visible_lines.end() + hidden_lines_to_keep).min(max_line_id);
             *visible_lines.start()..=new_end
         } else {
             visible_lines
@@ -283,8 +284,10 @@ impl<'a,'b> GlyphLinesAssignmentUpdate<'a,'b> {
 mod tests {
     use super::*;
 
-    use crate::display::shape::text::glyph::font::{FontRenderInfo, FontHandle};
+    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::glyph::font::FontHandle;
     use crate::display::shape::text::text_field::content::TextFieldContent;
+    use crate::display::shape::text::text_field::content::line::Line;
     use crate::display::shape::text::text_field::TextFieldProperties;
 
     use nalgebra::Vector4;
@@ -434,25 +437,28 @@ mod tests {
             , Some(LineFragment{line_index:1, chars_range: 0..4})
             , None
             ];
+        assignment.assigned_lines = 0..=1;
         let mut content = TextFieldContent::new("AAABBB\nBA",&properties);
-        content.dirty_lines.add_single_line(1);
-
         let mut update     = GlyphLinesAssignmentUpdate {
             assignment    : &mut assignment,
             content       : &mut content,
             scroll_offset : Vector2::new(22.0,0.0),
             view_size     : properties.size
         };
+
+        // Editing line:
+        update.content.dirty_lines.add_single_line(1);
         update.update_after_text_edit();
         let expected_fragments = vec!
             [ Some(LineFragment{line_index:0, chars_range: 1..5})
             , Some(LineFragment{line_index:1, chars_range: 0..2})
             , None
             ];
-        let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();
+        let expected_dirties:HashSet<usize> = [1].iter().cloned().collect();
         assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
         assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
 
+        // Removing line:
         update.assignment.dirty_glyph_lines.clear();
         update.content.lines.pop();
         update.content.dirty_lines.add_lines_range_from(1..);
@@ -460,6 +466,20 @@ mod tests {
         let expected_fragments = vec!
             [ Some(LineFragment{line_index:0, chars_range: 1..5})
             , None
+            , None
+            ];
+        let expected_dirties:HashSet<usize> = [1].iter().cloned().collect();
+        assert_eq!(expected_fragments, update.assignment.glyph_lines_fragments);
+        assert_eq!(expected_dirties  , update.assignment.dirty_glyph_lines);
+
+        // Adding line:
+        update.assignment.dirty_glyph_lines.clear();
+        update.content.lines.push(Line::new("AAAAAAAAAAAA".to_string()));
+        update.content.dirty_lines.add_lines_range_from(1..);
+        update.update_after_text_edit();
+        let expected_fragments = vec!
+            [ Some(LineFragment{line_index:0, chars_range: 1..5})
+            , Some(LineFragment{line_index:1, chars_range: 1..5})
             , None
             ];
         let expected_dirties : HashSet<usize> = [1].iter().cloned().collect();

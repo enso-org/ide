@@ -65,7 +65,7 @@ impl TextFieldFrp {
             text_field.copy_action       = copy .map(move |()| copy_action());
             text_field.cut_action        = cut  .map(move |()| cut_action());
             text_field.paste_action      = paste.map(paste_action);
-            text_field.char_typed_action = keyboard.key_pressed.map(char_typed_action);
+            text_field.char_typed_action = keyboard.key_pressed.map2(&keyboard.key_mask,char_typed_action);
         }
         Self::initialize_actions_map(&mut actions,text_field_ptr.clone());
         TextFieldFrp
@@ -140,7 +140,10 @@ impl TextFieldFrp {
         move |key,mask| {
             text_field_ptr.upgrade().for_each(|text_field| {
                 if let Key::Character(string) = key {
-                    text_field.borrow_mut().edit(string);
+                    let modifiers = &[Key::Control,Key::Alt,Key::Meta];
+                    if !modifiers.iter().any(|k| mask.has_key(k)) {
+                        text_field.borrow_mut().edit(string);
+                    }
                 }
             })
         }
