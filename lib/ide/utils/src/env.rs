@@ -14,10 +14,6 @@ pub fn env_var_or(varname:&str, default_value:&str) -> String {
 /// If the variable is not present or fails to parse, default value is silently
 /// returned.
 pub fn parse_var_or<T:FromStr>(varnmae:&str, default_value:T) -> T {
-    if let Ok(value) = std::env::var(varnmae) {
-        if let Ok(parsed) = value.parse::<T>() {
-            return parsed;
-        }
-    }
-    default_value
+    let value_opt = std::env::var(varname).ok();
+    value_opt.and_then(|value| value.parse()).unwrap_or(default_value)
 }
