@@ -67,7 +67,7 @@ impl TextFieldFrp {
             text_field.paste_action      = paste.map(paste_action);
             text_field.char_typed_action = keyboard.key_pressed.map2(&keyboard.key_mask,char_typed_action);
         }
-        Self::initialize_actions_map(&mut actions,text_field_ptr.clone());
+        Self::initialize_actions_map(&mut actions,text_field_ptr);
         TextFieldFrp
             {keyboard,actions,cut,copy,paste,cut_action,copy_action,paste_action,char_typed_action}
     }
