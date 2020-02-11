@@ -65,20 +65,7 @@ impl Navigator {
         let drag               = DragProperties::new(1500.0);
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second   = 60.0;
-        let callback           = enclose!((properties) move |interpolated_position:Vector3<f32>| {
-            let fixed_point       = properties.spring().fixed_point;
-            let position          = properties.kinematics().position();
-            let distance          = (position - fixed_point).magnitude();
-            const THRESHOLD : f32 = 1.0;
-            let position = if distance < THRESHOLD {
-                fixed_point
-            } else {
-                interpolated_position
-            };
-            if camera.transform().position() != position {
-                camera.set_position(position);
-            }
-        });
+        let callback           = move |position| camera.set_position(position);
         let sim = PhysicsSimulator::new(steps_per_second,properties.clone(),callback);
         (sim,properties)
     }

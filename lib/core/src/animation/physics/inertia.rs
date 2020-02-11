@@ -296,8 +296,18 @@ impl PhysicsSimulator {
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let position   = linear_interpolation(current_position,next_position,transition as f32);
-            callback(position);
+            let t          = transition as f32;
+            let interpolated_position = linear_interpolation(current_position,next_position, t);
+
+            let fixed_point = properties.spring().fixed_point;
+            let position    = properties.kinematics().position();
+            let distance    = (position - fixed_point).magnitude();
+            const FIXED_POINT_DISTANCE_THRESHOLD: f32 = 0.1;
+            if distance < FIXED_POINT_DISTANCE_THRESHOLD {
+                callback(fixed_point)
+            } else {
+                callback(interpolated_position)
+            }
         });
 
         Self { _animator }
