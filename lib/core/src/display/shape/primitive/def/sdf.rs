@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 use inflector::Inflector;
 
+use crate::display::shape::primitive::def::class::AsOwned;
 use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
@@ -163,6 +164,8 @@ macro_rules! _define_sdf_shape_immutable_part {
                 iformat!("BoundSdf {name} ({args}) {body}")
             }
         }
+
+        impl AsOwned for $name { type Owned = $name; }
     }
 }
 
@@ -206,6 +209,11 @@ define_sdf_shapes! {
 
     HalfPlane () {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
+    }
+
+    Angle (angle:f32) {
+        float distance = abs(position).x*cos(angle/2.0) + -position.y*sin(angle/2.0) + 0.5;
+        return bound_sdf(distance, bounding_box(0.0,0.0));
     }
 
     Line (width:f32) {

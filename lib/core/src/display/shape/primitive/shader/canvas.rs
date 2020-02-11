@@ -201,6 +201,17 @@ impl Canvas {
         })
     }
 
+    /// Create a difference shape from the provided shape components.
+    pub fn intersection(&mut self, num:usize, s1:CanvasShape, s2:CanvasShape) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let expr      = iformat!("return intersection({s1.getter()},{s2.getter()});");
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s1.ids);
+            shape.add_ids(&s2.ids);
+            shape
+        })
+    }
+
     /// Translate the current canvas origin.
     pub fn translate<X:ShaderData<f32>, Y:ShaderData<f32>>
     (&mut self, num:usize, s1:CanvasShape, x:X, y:Y) -> CanvasShape {
@@ -208,6 +219,20 @@ impl Canvas {
             let x:Glsl = x.into();
             let y:Glsl = y.into();
             let trans  = iformat!("position = translate(position,vec2({x},{y}));");
+            let expr   = iformat!("return {s1.getter()};");
+            this.add_current_function_code_line(trans);
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s1.ids);
+            shape
+        })
+    }
+
+    /// Rotate the current canvas origin.
+    pub fn rotation<A:ShaderData<f32>>
+    (&mut self, num:usize, s1:CanvasShape, angle:A) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let angle:Glsl = angle.into();
+            let trans  = iformat!("position = rotate(position,{angle});");
             let expr   = iformat!("return {s1.getter()};");
             this.add_current_function_code_line(trans);
             let mut shape = this.new_shape_from_expr(num,&expr);

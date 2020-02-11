@@ -31,6 +31,10 @@ impl StatsMonitor {
     pub fn end(&self) {
         self.rc.borrow_mut().end()
     }
+
+    pub fn hide(&self) {
+        self.rc.borrow().hide()
+    }
 }
 
 
@@ -75,5 +79,9 @@ impl StatsMonitorData {
         }
         self.monitor.draw();
         self.stats.reset_per_frame_statistics();
+    }
+
+    fn hide(&self) {
+        self.monitor.hide()
     }
 }

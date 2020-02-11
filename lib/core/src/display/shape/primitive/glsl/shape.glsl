@@ -249,7 +249,7 @@ vec2 translate (vec2 p, vec2 t) {
 }
 
 vec2 rotate (vec2 p, float angle) {
-	return p*cos(angle) + vec2(p.y,-p.x)*sin(angle);
+	return p*cos(-angle) + vec2(p.y,-p.x)*sin(-angle);
 }
 
 vec2 cartesian2polar (vec2 p) {

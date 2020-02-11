@@ -6,6 +6,9 @@
 
 use crate::prelude::*;
 
+use crate::display::shape::primitive::def::class::Owned;
+use crate::display::shape::primitive::def::class::AsOwned;
+use crate::display::shape::primitive::def::class::IntoOwned;
 use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
@@ -87,7 +90,7 @@ macro_rules! _define_compound_shape_data {
             $(pub $field       : Glsl),*
         }
 
-        impl<$($shape_field:Shape),*> $name<$($shape_field),*> {
+        impl<$($shape_field:Clone),*> $name<$($shape_field),*> {
             /// Constructor.
             pub fn new<$($field:ShaderData<$field_type>),*>
             ($($shape_field:&$shape_field),*,$($field:$field),*) -> Self {
@@ -96,6 +99,9 @@ macro_rules! _define_compound_shape_data {
                 Self {$($shape_field),*,$($field),*}
             }
         }
+
+        impl<$($shape_field),*> AsOwned for $name<$($shape_field),*> { type Owned = $name<$($shape_field),*>; }
+
     }
 }
 
@@ -106,10 +112,13 @@ macro_rules! _define_compound_shape {
             ShapeRef<mutable::$name<$($shape_field),*>>;
 
         /// Smart constructor.
-        pub fn $name<$($shape_field:Shape),*,$($field:ShaderData<$field_type>),*>
+        pub fn $name<$($shape_field:Clone),*,$($field:ShaderData<$field_type>),*>
         ( $($shape_field:&$shape_field),*,$($field:$field),*) -> $name<$($shape_field),*> {
             ShapeRef::new(mutable::$name::new($($shape_field),*,$($field),*))
         }
+
+        impl<$($shape_field),*> AsOwned for $name<$($shape_field),*> { type Owned = $name<$($shape_field),*>; }
+
     }
 }
 
@@ -123,15 +132,25 @@ use immutable::*;
 
 define_compound_shapes! {
     Translate(child)(x:f32,y:f32)
+    Rotation(child)(angle:f32)
     Union(child1,child2)()
     Difference(child1,child2)()
+    Intersection(child1,child2)()
     Fill(child)(color:dyn Any)
 }
+
 
 impl<Child:Shape> Shape for Translate<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
         canvas.translate(self.id(),s1,&self.x,&self.y)
+    }
+}
+
+impl<Child:Shape> Shape for Rotation<Child> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s1 = self.child.draw(canvas);
+        canvas.rotation(self.id(),s1,&self.angle)
     }
 }
 
@@ -148,6 +167,14 @@ impl<Child1:Shape,Child2:Shape> Shape for Difference<Child1,Child2> {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
         canvas.difference(self.id(),s1,s2)
+    }
+}
+
+impl<Child1:Shape,Child2:Shape> Shape for Intersection<Child1,Child2> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s1 = self.child1.draw(canvas);
+        let s2 = self.child2.draw(canvas);
+        canvas.intersection(self.id(),s1,s2)
     }
 }
 

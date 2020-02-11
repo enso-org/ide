@@ -5,15 +5,31 @@ use crate::prelude::*;
 use crate::display::shape::primitive::def::*;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
+use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
 
 use std::ops::Sub;
+use std::ops::Mul;
 
 
 
 // =============
 // === Shape ===
 // =============
+
+pub trait AsOwned {
+    type Owned;
+}
+
+impl<T> AsOwned for &T {
+    type Owned = T;
+}
+
+pub type Owned<T> = <T as AsOwned>::Owned;
+
+pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
+
+
 
 /// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, we do not use
 /// specific `ShapeRef<P>` field here, as it is much easier to express any bounds when using
@@ -55,8 +71,13 @@ impl<T> ShapeRef<T> {
 
 impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
     /// Translate the shape by a given offset.
-    pub fn translate(&self, x:f32, y:f32) -> Translate<Self> {
+    pub fn translate<X:ShaderData<f32>,Y:ShaderData<f32>>(&self, x:X, y:Y) -> Translate<Self> {
         Translate(self,x,y)
+    }
+
+    /// Rotate the shape by a given angle.
+    pub fn rotate<A:ShaderData<f32>>(&self, angle:A) -> Rotation<Self> {
+        Rotation(self,angle)
     }
 
     /// Unify the shape with another one.
@@ -64,9 +85,14 @@ impl<T> ShapeRef<T> where ShapeRef<T>:Shape {
         Union(self,that)
     }
 
-    /// Unify the shape with another one.
+    /// Subtracts the argument from this shape.
     pub fn difference<S:Shape>(&self, that:&S) -> Difference<Self,S> {
         Difference(self,that)
+    }
+
+    /// Computes the intersection of the shapes.
+    pub fn intersection<S:Shape>(&self, that:&S) -> Intersection<Self,S> {
+        Intersection(self,that)
     }
 
     /// Fill the shape with the provided color.
@@ -86,5 +112,12 @@ impl<T,S:Shape> Sub<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
     type Output = Difference<ShapeRef<T>,S>;
     fn sub(self, that:&S) -> Self::Output {
         self.difference(that)
+    }
+}
+
+impl<T,S:Shape> Mul<&S> for &ShapeRef<T> where ShapeRef<T>:Shape {
+    type Output = Intersection<ShapeRef<T>,S>;
+    fn mul(self, that:&S) -> Self::Output {
+        self.intersection(that)
     }
 }

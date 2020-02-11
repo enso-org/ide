@@ -37,36 +37,14 @@ pub fn run_example_shapes() {
     init(&WorldData::new(&web::body()));
 }
 
-fn init(world: &World) {
-    let scene  = world.scene();
-    let camera = scene.camera();
-    let screen = camera.screen();
 
-//    let navigator = Navigator::new(&scene, &camera);
-//    let navigator = navigator.expect("Couldn't create navigator");
-
-
-//    let node_radius = 25.0;
-//    let shadow_span = 10.0;
-//    let node   = Circle(node_radius);
-//    let shadow = Circle(node_radius + shadow_span);
-//    let node_color = Srgb::new(1.0,1.0,1.0);
-//    let node = node.fill(node_color);
-//    let shadow_color = Gradient::new()
-//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.1).into_linear());
-//    let shadow_color = DistanceGradient::new(shadow_color).max_distance(shadow_span).slope(Slope::Exponent(2.0));
-//    let shadow       = shadow.fill(shadow_color);
-//    let out = &shadow + &node;
-//    let shape_system = ShapeSystem::new(world,&out);
-
-
+fn nodes1(world:&World) -> ShapeSystem {
     let node_radius = 40.0;
     let border_size = 10.0;
     let node   = Circle(node_radius);
     let border = Circle(node_radius + border_size);
     let node   = node.fill(Srgb::new(0.96,0.96,0.96));
-    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.08));
+    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
 
     let shadow1 = Circle(node_radius + border_size);
     let shadow1_color = Gradient::new()
@@ -88,18 +66,32 @@ fn init(world: &World) {
 
     let loader_margin = 0.0;
     let loader_outer = Circle(node_radius + border_size - loader_margin);
-    let loader_inner = Circle(node_radius + loader_margin + 1.0);
+    let loader_inner = Circle(node_radius + loader_margin);
+    let loader_part  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
+    let loader_corner_1 = Circle(border_size/2.0).translate(0.0,45.0);
+    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
     let loader = &loader_outer - &loader_inner;
+    let loader = &loader * &loader_part;
+    let loader = &loader + &loader_corner_1;
+    let loader = &loader + &loader_corner_2;
 
-    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0));
+    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
 
     let out = &out + &loader;
     let out = &out + &shadow1;
     let out = &out + &shadow2;
     let out = &out + &node;
+    ShapeSystem::new(world,&out)
+}
 
 
-    let shape_system = ShapeSystem::new(world,&out);
+fn init(world: &World) {
+    let scene  = world.scene();
+    let camera = scene.camera();
+    let screen = camera.screen();
+
+
+    let shape_system = nodes1(world);
 
 
 
