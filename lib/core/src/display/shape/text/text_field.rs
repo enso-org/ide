@@ -2,14 +2,12 @@
 
 pub mod content;
 pub mod cursor;
-pub mod keyboard;
+pub mod frp;
 pub mod location;
-pub mod mouse;
 pub mod render;
 
 use crate::prelude::*;
 
-use crate::control::io::mouse2::MouseManager;
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::content::TextChange;
@@ -19,14 +17,12 @@ use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
 use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
-use crate::display::shape::text::text_field::keyboard::TextFieldKeyboardFrp;
-use crate::display::shape::text::text_field::mouse::TextFieldMouseFrp;
+use crate::display::shape::text::text_field::frp::TextFieldFrp;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::world::World;
-use crate::system::web::text_input::KeyboardBinding;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -78,10 +74,7 @@ shared! { TextField
         cursors          : Cursors,
         rendered         : TextFieldSprites,
         display_object   : DisplayObjectData,
-        keyboard_frp     : Option<TextFieldKeyboardFrp>,
-        mouse_frp        : Option<TextFieldMouseFrp>,
-        keyboard_binding : Option<KeyboardBinding>,
-        mouse_binding    : Option<MouseManager>,
+        frp              : Option<TextFieldFrp>,
     }
 
     impl {
@@ -224,15 +217,11 @@ impl TextField {
     /// Create new TextField with predefined content.
     pub fn new_with_content(world:&World, initial_content:&str, properties:TextFieldProperties)
     -> Self {
-        let data         = TextFieldData::new(world,initial_content,properties);
-        let rc           = Rc::new(RefCell::new(data));
-        let keyboard_frp = TextFieldKeyboardFrp::new(Rc::downgrade(&rc));
-        let mouse_frp    = TextFieldMouseFrp::new(Rc::downgrade(&rc),&keyboard_frp);
+        let data = TextFieldData::new(world,initial_content,properties);
+        let rc   = Rc::new(RefCell::new(data));
+        let frp  = TextFieldFrp::new(Rc::downgrade(&rc));
         with(rc.borrow_mut(), move |mut data| {
-            data.keyboard_binding = Some(keyboard_frp.bind_frp_to_js_text_input_actions());
-            data.mouse_binding    = Some(mouse_frp.bind_frp_to_mouse());
-            data.keyboard_frp     = Some(keyboard_frp);
-            data.mouse_frp        = Some(mouse_frp);
+            data.frp = Some(frp);
         });
         Self{rc}
     }
@@ -243,19 +232,15 @@ impl TextField {
 
 impl TextFieldData {
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-        let logger           = Logger::new("TextField");
-        let display_object   = DisplayObjectData::new(logger);
-        let content          = TextFieldContent::new(initial_content,&properties);
-        let cursors          = Cursors::default();
-        let rendered         = TextFieldSprites::new(world,&properties);
-        let keyboard_frp     = None;
-        let mouse_frp        = None;
-        let keyboard_binding = None;
-        let mouse_binding    = None;
+        let logger         = Logger::new("TextField");
+        let display_object = DisplayObjectData::new(logger);
+        let content        = TextFieldContent::new(initial_content,&properties);
+        let cursors        = Cursors::default();
+        let rendered       = TextFieldSprites::new(world,&properties);
+        let frp            = None;
         display_object.add_child(rendered.display_object.clone_ref());
 
-        Self {properties,content,cursors,rendered,display_object,keyboard_frp,keyboard_binding,
-            mouse_frp,mouse_binding}.initialize()
+        Self {properties,content,cursors,rendered,display_object,frp}.initialize()
     }
 
     fn initialize(mut self) -> Self{

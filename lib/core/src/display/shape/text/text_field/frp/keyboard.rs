@@ -127,7 +127,7 @@ impl TextFieldKeyboardFrp {
         move |key,mask| {
             text_field_ptr.upgrade().for_each(|text_field| {
                 if let Key::Character(string) = key {
-                    let modifiers = &[Key::Control,Key::Alt,Key::Meta];
+                    let modifiers = &[Key::Control,Key::Alt];
                     if !modifiers.iter().any(|k| mask.has_key(k)) {
                         text_field.borrow_mut().write(string);
                     }

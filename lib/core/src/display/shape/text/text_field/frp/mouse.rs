@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::control::io::mouse2::event::*;
 use crate::control::io::mouse2::MouseManager;
-use crate::display::shape::text::text_field::keyboard::TextFieldKeyboardFrp;
+use crate::display::shape::text::text_field::frp::keyboard::TextFieldKeyboardFrp;
 use crate::display::shape::text::text_field::TextFieldData;
 use crate::system::web;
 
@@ -37,7 +37,7 @@ impl TextFieldMouseFrp {
         use Key::*;
         let mouse               = Mouse::default();
         let is_inside           = Self::is_inside_text_field_lambda(text_field_ptr.clone());
-        let is_multicursor_mode = |mask:&KeyMask| mask == &[Shift].iter().collect();
+        let is_multicursor_mode = |mask:&KeyMask| mask == &[Alt,Shift].iter().collect();
         let set_cursor_action   = Self::set_cursor_lambda(text_field_ptr.clone());
         let select_action       = Self::select_lambda(text_field_ptr.clone());
         frp! {
