@@ -1,2 +1,2 @@
 #!/bin/bash
-wasm-pack build $@ --no-typescript --out-dir '../../../target/web' lib/ide/ide
+wasm-pack build $@ --no-typescript --out-dir '../../target/web' lib/ide/
