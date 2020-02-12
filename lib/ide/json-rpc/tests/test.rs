@@ -15,7 +15,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::mpsc::TryRecvError;
 use utils::test::poll_future_output;
 use utils::test::poll_stream_output;
 use futures::task::LocalSpawnExt;
@@ -77,7 +76,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(transport:impl Transport + 'static) -> Client {
-        let mut handler   = Handler::new(transport);
+        let handler       = Handler::new(transport);
         let events_stream = Box::pin(handler.handler_event_stream());
         Client {
             handler,
@@ -91,7 +90,7 @@ impl Client {
     }
 
     pub fn events_processor(&mut self) -> impl Future<Output = ()> {
-        self.handler.events_processor()
+        self.handler.runner()
     }
 
     pub fn try_get_event(&mut self) -> Option<MockEvent> {
@@ -139,7 +138,7 @@ impl Fixture {
         let mut client     = Client::new(transport.clone());
         let     pool       = futures::executor::LocalPool::new();
         let     fut        = client.events_processor();
-        pool.spawner().spawn_local(fut);
+        pool.spawner().spawn_local(fut).unwrap();
         Fixture {transport,client,pool}
     }
 }

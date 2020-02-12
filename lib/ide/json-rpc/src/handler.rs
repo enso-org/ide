@@ -328,8 +328,7 @@ impl<Notification> Handler<Notification> {
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
             TransportEvent::Closed => {
-                // Dropping all ongoing calls will mark their futures as
-                // cancelled.
+                // Dropping all ongoing calls will cancel their futures.
                 self.clear_ongoing_requests();
                 self.emit_event(Event::Closed);
             }
@@ -346,15 +345,17 @@ impl<Notification> Handler<Notification> {
     ///
     /// It is expected that upon setting up the `Handler`, this future shall be
     /// passed to the main executor.
-    pub fn events_processor(&mut self) -> impl Future<Output = ()>
+    pub fn runner(&mut self) -> impl Future<Output = ()>
     where Notification: DeserializeOwned + 'static {
         let event_rx  = self.transport_event_stream();
         let weak_data = Rc::downgrade(&self.rc);
-        event_rx.for_each(move |event: TransportEvent| {
-            let this = weak_data.clone().upgrade().map(|rc| Handler {rc});
-            if let Some(handler) = this {
+        event_rx.for_each(move |event:TransportEvent| {
+            let data_opt    = weak_data.clone().upgrade();
+            let handler_opt = data_opt.map(|rc| Handler {rc});
+            handler_opt.map(|handler| {
                 handler.process_event(event)
-            }
+            });
+            // If the data is inaccessible, it is ok to just drop the event here.
             futures::future::ready(())
         })
     }

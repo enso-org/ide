@@ -1,11 +1,8 @@
 //! Traits providing abstraction over transport used by the JSON-RPC client.
 
-pub mod tungstenite;
-
 use crate::prelude::*;
 
 use failure::Error;
-
 use futures::channel::mpsc::UnboundedSender;
 
 /// A transport that facilitate JSON-RPC protocol.

@@ -167,8 +167,8 @@ impl Client {
     /// Returns a future that performs any background, asynchronous work needed
     /// for this Client to correctly work. Should be continually run while the
     /// `Client` is used. Will end once `Client` is dropped.
-    pub fn events_processor(&mut self) -> impl Future<Output = ()> {
-        self.handler.events_processor()
+    pub fn runner(&mut self) -> impl Future<Output = ()> {
+        self.handler.runner()
     }
 }
 
@@ -270,7 +270,7 @@ mod tests {
         let transport  = MockTransport::new();
         let mut client = Client::new(transport.clone());
         let executor   = futures::executor::LocalPool::new();
-        executor.spawner().spawn_local(client.events_processor());
+        executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}
     }
 
