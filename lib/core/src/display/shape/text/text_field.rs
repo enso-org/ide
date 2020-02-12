@@ -164,6 +164,11 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+        /// Remove all text selected by all cursors.
+        pub fn remove_selection(&mut self) {
+            self.write("");
+        }
+
         /// Do delete operation on text.
         ///
         /// For cursors with selection it will just remove the selected text. For the rest, it will
@@ -174,7 +179,7 @@ shared! { TextField
             let mut navigation    = CursorNavigation {content,selecting};
             let without_selection = |c:&Cursor| !c.has_selection();
             self.cursors.navigate_cursors(&mut navigation,step,without_selection);
-            self.write("");
+            self.remove_selection();
         }
 
         /// Update underlying Display Object.
@@ -221,16 +226,14 @@ impl TextFieldData {
         let keyboard_binding = None;
         display_object.add_child(rendered.display_object.clone_ref());
 
-        let mut text_field = Self
-            {properties,content,cursors,rendered,display_object,frp,keyboard_binding};
-        text_field.initialize();
-        text_field
+        Self {properties,content,cursors,rendered,display_object,frp,keyboard_binding}.initialize()
     }
 
-    fn initialize(&mut self) {
+    fn initialize(mut self) -> Self{
         self.assignment_update().update_line_assignment();
         self.rendered.update_glyphs(&mut self.content);
         self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+        self
     }
 
     fn assignment_update(&mut self) -> GlyphLinesAssignmentUpdate {

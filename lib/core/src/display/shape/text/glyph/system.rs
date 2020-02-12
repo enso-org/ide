@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::layout::types::*;
 use crate::display::shape::text::glyph::font::FontHandle;
-use crate::display::shape::text::glyph::font::FontRenderInfo;
+use crate::display::shape::text::glyph::font::GlyphRenderInfo;
 use crate::display::shape::text::glyph::pen::PenIterator;
 use crate::display::shape::text::glyph::msdf::MsdfTexture;
 use crate::display::symbol::material::Material;
@@ -49,15 +49,15 @@ impl Glyph {
 
     fn update_msdf_texture(&mut self) {
         let texture_changed = self.msdf_uniform.with_content(|texture| {
-            texture.storage().height != self.font.msdf_texture().rows() as i32
+            texture.storage().height != self.font.msdf_texture_rows() as i32
         });
         if texture_changed {
-            let msdf_texture = self.font.msdf_texture();
-            let data         = msdf_texture.data.as_slice();
-            let width        = MsdfTexture::WIDTH  as i32;
-            let height       = msdf_texture.rows() as i32;
+            let width   = MsdfTexture::WIDTH  as i32;
+            let height  = self.font.msdf_texture_rows() as i32;
             let texture = Texture::<GpuOnly,Rgb,u8>::new(&self.context,(width,height));
-            texture.reload_with_content(data);
+            self.font.with_borrowed_msdf_texture_data(|data| {
+                texture.reload_with_content(data);
+            });
             self.msdf_uniform.set(texture);
         }
     }
@@ -122,7 +122,6 @@ impl Line {
 
 // === Getters ===
 
-#[allow(missing_docs)]
 impl Line {
     /// The starting point of this line's baseline.
     pub fn baseline_start(&self) -> &Vector2<f32> {
@@ -139,6 +138,7 @@ impl Line {
         self.glyphs.len()
     }
 
+    /// Font used for rendering this line.
     pub fn font(&self) -> FontHandle {
         self.font.clone_ref()
     }
@@ -175,7 +175,7 @@ impl GlyphSystem {
 
         sprite_system.set_material(Self::material());
         sprite_system.set_alignment(HorizontalAlignment::Left,VerticalAlignment::Bottom);
-        scene.variables().add("msdf_range",FontRenderInfo::MSDF_PARAMS.range as f32);
+        scene.variables().add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables().add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font,
             msdf_uniform       : symbol.variables().add_or_panic("msdf_texture",texture),
@@ -248,7 +248,7 @@ impl GlyphSystem {
         material.add_input_def::<f32>         ("glyph_msdf_index");
         material.add_input("pixel_ratio", 1.0);
         material.add_input("zoom"       , 1.0);
-        material.add_input("msdf_range" , FontRenderInfo::MSDF_PARAMS.range as f32);
+        material.add_input("msdf_range" , GlyphRenderInfo::MSDF_PARAMS.range as f32);
         material.add_input("color"      , Vector4::new(0.0,0.0,0.0,1.0));
         // FIXME We need to use this output, as we need to declare the same amount of shader
         // FIXME outputs as the number of attachments to framebuffer. We should manage this more

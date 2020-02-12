@@ -110,9 +110,9 @@ impl KeyState {
 #[derive(Debug)]
 pub struct Keyboard {
     /// The mouse up event.
-    pub key_pressed: Dynamic<Key>,
+    pub on_pressed: Dynamic<Key>,
     /// The mouse down event.
-    pub key_released: Dynamic<Key>,
+    pub on_released: Dynamic<Key>,
     /// The structure holding mask of all of the currently pressed keys.
     pub key_mask: Dynamic<KeyMask>,
 }
@@ -120,17 +120,17 @@ pub struct Keyboard {
 impl Default for Keyboard {
     fn default() -> Self {
         frp! {
-            keyboard.key_pressed        = source();
-            keyboard.key_released       = source();
-            keyboard.key_pressed_state  = key_pressed.map(KeyState::key_pressed);
-            keyboard.key_released_state = key_released.map(KeyState::key_released);
-            keyboard.key_state          = key_pressed_state.merge(&key_released_state);
-            keyboard.previous_key_mask  = recursive::<KeyMask>();
-            keyboard.key_mask           = key_state.map2(&previous_key_mask,KeyState::updated_mask);
+            keyboard.on_pressed        = source();
+            keyboard.on_released       = source();
+            keyboard.pressed_state     = on_pressed.map(KeyState::key_pressed);
+            keyboard.released_state    = on_released.map(KeyState::key_released);
+            keyboard.key_state         = pressed_state.merge(&released_state);
+            keyboard.previous_key_mask = recursive::<KeyMask>();
+            keyboard.key_mask          = key_state.map2(&previous_key_mask,KeyState::updated_mask);
         }
         previous_key_mask.initialize(&key_mask);
 
-        Keyboard {key_pressed,key_released,key_mask}
+        Keyboard { on_pressed,on_released,key_mask}
     }
 }
 
@@ -206,15 +206,15 @@ mod test {
         let key1 = Key::Character("x".to_string());
         let key2 = Key::Control;
 
-        keyboard.key_pressed.event.emit(key1.clone());
+        keyboard.on_pressed.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_pressed.event.emit(key2.clone());
+        keyboard.on_pressed.event.emit(key2.clone());
         let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.key_released.event.emit(key1.clone());
+        keyboard.on_released.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
         assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
     }
@@ -233,26 +233,26 @@ mod test {
         let mut actions = KeyboardActions::new(&keyboard);
         actions.set_action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true });
         actions.set_action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true });
-        keyboard.key_pressed.event.emit(Character("Z".to_string()));
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Control);
+        keyboard.on_pressed.event.emit(Control);
         assert!( *undone.borrow());
         assert!(!*redone.borrow());
         *undone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Character("z".to_string()));
+        keyboard.on_released.event.emit(Character("z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.key_pressed.event.emit(Character("y".to_string()));
+        keyboard.on_pressed.event.emit(Character("y".to_string()));
         assert!(!*undone.borrow());
         assert!( *redone.borrow());
         *redone.borrow_mut() = false;
-        keyboard.key_released.event.emit(Character("y".to_string()));
-        keyboard.key_released.event.emit(Control);
+        keyboard.on_released.event.emit(Character("y".to_string()));
+        keyboard.on_released.event.emit(Control);
 
         actions.unset_action(&undo_keys);
-        keyboard.key_pressed.event.emit(Character("Z".to_string()));
-        keyboard.key_pressed.event.emit(Control);
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
+        keyboard.on_pressed.event.emit(Control);
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
     }

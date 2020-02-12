@@ -51,7 +51,7 @@ pub fn run_example_text_field() {
             size       : Vector2::new(200.0, 200.0)
         };
 
-        let text_field = TextField::new(&world,TEXT,properties);
+        let text_field = TextField::new_with_content(&world,TEXT,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
         text_field.jump_cursor(Vector2::new(50.0, -40.0),false);
         world.add_child(&text_field);

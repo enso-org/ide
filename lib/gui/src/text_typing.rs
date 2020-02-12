@@ -29,7 +29,7 @@ pub fn run_example_text_typing() {
             size       : Vector2::new(200.0, 200.0)
         };
 
-        let mut text_field = TextField::new(&world,"",properties);
+        let mut text_field = TextField::new(&world,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
         world.add_child(&text_field);
 

@@ -32,44 +32,44 @@ pub struct TextFieldFrp {
     /// and pasting.
     actions: KeyboardActions,
     /// Event sent once cut operation was requested.
-    cut: Dynamic<()>,
+    on_cut: Dynamic<()>,
     /// Event sent once copy operation was requested.
-    copy: Dynamic<()>,
+    on_copy: Dynamic<()>,
     /// Event sent once paste operation was requested.
-    paste: Dynamic<String>,
+    on_paste: Dynamic<String>,
     /// A lambda node performing cut operation. Returns the string which should be copied to
     /// clipboard.
-    cut_action: Dynamic<String>,
+    do_cut: Dynamic<String>,
     /// A lambda node performing copy operation. Returns the string which should be copied to
     /// clipboard.
-    copy_action: Dynamic<String>,
+    do_copy: Dynamic<String>,
     /// A lambda node performing paste operation.
-    paste_action: Dynamic<()>,
+    do_paste: Dynamic<()>,
     /// A lambda node performing character input operation.
-    char_typed_action: Dynamic<()>,
+    do_char_input: Dynamic<()>,
 }
 
 impl TextFieldFrp {
     /// Create FRP graph operating on given TextField pointer.
     pub fn new(text_field_ptr:Weak<RefCell<TextFieldData>>) -> TextFieldFrp {
-        let keyboard          = Keyboard::default();
-        let mut actions       = KeyboardActions::new(&keyboard);
-        let cut_action        = Self::copy_action_lambda(true,text_field_ptr.clone());
-        let copy_action       = Self::copy_action_lambda(false,text_field_ptr.clone());
-        let paste_action      = Self::paste_action_lambda(text_field_ptr.clone());
-        let char_typed_action = Self::char_typed_lambda(text_field_ptr.clone());
+        let keyboard    = Keyboard::default();
+        let mut actions = KeyboardActions::new(&keyboard);
+        let cut         = Self::copy_lambda(true, text_field_ptr.clone());
+        let copy        = Self::copy_lambda(false, text_field_ptr.clone());
+        let paste       = Self::paste_lambda(text_field_ptr.clone());
+        let insert_char = Self::char_typed_lambda(text_field_ptr.clone());
         frp! {
-            text_field.cut               = source();
-            text_field.copy              = source();
-            text_field.paste             = source();
-            text_field.copy_action       = copy .map(move |()| copy_action());
-            text_field.cut_action        = cut  .map(move |()| cut_action());
-            text_field.paste_action      = paste.map(paste_action);
-            text_field.char_typed_action = keyboard.key_pressed.map2(&keyboard.key_mask,char_typed_action);
+            text_field.on_cut        = source();
+            text_field.on_copy       = source();
+            text_field.on_paste      = source();
+            text_field.do_copy       = on_copy .map(move |()| copy());
+            text_field.do_cut        = on_cut  .map(move |()| cut());
+            text_field.do_paste      = on_paste.map(paste);
+            text_field.do_char_input = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
         }
         Self::initialize_actions_map(&mut actions,text_field_ptr);
-        TextFieldFrp
-            {keyboard,actions,cut,copy,paste,cut_action,copy_action,paste_action,char_typed_action}
+        TextFieldFrp {keyboard,actions,on_cut,on_copy,on_paste,do_cut,do_copy,do_paste,
+            do_char_input}
     }
 
     /// Bind this FRP graph to js events.
@@ -78,12 +78,12 @@ impl TextFieldFrp {
     /// source events in this graph.
     pub fn bind_frp_to_js_text_input_actions(&self) -> KeyboardBinding {
         let mut binding      = KeyboardBinding::create();
-        let frp_key_pressed  = self.keyboard.key_pressed.clone_ref();
-        let frp_key_released = self.keyboard.key_released.clone_ref();
-        let frp_cut          = self.cut.clone_ref();
-        let frp_copy         = self.copy.clone_ref();
-        let frp_paste        = self.paste.clone_ref();
-        let frp_text_to_copy = self.copy_action.clone_ref();
+        let frp_key_pressed  = self.keyboard.on_pressed.clone_ref();
+        let frp_key_released = self.keyboard.on_released.clone_ref();
+        let frp_cut          = self.on_cut.clone_ref();
+        let frp_copy         = self.on_copy.clone_ref();
+        let frp_paste        = self.on_paste.clone_ref();
+        let frp_text_to_copy = self.do_copy.clone_ref();
         binding.set_key_down_handler(move |event:KeyboardEvent| {
             if let Ok(key) = event.key().parse::<Key>() {
                 frp_key_pressed.event.emit(key);
@@ -114,19 +114,19 @@ impl TextFieldFrp {
 
 impl TextFieldFrp {
 
-    fn copy_action_lambda(cut:bool, text_field_ptr:Weak<RefCell<TextFieldData>>)
-    -> impl Fn() -> String {
+    fn copy_lambda(cut:bool, text_field_ptr:Weak<RefCell<TextFieldData>>)
+                   -> impl Fn() -> String {
         move || {
             text_field_ptr.upgrade().map_or(default(),|text_field| {
                 let mut text_field_ref = text_field.borrow_mut();
                 let result             = text_field_ref.get_selected_text();
-                if cut { text_field_ref.write(""); }
+                if cut { text_field_ref.remove_selection(); }
                 result
             })
         }
     }
 
-    fn paste_action_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&String) {
+    fn paste_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&String) {
         move |text_to_paste| {
             let inserted = text_to_paste.as_str();
             text_field_ptr.upgrade().for_each(|tf| { tf.borrow_mut().write(inserted) })

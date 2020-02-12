@@ -15,6 +15,52 @@ use std::collections::hash_map::Entry::Occupied;
 use std::collections::hash_map::Entry::Vacant;
 
 
+#[derive(Debug)]
+struct Cache<K:Eq+Hash, V> {
+    map: RefCell<HashMap<K,V>>,
+}
+
+impl<K:Eq+Hash, V:Copy> Cache<K,V> {
+    pub fn get_or_create<F>(&self, key:K, constructor:F) -> V
+    where F : FnOnce() -> V {
+        let mut map = self.map.borrow_mut();
+        match map.entry(key) {
+            Occupied(entry) => *entry.get(),
+            Vacant(entry) => *entry.insert(constructor()),
+        }
+    }
+}
+
+impl<K:Eq+Hash, V:Clone> Cache<K,V> {
+    pub fn get_clone_or_create<F>(&self, key:K, constructor:F) -> V
+        where F : FnOnce() -> V {
+        let mut map = self.map.borrow_mut();
+        match map.entry(key) {
+            Occupied(entry) => entry.get().clone(),
+            Vacant(entry) => entry.insert(constructor()).clone(),
+        }
+    }
+}
+
+impl<K:Eq+Hash, V> Cache<K,V> {
+    pub fn len(&self) -> usize {
+        self.map.borrow().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.map.borrow().is_empty()
+    }
+
+    pub fn invalidate(&self, key:&K) {
+        self.map.borrow_mut().remove(key);
+    }
+}
+
+impl<K:Eq+Hash, V> Default for Cache<K,V> {
+    fn default() -> Self {
+        Cache { map:default() }
+    }
+}
 
 // ========================
 // === Font render info ===
@@ -44,28 +90,11 @@ pub struct GlyphRenderInfo {
     pub advance: f32
 }
 
-/// A single font data used for rendering
-///
-/// The data for individual characters and kerning are load on demand.
-///
-/// Each distance and transformation values are expressed in normalized coordinates, where `y` = 0.0
-/// is _baseline_ and `y` = 1.0 is _ascender_. For explanation of various font-rendering terms, see
-/// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
-#[derive(Debug)]
-pub struct FontRenderInfo {
-    /// Name of the font.
-    pub name      : String,
-    msdf_sys_font : msdf_sys::Font,
-    msdf_texture  : RefCell<MsdfTexture>,
-    glyphs        : RefCell<HashMap<char,GlyphRenderInfo>>,
-    kerning       : RefCell<HashMap<(char,char),f32>>
-}
-
-impl FontRenderInfo {
+impl GlyphRenderInfo {
     /// See `MSDF_PARAMS` docs.
-    pub const MAX_MSDF_SHRINK_FACTOR : f64 = 4.; // Note [Picked MSDF parameters]
+    pub const MAX_MSDF_SHRINK_FACTOR : f64 = 4.;
     /// See `MSDF_PARAMS` docs.
-    pub const MAX_MSDF_GLYPH_SCALE   : f64 = 2.; // Note [Picked MSDF parameters]
+    pub const MAX_MSDF_GLYPH_SCALE   : f64 = 2.;
 
     /// Parameters used for MSDF generation.
     ///
@@ -85,6 +114,44 @@ impl FontRenderInfo {
         overlap_support               : true
     };
 
+    /// Load new GlyphRenderInfo from msdf_sys font handle. This also extends the msdf_texture with
+    /// MSDF generated for this character.
+    pub fn load(handle:&msdf_sys::Font, ch:char, msdf_texture:&MsdfTexture) -> Self {
+        let unicode        = ch as u32;
+        let params         = Self::MSDF_PARAMS;
+
+        let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
+        let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
+        let translation    = convert_msdf_translation(&msdf);
+        let glyph_id       = msdf_texture.rows() / MsdfTexture::ONE_GLYPH_HEIGHT;
+        msdf_texture.extend_f32(msdf.data.iter());
+        GlyphRenderInfo {
+            msdf_texture_glyph_id : glyph_id,
+            offset                : nalgebra::convert(-translation),
+            scale                 : nalgebra::convert(inversed_scale),
+            advance               : x_distance_from_msdf_value(msdf.advance),
+        }
+    }
+}
+
+/// A single font data used for rendering
+///
+/// The data for individual characters and kerning are load on demand.
+///
+/// Each distance and transformation values are expressed in normalized coordinates, where `y` = 0.0
+/// is _baseline_ and `y` = 1.0 is _ascender_. For explanation of various font-rendering terms, see
+/// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
+#[derive(Debug)]
+pub struct FontRenderInfo {
+    /// Name of the font.
+    pub name      : String,
+    msdf_sys_font : msdf_sys::Font,
+    msdf_texture  : MsdfTexture,
+    glyphs        : Cache<char,GlyphRenderInfo>,
+    kerning       : Cache<(char,char),f32>
+}
+
+impl FontRenderInfo {
     /// Create render info based on font data in memory
     pub fn new(name:String, font_data:&[u8]) -> FontRenderInfo {
         FontRenderInfo {name,
@@ -102,78 +169,59 @@ impl FontRenderInfo {
         font_data_opt.map(|data| FontRenderInfo::new(name.to_string(),data))
     }
 
-    /// Load char render info
-    pub fn load_char(&self, ch:char) {
-        let handle         = &self.msdf_sys_font;
-        let unicode        = ch as u32;
-        let params         = Self::MSDF_PARAMS;
-        let mut glyphs     = self.glyphs.borrow_mut();
-
-        let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
-        let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
-        let translation    = convert_msdf_translation(&msdf);
-        let glyph_info = GlyphRenderInfo {
-            msdf_texture_glyph_id : glyphs.len(),
-            offset                : nalgebra::convert(-translation),
-            scale                 : nalgebra::convert(inversed_scale),
-            advance               : x_distance_from_msdf_value(msdf.advance),
-        };
-        self.msdf_texture.borrow_mut().extend(msdf.data.iter());
-        glyphs.insert(ch,glyph_info);
-    }
-
     /// Get render info for one character, generating one if not found
     pub fn get_glyph_info(&self, ch:char) -> GlyphRenderInfo {
-        if !self.glyphs.borrow().contains_key(&ch) {
-            self.load_char(ch);
-        }
-        *self.glyphs.borrow().get(&ch).unwrap()
+        let handle = &self.msdf_sys_font;
+        self.glyphs.get_or_create(ch, move || GlyphRenderInfo::load(handle,ch,&self.msdf_texture))
     }
 
     /// Get kerning between two characters
-    pub fn get_kerning(&self, left : char, right : char) -> f32 {
-        match self.kerning.borrow_mut().entry((left,right)) {
-            Occupied(entry) => *entry.get(),
-            Vacant(entry)   => {
-                let msdf_val   = self.msdf_sys_font.retrieve_kerning(left, right);
-                let normalized = x_distance_from_msdf_value(msdf_val);
-                *entry.insert(normalized)
-            }
-        }
+    pub fn get_kerning(&self, left:char, right:char) -> f32 {
+        self.kerning.get_or_create((left,right), || {
+            let msdf_val   = self.msdf_sys_font.retrieve_kerning(left, right);
+            x_distance_from_msdf_value(msdf_val)
+        })
     }
 
     /// A whole msdf texture bound for this font.
-    pub fn msdf_texture(&self) -> Ref<MsdfTexture> {
-        self.msdf_texture.borrow()
+    pub fn with_borrowed_msdf_texture_data<F,R>(&self, operation:F) -> R
+    where F : FnOnce(&Vec<u8>) -> R {
+        self.msdf_texture.with_borrowed_data(operation)
+    }
+
+    /// Get number of rows in msdf texture.
+    pub fn msdf_texture_rows(&self) -> usize {
+        self.msdf_texture.rows()
     }
 
     #[cfg(test)]
     pub fn mock_font(name : String) -> FontRenderInfo {
         FontRenderInfo { name,
             msdf_sys_font : msdf_sys::Font::mock_font(),
-            msdf_texture  : RefCell::new(default()),
-            glyphs        : RefCell::new(default()),
-            kerning       : RefCell::new(default()),
+            msdf_texture  : default(),
+            glyphs        : default(),
+            kerning       : default(),
         }
     }
 
     #[cfg(test)]
     pub fn mock_char_info
     (&self, ch:char, offset:Vector2<f32>, scale:Vector2<f32>, advance:f32) -> GlyphRenderInfo {
+        self.glyphs.invalidate(&ch);
         let data_size             = MsdfTexture::ONE_GLYPH_SIZE;
         let msdf_data             = (0..data_size).map(|_| 0.12345);
-        let mut glyphs            = self.glyphs.borrow_mut();
-        let msdf_texture_glyph_id = glyphs.len();
+        let msdf_texture_glyph_id = self.msdf_texture_rows() / MsdfTexture::ONE_GLYPH_HEIGHT;
 
-        let char_info = GlyphRenderInfo {offset,scale,advance,msdf_texture_glyph_id};
-        self.msdf_texture.borrow_mut().extend(msdf_data);
-        glyphs.insert(ch, char_info);
-        *glyphs.get(&ch).unwrap()
+        self.msdf_texture.extend_f32(msdf_data);
+        self.glyphs.get_or_create(ch, move || {
+            GlyphRenderInfo {offset,scale,advance,msdf_texture_glyph_id}
+        })
     }
 
     #[cfg(test)]
-    pub fn mock_kerning_info(&self, l : char, r : char, value : f32) {
-        self.kerning.borrow_mut().insert((l,r),value);
+    pub fn mock_kerning_info(&self, l:char, r:char, value:f32) {
+        self.kerning.invalidate(&(l,r));
+        self.kerning.get_or_create((l,r),|| value);
     }
 }
 
@@ -259,17 +307,17 @@ mod tests {
         let font_render_info = create_test_font_render_info();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(0, font_render_info.msdf_texture.borrow().data.len());
-        assert_eq!(0, font_render_info.glyphs.borrow().len());
+        assert_eq!(0, font_render_info.msdf_texture.with_borrowed_data(Vec::len));
+        assert_eq!(0, font_render_info.glyphs.len());
     }
 
     #[wasm_bindgen_test(async)]
-    async fn loading_chars() {
+    async fn loading_glyph_info() {
         basegl_core_msdf_sys::initialized().await;
         let font_render_info = create_test_font_render_info();
 
-        font_render_info.load_char('A');
-        font_render_info.load_char('B');
+        font_render_info.get_glyph_info('A');
+        font_render_info.get_glyph_info('B');
 
         let chars      = 2;
         let tex_width  = MsdfTexture::WIDTH;
@@ -277,12 +325,12 @@ mod tests {
         let channels   = MultichannelSignedDistanceField::CHANNELS_COUNT;
         let tex_size   = tex_width * tex_height * channels;
 
-        assert_eq!(tex_height , font_render_info.msdf_texture.borrow().rows());
-        assert_eq!(tex_size   , font_render_info.msdf_texture.borrow().data.len());
-        assert_eq!(chars      , font_render_info.glyphs.borrow().len());
+        assert_eq!(tex_height , font_render_info.msdf_texture_rows());
+        assert_eq!(tex_size   , font_render_info.msdf_texture.with_borrowed_data(Vec::len));
+        assert_eq!(chars      , font_render_info.glyphs.len());
 
-        let first_char  = *font_render_info.glyphs.borrow().get(&'A').unwrap();
-        let second_char = *font_render_info.glyphs.borrow().get(&'B').unwrap();
+        let first_char  = font_render_info.glyphs.get_or_create('A', || panic!("Expected value"));
+        let second_char = font_render_info.glyphs.get_or_create('B', || panic!("Expected value"));
 
         let first_index  = 0;
         let second_index = 1;
@@ -300,12 +348,12 @@ mod tests {
             let char_info = font_render_info.get_glyph_info('A');
             assert_eq!(0, char_info.msdf_texture_glyph_id);
         }
-        assert_eq!(1, font_render_info.glyphs.borrow().len());
+        assert_eq!(1, font_render_info.glyphs.len());
 
         {
             let char_info = font_render_info.get_glyph_info('A');
             assert_eq!(0, char_info.msdf_texture_glyph_id);
         }
-        assert_eq!(1, font_render_info.glyphs.borrow().len());
+        assert_eq!(1, font_render_info.glyphs.len());
     }
 }
