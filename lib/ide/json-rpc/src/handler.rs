@@ -319,8 +319,6 @@ impl<Notification> Handler<Notification> {
     pub fn process_event(&self, event:TransportEvent)
     where Notification: DeserializeOwned {
         match event {
-            TransportEvent::Opened =>
-                {}
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
             TransportEvent::Closed => {
