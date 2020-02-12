@@ -57,16 +57,6 @@ pub fn run_example_text_field() {
         world.add_child(&text_field);
         text_field.update();
 
-        let text_field_on_click = text_field.clone_ref();
-        let c: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |val:JsValue| {
-            let text_field = &text_field_on_click;
-            let val = val.unchecked_into::<MouseEvent>();
-            let x = val.x() as f32 - 10.0;
-            let y = (screen.height - val.y() as f32) - 600.0;
-            text_field.jump_cursor(Vector2::new(x,y),true);
-        }));
-        web::document().unwrap().add_event_listener_with_callback
-        ("click",c.as_ref().unchecked_ref()).unwrap();
-        c.forget();
+        world.on_frame(move |_| { let _keep_alive = &text_field; });
     });
 }
