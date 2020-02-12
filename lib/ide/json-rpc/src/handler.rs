@@ -93,6 +93,17 @@ pub enum Event<N> {
     Notification(N),
 }
 
+
+
+// ===================
+// === HandlerData ===
+// ===================
+
+/// Container that stores Sender's for ongoing calls. Each call identified by
+/// id has its own sender. After reply is received, the call is removed
+/// from this container.
+pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
+
 /// Mutable state of the `Handler`.
 #[derive(Debug)]
 pub struct HandlerData<Notification> {
@@ -112,11 +123,6 @@ pub struct HandlerData<Notification> {
 // === Handler ===
 // ===============
 
-/// Container that stores Sender's for ongoing calls. Each call identified by
-/// id has its own sender. After reply is received, the call is removed
-/// from this container.
-pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
-
 /// Handler is a main provider of RPC protocol. Given with a transport capable
 /// of transporting text messages, it manages whole communication with a peer.
 ///
@@ -133,6 +139,9 @@ pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
 pub struct Handler<Notification> {
     rc: Rc<RefCell<HandlerData<Notification>>>,
 }
+
+
+// === HandlerData accessors ===
 
 impl<Notification> Handler<Notification> {
     /// Inserts a new entry for an ongoing request awaiting reply.
@@ -224,6 +233,9 @@ impl<Notification> Handler<Notification> {
         });
     }
 }
+
+
+// === Other Handler methods ===
 
 impl<Notification> Handler<Notification> {
     /// Creates a new handler working on a given `Transport`.
