@@ -5,7 +5,8 @@ use super::view_layout::ViewLayout;
 
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
-use basegl::system::web::resize_observer::ResizeObserver;
+use basegl::system::web;
+use web::resize_observer::ResizeObserver;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -44,7 +45,7 @@ pub struct ProjectView {
 
 impl Default for ProjectView {
     fn default() -> Self {
-        let world           = WorldData::new("canvas");
+        let world           = WorldData::new(&web::body());
         let layout          = ViewLayout::default(&world);
         let resize_observer = None;
         let data            = ProjectViewData{world,layout,resize_observer};
