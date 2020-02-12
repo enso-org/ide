@@ -247,7 +247,7 @@ define_sdf_shapes! {
     }
 
     Rect (width:f32, height:f32) {
-        vec2  size = vec2(width,height);
+        vec2  size = vec2(width/2.0,height/2.0);
         vec2  dir  = abs(position) - size;
         float dist = max(min(dir,0.0)) + length(max(dir,0.0));
         return bound_sdf(dist,bounding_box(width/2.0,height/2.0));

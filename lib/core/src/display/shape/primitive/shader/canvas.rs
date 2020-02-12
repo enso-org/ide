@@ -241,6 +241,20 @@ impl Canvas {
         })
     }
 
+    /// Scale the current canvas origin.
+    pub fn scale<T:ShaderData<f32>>
+    (&mut self, num:usize, s1:CanvasShape, value:T) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let value:Glsl = value.into();
+            let trans  = iformat!("position = scale(position,{value});");
+            let expr   = iformat!("return {s1.getter()};");
+            this.add_current_function_code_line(trans);
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s1.ids);
+            shape
+        })
+    }
+
     /// Fill the shape with the provided color.
     pub fn fill<Color:ShaderData<Srgb>>
     (&mut self, num:usize, s:CanvasShape, color:Color) -> CanvasShape {

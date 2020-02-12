@@ -182,7 +182,11 @@ Color blend(Color bg, Color fg) {
 // =============
 
 float render(BoundSdf sdf) {
-    return clamp((0.5 - sdf.distance) * input_pixel_ratio * input_zoom);
+    return clamp((-sdf.distance ) * input_pixel_ratio + 0.5);
+//    return clamp((0.5 - sdf.distance) * 1.0);
+//    return sdf.distance <= 0.0 ? 1.0 : 0.0;
+//    return clamp((0.5 - sdf.distance) * input_pixel_ratio * input_zoom);
+
 }
 
 
@@ -249,7 +253,11 @@ vec2 translate (vec2 p, vec2 t) {
 }
 
 vec2 rotate (vec2 p, float angle) {
-	return p*cos(-angle) + vec2(p.y,-p.x)*sin(-angle);
+    return p*cos(-angle) + vec2(p.y,-p.x)*sin(-angle);
+}
+
+vec2 scale (vec2 p, float value) {
+    return p/value;
 }
 
 vec2 cartesian2polar (vec2 p) {

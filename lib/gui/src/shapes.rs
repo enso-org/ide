@@ -60,9 +60,6 @@ fn nodes1(world:&World) -> ShapeSystem {
     let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
-
-
-
     let loader_margin   = 0.0;
     let loader_outer    = Circle(node_radius + border_size - loader_margin);
     let loader_inner    = Circle(node_radius + loader_margin);
@@ -80,6 +77,87 @@ fn nodes1(world:&World) -> ShapeSystem {
     ShapeSystem::new(world,&out)
 }
 
+fn nodes2(world:&World) -> ShapeSystem {
+    let node_radius = 40.0;
+    let border_size = 20.0;
+    let node   = Circle(node_radius);
+    let border = Circle(node_radius + border_size);
+    let node   = node.fill(Srgb::new(0.97,0.96,0.95));
+//    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
+    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
+
+    let bg   = Circle(node_radius*2.0);
+    let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
+
+
+    let shadow1 = Circle(node_radius + border_size);
+    let shadow1_color = Gradient::new()
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+    let shadow1       = shadow1.fill(shadow1_color);
+
+    let shadow2 = Circle(node_radius + border_size);
+    let shadow2_color = Gradient::new()
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear());
+    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+    let shadow2       = shadow2.fill(shadow2_color);
+
+    let loader_margin   = 0.0;
+    let loader_outer    = Circle(node_radius + border_size - loader_margin);
+    let loader_inner    = Circle(node_radius + loader_margin);
+    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
+    let loader_corner_1 = Circle(border_size/2.0).translate(0.0,node_radius + border_size/2.0);
+    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
+    let loader = &loader_outer - &loader_inner;
+    let loader = &loader * &loader_section;
+    let loader = &loader + &loader_corner_1;
+    let loader = &loader + &loader_corner_2;
+
+    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
+
+    let corner_radius1 = 2.0;
+    let corner_radius2 = 1.5;
+    let corner_radius3 = 1.0;
+    let width_diff    = 3.0 * corner_radius1;
+    let border_size   = 2.0;
+    let rect1 = RoundedRectByCorner(32.0,16.0,corner_radius1,corner_radius1,corner_radius1,corner_radius1).fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
+    let rect2 = RoundedRectByCorner(32.0-width_diff,16.0,corner_radius2,corner_radius2,corner_radius2,corner_radius2).translate(0.0,6.0);
+    let rect2 = rect2 - rect1.translate(0.0,border_size);
+    let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
+
+    let rect3 = RoundedRectByCorner(32.0-2.0*width_diff,16.0,corner_radius3,corner_radius3,corner_radius3,corner_radius3).translate(0.0,10.0);
+    let rect3 = rect3 - rect1.translate(0.0,border_size + 6.0);
+    let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
+//    let loader = loader.fill(Srgb::new(0.91,0.91,0.90));
+
+//    let out = bg + loader + shadow2 + node + front;
+
+//    let out = rect3 + rect2 + rect1 ;
+//    let out = out.scale(2.0);
+
+    let rect1 = Rect(1.0,4.0).fill(Srgba::new(1.0, 0.0, 0.0, 1.00));
+
+    let rect2 = rect1.translate(1.0,5.0);
+
+//    let circle1 = Circle(node_radius + border_size);
+
+
+
+    let out = rect1 + rect2;
+
+//    let c1   = Circle(node_radius).fill(Srgba::new(1.0,0.0,0.0,0.5));
+//    let c2   = c1.translate(20.0,0.0).fill(Srgba::new(0.0,1.0,0.0,0.5));
+//
+//    let bg   = Circle(node_radius*2.0).translate(0.0,70.0);
+//    let bg   = bg.fill(Srgb::new(1.0,1.0,1.0));
+//
+//    let out = bg + shadow2;
+
+    ShapeSystem::new(world,&out)
+}
+
 
 fn init(world: &World) {
     let scene  = world.scene();
@@ -87,7 +165,7 @@ fn init(world: &World) {
     let screen = camera.screen();
 
 
-    let shape_system = nodes1(world);
+    let shape_system = nodes2(world);
 
 
 
@@ -99,21 +177,30 @@ fn init(world: &World) {
         t.y += screen.height / 2.0;
     });
 
+    let sprite_2 = shape_system.new_instance();
+    sprite_2.size().set(Vector2::new(200.0,200.0));
+    sprite_2.mod_position(|t| {
+        t.x += screen.width / 2.0 + 5.0;
+        t.y += screen.height / 2.0 + 20.0;
+    });
+
     let sprite2 = sprite.clone();
 
 
     world.add_child(&shape_system);
-
-    let out = frp_test(Box::new(move|x:f32,y:f32| {
-        sprite2.set_position(Vector3::new(x,y,0.0));
-    }));
+//
+//    let out = frp_test(Box::new(move|x:f32,y:f32| {
+//        sprite2.set_position(Vector3::new(x,y,0.0));
+//    }));
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {
-        let _keep_alive = &out;
+        let _keep_alive = &sprite;
+//        let _keep_alive = &sprite_2;
+//        let _keep_alive = &out;
         on_frame(&mut time,&mut iter,&sprite,&shape_system);
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {

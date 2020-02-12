@@ -130,6 +130,7 @@ use immutable::*;
 define_compound_shapes! {
     Translate(child)(x:f32,y:f32)
     Rotation(child)(angle:f32)
+    Scale(child)(value:f32)
     Union(child1,child2)()
     Difference(child1,child2)()
     Intersection(child1,child2)()
@@ -148,6 +149,13 @@ impl<Child:Shape> Shape for Rotation<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
         canvas.rotation(self.id(),s1,&self.angle)
+    }
+}
+
+impl<Child:Shape> Shape for Scale<Child> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s1 = self.child.draw(canvas);
+        canvas.scale(self.id(),s1,&self.value)
     }
 }
 

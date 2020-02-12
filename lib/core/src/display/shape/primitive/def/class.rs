@@ -86,6 +86,11 @@ impl<T> ShapeRef<T> {
         Rotation(self,angle)
     }
 
+    /// Scales the shape by a given value.
+    pub fn scale<S:ShaderData<f32>>(&self, value:S) -> Scale<Self> {
+        Scale(self,value)
+    }
+
     /// Unify the shape with another one.
     pub fn union<S:IntoOwned>(&self, that:S) -> Union<Self,Owned<S>> {
         Union(self,that)
