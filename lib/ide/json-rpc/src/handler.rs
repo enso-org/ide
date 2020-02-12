@@ -104,18 +104,6 @@ pub enum Event<N> {
 /// from this container.
 pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
 
-/// Mutable state of the `Handler`.
-#[derive(Debug)]
-pub struct HandlerData<Notification> {
-    /// Ongoing calls.
-    pub ongoing_calls   : OngoingCalls,
-    /// Handle to send outgoing events.
-    pub outgoing_events : Option<UnboundedSender<Event<Notification>>>,
-    /// Provides identifiers for requests.
-    pub id_generator    : IdGenerator,
-    /// Transports text messages between this handler and the peer.
-    pub transport       : Box<dyn Transport>,
-}
 
 
 
@@ -134,21 +122,29 @@ pub struct HandlerData<Notification> {
 /// `Notification` is a type for notifications. It should implement
 /// `DeserializeOwned` and deserialize from JSON maps with `method` and `params`
 /// fields.
-///
+
+pub use shapely::shared;
+
+shared! { Handler
+
+/// Mutable state of the `Handler`.
 #[derive(Debug)]
-pub struct Handler<Notification> {
-    rc: Rc<RefCell<HandlerData<Notification>>>,
+pub struct HandlerData<Notification> {
+    /// Ongoing calls.
+    ongoing_calls   : OngoingCalls,
+    /// Handle to send outgoing events.
+    outgoing_events : Option<UnboundedSender<Event<Notification>>>,
+    /// Provides identifiers for requests.
+    id_generator    : IdGenerator,
+    /// Transports text messages between this handler and the peer.
+    transport       : Box<dyn Transport>,
 }
 
 
-// === HandlerData accessors ===
-
-impl<Notification> Handler<Notification> {
+impl<Notification> {
     /// Inserts a new entry for an ongoing request awaiting reply.
-    pub fn insert_ongoing_request(&self, id:Id, sender:oneshot::Sender<ReplyMessage>) {
-        with(self.rc.borrow_mut(), |mut data| {
-            data.ongoing_calls.insert(id,sender);
-        })
+    pub fn insert_ongoing_request(&mut self, id:Id, sender:oneshot::Sender<ReplyMessage>) {
+        self.ongoing_calls.insert(id,sender);
     }
 
     /// Removes the request from the map of ongoing requests, e.g. because it
@@ -157,34 +153,61 @@ impl<Notification> Handler<Notification> {
     ///
     /// Returns the channel handle for the request, it should be immediately
     /// after notified or dropped.
-    pub fn remove_ongoing_request(&self, id:Id) -> Option<oneshot::Sender<ReplyMessage>> {
-        with(self.rc.borrow_mut(), |mut data| {
-            data.ongoing_calls.remove(&id)
-        })
+    pub fn remove_ongoing_request(&mut self, id:Id) -> Option<oneshot::Sender<ReplyMessage>> {
+        self.ongoing_calls.remove(&id)
     }
 
     /// Removes all the ongoing requests. This will be recognized by the `Future`s
     /// as losing connection error.
-    pub fn clear_ongoing_requests(&self) {
-        with(self.rc.borrow_mut(), |mut data| {
-            data.ongoing_calls.clear()
-        })
+    pub fn clear_ongoing_requests(&mut self) {
+        self.ongoing_calls.clear()
     }
 
     /// Obtains an id for a new request to be made.
-    pub fn generate_new_id(&self) -> Id {
-        with(self.rc.borrow_mut(), |mut data| {
-            data.id_generator.generate()
-        })
+    pub fn generate_new_id(&mut self) -> Id {
+        self.id_generator.generate()
     }
 
     /// Sends a text message to the peer.
-    pub fn send_text_message(&self, text:String) -> std::result::Result<(), failure::Error> {
-        with(self.rc.borrow_mut(), |mut data| {
-            data.transport.send_text(text)
-        })
+    pub fn send_text_message(&mut self, text:String) -> std::result::Result<(), failure::Error> {
+        self.transport.send_text(text)
     }
 
+    /// Creates a new stream with events from this handler.
+    ///
+    /// If such stream was already existing, it will be finished (and
+    /// continuations should be able to process any remaining events).
+    pub fn handler_event_stream(&mut self) -> impl Stream<Item = Event<Notification>> {
+        let (tx,rx)          = unbounded();
+        self.outgoing_events = Some(tx);
+        rx
+    }
+
+    /// Sends a handler event to the event stream.
+    pub fn emit_event(&self, event:Event<Notification>) {
+        if let Some(event_tx) = self.outgoing_events.as_ref() {
+            match event_tx.unbounded_send(event) {
+                Ok(()) => {},
+                Err(e) =>
+                    if e.is_full() {
+                        // Impossible, as per `futures` library docs.
+                        panic!("unbounded channel should never be full")
+                    } else if e.is_disconnected() {
+                        // It is ok for receiver to disconnect and ignore events.
+                    } else {
+                        // Never happens unless `futures` library changes API.
+                        panic!("unknown unexpected error")
+                    }
+            }
+        }
+    }
+}
+} // shared!
+
+
+// === Handler methods ===
+
+impl<Notification> Handler<Notification> {
     /// Obtains stream of events from our transport layer.
     ///
     /// Calling this function invalidates (closes) any previous stream obtained
@@ -200,44 +223,6 @@ impl<Notification> Handler<Notification> {
         event_rx
     }
 
-    /// Creates a new stream with events from this handler.
-    ///
-    /// If such stream was already existing, it will be finished (and
-    /// continuations should be able to process any remaining events).
-    pub fn handler_event_stream(&self) -> impl Stream<Item = Event<Notification>> {
-        let (tx,rx)          = unbounded();
-        with(self.rc.borrow_mut(), |mut data| {
-            data.outgoing_events = Some(tx);
-        });
-        rx
-    }
-
-    /// Sends a handler event to the event stream.
-    pub fn emit_event(&self, event:Event<Notification>) {
-        with(self.rc.borrow_mut(), |data| {
-            if let Some(event_tx) = data.outgoing_events.as_ref() {
-                match event_tx.unbounded_send(event) {
-                    Ok(()) => {},
-                    Err(e) =>
-                        if e.is_full() {
-                            // Impossible, as per `futures` library docs.
-                            panic!("unbounded channel should never be full")
-                        } else if e.is_disconnected() {
-                            // It is ok for receiver to disconnect and ignore events.
-                        } else {
-                            // Never happens unless `futures` library changes API.
-                            panic!("unknown unexpected error")
-                        }
-                }
-            }
-        });
-    }
-}
-
-
-// === Other Handler methods ===
-
-impl<Notification> Handler<Notification> {
     /// Creates a new handler working on a given `Transport`.
     ///
     /// `Transport` must be functional (e.g. not in the process of opening).
@@ -334,6 +319,8 @@ impl<Notification> Handler<Notification> {
     pub fn process_event(&self, event:TransportEvent)
     where Notification: DeserializeOwned {
         match event {
+            TransportEvent::Opened =>
+                {}
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
             TransportEvent::Closed => {
