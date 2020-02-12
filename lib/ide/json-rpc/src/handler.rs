@@ -236,10 +236,7 @@ impl<Notification> Handler<Notification> {
             transport       : Box::new(transport),
             outgoing_events : None,
         };
-        let ret = Handler {
-            rc: Rc::new(RefCell::new(data))
-        };
-        ret
+        Handler {rc: Rc::new(RefCell::new(data))}
     }
 
     /// Sends a request to the peer and returns a `Future` that shall yield a
