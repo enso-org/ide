@@ -96,7 +96,7 @@ impl Default for Clipping {
 // ====================
 
 /// Function used to return the updated screen width, height and `Camera2d`'s `DisplayObjectData`.
-pub trait ScreenUpdateFn = FnMut(f32,f32,DisplayObjectData) + 'static;
+pub trait ScreenUpdateFn = FnMut(f32,f32) + 'static;
 
 type ScreenUpdateCallback = Box<dyn ScreenUpdateFn>;
 
@@ -263,8 +263,7 @@ impl Camera2dData {
             }
             _ => unimplemented!()
         };
-        let display_object_data = self.transform.clone_ref();
-        self.screen_update_callback.as_mut().map(|f| f(width,height,display_object_data));
+        self.screen_update_callback.as_mut().map(|f| f(width,height));
     }
 }
 

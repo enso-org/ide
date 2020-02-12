@@ -7,7 +7,6 @@ use events::ZoomEvent;
 use events::PanEvent;
 use crate::display::camera::Camera2d;
 use crate::display::Scene;
-use crate::display::object::DisplayObjectData;
 use crate::system::web::Result;
 use crate::system::web::dom::DomContainer;
 use crate::animation::physics::inertia::PhysicsSimulator;
@@ -67,7 +66,8 @@ impl Navigator {
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second   = 60.0;
         let callback           = move |position| camera.set_position(position);
-        let sim = PhysicsSimulator::new(steps_per_second,properties.clone(),callback);
+        let thresholds         = default();
+        let sim = PhysicsSimulator::new(steps_per_second,properties.clone(),thresholds,callback);
         (sim,properties)
     }
 
@@ -95,9 +95,10 @@ impl Navigator {
             properties.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
         });
 
+        let transform = camera.transform();
         camera.add_screen_update_callback(
-            enclose!((mut properties) move |_,_,display_object_data:DisplayObjectData| {
-                let position = display_object_data.position();
+            enclose!((mut properties,transform) move |_,_| {
+                let position = transform.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
                     kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
