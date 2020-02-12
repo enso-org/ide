@@ -349,9 +349,9 @@ impl<Notification> Handler<Notification> {
         event_rx.for_each(move |event:TransportEvent| {
             let data_opt    = weak_data.clone().upgrade();
             let handler_opt = data_opt.map(|rc| Handler {rc});
-            handler_opt.map(|handler| {
+            if let Some(handler) = handler_opt {
                 handler.process_event(event)
-            });
+            }
             // If the data is inaccessible, it is ok to just drop the event here.
             futures::future::ready(())
         })
