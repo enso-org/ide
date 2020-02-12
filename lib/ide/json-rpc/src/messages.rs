@@ -317,7 +317,7 @@ mod tests {
         assert_eq!(jsonrpc_field, protocol::VERSION2_STRING);
         assert_eq!(expect_field(json, protocol::METHOD), method);
         let params_json = expect_field(json, protocol::PARAMS);
-        let params_json = input_json.as_object().expect("params must be object");
+        let params_json = params_json.as_object().expect("params must be object");
         assert_eq!(params_json.len(), MockRequest::FIELD_COUNT);
         assert_eq!(expect_field(params_json, MockRequest::FIELD_NAME), number);
     }
