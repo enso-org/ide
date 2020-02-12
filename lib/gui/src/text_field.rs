@@ -1,7 +1,5 @@
 #![allow(missing_docs)]
 
-use crate::prelude::*;
-
 use basegl::display::world::WorldData;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
@@ -14,8 +12,6 @@ use basegl_system_web::set_stdout;
 use nalgebra::Vector2;
 use nalgebra::Vector4;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use web_sys::MouseEvent;
 
 
 
@@ -38,9 +34,6 @@ pub fn run_example_text_field() {
     set_stdout();
     basegl_core_msdf_sys::run_once_initialized(|| {
         let world     = &WorldData::new(&web::body());
-        let scene     = world.scene();
-        let camera    = scene.camera();
-        let screen    = camera.screen();
         let mut fonts = FontRegistry::new();
         let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
 
@@ -57,6 +50,6 @@ pub fn run_example_text_field() {
         world.add_child(&text_field);
         text_field.update();
 
-        world.on_frame(move |_| { let _keep_alive = &text_field; });
+        world.on_frame(move |_| { let _keep_alive = &text_field; }).forget();
     });
 }

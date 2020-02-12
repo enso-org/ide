@@ -54,7 +54,7 @@ pub struct TextFieldProperties {
 impl TextFieldProperties {
     const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
 
-    fn default(fonts:&mut FontRegistry) -> Self {
+    pub fn default(fonts:&mut FontRegistry) -> Self {
         TextFieldProperties {
             font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
             text_size : 16.0,
@@ -111,7 +111,7 @@ shared! { TextField
         /// Removes all cursors except one which is set and given point.
         pub fn set_cursor(&mut self, point:Vector2<f32>) {
             self.cursors.remove_additional_cursors();
-            self.add_cursor(point);
+            self.jump_cursor(point,false);
         }
 
         /// Add cursor at point on the screen.
@@ -123,8 +123,10 @@ shared! { TextField
         /// Jump active cursor to point on the screen.
         pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool) {
             let content        = &mut self.content;
+            let text_position  = self.rendered.display_object.global_position();
+            let point_on_text  = point - text_position.xy();
             let mut navigation = CursorNavigation {content,selecting};
-            self.cursors.jump_cursor(&mut navigation,point);
+            self.cursors.jump_cursor(&mut navigation,point_on_text);
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
@@ -197,12 +199,14 @@ shared! { TextField
             self.display_object.update()
         }
 
+        /// Check if given point on screen is inside this TextField.
         pub fn is_inside(&self, point:Vector2<f32>) -> bool {
             let position = self.display_object.global_position();
             let size     = self.properties.size;
             let x_range  = position.x ..= (position.x + size.x);
-            let y_range  = position.y ..= (position.y + size.y);
-            x_range.contains(&point.x) && y_range.contains(&point.y)
+            let y_range  = (position.y - size.y) ..= position.y;
+            let result = x_range.contains(&point.x) && y_range.contains(&point.y);
+            result
         }
     }
 }
