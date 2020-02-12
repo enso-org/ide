@@ -68,7 +68,7 @@ impl TextFieldKeyboardFrp {
             text_field.do_char_input = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
         }
         Self::initialize_actions_map(&mut actions,text_field_ptr);
-        TextFieldFrp {keyboard,actions,on_cut,on_copy,on_paste,do_cut,do_copy,do_paste,
+        TextFieldKeyboardFrp {keyboard,actions,on_cut,on_copy,on_paste,do_cut,do_copy,do_paste,
             do_char_input}
     }
 
@@ -85,15 +85,15 @@ impl TextFieldKeyboardFrp {
         let frp_do_copy  = self.do_copy.clone_ref();
         binding.set_copy_handler(move |is_cut| {
             if is_cut {
-                frp_cut.event.emit(());
+                frp_on_cut.event.emit(());
                 frp_do_cut.behavior.current_value()
             } else {
-                frp_copy.event.emit(());
+                frp_on_copy.event.emit(());
                 frp_do_copy.behavior.current_value()
             }
         });
         binding.set_paste_handler(move |text_to_paste| {
-            frp_paste.event.emit(text_to_paste);
+            frp_on_paste.event.emit(text_to_paste);
         });
         binding
     }

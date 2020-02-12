@@ -54,6 +54,7 @@ pub struct TextFieldProperties {
 impl TextFieldProperties {
     const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
 
+    /// A default set of properties.
     pub fn default(fonts:&mut FontRegistry) -> Self {
         TextFieldProperties {
             font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
@@ -223,10 +224,6 @@ impl TextField {
     /// Create new TextField with predefined content.
     pub fn new_with_content(world:&World, initial_content:&str, properties:TextFieldProperties)
     -> Self {
-        let data         = TextFieldData::new(world,initial_content,properties);
-        let rc           = Rc::new(RefCell::new(data));
-        let keyboard_frp = TextFieldKeyboardFrp::new(Rc::downgrade(&rc));
-        let mouse_frp    = TextFieldMouseFrp::new(Rc::downgrade(&rc),&keyboard_frp);
         let data         = TextFieldData::new(world,initial_content,properties);
         let rc           = Rc::new(RefCell::new(data));
         let keyboard_frp = TextFieldKeyboardFrp::new(Rc::downgrade(&rc));
