@@ -148,9 +148,9 @@ impl<Notification> Handler<Notification> {
     ///
     /// Returns the channel handle for the request, it should be immediately
     /// after notified or dropped.
-    pub fn remove_ongoing_request(&self, id:&Id) -> Option<oneshot::Sender<ReplyMessage>> {
+    pub fn remove_ongoing_request(&self, id:Id) -> Option<oneshot::Sender<ReplyMessage>> {
         with(self.rc.borrow_mut(), |mut data| {
-            data.ongoing_calls.remove(id)
+            data.ongoing_calls.remove(&id)
         })
     }
 
@@ -256,7 +256,7 @@ impl<Notification> Handler<Notification> {
         let serialized_message = serde_json::to_string(&message).unwrap();
         if self.send_text_message(serialized_message).is_err() {
             // If message cannot be send, future ret must be cancelled.
-            self.remove_ongoing_request(&id);
+            self.remove_ongoing_request(id);
         }
         ret
     }
@@ -266,7 +266,7 @@ impl<Notification> Handler<Notification> {
     /// It shall be either matched with an open request or yield an error.
     pub fn process_response
     (&self, message:messages::Response<serde_json::Value>) {
-        if let Some(sender) = self.remove_ongoing_request(&message.id) {
+        if let Some(sender) = self.remove_ongoing_request(message.id) {
             // Disregard any error. We do not care if RPC caller already
             // dropped the future.
             sender.send(message.result).ok();
