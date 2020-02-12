@@ -263,6 +263,12 @@ impl PhysicsProperties {
     }
 }
 
+impl Into<PhysicsProperties> for &PhysicsProperties {
+    fn into(self) -> PhysicsProperties {
+        self.clone()
+    }
+}
+
 
 
 // ============================
@@ -291,6 +297,8 @@ impl SimulationThresholds {
     }
 }
 
+
+
 // ========================
 // === PhysicsSimulator ===
 // ========================
@@ -306,11 +314,12 @@ pub struct PhysicsSimulator {
 
 impl PhysicsSimulator {
     /// Simulates `Properties` and inputs `Kinematics`' position in `PhysicsCallback`.
-    pub fn new<F:PhysicsCallback>
+    pub fn new<F:PhysicsCallback,Properties:Into<PhysicsProperties>>
     ( steps_per_second : f64
-    , mut properties   : PhysicsProperties
+    , properties       : Properties
     , thresholds       : SimulationThresholds
     , mut callback     : F) -> Self {
+        let mut properties       = properties.into();
         let step_ms              = 1000.0 / steps_per_second;
         let mut current_position = properties.kinematics().position();
         let mut next_position    = simulate(&mut properties, step_ms);

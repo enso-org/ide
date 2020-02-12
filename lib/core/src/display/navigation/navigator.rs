@@ -15,11 +15,11 @@ use crate::animation::physics::inertia::DragProperties;
 use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::KinematicsProperties;
 use crate::system::web::dyn_into;
+use crate::control::callback::CallbackHandle;
 
 use nalgebra::{Vector3, zero};
 use nalgebra::Vector2;
 use nalgebra::clamp;
-
 
 
 // =================
@@ -29,29 +29,31 @@ use nalgebra::clamp;
 /// Navigator enables camera navigation with mouse interactions.
 #[derive(Debug)]
 pub struct Navigator {
-    _events     : NavigatorEvents,
-    _simulator  : PhysicsSimulator,
+    _events         : NavigatorEvents,
+    _simulator      : PhysicsSimulator,
+    resize_callback : CallbackHandle
 }
 
 impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
-        let dom                      = dyn_into(scene.canvas())?;
-        let dom                      = DomContainer::from_element(dom);
-        let (_simulator, properties) = Self::start_simulator(camera.clone());
-        let zoom_speed               = 2.0;
-        let min_zoom                 = 10.0;
-        let max_zoom                 = 10000.0;
-        let scaled_down_zoom_speed   = zoom_speed / 1000.0;
-        let camera                   = camera.clone();
-        let _events = Self::start_navigator_events(
+        let dom                       = dyn_into(scene.canvas())?;
+        let dom                       = DomContainer::from_element(dom);
+        let (_simulator, properties)  = Self::start_simulator(camera.clone());
+        let zoom_speed                = 2.0;
+        let min_zoom                  = 10.0;
+        let max_zoom                  = 10000.0;
+        let scaled_down_zoom_speed    = zoom_speed / 1000.0;
+        let camera                    = camera.clone();
+        let (resize_callback,_events) = Self::start_navigator_events(
             &dom,
             camera,
             min_zoom,
             max_zoom,
             scaled_down_zoom_speed,
             properties
-        )?;
-        Ok(Self {_simulator,_events})
+        );
+        let _events = _events?;
+        Ok(Self {_simulator,_events,resize_callback})
     }
 
     fn start_simulator(camera:Camera2d) -> (PhysicsSimulator, PhysicsProperties) {
@@ -67,7 +69,7 @@ impl Navigator {
         let steps_per_second   = 60.0;
         let callback           = move |position| camera.set_position(position);
         let thresholds         = default();
-        let sim = PhysicsSimulator::new(steps_per_second,properties.clone(),thresholds,callback);
+        let sim = PhysicsSimulator::new(steps_per_second,&properties,thresholds,callback);
         (sim,properties)
     }
 
@@ -77,7 +79,7 @@ impl Navigator {
     , min_zoom:f32
     , max_zoom:f32
     , zoom_speed:f32
-    , mut properties:PhysicsProperties) -> Result<NavigatorEvents> {
+    , mut properties:PhysicsProperties) -> (CallbackHandle, Result<NavigatorEvents>) {
         let dom_clone            = dom.clone();
         let camera_clone         = camera.clone();
         let panning_callback     = enclose!((mut properties) move |pan: PanEvent| {
@@ -95,9 +97,10 @@ impl Navigator {
             properties.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
         });
 
-        let transform = camera.transform();
-        camera.add_screen_update_callback(
-            enclose!((mut properties,transform) move |_,_| {
+        let transform       = camera.transform();
+        let resize_callback = camera.add_screen_update_callback(
+            enclose!((mut properties,transform) move |dimensions:&Vector2<f32>| {
+            println!("{}", dimensions);
                 let position = transform.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
@@ -106,6 +109,7 @@ impl Navigator {
                 properties.mod_spring(|spring| spring.fixed_point = position);
             })
         );
+
         let dom_clone     = dom.clone();
         let zoom_callback = move |zoom:ZoomEvent| {
                 let point       = zoom.focus;
@@ -126,7 +130,7 @@ impl Navigator {
 
                 properties.mod_spring(|spring| spring.fixed_point = position);
         };
-        NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed)
+        (resize_callback, NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed))
     }
 }
 
