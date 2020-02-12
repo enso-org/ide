@@ -188,8 +188,14 @@ shared! { TextField
 // === Constructor ===
 
 impl TextField {
-    /// Create new TextField.
-    pub fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
+    /// Create new empty TextField
+    pub fn new(world:&World, properties:TextFieldProperties) -> Self {
+        Self::new_with_content(world,"",properties)
+    }
+
+    /// Create new TextField with predefined content.
+    pub fn new_with_content(world:&World, initial_content:&str, properties:TextFieldProperties)
+    -> Self {
         let data = TextFieldData::new(world,initial_content,properties);
         let rc   = Rc::new(RefCell::new(data));
         let frp  = TextFieldFrp::new(Rc::downgrade(&rc));

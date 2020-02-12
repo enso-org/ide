@@ -31,11 +31,11 @@ pub struct TextFieldFrp {
     /// Keyboard actions. Here we define shortcuts for all actions except letters input, copying
     /// and pasting.
     actions: KeyboardActions,
-    /// Produce event once cut operation was requested.
+    /// Event sent once cut operation was requested.
     cut: Dynamic<()>,
-    /// A node producing event once copy operation was requested.
+    /// Event sent once copy operation was requested.
     copy: Dynamic<()>,
-    /// A node producing event once paste operation was requested.
+    /// Event sent once paste operation was requested.
     paste: Dynamic<String>,
     /// A lambda node performing cut operation. Returns the string which should be copied to
     /// clipboard.
