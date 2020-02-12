@@ -263,6 +263,40 @@ impl PhysicsProperties {
     }
 }
 
+impl Into<PhysicsProperties> for &PhysicsProperties {
+    fn into(self) -> PhysicsProperties {
+        self.clone()
+    }
+}
+
+
+
+// ============================
+// === SimulationThresholds ===
+// ============================
+
+/// A struct holding simulation thresholds used for computing optimizations.
+#[derive(Clone,Copy,Debug)]
+pub struct SimulationThresholds {
+    /// Used to snap object to fixed point if its distance is less than this threshold.
+    pub fixed_point_distance : f32,
+    /// Used to stop simulation computing if the object speed is less than this threshold.
+    pub speed                : f32
+}
+
+impl Default for SimulationThresholds {
+    fn default() -> Self {
+        Self::new(0.1, 0.1)
+    }
+}
+
+impl SimulationThresholds {
+    /// Creates a new SimulationThresholds.
+    pub fn new(fixed_point_distance:f32, speed:f32) -> Self {
+        Self {fixed_point_distance,speed}
+    }
+}
+
 
 
 // ========================
@@ -280,10 +314,12 @@ pub struct PhysicsSimulator {
 
 impl PhysicsSimulator {
     /// Simulates `Properties` and inputs `Kinematics`' position in `PhysicsCallback`.
-    pub fn new<F:PhysicsCallback>
-    ( steps_per_second:f64
-    , mut properties:PhysicsProperties
-    , mut callback:F) -> Self {
+    pub fn new<F:PhysicsCallback,Properties:Into<PhysicsProperties>>
+    ( steps_per_second : f64
+    , properties       : Properties
+    , thresholds       : SimulationThresholds
+    , mut callback     : F) -> Self {
+        let mut properties       = properties.into();
         let step_ms              = 1000.0 / steps_per_second;
         let mut current_position = properties.kinematics().position();
         let mut next_position    = simulate(&mut properties, step_ms);
@@ -296,8 +332,27 @@ impl PhysicsSimulator {
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let position   = linear_interpolation(current_position,next_position,transition as f32);
-            callback(position);
+            let interpolated_position = linear_interpolation(
+                current_position,
+                next_position,
+                transition as f32
+            );
+
+            let fixed_point = properties.spring().fixed_point;
+            properties.mod_kinematics(|kinematics| {
+                let speed    = kinematics.velocity.magnitude();
+                if speed >= thresholds.speed {
+                    let position = kinematics.position();
+                    let distance = (position - fixed_point).magnitude();
+                    if distance < thresholds.fixed_point_distance {
+                        kinematics.set_position(fixed_point);
+                        kinematics.set_velocity(zero());
+                        callback(fixed_point)
+                    } else {
+                        callback(interpolated_position)
+                    }
+                }
+            });
         });
 
         Self { _animator }
