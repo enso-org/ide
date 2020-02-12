@@ -90,7 +90,7 @@ impl Line {
     pub fn replace_text<Chars>(&mut self, chars:Chars)
     where Chars : Iterator<Item=char> + Clone {
         let chars_count = chars.clone().count();
-        let font        = self.font.clone();
+        let font        = self.font.clone_ref();
         let pen         = PenIterator::new(self.baseline_start,self.height,chars,font);
 
         for (glyph,(ch,position)) in self.glyphs.iter_mut().zip(pen) {
@@ -140,7 +140,7 @@ impl Line {
     }
 
     pub fn font(&self) -> FontHandle {
-        self.font.clone()
+        self.font.clone_ref()
     }
 }
 
@@ -192,7 +192,7 @@ impl GlyphSystem {
         let instance_id     = sprite.instance_id();
         let color_attr      = self.color.at(instance_id);
         let msdf_index_attr = self.glyph_msdf_index.at(instance_id);
-        let font            = self.font.clone();
+        let font            = self.font.clone_ref();
         let msdf_uniform    = self.msdf_uniform.clone();
         color_attr.set(Vector4::new(0.0,0.0,0.0,0.0));
         msdf_index_attr.set(0.0);
@@ -209,7 +209,7 @@ impl GlyphSystem {
     -> Line {
         let glyphs     = (0..length).map(|_| self.new_glyph()).collect();
         let base_color = color;
-        let font       = self.font.clone();
+        let font       = self.font.clone_ref();
         Line {glyphs,baseline_start,height,base_color,font}
     }
 

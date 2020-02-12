@@ -31,7 +31,7 @@ pub struct TextFieldFrp {
     /// Keyboard actions. Here we define shortcuts for all actions except letters input, copying
     /// and pasting.
     actions: KeyboardActions,
-    /// A node producing event once cut operation was requested.
+    /// Produce event once cut operation was requested.
     cut: Dynamic<()>,
     /// A node producing event once copy operation was requested.
     copy: Dynamic<()>,
@@ -117,22 +117,19 @@ impl TextFieldFrp {
     fn copy_action_lambda(cut:bool, text_field_ptr:Weak<RefCell<TextFieldData>>)
     -> impl Fn() -> String {
         move || {
-            match text_field_ptr.upgrade() {
-                Some(text_field) => {
-                    let mut text_field_ref = text_field.borrow_mut();
-                    let result             = text_field_ref.get_selected_text();
-                    if cut { text_field_ref.edit(""); }
-                    result
-                },
-                None => default()
-            }
+            text_field_ptr.upgrade().map_or(default(),|text_field| {
+                let mut text_field_ref = text_field.borrow_mut();
+                let result             = text_field_ref.get_selected_text();
+                if cut { text_field_ref.write(""); }
+                result
+            })
         }
     }
 
     fn paste_action_lambda(text_field_ptr:Weak<RefCell<TextFieldData>>) -> impl Fn(&String) {
         move |text_to_paste| {
             let inserted = text_to_paste.as_str();
-            text_field_ptr.upgrade().for_each(|tf| { tf.borrow_mut().edit(inserted) })
+            text_field_ptr.upgrade().for_each(|tf| { tf.borrow_mut().write(inserted) })
         }
     }
 
@@ -142,7 +139,7 @@ impl TextFieldFrp {
                 if let Key::Character(string) = key {
                     let modifiers = &[Key::Control,Key::Alt,Key::Meta];
                     if !modifiers.iter().any(|k| mask.has_key(k)) {
-                        text_field.borrow_mut().edit(string);
+                        text_field.borrow_mut().write(string);
                     }
                 }
             })
@@ -161,7 +158,7 @@ impl TextFieldFrp {
         setter.set_navigation_action(&[End],          Step::LineEnd);
         setter.set_navigation_action(&[Control,Home], Step::DocBegin);
         setter.set_navigation_action(&[Control,End],  Step::DocEnd);
-        setter.set_action(&[Enter],     |t| t.edit("\n"));
+        setter.set_action(&[Enter],     |t| t.write("\n"));
         setter.set_action(&[Delete],    |t| t.do_delete_operation(Step::Right));
         setter.set_action(&[Backspace], |t| t.do_delete_operation(Step::Left));
     }
@@ -191,7 +188,8 @@ impl<'a> TextFieldActionsSetter<'a> {
 
     fn set_navigation_action(&mut self, base_keys:&[Key], step:Step) {
         self.set_action(base_keys, move |t| t.navigate_cursors(step,false));
-        let selecting_keys = base_keys.iter().cloned().chain(std::iter::once(Key::Shift)).collect_vec();
+        let base_keys_cloned = base_keys.iter().cloned();
+        let selecting_keys   = base_keys_cloned.chain(std::iter::once(Key::Shift)).collect_vec();
         self.set_action(selecting_keys.as_ref(), move |t| t.navigate_cursors(step,true));
     }
 }

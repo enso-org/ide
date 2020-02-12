@@ -89,9 +89,9 @@ impl FontRenderInfo {
     pub fn new(name:String, font_data:&[u8]) -> FontRenderInfo {
         FontRenderInfo {name,
             msdf_sys_font : msdf_sys::Font::load_from_memory(font_data),
-            msdf_texture  : RefCell::new(default()),
-            glyphs        : RefCell::new(default()),
-            kerning       : RefCell::new(default())
+            msdf_texture  : default(),
+            glyphs        : default(),
+            kerning       : default(),
         }
     }
 
@@ -207,18 +207,18 @@ impl FontRegistry {
     pub fn get_or_load_embedded_font(&mut self, name:&str) -> Option<FontHandle> {
         match self.fonts.entry(name.to_string()) {
             Occupied(entry) => Some(entry.get().clone()),
-            Vacant(entry)   => match FontRenderInfo::from_embedded(&self.embedded,name) {
-                Some(render_info) => {
-                    let rc = Rc::new(render_info);
-                    entry.insert(rc.clone());
-                    Some(rc)
-                },
-                None => None
+            Vacant(entry)   => {
+                let font_opt = FontRenderInfo::from_embedded(&self.embedded,name);
+                font_opt.map(|font| {
+                    let rc = Rc::new(font);
+                    entry.insert(rc.clone_ref());
+                    rc
+                })
             }
         }
     }
 
-    /// Get render info of one of loaded fonts.
+    /// Get handle one of loaded fonts.
     pub fn get_render_info(&mut self, name:&str) -> Option<FontHandle> {
         self.fonts.get_mut(name).cloned()
     }

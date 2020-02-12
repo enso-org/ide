@@ -147,17 +147,17 @@ shared! { TextField
         ///
         /// All the currently selected text will be removed, and the given string will be inserted
         /// by each cursor.
-        pub fn edit(&mut self, insertion:&str) {
-            let trimmed                 = insertion.trim_end_matches('\n');
+        pub fn write(&mut self, text:&str) {
+            let trimmed                 = text.trim_end_matches('\n');
             let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
             let cursor_ids              = self.cursors.sorted_cursor_indices();
 
             if is_line_per_cursor_edit {
                 let cursor_with_line = cursor_ids.iter().cloned().zip(trimmed.split('\n'));
-                self.edit_per_cursor(cursor_with_line);
+                self.write_per_cursor(cursor_with_line);
             } else {
-                let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,insertion));
-                self.edit_per_cursor(cursor_with_line);
+                let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,text));
+                self.write_per_cursor(cursor_with_line);
             };
             self.assignment_update().update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content);
@@ -174,7 +174,7 @@ shared! { TextField
             let mut navigation    = CursorNavigation {content,selecting};
             let without_selection = |c:&Cursor| !c.has_selection();
             self.cursors.navigate_cursors(&mut navigation,step,without_selection);
-            self.edit("");
+            self.write("");
         }
 
         /// Update underlying Display Object.
@@ -190,9 +190,9 @@ shared! { TextField
 impl TextField {
     /// Create new TextField.
     pub fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-        let data              = TextFieldData::new(world,initial_content,properties);
-        let rc                = Rc::new(RefCell::new(data));
-        let frp               = TextFieldFrp::new(Rc::downgrade(&rc));
+        let data = TextFieldData::new(world,initial_content,properties);
+        let rc   = Rc::new(RefCell::new(data));
+        let frp  = TextFieldFrp::new(Rc::downgrade(&rc));
         with(rc.borrow_mut(), move |mut data| {
             data.keyboard_binding = Some(frp.bind_frp_to_js_text_input_actions());
             data.frp              = Some(frp);
@@ -236,7 +236,7 @@ impl TextFieldData {
         }
     }
 
-    fn edit_per_cursor<'a,It>(&mut self, cursor_id_with_text_to_insert:It)
+    fn write_per_cursor<'a,It>(&mut self, cursor_id_with_text_to_insert:It)
     where It : Iterator<Item=(usize,&'a str)> {
         let mut location_change = TextLocationChange::default();
         for (cursor_id,to_insert) in cursor_id_with_text_to_insert {

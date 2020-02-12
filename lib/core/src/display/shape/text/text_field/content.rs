@@ -181,7 +181,7 @@ impl TextFieldContent {
             line_height : properties.text_size,
             lines       : Self::split_to_lines(text).map(Line::new).collect(),
             dirty_lines : DirtyLines::default(),
-            font        : properties.font.clone(),
+            font        : properties.font.clone_ref(),
         }
     }
 
@@ -232,7 +232,7 @@ impl TextFieldContent {
             height  : self.line_height,
             line    : &mut self.lines[index],
             line_id : index,
-            font    : self.font.clone(),
+            font    : self.font.clone_ref(),
         }
     }
 

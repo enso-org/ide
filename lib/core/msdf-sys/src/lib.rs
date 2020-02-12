@@ -12,10 +12,14 @@ use internal::*;
 use emscripten_data::ArrayMemoryView;
 use js_sys::Uint8Array;
 use std::future::Future;
+use std::pin::Pin;
+use std::task::Context;
+use std::task::Poll;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+
+
+
 
 // ======================
 // === Initialization ===

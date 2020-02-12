@@ -4,8 +4,8 @@ use wasm_bindgen::prelude::*;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
-use basegl::display::shape::text::text_field::cursor::Step::Right;
-use basegl::display::shape::text::text_field::{TextField, TextFieldProperties};
+use basegl::display::shape::text::text_field::TextField;
+use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
 use basegl::system::web;
 use nalgebra::Vector2;
@@ -63,8 +63,7 @@ fn animate_text_component
     let to_type_now = typed_chars.drain_filter(|ch| ch.time <= now);
     for ch in to_type_now {
         let string = ch.a_char.to_string();
-        text_field.edit(string.as_str());
-        text_field.navigate_cursors(Right,false);
+        text_field.write(string.as_str());
     }
     if start_scrolling <= js_sys::Date::now() {
         text_field.scroll(Vector2::new(0.0,-0.1));

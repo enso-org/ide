@@ -12,14 +12,9 @@ use crate::core::fmt::{Formatter, Error};
 // === Key ===
 // ===========
 
-/// A type of key.
+/// A key representation.
 pub use keyboard_types::Key;
 
-///// A keyboard key representation. This newtype extends the `Key` structure taken from
-///// `keyboard_types` crate, e.g. adding possibility to create Key from String,
-///// and implements `Default`.
-//#[derive(Clone,Debug,Eq,FromStr,PartialEq,Shrinkwrap)]
-//pub struct Key(pub KeyType);
 
 
 // ===============
@@ -132,7 +127,6 @@ impl Default for Keyboard {
             keyboard.key_state          = key_pressed_state.merge(&key_released_state);
             keyboard.previous_key_mask  = recursive::<KeyMask>();
             keyboard.key_mask           = key_state.map2(&previous_key_mask,KeyState::updated_mask);
-
         }
         previous_key_mask.initialize(&key_mask);
 
@@ -148,10 +142,10 @@ impl Default for Keyboard {
 
 /// An action defined for specific key combinations. For convenience, the key mask is passed as
 /// argument.
-pub trait Action    = FnMut(&KeyMask) + 'static;
+pub trait Action = FnMut(&KeyMask) + 'static;
 
 /// A mapping between key combinations and actions.
-pub type  ActionMap = HashMap<KeyMask,Box<dyn Action>>;
+pub type ActionMap = HashMap<KeyMask,Box<dyn Action>>;
 
 /// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
 pub struct KeyboardActions {
@@ -172,7 +166,8 @@ impl KeyboardActions {
 
     fn perform_action_lambda(action_map:Rc<RefCell<ActionMap>>) -> impl Fn(&KeyMask) {
         move |key_mask| {
-            if let Some((map_mask, mut action)) = with(action_map.borrow_mut(), |mut map| map.remove_entry(key_mask)) {
+            let entry_opt = with(action_map.borrow_mut(), |mut map| map.remove_entry(key_mask));
+            if let Some((map_mask, mut action)) = entry_opt {
                 action(key_mask);
                 if let Entry::Vacant(entry) =  action_map.borrow_mut().entry(map_mask) {
                     entry.insert(action);
