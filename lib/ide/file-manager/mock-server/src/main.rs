@@ -33,10 +33,12 @@ use tungstenite::handshake::server::Response;
 
 /// Error code that server returns on a failed call.
 const FAILED_CALL_ERROR_CODE:i64 = -32000;
+
 /// Default port that server listens on.
-pub const DEFAULT_PORT: i32  = 30616;
+pub const DEFAULT_PORT:i32  = 30616;
+
 /// Environemnt variable that can override the port that server listens on.
-pub const PORT_VAR:     &str = "ENSO_FILE_MANAGER_PORT";
+pub const PORT_VAR:&str = "ENSO_FILE_MANAGER_PORT";
 
 
 
@@ -118,7 +120,7 @@ impl Handler {
                 let reply_text   = serde_json::from_value::<String>(reply_json).unwrap();
                 let reply_msg    = Message::text(reply_text);
                 if self.socket.write_message(reply_msg).is_err() {
-                    return;
+                    break;
                 }
             }
             // ignore non-text messages.
@@ -134,7 +136,7 @@ impl Handler {
 
 fn main() {
     let port    = utils::env::parse_var_or(PORT_VAR, DEFAULT_PORT);
-    let address = format!("127.0.0.1:{}", port);
+    let address = iformat!("127.0.0.1:{port}");
     let server  = TcpListener::bind(&address).unwrap();
     println!("Listening on {}", address);
     for stream in server.incoming() {
@@ -172,14 +174,13 @@ pub trait IsCall {
 // ===========
 
 /// Possible call requests. Members should wrap structs implementing `IsCall`.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(tag = "method", content = "params", rename_all = "camelCase")]
+#[derive(Serialize,Deserialize,Debug,PartialEq,Clone)]
+#[serde(tag="method", content="params", rename_all="camelCase")]
 enum Call {
     CopyFile(CopyFile),
     Exists(Exists),
     Read(Read),
     Write(Write),
-    // TODO [mwu]: add more methods, as needed
 }
 
 
