@@ -204,9 +204,9 @@ pub struct PhysicsProperties {
 impl PhysicsProperties {
     /// Creates  `PhysicsProperties` with `kinematics`, `spring` and `drag`.
     pub fn new
-    (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
+    (kinematics:KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
         let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics,spring,drag)));
-        Self { data }
+        Self {data}
     }
 }
 
@@ -263,9 +263,9 @@ impl PhysicsProperties {
     }
 }
 
-impl Into<PhysicsProperties> for &PhysicsProperties {
-    fn into(self) -> PhysicsProperties {
-        self.clone()
+impl From<&PhysicsProperties> for PhysicsProperties {
+    fn from(t:&PhysicsProperties) -> PhysicsProperties {
+        t.clone()
     }
 }
 
@@ -280,20 +280,18 @@ impl Into<PhysicsProperties> for &PhysicsProperties {
 pub struct SimulationThresholds {
     /// Used to snap object to fixed point if its distance is less than this threshold.
     pub fixed_point_distance : f32,
-    /// Used to stop simulation computing if the object speed is less than this threshold.
-    pub speed                : f32
 }
 
 impl Default for SimulationThresholds {
     fn default() -> Self {
-        Self::new(0.1, 0.1)
+        Self::new(0.1)
     }
 }
 
 impl SimulationThresholds {
     /// Creates a new SimulationThresholds.
-    pub fn new(fixed_point_distance:f32, speed:f32) -> Self {
-        Self {fixed_point_distance,speed}
+    pub fn new(fixed_point_distance:f32) -> Self {
+        Self {fixed_point_distance}
     }
 }
 
@@ -332,16 +330,10 @@ impl PhysicsSimulator {
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let interpolated_position = linear_interpolation(
-                current_position,
-                next_position,
-                transition as f32
-            );
 
             let fixed_point = properties.spring().fixed_point;
             properties.mod_kinematics(|kinematics| {
-                let speed    = kinematics.velocity.magnitude();
-                if speed >= thresholds.speed {
+                if kinematics.velocity != zero() {
                     let position = kinematics.position();
                     let distance = (position - fixed_point).magnitude();
                     if distance < thresholds.fixed_point_distance {
@@ -349,6 +341,11 @@ impl PhysicsSimulator {
                         kinematics.set_velocity(zero());
                         callback(fixed_point)
                     } else {
+                        let interpolated_position = linear_interpolation(
+                            current_position,
+                            next_position,
+                            transition as f32
+                        );
                         callback(interpolated_position)
                     }
                 }

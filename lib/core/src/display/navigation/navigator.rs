@@ -99,8 +99,7 @@ impl Navigator {
 
         let transform       = camera.transform();
         let resize_callback = camera.add_screen_update_callback(
-            enclose!((mut properties,transform) move |dimensions:&Vector2<f32>| {
-            println!("{}", dimensions);
+            enclose!((mut properties,transform) move |_:&Vector2<f32>| {
                 let position = transform.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
