@@ -102,7 +102,7 @@ impl Navigator {
                 let position = transform.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
-                    kinematics.set_velocity(zero());
+                    kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
                 });
                 properties.mod_spring(|spring| spring.fixed_point = position);
             })
