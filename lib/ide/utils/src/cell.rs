@@ -54,12 +54,12 @@ pub struct WeakHandle<T>(Weak<RefCell<T>>);
 impl<T> WeakHandle<T> {
     /// Obtain strong handle to the data.
     pub fn upgrade(&self) -> Option<StrongHandle<T>> {
-        self.0.upgrade().map(StrongHandle)
+        let WeakHandle(ref ptr) = self;
+        ptr.upgrade().map(StrongHandle)
     }
 
     /// Returns `Future` that shall try calling `Callback` with the access to mutably
-    /// borrowed data. Safe, as long as the returned `Future` is run only
-    /// through the executor and not manually polled.
+    /// borrowed data. The data will be borrowed
     pub fn with<Callback,R> (&self, callback:Callback) -> WeakWith<T,Callback>
     where for<'a> Callback: FnOnce(&'a mut T) -> R {
         WeakWith::new(self.0.clone(),callback)
