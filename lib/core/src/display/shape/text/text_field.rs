@@ -199,8 +199,7 @@ shared! { TextField
             let size     = self.properties.size;
             let x_range  = position.x ..= (position.x + size.x);
             let y_range  = (position.y - size.y) ..= position.y;
-            let result = x_range.contains(&point.x) && y_range.contains(&point.y);
-            result
+            x_range.contains(&point.x) && y_range.contains(&point.y);
         }
     }
 }
