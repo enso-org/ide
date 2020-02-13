@@ -93,18 +93,18 @@ impl Navigator {
             let y = pan.movement.y * scale;
             let z = 0.0;
 
-            properties.mod_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
+            properties.modify_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
         });
 
         let transform       = camera.transform();
         let resize_callback = camera.add_screen_update_callback(
             enclose!((mut properties,transform) move |_:&Vector2<f32>| {
                 let position = transform.position();
-                properties.mod_kinematics(|kinematics| {
+                properties.modify_kinematics(|kinematics| {
                     kinematics.set_position(position);
                     kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
                 });
-                properties.mod_spring(|spring| spring.fixed_point = position);
+                properties.modify_spring(|spring| spring.fixed_point = position);
             })
         );
 

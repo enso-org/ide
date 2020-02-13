@@ -11,7 +11,6 @@ use basegl::display::world::*;
 use super::ui_component::UiComponent;
 
 use nalgebra::Vector2;
-use nalgebra::Vector4;
 
 
 
@@ -25,7 +24,7 @@ mod color {
 
     pub type Color = Vector4<f32>;
 
-    const BLACK : Color = Color::new(0.0, 0.0, 0.0, 1.0);
+    pub fn black() -> Color { Vector4::new(0.0, 0.0, 0.0, 1.0) }
 }
 
 
@@ -54,7 +53,7 @@ impl TextEditor {
         let properties = TextFieldProperties {
             font,
             text_size  : 16.0,
-            base_color : BLACK,
+            base_color : color::black(),
             size       : Vector2::new(screen.width, screen.height)
         };
 
