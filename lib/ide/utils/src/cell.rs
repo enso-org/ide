@@ -22,7 +22,7 @@ macro_rules! make_handles {
                 WeakHandle(Rc::downgrade(&self.0))
             }
             /// Create a new StrongHandle that will wrap given data.
-            pub fn new(data:$data_type) -> Self {
+            pub fn new_from_data(data:$data_type) -> Self {
                 Handle(Rc::new(RefCell::new(data)))
             }
 
@@ -41,6 +41,18 @@ macro_rules! make_handles {
             /// Obtain a Handle to this data.
             pub fn upgrade(&self) -> Option<Handle> {
                 self.0.upgrade().map(Handle)
+            }
+        }
+
+        impl weak_table::traits::WeakElement for WeakHandle {
+            type Strong = Handle;
+
+            fn new(view: &Self::Strong) -> Self {
+                view.downgrade()
+            }
+
+            fn view(&self) -> Option<Self::Strong> {
+                self.upgrade()
             }
         }
     };

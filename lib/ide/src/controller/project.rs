@@ -9,110 +9,73 @@ use crate::controller::*;
 
 use utils::make_handles;
 use json_rpc::Transport;
+use weak_table::WeakValueHashMap;
+use weak_table::weak_value_hash_map::Entry::Occupied;
+use weak_table::weak_value_hash_map::Entry::Vacant;
+use flo_stream::Publisher;
+use file_manager_client as fmc;
+use file_manager_client::Notification;
+use file_manager_client::FilesystemEvent;
+use futures::SinkExt;
 
-/// Create a new project controller.
-///
-/// The remote connections should be already established.
-pub fn new(file_manager_transport:impl Transport + 'static) -> Handle {
-    let data = Data {
-        file_manager : file_manager_client::Client::new(file_manager_transport),
-        module_cache : default(),
-        text_cache   : default(),
-    };
-    Handle::new(data)
-}
 
 /// Project controller's state.
 #[derive(Debug)]
 pub struct Data {
     /// File Manager Client.
-    file_manager: file_manager_client::Client,
+    file_manager: file::Handle,
     /// Cache of module controllers.
-    module_cache: HashMap<module::Location, module::WeakHandle>,
+    module_cache: WeakValueHashMap<module::Location, module::WeakHandle>,
     /// Cache of text controllers.
-    text_cache: HashMap<file_manager_client::Path,text::WeakHandle>,
+    text_cache: WeakValueHashMap<file_manager_client::Path,text::WeakHandle>,
 }
 
 make_handles!(Data);
 
 impl Handle {
-    /// Spawns the task that processes the file manager's events.
+    /// Create a new project controller.
     ///
-    /// Note that File Manager requires manually calling `process_events`
-    /// method to yield any events through its streams / futures.
-    /// (without such call, this processor will just wait indefinitely)
-    pub async fn run_fm_events
-    (&self, spawner:impl futures::task::LocalSpawn) -> FallibleResult<()> {
-        let fm_stream     = self.with_borrowed(|data| data.file_manager.events());
-        let processor_fut = fm_stream.for_each(move |_event| async {
-            // TODO [mwu] dispatch the notification to the appropriate module
-            todo!()
-        });
-
-        Ok(spawner.spawn_local(processor_fut)?)
+    /// The remote connections should be already established.
+    pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
+        let data = Data {
+            file_manager           : file::Handle::new(file_manager_transport),
+            module_cache           : default(),
+            text_cache             : default(),
+        };
+        Handle::new_from_data(data)
     }
 
     /// Returns a module controller for given module location.
     ///
     /// Reuses existing controller if possible.
     /// Creates a new controller if needed.
-    pub fn open_module(&self, loc:&module::Location) -> FallibleResult<module::Handle> {
+    pub fn open_module(&self, loc:module::Location) -> FallibleResult<module::Handle> {
         self.with_borrowed(|data| {
-            if let Some(existing_controller) = data.lookup_module(loc) {
-                Ok(existing_controller)
-            } else {
-                data.create_module_controller(loc)
+            match data.module_cache.entry(loc.clone()) {
+                Occupied(entry) => Ok(entry.get().clone()),
+                Vacant(entry)   => Ok(entry.insert(module::Handle::new(loc))),
             }
         })
     }
 
-    /// Retuns a text controller for given file path. It may designate
-    /// either the Luna source file or other file belonging to the project.
-    ///
-    /// File should be an existing, correct UTF-8 encoded file.
-    pub async fn open_file_text(&self, _path:&std::path::Path) -> FallibleResult<text::Handle> {
-        // TODO [mwu] similar to the above (will need to add a second map
-        //      to keep handles or perhaps abstract the handles map to a
-        //      reusable structure?
-        //      Also might need to prepare a module first.
-        todo!()
+    pub fn open_text_file(&self, path:file_manager_client::Path) -> text::Handle {
+        self.with_borrowed(|data| {
+            let fm = data.file_manager.clone();
+            match data.text_cache.entry(path.clone()) {
+                Occupied(entry) => entry.get().clone(),
+                Vacant(entry)   => entry.insert(text::Handle::new_for_plain_text_file(path,fm)),
+            }
+        })
     }
 }
 
 impl Data {
-    /// Returns handle to given module's controller if already present.
-    fn lookup_module(&mut self, loc:&module::Location) -> Option<module::Handle> {
-        let weak   = self.module_cache.get(loc)?;
-        let handle = weak.upgrade();
-        if handle.is_none() {
-            self.module_cache.remove(loc);
-        }
-        handle
-    }
-
-    /// Stores given module controller handle and returns it.
-    ///
-    /// Note: handle stored in the project controller is weak, so the caller
-    /// remains responsible for managing the module's controller lifetime
-    /// (this is why the strong handle is returned).
-    ///
-    /// If there was already another module controller present in the cache,
-    /// it will be overwritten. Typically caller should use `lookup_module`
-    /// first.
-    fn insert_module(&mut self, data:module::Data) -> module::Handle {
-        let path        = data.loc.clone();
-        let module      = module::Handle::new(data);
-        let module_weak = module.downgrade();
-        self.module_cache.insert(path, module_weak);
-        module
-    }
-
     /// Obtains a handle to a module controller interested in this
     /// filesystem event.
     fn relevant_module
     (&mut self, event:&file_manager_client::Event) -> Option<module::Handle> {
         let location = Self::relevant_location(event)?;
-        self.lookup_module(&location)
+        self.module_cache.get(&location)
     }
 
     /// Identifies module affected by given file manager's event.
@@ -126,15 +89,5 @@ impl Data {
                 FilesystemEvent(e) => Some(module::Location(e.path.0.clone()))
             }
         }
-    }
-
-    /// Creates a new module controller.
-    fn create_module_controller(&mut self, loc:&module::Location)
-    -> FallibleResult<module::Handle> {
-        let module_data = module::Data{
-            loc : loc.clone(),
-        };
-        let module = self.insert_module(module_data);
-        Ok(module)
     }
 }

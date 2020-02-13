@@ -14,6 +14,7 @@
 //!
 //! Controllers store their handles using `utils::cell` handle types to ensure
 //! that mutable state is safely accessed.
+pub mod file;
 pub mod text;
 pub mod project;
 
@@ -57,7 +58,14 @@ pub mod module {
     make_handles!(Data);
 
     impl Handle {
+        pub fn new(loc:Location) -> Self {
+            let data = Data {loc};
+            Self::new_from_data(data)
+        }
 
+        pub fn location(&self) -> Location {
+            self.with_borrowed(|data| data.loc.clone())
+        }
         /// Receives a notification call when file with this module has been
         /// modified by a third-party tool (like non-IDE text editor).
         pub async fn file_externally_modified(&self) {
