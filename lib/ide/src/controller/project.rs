@@ -5,6 +5,7 @@
 
 use crate::prelude::*;
 
+use crate::make_handles;
 use crate::controller::*;
 
 use json_rpc::Transport;
@@ -140,7 +141,7 @@ impl Handle {
 
 /// Boilerplate wrappers over stateful `Data` APIs. Refer to the `Data`
 /// methods for documentation.
-impl StrongHandle {
+impl Handle {
     #[allow(missing_docs)]
     pub async fn lookup_module
     (&self, loc:module::Location)

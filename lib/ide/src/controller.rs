@@ -14,7 +14,6 @@
 //!
 //! Controllers store their handles using `utils::cell` handle types to ensure
 //! that mutable state is safely accessed.
-
 pub mod text;
 pub mod project;
 
@@ -22,44 +21,6 @@ use crate::prelude::*;
 
 /// General-purpose `Result` supporting any `Error`-compatible failures.
 pub type FallibleResult<T> = Result<T,failure::Error>;
-
-/// Macro defines `StrongHandle` and `WeakHandle` newtypes for handles storing
-/// the type given in the argument.
-///
-/// This allows treating handles as separate types and fitting them with impl
-/// methods of their own. Such implementation may allow
-/// hiding from user gritty details of borrows usage behind nice, easy API.
-pub macro_rules! make_handles {
-    ($data_type:ty) => {
-        /// newtype wrapper over StrongHandle.
-        #[derive(Shrinkwrap)]
-        #[derive(Clone,Debug)]
-        pub struct Handle(Rc<RefCell<$data_type>>);
-
-        impl Handle {
-            /// Obtain a WeakHandle to this data.
-            pub fn downgrade(&self) -> WeakHandle {
-                WeakHandle(self.0.downgrade())
-            }
-            /// Create a new StrongHandle that will wrap given data.
-            pub fn new(data:$data_type) -> StrongHandle {
-                StrongHandle(utils::cell::StrongHandle::new(data))
-            }
-        }
-
-        /// newtype wrapper over WeakHandle.
-        #[derive(Shrinkwrap)]
-        #[derive(Clone,Debug)]
-        pub struct WeakHandle(Weak<RefCell<<$data_type>>);
-
-        impl WeakHandle {
-            /// Obtain a StrongHandle to this data.
-            pub fn upgrade(&self) -> Option<Handle> {
-                self.0.upgrade().map(StrongHandle)
-            }
-        }
-    };
-}
 
 
 
@@ -111,7 +72,7 @@ pub mod module {
 
     make_handles!(Data);
 
-    impl StrongHandle {
+    impl Handle {
         /// Fetches the Luna code for this module using remote File Manager.
         pub fn fetch_text(&self) -> impl Future<Output = FallibleResult<String>> {
             self.with(|data| data.fetch_text()).flatten()
