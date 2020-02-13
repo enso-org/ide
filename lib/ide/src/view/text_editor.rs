@@ -2,15 +2,17 @@
 
 use crate::prelude::*;
 
+use super::ui_component::UiComponent;
+use super::ui_component::Padding;
+
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
 
-use super::ui_component::UiComponent;
-
 use nalgebra::Vector2;
+use nalgebra::zero;
 
 
 
@@ -38,7 +40,10 @@ mod color {
 /// planned to be implemented for it.
 #[derive(Clone,Debug)]
 pub struct TextEditor {
-    text_field : TextField
+    text_field : TextField,
+    padding    : Padding,
+    position   : Vector2<f32>,
+    dimensions : Vector2<f32>
 }
 
 impl TextEditor {
@@ -49,31 +54,52 @@ impl TextEditor {
         let screen       = camera.screen();
         let mut fonts    = FontRegistry::new();
         let font         = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+        let padding      = default();
+        let position     = zero();
+        let dimensions   = Vector2::new(screen.width, screen.height);
 
         let properties = TextFieldProperties {
             font,
             text_size  : 16.0,
             base_color : color::black(),
-            size       : Vector2::new(screen.width, screen.height)
+            size       : dimensions
         };
 
         let text_field = TextField::new(&world,properties);
-        text_field.set_position(Vector3::new(0.0, screen.height, 0.0));
         world.add_child(&text_field);
-        text_field.update();
 
-        Self {text_field}
+        Self {text_field,padding,position,dimensions}.initialize()
+    }
+
+    fn initialize(mut self) -> Self {
+        self.update();
+        self
     }
 
     /// Updates the underlying display object.
     pub fn update(&self) {
+        let padding  = self.padding;
+        let position = self.position;
+        let position = Vector3::new(position.x + padding.left, position.y + padding.bottom, 0.0);
+        let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
+        self.text_field.set_position(position);
+        self.text_field.set_size(self.dimensions - padding);
         self.text_field.update();
     }
 }
 
 impl UiComponent for TextEditor {
+    fn set_padding(&mut self, padding:Padding) {
+        self.padding = padding;
+    }
+
+    fn padding(&self) -> Padding {
+        self.padding
+    }
+
     fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-        self.text_field.set_size(dimensions);
+        self.dimensions = dimensions;
+        self.update();
     }
 
     fn dimensions(&self) -> Vector2<f32> {
@@ -81,7 +107,8 @@ impl UiComponent for TextEditor {
     }
 
     fn set_position(&mut self, position:Vector2<f32>) {
-        self.text_field.set_position(Vector3::new(position.x, position.y, 0.0));
+        self.position = position;
+        self.update();
     }
 
     fn position(&self) -> Vector2<f32> {

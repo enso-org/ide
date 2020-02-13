@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use js_sys::Function;
 use web_sys::KeyboardEvent;
 use wasm_bindgen::JsCast;
-
+use crate::view::ui_component::Padding;
 
 
 //TODO: ViewMode is a temporary enumeration, it will be replaced by proper Panel impl.
@@ -87,6 +87,7 @@ impl ViewLayoutData {
                 (position,dimensions)
             }
         };
+        self.text_editor.set_padding(Padding::new(10.0, 10.0, 10.0, 10.0));
         self.text_editor.set_dimensions(dimensions);
         self.text_editor.set_position(position);
         self.text_editor.update();
