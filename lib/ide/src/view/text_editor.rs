@@ -13,6 +13,28 @@ use super::ui_component::UiComponent;
 use nalgebra::Vector2;
 use nalgebra::Vector4;
 
+
+
+// =============
+// === Color ===
+// =============
+
+//TODO[dg]:Move this to a better place.
+mod color {
+    use nalgebra::Vector4;
+
+    pub type Color = Vector4<f32>;
+
+    const BLACK : Color = Color::new(0.0, 0.0, 0.0, 1.0);
+}
+
+
+
+
+// ==================
+// === TextEditor ===
+// ==================
+
 /// TextEditor allows us to edit text files or Enso Modules. Extensible code highlighting is
 /// planned to be implemented for it.
 #[derive(Clone,Debug)]
@@ -23,16 +45,16 @@ pub struct TextEditor {
 impl TextEditor {
     /// Creates a new TextEditor.
     pub fn new(world:&World) -> Self {
-        let scene     = world.scene();
-        let camera    = scene.camera();
-        let screen    = camera.screen();
-        let mut fonts = FontRegistry::new();
-        let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+        let scene        = world.scene();
+        let camera       = scene.camera();
+        let screen       = camera.screen();
+        let mut fonts    = FontRegistry::new();
+        let font         = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
 
         let properties = TextFieldProperties {
             font,
             text_size  : 16.0,
-            base_color : Vector4::new(0.0, 0.0, 0.0, 1.0),
+            base_color : BLACK,
             size       : Vector2::new(screen.width, screen.height)
         };
 

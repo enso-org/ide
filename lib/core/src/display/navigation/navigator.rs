@@ -126,7 +126,7 @@ impl Navigator {
                 let min_zoom     = camera.clipping().near  + min_zoom;
                 position.z       = clamp(position.z, min_zoom, max_zoom);
 
-                properties.mod_spring(|spring| spring.fixed_point = position);
+                properties.modify_spring(|spring| spring.fixed_point = position);
         };
         (resize_callback, NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed))
     }
