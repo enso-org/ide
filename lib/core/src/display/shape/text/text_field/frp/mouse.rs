@@ -37,7 +37,7 @@ impl TextFieldMouseFrp {
         let is_inside           = Self::is_inside_text_field_lambda(text_field_ptr.clone());
         let is_multicursor_mode = |mask:&KeyMask| mask == &[Alt,Shift].iter().collect();
         let set_cursor_action   = Self::set_cursor_lambda(text_field_ptr.clone());
-        let select_action       = Self::select_lambda(text_field_ptr.clone());
+        let select_action       = Self::select_lambda(text_field_ptr);
         frp! {
             text_field.is_inside     = mouse.position.map(is_inside);
             text_field.click_in      = mouse.on_down.gate(&is_inside);
