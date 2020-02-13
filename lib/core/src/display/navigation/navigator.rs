@@ -68,8 +68,7 @@ impl Navigator {
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second   = 60.0;
         let callback           = move |position| camera.set_position(position);
-        let thresholds         = default();
-        let sim = PhysicsSimulator::new(steps_per_second,&properties,thresholds,callback);
+        let sim = PhysicsSimulator::new(steps_per_second,&properties,callback);
         (sim,properties)
     }
 

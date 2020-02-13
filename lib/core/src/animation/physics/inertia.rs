@@ -179,13 +179,15 @@ impl KinematicsProperties {
 struct PhysicsPropertiesData {
     kinematics : KinematicsProperties,
     spring     : SpringProperties,
-    drag       : DragProperties
+    drag       : DragProperties,
+    thresholds : SimulationThresholds
 }
 
 impl PhysicsPropertiesData {
     pub fn new
     (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
-        Self { kinematics,spring,drag }
+        let thresholds = default();
+        Self {kinematics,spring,drag,thresholds}
     }
 }
 
@@ -215,11 +217,24 @@ impl PhysicsProperties {
 
 impl PhysicsProperties {
     /// `KinematicsProperties` getter.
-    pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics }
+    pub fn kinematics(&self) -> KinematicsProperties {
+        self.data.borrow().kinematics
+    }
+
     /// `SpringProperties` getter.
-    pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring }
+    pub fn spring(&self) -> SpringProperties {
+        self.data.borrow().spring
+    }
+
     /// `DragProperties` getter.
-    pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag }
+    pub fn drag(&self) -> DragProperties {
+        self.data.borrow().drag
+    }
+
+    /// `SimulationThresholds` getter.
+    pub fn thresholds(&self) -> SimulationThresholds {
+        self.data.borrow().thresholds
+    }
 }
 
 
@@ -260,6 +275,18 @@ impl PhysicsProperties {
     /// `DragProperties` setter.
     pub fn set_drag(&mut self, drag:DragProperties) {
         self.data.borrow_mut().drag = drag;
+    }
+
+    /// Safe accessor to modify `SimulationThresholds`.
+    pub fn mod_thresholds<F:FnOnce(&mut SimulationThresholds)>(&mut self, f:F) {
+        let mut thresholds = self.thresholds();
+        f(&mut thresholds);
+        self.set_thresholds(thresholds);
+    }
+
+    /// `SimulationThresholds` setter.
+    pub fn set_thresholds(&mut self, thresholds:SimulationThresholds) {
+        self.data.borrow_mut().thresholds = thresholds;
     }
 }
 
@@ -315,7 +342,6 @@ impl PhysicsSimulator {
     pub fn new<F:PhysicsCallback,Properties:Into<PhysicsProperties>>
     ( steps_per_second : f64
     , properties       : Properties
-    , thresholds       : SimulationThresholds
     , mut callback     : F) -> Self {
         let mut properties       = properties.into();
         let step_ms              = 1000.0 / steps_per_second;
@@ -332,6 +358,7 @@ impl PhysicsSimulator {
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
 
             let fixed_point = properties.spring().fixed_point;
+            let thresholds  = properties.thresholds();
             properties.mod_kinematics(|kinematics| {
                 if kinematics.velocity != zero() {
                     let position = kinematics.position();
