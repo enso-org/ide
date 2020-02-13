@@ -179,13 +179,15 @@ impl KinematicsProperties {
 struct PhysicsPropertiesData {
     kinematics : KinematicsProperties,
     spring     : SpringProperties,
-    drag       : DragProperties
+    drag       : DragProperties,
+    thresholds : SimulationThresholds
 }
 
 impl PhysicsPropertiesData {
     pub fn new
     (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
-        Self { kinematics,spring,drag }
+        let thresholds = default();
+        Self {kinematics,spring,drag,thresholds}
     }
 }
 
@@ -204,9 +206,9 @@ pub struct PhysicsProperties {
 impl PhysicsProperties {
     /// Creates  `PhysicsProperties` with `kinematics`, `spring` and `drag`.
     pub fn new
-    (kinematics: KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
+    (kinematics:KinematicsProperties, spring:SpringProperties, drag:DragProperties) -> Self {
         let data = Rc::new(RefCell::new(PhysicsPropertiesData::new(kinematics,spring,drag)));
-        Self { data }
+        Self {data}
     }
 }
 
@@ -215,11 +217,24 @@ impl PhysicsProperties {
 
 impl PhysicsProperties {
     /// `KinematicsProperties` getter.
-    pub fn kinematics(&self) -> KinematicsProperties { self.data.borrow().kinematics }
+    pub fn kinematics(&self) -> KinematicsProperties {
+        self.data.borrow().kinematics
+    }
+
     /// `SpringProperties` getter.
-    pub fn spring    (&self) -> SpringProperties     { self.data.borrow().spring }
+    pub fn spring(&self) -> SpringProperties {
+        self.data.borrow().spring
+    }
+
     /// `DragProperties` getter.
-    pub fn drag      (&self) -> DragProperties       { self.data.borrow().drag }
+    pub fn drag(&self) -> DragProperties {
+        self.data.borrow().drag
+    }
+
+    /// `SimulationThresholds` getter.
+    pub fn thresholds(&self) -> SimulationThresholds {
+        self.data.borrow().thresholds
+    }
 }
 
 
@@ -261,11 +276,23 @@ impl PhysicsProperties {
     pub fn set_drag(&mut self, drag:DragProperties) {
         self.data.borrow_mut().drag = drag;
     }
+
+    /// Safe accessor to modify `SimulationThresholds`.
+    pub fn mod_thresholds<F:FnOnce(&mut SimulationThresholds)>(&mut self, f:F) {
+        let mut thresholds = self.thresholds();
+        f(&mut thresholds);
+        self.set_thresholds(thresholds);
+    }
+
+    /// `SimulationThresholds` setter.
+    pub fn set_thresholds(&mut self, thresholds:SimulationThresholds) {
+        self.data.borrow_mut().thresholds = thresholds;
+    }
 }
 
-impl Into<PhysicsProperties> for &PhysicsProperties {
-    fn into(self) -> PhysicsProperties {
-        self.clone()
+impl From<&PhysicsProperties> for PhysicsProperties {
+    fn from(t:&PhysicsProperties) -> PhysicsProperties {
+        t.clone()
     }
 }
 
@@ -280,13 +307,14 @@ impl Into<PhysicsProperties> for &PhysicsProperties {
 pub struct SimulationThresholds {
     /// Used to snap object to fixed point if its distance is less than this threshold.
     pub fixed_point_distance : f32,
-    /// Used to stop simulation computing if the object speed is less than this threshold.
-    pub speed                : f32
+
+    /// The minimum speed threshold to stopping simulation.
+    pub speed : f32
 }
 
 impl Default for SimulationThresholds {
     fn default() -> Self {
-        Self::new(0.1, 0.1)
+        Self::new(0.1,0.1)
     }
 }
 
@@ -317,7 +345,6 @@ impl PhysicsSimulator {
     pub fn new<F:PhysicsCallback,Properties:Into<PhysicsProperties>>
     ( steps_per_second : f64
     , properties       : Properties
-    , thresholds       : SimulationThresholds
     , mut callback     : F) -> Self {
         let mut properties       = properties.into();
         let step_ms              = 1000.0 / steps_per_second;
@@ -332,25 +359,24 @@ impl PhysicsSimulator {
             }
 
             let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-            let interpolated_position = linear_interpolation(
-                current_position,
-                next_position,
-                transition as f32
-            );
 
             let fixed_point = properties.spring().fixed_point;
+            let thresholds  = properties.thresholds();
             properties.mod_kinematics(|kinematics| {
                 let speed    = kinematics.velocity.magnitude();
-                if speed >= thresholds.speed {
-                    let position = kinematics.position();
-                    let distance = (position - fixed_point).magnitude();
-                    if distance < thresholds.fixed_point_distance {
-                        kinematics.set_position(fixed_point);
-                        kinematics.set_velocity(zero());
-                        callback(fixed_point)
-                    } else {
-                        callback(interpolated_position)
-                    }
+                let position = kinematics.position();
+                let distance = (position - fixed_point).magnitude();
+                if speed < thresholds.speed && distance < thresholds.fixed_point_distance {
+                    kinematics.set_position(fixed_point);
+                    kinematics.set_velocity(zero());
+                    callback(fixed_point)
+                } else {
+                    let interpolated_position = linear_interpolation(
+                        current_position,
+                        next_position,
+                        transition as f32
+                    );
+                    callback(interpolated_position)
                 }
             });
         });

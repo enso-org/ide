@@ -24,6 +24,7 @@ use wasm_bindgen::JsCast;
 // === ViewMode ===
 // ================
 
+/// Defines the element's view mode. It can fully occupy the screen or only half of it.
 #[derive(Clone,Copy,Debug)]
 enum ViewMode {
     Full,
@@ -57,7 +58,7 @@ impl Drop for ViewLayoutData {
 impl ViewLayoutData {
     fn set_view_mode(&mut self, view_mode:ViewMode) {
         self.view_mode = view_mode;
-        self.update();
+        self.recalculate_layout();
     }
 
     fn switch_mode(&mut self) {
@@ -70,10 +71,10 @@ impl ViewLayoutData {
 
     fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
         self.dimensions = dimensions;
-        self.update();
+        self.recalculate_layout();
     }
 
-    fn update(&mut self) {
+    fn recalculate_layout(&mut self) {
         let dimensions = self.dimensions;
         let (position,dimensions) = match self.view_mode {
             ViewMode::Full => {
@@ -112,7 +113,7 @@ impl ViewLayout {
         let keyboard_closure = None;
         let view_mode        = ViewMode::Half;
         let dimensions       = zero();
-        let data             = ViewLayoutData{text_editor,keyboard_closure,view_mode,dimensions};
+        let data             = ViewLayoutData {text_editor,keyboard_closure,view_mode,dimensions};
         let data             = Rc::new(RefCell::new(data));
         Self {data}.init(world)
     }

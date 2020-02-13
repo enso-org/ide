@@ -68,8 +68,7 @@ impl Navigator {
         let properties         = PhysicsProperties::new(kinematics, spring, drag);
         let steps_per_second   = 60.0;
         let callback           = move |position| camera.set_position(position);
-        let thresholds         = default();
-        let sim = PhysicsSimulator::new(steps_per_second,&properties,thresholds,callback);
+        let sim = PhysicsSimulator::new(steps_per_second,&properties,callback);
         (sim,properties)
     }
 
@@ -99,12 +98,11 @@ impl Navigator {
 
         let transform       = camera.transform();
         let resize_callback = camera.add_screen_update_callback(
-            enclose!((mut properties,transform) move |dimensions:&Vector2<f32>| {
-            println!("{}", dimensions);
+            enclose!((mut properties,transform) move |_:&Vector2<f32>| {
                 let position = transform.position();
                 properties.mod_kinematics(|kinematics| {
                     kinematics.set_position(position);
-                    kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
+                    kinematics.set_velocity(zero());
                 });
                 properties.mod_spring(|spring| spring.fixed_point = position);
             })

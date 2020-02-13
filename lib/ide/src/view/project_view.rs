@@ -1,15 +1,15 @@
 //! This module contains ProjectView, the main view, responsible for managing TextEditor and
 //! GraphEditor.
 
+use crate::prelude::*;
+
 use super::view_layout::ViewLayout;
 
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
 use basegl::system::web;
-use web::resize_observer::ResizeObserver;
+use basegl::control::callback::CallbackHandle;
 
-use std::rc::Rc;
-use std::cell::RefCell;
 use nalgebra::Vector2;
 
 
@@ -22,7 +22,7 @@ use nalgebra::Vector2;
 struct ProjectViewData {
     world           : World,
     layout          : ViewLayout,
-    resize_observer : Option<ResizeObserver>
+    resize_callback: Option<CallbackHandle>
 }
 
 impl ProjectViewData {
@@ -47,8 +47,8 @@ impl Default for ProjectView {
     fn default() -> Self {
         let world           = WorldData::new(&web::body());
         let layout          = ViewLayout::default(&world);
-        let resize_observer = None;
-        let data            = ProjectViewData{world,layout,resize_observer};
+        let resize_callback = None;
+        let data            = ProjectViewData{world,layout,resize_callback};
         let data            = Rc::new(RefCell::new(data));
         Self {data}.init()
     }
@@ -63,11 +63,12 @@ impl ProjectView {
     fn init(self) -> Self {
         let data            = Rc::downgrade(&self.data);
         let scene           = self.data.borrow().world.scene();
-        let resize_observer = scene.add_resize_observer(move |width,height| {
-            let dimensions  = Vector2::new(width as f32,height as f32);
-            data.upgrade().map(|data| data.borrow_mut().set_dimensions(dimensions));
-        });
-        self.data.borrow_mut().resize_observer = Some(resize_observer);
+        let resize_callback = scene.camera().add_screen_update_callback(
+            move |dimensions:&Vector2<f32>| {
+                data.upgrade().map(|data| data.borrow_mut().set_dimensions(*dimensions));
+            }
+        );
+        self.data.borrow_mut().resize_callback = Some(resize_callback);
         self
     }
 
