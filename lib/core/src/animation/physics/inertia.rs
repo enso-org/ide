@@ -307,18 +307,21 @@ impl From<&PhysicsProperties> for PhysicsProperties {
 pub struct SimulationThresholds {
     /// Used to snap object to fixed point if its distance is less than this threshold.
     pub fixed_point_distance : f32,
+
+    /// The minimum speed threshold to stopping simulation.
+    pub speed : f32
 }
 
 impl Default for SimulationThresholds {
     fn default() -> Self {
-        Self::new(0.1)
+        Self::new(0.1,0.1)
     }
 }
 
 impl SimulationThresholds {
     /// Creates a new SimulationThresholds.
-    pub fn new(fixed_point_distance:f32) -> Self {
-        Self {fixed_point_distance}
+    pub fn new(fixed_point_distance:f32, speed:f32) -> Self {
+        Self {fixed_point_distance,speed}
     }
 }
 
@@ -360,21 +363,20 @@ impl PhysicsSimulator {
             let fixed_point = properties.spring().fixed_point;
             let thresholds  = properties.thresholds();
             properties.mod_kinematics(|kinematics| {
-                if kinematics.velocity != zero() {
-                    let position = kinematics.position();
-                    let distance = (position - fixed_point).magnitude();
-                    if distance < thresholds.fixed_point_distance {
-                        kinematics.set_position(fixed_point);
-                        kinematics.set_velocity(zero());
-                        callback(fixed_point)
-                    } else {
-                        let interpolated_position = linear_interpolation(
-                            current_position,
-                            next_position,
-                            transition as f32
-                        );
-                        callback(interpolated_position)
-                    }
+                let speed    = kinematics.velocity.magnitude();
+                let position = kinematics.position();
+                let distance = (position - fixed_point).magnitude();
+                if speed < thresholds.speed && distance < thresholds.fixed_point_distance {
+                    kinematics.set_position(fixed_point);
+                    kinematics.set_velocity(zero());
+                    callback(fixed_point)
+                } else {
+                    let interpolated_position = linear_interpolation(
+                        current_position,
+                        next_position,
+                        transition as f32
+                    );
+                    callback(interpolated_position)
                 }
             });
         });
