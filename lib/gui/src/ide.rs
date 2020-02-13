@@ -1,9 +1,11 @@
-use basegl::system::web;
-use ide::entry_point::entry_point;
+//! This module defines the entrypoint function for IDE.
 
 use wasm_bindgen::prelude::*;
 
+use basegl::system::web;
+use ide::entry_point::entry_point;
 
+/// IDE startup function.
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_ide() {

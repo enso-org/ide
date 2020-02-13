@@ -47,11 +47,11 @@ struct ViewLayoutData {
 
 impl Drop for ViewLayoutData {
     fn drop(&mut self) {
-        self.keyboard_closure.as_ref().map(|keyboard_closure| {
+        if let Some(keyboard_closure) = self.keyboard_closure.as_ref() {
             let body = document().unwrap().body().unwrap();
             let callback : &Function = keyboard_closure.as_ref().unchecked_ref();
             body.remove_event_listener_with_callback("keydown", callback).ok();
-        });
+        }
     }
 }
 
@@ -123,9 +123,9 @@ impl ViewLayout {
         let closure = move |event:KeyboardEvent| {
             const F_KEY : u32 = 70;
             if event.ctrl_key() && event.key_code() == F_KEY {
-                data.upgrade().map(|data| {
+                if let Some(data) = data.upgrade() {
                     data.borrow_mut().switch_mode()
-                });
+                }
                 event.prevent_default();
             }
         };

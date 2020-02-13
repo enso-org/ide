@@ -65,7 +65,9 @@ impl ProjectView {
         let scene           = self.data.borrow().world.scene();
         let resize_callback = scene.camera().add_screen_update_callback(
             move |dimensions:&Vector2<f32>| {
-                data.upgrade().map(|data| data.borrow_mut().set_dimensions(*dimensions));
+                if let Some(data) = data.upgrade() {
+                    data.borrow_mut().set_dimensions(*dimensions)
+                }
             }
         );
         self.data.borrow_mut().resize_callback = Some(resize_callback);

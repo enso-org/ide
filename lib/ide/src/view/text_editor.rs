@@ -7,16 +7,11 @@ use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
-use basegl::system::web;
 
 use super::ui_component::UiComponent;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
-use web_sys::MouseEvent;
 
 /// TextEditor allows us to edit text files or Enso Modules. Extensible code highlighting is
 /// planned to be implemented for it.
