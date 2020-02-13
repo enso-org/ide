@@ -19,6 +19,8 @@ pub mod project;
 
 use crate::prelude::*;
 
+use utils::make_handles;
+
 /// General-purpose `Result` supporting any `Error`-compatible failures.
 pub type FallibleResult<T> = Result<T,failure::Error>;
 
@@ -51,32 +53,10 @@ pub mod module {
     pub struct Data {
         /// This module's location.
         pub loc      : Location,
-        /// Contents of the module file.
-        pub contents : String,
-        /// Handle to the project.
-        pub parent   : project::StrongHandle,
     }
-
-    impl Data {
-        /// Fetches the Luna code for this module using remote File Manager.
-        pub fn fetch_text(&self) -> impl Future<Output = FallibleResult<String>> {
-            let loc    = self.loc.clone();
-            let parent = self.parent.clone();
-            // TODO [mwu] When metadata support is added, they will need to be
-            //            stripped together with idmap from the source code.
-            async move {
-                parent.read_module(loc).await
-            }
-        }
-    }
-
     make_handles!(Data);
 
     impl Handle {
-        /// Fetches the Luna code for this module using remote File Manager.
-        pub fn fetch_text(&self) -> impl Future<Output = FallibleResult<String>> {
-            self.with(|data| data.fetch_text()).flatten()
-        }
 
         /// Receives a notification call when file with this module has been
         /// modified by a third-party tool (like non-IDE text editor).
