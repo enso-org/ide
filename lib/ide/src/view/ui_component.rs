@@ -9,7 +9,7 @@ use nalgebra::Vector2;
 // ===============
 
 /// A struct containing the padding values.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct Padding {
     /// Left padding.
     pub left   : f32,
@@ -22,18 +22,6 @@ pub struct Padding {
 
     /// Bottom padding;
     pub bottom : f32
-}
-
-impl Padding {
-    pub fn new(left:f32, top:f32, right:f32, bottom:f32) -> Self {
-        Self {left,top,right,bottom}
-    }
-}
-
-impl Default for Padding {
-    fn default() -> Self {
-        Self::new(0.0,0.0,0.0,0.0)
-    }
 }
 
 

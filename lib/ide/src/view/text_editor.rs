@@ -71,7 +71,7 @@ impl TextEditor {
         Self {text_field,padding,position,dimensions}.initialize()
     }
 
-    fn initialize(mut self) -> Self {
+    fn initialize(self) -> Self {
         self.update();
         self
     }

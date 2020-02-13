@@ -87,7 +87,13 @@ impl ViewLayoutData {
                 (position,dimensions)
             }
         };
-        self.text_editor.set_padding(Padding::new(10.0, 10.0, 10.0, 10.0));
+        let padding = Padding {
+            left   : 10.0,
+            top    : 10.0,
+            right  : 10.0,
+            bottom : 10.0
+        };
+        self.text_editor.set_padding(padding);
         self.text_editor.set_dimensions(dimensions);
         self.text_editor.set_position(position);
         self.text_editor.update();
