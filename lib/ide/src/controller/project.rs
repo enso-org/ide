@@ -43,7 +43,7 @@ impl Handle {
     /// (without such call, this processor will just wait indefinitely)
     pub async fn run_fm_events
     (&self, spawner:impl futures::task::LocalSpawn) -> FallibleResult<()> {
-        let fm_stream     = self.call_fm(|fm| fm.events()).await;
+        let fm_stream     = self.with_borrowed(|data| data.file_manager.events());
         let processor_fut = fm_stream.for_each(move |_event| async {
             // TODO [mwu] dispatch the notification to the appropriate module
             todo!()
@@ -58,10 +58,10 @@ impl Handle {
     /// Creates a new controller if needed.
     pub fn open_module(&self, loc:&module::Location) -> FallibleResult<module::Handle> {
         self.with_borrowed(|data| {
-            if let Some(existing_controller) = data.lookup_module(loc.clone()) {
+            if let Some(existing_controller) = data.lookup_module(loc) {
                 Ok(existing_controller)
             } else {
-                data.create_module_controller(&loc)
+                data.create_module_controller(loc)
             }
         })
     }

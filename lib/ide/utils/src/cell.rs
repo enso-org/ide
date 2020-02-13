@@ -13,14 +13,13 @@
 macro_rules! make_handles {
     ($data_type:ty) => {
         /// newtype wrapper over Rc<RefCell<>>.
-        #[derive(Shrinkwrap)]
         #[derive(Clone,Debug)]
         pub struct Handle(Rc<RefCell<$data_type>>);
 
         impl Handle {
             /// Obtain a WeakHandle to this data.
             pub fn downgrade(&self) -> WeakHandle {
-                WeakHandle(self.0.downgrade())
+                WeakHandle(Rc::downgrade(&self.0))
             }
             /// Create a new StrongHandle that will wrap given data.
             pub fn new(data:$data_type) -> Self {
@@ -30,12 +29,11 @@ macro_rules! make_handles {
             fn with_borrowed<F,R>(&self, operation:F) -> R
             where F : FnOnce(&mut $data_type) -> R {
                 let Handle(ref ptr) = &self;
-                operation(ptr.borrow_mut())
+                operation(&mut ptr.borrow_mut())
             }
         }
 
         /// newtype wrapper over Weak<RefCell<>>..
-        #[derive(Shrinkwrap)]
         #[derive(Clone,Debug)]
         pub struct WeakHandle(Weak<RefCell<$data_type>>);
 
