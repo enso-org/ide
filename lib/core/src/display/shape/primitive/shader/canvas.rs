@@ -247,7 +247,7 @@ impl Canvas {
         self.if_not_defined(num, |this| {
             let value:Glsl = value.into();
             let trans  = iformat!("position = scale(position,{value});");
-            let expr   = iformat!("return {s1.getter()};");
+            let expr   = iformat!("return resample({s1.getter()},{value});");
             this.add_current_function_code_line(trans);
             let mut shape = this.new_shape_from_expr(num,&expr);
             shape.add_ids(&s1.ids);
@@ -263,6 +263,17 @@ impl Canvas {
             this.add_current_function_code_line(iformat!("Shape shape = {s.getter()};"));
             this.add_current_function_code_line(iformat!("Rgba  color = rgba({color});"));
             let expr = iformat!("return set_color(shape,color);");
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s.ids);
+            shape
+        })
+    }
+
+    /// Makes the borders of the shape crisp. Please note that it removes any form of antialiasing.
+    pub fn pixel_snap
+    (&mut self, num:usize, s:CanvasShape) -> CanvasShape {
+        self.if_not_defined(num, |this| {
+            let expr = iformat!("return pixel_snap({s.getter()});");
             let mut shape = this.new_shape_from_expr(num,&expr);
             shape.add_ids(&s.ids);
             shape

@@ -117,6 +117,16 @@ BoundSdf bound_sdf (Sdf sdf, BoundingBox bounds) {
 
 // === API ===
 
+BoundSdf resample (BoundSdf a, float multiplier) {
+    a.distance *= multiplier;
+    return a;
+}
+
+BoundSdf pixel_snap (BoundSdf a) {
+    a.distance = floor(a.distance) + 0.5;
+    return a;
+}
+
 BoundSdf inverse (BoundSdf a) {
     return bound_sdf(inverse(sdf(a)),inverse(a.bounds));
 }
@@ -182,13 +192,8 @@ Color blend(Color bg, Color fg) {
 // =============
 
 float render(BoundSdf sdf) {
-    return clamp((-sdf.distance ) * input_pixel_ratio + 0.5);
-//    return clamp((0.5 - sdf.distance) * 1.0);
-//    return sdf.distance <= 0.0 ? 1.0 : 0.0;
-//    return clamp((0.5 - sdf.distance) * input_pixel_ratio * input_zoom);
-
+    return clamp((-sdf.distance * input_pixel_ratio + 0.5) * input_zoom);
 }
-
 
 // Note: the color is premultiplied.
 struct Shape {
@@ -208,6 +213,22 @@ Shape shape (Id id, BoundSdf bound_sdf, Rgba rgba) {
 Shape shape (Id id, BoundSdf bound_sdf, Color color) {
     float alpha = render(bound_sdf);
     return Shape(id,bound_sdf,color,alpha);
+}
+
+Shape resample (Shape s, float multiplier) {
+    Id       id    = s.id;
+    BoundSdf sdf   = resample(s.sdf,multiplier);
+    Rgba     color = unpremultiply(s.color);
+    color.raw.a /= s.alpha;
+    return shape(id,sdf,color);
+}
+
+Shape pixel_snap (Shape s) {
+    Id       id    = s.id;
+    BoundSdf sdf   = pixel_snap(s.sdf);
+    Rgba     color = unpremultiply(s.color);
+    color.raw.a /= s.alpha;
+    return shape(id,sdf,color);
 }
 
 Shape inverse (Shape s1) {

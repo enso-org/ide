@@ -135,6 +135,7 @@ define_compound_shapes! {
     Difference(child1,child2)()
     Intersection(child1,child2)()
     Fill(child)(color:dyn Any)
+    PixelSnap(child)()
 }
 
 
@@ -187,5 +188,12 @@ impl<Child:Shape> Shape for Fill<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s = self.child.draw(canvas);
         canvas.fill(self.id(),s,&self.color)
+    }
+}
+
+impl<Child:Shape> Shape for PixelSnap<Child> {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        let s = self.child.draw(canvas);
+        canvas.pixel_snap(self.id(),s)
     }
 }

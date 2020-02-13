@@ -110,6 +110,11 @@ impl<T> ShapeRef<T> {
     pub fn fill<Color:Into<Glsl>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
     }
+
+    /// Makes the borders of the shape crisp. Please note that it removes any form of antialiasing.
+    pub fn pixel_snap(&self) -> PixelSnap<Self> {
+        PixelSnap(self)
+    }
 }
 
 macro_rules! define_shape_operator {

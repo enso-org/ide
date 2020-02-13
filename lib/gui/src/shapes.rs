@@ -78,8 +78,8 @@ fn nodes1(world:&World) -> ShapeSystem {
 }
 
 fn nodes2(world:&World) -> ShapeSystem {
-    let node_radius = 40.0;
-    let border_size = 20.0;
+    let node_radius = 32.0;
+    let border_size = 16.0;
     let node   = Circle(node_radius);
     let border = Circle(node_radius + border_size);
     let node   = node.fill(Srgb::new(0.97,0.96,0.95));
@@ -132,20 +132,23 @@ fn nodes2(world:&World) -> ShapeSystem {
     let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
 //    let loader = loader.fill(Srgb::new(0.91,0.91,0.90));
 
-//    let out = bg + loader + shadow2 + node + front;
+    let icon = (rect3 + rect2 + rect1).translate(0.0,-4.0);
 
-//    let out = rect3 + rect2 + rect1 ;
+
+    let out = bg + loader + shadow2 + node + icon;
+//    let out = icon + rectx;
+
 //    let out = out.scale(2.0);
 
-    let rect1 = Rect(1.0,4.0).fill(Srgba::new(1.0, 0.0, 0.0, 1.00));
-
-    let rect2 = rect1.translate(1.0,5.0);
+//    let rect1 = Rect(1.0,4.0).fill(Srgba::new(1.0, 0.0, 0.0, 1.00));
+//
+//    let rect2 = rect1.translate(1.0,5.0);
 
 //    let circle1 = Circle(node_radius + border_size);
 
 
 
-    let out = rect1 + rect2;
+//    let out = rect1 + rect2;
 
 //    let c1   = Circle(node_radius).fill(Srgba::new(1.0,0.0,0.0,0.5));
 //    let c2   = c1.translate(20.0,0.0).fill(Srgba::new(0.0,1.0,0.0,0.5));
