@@ -112,7 +112,7 @@ define_bindings! {
     WheelEvent::mousewheel => on_wheel (OnWheel),
 }
 
-/// A handles of callbacks emiting events on bound FRP graph. See `CallbackHandle`.
+/// A handles of callbacks emitting events on bound FRP graph. See `CallbackHandle`.
 #[derive(Debug)]
 pub struct MouseFrpCallbackHandles {
     on_move : CallbackHandle,
