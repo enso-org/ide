@@ -2,15 +2,13 @@
 
 use crate::prelude::*;
 
-use crate::control::io::mouse2::event::*;
-use crate::control::io::mouse2::MouseManager;
+use crate::control::io::mouse2::MouseFrpCallbackHandles;
 use crate::display::shape::text::text_field::frp::keyboard::TextFieldKeyboardFrp;
 use crate::display::shape::text::text_field::TextFieldData;
-use crate::system::web;
+use crate::display::world::World;
 
 use enso_frp::*;
 use nalgebra::Vector2;
-
 
 
 /// All nodes of FRP graph related to TextField operations.
@@ -42,9 +40,9 @@ impl TextFieldMouseFrp {
         let select_action       = Self::select_lambda(text_field_ptr.clone());
         frp! {
             text_field.is_inside     = mouse.position.map(is_inside);
-            text_field.click_in      = mouse.down.gate(&is_inside);
+            text_field.click_in      = mouse.on_down.gate(&is_inside);
             text_field.click_in_bool = click_in.constant(true);
-            text_field.mouse_up_bool = mouse.up.constant(false);
+            text_field.mouse_up_bool = mouse.on_up.constant(false);
             text_field.selecting     = click_in_bool.merge(&mouse_up_bool);
             text_field.multicursor   = keyboard.keyboard.key_mask.map(is_multicursor_mode);
 
@@ -58,25 +56,8 @@ impl TextFieldMouseFrp {
     }
 
     /// Bind this FRP graph to js events.
-    pub fn bind_frp_to_mouse(&self) -> MouseManager  {
-        let mouse_manager = MouseManager::new(&web::document().unwrap());
-        let height        = web::window().inner_height().unwrap().as_f64().unwrap() as i32;
-        let frp_position  = self.mouse.position.event.clone_ref();
-        let frp_down      = self.mouse.down.event.clone_ref();
-        let frp_up        = self.mouse.up.event.clone_ref();
-        let handle = mouse_manager.on_move.add(move |event:&OnMove| {
-            frp_position.emit(Position::new(event.client_x(),height - event.client_y()));
-        });
-        handle.forget();
-        let handle = mouse_manager.on_down.add(move |_:&OnDown| {
-            frp_down.emit(());
-        });
-        handle.forget();
-        let handle = mouse_manager.on_up.add(move |_:&OnUp| {
-            frp_up.emit(());
-        });
-        handle.forget();
-        mouse_manager
+    pub fn bind_frp_to_mouse(&self, world:&World) -> MouseFrpCallbackHandles  {
+        world.scene().bind_frp_to_mouse_events(&self.mouse)
     }
 }
 

@@ -7,6 +7,7 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::closure;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::DynEvent;
+use crate::control::io::mouse2::MouseFrpCallbackHandles;
 use crate::control::io::mouse2::MouseManager;
 use crate::control::io::mouse2;
 use crate::data::dirty::traits::*;
@@ -380,6 +381,12 @@ impl {
             self.composer.run();
         })
     }
+
+    /// Bind FRP graph to mouse js events.
+    pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
+        mouse2::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
+    }
+
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {

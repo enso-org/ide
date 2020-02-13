@@ -219,7 +219,7 @@ impl TextField {
     -> Self {
         let data = TextFieldData::new(world,initial_content,properties);
         let rc   = Rc::new(RefCell::new(data));
-        let frp  = TextFieldFrp::new(Rc::downgrade(&rc));
+        let frp  = TextFieldFrp::new(world,Rc::downgrade(&rc));
         with(rc.borrow_mut(), move |mut data| {
             data.frp = Some(frp);
         });
