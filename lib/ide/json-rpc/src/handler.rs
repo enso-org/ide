@@ -191,12 +191,12 @@ impl<Notification> {
                 Err(e) =>
                     if e.is_full() {
                         // Impossible, as per `futures` library docs.
-                        panic!("unbounded channel should never be full")
+                        panic!("Unbounded channel should never be full.")
                     } else if e.is_disconnected() {
                         // It is ok for receiver to disconnect and ignore events.
                     } else {
                         // Never happens unless `futures` library changes API.
-                        panic!("unknown unexpected error")
+                        panic!("Unrecognized error when sending event.")
                     }
             }
         }
