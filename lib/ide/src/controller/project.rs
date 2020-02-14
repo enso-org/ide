@@ -7,15 +7,10 @@ use crate::prelude::*;
 
 use crate::controller::*;
 
-use utils::make_handles;
 use json_rpc::Transport;
 use weak_table::weak_value_hash_map::Entry::Occupied;
 use weak_table::weak_value_hash_map::Entry::Vacant;
-use flo_stream::Publisher;
 use file_manager_client as fmc;
-use file_manager_client::Notification;
-use file_manager_client::FilesystemEvent;
-use futures::SinkExt;
 use shapely::shared;
 
 
@@ -26,7 +21,7 @@ shared! { ControllerHandle
     #[derive(Debug)]
     pub struct State {
         /// File Manager Client.
-        file_manager: file::Handle,
+        file_manager: fmc::ClientHandle,
         /// Cache of module controllers.
         module_cache: WeakValueHashMap<module::Location, module::WeakControllerHandle>,
         /// Cache of text controllers.
@@ -39,7 +34,7 @@ shared! { ControllerHandle
         /// The remote connections should be already established.
         pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
             State {
-                file_manager           : file::Handle::new(file_manager_transport),
+                file_manager           : fmc::ClientHandle::new(file_manager_transport),
                 module_cache           : default(),
                 text_cache             : default(),
             }
@@ -59,29 +54,6 @@ shared! { ControllerHandle
             match self.text_cache.entry(path.clone()) {
                 Occupied(entry) => entry.get().clone(),
                 Vacant(entry)   => entry.insert(text::ControllerHandle::new(path,fm)),
-            }
-        }
-    }
-}
-
-
-impl State {
-    /// Obtains a handle to a module controller interested in this filesystem event.
-    fn relevant_module
-    (&mut self, event:&file_manager_client::Event) -> Option<module::ControllerHandle> {
-        let location = Self::relevant_location(event)?;
-        self.module_cache.get(&location)
-    }
-
-    /// Identifies module affected by given file manager's event.
-    fn relevant_location(event:&file_manager_client::Event) -> Option<module::Location> {
-        use file_manager_client::Event;
-        use file_manager_client::Notification::FilesystemEvent;
-        match event {
-            Event::Closed          => None,
-            Event::Error(_)        => None,
-            Event::Notification(n) => match n {
-                FilesystemEvent(e) => Some(module::Location(e.path.0.clone()))
             }
         }
     }
