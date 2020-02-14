@@ -10,18 +10,27 @@ use failure::_core::fmt::{Formatter, Error};
 use file_manager_client as fmc;
 use json_rpc::Transport;
 use json_rpc::error::RpcError;
+use shapely::shared;
 
-make_handles!(fmc::Client);
+shared! { Handle
 
-impl Handle {
+#[derive(Debug)]
+pub struct Client {
+    fmc:fmc::Client
+}
+
+impl {
     /// Create a new project controller.
     ///
     /// The remote connections should be already established.
     pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
-        Handle::new_from_data(fmc::Client::new(file_manager_transport))
+        Self{fmc:fmc::Client::new(file_manager_transport)}
     }
 
-    pub fn read(&self, path:fmc::Path) -> impl Future<Output=Result<String,RpcError>> {
-        self.with_borrowed(|client| client.read(path))
+    pub fn read(&mut self, path:fmc::Path) -> impl Future<Output=Result<String,RpcError>> {
+        self.fmc.read(path)
     }
 }
+
+}
+

@@ -20,7 +20,7 @@ use shapely::shared;
 
 
 
-shared! { ProjectController
+shared! { ControllerHandle
 
     /// Project controller's state.
     #[derive(Debug)]
@@ -46,11 +46,10 @@ shared! { ProjectController
         }
 
         /// Returns a module controller for given module location.
-        pub fn open_module(&mut self, loc:module::Location)
-        -> FallibleResult<module::ControllerHandle> {
+        pub fn open_module(&mut self, loc:module::Location) -> module::ControllerHandle {
             match self.module_cache.entry(loc.clone()) {
-                Occupied(entry) => Ok(entry.get().clone()),
-                Vacant(entry)   => Ok(entry.insert(module::ControllerHandle::new(loc))),
+                Occupied(entry) => entry.get().clone(),
+                Vacant(entry)   => entry.insert(module::ControllerHandle::new(loc)),
             }
         }
 
@@ -85,5 +84,50 @@ impl State {
                 FilesystemEvent(e) => Some(module::Location(e.path.0.clone()))
             }
         }
+    }
+}
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use file_manager_client::Path;
+    use json_rpc::test_util::transport::mock::MockTransport;
+
+    #[test]
+    fn obtain_module_controller() {
+        let transport        = MockTransport::new();
+        let project_ctrl     = ControllerHandle::new(transport);
+        let location         = module::Location("TestLocation".to_string());
+        let another_location = module::Location("TestLocation2".to_string());
+
+        let module_ctrl         = project_ctrl.open_module(location.clone());
+        let same_module_ctrl    = project_ctrl.open_module(location.clone());
+        let another_module_ctrl = project_ctrl.open_module(another_location.clone());
+
+        assert_eq!(location        , module_ctrl        .location_clone());
+        assert_eq!(another_location, another_module_ctrl.location_clone());
+        assert!(module_ctrl.identity_equals(&same_module_ctrl));
+    }
+
+    #[test]
+    fn obtain_text_controller() {
+        let transport           = MockTransport::new();
+        let project_ctrl        = ControllerHandle::new(transport);
+        let file_manager_handle = project_ctrl.with_borrowed(|s| s.file_manager.clone());
+        let path                = Path("TestPath".to_string());
+        let another_path        = Path("TestPath2".to_string());
+
+        let text_ctrl         = project_ctrl.open_text_file(path.clone());
+        let same_text_ctrl    = project_ctrl.open_text_file(path.clone());
+        let another_text_ctrl = project_ctrl.open_text_file(another_path.clone());
+
+        assert!(file_manager_handle.identity_equals(&text_ctrl        .file_manager()));
+        assert!(file_manager_handle.identity_equals(&another_text_ctrl.file_manager()));
+        assert_eq!(path        , text_ctrl        .file_path_clone()  );
+        assert_eq!(another_path, another_text_ctrl.file_path_clone()  );
+        assert!(text_ctrl.identity_equals(&same_text_ctrl));
     }
 }

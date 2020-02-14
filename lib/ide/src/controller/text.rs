@@ -63,6 +63,11 @@ shared! { ControllerHandle
         pub fn subscribe(&mut self) -> Subscriber<Notification> {
             self.notification_publisher.subscribe()
         }
+
+        /// Get clone of file path handled by this controller.
+        pub fn file_path_clone(&self) -> fmc::Path {
+            self.file_path.clone()
+        }
     }
 }
 
@@ -81,6 +86,12 @@ impl ControllerHandle {
             (state.file_manager.clone(), state.file_path.clone())
         });
         file_manager.read(path)
+    }
+
+    #[cfg(test)]
+    /// Get FileManagerClient handle used by this controller.
+    pub fn file_manager(&self) -> file::Handle {
+        self.with_borrowed(|state| state.file_manager.clone_ref())
     }
 }
 
