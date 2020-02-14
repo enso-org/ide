@@ -83,7 +83,7 @@ impl ControllerHandle {
     /// Read file's content.
     pub fn read_content(&self) -> impl Future<Output=Result<String,RpcError>> {
         let (file_manager,path) = self.with_borrowed(|state| {
-            (state.file_manager.clone(), state.file_path.clone())
+            (state.file_manager.clone_ref(), state.file_path.clone())
         });
         file_manager.read(path)
     }
