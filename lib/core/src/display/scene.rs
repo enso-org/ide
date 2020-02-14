@@ -387,9 +387,8 @@ impl {
 
     /// Bind FRP graph to mouse js events.
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
-        mouse2::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
+        mouse2::bind_frp_to_mouse(self.shape.clone_ref(),frp,&self.mouse.mouse_manager)
     }
-
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {

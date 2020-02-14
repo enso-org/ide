@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::control::callback::*;
-use crate::system::web;
+use crate::display::scene::Shape;
 
 use enso_frp::EventEmitterPoly;
 use enso_frp::Position;
@@ -121,13 +121,13 @@ pub struct MouseFrpCallbackHandles {
 }
 
 /// Bind FRP graph to MouseManager.
-pub fn bind_frp_to_mouse(frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
+pub fn bind_frp_to_mouse(scene_shape:Shape, frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
-    let height        = web::window().inner_height().unwrap().as_f64().unwrap() as i32;
-    let frp_position  = frp.position.event.clone_ref();
-    let frp_down      = frp.on_down.event.clone_ref();
-    let frp_up        = frp.on_up.event.clone_ref();
+    let frp_position = frp.position.event.clone_ref();
+    let frp_down     = frp.on_down.event.clone_ref();
+    let frp_up       = frp.on_up.event.clone_ref();
     let on_move = mouse_manager.on_move.add(move |e:&event::OnMove| {
+        let height = scene_shape.screen_shape().height as i32;
         frp_position.emit(Position::new(e.client_x(),height - e.client_y()));
     });
     let on_down = mouse_manager.on_down.add(move |_:&event::OnDown| {

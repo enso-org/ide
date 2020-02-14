@@ -140,7 +140,7 @@ impl Debug for KeyboardBinding {
 /// Until the returned `KeyboardBinding` structure lives, the js events will emit the proper
 /// source events in this graph.
 pub fn bind_frp_to_js_keyboard_actions(frp:&Keyboard) -> KeyboardBinding {
-    let mut binding      = KeyboardBinding::create();
+    let mut binding     = KeyboardBinding::create();
     let frp_on_pressed  = frp.on_pressed.clone_ref();
     let frp_on_released = frp.on_released.clone_ref();
     binding.set_key_down_handler(move |event:KeyboardEvent| {
