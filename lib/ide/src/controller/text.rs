@@ -87,6 +87,14 @@ impl ControllerHandle {
         file_manager.read(path)
     }
 
+    /// Store the given content to file.
+    pub fn store_content(&self, content:String) -> impl Future<Output=Result<(),RpcError>> {
+        let (mut file_manager,path) = self.with_borrowed(|state| {
+            (state.file_manager.clone_ref(), state.file_path.clone())
+        });
+        file_manager.write(path,content)
+    }
+
     #[cfg(test)]
     /// Get FileManagerClient handle used by this controller.
     pub fn file_manager(&self) -> fmc::ClientHandle {
