@@ -74,3 +74,8 @@ impl ProjectView {
     }
 }
 
+impl Default for ProjectView {
+    fn default() -> Self {
+        Self::new()
+    }
+}

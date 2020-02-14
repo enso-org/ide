@@ -11,7 +11,6 @@
 #![warn(missing_debug_implementations)]
 
 #[allow(unused)]
-pub mod controller;
 pub mod todo;
 pub mod view;
 pub mod entry_point;
