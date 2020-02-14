@@ -1,7 +1,7 @@
 //! Project controller.
 //!
-//! Responsible for owning any remote connection clients. Expected to live
-//! as long as the project remains open in the IDE.
+//! Responsible for owning any remote connection clients, and providing controllers for specific
+//! files and modules. Expected to live as long as the project remains open in the IDE.
 
 use crate::prelude::*;
 
@@ -46,9 +46,6 @@ shared! { ProjectController
         }
 
         /// Returns a module controller for given module location.
-        ///
-        /// Reuses existing controller if possible.
-        /// Creates a new controller if needed.
         pub fn open_module(&mut self, loc:module::Location)
         -> FallibleResult<module::ControllerHandle> {
             match self.module_cache.entry(loc.clone()) {
@@ -57,6 +54,7 @@ shared! { ProjectController
             }
         }
 
+        /// Returns a text controller for given file path.
         pub fn open_text_file(&mut self, path:file_manager_client::Path) -> text::ControllerHandle {
             let fm = self.file_manager.clone();
             match self.text_cache.entry(path.clone()) {
@@ -69,8 +67,7 @@ shared! { ProjectController
 
 
 impl State {
-    /// Obtains a handle to a module controller interested in this
-    /// filesystem event.
+    /// Obtains a handle to a module controller interested in this filesystem event.
     fn relevant_module
     (&mut self, event:&file_manager_client::Event) -> Option<module::ControllerHandle> {
         let location = Self::relevant_location(event)?;

@@ -1,3 +1,12 @@
+//! Module Controller.
+//!
+//! The module controller keeps cached module state (module state is AST+Metadata or equivalent),
+//! and uses it for synchronizing state for text and graph representations. It provides method
+//! for registering text and graph changes. If for example text represntation will be changed, there
+//! will be notifications for both text change and graph change.
+//!
+//! This module is still on WIP state, for now it contains stubs only.
+
 use crate::prelude::*;
 
 use shapely::shared;
@@ -28,14 +37,17 @@ shared! { ControllerHandle
     }
 
     impl {
+        /// Create new Module controller for given location.
         pub fn new(location:Location) -> Self {
             State {location}
         }
 
+        /// Obtain clone of location.
         pub fn location_clone(&self) -> Location {
             self.location.clone()
         }
 
+        /// Get location as filesystem path.
         pub fn location_as_path(&self) -> file_manager_client::Path {
             self.location.to_path()
         }
