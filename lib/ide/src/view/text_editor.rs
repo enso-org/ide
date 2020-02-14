@@ -81,9 +81,10 @@ impl TextEditor {
         let padding  = self.padding;
         let position = self.position;
         let position = Vector3::new(position.x + padding.left, position.y + padding.bottom, 0.0);
-        let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
         self.text_field.set_position(position);
-        self.text_field.set_size(self.dimensions - padding);
+        // TODO: set text field size once the property change will be supported.
+        // let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
+        // self.text_field.set_size(self.dimensions - padding);
         self.text_field.update();
     }
 }

@@ -89,11 +89,6 @@ shared! { TextField
             self.display_object.position()
         }
 
-        /// Set size.
-        pub fn set_size(&mut self, size:Vector2<f32>) {
-            self.properties.size = size;
-        }
-
         /// Get size.
         pub fn size(&self) -> Vector2<f32> {
             self.properties.size
