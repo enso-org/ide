@@ -8,26 +8,26 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-basegl               = { version = "0.1.0"  , path = "../core" }
-enso-prelude         = { version = "0.1.0"  , path = "../prelude" }
-file-manager-client  = { version = "0.1.0"  , path = "file-manager" }
-json-rpc             = { version = "0.1.0"  , path = "json-rpc" }
-utils                = { version = "0.1.0"  , path = "utils" }
-basegl-core-msdf-sys = { version = "0.1.0"  , path = "../core/msdf-sys" }
-nalgebra              = { version = "0.19.0" }
+basegl                   = { version = "0.1.0"  , path = "../core"          }
+enso-prelude             = { version = "0.1.0"  , path = "../prelude"       }
+file-manager-client      = { version = "0.1.0"  , path = "file-manager"     }
+json-rpc                 = { version = "0.1.0"  , path = "json-rpc"         }
+utils                    = { version = "0.1.0"  , path = "utils"            }
+basegl-core-msdf-sys     = { version = "0.1.0"  , path = "../core/msdf-sys" }
+shapely                  = { version = "0.1.0"  , path = "../shapely/impl"  }
 
-serde = { version = "1.0", features = ["derive"] }
-uuid  = { version = "0.8", features = ["serde", "v5"] }
-
-console_error_panic_hook = "0.1.6"
-failure      = "0.1.6"
-futures      = "0.3.1"
-js-sys       = "0.3.35"
-paste        = "0.1.6"
-serde_json   = "1.0"
-shrinkwraprs = "0.3.0"
-wasm-bindgen = "0.2.58"
-wasm-bindgen-test = "0.3.8"
+console_error_panic_hook = { version = "0.1.6"                           }
+failure                  = { version = "0.1.6"                           }
+futures                  = { version = "0.3.1"                           }
+nalgebra                 = { version = "0.19.0"                          }
+js-sys                   = { version = "0.3.35"                          }
+paste                    = { version = "0.1.6"                           }
+serde                    = { version = "1.0", features = ["derive"]      }
+serde_json               = { version = "1.0"                             }
+shrinkwraprs             = { version = "0.3.0"                           }
+uuid                     = { version = "0.8", features = ["serde", "v5"] }
+wasm-bindgen             = { version = "0.2.58"                          }
+wasm-bindgen-test        = { version = "0.3.8"                           }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 websocket = "0.23.0"
