@@ -4,5 +4,6 @@ pub mod sdf;
 pub mod class;
 pub mod transform;
 
+pub use class::Shape;
 pub use sdf::immutable::*;
 pub use transform::immutable::*;

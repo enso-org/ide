@@ -34,9 +34,31 @@ pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
 /// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, we do not use
 /// specific `ShapeRef<P>` field here, as it is much easier to express any bounds when using
 /// more generic types.
-pub trait Shape: Clone + for<'t> From<&'t Self> {
+pub trait Drawable: 'static + Debug {
     /// Draw the element on the canvas.
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape;
+}
+
+
+#[derive(Debug,Clone)]
+pub struct Shape {
+    rc: Rc<dyn Drawable>
+}
+
+impl Shape {
+    pub fn new<T:Drawable>(t:T) -> Self {
+        Self {rc : Rc::new(t)}
+    }
+}
+
+impl Drawable for Shape {
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+        self.rc.draw(canvas)
+    }
+}
+
+impl AsOwned for Shape {
+    type Owned = Shape;
 }
 
 

@@ -9,7 +9,7 @@ use crate::prelude::*;
 use inflector::Inflector;
 
 use crate::display::shape::primitive::def::class::AsOwned;
-use crate::display::shape::primitive::def::class::Shape;
+use crate::display::shape::primitive::def::class::Drawable;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
@@ -18,6 +18,13 @@ use crate::system::gpu::shader::glsl::Glsl;
 
 use crate::system::gpu::shader::glsl::traits::*;
 
+
+
+pub trait HasShapeFieldRepr {
+    type ShapeFieldRepr;
+}
+
+pub type ShapeFieldRepr<T> = <T as HasShapeFieldRepr>::ShapeFieldRepr;
 
 
 // ================
@@ -146,7 +153,7 @@ macro_rules! _define_sdf_shape_immutable_part {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
 
-        impl Shape for $name {
+        impl Drawable for $name {
             fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
                 let args = vec!["position", $(&self.$field),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
@@ -238,13 +245,6 @@ define_sdf_shapes! {
 
 
     // === Rectangle ===
-
-    SharpRect (width:f32, height:f32) {
-        vec2  size = vec2(width,height);
-        vec2  dir  = abs(position) - size;
-        float dist = max(dir);
-        return bound_sdf(dist,bounding_box(width/2.0,height/2.0));
-    }
 
     Rect (width:f32, height:f32) {
         vec2  size = vec2(width/2.0,height/2.0);

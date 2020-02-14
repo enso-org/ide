@@ -77,6 +77,29 @@ fn nodes1(world:&World) -> ShapeSystem {
     ShapeSystem::new(world,&out)
 }
 
+pub mod icons {
+    use super::*;
+
+    pub fn history() -> Shape {
+        let corner_radius1 = 2.0;
+        let corner_radius2 = 1.5;
+        let corner_radius3 = 1.0;
+        let width_diff = 3.0 * corner_radius1;
+        let border_size = 2.0;
+        let rect1 = RoundedRectByCorner(32.0, 16.0, corner_radius1, corner_radius1, corner_radius1, corner_radius1).fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
+        let rect2 = RoundedRectByCorner(32.0 - width_diff, 16.0, corner_radius2, corner_radius2, corner_radius2, corner_radius2).translate(0.0, 6.0);
+        let rect2 = rect2 - rect1.translate(0.0, border_size);
+        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
+
+        let rect3 = RoundedRectByCorner(32.0 - 2.0 * width_diff, 16.0, corner_radius3, corner_radius3, corner_radius3, corner_radius3).translate(0.0, 10.0);
+        let rect3 = rect3 - rect1.translate(0.0, border_size + 6.0);
+        let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
+
+        let icon = (rect3 + rect2 + rect1).translate(0.0, -4.0);
+        icon.into()
+    }
+}
+
 fn nodes2(world:&World) -> ShapeSystem {
     let node_radius = 32.0;
     let border_size = 16.0;
@@ -117,22 +140,7 @@ fn nodes2(world:&World) -> ShapeSystem {
 
     let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
 
-    let corner_radius1 = 2.0;
-    let corner_radius2 = 1.5;
-    let corner_radius3 = 1.0;
-    let width_diff    = 3.0 * corner_radius1;
-    let border_size   = 2.0;
-    let rect1 = RoundedRectByCorner(32.0,16.0,corner_radius1,corner_radius1,corner_radius1,corner_radius1).fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
-    let rect2 = RoundedRectByCorner(32.0-width_diff,16.0,corner_radius2,corner_radius2,corner_radius2,corner_radius2).translate(0.0,6.0);
-    let rect2 = rect2 - rect1.translate(0.0,border_size);
-    let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
-
-    let rect3 = RoundedRectByCorner(32.0-2.0*width_diff,16.0,corner_radius3,corner_radius3,corner_radius3,corner_radius3).translate(0.0,10.0);
-    let rect3 = rect3 - rect1.translate(0.0,border_size + 6.0);
-    let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
-//    let loader = loader.fill(Srgb::new(0.91,0.91,0.90));
-
-    let icon = (rect3 + rect2 + rect1).translate(0.0,-4.0);
+    let icon = icons::history();
 
 
     let out = bg + loader + shadow2 + node + icon;
