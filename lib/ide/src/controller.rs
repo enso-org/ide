@@ -17,6 +17,7 @@
 pub mod file;
 pub mod text;
 pub mod project;
+pub mod module;
 
 use crate::prelude::*;
 
@@ -24,53 +25,3 @@ use utils::make_handles;
 
 /// General-purpose `Result` supporting any `Error`-compatible failures.
 pub type FallibleResult<T> = Result<T,failure::Error>;
-
-
-
-// =========================
-// === Module controller ===
-// =========================
-
-/// Module controller.
-pub mod module {
-    use super::*;
-
-    /// Structure uniquely identifying module location in the project.
-    /// Mappable to filesystem path.
-    #[derive(Clone,Debug,Eq,Hash,PartialEq)]
-    pub struct Location(pub String);
-    impl Location {
-        /// Obtains path (within a project context) to the file with this module.
-        pub fn to_path(&self) -> file_manager_client::Path {
-            // TODO [mwu] Extremely provisional. When multiple files support is
-            //            added, needs to be fixed, if not earlier.
-            let result = format!("./{}.luna", self.0);
-            file_manager_client::Path::new(result)
-        }
-    }
-
-    /// State data of the module controller.
-    #[derive(Clone,Debug)]
-    pub struct Data {
-        /// This module's location.
-        pub loc      : Location,
-    }
-    make_handles!(Data);
-
-    impl Handle {
-        pub fn new(loc:Location) -> Self {
-            let data = Data {loc};
-            Self::new_from_data(data)
-        }
-
-        pub fn location(&self) -> Location {
-            self.with_borrowed(|data| data.loc.clone())
-        }
-        /// Receives a notification call when file with this module has been
-        /// modified by a third-party tool (like non-IDE text editor).
-        pub async fn file_externally_modified(&self) {
-            // TODO: notify underlying text/graph controllers about the changes
-            todo!()
-        }
-    }
-}
