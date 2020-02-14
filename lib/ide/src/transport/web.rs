@@ -137,7 +137,7 @@ impl <Arg> ClosureStorage<Arg> {
     pub fn wrap(&mut self, f:impl FnMut(Arg) + 'static)
     where Arg: ClosureArg {
         let boxed = Box::new(f);
-        let wrapped = Closure::wrap(boxed);
+        let wrapped: Closure<dyn FnMut(Arg)> = Closure::wrap(boxed);
         self.store(wrapped);
     }
 
