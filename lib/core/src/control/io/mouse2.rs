@@ -121,20 +121,17 @@ pub struct MouseFrpCallbackHandles {
 }
 
 /// Bind FRP graph to MouseManager.
-pub fn bind_frp_to_mouse(scene_shape:Shape, frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
+pub fn bind_frp_to_mouse(scene_shape:&Shape, frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
-    let frp_position = frp.position.event.clone_ref();
-    let frp_down     = frp.on_down.event.clone_ref();
-    let frp_up       = frp.on_up.event.clone_ref();
-    let on_move = mouse_manager.on_move.add(move |e:&event::OnMove| {
+    let on_move = enclose!((frp.position.event => frp, scene_shape) move |e:&event::OnMove| {
         let height = scene_shape.screen_shape().height as i32;
-        frp_position.emit(Position::new(e.client_x(),height - e.client_y()));
+        frp.emit(Position::new(e.client_x(),height - e.client_y()));
     });
-    let on_down = mouse_manager.on_down.add(move |_:&event::OnDown| {
-        frp_down.emit(());
-    });
-    let on_up = mouse_manager.on_up.add(move |_:&event::OnUp| {
-        frp_up.emit(());
-    });
-    MouseFrpCallbackHandles {on_move,on_down,on_up}
+    let on_down = enclose!((frp.on_down.event => frp) move |_:&event::OnDown| frp.emit(()));
+    let on_up   = enclose!((frp.on_up.event   => frp) move |_:&event::OnUp  | frp.emit(()));
+    MouseFrpCallbackHandles {
+        on_move : mouse_manager.on_move.add(on_move),
+        on_down : mouse_manager.on_down.add(on_down),
+        on_up   : mouse_manager.on_up.add(on_up)
+    }
 }

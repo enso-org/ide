@@ -11,6 +11,7 @@ use enso_frp::*;
 use nalgebra::Vector2;
 
 
+
 /// All nodes of FRP graph related to TextField operations.
 #[derive(Debug)]
 pub struct TextFieldMouseFrp {

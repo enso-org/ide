@@ -78,23 +78,26 @@ impl TextFieldKeyboardFrp {
     /// source events in this graph.
     pub fn bind_frp_to_js_text_input_actions(&self) -> KeyboardBinding {
         let mut binding  = bind_frp_to_js_keyboard_actions(&self.keyboard);
-        let frp_on_cut   = self.on_cut.clone_ref();
-        let frp_on_copy  = self.on_copy.clone_ref();
-        let frp_on_paste = self.on_paste.clone_ref();
-        let frp_do_cut   = self.do_cut.clone_ref();
-        let frp_do_copy  = self.do_copy.clone_ref();
-        binding.set_copy_handler(move |is_cut| {
-            if is_cut {
-                frp_on_cut.event.emit(());
-                frp_do_cut.behavior.current_value()
-            } else {
-                frp_on_copy.event.emit(());
-                frp_do_copy.behavior.current_value()
+        let copy_handler = enclose!(
+            ( self.on_cut  => on_cut
+            , self.on_copy => on_copy
+            , self.do_cut  => do_cut
+            , self.do_copy => do_copy
+            ) move |is_cut| {
+                if is_cut {
+                    on_cut.event.emit(());
+                    do_cut.behavior.current_value()
+                } else {
+                    on_copy.event.emit(());
+                    do_copy.behavior.current_value()
+                }
             }
+        );
+        let paste_handler = enclose!((self.on_paste => on_paste) move |text_to_paste| {
+            on_paste.event.emit(text_to_paste);
         });
-        binding.set_paste_handler(move |text_to_paste| {
-            frp_on_paste.event.emit(text_to_paste);
-        });
+        binding.set_copy_handler(copy_handler);
+        binding.set_paste_handler(paste_handler);
         binding
     }
 }

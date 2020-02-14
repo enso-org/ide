@@ -141,17 +141,15 @@ impl Debug for KeyboardBinding {
 /// source events in this graph.
 pub fn bind_frp_to_js_keyboard_actions(frp:&Keyboard) -> KeyboardBinding {
     let mut binding     = KeyboardBinding::create();
-    let frp_on_pressed  = frp.on_pressed.clone_ref();
-    let frp_on_released = frp.on_released.clone_ref();
-    binding.set_key_down_handler(move |event:KeyboardEvent| {
+    binding.set_key_down_handler(enclose!((frp.on_pressed => frp) move |event:KeyboardEvent| {
         if let Ok(key) = event.key().parse::<Key>() {
-            frp_on_pressed.event.emit(key);
+            frp.event.emit(key);
         }
-    });
-    binding.set_key_up_handler(move |event:KeyboardEvent| {
+    }));
+    binding.set_key_up_handler(enclose!((frp.on_released => frp) move |event:KeyboardEvent| {
         if let Ok(key) = event.key().parse::<Key>() {
-            frp_on_released.event.emit(key);
+            frp.event.emit(key);
         }
-    });
+    }));
     binding
 }
