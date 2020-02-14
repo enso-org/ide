@@ -23,7 +23,7 @@ impl Location {
         // TODO [mwu] Extremely provisional. When multiple files support is
         //            added, needs to be fixed, if not earlier.
         let Location(string) = self;
-        let result = format!("./{}.luna", self.0);
+        let result = format!("./{}.luna", string);
         file_manager_client::Path::new(result)
     }
 }

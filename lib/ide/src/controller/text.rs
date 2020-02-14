@@ -14,7 +14,6 @@ use flo_stream::MessagePublisher;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
 use shapely::shared;
-use std::ops::Range;
 
 
 
@@ -46,12 +45,12 @@ shared! { ControllerHandle
         /// Sink where we put events to be consumed by the view.
         notification_publisher: Publisher<Notification>,
         /// File manager handle, used to obtain file information in case of plain text file.
-        file_manager: file::Handle,
+        file_manager: fmc::ClientHandle,
     }
 
     impl {
         /// Create controller managing plain text file.
-        pub fn new(path:fmc::Path, file_manager:file::Handle) -> Self {
+        pub fn new(path:fmc::Path, file_manager:fmc::ClientHandle) -> Self {
             Self {file_manager,
                 file_path              : path,
                 module                 : None,
@@ -73,7 +72,7 @@ shared! { ControllerHandle
 
 impl ControllerHandle {
     /// Create controller managing Luna module file.
-    pub fn new_for_module(module:module::ControllerHandle, file_manager:file::Handle) -> Self {
+    pub fn new_for_module(module:module::ControllerHandle, file_manager:fmc::ClientHandle) -> Self {
         let file_path = module.location_as_path();
         let mut state = State::new(file_path, file_manager);
         state.module = Some(module);
@@ -82,7 +81,7 @@ impl ControllerHandle {
 
     /// Read file's content.
     pub fn read_content(&self) -> impl Future<Output=Result<String,RpcError>> {
-        let (file_manager,path) = self.with_borrowed(|state| {
+        let (mut file_manager,path) = self.with_borrowed(|state| {
             (state.file_manager.clone_ref(), state.file_path.clone())
         });
         file_manager.read(path)
@@ -90,7 +89,7 @@ impl ControllerHandle {
 
     #[cfg(test)]
     /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> file::Handle {
+    pub fn file_manager(&self) -> fmc::ClientHandle {
         self.with_borrowed(|state| state.file_manager.clone_ref())
     }
 }
