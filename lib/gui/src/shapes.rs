@@ -111,6 +111,22 @@ pub mod icons {
     }
 }
 
+fn ring_angle(radius:ShaderData) -> Shape {
+    let loader_margin   = 0.0;
+    let loader_outer    = Circle(node_radius + border_size - loader_margin);
+    let loader_inner    = Circle(node_radius + loader_margin);
+    let loader_section  = Plane().angle("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)").rotate("Radians((clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0)");
+    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),(node_radius + border_size/2.0).px()));
+    let loader_corner_2 = loader_corner_1.rotate("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)");
+    let loader = &loader_outer - &loader_inner;
+    let loader = &loader * &loader_section;
+    let loader = &loader + &loader_corner_1;
+    let loader = &loader + &loader_corner_2;
+
+    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("Radians(input_time/200.0)");
+    loader.into()
+}
+
 fn nodes2(world:&World) -> ShapeSystem {
     let node_radius = 32.0;
     let border_size = 16.0;
@@ -138,18 +154,7 @@ fn nodes2(world:&World) -> ShapeSystem {
     let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
-    let loader_margin   = 0.0;
-    let loader_outer    = Circle(node_radius + border_size - loader_margin);
-    let loader_inner    = Circle(node_radius + loader_margin);
-    let loader_section  = PlaneAngle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
-    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),(node_radius + border_size/2.0).px()));
-    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
-    let loader = &loader_outer - &loader_inner;
-    let loader = &loader * &loader_section;
-    let loader = &loader + &loader_corner_1;
-    let loader = &loader + &loader_corner_2;
 
-    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
 
     let icon = icons::history();
 

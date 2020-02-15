@@ -165,7 +165,10 @@ macro_rules! _define_sdf_shape_mutable_part {
 // =============
 
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Value<Tp,Unit,V=f32> {
+pub struct Unknown{}
+
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub struct Value<Tp=Unknown,Unit=Unknown,V=f32> {
     pub value : V,
     _type     : PhantomData<Tp>,
     _unit     : PhantomData<Unit>,
@@ -231,26 +234,56 @@ where V:Neg<Output=V> {
 
 
 
-
+// ================
 // === Distance ===
+// ================
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct DistanceValue {}
 
-pub type Distance<Unit,V=f32> = Value<DistanceValue,Unit,V>;
+pub type Distance               = Value<DistanceValue>;
+pub type DistanceIn<Unit,V=f32> = Value<DistanceValue,Unit,V>;
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct Pixels;
 
 
+pub trait DistanceOps {
+    fn px(&self) -> DistanceIn<Pixels>;
+}
+
+impl DistanceOps for f32 {
+    fn px(&self) -> DistanceIn<Pixels> {
+        DistanceIn::new(*self)
+    }
+}
+
+impl DistanceOps for i32 {
+    fn px(&self) -> DistanceIn<Pixels> {
+        DistanceIn::new(*self as f32)
+    }
+}
+
+impls! {[Unit] From<DistanceIn<Unit>> for Glsl { |t| { t.value.into() } }}
+
+impls! { From<PhantomData<Vector2<Distance>>> for glsl::PrimType {
+    |_|  { PhantomData::<Vector2<f32>>.into() }
+}}
+
+
+
+// =============
 // === Angle ===
+// =============
 
 pub struct AnyAngle {}
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct AngleValue {}
 
-pub type Angle<Unit,V=f32> = Value<AngleValue,Unit,V>;
+pub type Angle = Value<AngleValue>;
+
+pub type AngleIn<Unit,V=f32> = Value<AngleValue,Unit,V>;
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct Degrees;
@@ -259,31 +292,62 @@ pub struct Degrees;
 pub struct Radians;
 
 
+pub trait AngleOps {
+    fn degrees(&self) -> AngleIn<Degrees>;
+    fn radians(&self) -> AngleIn<Radians>;
 
+    fn deg(&self) -> AngleIn<Degrees> {
+        self.degrees()
+    }
 
-
-pub trait AsPixelDistance {
-    fn px(&self) -> Distance<Pixels>;
-}
-
-impl AsPixelDistance for f32 {
-    fn px(&self) -> Distance<Pixels> {
-        Distance::new(*self)
+    fn rad(&self) -> AngleIn<Radians> {
+        self.radians()
     }
 }
 
-impl AsPixelDistance for i32 {
-    fn px(&self) -> Distance<Pixels> {
-        Distance::new(*self as f32)
+impl AngleOps for f32 {
+    fn degrees(&self) -> AngleIn<Degrees> {
+        AngleIn::new(*self)
+    }
+
+    fn radians(&self) -> AngleIn<Radians> {
+        AngleIn::new(*self)
     }
 }
 
+impl AngleOps for i32 {
+    fn degrees(&self) -> AngleIn<Degrees> {
+        AngleIn::new(*self as f32)
+    }
 
-impls! {[Unit] From<Distance<Unit>> for Glsl { |t| { t.value.into() } }}
+    fn radians(&self) -> AngleIn<Radians> {
+        AngleIn::new(*self as f32)
+    }
+}
 
-impls! { From<PhantomData<Vector2<Distance<Pixels>>>> for glsl::PrimType {
-    |_|  { PhantomData::<Vector2<f32>>.into() }
+impls! { From<AngleIn<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
+impls! { From<AngleIn<Degrees>> for Glsl { |t| { iformat!("radians(Degrees({t.value.glsl()}))").into() } }}
+
+impls! { From<PhantomData<Angle>> for glsl::PrimType {
+    |_|  { "Radians".into() }
 }}
+
+
+
+// ==============
+// === Traits ===
+// ==============
+
+pub mod traits {
+    pub use super::DistanceOps;
+    pub use super::AngleOps;
+}
+
+
+
+
+
+
 
 
 
@@ -303,9 +367,10 @@ define_sdf_shapes! {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
-    PlaneAngle (angle:f32) {
-        float distance = abs(position).x*cos(angle/2.0) + -position.y*sin(angle/2.0) + 0.5;
-        return bound_sdf(distance, bounding_box(0.0,0.0));
+    PlaneAngle (angle:Angle) {
+        float v_angle  = value(angle);
+        float distance = abs(position).x*cos(v_angle/2.0) + -position.y*sin(v_angle/2.0) + 0.5;
+        return bound_sdf(distance,bounding_box(0.0,0.0));
     }
 
     Line (width:f32) {
@@ -331,14 +396,14 @@ define_sdf_shapes! {
 
     // === Rectangle ===
 
-    Rect (size:Vector2<Distance<Pixels>>) {
+    Rect (size:Vector2<Distance>) {
         vec2  dir  = abs(position) - size/2.0;
         float dist = max(min(dir,0.0)) + length(max(dir,0.0));
         return bound_sdf(dist,bounding_box(size));
     }
 
     RoundedRectByCorner
-    (size:Vector2<Distance<Pixels>>, top_left:f32, top_right:f32, bottom_left:f32, bottom_right:f32) {
+    (size:Vector2<Distance>, top_left:f32, top_right:f32, bottom_left:f32, bottom_right:f32) {
         size /= 2.0;
 
         float tl = top_left;
@@ -394,9 +459,11 @@ impl<T:Into<Glsl>> From<T> for RectCornerRadius {
     }
 }
 
-//impl Plane {
-//    pub fn angle<T:>
-//}
+impl Plane {
+    pub fn angle<T:ShaderData<Angle>>(&self, t:T) -> PlaneAngle {
+        PlaneAngle(t)
+    }
+}
 
 impl Rect {
     pub fn corner_radius<C:Into<RectCornerRadius>>(&self, cfg:C) -> RoundedRectByCorner {

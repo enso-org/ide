@@ -215,7 +215,7 @@ impl Canvas {
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<V:ShaderData<Vector2<Distance<Pixels>>>>
+    pub fn translate<V:ShaderData<Vector2<Distance>>>
     (&mut self, num:usize, s1:CanvasShape, v:V) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let v:Glsl = v.into();

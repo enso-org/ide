@@ -444,6 +444,12 @@ impl HasCodeRepr for Type {
 
 derive_clone_plus!(Type);
 
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",self.to_code())
+    }
+}
+
 
 
 // ================
@@ -520,6 +526,12 @@ impl HasCodeRepr for PrimType {
             Self::USampler2dArray      => builder.add("usampler2DArray"),
             Self::Struct(ident)        => builder.add(ident),
         };
+    }
+}
+
+impl From<&str> for PrimType {
+    fn from(s:&str) -> Self {
+        Self::Struct(s.into())
     }
 }
 
@@ -836,6 +848,15 @@ pub mod traits {
         }
     }
     impl<T:PhantomInto<PrimType>> PhantomIntoPrimType for T {}
+
+    /// Extension methods for every type which could be converted to `Type`.
+    pub trait PhantomIntoType: Sized + PhantomInto<Type> {
+        /// `PrimType` representation of the current type.
+        fn glsl_type() -> Type {
+            Self::phantom_into()
+        }
+    }
+    impl<T:PhantomInto<Type>> PhantomIntoType for T {}
 
     pub trait IntoGlsl<'a> where Self:'a, &'a Self:Into<Glsl> {
         fn glsl(&'a self) -> Glsl {

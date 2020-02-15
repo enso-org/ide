@@ -279,8 +279,9 @@ vec2 translate (vec2 p, vec2 t) {
     return p - t;
 }
 
-vec2 rotate (vec2 p, float angle) {
-    return p*cos(-angle) + vec2(p.y,-p.x)*sin(-angle);
+vec2 rotate (vec2 p, Radians angle) {
+    float v_angle = value(angle);
+    return p*cos(-v_angle) + vec2(p.y,-p.x)*sin(-v_angle);
 }
 
 vec2 scale (vec2 p, float value) {

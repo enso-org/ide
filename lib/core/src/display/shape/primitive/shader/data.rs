@@ -7,6 +7,7 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
 
+use crate::display::shape::primitive::sdf::{Value,Unknown};
 
 
 // ==================
@@ -33,6 +34,8 @@ impl<T> ShaderDataMarker<T> for &String {}
 impl<T> ShaderDataMarker<T> for &str    {}
 impl<T> ShaderDataMarker<T> for  T where T:Into<Glsl> {}
 impl<T> ShaderDataMarker<T> for &T where for <'t> &'t T:Into<Glsl> {}
+
+impl<T,U,V> ShaderDataMarker<Value<T,Unknown,V>> for Value<T,U,V> where {}
 
 impl<T,S1,S2> ShaderDataMarker<Vector2<T>> for (S1,S2)
     where T:Scalar, S1:ShaderDataMarker<T>, S2:ShaderDataMarker<T> {}

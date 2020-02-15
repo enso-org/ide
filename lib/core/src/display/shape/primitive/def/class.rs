@@ -104,22 +104,22 @@ impl<T> ShapeRef<T> {
 
 impl<T> ShapeRef<T> {
     /// Translate the shape by a given offset.
-    pub fn translate<V:ShaderData<Vector2<Distance<Pixels>>>>(&self, v:V) -> Translate<Self> {
+    pub fn translate<V:ShaderData<Vector2<Distance>>>(&self, v:V) -> Translate<Self> {
         Translate(self,v)
     }
 
     /// Translate the shape along X-axis by a given offset.
-    pub fn translate_x<X:ShaderData<Distance<Pixels>>>(&self, x:X) -> Translate<Self> {
+    pub fn translate_x<X:ShaderData<Distance>>(&self, x:X) -> Translate<Self> {
         self.translate((x,0.px()))
     }
 
     /// Translate the shape along Y-axis by a given offset.
-    pub fn translate_y<Y:ShaderData<Distance<Pixels>>>(&self, y:Y) -> Translate<Self> {
+    pub fn translate_y<Y:ShaderData<Distance>>(&self, y:Y) -> Translate<Self> {
         self.translate((0.px(),y))
     }
 
     /// Rotate the shape by a given angle.
-    pub fn rotate<A:ShaderData<f32>>(&self, angle:A) -> Rotation<Self> {
+    pub fn rotate<A:ShaderData<Angle>>(&self, angle:A) -> Rotation<Self> {
         Rotation(self,angle)
     }
 

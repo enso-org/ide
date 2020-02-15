@@ -17,7 +17,7 @@ use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
-use crate::display::shape::primitive::def::sdf::{Distance,Pixels};
+use crate::display::shape::primitive::def::sdf::{Distance,Angle,Pixels};
 
 
 
@@ -99,8 +99,8 @@ macro_rules! _define_compound_shape {
 use immutable::*;
 
 define_compound_shapes! {
-    Translate(child)(v:Vector2<Distance<Pixels>>)
-    Rotation(child)(angle:f32)
+    Translate(child)(v:Vector2<Distance>)
+    Rotation(child)(angle:Angle)
     Scale(child)(value:f32)
     Union(child1,child2)()
     Difference(child1,child2)()
