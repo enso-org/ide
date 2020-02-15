@@ -52,6 +52,33 @@ impls! { From<&String> for Glsl { |t| Self {str:t.into()} } }
 impls! { From<&str>    for Glsl { |t| Self {str:(*t).into()} } }
 
 
+// === From Tuple to Glsl ===
+
+impls! {[T1,T2] From<(T1,T2)> for Glsl
+    where [ T1:Into<Glsl>, T2:Into<Glsl> ] { |t| {
+    let v1 = t.0.glsl();
+    let v2 = t.1.glsl();
+    iformat!("vec2({v1},{v2})").into()
+}}}
+
+impls! {[T1,T2,T3] From<(T1,T2,T3)> for Glsl
+where [ T1:Into<Glsl>, T2:Into<Glsl>, T3:Into<Glsl> ] { |t| {
+    let v1 = t.0.glsl();
+    let v2 = t.1.glsl();
+    let v3 = t.2.glsl();
+    iformat!("vec3({v1},{v2},{v3})").into()
+}}}
+
+impls! {[T1,T2,T3,T4] From<(T1,T2,T3,T4)> for Glsl
+where [ T1:Into<Glsl>, T2:Into<Glsl>, T3:Into<Glsl>, T4:Into<Glsl> ] { |t| {
+    let v1 = t.0.glsl();
+    let v2 = t.1.glsl();
+    let v3 = t.2.glsl();
+    let v4 = t.3.glsl();
+    iformat!("vec4({v1},{v2},{v3},{v4})").into()
+}}}
+
+
 // === From Prim Types to Glsl ===
 
 impls! { From<bool> for Glsl { |t| t.to_string().into() } }
@@ -64,11 +91,12 @@ impls! { From<f32>  for Glsl { |t| {
 }}}
 
 impls! { [T,R,C] From<MatrixMN<T,R,C>> for Glsl
-    where [ Self : MatrixCtx<T,R,C>
+    where [ T    : Into<Glsl>
+          , Self : MatrixCtx<T,R,C>
           , PhantomData<MatrixMN<T,R,C>> : Into<PrimType> ] {
     |t| {
         let type_name = PrimType::phantom_from::<MatrixMN<T,R,C>>().to_code();
-        let vals:Vec<String> = t.as_slice().iter().cloned().map(|t|format!("{:?}",t)).collect();
+        let vals:Vec<String> = t.as_slice().iter().cloned().map(|t| t.glsl().into()).collect();
         format!("{}({})",type_name,vals.join(",")).into()
     }
 }}

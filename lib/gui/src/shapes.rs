@@ -38,64 +38,75 @@ pub fn run_example_shapes() {
 }
 
 
-fn nodes1(world:&World) -> ShapeSystem {
-    let node_radius = 40.0;
-    let border_size = 10.0;
-    let node   = Circle(node_radius);
-    let border = Circle(node_radius + border_size);
-    let node   = node.fill(Srgb::new(0.96,0.96,0.96));
-    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
-
-    let shadow1 = Circle(node_radius + border_size);
-    let shadow1_color = Gradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
-    let shadow1       = shadow1.fill(shadow1_color);
-
-    let shadow2 = Circle(node_radius + border_size);
-    let shadow2_color = Gradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear());
-    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
-    let shadow2       = shadow2.fill(shadow2_color);
-
-    let loader_margin   = 0.0;
-    let loader_outer    = Circle(node_radius + border_size - loader_margin);
-    let loader_inner    = Circle(node_radius + loader_margin);
-    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
-    let loader_corner_1 = Circle(border_size/2.0).translate(0.0,45.0);
-    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
-    let loader = &loader_outer - &loader_inner;
-    let loader = &loader * &loader_section;
-    let loader = &loader + &loader_corner_1;
-    let loader = &loader + &loader_corner_2;
-
-    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
-
-    let out = border + loader + shadow1 + shadow2 + node;
-    ShapeSystem::new(world,&out)
-}
+//fn nodes1(world:&World) -> ShapeSystem {
+//    let node_radius = 40.0;
+//    let border_size = 10.0;
+//    let node   = Circle(node_radius);
+//    let border = Circle(node_radius + border_size);
+//    let node   = node.fill(Srgb::new(0.96,0.96,0.96));
+//    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
+//
+//    let shadow1 = Circle(node_radius + border_size);
+//    let shadow1_color = Gradient::new()
+//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
+//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+//    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+//    let shadow1       = shadow1.fill(shadow1_color);
+//
+//    let shadow2 = Circle(node_radius + border_size);
+//    let shadow2_color = Gradient::new()
+//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear());
+//    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
+//    let shadow2       = shadow2.fill(shadow2_color);
+//
+//    let loader_margin   = 0.0;
+//    let loader_outer    = Circle(node_radius + border_size - loader_margin);
+//    let loader_inner    = Circle(node_radius + loader_margin);
+//    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
+//    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),45.px()));
+//    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
+//    let loader = &loader_outer - &loader_inner;
+//    let loader = &loader * &loader_section;
+//    let loader = &loader + &loader_corner_1;
+//    let loader = &loader + &loader_corner_2;
+//
+//    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
+//
+//    let out = border + loader + shadow1 + shadow2 + node;
+//    ShapeSystem::new(world,&out)
+//}
 
 pub mod icons {
     use super::*;
 
     pub fn history() -> Shape {
-        let corner_radius1 = 2.0;
-        let corner_radius2 = 1.5;
-        let corner_radius3 = 1.0;
-        let width_diff = 3.0 * corner_radius1;
-        let border_size = 2.0;
-        let rect1 = RoundedRectByCorner(32.0, 16.0, corner_radius1, corner_radius1, corner_radius1, corner_radius1).fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
-        let rect2 = RoundedRectByCorner(32.0 - width_diff, 16.0, corner_radius2, corner_radius2, corner_radius2, corner_radius2).translate(0.0, 6.0);
-        let rect2 = rect2 - rect1.translate(0.0, border_size);
-        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
+        let radius_diff   = 0.5.px();
+        let corner_radius = 2.0.px();
+        let width_diff    = 3.0 * corner_radius;
+        let offset        = 2.px();
+        let width         = 32.px();
+        let height        = 16.px();
+        let persp_diff1   = 6.px();
 
-        let rect3 = RoundedRectByCorner(32.0 - 2.0 * width_diff, 16.0, corner_radius3, corner_radius3, corner_radius3, corner_radius3).translate(0.0, 10.0);
-        let rect3 = rect3 - rect1.translate(0.0, border_size + 6.0);
+        let width2         = width  - width_diff;
+        let width3         = width2 - width_diff;
+        let corner_radius2 = corner_radius  - radius_diff;
+        let corner_radius3 = corner_radius2 - radius_diff;
+        let persp_diff2    = 2.0 * persp_diff1;
+
+        let rect1 = Rect((width ,height)).corner_radius(corner_radius);
+        let rect2 = Rect((width2,height)).corner_radius(corner_radius2).translate_y(persp_diff1);
+        let rect3 = Rect((width3,height)).corner_radius(corner_radius3).translate_y(persp_diff2);
+
+        let rect3 = rect3 - rect2.translate_y(offset);
+        let rect2 = rect2 - rect1.translate_y(offset);
+
+        let rect1 = rect1.fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
+        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
         let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
 
-        let icon = (rect3 + rect2 + rect1).translate(0.0, -4.0);
+        let icon = (rect3 + rect2 + rect1).translate_y(-persp_diff2/2.0);
         icon.into()
     }
 }
@@ -130,8 +141,8 @@ fn nodes2(world:&World) -> ShapeSystem {
     let loader_margin   = 0.0;
     let loader_outer    = Circle(node_radius + border_size - loader_margin);
     let loader_inner    = Circle(node_radius + loader_margin);
-    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
-    let loader_corner_1 = Circle(border_size/2.0).translate(0.0,node_radius + border_size/2.0);
+    let loader_section  = PlaneAngle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
+    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),(node_radius + border_size/2.0).px()));
     let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
     let loader = &loader_outer - &loader_inner;
     let loader = &loader * &loader_section;

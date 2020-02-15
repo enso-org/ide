@@ -19,6 +19,12 @@ BoundingBox bounding_box (float w, float h) {
     return BoundingBox(-w,w,-h,h);
 }
 
+BoundingBox bounding_box (vec2 size) {
+    float w2 = size.x / 2.0;
+    float h2 = size.y / 2.0;
+    return BoundingBox(-w2,w2,-h2,h2);
+}
+
 BoundingBox inverse (BoundingBox a) {
     return BoundingBox(0.0,0.0,0.0,0.0);
 }

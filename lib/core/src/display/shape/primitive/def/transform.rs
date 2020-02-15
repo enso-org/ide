@@ -16,6 +16,8 @@ use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
+use crate::system::gpu::types::*;
+use crate::display::shape::primitive::def::sdf::{Distance,Pixels};
 
 
 
@@ -24,46 +26,6 @@ use crate::system::gpu::shader::glsl::Glsl;
 // ========================================
 
 /// Defines compound canvas shapes.
-///
-/// For the following input:
-/// ```compile_fail
-/// define_compound_shapes! {
-///    Translate(child)(x:f32,y:f32)
-/// }
-/// ```
-///
-/// The macro generates:
-/// ```compile_fail
-/// pub mod mutable {
-///     use super::*;
-///
-///     pub struct Translate<child> {
-///         pub child : child,
-///         pub x     : Glsl,
-///         pub y     : Glsl,
-///     }
-///
-///     impl<child:Shape> Translate<child> {
-///         pub fn new<x:ShaderData<f32>,y:ShaderData<f32>>(child:&child,x:x,y:y) -> Self {
-///             let child = child.clone();
-///             let x     = x.into();
-///             let y     = y.into();
-///             Self {child,x,y}
-///         }
-///     }
-/// }
-///
-/// pub mod immutable {
-///     use super::*;
-///
-///     pub type Translate<child> = ShapeRef<mutable::Translate<child>>;
-///     pub fn Translate<child:Shape,x:ShaderData<f32>,y:ShaderData<f32>>
-///     (child:&child,x:x,y:y) -> Translate<child> {
-///         ShapeRef::new(mutable::Translate::new(child,x,y))
-///     }
-/// }
-/// ```
-
 macro_rules! define_compound_shapes {
     ( $($name:ident $shapes:tt $fields:tt)* ) => {
         /// Contains mutable shapes definitions.
@@ -137,7 +99,7 @@ macro_rules! _define_compound_shape {
 use immutable::*;
 
 define_compound_shapes! {
-    Translate(child)(x:f32,y:f32)
+    Translate(child)(v:Vector2<Distance<Pixels>>)
     Rotation(child)(angle:f32)
     Scale(child)(value:f32)
     Union(child1,child2)()
@@ -151,7 +113,7 @@ define_compound_shapes! {
 impl<Child:Drawable> Drawable for Translate<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
-        canvas.translate(self.id(),s1,&self.x,&self.y)
+        canvas.translate(self.id(),s1,&self.v)
     }
 }
 

@@ -7,6 +7,7 @@ use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::shader::data::ShaderData;
 use crate::system::gpu::shader::glsl::Glsl;
+use crate::system::gpu::types::*;
 
 use std::ops::Sub;
 use std::ops::Mul;
@@ -85,6 +86,10 @@ impl<T> ShapeRef<T> {
     pub fn new(t:T) -> Self {
         Self {rc:Rc::new(t)}
     }
+
+    pub fn unwrap(&self) -> &T {
+        self.deref()
+    }
 }
 
 impl<T> ShapeRef<T> {
@@ -99,8 +104,18 @@ impl<T> ShapeRef<T> {
 
 impl<T> ShapeRef<T> {
     /// Translate the shape by a given offset.
-    pub fn translate<X:ShaderData<f32>,Y:ShaderData<f32>>(&self, x:X, y:Y) -> Translate<Self> {
-        Translate(self,x,y)
+    pub fn translate<V:ShaderData<Vector2<Distance<Pixels>>>>(&self, v:V) -> Translate<Self> {
+        Translate(self,v)
+    }
+
+    /// Translate the shape along X-axis by a given offset.
+    pub fn translate_x<X:ShaderData<Distance<Pixels>>>(&self, x:X) -> Translate<Self> {
+        self.translate((x,0.px()))
+    }
+
+    /// Translate the shape along Y-axis by a given offset.
+    pub fn translate_y<Y:ShaderData<Distance<Pixels>>>(&self, y:Y) -> Translate<Self> {
+        self.translate((0.px(),y))
     }
 
     /// Rotate the shape by a given angle.
