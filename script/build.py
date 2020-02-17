@@ -37,12 +37,12 @@ print(f'Build Working Directory: {repo_root}')
 os.chdir(repo_root)
 
 print('Building with wasm-pack...')
-subprocess.run(['wasm-pack', 'build', '--target', 'web', '--no-typescript', '--out-dir', '../../target/web', 'lib/gui'])
+subprocess.check_call(['wasm-pack', 'build', '--target', 'web', '--no-typescript', '--out-dir', '../../target/web', 'lib/gui'], shell=True)
 patch_file('target/web/gui.js', js_workaround_patcher)
 shutil.move('target/web/gui_bg.wasm', 'target/web/gui.wasm')
 
 # TODO [mwu] It should be possible to drop gzip program dependency by using Python's gzip library.
-subprocess.run(['gzip', '--keep', '--best', '--force', 'target/web/gui.wasm'])
+subprocess.check_call(['gzip', '--keep', '--best', '--force', 'target/web/gui.wasm'], shell=True)
 
 # Note [MWU] We build to provisional location and patch files there before copying, so the backpack don't get errors
 #            from processing unpatched files.
