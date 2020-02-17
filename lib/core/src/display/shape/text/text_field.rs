@@ -43,6 +43,7 @@ pub struct TextFieldProperties {
     /// Text size being a line height in pixels.
     pub text_size: f32,
     /// Base color of displayed text.
+    //TODO: base_color should use definitions in core/data/color
     pub base_color: Vector4<f32>,
     /// Size of this component.
     pub size: Vector2<f32>,

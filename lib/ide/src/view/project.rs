@@ -31,9 +31,9 @@ shared! { ProjectView
     }
 
     impl {
-        /// Set view dimensions.
-        pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-            self.layout.set_dimensions(dimensions);
+        /// Set view size.
+        pub fn set_size(&mut self, size:Vector2<f32>) {
+            self.layout.set_size(size);
         }
     }
 }
@@ -58,9 +58,9 @@ impl ProjectView {
         let scene = self.with_borrowed(|data| data.world.scene());
         let weak  = self.downgrade();
         let resize_callback = scene.camera().add_screen_update_callback(
-            move |dimensions:&Vector2<f32>| {
+            move |size:&Vector2<f32>| {
                 if let Some(this) = weak.upgrade() {
-                    this.set_dimensions(*dimensions)
+                    this.set_size(*size)
                 }
             }
         );

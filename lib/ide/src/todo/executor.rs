@@ -55,22 +55,19 @@ pub fn spawn_task(f:impl Future<Output=()> + 'static) {
 
 #[derive(Debug)]
 pub struct JsExecutor {
-    #[allow(dead_code)]
-    executor   : Rc<RefCell<LocalPool>>,
-    #[allow(dead_code)]
-    event_loop : EventLoop,
-    spawner    : LocalSpawner,
-    #[allow(dead_code)]
-    cb_handle  : CallbackHandle,
+    _executor   : Rc<RefCell<LocalPool>>,
+    _event_loop : EventLoop,
+    spawner     : LocalSpawner,
+    _cb_handle  : CallbackHandle,
 }
 
 impl JsExecutor {
-    pub fn new(event_loop:EventLoop) -> JsExecutor {
-        let executor  = LocalPool::default();
-        let spawner   = executor.spawner();
-        let executor  = Rc::new(RefCell::new(executor));
-        let cb_handle = JsExecutor::schedule_execution(event_loop.clone(),executor.clone());
-        JsExecutor {executor,event_loop,spawner,cb_handle}
+    pub fn new(_event_loop:EventLoop) -> JsExecutor {
+        let _executor  = LocalPool::default();
+        let spawner    = _executor.spawner();
+        let _executor  = Rc::new(RefCell::new(_executor));
+        let _cb_handle = JsExecutor::schedule_execution(_event_loop.clone(), _executor.clone());
+        JsExecutor {_executor,_event_loop,spawner,_cb_handle}
     }
 
     pub fn schedule_execution
@@ -93,7 +90,7 @@ impl JsExecutor {
 
     pub fn add_callback<F:basegl::control::EventLoopCallback>
     (&mut self, callback:F) -> CallbackHandle {
-        self.event_loop.add_callback(callback)
+        self._event_loop.add_callback(callback)
     }
 }
 

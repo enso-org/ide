@@ -9,7 +9,7 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
-pub mod ui_component;
+pub mod temporary_panel;
 pub mod project;
 pub mod layout;
 pub mod text_editor;

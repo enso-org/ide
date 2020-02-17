@@ -1,4 +1,4 @@
-//! Main library crate for IDE project. It includes implementation of
+//! Main library crate for IDE. It includes implementation of
 //! controllers, view logic and code that wraps them all together.
 
 #![warn(missing_docs)]
