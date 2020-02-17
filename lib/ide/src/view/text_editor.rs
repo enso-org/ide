@@ -14,6 +14,8 @@ use basegl::display::world::*;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
+use crate::todo::executor::JsExecutor;
+use basegl::control::EventLoop;
 
 
 // ==================
@@ -47,10 +49,21 @@ impl TextEditor {
         let text_size    = 16.0;
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
-        let content      = futures::executor::block_on(async {
-            controller.read_content().await.expect("Couldn't read content")
-        });
-        text_field.write(&content);
+        let event_loop   = EventLoop::new();
+        let executor     = JsExecutor::new(event_loop);
+        let controller_clone = controller.clone_ref();
+        let text_field_clone = text_field.clone();
+        executor.spawn(async move {
+            async {
+                println!("Inside async");
+            }.await;
+            println!("After async");
+            controller_clone.store_content("Hello".into()).await.expect("Couldn't store content.");
+            println!("Reached?");
+            let content = controller_clone.read_content().await.expect("Couldn't read content.");
+            text_field_clone.write(&content);
+        }).unwrap();
+        std::mem::forget(executor);
         world.add_child(&text_field);
 
         Self {controller,text_field,padding,position,size}.initialize()
