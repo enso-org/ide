@@ -6,7 +6,7 @@
 
 use crate::prelude::*;
 
-use crate::controller::*;
+use crate::controller;
 
 use failure::_core::fmt::{Formatter, Error};
 use flo_stream::{Publisher, Subscriber};
@@ -21,6 +21,12 @@ use shapely::shared;
 // === Notification ===
 // ====================
 
+/// A buffer size for notification publisher.
+///
+/// We don't expect much traffic on file notifications, therefore there is no need for setting big
+/// buffers.
+const NOTIFICATION_BUFFER_SIZE : usize = 36;
+
 /// A notification from TextController.
 #[derive(Clone,Debug)]
 pub enum Notification {
@@ -34,30 +40,27 @@ pub enum Notification {
 // === Text Controller ===
 // =======================
 
-shared! { ControllerHandle
+/// A handle for file.
+///
+/// This makes distinction between module and plain text files. The module files are handled by
+/// Module Controller, the plain text files are handled directly by File Manager Client.
+#[derive(Clone,Debug)]
+enum FileHandle {
+    PlainText {path:fmc::Path, file_manager:fmc::Handle},
+    Module    {controller:controller::module::Handle},
+}
+
+
+shared! { Handle
 
     /// Data stored by the text controller.
     pub struct State {
-        /// A path to file the controller is handling.
-        file_path : fmc::Path,
-        /// A module handle in case the TextController is managing Luna module file.
-        module: Option<module::ControllerHandle>,
+        file: FileHandle,
         /// Sink where we put events to be consumed by the view.
         notification_publisher: Publisher<Notification>,
-        /// File manager handle, used to obtain file information in case of plain text file.
-        file_manager: fmc::ClientHandle,
     }
 
     impl {
-        /// Create controller managing plain text file.
-        pub fn new(path:fmc::Path, file_manager:fmc::ClientHandle) -> Self {
-            Self {file_manager,
-                file_path              : path,
-                module                 : None,
-                notification_publisher : Publisher::new(10),
-            }
-        }
-
         /// Get subscriber receiving controller's notifications.
         pub fn subscribe(&mut self) -> Subscriber<Notification> {
             self.notification_publisher.subscribe()
@@ -65,53 +68,82 @@ shared! { ControllerHandle
 
         /// Get clone of file path handled by this controller.
         pub fn file_path_clone(&self) -> fmc::Path {
-            self.file_path.clone()
+            match &self.file {
+                FileHandle::PlainText{path,..} => path.clone(),
+                FileHandle::Module{controller} => controller.location_as_path(),
+            }
         }
     }
 }
 
-impl ControllerHandle {
+impl Handle {
+    /// Create controller managing plain text file.
+    pub fn new_for_plain_test(path:fmc::Path, file_manager:fmc::Handle) -> Self {
+        Self::new(FileHandle::PlainText {path,file_manager})
+    }
     /// Create controller managing Luna module file.
-    pub fn new_for_module(module:module::ControllerHandle, file_manager:fmc::ClientHandle) -> Self {
-        let file_path = module.location_as_path();
-        let mut state = State::new(file_path, file_manager);
-        state.module = Some(module);
-        Self { rc:Rc::new(RefCell::new(state)) }
+    pub fn new_for_module(controller:controller::module::Handle) -> Self {
+        Self::new(FileHandle::Module {controller})
     }
 
     /// Read file's content.
     pub fn read_content(&self) -> impl Future<Output=Result<String,RpcError>> {
-        let (mut file_manager,path) = self.with_borrowed(|state| {
-            (state.file_manager.clone_ref(), state.file_path.clone())
-        });
-        file_manager.read(path)
+        match self.file_handle() {
+            FileHandle::PlainText {path,mut file_manager} => file_manager.read(path),
+            FileHandle::Module {..}               => unimplemented!(),
+        }
     }
 
     /// Store the given content to file.
     pub fn store_content(&self, content:String) -> impl Future<Output=Result<(),RpcError>> {
-        let (mut file_manager,path) = self.with_borrowed(|state| {
-            (state.file_manager.clone_ref(), state.file_path.clone())
-        });
-        file_manager.write(path,content)
+        match self.file_handle() {
+            FileHandle::PlainText {path,mut file_manager} => file_manager.write(path,content),
+            FileHandle::Module {..}               => unimplemented!(),
+        }
     }
 
     #[cfg(test)]
     /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> fmc::ClientHandle {
-        self.with_borrowed(|state| state.file_manager.clone_ref())
+    pub fn file_manager(&self) -> fmc::Handle {
+        self.with_borrowed(|state| {
+            match &state.file {
+                FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
+                FileHandle::Module {..} =>
+                    panic!("Cannot get FileManagerHandle from module file"),
+            }
+        })
     }
 }
+
+
+// === Private functions ===
+
+impl Handle {
+    /// Create controller managing plain text file.
+    fn new(file_handle:FileHandle) -> Self {
+        let state = State {
+            file                   : file_handle,
+            notification_publisher : Publisher::new(NOTIFICATION_BUFFER_SIZE),
+        };
+        Self {rc:Rc::new(RefCell::new(state))}
+    }
+
+    fn file_handle(&self) -> FileHandle {
+        self.with_borrowed(|state| state.file.clone())
+    }
+}
+
 
 // === Debug implementations ===
 
 impl Debug for State {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"Text Controller {{ file_path: {:?}, module: {:?} }}",self.file_path,self.module)
+        write!(f,"Text Controller on {:?} }}",self.file)
     }
 }
 
 // TODO[ao] why the shared macro cannot derive this?
-impl Debug for ControllerHandle {
+impl Debug for Handle {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         self.rc.borrow().fmt(f)
     }

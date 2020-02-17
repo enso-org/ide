@@ -142,7 +142,7 @@ pub enum FileKind {
 // === Client ===
 // ==============
 
-shared! { ClientHandle
+shared! { Handle
 
     /// File Manager client. Contains numerous asynchronous methods for remote calls
     /// on File Manager server. Also, allows obtaining events stream by calling
@@ -213,7 +213,7 @@ macro_rules! make_rpc_method {
             }
         }
 
-        impl ClientHandle {
+        impl Handle {
             /// Remote call to the method on the File Manager Server.
             pub fn $name
             (&mut self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
