@@ -2,8 +2,9 @@
 
 use crate::prelude::*;
 
-use super::temporary_panel::TemporaryPanel;
-use super::temporary_panel::TemporaryPadding;
+use crate::view::temporary_panel::TemporaryPanel;
+use crate::view::temporary_panel::TemporaryPadding;
+use crate::controller::text::ControllerHandle;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
@@ -26,12 +27,13 @@ pub struct TextEditor {
     text_field : TextField,
     padding    : TemporaryPadding,
     position   : Vector2<f32>,
-    size       : Vector2<f32>
+    size       : Vector2<f32>,
+    controller : ControllerHandle
 }
 
 impl TextEditor {
     /// Creates a new TextEditor.
-    pub fn new(world:&World) -> Self {
+    pub fn new(world:&World, controller:ControllerHandle) -> Self {
         let scene        = world.scene();
         let camera       = scene.camera();
         let screen       = camera.screen();
@@ -45,9 +47,13 @@ impl TextEditor {
         let text_size    = 16.0;
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
+        let content      = futures::executor::block_on(async {
+            controller.read_content().await.expect("Couldn't read content")
+        });
+        text_field.write(&content);
         world.add_child(&text_field);
 
-        Self {text_field,padding,position,size}.initialize()
+        Self {controller,text_field,padding,position,size}.initialize()
     }
 
     fn initialize(self) -> Self {

@@ -3,7 +3,8 @@
 
 use crate::prelude::*;
 
-use super::layout::ViewLayout;
+use crate::view::layout::ViewLayout;
+use crate::controller::project::ControllerHandle;
 
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
@@ -12,6 +13,8 @@ use basegl::control::callback::CallbackHandle;
 
 use nalgebra::Vector2;
 use shapely::shared;
+use json_rpc::test_util::transport::mock::MockTransport;
+use file_manager_client::Path;
 
 
 
@@ -27,7 +30,8 @@ shared! { ProjectView
     pub struct ProjectViewData {
         world           : World,
         layout          : ViewLayout,
-        resize_callback: Option<CallbackHandle>
+        resize_callback : Option<CallbackHandle>,
+        controller      : ControllerHandle
     }
 
     impl {
@@ -41,9 +45,13 @@ shared! { ProjectView
 impl Default for ProjectViewData {
     fn default() -> Self {
         let world           = WorldData::new(&web::body());
-        let layout          = ViewLayout::default(&world);
         let resize_callback = None;
-        ProjectViewData{world,layout,resize_callback}
+        let transport       = MockTransport::new();
+        let controller      = ControllerHandle::new(transport);
+        let path            = Path::new("default_file");
+        let text_controller = controller.open_text_file(path.clone());
+        let layout          = ViewLayout::new(&world,text_controller);
+        ProjectViewData{controller,world,layout,resize_callback}
     }
 }
 
