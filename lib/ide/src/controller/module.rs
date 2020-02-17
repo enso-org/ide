@@ -28,7 +28,7 @@ impl Location {
     }
 }
 
-shared! { ControllerHandle
+shared! { Handle
     /// State data of the module controller.
     #[derive(Debug)]
     pub struct State {
@@ -54,7 +54,7 @@ shared! { ControllerHandle
     }
 }
 
-impl ControllerHandle {
+impl Handle {
     /// Receives a notification call when file with this module has been
     /// modified by a third-party tool (like non-IDE text editor).
     pub async fn file_externally_modified(&self) {

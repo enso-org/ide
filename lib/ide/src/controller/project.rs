@@ -4,8 +4,7 @@
 //! files and modules. Expected to live as long as the project remains open in the IDE.
 
 use crate::prelude::*;
-
-use crate::controller::*;
+use crate::controller;
 
 use json_rpc::Transport;
 use weak_table::weak_value_hash_map::Entry::Occupied;
@@ -13,19 +12,19 @@ use weak_table::weak_value_hash_map::Entry::Vacant;
 use file_manager_client as fmc;
 use shapely::shared;
 
+type ModuleLocation = controller::module::Location;
 
-
-shared! { ControllerHandle
+shared! { Handle
 
     /// Project controller's state.
     #[derive(Debug)]
     pub struct State {
         /// File Manager Client.
-        file_manager: fmc::ClientHandle,
+        file_manager: fmc::Handle,
         /// Cache of module controllers.
-        module_cache: WeakValueHashMap<module::Location, module::WeakControllerHandle>,
+        module_cache: WeakValueHashMap<ModuleLocation,controller::module::WeakHandle>,
         /// Cache of text controllers.
-        text_cache: WeakValueHashMap<file_manager_client::Path,text::WeakControllerHandle>,
+        text_cache: WeakValueHashMap<file_manager_client::Path,controller::text::WeakHandle>,
     }
 
     impl {
@@ -34,26 +33,30 @@ shared! { ControllerHandle
         /// The remote connections should be already established.
         pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
             State {
-                file_manager           : fmc::ClientHandle::new(file_manager_transport),
-                module_cache           : default(),
-                text_cache             : default(),
+                file_manager : fmc::Handle::new(file_manager_transport),
+                module_cache : default(),
+                text_cache   : default(),
             }
         }
 
         /// Returns a module controller for given module location.
-        pub fn open_module(&mut self, loc:module::Location) -> module::ControllerHandle {
+        pub fn open_module(&mut self, loc:ModuleLocation) -> controller::module::Handle {
             match self.module_cache.entry(loc.clone()) {
                 Occupied(entry) => entry.get().clone(),
-                Vacant(entry)   => entry.insert(module::ControllerHandle::new(loc)),
+                Vacant(entry)   => entry.insert(controller::module::Handle::new(loc)),
             }
         }
 
         /// Returns a text controller for given file path.
-        pub fn open_text_file(&mut self, path:file_manager_client::Path) -> text::ControllerHandle {
+        pub fn open_text_file(&mut self, path:fmc::Path) -> controller::text::Handle {
             let fm = self.file_manager.clone();
             match self.text_cache.entry(path.clone()) {
                 Occupied(entry) => entry.get().clone(),
-                Vacant(entry)   => entry.insert(text::ControllerHandle::new(path,fm)),
+                // TODO[ao] handle module files here.
+                Vacant(entry) => {
+                    let controller = controller::text::Handle::new_for_plain_test(path,fm);
+                    entry.insert(controller)
+                },
             }
         }
     }
@@ -71,9 +74,9 @@ mod test {
     #[test]
     fn obtain_module_controller() {
         let transport        = MockTransport::new();
-        let project_ctrl     = ControllerHandle::new(transport);
-        let location         = module::Location("TestLocation".to_string());
-        let another_location = module::Location("TestLocation2".to_string());
+        let project_ctrl     = controller::project::Handle::new(transport);
+        let location         = controller::module::Location("TestLocation".to_string());
+        let another_location = controller::module::Location("TestLocation2".to_string());
 
         let module_ctrl         = project_ctrl.open_module(location.clone());
         let same_module_ctrl    = project_ctrl.open_module(location.clone());
@@ -87,7 +90,7 @@ mod test {
     #[test]
     fn obtain_text_controller() {
         let transport           = MockTransport::new();
-        let project_ctrl        = ControllerHandle::new(transport);
+        let project_ctrl        = controller::project::Handle::new(transport);
         let file_manager_handle = project_ctrl.with_borrowed(|s| s.file_manager.clone());
         let path                = Path("TestPath".to_string());
         let another_path        = Path("TestPath2".to_string());
