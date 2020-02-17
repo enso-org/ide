@@ -23,6 +23,9 @@ pub mod view;
 pub mod prelude {
     pub use enso_prelude::*;
 
+    pub use crate::controller;
+    pub use crate::executor;
+
     pub use futures::Future;
     pub use futures::FutureExt;
     pub use futures::Stream;

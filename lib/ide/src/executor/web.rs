@@ -18,13 +18,14 @@ use basegl::control::EventLoop;
 /// `EventLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
 pub struct JsExecutor {
-    /// Underlying executor.
+    /// Underlying executor. Shared internally with the event loop callback.
     executor    : Rc<RefCell<LocalPool>>,
     /// Executor's spawner handle.
     pub spawner : LocalSpawner,
     /// Event loop that calls us on each frame.
     event_loop  : Option<EventLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
+    /// Also owns a shared handle to the `executor`.
     cb_handle   : Option<CallbackHandle>,
 }
 
@@ -77,7 +78,7 @@ impl JsExecutor {
     ///
     /// Note: Caller should store or leak this `JsExecutor` so the global
     /// spawner won't be dangling.
-    pub fn new_running_global_eternal() -> JsExecutor {
+    pub fn new_running_global() -> JsExecutor {
         let mut executor   = JsExecutor::new();
         executor.run(EventLoop::new());
         crate::executor::global::set_spawner(executor.spawner.clone());
