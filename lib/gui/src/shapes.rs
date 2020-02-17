@@ -8,7 +8,9 @@ use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
 use basegl::display::shape::primitive::system::ShapeSystem;
+use basegl::display::shape::*;
 use basegl::display::world::*;
+use basegl::math::topology::metric::*;
 use basegl::system::web::set_stdout;
 use basegl::system::web::set_stack_trace_limit;
 use basegl::system::web::forward_panic_hook_to_console;
@@ -27,6 +29,8 @@ use basegl::control::io::mouse2;
 use basegl::control::io::mouse2::MouseManager;
 use basegl::data::color::*;
 
+use basegl::display::shape::ShapeData;
+
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -37,70 +41,30 @@ pub fn run_example_shapes() {
     init(&WorldData::new(&web::body()));
 }
 
-
-//fn nodes1(world:&World) -> ShapeSystem {
-//    let node_radius = 40.0;
-//    let border_size = 10.0;
-//    let node   = Circle(node_radius);
-//    let border = Circle(node_radius + border_size);
-//    let node   = node.fill(Srgb::new(0.96,0.96,0.96));
-//    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
-//
-//    let shadow1 = Circle(node_radius + border_size);
-//    let shadow1_color = Gradient::new()
-//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
-//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-//    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
-//    let shadow1       = shadow1.fill(shadow1_color);
-//
-//    let shadow2 = Circle(node_radius + border_size);
-//    let shadow2_color = Gradient::new()
-//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear());
-//    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(5.0));
-//    let shadow2       = shadow2.fill(shadow2_color);
-//
-//    let loader_margin   = 0.0;
-//    let loader_outer    = Circle(node_radius + border_size - loader_margin);
-//    let loader_inner    = Circle(node_radius + loader_margin);
-//    let loader_section  = Angle("clamp(input_time/2000.0 - 1.0) * 1.99 * PI").rotate("(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0");
-//    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),45.px()));
-//    let loader_corner_2 = loader_corner_1.rotate("clamp(input_time/2000.0 - 1.0) * 1.99 * PI");
-//    let loader = &loader_outer - &loader_inner;
-//    let loader = &loader * &loader_section;
-//    let loader = &loader + &loader_corner_1;
-//    let loader = &loader + &loader_corner_2;
-//
-//    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("input_time/200.0");
-//
-//    let out = border + loader + shadow1 + shadow2 + node;
-//    ShapeSystem::new(world,&out)
-//}
-
 pub mod icons {
     use super::*;
 
     pub fn history() -> Shape {
-        let radius_diff   = 0.5.px();
-        let corner_radius = 2.0.px();
-        let width_diff    = 3.0 * corner_radius;
-        let offset        = 2.px();
-        let width         = 32.px();
-        let height        = 16.px();
-        let persp_diff1   = 6.px();
+        let radius_diff   = 0.5.pxx();
+        let corner_radius = 2.0.pxx();
+        let width_diff    = &corner_radius * 3.0;
+        let offset        = 2.pxx();
+        let width         = 32.pxx();
+        let height        = 16.pxx();
+        let persp_diff1   = 6.pxx();
 
-        let width2         = width  - width_diff;
-        let width3         = width2 - width_diff;
-        let corner_radius2 = corner_radius  - radius_diff;
-        let corner_radius3 = corner_radius2 - radius_diff;
-        let persp_diff2    = 2.0 * persp_diff1;
+        let width2         = &width  - &width_diff;
+        let width3         = &width2 - &width_diff;
+        let corner_radius2 = &corner_radius  - &radius_diff;
+        let corner_radius3 = &corner_radius2 - &radius_diff;
+        let persp_diff2    = &persp_diff1 * 2.0;
 
-        let rect1 = Rect((width ,height)).corner_radius(corner_radius);
-        let rect2 = Rect((width2,height)).corner_radius(corner_radius2).translate_y(persp_diff1);
-        let rect3 = Rect((width3,height)).corner_radius(corner_radius3).translate_y(persp_diff2);
+        let rect1 = Rect((&width ,&height)).corner_radius(&corner_radius);
+        let rect2 = Rect((&width2,&height)).corner_radius(&corner_radius2).translate_y(&persp_diff1);
+        let rect3 = Rect((&width3,&height)).corner_radius(&corner_radius3).translate_y(&persp_diff2);
 
-        let rect3 = rect3 - rect2.translate_y(offset);
-        let rect2 = rect2 - rect1.translate_y(offset);
+        let rect3 = rect3 - rect2.translate_y(&offset);
+        let rect2 = rect2 - rect1.translate_y(&offset);
 
         let rect1 = rect1.fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
         let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
@@ -111,18 +75,21 @@ pub mod icons {
     }
 }
 
-fn ring_angle(radius:ShaderData) -> Shape {
-    let loader_margin   = 0.0;
-    let loader_outer    = Circle(node_radius + border_size - loader_margin);
-    let loader_inner    = Circle(node_radius + loader_margin);
+fn ring_angle<R,W>(inner_radius:R, width:W) -> Shape
+where R : Into<ShapeData<DistanceIn<Pixels>>>,
+      W : Into<ShapeData<DistanceIn<Pixels>>> {
+    let inner_radius    = inner_radius.into();
+    let width           = width.into();
+    let radius          = &width / 2.0;
+    let loader_inner    = Circle(&inner_radius);
+    let loader_outer    = Circle(&inner_radius + &width);
     let loader_section  = Plane().angle("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)").rotate("Radians((clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0)");
-    let loader_corner_1 = Circle(border_size/2.0).translate((0.px(),(node_radius + border_size/2.0).px()));
+    let loader_corner_1 = Circle(&radius).translate((0.pxx(),inner_radius + radius));
     let loader_corner_2 = loader_corner_1.rotate("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)");
-    let loader = &loader_outer - &loader_inner;
-    let loader = &loader * &loader_section;
-    let loader = &loader + &loader_corner_1;
-    let loader = &loader + &loader_corner_2;
-
+    let loader          = &loader_outer - &loader_inner;
+    let loader          = &loader * &loader_section;
+    let loader          = &loader + &loader_corner_1;
+    let loader          = &loader + &loader_corner_2;
     let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("Radians(input_time/200.0)");
     loader.into()
 }
@@ -130,24 +97,24 @@ fn ring_angle(radius:ShaderData) -> Shape {
 fn nodes2(world:&World) -> ShapeSystem {
     let node_radius = 32.0;
     let border_size = 16.0;
-    let node   = Circle(node_radius);
-    let border = Circle(node_radius + border_size);
+    let node   = Circle(node_radius.pxx());
+    let border = Circle((node_radius + border_size).pxx());
     let node   = node.fill(Srgb::new(0.97,0.96,0.95));
 //    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
     let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
 
-    let bg   = Circle(node_radius*2.0);
+    let bg   = Circle((node_radius*2.0).pxx());
     let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
 
-    let shadow1 = Circle(node_radius + border_size);
+    let shadow1 = Circle((node_radius + border_size).pxx());
     let shadow1_color = Gradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
     let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
     let shadow1       = shadow1.fill(shadow1_color);
 
-    let shadow2 = Circle(node_radius + border_size);
+    let shadow2 = Circle((node_radius + border_size).pxx());
     let shadow2_color = Gradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear());
@@ -155,6 +122,7 @@ fn nodes2(world:&World) -> ShapeSystem {
     let shadow2       = shadow2.fill(shadow2_color);
 
 
+    let loader = ring_angle((node_radius).pxx(), (border_size).pxx());
 
     let icon = icons::history();
 

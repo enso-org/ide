@@ -14,10 +14,11 @@ use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::data::ShaderData;
+use crate::display::shape::primitive::def::var::ShapeData;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
-use crate::display::shape::primitive::def::sdf::{Distance,Angle,Pixels};
+use crate::math::topology::metric::*;
+use crate::data::color::*;
 
 
 
@@ -50,11 +51,11 @@ macro_rules! _define_compound_shape_data {
         #[derive(Debug)]
         pub struct $name<$($shape_field),*> {
             $(pub $shape_field : $shape_field),*,
-            $(pub $field       : Glsl),*
+            $(pub $field       : ShapeData<$field_type>),*
         }
         impl<$($shape_field),*> $name<$($shape_field),*> {
             /// Constructor.
-            pub fn new<$($field:ShaderData<$field_type>),*>
+            pub fn new<$($field:Into<ShapeData<$field_type>>),*>
             ($($shape_field:$shape_field),*,$($field:$field),*) -> Self {
                 $(let $field = $field.into();)*
                 Self {$($shape_field),*,$($field),*}
@@ -73,7 +74,7 @@ macro_rules! _define_compound_shape {
             ShapeRef<mutable::$name<$($shape_field),*>>;
 
         /// Smart constructor.
-        pub fn $name<$($shape_field:IntoOwned),*,$($field:ShaderData<$field_type>),*>
+        pub fn $name<$($shape_field:IntoOwned),*,$($field:Into<ShapeData<$field_type>>),*>
         ( $($shape_field:$shape_field),*,$($field:$field),*) -> $name<$(Owned<$shape_field>),*> {
             ShapeRef::new(mutable::$name::new($($shape_field.into()),*,$($field),*))
         }
@@ -99,14 +100,14 @@ macro_rules! _define_compound_shape {
 use immutable::*;
 
 define_compound_shapes! {
-    Translate(child)(v:Vector2<Distance>)
-    Rotation(child)(angle:Angle)
-    Scale(child)(value:f32)
-    Union(child1,child2)()
-    Difference(child1,child2)()
-    Intersection(child1,child2)()
-    Fill(child)(color:dyn Any)
-    PixelSnap(child)()
+    Translate    (child)         (v:Vector2<DistanceIn<Pixels>>)
+    Rotation     (child)         (angle:AngleIn<Radians>)
+    Scale        (child)         (value:f32)
+    Union        (child1,child2) ()
+    Difference   (child1,child2) ()
+    Intersection (child1,child2) ()
+    Fill         (child)         (color:Srgba)
+    PixelSnap    (child)         ()
 }
 
 

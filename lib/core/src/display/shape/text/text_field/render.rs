@@ -17,7 +17,7 @@ use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssig
 use crate::display::shape::text::text_field::render::assignment::LineFragment;
 use crate::display::shape::text::text_field::render::selection::SelectionSpritesGenerator;
 use crate::display::shape::text::text_field::TextFieldProperties;
-use crate::display::shape::primitive::def::*;
+use crate::display::shape::*;
 use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 use crate::display::world::World;
@@ -100,7 +100,7 @@ impl TextFieldSprites {
 
     fn create_cursor_system(world:&World,line_height:f32) -> ShapeSystem {
         const WIDTH_FUNCTION:&str = "fract(input_time / 1000.0) < 0.5 ? 2.0 : 0.0";
-        let cursor_definition     = Rect((WIDTH_FUNCTION,line_height.px()));
+        let cursor_definition     = Rect((WIDTH_FUNCTION,line_height.pxx()));
         ShapeSystem::new(world,&cursor_definition)
     }
 

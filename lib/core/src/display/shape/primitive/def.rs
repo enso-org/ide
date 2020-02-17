@@ -3,7 +3,13 @@
 pub mod sdf;
 pub mod class;
 pub mod transform;
+pub mod var;
 
-pub use class::Shape;
-pub use sdf::*;
-pub use transform::immutable::*;
+pub mod export {
+    pub use super::var::*;
+    pub use super::class::Shape;
+    pub use super::sdf::*;
+    pub use super::transform::immutable::*;
+}
+
+pub use export::*;

@@ -5,6 +5,7 @@ use crate::prelude::*;
 pub use palette::rgb;
 pub use palette::rgb::*;
 pub use palette::encoding;
+pub use palette::Component;
 
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
@@ -59,8 +60,8 @@ impl<Color> Gradient<Color> {
     }
 }
 
-impls! { [Color] From<Gradient<Color>> for Glsl
-where [Color:Copy+Into<Glsl>] {
+impls! { [Color] From<&Gradient<Color>> for Glsl
+where [Color:Copy, for<'t> &'t Color:Into<Glsl>] {
     |t| {
         let args = t.control_points.iter().map(|control_point| {
             let offset = control_point.offset.glsl();
@@ -135,7 +136,8 @@ impl<Gradient> Unwrap for DistanceGradient<Gradient> {
     }
 }
 
-impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
+impls! {[G:RefInto<Glsl>] From< DistanceGradient<G>> for Glsl { |g| { (&g).into() } }}
+impls! {[G:RefInto<Glsl>] From<&DistanceGradient<G>> for Glsl {
     |g| {
         let span   = iformat!("{g.max_distance.glsl()} - {g.min_distance.glsl()}");
         let offset = iformat!("-shape.sdf.distance - {g.min_distance.glsl()}");
@@ -150,6 +152,7 @@ impls! {[G:Into<Glsl>] From<DistanceGradient<G>> for Glsl {
         expr.into()
     }
 }}
+
 
 /// Defines how fast gradient values change.
 #[derive(Copy,Clone,Debug)]

@@ -5,9 +5,12 @@ use crate::prelude::*;
 use crate::display::shape::primitive::def::*;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::data::ShaderData;
+use crate::display::shape::primitive::def::var::ShapeData;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
+use crate::data::color::*;
+
+use crate::math::topology::metric::*;
 
 use std::ops::Sub;
 use std::ops::Mul;
@@ -104,27 +107,29 @@ impl<T> ShapeRef<T> {
 
 impl<T> ShapeRef<T> {
     /// Translate the shape by a given offset.
-    pub fn translate<V:ShaderData<Vector2<Distance>>>(&self, v:V) -> Translate<Self> {
+    pub fn translate<V:Into<ShapeData<Vector2<DistanceIn<Pixels>>>>>(&self, v:V) -> Translate<Self> {
         Translate(self,v)
     }
 
     /// Translate the shape along X-axis by a given offset.
-    pub fn translate_x<X:ShaderData<Distance>>(&self, x:X) -> Translate<Self> {
+    pub fn translate_x<X>(&self, x:X) -> Translate<Self>
+    where (X,DistanceIn<Pixels>) : Into<ShapeData<Vector2<DistanceIn<Pixels>>>> {
         self.translate((x,0.px()))
     }
 
     /// Translate the shape along Y-axis by a given offset.
-    pub fn translate_y<Y:ShaderData<Distance>>(&self, y:Y) -> Translate<Self> {
+    pub fn translate_y<Y>(&self, y:Y) -> Translate<Self>
+    where (DistanceIn<Pixels>,Y) : Into<ShapeData<Vector2<DistanceIn<Pixels>>>> {
         self.translate((0.px(),y))
     }
 
     /// Rotate the shape by a given angle.
-    pub fn rotate<A:ShaderData<Angle>>(&self, angle:A) -> Rotation<Self> {
+    pub fn rotate<A:Into<ShapeData<AngleIn<Radians>>>>(&self, angle:A) -> Rotation<Self> {
         Rotation(self,angle)
     }
 
     /// Scales the shape by a given value.
-    pub fn scale<S:ShaderData<f32>>(&self, value:S) -> Scale<Self> {
+    pub fn scale<S:Into<ShapeData<f32>>>(&self, value:S) -> Scale<Self> {
         Scale(self,value)
     }
 
@@ -144,7 +149,7 @@ impl<T> ShapeRef<T> {
     }
 
     /// Fill the shape with the provided color.
-    pub fn fill<Color:Into<Glsl>>(&self, color:Color) -> Fill<Self> {
+    pub fn fill<Color:Into<ShapeData<Srgba>>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
     }
 

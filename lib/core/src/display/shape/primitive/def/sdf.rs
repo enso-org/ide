@@ -13,11 +13,12 @@ use crate::display::shape::primitive::def::class::Drawable;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::shader::data::ShaderData;
+use crate::display::shape::ShapeData;
 use crate::system::gpu::shader::glsl::Glsl;
 
 use crate::system::gpu::shader::glsl::traits::*;
 use crate::system::gpu::types::*;
+use crate::math::topology::metric::*;
 use std::ops::{Mul, Sub, Div, Neg};
 
 
@@ -26,6 +27,7 @@ pub trait HasShapeFieldRepr {
 }
 
 pub type ShapeFieldRepr<T> = <T as HasShapeFieldRepr>::ShapeFieldRepr;
+
 
 
 // ================
@@ -71,15 +73,11 @@ macro_rules! define_sdf_shapes {
             $(_define_sdf_shape_mutable_part! {$name $args $body} )*
         }
 
-        /// Contains immutable shapes definitions.
-//        pub mod immutable {
-            use super::*;
-            $(_define_sdf_shape_immutable_part! {$name $args $body} )*
-//        }
+        use super::*;
+        $(_define_sdf_shape_immutable_part! {$name $args $body} )*
 
         /// GLSL definition of all shapes.
         pub fn all_shapes_glsl_definitions() -> String {
-//            use immutable::*;
             vec![$($name::glsl_definition()),*].join("\n\n")
         }
     };
@@ -93,13 +91,14 @@ macro_rules! _define_sdf_shape_immutable_part {
         pub type $name = ShapeRef<mutable::$name>;
 
         /// Smart shape constructor.
-        pub fn $name <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> $name {
+        pub fn $name <$($field:Into<ShapeData<$field_type>>),*> ( $($field : $field),* ) -> $name {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
 
         impl Drawable for $name {
             fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
-                let args = vec!["position", $(&self.$field),* ].join(",");
+                $(let foo: Glsl = (&self.$field).into();)*
+                let args = vec!["position".to_string(), $(self.$field.glsl().into()),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
                 canvas.define_shape(self.id(),&code)
             }
@@ -119,8 +118,8 @@ macro_rules! _define_sdf_shape_immutable_part {
         impl AsOwned for $name { type Owned = $name; }
 
         impl $name {$(
-            pub fn $field(&self) -> Glsl {
-                self.unwrap().$field.clone()
+            pub fn $field(&self) -> &ShapeData<$field_type> {
+                &self.unwrap().$field
             }
         )*}
     }
@@ -135,212 +134,19 @@ macro_rules! _define_sdf_shape_mutable_part {
         #[derive(Debug,Clone)]
         pub struct $name {
             pub glsl_name : Glsl,
-            $(pub $field  : Glsl),*
+            $(pub $field  : ShapeData<$field_type>),*
         }
 
         impl $name {
             /// Constructor.
             #[allow(clippy::new_without_default)]
-            pub fn new <$($field:ShaderData<$field_type>),*> ( $($field : $field),* ) -> Self {
+            pub fn new <$($field:Into<ShapeData<$field_type>>),*> ( $($field : $field),* ) -> Self {
                 let glsl_name = stringify!($name).to_snake_case().into();
                 $(let $field = $field.into();)*
                 Self {glsl_name,$($field),*}
             }
         }
     };
-}
-//
-//pub struct Angle {}
-//
-//pub struct Radians {}
-//pub struct Degrees {}
-//
-//pub struct AngleIn<T> {
-//    pub value :
-//}
-
-
-// =============
-// === Value ===
-// =============
-
-#[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Unknown{}
-
-#[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Value<Tp=Unknown,Unit=Unknown,V=f32> {
-    pub value : V,
-    _type     : PhantomData<Tp>,
-    _unit     : PhantomData<Unit>,
-}
-
-impl<Tp,Unit,V> Value<Tp,Unit,V> {
-    pub fn new(value:V) -> Self {
-        let _type = PhantomData;
-        let _unit = PhantomData;
-        Self {value,_type,_unit}
-    }
-}
-
-impls! { [Tp,Unit,V] From<V>                  for Value<Tp,Unit,V> { |t| {Self::new(t)} } }
-impls! { [Tp,Unit]   From<Value<Tp,Unit,f32>> for f32              { |t| {t.value} } }
-
-impl<Tp,Unit,V,S> Sub<Value<Tp,Unit,S>> for Value<Tp,Unit,V>
-where V:Sub<S> {
-    type Output = Value<Tp,Unit,<V as Sub<S>>::Output>;
-    fn sub(self, rhs:Value<Tp,Unit,S>) -> Self::Output {
-        (self.value - rhs.value).into()
-    }
-}
-
-impl<Tp,Unit,V,S> Add<Value<Tp,Unit,S>> for Value<Tp,Unit,V>
-where V:Add<S> {
-    type Output = Value<Tp,Unit,<V as Add<S>>::Output>;
-    fn add(self, rhs:Value<Tp,Unit,S>) -> Self::Output {
-        (self.value + rhs.value).into()
-    }
-}
-
-impl<Tp,Unit> Mul<Value<Tp,Unit,f32>> for f32 {
-    type Output = Value<Tp,Unit,f32>;
-    fn mul(self, rhs:Value<Tp,Unit,f32>) -> Self::Output {
-        (self * rhs.value).into()
-    }
-}
-
-impl<Tp,Unit,V,S> Mul<S> for Value<Tp,Unit,V>
-where V:Mul<S> {
-    type Output = Value<Tp,Unit,<V as Mul<S>>::Output>;
-    fn mul(self, rhs:S) -> Self::Output {
-        (self.value * rhs).into()
-    }
-}
-
-impl<Tp,Unit,V,S> Div<S> for Value<Tp,Unit,V>
-where V:Div<S> {
-    type Output = Value<Tp,Unit,<V as Div<S>>::Output>;
-    fn div(self, rhs:S) -> Self::Output {
-        (self.value / rhs).into()
-    }
-}
-
-impl<Tp,Unit,V> Neg for Value<Tp,Unit,V>
-where V:Neg<Output=V> {
-    type Output = Value<Tp,Unit,V>;
-    fn neg(self) -> Self::Output {
-        (-self.value).into()
-    }
-}
-
-
-
-// ================
-// === Distance ===
-// ================
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct DistanceValue {}
-
-pub type Distance               = Value<DistanceValue>;
-pub type DistanceIn<Unit,V=f32> = Value<DistanceValue,Unit,V>;
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Pixels;
-
-
-pub trait DistanceOps {
-    fn px(&self) -> DistanceIn<Pixels>;
-}
-
-impl DistanceOps for f32 {
-    fn px(&self) -> DistanceIn<Pixels> {
-        DistanceIn::new(*self)
-    }
-}
-
-impl DistanceOps for i32 {
-    fn px(&self) -> DistanceIn<Pixels> {
-        DistanceIn::new(*self as f32)
-    }
-}
-
-impls! {[Unit] From<DistanceIn<Unit>> for Glsl { |t| { t.value.into() } }}
-
-impls! { From<PhantomData<Vector2<Distance>>> for glsl::PrimType {
-    |_|  { PhantomData::<Vector2<f32>>.into() }
-}}
-
-
-
-// =============
-// === Angle ===
-// =============
-
-pub struct AnyAngle {}
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct AngleValue {}
-
-pub type Angle = Value<AngleValue>;
-
-pub type AngleIn<Unit,V=f32> = Value<AngleValue,Unit,V>;
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Degrees;
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Radians;
-
-
-pub trait AngleOps {
-    fn degrees(&self) -> AngleIn<Degrees>;
-    fn radians(&self) -> AngleIn<Radians>;
-
-    fn deg(&self) -> AngleIn<Degrees> {
-        self.degrees()
-    }
-
-    fn rad(&self) -> AngleIn<Radians> {
-        self.radians()
-    }
-}
-
-impl AngleOps for f32 {
-    fn degrees(&self) -> AngleIn<Degrees> {
-        AngleIn::new(*self)
-    }
-
-    fn radians(&self) -> AngleIn<Radians> {
-        AngleIn::new(*self)
-    }
-}
-
-impl AngleOps for i32 {
-    fn degrees(&self) -> AngleIn<Degrees> {
-        AngleIn::new(*self as f32)
-    }
-
-    fn radians(&self) -> AngleIn<Radians> {
-        AngleIn::new(*self as f32)
-    }
-}
-
-impls! { From<AngleIn<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
-impls! { From<AngleIn<Degrees>> for Glsl { |t| { iformat!("radians(Degrees({t.value.glsl()}))").into() } }}
-
-impls! { From<PhantomData<Angle>> for glsl::PrimType {
-    |_|  { "Radians".into() }
-}}
-
-
-
-// ==============
-// === Traits ===
-// ==============
-
-pub mod traits {
-    pub use super::DistanceOps;
-    pub use super::AngleOps;
 }
 
 
@@ -367,7 +173,7 @@ define_sdf_shapes! {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
-    PlaneAngle (angle:Angle) {
+    PlaneAngle (angle:AngleIn<Radians>) {
         float v_angle  = value(angle);
         float distance = abs(position).x*cos(v_angle/2.0) + -position.y*sin(v_angle/2.0) + 0.5;
         return bound_sdf(distance,bounding_box(0.0,0.0));
@@ -380,7 +186,7 @@ define_sdf_shapes! {
 
     // === Ellipse ===
 
-    Circle (radius:f32) {
+    Circle (radius:DistanceIn<Pixels>) {
         return bound_sdf(length(position)-radius, bounding_box(radius,radius));
     }
 
@@ -396,14 +202,14 @@ define_sdf_shapes! {
 
     // === Rectangle ===
 
-    Rect (size:Vector2<Distance>) {
+    Rect (size:Vector2<DistanceIn<Pixels>>) {
         vec2  dir  = abs(position) - size/2.0;
         float dist = max(min(dir,0.0)) + length(max(dir,0.0));
         return bound_sdf(dist,bounding_box(size));
     }
 
     RoundedRectByCorner
-    (size:Vector2<Distance>, top_left:f32, top_right:f32, bottom_left:f32, bottom_right:f32) {
+    (size:Vector2<DistanceIn<Pixels>>, top_left:DistanceIn<Pixels>, top_right:DistanceIn<Pixels>, bottom_left:DistanceIn<Pixels>, bottom_right:DistanceIn<Pixels>) {
         size /= 2.0;
 
         float tl = top_left;
@@ -441,14 +247,15 @@ define_sdf_shapes! {
 
 #[derive(Clone,Debug)]
 pub struct RectCornerRadius {
-    pub top_left     : Glsl,
-    pub top_right    : Glsl,
-    pub bottom_left  : Glsl,
-    pub bottom_right : Glsl,
+    pub top_left     : ShapeData<DistanceIn<Pixels>>,
+    pub top_right    : ShapeData<DistanceIn<Pixels>>,
+    pub bottom_left  : ShapeData<DistanceIn<Pixels>>,
+    pub bottom_right : ShapeData<DistanceIn<Pixels>>,
 }
 
-impl<T:Into<Glsl>> From<T> for RectCornerRadius {
+impl<T:Into<ShapeData<DistanceIn<Pixels>>>> From<T> for RectCornerRadius {
     fn from(t:T) -> Self {
+        let t = t.into();
         let value = iformat!("vec4({t.glsl()})");
         Self {
             top_left     : iformat!("{value}.x").into(),
@@ -460,7 +267,7 @@ impl<T:Into<Glsl>> From<T> for RectCornerRadius {
 }
 
 impl Plane {
-    pub fn angle<T:ShaderData<Angle>>(&self, t:T) -> PlaneAngle {
+    pub fn angle<T:Into<ShapeData<AngleIn<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
     }
 }

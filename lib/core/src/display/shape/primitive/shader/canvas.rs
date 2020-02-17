@@ -1,9 +1,9 @@
 //! Canvas for drawing vector graphics. See the documentation of `Canvas` to learn more.
 
 use crate::prelude::*;
-use crate::display::shape::primitive::shader::data::ShaderData;
-use crate::display::shape::primitive::def::sdf::{Distance,Pixels};
+use crate::display::shape::primitive::def::var::ShapeData;
 use crate::system::gpu::shader::glsl::Glsl;
+use crate::math::topology::metric::*;
 use crate::system::gpu::types::*;
 use palette::*;
 
@@ -215,10 +215,10 @@ impl Canvas {
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<V:ShaderData<Vector2<Distance>>>
+    pub fn translate<V:Into<ShapeData<Vector2<DistanceIn<Pixels>>>>>
     (&mut self, num:usize, s1:CanvasShape, v:V) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let v:Glsl = v.into();
+            let v:Glsl = v.into().glsl();
             let trans  = iformat!("position = translate(position,{v});");
             let expr   = iformat!("return {s1.getter()};");
             this.add_current_function_code_line(trans);
@@ -229,10 +229,10 @@ impl Canvas {
     }
 
     /// Rotate the current canvas origin.
-    pub fn rotation<A:ShaderData<f32>>
+    pub fn rotation<A:Into<ShapeData<AngleIn<Radians>>>>
     (&mut self, num:usize, s1:CanvasShape, angle:A) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let angle:Glsl = angle.into();
+            let angle:Glsl = angle.into().glsl();
             let trans  = iformat!("position = rotate(position,{angle});");
             let expr   = iformat!("return {s1.getter()};");
             this.add_current_function_code_line(trans);
@@ -243,10 +243,10 @@ impl Canvas {
     }
 
     /// Scale the current canvas origin.
-    pub fn scale<T:ShaderData<f32>>
+    pub fn scale<T:Into<ShapeData<f32>>>
     (&mut self, num:usize, s1:CanvasShape, value:T) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let value:Glsl = value.into();
+            let value:Glsl = value.into().glsl();
             let trans  = iformat!("position = scale(position,{value});");
             let expr   = iformat!("return resample({s1.getter()},{value});");
             this.add_current_function_code_line(trans);
@@ -257,10 +257,10 @@ impl Canvas {
     }
 
     /// Fill the shape with the provided color.
-    pub fn fill<Color:ShaderData<Srgb>>
+    pub fn fill<Color:Into<ShapeData<Srgba>>>
     (&mut self, num:usize, s:CanvasShape, color:Color) -> CanvasShape {
         self.if_not_defined(num, |this| {
-            let color:Glsl = color.into();
+            let color:Glsl = color.into().glsl();
             this.add_current_function_code_line(iformat!("Shape shape = {s.getter()};"));
             this.add_current_function_code_line(iformat!("Rgba  color = rgba({color});"));
             let expr = iformat!("return set_color(shape,color);");
