@@ -51,8 +51,10 @@ impl Client {
 
 impl IsParser for Client {
    fn parse(&mut self, program: String, ids: IDMap) -> api::Result<api::Ast> {
-       let ids_json = JsValue::from_serde(ids)?;
-       match parse(program, ids_json) {
+       let json_ids = serde_json::to_string(&ids).expect(
+         "ID Map serialization should not fail."
+       );
+       match parse(program, json_ids) {
            Ok(json_ast) => Err(ParsingError(json_ast)),
            Err(_)       => Err(api::interop_error(Error::ScalaException())),
        }

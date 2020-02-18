@@ -1,7 +1,7 @@
 You can run the tests by calling:
 ```
 sbt syntaxJS/fullOptJS
-wasm-pack test --headless --firefox --chrome --safari common/rust/parser
+wasm-pack test --headless --firefox --chrome --safari
 ```
 
 Note that --safari wasn't tested and there is also an external 
