@@ -82,8 +82,8 @@ mod test {
         let same_module_ctrl    = project_ctrl.open_module(location.clone());
         let another_module_ctrl = project_ctrl.open_module(another_location.clone());
 
-        assert_eq!(location        , module_ctrl        .location_clone());
-        assert_eq!(another_location, another_module_ctrl.location_clone());
+        assert_eq!(location        , module_ctrl        .location());
+        assert_eq!(another_location, another_module_ctrl.location());
         assert!(module_ctrl.identity_equals(&same_module_ctrl));
     }
 
@@ -101,8 +101,8 @@ mod test {
 
         assert!(file_manager_handle.identity_equals(&text_ctrl        .file_manager()));
         assert!(file_manager_handle.identity_equals(&another_text_ctrl.file_manager()));
-        assert_eq!(path        , text_ctrl        .file_path_clone()  );
-        assert_eq!(another_path, another_text_ctrl.file_path_clone()  );
+        assert_eq!(path        , text_ctrl        .file_path()  );
+        assert_eq!(another_path, another_text_ctrl.file_path()  );
         assert!(text_ctrl.identity_equals(&same_text_ctrl));
     }
 }

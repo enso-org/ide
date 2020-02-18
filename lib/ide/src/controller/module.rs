@@ -23,7 +23,7 @@ impl Location {
         // TODO [mwu] Extremely provisional. When multiple files support is
         //            added, needs to be fixed, if not earlier.
         let Location(string) = self;
-        let result = format!("./{}.luna", string);
+        let result = format!("./{}.{}", string, constants::LANGUAGE_FILE_EXTENSION);
         file_manager_client::Path::new(result)
     }
 }
@@ -39,17 +39,12 @@ shared! { Handle
     impl {
         /// Create new Module controller for given location.
         pub fn new(location:Location) -> Self {
-            State {location}
+            State {location:location}
         }
 
         /// Obtain clone of location.
-        pub fn location_clone(&self) -> Location {
+        pub fn location(&self) -> Location {
             self.location.clone()
-        }
-
-        /// Get location as filesystem path.
-        pub fn location_as_path(&self) -> file_manager_client::Path {
-            self.location.to_path()
         }
     }
 }
