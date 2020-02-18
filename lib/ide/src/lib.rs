@@ -29,6 +29,6 @@ pub mod prelude {
 use view::project::ProjectView;
 
 /// This function is the IDE entry point responsible for setting up all views and controllers.
-pub fn entry_point() {
+pub fn run_ide() {
     ProjectView::new().forget();
 }
