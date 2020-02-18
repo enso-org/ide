@@ -2,8 +2,8 @@
 
 use crate::prelude::*;
 
-use super::ui_component::UiComponent;
-use super::ui_component::Padding;
+use super::temporary_panel::TemporaryPanel;
+use super::temporary_panel::TemporaryPadding;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
@@ -15,23 +15,6 @@ use nalgebra::Vector2;
 use nalgebra::zero;
 
 
-
-// =============
-// === Color ===
-// =============
-
-//TODO[dg]:Move this to a better place.
-mod color {
-    use nalgebra::Vector4;
-
-    pub type Color = Vector4<f32>;
-
-    pub fn black() -> Color { Vector4::new(0.0, 0.0, 0.0, 1.0) }
-}
-
-
-
-
 // ==================
 // === TextEditor ===
 // ==================
@@ -41,9 +24,9 @@ mod color {
 #[derive(Clone,Debug)]
 pub struct TextEditor {
     text_field : TextField,
-    padding    : Padding,
+    padding    : TemporaryPadding,
     position   : Vector2<f32>,
-    dimensions : Vector2<f32>
+    size       : Vector2<f32>
 }
 
 impl TextEditor {
@@ -56,19 +39,15 @@ impl TextEditor {
         let font         = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let padding      = default();
         let position     = zero();
-        let dimensions   = Vector2::new(screen.width, screen.height);
-
-        let properties = TextFieldProperties {
-            font,
-            text_size  : 16.0,
-            base_color : color::black(),
-            size       : dimensions
-        };
-
-        let text_field = TextField::new(&world,properties);
+        let size         = Vector2::new(screen.width, screen.height);
+        let black        = Vector4::new(0.0,0.0,0.0,1.0);
+        let base_color   = black;
+        let text_size    = 16.0;
+        let properties   = TextFieldProperties {font,text_size,base_color,size};
+        let text_field   = TextField::new(&world,properties);
         world.add_child(&text_field);
 
-        Self {text_field,padding,position,dimensions}.initialize()
+        Self {text_field,padding,position,size}.initialize()
     }
 
     fn initialize(self) -> Self {
@@ -89,21 +68,21 @@ impl TextEditor {
     }
 }
 
-impl UiComponent for TextEditor {
-    fn set_padding(&mut self, padding:Padding) {
+impl TemporaryPanel for TextEditor {
+    fn set_padding(&mut self, padding: TemporaryPadding) {
         self.padding = padding;
     }
 
-    fn padding(&self) -> Padding {
+    fn padding(&self) -> TemporaryPadding {
         self.padding
     }
 
-    fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-        self.dimensions = dimensions;
+    fn set_size(&mut self, size:Vector2<f32>) {
+        self.size = size;
         self.update();
     }
 
-    fn dimensions(&self) -> Vector2<f32> {
+    fn size(&self) -> Vector2<f32> {
         self.text_field.size()
     }
 

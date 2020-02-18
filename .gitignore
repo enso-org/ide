@@ -15,6 +15,3 @@ wasm-pack.log
 
 # A thirdparty downloaded js
 /lib/core/msdf-sys/msdfgen_wasm.js
-
-# npm
-node_modules
