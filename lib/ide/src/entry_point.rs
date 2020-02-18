@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::controller;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
 use crate::view::project::ProjectView;
@@ -42,7 +43,7 @@ pub async fn connect_to_file_manager(config:InitialConfig) -> Result<WebSocket,C
 /// Sets up the project view, including the controller it uses.
 pub async fn setup_project_view(config:InitialConfig) -> Result<ProjectView,failure::Error> {
     let fm_transport = connect_to_file_manager(config).await?;
-    let controller   = crate::controller::project::Handle::new(fm_transport);
+    let controller   = controller::project::Handle::new_running(fm_transport);
     let project_view = ProjectView::new(controller);
     Ok(project_view)
 }
