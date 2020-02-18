@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use failure::Error;
+use futures::channel::mpsc;
 use js_sys::Function;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
@@ -14,15 +15,16 @@ use web_sys::MessageEvent;
 
 
 
-
 // =================
 // === Utilities ===
 // =================
 
-#[wasm_bindgen(inline_js = "export function stringify(a) { return a + ''; }")]
+#[wasm_bindgen]
 extern "C" {
-    /// Convert given JS value into a string.
-    fn stringify(a: JsValue) -> String;
+    /// Converts given `JsValue` into a `String`.
+    #[allow(unsafe_code)]
+    #[wasm_bindgen(js_name="String")]
+    fn js_to_string(s: JsValue) -> String;
 }
 
 
@@ -31,31 +33,29 @@ extern "C" {
 // === Errors ===
 // ==============
 
-
-// === ConnectingError ===
-
 /// Errors that may happen when trying to establish WebSocket connection.
-#[derive(Debug)]
-#[derive(Fail)]
+#[derive(Clone,Debug,Fail)]
 pub enum ConnectingError {
     /// Failed to construct websocket. Usually this happens due to bad URL.
     #[fail(display = "Invalid websocket specification: {}.", _0)]
     ConstructionError(String),
     /// Failed to establish connection. Usually due to connectivity issues,
-    /// wrong URL or server being down.
+    /// wrong URL or server being down. Unfortunately, while the real error
+    /// cause is usually logged down in js console, we have no reliable means of
+    /// obtaining it programmatically. Reported error codes are utterly
+    /// unreliable.
     #[fail(display = "Failed to establish connection.")]
     FailedToConnect,
 }
 
-
-// === ConnectingError ===
-
-/// Error that may occur when attempting to send the data ove WSTransport.
-#[derive(Debug, Fail)]
+/// Error that may occur when attempting to send the data over WebSocket
+/// transport.
+#[derive(Clone,Debug,Fail)]
 enum SendingError {
+    /// Calling `send` method has resulted in an JS exception.
     #[fail(display = "Failed to send message. Exception: {:?}.", _0)]
     FailedToSend(String),
-
+    /// The socket was already closed, even before attempting sending a message.
     #[fail(display = "Failed to send message because socket state is {:?}.", _0)]
     NotOpen(State),
 }
@@ -88,7 +88,7 @@ impl State {
     }
 
     /// Translates code returned by `WebSocket.readyState` into our enum.
-    /// See: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState
+    /// cf https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState
     pub fn from_code(code:u16) -> State {
         match code {
             web_sys::WebSocket::CONNECTING => State::Connecting,
@@ -109,10 +109,14 @@ impl State {
 /// Constraint for JS closure argument types
 pub trait ClosureArg = FromWasmAbi + 'static;
 
+/// Function that can be wrapped into a `Closure`.
+pub trait ClosureFn<Arg> = FnMut(Arg) + 'static where Arg: ClosureArg;
+
 /// Stores an optional closure.
 #[derive(Debug,Derivative)]
 #[derivative(Default(bound=""))]
 pub struct ClosureStorage<Arg> {
+    /// The stored closure.
     pub closure : Option<Closure<dyn FnMut(Arg)>>,
 }
 
@@ -130,20 +134,21 @@ impl <Arg> ClosureStorage<Arg> {
     /// Obtain JS reference to the closure (that can be passed e.g. as a callback
     /// to an event handler).
     pub fn js_ref(&self) -> Option<&Function> {
-        self.closure.as_ref().map(|closure| closure.as_ref().unchecked_ref() )
+        self.closure.as_ref().map(|closure| closure.as_ref().unchecked_ref())
     }
 
     /// Wraps given function into a Closure.
-    pub fn wrap(&mut self, f:impl FnMut(Arg) + 'static)
-    where Arg: ClosureArg {
+    pub fn wrap(&mut self, f:impl ClosureFn<Arg>) {
         let boxed = Box::new(f);
-        let wrapped: Closure<dyn FnMut(Arg)> = Closure::wrap(boxed);
+        // Note: [mwu] Not sure exactly why, but compiler sometimes require this
+        // explicit type below and sometimes does not.
+        let wrapped:Closure<dyn FnMut(Arg)> = Closure::wrap(boxed);
         self.store(wrapped);
     }
 
     /// Clears the current closure.
     /// Note: if reference to it is still used by JS, it will throw an exception
-    /// on calling attempt.
+    /// on calling attempt. Be careful of dangling references.
     pub fn clear(&mut self) {
         self.closure = None;
     }
@@ -155,6 +160,7 @@ impl <Arg> ClosureStorage<Arg> {
 // === WebSocket ===
 // =================
 
+/// Wrapper over JS `WebSocket` object and callbacks to its signals.
 #[derive(Debug)]
 pub struct WebSocket {
     /// Handle to the JS `WebSocket` object.
@@ -182,29 +188,38 @@ impl WebSocket {
     }
 
     /// Establish connection with endpoint defined by the given URL and wrap it.
-    pub async fn new_connected(url:impl Str) -> Result<WebSocket,ConnectingError> {
+    /// Asynchronous, because it waits until connection is established.
+    pub async fn new_opened(url:impl Str) -> Result<WebSocket,ConnectingError> {
         let     ws  = web_sys::WebSocket::new(url.as_ref());
         let mut wst = WebSocket::new(ws.map_err(|e| {
-            ConnectingError::ConstructionError(stringify(e))
+            ConnectingError::ConstructionError(js_to_string(e))
         })?);
 
+        let () = wst.wait_until_open().await?;
+        Ok(wst)
+    }
+
+    /// Awaits until `open` signal has been emitted. Clears any callbacks on
+    /// this `WebSocket`, if any has been set.
+    async fn wait_until_open(&mut self) -> Result<(),ConnectingError> {
         // Connecting attempt shall either emit on_open or on_close.
         // We shall wait for whatever comes first.
-        let (tx, mut rx) = futures::channel::mpsc::unbounded::<Result<(),()>>();
+        let (tx, mut rx) = mpsc::unbounded::<Result<(),()>>();
         let tx_clone = tx.clone();
-        wst.set_on_close(move |_| {
+        self.set_on_close(move |_| {
+            // Note [mwu] Ignore argument, `CloseEvent` here contains rubbish
+            // anyway, nothing useful to pass to caller. Error code or reason
+            // string should not be relied upon.
             tx_clone.unbounded_send(Err(())).ok();
         });
-
-        let tx_clone = tx.clone();
-        wst.set_on_open(move |_| {
-            tx_clone.unbounded_send(Ok(())).ok();
+        self.set_on_open(move |_| {
+            tx.unbounded_send(Ok(())).ok();
         });
 
         match rx.next().await {
             Some(Ok(())) => {
-                wst.clear_callbacka();
-                Ok(wst)
+                self.clear_callbacka();
+                Ok(())
             }
             _ => Err(ConnectingError::FailedToConnect)
         }
@@ -215,31 +230,31 @@ impl WebSocket {
         State::query_ws(&self.ws)
     }
 
-    /// Sets callback for `close` event.
+    /// Sets callback for the `close` event.
     pub fn set_on_close(&mut self, f:impl FnMut(CloseEvent) + 'static) {
         self.on_close.wrap(f);
         self.ws.set_onclose(self.on_close.js_ref());
     }
 
-    /// Sets callback for `error` event.
+    /// Sets callback for the `error` event.
     pub fn set_on_error(&mut self, f:impl FnMut(Event) + 'static) {
         self.on_error.wrap(f);
         self.ws.set_onerror(self.on_error.js_ref());
     }
 
-    /// Sets callback for `message` event.
+    /// Sets callback for the `message` event.
     pub fn set_on_message(&mut self, f:impl FnMut(MessageEvent) + 'static) {
         self.on_message.wrap(f);
         self.ws.set_onmessage(self.on_message.js_ref());
     }
 
-    /// Sets callback for `open` event.
+    /// Sets callback for the `open` event.
     pub fn set_on_open(&mut self, f:impl FnMut(Event) + 'static) {
         self.on_open.wrap(f);
         self.ws.set_onopen(self.on_open.js_ref());
     }
 
-    /// Clears all callbacks.
+    /// Clears all the available callbacks.
     pub fn clear_callbacka(&mut self) {
         self.on_close  .clear();
         self.on_error  .clear();
@@ -266,11 +281,11 @@ impl Transport for WebSocket {
         }
 
         self.ws.send_with_str(&message).map_err(|e| {
-            SendingError::FailedToSend(stringify(e)).into()
+            SendingError::FailedToSend(js_to_string(e)).into()
         })
     }
 
-    fn set_event_tx(&mut self, tx:futures::channel::mpsc::UnboundedSender<TransportEvent>) {
+    fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {
         let tx1 = tx.clone();
         self.set_on_message(move |e| {
             let data = e.data();
