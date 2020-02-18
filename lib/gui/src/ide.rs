@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use basegl::system::web;
-use ide::entry_point::entry_point;
+use ide::entry_point;
 
 /// IDE startup function.
 #[wasm_bindgen]

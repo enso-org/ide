@@ -13,7 +13,6 @@
 #[allow(unused)]
 pub mod todo;
 pub mod view;
-pub mod entry_point;
 
 #[allow(missing_docs)]
 /// Common types that should be visible across the whole IDE crate.
@@ -25,4 +24,11 @@ pub mod prelude {
     pub use futures::Stream;
     pub use futures::StreamExt;
     pub use futures::task::LocalSpawnExt;
+}
+
+use view::project::ProjectView;
+
+/// This function is the IDE entry point responsible for setting up all views and controllers.
+pub fn entry_point() {
+    ProjectView::new().forget();
 }
