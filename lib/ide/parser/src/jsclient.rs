@@ -34,10 +34,7 @@ impl From<serde_json::error::Error> for Error {
 #[wasm_bindgen(module = "/pkg/scala-parser.js")]
 extern "C" {
     #[wasm_bindgen(catch)]
-    fn parse(input: String) -> std::result::Result<String, JsValue>;
-    #[wasm_bindgen(catch)]
-    #[wasm_bindgen(js_name = parseWithIDs)]
-    fn parse_with_ids
+    fn parse
     (input: String, ids: String) -> std::result::Result<String, JsValue>;
 }
 
@@ -53,9 +50,9 @@ impl Client {
 }
 
 impl IsParser for Client {
-   fn parse(&mut self, _program: String, ids: IDMap) -> api::Result<api::Ast> {
+   fn parse(&mut self, program: String, ids: IDMap) -> api::Result<api::Ast> {
        let ids_json = JsValue::from_serde(ids)?;
-       match parse_with_ids(_program, ids_json) {
+       match parse(program, ids_json) {
            Ok(json_ast) => Err(ParsingError(json_ast)),
            Err(_)       => Err(api::interop_error(Error::ScalaException())),
        }
