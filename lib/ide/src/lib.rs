@@ -14,7 +14,6 @@ pub mod controller;
 #[allow(unused)]
 pub mod todo;
 pub mod view;
-pub mod entry_point;
 
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
@@ -35,4 +34,11 @@ pub mod constants {
 
     /// A file extension of modules of language this IDE supports
     pub const LANGUAGE_FILE_EXTENSION : &str = "enso";
+}
+
+use view::project::ProjectView;
+
+/// This function is the IDE entry point responsible for setting up all views and controllers.
+pub fn run_ide() {
+    ProjectView::new().forget();
 }
