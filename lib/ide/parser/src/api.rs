@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use ast::ID;
 
 pub type Ast = ast::Ast;
 
@@ -8,9 +9,11 @@ pub type Ast = ast::Ast;
 // == Parser ==
 // ============
 
+pub type IDMap = Vec<((isize, isize), ID)>;
+
 /// Entity being able to parse Luna programs into Luna's AST.
 pub trait IsParser {
-    fn parse(&mut self, program: String) -> Result<Ast>;
+    fn parse(&mut self, program: String, ids: IDMap) -> Result<Ast>;
 }
 
 

@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::api;
-use crate::api::IsParser;
+use crate::api::{IsParser, IDMap};
 use crate::api::Error::ParsingError;
 
 use wasm_bindgen::prelude::*;
@@ -37,7 +37,7 @@ extern "C" {
     fn parse(input: String) -> std::result::Result<String, JsValue>;
     #[wasm_bindgen(catch)]
     #[wasm_bindgen(js_name = parseWithIDs)]
-    fn parse_with_IDs
+    fn parse_with_ids
     (input: String, ids: String) -> std::result::Result<String, JsValue>;
 }
 
@@ -53,10 +53,11 @@ impl Client {
 }
 
 impl IsParser for Client {
-    fn parse(&mut self, _program: String) -> api::Result<api::Ast> {
-        match parse(_program) {
-            Ok(json_ast) => Err(ParsingError(json_ast)),
-            Err(_)       => Err(api::interop_error(Error::ScalaException())),
-        }
-    }
+   fn parse(&mut self, _program: String, ids: IDMap) -> api::Result<api::Ast> {
+       let ids_json = JsValue::from_serde(ids)?;
+       match parse_with_ids(_program, ids_json) {
+           Ok(json_ast) => Err(ParsingError(json_ast)),
+           Err(_)       => Err(api::interop_error(Error::ScalaException())),
+       }
+   }
 }
