@@ -26,20 +26,30 @@ static mut SPAWNER: Option<Box<dyn LocalSpawn>> = None;
 /// Caller should also ensure that the spawner will remain functional the whole
 /// time, so e.g. it must not drop the executor connected with this spawner.
 #[allow(unsafe_code)]
-pub fn set_spawner(spawner: impl LocalSpawn + 'static) {
+pub fn set_spawner(spawner_to_set:impl LocalSpawn + 'static) {
+    // Note [Global Executor Safety]
     unsafe {
-        SPAWNER = Some(Box::new(spawner));
+        SPAWNER = Some(Box::new(spawner_to_set));
     }
 }
 
+// Note [Global Executor Safety]
+// =============================
+// This is safe, because the global mutable state is only accessible through the
+// two functions provided in this module, the code will be used only in a web
+// single-threaded environment (so no race conditions are possible), and the
+// functions do not allow leaking reference to the global executor.
+
 /// Obtains the reference to the current spawner.
 ///
-/// Panic if the global spowner hasn't been set with `set_spawner`.
+/// Panics, if the global spawner hasn't been set previously with `set_spawner`.
 #[allow(unsafe_code)]
-pub fn spawner() -> &'static dyn LocalSpawn {
+pub fn with_spawner<R>(f:impl FnOnce(&dyn LocalSpawn) -> R) -> R {
     let error_msg = "No global executor has been provided.";
+    // Note: [Global Executor Safety]
     unsafe {
-        SPAWNER.as_mut().expect(error_msg)
+        let s = SPAWNER.as_mut().expect(error_msg);
+        f(s)
     }
 }
 
@@ -47,6 +57,6 @@ pub fn spawner() -> &'static dyn LocalSpawn {
 /// Panics, if called when there is no active asynchronous execution.
 pub fn spawn(f:impl Future<Output=()> + 'static) {
     let error_msg = "Failed to spawn the task. Global executor might have been dropped.";
-    spawner().spawn_local(f).expect(error_msg);
+    with_spawner(|s| s.spawn_local(f).expect(error_msg));
 }
 
