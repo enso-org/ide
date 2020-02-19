@@ -1,4 +1,4 @@
-//! This module defines bindings to mouse buttons.
+//! This module defines bindings to oldmouse buttons.
 
 use crate::prelude::*;
 
@@ -7,22 +7,22 @@ use crate::prelude::*;
 // === MouseButton ===
 // ===================
 
-/// An enumeration representing the mouse buttons. Please note that we do not name the buttons
-/// left, right, and middle, as this assumes we use a mouse for right-hand people.
+/// An enumeration representing the oldmouse buttons. Please note that we do not name the buttons
+/// left, right, and middle, as this assumes we use a oldmouse for right-hand people.
 ///
-/// JS supports up to 5 mouse buttons currently:
+/// JS supports up to 5 oldmouse buttons currently:
 /// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub enum Button {Button0,Button1,Button2,Button3,Button4}
 pub use Button::*;
 
-#[allow(non_upper_case_globals)]
+#[allow(non_upper_case_globals,missing_docs)]
 mod button_aliases {
     use super::*;
-    const PrimaryButton   : Button = Button0;
-    const MiddleButton    : Button = Button1;
-    const SecondaryButton : Button = Button2;
+    pub const PrimaryButton   : Button = Button0;
+    pub const MiddleButton    : Button = Button1;
+    pub const SecondaryButton : Button = Button2;
 }
 pub use button_aliases::*;
 

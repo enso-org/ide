@@ -11,7 +11,7 @@ use crate::frp_def;
 // === Position ===
 // ================
 
-/// A 2-dimensional position. Used for storing the mouse position on the screen.
+/// A 2-dimensional position. Used for storing the oldmouse position on the screen.
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Position {
@@ -44,13 +44,17 @@ impl std::ops::Sub<&Position> for &Position {
 /// Mouse FRP bindings.
 #[derive(Debug)]
 pub struct Mouse {
-    /// The mouse up event.
-    pub on_up: Dynamic<()>,
-    /// The mouse down event.
-    pub on_down: Dynamic<()>,
+    /// The oldmouse up event.
+    pub on_up : Dynamic<()>,
+    /// The oldmouse down event.
+    pub on_down : Dynamic<()>,
+    /// The oldmouse wheel event.
+    pub on_wheel : Dynamic<()>,
+    /// The oldmouse leave event.
+    pub on_leave : Dynamic<()>,
     /// Mouse button press status.
     pub is_down : Dynamic<bool>,
-    /// Current mouse position.
+    /// Current oldmouse position.
     pub position : Dynamic<Position>,
 }
 
@@ -58,11 +62,13 @@ impl Default for Mouse {
     fn default() -> Self {
         frp_def! { mouse.on_up     = source() }
         frp_def! { mouse.on_down   = source() }
+        frp_def! { mouse.on_wheel  = source() }
+        frp_def! { mouse.on_leave  = source() }
         frp_def! { mouse.position  = source() }
         frp_def! { mouse.down_bool = on_down.constant(true) }
         frp_def! { mouse.up_bool   = on_up.constant(false) }
         frp_def! { mouse.is_down   = down_bool.merge(&up_bool) }
-        Self {on_up,on_down,is_down,position}
+        Self {on_up,on_down,on_leave,on_wheel,is_down,position}
     }
 }
 

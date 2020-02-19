@@ -1,4 +1,4 @@
-//! This module defines possible mouse events.
+//! This module defines possible oldmouse events.
 
 use crate::prelude::*;
 
@@ -29,5 +29,6 @@ define_events! {
     MouseEvent::OnDown,
     MouseEvent::OnUp,
     MouseEvent::OnMove,
+    MouseEvent::OnLeave,
     WheelEvent::OnWheel,
 }

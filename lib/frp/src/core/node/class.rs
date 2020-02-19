@@ -98,10 +98,10 @@ impl<Out:Value> KnownOutput for BehaviorDynNode<Out> {
 // === Types ===
 
 /// Events represents discrete point in time. At a specific time, there can be at most one event.
-/// Typical examples are mouse clicks, keyboard presses, status changes of the network connection.
+/// Typical examples are oldmouse clicks, keyboard presses, status changes of the network connection.
 pub type Event<T> = Node<EventData<T>>;
 
-/// Behaviours represent a value over time that is always available. For example, mouse coordinates
+/// Behaviours represent a value over time that is always available. For example, oldmouse coordinates
 /// vary in time and always have some value.
 pub type Behavior <T> = Node<BehaviorData<T>>;
 

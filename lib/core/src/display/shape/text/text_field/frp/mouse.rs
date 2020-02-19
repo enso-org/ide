@@ -1,8 +1,8 @@
-//! A FRP definitions for mouse event handling, with biding this FRP graph to js events.
+//! A FRP definitions for oldmouse event handling, with biding this FRP graph to js events.
 
 use crate::prelude::*;
 
-use crate::control::io::mouse2::MouseFrpCallbackHandles;
+use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::display::shape::text::text_field::frp::keyboard::TextFieldKeyboardFrp;
 use crate::display::shape::text::text_field::TextFieldData;
 use crate::display::world::World;
@@ -23,9 +23,9 @@ pub struct TextFieldMouseFrp {
     pub selecting: Dynamic<bool>,
     /// Node giving `true` when using keyboard modifiers for multicursor edit.
     pub multicursor: Dynamic<bool>,
-    /// A node setting cursor after mouse click.
+    /// A node setting cursor after oldmouse click.
     pub set_cursor_action: Dynamic<()>,
-    /// A node modifying selection on mouse drag.
+    /// A node modifying selection on oldmouse drag.
     pub select_action: Dynamic<()>,
 }
 
