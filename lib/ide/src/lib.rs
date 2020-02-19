@@ -1,7 +1,6 @@
 //! Main library crate for IDE. It includes implementation of
 //! controllers, view logic and code that wraps them all together.
 
-#![feature(trait_alias)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
