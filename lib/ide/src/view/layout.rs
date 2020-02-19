@@ -8,15 +8,12 @@ use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::text_editor::TextEditor;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::controller::text::Handle;
-use basegl::system::web::*;
-use basegl::display::world::World;
+use super::KeyboardListener;
 
+use basegl::display::world::World;
 use nalgebra::zero;
 use nalgebra::Vector2;
-use js_sys::Function;
 use web_sys::KeyboardEvent;
-use web_sys::HtmlElement;
-use wasm_bindgen::JsCast;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -39,35 +36,6 @@ pub enum LayoutMode {
 impl Default for LayoutMode {
     fn default() -> Self {
         Self::Half
-    }
-}
-
-
-
-// ========================
-// === KeyboardListener ===
-// ========================
-
-type KeyboardClosure = Closure<dyn FnMut(KeyboardEvent)>;
-
-#[derive(Debug)]
-struct KeyboardListener {
-    callback   : KeyboardClosure,
-    element    : HtmlElement,
-    event_type : String
-}
-
-impl KeyboardListener {
-    fn new(element:&HtmlElement, event_type:String, callback:KeyboardClosure) -> Self {
-        let element = element.clone();
-        Self {callback,element,event_type}
-    }
-}
-
-impl Drop for KeyboardListener {
-    fn drop(&mut self) {
-        let callback : &Function = self.callback.as_ref().unchecked_ref();
-        self.element.remove_event_listener_with_callback(&self.event_type, callback).ok();
     }
 }
 
@@ -164,8 +132,7 @@ impl ViewLayout {
         };
         let closure : Box<dyn FnMut(KeyboardEvent)> = Box::new(closure);
         let callback                                = Closure::wrap(closure);
-        let body                                    = document().unwrap().body().unwrap();
-        let key_listener = KeyboardListener::new(&body, "keydown".into(), callback);
+        let key_listener = KeyboardListener::new("keydown".into(), callback);
         self.rc.borrow_mut().key_listener = Some(key_listener);
         self
     }

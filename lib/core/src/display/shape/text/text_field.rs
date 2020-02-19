@@ -221,6 +221,11 @@ impl TextField {
         });
         Self{rc}
     }
+
+    /// TextFieldContent accessor.
+    pub fn with_content<F:FnMut(&TextFieldContent)>(&self, mut f:F) {
+        f(&self.rc.borrow().content)
+    }
 }
 
 
