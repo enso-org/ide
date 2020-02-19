@@ -62,7 +62,25 @@ shared! { Handle
     }
 }
 
+impl State {
+    /// Creates a new project controller. Schedules all necessary execution with
+    /// the global executor.
+    pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
+        let ret = Self::new(file_manager_transport);
+        crate::executor::global::spawn(ret.file_manager.runner());
+        ret
+    }
+}
 
+
+impl Handle {
+    /// Creates a new project controller. Schedules all necessary execution with
+    /// the global executor.
+    pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
+        let data = State::new_running(file_manager_transport);
+        Self::new_from_data(data)
+    }
+}
 
 #[cfg(test)]
 mod test {
