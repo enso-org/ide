@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::temporary_panel::TemporaryPadding;
-use crate::controller::text::ControllerHandle;
+use crate::controller::text::Handle;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
@@ -14,8 +14,7 @@ use basegl::display::world::*;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
-use crate::todo::executor::JsExecutor;
-use basegl::control::EventLoop;
+
 
 
 // ==================
@@ -30,12 +29,12 @@ pub struct TextEditor {
     padding    : TemporaryPadding,
     position   : Vector2<f32>,
     size       : Vector2<f32>,
-    controller : ControllerHandle
+    controller : Handle
 }
 
 impl TextEditor {
     /// Creates a new TextEditor.
-    pub fn new(world:&World, controller:ControllerHandle) -> Self {
+    pub fn new(world:&World, controller:Handle) -> Self {
         let scene        = world.scene();
         let camera       = scene.camera();
         let screen       = camera.screen();
@@ -49,21 +48,12 @@ impl TextEditor {
         let text_size    = 16.0;
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
-        let event_loop   = EventLoop::new();
-        let executor     = JsExecutor::new(event_loop);
         let controller_clone = controller.clone_ref();
         let text_field_clone = text_field.clone();
-        executor.spawn(async move {
-            async {
-                println!("Inside async");
-            }.await;
-            println!("After async");
-            controller_clone.store_content("Hello".into()).await.expect("Couldn't store content.");
-            println!("Reached?");
+        executor::global::spawn(async move {
             let content = controller_clone.read_content().await.expect("Couldn't read content.");
             text_field_clone.write(&content);
-        }).unwrap();
-        std::mem::forget(executor);
+        });
         world.add_child(&text_field);
 
         Self {controller,text_field,padding,position,size}.initialize()

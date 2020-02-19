@@ -7,7 +7,7 @@ use basegl::prelude::*;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::text_editor::TextEditor;
 use crate::view::temporary_panel::TemporaryPanel;
-use crate::controller::text::ControllerHandle;
+use crate::controller::text::Handle;
 use basegl::system::web::*;
 use basegl::display::world::World;
 
@@ -143,7 +143,7 @@ impl ViewLayoutData {
 
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
-    pub fn new(world:&World, controller:ControllerHandle) -> Self {
+    pub fn new(world:&World, controller:Handle) -> Self {
         let text_editor  = TextEditor::new(&world,controller);
         let key_listener = None;
         let layout_mode  = default();
