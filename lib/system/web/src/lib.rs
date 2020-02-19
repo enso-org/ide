@@ -77,7 +77,7 @@ impl Drop for IgnoreContextMenuHandle {
     }
 }
 
-/// Ignores context menu when clicking with the right oldmouse button.
+/// Ignores context menu when clicking with the right mouse button.
 pub fn ignore_context_menu(target:&EventTarget) -> Result<IgnoreContextMenuHandle> {
     let closure = move |event:MouseEvent| {
         const RIGHT_MOUSE_BUTTON : i16 = 2;

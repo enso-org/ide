@@ -227,7 +227,7 @@ impl NavigatorEvents {
     }
 
     fn initialize_wheel_zoom(&mut self) -> Result<()> {
-        let data = Rc::downgrade(&self.data);
+        let data     = Rc::downgrade(&self.data);
         let listener = self.mouse_manager.on_wheel.add(move |event:&OnWheel| {
             event.prevent_default();
             if let Some(data) = data.upgrade() {
@@ -276,16 +276,16 @@ impl NavigatorEvents {
     }
 
     fn initialize_mouse_end_event(&mut self) -> Result<()> {
-        let data              = Rc::downgrade(&self.data);
-        let listener          = self.mouse_manager.on_up.add(move |_:&OnUp| {
+        let data     = Rc::downgrade(&self.data);
+        let listener = self.mouse_manager.on_up.add(move |_:&OnUp| {
             if let Some(data) = data.upgrade() {
                 data.set_movement_type(None);
             }
         });
         self.mouse_up = Some(listener);
 
-        let data              = Rc::downgrade(&self.data);
-        let listener          = self.mouse_manager.on_leave.add(move |_:&OnLeave| {
+        let data     = Rc::downgrade(&self.data);
+        let listener = self.mouse_manager.on_leave.add(move |_:&OnLeave| {
             if let Some(data) = data.upgrade() {
                 data.set_movement_type(None);
             }

@@ -270,7 +270,7 @@ impl Cursors {
     }
 
     /// Return the active (last added) cursor. Even on multiline edit some operations are applied
-    /// to one, active cursor only (e.g. extending selection by oldmouse).
+    /// to one, active cursor only (e.g. extending selection by mouse).
     pub fn active_cursor(&self) -> &Cursor {
         self.cursors.last().unwrap()
     }

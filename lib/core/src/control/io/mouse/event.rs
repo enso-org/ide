@@ -1,4 +1,4 @@
-//! This module defines possible oldmouse events.
+//! This module defines possible mouse events.
 
 use crate::prelude::*;
 

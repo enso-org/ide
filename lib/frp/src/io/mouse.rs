@@ -11,7 +11,7 @@ use crate::frp_def;
 // === Position ===
 // ================
 
-/// A 2-dimensional position. Used for storing the oldmouse position on the screen.
+/// A 2-dimensional position. Used for storing the mouse position on the screen.
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Position {
@@ -44,17 +44,17 @@ impl std::ops::Sub<&Position> for &Position {
 /// Mouse FRP bindings.
 #[derive(Debug)]
 pub struct Mouse {
-    /// The oldmouse up event.
+    /// The mouse up event.
     pub on_up : Dynamic<()>,
-    /// The oldmouse down event.
+    /// The mouse down event.
     pub on_down : Dynamic<()>,
-    /// The oldmouse wheel event.
+    /// The mouse wheel event.
     pub on_wheel : Dynamic<()>,
-    /// The oldmouse leave event.
+    /// The mouse leave event.
     pub on_leave : Dynamic<()>,
     /// Mouse button press status.
     pub is_down : Dynamic<bool>,
-    /// Current oldmouse position.
+    /// Current mouse position.
     pub position : Dynamic<Position>,
 }
 

@@ -10,7 +10,6 @@ use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
-use crate::control::io::mouse::button::*;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
@@ -184,11 +183,11 @@ impl Mouse {
         let button4_pressed_ref = button4_pressed.clone_ref();
         let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse::event::OnDown| {
             match event.button() {
-                Button0 => button0_pressed_ref.set(true),
-                Button1 => button1_pressed_ref.set(true),
-                Button2 => button2_pressed_ref.set(true),
-                Button3 => button3_pressed_ref.set(true),
-                Button4 => button4_pressed_ref.set(true),
+                mouse::Button0 => button0_pressed_ref.set(true),
+                mouse::Button1 => button1_pressed_ref.set(true),
+                mouse::Button2 => button2_pressed_ref.set(true),
+                mouse::Button3 => button3_pressed_ref.set(true),
+                mouse::Button4 => button4_pressed_ref.set(true),
             }
         });
 
@@ -199,11 +198,11 @@ impl Mouse {
         let button4_pressed_ref = button4_pressed.clone_ref();
         let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse::event::OnUp| {
             match event.button() {
-                Button0 => button0_pressed_ref.set(false),
-                Button1 => button1_pressed_ref.set(false),
-                Button2 => button2_pressed_ref.set(false),
-                Button3 => button3_pressed_ref.set(false),
-                Button4 => button4_pressed_ref.set(false),
+                mouse::Button0 => button0_pressed_ref.set(false),
+                mouse::Button1 => button1_pressed_ref.set(false),
+                mouse::Button2 => button2_pressed_ref.set(false),
+                mouse::Button3 => button3_pressed_ref.set(false),
+                mouse::Button4 => button4_pressed_ref.set(false),
             }
         });
 
@@ -358,7 +357,7 @@ impl {
                 let symbol_id = mouse_hover_ids.x;
                 let symbol = self.symbols.index(symbol_id as usize);
                 symbol.dispatch(&DynEvent::new(()));
-                // println!("{:?}",self.oldmouse.hover_ids.get());
+                // println!("{:?}",self.mouse.hover_ids.get());
                 // TODO: finish events sending, including OnOver and OnOut.
             }
         }
@@ -386,7 +385,7 @@ impl {
         })
     }
 
-    /// Bind FRP graph to oldmouse js events.
+    /// Bind FRP graph to mouse js events.
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
         mouse::bind_frp_to_mouse(&self.shape,frp,&self.mouse.mouse_manager)
     }

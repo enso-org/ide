@@ -1,4 +1,4 @@
-//! This module contains implementation of a oldmouse manager and related utilities.
+//! This module contains implementation of a mouse manager and related utilities.
 
 use crate::prelude::*;
 
@@ -16,6 +16,8 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
 use web_sys::EventTarget;
+
+pub use button::*;
 
 
 
@@ -53,8 +55,8 @@ impl<T> CloneRef for EventDispatcher<T> {}
 // === MouseManager ===
 // ====================
 
-/// An utility which registers JavaScript handlers for oldmouse events and translates them to Rust
-/// handlers. It is a top level oldmouse registry hub.
+/// An utility which registers JavaScript handlers for mouse events and translates them to Rust
+/// handlers. It is a top level mouse registry hub.
 #[derive(Debug,Shrinkwrap)]
 pub struct MouseManager {
     #[shrinkwrap(main_field)]
@@ -63,7 +65,7 @@ pub struct MouseManager {
     dom         : EventTarget,
 }
 
-/// A JavaScript callback closure for any oldmouse event.
+/// A JavaScript callback closure for any mouse event.
 pub type MouseEventJsClosure = Closure<dyn Fn(JsValue)>;
 
 macro_rules! define_bindings {
@@ -75,7 +77,7 @@ macro_rules! define_bindings {
             $($name : MouseEventJsClosure),*
         }
 
-        /// Set of dispatchers for various oldmouse events.
+        /// Set of dispatchers for various mouse events.
         #[derive(Debug,Default)]
         #[allow(missing_docs)]
         pub struct MouseManagerDispatchers {

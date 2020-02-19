@@ -26,7 +26,7 @@ use nalgebra::clamp;
 // === Navigator ===
 // =================
 
-/// Navigator enables camera navigation with oldmouse interactions.
+/// Navigator enables camera navigation with mouse interactions.
 #[derive(Debug)]
 pub struct Navigator {
     _events         : NavigatorEvents,

@@ -1,4 +1,4 @@
-//! This module defines bindings to oldmouse buttons.
+//! This module defines bindings to mouse buttons.
 
 use crate::prelude::*;
 
@@ -7,10 +7,10 @@ use crate::prelude::*;
 // === MouseButton ===
 // ===================
 
-/// An enumeration representing the oldmouse buttons. Please note that we do not name the buttons
-/// left, right, and middle, as this assumes we use a oldmouse for right-hand people.
+/// An enumeration representing the mouse buttons. Please note that we do not name the buttons
+/// left, right, and middle, as this assumes we use a mouse for right-hand people.
 ///
-/// JS supports up to 5 oldmouse buttons currently:
+/// JS supports up to 5 mouse buttons currently:
 /// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 #[allow(missing_docs)]
