@@ -87,6 +87,17 @@ impl SetupConfig {
 // === IDE Setup ===
 // ==================
 
+/// Creates a new running executor with its own event loop. Registers them
+/// as a global executor.
+///
+/// Note: Caller should store or leak this `JsExecutor` so the global
+/// spawner won't be dangling.
+pub fn setup_global_executor() -> executor::web::JSExecutor {
+    let executor   = executor::web::JSExecutor::new_running();
+    executor::global::set_spawner(executor.spawner.clone());
+    executor
+}
+
 /// Establishes connection with file manager server websocket endpoint.
 pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,ConnectingError> {
     WebSocket::new_opened(config.file_manager_endpoint).await
@@ -102,7 +113,10 @@ pub async fn setup_project_view(config:SetupConfig) -> Result<ProjectView,failur
 
 /// This function is the IDE entry point responsible for setting up all views and controllers.
 pub fn run_ide() {
-    std::mem::forget(executor::web::JsExecutor::new_running_global());
+    let global_executor = setup_global_executor();
+    // We want global executor to live indefinitely.
+    std::mem::forget(global_executor);
+
     let config = SetupConfig::new_mock();
     executor::global::spawn(async move {
         let error_msg    = "Failed to setup initial project view.";

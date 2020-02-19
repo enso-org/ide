@@ -4,7 +4,6 @@
 //! files and modules. Expected to live as long as the project remains open in the IDE.
 
 use crate::prelude::*;
-use crate::controller;
 
 use json_rpc::Transport;
 use weak_table::weak_value_hash_map::Entry::Occupied;

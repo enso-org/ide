@@ -6,8 +6,6 @@
 
 use crate::prelude::*;
 
-use crate::controller;
-
 use failure::_core::fmt::{Formatter, Error};
 use flo_stream::{Publisher, Subscriber};
 use flo_stream::MessagePublisher;

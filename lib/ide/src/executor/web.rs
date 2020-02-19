@@ -3,21 +3,19 @@
 
 use crate::prelude::*;
 
+use basegl::control::callback::CallbackHandle;
+use basegl::control::EventLoopCallback;
+use basegl::control::EventLoop;
 use futures::task::LocalSpawn;
 use futures::task::LocalFutureObj;
 use futures::task::SpawnError;
 use futures::executor::LocalPool;
 use futures::executor::LocalSpawner;
 
-use basegl::control::callback::CallbackHandle;
-use basegl::control::EventLoopCallback;
-use basegl::control::EventLoop;
-
-
-/// Executor. Uses a single-threaded `LocalPool` underneat, relying on basegl's
+/// Executor. Uses a single-threaded `LocalPool` underneath, relying on basegl's
 /// `EventLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
-pub struct JsExecutor {
+pub struct JSExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
     executor    : Rc<RefCell<LocalPool>>,
     /// Executor's spawner handle.
@@ -29,25 +27,33 @@ pub struct JsExecutor {
     cb_handle   : Option<CallbackHandle>,
 }
 
-impl JsExecutor {
-    /// Creates a new executor scheduled on a given event_loop.
-    /// The returned executor shall keep a shared ownership over the event loop.
-    pub fn new() -> JsExecutor {
+impl JSExecutor {
+    /// Creates a new JS Executor. It is not yet running, use `schedule_running`
+    /// method to schedule it in an event loop.
+    pub fn new() -> JSExecutor {
         let executor  = LocalPool::default();
         let spawner   = executor.spawner();
         let executor  = Rc::new(RefCell::new(executor));
-        JsExecutor {
+        JSExecutor {
             executor,
             spawner,
-            event_loop: None,
-            cb_handle: None
+            event_loop : None,
+            cb_handle  : None,
         }
+    }
+
+    /// Creates a new JS executor with an event loop of its own. The event loop
+    /// will live as long as this executor.
+    pub fn new_running() -> JSExecutor {
+        let mut executor   = JSExecutor::new();
+        executor.schedule_running(EventLoop::new());
+        executor
     }
 
     /// Returns a callback compatible with `EventLoop` that once called shall
     /// attempt achieving as much progress on this executor's tasks as possible
     /// without stalling.
-    pub fn run_callback(&self) -> impl EventLoopCallback {
+    pub fn runner_callback(&self) -> impl EventLoopCallback {
         let executor = self.executor.clone();
         move |_| {
             // Safe, because this is the only place borrowing executor and loop
@@ -58,35 +64,30 @@ impl JsExecutor {
     }
 
     /// Registers this executor to the given event's loop. From now on, event
-    /// loop shall trigger this executor on each animation frame.
-    pub fn run(&mut self, event_loop:EventLoop) {
-        let cb = self.run_callback();
+    /// loop shall trigger this executor on each animation frame. To stop call
+    /// `stop_running`.
+    ///
+    /// The executor will keep copy of this loop handle, so caller is not
+    /// required to keep it alive.
+    pub fn schedule_running(&mut self, event_loop:EventLoop) {
+        let cb = self.runner_callback();
 
         self.cb_handle  = Some(event_loop.add_callback(cb));
         self.event_loop = Some(event_loop);
     }
 
     /// Stops event loop (previously assigned by `run` method) from calling this
-    /// executor anymore. Does nothing if no loop was assigned.
-    pub fn stop(&mut self) {
+    /// executor anymore. Does nothing if no loop was assigned. To resume call
+    /// `schedule_running`.
+    ///
+    /// Drops the stored handle to the loop.
+    pub fn stop_running(&mut self) {
         self.cb_handle  = None;
         self.event_loop = None;
     }
-
-    /// Creates a new running executor with its own event loop. Registers them
-    /// as a global executor.
-    ///
-    /// Note: Caller should store or leak this `JsExecutor` so the global
-    /// spawner won't be dangling.
-    pub fn new_running_global() -> JsExecutor {
-        let mut executor   = JsExecutor::new();
-        executor.run(EventLoop::new());
-        crate::executor::global::set_spawner(executor.spawner.clone());
-        executor
-    }
 }
 
-impl LocalSpawn for JsExecutor {
+impl LocalSpawn for JSExecutor {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawner.spawn_local_obj(future)
     }
