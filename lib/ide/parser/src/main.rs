@@ -1,5 +1,7 @@
 use parser::api::IsParser;
 
+use enso_prelude::default;
+
 /// Simple interactive tester - calls parser with its argument (or a
 /// hardcoded default) and prints the result
 fn main() {
