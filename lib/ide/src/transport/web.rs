@@ -139,7 +139,7 @@ impl WebSocket {
             ConnectingError::ConstructionError(js_to_string(e))
         })?);
 
-        let () = wst.wait_until_open().await?;
+        wst.wait_until_open().await?;
         Ok(wst)
     }
 
@@ -221,12 +221,12 @@ impl Transport for WebSocket {
         // when receiving `TransportEvent::Closed`.
         let state = self.state();
         if state != State::Open {
-            return Err(SendingError::NotOpen(state))?;
+            Err(SendingError::NotOpen(state).into())
+        } else {
+            self.ws.send_with_str(&message).map_err(|e| {
+                SendingError::FailedToSend(js_to_string(e)).into()
+            })
         }
-
-        self.ws.send_with_str(&message).map_err(|e| {
-            SendingError::FailedToSend(js_to_string(e)).into()
-        })
     }
 
     fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {

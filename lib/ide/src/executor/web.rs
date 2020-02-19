@@ -87,6 +87,12 @@ impl JSExecutor {
     }
 }
 
+impl Default for JSExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocalSpawn for JSExecutor {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawner.spawn_local_obj(future)
