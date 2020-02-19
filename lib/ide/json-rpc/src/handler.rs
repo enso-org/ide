@@ -186,19 +186,7 @@ impl<Notification> {
     /// Sends a handler event to the event stream.
     pub fn emit_event(&self, event:Event<Notification>) {
         if let Some(event_tx) = self.outgoing_events.as_ref() {
-            match event_tx.unbounded_send(event) {
-                Ok(()) => {},
-                Err(e) =>
-                    if e.is_full() {
-                        // Impossible, as per `futures` library docs.
-                        panic!("Unbounded channel should never be full.")
-                    } else if e.is_disconnected() {
-                        // It is ok for receiver to disconnect and ignore events.
-                    } else {
-                        // Never happens unless `futures` library changes API.
-                        panic!("Unrecognized error when sending event.")
-                    }
-            }
+            utils::channel::emit(event_tx,event)
         }
     }
 }

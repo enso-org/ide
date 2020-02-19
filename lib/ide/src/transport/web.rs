@@ -154,10 +154,10 @@ impl WebSocket {
             // Note [mwu] Ignore argument, `CloseEvent` here contains rubbish
             // anyway, nothing useful to pass to caller. Error code or reason
             // string should not be relied upon.
-            tx_clone.unbounded_send(Err(())).ok();
+            utils::channel::emit(&tx_clone,Err(()));
         });
         self.set_on_open(move |_| {
-            tx.unbounded_send(Ok(())).ok();
+            utils::channel::emit(&tx,Ok(()));
         });
 
         match rx.next().await {
@@ -230,21 +230,21 @@ impl Transport for WebSocket {
     }
 
     fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {
-        let tx1 = tx.clone();
+        let tx_copy = tx.clone();
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                let _ = tx1.unbounded_send(TransportEvent::TextMessage(text));
+                utils::channel::emit(&tx_copy,TransportEvent::TextMessage(text));
             }
         });
 
-        let tx2 = tx.clone();
+        let tx_copy = tx.clone();
         self.set_on_close(move |_e| {
-            let _ = tx2.unbounded_send(TransportEvent::Closed);
+            utils::channel::emit(&tx_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            let _ = tx.unbounded_send(TransportEvent::Opened);
+            utils::channel::emit(&tx,TransportEvent::Opened);
         });
     }
 }

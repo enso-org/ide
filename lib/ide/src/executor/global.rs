@@ -54,4 +54,3 @@ pub fn spawn(f:impl Future<Output=()> + 'static) {
     let error_msg = "Failed to spawn the task. Global executor might have been dropped.";
     spawner.spawn_local(f).expect(error_msg);
 }
-
