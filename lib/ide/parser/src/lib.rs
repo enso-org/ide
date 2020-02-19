@@ -6,10 +6,10 @@ mod wsclient;
 pub use enso_prelude as prelude;
 
 use crate::prelude::*;
+use crate::api::IDMap;
 
 use std::panic;
 use std::ops::DerefMut;
-use crate::api::IDMap;
 
 extern crate console_error_panic_hook;
 
@@ -47,7 +47,7 @@ impl Parser {
 }
 
 impl api::IsParser for Parser {
-   fn parse(&mut self, program: String, ids: IDMap) -> api::Result<api::Ast> {
+   fn parse(&mut self, program:String, ids:IDMap) -> api::Result<api::Ast> {
         self.deref_mut().parse(program, ids)
    }
 }

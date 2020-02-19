@@ -8,7 +8,7 @@ fn main() {
     println!("Will parse: {}", program);
 
     let mut parser = parser::Parser::new_or_panic();
-    let     output = parser.parse(program, vec![]);
+    let     output = parser.parse(program, default());
     match output {
         Ok(result) => println!("Parser responded with: {:?}", result),
         Err(e)     => println!("Failed to obtain a response: {:?}", e),

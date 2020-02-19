@@ -1,10 +1,11 @@
 #![cfg(target_arch = "wasm32")]
 
 use crate::prelude::*;
-
 use crate::api;
-use crate::api::{IsParser, IDMap};
-use crate::api::Error::ParsingError;
+
+use api::IsParser;
+use api::IDMap;
+use api::Error::ParsingError;
 
 use wasm_bindgen::prelude::*;
 
@@ -50,13 +51,13 @@ impl Client {
 }
 
 impl IsParser for Client {
-   fn parse(&mut self, program: String, ids: IDMap) -> api::Result<api::Ast> {
-       let json_ids = serde_json::to_string(&ids).expect(
-         "ID Map serialization should not fail."
-       );
-       match parse(program, json_ids) {
-           Ok(json_ast) => Err(ParsingError(json_ast)),
-           Err(_)       => Err(api::interop_error(Error::ScalaException())),
-       }
-   }
+    fn parse(&mut self, program:String, ids:IDMap) -> api::Result<api::Ast> {
+        match serde_json::to_string(&ids) {
+            Ok(json_ids) => match parse(program, json_ids) {
+                Ok(json_ast) => Err(ParsingError(json_ast)),
+                Err(_)       => Err(api::interop_error(Error::ScalaException())),
+            }
+            Err(err) => Err(api::interop_error(Error::JsonSerializationError(err)))
+        }
+    }
 }
