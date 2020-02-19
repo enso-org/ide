@@ -32,12 +32,12 @@ pub use button::*;
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
 pub struct EventDispatcher<T> {
-    rc: Rc<RefCell<XCallbackRegistry1<T>>>
+    rc: Rc<RefCell<CallbackRegistry1<T>>>
 }
 
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
-    pub fn add<F:XCallbackMut1Fn<T>>(&self, callback:F) -> CallbackHandle {
+    pub fn add<F:CallbackMut1Fn<T>>(&self, callback:F) -> CallbackHandle {
         self.rc.borrow_mut().add(callback)
     }
 
