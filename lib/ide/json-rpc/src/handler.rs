@@ -19,6 +19,7 @@ use futures::channel::mpsc::UnboundedSender;
 use futures::channel::oneshot;
 use serde::de::DeserializeOwned;
 use std::future::Future;
+use utils::channel;
 
 
 
@@ -186,7 +187,7 @@ impl<Notification> {
     /// Sends a handler event to the event stream.
     pub fn emit_event(&self, event:Event<Notification>) {
         if let Some(event_tx) = self.outgoing_events.as_ref() {
-            utils::channel::emit(event_tx,event)
+            channel::emit(event_tx,event)
         }
     }
 }

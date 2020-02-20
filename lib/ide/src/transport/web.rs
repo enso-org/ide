@@ -7,6 +7,7 @@ use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
+use utils::channel;
 use web_sys::CloseEvent;
 use web_sys::Event;
 use web_sys::MessageEvent;
@@ -234,17 +235,17 @@ impl Transport for WebSocket {
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                utils::channel::emit(&tx_copy,TransportEvent::TextMessage(text));
+                channel::emit(&tx_copy,TransportEvent::TextMessage(text));
             }
         });
 
         let tx_copy = tx.clone();
         self.set_on_close(move |_e| {
-            utils::channel::emit(&tx_copy,TransportEvent::Closed);
+            channel::emit(&tx_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            utils::channel::emit(&tx,TransportEvent::Opened);
+            channel::emit(&tx,TransportEvent::Opened);
         });
     }
 }

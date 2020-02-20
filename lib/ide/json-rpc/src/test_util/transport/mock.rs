@@ -7,11 +7,12 @@ use crate::prelude::*;
 use crate::transport::Transport;
 use crate::transport::TransportEvent;
 
-use std::collections::VecDeque;
 use failure::Error;
+use futures::channel::mpsc::UnboundedSender;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use futures::channel::mpsc::UnboundedSender;
+use std::collections::VecDeque;
+use utils::channel;
 
 
 // ====================
@@ -107,7 +108,7 @@ impl MockTransport {
         let message = message.into();
         if let Some(ref mut tx) = self.0.borrow_mut().event_tx {
             let event = TransportEvent::TextMessage(message);
-            utils::channel::emit(tx,event);
+            channel::emit(tx,event);
         }
     }
 
@@ -125,7 +126,7 @@ impl MockTransport {
         self.with_mut_data(|data| {
             if let Some(ref mut tx) = data.event_tx {
                 data.is_closed = true;
-                utils::channel::emit(tx,TransportEvent::Closed);
+                channel::emit(tx,TransportEvent::Closed);
             }
         })
     }
