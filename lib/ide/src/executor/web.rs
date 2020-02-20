@@ -15,7 +15,7 @@ use futures::executor::LocalSpawner;
 /// Executor. Uses a single-threaded `LocalPool` underneath, relying on basegl's
 /// `EventLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
-pub struct JSExecutor {
+pub struct EventLoopExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
     executor    : Rc<RefCell<LocalPool>>,
     /// Executor's spawner handle.
@@ -27,26 +27,23 @@ pub struct JSExecutor {
     cb_handle   : Option<CallbackHandle>,
 }
 
-impl JSExecutor {
-    /// Creates a new JS Executor. It is not yet running, use `schedule_running`
+impl EventLoopExecutor {
+    /// Creates a new EventLoopExecutor. It is not yet running, use `start_running`
     /// method to schedule it in an event loop.
-    pub fn new() -> JSExecutor {
-        let executor  = LocalPool::default();
-        let spawner   = executor.spawner();
-        let executor  = Rc::new(RefCell::new(executor));
-        JSExecutor {
-            executor,
-            spawner,
-            event_loop : None,
-            cb_handle  : None,
-        }
+    pub fn new() -> EventLoopExecutor {
+        let executor   = LocalPool::default();
+        let spawner    = executor.spawner();
+        let executor   = Rc::new(RefCell::new(executor));
+        let event_loop = None;
+        let cb_handle  = None;
+        EventLoopExecutor {executor,spawner,event_loop,cb_handle}
     }
 
-    /// Creates a new JS executor with an event loop of its own. The event loop
-    /// will live as long as this executor.
-    pub fn new_running() -> JSExecutor {
-        let mut executor   = JSExecutor::new();
-        executor.schedule_running(EventLoop::new());
+    /// Creates a new EventLoopExecutor with an event loop of its own. The event
+    ///loop will live as long as this executor.
+    pub fn new_running() -> EventLoopExecutor {
+        let mut executor = EventLoopExecutor::new();
+        executor.start_running(EventLoop::new());
         executor
     }
 
@@ -69,7 +66,7 @@ impl JSExecutor {
     ///
     /// The executor will keep copy of this loop handle, so caller is not
     /// required to keep it alive.
-    pub fn schedule_running(&mut self, event_loop:EventLoop) {
+    pub fn start_running(&mut self, event_loop:EventLoop) {
         let cb = self.runner_callback();
 
         self.cb_handle  = Some(event_loop.add_callback(cb));
@@ -78,7 +75,7 @@ impl JSExecutor {
 
     /// Stops event loop (previously assigned by `run` method) from calling this
     /// executor anymore. Does nothing if no loop was assigned. To resume call
-    /// `schedule_running`.
+    /// `start_running`.
     ///
     /// Drops the stored handle to the loop.
     pub fn stop_running(&mut self) {
@@ -87,13 +84,13 @@ impl JSExecutor {
     }
 }
 
-impl Default for JSExecutor {
+impl Default for EventLoopExecutor {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LocalSpawn for JSExecutor {
+impl LocalSpawn for EventLoopExecutor {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawner.spawn_local_obj(future)
     }

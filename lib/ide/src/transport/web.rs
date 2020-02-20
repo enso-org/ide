@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use basegl_system_web::closure::ClosureStorage;
+use basegl_system_web::closure::storage::OptionalFmMutClosure;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
@@ -111,13 +111,13 @@ pub struct WebSocket {
     /// Handle to the JS `WebSocket` object.
     pub ws         : web_sys::WebSocket,
     /// Handle to a closure connected to `WebSocket.onmessage`.
-    pub on_message : ClosureStorage<MessageEvent>,
+    pub on_message : OptionalFmMutClosure<MessageEvent>,
     /// Handle to a closure connected to `WebSocket.onclose`.
-    pub on_close   : ClosureStorage<CloseEvent>,
+    pub on_close   : OptionalFmMutClosure<CloseEvent>,
     /// Handle to a closure connected to `WebSocket.onopen`.
-    pub on_open    : ClosureStorage<Event>,
+    pub on_open    : OptionalFmMutClosure<Event>,
     /// Handle to a closure connected to `WebSocket.onerror`.
-    pub on_error   : ClosureStorage<Event>,
+    pub on_error   : OptionalFmMutClosure<Event>,
 }
 
 impl WebSocket {
@@ -163,7 +163,7 @@ impl WebSocket {
 
         match rx.next().await {
             Some(Ok(())) => {
-                self.clear_callbacka();
+                self.clear_callbacks();
                 Ok(())
             }
             _ => Err(ConnectingError::FailedToConnect)
@@ -200,7 +200,7 @@ impl WebSocket {
     }
 
     /// Clears all the available callbacks.
-    pub fn clear_callbacka(&mut self) {
+    pub fn clear_callbacks(&mut self) {
         self.on_close  .clear();
         self.on_error  .clear();
         self.on_message.clear();
