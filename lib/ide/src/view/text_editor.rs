@@ -65,7 +65,7 @@ impl {
         });
 
         executor::global::spawn(async move {
-            if let Err(_) = controller.store_content(text).await {
+            if controller.store_content(text).await.is_err() {
                 println!("Failed to write file")
             }
         });
