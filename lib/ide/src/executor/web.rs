@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use basegl::control::callback::CallbackHandle;
-use basegl::control::EventLoopCallback;
 use basegl::control::EventLoop;
 use futures::task::LocalSpawn;
 use futures::task::LocalFutureObj;
@@ -53,7 +52,7 @@ impl JSExecutor {
     /// Returns a callback compatible with `EventLoop` that once called shall
     /// attempt achieving as much progress on this executor's tasks as possible
     /// without stalling.
-    pub fn runner_callback(&self) -> impl EventLoopCallback {
+    pub fn runner_callback(&self) -> impl FnMut(&f64) + 'static {
         let executor = self.executor.clone();
         move |_| {
             // Safe, because this is the only place borrowing executor and loop
