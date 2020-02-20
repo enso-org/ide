@@ -106,7 +106,8 @@ impl MockTransport {
     pub fn mock_peer_message_text<S:Into<String>>(&mut self, message:S) {
         let message = message.into();
         if let Some(ref mut tx) = self.0.borrow_mut().event_tx {
-            let _ = tx.unbounded_send(TransportEvent::TextMessage(message));
+            let event = TransportEvent::TextMessage(message);
+            utils::channel::emit(tx,event);
         }
     }
 
@@ -124,7 +125,7 @@ impl MockTransport {
         self.with_mut_data(|data| {
             if let Some(ref mut tx) = data.event_tx {
                 data.is_closed = true;
-                let _          = tx.unbounded_send(TransportEvent::Closed);
+                utils::channel::emit(tx,TransportEvent::Closed);
             }
         })
     }

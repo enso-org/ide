@@ -2,13 +2,11 @@
 
 use crate::prelude::*;
 
+use basegl_system_web::closure::ClosureStorage;
 use failure::Error;
 use futures::channel::mpsc;
-use js_sys::Function;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
-use wasm_bindgen::convert::FromWasmAbi;
-use wasm_bindgen::JsCast;
 use web_sys::CloseEvent;
 use web_sys::Event;
 use web_sys::MessageEvent;
@@ -102,60 +100,6 @@ impl State {
 
 
 
-// ======================
-// === ClosureStorage ===
-// ======================
-
-/// Constraint for JS closure argument types
-pub trait ClosureArg = FromWasmAbi + 'static;
-
-/// Function that can be wrapped into a `Closure`.
-pub trait ClosureFn<Arg> = FnMut(Arg) + 'static where Arg: ClosureArg;
-
-/// Stores an optional closure.
-#[derive(Debug,Derivative)]
-#[derivative(Default(bound=""))]
-pub struct ClosureStorage<Arg> {
-    /// The stored closure.
-    pub closure : Option<Closure<dyn FnMut(Arg)>>,
-}
-
-impl <Arg> ClosureStorage<Arg> {
-    /// An empty closure storage.
-    pub fn new() -> ClosureStorage<Arg> {
-        default()
-    }
-
-    /// Stores the given closure.
-    pub fn store(&mut self, closure:Closure<dyn FnMut(Arg)>) {
-        self.closure = Some(closure);
-    }
-
-    /// Obtain JS reference to the closure (that can be passed e.g. as a callback
-    /// to an event handler).
-    pub fn js_ref(&self) -> Option<&Function> {
-        self.closure.as_ref().map(|closure| closure.as_ref().unchecked_ref())
-    }
-
-    /// Wraps given function into a Closure.
-    pub fn wrap(&mut self, f:impl ClosureFn<Arg>) {
-        let boxed = Box::new(f);
-        // Note: [mwu] Not sure exactly why, but compiler sometimes require this
-        // explicit type below and sometimes does not.
-        let wrapped:Closure<dyn FnMut(Arg)> = Closure::wrap(boxed);
-        self.store(wrapped);
-    }
-
-    /// Clears the current closure.
-    /// Note: if reference to it is still used by JS, it will throw an exception
-    /// on calling attempt. Be careful of dangling references.
-    pub fn clear(&mut self) {
-        self.closure = None;
-    }
-}
-
-
-
 // =================
 // === WebSocket ===
 // =================
@@ -195,7 +139,7 @@ impl WebSocket {
             ConnectingError::ConstructionError(js_to_string(e))
         })?);
 
-        let () = wst.wait_until_open().await?;
+        wst.wait_until_open().await?;
         Ok(wst)
     }
 
@@ -210,10 +154,10 @@ impl WebSocket {
             // Note [mwu] Ignore argument, `CloseEvent` here contains rubbish
             // anyway, nothing useful to pass to caller. Error code or reason
             // string should not be relied upon.
-            tx_clone.unbounded_send(Err(())).ok();
+            utils::channel::emit(&tx_clone,Err(()));
         });
         self.set_on_open(move |_| {
-            tx.unbounded_send(Ok(())).ok();
+            utils::channel::emit(&tx,Ok(()));
         });
 
         match rx.next().await {
@@ -277,30 +221,30 @@ impl Transport for WebSocket {
         // when receiving `TransportEvent::Closed`.
         let state = self.state();
         if state != State::Open {
-            return Err(SendingError::NotOpen(state))?;
+            Err(SendingError::NotOpen(state).into())
+        } else {
+            self.ws.send_with_str(&message).map_err(|e| {
+                SendingError::FailedToSend(js_to_string(e)).into()
+            })
         }
-
-        self.ws.send_with_str(&message).map_err(|e| {
-            SendingError::FailedToSend(js_to_string(e)).into()
-        })
     }
 
     fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {
-        let tx1 = tx.clone();
+        let tx_copy = tx.clone();
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                let _ = tx1.unbounded_send(TransportEvent::TextMessage(text));
+                utils::channel::emit(&tx_copy,TransportEvent::TextMessage(text));
             }
         });
 
-        let tx2 = tx.clone();
+        let tx_copy = tx.clone();
         self.set_on_close(move |_e| {
-            let _ = tx2.unbounded_send(TransportEvent::Closed);
+            utils::channel::emit(&tx_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            let _ = tx.unbounded_send(TransportEvent::Opened);
+            utils::channel::emit(&tx,TransportEvent::Opened);
         });
     }
 }

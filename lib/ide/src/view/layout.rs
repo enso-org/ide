@@ -1,5 +1,5 @@
 //! This module contains implementation of ViewLayout with a single TextEditor temporarily
-//! occupying half bottom of the screen temporarily as the default layout.
+//! occupying half bottom of the screen as the default layout.
 
 use wasm_bindgen::prelude::*;
 use basegl::prelude::*;
@@ -13,16 +13,16 @@ use super::KeyboardListener;
 use basegl::display::world::World;
 use nalgebra::zero;
 use nalgebra::Vector2;
-use web_sys::KeyboardEvent;
 use std::rc::Rc;
 use std::cell::RefCell;
+use web_sys::KeyboardEvent;
 
 
 
-//TODO: LayoutMode is a temporary enumeration, it will be replaced by proper Panel impl.
 // ==================
 // === LayoutMode ===
 // ==================
+//TODO: LayoutMode is a temporary enumeration, it will be replaced by proper Panel impl.
 
 /// Defines the element's layout mode. It can fully occupy the screen or only half of it.
 #[derive(Clone,Copy,Debug)]
@@ -51,10 +51,10 @@ shared! { ViewLayout
 /// fullscreen mode.
 #[derive(Debug)]
 pub struct ViewLayoutData {
-    text_editor      : TextEditor,
-    key_listener     : Option<KeyboardListener>,
-    layout_mode      : LayoutMode,
-    size             : Vector2<f32>
+    text_editor  : TextEditor,
+    key_listener : Option<KeyboardListener>,
+    layout_mode  : LayoutMode,
+    size         : Vector2<f32>
 }
 
 impl {

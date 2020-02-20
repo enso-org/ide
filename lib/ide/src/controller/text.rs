@@ -6,8 +6,6 @@
 
 use crate::prelude::*;
 
-use crate::controller;
-
 use failure::_core::fmt::{Formatter, Error};
 use flo_stream::{Publisher, Subscriber};
 use flo_stream::MessagePublisher;
@@ -23,8 +21,9 @@ use shapely::shared;
 
 /// A buffer size for notification publisher.
 ///
-/// We don't expect much traffic on file notifications, therefore there is no need for setting big
-/// buffers.
+/// If Publisher buffer will be full, the thread sending next notification will be blocked until
+/// all subscribers read message from buffer. We don't expect much traffic on file notifications,
+/// therefore there is no need for setting big buffers.
 const NOTIFICATION_BUFFER_SIZE : usize = 36;
 
 /// A notification from TextController.
@@ -67,10 +66,10 @@ shared! { Handle
         }
 
         /// Get clone of file path handled by this controller.
-        pub fn file_path_clone(&self) -> fmc::Path {
+        pub fn file_path(&self) -> fmc::Path {
             match &self.file {
                 FileHandle::PlainText{path,..} => path.clone(),
-                FileHandle::Module{controller} => controller.location_as_path(),
+                FileHandle::Module{controller} => controller.location().to_path(),
             }
         }
     }
@@ -90,7 +89,7 @@ impl Handle {
     pub fn read_content(&self) -> impl Future<Output=Result<String,RpcError>> {
         match self.file_handle() {
             FileHandle::PlainText {path,mut file_manager} => file_manager.read(path),
-            FileHandle::Module {..}               => unimplemented!(),
+            FileHandle::Module {..}                       => todo!(),
         }
     }
 
@@ -98,20 +97,8 @@ impl Handle {
     pub fn store_content(&self, content:String) -> impl Future<Output=Result<(),RpcError>> {
         match self.file_handle() {
             FileHandle::PlainText {path,mut file_manager} => file_manager.write(path,content),
-            FileHandle::Module {..}               => unimplemented!(),
+            FileHandle::Module {..}                       => todo!(),
         }
-    }
-
-    #[cfg(test)]
-    /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> fmc::Handle {
-        self.with_borrowed(|state| {
-            match &state.file {
-                FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
-                FileHandle::Module {..} =>
-                    panic!("Cannot get FileManagerHandle from module file"),
-            }
-        })
     }
 }
 
@@ -142,9 +129,25 @@ impl Debug for State {
     }
 }
 
-// TODO[ao] why the shared macro cannot derive this?
 impl Debug for Handle {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         self.rc.borrow().fmt(f)
+    }
+}
+
+
+// === Test Utilities ===
+
+#[cfg(test)]
+impl Handle {
+    /// Get FileManagerClient handle used by this controller.
+    pub fn file_manager(&self) -> fmc::Handle {
+        self.with_borrowed(|state| {
+            match &state.file {
+                FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
+                FileHandle::Module {..} =>
+                    panic!("Cannot get FileManagerHandle from module file"),
+            }
+        })
     }
 }
