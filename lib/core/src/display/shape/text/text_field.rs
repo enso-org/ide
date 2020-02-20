@@ -1,4 +1,7 @@
 //! A module defining TextField. TextField is a basegl component displaying editable block of text.
+//FIXME:unused_parens is triggered in this file with no indication of where it happens. It's
+// possibly happening inside shared! macro.
+#![allow(unused_parens)]
 
 pub mod content;
 pub mod cursor;
