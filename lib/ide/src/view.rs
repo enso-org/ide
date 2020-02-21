@@ -14,22 +14,20 @@ pub mod project;
 pub mod layout;
 pub mod text_editor;
 
+use crate::prelude::*;
+
+use basegl::system::web::document;
+use js_sys::Function;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlElement;
+use web_sys::KeyboardEvent;
+
 
 
 // ========================
 // === KeyboardListener ===
 // ========================
 // This code is temporary and will be replace with FRP keyboard events once it's fully functional.
-
-use wasm_bindgen::prelude::*;
-use basegl::prelude::*;
-
-use basegl::system::web::document;
-use js_sys::Function;
-use web_sys::HtmlElement;
-use web_sys::KeyboardEvent;
-use wasm_bindgen::JsCast;
-
 
 type KeyboardClosure = Closure<dyn FnMut(KeyboardEvent)>;
 
