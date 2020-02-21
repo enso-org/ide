@@ -81,11 +81,13 @@ impl TextEditor {
         let text_field   = TextField::new(&world,properties);
         let key_listener = None;
 
-        let content_future   = controller.read_content();
-        let text_field_clone = text_field.clone_ref();
+        let content_future  = controller.read_content();
+        let text_field_weak = text_field.downgrade();
         executor::global::spawn(async move {
             if let Ok(content) = content_future.await {
-                text_field_clone.write(&content);
+                if let Some(text_field) = text_field_weak.upgrade() {
+                    text_field.write(&content);
+                }
             }
         });
         world.add_child(&text_field);
