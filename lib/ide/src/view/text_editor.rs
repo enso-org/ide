@@ -63,8 +63,9 @@ impl {
             text.pop(); // removes last \n
         });
 
+        let store_fut = controller.store_content(text);
         executor::global::spawn(async move {
-            if controller.store_content(text).await.is_err() {
+            if store_fut.await.is_err() {
                 println!("Failed to write file")
             }
         });
