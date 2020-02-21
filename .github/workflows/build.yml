@@ -139,8 +139,15 @@ jobs:
         with:
           command: install
           args: wasm-pack
+          
+      # Note: On Windows we need to use `python`. Elsewhere `python3`.
       - name: Build Enso IDE
         run: python script/build.py
+        if: matrix.os == 'windows-latest'
+      - name: Build Enso IDE
+        run: python3 script/build.py
+        if: matrix.os != 'windows-latest'
+      
       - uses: actions/setup-node@v1
         with:
           node-version: '10.x'
