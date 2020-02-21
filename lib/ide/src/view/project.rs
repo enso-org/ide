@@ -5,14 +5,13 @@ use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
 
+use basegl::control::callback::CallbackHandle;
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
 use basegl::system::web;
-use basegl::control::callback::CallbackHandle;
-
+use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-use file_manager_client::Path;
 
 
 
