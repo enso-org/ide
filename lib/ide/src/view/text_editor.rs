@@ -1,12 +1,10 @@
 //! This module contains TextEditor, an UiComponent to edit Enso Modules or Text Files.
 
 use crate::prelude::*;
-use basegl::prelude::*;
 
-use crate::view::temporary_panel::TemporaryPanel;
+use crate::view::KeyboardListener;
 use crate::view::temporary_panel::TemporaryPadding;
-use crate::controller::text::Handle;
-use super::KeyboardListener;
+use crate::view::temporary_panel::TemporaryPanel;
 
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::shape::text::glyph::font::FontRegistry;
@@ -34,7 +32,7 @@ pub struct TextEditorData {
     padding      : TemporaryPadding,
     position     : Vector2<f32>,
     size         : Vector2<f32>,
-    controller   : Handle,
+    controller   : controller::text::Handle,
     key_listener : Option<KeyboardListener>
 }
 
@@ -74,7 +72,7 @@ impl {
 
 impl TextEditor {
     /// Creates a new TextEditor.
-    pub fn new(world:&World, controller:Handle) -> Self {
+    pub fn new(world:&World, controller:controller::text::Handle) -> Self {
         let scene        = world.scene();
         let camera       = scene.camera();
         let screen       = camera.screen();
