@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::controller::text::Handle;
 use crate::view::KeyboardListener;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
@@ -110,7 +109,7 @@ impl ViewLayoutData {
 
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
-    pub fn new(world:&World, controller:Handle) -> Self {
+    pub fn new(world:&World, controller:controller::text::Handle) -> Self {
         let text_editor  = TextEditor::new(&world,controller);
         let key_listener = None;
         let layout_mode  = default();
