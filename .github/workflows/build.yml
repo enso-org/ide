@@ -23,8 +23,9 @@ jobs:
         working-directory: ./app
       - run: npm run dist
         working-directory: ./app
-      - run: ls app/dist
-      - uses: actions/upload-artifact@v1
-        with:
-          name: my-artifact
-          path: app/dist/enso-ide*
+      - run: ls -R app/dist 
+      # - uses: actions/upload-artifact@v1
+      #   with:
+      #     name: my-artifact
+      #     path: app/dist/enso-ide Setup 0.1.0.exe
+
