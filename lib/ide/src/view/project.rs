@@ -62,9 +62,8 @@ impl ProjectView {
         let world           = WorldData::new(&web::body());
         let layout          = ViewLayout::new(&world,text_controller);
         let resize_callback = None;
-        let data = ProjectViewData {world,layout,resize_callback,controller};
-        let ret  = Self {rc:Rc::new(RefCell::new(data))};
-        ret.init()
+        let data            = ProjectViewData {world,layout,resize_callback,controller};
+        Self::new_from_data(data).init()
     }
 
     fn init(self) -> Self {
