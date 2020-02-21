@@ -53,17 +53,8 @@ impl {
     /// Saves text editor's content to file.
     pub fn save(&self) {
         let controller = self.controller.clone();
-        let mut text = String::new();
-        self.text_field.with_content(|content| {
-            let strings : Vec<String> = content.lines.iter().map(|l| l.chars().iter().collect()).collect();
-            for string in &strings {
-                text += string;
-                text += "\n"
-            }
-            text.pop(); // removes last \n
-        });
-
-        let store_fut = controller.store_content(text);
+        let text       = self.text_field.get_content();
+        let store_fut  = controller.store_content(text);
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
                 println!("Failed to write file")

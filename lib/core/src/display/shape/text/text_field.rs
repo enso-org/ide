@@ -156,6 +156,12 @@ shared! { TextField
             self.rendered.update_glyphs(&mut self.content);
         }
 
+        /// Obtains the whole text content as a single String.
+        pub fn get_content(&self) -> String {
+            let mut line_strings = self.content.lines.iter().map(|l| l.to_string());
+            line_strings.join("\n")
+        }
+
         /// Get the selected text.
         pub fn get_selected_text(&self) -> String {
             let cursor_select  = |c:&Cursor| self.content.copy_fragment(c.selection_range());
@@ -238,11 +244,6 @@ impl TextField {
         });
         Self{rc}
     }
-
-    /// TextFieldContent accessor.
-    pub fn with_content<F:FnMut(&TextFieldContent)>(&self, mut f:F) {
-        f(&self.rc.borrow().content)
-    }
 }
 
 
@@ -290,7 +291,6 @@ impl TextFieldData {
         }
     }
 }
-
 
 // === Display Object ===
 
