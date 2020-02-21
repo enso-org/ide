@@ -7,6 +7,18 @@
 //!
 //! The executor responsible for spawning tasks is expected to remain alive
 //! indefinitely, at least until the last `spawn` call has been made.
+//!
+//! The IDE runs in single-threaded web environment, while dealing with remote
+//! resources. As such, it is common that it will want to perform asynchronous
+//! operations. Thus we want basically every single place in this crate to be
+//! able to just "schedule a task" for execution.
+//!
+//! As there is no reason to use more than a one executor, it is reasonable to
+//! make it globally accessible through this module.
+//!
+//! To learn more about concepts involved in asynchronous programming, like
+//! executors, futures, tasks please refer to
+//! https://rust-lang.github.io/async-book/
 
 
 use crate::prelude::*;
@@ -20,7 +32,7 @@ use futures::task::LocalSpawn;
 /// remain accessible indefinitely.
 static mut SPAWNER: Option<Box<dyn LocalSpawn>> = None;
 
-/// Sets the global spawner. It will remain accessible until it is re-set to
+/// Sets the global spawner. It will remain accessible until it is set again to
 /// something else.
 ///
 /// Caller should also ensure that the spawner will remain functional the whole
