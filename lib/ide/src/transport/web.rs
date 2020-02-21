@@ -2,11 +2,12 @@
 
 use crate::prelude::*;
 
-use basegl_system_web::closure::ClosureStorage;
+use basegl_system_web::closure::storage::OptionalFmMutClosure;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
+use utils::channel;
 use web_sys::CloseEvent;
 use web_sys::Event;
 use web_sys::MessageEvent;
@@ -110,13 +111,13 @@ pub struct WebSocket {
     /// Handle to the JS `WebSocket` object.
     pub ws         : web_sys::WebSocket,
     /// Handle to a closure connected to `WebSocket.onmessage`.
-    pub on_message : ClosureStorage<MessageEvent>,
+    pub on_message : OptionalFmMutClosure<MessageEvent>,
     /// Handle to a closure connected to `WebSocket.onclose`.
-    pub on_close   : ClosureStorage<CloseEvent>,
+    pub on_close   : OptionalFmMutClosure<CloseEvent>,
     /// Handle to a closure connected to `WebSocket.onopen`.
-    pub on_open    : ClosureStorage<Event>,
+    pub on_open    : OptionalFmMutClosure<Event>,
     /// Handle to a closure connected to `WebSocket.onerror`.
-    pub on_error   : ClosureStorage<Event>,
+    pub on_error   : OptionalFmMutClosure<Event>,
 }
 
 impl WebSocket {
@@ -162,7 +163,7 @@ impl WebSocket {
 
         match rx.next().await {
             Some(Ok(())) => {
-                self.clear_callbacka();
+                self.clear_callbacks();
                 Ok(())
             }
             _ => Err(ConnectingError::FailedToConnect)
@@ -199,7 +200,7 @@ impl WebSocket {
     }
 
     /// Clears all the available callbacks.
-    pub fn clear_callbacka(&mut self) {
+    pub fn clear_callbacks(&mut self) {
         self.on_close  .clear();
         self.on_error  .clear();
         self.on_message.clear();
@@ -234,17 +235,17 @@ impl Transport for WebSocket {
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                utils::channel::emit(&tx_copy,TransportEvent::TextMessage(text));
+                channel::emit(&tx_copy,TransportEvent::TextMessage(text));
             }
         });
 
         let tx_copy = tx.clone();
         self.set_on_close(move |_e| {
-            utils::channel::emit(&tx_copy,TransportEvent::Closed);
+            channel::emit(&tx_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            utils::channel::emit(&tx,TransportEvent::Opened);
+            channel::emit(&tx,TransportEvent::Opened);
         });
     }
 }

@@ -92,8 +92,8 @@ impl SetupConfig {
 ///
 /// Note: Caller should store or leak this `JsExecutor` so the global
 /// spawner won't be dangling.
-pub fn setup_global_executor() -> executor::web::JSExecutor {
-    let executor   = executor::web::JSExecutor::new_running();
+pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
+    let executor   = executor::web::EventLoopExecutor::new_running();
     executor::global::set_spawner(executor.spawner.clone());
     executor
 }
@@ -119,7 +119,7 @@ pub fn run_ide() {
 
     let config = SetupConfig::new_mock();
     executor::global::spawn(async move {
-        let error_msg    = "Failed to setup initial project view.";
+        let error_msg = "Failed to setup initial project view.";
         // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
         //      issues to user, such information should be properly passed
         //      in case of setup failure.

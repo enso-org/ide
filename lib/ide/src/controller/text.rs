@@ -6,10 +6,12 @@
 
 use crate::prelude::*;
 
-use failure::_core::fmt::{Formatter, Error};
-use flo_stream::{Publisher, Subscriber};
-use flo_stream::MessagePublisher;
+use failure::_core::fmt::Formatter;
+use failure::_core::fmt::Error;
 use file_manager_client as fmc;
+use flo_stream::MessagePublisher;
+use flo_stream::Publisher;
+use flo_stream::Subscriber;
 use json_rpc::error::RpcError;
 use shapely::shared;
 
