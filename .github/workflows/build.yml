@@ -17,16 +17,13 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '10.x'
-      - working-directory: ./app
-        run: yarn
-      - run: |
-          cd app
-          npm install
-      - run: |
-          cd app
-          npm run dist
-      - run: |
-          ls app/dist
+      - run: yarn
+        working-directory: ./app
+      - run: npm install
+        working-directory: ./app
+      - run: npm run dist
+        working-directory: ./app
+      - run: ls app/dist
       - uses: actions/upload-artifact@v1
         with:
           name: my-artifact
