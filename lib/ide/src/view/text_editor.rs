@@ -98,8 +98,7 @@ impl TextEditor {
         world.add_child(&text_field);
 
         let data = TextEditorData {controller,text_field,padding,position,size,key_listener};
-        let rc = Rc::new(RefCell::new(data));
-        Self{rc}.initialize()
+        Self::new_from_data(data).initialize()
     }
 
     fn initialize(self) -> Self {
