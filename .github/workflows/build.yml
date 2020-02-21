@@ -30,12 +30,14 @@ jobs:
           name: my-artifact
           path: app/dist/enso-ide-0.1.0.AppImage
         if: matrix.os == 'ubuntu-latest'
-      - name: Upload Artifacts (Windows)
+      - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (Windows)
         if: matrix.os == 'windows-latest'
         with:
           name: my-artifact
           path: app/dist/enso-ide Setup 0.1.0.exe
-      - name: Upload Artifacts (macOS)
+      - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (macOS)
         if: matrix.os == 'macos-latest'
         with:
           name: my-artifact
