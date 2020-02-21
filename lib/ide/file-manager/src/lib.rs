@@ -17,6 +17,7 @@ use json_rpc::Handler;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
+use shapely::shared;
 use std::future::Future;
 use uuid::Uuid;
 
@@ -141,36 +142,39 @@ pub enum FileKind {
 // === Client ===
 // ==============
 
-/// File Manager client. Contains numerous asynchronous methods for remote calls
-/// on File Manager server. Also, allows obtaining events stream by calling
-/// `events`.
-#[derive(Debug)]
-pub struct Client {
-    /// JSON-RPC protocol handler.
-    handler : Handler<Notification>,
-}
+shared! { Handle
 
-impl Client {
-    /// Create a new File Manager client that will use given transport.
-    pub fn new(transport:impl json_rpc::Transport + 'static) -> Client {
-        let handler = Handler::new(transport);
-        Client { handler }
+    /// File Manager client. Contains numerous asynchronous methods for remote calls
+    /// on File Manager server. Also, allows obtaining events stream by calling
+    /// `events`.
+    #[derive(Debug)]
+    pub struct Client {
+        /// JSON-RPC protocol handler.
+        handler : Handler<Notification>,
     }
 
-    /// Asynchronous event stream with notification and errors.
-    ///
-    /// On a repeated call, previous stream is closed.
-    pub fn events(&mut self) -> impl Stream<Item = Event> {
-        self.handler.events()
+    impl {
+        /// Create a new File Manager client that will use given transport.
+        pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
+            let handler = Handler::new(transport);
+            Client { handler }
+        }
+
+        /// Asynchronous event stream with notification and errors.
+        ///
+        /// On a repeated call, previous stream is closed.
+        pub fn events(&mut self) -> impl Stream<Item = Event> {
+            self.handler.handler_event_stream()
+        }
+
+        /// Returns a future that performs any background, asynchronous work needed
+        /// for this Client to correctly work. Should be continually run while the
+        /// `Client` is used. Will end once `Client` is dropped.
+        pub fn runner(&mut self) -> impl Future<Output = ()> {
+            self.handler.runner()
+        }
     }
 
-    /// Method that should be called on each frame.
-    ///
-    /// Processes incoming transport events, generating File Manager events and
-    /// driving asynchronous calls to completion.
-    pub fn process_events(&mut self) {
-        self.handler.process_events()
-    }
 }
 
 
@@ -206,6 +210,14 @@ macro_rules! make_rpc_method {
             (&mut self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
                 let input = [<$name_typename Input>] { $($arg:$arg),* };
                 self.handler.open_request(input)
+            }
+        }
+
+        impl Handle {
+            /// Remote call to the method on the File Manager Server.
+            pub fn $name
+            (&mut self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
+                self.with_borrowed(|client| client.$name  ($($arg),*))
             }
         }
 
@@ -259,17 +271,26 @@ mod tests {
     use std::future::Future;
     use utils::test::poll_future_output;
     use utils::test::poll_stream_output;
+    use futures::task::LocalSpawnExt;
 
-    fn setup_fm() -> (MockTransport, Client) {
-        let transport = MockTransport::new();
-        let client    = Client::new(transport.clone());
-        (transport,client)
+    struct Fixture {
+        transport : MockTransport,
+        client    : Client,
+        executor  : futures::executor::LocalPool,
+    }
+
+    fn setup_fm() -> Fixture {
+        let transport  = MockTransport::new();
+        let mut client = Client::new(transport.clone());
+        let executor   = futures::executor::LocalPool::new();
+        executor.spawner().spawn_local(client.runner()).unwrap();
+        Fixture {transport,client,executor}
     }
 
     #[test]
     fn test_notification() {
-        let (mut transport, mut client) = setup_fm();
-        let mut events                  = Box::pin(client.events());
+        let mut fixture = setup_fm();
+        let mut events  = Box::pin(fixture.client.events());
         assert!(poll_stream_output(&mut events).is_none());
 
         let expected_notification = FilesystemEvent {
@@ -281,9 +302,11 @@ mod tests {
             "method": "filesystemEvent",
             "params": {"path" : "./Main.luna", "kind" : "Modified"}
         }"#;
-        transport.mock_peer_message_text(notification_text);
+        fixture.transport.mock_peer_message_text(notification_text);
         assert!(poll_stream_output(&mut events).is_none());
-        client.process_events();
+
+        fixture.executor.run_until_stalled();
+
         let event = poll_stream_output(&mut events);
         if let Some(Event::Notification(n)) = event {
             assert_eq!(n, Notification::FilesystemEvent(expected_notification));
@@ -307,17 +330,16 @@ mod tests {
     where Fun : FnOnce(&mut Client) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
-        let (mut transport, mut client) = setup_fm();
-        let mut fut                     = Box::pin(make_request(&mut client));
+        let mut fixture = setup_fm();
+        let mut fut     = Box::pin(make_request(&mut fixture.client));
 
-        let request = transport.expect_message::<RequestMessage<Value>>();
+        let request = fixture.transport.expect_message::<RequestMessage<Value>>();
         assert_eq!(request.method, expected_method);
-        assert_eq!(request.input,  expected_input);
+        assert_eq!(request.params, expected_input);
 
         let response = Message::new_success(request.id, result);
-        transport.mock_peer_message(response);
-
-        client.process_events();
+        fixture.transport.mock_peer_message(response);
+        fixture.executor.run_until_stalled();
         let output = poll_future_output(&mut fut).unwrap().unwrap();
         assert_eq!(output, expected_output);
     }

@@ -7,8 +7,9 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::closure;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::DynEvent;
-use crate::control::io::mouse2::MouseManager;
-use crate::control::io::mouse2;
+use crate::control::io::mouse::MouseFrpCallbackHandles;
+use crate::control::io::mouse::MouseManager;
+use crate::control::io::mouse;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
@@ -166,7 +167,7 @@ impl Mouse {
 
         let shape_ref       = shape.clone_ref();
         let position_ref    = position.clone_ref();
-        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
+        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse::event::OnMove| {
             let pixel_ratio = shape_ref.pixel_ratio() as i32;
             let screen_x    = event.offset_x();
             let screen_y    = shape_ref.screen_shape().height as i32 - event.offset_y();
@@ -180,13 +181,13 @@ impl Mouse {
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
+        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse::event::OnDown| {
             match event.button() {
-                mouse2::Button0 => button0_pressed_ref.set(true),
-                mouse2::Button1 => button1_pressed_ref.set(true),
-                mouse2::Button2 => button2_pressed_ref.set(true),
-                mouse2::Button3 => button3_pressed_ref.set(true),
-                mouse2::Button4 => button4_pressed_ref.set(true),
+                mouse::Button0 => button0_pressed_ref.set(true),
+                mouse::Button1 => button1_pressed_ref.set(true),
+                mouse::Button2 => button2_pressed_ref.set(true),
+                mouse::Button3 => button3_pressed_ref.set(true),
+                mouse::Button4 => button4_pressed_ref.set(true),
             }
         });
 
@@ -195,13 +196,13 @@ impl Mouse {
         let button2_pressed_ref = button2_pressed.clone_ref();
         let button3_pressed_ref = button3_pressed.clone_ref();
         let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
+        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse::event::OnUp| {
             match event.button() {
-                mouse2::Button0 => button0_pressed_ref.set(false),
-                mouse2::Button1 => button1_pressed_ref.set(false),
-                mouse2::Button2 => button2_pressed_ref.set(false),
-                mouse2::Button3 => button3_pressed_ref.set(false),
-                mouse2::Button4 => button4_pressed_ref.set(false),
+                mouse::Button0 => button0_pressed_ref.set(false),
+                mouse::Button1 => button1_pressed_ref.set(false),
+                mouse::Button2 => button2_pressed_ref.set(false),
+                mouse::Button3 => button3_pressed_ref.set(false),
+                mouse::Button4 => button4_pressed_ref.set(false),
             }
         });
 
@@ -240,6 +241,7 @@ pub struct SceneData {
     stats          : Stats,
     pixel_ratio    : Uniform<f32>,
     zoom_uniform   : Uniform<f32>,
+    zoom_callback  : CallbackHandle,
     mouse          : Mouse,
 
 
@@ -286,7 +288,9 @@ impl {
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
         let mouse           = Mouse::new(&shape,&variables);
         let zoom_uniform_cp = zoom_uniform.clone();
-        camera.add_zoom_update_callback(move |zoom| zoom_uniform_cp.set(zoom));
+        let zoom_callback   = camera.add_zoom_update_callback(
+            move |zoom:&f32| zoom_uniform_cp.set(*zoom)
+        );
 
         context.enable(Context::BLEND);
         // To learn more about the blending equations used here, please see the following articles:
@@ -305,7 +309,7 @@ impl {
 
         Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
              , logger,listeners,variables,on_resize,stats,pixel_ratio,mouse,zoom_uniform
-             , css3d_renderer }
+             , css3d_renderer,zoom_callback }
     }
 
     pub fn css3d_renderer(&self) -> Css3dRenderer {
@@ -375,10 +379,15 @@ impl {
             }
             self.logger.info("Rendering meshes.");
             self.symbols.render(&self.camera);
-//            self.css3d_renderer.render(&self.camera);
+            self.css3d_renderer.render(&self.camera);
 
             self.composer.run();
         })
+    }
+
+    /// Bind FRP graph to mouse js events.
+    pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
+        mouse::bind_frp_to_mouse(&self.shape,frp,&self.mouse.mouse_manager)
     }
 
     /// Check dirty flags and update the state accordingly.

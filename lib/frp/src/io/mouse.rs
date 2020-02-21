@@ -45,9 +45,13 @@ impl std::ops::Sub<&Position> for &Position {
 #[derive(Debug)]
 pub struct Mouse {
     /// The mouse up event.
-    pub up : Dynamic<()>,
+    pub on_up : Dynamic<()>,
     /// The mouse down event.
-    pub down : Dynamic<()>,
+    pub on_down : Dynamic<()>,
+    /// The mouse wheel event.
+    pub on_wheel : Dynamic<()>,
+    /// The mouse leave event.
+    pub on_leave : Dynamic<()>,
     /// Mouse button press status.
     pub is_down : Dynamic<bool>,
     /// Current mouse position.
@@ -56,13 +60,15 @@ pub struct Mouse {
 
 impl Default for Mouse {
     fn default() -> Self {
-        frp_def! { mouse.up        = source() }
-        frp_def! { mouse.down      = source() }
+        frp_def! { mouse.on_up     = source() }
+        frp_def! { mouse.on_down   = source() }
+        frp_def! { mouse.on_wheel  = source() }
+        frp_def! { mouse.on_leave  = source() }
         frp_def! { mouse.position  = source() }
-        frp_def! { mouse.down_bool = down.constant(true) }
-        frp_def! { mouse.up_bool   = up.constant(false) }
+        frp_def! { mouse.down_bool = on_down.constant(true) }
+        frp_def! { mouse.up_bool   = on_up.constant(false) }
         frp_def! { mouse.is_down   = down_bool.merge(&up_bool) }
-        Self {up,down,is_down,position}
+        Self {on_up,on_down,on_leave,on_wheel,is_down,position}
     }
 }
 

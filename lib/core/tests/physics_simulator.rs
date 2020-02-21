@@ -21,11 +21,8 @@ mod tests {
     use basegl::display::object::DisplayObjectOps;
     use basegl::system::web::dyn_into;
     use basegl::system::web::get_element_by_id;
-    use basegl::system::web::create_element;
     use web_sys::HtmlElement;
     use nalgebra::Vector2;
-    use basegl::system::web::NodeInserter;
-    use basegl::system::web::AttributeSetter;
     use basegl::system::web::set_stdout;
     use basegl::display::object::DisplayObject;
 
@@ -80,7 +77,7 @@ mod tests {
             let y = 240.0 * random() as f32;
             let z = 0.0;
             let position = Vector3::new(x, y, z);
-            properties.mod_spring(|spring| spring.fixed_point = position);
+            properties.modify_spring(|spring| spring.fixed_point = position);
             target.mod_position(|t| *t = position);
         });
 
