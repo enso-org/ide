@@ -3,6 +3,7 @@
 
 use crate::prelude::*;
 
+use crate::view::KeyboardClosure;
 use crate::view::KeyboardListener;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
@@ -128,8 +129,8 @@ impl ViewLayout {
                 event.prevent_default();
             }
         };
-        let closure : Box<dyn FnMut(KeyboardEvent)> = Box::new(closure);
-        let callback                                = Closure::wrap(closure);
+        let closure      = Box::new(closure);
+        let callback     = KeyboardClosure::wrap(closure);
         let key_listener = KeyboardListener::new("keydown".into(), callback);
         self.rc.borrow_mut().key_listener = Some(key_listener);
         self
