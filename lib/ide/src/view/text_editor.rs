@@ -86,7 +86,7 @@ impl TextEditor {
         executor::global::spawn(async move {
             if let Ok(content) = content_future.await {
                 if let Some(text_field) = text_field_weak.upgrade() {
-                    text_field.write(&content);
+                    text_field.set_content(&content);
                 }
             }
         });
