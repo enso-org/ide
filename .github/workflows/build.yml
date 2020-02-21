@@ -31,13 +31,11 @@ jobs:
           path: app/dist/enso-ide-0.1.0.AppImage
         if: matrix.os == 'ubuntu-latest'
       - name: Upload Artifacts (Windows)
-        run: choco install ninja
         if: matrix.os == 'windows-latest'
         with:
           name: my-artifact
           path: app/dist/enso-ide Setup 0.1.0.exe
       - name: Upload Artifacts (macOS)
-        run: brew install ninja
         if: matrix.os == 'macos-latest'
         with:
           name: my-artifact
