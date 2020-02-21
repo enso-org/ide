@@ -139,6 +139,8 @@ jobs:
         with:
           command: install
           args: wasm-pack
+      - name: Build Enso IDE
+        run: python3 script/build.py
       - uses: actions/setup-node@v1
         with:
           node-version: '10.x'
