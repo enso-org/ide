@@ -217,22 +217,22 @@ impl Transport for WebSocket {
         }
     }
 
-    fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {
-        let tx_copy = tx.clone();
+    fn set_event_transmitter(&mut self, transmitter:mpsc::UnboundedSender<TransportEvent>) {
+        let transmitter_copy = transmitter.clone();
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                channel::emit(&tx_copy,TransportEvent::TextMessage(text));
+                channel::emit(&transmitter_copy,TransportEvent::TextMessage(text));
             }
         });
 
-        let tx_copy = tx.clone();
+        let transmitter_copy = transmitter.clone();
         self.set_on_close(move |_e| {
-            channel::emit(&tx_copy,TransportEvent::Closed);
+            channel::emit(&transmitter_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            channel::emit(&tx,TransportEvent::Opened);
+            channel::emit(&transmitter, TransportEvent::Opened);
         });
     }
 }
