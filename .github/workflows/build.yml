@@ -144,9 +144,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Build Enso IDE
-        run: python3 script/build.py
-        if: matrix.os != 'windows-latest'
-      
+        run: python script/build.py
       - uses: actions/setup-node@v1
         with:
           node-version: '10.x'
