@@ -80,10 +80,11 @@ impl TextEditor {
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
         let key_listener = None;
-        let controller_clone = controller.clone_ref();
+
+        let content_future   = controller.read_content();
         let text_field_clone = text_field.clone_ref();
         executor::global::spawn(async move {
-            if let Ok(content) = controller_clone.read_content().await {
+            if let Ok(content) = content_future.await {
                 text_field_clone.write(&content);
             }
         });
