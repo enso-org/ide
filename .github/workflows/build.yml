@@ -20,6 +20,16 @@ jobs:
       - run: |
           cd app
           yarn
+      - run: |
+          cd app
           npm install
+      - run: |
+          cd app
           npm run dist
+      - run: |
+          ls app/dist
+      - uses: actions/upload-artifact@v1
+        with:
+          name: my-artifact
+          path: app/dist/enso-ide*
       
