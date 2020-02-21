@@ -15,6 +15,21 @@ use shapely::shared;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+/// Path of the file that is initially opened in project view.
+///
+/// TODO [mwu] Path of the file that will be initially opened in the text editor.
+///      Provisionally the Project View is hardcoded to open with a single text
+///      editor and it will be connected with a file under this path.
+///      To be replaced with better mechanism once we decide how to describe
+///      default initial layout for the project.
+const INITIAL_FILE_PATH:&str = "initial_file.txt";
+
+
+
 // ===================
 // === ProjectView ===
 // ===================
@@ -40,9 +55,9 @@ shared! { ProjectView
 }
 
 impl ProjectView {
-    /// Create new ProjectView.
+    /// Create a new ProjectView.
     pub fn new(controller:controller::project::Handle) -> Self {
-        let path            = Path::new("initial_file");
+        let path            = Path::new(INITIAL_FILE_PATH);
         let text_controller = controller.open_text_file(path);
         let world           = WorldData::new(&web::body());
         let layout          = ViewLayout::new(&world,text_controller);
