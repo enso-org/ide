@@ -17,9 +17,8 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '10.x'
-      - run: |
-          cd app
-          yarn
+      - working-directory: ./app
+        run: yarn
       - run: |
           cd app
           npm install
@@ -32,4 +31,3 @@ jobs:
         with:
           name: my-artifact
           path: app/dist/enso-ide*
-      
