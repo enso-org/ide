@@ -64,6 +64,22 @@ impl Error {
 }
 
 
+
+// ==============
+// === String ===
+// ==============
+
+#[wasm_bindgen]
+extern "C" {
+    /// Converts given `JsValue` into a `String`. Usees JS's `String` function,
+    /// see: https://www.w3schools.com/jsref/jsref_string.asp
+    #[allow(unsafe_code)]
+    #[wasm_bindgen(js_name="String")]
+    pub fn js_to_string(s: JsValue) -> String;
+}
+
+
+
 // =============
 // === Utils ===
 // =============

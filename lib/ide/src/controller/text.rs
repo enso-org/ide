@@ -55,7 +55,7 @@ enum FileHandle {
 shared! { Handle
 
     /// Data stored by the text controller.
-    pub struct State {
+    pub struct Controller {
         file: FileHandle,
         /// Sink where we put events to be consumed by the view.
         notification_publisher: Publisher<Notification>,
@@ -110,7 +110,7 @@ impl Handle {
 impl Handle {
     /// Create controller managing plain text file.
     fn new(file_handle:FileHandle) -> Self {
-        let state = State {
+        let state = Controller {
             file                   : file_handle,
             notification_publisher : Publisher::new(NOTIFICATION_BUFFER_SIZE),
         };
@@ -125,7 +125,7 @@ impl Handle {
 
 // === Debug implementations ===
 
-impl Debug for State {
+impl Debug for Controller {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f,"Text Controller on {:?} }}",self.file)
     }

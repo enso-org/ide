@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use basegl_system_web::closure::storage::OptionalFmMutClosure;
+use basegl_system_web::js_to_string;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
@@ -11,20 +12,6 @@ use utils::channel;
 use web_sys::CloseEvent;
 use web_sys::Event;
 use web_sys::MessageEvent;
-
-
-
-// =================
-// === Utilities ===
-// =================
-
-#[wasm_bindgen]
-extern "C" {
-    /// Converts given `JsValue` into a `String`.
-    #[allow(unsafe_code)]
-    #[wasm_bindgen(js_name="String")]
-    fn js_to_string(s: JsValue) -> String;
-}
 
 
 
@@ -149,19 +136,19 @@ impl WebSocket {
     async fn wait_until_open(&mut self) -> Result<(),ConnectingError> {
         // Connecting attempt shall either emit on_open or on_close.
         // We shall wait for whatever comes first.
-        let (tx, mut rx) = mpsc::unbounded::<Result<(),()>>();
-        let tx_clone = tx.clone();
+        let (transmitter, mut receiver) = mpsc::unbounded::<Result<(),()>>();
+        let transmitter_clone = transmitter.clone();
         self.set_on_close(move |_| {
             // Note [mwu] Ignore argument, `CloseEvent` here contains rubbish
             // anyway, nothing useful to pass to caller. Error code or reason
             // string should not be relied upon.
-            utils::channel::emit(&tx_clone,Err(()));
+            utils::channel::emit(&transmitter_clone, Err(()));
         });
         self.set_on_open(move |_| {
-            utils::channel::emit(&tx,Ok(()));
+            utils::channel::emit(&transmitter, Ok(()));
         });
 
-        match rx.next().await {
+        match receiver.next().await {
             Some(Ok(())) => {
                 self.clear_callbacks();
                 Ok(())
@@ -230,22 +217,22 @@ impl Transport for WebSocket {
         }
     }
 
-    fn set_event_tx(&mut self, tx:mpsc::UnboundedSender<TransportEvent>) {
-        let tx_copy = tx.clone();
+    fn set_event_transmitter(&mut self, transmitter:mpsc::UnboundedSender<TransportEvent>) {
+        let transmitter_copy = transmitter.clone();
         self.set_on_message(move |e| {
             let data = e.data();
             if let Some(text) = data.as_string() {
-                channel::emit(&tx_copy,TransportEvent::TextMessage(text));
+                channel::emit(&transmitter_copy,TransportEvent::TextMessage(text));
             }
         });
 
-        let tx_copy = tx.clone();
+        let transmitter_copy = transmitter.clone();
         self.set_on_close(move |_e| {
-            channel::emit(&tx_copy,TransportEvent::Closed);
+            channel::emit(&transmitter_copy,TransportEvent::Closed);
         });
 
         self.set_on_open(move |_e| {
-            channel::emit(&tx,TransportEvent::Opened);
+            channel::emit(&transmitter, TransportEvent::Opened);
         });
     }
 }

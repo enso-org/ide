@@ -17,7 +17,7 @@ shared! { Handle
 
     /// Project controller's state.
     #[derive(Debug)]
-    pub struct State {
+    pub struct Controller {
         /// File Manager Client.
         file_manager: fmc::Handle,
         /// Cache of module controllers.
@@ -31,7 +31,7 @@ shared! { Handle
         ///
         /// The remote connections should be already established.
         pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
-            State {
+            Controller {
                 file_manager : fmc::Handle::new(file_manager_transport),
                 module_cache : default(),
                 text_cache   : default(),
@@ -61,7 +61,7 @@ shared! { Handle
     }
 }
 
-impl State {
+impl Controller {
     /// Creates a new project controller. Schedules all necessary execution with
     /// the global executor.
     pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
@@ -75,7 +75,7 @@ impl Handle {
     /// Creates a new project controller. Schedules all necessary execution with
     /// the global executor.
     pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
-        let data = State::new_running(file_manager_transport);
+        let data = Controller::new_running(file_manager_transport);
         Self::new_from_data(data)
     }
 }

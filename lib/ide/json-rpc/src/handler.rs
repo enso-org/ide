@@ -179,15 +179,15 @@ impl<Notification> {
     /// If such stream was already existing, it will be finished (and
     /// continuations should be able to process any remaining events).
     pub fn handler_event_stream(&mut self) -> impl Stream<Item = Event<Notification>> {
-        let (tx,rx)          = unbounded();
-        self.outgoing_events = Some(tx);
-        rx
+        let (transmitter,receiver) = unbounded();
+        self.outgoing_events = Some(transmitter);
+        receiver
     }
 
     /// Sends a handler event to the event stream.
     pub fn emit_event(&self, event:Event<Notification>) {
-        if let Some(event_tx) = self.outgoing_events.as_ref() {
-            channel::emit(event_tx,event)
+        if let Some(event_transmitter) = self.outgoing_events.as_ref() {
+            channel::emit(event_transmitter,event)
         }
     }
 }
@@ -205,11 +205,11 @@ impl<Notification> Handler<Notification> {
     /// This method is not public, as it is used internally by the `Handler` and
     /// calling it by a third-party can break this type semantics.
     fn transport_event_stream(&self) -> impl Stream<Item = TransportEvent> {
-        let (event_tx, event_rx) = unbounded();
+        let (event_transmitter, event_receiver) = unbounded();
         with(self.rc.borrow_mut(), |mut data| {
-            data.transport.set_event_tx(event_tx);
+            data.transport.set_event_transmitter(event_transmitter);
         });
-        event_rx
+        event_receiver
     }
 
     /// Creates a new handler working on a given `Transport`.
@@ -331,15 +331,16 @@ impl<Notification> Handler<Notification> {
     /// passed to the main executor.
     pub fn runner(&mut self) -> impl Future<Output = ()>
     where Notification: DeserializeOwned + 'static {
-        let event_rx  = self.transport_event_stream();
-        let weak_data = Rc::downgrade(&self.rc);
-        event_rx.for_each(move |event:TransportEvent| {
+        let event_receiver  = self.transport_event_stream();
+        let weak_data       = Rc::downgrade(&self.rc);
+        event_receiver.for_each(move |event:TransportEvent| {
             let data_opt    = weak_data.clone().upgrade();
             let handler_opt = data_opt.map(|rc| Handler {rc});
             if let Some(handler) = handler_opt {
                 handler.process_event(event)
+            } else {
+                // If the data is inaccessible, it is ok to just drop the event here.
             }
-            // If the data is inaccessible, it is ok to just drop the event here.
             futures::future::ready(())
         })
     }
