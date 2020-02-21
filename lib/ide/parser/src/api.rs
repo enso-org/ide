@@ -1,21 +1,54 @@
 use crate::prelude::*;
 use ast::ID;
+use std::ops::Sub;
+
+use serde::Serialize;
 
 pub type Ast = ast::Ast;
-
 
 
 // ============
 // == Parser ==
 // ============
 
-pub type IDMap = Vec<((isize, isize), ID)>;
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct Index { pub value:usize }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct Size { pub value:usize }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct Span { pub index: Index, pub size: Size }
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct IDMap(pub Vec<(Span, ID)>);
+
+impl Add for Size {
+    type Output = Size;
+    fn add(self, rhs:Size) -> Size {
+        Size { value: self.value + rhs.value }
+    }
+}
+
+impl Add<Size> for Index {
+    type Output = Index;
+    fn add(self, rhs:Size) -> Index {
+        Index { value: self.value + rhs.value }
+    }
+}
+
+impl Sub<Size> for Index {
+    type Output = Index;
+    fn sub(self, rhs:Size) -> Index {
+        Index { value: self.value - rhs.value }
+    }
+}
+
 
 /// Entity being able to parse Luna programs into Luna's AST.
 pub trait IsParser {
     fn parse(&mut self, program: String, ids: IDMap) -> Result<Ast>;
 }
-
 
 
 // ===========

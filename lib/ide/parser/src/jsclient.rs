@@ -53,10 +53,10 @@ impl Client {
 impl IsParser for Client {
     fn parse(&mut self, program:String, ids:IDMap) -> api::Result<api::Ast> {
         match serde_json::to_string(&ids) {
-            Ok(json_ids) => match parse(program, json_ids) {
+            Ok(json_ids) => {match parse(program, json_ids) { //panic!("\n####\n{}\n#####\n", json_ids);
                 Ok(json_ast) => Err(ParsingError(json_ast)),
                 Err(_)       => Err(api::interop_error(Error::ScalaException())),
-            }
+            }},
             Err(err) => Err(api::interop_error(Error::JsonSerializationError(err)))
         }
     }

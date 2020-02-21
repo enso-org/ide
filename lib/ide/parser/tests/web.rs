@@ -1,7 +1,12 @@
 use parser::Parser;
 use uuid::Uuid;
 use wasm_bindgen_test::{wasm_bindgen_test_configure, wasm_bindgen_test};
+
 use parser::api::Error::ParsingError;
+use parser::api::IDMap;
+use parser::api::Span;
+use parser::api::Index;
+use parser::api::Size;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -12,7 +17,9 @@ fn web_test() {
 
     let mut parse = |input| {
         let uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        match parser.parse(String::from(input), vec![((0, 3), uuid)]) {
+        let span = Span { index: Index { value: 0 }, size: Size { value: 3 } };
+        let ids  = IDMap(vec![(span, uuid)]);
+        match parser.parse(String::from(input), ids) {
             Err(ParsingError(str)) => str,
             _ => panic!("Not implemented.")
         }
