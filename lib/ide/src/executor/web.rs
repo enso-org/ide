@@ -50,7 +50,7 @@ impl EventLoopExecutor {
     /// Returns a callback compatible with `EventLoop` that once called shall
     /// attempt achieving as much progress on this executor's tasks as possible
     /// without stalling.
-    pub fn runner_callback(&self) -> impl EventLoopCallback {
+    pub fn runner(&self) -> impl EventLoopCallback {
         let executor = self.executor.clone();
         move |_:&f64| {
             // Safe, because this is the only place borrowing executor and loop
@@ -67,7 +67,7 @@ impl EventLoopExecutor {
     /// The executor will keep copy of this loop handle, so caller is not
     /// required to keep it alive.
     pub fn start_running(&mut self, event_loop:EventLoop) {
-        let cb = self.runner_callback();
+        let cb = self.runner();
 
         self.cb_handle  = Some(event_loop.add_callback(cb));
         self.event_loop = Some(event_loop);
