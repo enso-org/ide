@@ -89,7 +89,7 @@ impl TextEditor {
         let text_field   = TextField::new(&world,properties);
         let key_listener = None;
         let controller_clone = controller.clone_ref();
-        let text_field_clone = text_field.clone();
+        let text_field_clone = text_field.clone_ref();
         executor::global::spawn(async move {
             if let Ok(content) = controller_clone.read_content().await {
                 text_field_clone.write(&content);
