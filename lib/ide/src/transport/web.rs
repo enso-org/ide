@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use basegl_system_web::closure::storage::OptionalFmMutClosure;
+use basegl_system_web::js_to_string;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
@@ -11,20 +12,6 @@ use utils::channel;
 use web_sys::CloseEvent;
 use web_sys::Event;
 use web_sys::MessageEvent;
-
-
-
-// =================
-// === Utilities ===
-// =================
-
-#[wasm_bindgen]
-extern "C" {
-    /// Converts given `JsValue` into a `String`.
-    #[allow(unsafe_code)]
-    #[wasm_bindgen(js_name="String")]
-    fn js_to_string(s: JsValue) -> String;
-}
 
 
 
