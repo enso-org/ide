@@ -18,7 +18,9 @@ pub mod view;
 
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
+    pub use basegl::prelude::*;
     pub use enso_prelude::*;
+    pub use wasm_bindgen::prelude::*;
 
     pub use crate::constants;
     pub use crate::controller;
@@ -29,7 +31,6 @@ pub mod prelude {
     pub use futures::Stream;
     pub use futures::StreamExt;
     pub use futures::task::LocalSpawnExt;
-    pub use wasm_bindgen::prelude::*;
 }
 
 use crate::prelude::*;

@@ -1,14 +1,13 @@
 //! This module contains implementation of ViewLayout with a single TextEditor temporarily
 //! occupying half bottom of the screen as the default layout.
 
-use wasm_bindgen::prelude::*;
-use basegl::prelude::*;
+use crate::prelude::*;
 
-use crate::view::temporary_panel::TemporaryPadding;
-use crate::view::text_editor::TextEditor;
-use crate::view::temporary_panel::TemporaryPanel;
 use crate::controller::text::Handle;
-use super::KeyboardListener;
+use crate::view::KeyboardListener;
+use crate::view::temporary_panel::TemporaryPadding;
+use crate::view::temporary_panel::TemporaryPanel;
+use crate::view::text_editor::TextEditor;
 
 use basegl::display::world::World;
 use nalgebra::zero;
