@@ -7,7 +7,7 @@ on: [push]
 
 jobs:
   build:
-    name: Build
+    name: Package
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -25,8 +25,24 @@ jobs:
       - run: npm run dist
         working-directory: ./app
       - run: ls -R app/dist 
-      # - uses: actions/upload-artifact@v1
-      #   with:
-      #     name: my-artifact
-      #     path: app/dist/enso-ide Setup 0.1.0.exe
-
+      - name: Upload Artifacts (Linux)
+        working-directory: ./app
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v1
+        with:
+          name: my-artifact
+          path: app/dist/enso-ide-0.1.0.AppImage
+      - name: Upload Artifacts (Windows)
+        working-directory: ./app
+        run: choco install ninja
+        if: matrix.os == 'windows-latest'
+        with:
+          name: my-artifact
+          path: app/dist/enso-ide Setup 0.1.0.exe
+      - name: Upload Artifacts (macOS)
+        working-directory: ./app
+        run: brew install ninja
+        if: matrix.os == 'macos-latest'
+        with:
+          name: my-artifact
+          path: app/dist/enso-ide-0.1.0.dmg
