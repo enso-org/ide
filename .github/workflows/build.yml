@@ -27,12 +27,14 @@ jobs:
       - run: ls -R app/dist 
 
       - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (Windows)
         with:
           name: Enso IDE (Linux, AppImage)
           path: app/dist/enso-ide-0.1.0.AppImage
         if: matrix.os == 'ubuntu-latest'
 
       - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (Windows)
         with:
           name: Enso IDE (Linux, unpacked)
           path: app/dist/linux-unpacked
