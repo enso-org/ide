@@ -136,19 +136,19 @@ impl WebSocket {
     async fn wait_until_open(&mut self) -> Result<(),ConnectingError> {
         // Connecting attempt shall either emit on_open or on_close.
         // We shall wait for whatever comes first.
-        let (tx, mut rx) = mpsc::unbounded::<Result<(),()>>();
-        let tx_clone = tx.clone();
+        let (transmitter, mut receiver) = mpsc::unbounded::<Result<(),()>>();
+        let transmitter_clone = transmitter.clone();
         self.set_on_close(move |_| {
             // Note [mwu] Ignore argument, `CloseEvent` here contains rubbish
             // anyway, nothing useful to pass to caller. Error code or reason
             // string should not be relied upon.
-            utils::channel::emit(&tx_clone,Err(()));
+            utils::channel::emit(&transmitter_clone, Err(()));
         });
         self.set_on_open(move |_| {
-            utils::channel::emit(&tx,Ok(()));
+            utils::channel::emit(&transmitter, Ok(()));
         });
 
-        match rx.next().await {
+        match receiver.next().await {
             Some(Ok(())) => {
                 self.clear_callbacks();
                 Ok(())
