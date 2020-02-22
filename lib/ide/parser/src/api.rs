@@ -3,6 +3,7 @@ use ast::ID;
 use std::ops::Sub;
 
 use serde::Serialize;
+use serde::Deserialize;
 
 pub type Ast = ast::Ast;
 
@@ -11,16 +12,16 @@ pub type Ast = ast::Ast;
 // == Parser ==
 // ============
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Index { pub value:usize }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Size { pub value:usize }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Span { pub index: Index, pub size: Size }
 
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct IDMap(pub Vec<(Span, ID)>);
 
 impl Add for Size {
