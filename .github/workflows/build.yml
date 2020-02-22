@@ -119,3 +119,40 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./lcov.info
+  package-fm:
+    name: Package File Manager
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Build File Manager Server
+        uses: actions-rs/cargo@v1
+        with:
+          command: build --release --bin file-manager-server
+      - run: ls -R target/release
+
+      - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (Ubuntu)
+        with:
+          name: File Manager Server (Linux)
+          path: target/release/file-manager-server
+        if: matrix.os == 'ubuntu-latest'
+      - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (macOS)
+        with:
+          name: File Manager Server (macOS)
+          path: target/release/file-manager-server
+        if: matrix.os == 'macos-latest'
+      - uses: actions/upload-artifact@v1
+        name: Upload Artifacts (Ubuntu)
+        with:
+          name: File Manager Server (Windows)
+          path: target/release/file-manager-server.exe
+        if: matrix.os == 'windows-latest'
