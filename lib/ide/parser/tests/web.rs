@@ -43,7 +43,4 @@ fn web_test() {
     assert_eq!(parse("xy"),     line(Some(Ast::var("xy"))));
     assert_eq!(parse("x   y"),  line(Some(Ast::new(app_x_y, Some(uuid)))));
 
-//    assert_eq!(parse("x y"), r#"{"shape":{"Module":{"lines":[{"elem":{"id":"00000000-0000-0000-0000-000000000000","shape":{"Prefix":{"arg":{"shape":{"Var":{"name":"y"}},"span":1},"func":{"shape":{"Var":{"name":"x"}},"span":1},"off":1}},"span":3},"off":0}]}},"span":3}"#);
-
-
 }
