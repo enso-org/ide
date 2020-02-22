@@ -8,12 +8,12 @@
   "scripts": {
     "build": "webpack --mode production",
     "build-dev": "webpack --mode development",
-    "start": "npm run build-dev && webpack-dev-server --mode development",
+    "web:start": "npm run build-dev && webpack-dev-server --mode development",
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
     "prod-server": "npx http-server -p 3000 --proxy http://localhost:3000\\? dist",
-    "dev": "npm run build-dev && cp static/index.js src/renderer && electron-webpack dev",
-    "dist": "npm build && cp static/index.js src/renderer && electron-webpack && electron-builder",
-    "dist:dir": "yarn dist --dir -c.compression=store -c.mac.identity=null"
+    "electron:dev": "npm run build-dev && cp static/index.js src/renderer && electron-webpack dev",
+    "dist": "npm run build && cp static/index.js src/renderer && electron-webpack && electron-builder",
+    "dist:dir": "npm run dist --dir -c.compression=store -c.mac.identity=null"
   },
   "dependencies": {
     "source-map-support": "^0.5.12"
