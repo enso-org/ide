@@ -2,10 +2,27 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
+import template from "./template";
+
+var is_electron = window && window.process && window.process.type;
+var static_path;
+
+// Check if we are running Electron and load index.html
+if (is_electron) {
+    document.documentElement.innerHTML = template;
+    // To avoid compile-time evaluation
+    eval("window.NODE_ENV=process.env.NODE_ENV; window.DIR_NAME = __dirname");
+    if (NODE_ENV == "development") {
+        static_path = "./"
+    } else {
+        static_path = DIR_NAME.replace(/app\.asar$/, 'static')+"/";
+    }
+} else {
+    static_path = "/static/"
+}
+
 import * as loader_module from './loader'
 import * as html_utils    from './html_utils'
-
-
 
 // ========================
 // === Content Download ===
@@ -33,8 +50,8 @@ function wasm_instantiate_streaming(resource,imports) {
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
 async function download_content(cfg) {
-    let wasm_glue_fetch = await fetch('./wasm_imports.js')
-    let wasm_fetch      = await fetch('./gui.wasm')
+    let wasm_glue_fetch = await fetch(static_path + 'wasm_imports.js')
+    let wasm_fetch      = await fetch(static_path + 'gui.wasm')
     let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
 
     loader.done.then(() => {

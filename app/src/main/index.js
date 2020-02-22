@@ -12,8 +12,8 @@ let mainWindow
 function createMainWindow() {
     const window = new BrowserWindow(
         {
-            width: 800,
-            height: 600,
+            width: 1024,
+            height: 768,
             frame: false,
             webPreferences: {
                 nodeIntegration: true,
@@ -22,11 +22,8 @@ function createMainWindow() {
         }
     )
 
-//  if (isDevelopment) {
-//    window.webContents.openDevTools()
-//  }
-
   if (isDevelopment) {
+    window.webContents.openDevTools()
     window.loadURL(`http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}`)
   } else {
     window.loadURL(formatUrl({

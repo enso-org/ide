@@ -10,7 +10,7 @@ module.exports = {
         wasm_imports: './src/wasm_imports.js',
     },
     output: {
-        path: path.resolve(root,'src/renderer'),
+        path: path.resolve(root,'static'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
