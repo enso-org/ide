@@ -20,7 +20,7 @@ module.exports = {
     plugins: [
         new CompressionPlugin(),
         new CopyWebpackPlugin([
-            path.resolve(root,'src','dev/index.html'),
+            path.resolve(root,'src','dev','index.html'),
             path.resolve(root,'src-rust-gen','gui.wasm'),
             path.resolve(root,'src-rust-gen','gui.wasm.gz'),
         ]),
