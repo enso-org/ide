@@ -135,7 +135,8 @@ jobs:
       - name: Build File Manager Server
         uses: actions-rs/cargo@v1
         with:
-          command: build --release --bin file-manager-server
+          command: build
+          args: --release --bin file-manager-server
       - run: ls -R target/release
 
       - uses: actions/upload-artifact@v1
