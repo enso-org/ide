@@ -6,11 +6,11 @@ const root = path.resolve(__dirname)
 
 module.exports = {
     entry: {
-        index: './src/common/index.js',
-        wasm_imports: './src/common/wasm_imports.js',
+        index: './src/index.js',
+        wasm_imports: './src/wasm_imports.js',
     },
     output: {
-        path: path.resolve(root,'dist','src/common/'),
+        path: path.resolve(root,'src/renderer'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
@@ -26,9 +26,9 @@ module.exports = {
         ]),
     ],
     devServer: {
-        publicPath: 'src/common/',
+        publicPath: 'static/',
         historyApiFallback: {
-            index: 'src/common/'
+            index: 'static/'
         }
     },
     resolve: {

@@ -2,8 +2,8 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
-import * as loader_module from './common/loader'
-import * as html_utils    from './common/html_utils'
+import * as loader_module from './loader'
+import * as html_utils    from './html_utils'
 
 
 
@@ -33,8 +33,8 @@ function wasm_instantiate_streaming(resource,imports) {
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
 async function download_content(cfg) {
-    let wasm_glue_fetch = await fetch('/assets/wasm_imports.js')
-    let wasm_fetch      = await fetch('/assets/gui.wasm')
+    let wasm_glue_fetch = await fetch('./wasm_imports.js')
+    let wasm_fetch      = await fetch('./gui.wasm')
     let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
 
     loader.done.then(() => {
