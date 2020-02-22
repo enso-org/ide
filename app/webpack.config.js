@@ -6,11 +6,11 @@ const root = path.resolve(__dirname)
 
 module.exports = {
     entry: {
-        index: './src/index.js',
-        wasm_imports: './src/wasm_imports.js',
+        index: './src/common/index.js',
+        wasm_imports: './src/common/wasm_imports.js',
     },
     output: {
-        path: path.resolve(root,'dist','assets'),
+        path: path.resolve(root,'dist','src/common/'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
@@ -20,15 +20,15 @@ module.exports = {
     plugins: [
         new CompressionPlugin(),
         new CopyWebpackPlugin([
-            path.resolve(root,'src','index.html'),
+            path.resolve(root,'src','dev/index.html'),
             path.resolve(root,'src-rust-gen','gui.wasm'),
             path.resolve(root,'src-rust-gen','gui.wasm.gz'),
         ]),
     ],
     devServer: {
-        publicPath: '/assets/',
+        publicPath: 'src/common/',
         historyApiFallback: {
-            index: '/assets/'
+            index: 'src/common/'
         }
     },
     resolve: {

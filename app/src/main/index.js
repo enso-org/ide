@@ -10,16 +10,25 @@ const isDevelopment = process.env.NODE_ENV !== 'production'
 let mainWindow
 
 function createMainWindow() {
-  const window = new BrowserWindow({webPreferences: {nodeIntegration: true}})
+    const window = new BrowserWindow(
+        {
+            width: 800,
+            height: 600,
+            frame: false,
+            webPreferences: {
+                nodeIntegration: true,
+                nodeIntegrationInWorker: true
+            }
+        }
+    )
 
-  if (isDevelopment) {
+//  if (isDevelopment) {
     window.webContents.openDevTools()
-  }
+//  }
 
   if (isDevelopment) {
     window.loadURL(`http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}`)
-  }
-  else {
+  } else {
     window.loadURL(formatUrl({
       pathname: path.join(__dirname, 'index.html'),
       protocol: 'file',
