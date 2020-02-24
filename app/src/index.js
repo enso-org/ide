@@ -2,14 +2,10 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
-import template from "./template";
-
 var is_electron = window && window.process && window.process.type;
 var static_path;
 
-// Check if we are running Electron and load index.html
 if (is_electron) {
-    document.documentElement.innerHTML = template;
     // To avoid compile-time evaluation
     eval("window.NODE_ENV=process.env.NODE_ENV; window.DIR_NAME = __dirname");
     if (NODE_ENV == "development") {
@@ -18,7 +14,7 @@ if (is_electron) {
         static_path = DIR_NAME.replace(/app\.asar$/, 'static')+"/";
     }
 } else {
-    static_path = "/static/"
+    static_path = "./"
 }
 
 import * as loader_module from './loader'
@@ -142,8 +138,7 @@ function show_debug_screen(wasm,msg) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    let target = window.location.href.split('/')
-    target.splice(0,3)
+    let target = window.location.search.substr(1).split("=");
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]

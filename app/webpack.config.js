@@ -10,7 +10,7 @@ module.exports = {
         wasm_imports: './src/wasm_imports.js',
     },
     output: {
-        path: path.resolve(root,'static'),
+        path: path.resolve(root,'static','main'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
@@ -20,16 +20,15 @@ module.exports = {
     plugins: [
         new CompressionPlugin(),
         new CopyWebpackPlugin([
-            path.resolve(root,'src','dev','index.html'),
+            path.resolve(root,'src','index.html'),
             path.resolve(root,'src-rust-gen','gui.wasm'),
             path.resolve(root,'src-rust-gen','gui.wasm.gz'),
         ]),
     ],
     devServer: {
-        publicPath: 'static/',
-        historyApiFallback: {
-            index: 'static/'
-        }
+        contentBase: './static/main',
+        hot: true,
+
     },
     resolve: {
         modules: [path.resolve(root,'node_modules')],

@@ -14,22 +14,28 @@ function create_main_window() {
             width          : 1024,
             height         : 768,
             frame          : false,
-            webPreferences : {
-                nodeIntegration         : true,
-                nodeIntegrationInWorker : true
-            }
         }
     )
 
+    var search = "";
+    if (app.commandLine.hasSwitch("debug")) {
+        var value = app.commandLine.getSwitchValue("debug");
+        search = "?debug";
+        if (value !== undefined) {
+            search += "=" + value
+        }
+    }
+
     if (is_development) {
         window.webContents.openDevTools()
-        window.loadURL(`http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}`)
+            var url = `http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/main/` + search;
+            window.loadURL(url)
     } else {
         window.loadURL(formatUrl({
-            pathname : path.join(__dirname, 'index.html'),
+            pathname : path.join(__dirname.replace(/app\.asar$/, 'static'), '/main/index.html'),
             protocol : 'file',
             slashes  : true
-        }))
+        }) + search)
     }
 
     window.on('closed', () => {
