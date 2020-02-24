@@ -150,7 +150,7 @@ jobs:
           node-version: '10.x'
       - run: npm install
         working-directory: ./app
-      - run: npm run dist
+      - run: npm run electron:dist
         working-directory: ./app
       - run: ls -R app/dist 
 
