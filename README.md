@@ -43,9 +43,8 @@ For best experience, it is recommended to use the
 In order to build the IDE web application, follow the steps bellow:
 
 ```bash
-cd app
-npm install
-npm run web:dev 
+ide/app$ npm install
+ide/app$ npm run web:dev 
 ```
 
 You can now navigate to http://localhost:8080 and play with it! The example
@@ -54,7 +53,10 @@ scenes will be available at http://localhost:8080/?debug.
 While Webpack provides handy utilities for development, like live-reloading on
 sources change, it also adds some runtime overhead. In order to run the compiled
 examples using a lightweight http-server (without live-reloading functionality),
-please use the `npm run prod-server` command.
+please use the 
+```
+ide/app$ npm run web:prod
+```
 
 **Please remember to disable the cache in your browser during development!**
 
@@ -62,21 +64,32 @@ please use the `npm run prod-server` command.
 In order to build the IDE desktop application, follow the steps bellow:
 
 ```bash
-cd app
-npm install
-npm run electron:dev
+ide/app$ npm install
+ide/app$ npm run electron:dev
+```
+
+To debug a subsystem, use the `--debug` argument.
+
+```bash
+ide/app$ npm run electron:dev -- --debug        # Shows the selection screen.
+ide/app$ npm run electron:dev -- --debug=shapes # Runs shapes' subsystem.
 ```
 
 If you want to distribute the desktop application, run the following steps instead:
 
 ```bash
-cd
-app install
-npm run dist
+ide/app$ npm install
+ide/app$ npm run electron:dist
 ```
 
-The generated executable will be available at `dist/enso-ide-majo.minor.*`. Its extension will
- depend on the host development platform.
+The generated executable will be available at `dist/enso-ide-major.minor.*`. Its extension will
+ depend on the host development platform. Keep in mind that it's also possible to pass the
+  `--debug`argument to the application. On Linux, for instance, you can run:
+  
+```bash
+ide$ ./dist/enso-ide.0.1.0.AppImage --debug        # Shows the selection screen.
+ide$ ./dist/enso-ide.0.1.0.AppImage --debug=shapes # Runs shapes' subsystem.
+```
 
 ### Minimizing the WASM binary size.
 After building the project you can use the `scripts/minimize_wasm.sh` to optimize 
