@@ -3,15 +3,16 @@
 [![Coverage](https://img.shields.io/codecov/c/github/luna/basegl?label=Coverage&labelColor=2c3239)](https://codecov.io/gh/luna/basegl/branch/master) 
 ![Stability](https://img.shields.io/static/v1?label=Stability&message=Unstable&color=d52229&labelColor=2c3239)
 
-# BaseGL
+# Enso Studio
 
-BaseGL is a blazing fast 2D vector rendering engine with a rich set of
+Enso Studio is an IDE for hybrid visual and textual functional programming.
+
+Its code uses BaseGL, a blazing fast 2D vector rendering engine with a rich set of
 primitives and a GUI component library. It is able to display millions of shapes
 60 frames per second in a web browser on a modern laptop hardware. 
 
-This repository is a work in progress of BaseGL 2.0. Please refer to BaseGL 1.0
+This repository is a work in progress. Please refer to BaseGL 1.0
 repository for more information: https://github.com/luna/basegl-old.
-
 
 ## Development
 
