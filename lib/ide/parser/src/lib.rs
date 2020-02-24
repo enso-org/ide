@@ -6,10 +6,10 @@ mod wsclient;
 pub use enso_prelude as prelude;
 
 use crate::prelude::*;
-use crate::api::IDMap;
 
 use std::panic;
 use std::ops::DerefMut;
+use ast::IDMap;
 
 extern crate console_error_panic_hook;
 

@@ -4,8 +4,7 @@ use crate::prelude::*;
 use crate::api;
 
 use api::IsParser;
-use api::IDMap;
-use api::Error::ParsingError;
+use ast::IDMap;
 
 use wasm_bindgen::prelude::*;
 

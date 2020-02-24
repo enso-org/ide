@@ -13,6 +13,7 @@ ast          = { version = "0.1.0", path = "../ast/impl"   }
 enso-prelude = { version = "0.1.0", path = "../../prelude" }
 utils        = { version = "0.1.0", path = "../utils" }
 uuid         = { version = "0.8"  , features = ["serde", "v5"] }
+data         = { version = "0.1.0", path = "../../data"}
 
 console_error_panic_hook = "0.1.6"
 failure                  = "0.1"
