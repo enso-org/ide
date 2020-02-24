@@ -3,12 +3,15 @@
 pub mod sdf;
 pub mod class;
 pub mod transform;
+pub mod metric;
 pub mod var;
 
 pub mod export {
     pub use super::var::*;
     pub use super::class::Shape;
+    pub use super::class::ShapeOps;
     pub use super::sdf::*;
+    pub use super::metric::*;
     pub use super::transform::immutable::*;
 }
 

@@ -100,7 +100,7 @@ impl TextFieldSprites {
 
     fn create_cursor_system(world:&World,line_height:f32) -> ShapeSystem {
         const WIDTH_FUNCTION:&str = "fract(input_time / 1000.0) < 0.5 ? 2.0 : 0.0";
-        let cursor_definition     = Rect((WIDTH_FUNCTION,line_height.pxx()));
+        let cursor_definition     = Rect((WIDTH_FUNCTION,line_height.px()));
         ShapeSystem::new(world,&cursor_definition)
     }
 

@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::impls;
 use std::ops::Deref;
+use derive_more::*;
 
 
 
@@ -17,7 +18,7 @@ use std::ops::Deref;
 /// provides many useful impls for efficient workflow. Use it whenever you want to store a string
 /// but you are not sure if the string will be allocated or not. This way you can store a static
 /// slice as long as you can and switch to allocated String on demand.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug,Default,Display)]
 pub struct CowString(Cow<'static,str>);
 
 

@@ -5,12 +5,15 @@ use crate::prelude::*;
 use crate::display::shape::primitive::def::*;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::primitive::def::var::ShapeData;
+use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 use crate::data::color::*;
 
-use crate::math::topology::metric::*;
+use crate::math::topology::metric::DistanceIn;
+use crate::math::topology::metric::Pixels;
+use crate::math::topology::metric::AngleIn;
+use crate::math::topology::metric::Radians;
 
 use std::ops::Sub;
 use std::ops::Mul;
@@ -65,6 +68,8 @@ impl AsOwned for Shape {
     type Owned = Shape;
 }
 
+impls! { From<&Shape> for Shape { |t| t.clone() }}
+
 
 
 // ================
@@ -105,56 +110,59 @@ impl<T> ShapeRef<T> {
     }
 }
 
-impl<T> ShapeRef<T> {
+impl<T> ShapeOps for ShapeRef<T> {}
+impl    ShapeOps for Shape {}
+
+pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
     /// Translate the shape by a given offset.
-    pub fn translate<V:Into<ShapeData<Vector2<DistanceIn<Pixels>>>>>(&self, v:V) -> Translate<Self> {
+    fn translate<V:Into<Var<Vector2<DistanceIn<Pixels>>>>>(&self, v:V) -> Translate<Self> {
         Translate(self,v)
     }
 
     /// Translate the shape along X-axis by a given offset.
-    pub fn translate_x<X>(&self, x:X) -> Translate<Self>
-    where (X,DistanceIn<Pixels>) : Into<ShapeData<Vector2<DistanceIn<Pixels>>>> {
+    fn translate_x<X>(&self, x:X) -> Translate<Self>
+        where (X,Var<DistanceIn<Pixels>>) : Into<Var<Vector2<DistanceIn<Pixels>>>> {
         self.translate((x,0.px()))
     }
 
     /// Translate the shape along Y-axis by a given offset.
-    pub fn translate_y<Y>(&self, y:Y) -> Translate<Self>
-    where (DistanceIn<Pixels>,Y) : Into<ShapeData<Vector2<DistanceIn<Pixels>>>> {
+    fn translate_y<Y>(&self, y:Y) -> Translate<Self>
+        where (Var<DistanceIn<Pixels>>,Y) : Into<Var<Vector2<DistanceIn<Pixels>>>> {
         self.translate((0.px(),y))
     }
 
     /// Rotate the shape by a given angle.
-    pub fn rotate<A:Into<ShapeData<AngleIn<Radians>>>>(&self, angle:A) -> Rotation<Self> {
+    fn rotate<A:Into<Var<AngleIn<Radians>>>>(&self, angle:A) -> Rotation<Self> {
         Rotation(self,angle)
     }
 
     /// Scales the shape by a given value.
-    pub fn scale<S:Into<ShapeData<f32>>>(&self, value:S) -> Scale<Self> {
+    fn scale<S:Into<Var<f32>>>(&self, value:S) -> Scale<Self> {
         Scale(self,value)
     }
 
     /// Unify the shape with another one.
-    pub fn union<S:IntoOwned>(&self, that:S) -> Union<Self,Owned<S>> {
+    fn union<S:IntoOwned>(&self, that:S) -> Union<Self,Owned<S>> {
         Union(self,that)
     }
 
     /// Subtracts the argument from this shape.
-    pub fn difference<S:IntoOwned>(&self, that:S) -> Difference<Self,Owned<S>> {
+    fn difference<S:IntoOwned>(&self, that:S) -> Difference<Self,Owned<S>> {
         Difference(self,that)
     }
 
     /// Computes the intersection of the shapes.
-    pub fn intersection<S:IntoOwned>(&self, that:S) -> Intersection<Self,Owned<S>> {
+    fn intersection<S:IntoOwned>(&self, that:S) -> Intersection<Self,Owned<S>> {
         Intersection(self,that)
     }
 
     /// Fill the shape with the provided color.
-    pub fn fill<Color:Into<ShapeData<Srgba>>>(&self, color:Color) -> Fill<Self> {
+    fn fill<Color:Into<Var<Srgba>>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
     }
 
     /// Makes the borders of the shape crisp. Please note that it removes any form of antialiasing.
-    pub fn pixel_snap(&self) -> PixelSnap<Self> {
+    fn pixel_snap(&self) -> PixelSnap<Self> {
         PixelSnap(self)
     }
 }

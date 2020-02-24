@@ -147,3 +147,11 @@ float value(Degrees t) {
 Radians radians(Degrees t) {
     return Radians(radians(t.value));
 }
+
+Radians div(Radians a, float b) {
+    return Radians(a.value/b);
+}
+
+Radians neg(Radians a) {
+    return Radians(-a.value);
+}

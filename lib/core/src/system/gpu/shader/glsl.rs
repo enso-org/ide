@@ -49,8 +49,9 @@ impls! { From<&Glsl> for Glsl { |t| t.clone() } }
 
 // === From String to Glsl ===
 
-impls! { From + &From <String> for Glsl { |t| Self {str:t.into()    } }}
-impls! { From + &From <&str>   for Glsl { |t| Self {str:(*t).into() } }}
+impls! { From + &From <String>    for Glsl { |t| Self {str:t.into()    } }}
+impls! { From + &From <CowString> for Glsl { |t| Self {str:t.into()    } }}
+impls! { From + &From <&str>      for Glsl { |t| Self {str:(*t).into() } }}
 
 
 // === From Tuple to Glsl ===

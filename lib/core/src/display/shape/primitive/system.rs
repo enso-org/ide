@@ -24,8 +24,9 @@ impl ShapeSystem {
     /// Constructor.
     pub fn new<S:Drawable>(world:&World, shape:&S) -> Self {
         let sprite_system = SpriteSystem::new(world);
-        sprite_system.set_material(Self::surface_material(shape));
-        Self {sprite_system}
+        let this = Self {sprite_system};
+        this.set_shape(shape);
+        this
     }
 
     /// Defines a default material of this system.
@@ -40,6 +41,10 @@ impl ShapeSystem {
         let code = shader::builder::Builder::run(shape);
         material.set_code(code);
         material
+    }
+
+    pub fn set_shape<S:Drawable>(&self, shape:&S) {
+        self.sprite_system.set_material(Self::surface_material(shape));
     }
 }
 

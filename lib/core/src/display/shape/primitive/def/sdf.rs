@@ -13,7 +13,7 @@ use crate::display::shape::primitive::def::class::Drawable;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
-use crate::display::shape::ShapeData;
+use crate::display::shape::Var;
 use crate::system::gpu::shader::glsl::Glsl;
 
 use crate::system::gpu::shader::glsl::traits::*;
@@ -91,7 +91,7 @@ macro_rules! _define_sdf_shape_immutable_part {
         pub type $name = ShapeRef<mutable::$name>;
 
         /// Smart shape constructor.
-        pub fn $name <$($field:Into<ShapeData<$field_type>>),*> ( $($field : $field),* ) -> $name {
+        pub fn $name <$($field:Into<Var<$field_type>>),*> ( $($field : $field),* ) -> $name {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
 
@@ -118,7 +118,7 @@ macro_rules! _define_sdf_shape_immutable_part {
         impl AsOwned for $name { type Owned = $name; }
 
         impl $name {$(
-            pub fn $field(&self) -> &ShapeData<$field_type> {
+            pub fn $field(&self) -> &Var<$field_type> {
                 &self.unwrap().$field
             }
         )*}
@@ -134,13 +134,13 @@ macro_rules! _define_sdf_shape_mutable_part {
         #[derive(Debug,Clone)]
         pub struct $name {
             pub glsl_name : Glsl,
-            $(pub $field  : ShapeData<$field_type>),*
+            $(pub $field  : Var<$field_type>),*
         }
 
         impl $name {
             /// Constructor.
             #[allow(clippy::new_without_default)]
-            pub fn new <$($field:Into<ShapeData<$field_type>>),*> ( $($field : $field),* ) -> Self {
+            pub fn new <$($field:Into<Var<$field_type>>),*> ( $($field : $field),* ) -> Self {
                 let glsl_name = stringify!($name).to_snake_case().into();
                 $(let $field = $field.into();)*
                 Self {glsl_name,$($field),*}
@@ -247,13 +247,13 @@ define_sdf_shapes! {
 
 #[derive(Clone,Debug)]
 pub struct RectCornerRadius {
-    pub top_left     : ShapeData<DistanceIn<Pixels>>,
-    pub top_right    : ShapeData<DistanceIn<Pixels>>,
-    pub bottom_left  : ShapeData<DistanceIn<Pixels>>,
-    pub bottom_right : ShapeData<DistanceIn<Pixels>>,
+    pub top_left     : Var<DistanceIn<Pixels>>,
+    pub top_right    : Var<DistanceIn<Pixels>>,
+    pub bottom_left  : Var<DistanceIn<Pixels>>,
+    pub bottom_right : Var<DistanceIn<Pixels>>,
 }
 
-impl<T:Into<ShapeData<DistanceIn<Pixels>>>> From<T> for RectCornerRadius {
+impl<T:Into<Var<DistanceIn<Pixels>>>> From<T> for RectCornerRadius {
     fn from(t:T) -> Self {
         let t = t.into();
         let value = iformat!("vec4({t.glsl()})");
@@ -267,7 +267,7 @@ impl<T:Into<ShapeData<DistanceIn<Pixels>>>> From<T> for RectCornerRadius {
 }
 
 impl Plane {
-    pub fn angle<T:Into<ShapeData<AngleIn<Radians>>>>(&self, t:T) -> PlaneAngle {
+    pub fn angle<T:Into<Var<AngleIn<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
     }
 }

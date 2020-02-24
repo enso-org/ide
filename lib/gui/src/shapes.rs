@@ -10,7 +10,7 @@ use basegl::display::symbol::geometry::Sprite;
 use basegl::display::shape::primitive::system::ShapeSystem;
 use basegl::display::shape::*;
 use basegl::display::world::*;
-use basegl::math::topology::metric::*;
+//use basegl::math::topology::metric::*;
 use basegl::system::web::set_stdout;
 use basegl::system::web::set_stack_trace_limit;
 use basegl::system::web::forward_panic_hook_to_console;
@@ -29,7 +29,8 @@ use basegl::control::io::mouse2;
 use basegl::control::io::mouse2::MouseManager;
 use basegl::data::color::*;
 
-use basegl::display::shape::ShapeData;
+use basegl::display::shape::Var;
+use basegl::math::topology::metric::Angle;
 
 
 #[wasm_bindgen]
@@ -45,13 +46,13 @@ pub mod icons {
     use super::*;
 
     pub fn history() -> Shape {
-        let radius_diff   = 0.5.pxx();
-        let corner_radius = 2.0.pxx();
+        let radius_diff   = 0.5.px();
+        let corner_radius = 2.0.px();
         let width_diff    = &corner_radius * 3.0;
-        let offset        = 2.pxx();
-        let width         = 32.pxx();
-        let height        = 16.pxx();
-        let persp_diff1   = 6.pxx();
+        let offset        = 2.px();
+        let width         = 32.px();
+        let height        = 16.px();
+        let persp_diff1   = 6.px();
 
         let width2         = &width  - &width_diff;
         let width3         = &width2 - &width_diff;
@@ -75,46 +76,51 @@ pub mod icons {
     }
 }
 
-fn ring_angle<R,W>(inner_radius:R, width:W) -> Shape
-where R : Into<ShapeData<DistanceIn<Pixels>>>,
-      W : Into<ShapeData<DistanceIn<Pixels>>> {
-    let inner_radius    = inner_radius.into();
-    let width           = width.into();
-    let radius          = &width / 2.0;
-    let loader_inner    = Circle(&inner_radius);
-    let loader_outer    = Circle(&inner_radius + &width);
-    let loader_section  = Plane().angle("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)").rotate("Radians((clamp(input_time/2000.0 - 1.0) * 1.99 * PI)/2.0)");
-    let loader_corner_1 = Circle(&radius).translate((0.pxx(),inner_radius + radius));
-    let loader_corner_2 = loader_corner_1.rotate("Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)");
-    let loader          = &loader_outer - &loader_inner;
-    let loader          = &loader * &loader_section;
-    let loader          = &loader + &loader_corner_1;
-    let loader          = &loader + &loader_corner_2;
-    let loader = loader.fill(Srgba::new(0.22,0.83,0.54,1.0)).rotate("Radians(input_time/200.0)");
-    loader.into()
+fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> Shape
+where R : Into<Var<DistanceIn<Pixels>>>,
+      W : Into<Var<DistanceIn<Pixels>>>,
+      A : Into<Var<AngleIn<Radians>>> {
+    let inner_radius = inner_radius.into();
+    let width        = width.into();
+    let angle        = angle.into();
+
+    let angle2  = &angle / 2.0;
+    let radius  = &width / 2.0;
+    let inner   = Circle(&inner_radius);
+    let outer   = Circle(&inner_radius + &width);
+    let section = Plane().angle(&angle);
+    let corner1 = Circle(&radius).translate_y(inner_radius + radius);
+    let corner2 = corner1.rotate(&angle2);
+    let corner1 = corner1.rotate(-&angle2);
+    let ring    = &outer - &inner;
+    let pie     = &ring * &section;
+    let out     = &pie + &corner1 + &corner2;
+//    let out     = out.fill(Srgba::new(0.22,0.83,0.54,1.0));
+    let out     = out.fill(Srgba::new(0.0,0.0,0.0,0.2));
+    out.into()
 }
 
-fn nodes2(world:&World) -> ShapeSystem {
+fn nodes2() -> Shape {
     let node_radius = 32.0;
     let border_size = 16.0;
-    let node   = Circle(node_radius.pxx());
-    let border = Circle((node_radius + border_size).pxx());
+    let node   = Circle(node_radius.px());
+    let border = Circle((node_radius + border_size).px());
     let node   = node.fill(Srgb::new(0.97,0.96,0.95));
 //    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
     let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
 
-    let bg   = Circle((node_radius*2.0).pxx());
+    let bg   = Circle((node_radius*2.0).px());
     let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
 
-    let shadow1 = Circle((node_radius + border_size).pxx());
+    let shadow1 = Circle((node_radius + border_size).px());
     let shadow1_color = Gradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
     let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
     let shadow1       = shadow1.fill(shadow1_color);
 
-    let shadow2 = Circle((node_radius + border_size).pxx());
+    let shadow2 = Circle((node_radius + border_size).px());
     let shadow2_color = Gradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear());
@@ -122,46 +128,36 @@ fn nodes2(world:&World) -> ShapeSystem {
     let shadow2       = shadow2.fill(shadow2_color);
 
 
-    let loader = ring_angle((node_radius).pxx(), (border_size).pxx());
+    let loader_angle : Var<AngleIn<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+    let loader_angle2 = &loader_angle / 2.0;
+    let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
+    let loader        = loader.rotate(loader_angle2);
+    let loader        = loader.rotate("Radians(input_time/200.0)");
 
     let icon = icons::history();
 
 
     let out = bg + loader + shadow2 + node + icon;
-//    let out = icon + rectx;
+    out.into()
+}
 
-//    let out = out.scale(2.0);
-
-//    let rect1 = Rect(1.0,4.0).fill(Srgba::new(1.0, 0.0, 0.0, 1.00));
-//
-//    let rect2 = rect1.translate(1.0,5.0);
-
-//    let circle1 = Circle(node_radius + border_size);
-
-
-
-//    let out = rect1 + rect2;
-
-//    let c1   = Circle(node_radius).fill(Srgba::new(1.0,0.0,0.0,0.5));
-//    let c2   = c1.translate(20.0,0.0).fill(Srgba::new(0.0,1.0,0.0,0.5));
-//
-//    let bg   = Circle(node_radius*2.0).translate(0.0,70.0);
-//    let bg   = bg.fill(Srgb::new(1.0,1.0,1.0));
-//
-//    let out = bg + shadow2;
-
-    ShapeSystem::new(world,&out)
+fn nodes3() -> Shape {
+    nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
 }
 
 
 fn init(world: &World) {
+
+
     let scene  = world.scene();
     let camera = scene.camera();
     let screen = camera.screen();
 
 
-    let shape_system = nodes2(world);
+    let node_shape =     nodes2();
+    let node_shape2 =     nodes3();
 
+    let shape_system =     ShapeSystem::new(world,&node_shape);
 
 
 
@@ -192,7 +188,13 @@ fn init(world: &World) {
     let mut time:i32 = 0;
     let mut was_rendered = false;
     let mut loader_hidden = false;
+    let mut i = 10;
     world.on_frame(move |_| {
+        i -= 1;
+        if i == 0 {
+            println!("now!");
+            shape_system.set_shape(&node_shape2);
+        }
         let _keep_alive = &sprite;
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;

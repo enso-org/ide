@@ -1,7 +1,7 @@
 //! Canvas for drawing vector graphics. See the documentation of `Canvas` to learn more.
 
 use crate::prelude::*;
-use crate::display::shape::primitive::def::var::ShapeData;
+use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::math::topology::metric::*;
 use crate::system::gpu::types::*;
@@ -215,7 +215,7 @@ impl Canvas {
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<V:Into<ShapeData<Vector2<DistanceIn<Pixels>>>>>
+    pub fn translate<V:Into<Var<Vector2<DistanceIn<Pixels>>>>>
     (&mut self, num:usize, s1:CanvasShape, v:V) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let v:Glsl = v.into().glsl();
@@ -229,7 +229,7 @@ impl Canvas {
     }
 
     /// Rotate the current canvas origin.
-    pub fn rotation<A:Into<ShapeData<AngleIn<Radians>>>>
+    pub fn rotation<A:Into<Var<AngleIn<Radians>>>>
     (&mut self, num:usize, s1:CanvasShape, angle:A) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let angle:Glsl = angle.into().glsl();
@@ -243,7 +243,7 @@ impl Canvas {
     }
 
     /// Scale the current canvas origin.
-    pub fn scale<T:Into<ShapeData<f32>>>
+    pub fn scale<T:Into<Var<f32>>>
     (&mut self, num:usize, s1:CanvasShape, value:T) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let value:Glsl = value.into().glsl();
@@ -257,7 +257,7 @@ impl Canvas {
     }
 
     /// Fill the shape with the provided color.
-    pub fn fill<Color:Into<ShapeData<Srgba>>>
+    pub fn fill<Color:Into<Var<Srgba>>>
     (&mut self, num:usize, s:CanvasShape, color:Color) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let color:Glsl = color.into().glsl();
