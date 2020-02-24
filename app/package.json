@@ -13,7 +13,7 @@
     "web:prod": "npx http-server -p 3000 --proxy http://localhost:3000\\? static/main",
     "electron:dev": "npm run build-dev && electron-webpack dev",
     "electron:dist": "npm run build && electron-webpack && electron-builder",
-    "electron:dist:dir": "npm run dist --dir -c.compression=store -c.mac.identity=null"
+    "electron:dist:unpacked": "npm run dist --dir -c.compression=store -c.mac.identity=null"
   },
   "dependencies": {
     "source-map-support": "^0.5.12"
@@ -40,9 +40,9 @@
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "^3.1.5",
     "webpack-merge": "^4.2.2",
-    "electron": "5.0.6",
-    "electron-builder": "^21.0.11",
+    "electron": "8.0.1",
+    "electron-builder": "^22.3.2",
     "electron-webpack": "^2.7.4",
-    "webpack": "~4.35.3"
+    "webpack": "~4.41.6"
   }
 }
