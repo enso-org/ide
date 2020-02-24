@@ -192,7 +192,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
       - uses: actions/upload-artifact@v1
-        name: Upload Artifacts (Ubuntu, unpacked)
+        name: Upload Artifacts (Ubuntu, not packed)
         with:
           name: Enso IDE (Linux, not packed)
           path: app/dist/linux-unpacked
@@ -206,7 +206,7 @@ jobs:
           path: app/dist/enso-ide Setup 0.1.0.exe
 
       - uses: actions/upload-artifact@v1
-        name: Upload Artifacts (Windows, portable)
+        name: Upload Artifacts (Windows, not packed)
         if: matrix.os == 'windows-latest'
         with:
           name: Enso IDE (Windows, not packed)
