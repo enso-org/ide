@@ -39,7 +39,7 @@ shared! { Handle
     impl {
         /// Create new Module controller for given location.
         pub fn new(location:Location) -> Self {
-            Controller {location:location}
+            Controller {location}
         }
 
         /// Obtain clone of location.

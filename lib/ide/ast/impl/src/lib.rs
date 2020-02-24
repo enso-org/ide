@@ -19,7 +19,7 @@ use uuid::Uuid;
 /// A sequence of AST nodes, typically the "token soup".
 pub type Stream<T> = Vec<T>;
 
-
+type IDMap = Vec<((usize,usize),ID)>;
 
 // ==============
 // === Errors ===
@@ -151,6 +151,28 @@ impl Ast {
     pub fn shape(&self) -> &Shape<Ast> {
         self
     }
+
+    // TODO use strongly typed IDMap, after it's merged to master
+
+    fn collect_ids(&self, index:&mut usize, ids:&mut IDMap) {
+        self.id.map( |id| {
+            ids.push(((*index, self.span), id));
+            *index += self.span;
+        });
+
+        for child in self {
+            child.collect_ids(index, ids);
+        }
+    }
+
+    pub fn id_map(&self) -> IDMap {
+        let mut idx = 0;
+        let mut ids = Vec::new();
+        self.collect_ids(&mut idx, &mut ids);
+
+        ids
+    }
+
 
     /// Wraps given shape with an optional ID into Ast. Span will ba
     /// automatically calculated based on Shape.
