@@ -105,7 +105,8 @@ impl TextEditor {
         };
         let closure      = Box::new(closure);
         let callback     = KeyboardClosure::wrap(closure);
-        let key_listener = KeyboardListener::new("keydown".into(), callback);
+        let logger       = Logger::new("TextEditor");
+        let key_listener = KeyboardListener::new(&logger,"keydown".into(), callback);
         self.rc.borrow_mut().key_listener = Some(key_listener);
         self.update();
         self
