@@ -4,6 +4,7 @@
 use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
+use crate::view::notification::NotificationService;
 
 use basegl::control::callback::CallbackHandle;
 use basegl::display::world::WorldData;
@@ -44,6 +45,7 @@ shared! { ProjectView
         layout          : ViewLayout,
         resize_callback : Option<CallbackHandle>,
         controller      : controller::project::Handle,
+        notification    : NotificationService
     }
 
     impl {
@@ -56,13 +58,15 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub fn new(controller:controller::project::Handle) -> Self {
+    pub fn new(logger:&Logger, controller:controller::project::Handle) -> Self {
         let path            = Path::new(INITIAL_FILE_PATH);
         let text_controller = controller.open_text_file(path);
         let world           = WorldData::new(&web::body());
-        let layout          = ViewLayout::new(&world,text_controller);
+        let logger          = logger.sub("ProjectView");
+        let notification    = NotificationService::new(&logger);
+        let layout          = ViewLayout::new(&notification,&logger,&world,text_controller);
         let resize_callback = None;
-        let data            = ProjectViewData {world,layout,resize_callback,controller};
+        let data            = ProjectViewData{world,layout,resize_callback,controller,notification};
         Self::new_from_data(data).init()
     }
 

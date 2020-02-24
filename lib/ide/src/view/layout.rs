@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::view::KeyboardClosure;
 use crate::view::KeyboardListener;
+use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
@@ -53,7 +54,8 @@ pub struct ViewLayoutData {
     text_editor  : TextEditor,
     key_listener : Option<KeyboardListener>,
     layout_mode  : LayoutMode,
-    size         : Vector2<f32>
+    size         : Vector2<f32>,
+    logger       : Logger
 }
 
 impl {
@@ -110,12 +112,17 @@ impl ViewLayoutData {
 
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
-    pub fn new(world:&World, controller:controller::text::Handle) -> Self {
-        let text_editor  = TextEditor::new(&world,controller);
+    pub fn new
+    ( notification_service : &NotificationService
+    , logger               : &Logger
+    , world                : &World
+    , controller           : controller::text::Handle) -> Self {
+        let text_editor  = TextEditor::new(&notification_service,&world,controller);
         let key_listener = None;
         let layout_mode  = default();
         let size         = zero();
-        let data         = ViewLayoutData {text_editor,key_listener,layout_mode,size};
+        let logger       = logger.sub("ProjectView");
+        let data         = ViewLayoutData {text_editor,key_listener,layout_mode,size,logger};
         let rc           = Rc::new(RefCell::new(data));
         Self {rc}.init(world)
     }
@@ -131,7 +138,7 @@ impl ViewLayout {
         };
         let closure      = Box::new(closure);
         let callback     = KeyboardClosure::wrap(closure);
-        let logger       = Logger::new("ViewLayout");
+        let logger       = self.rc.borrow().logger.sub("ViewLayout");
         let key_listener = KeyboardListener::new(&logger,"keydown".into(),callback);
         self.rc.borrow_mut().key_listener = Some(key_listener);
         self

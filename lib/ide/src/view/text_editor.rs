@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::view::KeyboardClosure;
 use crate::view::KeyboardListener;
+use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
@@ -29,12 +30,13 @@ shared! { TextEditor
 /// planned to be implemented for it.
 #[derive(Debug)]
 pub struct TextEditorData {
-    text_field   : TextField,
-    padding      : TemporaryPadding,
-    position     : Vector2<f32>,
-    size         : Vector2<f32>,
-    controller   : controller::text::Handle,
-    key_listener : Option<KeyboardListener>
+    text_field           : TextField,
+    padding              : TemporaryPadding,
+    position             : Vector2<f32>,
+    size                 : Vector2<f32>,
+    controller           : controller::text::Handle,
+    key_listener         : Option<KeyboardListener>,
+    notification_service : NotificationService
 }
 
 impl {
@@ -55,9 +57,15 @@ impl {
         let controller = self.controller.clone();
         let text       = self.text_field.get_content();
         let store_fut  = controller.store_content(text);
+        let service    = self.notification_service.clone();
+        let duration   = 1.0;
+        let fade_out   = 1.0;
+        service.notification("Saving file", duration, fade_out);
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
-                println!("Failed to write file")
+                service.notification("Failed to save file", duration, fade_out);
+            } else {
+                service.notification("File saved", duration, fade_out);
             }
         });
     }
@@ -65,7 +73,10 @@ impl {
 
 impl TextEditor {
     /// Creates a new TextEditor.
-    pub fn new(world:&World, controller:controller::text::Handle) -> Self {
+    pub fn new
+    ( notification_service : &NotificationService
+    , world                : &World
+    , controller           : controller::text::Handle) -> Self {
         let scene        = world.scene();
         let camera       = scene.camera();
         let screen       = camera.screen();
@@ -80,16 +91,20 @@ impl TextEditor {
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
         let key_listener = None;
-        let controller_clone = controller.clone_ref();
-        let text_field_clone = text_field.clone_ref();
+        let controller_clone     = controller.clone_ref();
+        let text_field_clone     = text_field.clone_ref();
+        let notification_service = notification_service.clone();
+        let notification_service_clone = notification_service.clone();
         executor::global::spawn(async move {
             if let Ok(content) = controller_clone.read_content().await {
                 text_field_clone.write(&content);
+                notification_service_clone.notification("File loaded", 1.0, 1.0);
             }
         });
         world.add_child(&text_field);
 
-        let data = TextEditorData {controller,text_field,padding,position,size,key_listener};
+        let data = TextEditorData
+            {controller,text_field,padding,position,size,key_listener,notification_service};
         Self::new_from_data(data).initialize()
     }
 
