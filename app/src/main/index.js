@@ -27,9 +27,9 @@ function create_main_window() {
     }
 
     if (is_development) {
-        window.webContents.openDevTools()
-            var url = `http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/main/` + search;
-            window.loadURL(url)
+        window.webContents.openDevTools();
+        var url = `http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/main/` + search;
+        window.loadURL(url)
     } else {
         window.loadURL(formatUrl({
             pathname : path.join(__dirname.replace(/app\.asar$/, 'static'), '/main/index.html'),
