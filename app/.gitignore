@@ -2,7 +2,6 @@ src-rust-gen
 .DS_Store
 dist/
 static/
-src/renderer/index.js
 node_modules/
 thumbs.db
 .idea/
