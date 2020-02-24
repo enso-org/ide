@@ -22,7 +22,7 @@ installer](https://rustup.rs/):
 
 ```bash
 rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
-rustup default nightly                      # Set it as the default one.
+rustup default nightly-2019-11-04           # Set it as the default one.
 rustup component add clippy                 # Install the linter.
 ```
 
@@ -36,19 +36,20 @@ In particular, you can provide them with `--release`, `--dev`, or `--profile`
 flags to switch the compilation profile. If not option is provided, the scripts
 default to the `--release` profile.
 
-### Running application and examples
 For best experience, it is recommended to use the 
-`scripts/watch.sh --dev` in a second shell. In order to build the IDE application, 
-follow the steps below:
+`scripts/watch.sh --dev` in a second shell.
+
+### Web Application
+In order to build the IDE web application, follow the steps bellow:
 
 ```bash
 cd app
 npm install
-npm run start 
+npm run web:dev 
 ```
 
 You can now navigate to http://localhost:8080 and play with it! The example
-scenes will be available at http://localhost:8080/debug.
+scenes will be available at http://localhost:8080/?debug.
 
 While Webpack provides handy utilities for development, like live-reloading on
 sources change, it also adds some runtime overhead. In order to run the compiled
@@ -56,6 +57,26 @@ examples using a lightweight http-server (without live-reloading functionality),
 please use the `npm run prod-server` command.
 
 **Please remember to disable the cache in your browser during development!**
+
+### Desktop Application
+In order to build the IDE desktop application, follow the steps bellow:
+
+```bash
+cd app
+npm install
+npm run electron:dev
+```
+
+If you want to distribute the desktop application, run the following steps instead:
+
+```bash
+cd
+app install
+npm run dist
+```
+
+The generated executable will be available at `dist/enso-ide-majo.minor.*`. Its extension will
+ depend on the host development platform.
 
 ### Minimizing the WASM binary size.
 After building the project you can use the `scripts/minimize_wasm.sh` to optimize 
