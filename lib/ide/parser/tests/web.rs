@@ -1,13 +1,14 @@
 use enso_prelude::*;
 
-use parser::Parser;
-use uuid::Uuid;
-use wasm_bindgen_test::{wasm_bindgen_test_configure, wasm_bindgen_test};
-
-use std::rc::Rc;
 use ast::Ast;
 use ast::IdMap;
 use data::text::*;
+use parser::Parser;
+
+use std::rc::Rc;
+use uuid::Uuid;
+use wasm_bindgen_test::wasm_bindgen_test_configure;
+use wasm_bindgen_test::wasm_bindgen_test;
 
 
 
