@@ -41,11 +41,27 @@ impl NotificationService {
         Self {logger,service}
     }
 
-    /// Display a new notification.
-    pub fn notification(&self, content:&str, duration:f64, fade_out:f64) {
-        let info = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
-        let info:&str = &info;
-        self.logger.info(info);
+    /// Display an informational notification.
+    pub fn info(&self, content:&str, duration:f64, fade_out:f64) {
+        let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
+        let msg:&str = &msg;
+        self.logger.info(msg);
+        create_notification(&self.service,content.into(),duration.into(),fade_out.into());
+    }
+
+    /// Display a warning notification.
+    pub fn warning(&self, content:&str, duration:f64, fade_out:f64) {
+        let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
+        let msg:&str = &msg;
+        self.logger.warning(msg);
+        create_notification(&self.service,content.into(),duration.into(),fade_out.into());
+    }
+
+    /// Display an error notification.
+    pub fn error(&self, content:&str, duration:f64, fade_out:f64) {
+        let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
+        let msg:&str = &msg;
+        self.logger.error(msg);
         create_notification(&self.service,content.into(),duration.into(),fade_out.into());
     }
 }

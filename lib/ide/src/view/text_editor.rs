@@ -42,20 +42,20 @@ pub struct TextEditorData {
 impl {
     /// Saves text editor's content to file.
     pub fn save(&self) {
-        let controller = self.controller.clone();
-        let file_path  = controller.file_path();
-        let text       = self.text_field.get_content();
-        let store_fut  = controller.store_content(text);
-        let service    = self.notification_service.clone();
-        let duration   = 1.0;
-        let fade_out   = 1.0;
-        service.notification("Saving file", duration, fade_out);
+        let controller   = self.controller.clone();
+        let file_path    = controller.file_path();
+        let text         = self.text_field.get_content();
+        let store_fut    = controller.store_content(text);
+        let notification = self.notification_service.clone();
+        let duration     = 1.0;
+        let fade_out     = 1.0;
+        notification.info("Saving file", duration, fade_out);
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
                 let message = format!("Failed to save file: {}", file_path);
-                service.notification(&message, duration, fade_out);
+                notification.error(&message, duration, fade_out);
             } else {
-                service.notification("File saved", duration, fade_out);
+                notification.info("File saved", duration, fade_out);
             }
         });
     }
@@ -84,11 +84,11 @@ impl TextEditor {
         let controller_clone     = controller.clone_ref();
         let text_field_clone     = text_field.clone_ref();
         let notification_service = notification_service.clone();
-        let notification_service_clone = notification_service.clone();
+        let notification         = notification_service.clone();
         executor::global::spawn(async move {
             if let Ok(content) = controller_clone.read_content().await {
                 text_field_clone.write(&content);
-                notification_service_clone.notification("File loaded", 1.0, 1.0);
+                notification.info("File loaded", 1.0, 1.0);
             }
         });
         world.add_child(&text_field);
