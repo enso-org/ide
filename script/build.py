@@ -45,14 +45,15 @@ def main():
     patch_file('target/web/gui.js', js_workaround_patcher)
     shutil.move('target/web/gui_bg.wasm', 'target/web/gui.wasm')
 
-    # TODO [mwu] It should be possible to drop gzip program dependency by using Python's gzip
-    #            library.
+    # TODO [mwu]
+    # It should be possible to drop gzip program dependency by using Python's gzip library. If
+    # replacing, care should be taken to make sure that Python's gzip implementation is as good as
+    # typically shipped gzip program.
     subprocess.check_call(['gzip', '--keep', '--best', '--force', 'target/web/gui.wasm'])
 
-    # Note [MWU] We build to provisional location and patch files there before copying, so the
-    #            backpack don't get errors from processing unpatched files.
-    #            Also, here we copy into (overwriting), without removing old files. Backpack on
-    #            Windows does not tolerate removing files it watches.
+    # We build to provisional location and patch files there before copying, so the backpack don't
+    # get errors from processing unpatched files. Also, here we copy into (overwriting), without
+    # removing old files. Backpack on Windows does not tolerate removing files it watches.
     copy_tree('target/web', 'app/src-rust-gen')
 
 
