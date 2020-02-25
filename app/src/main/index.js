@@ -4,15 +4,39 @@ import { app, BrowserWindow }  from 'electron'
 import { format as formatUrl } from 'url'
 import * as path               from 'path'
 
-const is_development = process.env.NODE_ENV !== 'production'
+
+
+// =================
+// === Constants ===
+// =================
+
+
+// === Execution mode ===
+
+const MODE_PRODUCTION  = 'production';
+const MODE_DEVELOPMENT = 'development';
+const IS_DEVELOPMENT   = process.env.NODE_ENV === MODE_DEVELOPMENT
+
+
+// === Window properties ===
+
+const WINDOW_WIDTH      = 1024;
+const WINDOW_HEIGHT     = 768;
+const WINDOW_FRAME      = false;
+const WINDOW_INDEX_PATH = '/main/index.html'
+
+
+// =======================
+// === Window Creation ===
+// =======================
 
 let main_window_keep_alive
 
 function create_main_window() {
     const window = new BrowserWindow({
-        width  : 1024,
-        height : 768,
-        frame  : false,
+        width  : WINDOW_WIDTH,
+        height : WINDOW_HEIGHT,
+        frame  : WINDOW_FRAME,
     })
 
     let debug_scene = "";
@@ -25,14 +49,15 @@ function create_main_window() {
         }
     }
 
-    if (is_development) {
+    if (IS_DEVELOPMENT) {
         window.webContents.openDevTools();
         let url = `http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/main/` + debug_scene;
         window.loadURL(url)
     } else {
+        // To get static_path, we replace path_to_asar/app.asar with path_to_asar/static
         let static_path = __dirname.replace(/app\.asar$/, 'static');
         let url         = formatUrl({
-            pathname : path.join(static_path, '/main/index.html'),
+            pathname : path.join(static_path, WINDOW_INDEX_PATH),
             protocol : 'file',
             slashes  : true
         }) + debug_scene;
