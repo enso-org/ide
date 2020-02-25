@@ -106,7 +106,6 @@ impl ViewLayoutData {
         self.text_editor.set_padding(padding);
         self.text_editor.set_size(size);
         self.text_editor.set_position(position);
-        self.text_editor.update();
     }
 }
 

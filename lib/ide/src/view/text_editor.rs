@@ -40,21 +40,10 @@ pub struct TextEditorData {
 }
 
 impl {
-    /// Updates the underlying display object.
-    pub fn update(&self) {
-        let padding  = self.padding;
-        let position = self.position;
-        let position = Vector3::new(position.x + padding.left, position.y + padding.bottom, 0.0);
-        self.text_field.set_position(position);
-        // TODO: set text field size once the property change will be supported.
-        // let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
-        // self.text_field.set_size(self.dimensions - padding);
-        self.text_field.update();
-    }
-
     /// Saves text editor's content to file.
     pub fn save(&self) {
         let controller = self.controller.clone();
+        let file_path  = controller.file_path();
         let text       = self.text_field.get_content();
         let store_fut  = controller.store_content(text);
         let service    = self.notification_service.clone();
@@ -63,7 +52,8 @@ impl {
         service.notification("Saving file", duration, fade_out);
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
-                service.notification("Failed to save file", duration, fade_out);
+                let message = format!("Failed to save file: {}", file_path);
+                service.notification(&message, duration, fade_out);
             } else {
                 service.notification("File saved", duration, fade_out);
             }
@@ -126,11 +116,32 @@ impl TextEditor {
         self.update();
         self
     }
+
+    /// Modify the underlying TextEditorData.
+    pub fn modify_data<F:FnMut(&mut TextEditorData)>(&mut self, mut f:F) {
+        f(&mut self.rc.borrow_mut());
+        self.update();
+    }
+
+    /// Updates the underlying display object, should be called after setting size or position.
+    fn update(&self) {
+        let data     = self.rc.borrow_mut();
+        let z_origin = 0.0;
+        let padding  = data.padding;
+        let position = data.position;
+        let position = Vector3::new(position.x + padding.left,position.y + padding.bottom,z_origin);
+        data.text_field.set_position(position);
+        // TODO: Set text field size once the size change gets supported.
+        // https://app.zenhub.com/workspaces/enso-5b57093c92e09f0d21193695/issues/luna/ide/217
+        // let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
+        // self.text_field.set_size(self.dimensions - padding);
+        data.text_field.update();
+    }
 }
 
 impl TemporaryPanel for TextEditor {
     fn set_padding(&mut self, padding: TemporaryPadding) {
-        self.rc.borrow_mut().padding = padding;
+        self.modify_data(|data| data.padding = padding);
     }
 
     fn padding(&self) -> TemporaryPadding {
@@ -138,8 +149,7 @@ impl TemporaryPanel for TextEditor {
     }
 
     fn set_size(&mut self, size:Vector2<f32>) {
-        self.rc.borrow_mut().size = size;
-        self.update();
+        self.modify_data(|data| data.size = size);
     }
 
     fn size(&self) -> Vector2<f32> {
@@ -147,8 +157,7 @@ impl TemporaryPanel for TextEditor {
     }
 
     fn set_position(&mut self, position:Vector2<f32>) {
-        self.rc.borrow_mut().position = position;
-        self.update();
+        self.modify_data(|data| data.position = position);
     }
 
     fn position(&self) -> Vector2<f32> {
