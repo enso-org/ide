@@ -16,8 +16,8 @@ pub enum Error {
     #[fail(display = "JSON (de)serialization failed: {:?}", _0)]
     JsonSerializationError(#[cause] serde_json::error::Error),
 
-    #[fail(display = "Scala parser threw an unexpected exception.")]
-    ScalaException(#[cause] String),
+    #[fail(display = "Scala parser failed: {:?}.", _0)]
+    ScalaException(String),
 }
 
 impl From<Error> for api::Error {
@@ -34,7 +34,7 @@ impl From<serde_json::error::Error> for Error {
 
 impl From<JsValue> for Error {
     fn from(jsvalue:JsValue) -> Self {
-        Error::ScalaException(format!("{:?}", jsValue))
+        Error::ScalaException(format!("{:?}", jsvalue))
     }
 }
 

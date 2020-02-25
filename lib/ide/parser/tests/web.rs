@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use enso_prelude::*;
 
 use parser::Parser;
 use uuid::Uuid;
