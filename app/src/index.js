@@ -2,23 +2,10 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
-var is_electron = window && window.process && window.process.type;
-var static_path;
+import * as loader_module  from './loader'
+import * as html_utils     from './html_utils'
 
-if (is_electron) {
-    // To avoid compile-time evaluation
-    eval("window.NODE_ENV=process.env.NODE_ENV; window.DIR_NAME = __dirname");
-    if (NODE_ENV == "development") {
-        static_path = "./"
-    } else {
-        static_path = DIR_NAME.replace(/app\.asar$/, 'static')+"/";
-    }
-} else {
-    static_path = "./"
-}
 
-import * as loader_module from './loader'
-import * as html_utils    from './html_utils'
 
 // ========================
 // === Content Download ===
@@ -46,8 +33,8 @@ function wasm_instantiate_streaming(resource,imports) {
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
 async function download_content(cfg) {
-    let wasm_glue_fetch = await fetch(static_path + 'wasm_imports.js')
-    let wasm_fetch      = await fetch(static_path + 'gui.wasm')
+    let wasm_glue_fetch = await fetch('./wasm_imports.js')
+    let wasm_fetch      = await fetch('./gui.wasm')
     let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
 
     loader.done.then(() => {
@@ -138,7 +125,8 @@ function show_debug_screen(wasm,msg) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    let target = window.location.search.substr(1).split("=");
+    let search = window.location.search.substr(1);
+    let target = search.split("=");
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]

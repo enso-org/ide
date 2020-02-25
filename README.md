@@ -7,12 +7,7 @@
 
 Enso Studio is an IDE for hybrid visual and textual functional programming.
 
-Its code uses BaseGL, a blazing fast 2D vector rendering engine with a rich set of
-primitives and a GUI component library. It is able to display millions of shapes
-60 frames per second in a web browser on a modern laptop hardware. 
-
-This repository is a work in progress. Please refer to BaseGL 1.0
-repository for more information: https://github.com/luna/basegl-old.
+The GUI is based on [BaseGL](lib/core/README.md).
 
 ## Development
 
@@ -39,6 +34,13 @@ default to the `--release` profile.
 
 For best experience, it is recommended to use the 
 `scripts/watch.sh --dev` in a second shell.
+
+### [Optional] Minimizing the WASM binary size
+After building the project you can use the `scripts/minimize_wasm.sh` to optimize 
+the binary and compress it by using `gzip`. After the script is complete, the
+final size is printed to stdout. Please note that in order to run the script, the
+[Binaryen](https://github.com/WebAssembly/binaryen) toolkit has to be installed
+on your system.
 
 ### Web Application
 In order to build the IDE web application, follow the steps bellow:
@@ -69,11 +71,11 @@ ide/app$ npm install
 ide/app$ npm run electron:dev
 ```
 
-To debug a subsystem, use the `--debug` argument.
+To run a debug scene, use the `--debug` argument.
 
 ```bash
 ide/app$ npm run electron:dev -- --debug        # Shows the selection screen.
-ide/app$ npm run electron:dev -- --debug=shapes # Runs shapes' subsystem.
+ide/app$ npm run electron:dev -- --debug=shapes # Runs shapes' debug scene.
 ```
 
 If you want to distribute the desktop application, run the following steps instead:
@@ -83,21 +85,14 @@ ide/app$ npm install
 ide/app$ npm run electron:dist
 ```
 
-The generated executable will be available at `dist/enso-ide-major.minor.*`. Its extension will
+The generated executable will be available at `dist/enso-ide-MAJOR.MINOR.*`. Its extension will
  depend on the host development platform. Keep in mind that it's also possible to pass the
   `--debug`argument to the application. On Linux, for instance, you can run:
   
 ```bash
 ide$ ./dist/enso-ide.0.1.0.AppImage --debug        # Shows the selection screen.
-ide$ ./dist/enso-ide.0.1.0.AppImage --debug=shapes # Runs shapes' subsystem.
+ide$ ./dist/enso-ide.0.1.0.AppImage --debug=shapes # Runs shapes' debug scene.
 ```
-
-### Minimizing the WASM binary size.
-After building the project you can use the `scripts/minimize_wasm.sh` to optimize 
-the binary and compress it by using `gzip`. After the script is complete, the
-final size is printed to stdout. Please note that in order to run the script, the
-[Binaryen](https://github.com/WebAssembly/binaryen) toolkit has to be installed
-on your system.
 
 ### Running tests
 The sources use both unit tests and web test, which are run in a browser and

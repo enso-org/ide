@@ -1,14 +1,15 @@
 {
   "name": "enso-ide",
   "version": "0.1.0",
-  "description": "Example Scenes",
+  "description": "Enso IDE",
+  "main": "src/index.js",
   "bin": {
     "create-wasm-app": ".bin/create-wasm-app.js"
   },
   "scripts": {
     "build": "webpack --mode production",
     "build-dev": "webpack --mode development",
-    "web:dev": "npm run build-dev && webpack-dev-server --mode development",
+    "web:dev": "webpack-dev-server --mode development",
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
     "web:prod": "npx http-server -p 3000 --proxy http://localhost:3000\\? static/main",
     "electron:dev": "npm run build-dev && electron-webpack dev",
