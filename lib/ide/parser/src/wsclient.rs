@@ -9,7 +9,7 @@ use websocket::{
 use crate::api;
 
 use api::Error::*;
-use ast::IDMap;
+use ast::IdMap;
 
 use Error::*;
 
@@ -87,7 +87,7 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest { program:String, ids:IDMap },
+    ParseRequest { program:String, ids: IdMap },
 }
 
 /// All responses that Parser Service might reply with.
@@ -200,7 +200,7 @@ impl Client {
 
 impl api::IsParser for Client {
 
-   fn parse(&mut self, program:String, ids:IDMap) -> api::Result<api::Ast> {
+   fn parse(&mut self, program:String, ids: IdMap) -> api::Result<api::Ast> {
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call(request)?;
         match response {

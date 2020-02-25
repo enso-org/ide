@@ -19,8 +19,9 @@ use shapely::*;
 use uuid::Uuid;
 
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct IDMap(pub Vec<(Span, ID)>);
+
+#[derive(Clone,Debug,Default,Serialize,Deserialize)]
+pub struct IdMap(pub Vec<(Span,ID)>);
 
 /// A sequence of AST nodes, typically the "token soup".
 pub type Stream<T> = Vec<T>;

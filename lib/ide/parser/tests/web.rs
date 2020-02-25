@@ -1,4 +1,4 @@
-use enso_prelude::*;
+use crate::prelude::*;
 
 use parser::Parser;
 use uuid::Uuid;
@@ -6,11 +6,12 @@ use wasm_bindgen_test::{wasm_bindgen_test_configure, wasm_bindgen_test};
 
 use std::rc::Rc;
 use ast::Ast;
-use ast::IDMap;
+use ast::IdMap;
 use data::text::*;
 
-wasm_bindgen_test_configure!(run_in_browser);
 
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 fn web_test() {
@@ -20,7 +21,7 @@ fn web_test() {
 
     let mut parse = |input| {
         let span = Span::new(default(), Size::new(5));
-        let ids  = IDMap(vec![(span, uuid)]);
+        let ids  = IdMap(vec![(span,uuid)]);
         let ast  = parser.parse(String::from(input), ids).unwrap().wrapped;
 
         match Rc::try_unwrap(ast).unwrap().wrapped.wrapped {
@@ -30,11 +31,11 @@ fn web_test() {
     };
 
     let line = |term| {
-        ast::Module { lines : vec![ ast::BlockLine { elem: term, off: 0 } ] }
+        ast::Module {lines: vec![ast::BlockLine {elem: term, off: 0}]}
     };
 
 
-    let app_x_y = ast::Prefix { func: Ast::var("x"), off: 3, arg: Ast::var("y") };
+    let app_x_y = ast::Prefix {func: Ast::var("x"), off: 3, arg: Ast::var("y")};
 
 
     assert_eq!(parse(""),       line(None));
