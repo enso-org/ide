@@ -8,6 +8,7 @@ pub mod render;
 
 use crate::prelude::*;
 
+use crate::control::callback::CallbackMut1;
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::content::TextChange;
@@ -68,14 +69,17 @@ shared! { TextField
     ///
     /// This component is under heavy construction, so the api may easily changed in few future
     /// commits.
-    #[derive(Debug)]
+    #[derive(Derivative)]
+    #[derivative(Debug)]
     pub struct TextFieldData {
-        properties       : TextFieldProperties,
-        content          : TextFieldContent,
-        cursors          : Cursors,
-        rendered         : TextFieldSprites,
-        display_object   : DisplayObjectData,
-        frp              : Option<TextFieldFrp>,
+        properties           : TextFieldProperties,
+        content              : TextFieldContent,
+        cursors              : Cursors,
+        rendered             : TextFieldSprites,
+        display_object       : DisplayObjectData,
+        frp                  : Option<TextFieldFrp>,
+        #[derivative(Debug="ignore")]
+        text_change_callback : Option<CallbackMut1<TextChange>>
     }
 
     impl {
@@ -166,56 +170,6 @@ shared! { TextField
             selections.join("\n")
         }
 
-        /// Edit text.
-        ///
-        /// All the currently selected text will be removed, and the given string will be inserted
-        /// by each cursor.
-        pub fn write(&mut self, text:&str) {
-            let trimmed                 = text.trim_end_matches('\n');
-            let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
-            let cursor_ids              = self.cursors.sorted_cursor_indices();
-
-            if is_line_per_cursor_edit {
-                let cursor_with_line = cursor_ids.iter().cloned().zip(trimmed.split('\n'));
-                self.write_per_cursor(cursor_with_line);
-            } else {
-                let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,text));
-                self.write_per_cursor(cursor_with_line);
-            };
-            self.assignment_update().update_after_text_edit();
-            self.rendered.update_glyphs(&mut self.content);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
-        }
-
-
-        /// Discards all current content and replaces it with new one.
-        /// Whenever possible, tries to maintain cursor positions.
-        pub fn set_content(&mut self, text:&str) {
-            // FIXME [mwu] This is a provisional stub to allow `TextEditor` use
-            //       proper API. This implementation should correctly remove old
-            //       contents and update the cursors.
-            //       See: https://github.com/luna/ide/issues/187
-            self.write(text)
-        }
-
-        /// Remove all text selected by all cursors.
-        pub fn remove_selection(&mut self) {
-            self.write("");
-        }
-
-        /// Do delete operation on text.
-        ///
-        /// For cursors with selection it will just remove the selected text. For the rest, it will
-        /// remove all content covered by `step`.
-        pub fn do_delete_operation(&mut self, step:Step) {
-            let content           = &mut self.content;
-            let selecting         = true;
-            let mut navigation    = CursorNavigation {content,selecting};
-            let without_selection = |c:&Cursor| !c.has_selection();
-            self.cursors.navigate_cursors(&mut navigation,step,without_selection);
-            self.remove_selection();
-        }
-
         /// Update underlying Display Object.
         pub fn update(&self) {
             self.display_object.update()
@@ -246,28 +200,117 @@ impl TextField {
     -> Self {
         let data = TextFieldData::new(world,initial_content,properties);
         let rc   = Rc::new(RefCell::new(data));
-        let frp  = TextFieldFrp::new(world,Rc::downgrade(&rc));
-        with(rc.borrow_mut(), move |mut data| {
+        let this = Self {rc};
+        let frp  = TextFieldFrp::new(world,this.downgrade());
+        this.with_borrowed(move |mut data| {
             data.frp = Some(frp);
         });
-        Self{rc}
+        this
+    }
+}
+
+
+// === Editing text ===
+
+impl TextField {
+    /// Edit text.
+    ///
+    /// All the currently selected text will be removed, and the given string will be inserted
+    /// by each cursor.
+    pub fn write(&self, text:&str) {
+        let trimmed                 = text.trim_end_matches('\n');
+        let cursor_ids              = self.with_borrowed(|this| this.cursors.sorted_cursor_indices());
+        let is_line_per_cursor_edit = trimmed.contains('\n') && cursor_ids.len() > 1;
+
+        if is_line_per_cursor_edit {
+            let cursor_with_line = cursor_ids.iter().cloned().zip(trimmed.split('\n'));
+            self.write_per_cursor(cursor_with_line);
+        } else {
+            let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,text));
+            self.write_per_cursor(cursor_with_line);
+        };
+        self.with_borrowed(|this| {
+            this.assignment_update().update_after_text_edit();
+            this.rendered.update_glyphs(&mut this.content);
+            this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);
+        });
+    }
+
+    /// Discards all current content and replaces it with new one.
+    /// Whenever possible, tries to maintain cursor positions.
+    pub fn set_content(&mut self, text:&str) {
+        // FIXME [mwu] This is a provisional stub to allow `TextEditor` use
+        //       proper API. This implementation should correctly remove old
+        //       contents and update the cursors.
+        //       See: https://github.com/luna/ide/issues/187
+        self.write(text)
+    }
+
+    /// Remove all text selected by all cursors.
+    pub fn remove_selection(&self) {
+        self.write("");
+    }
+
+    /// Do delete operation on text.
+    ///
+    /// For cursors with selection it will just remove the selected text. For the rest, it will
+    /// remove all content covered by `step`.
+    pub fn do_delete_operation(&self, step:Step) {
+        self.with_borrowed(|this| {
+            let content           = &mut this.content;
+            let selecting         = true;
+            let mut navigation    = CursorNavigation {content,selecting};
+            let without_selection = |c:&Cursor| !c.has_selection();
+            this.cursors.navigate_cursors(&mut navigation,step,without_selection);
+        });
+        self.remove_selection();
     }
 }
 
 
 // === Private ===
 
+impl TextField {
+
+    fn write_per_cursor<'a,It>(&self, cursor_id_with_text_to_insert:It)
+        where It : Iterator<Item=(usize,&'a str)> {
+        let mut location_change = TextLocationChange::default();
+        let mut opt_callback    = self.with_borrowed(|this| std::mem::take(&mut this.text_change_callback));
+        for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
+            let change = self.with_borrowed(|this| {
+                let cursor   = &mut this.cursors.cursors[cursor_id];
+                let replaced = location_change.apply_to_range(cursor.selection_range());
+                let change   = TextChange::replace(replaced,to_insert);
+                location_change.add_change(&change);
+                *cursor = Cursor::new(change.inserted_text_range().end);
+                this.content.apply_change(change.clone());
+                change
+            });
+            if let Some(callback) = opt_callback.as_mut() {
+                callback(&change);
+            }
+        }
+        self.with_borrowed(|this| {
+            if this.text_change_callback.is_none() {
+                this.text_change_callback = opt_callback
+            }
+        });
+    }
+}
+
 impl TextFieldData {
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-        let logger         = Logger::new("TextField");
-        let display_object = DisplayObjectData::new(logger);
-        let content        = TextFieldContent::new(initial_content,&properties);
-        let cursors        = Cursors::default();
-        let rendered       = TextFieldSprites::new(world,&properties);
-        let frp            = None;
+        let logger               = Logger::new("TextField");
+        let display_object       = DisplayObjectData::new(logger);
+        let content              = TextFieldContent::new(initial_content,&properties);
+        let cursors              = Cursors::default();
+        let rendered             = TextFieldSprites::new(world,&properties);
+        let frp                  = None;
+        let text_change_callback = None;
         display_object.add_child(rendered.display_object.clone_ref());
 
-        Self {properties,content,cursors,rendered,display_object,frp}.initialize()
+        Self {properties,content,cursors,rendered,display_object,frp,text_change_callback}
+            .initialize()
     }
 
     fn initialize(mut self) -> Self{
@@ -283,19 +326,6 @@ impl TextFieldData {
             assignment    : &mut self.rendered.assignment,
             scroll_offset : -self.rendered.display_object.position().xy(),
             view_size     : self.properties.size,
-        }
-    }
-
-    fn write_per_cursor<'a,It>(&mut self, cursor_id_with_text_to_insert:It)
-    where It : Iterator<Item=(usize,&'a str)> {
-        let mut location_change = TextLocationChange::default();
-        for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
-            let cursor   = &mut self.cursors.cursors[cursor_id];
-            let replaced = location_change.apply_to_range(cursor.selection_range());
-            let change   = TextChange::replace(replaced,to_insert);
-            location_change.add_change(&change);
-            *cursor = Cursor::new(change.inserted_text_range().end);
-            self.content.apply_change(change);
         }
     }
 }

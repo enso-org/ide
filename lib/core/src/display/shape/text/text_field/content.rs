@@ -90,7 +90,7 @@ pub enum ChangeType {
 }
 
 /// A structure describing a text operation in one place.
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct TextChange {
     /// Text fragment to be replaced. If we don't mean to remove any text, this should be an empty
     /// range with start set at position there `lines` will be inserted (see `TextChange::insert`
