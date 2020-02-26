@@ -10,10 +10,10 @@ use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::types::*;
 use crate::data::color::*;
 
-use crate::math::topology::metric::DistanceIn;
-use crate::math::topology::metric::Pixels;
-use crate::math::topology::metric::AngleIn;
-use crate::math::topology::metric::Radians;
+use crate::math::topology::unit::DistanceIn;
+use crate::math::topology::unit::Pixels;
+use crate::math::topology::unit::AngleIn;
+use crate::math::topology::unit::Radians;
 
 use std::ops::Sub;
 use std::ops::Mul;

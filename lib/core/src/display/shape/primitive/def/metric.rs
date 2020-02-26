@@ -2,15 +2,15 @@
 
 use super::var::*;
 
-use crate::math::topology::metric;
+use crate::math::topology::unit;
 
-pub use crate::math::topology::metric::DistanceIn;
-pub use crate::math::topology::metric::AngleIn;
-pub use crate::math::topology::metric::Value;
-pub use crate::math::topology::metric::Unknown;
-pub use crate::math::topology::metric::Pixels;
-pub use crate::math::topology::metric::Radians;
-pub use crate::math::topology::metric::Degrees;
+pub use crate::math::topology::unit::DistanceIn;
+pub use crate::math::topology::unit::AngleIn;
+pub use crate::math::topology::unit::Unit;
+pub use crate::math::topology::unit::Anything;
+pub use crate::math::topology::unit::Pixels;
+pub use crate::math::topology::unit::Radians;
+pub use crate::math::topology::unit::Degrees;
 
 /// Exports common traits from this module and its sub-modules.
 pub mod traits {
@@ -29,8 +29,8 @@ pub trait PixelDistance {
     fn px(&self) -> Var<DistanceIn<Pixels>>;
 }
 
-impl<T:metric::PixelDistance> PixelDistance for T {
+impl<T: unit::PixelDistance> PixelDistance for T {
     fn px(&self) -> Var<DistanceIn<Pixels>> {
-        metric::PixelDistance::px(self).into()
+        unit::PixelDistance::px(self).into()
     }
 }

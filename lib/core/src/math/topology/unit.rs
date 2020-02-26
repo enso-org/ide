@@ -15,31 +15,35 @@ use std::ops::Neg;
 use nalgebra::*;
 
 
-
-// =============
-// === Value ===
-// =============
-
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Unknown{}
+pub struct Anything{}
 
+
+// ============
+// === Unit ===
+// ============
+
+/// Abstraction for any unit type. It is parametrized by:
+///   - Quantity, like distance, angle, or mass. See https://en.wikipedia.org/wiki/Quantity .
+///   - Type, like pixels, degrees, or radians.
+///   - Repr, like f32
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Value<Tp=Unknown,Unit=Unknown,V=f32> {
-    pub value : V,
-    _type     : PhantomData<Tp>,
-    _unit     : PhantomData<Unit>,
+pub struct Unit<Quantity=Anything,Type=Anything,Repr=f32> {
+    pub value : Repr,
+    _quantity : PhantomData<Quantity>,
+    _type     : PhantomData<Type>,
 }
 
-impl<Tp,Unit,V> Value<Tp,Unit,V> {
-    pub fn new(value:V) -> Self {
-        let _type = PhantomData;
-        let _unit = PhantomData;
-        Self {value,_type,_unit}
+impl<Quantity,Type,Repr> Unit<Quantity,Type,Repr> {
+    pub fn new(value:Repr) -> Self {
+        let _quantity = PhantomData;
+        let _type     = PhantomData;
+        Self {value,_quantity,_type}
     }
 }
 
-impls! { [Tp,Unit,V] From<V>                  for Value<Tp,Unit,V> { |t| {Self::new(t)} } }
-impls! { [Tp,Unit]   From<Value<Tp,Unit,f32>> for f32              { |t| {t.value} } }
+impls! { [Quantity,Type,Repr] From<Repr> for Unit<Quantity,Type,Repr>  { |t| {Self::new(t)} } }
+impls! { [Quantity,Type]      From<Unit<Quantity,Type,f32>> for f32    { |t| {t.value} } }
 
 macro_rules! define_value_operator {
     ( $name:ident $fn:ident ($op:tt) <$rhs:ty> for $lhs:ty ) => {
@@ -50,17 +54,17 @@ macro_rules! define_value_operator {
 
 macro_rules! define_value_operator_rhs_ref {
     ( $name:ident $fn:ident ($op:tt) <$rhs:ty> for $lhs:ty [$($rhs_val:tt)*] ) => {
-        impl<Tp,Unit,V,S> $name<$rhs> for $lhs
+        impl<Quantity,Type,V,S> $name<$rhs> for $lhs
         where V:$name<S> {
-            type Output = Value<Tp,Unit,<V as $name<S>>::Output>;
+            type Output = Unit<Quantity,Type,<V as $name<S>>::Output>;
             fn $fn(self, rhs:$rhs) -> Self::Output {
                 (self.value $op rhs $($rhs_val)*).into()
             }
         }
 
-        impl<'t,Tp,Unit,V,S> $name<$rhs> for &'t $lhs
+        impl<'t,Quantity,Type,V,S> $name<$rhs> for &'t $lhs
         where &'t V : $name<S> {
-            type Output = Value<Tp,Unit,<&'t V as $name<S>>::Output>;
+            type Output = Unit<Quantity,Type,<&'t V as $name<S>>::Output>;
             fn $fn(self, rhs:$rhs) -> Self::Output {
                 (&self.value $op rhs $($rhs_val)*).into()
             }
@@ -70,17 +74,17 @@ macro_rules! define_value_operator_rhs_ref {
 
 macro_rules! define_value_operator_lhs_ref {
     ( $name:ident $fn:ident ($op:tt) <$rhs:ty> for $lhs:ty ) => {
-        impl<'t,Tp,Unit,V,S> $name<&'t $rhs> for &'t $lhs
+        impl<'t,Quantity,Type,V,S> $name<&'t $rhs> for &'t $lhs
         where &'t V : $name<&'t S> {
-            type Output = Value<Tp,Unit,<&'t V as $name<&'t S>>::Output>;
+            type Output = Unit<Quantity,Type,<&'t V as $name<&'t S>>::Output>;
             fn $fn(self, rhs:&'t $rhs) -> Self::Output {
                 (&self.value $op &rhs.value).into()
             }
         }
 
-        impl<'t,Tp,Unit,V,S> $name<&'t $rhs> for $lhs
+        impl<'t,Quantity,Type,V,S> $name<&'t $rhs> for $lhs
             where V : $name<&'t S> {
-            type Output = Value<Tp,Unit,<V as $name<&'t S>>::Output>;
+            type Output = Unit<Quantity,Type,<V as $name<&'t S>>::Output>;
             fn $fn(self, rhs:&'t $rhs) -> Self::Output {
                 (self.value $op &rhs.value).into()
             }
@@ -88,34 +92,43 @@ macro_rules! define_value_operator_lhs_ref {
     }
 }
 
-define_value_operator! { Add add (+) <Value<Tp,Unit,S>> for Value<Tp,Unit,V> }
-define_value_operator! { Sub sub (-) <Value<Tp,Unit,S>> for Value<Tp,Unit,V> }
+define_value_operator! { Add add (+) <Unit<Quantity,Type,S>> for Unit<Quantity,Type,V> }
+define_value_operator! { Sub sub (-) <Unit<Quantity,Type,S>> for Unit<Quantity,Type,V> }
 
-define_value_operator_rhs_ref! { Mul mul (*) <S> for Value<Tp,Unit,V> [] }
-define_value_operator_rhs_ref! { Div div (/) <S> for Value<Tp,Unit,V> [] }
+define_value_operator_rhs_ref! { Mul mul (*) <S> for Unit<Quantity,Type,V> [] }
+define_value_operator_rhs_ref! { Div div (/) <S> for Unit<Quantity,Type,V> [] }
 
 
-impl<Tp,Unit> Mul<Value<Tp,Unit,f32>> for f32 {
-    type Output = Value<Tp,Unit,f32>;
-    fn mul(self, rhs:Value<Tp,Unit,f32>) -> Self::Output {
+impl<Quantity,Type> Mul<Unit<Quantity,Type,f32>> for f32 {
+    type Output = Unit<Quantity,Type,f32>;
+    fn mul(self, rhs:Unit<Quantity,Type,f32>) -> Self::Output {
         (self * rhs.value).into()
     }
 }
 
-impl<Tp,Unit,V> Neg for Value<Tp,Unit,V>
+impl<Quantity,Type,V> Neg for Unit<Quantity,Type,V>
     where V:Neg<Output=V> {
-    type Output = Value<Tp,Unit,V>;
+    type Output = Unit<Quantity,Type,V>;
     fn neg(self) -> Self::Output {
         (-self.value).into()
     }
 }
 
-impl<'t,Tp,Unit,V> Neg for &'t Value<Tp,Unit,V>
+impl<'t,Quantity,Type,V> Neg for &'t Unit<Quantity,Type,V>
     where &'t V : Neg {
-    type Output = Value<Tp,Unit,<&'t V as Neg>::Output>;
+    type Output = Unit<Quantity,Type,<&'t V as Neg>::Output>;
     fn neg(self) -> Self::Output {
         (-&self.value).into()
     }
+}
+
+
+pub mod quantity {
+    #[derive(Clone,Copy,Debug,Eq,PartialEq)]
+    pub struct Distance {}
+
+    #[derive(Clone,Copy,Debug,Eq,PartialEq)]
+    pub struct Angle {}
 }
 
 
@@ -124,11 +137,10 @@ impl<'t,Tp,Unit,V> Neg for &'t Value<Tp,Unit,V>
 // === Distance ===
 // ================
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct DistanceValue {}
 
-pub type Distance               = Value<DistanceValue>;
-pub type DistanceIn<Unit,V=f32> = Value<DistanceValue,Unit,V>;
+
+pub type Distance               = Unit<quantity::Distance>;
+pub type DistanceIn<Type,V=f32> = Unit<quantity::Distance,Type,V>;
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct Pixels;
@@ -169,12 +181,11 @@ impls! { From<PhantomData<Vector2<DistanceIn<Pixels>>>> for glsl::PrimType {
 
 //pub struct AnyAngle {}
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct AngleValue {}
 
-pub type Angle = Value<AngleValue>;
 
-pub type AngleIn<Unit,V=f32> = Value<AngleValue,Unit,V>;
+pub type Angle = Unit<quantity::Angle>;
+
+pub type AngleIn<Type,V=f32> = Unit<quantity::Angle,Type,V>;
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct Degrees;

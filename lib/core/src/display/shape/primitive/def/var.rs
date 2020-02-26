@@ -9,8 +9,8 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
 
-use crate::math::topology::metric::Value;
-use crate::math::topology::metric::Unknown;
+use crate::math::topology::unit::Unit;
+use crate::math::topology::unit::Anything;
 use crate::data::color;
 
 use std::ops::Sub;
@@ -48,7 +48,7 @@ impl<E1,E2,T> InitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgba<E2,T>
 impl<E,T,G> InitializerMarker<Var<color::Rgba<E,T>>> for color::SdfSampler<G>
     where E:color::RgbStandard, T:color::Component {}
 
-impl<T,U,V> InitializerMarker<Var<Value<T,Unknown,V>>> for Value<T,U,V> where {}
+impl<T,U,V> InitializerMarker<Var<Unit<T,Anything,V>>> for Unit<T,U,V> where {}
 
 impl<T,S1,S2> InitializerMarker<Var<Vector2<T>>> for (S1,S2)
     where T:Scalar, S1:InitializerMarkerNested<Var<T>>, S2:InitializerMarkerNested<Var<T>> {}
