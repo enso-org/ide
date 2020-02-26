@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
@@ -111,16 +110,15 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( kb_actions           : &mut KeyboardActions
-    , notification_service : &NotificationService
-    , logger               : &Logger
+    ( logger               : &Logger
+    , kb_actions           : &mut KeyboardActions
     , world                : &World
     , controller           : controller::text::Handle
     ) -> Self {
-        let text_editor  = TextEditor::new(&notification_service,&world,controller,kb_actions);
+        let logger       = logger.sub("ViewLayout");
+        let text_editor  = TextEditor::new(&logger,&world,controller,kb_actions);
         let layout_mode  = default();
         let size         = zero();
-        let logger       = logger.sub("ProjectView");
         let data         = ViewLayoutData {text_editor,layout_mode,size,logger};
         let rc           = Rc::new(RefCell::new(data));
         Self {rc}.init(world,kb_actions)

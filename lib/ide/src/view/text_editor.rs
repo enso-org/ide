@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
@@ -34,7 +33,7 @@ pub struct TextEditorData {
     position             : Vector2<f32>,
     size                 : Vector2<f32>,
     controller           : controller::text::Handle,
-    notification_service : NotificationService
+    logger               : Logger
 }
 
 impl {
@@ -44,14 +43,13 @@ impl {
         let file_path    = controller.file_path();
         let text         = self.text_field.get_content();
         let store_fut    = controller.store_content(text);
-        let notification = self.notification_service.clone();
-        notification.info("Saving file");
+        let logger       = self.logger.clone();
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
-                let message = format!("Failed to save file: {}", file_path);
-                notification.error(&message);
+                let message:&str = &format!("Failed to save file: {}", file_path);
+                logger.error(message);
             } else {
-                notification.info("File saved");
+                logger.info("File saved");
             }
         });
     }
@@ -60,40 +58,39 @@ impl {
 impl TextEditor {
     /// Creates a new TextEditor.
     pub fn new
-    ( notification_service : &NotificationService
-    , world                : &World
-    , controller           : controller::text::Handle
-    , keyboard_actions     : &mut KeyboardActions) -> Self {
-        let scene        = world.scene();
-        let camera       = scene.camera();
-        let screen       = camera.screen();
-        let mut fonts    = FontRegistry::new();
-        let font         = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-        let padding      = default();
-        let position     = zero();
-        let size         = Vector2::new(screen.width, screen.height);
-        let black        = Vector4::new(0.0,0.0,0.0,1.0);
-        let base_color   = black;
-        let text_size    = 16.0;
-        let properties   = TextFieldProperties {font,text_size,base_color,size};
-        let text_field   = TextField::new(&world,properties);
+    ( logger           : &Logger
+    , world            : &World
+    , controller       : controller::text::Handle
+    , keyboard_actions : &mut KeyboardActions) -> Self {
+        let logger     = logger.sub("TextEditor");
+        let scene      = world.scene();
+        let camera     = scene.camera();
+        let screen     = camera.screen();
+        let mut fonts  = FontRegistry::new();
+        let font       = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+        let padding    = default();
+        let position   = zero();
+        let size       = Vector2::new(screen.width, screen.height);
+        let black      = Vector4::new(0.0,0.0,0.0,1.0);
+        let base_color = black;
+        let text_size  = 16.0;
+        let properties = TextFieldProperties {font,text_size,base_color,size};
+        let text_field = TextField::new(&world,properties);
 
         let content_future       = controller.read_content();
         let text_field_weak      = text_field.downgrade();
-        let notification_service = notification_service.clone();
-        let notification         = notification_service.clone();
+        let logger_ref           = logger.clone();
         executor::global::spawn(async move {
             if let Ok(content) = content_future.await {
                 if let Some(text_field) = text_field_weak.upgrade() {
                     text_field.set_content(&content);
-                    notification.info("File loaded");
+                    logger_ref.info("File loaded");
                 }
             }
         });
         world.add_child(&text_field);
 
-        let data = TextEditorData
-            {controller,text_field,padding,position,size,notification_service};
+        let data = TextEditorData {controller,text_field,padding,position,size,logger};
         Self::new_from_data(data).initialize(keyboard_actions)
     }
 

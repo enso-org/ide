@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
-use crate::view::notification::NotificationService;
 
 use basegl::control::callback::CallbackHandle;
 use basegl::control::io::keyboard::listener::KeyboardFrpBindings;
@@ -47,7 +46,6 @@ shared! { ProjectView
         layout            : ViewLayout,
         resize_callback   : Option<CallbackHandle>,
         controller        : controller::project::Handle,
-        notification      : NotificationService,
         keyboard          : Keyboard,
         keyboard_bindings : KeyboardFrpBindings,
         keyboard_actions  : KeyboardActions
@@ -68,16 +66,14 @@ impl ProjectView {
         let text_controller      = controller.open_text_file(path);
         let world                = WorldData::new(&web::body());
         let logger               = logger.sub("ProjectView");
-        let notification         = NotificationService::new(&logger);
         let keyboard             = Keyboard::default();
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = KeyboardActions::new(&keyboard);
         let resize_callback      = None;
         let layout               = ViewLayout::new
-            (&mut keyboard_actions,&notification,&logger,&world,text_controller);
+            (&logger,&mut keyboard_actions,&world,text_controller);
         let data = ProjectViewData
-            {world,layout,resize_callback,controller,notification,keyboard,keyboard_bindings,
-             keyboard_actions};
+            {world,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
         Self::new_from_data(data).init()
     }
 

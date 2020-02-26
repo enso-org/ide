@@ -13,4 +13,3 @@ pub mod temporary_panel;
 pub mod project;
 pub mod layout;
 pub mod text_editor;
-pub mod notification;
