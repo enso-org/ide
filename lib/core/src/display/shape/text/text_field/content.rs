@@ -166,10 +166,12 @@ impl TextChange {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct TextFieldContent {
-    pub lines       : Vec<Line>,
-    pub dirty_lines : DirtyLines,
-    pub font        : FontHandle,
-    pub line_height : f32,
+    pub dirty_lines  : DirtyLines,
+    pub font         : FontHandle,
+    pub line_height  : f32,
+    lines            : Vec<Line>,
+    /// This field caches the position of beginning of each line.
+    line_offsets: Vec<usize>,
 }
 
 impl TextFieldContent {
@@ -178,10 +180,11 @@ impl TextFieldContent {
     /// The text will be split to lines by `'\n'` characters.
     pub fn new(text:&str, properties:&TextFieldProperties) -> Self {
         TextFieldContent {
-            line_height : properties.text_size,
-            lines       : Self::split_to_lines(text).map(Line::new).collect(),
-            dirty_lines : DirtyLines::default(),
-            font        : properties.font.clone_ref(),
+            line_height  : properties.text_size,
+            lines        : Self::split_to_lines(text).map(Line::new).collect(),
+            dirty_lines  : DirtyLines::default(),
+            font         : properties.font.clone_ref(),
+            line_offsets : Vec::new(),
         }
     }
 
@@ -226,6 +229,22 @@ impl TextFieldContent {
         }
     }
 
+    /// A `lines` accessor.
+    ///
+    /// It's a little bit quicker than getting specific line by `line` method, because it don't
+    /// need to copy any additional data.
+    pub fn lines(&self) -> &[Line] {
+        self.lines.as_slice()
+    }
+
+    /// A mutablie `lines` accessor.
+    ///
+    /// Please be noted, that this invalidate some cached data.
+    pub fn lines_mut(&mut self) -> &mut Vec<Line> {
+        self.line_offsets.clear();
+        &mut self.lines
+    }
+
     /// Get a handy wrapper for line under index.
     pub fn line(&mut self, index:usize) -> LineFullInfo {
         LineFullInfo {
@@ -260,6 +279,31 @@ impl TextFieldContent {
         let index    = is_valid.and_option_from(|| Some(index as usize));
         index.map(move |i| self.line(i))
     }
+
+    /// Converts location in this text represented by `row:column` pair to absolute char's position
+    /// from document begin.
+    pub fn convert_location_to_char_index(&mut self, location:TextLocation) -> usize {
+        if self.line_offsets.is_empty() {
+            self.line_offsets.push(0);
+        }
+        if self.line_offsets.len() <= location.line {
+            let mut current_char_index = *self.line_offsets.last().unwrap();
+            for line in self.lines.iter().take(location.column).skip(self.line_offsets.len()-1) {
+                current_char_index += line.len();
+                self.line_offsets.push(current_char_index);
+            }
+        }
+        self.line_offsets[location.line] + location.column
+    }
+
+    /// Converts range of locations in this text represented by `row:column` pair to absolute
+    /// char's position from document begin.
+    pub fn convert_location_range_to_char_index(&mut self, range:Range<TextLocation>)
+    -> Range<usize> {
+        let start = self.convert_location_to_char_index(range.start);
+        let end   = self.convert_location_to_char_index(range.end);
+        start..end
+    }
 }
 
 // === Implementing Changes ===
@@ -267,10 +311,14 @@ impl TextFieldContent {
 impl TextFieldContent {
     /// Apply change to content.
     pub fn apply_change(&mut self, change:TextChange) {
+        let first_modified_line = change.replaced.start.line;
         match change.change_type() {
             ChangeType::SingleLine => self.make_simple_change(change),
-            ChangeType::MultiLine => self.make_multiline_change(change),
+            ChangeType::MultiLine  => self.make_multiline_change(change),
         }
+        // Invalidate lines offsets
+        let first_offset_invalidated = first_modified_line + 1;
+        self.line_offsets.resize(first_offset_invalidated,default());
     }
 
     /// Apply many changes to content.
@@ -510,6 +558,27 @@ mod test {
         let two_lines_expected = replaced_range.start..TextLocation{line:2, column:5 };
         assert_eq!(one_line_expected , one_line_change .inserted_text_range());
         assert_eq!(two_lines_expected, two_lines_change.inserted_text_range());
+    }
+
+    #[wasm_bindgen_test(async)]
+    async fn converting_location_to_offset() {
+        msdf_sys::initialized().await;
+        let text             = "First\nSecond\nThird";
+        let mut content      = TextFieldContent::new(text,&mock_properties());
+
+        assert_eq!(0 , content.convert_location_to_char_index(TextLocation{line:0, column:0}));
+        assert_eq!(2 , content.convert_location_to_char_index(TextLocation{line:0, column:2}));
+        assert_eq!(5 , content.convert_location_to_char_index(TextLocation{line:0, column:5}));
+        assert_eq!(6 , content.convert_location_to_char_index(TextLocation{line:1, column:0}));
+        assert_eq!(12, content.convert_location_to_char_index(TextLocation{line:1, column:6}));
+        assert_eq!(18, content.convert_location_to_char_index(TextLocation{line:2, column:5}));
+
+        let removed_range = TextLocation{line:1, column:1}..TextLocation{line:1, column:3};
+        let change        = TextChange::delete(removed_range);
+        content.apply_change(change);
+
+        assert_eq!(10, content.convert_location_to_char_index(TextLocation{line:1, column:4}));
+        assert_eq!(16, content.convert_location_to_char_index(TextLocation{line:2, column:5}));
     }
 
     fn get_lines_as_strings(content:&TextFieldContent) -> Vec<String> {

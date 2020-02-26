@@ -28,6 +28,20 @@ use crate::display::world::World;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+use std::ops::Range;
+
+
+
+// ===============================
+// === TextChangedNotification ===
+// ===============================
+
+#[derive(Clone,Debug)]
+pub struct TextChangedNotification {
+    pub replaced_range      : Range<TextLocation>,
+    pub replaced_range_char : Range<usize>,
+    pub inserted_string     : String,
+}
 
 
 
@@ -79,7 +93,7 @@ shared! { TextField
         display_object       : DisplayObjectData,
         frp                  : Option<TextFieldFrp>,
         #[derivative(Debug="ignore")]
-        text_change_callback : Option<CallbackMut1<TextChange>>
+        text_change_callback : Option<CallbackMut1<TextChangedNotification>>
     }
 
     impl {
@@ -149,8 +163,8 @@ shared! { TextField
 
         /// Make change in text content.
         ///
-        /// As an opposite to `edit` function, here we don't care about cursors, just do the change
-        /// described in `TextChange` structure.
+        /// As an opposite to `edit` function, here we don't care about cursors, nor call any
+        /// "text changed" callback, just do the change described in `TextChange` structure.
         pub fn apply_change(&mut self, change:TextChange) {
             self.content.apply_change(change);
             self.assignment_update().update_after_text_edit();
@@ -183,6 +197,14 @@ shared! { TextField
             let y_range  = (position.y - size.y) ..= position.y;
             x_range.contains(&point.x) && y_range.contains(&point.y)
         }
+
+        /// Set text edit callback.
+        ///
+        /// This callback will one each `write` function call and all functions using it. That's
+        /// include all edits being an effect of keyboard or mouse event.
+        pub fn set_text_edit_callback(&mut self, callback:CallbackMut1<TextChangedNotification>) {
+            self.text_change_callback = Some(callback)
+        }
     }
 }
 
@@ -202,9 +224,7 @@ impl TextField {
         let rc   = Rc::new(RefCell::new(data));
         let this = Self {rc};
         let frp  = TextFieldFrp::new(world,this.downgrade());
-        this.with_borrowed(move |mut data| {
-            data.frp = Some(frp);
-        });
+        this.with_borrowed(move |mut data| { data.frp = Some(frp); });
         this
     }
 }
@@ -277,17 +297,21 @@ impl TextField {
         let mut location_change = TextLocationChange::default();
         let mut opt_callback    = self.with_borrowed(|this| std::mem::take(&mut this.text_change_callback));
         for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
-            let change = self.with_borrowed(|this| {
+            let notification = self.with_borrowed(|this| {
                 let cursor   = &mut this.cursors.cursors[cursor_id];
                 let replaced = location_change.apply_to_range(cursor.selection_range());
-                let change   = TextChange::replace(replaced,to_insert);
+                let change   = TextChange::replace(replaced.clone(),to_insert);
                 location_change.add_change(&change);
                 *cursor = Cursor::new(change.inserted_text_range().end);
                 this.content.apply_change(change.clone());
-                change
+                TextChangedNotification {
+                    replaced_range: replaced.clone(),
+                    replaced_range_char: this.content.convert_location_range_to_char_index(replaced),
+                    inserted_string: to_insert.to_string(),
+                }
             });
             if let Some(callback) = opt_callback.as_mut() {
-                callback(&change);
+                callback(&notification);
             }
         }
         self.with_borrowed(|this| {

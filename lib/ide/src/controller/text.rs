@@ -14,7 +14,7 @@ use flo_stream::Publisher;
 use flo_stream::Subscriber;
 use json_rpc::error::RpcError;
 use shapely::shared;
-
+use basegl::display::shape::text::text_field::TextChangedNotification;
 
 
 // ====================
@@ -100,6 +100,17 @@ impl Handle {
         match self.file_handle() {
             FileHandle::PlainText {path,mut file_manager} => file_manager.write(path,content),
             FileHandle::Module {..}                       => todo!(),
+        }
+    }
+
+    /// Apply text change.
+    ///
+    /// This function should be called by view on every user interaction changing the text content
+    /// of file. It will e.g. update the Module Controller state and notify other views about
+    /// update in case of module files.
+    pub fn apply_text_change(&self, change:TextChangedNotification) {
+        if let FileHandle::Module {controller} =  self.file_handle() {
+            controller.apply_code_change(change);
         }
     }
 }

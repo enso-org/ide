@@ -142,24 +142,24 @@ impl<'a> CursorNavigation<'a> {
     pub fn line_end_position(&self, line_index:usize) -> TextLocation {
         TextLocation {
             line   : line_index,
-            column : self.content.lines[line_index].len(),
+            column : self.content.lines()[line_index].len(),
         }
     }
 
     /// Get cursor position at end of whole content
     pub fn content_end_position(&self) -> TextLocation {
         TextLocation {
-            column : self.content.lines.last().unwrap().len(),
-            line   : self.content.lines.len() - 1,
+            column : self.content.lines().last().unwrap().len(),
+            line   : self.content.lines().len() - 1,
         }
     }
 
     /// Get cursor position for the next char from given position. Returns none if at end of
     /// whole document.
     pub fn next_char_position(&self, position:&TextLocation) -> Option<TextLocation> {
-        let current_line = &self.content.lines[position.line];
+        let current_line = &self.content.lines()[position.line];
         let next_column  = Some(position.column + 1).filter(|c| *c <= current_line.len());
-        let next_line    = Some(position.line + 1)  .filter(|l| *l < self.content.lines.len());
+        let next_line    = Some(position.line + 1)  .filter(|l| *l < self.content.lines().len());
         match (next_column,next_line) {
             (None         , None      ) => None,
             (None         , Some(line)) => Some(TextLocation::at_line_begin(line)),
@@ -189,7 +189,7 @@ impl<'a> CursorNavigation<'a> {
     /// Get cursor position one line behind the given position, such the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
     pub fn line_down_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
-        let next_line = Some(position.line + 1).filter(|l| *l < self.content.lines.len());
+        let next_line = Some(position.line + 1).filter(|l| *l < self.content.lines().len());
         next_line.map(|line| self.near_same_x_in_another_line(position,line))
     }
 
