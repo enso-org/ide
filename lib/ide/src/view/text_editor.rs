@@ -10,7 +10,6 @@ use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
-use enso_frp::io::Key;
 use enso_frp::io::KeyboardActions;
 use enso_frp::io::KeyMask;
 use nalgebra::Vector2;
@@ -39,11 +38,11 @@ pub struct TextEditorData {
 impl {
     /// Saves text editor's content to file.
     pub fn save(&self) {
-        let controller   = self.controller.clone();
-        let file_path    = controller.file_path();
-        let text         = self.text_field.get_content();
-        let store_fut    = controller.store_content(text);
-        let logger       = self.logger.clone();
+        let controller = self.controller.clone();
+        let file_path  = controller.file_path();
+        let text       = self.text_field.get_content();
+        let store_fut  = controller.store_content(text);
+        let logger     = self.logger.clone();
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
                 let message:&str = &format!("Failed to save file: {}", file_path);
@@ -77,9 +76,9 @@ impl TextEditor {
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(&world,properties);
 
-        let content_future       = controller.read_content();
-        let text_field_weak      = text_field.downgrade();
-        let logger_ref           = logger.clone();
+        let content_future  = controller.read_content();
+        let text_field_weak = text_field.downgrade();
+        let logger_ref      = logger.clone();
         executor::global::spawn(async move {
             if let Ok(content) = content_future.await {
                 if let Some(text_field) = text_field_weak.upgrade() {
@@ -95,8 +94,8 @@ impl TextEditor {
     }
 
     fn initialize(self, keyboard_actions:&mut KeyboardActions) -> Self {
-        let save_keys:KeyMask = [Key::Control, Key::Character("s".to_string())].iter().collect();
-        let text_editor       = Rc::downgrade(&self.rc);
+        let save_keys   = KeyMask::new_control_character('s');
+        let text_editor = Rc::downgrade(&self.rc);
         keyboard_actions.set_action(save_keys,move |_| {
             if let Some(text_editor) = text_editor.upgrade() {
                 text_editor.borrow().save();

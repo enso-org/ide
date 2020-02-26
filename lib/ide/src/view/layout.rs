@@ -8,7 +8,6 @@ use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 
 use basegl::display::world::World;
-use enso_frp::io::Key;
 use enso_frp::io::KeyboardActions;
 use enso_frp::io::KeyMask;
 use nalgebra::zero;
@@ -110,10 +109,10 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( logger               : &Logger
-    , kb_actions           : &mut KeyboardActions
-    , world                : &World
-    , controller           : controller::text::Handle
+    ( logger     : &Logger
+    , kb_actions : &mut KeyboardActions
+    , world      : &World
+    , controller : controller::text::Handle
     ) -> Self {
         let logger       = logger.sub("ViewLayout");
         let text_editor  = TextEditor::new(&logger,&world,controller,kb_actions);
@@ -125,9 +124,9 @@ impl ViewLayout {
     }
 
     fn init_keyboard(self, keyboard_actions:&mut KeyboardActions) -> Self {
-        let save_keys:KeyMask = [Key::Control, Key::Character("f".to_string())].iter().collect();
-        let view_layout       = self.clone();
-        keyboard_actions.set_action(save_keys,move |_| {
+        let switch_mode_keys = KeyMask::new_control_character('f');
+        let view_layout = self.clone();
+        keyboard_actions.set_action(switch_mode_keys,move |_| {
             view_layout.switch_layout_mode();
         });
         self
