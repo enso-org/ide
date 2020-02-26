@@ -215,7 +215,7 @@ impl Canvas {
     }
 
     /// Translate the current canvas origin.
-    pub fn translate<V:Into<Var<Vector2<DistanceIn<Pixels>>>>>
+    pub fn translate<V:Into<Var<Vector2<Distance<Pixels>>>>>
     (&mut self, num:usize, s1:CanvasShape, v:V) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let v:Glsl = v.into().glsl();
@@ -229,7 +229,7 @@ impl Canvas {
     }
 
     /// Rotate the current canvas origin.
-    pub fn rotation<A:Into<Var<AngleIn<Radians>>>>
+    pub fn rotation<A:Into<Var<Angle<Radians>>>>
     (&mut self, num:usize, s1:CanvasShape, angle:A) -> CanvasShape {
         self.if_not_defined(num, |this| {
             let angle:Glsl = angle.into().glsl();

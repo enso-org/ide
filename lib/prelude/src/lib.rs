@@ -499,3 +499,10 @@ impl<T> AsOwned for &T {
 pub type Owned<T> = <T as AsOwned>::Owned;
 
 pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
+
+
+
+/// Placeholder type used to represent any value. It is useful to define type-level relations like
+/// defining an unit with any quantity, let it be distance or mass.
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub struct Anything {}

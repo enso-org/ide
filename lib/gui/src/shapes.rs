@@ -71,9 +71,9 @@ pub mod icons {
 }
 
 fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> Shape
-where R : Into<Var<DistanceIn<Pixels>>>,
-      W : Into<Var<DistanceIn<Pixels>>>,
-      A : Into<Var<AngleIn<Radians>>> {
+where R : Into<Var<Distance<Pixels>>>,
+      W : Into<Var<Distance<Pixels>>>,
+      A : Into<Var<Angle<Radians>>> {
     let inner_radius = inner_radius.into();
     let width        = width.into();
     let angle        = angle.into();
@@ -123,7 +123,7 @@ fn nodes2() -> Shape {
     let shadow2       = shadow2.fill(shadow2_color);
 
 
-    let loader_angle : Var<AngleIn<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+    let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
     let loader_angle2 = &loader_angle / 2.0;
     let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
     let loader        = loader.rotate(loader_angle2);

@@ -96,8 +96,8 @@ macro_rules! _define_compound_shape {
 use immutable::*;
 
 define_compound_shapes! {
-    Translate    (child)         (v:Vector2<DistanceIn<Pixels>>)
-    Rotation     (child)         (angle:AngleIn<Radians>)
+    Translate    (child)         (v:Vector2<Distance<Pixels>>)
+    Rotation     (child)         (angle:Angle<Radians>)
     Scale        (child)         (value:f32)
     Union        (child1,child2) ()
     Difference   (child1,child2) ()

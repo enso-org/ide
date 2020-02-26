@@ -163,7 +163,7 @@ define_sdf_shapes! {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
-    PlaneAngle (angle:AngleIn<Radians>) {
+    PlaneAngle (angle:Angle<Radians>) {
         float v_angle  = value(angle);
         float distance = abs(position).x*cos(v_angle/2.0) + -position.y*sin(v_angle/2.0) + 0.5;
         return bound_sdf(distance,bounding_box(0.0,0.0));
@@ -176,7 +176,7 @@ define_sdf_shapes! {
 
     // === Ellipse ===
 
-    Circle (radius:DistanceIn<Pixels>) {
+    Circle (radius:Distance<Pixels>) {
         return bound_sdf(length(position)-radius, bounding_box(radius,radius));
     }
 
@@ -192,14 +192,14 @@ define_sdf_shapes! {
 
     // === Rectangle ===
 
-    Rect (size:Vector2<DistanceIn<Pixels>>) {
+    Rect (size:Vector2<Distance<Pixels>>) {
         vec2  dir  = abs(position) - size/2.0;
         float dist = max(min(dir,0.0)) + length(max(dir,0.0));
         return bound_sdf(dist,bounding_box(size));
     }
 
     RoundedRectByCorner
-    (size:Vector2<DistanceIn<Pixels>>, top_left:DistanceIn<Pixels>, top_right:DistanceIn<Pixels>, bottom_left:DistanceIn<Pixels>, bottom_right:DistanceIn<Pixels>) {
+    (size:Vector2<Distance<Pixels>>, top_left:Distance<Pixels>, top_right:Distance<Pixels>, bottom_left:Distance<Pixels>, bottom_right:Distance<Pixels>) {
         size /= 2.0;
 
         float tl = top_left;
@@ -237,7 +237,7 @@ define_sdf_shapes! {
 
 impl Plane {
     /// Cuts angle from the plane.
-    pub fn angle<T:Into<Var<AngleIn<Radians>>>>(&self, t:T) -> PlaneAngle {
+    pub fn angle<T:Into<Var<Angle<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
     }
 }
@@ -245,7 +245,7 @@ impl Plane {
 impl Rect {
     /// Sets the radius of all the corners.
     pub fn corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
-    where T:Into<Var<DistanceIn<Pixels>>> {
+    where T : Into<Var<Distance<Pixels>>> {
         let radius       = radius.into();
         let top_left     = radius.clone();
         let top_right    = radius.clone();
@@ -257,16 +257,16 @@ impl Rect {
     /// Sets the radiuses of each of the corners.
     pub fn corners_radiuses<T1,T2,T3,T4>
     (&self, top_left:T1, top_right:T2, bottom_left:T3, bottom_right:T4) -> RoundedRectByCorner
-    where T1 : Into<Var<DistanceIn<Pixels>>> ,
-          T2 : Into<Var<DistanceIn<Pixels>>> ,
-          T3 : Into<Var<DistanceIn<Pixels>>> ,
-          T4 : Into<Var<DistanceIn<Pixels>>> {
+    where T1 : Into<Var<Distance<Pixels>>> ,
+          T2 : Into<Var<Distance<Pixels>>> ,
+          T3 : Into<Var<Distance<Pixels>>> ,
+          T4 : Into<Var<Distance<Pixels>>> {
         RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
     }
 
     /// Sets the radiuses of the left corners.
     pub fn left_corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
-    where T:Into<Var<DistanceIn<Pixels>>> {
+    where T : Into<Var<Distance<Pixels>>> {
         let radius       = radius.into();
         let top_left     = radius.clone();
         let bottom_left  = radius;
@@ -277,7 +277,7 @@ impl Rect {
 
     /// Sets the radiuses of the right corners.
     pub fn right_corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
-        where T:Into<Var<DistanceIn<Pixels>>> {
+        where T : Into<Var<Distance<Pixels>>> {
         let radius       = radius.into();
         let top_left     = 0.px();
         let bottom_left  = 0.px();

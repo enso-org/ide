@@ -10,7 +10,6 @@ use crate::system::gpu::types::*;
 use nalgebra::Scalar;
 
 use crate::math::topology::unit::Unit;
-use crate::math::topology::unit::Anything;
 use crate::data::color;
 
 use std::ops::Sub;

@@ -10,9 +10,9 @@ use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::types::*;
 use crate::data::color::*;
 
-use crate::math::topology::unit::DistanceIn;
+use crate::math::topology::unit::Distance;
 use crate::math::topology::unit::Pixels;
-use crate::math::topology::unit::AngleIn;
+use crate::math::topology::unit::Angle;
 use crate::math::topology::unit::Radians;
 
 use std::ops::Sub;
@@ -99,24 +99,24 @@ impl    ShapeOps for Shape {}
 /// Methods implemented by every shape.
 pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
     /// Translate the shape by a given offset.
-    fn translate<V:Into<Var<Vector2<DistanceIn<Pixels>>>>>(&self, v:V) -> Translate<Self> {
+    fn translate<V:Into<Var<Vector2<Distance<Pixels>>>>>(&self, v:V) -> Translate<Self> {
         Translate(self,v)
     }
 
     /// Translate the shape along X-axis by a given offset.
     fn translate_x<X>(&self, x:X) -> Translate<Self>
-        where (X,Var<DistanceIn<Pixels>>) : Into<Var<Vector2<DistanceIn<Pixels>>>> {
+        where (X,Var<Distance<Pixels>>) : Into<Var<Vector2<Distance<Pixels>>>> {
         self.translate((x,0.px()))
     }
 
     /// Translate the shape along Y-axis by a given offset.
     fn translate_y<Y>(&self, y:Y) -> Translate<Self>
-        where (Var<DistanceIn<Pixels>>,Y) : Into<Var<Vector2<DistanceIn<Pixels>>>> {
+        where (Var<Distance<Pixels>>,Y) : Into<Var<Vector2<Distance<Pixels>>>> {
         self.translate((0.px(),y))
     }
 
     /// Rotate the shape by a given angle.
-    fn rotate<A:Into<Var<AngleIn<Radians>>>>(&self, angle:A) -> Rotation<Self> {
+    fn rotate<A:Into<Var<Angle<Radians>>>>(&self, angle:A) -> Rotation<Self> {
         Rotation(self,angle)
     }
 
