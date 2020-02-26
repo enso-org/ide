@@ -7,13 +7,15 @@ use crate::view::layout::ViewLayout;
 use crate::view::notification::NotificationService;
 
 use basegl::control::callback::CallbackHandle;
+use basegl::control::io::keyboard::listener::KeyboardFrpBindings;
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
 use basegl::system::web;
+use enso_frp::Keyboard;
+use enso_frp::KeyboardActions;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-
 
 
 // =================
@@ -41,11 +43,14 @@ shared! { ProjectView
     /// GraphEditor.
     #[derive(Debug)]
     pub struct ProjectViewData {
-        world           : World,
-        layout          : ViewLayout,
-        resize_callback : Option<CallbackHandle>,
-        controller      : controller::project::Handle,
-        notification    : NotificationService
+        world             : World,
+        layout            : ViewLayout,
+        resize_callback   : Option<CallbackHandle>,
+        controller        : controller::project::Handle,
+        notification      : NotificationService,
+        keyboard          : Keyboard,
+        keyboard_bindings : KeyboardFrpBindings,
+        keyboard_actions  : KeyboardActions
     }
 
     impl {
@@ -59,14 +64,24 @@ shared! { ProjectView
 impl ProjectView {
     /// Create a new ProjectView.
     pub fn new(logger:&Logger, controller:controller::project::Handle) -> Self {
-        let path            = Path::new(INITIAL_FILE_PATH);
-        let text_controller = controller.open_text_file(path);
-        let world           = WorldData::new(&web::body());
-        let logger          = logger.sub("ProjectView");
-        let notification    = NotificationService::new(&logger);
-        let layout          = ViewLayout::new(&notification,&logger,&world,text_controller);
-        let resize_callback = None;
-        let data            = ProjectViewData{world,layout,resize_callback,controller,notification};
+        let path                 = Path::new(INITIAL_FILE_PATH);
+        let text_controller      = controller.open_text_file(path);
+        let world                = WorldData::new(&web::body());
+        let logger               = logger.sub("ProjectView");
+        let notification         = NotificationService::new(&logger);
+        let keyboard             = Keyboard::default();
+        let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
+        let mut keyboard_actions = KeyboardActions::new(&keyboard);
+        let resize_callback      = None;
+        let layout               = ViewLayout::new(
+            &mut keyboard_actions,
+            &notification,
+            &logger,
+            &world,
+            text_controller);
+        let data          = ProjectViewData
+            {world,layout,resize_callback,controller,notification,keyboard,keyboard_bindings,
+             keyboard_actions};
         Self::new_from_data(data).init()
     }
 

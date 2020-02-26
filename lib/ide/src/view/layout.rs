@@ -3,19 +3,19 @@
 
 use crate::prelude::*;
 
-use crate::view::KeyboardClosure;
-use crate::view::KeyboardListener;
 use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 
 use basegl::display::world::World;
+use enso_frp::io::Key;
+use enso_frp::io::KeyboardActions;
+use enso_frp::io::KeyMask;
 use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
-use web_sys::KeyboardEvent;
 
 
 
@@ -52,7 +52,6 @@ shared! { ViewLayout
 #[derive(Debug)]
 pub struct ViewLayoutData {
     text_editor  : TextEditor,
-    key_listener : Option<KeyboardListener>,
     layout_mode  : LayoutMode,
     size         : Vector2<f32>,
     logger       : Logger
@@ -112,41 +111,33 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( notification_service : &NotificationService
+    ( key_actions          : &mut KeyboardActions
+    , notification_service : &NotificationService
     , logger               : &Logger
     , world                : &World
     , controller           : controller::text::Handle) -> Self {
-        let text_editor  = TextEditor::new(&notification_service,&world,controller);
-        let key_listener = None;
+        let text_editor  = TextEditor::new(&notification_service,&world,controller,key_actions);
         let layout_mode  = default();
         let size         = zero();
         let logger       = logger.sub("ProjectView");
-        let data         = ViewLayoutData {text_editor,key_listener,layout_mode,size,logger};
+        let data         = ViewLayoutData {text_editor,layout_mode,size,logger};
         let rc           = Rc::new(RefCell::new(data));
-        Self {rc}.init(world)
+        Self {rc}.init(world,key_actions)
     }
 
-    fn init_keyboard(self) -> Self {
-        let view_layout = self.clone();
-        let closure     = move |event:KeyboardEvent| {
-            const F_KEY : u32 = 70;
-            if event.ctrl_key() && event.key_code() == F_KEY {
-                view_layout.switch_layout_mode();
-                event.prevent_default();
-            }
-        };
-        let closure      = Box::new(closure);
-        let callback     = KeyboardClosure::wrap(closure);
-        let logger       = self.rc.borrow().logger.sub("ViewLayout");
-        let key_listener = KeyboardListener::new(&logger,"keydown".into(),callback);
-        self.rc.borrow_mut().key_listener = Some(key_listener);
+    fn init_keyboard(self, keyboard_actions:&mut KeyboardActions) -> Self {
+        let save_keys:KeyMask = [Key::Control, Key::Character("f".to_string())].iter().collect();
+        let view_layout       = self.clone();
+        keyboard_actions.set_action(save_keys,move |_| {
+            view_layout.switch_layout_mode();
+        });
         self
     }
 
-    fn init(self, world:&World) -> Self {
+    fn init(self, world:&World, keyboard_actions:&mut KeyboardActions) -> Self {
         let screen = world.scene().camera().screen();
         let size   = Vector2::new(screen.width,screen.height);
         self.set_size(size);
-        self.init_keyboard()
+        self.init_keyboard(keyboard_actions)
     }
 }

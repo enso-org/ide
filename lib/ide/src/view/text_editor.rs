@@ -2,8 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::view::KeyboardClosure;
-use crate::view::KeyboardListener;
 use crate::view::notification::NotificationService;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
@@ -13,10 +11,11 @@ use basegl::display::shape::text::glyph::font::FontRegistry;
 use basegl::display::shape::text::text_field::TextField;
 use basegl::display::shape::text::text_field::TextFieldProperties;
 use basegl::display::world::*;
-
+use enso_frp::io::Key;
+use enso_frp::io::KeyboardActions;
+use enso_frp::io::KeyMask;
 use nalgebra::Vector2;
 use nalgebra::zero;
-use web_sys::KeyboardEvent;
 
 
 
@@ -35,7 +34,6 @@ pub struct TextEditorData {
     position             : Vector2<f32>,
     size                 : Vector2<f32>,
     controller           : controller::text::Handle,
-    key_listener         : Option<KeyboardListener>,
     notification_service : NotificationService
 }
 
@@ -66,7 +64,8 @@ impl TextEditor {
     pub fn new
     ( notification_service : &NotificationService
     , world                : &World
-    , controller           : controller::text::Handle) -> Self {
+    , controller           : controller::text::Handle
+    , keyboard_actions     : &mut KeyboardActions) -> Self {
         let scene        = world.scene();
         let camera       = scene.camera();
         let screen       = camera.screen();
@@ -80,7 +79,6 @@ impl TextEditor {
         let text_size    = 16.0;
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
-        let key_listener = None;
         let controller_clone     = controller.clone_ref();
         let text_field_clone     = text_field.clone_ref();
         let notification_service = notification_service.clone();
@@ -94,25 +92,18 @@ impl TextEditor {
         world.add_child(&text_field);
 
         let data = TextEditorData
-            {controller,text_field,padding,position,size,key_listener,notification_service};
-        Self::new_from_data(data).initialize()
+            {controller,text_field,padding,position,size,notification_service};
+        Self::new_from_data(data).initialize(keyboard_actions)
     }
 
-    fn initialize(self) -> Self {
-        let text_editor = Rc::downgrade(&self.rc);
-        let closure     = move |event:KeyboardEvent| {
-            const S_KEY : u32 = 83;
-            if event.ctrl_key() && event.key_code() == S_KEY {
-                if let Some(text_editor) = text_editor.upgrade() {
-                    text_editor.borrow().save();
-                }
+    fn initialize(self, keyboard_actions:&mut KeyboardActions) -> Self {
+        let save_keys:KeyMask = [Key::Control, Key::Character("s".to_string())].iter().collect();
+        let text_editor       = Rc::downgrade(&self.rc);
+        keyboard_actions.set_action(save_keys,move |_| {
+            if let Some(text_editor) = text_editor.upgrade() {
+                text_editor.borrow().save();
             }
-        };
-        let closure      = Box::new(closure);
-        let callback     = KeyboardClosure::wrap(closure);
-        let logger       = Logger::new("TextEditor");
-        let key_listener = KeyboardListener::new(&logger,"keydown".into(), callback);
-        self.rc.borrow_mut().key_listener = Some(key_listener);
+        });
         self.update();
         self
     }
