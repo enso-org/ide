@@ -79,14 +79,19 @@ impl TextEditor {
         let text_size    = 16.0;
         let properties   = TextFieldProperties {font,text_size,base_color,size};
         let text_field   = TextField::new(&world,properties);
-        let controller_clone     = controller.clone_ref();
-        let text_field_clone     = text_field.clone_ref();
+
+        let content_future       = controller.read_content();
+        let text_field_weak      = text_field.downgrade();
         let notification_service = notification_service.clone();
         let notification         = notification_service.clone();
         executor::global::spawn(async move {
-            if let Ok(content) = controller_clone.read_content().await {
-                text_field_clone.write(&content);
-                notification.info("File loaded", 1.0, 1.0);
+            if let Ok(content) = content_future.await {
+                if let Some(text_field) = text_field_weak.upgrade() {
+                    text_field.set_content(&content);
+                    let duration = 1.0;
+                    let fade_out = 1.0;
+                    notification.info("File loaded",duration,fade_out);
+                }
             }
         });
         world.add_child(&text_field);

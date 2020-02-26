@@ -190,6 +190,17 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+
+        /// Discards all current content and replaces it with new one.
+        /// Whenever possible, tries to maintain cursor positions.
+        pub fn set_content(&mut self, text:&str) {
+            // FIXME [mwu] This is a provisional stub to allow `TextEditor` use
+            //       proper API. This implementation should correctly remove old
+            //       contents and update the cursors.
+            //       See: https://github.com/luna/ide/issues/187
+            self.write(text)
+        }
+
         /// Remove all text selected by all cursors.
         pub fn remove_selection(&mut self) {
             self.write("");
