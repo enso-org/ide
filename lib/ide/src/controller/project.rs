@@ -80,15 +80,6 @@ impl Handle {
     }
 }
 
-impl Handle {
-    /// Creates a new project controller. Schedules all necessary execution with
-    /// the global executor.
-    pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
-        let data = Controller::new_running(file_manager_transport);
-        Self::new_from_data(data)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
