@@ -1,74 +1,104 @@
-#![allow(missing_docs)]
-
 //! This module defines an abstraction for all types which can be used as GLSL code values.
 
 use crate::prelude::*;
 
+use crate::data::color;
+use crate::math::topology::unit::Unit;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
-
-use crate::math::topology::unit::Unit;
-use crate::data::color;
-
-use std::ops::Sub;
-use std::ops::Mul;
-use std::ops::Div;
-use std::ops::Neg;
+use std::ops::*;
 
 
-//// ==================
-//// === ShaderData ===
-//// ==================
+// ======================
+// === VarInitializer ===
+// ======================
 
-pub trait Initializer<T> = InitializerMarker<T> + Into<Glsl>;
+/// Defines all values which can be used to construct var of a given type. For example,
+/// `Var<i32>` can be constructed from `i32`, `Glsl` code, or just from `&str` for convenient usage.
+/// Please refer to `Var` documentation to understand what it is all about.
+pub trait VarInitializer<T> = VarInitializerMarker<T> + Into<Glsl>;
 
-pub trait InitializerMarker<T> {}
-pub trait InitializerMarkerNested<T> {}
+/// Marker trait for `VarInitializer`.
+pub trait VarInitializerMarker<T> {}
 
 
 // === Instances ===
 
-impl<T> InitializerMarker<Var<T>> for Glsl    {}
-impl<T> InitializerMarker<Var<T>> for &Glsl   {}
-impl<T> InitializerMarker<Var<T>> for String  {}
-impl<T> InitializerMarker<Var<T>> for &String {}
-impl<T> InitializerMarker<Var<T>> for &str    {}
-impl<T> InitializerMarker<Var<T>> for  T      {}
-impl<T> InitializerMarker<Var<T>> for &T      {}
+impl<T> VarInitializerMarker<Var<T>> for Glsl    {}
+impl<T> VarInitializerMarker<Var<T>> for &Glsl   {}
+impl<T> VarInitializerMarker<Var<T>> for String  {}
+impl<T> VarInitializerMarker<Var<T>> for &String {}
+impl<T> VarInitializerMarker<Var<T>> for &str    {}
+impl<T> VarInitializerMarker<Var<T>> for  T      {}
+impl<T> VarInitializerMarker<Var<T>> for &T      {}
 
-impl<E1,E2,T> InitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgb<E2,T>
+impl<E1,E2,T> VarInitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgb<E2,T>
     where E1:color::RgbStandard, E2:color::RgbStandard, T:color::Component {}
 
-impl<E1,E2,T> InitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgba<E2,T>
+impl<E1,E2,T> VarInitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgba<E2,T>
     where E1:color::RgbStandard, E2:color::RgbStandard, T:color::Component {}
 
-impl<E,T,G> InitializerMarker<Var<color::Rgba<E,T>>> for color::SdfSampler<G>
+impl<E,T,G> VarInitializerMarker<Var<color::Rgba<E,T>>> for color::SdfSampler<G>
     where E:color::RgbStandard, T:color::Component {}
 
-impl<T,U,V> InitializerMarker<Var<Unit<T,Anything,V>>> for Unit<T,U,V> where {}
+impl<T,U,V> VarInitializerMarker<Var<Unit<T,Anything,V>>> for Unit<T,U,V> where {}
 
-impl<T,S1,S2> InitializerMarker<Var<Vector2<T>>> for (S1,S2)
-    where T:Scalar, S1:InitializerMarkerNested<Var<T>>, S2:InitializerMarkerNested<Var<T>> {}
-
-
-impl<T,S> InitializerMarkerNested<T> for S where S:InitializerMarker<T> {}
-impl<T> InitializerMarkerNested<Var<T>> for Var<T> {}
-impl<T> InitializerMarkerNested<Var<T>> for &Var<T> {}
+impl<T,S1,S2> VarInitializerMarker<Var<Vector2<T>>> for (S1,S2)
+    where T:Scalar, S1:VarInitializerMarkerNested<Var<T>>, S2:VarInitializerMarkerNested<Var<T>> {}
 
 
-// ==================
-// === ShaderData ===
-// ==================
+// === Nested ===
 
+/// Marker trait for nested cases of `VarInitializer`.
+pub trait VarInitializerMarkerNested<T> {}
+
+impl<T,S> VarInitializerMarkerNested<T>      for S where S:VarInitializerMarker<T> {}
+impl<T>   VarInitializerMarkerNested<Var<T>> for  Var<T> {}
+impl<T>   VarInitializerMarkerNested<Var<T>> for &Var<T> {}
+
+
+
+// ===========
+// === Var ===
+// ===========
+
+/// Var contains either the value it is parametrized with or its GLSL representation.
+///
+/// It is widely used to define shapes. For example, you may want to draw a circle which radius
+/// depend on `time : Var<f32>`. However, the time is not defined in Rust, it is a variable which
+/// lives in GLSL and is passed as uniform to shaders. Thus `time` is defined as
+/// `Var::Dynamic("time".into())`. The idea here is that all operations, like `time * 2.0` should
+/// work no matter if `time` was defined as `GLSL` code or normal Rust value.
 #[derive(Clone,Debug,Display)]
 pub enum Var<T> {
-    Static  (T),
+    /// Static value.
+    Static(T),
+
+    /// Dynamic value expressed as GLSL code.
     Dynamic (Glsl),
 }
 
-impls! {[T:Clone] From<&Var<T>> for Var<T> { |t| { t.clone () } }}
+// === Constructors ===
+
+impl<T,S> From<T> for Var<S>
+    where T : VarInitializer<Var<S>> {
+    default fn from(t:T) -> Self {
+        Self::Dynamic(t.into())
+    }
+}
+
+impl<T> From<T> for Var<T>
+where T : VarInitializer<Var<T>> {
+    fn from(t:T) -> Self {
+        Self::Static(t)
+    }
+}
+
+// === Conversions ===
+
+impls! {[T:Clone] From<&Var<T>> for Var<T> { |t| t.clone() }}
 
 impls! {[T:RefInto<Glsl>] From<&Var<T>> for Glsl { |t|
     match t {
@@ -84,23 +114,15 @@ impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
     }
 }}
 
-impl<T,S> From<T> for Var<S>
-where T : Initializer<Var<S>>,
-      S : Initializer<Var<S>> {
-    default fn from(t:T) -> Self {
-        Self::Dynamic(t.into())
-    }
-}
-
-impl<T> From<T> for Var<T>
-where T : Initializer<Var<T>> {
-    fn from(t:T) -> Self {
-        Self::Static(t)
-    }
-}
 
 
+// =================
 // === Operators ===
+// =================
+
+// The whole code in this section defines operators such as `+`, `-`, or `*` for the `Var<T>` type.
+// Unfortunately, due to lack of abstractions over references and values, we have to generate
+// hundreds of lines of boring code.
 
 macro_rules! define_operator_newtype {
     ( $name:ident $fn:ident $base:ident where [$($bounds:tt)*] {
