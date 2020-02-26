@@ -3,6 +3,8 @@
 use crate::prelude::*;
 
 use crate::debug::stats::Stats;
+use crate::system::web;
+
 use js_sys::ArrayBuffer;
 use js_sys::WebAssembly::Memory;
 use std::collections::VecDeque;
@@ -152,8 +154,7 @@ impl Default for Monitor {
         let is_first_draw       = true;
         let config              = user_config.to_js_config();
 
-        let dom = document().create_element("div").unwrap();
-        let dom: web_sys::HtmlDivElement = dom.dyn_into().unwrap();
+        let dom = web::create_div();
         dom.set_attribute("style", "position:absolute;").unwrap();
         body().prepend_with_node_1(&dom).unwrap();
 

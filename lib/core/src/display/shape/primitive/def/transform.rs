@@ -15,7 +15,6 @@ use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::def::var::Var;
-use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 use crate::math::topology::metric::*;
 use crate::data::color::*;

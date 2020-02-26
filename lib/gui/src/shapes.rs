@@ -46,23 +46,23 @@ pub mod icons {
     use super::*;
 
     pub fn history() -> Shape {
-        let radius_diff   = 0.5.px();
-        let corner_radius = 2.0.px();
-        let width_diff    = &corner_radius * 3.0;
-        let offset        = 2.px();
-        let width         = 32.px();
-        let height        = 16.px();
-        let persp_diff1   = 6.px();
+        let radius_diff    = 0.5.px();
+        let corners_radius = 2.0.px();
+        let width_diff     = &corners_radius * 3.0;
+        let offset         = 2.px();
+        let width          = 32.px();
+        let height         = 16.px();
+        let persp_diff1    = 6.px();
 
-        let width2         = &width  - &width_diff;
-        let width3         = &width2 - &width_diff;
-        let corner_radius2 = &corner_radius  - &radius_diff;
-        let corner_radius3 = &corner_radius2 - &radius_diff;
-        let persp_diff2    = &persp_diff1 * 2.0;
+        let width2          = &width  - &width_diff;
+        let width3          = &width2 - &width_diff;
+        let corners_radius2 = &corners_radius  - &radius_diff;
+        let corners_radius3 = &corners_radius2 - &radius_diff;
+        let persp_diff2     = &persp_diff1 * 2.0;
 
-        let rect1 = Rect((&width ,&height)).corner_radius(&corner_radius);
-        let rect2 = Rect((&width2,&height)).corner_radius(&corner_radius2).translate_y(&persp_diff1);
-        let rect3 = Rect((&width3,&height)).corner_radius(&corner_radius3).translate_y(&persp_diff2);
+        let rect1 = Rect((&width ,&height)).corners_radius(&corners_radius);
+        let rect2 = Rect((&width2,&height)).corners_radius(&corners_radius2).translate_y(&persp_diff1);
+        let rect3 = Rect((&width3,&height)).corners_radius(&corners_radius3).translate_y(&persp_diff2);
 
         let rect3 = rect3 - rect2.translate_y(&offset);
         let rect2 = rect2 - rect1.translate_y(&offset);
@@ -114,17 +114,18 @@ fn nodes2() -> Shape {
 
 
     let shadow1 = Circle((node_radius + border_size).px());
-    let shadow1_color = Gradient::new()
+    let shadow1_color = LinearGradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-    let shadow1_color = DistanceGradient::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+    let shadow1_color = SdfSampler::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
     let shadow1       = shadow1.fill(shadow1_color);
 
     let shadow2 = Circle((node_radius + border_size).px());
-    let shadow2_color = Gradient::new()
+    let shadow2_color = LinearGradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear());
-    let shadow2_color = DistanceGradient::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+//    let shadow2_color = ExponentSampler::new(shadow2_color);
+    let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
 
@@ -193,7 +194,7 @@ fn init(world: &World) {
         i -= 1;
         if i == 0 {
             println!("now!");
-            shape_system.set_shape(&node_shape2);
+//            shape_system.set_shape(&node_shape2);
         }
         let _keep_alive = &sprite;
 //        let _keep_alive = &sprite_2;

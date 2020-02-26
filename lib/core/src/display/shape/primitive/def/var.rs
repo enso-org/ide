@@ -7,14 +7,9 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
 
-use crate::math::topology::metric;
-use crate::math::topology::metric::DistanceOps;
-use crate::math::topology::metric::DistanceIn;
 use crate::math::topology::metric::Value;
 use crate::math::topology::metric::Unknown;
-use crate::math::topology::metric::Pixels;
 use crate::data::color;
-use crate::data::color::*;
 
 use std::ops::Sub;
 use std::ops::Mul;
@@ -42,13 +37,13 @@ impl<T> InitializerMarker<Var<T>> for &str    {}
 impl<T> InitializerMarker<Var<T>> for  T      {}
 impl<T> InitializerMarker<Var<T>> for &T      {}
 
-impl<E1,E2,T> InitializerMarker<Var<Rgba<E1,T>>> for Rgb<E2,T>
+impl<E1,E2,T> InitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgb<E2,T>
     where E1:color::RgbStandard, E2:color::RgbStandard, T:color::Component {}
 
-impl<E1,E2,T> InitializerMarker<Var<Rgba<E1,T>>> for Rgba<E2,T>
+impl<E1,E2,T> InitializerMarker<Var<color::Rgba<E1,T>>> for color::Rgba<E2,T>
     where E1:color::RgbStandard, E2:color::RgbStandard, T:color::Component {}
 
-impl<E,T,G> InitializerMarker<Var<Rgba<E,T>>> for DistanceGradient<G>
+impl<E,T,G> InitializerMarker<Var<color::Rgba<E,T>>> for color::SdfSampler<G>
     where E:color::RgbStandard, T:color::Component {}
 
 impl<T,U,V> InitializerMarker<Var<Value<T,Unknown,V>>> for Value<T,U,V> where {}
@@ -245,13 +240,6 @@ macro_rules! define_shape_data_string_operator {
         define_shape_data_string_operator_ref!    { $name $fn ($opr) for str }
         define_shape_data_string_operator_no_ref! { $name $fn ($opr) for String }
         define_shape_data_string_operator_no_ref! { $name $fn ($opr) for CowString }
-    }
-}
-
-macro_rules! define_shape_data_string_operator_ref_and_no_ref {
-    ( $name:ident $fn:ident ($opr:tt) for $target:ident ) => {
-        define_shape_data_string_operator_ref!    { $name $fn ($opr) for $target }
-        define_shape_data_string_operator_no_ref! { $name $fn ($opr) for $target }
     }
 }
 

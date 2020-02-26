@@ -19,14 +19,6 @@ use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
 use crate::system::gpu::types::*;
 use crate::math::topology::metric::*;
-use std::ops::{Mul, Sub, Div, Neg};
-
-
-pub trait HasShapeFieldRepr {
-    type ShapeFieldRepr;
-}
-
-pub type ShapeFieldRepr<T> = <T as HasShapeFieldRepr>::ShapeFieldRepr;
 
 
 
@@ -73,7 +65,6 @@ macro_rules! define_sdf_shapes {
             $(_define_sdf_shape_mutable_part! {$name $args $body} )*
         }
 
-        use super::*;
         $(_define_sdf_shape_immutable_part! {$name $args $body} )*
 
         /// GLSL definition of all shapes.
@@ -97,7 +88,6 @@ macro_rules! _define_sdf_shape_immutable_part {
 
         impl Drawable for $name {
             fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
-                $(let foo: Glsl = (&self.$field).into();)*
                 let args = vec!["position".to_string(), $(self.$field.glsl().into()),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
                 canvas.define_shape(self.id(),&code)
@@ -118,6 +108,7 @@ macro_rules! _define_sdf_shape_immutable_part {
         impl AsOwned for $name { type Owned = $name; }
 
         impl $name {$(
+            /// Field accessor.
             pub fn $field(&self) -> &Var<$field_type> {
                 &self.unwrap().$field
             }
@@ -245,36 +236,54 @@ define_sdf_shapes! {
 }
 
 
-#[derive(Clone,Debug)]
-pub struct RectCornerRadius {
-    pub top_left     : Var<DistanceIn<Pixels>>,
-    pub top_right    : Var<DistanceIn<Pixels>>,
-    pub bottom_left  : Var<DistanceIn<Pixels>>,
-    pub bottom_right : Var<DistanceIn<Pixels>>,
-}
-
-impl<T:Into<Var<DistanceIn<Pixels>>>> From<T> for RectCornerRadius {
-    fn from(t:T) -> Self {
-        let t = t.into();
-        let value = iformat!("vec4({t.glsl()})");
-        Self {
-            top_left     : iformat!("{value}.x").into(),
-            top_right    : iformat!("{value}.y").into(),
-            bottom_left  : iformat!("{value}.x").into(),
-            bottom_right : iformat!("{value}.y").into(),
-        }
-    }
-}
-
 impl Plane {
+    /// Cuts angle from the plane.
     pub fn angle<T:Into<Var<AngleIn<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
     }
 }
 
 impl Rect {
-    pub fn corner_radius<C:Into<RectCornerRadius>>(&self, cfg:C) -> RoundedRectByCorner {
-        let cfg = cfg.into();
-        RoundedRectByCorner(self.size(),cfg.top_left,cfg.top_right,cfg.bottom_left,cfg.bottom_right)
+    /// Sets the radius of all the corners.
+    pub fn corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
+    where T:Into<Var<DistanceIn<Pixels>>> {
+        let radius       = radius.into();
+        let top_left     = radius.clone();
+        let top_right    = radius.clone();
+        let bottom_left  = radius.clone();
+        let bottom_right = radius;
+        RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
+    }
+
+    /// Sets the radiuses of each of the corners.
+    pub fn corners_radiuses<T1,T2,T3,T4>
+    (&self, top_left:T1, top_right:T2, bottom_left:T3, bottom_right:T4) -> RoundedRectByCorner
+    where T1 : Into<Var<DistanceIn<Pixels>>> ,
+          T2 : Into<Var<DistanceIn<Pixels>>> ,
+          T3 : Into<Var<DistanceIn<Pixels>>> ,
+          T4 : Into<Var<DistanceIn<Pixels>>> {
+        RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
+    }
+
+    /// Sets the radiuses of the left corners.
+    pub fn left_corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
+    where T:Into<Var<DistanceIn<Pixels>>> {
+        let radius       = radius.into();
+        let top_left     = radius.clone();
+        let bottom_left  = radius;
+        let top_right    = 0.px();
+        let bottom_right = 0.px();
+        RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
+    }
+
+    /// Sets the radiuses of the right corners.
+    pub fn right_corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
+        where T:Into<Var<DistanceIn<Pixels>>> {
+        let radius       = radius.into();
+        let top_left     = 0.px();
+        let bottom_left  = 0.px();
+        let top_right    = radius.clone();
+        let bottom_right = radius;
+        RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
     }
 }
