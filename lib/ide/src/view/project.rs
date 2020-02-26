@@ -3,15 +3,32 @@
 
 use crate::prelude::*;
 
-use super::layout::ViewLayout;
+use crate::view::layout::ViewLayout;
 
+use basegl::control::callback::CallbackHandle;
+use basegl::control::io::keyboard::listener::KeyboardFrpBindings;
 use basegl::display::world::WorldData;
 use basegl::display::world::World;
 use basegl::system::web;
-use basegl::control::callback::CallbackHandle;
-
+use enso_frp::Keyboard;
+use enso_frp::KeyboardActions;
+use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
+
+
+// =================
+// === Constants ===
+// =================
+
+/// Path of the file that is initially opened in project view.
+///
+/// TODO [mwu] Path of the file that will be initially opened in the text editor.
+///      Provisionally the Project View is hardcoded to open with a single text
+///      editor and it will be connected with a file under this path.
+///      To be replaced with better mechanism once we decide how to describe
+///      default initial layout for the project.
+const INITIAL_FILE_PATH:&str = "initial_file.txt";
 
 
 
@@ -25,9 +42,13 @@ shared! { ProjectView
     /// GraphEditor.
     #[derive(Debug)]
     pub struct ProjectViewData {
-        world           : World,
-        layout          : ViewLayout,
-        resize_callback: Option<CallbackHandle>
+        world             : World,
+        layout            : ViewLayout,
+        resize_callback   : Option<CallbackHandle>,
+        controller        : controller::project::Handle,
+        keyboard          : Keyboard,
+        keyboard_bindings : KeyboardFrpBindings,
+        keyboard_actions  : KeyboardActions
     }
 
     impl {
@@ -38,20 +59,22 @@ shared! { ProjectView
     }
 }
 
-impl Default for ProjectViewData {
-    fn default() -> Self {
-        let world           = WorldData::new(&web::body());
-        let layout          = ViewLayout::default(&world);
-        let resize_callback = None;
-        ProjectViewData{world,layout,resize_callback}
-    }
-}
-
 impl ProjectView {
-    /// Create new ProjectView.
-    pub fn new() -> Self {
-        let data = default();
-        Self{rc:data}.init()
+    /// Create a new ProjectView.
+    pub fn new(logger:&Logger, controller:controller::project::Handle) -> Self {
+        let path                 = Path::new(INITIAL_FILE_PATH);
+        let text_controller      = controller.open_text_file(path);
+        let world                = WorldData::new(&web::body());
+        let logger               = logger.sub("ProjectView");
+        let keyboard             = Keyboard::default();
+        let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
+        let mut keyboard_actions = KeyboardActions::new(&keyboard);
+        let resize_callback      = None;
+        let layout               = ViewLayout::new
+            (&logger,&mut keyboard_actions,&world,text_controller);
+        let data = ProjectViewData
+            {world,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
+        Self::new_from_data(data).init()
     }
 
     fn init(self) -> Self {
@@ -71,11 +94,5 @@ impl ProjectView {
     /// Forgets ProjectView, so it won't get dropped when it goes out of scope.
     pub fn forget(self) {
         std::mem::forget(self)
-    }
-}
-
-impl Default for ProjectView {
-    fn default() -> Self {
-        Self::new()
     }
 }
