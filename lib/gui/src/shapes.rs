@@ -10,11 +10,6 @@ use basegl::display::symbol::geometry::Sprite;
 use basegl::display::shape::primitive::system::ShapeSystem;
 use basegl::display::shape::*;
 use basegl::display::world::*;
-//use basegl::math::topology::metric::*;
-use basegl::system::web::set_stdout;
-use basegl::system::web::set_stack_trace_limit;
-use basegl::system::web::forward_panic_hook_to_console;
-use basegl::display::shape::primitive::def::*;
 
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
@@ -30,15 +25,14 @@ use basegl::control::io::mouse2::MouseManager;
 use basegl::data::color::*;
 
 use basegl::display::shape::Var;
-use basegl::math::topology::metric::Angle;
 
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_shapes() {
-    forward_panic_hook_to_console();
-    set_stdout();
-    set_stack_trace_limit();
+    web::forward_panic_hook_to_console();
+    web::set_stdout();
+    web::set_stack_trace_limit();
     init(&WorldData::new(&web::body()));
 }
 
@@ -104,21 +98,21 @@ fn nodes2() -> Shape {
     let node_radius = 32.0;
     let border_size = 16.0;
     let node   = Circle(node_radius.px());
-    let border = Circle((node_radius + border_size).px());
+//    let border = Circle((node_radius + border_size).px());
     let node   = node.fill(Srgb::new(0.97,0.96,0.95));
 //    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
-    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
+//    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
 
     let bg   = Circle((node_radius*2.0).px());
     let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
 
-    let shadow1 = Circle((node_radius + border_size).px());
-    let shadow1_color = LinearGradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-    let shadow1_color = SdfSampler::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
-    let shadow1       = shadow1.fill(shadow1_color);
+//    let shadow1 = Circle((node_radius + border_size).px());
+//    let shadow1_color = LinearGradient::new()
+//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
+//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+//    let shadow1_color = SdfSampler::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+//    let shadow1       = shadow1.fill(shadow1_color);
 
     let shadow2 = Circle((node_radius + border_size).px());
     let shadow2_color = LinearGradient::new()
@@ -156,7 +150,7 @@ fn init(world: &World) {
 
 
     let node_shape =     nodes2();
-    let node_shape2 =     nodes3();
+    let _node_shape2 =     nodes3();
 
     let shape_system =     ShapeSystem::new(world,&node_shape);
 
@@ -176,7 +170,7 @@ fn init(world: &World) {
         t.y += screen.height / 2.0 + 20.0;
     });
 
-    let sprite2 = sprite.clone();
+    let _sprite2 = sprite.clone();
 
 
     world.add_child(&shape_system);

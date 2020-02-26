@@ -6,6 +6,7 @@ pub mod transform;
 pub mod metric;
 pub mod var;
 
+/// Common types.
 pub mod export {
     pub use super::var::*;
     pub use super::class::Shape;

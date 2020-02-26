@@ -8,9 +8,8 @@ use crate::prelude::*;
 
 use inflector::Inflector;
 
-use crate::display::shape::primitive::def::class::AsOwned;
-use crate::display::shape::primitive::def::class::Drawable;
 use crate::display::shape::primitive::def::class::ShapeRef;
+use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::Var;
@@ -86,7 +85,7 @@ macro_rules! _define_sdf_shape_immutable_part {
             ShapeRef::new(mutable::$name::new($($field),*))
         }
 
-        impl Drawable for $name {
+        impl canvas::Draw for $name {
             fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
                 let args = vec!["position".to_string(), $(self.$field.glsl().into()),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);

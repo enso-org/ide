@@ -6,12 +6,9 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::primitive::def::class::Owned;
-use crate::display::shape::primitive::def::class::AsOwned;
-use crate::display::shape::primitive::def::class::IntoOwned;
-use crate::display::shape::primitive::def::class::Drawable;
 use crate::display::shape::primitive::def::class::Shape;
 use crate::display::shape::primitive::def::class::ShapeRef;
+use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::def::var::Var;
@@ -82,7 +79,7 @@ macro_rules! _define_compound_shape {
             type Owned = $name<$($shape_field),*>;
         }
 
-        impl<$($shape_field:Drawable),*> From<$name<$($shape_field),*>> for Shape {
+        impl<$($shape_field:'static+canvas::Draw),*> From<$name<$($shape_field),*>> for Shape {
             fn from(t:$name<$($shape_field),*>) -> Self {
                 Self::new(t)
             }
@@ -110,28 +107,28 @@ define_compound_shapes! {
 }
 
 
-impl<Child:Drawable> Drawable for Translate<Child> {
+impl<Child:canvas::Draw> canvas::Draw for Translate<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
         canvas.translate(self.id(),s1,&self.v)
     }
 }
 
-impl<Child:Drawable> Drawable for Rotation<Child> {
+impl<Child:canvas::Draw> canvas::Draw for Rotation<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
         canvas.rotation(self.id(),s1,&self.angle)
     }
 }
 
-impl<Child:Drawable> Drawable for Scale<Child> {
+impl<Child:canvas::Draw> canvas::Draw for Scale<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child.draw(canvas);
         canvas.scale(self.id(),s1,&self.value)
     }
 }
 
-impl<Child1:Drawable,Child2:Drawable> Drawable for Union<Child1,Child2> {
+impl<Child1:canvas::Draw,Child2:canvas::Draw> canvas::Draw for Union<Child1,Child2> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
@@ -139,7 +136,7 @@ impl<Child1:Drawable,Child2:Drawable> Drawable for Union<Child1,Child2> {
     }
 }
 
-impl<Child1:Drawable,Child2:Drawable> Drawable for Difference<Child1,Child2> {
+impl<Child1:canvas::Draw,Child2:canvas::Draw> canvas::Draw for Difference<Child1,Child2> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
@@ -147,7 +144,7 @@ impl<Child1:Drawable,Child2:Drawable> Drawable for Difference<Child1,Child2> {
     }
 }
 
-impl<Child1:Drawable,Child2:Drawable> Drawable for Intersection<Child1,Child2> {
+impl<Child1:canvas::Draw,Child2:canvas::Draw> canvas::Draw for Intersection<Child1,Child2> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s1 = self.child1.draw(canvas);
         let s2 = self.child2.draw(canvas);
@@ -155,14 +152,14 @@ impl<Child1:Drawable,Child2:Drawable> Drawable for Intersection<Child1,Child2> {
     }
 }
 
-impl<Child:Drawable> Drawable for Fill<Child> {
+impl<Child:canvas::Draw> canvas::Draw for Fill<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s = self.child.draw(canvas);
         canvas.fill(self.id(),s,&self.color)
     }
 }
 
-impl<Child:Drawable> Drawable for PixelSnap<Child> {
+impl<Child:canvas::Draw> canvas::Draw for PixelSnap<Child> {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         let s = self.child.draw(canvas);
         canvas.pixel_snap(self.id(),s)

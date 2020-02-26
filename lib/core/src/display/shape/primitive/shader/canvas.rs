@@ -281,3 +281,14 @@ impl Canvas {
         })
     }
 }
+
+
+// ============
+// === Draw ===
+// ============
+
+/// Trait for every object which can be drawn on the canvas.
+pub trait Draw: Debug {
+    /// Draw the element on the canvas.
+    fn draw(&self, canvas:&mut Canvas) -> CanvasShape;
+}

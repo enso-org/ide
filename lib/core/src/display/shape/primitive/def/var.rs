@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! This module defines an abstraction for all types which can be used as GLSL code values.
 
 use crate::prelude::*;

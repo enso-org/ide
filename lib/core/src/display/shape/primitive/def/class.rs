@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::display::shape::primitive::def::*;
+use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::def::var::Var;
@@ -23,41 +24,23 @@ use std::ops::Mul;
 // === Shape ===
 // =============
 
-pub trait AsOwned {
-    type Owned;
-}
-
-impl<T> AsOwned for &T {
-    type Owned = T;
-}
-
-pub type Owned<T> = <T as AsOwned>::Owned;
-
-pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
 
 
-
-/// Type of every shape. Under the hood, every shape is `ShapeRef<P>`, however, we do not use
-/// specific `ShapeRef<P>` field here, as it is much easier to express any bounds when using
-/// more generic types.
-pub trait Drawable: 'static + Debug {
-    /// Draw the element on the canvas.
-    fn draw(&self, canvas:&mut Canvas) -> CanvasShape;
-}
-
-
+/// Generic 2d shape representation. You can convert any specific shape type to this type and use it
+/// as a generic shape type.
 #[derive(Debug,Clone)]
 pub struct Shape {
-    rc: Rc<dyn Drawable>
+    rc: Rc<dyn canvas::Draw>
 }
 
 impl Shape {
-    pub fn new<T:Drawable>(t:T) -> Self {
+    /// Constructor.
+    pub fn new<T:'static+canvas::Draw>(t:T) -> Self {
         Self {rc : Rc::new(t)}
     }
 }
 
-impl Drawable for Shape {
+impl canvas::Draw for Shape {
     fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
         self.rc.draw(canvas)
     }
@@ -94,6 +77,7 @@ impl<T> ShapeRef<T> {
         Self {rc:Rc::new(t)}
     }
 
+    /// Unwraps the shape and provides the raw reference to its content.
     pub fn unwrap(&self) -> &T {
         self.deref()
     }
@@ -112,6 +96,7 @@ impl<T> ShapeRef<T> {
 impl<T> ShapeOps for ShapeRef<T> {}
 impl    ShapeOps for Shape {}
 
+/// Methods implemented by every shape.
 pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
     /// Translate the shape by a given offset.
     fn translate<V:Into<Var<Vector2<DistanceIn<Pixels>>>>>(&self, v:V) -> Translate<Self> {

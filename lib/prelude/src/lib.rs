@@ -485,3 +485,17 @@ pub trait RefInto<T> = where for<'t> &'t Self : Into<T>;
 //        U::spec_from(self)
 //    }
 //}
+
+
+
+pub trait AsOwned {
+    type Owned;
+}
+
+impl<T> AsOwned for &T {
+    type Owned = T;
+}
+
+pub type Owned<T> = <T as AsOwned>::Owned;
+
+pub trait IntoOwned = AsOwned + Into<Owned<Self>>;

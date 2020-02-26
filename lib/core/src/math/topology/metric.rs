@@ -1,3 +1,7 @@
+#![allow(missing_docs)]
+
+//! Metric definition.
+
 use crate::prelude::*;
 
 use crate::system::gpu::shader::glsl;
@@ -130,17 +134,17 @@ pub type DistanceIn<Unit,V=f32> = Value<DistanceValue,Unit,V>;
 pub struct Pixels;
 
 
-pub trait DistanceOps {
+pub trait PixelDistance {
     fn px(&self) -> DistanceIn<Pixels>;
 }
 
-impl DistanceOps for f32 {
+impl PixelDistance for f32 {
     fn px(&self) -> DistanceIn<Pixels> {
         DistanceIn::new(*self)
     }
 }
 
-impl DistanceOps for i32 {
+impl PixelDistance for i32 {
     fn px(&self) -> DistanceIn<Pixels> {
         DistanceIn::new(*self as f32)
     }
@@ -163,7 +167,7 @@ impls! { From<PhantomData<Vector2<DistanceIn<Pixels>>>> for glsl::PrimType {
 // === Angle ===
 // =============
 
-pub struct AnyAngle {}
+//pub struct AnyAngle {}
 
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 pub struct AngleValue {}
@@ -228,7 +232,7 @@ impls! { From<PhantomData<AngleIn<Radians>>> for glsl::PrimType {
 // ==============
 
 pub mod traits {
-    pub use super::DistanceOps;
+    pub use super::PixelDistance;
     pub use super::AngleOps;
 }
 
