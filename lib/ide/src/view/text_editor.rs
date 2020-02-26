@@ -45,15 +45,13 @@ impl {
         let text         = self.text_field.get_content();
         let store_fut    = controller.store_content(text);
         let notification = self.notification_service.clone();
-        let duration     = 1.0;
-        let fade_out     = 1.0;
-        notification.info("Saving file", duration, fade_out);
+        notification.info("Saving file");
         executor::global::spawn(async move {
             if store_fut.await.is_err() {
                 let message = format!("Failed to save file: {}", file_path);
-                notification.error(&message, duration, fade_out);
+                notification.error(&message);
             } else {
-                notification.info("File saved", duration, fade_out);
+                notification.info("File saved");
             }
         });
     }
@@ -88,9 +86,7 @@ impl TextEditor {
             if let Ok(content) = content_future.await {
                 if let Some(text_field) = text_field_weak.upgrade() {
                     text_field.set_content(&content);
-                    let duration = 1.0;
-                    let fade_out = 1.0;
-                    notification.info("File loaded",duration,fade_out);
+                    notification.info("File loaded");
                 }
             }
         });

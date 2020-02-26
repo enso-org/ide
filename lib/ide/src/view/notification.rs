@@ -42,7 +42,9 @@ impl NotificationService {
     }
 
     /// Display an informational notification.
-    pub fn info(&self, content:&str, duration:f64, fade_out:f64) {
+    pub fn info(&self, content:&str) {
+        let duration = 1.0;
+        let fade_out = 1.0;
         let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
         let msg:&str = &msg;
         self.logger.info(msg);
@@ -50,7 +52,9 @@ impl NotificationService {
     }
 
     /// Display a warning notification.
-    pub fn warning(&self, content:&str, duration:f64, fade_out:f64) {
+    pub fn warning(&self, content:&str) {
+        let duration = 1.0;
+        let fade_out = 1.0;
         let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
         let msg:&str = &msg;
         self.logger.warning(msg);
@@ -58,7 +62,9 @@ impl NotificationService {
     }
 
     /// Display an error notification.
-    pub fn error(&self, content:&str, duration:f64, fade_out:f64) {
+    pub fn error(&self, content:&str) {
+        let duration = 1.0;
+        let fade_out = 1.0;
         let msg = format!("Content: {}, duration: {}, transition: {}",content,duration,fade_out);
         let msg:&str = &msg;
         self.logger.error(msg);

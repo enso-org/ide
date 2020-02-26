@@ -111,18 +111,19 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( key_actions          : &mut KeyboardActions
+    ( kb_actions           : &mut KeyboardActions
     , notification_service : &NotificationService
     , logger               : &Logger
     , world                : &World
-    , controller           : controller::text::Handle) -> Self {
-        let text_editor  = TextEditor::new(&notification_service,&world,controller,key_actions);
+    , controller           : controller::text::Handle
+    ) -> Self {
+        let text_editor  = TextEditor::new(&notification_service,&world,controller,kb_actions);
         let layout_mode  = default();
         let size         = zero();
         let logger       = logger.sub("ProjectView");
         let data         = ViewLayoutData {text_editor,layout_mode,size,logger};
         let rc           = Rc::new(RefCell::new(data));
-        Self {rc}.init(world,key_actions)
+        Self {rc}.init(world,kb_actions)
     }
 
     fn init_keyboard(self, keyboard_actions:&mut KeyboardActions) -> Self {

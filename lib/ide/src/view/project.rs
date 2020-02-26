@@ -73,13 +73,9 @@ impl ProjectView {
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = KeyboardActions::new(&keyboard);
         let resize_callback      = None;
-        let layout               = ViewLayout::new(
-            &mut keyboard_actions,
-            &notification,
-            &logger,
-            &world,
-            text_controller);
-        let data          = ProjectViewData
+        let layout               = ViewLayout::new
+            (&mut keyboard_actions,&notification,&logger,&world,text_controller);
+        let data = ProjectViewData
             {world,layout,resize_callback,controller,notification,keyboard,keyboard_bindings,
              keyboard_actions};
         Self::new_from_data(data).init()
