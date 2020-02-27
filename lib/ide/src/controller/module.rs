@@ -25,6 +25,7 @@ use parser::api::IsParser;
 use basegl::display::shape::text::text_field::TextChangedNotification;
 
 
+
 // =======================
 // === Module Location ===
 // =======================
@@ -35,6 +36,18 @@ use basegl::display::shape::text::text_field::TextChangedNotification;
 pub struct Location(pub String);
 
 impl Location {
+    /// Get the module location from filesystem path. Returns None if path does not lead to
+    /// module file.
+    pub fn from_path(path:&fmc::Path) -> Option<Self> {
+        // TODO [mwu] See function `to_path`
+        let fmc::Path(path_str) = path;
+        let suffix = format!(".{}", constants::LANGUAGE_FILE_EXTENSION);
+        path_str.ends_with(suffix.as_str()).and_option_from(|| {
+            let cut_from = path_str.len() - suffix.len();
+            Some(Location(path_str[..cut_from].to_string()))
+        })
+    }
+
     /// Obtains path (within a project context) to the file with this module.
     pub fn to_path(&self) -> file_manager_client::Path {
         // TODO [mwu] Extremely provisional. When multiple files support is
@@ -77,19 +90,26 @@ shared! { Handle
 
         /// Updates AST after code change.
         pub fn apply_code_change(&mut self,change:TextChangedNotification) {
-            let mut code        = self.ast.repr();
-            let replaced_range  = change.replaced_range_char;
-            let inserted_string = change.inserted_string.as_str();
+            let mut code        = self.code();
+            let replaced_range  = change.replaced_chars.clone();
+            let inserted_string = change.inserted_string();
             let replaced_size   = Size::new(replaced_range.end - replaced_range.start);
             let replaced_span   = Span::new(Index::new(replaced_range.start),replaced_size);
-            code.replace_range(replaced_range,inserted_string);
-            apply_code_change_to_id_map(&mut self.id_map,&replaced_span,inserted_string);
+
+            code.replace_range(replaced_range,&inserted_string);
+            apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
             self.ast = self.parser.parse(code, self.id_map.clone()).unwrap();
+        }
+
+        /// Read module code.
+        pub fn code(&self) -> String {
+            self.ast.repr()
         }
     }
 }
 
 impl Handle {
+    /// Create a module controller for given location.
     pub async fn new(location:Location, mut file_manager:fmc::Handle, mut parser:SharedParser)
     -> FallibleResult<Self> {
         let path    = location.to_path();
@@ -99,6 +119,8 @@ impl Handle {
         let data    = Controller {location,ast,file_manager,parser,id_map};
         Ok(Handle::new_from_data(data))
     }
+
+
 
     #[cfg(test)]
     fn new_mock

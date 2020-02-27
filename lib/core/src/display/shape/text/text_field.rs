@@ -36,11 +36,16 @@ use std::ops::Range;
 // === TextChangedNotification ===
 // ===============================
 
-#[derive(Clone,Debug)]
+/// A notification about text change.
+///
+/// In essence, it's `TextChange` with some additional useful information.
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct TextChangedNotification {
-    pub replaced_range      : Range<TextLocation>,
-    pub replaced_range_char : Range<usize>,
-    pub inserted_string     : String,
+    /// A change which has occurred.
+    #[shrinkwrap(main_field)]
+    pub change : TextChange,
+    /// The replaced range as char positions from document begin, instead of row:column pairs.
+    pub replaced_chars : Range<usize>,
 }
 
 
@@ -298,17 +303,7 @@ impl TextField {
         let mut opt_callback    = self.with_borrowed(|this| std::mem::take(&mut this.text_change_callback));
         for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
             let notification = self.with_borrowed(|this| {
-                let cursor   = &mut this.cursors.cursors[cursor_id];
-                let replaced = location_change.apply_to_range(cursor.selection_range());
-                let change   = TextChange::replace(replaced.clone(),to_insert);
-                location_change.add_change(&change);
-                *cursor = Cursor::new(change.inserted_text_range().end);
-                this.content.apply_change(change.clone());
-                TextChangedNotification {
-                    replaced_range: replaced.clone(),
-                    replaced_range_char: this.content.convert_location_range_to_char_index(replaced),
-                    inserted_string: to_insert.to_string(),
-                }
+                this.apply_one_cursor_change(&mut location_change,cursor_id,to_insert)
             });
             if let Some(callback) = opt_callback.as_mut() {
                 callback(&notification);
@@ -351,6 +346,19 @@ impl TextFieldData {
             scroll_offset : -self.rendered.display_object.position().xy(),
             view_size     : self.properties.size,
         }
+    }
+
+    fn apply_one_cursor_change
+    (&mut self, location_change:&mut TextLocationChange, cursor_id:usize, to_insert:&str)
+    -> TextChangedNotification {
+        let cursor         = &mut self.cursors.cursors[cursor_id];
+        let replaced       = location_change.apply_to_range(cursor.selection_range());
+        let replaced_chars = self.content.convert_location_range_to_char_index(&replaced);
+        let change         = TextChange::replace(replaced.clone(),to_insert);
+        location_change.add_change(&change);
+        *cursor = Cursor::new(change.inserted_text_range().end);
+        self.content.apply_change(change.clone());
+        TextChangedNotification {change,replaced_chars}
     }
 }
 

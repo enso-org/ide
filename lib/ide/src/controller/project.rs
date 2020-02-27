@@ -52,17 +52,9 @@ shared! { Handle
             }
         }
 
-        /// Returns a text controller for given file path.
-        pub fn open_text_file(&mut self, path:fmc::Path) -> controller::text::Handle {
-            let fm = self.file_manager.clone();
-            match self.text_cache.entry(path.clone()) {
-                Occupied(entry) => entry.get().clone_ref(),
-                // TODO[ao] handle module files here.
-                Vacant(entry) => {
-                    let controller = controller::text::Handle::new_for_plain_test(path,fm);
-                    entry.insert(controller)
-                },
-            }
+        /// Get the file manager handle used by this controller.
+        pub fn file_manager(&self) -> fmc::Handle {
+           self.file_manager.clone_ref()
         }
     }
 }
@@ -85,6 +77,27 @@ impl Handle {
         Self::new_from_data(data)
     }
 
+    /// Returns a text controller for given file path.
+    pub async fn open_text_file(&self, path:fmc::Path)
+    -> FallibleResult<controller::text::Handle> {
+        let cached = self.with_borrowed(|data| data.text_cache.get(&path));
+        match cached {
+            Some(controller) => Ok(controller),
+            None => {
+                let loaded = self.create_text_controller(path.clone()).await?;
+                //TODO[ao] Here we should make a better solution for case where we simultaneously
+                // load one module twice.
+                let cached = self.with_borrowed(|data|
+                    match data.text_cache.entry(path) {
+                        Occupied(entry) => entry.get().clone_ref(),
+                        Vacant(entry)   => entry.insert(loaded)
+                    }
+                );
+                Ok(cached)
+            }
+        }
+    }
+
     /// Returns a module controller which have module opened from file.
     pub async fn open_module(&self, loc:ModuleLocation)
     -> FallibleResult<controller::module::Handle> {
@@ -103,6 +116,20 @@ impl Handle {
                 );
                 Ok(cached)
             },
+        }
+    }
+
+    async fn create_text_controller(&self, path:fmc::Path)
+    -> FallibleResult<controller::text::Handle> {
+        match ModuleLocation::from_path(&path) {
+            Some(location) => {
+                let module = self.open_module(location).await?;
+                Ok(controller::text::Handle::new_for_module(module))
+            },
+            None => {
+                let fm = self.file_manager();
+                Ok(controller::text::Handle::new_for_plain_test(path,fm))
+            }
         }
     }
 
@@ -142,12 +169,11 @@ mod test {
         set_spawner(executor.spawner());
 
         spawn(async move {
-            let project_ctrl = controller::project::Handle::new(transport_clone);
+            let project_ctrl = controller::project::Handle::new_running(transport_clone);
             let location     = controller::module::Location("TestLocation".to_string());
             let another_loc  = controller::module::Location("TestLocation2".to_string());
 
             let module_ctrl         = project_ctrl.open_module(location.clone()).await.unwrap();
-            assert!(false);
             let same_module_ctrl    = project_ctrl.open_module(location.clone()).await.unwrap();
             let another_module_ctrl = project_ctrl.open_module(another_loc.clone()).await.unwrap();
 
@@ -174,20 +200,57 @@ mod test {
 
     #[wasm_bindgen_test]
     fn obtain_text_controller() {
-        let transport           = MockTransport::new();
-        let project_ctrl        = controller::project::Handle::new(transport);
-        let file_manager_handle = project_ctrl.with_borrowed(|s| s.file_manager.clone());
-        let path                = Path("TestPath".to_string());
-        let another_path        = Path("TestPath2".to_string());
+        let mut executor    = LocalPool::new();
+        let finished        = Rc::new(RefCell::new(false));
+        let finished_clone  = finished.clone_ref();
+        let transport       = MockTransport::new();
+        set_spawner(executor.spawner());
 
-        let text_ctrl         = project_ctrl.open_text_file(path.clone());
-        let same_text_ctrl    = project_ctrl.open_text_file(path.clone());
-        let another_text_ctrl = project_ctrl.open_text_file(another_path.clone());
+        spawn(async move {
+            let project_ctrl        = controller::project::Handle::new_running(transport);
+            let file_manager_handle = project_ctrl.file_manager();
+            let path                = Path("TestPath".to_string());
+            let another_path        = Path("TestPath2".to_string());
 
-        assert!(file_manager_handle.identity_equals(&text_ctrl        .file_manager()));
-        assert!(file_manager_handle.identity_equals(&another_text_ctrl.file_manager()));
-        assert_eq!(path        , text_ctrl        .file_path()  );
-        assert_eq!(another_path, another_text_ctrl.file_path()  );
-        assert!(text_ctrl.identity_equals(&same_text_ctrl));
+            let text_ctrl        = project_ctrl.open_text_file(path.clone()).await.unwrap();
+            let same_text_ctrl   = project_ctrl.open_text_file(path.clone()).await.unwrap();
+            let another_txt_ctrl = project_ctrl.open_text_file(another_path.clone()).await.unwrap();
+
+            assert!(file_manager_handle.identity_equals(&text_ctrl       .file_manager()));
+            assert!(file_manager_handle.identity_equals(&another_txt_ctrl.file_manager()));
+            assert_eq!(path        , text_ctrl        .file_path()  );
+            assert_eq!(another_path, another_txt_ctrl.file_path()  );
+            assert!(text_ctrl.identity_equals(&same_text_ctrl));
+            *finished_clone.borrow_mut() = true;
+        });
+        executor.run_until_stalled();
+        assert!(*finished.borrow());
+    }
+
+    #[wasm_bindgen_test]
+    fn obtain_text_controller_for_module() {
+        let mut executor    = LocalPool::new();
+        let finished        = Rc::new(RefCell::new(false));
+        let finished_clone  = finished.clone_ref();
+        let mut transport   = MockTransport::new();
+        let transport_clone = transport.clone_ref();
+        set_spawner(executor.spawner());
+
+        spawn(async move {
+            let project_ctrl = controller::project::Handle::new_running(transport_clone);
+            let path         = Path(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
+            let text_ctrl    = project_ctrl.open_text_file(path.clone()).await.unwrap();
+            let content      = text_ctrl.read_content().await.unwrap();
+            assert_eq!("2 + 2", content.as_str());
+            *finished_clone.borrow_mut() = true;
+        });
+        executor.run_until_stalled();
+        transport.mock_peer_message_text(r#"{
+    "jsonrpc" : "2.0",
+    "id"      : 0,
+    "result"  :"2 + 2"
+}"#);
+        executor.run_until_stalled();
+        assert!(*finished.borrow());
     }
 }

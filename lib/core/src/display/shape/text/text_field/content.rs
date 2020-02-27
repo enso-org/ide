@@ -138,6 +138,11 @@ impl TextChange {
         }
     }
 
+    /// Converts change representation to String.
+    pub fn inserted_string(&self) -> String {
+        self.lines.iter().map(|line| line.iter().collect::<String>()).join("\n")
+    }
+
     /// Returns text location range where the inserted text will appear after making this change.
     pub fn inserted_text_range(&self) -> Range<TextLocation> {
         let start         = self.replaced.start;
@@ -298,7 +303,7 @@ impl TextFieldContent {
 
     /// Converts range of locations in this text represented by `row:column` pair to absolute
     /// char's position from document begin.
-    pub fn convert_location_range_to_char_index(&mut self, range:Range<TextLocation>)
+    pub fn convert_location_range_to_char_index(&mut self, range:&Range<TextLocation>)
     -> Range<usize> {
         let start = self.convert_location_to_char_index(range.start);
         let end   = self.convert_location_to_char_index(range.end);

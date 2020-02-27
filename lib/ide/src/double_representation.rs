@@ -1,7 +1,17 @@
+//! A module with all functions used to synchronize different representations of our language
+//! module.
+
 use ast::IdMap;
 use data::text::Size;
 use data::text::Span;
 
+
+
+// ================
+// === Text API ===
+// ================
+
+/// Update IdMap to reflect the recent code change.
 pub fn apply_code_change_to_id_map(id_map:&mut IdMap, removed:&Span, inserted:&str) {
     let IdMap(vector) = id_map;
     let inserted_len  = Size::new(inserted.chars().count());

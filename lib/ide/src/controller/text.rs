@@ -88,10 +88,11 @@ impl Handle {
     }
 
     /// Read file's content.
-    pub fn read_content(&self) -> impl Future<Output=Result<String,RpcError>> {
+    pub async fn read_content(&self) -> Result<String,RpcError> {
+        use FileHandle::*;
         match self.file_handle() {
-            FileHandle::PlainText {path,mut file_manager} => file_manager.read(path),
-            FileHandle::Module {..}                       => todo!(),
+            PlainText {path,mut file_manager} => file_manager.read(path).await,
+            Module    {controller}            => Ok(controller.code())
         }
     }
 
