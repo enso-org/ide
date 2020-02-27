@@ -355,7 +355,7 @@ impl TextFieldData {
         let cursor         = &mut self.cursors.cursors[cursor_id];
         let replaced       = location_change.apply_to_range(cursor.selection_range());
         let replaced_chars = self.content.convert_location_range_to_char_index(&replaced);
-        let change         = TextChange::replace(replaced.clone(),to_insert);
+        let change         = TextChange::replace(replaced,to_insert);
         location_change.add_change(&change);
         *cursor = Cursor::new(change.inserted_text_range().end);
         self.content.apply_change(change.clone());
