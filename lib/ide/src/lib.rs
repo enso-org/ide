@@ -1,6 +1,7 @@
 //! Main library crate for IDE. It includes implementation of
 //! controllers, view logic and code that wraps them all together.
 
+#![feature(bool_to_option)]
 #![feature(trait_alias)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -13,6 +14,7 @@
 
 pub mod controller;
 pub mod executor;
+pub mod graph_api;
 pub mod transport;
 pub mod view;
 

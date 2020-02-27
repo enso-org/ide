@@ -1,8 +1,12 @@
-#![feature(type_alias_impl_trait)]
+#![feature(associated_type_bounds)]
+#![feature(bool_to_option)]
 #![feature(generators, generator_trait)]
+#![feature(trivial_bounds)]
+#![feature(type_alias_impl_trait)]
 
-mod internal;
-mod repr;
+pub mod internal;
+pub mod known;
+pub mod repr;
 
 use prelude::*;
 
