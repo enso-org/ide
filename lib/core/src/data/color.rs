@@ -87,7 +87,7 @@ where [Color:Copy + RefInto<Glsl>] {
 //impls! {[G:RefInto<Glsl>] From< ExponentSampler<G>> for Glsl { |g| { (&g).into() } }}
 //impls! {[G:RefInto<Glsl>] From<&ExponentSampler<G>> for Glsl {
 //    |g| {
-//        "dupa".into()
+//        "test".into()
 //    }
 //}}
 
