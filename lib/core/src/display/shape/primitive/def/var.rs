@@ -15,7 +15,7 @@ use std::ops::*;
 // === VarInitializer ===
 // ======================
 
-/// Defines all values which can be used to construct var of a given type. For example,
+/// A trait implemented on types which can be used to construct Var<T>. For example,
 /// `Var<i32>` can be constructed from `i32`, `Glsl` code, or just from `&str` for convenient usage.
 /// Please refer to `Var` documentation to understand what it is all about.
 pub trait VarInitializer<T> = VarInitializerMarker<T> + Into<Glsl>;

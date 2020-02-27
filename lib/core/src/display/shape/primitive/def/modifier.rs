@@ -21,10 +21,14 @@ use crate::system::gpu::types::*;
 // === Compound Shape Definition Macros ===
 // ========================================
 
-/// Defines compound canvas shapes. It defines `canvas::Draw` method for each modifier definition
-/// which first draws all children to the canvas and then runs a canvas method of the same name
-/// as the modifier. For example, for `Union`, it first draws its two children and then calls
-/// `canvas.union` with results of the draw commands.
+/// Defines modifier canvas shapes. A modifier canvas shape is a struct, which owns one or more
+/// other canvas shapes and modifies them according to some rule. For example, the `Translate`
+/// modifier shape is a translated version of its child.
+///
+/// It defines `canvas::Draw` method for each modifier definition which first draws all children to
+/// the canvas and then runs a canvas method of the same name as the modifier. For example, for
+/// `Union`, it first draws its two children and then calls `canvas.union` with results of the draw
+/// commands.
 macro_rules! define_modifiers {
     ( $($name:ident $lname:ident $shapes:tt $fields:tt)* ) => {
         /// Contains mutable shapes definitions.

@@ -25,6 +25,8 @@ BoundingBox bounding_box (vec2 size) {
     return BoundingBox(-w2,w2,-h2,h2);
 }
 
+/// Inverses the bounding box. Please note that the inversed bounding box is infinite and thus
+/// it does not have a proper representation. We represent infinite bounding boxes as 0-sized ones.
 BoundingBox inverse (BoundingBox a) {
     return BoundingBox(0.0,0.0,0.0,0.0);
 }
@@ -45,6 +47,8 @@ BoundingBox intersection (BoundingBox a, BoundingBox b) {
     return BoundingBox(min_x,max_x,min_y,max_y);
 }
 
+/// Please note that we cannot compute the exact bounding box for a difference of `a - b`. Thus, we
+/// output the best approximation we have, which is the original bounding box.
 BoundingBox difference (BoundingBox a, BoundingBox b) {
     return a;
 }
@@ -275,19 +279,19 @@ struct Env {
 ////// Transform //////
 ///////////////////////
 
-vec2 translate (vec2 p, vec2 t) {
-    return p - t;
+vec2 translate (vec2 position, vec2 t) {
+    return position - t;
 }
 
-vec2 rotate (vec2 p, Radians angle) {
+vec2 rotate (vec2 position, Radians angle) {
     float v_angle = value(angle);
-    return p*cos(-v_angle) + vec2(p.y,-p.x)*sin(-v_angle);
+    return position*cos(-v_angle) + vec2(position.y,-position.x)*sin(-v_angle);
 }
 
-vec2 scale (vec2 p, float value) {
-    return p/value;
+vec2 scale (vec2 position, float value) {
+    return position / value;
 }
 
-vec2 cartesian2polar (vec2 p) {
-  return vec2(length(p), atan(p.y, p.x));
+vec2 cartesian2polar (vec2 position) {
+  return vec2(length(position), atan(position.y, position.x));
 }

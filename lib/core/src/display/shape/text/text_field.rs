@@ -58,6 +58,8 @@ impl TextFieldProperties {
     }
 }
 
+// TODO: All measurements in text field should use the `math/topology/unit` units.
+
 shared! { TextField
 
     /// Component rendering text
