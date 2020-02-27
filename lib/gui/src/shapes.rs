@@ -82,7 +82,7 @@ where R : Into<Var<Distance<Pixels>>>,
     let radius  = &width / 2.0;
     let inner   = Circle(&inner_radius);
     let outer   = Circle(&inner_radius + &width);
-    let section = Plane().angle(&angle);
+    let section = Plane().cut_angle(&angle);
     let corner1 = Circle(&radius).translate_y(inner_radius + radius);
     let corner2 = corner1.rotate(&angle2);
     let corner1 = corner1.rotate(-&angle2);

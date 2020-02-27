@@ -2,21 +2,14 @@
 
 use crate::prelude::*;
 
-use crate::display::shape::primitive::def::*;
+use super::unit::*;
+use super::modifier::*;
+
 use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
-use crate::display::shape::primitive::shader::canvas::CanvasShape;
 use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::types::*;
 use crate::data::color::*;
-
-use crate::math::topology::unit::Distance;
-use crate::math::topology::unit::Pixels;
-use crate::math::topology::unit::Angle;
-use crate::math::topology::unit::Radians;
-
-use std::ops::Sub;
-use std::ops::Mul;
 
 
 
@@ -24,13 +17,15 @@ use std::ops::Mul;
 // === Shape ===
 // =============
 
-
-
 /// Generic 2d shape representation. You can convert any specific shape type to this type and use it
 /// as a generic shape type.
 #[derive(Debug,Clone)]
 pub struct Shape {
     rc: Rc<dyn canvas::Draw>
+}
+
+impl AsOwned for Shape {
+    type Owned = Shape;
 }
 
 impl Shape {
@@ -41,13 +36,9 @@ impl Shape {
 }
 
 impl canvas::Draw for Shape {
-    fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+    fn draw(&self, canvas:&mut Canvas) -> canvas::Shape {
         self.rc.draw(canvas)
     }
-}
-
-impl AsOwned for Shape {
-    type Owned = Shape;
 }
 
 impls! { From<&Shape> for Shape { |t| t.clone() }}
@@ -92,6 +83,12 @@ impl<T> ShapeRef<T> {
         Rc::downgrade(&self.rc).as_raw() as *const() as usize
     }
 }
+
+
+
+// ================
+// === ShapeOps ===
+// ================
 
 impl<T> ShapeOps for ShapeRef<T> {}
 impl    ShapeOps for Shape {}
@@ -145,7 +142,8 @@ pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
         Fill(self,color)
     }
 
-    /// Makes the borders of the shape crisp. Please note that it removes any form of antialiasing.
+    /// Makes the borders of the shape crisp. Please note that it removes any form of antialiasing
+    /// and can cause distortions especially with round surfaces.
     fn pixel_snap(&self) -> PixelSnap<Self> {
         PixelSnap(self)
     }

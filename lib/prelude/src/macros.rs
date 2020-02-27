@@ -37,6 +37,7 @@ macro_rules! impls {
         |$arg:tt| $($result:tt)*
     } ) => {
         #[allow(clippy::redundant_closure_call)]
+        #[allow(clippy::identity_conversion)]
         impl <$($($impl_params)*)?> From <$ty> for $target $(where $($bounds)*)? {
             fn from (arg:$ty) -> Self {
                 (|$arg:$ty| $($result)*)(arg)
@@ -44,6 +45,7 @@ macro_rules! impls {
         }
 
         #[allow(clippy::redundant_closure_call)]
+        #[allow(clippy::identity_conversion)]
         impl <$($($impl_params)*)?> From <&$ty> for $target $(where $($bounds)*)? {
             fn from (arg:&$ty) -> Self {
                 (|$arg:&$ty| $($result)*)(arg)

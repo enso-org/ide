@@ -8,8 +8,6 @@ float alpha  = shape.color.color.raw.a;
 if (input_display_mode == 0) {
     output_color = srgba(unpremultiply(shape.color)).raw;
     output_color.rgb *= alpha;
-    // output_color = shape.color.color.raw;
-    // output_color.a = 1.0;
 } else if (input_display_mode == 1) {
     Rgb col = distance_meter(shape.sdf.distance, 200.0 * input_zoom * input_pixel_ratio, 200.0/input_zoom * input_pixel_ratio);
     output_color = rgba(col).raw;

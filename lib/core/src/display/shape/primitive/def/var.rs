@@ -103,14 +103,14 @@ impls! {[T:Clone] From<&Var<T>> for Var<T> { |t| t.clone() }}
 impls! {[T:RefInto<Glsl>] From<&Var<T>> for Glsl { |t|
     match t {
         Var::Static  (s) => s.into(),
-        Var::Dynamic (s) => s.into(),
+        Var::Dynamic (s) => s.clone(),
     }
 }}
 
 impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
     match t {
         Var::Static  (s) => s.into(),
-        Var::Dynamic (s) => s.into(),
+        Var::Dynamic (s) => s,
     }
 }}
 

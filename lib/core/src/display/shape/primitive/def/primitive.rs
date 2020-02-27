@@ -1,5 +1,5 @@
-//! This module defines all primitive Signed Distance Field (SDF) shapes.
-//! Learn more about SDFs: https://en.wikipedia.org/wiki/Signed_distance_function
+//! This module defines all primitive Signed Distance Field (SDF) shapes such as circle or
+//! rectangle. Learn more about SDFs: https://en.wikipedia.org/wiki/Signed_distance_function
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -9,26 +9,24 @@ use crate::prelude::*;
 use inflector::Inflector;
 
 use crate::display::shape::primitive::def::class::ShapeRef;
-use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
-use crate::display::shape::primitive::shader::canvas::CanvasShape;
+use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::Var;
+use crate::math::topology::unit::*;
 use crate::system::gpu::shader::glsl::Glsl;
-
 use crate::system::gpu::shader::glsl::traits::*;
 use crate::system::gpu::types::*;
-use crate::math::topology::unit::*;
 
 
 
-// ================
-// === SdfShape ===
-// ================
+// ===========================
+// === GlslShapeDefinition ===
+// ===========================
 
 /// Class of primitive SDF shapes.
-pub trait SdfShape {
+pub trait GlslShapeDefinition {
     /// Gets the SDF definition for the given shape.
-    fn glsl_definition() -> String;
+    fn glsl_shape_definition() -> String;
 }
 
 
@@ -39,11 +37,11 @@ pub trait SdfShape {
 
 /// Defines SDF shapes and appropriate shape wrappers.
 ///
-/// SDF shapes are defined in the `mutable` module, while the shape wrappers are placed in the
-/// `immutable` module. The shape definition accepted by this macro is similar to both a struct
-/// and a function definition.
+/// SDF shapes are immutable. They keep their internal state behind an `Rc` barrier by using the
+/// `ShapeRef` newtype. Their internal state is generated into the `mutable` module. The shape
+/// definition syntax accepted by this macro is similar to both a struct and a function definition.
 ///
-/// The body of the shape definition should be a valid GLSL function body code. The function is
+/// The body of the shape definition should be a valid GLSL function code. The function will be
 /// provided with two parameters:
 ///   - The current position point as `vec2 position`.
 ///   - All input parameters bound to this shader from the material definition as `Env env`.
@@ -63,12 +61,11 @@ macro_rules! define_sdf_shapes {
             use super::*;
             $(_define_sdf_shape_mutable_part! {$name $args $body} )*
         }
-
         $(_define_sdf_shape_immutable_part! {$name $args $body} )*
 
         /// GLSL definition of all shapes.
         pub fn all_shapes_glsl_definitions() -> String {
-            vec![$($name::glsl_definition()),*].join("\n\n")
+            vec![$($name::glsl_shape_definition()),*].join("\n\n")
         }
     };
 }
@@ -86,15 +83,15 @@ macro_rules! _define_sdf_shape_immutable_part {
         }
 
         impl canvas::Draw for $name {
-            fn draw(&self, canvas:&mut Canvas) -> CanvasShape {
+            fn draw(&self, canvas:&mut Canvas) -> canvas::Shape {
                 let args = vec!["position".to_string(), $(self.$field.glsl().into()),* ].join(",");
                 let code = format!("{}({})",self.glsl_name,args);
                 canvas.define_shape(self.id(),&code)
             }
         }
 
-        impl SdfShape for $name {
-            fn glsl_definition() -> String {
+        impl GlslShapeDefinition for $name {
+            fn glsl_shape_definition() -> String {
                 let name = stringify!($name).to_snake_case();
                 let body = stringify!($body);
                 let args = vec!["vec2 position".to_string(), $(
@@ -138,12 +135,6 @@ macro_rules! _define_sdf_shape_mutable_part {
         }
     };
 }
-
-
-
-
-
-
 
 
 
@@ -199,7 +190,11 @@ define_sdf_shapes! {
     }
 
     RoundedRectByCorner
-    (size:Vector2<Distance<Pixels>>, top_left:Distance<Pixels>, top_right:Distance<Pixels>, bottom_left:Distance<Pixels>, bottom_right:Distance<Pixels>) {
+    ( size        : Vector2<Distance<Pixels>>
+    , top_left    : Distance<Pixels>
+    , top_right   : Distance<Pixels>
+    , bottom_left : Distance<Pixels>
+    , bottom_right: Distance<Pixels> ) {
         size /= 2.0;
 
         float tl = top_left;
@@ -235,9 +230,14 @@ define_sdf_shapes! {
 }
 
 
+
+// ==============================
+// === Prim Shapes Operations ===
+// ==============================
+
 impl Plane {
     /// Cuts angle from the plane.
-    pub fn angle<T:Into<Var<Angle<Radians>>>>(&self, t:T) -> PlaneAngle {
+    pub fn cut_angle<T:Into<Var<Angle<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
     }
 }

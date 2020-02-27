@@ -11,11 +11,6 @@ pub use crate::math::topology::unit::Pixels;
 pub use crate::math::topology::unit::Radians;
 pub use crate::math::topology::unit::Degrees;
 
-/// Exports common traits from this module and its sub-modules.
-pub mod traits {
-    pub use super::PixelDistance;
-}
-
 
 
 // =====================
@@ -33,3 +28,23 @@ impl<T: unit::PixelDistance> PixelDistance for T {
         unit::PixelDistance::px(self).into()
     }
 }
+
+
+
+// ===============
+// === Exports ===
+// ===============
+
+/// Common types.
+pub mod types {
+    use super::*;
+    pub use super::PixelDistance;
+    pub use unit::Distance;
+    pub use unit::Angle;
+    pub use unit::Unit;
+    pub use unit::Pixels;
+    pub use unit::Radians;
+    pub use unit::Degrees;
+}
+
+pub use types::*;
