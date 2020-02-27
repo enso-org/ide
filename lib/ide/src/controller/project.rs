@@ -87,6 +87,8 @@ impl Handle {
                 let loaded = self.create_text_controller(path.clone()).await?;
                 //TODO[ao] Here we should make a better solution for case where we simultaneously
                 // load one module twice.
+                // This is duplicated with open_module, but it's not worth refactoring as its
+                // temporary solution.
                 let cached = self.with_borrowed(|data|
                     match data.text_cache.entry(path) {
                         Occupied(entry) => entry.get().clone_ref(),
@@ -184,16 +186,16 @@ mod test {
         });
         executor.run_until_stalled();
         transport.mock_peer_message_text(r#"{
-    "jsonrpc" : "2.0",
-    "id"      : 0,
-    "result"  :"2 + 2"
-}"#);
+            "jsonrpc" : "2.0",
+            "id"      : 0,
+            "result"  :"2 + 2"
+        }"#);
         executor.run_until_stalled();
         transport.mock_peer_message_text(r#"{
-    "jsonrpc" : "2.0",
-    "id"      : 1,
-    "result"  :"3+3"
-}"#);
+            "jsonrpc" : "2.0",
+            "id"      : 1,
+            "result"  :"3+3"
+        }"#);
         executor.run_until_stalled();
         assert!(*finished.borrow());
     }
@@ -246,10 +248,10 @@ mod test {
         });
         executor.run_until_stalled();
         transport.mock_peer_message_text(r#"{
-    "jsonrpc" : "2.0",
-    "id"      : 0,
-    "result"  :"2 + 2"
-}"#);
+            "jsonrpc" : "2.0",
+            "id"      : 0,
+            "result"  :"2 + 2"
+        }"#);
         executor.run_until_stalled();
         assert!(*finished.borrow());
     }

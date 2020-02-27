@@ -4,6 +4,7 @@
 use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
+use crate::controller::FallibleResult;
 
 use basegl::control::callback::CallbackHandle;
 use basegl::control::io::keyboard::listener::KeyboardFrpBindings;
@@ -15,7 +16,7 @@ use enso_frp::KeyboardActions;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-use crate::controller::FallibleResult;
+
 
 
 // =================
@@ -29,7 +30,7 @@ use crate::controller::FallibleResult;
 ///      editor and it will be connected with a file under this path.
 ///      To be replaced with better mechanism once we decide how to describe
 ///      default initial layout for the project.
-const INITIAL_FILE_PATH:&str = "initial_file.txt";
+const INITIAL_FILE_PATH:&str = "Main.enso";
 
 
 

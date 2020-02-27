@@ -8,7 +8,6 @@ pub mod render;
 
 use crate::prelude::*;
 
-use crate::control::callback::CallbackMut1;
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::content::TextChange;
@@ -98,7 +97,7 @@ shared! { TextField
         display_object       : DisplayObjectData,
         frp                  : Option<TextFieldFrp>,
         #[derivative(Debug="ignore")]
-        text_change_callback : Option<CallbackMut1<TextChangedNotification>>
+        text_change_callback : Option<Box<dyn FnMut(&TextChangedNotification)>>
     }
 
     impl {
@@ -171,7 +170,9 @@ shared! { TextField
         pub fn set_content(&mut self, text:&str) {
             // FIXME [ao] It should check if cursors positions are valid.
             //       See: https://github.com/luna/ide/issues/187
-            self.content.set_content(text)
+            self.content.set_content(text);
+            self.assignment_update().update_after_text_edit();
+            self.rendered.update_glyphs(&mut self.content);
         }
 
         /// Make change in text content.
@@ -215,8 +216,9 @@ shared! { TextField
         ///
         /// This callback will one each `write` function call and all functions using it. That's
         /// include all edits being an effect of keyboard or mouse event.
-        pub fn set_text_edit_callback(&mut self, callback:CallbackMut1<TextChangedNotification>) {
-            self.text_change_callback = Some(callback)
+        pub fn set_text_edit_callback<Callback:FnMut(&TextChangedNotification) + 'static>
+        (&mut self, callback:Callback) {
+            self.text_change_callback = Some(Box::new(callback))
         }
     }
 }
@@ -316,6 +318,7 @@ impl TextField {
 }
 
 impl TextFieldData {
+
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
         let logger               = Logger::new("TextField");
         let display_object       = DisplayObjectData::new(logger);

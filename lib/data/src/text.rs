@@ -53,8 +53,8 @@ impl Span {
     }
 
     /// Check if this span contains character under `index`.
-    pub fn contains(&self, index:&Index) -> bool {
-        self.index <= *index && self.end() > *index
+    pub fn contains(&self, index:Index) -> bool {
+        self.index <= index && self.end() > index
     }
 
     /// Check if this span contains the whole another span.

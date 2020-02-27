@@ -5,6 +5,7 @@
 //! user.
 
 use crate::prelude::*;
+use crate::controller::FallibleResult;
 
 use failure::_core::fmt::Formatter;
 use failure::_core::fmt::Error;
@@ -97,11 +98,17 @@ impl Handle {
     }
 
     /// Store the given content to file.
-    pub fn store_content(&self, content:String) -> impl Future<Output=Result<(),RpcError>> {
+    pub async fn store_content(&self, content:String) -> FallibleResult<()> {
         match self.file_handle() {
-            FileHandle::PlainText {path,mut file_manager} => file_manager.write(path,content),
-            FileHandle::Module {..}                       => todo!(),
+            FileHandle::PlainText {path,mut file_manager} => {
+                file_manager.write(path,content).await?
+            },
+            FileHandle::Module {controller}=> {
+                controller.check_code_sync(content)?;
+                controller.save_file().await?
+            }
         }
+        Ok(())
     }
 
     /// Apply text change.
@@ -109,7 +116,7 @@ impl Handle {
     /// This function should be called by view on every user interaction changing the text content
     /// of file. It will e.g. update the Module Controller state and notify other views about
     /// update in case of module files.
-    pub fn apply_text_change(&self, change:TextChangedNotification) {
+    pub fn apply_text_change(&self, change:&TextChangedNotification) {
         if let FileHandle::Module {controller} =  self.file_handle() {
             controller.apply_code_change(change);
         }

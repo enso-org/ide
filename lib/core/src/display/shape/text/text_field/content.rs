@@ -298,9 +298,10 @@ impl TextFieldContent {
             self.line_offsets.push(0);
         }
         if self.line_offsets.len() <= location.line {
+            let required_len           = location.line + 1;
             let mut current_char_index = *self.line_offsets.last().unwrap();
-            for line in self.lines.iter().take(location.column).skip(self.line_offsets.len()-1) {
-                current_char_index += line.len();
+            for line in self.lines.iter().take(required_len).skip(self.line_offsets.len()-1) {
+                current_char_index += line.len() + 1;
                 self.line_offsets.push(current_char_index);
             }
         }
@@ -583,6 +584,7 @@ mod test {
         assert_eq!(5 , content.convert_location_to_char_index(TextLocation{line:0, column:5}));
         assert_eq!(6 , content.convert_location_to_char_index(TextLocation{line:1, column:0}));
         assert_eq!(12, content.convert_location_to_char_index(TextLocation{line:1, column:6}));
+        assert_eq!(13, content.convert_location_to_char_index(TextLocation{line:2, column:0}));
         assert_eq!(18, content.convert_location_to_char_index(TextLocation{line:2, column:5}));
 
         let removed_range = TextLocation{line:1, column:1}..TextLocation{line:1, column:3};
