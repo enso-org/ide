@@ -5,10 +5,12 @@ use crate::prelude::*;
 
 use crate::control::callback::CallbackMut;
 use crate::control::callback::CallbackMutFn;
+use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry1;
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
+
 
 
 // =========================
@@ -16,16 +18,13 @@ use wasm_bindgen::prelude::Closure;
 // =========================
 
 /// A callback to register in EventLoop, taking time_ms:f64 as its input.
-pub trait EventLoopCallback = FnMut(f64) + 'static;
+pub trait EventLoopCallback = CallbackMut1Fn<f64>;
 
 
 
 // =================
 // === EventLoop ===
 // =================
-
-
-// === Definition ===
 
 /// Event loop system.
 ///
@@ -79,11 +78,13 @@ impl EventLoop {
 // === EventLoopData ===
 // =====================
 
+trait RequestFrameCallback = FnMut(f64) + 'static;
+
 /// The internal state of the `EventLoop`.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct EventLoopData {
-    main             : Option<Closure<dyn EventLoopCallback>>,
+    main             : Option<Closure<dyn RequestFrameCallback>>,
     callbacks        : CallbackRegistry1<f64>,
     #[derivative(Debug="ignore")]
     on_loop_started  : CallbackMut,
@@ -109,7 +110,7 @@ impl EventLoopData {
         (self.on_loop_started)();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
-            callbacks.run_all(time_ms);
+            callbacks.run_all(&time_ms);
             web::request_animation_frame(main).unwrap()
         });
         self.main_id = callback_id;

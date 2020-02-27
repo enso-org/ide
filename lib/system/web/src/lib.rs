@@ -4,11 +4,20 @@
 #![feature(trait_alias)]
 #![feature(set_stdio)]
 
-pub mod resize_observer;
+pub mod closure;
 pub mod dom;
+pub mod resize_observer;
 
-use enso_prelude::*;
+/// Common types that should be visible across the whole crate.
+pub mod prelude {
+    pub use enso_prelude::*;
+    pub use wasm_bindgen::prelude::*;
+}
 
+use crate::prelude::*;
+
+use js_sys::Function;
+use logger::Logger;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;
@@ -17,12 +26,8 @@ use web_sys::Performance;
 use web_sys::Node;
 use web_sys::MouseEvent;
 use web_sys::EventTarget;
-use js_sys::Function;
-use std::fmt::Debug;
-use logger::Logger;
 
 pub use web_sys::console;
-use wasm_bindgen::prelude::*;
 
 
 
@@ -59,12 +64,42 @@ impl Error {
 }
 
 
+
+// ==============
+// === String ===
+// ==============
+
+#[wasm_bindgen]
+extern "C" {
+    /// Converts given `JsValue` into a `String`. Usees JS's `String` function,
+    /// see: https://www.w3schools.com/jsref/jsref_string.asp
+    #[allow(unsafe_code)]
+    #[wasm_bindgen(js_name="String")]
+    pub fn js_to_string(s: JsValue) -> String;
+}
+
+
+
 // =============
 // === Utils ===
 // =============
 
+/// Handle returned from `ignore_context_menu`. It unignores when the handle is dropped.
+#[derive(Debug)]
+pub struct IgnoreContextMenuHandle {
+    target  : EventTarget,
+    closure : Closure<dyn FnMut(MouseEvent)>
+}
+
+impl Drop for IgnoreContextMenuHandle {
+    fn drop(&mut self) {
+        let callback : &Function = self.closure.as_ref().unchecked_ref();
+        self.target.remove_event_listener_with_callback("contextmenu", callback).ok();
+    }
+}
+
 /// Ignores context menu when clicking with the right mouse button.
-pub fn ignore_context_menu(target:&EventTarget) -> Result<Closure<dyn FnMut(MouseEvent)>> {
+pub fn ignore_context_menu(target:&EventTarget) -> Result<IgnoreContextMenuHandle> {
     let closure = move |event:MouseEvent| {
         const RIGHT_MOUSE_BUTTON : i16 = 2;
         if  event.button() == RIGHT_MOUSE_BUTTON {
@@ -74,7 +109,11 @@ pub fn ignore_context_menu(target:&EventTarget) -> Result<Closure<dyn FnMut(Mous
     let closure = Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
     match target.add_event_listener_with_callback("contextmenu", callback) {
-        Ok(_)  => Ok(closure),
+        Ok(_)  => {
+            let target = target.clone();
+            let handle = IgnoreContextMenuHandle { target, closure };
+            Ok(handle)
+        },
         Err(_) => Err(Error::FailedToAddEventListener)
     }
 }
@@ -176,6 +215,8 @@ pub fn get_performance() -> Result<Performance> {
 /// Trait used to set HtmlElement attributes.
 pub trait AttributeSetter {
     fn set_attribute_or_panic<T:Str,U:Str>(&self, name:T, value:U);
+
+    fn set_attribute_or_warn<T:Str,U:Str>(&self, name:T, value:U, logger:&Logger);
 }
 
 impl AttributeSetter for web_sys::Element {
@@ -185,6 +226,16 @@ impl AttributeSetter for web_sys::Element {
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
         self.set_attribute(name,value)
             .unwrap_or_else(|_| panic!("Failed to set attribute {}", values));
+    }
+
+    fn set_attribute_or_warn<T:Str,U:Str>(&self, name:T, value:U, logger:&Logger) {
+        let name            = name.as_ref();
+        let value           = value.as_ref();
+        let values          = format!("\"{}\" = \"{}\" on \"{:?}\"",name,value,self);
+        let warn_msg : &str = &format!("Failed to set attribute {}", values);
+        if self.set_attribute(name,value).is_err() {
+            logger.warning(warn_msg)
+        }
     }
 }
 

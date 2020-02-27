@@ -7,7 +7,10 @@ use websocket::{
 };
 
 use crate::api;
+
 use api::Error::*;
+use ast::IdMap;
+
 use Error::*;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
@@ -84,7 +87,7 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest { program: String },
+    ParseRequest { program:String, ids:IdMap },
 }
 
 /// All responses that Parser Service might reply with.
@@ -116,16 +119,10 @@ impl Config {
     /// using environment variables or, if they are not set, hardcoded
     /// defaults.
     pub fn from_env() -> Config {
-        let host = env_var_or(HOSTNAME_VAR, DEFAULT_HOSTNAME);
-        let port = env_var_or(PORT_VAR, Default::default())
-            .parse()
-            .unwrap_or(DEFAULT_PORT);
+        let host = utils::env::env_var_or(HOSTNAME_VAR, DEFAULT_HOSTNAME);
+        let port = utils::env::parse_var_or(PORT_VAR, DEFAULT_PORT);
         Config { host, port }
     }
-}
-
-pub fn env_var_or(varname: &str, default_value: &str) -> String {
-    std::env::var(varname).unwrap_or_else(|_| default_value.into())
 }
 
 
@@ -202,14 +199,15 @@ impl Client {
 }
 
 impl api::IsParser for Client {
-    fn parse(&mut self, program: String) -> api::Result<api::Ast> {
-        let request  = Request::ParseRequest { program };
+
+   fn parse(&mut self, program:String, ids:IdMap) -> api::Result<api::Ast> {
+        let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call(request)?;
         match response {
             Response::Success { ast_json } => internal::from_json(&ast_json),
             Response::Error   { message  } => Err(ParsingError(message)),
         }
-    }
+   }
 }
 
 

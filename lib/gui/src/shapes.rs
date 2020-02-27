@@ -20,8 +20,8 @@ use basegl::prelude::*;
 use enso_frp::*;
 
 use basegl::system::web;
-use basegl::control::io::mouse2;
-use basegl::control::io::mouse2::MouseManager;
+use basegl::control::io::mouse::event::*;
+use basegl::control::io::mouse::MouseManager;
 use basegl::data::color::*;
 
 use basegl::display::shape::Var;
@@ -230,7 +230,7 @@ pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
     let mouse           = Mouse::new();
 
     frp! {
-        mouse_down_position    = mouse.position.sample       (&mouse.down);
+        mouse_down_position    = mouse.position.sample       (&mouse.on_down);
         mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
         final_position_ref     = recursive::<Position>       ();
         pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
@@ -246,19 +246,19 @@ pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
 //    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
 
     let target = mouse.position.event.clone_ref();
-    let handle = mouse_manager.on_move.add(move |event:&mouse2::event::OnMove| {
+    let handle = mouse_manager.on_move.add(move |event:&OnMove| {
         target.emit(Position::new(event.client_x(),event.client_y()));
     });
     handle.forget();
 
-    let target = mouse.down.event.clone_ref();
-    let handle = mouse_manager.on_down.add(move |event:&mouse2::event::OnDown| {
+    let target = mouse.on_down.event.clone_ref();
+    let handle = mouse_manager.on_down.add(move |event:&OnDown| {
         target.emit(());
     });
     handle.forget();
 
-    let target = mouse.up.event.clone_ref();
-    let handle = mouse_manager.on_up.add(move |event:&mouse2::event::OnUp| {
+    let target = mouse.on_up.event.clone_ref();
+    let handle = mouse_manager.on_up.add(move |event:&OnUp| {
         target.emit(());
     });
     handle.forget();

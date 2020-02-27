@@ -40,6 +40,9 @@ pub use lazy_static::lazy_static;
 pub use num::Num;
 pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
+pub use weak_table::traits::WeakElement;
+pub use weak_table::WeakValueHashMap;
+pub use weak_table;
 
 
 
