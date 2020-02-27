@@ -42,3 +42,29 @@ pub fn with<T, F: FnOnce(T) -> Out, Out>(t: T, f: F) -> Out { f(t) }
 pub trait ToRef<T>        where T:?Sized { fn to_ref(&self) -> &T; }
 impl<T>   ToRef<T> for  T where T:?Sized { fn to_ref(&self) -> &T { self } }
 impl<T>   ToRef<T> for &T where T:?Sized { fn to_ref(&self) -> &T { self } }
+
+
+
+// =============
+// === Owned ===
+// =============
+
+/// The owned version of a type. It would be super cool if Rust would allow us to automatically
+/// implement it for every type: `Owned<&T> = T` and `Owned<T> = T` if `T` was not a reference.
+/// Unfortunately, we need to implement it by hand for every type now.
+pub trait AsOwned {
+    type Owned;
+}
+
+/// Owned type family.
+pub type Owned<T> = <T as AsOwned>::Owned;
+
+/// Converts type to its owned version.
+pub trait IntoOwned = AsOwned + Into<Owned<Self>>;
+
+
+// === Default Impls ===
+
+impl<T> AsOwned for &T {
+    type Owned = T;
+}

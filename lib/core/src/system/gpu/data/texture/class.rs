@@ -218,13 +218,13 @@ ContentRef for Texture<S,I,T> {
     }
 }
 
-impl<S:StorageRelation<I,T>,I,T>
-WithContent2 for Texture<S,I,T> {
-    type Content = Texture<S,I,T>;
-    fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
-        f(self)
-    }
-}
+//impl<S:StorageRelation<I,T>,I,T>
+//WithContent2 for Texture<S,I,T> {
+//    type Content = Texture<S,I,T>;
+//    fn with_content<F:FnOnce(&Self::Content)->R,R>(&self, f:F) -> R {
+//        f(self)
+//    }
+//}
 
 
 
@@ -248,7 +248,7 @@ pub trait TextureOps {
     fn get_item_type(&self) -> AnyItemType;
 }
 
-impl<P:WithContent2<Content=Texture<S,I,T>>,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
+impl<P:WithContent<Content=Texture<S,I,T>>,S:StorageRelation<I,T>,I:InternalFormat,T:ItemType>
 TextureOps for P {
     fn bind_texture_unit(&self, context:&Context, unit:TextureUnit) -> TextureBindGuard {
         self.with_content(|this| {

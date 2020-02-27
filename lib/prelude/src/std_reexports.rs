@@ -26,13 +26,6 @@ pub use std::ops::Index;
 pub use std::ops::IndexMut;
 
 
-// === Collections ===
-
-pub use std::collections::BTreeMap;
-pub use std::collections::HashMap;
-pub use std::collections::HashSet;
-
-
 // === Conversion ===
 
 pub use std::convert::identity;
