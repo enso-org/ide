@@ -42,7 +42,6 @@ def main():
 
     print('Building with wasm-pack...')
     custom_wasm_args = sys.argv[1:]
-    print(f"Custom args: {custom_wasm_args}")
     subprocess.check_call(['wasm-pack', 'build', '--target', 'web', '--no-typescript',
                            '--out-dir', '../../target/web'] + custom_wasm_args + ['lib/gui'])
     patch_file('target/web/gui.js', js_workaround_patcher)
