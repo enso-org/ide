@@ -166,6 +166,14 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+        /// Discards all current content and replaces it with new one.
+        /// Whenever possible, tries to maintain cursor positions.
+        pub fn set_content(&mut self, text:&str) {
+            // FIXME [ao] It should check if cursors positions are valid.
+            //       See: https://github.com/luna/ide/issues/187
+            self.content.set_content(text)
+        }
+
         /// Make change in text content.
         ///
         /// As an opposite to `edit` function, here we don't care about cursors, nor call any
@@ -178,7 +186,7 @@ shared! { TextField
 
         /// Obtains the whole text content as a single String.
         pub fn get_content(&self) -> String {
-            let mut line_strings = self.content.lines.iter().map(|l| l.to_string());
+            let mut line_strings = self.content.lines().iter().map(|l| l.to_string());
             line_strings.join("\n")
         }
 
@@ -259,16 +267,6 @@ impl TextField {
             this.rendered.update_glyphs(&mut this.content);
             this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);
         });
-    }
-
-    /// Discards all current content and replaces it with new one.
-    /// Whenever possible, tries to maintain cursor positions.
-    pub fn set_content(&mut self, text:&str) {
-        // FIXME [mwu] This is a provisional stub to allow `TextEditor` use
-        //       proper API. This implementation should correctly remove old
-        //       contents and update the cursors.
-        //       See: https://github.com/luna/ide/issues/187
-        self.write(text)
     }
 
     /// Remove all text selected by all cursors.

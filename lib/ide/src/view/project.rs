@@ -15,6 +15,7 @@ use enso_frp::KeyboardActions;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
+use crate::controller::FallibleResult;
 
 
 // =================
@@ -61,9 +62,10 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub fn new(logger:&Logger, controller:controller::project::Handle) -> Self {
+    pub async fn new(logger:&Logger, controller:controller::project::Handle)
+    -> FallibleResult<Self> {
         let path                 = Path::new(INITIAL_FILE_PATH);
-        let text_controller      = controller.open_text_file(path);
+        let text_controller      = controller.open_text_file(path).await?;
         let world                = WorldData::new(&web::body());
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();
@@ -74,7 +76,7 @@ impl ProjectView {
             (&logger,&mut keyboard_actions,&world,text_controller);
         let data = ProjectViewData
             {world,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
-        Self::new_from_data(data).init()
+        Ok(Self::new_from_data(data).init())
     }
 
     fn init(self) -> Self {

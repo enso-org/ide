@@ -260,6 +260,12 @@ impl TextFieldContent {
         }
     }
 
+    /// Replaces content with a new text. This marks all lines as dirty.
+    pub fn set_content(&mut self, text:&str) {
+        self.lines = Self::split_to_lines(text).map(Line::new).collect();
+        self.dirty_lines.add_lines_range_from(0..);
+    }
+
     /// Get the nearest text location from the point on the screen.
     pub fn location_at_point(&mut self, point:Vector2<f32>) -> TextLocation {
         let line_opt = self.line_at_y_position(point.y);
@@ -310,6 +316,7 @@ impl TextFieldContent {
         start..end
     }
 }
+
 
 // === Implementing Changes ===
 

@@ -107,11 +107,11 @@ pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,Con
 }
 
 /// Sets up the project view, including the controller it uses.
-pub async fn
-setup_project_view(logger:&Logger,config:SetupConfig) -> Result<ProjectView,failure::Error> {
+pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
+-> Result<ProjectView,failure::Error> {
     let fm_transport = connect_to_file_manager(config).await?;
     let controller   = controller::project::Handle::new_running(fm_transport);
-    let project_view = ProjectView::new(logger,controller);
+    let project_view = ProjectView::new(logger,controller).await?;
     Ok(project_view)
 }
 

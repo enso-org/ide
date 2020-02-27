@@ -76,11 +76,11 @@ impl TextEditor {
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(&world,properties);
 
-        let content_future  = controller.read_content();
-        let text_field_weak = text_field.downgrade();
-        let logger_ref      = logger.clone();
+        let text_field_weak  = text_field.downgrade();
+        let controller_clone = controller.clone_ref();
+        let logger_ref       = logger.clone();
         executor::global::spawn(async move {
-            if let Ok(content) = content_future.await {
+            if let Ok(content) = controller_clone.read_content().await {
                 if let Some(text_field) = text_field_weak.upgrade() {
                     text_field.set_content(&content);
                     logger_ref.info("File loaded");
