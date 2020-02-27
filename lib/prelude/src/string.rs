@@ -8,6 +8,19 @@ use derive_more::*;
 
 
 
+// ===========
+// === Str ===
+// ===========
+
+/// Abstraction for any kind of string as an argument. Functions defined as
+/// `fn test<S:Str>(s: Str) { ... }` can be called with `String`, `&String`, and `&str` without
+/// requiring caller to know the implementation details. Moreover, the definition can decide if it
+/// needs allocation or not. Calling `s.as_ref()` will never allocate, while `s.into()` will
+/// allocate only when necessary.
+pub trait Str = Into<String> + AsRef<str>;
+
+
+
 // =================
 // === CowString ===
 // =================

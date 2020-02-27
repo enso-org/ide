@@ -150,8 +150,8 @@ impl<Gradient> HasContent for SdfSampler<Gradient> {
     type Content = Gradient;
 }
 
-impl<Gradient> Unwrap for SdfSampler<Gradient> {
-    fn unwrap(&self) -> &Self::Content {
+impl<Gradient> ContentRef for SdfSampler<Gradient> {
+    fn content(&self) -> &Self::Content {
         &self.gradient
     }
 }

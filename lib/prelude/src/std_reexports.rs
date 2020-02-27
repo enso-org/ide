@@ -10,6 +10,8 @@ pub use std::marker::PhantomData;
 
 // === Format ===
 
+pub use core::any::type_name;
+pub use core::fmt::Debug;
 pub use std::fmt::Display;
 pub use std::fmt;
 pub use std::iter::FromIterator;
@@ -57,3 +59,11 @@ pub use std::ops::Div;
 pub use std::ops::Mul;
 pub use std::ops::Neg;
 pub use std::ops::Sub;
+
+
+// === Utils ===
+
+/// Alias for `Default::default()`.
+pub fn default<T:Default>() -> T {
+    Default::default()
+}
