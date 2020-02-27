@@ -39,7 +39,7 @@ pub fn run_example_shapes() {
 pub mod icons {
     use super::*;
 
-    pub fn history() -> Shape {
+    pub fn history() -> AnyShape {
         let radius_diff    = 0.5.px();
         let corners_radius = 2.0.px();
         let width_diff     = &corners_radius * 3.0;
@@ -70,7 +70,7 @@ pub mod icons {
     }
 }
 
-fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> Shape
+fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
 where R : Into<Var<Distance<Pixels>>>,
       W : Into<Var<Distance<Pixels>>>,
       A : Into<Var<Angle<Radians>>> {
@@ -94,7 +94,7 @@ where R : Into<Var<Distance<Pixels>>>,
     out.into()
 }
 
-fn nodes2() -> Shape {
+fn nodes2() -> AnyShape {
     let node_radius = 32.0;
     let border_size = 16.0;
     let node   = Circle(node_radius.px());
@@ -136,7 +136,7 @@ fn nodes2() -> Shape {
     out.into()
 }
 
-fn nodes3() -> Shape {
+fn nodes3() -> AnyShape {
     nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
 }
 

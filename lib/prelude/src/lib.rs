@@ -468,25 +468,14 @@ impl KnownTypeValue for False {
     }
 }
 
+/// Alias for `for<'t> &'t Self : Into<T>`.
 pub trait RefInto<T> = where for<'t> &'t Self : Into<T>;
 
 
-//pub trait SpecFrom<T> {
-//    fn spec_from(t:T) -> Self;
-//}
-//
-//pub trait SpecInto<T>: Sized {
-//    fn spec_into(self) -> T;
-//}
-//
-//impl<T,U> SpecInto<U> for T
-//where U: SpecFrom<T> {
-//    default fn spec_into(self) -> U {
-//        U::spec_from(self)
-//    }
-//}
 
-
+// =============
+// === Owned ===
+// =============
 
 pub trait AsOwned {
     type Owned;

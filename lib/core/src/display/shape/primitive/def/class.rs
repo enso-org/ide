@@ -17,31 +17,34 @@ use crate::data::color::*;
 // === Shape ===
 // =============
 
+/// Type of any shape which we can display on the canvas.
+pub trait Shape = 'static + canvas::Draw;
+
 /// Generic 2d shape representation. You can convert any specific shape type to this type and use it
 /// as a generic shape type.
 #[derive(Debug,Clone)]
-pub struct Shape {
+pub struct AnyShape {
     rc: Rc<dyn canvas::Draw>
 }
 
-impl AsOwned for Shape {
-    type Owned = Shape;
+impl AsOwned for AnyShape {
+    type Owned = AnyShape;
 }
 
-impl Shape {
+impl AnyShape {
     /// Constructor.
-    pub fn new<T:'static+canvas::Draw>(t:T) -> Self {
+    pub fn new<T:Shape>(t:T) -> Self {
         Self {rc : Rc::new(t)}
     }
 }
 
-impl canvas::Draw for Shape {
+impl canvas::Draw for AnyShape {
     fn draw(&self, canvas:&mut Canvas) -> canvas::Shape {
         self.rc.draw(canvas)
     }
 }
 
-impls! { From<&Shape> for Shape { |t| t.clone() }}
+impls! { From<&AnyShape> for AnyShape { |t| t.clone() }}
 
 
 
@@ -91,7 +94,7 @@ impl<T> ShapeRef<T> {
 // ================
 
 impl<T> ShapeOps for ShapeRef<T> {}
-impl    ShapeOps for Shape {}
+impl    ShapeOps for AnyShape {}
 
 /// Methods implemented by every shape.
 pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {

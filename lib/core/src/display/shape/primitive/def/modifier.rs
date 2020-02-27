@@ -7,7 +7,7 @@
 use crate::prelude::*;
 
 use crate::data::color::*;
-use crate::display::shape::primitive::def::class::Shape;
+use crate::display::shape::primitive::def::class::AnyShape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::def::var::Var;
 use crate::display::shape::primitive::shader::canvas::Canvas;
@@ -83,7 +83,7 @@ macro_rules! _define_modifier {
             type Owned = $name<$($shape_field),*>;
         }
 
-        impl<$($shape_field:'static+canvas::Draw),*> From<$name<$($shape_field),*>> for Shape {
+        impl<$($shape_field:'static+canvas::Draw),*> From<$name<$($shape_field),*>> for AnyShape {
             fn from(t:$name<$($shape_field),*>) -> Self {
                 Self::new(t)
             }

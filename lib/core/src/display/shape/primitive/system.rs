@@ -3,11 +3,12 @@
 
 use crate::prelude::*;
 
+use super::def::*;
+
+use crate::display::object::*;
+use crate::display::shape::primitive::shader;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
-use crate::display::shape::primitive::shader;
-use crate::display::shape::primitive::shader::canvas;
-use crate::display::object::*;
 use crate::display::world::World;
 use crate::system::gpu::types::*;
 
@@ -22,7 +23,7 @@ pub struct ShapeSystem {
 
 impl ShapeSystem {
     /// Constructor.
-    pub fn new<S:canvas::Draw>(world:&World, shape:&S) -> Self {
+    pub fn new<S:Shape>(world:&World, shape:&S) -> Self {
         let sprite_system = SpriteSystem::new(world);
         let this = Self {sprite_system};
         this.set_shape(shape);
@@ -30,7 +31,7 @@ impl ShapeSystem {
     }
 
     /// Defines a default material of this system.
-    fn surface_material<S:canvas::Draw>(shape:&S) -> Material {
+    fn surface_material<S:Shape>(shape:&S) -> Material {
         let mut material = Material::new();
         material.add_input  ("pixel_ratio"  , 1.0);
         material.add_input  ("zoom"         , 1.0);
@@ -44,7 +45,7 @@ impl ShapeSystem {
     }
 
     /// Replaces the shape definition.
-    pub fn set_shape<S:canvas::Draw>(&self, shape:&S) {
+    pub fn set_shape<S:Shape>(&self, shape:&S) {
         self.sprite_system.set_material(Self::surface_material(shape));
     }
 }

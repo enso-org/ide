@@ -8,12 +8,13 @@ pub mod var;
 
 /// Common types.
 pub mod export {
-    pub use super::var::*;
+    pub use super::class::AnyShape;
     pub use super::class::Shape;
     pub use super::class::ShapeOps;
+    pub use super::modifier::*;
     pub use super::primitive::*;
     pub use super::unit::*;
-    pub use super::modifier::immutable::*;
+    pub use super::var::*;
 }
 
 pub use export::*;
