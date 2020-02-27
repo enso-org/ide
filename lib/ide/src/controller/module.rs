@@ -4,8 +4,6 @@
 //! and uses it for synchronizing state for text and graph representations. It provides method
 //! for registering text and graph changes. If for example text represntation will be changed, there
 //! will be notifications for both text change and graph change.
-//!
-//! This module is still on WIP state, for now it contains stubs only.
 
 use crate::prelude::*;
 
