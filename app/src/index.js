@@ -33,8 +33,8 @@ function wasm_instantiate_streaming(resource,imports) {
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
 async function download_content(cfg) {
-    let wasm_glue_fetch = await fetch('./wasm_imports.js')
-    let wasm_fetch      = await fetch('./gui.wasm')
+    let wasm_glue_fetch = await fetch('/wasm_imports.js')
+    let wasm_fetch      = await fetch('/gui.wasm')
     let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
 
     loader.done.then(() => {
@@ -125,8 +125,8 @@ function show_debug_screen(wasm,msg) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    let search = window.location.search.substr(1);
-    let target = search.split("=");
+    let target = window.location.href.split('/')
+    target.splice(0,3)
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]

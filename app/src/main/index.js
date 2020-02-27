@@ -1,14 +1,18 @@
 'use strict'
 
 import { app, BrowserWindow }  from 'electron'
-import { format as formatUrl } from 'url'
-import * as path               from 'path'
+import { HttpServer}           from '../http-server'
 
 
 
 // =================
 // === Constants ===
 // =================
+
+
+// == Web Server ==
+
+const HTTP_SERVER_PORT = 9090;
 
 
 // === Execution mode ===
@@ -23,7 +27,15 @@ const IS_DEVELOPMENT   = process.env.NODE_ENV === MODE_DEVELOPMENT
 const WINDOW_WIDTH      = 1024;
 const WINDOW_HEIGHT     = 768;
 const WINDOW_FRAME      = false;
-const WINDOW_INDEX_PATH = '/main/index.html'
+
+
+
+// =======================
+// === Server Creation ===
+// =======================
+
+var server = new HttpServer(`${__static}/main`, HTTP_SERVER_PORT);
+
 
 
 // =======================
@@ -36,34 +48,23 @@ function create_main_window() {
     const window = new BrowserWindow({
         width  : WINDOW_WIDTH,
         height : WINDOW_HEIGHT,
-        frame  : WINDOW_FRAME,
+        frame  : WINDOW_FRAME
     })
 
     let debug_scene = "";
     let command     = "debug";
     if (app.commandLine.hasSwitch(command)) {
         let value = app.commandLine.getSwitchValue(command);
-        debug_scene = `?${command}`;
+        debug_scene = command;
         if (value) {
-            debug_scene += "=" + value
+            debug_scene += `/${value}`;
         }
     }
 
     if (IS_DEVELOPMENT) {
         window.webContents.openDevTools();
-        let url = `http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/main/` + debug_scene;
-        window.loadURL(url)
-    } else {
-        // To get static_path, we replace path_to_asar/app.asar with path_to_asar/static
-        let static_path = __dirname.replace(/app\.asar$/, 'static');
-        let url         = formatUrl({
-            pathname : path.join(static_path, WINDOW_INDEX_PATH),
-            protocol : 'file',
-            slashes  : true
-        }) + debug_scene;
-
-        window.loadURL(url)
     }
+    window.loadURL(`http://localhost:${HTTP_SERVER_PORT}/${debug_scene}`);
 
     window.on('closed', () => {
         main_window_keep_alive = null
