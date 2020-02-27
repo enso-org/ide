@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 repo_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
@@ -40,8 +41,10 @@ def main():
     os.chdir(repo_root)
 
     print('Building with wasm-pack...')
+    custom_wasm_args = sys.argv[1:]
+    print(f"Custom args: {custom_wasm_args}")
     subprocess.check_call(['wasm-pack', 'build', '--target', 'web', '--no-typescript',
-                           '--out-dir', '../../target/web', 'lib/gui'])
+                           '--out-dir', '../../target/web'] + custom_wasm_args + ['lib/gui'])
     patch_file('target/web/gui.js', js_workaround_patcher)
     shutil.move('target/web/gui_bg.wasm', 'target/web/gui.wasm')
 
