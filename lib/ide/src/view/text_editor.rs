@@ -27,12 +27,12 @@ shared! { TextEditor
 /// planned to be implemented for it.
 #[derive(Debug)]
 pub struct TextEditorData {
-    text_field           : TextField,
-    padding              : TemporaryPadding,
-    position             : Vector2<f32>,
-    size                 : Vector2<f32>,
-    controller           : controller::text::Handle,
-    logger               : Logger
+    text_field : TextField,
+    padding    : TemporaryPadding,
+    position   : Vector2<f32>,
+    size       : Vector2<f32>,
+    controller : controller::text::Handle,
+    logger     : Logger
 }
 
 impl {
@@ -51,6 +51,11 @@ impl {
                 logger.info("File saved");
             }
         });
+    }
+
+    /// Selects next word occurrence.
+    pub fn select_next_word_occurrence(&mut self) {
+        self.text_field.select_next_word_occurrence();
     }
 }}
 
@@ -100,6 +105,14 @@ impl TextEditor {
             if let Some(text_editor) = text_editor.upgrade() {
                 text_editor.borrow().save();
             }
+        });
+
+        let word_occurrence_keys = KeyMask::new_alt_character('j');
+        let text_editor          = Rc::downgrade(&self.rc);
+        keyboard_actions.set_action(word_occurrence_keys,move |_| {
+           if let Some(text_editor) = text_editor.upgrade() {
+               text_editor.borrow_mut().select_next_word_occurrence();
+           }
         });
         self.update();
         self

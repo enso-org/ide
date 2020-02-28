@@ -37,6 +37,12 @@ impl Cursor {
         self.position != self.selected_to
     }
 
+    /// Select text range.
+    pub fn select_range(&mut self, range:&Range<TextLocation>) {
+        self.position    = range.end;
+        self.selected_to = range.start;
+    }
+
     /// Get range of selected text by this cursor.
     pub fn selection_range(&self) -> Range<TextLocation> {
         match self.position.cmp(&self.selected_to) {

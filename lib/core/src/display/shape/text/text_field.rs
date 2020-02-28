@@ -5,6 +5,7 @@ pub mod cursor;
 pub mod frp;
 pub mod location;
 pub mod render;
+pub mod word_occurrence;
 
 use crate::prelude::*;
 
@@ -18,6 +19,7 @@ use crate::display::shape::text::text_field::cursor::CursorNavigation;
 use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
 use crate::display::shape::text::text_field::frp::TextFieldFrp;
+use crate::display::shape::text::text_field::word_occurrence::WordOccurrences;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
@@ -76,6 +78,7 @@ shared! { TextField
         rendered         : TextFieldSprites,
         display_object   : DisplayObjectData,
         frp              : Option<TextFieldFrp>,
+        word_occurrences : Option<WordOccurrences>
     }
 
     impl {
@@ -115,6 +118,7 @@ shared! { TextField
 
         /// Removes all cursors except one which is set and given point.
         pub fn set_cursor(&mut self, point:Vector2<f32>) {
+            self.word_occurrences = None;
             self.cursors.remove_additional_cursors();
             self.jump_cursor(point,false);
         }
@@ -171,6 +175,7 @@ shared! { TextField
         /// All the currently selected text will be removed, and the given string will be inserted
         /// by each cursor.
         pub fn write(&mut self, text:&str) {
+            self.word_occurrences       = None;
             let trimmed                 = text.trim_end_matches('\n');
             let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
             let cursor_ids              = self.cursors.sorted_cursor_indices();
@@ -216,6 +221,33 @@ shared! { TextField
             self.remove_selection();
         }
 
+        /// Text field has a selected text.
+        pub fn has_selection(&self) -> bool {
+            self.cursors.cursors.iter().fold(false, |acc, x| acc || x.has_selection())
+        }
+
+        /// Select next word occurrence.
+        pub fn select_next_word_occurrence(&mut self) {
+            let not_multicursors = self.cursors.cursors.len() == 1;
+            if self.word_occurrences.is_none() && not_multicursors {
+                let mut cursor        = self.cursors.cursors.last_mut().unwrap();
+                self.word_occurrences = WordOccurrences::new(&self.content,&mut cursor);
+            }
+
+            let has_selection             = self.has_selection();
+            if let Some(word_occurrences) = &mut self.word_occurrences {
+                if let Some(word) = word_occurrences.select_next() {
+                    if has_selection {
+                        self.cursors.add_cursor(TextLocation::at_document_begin());
+                    }
+
+                    let cursor = self.cursors.cursors.last_mut().unwrap();
+                    cursor.select_range(&word);
+                    self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+                }
+            }
+        }
+
         /// Update underlying Display Object.
         pub fn update(&self) {
             self.display_object.update()
@@ -259,18 +291,19 @@ impl TextField {
 
 impl TextFieldData {
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-        let logger         = Logger::new("TextField");
-        let display_object = DisplayObjectData::new(logger);
-        let content        = TextFieldContent::new(initial_content,&properties);
-        let cursors        = Cursors::default();
-        let rendered       = TextFieldSprites::new(world,&properties);
-        let frp            = None;
+        let logger           = Logger::new("TextField");
+        let display_object   = DisplayObjectData::new(logger);
+        let content          = TextFieldContent::new(initial_content,&properties);
+        let cursors          = Cursors::default();
+        let rendered         = TextFieldSprites::new(world,&properties);
+        let frp              = None;
+        let word_occurrences = None;
         display_object.add_child(rendered.display_object.clone_ref());
 
-        Self {properties,content,cursors,rendered,display_object,frp}.initialize()
+        Self {properties,content,cursors,rendered,display_object,frp,word_occurrences}.initialize()
     }
 
-    fn initialize(mut self) -> Self{
+    fn initialize(mut self) -> Self {
         self.assignment_update().update_line_assignment();
         self.rendered.update_glyphs(&mut self.content);
         self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
