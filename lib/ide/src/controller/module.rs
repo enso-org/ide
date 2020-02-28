@@ -131,6 +131,7 @@ impl Handle {
         let logger  = Logger::new(format!("Module Controller {}", location));
         logger.info(|| "Loading module file");
         let path    = location.to_path();
+        file_manager.touch(path.clone()).await?;
         let content = file_manager.read(path).await?;
         logger.info(|| "Parsing code");
         let ast     = parser.parse(content,default())?;

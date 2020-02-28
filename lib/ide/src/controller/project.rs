@@ -187,18 +187,33 @@ mod test {
             assert!(module_ctrl.identity_equals(&same_module_ctrl));
             *finished_clone.borrow_mut() = true;
         });
+        // Load module (touch + read content)
         executor.run_until_stalled();
         transport.mock_peer_message_text(r#"{
             "jsonrpc" : "2.0",
             "id"      : 0,
-            "result"  :"2 + 2"
+            "result"  : null
         }"#);
         executor.run_until_stalled();
         transport.mock_peer_message_text(r#"{
             "jsonrpc" : "2.0",
             "id"      : 1,
+            "result"  :"2 + 2"
+        }"#);
+        // Load Another Module (touch + read content)
+        executor.run_until_stalled();
+        transport.mock_peer_message_text(r#"{
+            "jsonrpc" : "2.0",
+            "id"      : 2,
+            "result"  : null
+        }"#);
+        executor.run_until_stalled();
+        transport.mock_peer_message_text(r#"{
+            "jsonrpc" : "2.0",
+            "id"      : 3,
             "result"  :"3+3"
         }"#);
+        // Check test reach its end
         executor.run_until_stalled();
         assert!(*finished.borrow());
     }
@@ -253,6 +268,12 @@ mod test {
         transport.mock_peer_message_text(r#"{
             "jsonrpc" : "2.0",
             "id"      : 0,
+            "result"  : null
+        }"#);
+        executor.run_until_stalled();
+        transport.mock_peer_message_text(r#"{
+            "jsonrpc" : "2.0",
+            "id"      : 1,
             "result"  :"2 + 2"
         }"#);
         executor.run_until_stalled();
