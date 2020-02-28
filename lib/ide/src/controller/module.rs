@@ -112,7 +112,7 @@ shared! { Handle
         pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
             let my_code = self.code();
             if code != my_code {
-                self.logger.error(|| format!("The module controller ast was not synchronized with
+                self.logger.error(|| format!("The module controller ast was not synchronized with \ 
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
                 self.ast    = self.parser.parse(code,default())?;
                 self.id_map = default();
