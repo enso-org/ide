@@ -7,7 +7,7 @@
 use crate::prelude::*;
 use crate::controller::FallibleResult;
 
-use basegl::display::shape::text::text_field::TextChangedNotification;
+use data::text::TextChangedNotification;
 use failure::_core::fmt::Formatter;
 use failure::_core::fmt::Error;
 use file_manager_client as fmc;
@@ -98,17 +98,20 @@ impl Handle {
     }
 
     /// Store the given content to file.
-    pub async fn store_content(&self, content:String) -> FallibleResult<()> {
-        match self.file_handle() {
-            FileHandle::PlainText {path,mut file_manager} => {
-                file_manager.write(path,content).await?
-            },
-            FileHandle::Module {controller}=> {
-                controller.check_code_sync(content)?;
-                controller.save_file().await?
+    pub fn store_content(&self, content:String) -> impl Future<Output=FallibleResult<()>> {
+        let file_handle = self.file_handle();
+        async move {
+            match file_handle {
+                FileHandle::PlainText {path,mut file_manager} => {
+                    file_manager.write(path,content).await?
+                },
+                FileHandle::Module {controller} => {
+                    controller.check_code_sync(content)?;
+                    controller.save_file().await?
+                }
             }
+            Ok(())
         }
-        Ok(())
     }
 
     /// Apply text change.

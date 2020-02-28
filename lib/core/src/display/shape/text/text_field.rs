@@ -10,12 +10,11 @@ use crate::prelude::*;
 
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
-use crate::display::shape::text::text_field::content::TextChange;
 use crate::display::shape::text::text_field::cursor::Cursors;
 use crate::display::shape::text::text_field::cursor::Cursor;
+use crate::display::shape::text::text_field::cursor::CursorId;
 use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
-use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
 use crate::display::shape::text::text_field::frp::TextFieldFrp;
 use crate::display::shape::text::glyph::font::FontHandle;
@@ -24,28 +23,12 @@ use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::world::World;
 
+use data::text::TextChange;
+use data::text::TextChangedNotification;
+use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
-use std::ops::Range;
-
-
-
-// ===============================
-// === TextChangedNotification ===
-// ===============================
-
-/// A notification about text change.
-///
-/// In essence, it's `TextChange` with some additional useful information.
-#[derive(Clone,Debug,Shrinkwrap)]
-pub struct TextChangedNotification {
-    /// A change which has occurred.
-    #[shrinkwrap(main_field)]
-    pub change : TextChange,
-    /// The replaced range as char positions from document begin, instead of row:column pairs.
-    pub replaced_chars : Range<usize>,
-}
 
 
 
@@ -255,8 +238,11 @@ impl TextField {
     /// All the currently selected text will be removed, and the given string will be inserted
     /// by each cursor.
     pub fn write(&self, text:&str) {
-        let trimmed                 = text.trim_end_matches('\n');
-        let cursor_ids              = self.with_borrowed(|this| this.cursors.sorted_cursor_indices());
+        let trimmed    = text.trim_end_matches('\n');
+        let cursor_ids = self.with_borrowed(|this| this.cursors.sorted_cursor_indices());
+        // When we insert (e.g. paste) many lines in multicursor mode, under some circumnstances
+        // we insert one line per cursor, instead of having all cursors inserting the whole
+        // content. Such situation we call here Line Per Cursor Edit.
         let is_line_per_cursor_edit = trimmed.contains('\n') && cursor_ids.len() > 1;
 
         if is_line_per_cursor_edit {
@@ -301,11 +287,11 @@ impl TextField {
 
 impl TextField {
 
-    fn write_per_cursor<'a,It>(&self, cursor_id_with_text_to_insert:It)
-        where It : Iterator<Item=(usize,&'a str)> {
+    fn write_per_cursor<'a,It>(&self, text_per_cursor:It)
+        where It : Iterator<Item=(CursorId,&'a str)> {
         let mut location_change = TextLocationChange::default();
         let mut opt_callback    = self.with_borrowed(|this| std::mem::take(&mut this.text_change_callback));
-        for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
+        for (cursor_id,to_insert) in text_per_cursor {
             let notification = self.with_borrowed(|this| {
                 this.apply_one_cursor_change(&mut location_change,cursor_id,to_insert)
             });
@@ -354,9 +340,10 @@ impl TextFieldData {
     }
 
     fn apply_one_cursor_change
-    (&mut self, location_change:&mut TextLocationChange, cursor_id:usize, to_insert:&str)
+    (&mut self, location_change:&mut TextLocationChange, cursor_id:CursorId, to_insert:&str)
     -> TextChangedNotification {
-        let cursor         = &mut self.cursors.cursors[cursor_id];
+        let CursorId(id)   = cursor_id;
+        let cursor         = &mut self.cursors.cursors[id];
         let replaced       = location_change.apply_to_range(cursor.selection_range());
         let replaced_chars = self.content.convert_location_range_to_char_index(&replaced);
         let change         = TextChange::replace(replaced,to_insert);

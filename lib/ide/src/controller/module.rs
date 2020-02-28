@@ -13,10 +13,10 @@ use crate::double_representation::apply_code_change_to_id_map;
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
-use basegl::display::shape::text::text_field::TextChangedNotification;
 use data::text::Index;
 use data::text::Size;
 use data::text::Span;
+use data::text::TextChangedNotification;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
@@ -112,7 +112,7 @@ shared! { Handle
         pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
             let my_code = self.code();
             if code != my_code {
-                self.logger.error(|| format!("The module controller ast was not synchronized with \ 
+                self.logger.error(|| format!("The module controller ast was not synchronized with \
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
                 self.ast    = self.parser.parse(code,default())?;
                 self.id_map = default();
@@ -170,15 +170,26 @@ mod test {
 
     use ast;
     use ast::BlockLine;
-    use basegl::display::shape::text::text_field::content::TextChange;
-    use basegl::display::shape::text::text_field::location::TextLocation;
-    use data::text::Span;
     use data::text::Index;
+    use data::text::Span;
     use data::text::Size;
+    use data::text::TextChange;
+    use data::text::TextLocation;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use file_manager_client::Path;
+
+    #[test]
+    fn get_location_from_path() {
+        let module     = Path(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
+        let not_module = Path("test.txt".to_string());
+
+        let expected_loc = Location("test".to_string());
+        assert_eq!(Some(expected_loc),Location::from_path(&module    ));
+        assert_eq!(None,              Location::from_path(&not_module));
+    }
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {

@@ -243,7 +243,7 @@ mod test {
 
         spawn(async move {
             let project_ctrl = controller::project::Handle::new_running(transport_clone);
-            let path         = Path(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
+            let path         = controller::module::Location("test".to_string()).to_path();
             let text_ctrl    = project_ctrl.get_text_controller(path.clone()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());

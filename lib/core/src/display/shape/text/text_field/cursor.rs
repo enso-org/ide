@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use crate::display::shape::text::text_field::content::line::LineFullInfo;
 use crate::display::shape::text::text_field::content::TextFieldContent;
-use crate::display::shape::text::text_field::location::TextLocation;
 
+use data::text::TextLocation;
 use nalgebra::Vector2;
 use std::cmp::Ordering;
 use std::ops::Range;
@@ -240,6 +240,12 @@ impl<'a> CursorNavigation<'a> {
 // === Cursors ===
 // ===============
 
+
+
+/// A newtype for cursor id.
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord)]
+pub struct CursorId(pub usize);
+
 /// Structure handling many cursors.
 ///
 /// Usually there is only one cursor, but we have possibility of having many cursors in one text
@@ -311,8 +317,9 @@ impl Cursors {
     }
 
     /// Returns cursor indices sorted by cursors' position in text.
-    pub fn sorted_cursor_indices(&self) -> Vec<usize> {
-        self.cursors.iter().enumerate().sorted_by_key(|(_,c)| c.position).map(|(i,_)| i).collect()
+    pub fn sorted_cursor_indices(&self) -> Vec<CursorId> {
+        let sorted_pairs = self.cursors.iter().enumerate().sorted_by_key(|(_,c)| c.position);
+        sorted_pairs.map(|(i,_)| CursorId(i)).collect()
     }
 
     /// Merge overlapping cursors
@@ -331,7 +338,7 @@ impl Cursors {
                 let merged = self.merged_selection_range(last_cursor_id,*id);
                 match merged {
                     Some(merged_range) => {
-                        self.cursors[last_cursor_id].extend_selection(&merged_range);
+                        self.cursors[last_cursor_id.0].extend_selection(&merged_range);
                         to_remove.push(*id);
                     },
                     None => {
@@ -340,19 +347,21 @@ impl Cursors {
                 };
             }
             for id in to_remove.iter().sorted().rev() {
-                self.cursors.remove(*id);
+                self.cursors.remove(id.0);
             }
         }
     }
 
     /// Checks if two cursors should be merged and returns new selection range after merging if they
     /// shoukd, and `None` otherwise.
-    fn merged_selection_range(&self, left_cursor_index:usize, right_cursor_index:usize)
+    fn merged_selection_range(&self, left_cursor_index:CursorId, right_cursor_index:CursorId)
     -> Option<Range<TextLocation>> {
-        let left_cursor_position        = self.cursors[left_cursor_index].position;
-        let left_cursor_range           = self.cursors[left_cursor_index].selection_range();
-        let right_cursor_position       = self.cursors[right_cursor_index].position;
-        let right_cursor_range          = self.cursors[right_cursor_index].selection_range();
+        let CursorId(left_id)           = left_cursor_index;
+        let CursorId(right_id)          = right_cursor_index;
+        let left_cursor_position        = self.cursors[left_id].position;
+        let left_cursor_range           = self.cursors[left_id].selection_range();
+        let right_cursor_position       = self.cursors[right_id].position;
+        let right_cursor_range          = self.cursors[right_id].selection_range();
         let are_cursor_at_same_position = left_cursor_position == right_cursor_position;
         let are_ranges_overlapping      = right_cursor_range.start < left_cursor_range.end;
         let are_cursors_merged          = are_cursor_at_same_position || are_ranges_overlapping;

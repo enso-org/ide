@@ -6,9 +6,12 @@ use crate::prelude::*;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::text_field::content::line::Line;
 use crate::display::shape::text::text_field::content::line::LineFullInfo;
-use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::TextFieldProperties;
 
+use data::text::ChangeType;
+use data::text::TextChange;
+use data::text::TextLocation;
+use data::text::split_to_lines;
 use nalgebra::Vector2;
 use std::ops::Range;
 use std::ops::RangeFrom;
@@ -76,105 +79,21 @@ impl DirtyLines {
 
 
 
-// ==============
-// === Change ===
-// ==============
-
-/// A change type
-#[derive(Copy,Clone,Debug)]
-pub enum ChangeType {
-    /// A change where we replace fragment of one line with text without new lines.
-    SingleLine,
-    /// A multi-line change is a change which is not a single line change (see docs for SingleLine).
-    MultiLine
-}
-
-/// A structure describing a text operation in one place.
-#[derive(Clone,Debug)]
-pub struct TextChange {
-    /// Text fragment to be replaced. If we don't mean to remove any text, this should be an empty
-    /// range with start set at position there `lines` will be inserted (see `TextChange::insert`
-    /// definition).
-    pub replaced : Range<TextLocation>,
-    /// Lines to insert instead of replaced fragment.
-    pub lines : Vec<Vec<char>>,
-}
-
-impl TextChange {
-    /// Creates operation which inserts text at given position.
-    pub fn insert(at:TextLocation, text:&str) -> Self {
-        TextChange {
-            replaced : at..at,
-            lines    : Self::mk_lines_as_char_vector(text)
-        }
-    }
-
-    /// Creates operation which deletes text at given range.
-    pub fn delete(range:Range<TextLocation>) -> Self {
-        TextChange {
-            replaced : range,
-            lines    : vec![vec![]],
-        }
-    }
-
-    /// Creates operation which replaces text at given range with given string.
-    pub fn replace(replaced:Range<TextLocation>, text:&str) -> Self {
-        TextChange {replaced,
-            lines : Self::mk_lines_as_char_vector(text)
-        }
-    }
-
-    /// A type of this change. See `ChangeType` doc for details.
-    pub fn change_type(&self) -> ChangeType {
-        if self.lines.is_empty() {
-            panic!("Invalid change");
-        }
-        let is_one_line_modified = self.replaced.start.line == self.replaced.end.line;
-        let is_one_line_inserted = self.lines.len() == 1;
-        if is_one_line_modified && is_one_line_inserted {
-            ChangeType::SingleLine
-        } else {
-            ChangeType::MultiLine
-        }
-    }
-
-    /// Converts change representation to String.
-    pub fn inserted_string(&self) -> String {
-        self.lines.iter().map(|line| line.iter().collect::<String>()).join("\n")
-    }
-
-    /// Returns text location range where the inserted text will appear after making this change.
-    pub fn inserted_text_range(&self) -> Range<TextLocation> {
-        let start         = self.replaced.start;
-        let end_line      = start.line + self.lines.len().saturating_sub(1);
-        let last_line_len = self.lines.last().map_or(0, |l| l.len());
-        let end_column = if start.line == end_line {
-            start.column + last_line_len
-        } else {
-            last_line_len
-        };
-        start..TextLocation{line:end_line, column:end_column}
-    }
-
-    fn mk_lines_as_char_vector(text:&str) -> Vec<Vec<char>> {
-        TextFieldContent::split_to_lines(text).map(|s| s.chars().collect_vec()).collect()
-    }
-}
-
-
-
 // ============================
 // === TextFieldContent ===
 // ============================
 
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
-#[allow(missing_docs)]
 pub struct TextFieldContent {
-    pub dirty_lines  : DirtyLines,
-    pub font         : FontHandle,
-    pub line_height  : f32,
-    lines            : Vec<Line>,
+    /// A struct which describe which lines are dirty (were modified after last rendering).
+    pub dirty_lines: DirtyLines,
+    /// Font handle, used to specify character positions.
+    pub font: FontHandle,
+    /// Line height in pixels, being a distance between baselines of consecutive lines.
+    pub line_height: f32,
+    /// Lines being the actual content.
+    lines: Vec<Line>,
     /// This field caches the position of beginning of each line.
     line_offsets: Vec<usize>,
 }
@@ -186,23 +105,10 @@ impl TextFieldContent {
     pub fn new(text:&str, properties:&TextFieldProperties) -> Self {
         TextFieldContent {
             line_height  : properties.text_size,
-            lines        : Self::split_to_lines(text).map(Line::new).collect(),
+            lines        : split_to_lines(text).map(Line::new).collect(),
             dirty_lines  : DirtyLines::default(),
             font         : properties.font.clone_ref(),
             line_offsets : Vec::new(),
-        }
-    }
-
-    fn split_to_lines(text:&str) -> impl Iterator<Item=String> + '_ {
-        text.split('\n').map(Self::cut_cr_at_end_of_line).map(|s| s.to_string())
-    }
-
-    /// Returns slice without carriage return (also known as CR or `'\r'`) at line's end
-    fn cut_cr_at_end_of_line(from:&str) -> &str {
-        if from.ends_with('\r') {
-            &from[..from.len()-1]
-        } else {
-            from
         }
     }
 
@@ -262,7 +168,7 @@ impl TextFieldContent {
 
     /// Replaces content with a new text. This marks all lines as dirty.
     pub fn set_content(&mut self, text:&str) {
-        self.lines = Self::split_to_lines(text).map(Line::new).collect();
+        self.lines = split_to_lines(text).map(Line::new).collect();
         self.dirty_lines.add_lines_range_from(0..);
     }
 
