@@ -23,10 +23,8 @@ use crate::prelude::*;
 use ast::Ast;
 use ast::IdMap;
 use std::panic;
-use std::ops::DerefMut;
 
 pub use enso_prelude as prelude;
-use crate::api::Error;
 
 
 
@@ -39,16 +37,16 @@ use crate::api::Error;
 /// Currently this component is implemented as a wrapper over parser written
 /// in Scala. Depending on compilation target (native or wasm) it uses either
 /// implementation provided by `wsclient` or `jsclient`.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct Parser(pub Box<dyn api::IsParser>);
+pub struct Parser(pub Rc<RefCell<dyn api::IsParser>>);
 
 impl Parser {
     /// Obtains a default parser implementation.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> api::Result<Parser> {
         let client = wsclient::Client::new()?;
-        let parser = Box::new(client);
+        let parser = Rc::new(RefCell::new(client));
         Ok(Parser(parser))
     }
 
@@ -56,7 +54,7 @@ impl Parser {
     #[cfg(target_arch = "wasm32")]
     pub fn new() -> api::Result<Parser> {
         let client = jsclient::Client::new()?;
-        let parser = Box::new(client);
+        let parser = Rc::new(RefCell::new(client));
         Ok(Parser(parser))
     }
 
@@ -68,49 +66,8 @@ impl Parser {
 
 impl api::IsParser for Parser {
     fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
-        self.deref_mut().parse(program,ids)
+        self.borrow_mut().parse(program,ids)
     }
 }
 
-
-
-// ====================
-// === SharedParser ===
-// ====================
-
-/// Handle to a parser implementation, which keeps the underlying parser in Rc, so this handle can
-/// be shallowly cloned.
-#[derive(Clone,Debug)]
-pub struct SharedParser(Rc<RefCell<dyn api::IsParser>>);
-
-impl SharedParser {
-    /// Obtains a default parser implementation.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new() -> api::Result<SharedParser> {
-        let client = wsclient::Client::new()?;
-        let parser = Rc::new(RefCell::new(client));
-        Ok(SharedParser(parser))
-    }
-
-    /// Obtains a default parser implementation.
-    #[cfg(target_arch = "wasm32")]
-    pub fn new() -> api::Result<SharedParser> {
-        let client = jsclient::Client::new()?;
-        let parser = Rc::new(RefCell::new(client));
-        Ok(SharedParser(parser))
-    }
-
-    /// Obtains a default parser implementation, panicking in case of failure.
-    pub fn new_or_panic() -> SharedParser {
-        SharedParser::new().unwrap_or_else(|e| panic!("Failed to create a parser: {:?}", e))
-    }
-}
-
-impl api::IsParser for SharedParser {
-    fn parse(&mut self, program: String, ids: IdMap) -> Result<Ast, Error> {
-        let SharedParser(rc) = self;
-        rc.borrow_mut().parse(program,ids)
-    }
-}
-
-impl CloneRef for SharedParser {}
+impl CloneRef for Parser {}

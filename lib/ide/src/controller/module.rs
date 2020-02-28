@@ -20,7 +20,7 @@ use data::text::Span;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
-use parser::SharedParser;
+use parser::Parser;
 use shapely::shared;
 
 
@@ -37,7 +37,7 @@ impl Location {
     /// Get the module location from filesystem path. Returns None if path does not lead to
     /// module file.
     pub fn from_path(path:&fmc::Path) -> Option<Self> {
-        // TODO [mwu] See function `to_path`
+        // TODO [ao] See function `to_path`
         let fmc::Path(path_str) = path;
         let suffix = format!(".{}", constants::LANGUAGE_FILE_EXTENSION);
         path_str.ends_with(suffix.as_str()).and_option_from(|| {
@@ -77,7 +77,7 @@ shared! { Handle
         /// The File Manager Client handle.
         file_manager: fmc::Handle,
         /// The Parser handle
-        parser: SharedParser,
+        parser: Parser,
         logger: Logger,
     }
 
@@ -88,7 +88,7 @@ shared! { Handle
         }
 
         /// Updates AST after code change.
-        pub fn apply_code_change(&mut self,change:&TextChangedNotification) {
+        pub fn apply_code_change(&mut self,change:&TextChangedNotification) -> FallibleResult<()> {
             let mut code        = self.code();
             let replaced_range  = change.replaced_chars.clone();
             let inserted_string = change.inserted_string();
@@ -97,8 +97,9 @@ shared! { Handle
 
             code.replace_range(replaced_range,&inserted_string);
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
-            self.ast = self.parser.parse(code, self.id_map.clone()).unwrap();
+            self.ast = self.parser.parse(code, self.id_map.clone())?;
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.ast));
+            Ok(())
         }
 
         /// Read module code.
@@ -107,7 +108,7 @@ shared! { Handle
         }
 
         /// Check if current module state is synchronized with given code. If it's not, log error,
-        /// and update module state.
+        /// and update module state to match the `code` passed as argument.
         pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
             let my_code = self.code();
             if code != my_code {
@@ -123,7 +124,9 @@ shared! { Handle
 
 impl Handle {
     /// Create a module controller for given location.
-    pub async fn new(location:Location, mut file_manager:fmc::Handle, mut parser:SharedParser)
+    ///
+    /// It may wait for module content, because the module must initialize its state.
+    pub async fn new(location:Location, mut file_manager:fmc::Handle, mut parser:Parser)
     -> FallibleResult<Self> {
         let logger  = Logger::new(format!("Module Controller {}", location));
         logger.info(|| "Loading module file");
@@ -149,7 +152,7 @@ impl Handle {
 
     #[cfg(test)]
     fn new_mock
-    (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:SharedParser)
+    (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:Parser)
     -> FallibleResult<Self> {
         let logger   = Logger::new("Mocked Module Controller");
         let ast      = parser.parse(code.to_string(),id_map.clone())?;
@@ -164,23 +167,24 @@ impl Handle {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    use ast;
+    use ast::BlockLine;
+    use basegl::display::shape::text::text_field::content::TextChange;
+    use basegl::display::shape::text::text_field::location::TextLocation;
     use data::text::Span;
     use data::text::Index;
     use data::text::Size;
     use json_rpc::test_util::transport::mock::MockTransport;
+    use parser::Parser;
     use uuid::Uuid;
-    use parser::SharedParser;
-    use basegl::display::shape::text::text_field::content::TextChange;
-    use basegl::display::shape::text::text_field::location::TextLocation;
-    use ast;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use ast::BlockLine;
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         let transport    = MockTransport::new();
         let file_manager = file_manager_client::Handle::new(transport);
-        let parser       = SharedParser::new().unwrap();
+        let parser       = Parser::new().unwrap();
         let location     = Location("Test".to_string());
 
         let uuid1        = Uuid::new_v4();
@@ -193,12 +197,12 @@ mod test {
 
         let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
 
-        // Change number
+        // Change code from "2+2" to "22+2"
         let change = TextChangedNotification {
             change        : TextChange::insert(TextLocation{line:0,column:1}, "2"),
             replaced_chars: 1..1
         };
-        controller.apply_code_change(&change);
+        controller.apply_code_change(&change).unwrap();
         let expected_ast = Ast::new(ast::Module {
             lines: vec![BlockLine {
                 elem: Some(Ast::new(ast::Infix {

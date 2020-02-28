@@ -214,8 +214,8 @@ shared! { TextField
 
         /// Set text edit callback.
         ///
-        /// This callback will one each `write` function call and all functions using it. That's
-        /// include all edits being an effect of keyboard or mouse event.
+        /// This callback will be called once per `write` function call and all functions using it.
+        /// That's include all edits being an effect of keyboard or mouse event.
         pub fn set_text_edit_callback<Callback:FnMut(&TextChangedNotification) + 'static>
         (&mut self, callback:Callback) {
             self.text_change_callback = Some(Box::new(callback))
@@ -265,6 +265,8 @@ impl TextField {
             self.write_per_cursor(cursor_with_line);
         };
         self.with_borrowed(|this| {
+            // TODO[ao] updates should be done only in one place and only once per frame
+            // see https://github.com/luna/ide/issues/178
             this.assignment_update().update_after_text_edit();
             this.rendered.update_glyphs(&mut this.content);
             this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);

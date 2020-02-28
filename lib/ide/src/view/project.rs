@@ -66,7 +66,7 @@ impl ProjectView {
     pub async fn new(logger:&Logger, controller:controller::project::Handle)
     -> FallibleResult<Self> {
         let path                 = Path::new(INITIAL_FILE_PATH);
-        let text_controller      = controller.open_text_file(path).await?;
+        let text_controller      = controller.get_text_controller(path).await?;
         let world                = WorldData::new(&web::body());
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();

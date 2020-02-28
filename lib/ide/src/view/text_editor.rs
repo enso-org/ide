@@ -102,9 +102,14 @@ impl TextEditor {
             }
         });
         self.with_borrowed(move |data| {
-            let controller_clone = data.controller.clone();
+            let logger           = data.logger.clone();
+            let controller_clone = data.controller.clone_ref();
             data.text_field.set_text_edit_callback(move |change| {
-                controller_clone.apply_text_change(change);
+                let result = controller_clone.apply_text_change(change);
+                if result.is_err() {
+                    logger.error(|| "Error while notifying controllers about text change");
+                    logger.error(|| format!("{:?}", result));
+                }
             });
         });
         self.update();

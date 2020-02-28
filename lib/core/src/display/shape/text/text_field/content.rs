@@ -292,7 +292,7 @@ impl TextFieldContent {
     }
 
     /// Converts location in this text represented by `row:column` pair to absolute char's position
-    /// from document begin.
+    /// from document begin. Panics if location is invalid for current content.
     pub fn convert_location_to_char_index(&mut self, location:TextLocation) -> usize {
         if self.line_offsets.is_empty() {
             self.line_offsets.push(0);

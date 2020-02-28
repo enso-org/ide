@@ -12,6 +12,9 @@ use data::text::Span;
 // ================
 
 /// Update IdMap to reflect the recent code change.
+///
+// TODO[ao]: It's a really minimalistic algorithm, just extends/shrinks span without caring about
+// code structure.
 pub fn apply_code_change_to_id_map(id_map:&mut IdMap, removed:&Span, inserted:&str) {
     let IdMap(vector) = id_map;
     let inserted_len  = Size::new(inserted.chars().count());

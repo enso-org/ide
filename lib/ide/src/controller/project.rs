@@ -5,13 +5,14 @@
 
 use crate::prelude::*;
 
+use crate::controller::FallibleResult;
+
 use file_manager_client as fmc;
 use json_rpc::Transport;
-use parser::SharedParser;
+use parser::Parser;
 use shapely::shared;
 use weak_table::weak_value_hash_map::Entry::Occupied;
 use weak_table::weak_value_hash_map::Entry::Vacant;
-use crate::controller::FallibleResult;
 
 
 
@@ -33,7 +34,7 @@ shared! { Handle
         /// Cache of text controllers.
         text_cache: WeakValueHashMap<fmc::Path,controller::text::WeakHandle>,
         /// Parser handle.
-        parser: SharedParser,
+        parser: Parser,
         /// Id which will be given to next unsaved file.
         next_unsaved_id: usize,
     }
@@ -47,7 +48,7 @@ shared! { Handle
                 file_manager    : fmc::Handle::new(file_manager_transport),
                 module_cache    : default(),
                 text_cache      : default(),
-                parser          : SharedParser::new_or_panic(),
+                parser          : Parser::new_or_panic(),
                 next_unsaved_id : default(),
             }
         }
@@ -78,7 +79,9 @@ impl Handle {
     }
 
     /// Returns a text controller for given file path.
-    pub async fn open_text_file(&self, path:fmc::Path)
+    ///
+    /// It may be a controller for both modules and plain text files.
+    pub async fn get_text_controller(&self, path:fmc::Path)
     -> FallibleResult<controller::text::Handle> {
         let cached = self.with_borrowed(|data| data.text_cache.get(&path));
         match cached {
@@ -87,7 +90,7 @@ impl Handle {
                 let loaded = self.create_text_controller(path.clone()).await?;
                 //TODO[ao] Here we should make a better solution for case where we simultaneously
                 // load one module twice.
-                // This is duplicated with open_module, but it's not worth refactoring as its
+                // This is duplicated with open_module, but it's not worth refactoring as it's
                 // temporary solution.
                 let cached = self.with_borrowed(|data|
                     match data.text_cache.entry(path) {
@@ -101,7 +104,7 @@ impl Handle {
     }
 
     /// Returns a module controller which have module opened from file.
-    pub async fn open_module(&self, loc:ModuleLocation)
+    pub async fn get_module_controller(&self, loc:ModuleLocation)
     -> FallibleResult<controller::module::Handle> {
         let cached = self.with_borrowed(|data| data.module_cache.get(&loc));
         match cached {
@@ -125,12 +128,12 @@ impl Handle {
     -> FallibleResult<controller::text::Handle> {
         match ModuleLocation::from_path(&path) {
             Some(location) => {
-                let module = self.open_module(location).await?;
+                let module = self.get_module_controller(location).await?;
                 Ok(controller::text::Handle::new_for_module(module))
             },
             None => {
                 let fm = self.file_manager();
-                Ok(controller::text::Handle::new_for_plain_test(path,fm))
+                Ok(controller::text::Handle::new_for_plain_text(path, fm))
             }
         }
     }
@@ -175,9 +178,9 @@ mod test {
             let location     = controller::module::Location("TestLocation".to_string());
             let another_loc  = controller::module::Location("TestLocation2".to_string());
 
-            let module_ctrl         = project_ctrl.open_module(location.clone()).await.unwrap();
-            let same_module_ctrl    = project_ctrl.open_module(location.clone()).await.unwrap();
-            let another_module_ctrl = project_ctrl.open_module(another_loc.clone()).await.unwrap();
+            let module_ctrl         = project_ctrl.get_module_controller(location.clone()).await.unwrap();
+            let same_module_ctrl    = project_ctrl.get_module_controller(location.clone()).await.unwrap();
+            let another_module_ctrl = project_ctrl.get_module_controller(another_loc.clone()).await.unwrap();
 
             assert_eq!(location   , module_ctrl        .location());
             assert_eq!(another_loc, another_module_ctrl.location());
@@ -201,7 +204,7 @@ mod test {
     }
 
     #[wasm_bindgen_test]
-    fn obtain_text_controller() {
+    fn obtain_plain_text_controller() {
         let mut executor    = LocalPool::new();
         let finished        = Rc::new(RefCell::new(false));
         let finished_clone  = finished.clone_ref();
@@ -214,9 +217,9 @@ mod test {
             let path                = Path("TestPath".to_string());
             let another_path        = Path("TestPath2".to_string());
 
-            let text_ctrl        = project_ctrl.open_text_file(path.clone()).await.unwrap();
-            let same_text_ctrl   = project_ctrl.open_text_file(path.clone()).await.unwrap();
-            let another_txt_ctrl = project_ctrl.open_text_file(another_path.clone()).await.unwrap();
+            let text_ctrl        = project_ctrl.get_text_controller(path.clone()).await.unwrap();
+            let same_text_ctrl   = project_ctrl.get_text_controller(path.clone()).await.unwrap();
+            let another_txt_ctrl = project_ctrl.get_text_controller(another_path.clone()).await.unwrap();
 
             assert!(file_manager_handle.identity_equals(&text_ctrl       .file_manager()));
             assert!(file_manager_handle.identity_equals(&another_txt_ctrl.file_manager()));
@@ -241,7 +244,7 @@ mod test {
         spawn(async move {
             let project_ctrl = controller::project::Handle::new_running(transport_clone);
             let path         = Path(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
-            let text_ctrl    = project_ctrl.open_text_file(path.clone()).await.unwrap();
+            let text_ctrl    = project_ctrl.get_text_controller(path.clone()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
             *finished_clone.borrow_mut() = true;
