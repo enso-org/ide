@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::cursor::Cursor;
-use crate::display::shape::text::text_field::location::TextLocation;
+use data::text::TextLocation;
 
 
 
@@ -33,7 +33,7 @@ impl WordRange {
     /// Returns a word under cursor, if any.
     pub fn word_at_cursor(content:&TextFieldContent, cursor:&Cursor) -> Option<Self> {
         let line  = cursor.position.line;
-        let chars = content.lines[line].chars();
+        let chars = content.lines()[line].chars();
         if let Some(range) = get_index_range_of_word_at(chars,cursor.position.column) {
             let column = range.start;
             let start  = TextLocation {line,column};
@@ -76,7 +76,7 @@ impl WordOccurrences {
             let mut words = Vec::new();
             let word: Vec<char> = word.chars().collect();
 
-            for (index, line) in content.lines.iter().enumerate() {
+            for (index, line) in content.lines().iter().enumerate() {
                 let line_chars = line.chars();
                 let words_in_line = get_word_occurrences(line_chars, &word);
                 for word in words_in_line {
