@@ -4,9 +4,13 @@
 #![feature(trivial_bounds)]
 #![feature(type_alias_impl_trait)]
 
+pub mod assoc;
 pub mod internal;
 pub mod known;
+pub mod opr;
+pub mod prefix;
 pub mod repr;
+pub mod test_utils;
 
 use prelude::*;
 

@@ -107,6 +107,7 @@ pub type Ambiguous     = KnownAst<crate::Ambiguous>;
 // === Tests ===
 // =============
 
+#[cfg(test)]
 mod tests {
     #[allow(unused_imports)] // [MWU] otherwise I get false warning.
     use super::*;
