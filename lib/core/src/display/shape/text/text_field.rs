@@ -223,7 +223,7 @@ shared! { TextField
 
         /// Text field has a selected text.
         pub fn has_selection(&self) -> bool {
-            self.cursors.cursors.iter().fold(false, |acc, x| acc || x.has_selection())
+            self.cursors.cursors.iter().any(|cursor| cursor.has_selection())
         }
 
         /// Select next word occurrence.

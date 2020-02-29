@@ -140,7 +140,7 @@ impl WordOccurrences {
 // =============
 
 fn get_words(content:&[char]) -> Vec<Vec<(usize,char)>> {
-    let indexed:Vec<(usize,char)> = content.iter().map(|c| *c).enumerate().collect();
+    let indexed:Vec<(usize,char)> = content.iter().copied().enumerate().collect();
     let words = indexed.split(|(_,character)| !character.is_alphanumeric() && *character != '_');
     let words = words.filter(|word_in_context| !word_in_context.is_empty());
     words.map(|c| c.to_vec()).collect()
