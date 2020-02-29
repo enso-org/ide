@@ -6,6 +6,7 @@ use ast::*;
 
 use ast::opr;
 use ast::prefix;
+use parser::api::IsParser;
 
 /// Describes the kind of code block (scope).
 #[derive(Clone,Copy,Debug,PartialEq)]
