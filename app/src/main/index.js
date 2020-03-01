@@ -61,7 +61,6 @@ Usage: ${APP_COMMAND} [options]
 
 Options:
     --debug-scene [SCENE]  Run the debug scene instead of the main app.
-    --no-server            Do not run server. Just connect to the port.
     --no-window            Do not show window. Run in a batch mode.
     --port                 Port to use [${Server.DEFAULT_PORT}].
     --help                 Print the help message and exit.
@@ -197,31 +196,26 @@ Electron.app.allowRendererProcessReuse = true
 // ============
 
 let main_window_keep_alive
-
-let serverCfg = Object.assign({},args)
 async function main() {
-    let server
-    if(args.server !== false) {
-        serverCfg.dir      = 'dist'
-        serverCfg.fallback = '/assets/index.html'
-        server             = await Server.create(serverCfg)
-    }
+    let serverCfg          = Object.assign({},args)
+    serverCfg.dir          = 'dist'
+    serverCfg.fallback     = '/assets/index.html'
+    let server             = await Server.create(serverCfg)
     main_window_keep_alive = createMainWindow(server)
 }
-
-
 
 function createMainWindow(server) {
     const window = new Electron.BrowserWindow({
         webPreferences : secureWebPreferences(),
         width          : windowCfg.width,
         height         : windowCfg.height,
-        frame          : false
+        frame          : false,
+        transparent    : true
     })
 
-    if (IS_DEVELOPMENT) {
-        window.webContents.openDevTools()
-    }
+//    if (IS_DEVELOPMENT) {
+//        window.webContents.openDevTools()
+//    }
 
     Electron.session.defaultSession.setPermissionRequestHandler (
         (webContents, permission, callback) => {

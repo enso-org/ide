@@ -14,10 +14,8 @@ export const DEFAULT_PORT = 8080
 
 async function findPort(cfg) {
     if (!cfg.port) {
-        console.log("SEARCHING")
         portfinder.basePort = DEFAULT_PORT
         cfg.port = await portfinder.getPortPromise()
-        console.log("F", cfg.port)
     }
 }
 
@@ -33,7 +31,6 @@ async function findPort(cfg) {
 /// this topic to learn why: https://github.com/http-party/http-server/issues/483
 class Server {
     constructor(cfg) {
-        console.log("SERVER CONS",cfg)
         let self      = this
         this.dir      = cfg.dir
         this.port     = cfg.port

@@ -4,6 +4,7 @@
 
 import * as loader_module from './loader'
 import * as html_utils    from './html_utils'
+import * as animation     from './animation'
 
 
 
@@ -123,10 +124,38 @@ function show_debug_screen(wasm,msg) {
 // === Main Entry Point ===
 // ========================
 
+let root = document.getElementById('root')
+
+function prepare_root() {
+    root.style.opacity         = 0
+    root.style.backgroundColor = '#e8e7e6'
+    root.style.borderRadius    = '10px'
+}
+
+function animate_root_show() {
+    return new Promise(function(resolve, reject) {
+        let opacity = 0
+        function show_step(timestamp) {
+            opacity += 0.02
+            if (opacity > 1) { opacity = 1 }
+            root.style.opacity = animation.ease_in_out_quad(opacity)
+            if (opacity < 1) {
+                window.requestAnimationFrame(show_step)
+            } else {
+                resolve()
+            }
+        }
+        window.requestAnimationFrame(show_step)
+    })
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
     let target = window.location.href.split('/')
     target.splice(0,3)
+
+    prepare_root()
+    await animate_root_show()
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]
