@@ -229,7 +229,7 @@ function createMainWindow(server) {
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
     }
-    window.loadURL(`http://localhost:${server.port}/${targetScene}`)
+    window.loadURL(`http://localhost:${server.port}/${targetScene}?desktop`)
 //    window.loadURL(`chrome://flags/`)
 
     window.on('closed', () => {

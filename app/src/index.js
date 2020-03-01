@@ -43,7 +43,7 @@ async function download_content(cfg) {
         console.log("Download finished. Finishing WASM compilation.")
     })
 
-    let download_size = loader.show_total_bytes();
+    let download_size = loader.show_total_bytes()
     let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
     let wasm_loader   = html_utils.log_group_collapsed(download_info, async () => {
         let wasm_glue_js = await wasm_glue_fetch.text()
@@ -57,10 +57,10 @@ async function download_content(cfg) {
     })
 
     let wasm = await wasm_loader.then(({instance,module,wasm_glue}) => {
-        let wasm = instance.exports;
+        let wasm = instance.exports
         wasm_glue.after_load(wasm,module)
         return wasm
-    });
+    })
     console.log("WASM Compiled.")
 
     await loader.initialized
@@ -126,10 +126,12 @@ function show_debug_screen(wasm,msg) {
 
 let root = document.getElementById('root')
 
-function prepare_root() {
+function prepare_root(cfg) {
     root.style.opacity         = 0
     root.style.backgroundColor = '#e8e7e6'
-    root.style.borderRadius    = '10px'
+    if(cfg.desktop) {
+        root.style.borderRadius = '10px'
+    }
 }
 
 function animate_root_show() {
@@ -149,12 +151,25 @@ function animate_root_show() {
     })
 }
 
+function getUrlParams() {
+    let url    = window.location.search
+    let query  = url.substr(1)
+    let result = {}
+    query.split("&").forEach(function(part) {
+        let item = part.split("=")
+        result[item[0]] = decodeURIComponent(item[1])
+    })
+    return result
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    let target = window.location.href.split('/')
-    target.splice(0,3)
+    let target = window.location.pathname.split('/')
+    target.splice(0,1)
 
-    prepare_root()
+    let cfg = getUrlParams()
+
+    prepare_root(cfg)
     await animate_root_show()
 
     let debug_mode    = target[0] == "debug"
