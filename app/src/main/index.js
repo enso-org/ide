@@ -32,6 +32,10 @@ console.log("!!!",process.argv)
 var server = HttpServer.create({dir:'dist', port:HTTP_SERVER_PORT, fallback:'/assets/index.html'})
 
 
+const { session } = require('electron')
+
+
+
 // =======================
 // === Window Creation ===
 // =======================
@@ -40,6 +44,10 @@ let main_window_keep_alive
 
 function create_main_window() {
     const window = new BrowserWindow({
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+        },
         width  : WINDOW_WIDTH,
         height : WINDOW_HEIGHT,
         frame  : WINDOW_FRAME
@@ -58,6 +66,16 @@ function create_main_window() {
     if (IS_DEVELOPMENT) {
         window.webContents.openDevTools()
     }
+
+//    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+//            callback({
+//                responseHeaders: {
+//                    ...details.responseHeaders,
+//                    'Content-Security-Policy': ["script-src 'self'; script-src-elem 'self' 'unsafe-inline'"]
+//                }
+//            })
+//        })
+
     window.loadURL(`http://localhost:${HTTP_SERVER_PORT}/${debug_scene}`)
 
     window.on('closed', () => {
@@ -83,6 +101,9 @@ app.on('activate', () => {
 
 // Create main BrowserWindow when electron is ready.
 app.on('ready', () => {
+
+
+
     if(!app.commandLine.hasSwitch("no-window")) {
         main_window_keep_alive = create_main_window()
     }
