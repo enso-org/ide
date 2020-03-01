@@ -1,20 +1,32 @@
-import * as fs    from 'fs'
-import * as mime  from 'mime-types'
-import * as path  from 'path'
-import * as union from 'union'
+import * as createServers from 'create-servers'
+import * as fs            from 'fs'
+import * as mime          from 'mime-types'
+import * as path          from 'path'
 
-class HttpServer {
+
+
+// ==============
+// === Server ===
+// ==============
+
+/// A simple server implementation.
+///
+/// Initially it was based on `union`, but later we migrated to `create-servers`. Read
+/// this topic to learn why: https://github.com/http-party/http-server/issues/483
+class Server {
     constructor(cfg) {
+        let self    = this
         this.cfg    = cfg
-        this.server = union.createServer({
-            before: [
-                function (request, response) {
-                    this.process(request.url, response)
-                }.bind(this)
-            ]
+        this.server = createServers({
+            http: cfg.port,
+            handler: function (request, response) {
+                self.process(request.url, response)
+            }
+        },
+        function (errs) {
+            if (errs) { return console.log(errs.http) }
+            console.log(`Server started. Listening on port ${cfg.port}.`)
         })
-        this.server.listen(this.cfg.port)
-        console.log(`Server started. Listening on port ${this.port}.`)
     }
 
     process(resource,response) {
@@ -44,5 +56,5 @@ class HttpServer {
 }
 
 export function create(...args) {
-    return new HttpServer(...args)
+    return new Server(...args)
 }

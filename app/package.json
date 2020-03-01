@@ -11,7 +11,7 @@
     "build-dev": "webpack --mode development",
     "web:dev": "webpack-dev-server --mode development",
     "web:prod": "npx http-server -p 3000 --proxy http://localhost:3000\\? static/main",
-    "electron:dev": "npm run build-dev && electron-webpack dev",
+    "electron:dev": "electron-webpack dev -- ",
     "electron:dist": "npm run build && electron-webpack && electron-builder",
     "electron:dist:unpacked": "npm run dist --dir -c.compression=store -c.mac.identity=null",
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress"
@@ -42,7 +42,9 @@
     "webpack-merge": "^4.2.2"
   },
   "dependencies": {
+    "create-servers": "^3.1.0",
     "electron-webpack": "^2.7.4",
-    "union": "^0.5.0"
+    "minimist": "^1.2.0",
+    "portfinder": "^1.0.25"
   }
 }
