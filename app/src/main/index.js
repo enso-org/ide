@@ -2,7 +2,6 @@
 
 import * as Electron   from 'electron'
 import * as Server     from '../server'
-import * as portfinder from 'portfinder'
 import * as minimist   from 'minimist'
 
 
@@ -17,6 +16,13 @@ function kebabToCamelCase(str){
 }
 
 function parseCmdArgs() {
+    let argv = process.argv.slice(2)
+
+    // FIXME: https://github.com/electron-userland/electron-webpack/issues/354
+    if (argv[1] == '--') {
+        argv.splice(1,1)
+    }
+
     let args = minimist(argv)
     for (let argName in args) {
         let newName = kebabToCamelCase(argName)
@@ -27,46 +33,41 @@ function parseCmdArgs() {
 
 
 
-// =================
-// === Constants ===
-// =================
+// ================
+// === Defaults ===
+// ================
 
-const APP_COMMAND           = "enso-studio"
+// FIXME https://github.com/electron-userland/electron-webpack/issues/353
+const APP_VERSION = Electron.app.getVersion()
+const APP_NAME    = "Enso Studio"
+const APP_COMMAND = "enso-studio"
 
-let serverCfg = {
-    port : 8080
-}
 
 let windowCfg = {
     width  : 1024,
     height : 768,
 }
 
-const HELP_MESSAGE = `
-usage: ${APP_COMMAND} [options]
-
-options:
-    --debug-scene [SCENE]  Run the debug scene instead of the main app.
-    --port                 Port to use [${serverCfg.port}].
-    --help                 Print the help message and exit.
-    --window-size [SIZE]   Set the window size [${windowCfg.width}x${windowCfg.height}].
-    --version              Print the version and exit.
-`
-
-let argv = process.argv.slice(2)
-
-// FIXME: https://github.com/electron-userland/electron-webpack/issues/354
-if (argv[1] == '--') {
-    argv.splice(1,1)
-}
-
-
-
 
 
 // ==================================
 // === Command Line Args Handlers ===
 // ==================================
+
+const HELP_MESSAGE = `
+${APP_NAME} ${APP_VERSION} command line interface.
+
+Usage: ${APP_COMMAND} [options]
+
+Options:
+    --debug-scene [SCENE]  Run the debug scene instead of the main app.
+    --no-server            Do not run server. Just connect to the port.
+    --no-window            Do not show window. Run in a batch mode.
+    --port                 Port to use [${Server.DEFAULT_PORT}].
+    --help                 Print the help message and exit.
+    --window-size [SIZE]   Set the window size [${windowCfg.width}x${windowCfg.height}].
+    --version              Print the version and exit.
+`
 
 let args = parseCmdArgs()
 
@@ -76,8 +77,7 @@ if (args.help) {
 }
 
 if (args.version) {
-    // FIXME https://github.com/electron-userland/electron-webpack/issues/353
-    console.log(Electron.app.getVersion());
+    console.log(APP_VERSION)
     process.exit();
 }
 
@@ -93,7 +93,6 @@ if (args.windowSize) {
     }
 }
 
-Object.assign(serverCfg,args)
 
 
 
@@ -114,9 +113,7 @@ const IS_DEVELOPMENT   = process.env.NODE_ENV === MODE_DEVELOPMENT
 // === Server Creation ===
 // =======================
 
-serverCfg.dir      = 'dist'
-serverCfg.fallback = '/assets/index.html'
-var server = Server.create(serverCfg)
+
 
 
 // ================
@@ -179,38 +176,48 @@ Electron.app.on('web-contents-created', (event,contents) => {
 /// Follow the link to learn more:
 /// https://www.electronjs.org/docs/tutorial/security#13-disable-or-limit-creation-of-new-windows
 Electron.app.on('web-contents-created', (event,contents) => {
-  contents.on('new-window', async (event,navigationUrl) => {
-    event.preventDefault()
-    console.error(`Blocking new window creation request to '${navigationUrl}'`)
-  })
+    contents.on('new-window', async (event,navigationUrl) => {
+        event.preventDefault()
+        console.error(`Blocking new window creation request to '${navigationUrl}'`)
+    })
 })
 
 
-// =====================
-// === Depreciations ===
-// =====================
+// ====================
+// === Deprecations ===
+// ====================
 
 /// FIXME: Will not be needed in Electron 9 anymore.
 Electron.app.allowRendererProcessReuse = true
 
 
 
-// =======================
-// === Window Creation ===
-// =======================
+// ============
+// === Main ===
+// ============
 
 let main_window_keep_alive
 
-function createMainWindow() {
+let serverCfg = Object.assign({},args)
+async function main() {
+    let server
+    if(args.server !== false) {
+        serverCfg.dir      = 'dist'
+        serverCfg.fallback = '/assets/index.html'
+        server             = await Server.create(serverCfg)
+    }
+    main_window_keep_alive = createMainWindow(server)
+}
+
+
+
+function createMainWindow(server) {
     const window = new Electron.BrowserWindow({
         webPreferences : secureWebPreferences(),
         width          : windowCfg.width,
         height         : windowCfg.height,
         frame          : false
     })
-
-
-
 
     if (IS_DEVELOPMENT) {
         window.webContents.openDevTools()
@@ -228,7 +235,7 @@ function createMainWindow() {
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
     }
-    window.loadURL(`http://localhost:${serverCfg.port}/${targetScene}`)
+    window.loadURL(`http://localhost:${server.port}/${targetScene}`)
 //    window.loadURL(`chrome://flags/`)
 
     window.on('closed', () => {
@@ -246,24 +253,19 @@ Electron.app.on('window-all-closed', () => {
     }
 })
 
-Electron.app.on('activate', () => {
-    if (main_window_keep_alive === null) {
-        main_window_keep_alive = createMainWindow()
-    }
-})
+//Electron.app.on('activate', () => {
+//    if (main_window_keep_alive === null) {
+//        main_window_keep_alive = main()
+//    }
+//})
 
 Electron.app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService')
 
-// FIXME https://github.com/electron/electron/issues/22466
 // FIXME https://github.com/electron/electron/issues/22465
 
-// Create main BrowserWindow when electron is ready.
 Electron.app.on('ready', () => {
-
-
-
-    if(!Electron.app.commandLine.hasSwitch("no-window")) {
-        main_window_keep_alive = createMainWindow()
+    if(args.window !== false) {
+        main()
     }
 })
 
