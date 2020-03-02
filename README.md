@@ -6,10 +6,8 @@
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75661125-05664300-5c6d-11ea-9bd3-8a5355db9609.png" alt="Enso Language" width="240"></a>
   <br/>
   <br/>
+  <br/>
 </p>
-
-
-
 
 
 ## Overview
@@ -34,6 +32,8 @@
 </p>
 
 Enso is a visual data science language selected by Singularity University and NASA as one of 20 most unique technologies worldwide.
+
+<br/>
 
 
 
