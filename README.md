@@ -13,17 +13,30 @@ This repository is a work in progress of BaseGL 2.0. Please refer to BaseGL 1.0
 repository for more information: https://github.com/luna/basegl-old.
 
 
-## Development
+## Building From Sources
 
-### The Rust toolchain 
+### Development Environment
+
+#### The Rust Toolchain 
 This project uses several features available only in the nightly Rust toolchain.
-To setup the toolchain, please use the [the Rust toolchain
-installer](https://rustup.rs/):
+Please use the [the Rust toolchain installer](https://rustup.rs/) to install it:
 
 ```bash
 rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
 rustup default nightly                      # Set it as the default one.
 rustup component add clippy                 # Install the linter.
+```
+
+#### Node Version Manager
+In order to build the web and desktop applications you will need [node](https://nodejs.org) and 
+[npm](https://www.npmjs.com). Please note that the versions available in your system package manager
+will probably crash while building native-extensions. The only known stable solution is to use the 
+[Node Version Manager](https://github.com/nvm-sh/nvm). Please note that installing it from any 
+package manager is officially not supported and can cause issues. Follow the 
+[official guide](https://github.com/nvm-sh/nvm#installing-and-updating) to install it:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
 ```
 
 ### Building the sources

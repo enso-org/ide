@@ -20,14 +20,29 @@
     "productName": "Enso Studio",
     "copyright": "Copyright © 2020 ${author}",
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "icon": "dist/icon/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "darkModeSupport": true,
+      "type": "distribution"
     },
-    "win": {},
+    "win": {
+      "icon": "dist/icon/icon.ico"
+    },
+    "linux": {
+      "icon": "dist/icon/png",
+      "category": "Development"
+    },
     "files": [
       "dist/assets/**/*",
       "dist/main/**/*",
       "dist/renderer/**/*",
       "package.json"
+    ]
+  },
+  "fileAssociations": {
+    "ext": [
+      "enso",
+      "enso-studio"
     ]
   },
   "scripts": {
@@ -36,10 +51,10 @@
     "web:dev": "webpack-dev-server --mode development",
     "web:prod": "npx http-server -p 3000 --proxy http://localhost:3000\\? static/main",
     "electron:dev": "electron-webpack dev -- ",
-    "electron:dist": "npm run build && electron-webpack && electron-builder",
+    "electron:dist": "npm run build && electron-webpack && electron-builder --mac --win --linux",
     "electron:dist:unpacked": "npm run dist --dir -c.compression=store -c.mac.identity=null",
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
-    "test": "npx node build/test.js"
+    "icon:gen": "npx node build/icon-gen.js"
   },
   "keywords": [
     "webassembly",
@@ -57,6 +72,8 @@
     "devtron": "^1.4.0",
     "electron": "^8.0.2",
     "electron-builder": "^22.3.2",
+    "sharp": "^0.24.1",
+    "to-ico": "^1.1.5",
     "webpack": "^4.29.3",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "^3.1.5",
