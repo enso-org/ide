@@ -33,18 +33,6 @@
   </a>
 </p>
 
-<p>
-  <a href="#key-features">Key Features</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#download">Download</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#related">Related</a> •
-  <a href="#license">License</a>
-  <br/>
-  <br/>
-  <br/>
-</p>
-
 Enso is a visual data science language selected by Singularity University and NASA as one of 20 most unique technologies worldwide.
 
 
