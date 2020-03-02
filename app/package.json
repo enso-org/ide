@@ -2,7 +2,14 @@
   "name": "enso-studio",
   "description": "Enso Studio",
   "version": "0.1.0",
-  "author": "Enso Team (contact@luna-lang.org)",
+  "author": {
+    "name": "Enso Team",
+    "email": "contact@luna-lang.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:luna/basegl.git"
+  },
   "license": "AGPL",
   "main": "dist/main/main.js",
   "bin": {
@@ -33,10 +40,6 @@
     "electron:dist:unpacked": "npm run dist --dir -c.compression=store -c.mac.identity=null",
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
     "test": "npx node build/test.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:luna/basegl.git"
   },
   "keywords": [
     "webassembly",
