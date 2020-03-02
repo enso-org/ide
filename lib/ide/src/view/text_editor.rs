@@ -107,14 +107,6 @@ impl TextEditor {
             }
         });
 
-        let word_occurrence_keys = KeyMask::new_alt_character('j');
-        let text_editor          = Rc::downgrade(&self.rc);
-        keyboard_actions.set_action(word_occurrence_keys,move |_| {
-           if let Some(text_editor) = text_editor.upgrade() {
-               text_editor.borrow_mut().select_next_word_occurrence();
-           }
-        });
-
         self.with_borrowed(move |data| {
             let logger           = data.logger.clone();
             let controller_clone = data.controller.clone_ref();

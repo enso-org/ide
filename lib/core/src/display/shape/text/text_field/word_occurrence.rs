@@ -1,4 +1,5 @@
 //! This module contains definitions for word occurrences in TextField.
+//! Words are considered to be composed with alphanumeric and underscores.
 
 use crate::prelude::*;
 
@@ -15,12 +16,14 @@ use data::text::TextLocation;
 // =================
 
 /// A struct containing indices for word's start and end.
-#[derive(Shrinkwrap,Debug,Clone)]
+#[derive(Shrinkwrap,Debug,Clone,Derivative)]
+#[derivative(PartialEq)]
 pub struct WordRange {
     /// A property containing the word start and end.
     #[shrinkwrap(main_field)]
     pub word_range : Range<TextLocation>,
-    is_selected    : bool
+    #[derivative(PartialEq = "ignore")]
+    is_selected : bool
 }
 
 impl WordRange {
@@ -60,8 +63,9 @@ pub struct WordOccurrences {
 }
 
 impl WordOccurrences {
-    /// Gets the range of each occurrence of word.
-    pub fn new(content:&TextFieldContent, cursor:&mut Cursor) -> Option<Self> {
+    /// Gets all the occurrences of a word if the cursor is inside a word or if it's selecting a
+    /// word. If no occurrence is found, `None` is returned.
+    pub fn new(content:&TextFieldContent, cursor:&Cursor) -> Option<Self> {
         let range = Self::get_range(content,cursor);
         let words = Self::get_words(content,range);
         words.map(|words| {
@@ -71,7 +75,7 @@ impl WordOccurrences {
                     cursor_location.column >= current_word.start.column &&
                     cursor_location.column <= current_word.end.column
             }).map(|(index, _)| index).unwrap_or(0);
-            let current_index = current_index - 1;
+            let current_index = current_index.wrapping_sub(1);
             Self { words, current_index }.initialize(&cursor)
         })
     }
@@ -120,7 +124,7 @@ impl WordOccurrences {
     }
 
     fn advance(&mut self) {
-        self.current_index = (self.current_index + 1) % self.words.len();
+        self.current_index = self.current_index.wrapping_add(1) % self.words.len();
     }
 
     /// Get next word occurrence if not already selected.
@@ -182,6 +186,63 @@ fn get_word_occurrences(content:&[char], word:&[char]) -> Vec<Range<usize>> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::display::shape::text::text_field::content::test::mock_properties;
+
+    use basegl_core_msdf_sys as msdf_sys;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test(async)]
+    async fn get_range() {
+        msdf_sys::initialized().await;
+        let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation { line:0, column: 4});
+        let range   = WordOccurrences::get_range(&content,&cursor);
+        assert_eq!(range, Some(TextLocation {line:0, column:3}..TextLocation{line:0, column:12}));
+
+        let cursor = Cursor::new(TextLocation { line:1, column: 0});
+        let range  = WordOccurrences::get_range(&content,&cursor);
+        assert!(range.is_none());
+
+        let mut cursor = Cursor::new(TextLocation { line:0, column: 4});
+        cursor.select_range(&(TextLocation {line:0, column:3}..TextLocation{line:0, column:12}));
+        let range = WordOccurrences::get_range(&content,&cursor);
+        assert_eq!(range, Some(TextLocation {line:0, column:3}..TextLocation{line:0, column:12}));
+    }
+
+    #[wasm_bindgen_test(async)]
+    async fn get_words() {
+        msdf_sys::initialized().await;
+        let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation { line:0, column: 4});
+        let range   = WordOccurrences::get_range(&content,&cursor);
+        let words   = WordOccurrences::get_words(&content,range).expect("Couldn't find words");
+        assert_eq!(words.len(), 2);
+
+        let words = WordOccurrences::get_words(&content,None);
+        assert_eq!(words,None);
+    }
+
+    #[wasm_bindgen_test(async)]
+    async fn new_word_occurrences() {
+        msdf_sys::initialized().await;
+        let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation {line:1,column:0});
+        let words   = WordOccurrences::new(&content,&cursor);
+
+        assert!(words.is_none());
+
+        let cursor    = Cursor::new(TextLocation {line:0,column:4});
+        let mut words = WordOccurrences::new(&content,&cursor).expect("Couldn't find words");
+
+        let word1 = WordRange::new(TextLocation{line:0,column:3}..TextLocation{line:0,column:12});
+        let word2 = WordRange::new(TextLocation{line:3,column:2}..TextLocation{line:3,column:11});
+        assert_eq!(words.select_next(), Some(word1));
+        assert_eq!(words.select_next(), Some(word2));
+        assert!(words.select_next().is_none());
+    }
 
     #[test]
     fn index_range_of_word_at() {
@@ -193,12 +254,12 @@ mod test {
 
     #[test]
     fn word_occurrences() {
-        let content = String::from("   abc    def    ghi  abcabc abc");
+        let content = String::from("   _5abc6    def    ghi  _5abc6abc _5abc6");
         let content:Vec<char> = content.chars().collect();
-        let word              = String::from("abc");
+        let word              = String::from("_5abc6");
         let word:Vec<char>    = word.chars().collect();
         let occurrences       = get_word_occurrences(&content,&word);
-        assert_eq!(occurrences[0],3..6);
-        assert_eq!(occurrences[1],29..32);
+        assert_eq!(occurrences[0],3..9);
+        assert_eq!(occurrences[1],35..41);
     }
 }

@@ -198,12 +198,13 @@ shared! { TextField
             self.cursors.cursors.iter().any(|cursor| cursor.has_selection())
         }
 
-        /// Select next word occurrence.
+        /// Selects the current word, if the cursor is inside a word, or select a next word if a
+        /// word is already selected. For definition of word check `word_occurrence` module doc.
         pub fn select_next_word_occurrence(&mut self) {
             let not_multicursors = self.cursors.cursors.len() == 1;
             if self.word_occurrences.is_none() && not_multicursors {
-                let mut cursor        = self.cursors.cursors.last_mut().unwrap();
-                self.word_occurrences = WordOccurrences::new(&self.content,&mut cursor);
+                let cursor            = self.cursors.active_cursor();
+                self.word_occurrences = WordOccurrences::new(&self.content,&cursor);
             }
 
             let has_selection             = self.has_selection();
@@ -213,7 +214,7 @@ shared! { TextField
                         self.cursors.add_cursor(TextLocation::at_document_begin());
                     }
 
-                    let cursor = self.cursors.cursors.last_mut().unwrap();
+                    let cursor = self.cursors.active_cursor_mut();
                     cursor.select_range(&word);
                     self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
                 }
