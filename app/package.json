@@ -29,9 +29,10 @@
     "web:dev": "webpack-dev-server --mode development",
     "web:prod": "npx http-server -p 3000 --proxy http://localhost:3000\\? static/main",
     "electron:dev": "electron-webpack dev -- ",
-    "electron:dist": "npm run build && electron-webpack && electron-builder --mac --win --linux",
+    "electron:dist": "npm run build && electron-webpack && electron-builder",
     "electron:dist:unpacked": "npm run dist --dir -c.compression=store -c.mac.identity=null",
-    "start-build-time-profile": "webpack-dev-server --mode development --profile --progress"
+    "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
+    "test": "npx node build/test.js"
   },
   "repository": {
     "type": "git",
