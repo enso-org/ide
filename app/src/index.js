@@ -6,6 +6,9 @@ import * as loader_module from './loader'
 import * as html_utils    from './html_utils'
 import * as animation     from './animation'
 
+//let loader_module = require('./loader')
+//let html_utils = require('./html_utils')
+//let animation = require('./animation')
 
 
 // ========================
