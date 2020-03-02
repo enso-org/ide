@@ -1,11 +1,12 @@
 'use strict'
 
-import * as Electron from 'electron'
-import * as isDev    from 'electron-is-dev'
-import * as minimist from 'minimist'
-import * as path     from 'path'
-import * as pkg      from '../../package.json'
-import * as Server   from '../server'
+import * as Electron  from 'electron'
+import * as isDev     from 'electron-is-dev'
+import * as minimist  from 'minimist'
+import * as path      from 'path'
+import * as pkg       from '../../../package.json'
+import * as pkg_build from '../../../electron-builder.json'
+import * as Server    from '../../lib/server'
 
 
 
@@ -49,9 +50,9 @@ function parseCmdArgs() {
 // ==================================
 
 const HELP_MESSAGE = `
-${pkg.build.productName} ${pkg.version} command line interface.
+${pkg_build.productName} ${pkg.version} command line interface.
 
-Usage: ${pkg.build.productName} [options]
+Usage: ${pkg_build.productName} [options]
 
 Options:
     --debug-scene [SCENE]  Run the debug scene instead of the main app.

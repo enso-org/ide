@@ -2,9 +2,9 @@
 /// user with a visual representation of this process (welcome screen). It also implements a view
 /// allowing to choose a debug rendering test from.
 
-import * as loader_module from './loader'
-import * as html_utils    from './html_utils'
-import * as animation     from './animation'
+import * as loader_module from '../../lib/loader'
+import * as html_utils    from '../../lib/html_utils'
+import * as animation     from '../../lib/animation'
 
 
 

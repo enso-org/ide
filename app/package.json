@@ -6,50 +6,24 @@
     "name": "Enso Team",
     "email": "contact@luna-lang.org"
   },
+  "homepage": "https://github.com/luna/basegl",
   "repository": {
     "type": "git",
     "url": "git@github.com:luna/basegl.git"
   },
+  "bugs": {
+    "url": "https://github.com/luna/basegl/issues"
+  },
   "license": "AGPL",
+  "keywords": [
+    "webassembly",
+    "wasm",
+    "rust",
+    "webpack"
+  ],
+
+
   "main": "dist/main/main.js",
-  "bin": {
-    "create-wasm-app": ".bin/create-wasm-app.js"
-  },
-  "build": {
-    "appId": "org.enso.studio",
-    "productName": "Enso Studio",
-    "copyright": "Copyright © 2020 ${author}",
-    "mac": {
-      "icon": "dist/icon/icon.icns",
-      "category": "public.app-category.developer-tools",
-      "darkModeSupport": true,
-      "type": "distribution"
-    },
-    "win": {
-      "icon": "dist/icon/icon.ico"
-    },
-    "linux": {
-      "icon": "dist/icon/png",
-      "category": "Development"
-    },
-    "files": [
-      "dist/assets/**/*",
-      "dist/main/**/*",
-      "dist/renderer/**/*",
-      "package.json"
-    ]
-  },
-  "fileAssociations": {
-    "ext": [
-      "enso",
-      "enso-studio"
-    ]
-  },
-  "electronWebpack": {
-    "renderer": {
-      "sourceDirectory": null
-    }
-  },
   "scripts": {
     "build": "webpack --mode production",
     "build-dev": "webpack --mode development",
@@ -61,16 +35,8 @@
     "start-build-time-profile": "webpack-dev-server --mode development --profile --progress",
     "icon:gen": "npx node build/icon-gen.js"
   },
-  "keywords": [
-    "webassembly",
-    "wasm",
-    "rust",
-    "webpack"
-  ],
-  "bugs": {
-    "url": "https://github.com/luna/basegl/issues"
-  },
-  "homepage": "https://github.com/luna/basegl",
+
+
   "devDependencies": {
     "compression-webpack-plugin": "^3.1.0",
     "copy-webpack-plugin": "^5.1.1",

@@ -6,8 +6,8 @@ const root = path.resolve(__dirname)
 
 module.exports = {
     entry: {
-        index: './src/index.js',
-        wasm_imports: './src/wasm_imports.js',
+        index: path.resolve(root,'src','bin','web','index.js'),
+        wasm_imports: './src/lib/wasm_imports.js',
     },
     output: {
         path: path.resolve(root,'dist','assets'),
@@ -20,8 +20,8 @@ module.exports = {
     plugins: [
         new CompressionPlugin(),
         new CopyWebpackPlugin([
-            path.resolve(root,'src','index.html'),
-            path.resolve(root,'src','main','preload.js'),
+            path.resolve(root,'src','bin','web','index.html'),
+            path.resolve(root,'src','bin','native','preload.js'),
             path.resolve(root,'src-rust-gen','gui.wasm'),
             path.resolve(root,'src-rust-gen','gui.wasm.gz'),
         ]),
