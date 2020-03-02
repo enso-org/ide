@@ -737,7 +737,7 @@ impl<T:Tokenizer> HasSize for T {
 ///// Things that can be asked about their textual representation.
 /////
 ///// See also `HasSize`.
-trait HasRepr {
+pub trait HasRepr {
     /// Obtain the text representation for the This type.
     fn repr(&self) -> String;
 }
