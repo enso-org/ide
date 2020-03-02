@@ -20,6 +20,8 @@ let windowCfg = {
 }
 
 
+console.log(process.argv)
+
 
 // =============
 // === Utils ===
