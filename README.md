@@ -4,6 +4,8 @@
   <br/>
   <br/>
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75661125-05664300-5c6d-11ea-9bd3-8a5355db9609.png" alt="Enso Language" width="240"></a>
+  <br/>
+  <br/>
 </p>
 
 
