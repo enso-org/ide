@@ -1,11 +1,28 @@
 'use strict'
 
 import * as Electron from 'electron'
-import * as Server   from '../server'
+import * as isDev    from 'electron-is-dev'
 import * as minimist from 'minimist'
-
 import * as path     from 'path'
+import * as pkg      from '../../package.json'
+import * as Server   from '../server'
 
+
+
+// ================
+// === Defaults ===
+// ================
+
+let windowCfg = {
+    width  : 1024,
+    height : 768,
+}
+
+
+
+// =============
+// === Utils ===
+// =============
 
 function kebabToCamelCase(str){
   let arr     = str.split('-');
@@ -16,13 +33,7 @@ function kebabToCamelCase(str){
 }
 
 function parseCmdArgs() {
-    let argv = process.argv.slice(2)
-
-    // FIXME: https://github.com/electron-userland/electron-webpack/issues/354
-    if (argv[1] == '--') {
-        argv.splice(1,1)
-    }
-
+    let argv = isDev ? process.argv.slice(process.argv.indexOf('--') + 1) : process.argv
     let args = minimist(argv)
     for (let argName in args) {
         let newName = kebabToCamelCase(argName)
@@ -33,36 +44,19 @@ function parseCmdArgs() {
 
 
 
-// ================
-// === Defaults ===
-// ================
-
-// FIXME https://github.com/electron-userland/electron-webpack/issues/353
-const APP_VERSION = Electron.app.getVersion()
-const APP_NAME    = "Enso Studio"
-const APP_COMMAND = "enso-studio"
-
-
-let windowCfg = {
-    width  : 1024,
-    height : 768,
-}
-
-
-
 // ==================================
 // === Command Line Args Handlers ===
 // ==================================
 
 const HELP_MESSAGE = `
-${APP_NAME} ${APP_VERSION} command line interface.
+${pkg.build.productName} ${pkg.version} command line interface.
 
-Usage: ${APP_COMMAND} [options]
+Usage: ${pkg.build.productName} [options]
 
 Options:
     --debug-scene [SCENE]  Run the debug scene instead of the main app.
     --dev                  Run the application in development mode.
-    --devtron              Install the Devtron Developer Tools extension (dev mode only).
+    --devtron              Install the Devtron Developer Tools extension.
     --no-window            Do not show window. Run in a batch mode.
     --port                 Port to use [${Server.DEFAULT_PORT}].
     --help                 Print the help message and exit.
@@ -78,7 +72,7 @@ if (args.help) {
 }
 
 if (args.version) {
-    console.log(APP_VERSION)
+    console.log(pkg.version)
     process.exit();
 }
 
@@ -93,27 +87,6 @@ if (args.windowSize) {
         windowCfg.height = height
     }
 }
-
-
-
-
-// =================
-// === Constants ===
-// =================
-
-
-// === Execution mode ===
-
-const MODE_PRODUCTION  = 'production'
-const MODE_DEVELOPMENT = 'development'
-const IS_DEVELOPMENT   = process.env.NODE_ENV === MODE_DEVELOPMENT
-
-
-
-// =======================
-// === Server Creation ===
-// =======================
-
 
 
 
@@ -150,6 +123,7 @@ Electron.app.on('web-contents-created', (event,contents) => {
     contents.on('will-attach-webview', (event,webPreferences,params) => {
         secureWebPreferences(webPreferences)
         if (!urlWhitelist.includes(params.src)) {
+            console.error(`Blocked the creation of WebView pointing to '${params.src}'`)
             event.preventDefault()
         }
     })
@@ -183,15 +157,6 @@ Electron.app.on('web-contents-created', (event,contents) => {
         console.error(`Blocking new window creation request to '${navigationUrl}'`)
     })
 })
-
-
-
-// ====================
-// === Deprecations ===
-// ====================
-
-/// FIXME: Will not be needed in Electron 9 anymore.
-Electron.app.allowRendererProcessReuse = true
 
 
 
@@ -238,8 +203,6 @@ function createWindow() {
         preferences.enableRemoteModule = true
     }
 
-    console.log(preferences)
-
     const window = new Electron.BrowserWindow({
         webPreferences : preferences,
         width          : windowCfg.width,
@@ -248,7 +211,7 @@ function createWindow() {
         transparent    : true
     })
 
-    if (IS_DEVELOPMENT) {
+    if (args.dev) {
         window.webContents.openDevTools()
     }
 
@@ -307,4 +270,12 @@ if (process.platform === 'darwin') {
 }
 
 
-// FIXME https://github.com/electron/electron/issues/22465
+
+// =============================
+// === Deprecations & Fixmes ===
+// =============================
+
+/// FIXME: Will not be needed in Electron 9 anymore.
+Electron.app.allowRendererProcessReuse = true
+
+// FIXME Enable Metal backend on MacOS https://github.com/electron/electron/issues/22465
