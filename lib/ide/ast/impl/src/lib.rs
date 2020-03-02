@@ -214,7 +214,7 @@ impl Serialize for Ast {
         if self.id.is_some() {
             state.serialize_field(ID, &self.id)?;
         }
-        state.serialize_field(SPAN,  &self.size)?;
+        state.serialize_field(SPAN, &self.size)?;
         state.end()
     }
 }
@@ -571,6 +571,8 @@ pub enum MacroPatternMatchRaw<T> {
     pub code   : Vec<String>
 }
 
+
+
 //// ===========
 //// === AST ===
 //// ===========
@@ -676,7 +678,7 @@ trait HasIdMap {
     fn id_map(&self) -> IdMap;
 }
 
-struct IdMapBuilder { id_map: IdMap, offset:usize }
+struct IdMapBuilder { id_map:IdMap, offset:usize }
 
 impl TokenBuilder for IdMapBuilder {
     fn with_str(&mut self, val:&str ) { self.offset += val.len() }
@@ -687,12 +689,12 @@ impl TokenBuilder for IdMapBuilder {
         val.shape().tokenize(self);
         if let Some(id) = val.wrapped.id {
             let span = Span::new(Index::new(begin), Size::new(self.offset));
-            self.id_map.0.push((span, id))
+            self.id_map.0.push((span, id));
         }
     }
 }
 
-impl<T: Tokenizer> HasIdMap for T {
+impl<T:Tokenizer> HasIdMap for T {
     fn id_map(&self) -> IdMap {
         let mut builder = IdMapBuilder {id_map:default(),offset:default()};
         self.tokenize(&mut builder);

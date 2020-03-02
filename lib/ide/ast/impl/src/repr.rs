@@ -104,8 +104,8 @@ tokenizer!(EscapeCharacter , self.c     );
 tokenizer!(EscapeControl   , self.name  );
 tokenizer!(EscapeNumber    , self.digits);
 tokenizer!(EscapeUnicode16 , UNICODE16_INTRODUCER, self.digits);
-tokenizer!(EscapeUnicode21  ,UNICODE21_OPENER.deref() , self.digits
-                             , UNICODE21_CLOSER.deref());
+tokenizer!(EscapeUnicode21 , UNICODE21_OPENER.deref() , self.digits
+                           , UNICODE21_CLOSER.deref());
 tokenizer!(EscapeUnicode32 , UNICODE32_INTRODUCER, self.digits);
 
 
@@ -231,7 +231,7 @@ impl Tokenizer for TextBlockRaw {
     fn tokenize(&self, builder:&mut impl TokenBuilder) {
         (RAW_BLOCK_QUOTES, self.spaces).tokenize(builder);
         for line in self.text.iter() {
-            line.tokenize(builder, self.offset);
+            line.tokenize(builder,self.offset);
         }
     }
 }
@@ -258,7 +258,7 @@ impl<T:Tokenizer> Tokenizer for TextBlockFmt<T> {
 //            either redesign TextUnclosed, so that it can use Tokenizer,
 //            or come up with some smart/ugly hack
 impl <T:Tokenizer> Tokenizer for TextUnclosed<T> {
-    fn tokenize(&self, builder: &mut impl TokenBuilder) {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
         self.line.tokenize(builder);
         // now we should remove missing quote
     }
