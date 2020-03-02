@@ -12,10 +12,8 @@ use regex::Regex;
 /// Operator associativity.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Assoc {
-    /// Operator left-associative, i.e. a~b~c is (a~b)~c
     Left,
-    /// Operator right-associative, i.e. a~b~c is a~(b~c)
-    Right
+    Right,
 }
 
 /// Checks if given operator identifier can be considered "applicative".
@@ -24,7 +22,7 @@ pub fn is_applicative(operator:&str) -> bool {
     // We want to cache Regex, as library authors recommend, because compiling it is expensive.
     lazy_static! {
         // Unwrap is safe, as the input is fixed and covered by tests.
-        static ref PATTERN:Regex = Regex::new("<?[+*$]>?").unwrap();
+        static ref PATTERN:Regex = Regex::new("^<?[+*$]>?$").unwrap();
     }
     PATTERN.is_match(operator)
 }

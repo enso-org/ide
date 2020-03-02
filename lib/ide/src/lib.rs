@@ -16,7 +16,6 @@
 pub mod controller;
 pub mod double_representation;
 pub mod executor;
-pub mod graph_api;
 pub mod transport;
 pub mod view;
 

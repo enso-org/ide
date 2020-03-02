@@ -238,7 +238,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn list_definition_test() {
         let mut parser = parser::Parser::new_or_panic();
 
@@ -286,8 +285,5 @@ mod tests {
         let body_block = known::Block::try_from(only_def.body()).unwrap();
         let nested_defs = GeneralizedBlock::from_block(&body_block).list_definitions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
-
-
-
     }
 }

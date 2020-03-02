@@ -10,7 +10,7 @@ use crate::Shape;
 pub mod predefined {
     /// Used to create bindings, e.g. `add a b = a + b` or `foo = 5`.
     pub const ASSIGNMENT : &str = "=";
-    /// Used to create type paths (like
+    /// Used to create type paths (like `Int.+` or `IO.println`).
     pub const ACCESS : &str = ".";
 }
 
@@ -91,8 +91,7 @@ impl GeneralizedInfix {
         let mut target_subtree_flat  = match target_subtree_infix {
             Some(target_infix) if target_infix.name() == self.name() =>
                 target_infix.flatten(),
-            _ =>
-                Chain { target, args:Vec::new() },
+            _ => Chain { target, args:Vec::new() },
         };
 
         target_subtree_flat.args.push(rest);

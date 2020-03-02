@@ -109,22 +109,21 @@ pub type Ambiguous     = KnownAst<crate::Ambiguous>;
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)] // [MWU] otherwise I get false warning.
     use super::*;
 
     #[test]
     fn test() {
         let ast_var = crate::Ast::var("foo");
         // This is truly var, so we can unwrap and directly access it's fields.
-        let known_var = super::Var::try_from(&ast_var).unwrap();
+        let known_var = Var::try_from(&ast_var).unwrap();
         assert_eq!(known_var.name, "foo");
 
-        let known_var: super::Var = ast_var.clone().try_into().unwrap();
+        let known_var: Var = ast_var.clone().try_into().unwrap();
         assert_eq!(known_var.name, "foo");
 
 
         // This is not an Infix, so we won't get KnownAst object.
-        let known_infix_opt = super::Infix::try_from(&ast_var);
+        let known_infix_opt = Infix::try_from(&ast_var);
         assert!(known_infix_opt.is_err());
     }
 }
