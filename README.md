@@ -4,26 +4,15 @@
   <br/>
   <br/>
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75661125-05664300-5c6d-11ea-9bd3-8a5355db9609.png" alt="Enso Language" width="240"></a>
-  <p align="center"><b>A Visual Programming language of the future.</b></p>
 </p>
 
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#download">Download</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#related">Related</a> •
-  <a href="#license">License</a>
-  <br/>
-  <br/>
-  <br/>
-</p>
+
 
 
 
 ## Overview
 
-<p align="center">
+<p>
   <a href="https://github.com/luna/basegl/blob/master/LICENSE">
     <img src="https://img.shields.io/static/v1?label=License&message=MIT&color=2ec352&labelColor=2c3239"
          alt="License">
@@ -42,7 +31,19 @@
   </a>
 </p>
 
-- Uses EnsoGL to display millions of shapes 60 frames per second in a web browser.
+<p>
+  <a href="#key-features">Key Features</a> •
+  <a href="#how-to-use">How To Use</a> •
+  <a href="#download">Download</a> •
+  <a href="#credits">Credits</a> •
+  <a href="#related">Related</a> •
+  <a href="#license">License</a>
+  <br/>
+  <br/>
+  <br/>
+</p>
+
+Enso is a visual data science language selected by Singularity University and NASA as one of 20 most unique technologies worldwide.
 
 
 
