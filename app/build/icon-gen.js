@@ -1,3 +1,5 @@
+/// This file generates the product logo as SVG and then converts it to set of PNGs, MacOS ICNS, and
+/// Windows ICO formats.
 
 class Text {
     constructor(size = 64, compatibleMode = true, xoff = 0) {
@@ -204,7 +206,7 @@ class MinimalWhiteLogo extends Logo {
         this.borderMax = 10
         this.borderSpread = 0
         this.init()
-        this.body = `<use ${this.ref}="#logo" fill="#fafafa"/>`
+        this.body = `<use ${this.ref}="#logo" fill="#24292f"/>`
     }
 }
 
@@ -299,7 +301,6 @@ exports.generateInAppLogoWithText = (size, mode) => exports.generateInAppLogo(si
 exports.generateText = fastGenerate(Text);
 
 
-//console.log(exports.generateMinimalBlackLogo(64,true))
 
 const fs      = require('fs')
 const fsp     = fs.promises
