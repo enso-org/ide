@@ -28,14 +28,19 @@
   </a>
 </p>
 
-# BaseGL
+<p align="center">
+  <a href="#key-features">Key Features</a> •
+  <a href="#how-to-use">How To Use</a> •
+  <a href="#download">Download</a> •
+  <a href="#credits">Credits</a> •
+  <a href="#related">Related</a> •
+  <a href="#license">License</a>
+</p>
 
-BaseGL is a blazing fast 2D vector rendering engine with a rich set of
-primitives and a GUI component library. It is able to display millions of shapes
-60 frames per second in a web browser on a modern laptop hardware. 
+## Key Features
 
-This repository is a work in progress of BaseGL 2.0. Please refer to BaseGL 1.0
-repository for more information: https://github.com/luna/basegl-old.
+- Uses EnsoGL to display millions of shapes 60 frames per second in a web browser.
+
 
 
 ## Building From Sources
