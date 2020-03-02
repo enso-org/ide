@@ -24,7 +24,7 @@ pub fn no_tokenizer
     ret.into()
 }
 
-/// Inner logic for `derive_has_span`.
+/// Inner logic for `derive_tokenizer`.
 pub fn derive_for_enum
 (decl:&syn::DeriveInput, data:&syn::DataEnum)
  -> TokenStream  {
@@ -44,18 +44,17 @@ pub fn derive_for_enum
     ret
 }
 
-/// Structure representing input to macros like `make_repr_span!`.
+/// Structure representing input to macros like `tokenizer!`.
 ///
 /// Basically it consists of a typename (with optional generic arguments) and
-/// sequence of expressions that yield values we use to obtain sub-repr or
-/// sub-spans.
-pub struct ReprDescription {
+/// sequence of expressions that yield values we use to obtain sub-tokenizer.
+pub struct TokenDescription {
     pub ty      : PathSegment,
     pub ty_args : Vec<GenericArgument>,
     pub exprs   : Vec<Expr>,
 }
 
-impl syn::parse::Parse for ReprDescription {
+impl syn::parse::Parse for TokenDescription {
     /// Parser user-provided input to macro into out structure.
     ///
     /// First should go a type for which implementation is to be provided,
@@ -68,11 +67,11 @@ impl syn::parse::Parse for ReprDescription {
         let exprs   = exprs.iter().cloned().collect::<Vec<_>>();
         let ty_args = path_segment_generic_args(&ty);
         let ty_args = ty_args.into_iter().cloned().collect(); // get rid of &
-        Ok(ReprDescription {ty,ty_args,exprs})
+        Ok(TokenDescription {ty,ty_args,exprs})
     }
 }
 
-impl ReprDescription {
+impl TokenDescription {
     /// Fills a trait implementation template with given methods.
     pub fn make_impl
     (&self, trait_name:&str, methods:&TokenStream) -> TokenStream {

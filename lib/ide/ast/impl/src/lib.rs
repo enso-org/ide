@@ -8,6 +8,7 @@ use prelude::*;
 
 use ast_macros::*;
 use data::text::*;
+use data::text::Index;
 
 use serde::de::Deserializer;
 use serde::de::Visitor;
@@ -26,8 +27,7 @@ pub struct IdMap(pub Vec<(Span,ID)>);
 /// A sequence of AST nodes, typically the "token soup".
 pub type Stream<T> = Vec<T>;
 
-// TODO [jv] use strongly typed IdMap
-type IDMap = Vec<((usize,usize),ID)>;
+
 
 // ==============
 // === Errors ===
@@ -137,7 +137,7 @@ impl<T> Layer<T> for Layered<T> {
 #[derive(Eq, PartialEq, Debug, Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct Ast {
-    pub wrapped: Rc<WithID<WithSpan<Shape<Ast>>>>
+    pub wrapped: Rc<WithID<WithSize<Shape<Ast>>>>
 }
 
 impl Clone for Ast {
@@ -164,7 +164,7 @@ impl Ast {
     /// automatically calculated based on Shape.
     pub fn new<S: Into<Shape<Ast>>>(shape: S, id: Option<ID>) -> Ast {
         let shape: Shape<Ast> = shape.into();
-        let span = shape.span();
+        let span = shape.size();
         Ast::new_with_span(shape, id, span)
     }
 
@@ -172,7 +172,7 @@ impl Ast {
     pub fn new_with_span<S: Into<Shape<Ast>>>
     (shape: S, id: Option<ID>, span: usize) -> Ast {
         let shape     = shape.into();
-        let with_span = WithSpan { wrapped: shape,     span };
+        let with_span = WithSize { wrapped: shape, size: span };
         let with_id   = WithID   { wrapped: with_span, id   };
         Ast { wrapped: Rc::new(with_id) }
     }
@@ -214,7 +214,7 @@ impl Serialize for Ast {
         if self.id.is_some() {
             state.serialize_field(ID, &self.id)?;
         }
-        state.serialize_field(SPAN,  &self.span)?;
+        state.serialize_field(SPAN,  &self.size)?;
         state.end()
     }
 }
@@ -275,7 +275,7 @@ impl<'de> Deserialize<'de> for Ast {
 ///
 /// Shape describes names of children and spacing between them.
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum Shape<T> {
     Unrecognized  { str : String   },
     InvalidQuote  { quote: Builder },
@@ -343,7 +343,7 @@ pub enum Shape<T> {
 // ===============
 
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum Builder {
     Empty,
     Letter{char: char},
@@ -366,7 +366,7 @@ pub enum Builder {
 }
 
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum TextLine<T> {
     TextLineRaw(TextLineRaw),
     TextLineFmt(TextLineFmt<T>),
@@ -375,14 +375,14 @@ pub enum TextLine<T> {
 
 // === Text Segments ===
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum SegmentRaw {
     SegmentPlain    (SegmentPlain),
     SegmentRawEscape(SegmentRawEscape),
 }
 
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum SegmentFmt<T> {
     SegmentPlain    (SegmentPlain    ),
     SegmentRawEscape(SegmentRawEscape),
@@ -399,7 +399,7 @@ pub enum SegmentFmt<T> {
 // === Text Segment Escapes ===
 
 #[ast(flat)]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum RawEscape {
     Unfinished { },
     Invalid    { str: char },
@@ -409,7 +409,7 @@ pub enum RawEscape {
 }
 
 #[ast]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum Escape {
     Character{c     :char            },
     Control  {name  :String, code: u8},
@@ -504,7 +504,7 @@ impl<T> Switch<T> {
 pub type MacroPatternMatch<T> = Rc<MacroPatternMatchRaw<T>>;
 
 #[ast]
-#[derive(HasRepr)]
+#[derive(Tokenizer)]
 pub enum MacroPatternMatchRaw<T> {
     // === Boundary Matches ===
     Begin   { pat: MacroPatternRawBegin },
@@ -673,10 +673,10 @@ impl<T:Tokenizer,U:Tokenizer,V:Tokenizer> Tokenizer for (T,U,V) {
 /// Things that have IdMap.
 trait HasIdMap {
     /// Extracts IdMap from `self`.
-    fn id_map(&self) -> IDMap;
+    fn id_map(&self) -> IdMap;
 }
 
-struct IdMapBuilder { id_map:IDMap, offset:usize }
+struct IdMapBuilder { id_map: IdMap, offset:usize }
 
 impl TokenBuilder for IdMapBuilder {
     fn with_str(&mut self, val:&str ) { self.offset += val.len() }
@@ -686,13 +686,14 @@ impl TokenBuilder for IdMapBuilder {
         let begin = self.offset;
         val.shape().tokenize(self);
         if let Some(id) = val.wrapped.id {
-            self.id_map.push(((begin, self.offset), id))
+            let span = Span::new(Index::new(begin), Size::new(self.offset));
+            self.id_map.0.push((span, id))
         }
     }
 }
 
 impl<T: Tokenizer> HasIdMap for T {
-    fn id_map(&self) -> IDMap {
+    fn id_map(&self) -> IdMap {
         let mut builder = IdMapBuilder {id_map:default(),offset:default()};
         self.tokenize(&mut builder);
         builder.id_map
@@ -700,15 +701,15 @@ impl<T: Tokenizer> HasIdMap for T {
 }
 
 
-// === HasSpan ===
+// === HasSize ===
 
 /// Things that can be asked about their span.
-trait HasSpan {
+pub trait HasSize {
     /// Length of the textual representation of This type in Unicode codepoints.
     ///
-    /// Usually implemented together with `HasSpan`.For any `T:HasSpan+HasRepr`
-    /// for `t:T` the following must hold: `t.span() == t.repr().len()`.
-    fn span(&self) -> usize;
+    /// Usually implemented together with `HasRepr`.For any `T:HasSize+HasRepr`
+    /// for `t:T` the following must hold: `t.size() == t.repr().len()`.
+    fn size(&self) -> usize;
 }
 
 struct SpanBuilder { offset:usize }
@@ -720,8 +721,8 @@ impl TokenBuilder for SpanBuilder {
     fn with_ast(&mut self, val:&Ast ) { val.shape().tokenize(self)  }
 }
 
-impl<T:Tokenizer> HasSpan for T {
-    fn span(&self) -> usize {
+impl<T:Tokenizer> HasSize for T {
+    fn size(&self) -> usize {
         let mut builder = SpanBuilder {offset:default()};
         self.tokenize(&mut builder);
         builder.offset
@@ -733,7 +734,7 @@ impl<T:Tokenizer> HasSpan for T {
 
 ///// Things that can be asked about their textual representation.
 /////
-///// See also `HasSpan`.
+///// See also `HasSize`.
 trait HasRepr {
     /// Obtain the text representation for the This type.
     fn repr(&self) -> String;
@@ -788,15 +789,15 @@ Layer<T> for WithID<S> {
     }
 }
 
-impl<T> HasSpan for WithID<T>
-where T: HasSpan {
-    fn span(&self) -> usize {
-        self.deref().span()
+impl<T> HasSize for WithID<T>
+where T: HasSize {
+    fn size(&self) -> usize {
+        self.deref().size()
     }
 }
 
 
-// === WithSpan ===
+// === WithSize ===
 
 /// Stores a value of type `T` and information about its span.
 ///
@@ -804,26 +805,26 @@ where T: HasSpan {
 /// purposes.
 #[derive(Eq, PartialEq, Debug, Shrinkwrap, Serialize, Deserialize)]
 #[shrinkwrap(mutable)]
-pub struct WithSpan<T> {
+pub struct WithSize<T> {
     #[shrinkwrap(main_field)]
     #[serde(flatten)]
     pub wrapped: T,
-    pub span: usize
+    pub size: usize
 }
 
-impl<T> HasSpan for WithSpan<T> {
-    fn span(&self) -> usize { self.span }
+impl<T> HasSize for WithSize<T> {
+    fn size(&self) -> usize { self.size }
 }
 
-impl<T, S> Layer<T> for WithSpan<S>
-where T: HasSpan + Into<S> {
+impl<T, S> Layer<T> for WithSize<S>
+where T: HasSize + Into<S> {
     fn layered(t: T) -> Self {
-        let span = t.span();
-        WithSpan { wrapped: t.into(), span }
+        let span = t.size();
+        WithSize { wrapped: t.into(), size: span }
     }
 }
 
-impl<T> HasID for WithSpan<T>
+impl<T> HasID for WithSize<T>
     where T: HasID {
     fn id(&self) -> Option<ID> {
         self.deref().id()
@@ -1017,9 +1018,9 @@ mod tests {
     }
 
     #[test]
-    fn ast_span() {
+    fn ast_size() {
         let ast = Ast::prefix(Ast::var("XX"), Ast::var("YY"));
-        assert_eq!(ast.span(), 5)
+        assert_eq!(ast.size(), 5)
     }
 
     #[test]
@@ -1030,12 +1031,13 @@ mod tests {
 
     #[test]
     fn ast_id_map() {
-        let uid = default();
-        let ids = vec![((0,2),uid), ((3,5),uid), ((0,5),uid)];
-        let fun = Ast::new(Var    {name:"XX".into()},       Some(uid));
-        let arg = Ast::new(Var    {name:"YY".into()},       Some(uid));
-        let ast = Ast::new(Prefix {func:fun,arg:arg,off:1}, Some(uid));
-        assert_eq!(ast.id_map(), ids);
+        let span = |ix,size| Span::new(Index::new(ix), Size::new(size));
+        let uid  = default();
+        let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
+        let fun  = Ast::new(Var    {name:"XX".into()},       Some(uid));
+        let arg  = Ast::new(Var    {name:"YY".into()},       Some(uid));
+        let ast  = Ast::new(Prefix {func:fun,arg:arg,off:1}, Some(uid));
+        assert_eq!(ast.id_map(), IdMap(ids));
     }
 
     #[test]
@@ -1045,7 +1047,7 @@ mod tests {
         let v     = Var{ name: ident.clone() };
         let ast   = Ast::from(v);
         assert_eq!(ast.wrapped.id, None);
-        assert_eq!(ast.wrapped.wrapped.span, ident.span());
+        assert_eq!(ast.wrapped.wrapped.size, ident.size());
     }
 
     #[test]
@@ -1078,7 +1080,7 @@ mod tests {
         assert_eq!(ast.id, expected_uuid);
 
         let expected_span = 3;
-        assert_eq!(ast.span, expected_span);
+        assert_eq!(ast.size, expected_span);
 
         let expected_var   = Var { name: var_name.into() };
         let expected_shape = Shape::from(expected_var);

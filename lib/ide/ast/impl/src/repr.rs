@@ -374,7 +374,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn comment_panics_on_span() {
-        make_comment().span();
+        make_comment().size();
     }
 
 
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn import_panics_on_span() {
-        make_import().span();
+        make_import().size();
     }
 
 
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn mixfix_panics_on_span() {
-        make_mixfix().span();
+        make_mixfix().size();
     }
 
 
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn group_panics_on_span() {
-        make_group().span();
+        make_group().size();
     }
 
 
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn def_panics_on_span() {
-        make_def().span();
+        make_def().size();
     }
 
     // === Foreign ===
@@ -479,6 +479,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn foreign_panics_on_span() {
-        make_foreign().span();
+        make_foreign().size();
     }
 }
