@@ -1,15 +1,10 @@
-<h1 align="center">
+<p align="center">
   <br/>
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png" alt="Enso Studio" width="128"></a>
   <br/>
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75660297-d4d1d980-5c6b-11ea-85f9-81d64d83592c.png" alt="Enso Studio" width="180"></a>
-  <br/>
-  <br/>
-  <br/>
-</h1>
-
-<h4 align="center">A Visual Programming language of the future.</h4>
-
+  <p align="center"><b>A Visual Programming language of the future.</b></p>
+</p>
 
 <p align="center">
   <a href="https://github.com/luna/basegl/blob/master/LICENSE">
@@ -28,7 +23,14 @@
     <img src="https://img.shields.io/static/v1?label=Stability&message=Unstable&color=d52229&labelColor=2c3239"
          alt="Stability">
   </a>
+  <br/>
+  <br/>
+  <br/>
 </p>
+
+
+
+## Overview
 
 <p align="center">
   <a href="#key-features">Key Features</a> •
@@ -38,8 +40,6 @@
   <a href="#related">Related</a> •
   <a href="#license">License</a>
 </p>
-
-## Key Features
 
 - Uses EnsoGL to display millions of shapes 60 frames per second in a web browser.
 
