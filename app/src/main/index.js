@@ -1,10 +1,10 @@
 'use strict'
 
-import * as Electron   from 'electron'
-import * as Server     from '../server'
-import * as minimist   from 'minimist'
+import * as Electron from 'electron'
+import * as Server   from '../server'
+import * as minimist from 'minimist'
 
-
+import * as path     from 'path'
 
 
 function kebabToCamelCase(str){
@@ -61,6 +61,8 @@ Usage: ${APP_COMMAND} [options]
 
 Options:
     --debug-scene [SCENE]  Run the debug scene instead of the main app.
+    --dev                  Run the application in development mode.
+    --devtron              Install the Devtron Developer Tools extension (dev mode only).
     --no-window            Do not show window. Run in a batch mode.
     --port                 Port to use [${Server.DEFAULT_PORT}].
     --help                 Print the help message and exit.
@@ -138,13 +140,14 @@ function secureWebPreferences(webPreferences) {
     delete webPreferences.experimentalFeatures
     delete webPreferences.enableBlinkFeatures
     delete webPreferences.allowpopups
-    webPreferences.contextIsolation = true
+    webPreferences.contextIsolation   = true
+    webPreferences.enableRemoteModule = false
     return webPreferences
 }
 
 let urlWhitelist = []
-Electron.app.on('web-contents-created', (event, contents) => {
-    contents.on('will-attach-webview', (event, webPreferences, params) => {
+Electron.app.on('web-contents-created', (event,contents) => {
+    contents.on('will-attach-webview', (event,webPreferences,params) => {
         secureWebPreferences(webPreferences)
         if (!urlWhitelist.includes(params.src)) {
             event.preventDefault()
@@ -182,6 +185,7 @@ Electron.app.on('web-contents-created', (event,contents) => {
 })
 
 
+
 // ====================
 // === Deprecations ===
 // ====================
@@ -195,67 +199,99 @@ Electron.app.allowRendererProcessReuse = true
 // === Main ===
 // ============
 
-let main_window_keep_alive
+let hideInsteadOfQuit = false
+
+
+let server     = null
+let mainWindow = null
+
 async function main() {
-    let serverCfg          = Object.assign({},args)
-    serverCfg.dir          = 'dist'
-    serverCfg.fallback     = '/assets/index.html'
-    let server             = await Server.create(serverCfg)
-    main_window_keep_alive = createMainWindow(server)
+    let serverCfg      = Object.assign({},args)
+    serverCfg.dir      = 'dist'
+    serverCfg.fallback = '/assets/index.html'
+    server             = await Server.create(serverCfg)
+    mainWindow         = createWindow()
+    mainWindow.on("close", (evt) => {
+       if (hideInsteadOfQuit) {
+           evt.preventDefault()
+           mainWindow.hide()
+       }
+   })
 }
 
-function createMainWindow(server) {
+function urlParamsFromObject(obj) {
+    let params = []
+    for (let key in obj) {
+        let val = obj[key]
+        if      (val === false) {}
+        else if (val === true)  { params.push(key) }
+        else                    { params.push(`${key}=${val}`) }
+    }
+    return params.join("&")
+}
+
+function createWindow() {
+
+    let preferences = secureWebPreferences()
+    if (args.devtron) {
+        preferences.preload = path.join(Electron.app.getAppPath(),'..','assets','preload.js')
+        preferences.enableRemoteModule = true
+    }
+
+    console.log(preferences)
+
     const window = new Electron.BrowserWindow({
-        webPreferences : secureWebPreferences(),
+        webPreferences : preferences,
         width          : windowCfg.width,
         height         : windowCfg.height,
         frame          : false,
         transparent    : true
     })
 
-//    if (IS_DEVELOPMENT) {
-//        window.webContents.openDevTools()
-//    }
+    if (IS_DEVELOPMENT) {
+        window.webContents.openDevTools()
+    }
 
-    Electron.session.defaultSession.setPermissionRequestHandler (
-        (webContents, permission, callback) => {
-            const url = webContents.getURL()
-            console.error(`Unhandled permission request '${permission}'.`)
-            // https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
-        }
-    )
+    let cfg = {
+        desktop      : true,
+        dark         : Electron.nativeTheme.shouldUseDarkColors,
+        highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
+    }
 
+    let params      = urlParamsFromObject(cfg)
     let targetScene = ""
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
     }
-    window.loadURL(`http://localhost:${server.port}/${targetScene}?desktop`)
-//    window.loadURL(`chrome://flags/`)
+    window.loadURL(`http://localhost:${server.port}/${targetScene}?${params}`)
 
-    window.on('closed', () => {
-        main_window_keep_alive = null
-    })
-
-  return window
+    return window
 }
 
-Electron.app.on('window-all-closed', () => {
-    // On macOS it is common for applications to stay open until the user explicitly quits.
-    // Here we force the application to quit when all the windows are closed.
-    if (process.platform !== 'darwin') {
-        Electron.app.quit()
+/// By default, Electron will automatically approve all permission requests unless the developer has
+/// manually configured a custom handler. While a solid default, security-conscious developers might
+/// want to assume the very opposite. Follow the link to learn more:
+// https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
+function setupPermissions() {
+    Electron.session.defaultSession.setPermissionRequestHandler (
+        (webContents,permission,callback) => {
+            const url = webContents.getURL()
+            console.error(`Unhandled permission request '${permission}'.`)
+        }
+    )
+}
+
+
+
+// ==============
+// === Events ===
+// ==============
+
+Electron.app.on('activate', () => {
+    if (process.platform == 'darwin') {
+        mainWindow.show()
     }
 })
-
-//Electron.app.on('activate', () => {
-//    if (main_window_keep_alive === null) {
-//        main_window_keep_alive = main()
-//    }
-//})
-
-Electron.app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService')
-
-// FIXME https://github.com/electron/electron/issues/22465
 
 Electron.app.on('ready', () => {
     if(args.window !== false) {
@@ -263,8 +299,12 @@ Electron.app.on('ready', () => {
     }
 })
 
+if (process.platform === 'darwin') {
+    hideInsteadOfQuit = true
+    Electron.app.on('before-quit', function() {
+        hideInsteadOfQuit = false
+    })
+}
 
 
-// TODO
-// There are some errors like `DeprecationWarning: OutgoingMessage.prototype._headers is deprecated`
-// Follow this topic to watch the resolution: https://github.com/http-party/http-server/issues/483
+// FIXME https://github.com/electron/electron/issues/22465
