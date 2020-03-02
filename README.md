@@ -1,9 +1,34 @@
 ![Logo](https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png)
 
-[![License](https://img.shields.io/static/v1?label=License&message=MIT&color=2ec352&labelColor=2c3239)](https://github.com/luna/basegl/blob/master/LICENSE) 
-[![Actions Status](https://github.com/luna/basegl/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg)](https://github.com/luna/basegl/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/luna/basegl?label=Coverage&labelColor=2c3239)](https://codecov.io/gh/luna/basegl/branch/master) 
-![Stability](https://img.shields.io/static/v1?label=Stability&message=Unstable&color=d52229&labelColor=2c3239)
+<h1 align="center">
+  <br>
+  <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png" alt="Enso" width="128"></a>
+  <br>
+  Enso Studio
+  <br>
+</h1>
+
+<h4 align="center">A Visual Programming language of the future.</h4>
+
+
+<p align="center">
+  <a href="https://github.com/luna/basegl/blob/master/LICENSE">
+    <img src="https://img.shields.io/static/v1?label=License&message=MIT&color=2ec352&labelColor=2c3239"
+         alt="License">
+  </a>
+  <a href="https://github.com/luna/basegl/actions">
+    <img src="https://github.com/luna/basegl/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
+         alt="Actions Status">
+  </a>
+  <a href="https://codecov.io/gh/luna/basegl/branch/master">
+    <img src="https://img.shields.io/codecov/c/github/luna/basegl?label=Coverage&labelColor=2c3239"
+         alt="Coverage">
+  </a>
+  <a>
+    <img src="https://img.shields.io/static/v1?label=Stability&message=Unstable&color=d52229&labelColor=2c3239"
+         alt="Stability">
+  </a>
+</p>
 
 # BaseGL
 
