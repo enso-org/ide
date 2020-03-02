@@ -1,4 +1,9 @@
+# Development and Contributing
 
+
+## Development
+
+### Development Environment
 - **The Rust Toolchain**  
   This project uses several features available only in the nightly Rust toolchain.
 Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
@@ -21,19 +26,22 @@ package manager is officially not supported and can cause issues. Follow the
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
   ```
 
+<br/>
+
 ### Building Rust Sources
-Run `script/watch.py --dev` to start a file-watch utility which will build the
-project on every source change. The usage of `--dev` shortens the build time drastically.
-In order to build the project in a release mode, use `script/build.py` instead. The scripts 
-are thin wrappers for
-[wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same [command
+Run `script/watch.py` to start a source-file watch utility which will build the
+project on every change. By default, the `watch` script disables some optimizations to provide interactive development experience. In order to build the project in a release mode, use `script/build.py` instead. The scripts 
+are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same [command
 line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
 
+<br/>
 
 ### Minimizing the WASM binary size (optional)
 After building the project you can use the `scripts/minimize_wasm.py` to optimize 
 the binary and compress it by using `gzip`. After the script is complete, the
 final size is printed to stdout.
+
+<br/>
 
 ### Building the Web Application
 Enter the `app` directory and follow the steps:
