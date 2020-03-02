@@ -1,9 +1,11 @@
 <h1 align="center">
-  <br>
-  <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png" alt="Enso" width="128"></a>
-  <br>
-  Enso Studio
-  <br>
+  <br/>
+  <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png" alt="Enso Studio" width="128"></a>
+  <br/>
+  <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75659819-e8c90b80-5c6a-11ea-963a-88eddbae1a7a.png" alt="Enso Studio" width="200"></a>
+  <br/>
+  <br/>
+  <br/>
 </h1>
 
 <h4 align="center">A Visual Programming language of the future.</h4>
