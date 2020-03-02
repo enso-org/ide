@@ -10,7 +10,7 @@
 </p>
 
 
-## Overview
+### Overview
 
 <p>
   <a href="https://github.com/luna/basegl/blob/master/LICENSE">
@@ -35,7 +35,7 @@ Enso is a visual data science language selected by Singularity University and NA
 
 <br/>
 
-## Getting Started
+### Getting Started
 
 [Download a pre-build package for MacOS, Windows, or Linux](https://github.com/luna/ide/releases), see the [demo scenes](https://github.com/luna/ide/releases), and read the [documentation](https://github.com/luna/ide/releases).
 
