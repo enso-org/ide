@@ -1036,9 +1036,9 @@ mod tests {
         let span = |ix,size| Span::new(Index::new(ix), Size::new(size));
         let uid  = default();
         let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
-        let fun  = Ast::new(Var    {name:"XX".into()},       Some(uid));
-        let arg  = Ast::new(Var    {name:"YY".into()},       Some(uid));
-        let ast  = Ast::new(Prefix {func:fun,arg:arg,off:1}, Some(uid));
+        let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
+        let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
+        let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
         assert_eq!(ast.id_map(), IdMap(ids));
     }
 
