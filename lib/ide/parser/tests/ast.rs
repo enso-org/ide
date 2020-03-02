@@ -7,6 +7,7 @@ use ast::HasRepr;
 use ast::opr;
 use ast::prefix;
 use parser::api::IsParser;
+use wasm_bindgen_test::wasm_bindgen_test;
 
 #[wasm_bindgen_test]
 pub fn flatten_prefix_test() {

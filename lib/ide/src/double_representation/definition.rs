@@ -222,6 +222,7 @@ mod tests {
     use super::*;
     use parser::api::IsParser;
     use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     fn assert_eq_strings(lhs:Vec<impl Str>, rhs:Vec<impl Str>) {
         let lhs = lhs.iter().map(|s| s.as_ref()).collect_vec();
