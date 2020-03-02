@@ -16,6 +16,45 @@ pub enum Assoc {
     Right,
 }
 
+//#[derive(Clone,Copy,Debug,PartialEq,PartialOrd)]
+//enum ApplicativeTester {
+//    NotOpened,
+//    Opened,
+//    MatchedBody,
+//    Closed,
+//}
+//
+//impl ApplicativeTester {
+//    fn new() -> ApplicativeTester {
+//        ApplicativeTester::NotOpened
+//    }
+//    fn process_character(&mut self, c:char) -> bool {
+//        use ApplicativeTester::*;
+//        if c == '<'  && *self == NotOpened {
+//            *self = Opened;
+//            true
+//        } else if (c == '+' || c == '*' || c == '$') && (*self < MatchedBody) {
+//            *self = MatchedBody;
+//            true
+//        } else if c == '>' && *self == MatchedBody {
+//            *self = Closed;
+//            true
+//        } else {
+//            false
+//        }
+//    }
+//}
+//
+//pub fn is_applicative1(operator:&str) -> bool {
+//    let mut tester = ApplicativeTester::new();
+//    for c in operator.chars() {
+//        if tester.process_character(c) == false {
+//            return false;
+//        }
+//    }
+//    true
+//}
+
 /// Checks if given operator identifier can be considered "applicative".
 /// Examples are: `<*>`, `<*`, `<$>`.
 pub fn is_applicative(operator:&str) -> bool {
