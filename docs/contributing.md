@@ -3,7 +3,7 @@
 
 ## Development
 
-### Development Environment
+### Development Environment Setup
 - **The Rust Toolchain**  
   This project uses several features available only in the nightly Rust toolchain.
 Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
