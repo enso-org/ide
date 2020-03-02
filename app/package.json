@@ -45,6 +45,11 @@
       "enso-studio"
     ]
   },
+  "electronWebpack": {
+    "renderer": {
+      "sourceDirectory": null
+    }
+  },
   "scripts": {
     "build": "webpack --mode production",
     "build-dev": "webpack --mode development",
