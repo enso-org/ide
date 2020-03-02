@@ -123,9 +123,14 @@ shared! { TextField
             self.rendered.display_object.position().xy()
         }
 
+        /// Clear word occurrences.
+        pub fn clear_word_occurrences(&mut self) {
+            self.word_occurrences = None;
+        }
+
         /// Removes all cursors except one which is set and given point.
         pub fn set_cursor(&mut self, point:Vector2<f32>) {
-            self.word_occurrences = None;
+            self.clear_word_occurrences();
             self.cursors.remove_additional_cursors();
             self.jump_cursor(point,false);
         }
@@ -159,7 +164,7 @@ shared! { TextField
         pub fn set_content(&mut self, text:&str) {
             // FIXME [ao] It should check if cursors positions are valid.
             //       See: https://github.com/luna/ide/issues/187
-            self.word_occurrences = None;
+            self.clear_word_occurrences();
             self.content.set_content(text);
             self.assignment_update().update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content);
@@ -285,7 +290,7 @@ impl TextField {
             self.write_per_cursor(cursor_with_line);
         };
         self.with_borrowed(|this| {
-            this.word_occurrences = None;
+            this.clear_word_occurrences();
             // TODO[ao] updates should be done only in one place and only once per frame
             // see https://github.com/luna/ide/issues/178
             this.assignment_update().update_after_text_edit();

@@ -34,15 +34,13 @@ impl WordRange {
     pub fn word_at_cursor(content:&TextFieldContent, cursor:&Cursor) -> Option<Self> {
         let line  = cursor.position.line;
         let chars = content.lines()[line].chars();
-        if let Some(range) = get_index_range_of_word_at(chars,cursor.position.column) {
+        get_index_range_of_word_at(chars,cursor.position.column).map(|range| {
             let column = range.start;
-            let start  = TextLocation {line,column};
+            let start  = TextLocation { line, column };
             let column = range.end;
-            let end    = TextLocation {line,column};
-            Some(Self::new(start..end))
-        } else {
-            None
-        }
+            let end    = TextLocation { line, column };
+            Self::new(start..end)
+        })
     }
 }
 
@@ -64,15 +62,33 @@ pub struct WordOccurrences {
 impl WordOccurrences {
     /// Gets the range of each occurrence of word.
     pub fn new(content:&TextFieldContent, cursor:&mut Cursor) -> Option<Self> {
-        let range = if cursor.has_selection() {
+        let range = Self::get_range(content,cursor);
+        let words = Self::get_words(content,range);
+        words.map(|words| {
+            let cursor_location = cursor.position;
+            let current_index   = words.iter().find_position(|current_word| {
+                cursor_location.line == current_word.start.line &&
+                    cursor_location.column >= current_word.start.column &&
+                    cursor_location.column <= current_word.end.column
+            }).map(|(index, _)| index).unwrap_or(0);
+            let current_index = current_index - 1;
+            Self { words, current_index }.initialize(&cursor)
+        })
+    }
+
+    fn get_range(content:&TextFieldContent, cursor:&Cursor) -> Option<Range<TextLocation>> {
+        if cursor.has_selection() {
             Some(cursor.selection_range())
         } else {
             let word = WordRange::word_at_cursor(content, &cursor);
-            word.map(|word| Some(word.word_range)).unwrap_or(None)
-        };
-        if let Some(range) = range {
+            word.map(|word| word.word_range)
+        }
+    }
+
+    fn get_words
+    (content:&TextFieldContent, range:Option<Range<TextLocation>>) -> Option<Vec<WordRange>> {
+        range.map(|range| {
             let word = content.copy_fragment(range);
-            let cursor_location = cursor.position;
             let mut words = Vec::new();
             let word: Vec<char> = word.chars().collect();
 
@@ -88,21 +104,8 @@ impl WordOccurrences {
                     words.push(WordRange::new(start..end));
                 }
             }
-
-            if words.is_empty() {
-                None
-            } else {
-                let current_index      = words.iter().find_position(|current_word| {
-                    cursor_location.line == current_word.start.line &&
-                        cursor_location.column >= current_word.start.column &&
-                        cursor_location.column <= current_word.end.column
-                }).map(|(index, _)| index).unwrap_or(0);
-                let current_index = current_index - 1;
-                Some(Self { words, current_index }.initialize(&cursor))
-            }
-        } else {
-            None
-        }
+            words
+        }).filter(|words| !words.is_empty())
     }
 
     fn initialize(mut self, cursor:&Cursor) -> Self {
@@ -167,7 +170,6 @@ fn get_word_occurrences(content:&[char], word:&[char]) -> Vec<Range<usize>> {
             occurrences.push(*start..end)
         }
     }
-
     occurrences
 }
 
