@@ -1,5 +1,3 @@
-![Logo](https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png)
-
 <h1 align="center">
   <br>
   <a href="http://luna-lang.org"><img src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png" alt="Enso" width="128"></a>
