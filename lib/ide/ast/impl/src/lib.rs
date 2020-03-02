@@ -19,6 +19,7 @@ use uuid::Uuid;
 /// A sequence of AST nodes, typically the "token soup".
 pub type Stream<T> = Vec<T>;
 
+// TODO [jv] use strongly typed IdMap
 type IDMap = Vec<((usize,usize),ID)>;
 
 // ==============
@@ -152,28 +153,6 @@ impl Ast {
         self
     }
 
-    // TODO use strongly typed IDMap, after it's merged to master
-
-    fn collect_ids(&self, index:&mut usize, ids:&mut IDMap) {
-        self.id.map( |id| {
-            ids.push(((*index, self.span), id));
-            *index += self.span;
-        });
-
-        for child in self {
-            child.collect_ids(index, ids);
-        }
-    }
-
-    pub fn id_map(&self) -> IDMap {
-        let mut idx = 0;
-        let mut ids = Vec::new();
-        self.collect_ids(&mut idx, &mut ids);
-
-        ids
-    }
-
-
     /// Wraps given shape with an optional ID into Ast. Span will ba
     /// automatically calculated based on Shape.
     pub fn new<S: Into<Shape<Ast>>>(shape: S, id: Option<ID>) -> Ast {
@@ -194,18 +173,6 @@ impl Ast {
     /// Iterates over all transitive child nodes (including self).
     pub fn iter_recursive(&self) -> impl Iterator<Item=&Ast> {
         internal::iterate_subtree(self)
-    }
-}
-
-impl HasSpan for Ast {
-    fn span(&self) -> usize {
-        self.wrapped.span()
-    }
-}
-
-impl HasRepr for Ast {
-    fn write_repr(&self, target:&mut String) {
-        self.wrapped.write_repr(target);
     }
 }
 
@@ -597,16 +564,139 @@ pub enum MacroPatternMatchRaw<T> {
     pub code   : Vec<String>
 }
 
+//// ===========
+//// === AST ===
+//// ===========
 
 
-// ===========
-// === AST ===
-// ===========
+// === Tokenizer ===
+
+/// Things that can be turned into stream of tokens.
+pub trait Tokenizer {
+    /// Feeds TokenBuilder with stream of tokens obtained from `self`.
+    fn tokenize(&self, builder:&mut impl TokenBuilder);
+}
+
+/// Helper trait for Tokenizer, which consumes the token stream.
+///
+/// Can be only fed with char, string, integer and ast.
+pub trait TokenBuilder {
+    /// process &str
+    fn with_str(&mut self, val:&str);
+    /// process usize
+    fn with_int(&mut self, val:usize);
+    /// process char
+    fn with_chr(&mut self, val:char);
+    /// process &Ast
+    fn with_ast(&mut self, val:&Ast);
+}
+
+
+impl Tokenizer for &str {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        builder.with_str(self);
+    }
+}
+
+impl Tokenizer for String {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        builder.with_str(self.as_str());
+    }
+}
+
+impl Tokenizer for usize {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        builder.with_int(*self);
+    }
+}
+
+impl Tokenizer for char {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        builder.with_chr(*self);
+    }
+}
+
+impl Tokenizer for Ast {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        builder.with_ast(self);
+    }
+}
+
+impl<T:Tokenizer> Tokenizer for Option<T> {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        for t in self { t.tokenize(builder); }
+    }
+}
+
+impl<T:Tokenizer> Tokenizer for Vec<T> {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        for t in self { t.tokenize(builder); }
+    }
+}
+
+impl<T:Tokenizer> Tokenizer for Rc<T> {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        self.deref().tokenize(builder);
+    }
+}
+
+impl<T:Tokenizer> Tokenizer for &T {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        self.deref().tokenize(builder);
+    }
+}
+
+impl<T:Tokenizer,U:Tokenizer> Tokenizer for (T,U) {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        self.0.tokenize(builder);
+        self.1.tokenize(builder);
+    }
+}
+impl<T:Tokenizer,U:Tokenizer,V:Tokenizer> Tokenizer for (T,U,V) {
+    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+        self.0.tokenize(builder);
+        self.1.tokenize(builder);
+        self.2.tokenize(builder);
+    }
+}
+
+
+// === HasIdMap ===
+
+/// Things that have IdMap.
+trait HasIdMap {
+    /// Extracts IdMap from `self`.
+    fn id_map(&self) -> IDMap;
+}
+
+struct IdMapBuilder { id_map:IDMap, offset:usize }
+
+impl TokenBuilder for IdMapBuilder {
+    fn with_str(&mut self, val:&str ) { self.offset += val.len() }
+    fn with_int(&mut self, val:usize) { self.offset += val       }
+    fn with_chr(&mut self,_val:char ) { self.offset += 1         }
+    fn with_ast(&mut self, val:&Ast ) {
+        let begin = self.offset;
+        val.shape().tokenize(self);
+        if let Some(id) = val.wrapped.id {
+            self.id_map.push(((begin, self.offset), id))
+        }
+    }
+}
+
+impl<T: Tokenizer> HasIdMap for T {
+    fn id_map(&self) -> IDMap {
+        let mut builder = IdMapBuilder {id_map:default(),offset:default()};
+        self.tokenize(&mut builder);
+        builder.id_map
+    }
+}
+
 
 // === HasSpan ===
 
 /// Things that can be asked about their span.
-pub trait HasSpan {
+trait HasSpan {
     /// Length of the textual representation of This type in Unicode codepoints.
     ///
     /// Usually implemented together with `HasSpan`.For any `T:HasSpan+HasRepr`
@@ -614,147 +704,48 @@ pub trait HasSpan {
     fn span(&self) -> usize;
 }
 
-/// Counts codepoints.
-impl HasSpan for char {
-    fn span(&self) -> usize {
-        1
-    }
+struct SpanBuilder { offset:usize }
+
+impl TokenBuilder for SpanBuilder {
+    fn with_str(&mut self, val:&str ) { self.offset += val.len()    }
+    fn with_int(&mut self, val:usize) { self.offset += val          }
+    fn with_chr(&mut self,_val:char ) { self.offset += 1            }
+    fn with_ast(&mut self, val:&Ast ) { val.shape().tokenize(self)  }
 }
 
-/// Counts codepoints.
-impl HasSpan for String {
+impl<T:Tokenizer> HasSpan for T {
     fn span(&self) -> usize {
-        self.as_str().span()
-    }
-}
-
-/// Counts codepoints.
-impl HasSpan for &str {
-    fn span(&self) -> usize {
-        self.chars().count()
-    }
-}
-
-impl<T: HasSpan> HasSpan for Option<T> {
-    fn span(&self) -> usize {
-        self.as_ref().map_or(0, |wrapped| wrapped.span())
-    }
-}
-
-impl<T: HasSpan> HasSpan for Vec<T> {
-    fn span(&self) -> usize {
-        let spans = self.iter().map(|elem| elem.span());
-        spans.sum()
-    }
-}
-
-impl<T: HasSpan> HasSpan for Rc<T> {
-    fn span(&self) -> usize {
-        self.deref().span()
-    }
-}
-
-impl<T: HasSpan, U: HasSpan> HasSpan for (T,U) {
-    fn span(&self) -> usize {
-        self.0.span() + self.1.span()
-    }
-}
-impl<T: HasSpan, U: HasSpan, V: HasSpan> HasSpan for (T,U,V) {
-    fn span(&self) -> usize {
-        self.0.span() + self.1.span() + self.2.span()
-    }
-}
-impl HasSpan for usize {
-    fn span(&self) -> usize {
-        *self
-    }
-}
-impl<T: HasSpan> HasSpan for &T {
-    fn span(&self) -> usize {
-        self.deref().span()
+        let mut builder = SpanBuilder {offset:default()};
+        self.tokenize(&mut builder);
+        builder.offset
     }
 }
 
 
 // === HasRepr ===
 
-/// Things that can be asked about their textual representation.
-///
-/// See also `HasSpan`.
-pub trait HasRepr {
+///// Things that can be asked about their textual representation.
+/////
+///// See also `HasSpan`.
+trait HasRepr {
     /// Obtain the text representation for the This type.
+    fn repr(&self) -> String;
+}
+
+struct ReprBuilder { repr:String }
+
+impl TokenBuilder for ReprBuilder {
+    fn with_str(&mut self, val:&str ) { self.repr.push_str(val)              }
+    fn with_int(&mut self, val:usize) { self.repr.push_str(&" ".repeat(val)) }
+    fn with_chr(&mut self, val:char ) { self.repr.push(val)                  }
+    fn with_ast(&mut self, val:&Ast ) { val.shape().tokenize(self)           }
+}
+
+impl<T:Tokenizer> HasRepr for T {
     fn repr(&self) -> String {
-        let mut acc = String::new();
-        self.write_repr(&mut acc);
-        acc
-    }
-
-    fn write_repr(&self, target:&mut String);
-}
-
-impl HasRepr for char {
-    fn write_repr(&self, target:&mut String) {
-        target.push(*self);
-    }
-}
-
-impl HasRepr for String {
-    fn write_repr(&self, target:&mut String) {
-        target.push_str(self);
-    }
-}
-
-impl HasRepr for &str {
-    fn write_repr(&self, target:&mut String) {
-        target.push_str(self);
-    }
-}
-
-impl<T: HasRepr> HasRepr for Option<T> {
-    fn write_repr(&self, target:&mut String) {
-        for el in self.iter() {
-            el.write_repr(target)
-        }
-    }
-}
-
-impl<T: HasRepr> HasRepr for Vec<T> {
-    fn write_repr(&self, target:&mut String) {
-        for el in self.iter() {
-            el.write_repr(target)
-        }
-    }
-}
-impl<T: HasRepr> HasRepr for Rc<T> {
-    fn write_repr(&self, target:&mut String) {
-        self.deref().write_repr(target)
-    }
-}
-
-impl<T: HasRepr, U: HasRepr> HasRepr for (T,U) {
-    fn write_repr(&self, target:&mut String) {
-        self.0.write_repr(target);
-        self.1.write_repr(target);
-    }
-}
-
-impl<T: HasRepr, U: HasRepr, V: HasRepr> HasRepr for (T,U,V) {
-    fn write_repr(&self, target:&mut String) {
-        self.0.write_repr(target);
-        self.1.write_repr(target);
-        self.2.write_repr(target);
-    }
-}
-
-impl HasRepr for usize {
-    fn write_repr(&self, target:&mut String) {
-        target.push_str(&" ".repeat(*self));
-    }
-}
-
-impl<T: HasRepr> HasRepr for &T {
-    fn write_repr(&self, target:&mut String) {
-        self.deref().write_repr(target)
+        let mut builder = ReprBuilder {repr:default()};
+        self.tokenize(&mut builder);
+        builder.repr
     }
 }
 
@@ -1016,6 +1007,28 @@ mod tests {
             _ =>
                 panic!("expected Var with name `{}`", name),
         }
+    }
+
+    #[test]
+    fn ast_span() {
+        let ast = Ast::prefix(Ast::var("XX"), Ast::var("YY"));
+        assert_eq!(ast.span(), 5)
+    }
+
+    #[test]
+    fn ast_repr() {
+        let ast = Ast::prefix(Ast::var("XX"), Ast::var("YY"));
+        assert_eq!(ast.repr().as_str(), "XX YY")
+    }
+
+    #[test]
+    fn ast_id_map() {
+        let uid = default();
+        let ids = vec![((0,2),uid), ((3,5),uid), ((0,5),uid)];
+        let fun = Ast::new(Var    {name:"XX".into()},       Some(uid));
+        let arg = Ast::new(Var    {name:"YY".into()},       Some(uid));
+        let ast = Ast::new(Prefix {func:fun,arg:arg,off:1}, Some(uid));
+        assert_eq!(ast.id_map(), ids);
     }
 
     #[test]

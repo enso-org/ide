@@ -9,32 +9,15 @@ use syn::PathSegment;
 use syn::Token;
 use syn::punctuated::Punctuated;
 
-/// Generates `HasRepr` and `HasSpan` that just panic when called.
-pub fn not_supported
+/// Generates `Tokenizer` that just panics when called.
+pub fn no_tokenizer
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let target = syn::parse::<PathSegment>(input).unwrap();
     let ty_args = path_segment_generic_args(&target);
     let ret = quote!{
-        // Sample expansion for: Import<T>
-        //
-        // impl<T> HasSpan for Import<T> {
-        //     fn span(&self) -> usize {
-        //         panic!("HasSpan is not supported for Spaceless AST!")
-        //     }
-        // }
-        // impl<T> HasRepr for Import<T> {
-        //     fn write_repr(&self, target:&mut String) {
-        //         panic!("HasRepr not supported for Spaceless AST!")
-        //     }
-        // }
-        impl<#(#ty_args),*> HasSpan for #target {
-            fn span(&self) -> usize {
-                panic!("HasSpan not supported for Spaceless AST!")
-            }
-        }
-        impl<#(#ty_args),*> HasRepr for #target {
-            fn write_repr(&self, target:&mut String) {
-                panic!("HasRepr not supported for Spaceless AST!")
+        impl<#(#ty_args),*> Tokenizer for #target {
+            fn tokenize(&self, builder:&mut impl TokenBuilder) {
+                panic!("Tokenizer not supported for Spaceless AST!")
             }
         }
     };
@@ -47,27 +30,14 @@ pub fn derive_for_enum
  -> TokenStream  {
     let ident     = &decl.ident;
     let params    = decl.generics.params.iter().collect_vec();
-    let span_arms = data.variants.iter().map(|v| {
+    let token_arms = data.variants.iter().map(|v| {
         let con_ident = &v.ident;
-        quote!( #ident::#con_ident (elem) => elem.span() )
-    });
-    let repr_arms = data.variants.iter().map(|v| {
-        let con_ident = &v.ident;
-        quote!( #ident::#con_ident (elem) => elem.write_repr(target) )
+        quote!( #ident::#con_ident (elem) => elem.tokenize(builder) )
     });
     let ret = quote! {
-        impl<#(#params:HasSpan),*> HasSpan for #ident<#(#params),*> {
-            fn span(&self) -> usize {
-                match self {
-                    #(#span_arms),*
-                }
-            }
-        }
-        impl<#(#params:HasRepr),*> HasRepr for #ident<#(#params),*> {
-            fn write_repr(&self, target:&mut String) {
-                match self {
-                    #(#repr_arms),*
-                }
+        impl<#(#params:Tokenizer),*> Tokenizer for #ident<#(#params),*> {
+            fn tokenize(&self, builder:&mut impl TokenBuilder) {
+                match self { #(#token_arms),* }
             }
         }
     };
@@ -116,31 +86,14 @@ impl ReprDescription {
         }
     }
 
-    /// Generates `HasRepr` instances using user-provided input.
-    pub fn make_repr(&self) -> TokenStream {
+    /// Generates `Tokenizer` instance using user-provided input.
+    pub fn tokenizer(&self) -> TokenStream {
         let exprs = &self.exprs;
-        self.make_impl("HasRepr", &quote!{
-            fn write_repr(&self, target:&mut String) {
-                #(#exprs.write_repr(target);)*
+        self.make_impl("Tokenizer", &quote!{
+            fn tokenize(&self, builder:&mut impl TokenBuilder) {
+                #(#exprs.tokenize(builder);)*
             }
         })
-    }
-
-    /// Generates `HasSpan` instances using user-provided input.
-    pub fn make_span(&self) -> TokenStream {
-        let exprs = &self.exprs;
-        self.make_impl("HasSpan", &quote!{
-            fn span(&self) -> usize {
-                0 #(+ #exprs.span())*
-            }
-        })
-    }
-
-    /// Generates `HasRepr` and `HasSpan` instances using user-provided input.
-    pub fn make_repr_span(&self) -> TokenStream {
-        let mut ret = self.make_repr();
-        ret.extend(self.make_span());
-        ret
     }
 }
 

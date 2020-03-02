@@ -273,11 +273,11 @@ pub fn derive_has_span
     proc_macro::TokenStream::from(ret)
 }
 
-/// Same as `make_repr_span` but provides only `HasSpan` implementation.
+/// Provides only `HasTokens` implementation.
 #[proc_macro]
-pub fn make_span(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn tokenizer(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let maker = syn::parse::<ReprDescription>(input).unwrap();
-    maker.make_span().into()
+    maker.tokenizer().into()
 }
 
 /// Generates `HasRepr` and `HasSpan` instances that are just sum of their
@@ -310,14 +310,9 @@ pub fn make_span(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///        }
 ///    }
 ///    ```
-#[proc_macro]
-pub fn make_repr_span(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let maker = syn::parse::<ReprDescription>(input).unwrap();
-    maker.make_repr_span().into()
-}
 
 /// Generates `HasRepr` and `HasSpan` implementations that panic when used.
 #[proc_macro]
-pub fn not_supported_repr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    crate::repr::not_supported(input)
+pub fn no_tokenizer(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    crate::repr::no_tokenizer(input)
 }
