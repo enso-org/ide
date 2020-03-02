@@ -3,7 +3,17 @@
 
 ## Development
 
-### Development Environment Setup
+### Code Style Guide
+Please note that this codebase does not use autoformatters. Please read the following
+documents to learn more about reasons behind this decision and the recommended
+code style guide. Be sure to carefully read the documents before contributing to
+this repository:
+- [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
+- [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
+
+<br/>
+
+### Setup
 - **The Rust Toolchain**  
   This project uses several features available only in the nightly Rust toolchain.
 Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
@@ -25,7 +35,6 @@ package manager is officially not supported and can cause issues. Follow the
   ```bash
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
   ```
-
 <br/>
 
 ### Building Rust Sources
@@ -44,52 +53,45 @@ final size is printed to stdout.
 <br/>
 
 ### Building the Web Application
-Enter the `app` directory and follow the steps:
-```bash
-nvm use # Sets the correct node / npm versions and updates them if needed.
-```
+Enter the `app` directory, run `nvm use` to set up the correct node environment, `npm install` to install dependencies, and `npm run web:dev` to start a file-watch server with a hot-reloading utility. Open `http://localhost:8080` to run the application, or `http://localhost:8080/debug` to see example demo scenes. Please remember to disable the cache in your browser during development!
 
+<br/>
 
-### Running application and examples
-For best experience, it is recommended to use the 
-`scripts/watch.sh --dev` in a second shell. In order to build the IDE application, 
-follow the steps below:
-
-```bash
-cd app
-npm install
-npm run start 
-```
-
-You can now navigate to http://localhost:8080 and play with it! The example
-scenes will be available at http://localhost:8080/debug.
-
-While Webpack provides handy utilities for development, like live-reloading on
-sources change, it also adds some runtime overhead. In order to run the compiled
-examples using a lightweight http-server (without live-reloading functionality),
-please use the `npm run prod-server` command.
-
-**Please remember to disable the cache in your browser during development!**
-
-
-
-### Running tests
+### Testing
 The sources use both unit tests and web test, which are run in a browser and
 produce visual results. To run them, use the `scripts/test.sh` script and follow
 the output in the terminal.
 
+<br/>
 
-### Working with the source code
-
-#### Formatting
-Please note that this codebase does not use `rustfmt`. Please read the following
-documents to learn more about reasons behind this decision and the recommended
-code style guide. Be sure to carefully read the documents before contributing to
-this repository:
-- [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
-- [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
-
-
-#### Linting 
+### Linting 
 Please be sure to fix all errors reported by `scripts/lint.sh` before creating a
 pull request to this repository.
+
+<br/>
+<br/>
+
+## Distribution
+
+### Building the Native Application
+Enter the `app` directory, run `nvm use` to set up the correct node environment and run `npm run electron:dev` to build and start a native application in a development mode. 
+
+<br/>
+
+### Packaging the Native Application
+Enter the `app` directory, run `nvm use` to set up the correct node environment and run `npm run electron:dist` to create packages for your current platform. You can also run `npm run electron:dist:all` to create package for all supported platforms, however, such multi-platform builds are currently supported only on MacOS. This sitiuation is unlikely to change, as it is very hard to generate icons for MacOS on Windows and Linux.
+
+<br/>
+<br/>
+
+## Running
+
+### Running the Native Application
+The standalone application provides a rich set of command line switches. Provide it with `--help` to learn more. You can even use it as a standalone app server by running `Enso Studio --no-window`.
+
+
+### Running the Standalone Server
+To be described.
+
+
+
