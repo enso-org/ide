@@ -237,7 +237,7 @@ mod tests {
         format!("    {}",line)
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn list_definition_test() {
         let mut parser = parser::Parser::new_or_panic();
 

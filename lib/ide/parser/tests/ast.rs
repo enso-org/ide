@@ -8,8 +8,7 @@ use ast::opr;
 use ast::prefix;
 use parser::api::IsParser;
 
-#[test]
-#[ignore]
+#[wasm_bindgen_test]
 pub fn flatten_prefix_test() {
     fn expect_pieces(flattened:&prefix::Chain, pieces:Vec<&str>) {
         let mut piece_itr = pieces.iter();
@@ -33,8 +32,7 @@ pub fn flatten_prefix_test() {
     case("a b + c d", vec!["a b + c d"]); // nothing to flatten, this is infix, not prefix
 }
 
-#[test]
-#[ignore]
+#[wasm_bindgen_test]
 pub fn flatten_infix_test() {
     fn expect_pieces(flattened:&opr::Chain, target:&str, pieces:Vec<&str>) {
         assert_eq!(&flattened.target.repr(),target);
