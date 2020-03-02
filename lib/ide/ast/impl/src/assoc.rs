@@ -48,9 +48,7 @@ impl Assoc {
 
     /// Obtains associativity of given operator identifier.
     pub fn of(operator:&str) -> Assoc {
-        if is_applicative(operator) {
-            Assoc::Left
-        } else if Self::operator_weight(operator) >= 0 {
+        if is_applicative(operator) || Self::operator_weight(operator) >= 0 {
             Assoc::Left
         } else {
             Assoc::Right

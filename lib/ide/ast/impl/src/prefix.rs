@@ -39,8 +39,17 @@ impl Chain {
     /// empty arguments list.
     pub fn new_non_strict(ast:&Ast) -> Chain {
         if let Ok(ref prefix) = known::Prefix::try_from(ast) {
+            // Case like `a b c`
             Self::new(prefix)
+        } else if let Ok(ref section) = known::SectionRight::try_from(ast) {
+            // Case like `+ a b`
+            let func = section.opr.clone();
+            let right_chain = Chain::new_non_strict(&section.arg);
+            let mut args = vec![right_chain.func];
+            args.extend(right_chain.args);
+            Chain {func,args}
         } else {
+            // Case like `a`
             let func = ast.clone();
             let args = Vec::new();
             Chain {func,args}

@@ -9,6 +9,7 @@ use ast::prefix;
 use parser::api::IsParser;
 
 #[test]
+#[ignore]
 pub fn flatten_prefix_test() {
     fn expect_pieces(flattened:&prefix::Chain, pieces:Vec<&str>) {
         let mut piece_itr = pieces.iter();
@@ -33,6 +34,7 @@ pub fn flatten_prefix_test() {
 }
 
 #[test]
+#[ignore]
 pub fn flatten_infix_test() {
     fn expect_pieces(flattened:&opr::Chain, target:&str, pieces:Vec<&str>) {
         assert_eq!(&flattened.target.repr(),target);

@@ -2,11 +2,12 @@
 
 use crate::prelude::*;
 
-use ast::*;
-
-use ast::opr;
+use ast::Ast;
+use ast::HasRepr;
+use ast::Shape;
+use ast::known;
 use ast::prefix;
-use parser::api::IsParser;
+use ast::opr;
 
 /// Describes the kind of code block (scope).
 #[derive(Clone,Copy,Debug,PartialEq)]
@@ -66,7 +67,7 @@ pub fn identifier_name(ast:&Ast) -> Option<String> {
 
 /// Structure representing definition name. If this is an extension method, extended type is
 /// also included.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub struct DefinitionName {
     /// Used when definition is an extension method. Then it stores the segments
     /// of the extended target type path.
@@ -76,6 +77,11 @@ pub struct DefinitionName {
 }
 
 impl DefinitionName {
+    /// Creates a new name consisting of a single identifier, without any extension target.
+    pub fn new_plain(name:impl Str) -> DefinitionName {
+        DefinitionName {name:name.into(), extended_target:default()}
+    }
+
     /// Tries describing given Ast piece as a definition name. Typically, passed Ast
     /// should be the binding's left-hand side.
     ///
@@ -126,10 +132,21 @@ pub struct DefinitionInfo {
     pub args: Vec<Ast>,
 }
 
+impl DefinitionInfo {
+    /// Returns the definition body, i.e. Ast standing on the assignment's right-hand side.
+    pub fn body(&self) -> Ast {
+        self.ast.rarg.clone()
+    }
+}
+
 /// Tries to interpret given `Ast` as a function definition. `Ast` is expected to represent the
 /// whole line of the program.
 pub fn get_definition_info(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
     let ast  = to_assignment(ast)?;
+
+    // There two cases - function name is either a Var or operator.
+    // If this is a Var, we have Var, optionally under a Prefix chain with args.
+    // If this is an operator, we have SectionRight with (if any prefix in arguments).
     let lhs  = prefix::Chain::new_non_strict(&ast.larg);
     let name = DefinitionName::from_ast(&lhs.func)?;
     let args = lhs.args;
@@ -138,16 +155,17 @@ pub fn get_definition_info(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
     // Note [Scope Differences]
     if kind == ScopeKind::NonRoot {
         // 1. Not an extension method but setter.
-        if !ret.name.extended_target.is_empty() {
-            None?
+        let is_setter = !ret.name.extended_target.is_empty();
+        // 2. No explicit args -- this is a node, not a definition.
+        let is_node = ret.args.is_empty();
+        if is_setter || is_node {
+            None
+        } else {
+            Some(ret)
         }
-        // 2. No args -- this is a node, not a definition.
-        if ret.args.is_empty() {
-            None?;
-        }
-    };
-
-    Some(ret)
+    } else {
+        Some(ret)
+    }
 }
 
 // Note [Scope Differences]
@@ -159,52 +177,117 @@ pub fn get_definition_info(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
-/// List all definition in the given block.
-pub fn get_definition_infos
-(lines:&Vec<BlockLine<Option<Ast>>>,kind:ScopeKind) -> Vec<DefinitionInfo> {
-    let opt_defs = lines.iter().map(|line| -> Option<DefinitionInfo> {
-        let ast = line.elem.as_ref()?;
-        get_definition_info(ast,kind)
-    });
-    opt_defs.flatten().collect()
+
+/// Either ast::Block or Module's root contents.
+#[derive(Clone,Debug)]
+pub struct GeneralizedBlock<'a> {
+    /// If this is a root-scope (module) or nested scope.
+    pub kind  : ScopeKind,
+    /// Lines placed directly in this scope.
+    pub lines : &'a Vec<ast::BlockLine<Option<Ast>>>,
 }
 
-/// Returns information for all definition defined in the module's root scope.
-pub fn list_definitions_in_module_block(module:&Module<Ast>) -> Vec<DefinitionInfo> {
-    get_definition_infos(&module.lines,ScopeKind::Root)
+impl<'a> GeneralizedBlock<'a> {
+    /// Wrap `Module` into `GeneralizedBlock`.
+    pub fn from_module(module:&'a ast::Module<Ast>) -> GeneralizedBlock<'a> {
+        GeneralizedBlock { kind:ScopeKind::Root, lines:&module.lines }
+    }
+    /// Wrap `Block` into `GeneralizedBlock`.
+    pub fn from_block(block:&'a ast::Block<Ast>) -> GeneralizedBlock<'a> {
+        GeneralizedBlock { kind:ScopeKind::NonRoot, lines:&block.lines }
+    }
+
+    /// Returns iterator yielding ASTs of non-empty lines in this block.
+    pub fn iter_non_empty(&self) -> impl Iterator<Item=&'a Ast> {
+        self.lines.iter().filter_map(|line| line.elem.as_ref())
+    }
+
+    /// Returns information about all definition defined in this block.
+    pub fn list_definitions(&self) -> Vec<DefinitionInfo> {
+        self.iter_non_empty().flat_map(|ast| get_definition_info(ast,self.kind)).collect()
+    }
+
+    /// Goes through definitions introduced in this block and returns one with matching name.
+    pub fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
+        self.iter_non_empty().find_map(|ast| {
+            let definition = get_definition_info(ast, self.kind)?;
+            let matches    = &definition.name == name;
+            matches.as_some(definition)
+        })
+    }
 }
 
-/// Returns information for all definition defined in the (non-root) block's scope.
-pub fn list_definitions_in_definition_block(block:&Block<Ast>) -> Vec<DefinitionInfo> {
-    get_definition_infos(&block.lines,ScopeKind::NonRoot)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parser::api::IsParser;
+    use utils::test::ExpectTuple;
+
+    fn assert_eq_strings(lhs:Vec<impl Str>, rhs:Vec<impl Str>) {
+        let lhs = lhs.iter().map(|s| s.as_ref()).collect_vec();
+        let rhs = rhs.iter().map(|s| s.as_ref()).collect_vec();
+        assert_eq!(lhs,rhs)
+    }
+
+    fn to_names(defs:&Vec<DefinitionInfo>) -> Vec<String> {
+        defs.iter().map(|def| def.name.to_string()).collect()
+    }
+
+    fn indented(line:impl Display) -> String {
+        format!("    {}",line)
+    }
+
+    #[test]
+    #[ignore]
+    fn list_definition_test() {
+        let mut parser = parser::Parser::new_or_panic();
+
+        // TODO [mwu]
+        //  Due to a parser bug, extension methods defining operators cannot be currently
+        //  correctly recognized. When it is fixed, the following should be also supported
+        //  and covered in test: `Int.+ a = _` and `Int.+ = _`.
+        //  Issue link: https://github.com/luna/enso/issues/565
+        let definition_lines = vec![
+            "main = _",
+            "Foo.Bar.foo = _",
+            "Foo.Bar.baz a b = _",
+            "+ = _",
+            "bar = _",
+            "add a b = 50",
+            "* a b = _",
+        ];
+        let expected_def_names_in_module = vec![
+            "main","Foo.Bar.foo","Foo.Bar.baz","+","bar","add","*"
+        ];
+        // In definition there are no extension methods nor arg-less definitions.
+        let expected_def_names_in_def = vec!["add", "*"];
+
+        // === Program with defnitions in root ===
+        let program              = definition_lines.join("\n");
+        let module               = parser.parse_module(program.into(), default()).unwrap();
+        let block                = GeneralizedBlock::from_module(&*module);
+        let definitions          = block.list_definitions();
+        assert_eq_strings(to_names(&definitions),expected_def_names_in_module);
+
+        // Check that definition can be found and their body is properly described.
+        let add_name = DefinitionName::new_plain("add");
+        let add      = block.find_definition(&add_name).expect("failed to find `add` function");
+        let body     = known::Number::try_new(add.body()).expect("add body should be a Block");
+        assert_eq!(body.int,"50");
+
+        // === Program with definition in `some_func`'s body `Block` ===
+        let indented_lines = definition_lines.iter().map(indented).collect_vec();
+        let program = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
+        println!("{}", program);
+        let root_block  = parser.parse_module(program,default()).unwrap();
+        let root_defs   = GeneralizedBlock::from_module(&*root_block).list_definitions();
+        let (only_def,) = root_defs.expect_tuple();
+        assert_eq!(&only_def.name.to_string(),"some_func");
+        let body_block = known::Block::try_from(only_def.body()).unwrap();
+        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definitions();
+        assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
+
+
+
+    }
 }
-
-#[test]
-fn list_definition_test() {
-    // TODO [mwu]
-    //  Due to parser bug, extension methods defining operators cannot be currently
-    //  correctly recognized. When it is fixed, the following should be also supported
-    //  and covered in test: `Int.+ a = _` and `Int.+ = _`.
-    //  Issue link: https://github.com/luna/enso/issues/565
-
-
-    let definition_lines = vec!{
-        "main = _",
-        "Foo.Bar.foo = _",
-        "Foo.Bar.baz a b = _",
-        "+ = _",
-        "bar = _",
-        "Baz = _",
-        "add a b = _",
-        "* a b = _",
-    };
-
-    let mut parser  = parser::Parser::new_or_panic();
-
-    let program     = definition_lines.join("\n");
-    let ast         = parser.parse(program.into(),default()).unwrap();
-    let module      = &known::Module::try_from(&ast).unwrap();
-    let definitions = list_definitions_in_module_block(module);
-    println!("{:?}", definitions.iter().map(|d| d.name.to_string()).collect_vec());
-}
-
