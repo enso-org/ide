@@ -496,7 +496,7 @@ impl Fixture {
 /// Until proper CI solution for calling external parser is devised, this
 /// test is marked with `#[ignore]`.
 #[test]
-//#[ignore]
+#[ignore]
 fn parser_tests() {
     Fixture::new().run()
 }
