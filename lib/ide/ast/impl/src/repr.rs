@@ -64,7 +64,7 @@ has_tokens!(Seq   , self.first, self.second);
 // =====================
 
 /// Not an instance of `Tokenizer`, as it needs to know parent block's offset.
-impl<T: HasTokens> TextBlockLine<T> {
+impl<T:HasTokens> TextBlockLine<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer, offset:usize) {
         for empty_line_spaces in &self.empty_lines {
             (NEWLINE,empty_line_spaces).feed(consumer);
@@ -239,7 +239,7 @@ impl HasTokens for TextBlockRaw {
 
 // === TextBlockFmt ==
 
-impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
+impl<T:HasTokens> HasTokens for TextBlockFmt<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         (FMT_BLOCK_QUOTES,self.spaces).feed(consumer);
         for line in self.text.iter() {
@@ -251,7 +251,7 @@ impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
 
 // === TextUnclosed ==
 
-impl <T: HasTokens> HasTokens for TextUnclosed<T> {
+impl <T:HasTokens> HasTokens for TextUnclosed<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         match &self.line {
             TextLine::TextLineRaw(line) => (RAW_QUOTE,line).feed(consumer),
@@ -277,7 +277,7 @@ has_tokens!(SectionSides<T>, self.opr);
 
 // === Module ==
 
-impl<T: HasTokens> HasTokens for Module<T> {
+impl<T:HasTokens> HasTokens for Module<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         let mut iter = self.lines.iter();
         if let Some(first_line) = iter.next() {
@@ -292,7 +292,7 @@ impl<T: HasTokens> HasTokens for Module<T> {
 
 // === Block ==
 
-impl<T: HasTokens> HasTokens for Block<T> {
+impl<T:HasTokens> HasTokens for Block<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         (!self.is_orphan).as_some(NEWLINE).feed(consumer);
         for empty_line_space in &self.empty_lines {
@@ -313,7 +313,7 @@ impl<T: HasTokens> HasTokens for Block<T> {
 
 // === Match ==
 
-impl<T: HasTokens> HasTokens for Match<T> {
+impl<T:HasTokens> HasTokens for Match<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         for pat_match in &self.pfx {
             for sast in pat_match.iter() {

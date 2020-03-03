@@ -264,7 +264,7 @@ pub fn to_variant_types
 /// stored values.
 #[proc_macro_derive(HasTokens)]
 pub fn derive_has_tokens
-(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+(input:proc_macro::TokenStream) -> proc_macro::TokenStream {
     let decl   = syn::parse_macro_input!(input as syn::DeriveInput);
     let ret = match decl.data {
         syn::Data::Enum(ref e) => token::derive_for_enum(&decl, &e),
@@ -275,7 +275,7 @@ pub fn derive_has_tokens
 
 /// Provides only `HasTokens` implementation.
 #[proc_macro]
-pub fn has_tokens(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn has_tokens(input:proc_macro::TokenStream) -> proc_macro::TokenStream {
     let maker = syn::parse::<TokenDescription>(input).unwrap();
     maker.has_tokens().into()
 }
@@ -306,6 +306,6 @@ pub fn has_tokens(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 /// Generates `HasTokens` implementations for spaceless AST that panics when used.
 #[proc_macro]
-pub fn spaceless_ast(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn spaceless_ast(input:proc_macro::TokenStream) -> proc_macro::TokenStream {
     crate::token::spaceless_ast(input)
 }

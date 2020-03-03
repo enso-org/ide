@@ -189,7 +189,7 @@ impl Ast {
 }
 
 /// Fills `id` with `None` by default.
-impl<T: Into<Shape<Ast>>>
+impl<T:Into<Shape<Ast>>>
 From<T> for Ast {
     fn from(t: T) -> Self {
         let id = None;
@@ -632,37 +632,37 @@ impl HasTokens for Ast {
     }
 }
 
-impl<T: HasTokens> HasTokens for Option<T> {
+impl<T:HasTokens> HasTokens for Option<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         for t in self { t.feed(consumer); }
     }
 }
 
-impl<T: HasTokens> HasTokens for Vec<T> {
+impl<T:HasTokens> HasTokens for Vec<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         for t in self { t.feed(consumer); }
     }
 }
 
-impl<T: HasTokens> HasTokens for Rc<T> {
+impl<T:HasTokens> HasTokens for Rc<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.deref().feed(consumer);
     }
 }
 
-impl<T: HasTokens> HasTokens for &T {
+impl<T:HasTokens> HasTokens for &T {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.deref().feed(consumer);
     }
 }
 
-impl<T: HasTokens,U: HasTokens> HasTokens for (T, U) {
+impl<T:HasTokens,U: HasTokens> HasTokens for (T, U) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
     }
 }
-impl<T: HasTokens,U: HasTokens,V: HasTokens> HasTokens for (T, U, V) {
+impl<T:HasTokens,U: HasTokens,V: HasTokens> HasTokens for (T, U, V) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
@@ -700,7 +700,7 @@ impl TokenConsumer for IdMapBuilder {
     }
 }
 
-impl<T: HasTokens> HasIdMap for T {
+impl<T:HasTokens> HasIdMap for T {
     fn id_map(&self) -> IdMap {
         let mut consumer = IdMapBuilder::default();
         self.feed(&mut consumer);
@@ -734,7 +734,7 @@ impl TokenConsumer for SpanBuilder {
     }
 }
 
-impl<T: HasTokens> HasSize for T {
+impl<T:HasTokens> HasSize for T {
     fn size(&self) -> usize {
         let mut consumer = SpanBuilder::default();
         self.feed(&mut consumer);
@@ -768,7 +768,7 @@ impl TokenConsumer for ReprBuilder {
     }
 }
 
-impl<T: HasTokens> HasRepr for T {
+impl<T:HasTokens> HasRepr for T {
     fn repr(&self) -> String {
         let mut consumer = ReprBuilder::default();
         self.feed(&mut consumer);
