@@ -656,13 +656,13 @@ impl<T:HasTokens> HasTokens for &T {
     }
 }
 
-impl<T:HasTokens,U: HasTokens> HasTokens for (T, U) {
+impl<T:HasTokens,U:HasTokens> HasTokens for (T, U) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
     }
 }
-impl<T:HasTokens,U: HasTokens,V: HasTokens> HasTokens for (T, U, V) {
+impl<T:HasTokens,U:HasTokens,V:HasTokens> HasTokens for (T, U, V) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
