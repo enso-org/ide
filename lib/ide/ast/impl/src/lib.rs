@@ -167,18 +167,18 @@ impl Ast {
 
     /// Wraps given shape with an optional ID into Ast. Span will ba
     /// automatically calculated based on Shape.
-    pub fn new<S: Into<Shape<Ast>>>(shape: S, id: Option<ID>) -> Ast {
+    pub fn new<S:Into<Shape<Ast>>>(shape:S, id:Option<ID>) -> Ast {
         let shape: Shape<Ast> = shape.into();
         let span = shape.size();
         Ast::new_with_span(shape, id, span)
     }
 
     /// As `new` but sets given declared span for the shape.
-    pub fn new_with_span<S: Into<Shape<Ast>>>
-    (shape: S, id: Option<ID>, span: usize) -> Ast {
+    pub fn new_with_span<S:Into<Shape<Ast>>>
+    (shape:S, id:Option<ID>, size:usize) -> Ast {
         let shape     = shape.into();
-        let with_span = WithSize { wrapped: shape, size: span };
-        let with_id   = WithID   { wrapped: with_span, id   };
+        let with_span = WithSize { wrapped:shape    , size };
+        let with_id   = WithID   { wrapped:with_span, id   };
         Ast { wrapped: Rc::new(with_id) }
     }
 
@@ -191,9 +191,9 @@ impl Ast {
 /// Fills `id` with `None` by default.
 impl<T:Into<Shape<Ast>>>
 From<T> for Ast {
-    fn from(t: T) -> Self {
+    fn from(t:T) -> Self {
         let id = None;
-        Ast::new(t, id)
+        Ast::new(t,id)
     }
 }
 
@@ -656,13 +656,13 @@ impl<T:HasTokens> HasTokens for &T {
     }
 }
 
-impl<T:HasTokens,U:HasTokens> HasTokens for (T, U) {
+impl<T:HasTokens,U:HasTokens> HasTokens for (T,U) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
     }
 }
-impl<T:HasTokens,U:HasTokens,V:HasTokens> HasTokens for (T, U, V) {
+impl<T:HasTokens,U:HasTokens,V:HasTokens> HasTokens for (T,U,V) {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
         self.0.feed(consumer);
         self.1.feed(consumer);
@@ -809,7 +809,7 @@ Layer<T> for WithID<S> {
 }
 
 impl<T> HasSize for WithID<T>
-where T: HasSize {
+where T:HasSize {
     fn size(&self) -> usize {
         self.deref().size()
     }
