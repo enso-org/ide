@@ -44,7 +44,7 @@ pub fn flatten_infix_test() {
         let piece_itr = pieces.iter();
         assert_eq!(flattened.args.len(), pieces.len());
         flattened.args.iter().zip(piece_itr).for_each(|(lhs,rhs)|{
-            assert_eq!(&lhs.1.repr(),rhs);
+            assert_eq!(&lhs.operand.repr(),rhs);
         })
     }
 

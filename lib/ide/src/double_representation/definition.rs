@@ -73,7 +73,7 @@ impl DefinitionName {
             Some(accessor_chain) => {
                 let mut args = vec![identifier_name(&accessor_chain.target?)?];
                 for arg in accessor_chain.args.iter() {
-                    let arg_ast = arg.1.as_ref()?;
+                    let arg_ast = arg.operand.as_ref()?;
                     args.push(identifier_name(arg_ast)?)
                 }
                 let name = args.pop()?;

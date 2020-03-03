@@ -103,10 +103,15 @@ impl GeneralizedInfix {
 
     pub fn flatten(&self) -> Chain {
         let target = self.target_operand();
-        let rest   = (self.opr.clone(),self.argument_operand());
+        let rest   = ChainElement {
+            operator : self.opr.clone(),
+            operand  : self.argument_operand()
+        };
 
-        let target_subtree_infix = target.clone().and_then(|ast| GeneralizedInfix::try_new(&ast));
-        let mut target_subtree_flat  = match target_subtree_infix {
+        let target_subtree_infix = target.clone().and_then(|ast| {
+            GeneralizedInfix::try_new(&ast)
+        });
+        let mut target_subtree_flat = match target_subtree_infix {
             Some(target_infix) if target_infix.name() == self.name() =>
                 target_infix.flatten(),
             _ => Chain { target, args:Vec::new() },
@@ -115,6 +120,11 @@ impl GeneralizedInfix {
         target_subtree_flat.args.push(rest);
         target_subtree_flat
     }
+}
+
+pub struct ChainElement {
+    pub operator : Operator,
+    pub operand  : Operand,
 }
 
 
@@ -129,7 +139,7 @@ pub struct Chain {
     /// operators associativity).
     pub target : Operand,
     /// Subsequent operands applied to the `target`.
-    pub args   : Vec<(Operator,Operand)>,
+    pub args   : Vec<ChainElement>,
 }
 
 impl Chain {
