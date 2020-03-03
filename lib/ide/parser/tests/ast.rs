@@ -19,6 +19,26 @@ use ast::opr::GeneralizedInfix;
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
+pub fn to_assignment_test() {
+    let mut parser         = parser::Parser::new_or_panic();
+    let mut is_assignment = |code:&str| {
+        let ast  = parser.parse(code.to_string(),default()).unwrap();
+        let line = expect_single_line(&ast);
+        ast::opr::to_assignment(line).is_some()
+    };
+
+    let expected_assignments = vec!["a = 5","a=5","foo bar = a b c","(x,y) = pos"];
+    let expected_not_assignments = vec!["= 5","a=","=","foo","a->b","a+b"];
+
+    for code in expected_assignments {
+        assert!(is_assignment(code),"{} expected to be recognized as assignment",code);
+    }
+    for code in expected_not_assignments {
+        assert!(!is_assignment(code),"{} expected to not be recognized as assignment",code);
+    }
+}
+
+#[wasm_bindgen_test]
 pub fn generalized_infix_test() {
     let mut parser         = parser::Parser::new_or_panic();
     let mut make_gen_infix = |code:&str| {
