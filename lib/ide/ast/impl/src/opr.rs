@@ -122,11 +122,6 @@ impl GeneralizedInfix {
     }
 }
 
-pub struct ChainElement {
-    pub operator : Operator,
-    pub operand  : Operand,
-}
-
 
 
 // =============
@@ -154,4 +149,9 @@ impl Chain {
         let infix = GeneralizedInfix::try_new(ast)?;
         (infix.name() == operator).as_some_from(|| infix.flatten())
     }
+}
+
+pub struct ChainElement {
+    pub operator : Operator,
+    pub operand  : Operand,
 }

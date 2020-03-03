@@ -50,5 +50,3 @@ pub fn interop_error<T>(error:T) -> Error
     where T: Fail {
     Error::InteropError(Box::new(error))
 }
-
-
