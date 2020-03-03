@@ -86,7 +86,7 @@ impl Span {
 
     /// Initializes Span with index and size.
     pub fn new_index_size(index:usize, size:usize) -> Self {
-        Span(Index::new(index), Size::new(size))
+        Span::new(Index::new(index), Size::new(size))
     }
 
     /// Get the character after last character of this span.

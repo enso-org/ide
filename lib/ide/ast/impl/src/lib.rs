@@ -8,7 +8,6 @@ use prelude::*;
 
 use ast_macros::*;
 use data::text::*;
-use data::text::Index;
 
 use serde::de::Deserializer;
 use serde::de::Visitor;

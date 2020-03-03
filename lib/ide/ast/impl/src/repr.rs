@@ -251,16 +251,12 @@ impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
 
 // === TextUnclosed ==
 
-// TODO: [mwu] `TextUnclosed<T>` as it needs to cut off closing quote from the
-//             stored text line. Likely this type should be stored like this.
-
-// TODO: [jv] this implementation is wrong since we cannot `pop` from `TokenConsumer`
-//            either redesign TextUnclosed, so that it can use Tokenizer,
-//            or come up with some smart/ugly hack
 impl <T: HasTokens> HasTokens for TextUnclosed<T> {
     fn feed(&self, consumer:&mut impl TokenConsumer) {
-        self.line.feed(consumer);
-        // now we should remove missing quote
+        match &self.line {
+            TextLine::TextLineRaw(line) => (RAW_QUOTE,line).feed(consumer),
+            TextLine::TextLineFmt(line) => (FMT_QUOTE,line).feed(consumer),
+        }
     }
 }
 
