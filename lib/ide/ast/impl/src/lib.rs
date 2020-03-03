@@ -24,7 +24,7 @@ use uuid::Uuid;
 pub struct IdMap(pub Vec<(Span,ID)>);
 
 impl IdMap {
-    fn insert(&mut self, span:Span, id:ID) {
+    pub fn insert(&mut self, span:Span, id:ID) {
         self.0.push((span, id));
     }
 }
@@ -205,7 +205,7 @@ pub mod ast_schema {
     pub const STRUCT_NAME: &str      = "Ast";
     pub const SHAPE:       &str      = "shape";
     pub const ID:          &str      = "id";
-    pub const SIZE:        &str      = "span";
+    pub const SIZE:        &str      = "span"; // scala parser is still using `span`
     pub const FIELDS:      [&str; 3] = [SHAPE, ID, SIZE];
     pub const COUNT:       usize     = FIELDS.len();
 }
@@ -585,7 +585,7 @@ pub enum MacroPatternMatchRaw<T> {
 
 // === Tokenizer ===
 
-/// An enum of valid Ast tokens.I
+/// An enum of valid Ast tokens.
 #[derive(Debug)]
 pub enum Token<'a> { Off(usize), Chr(char), Str(&'a str), Ast(&'a Ast) }
 
@@ -674,7 +674,7 @@ impl<T:HasTokens,U:HasTokens,V:HasTokens> HasTokens for (T,U,V) {
 // === HasIdMap ===
 
 /// Things that have IdMap.
-trait HasIdMap {
+pub trait HasIdMap {
     /// Extracts IdMap from `self`.
     fn id_map(&self) -> IdMap;
 }
@@ -725,7 +725,6 @@ struct SizeBuilder { offset:usize }
 
 impl TokenConsumer for SizeBuilder {
     fn feed(&mut self, token:Token) {
-        println!("{:?}", token);
         match token {
             Token::Off(val) => self.offset += val,
             Token::Chr( _ ) => self.offset += 1,
@@ -759,7 +758,6 @@ struct ReprBuilder { repr:String }
 
 impl TokenConsumer for ReprBuilder {
     fn feed(&mut self, token:Token) {
-        println!("{:?}", token);
         match token {
             Token::Off(val) => self.repr.push_str(&" ".repeat(val)),
             Token::Chr(val) => self.repr.push(val),

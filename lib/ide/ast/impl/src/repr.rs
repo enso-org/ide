@@ -49,7 +49,7 @@ pub const FMT_BLOCK_QUOTES:&str = "'''";
 
 
 // ===============
-// === consumer ===
+// === Builder ===
 // ===============
 
 has_tokens!(Empty);
