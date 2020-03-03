@@ -260,13 +260,13 @@ mod tests {
 
         // === Program with definition in `some_func`'s body `Block` ===
         let indented_lines = definition_lines.iter().map(indented).collect_vec();
-        let program = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
-        let root_block  = parser.parse_module(program,default()).unwrap();
-        let root_defs   = GeneralizedBlock::from_module(&*root_block).list_definitions();
-        let (only_def,) = root_defs.expect_tuple();
+        let program        = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
+        let root_block     = parser.parse_module(program,default()).unwrap();
+        let root_defs      = GeneralizedBlock::from_module(&*root_block).list_definitions();
+        let (only_def,)    = root_defs.expect_tuple();
         assert_eq!(&only_def.name.to_string(),"some_func");
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
-        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definitions();
+        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definit(Aions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 }
