@@ -194,13 +194,23 @@ mod test {
     #[wasm_bindgen_test(async)]
     async fn get_range() {
         msdf_sys::initialized().await;
+        let content = "";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation::at_document_begin());
+        let range   = WordOccurrences::get_range(&content,&cursor);
+        assert!(range.is_none());
+
         let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
         let content = TextFieldContent::new(content,&mock_properties());
         let cursor  = Cursor::new(TextLocation { line:0, column: 4});
         let range   = WordOccurrences::get_range(&content,&cursor);
         assert_eq!(range, Some(TextLocation {line:0, column:3}..TextLocation{line:0, column:12}));
 
-        let cursor = Cursor::new(TextLocation { line:1, column: 0});
+        let cursor = Cursor::new(TextLocation::at_line_begin(1));
+        let range  = WordOccurrences::get_range(&content,&cursor);
+        assert!(range.is_none());
+
+        let cursor = Cursor::new(TextLocation::at_line_begin(5));
         let range  = WordOccurrences::get_range(&content,&cursor);
         assert!(range.is_none());
 
@@ -213,6 +223,14 @@ mod test {
     #[wasm_bindgen_test(async)]
     async fn get_words() {
         msdf_sys::initialized().await;
+        let content = "";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation::at_document_begin());
+        let range   = WordOccurrences::get_range(&content,&cursor);
+        assert!(range.is_none());
+        let words   = WordOccurrences::get_words(&content,range);
+        assert!(words.is_none());
+
         let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
         let content = TextFieldContent::new(content,&mock_properties());
         let cursor  = Cursor::new(TextLocation { line:0, column: 4});
@@ -227,9 +245,16 @@ mod test {
     #[wasm_bindgen_test(async)]
     async fn new_word_occurrences() {
         msdf_sys::initialized().await;
+        let content = "";
+        let content = TextFieldContent::new(content,&mock_properties());
+        let cursor  = Cursor::new(TextLocation::at_document_begin());
+        let words   = WordOccurrences::new(&content,&cursor);
+
+        assert!(words.is_none());
+
         let content = "fn print_n_1(n:i32);\r\n#[test]\r\nfn test() {\r\n  print_n_1(1);\r\n}\n";
         let content = TextFieldContent::new(content,&mock_properties());
-        let cursor  = Cursor::new(TextLocation {line:1,column:0});
+        let cursor  = Cursor::new(TextLocation::at_line_begin(1));
         let words   = WordOccurrences::new(&content,&cursor);
 
         assert!(words.is_none());
@@ -250,16 +275,28 @@ mod test {
         let content:Vec<char> = content.chars().collect();
         let range             = get_index_range_of_word_at(&content,12);
         assert_eq!(range, Some(10..13));
+
+        let content           = String::from("   abc    def    ghi  ");
+        let content:Vec<char> = content.chars().collect();
+        let range             = get_index_range_of_word_at(&content,2);
+        assert!(range.is_none());
+
+        let content           = String::from("");
+        let content:Vec<char> = content.chars().collect();
+        let range             = get_index_range_of_word_at(&content,12);
+        assert!(range.is_none());
     }
 
     #[test]
     fn word_occurrences() {
-        let content = String::from("   _5abc6    def    ghi  _5abc6abc _5abc6");
+        let content = String::from("_5abc6   _5abc6    def    ghi  _5abc6abc _5abc6");
         let content:Vec<char> = content.chars().collect();
         let word              = String::from("_5abc6");
         let word:Vec<char>    = word.chars().collect();
         let occurrences       = get_word_occurrences(&content,&word);
-        assert_eq!(occurrences[0],3..9);
-        assert_eq!(occurrences[1],35..41);
+        assert_eq!(occurrences.len(), 3);
+        assert_eq!(occurrences[0],0..6);
+        assert_eq!(occurrences[1],9..15);
+        assert_eq!(occurrences[2],41..47);
     }
 }
