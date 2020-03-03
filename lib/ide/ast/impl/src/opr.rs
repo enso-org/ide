@@ -7,6 +7,8 @@ use crate::assoc::Assoc;
 use crate::known;
 use crate::Shape;
 
+
+
 pub mod predefined {
     /// Used to create bindings, e.g. `add a b = a + b` or `foo = 5`.
     pub const ASSIGNMENT : &str = "=";
@@ -39,6 +41,7 @@ pub type Operator = known::Opr;
 // ========================
 
 /// An abstraction over `Infix` and all `SectionSth` nodes.
+#[derive(Clone,Debug)]
 pub struct GeneralizedInfix {
     /// Left operand, if present.
     pub left  : Operand,
@@ -129,6 +132,7 @@ impl GeneralizedInfix {
 // =============
 
 /// Result of flattening infix operator chain, like `a+b+c` or `Foo.Bar.Baz`.
+#[derive(Clone,Debug)]
 pub struct Chain {
     /// The primary application target (left- or right-most operand, depending on
     /// operators associativity).
@@ -151,6 +155,7 @@ impl Chain {
     }
 }
 
+#[derive(Clone,Debug)]
 pub struct ChainElement {
     pub operator : Operator,
     pub operand  : Operand,
