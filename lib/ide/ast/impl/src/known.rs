@@ -20,7 +20,10 @@ use crate::with_shape_variants;
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derive(Debug)]
-pub struct KnownAst<T>(Ast, PhantomData<T>);
+pub struct KnownAst<T> {
+    ast     : Ast,
+    phantom : PhantomData<T>,
+}
 
 impl<T> KnownAst<T> {
     /// Checks if the shape of given Ast node is compatible with `T`.
@@ -31,7 +34,7 @@ impl<T> KnownAst<T> {
         if let Some(error_matching) = ast.shape().try_into().err() {
             Err(error_matching)
         } else {
-            Ok(KnownAst(ast,default()))
+            Ok(KnownAst {ast,phantom:default()})
         }
     }
 }
@@ -41,7 +44,7 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
       E                      : Debug, {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        let result = self.0.shape().try_into();
+        let result = self.ast.shape().try_into();
         // Below must never happen, as the only function for constructing values does check
         // if the shape type matches the `T`.
         result.expect("Internal Error: wrong shape in KnownAst.")
@@ -67,7 +70,7 @@ where for<'t> &'t Shape<Ast>:TryInto<&'t T,Error=E> {
 /// One can always throw away the knowledge.
 impl<T> From<KnownAst<T>> for Ast {
     fn from(known_ast:KnownAst<T>) -> Ast {
-        known_ast.0
+        known_ast.ast
     }
 }
 

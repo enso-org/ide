@@ -9,6 +9,12 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 
+
+
+// =================
+// === ScopeKind ===
+// =================
+
 /// Describes the kind of code block (scope) to which definition can belong.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ScopeKind {
@@ -120,10 +126,10 @@ impl DefinitionInfo {
     }
 }
 
-/// Tries to interpret given `Ast` as a function definition. `Ast` is expected to represent the
-/// whole line of the program.
-pub fn get_definition_info(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
-    let ast  = opr::to_assignment(ast)?;
+/// Tries to interpret `Line`'s `Ast` as a function definition.
+pub fn get_definition_info
+(line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
+    let ast  = opr::to_assignment(line.elem.as_ref()?)?;
 
     // There two cases - function name is either a Var or operator.
     // If this is a Var, we have Var, optionally under a Prefix chain with args.
@@ -178,19 +184,14 @@ impl<'a> GeneralizedBlock<'a> {
         GeneralizedBlock { kind:ScopeKind::NonRoot, lines:&block.lines }
     }
 
-    /// Returns iterator yielding ASTs of non-empty lines in this block.
-    pub fn iter_non_empty(&self) -> impl Iterator<Item=&'a Ast> {
-        self.lines.iter().filter_map(|line| line.elem.as_ref())
-    }
-
     /// Returns information about all definition defined in this block.
     pub fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        self.iter_non_empty().flat_map(|ast| get_definition_info(ast,self.kind)).collect()
+        self.lines.iter().flat_map(|ast| get_definition_info(ast,self.kind)).collect()
     }
 
     /// Goes through definitions introduced in this block and returns one with matching name.
     pub fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
-        self.iter_non_empty().find_map(|ast| {
+        self.lines.iter().find_map(|ast| {
             let definition = get_definition_info(ast, self.kind)?;
             let matches    = &definition.name == name;
             matches.as_some(definition)
@@ -266,7 +267,7 @@ mod tests {
         let (only_def,)    = root_defs.expect_tuple();
         assert_eq!(&only_def.name.to_string(),"some_func");
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
-        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definit(Aions();
+        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definitions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 }

@@ -1,5 +1,10 @@
 //! Tests specific to Ast rather than parser itself but placed here because they depend on parser
 //! to easily generate test input.
+//!
+// TODO: [mwu]
+//  That means that likely either `parser` should be merged with `ast` or that we should have a
+//  separate `ast_ops` crate that depends on both. Now it is better to tests here than none but
+//  a decision should be made as to which way we want to go.
 
 use parser::prelude::*;
 
@@ -8,8 +13,37 @@ use ast::opr;
 use ast::prefix;
 use parser::api::IsParser;
 use wasm_bindgen_test::wasm_bindgen_test;
+use ast::test_utils::expect_single_line;
+use ast::opr::GeneralizedInfix;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+#[test]
+pub fn generalized_infix_test() {
+    let mut parser         = parser::Parser::new_or_panic();
+    let mut make_gen_infix = |code:&str| {
+        let ast  = parser.parse(code.to_string(),default()).unwrap();
+        let line = expect_single_line(&ast);
+        GeneralizedInfix::try_new(line)
+    };
+
+    let infix = make_gen_infix("a+b").unwrap();
+    assert_eq!(infix.name(),"+");
+    assert_eq!(infix.left.repr(),"a");
+    assert_eq!(infix.right.repr(),"b");
+
+    let right = make_gen_infix("+b").unwrap();
+    assert_eq!(right.name(),"+");
+    assert_eq!(right.right.repr(),"b");
+    println!("{:?}", right);
+
+    let left = make_gen_infix("a+").unwrap();
+    assert_eq!(left.name(),"+");
+    assert_eq!(left.left.repr(),"a");
+
+    let sides = make_gen_infix("+").unwrap();
+    assert_eq!(sides.name(),"+");
+}
 
 #[wasm_bindgen_test]
 pub fn flatten_prefix_test() {
