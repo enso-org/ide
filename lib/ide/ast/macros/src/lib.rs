@@ -296,7 +296,7 @@ pub fn has_tokens(input:proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// the following output is produced:
 ///    ```ignore
 ///    impl<T: HasTokens> HasTokens for SegmentExpr<T> {
-///        fn feed(&self, consumer:&mut impl TokenConsumer) {
+///        fn feed_to(&self, consumer:&mut impl TokenConsumer) {
 ///            EXPR_QUOTE.feed(consumer);
 ///            self.value.feed(consumer);
 ///            EXPR_QUOTE.feed(consumer);

@@ -16,7 +16,7 @@ pub fn spaceless_ast
     let ty_args = path_segment_generic_args(&target);
     let ret = quote!{
         impl<#(#ty_args),*> HasTokens for #target {
-            fn feed(&self, consumer:&mut impl TokenConsumer) {
+            fn feed_to(&self, consumer:&mut impl TokenConsumer) {
                 panic!("HasTokens not supported for Spaceless AST!")
             }
         }
@@ -32,11 +32,11 @@ pub fn derive_for_enum
     let params    = decl.generics.params.iter().collect_vec();
     let token_arms = data.variants.iter().map(|v| {
         let con_ident = &v.ident;
-        quote!( #ident::#con_ident (elem) => elem.feed(consumer) )
+        quote!( #ident::#con_ident (elem) => elem.feed_to(consumer) )
     });
     let ret = quote! {
         impl<#(#params:HasTokens),*> HasTokens for #ident<#(#params),*> {
-            fn feed(&self, consumer:&mut impl TokenConsumer) {
+            fn feed_to(&self, consumer:&mut impl TokenConsumer) {
                 match self { #(#token_arms),* }
             }
         }
@@ -89,8 +89,8 @@ impl TokenDescription {
     pub fn has_tokens(&self) -> TokenStream {
         let exprs = &self.exprs;
         self.make_impl("HasTokens", &quote!{
-            fn feed(&self, consumer:&mut impl TokenConsumer) {
-                #(#exprs.feed(consumer);)*
+            fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+                #(#exprs.feed_to(consumer);)*
             }
         })
     }

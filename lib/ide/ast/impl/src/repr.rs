@@ -65,11 +65,11 @@ has_tokens!(Seq   , self.first, self.second);
 
 /// Not an instance of `Tokenizer`, as it needs to know parent block's offset.
 impl<T:HasTokens> TextBlockLine<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer, offset:usize) {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer, offset:usize) {
         for empty_line_spaces in &self.empty_lines {
-            (NEWLINE,empty_line_spaces).feed(consumer);
+            (NEWLINE,empty_line_spaces).feed_to(consumer);
         }
-        (NEWLINE,offset,&self.text).feed(consumer);
+        (NEWLINE,offset,&self.text).feed_to(consumer);
     }
 }
 
@@ -105,7 +105,7 @@ has_tokens!(EscapeControl   , self.name  );
 has_tokens!(EscapeNumber    , self.digits);
 has_tokens!(EscapeUnicode16 , UNICODE16_INTRODUCER, self.digits);
 has_tokens!(EscapeUnicode21 , UNICODE21_OPENER.deref() , self.digits
-                           , UNICODE21_CLOSER.deref());
+                            , UNICODE21_CLOSER.deref());
 has_tokens!(EscapeUnicode32 , UNICODE32_INTRODUCER, self.digits);
 
 
@@ -228,10 +228,10 @@ has_tokens!(TextLineFmt<T> , FMT_QUOTE, self.text, FMT_QUOTE);
 // === TextBlockRaw ==
 
 impl HasTokens for TextBlockRaw {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
-        (RAW_BLOCK_QUOTES, self.spaces).feed(consumer);
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+        (RAW_BLOCK_QUOTES, self.spaces).feed_to(consumer);
         for line in self.text.iter() {
-            line.feed(consumer,self.offset);
+            line.feed_to(consumer,self.offset);
         }
     }
 }
@@ -240,10 +240,10 @@ impl HasTokens for TextBlockRaw {
 // === TextBlockFmt ==
 
 impl<T:HasTokens> HasTokens for TextBlockFmt<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
-        (FMT_BLOCK_QUOTES,self.spaces).feed(consumer);
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+        (FMT_BLOCK_QUOTES,self.spaces).feed_to(consumer);
         for line in self.text.iter() {
-            line.feed(consumer,self.offset);
+            line.feed_to(consumer,self.offset);
         };
     }
 }
@@ -252,10 +252,10 @@ impl<T:HasTokens> HasTokens for TextBlockFmt<T> {
 // === TextUnclosed ==
 
 impl <T:HasTokens> HasTokens for TextUnclosed<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
         match &self.line {
-            TextLine::TextLineRaw(line) => (RAW_QUOTE,line).feed(consumer),
-            TextLine::TextLineFmt(line) => (FMT_QUOTE,line).feed(consumer),
+            TextLine::TextLineRaw(line) => (RAW_QUOTE,&line.text).feed_to(consumer),
+            TextLine::TextLineFmt(line) => (FMT_QUOTE,&line.text).feed_to(consumer),
         }
     }
 }
@@ -278,13 +278,13 @@ has_tokens!(SectionSides<T>, self.opr);
 // === Module ==
 
 impl<T:HasTokens> HasTokens for Module<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
         let mut iter = self.lines.iter();
         if let Some(first_line) = iter.next() {
-            first_line.feed(consumer);
+            first_line.feed_to(consumer);
         }
         for line in iter {
-            (NEWLINE,line).feed(consumer);
+            (NEWLINE,line).feed_to(consumer);
         }
     }
 }
@@ -293,14 +293,14 @@ impl<T:HasTokens> HasTokens for Module<T> {
 // === Block ==
 
 impl<T:HasTokens> HasTokens for Block<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
-        (!self.is_orphan).as_some(NEWLINE).feed(consumer);
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+        (!self.is_orphan).as_some(NEWLINE).feed_to(consumer);
         for empty_line_space in &self.empty_lines {
-            (empty_line_space,NEWLINE).feed(consumer);
+            (empty_line_space,NEWLINE).feed_to(consumer);
         }
-        self.indented(&self.first_line).feed(consumer);
+        self.indented(&self.first_line).feed_to(consumer);
         for line in &self.lines {
-            (NEWLINE,self.indented(line)).feed(consumer);
+            (NEWLINE,self.indented(line)).feed_to(consumer);
         }
     }
 }
@@ -314,14 +314,14 @@ impl<T:HasTokens> HasTokens for Block<T> {
 // === Match ==
 
 impl<T:HasTokens> HasTokens for Match<T> {
-    fn feed(&self, consumer:&mut impl TokenConsumer) {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
         for pat_match in &self.pfx {
             for sast in pat_match.iter() {
                 // reverse the order for prefix: ast before spacing
-                (&sast.wrapped,&sast.off).feed(consumer);
+                (&sast.wrapped,&sast.off).feed_to(consumer);
             }
         }
-        self.segs.feed(consumer);
+        self.segs.feed_to(consumer);
     }
 }
 
@@ -349,7 +349,7 @@ spaceless_ast!(Foreign);
 // =============
 
 /// Tests for spacelesss AST. Other AST is covered by parsing tests that verify
-/// that correct spans and text representation are generated. Only spaceless AST
+/// that correct sizes and text representation are generated. Only spaceless AST
 /// is not returned by the parser and can't be covered in this way.
 #[cfg(test)]
 mod tests {
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn comment_panics_on_span() {
+    fn comment_panics_on_size() {
         make_comment().size();
     }
 
@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn import_panics_on_span() {
+    fn import_panics_on_size() {
         make_import().size();
     }
 
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn mixfix_panics_on_span() {
+    fn mixfix_panics_on_size() {
         make_mixfix().size();
     }
 
@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn group_panics_on_span() {
+    fn group_panics_on_size() {
         make_group().size();
     }
 
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn def_panics_on_span() {
+    fn def_panics_on_size() {
         make_def().size();
     }
 
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn foreign_panics_on_span() {
+    fn foreign_panics_on_size() {
         make_foreign().size();
     }
 }
