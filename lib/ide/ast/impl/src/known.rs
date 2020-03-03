@@ -106,7 +106,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn test_known_ast() {
         let ast_var = crate::Ast::var("foo");
         // This is truly var, so we can unwrap and directly access it's fields.
         let known_var = Var::try_from(&ast_var).unwrap();
