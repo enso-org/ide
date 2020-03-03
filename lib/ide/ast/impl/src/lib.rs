@@ -24,6 +24,12 @@ use uuid::Uuid;
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
 pub struct IdMap(pub Vec<(Span,ID)>);
 
+impl IdMap {
+    fn insert(&mut self, span:Span, id:ID) {
+        self.0.push((span, id));
+    }
+}
+
 /// A sequence of AST nodes, typically the "token soup".
 pub type Stream<T> = Vec<T>;
 
@@ -275,7 +281,7 @@ impl<'de> Deserialize<'de> for Ast {
 ///
 /// Shape describes names of children and spacing between them.
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum Shape<T> {
     Unrecognized  { str : String   },
     InvalidQuote  { quote: Builder },
@@ -343,7 +349,7 @@ pub enum Shape<T> {
 // ===============
 
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum Builder {
     Empty,
     Letter{char: char},
@@ -366,7 +372,7 @@ pub enum Builder {
 }
 
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum TextLine<T> {
     TextLineRaw(TextLineRaw),
     TextLineFmt(TextLineFmt<T>),
@@ -375,14 +381,14 @@ pub enum TextLine<T> {
 
 // === Text Segments ===
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum SegmentRaw {
     SegmentPlain    (SegmentPlain),
     SegmentRawEscape(SegmentRawEscape),
 }
 
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum SegmentFmt<T> {
     SegmentPlain    (SegmentPlain    ),
     SegmentRawEscape(SegmentRawEscape),
@@ -399,7 +405,7 @@ pub enum SegmentFmt<T> {
 // === Text Segment Escapes ===
 
 #[ast(flat)]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum RawEscape {
     Unfinished { },
     Invalid    { str: char },
@@ -409,7 +415,7 @@ pub enum RawEscape {
 }
 
 #[ast]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum Escape {
     Character{c     :char            },
     Control  {name  :String, code: u8},
@@ -504,7 +510,7 @@ impl<T> Switch<T> {
 pub type MacroPatternMatch<T> = Rc<MacroPatternMatchRaw<T>>;
 
 #[ast]
-#[derive(Tokenizer)]
+#[derive(HasTokens)]
 pub enum MacroPatternMatchRaw<T> {
     // === Boundary Matches ===
     Begin   { pat: MacroPatternRawBegin },
@@ -573,99 +579,95 @@ pub enum MacroPatternMatchRaw<T> {
 
 
 
-//// ===========
-//// === AST ===
-//// ===========
+// ===========
+// === AST ===
+// ===========
 
 
 // === Tokenizer ===
 
+/// An enum of valid Ast tokens.I
+#[derive(Debug)]
+pub enum Token<'a> { Off(usize), Chr(char), Str(&'a str), Ast(&'a Ast) }
+
 /// Things that can be turned into stream of tokens.
-pub trait Tokenizer {
+pub trait HasTokens {
     /// Feeds TokenBuilder with stream of tokens obtained from `self`.
-    fn tokenize(&self, builder:&mut impl TokenBuilder);
+    fn feed(&self, consumer:&mut impl TokenConsumer);
 }
 
 /// Helper trait for Tokenizer, which consumes the token stream.
-///
-/// Can be only fed with char, string, integer and ast.
-pub trait TokenBuilder {
-    /// process &str
-    fn with_str(&mut self, val:&str);
-    /// process usize
-    fn with_int(&mut self, val:usize);
-    /// process char
-    fn with_chr(&mut self, val:char);
-    /// process &Ast
-    fn with_ast(&mut self, val:&Ast);
+pub trait TokenConsumer {
+    /// consumes one token
+    fn feed(&mut self, val:Token);
 }
 
 
-impl Tokenizer for &str {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        builder.with_str(self);
+impl HasTokens for &str {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        consumer.feed(Token::Str(self));
     }
 }
 
-impl Tokenizer for String {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        builder.with_str(self.as_str());
+impl HasTokens for String {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        consumer.feed(Token::Str(self.as_str()));
     }
 }
 
-impl Tokenizer for usize {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        builder.with_int(*self);
+impl HasTokens for usize {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        consumer.feed(Token::Off(*self));
     }
 }
 
-impl Tokenizer for char {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        builder.with_chr(*self);
+impl HasTokens for char {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        consumer.feed(Token::Chr(*self));
     }
 }
 
-impl Tokenizer for Ast {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        builder.with_ast(self);
+impl HasTokens for Ast {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        consumer.feed(Token::Ast(self));
     }
 }
 
-impl<T:Tokenizer> Tokenizer for Option<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        for t in self { t.tokenize(builder); }
+impl<T: HasTokens> HasTokens for Option<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        for t in self { t.feed(consumer); }
     }
 }
 
-impl<T:Tokenizer> Tokenizer for Vec<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        for t in self { t.tokenize(builder); }
+impl<T: HasTokens> HasTokens for Vec<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        for t in self { t.feed(consumer); }
     }
 }
 
-impl<T:Tokenizer> Tokenizer for Rc<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        self.deref().tokenize(builder);
+impl<T: HasTokens> HasTokens for Rc<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        self.deref().feed(consumer);
     }
 }
 
-impl<T:Tokenizer> Tokenizer for &T {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        self.deref().tokenize(builder);
+impl<T: HasTokens> HasTokens for &T {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        self.deref().feed(consumer);
     }
 }
 
-impl<T:Tokenizer,U:Tokenizer> Tokenizer for (T,U) {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        self.0.tokenize(builder);
-        self.1.tokenize(builder);
+impl<T: HasTokens,U: HasTokens> HasTokens for (T, U) {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        self.0.feed(consumer);
+        self.1.feed(consumer);
     }
 }
-impl<T:Tokenizer,U:Tokenizer,V:Tokenizer> Tokenizer for (T,U,V) {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        self.0.tokenize(builder);
-        self.1.tokenize(builder);
-        self.2.tokenize(builder);
+impl<T: HasTokens,U: HasTokens,V: HasTokens> HasTokens for (T, U, V) {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        self.0.feed(consumer);
+        self.1.feed(consumer);
+        self.2.feed(consumer);
     }
 }
 
@@ -678,27 +680,32 @@ trait HasIdMap {
     fn id_map(&self) -> IdMap;
 }
 
+#[derive(Debug,Clone,Default)]
 struct IdMapBuilder { id_map:IdMap, offset:usize }
 
-impl TokenBuilder for IdMapBuilder {
-    fn with_str(&mut self, val:&str ) { self.offset += val.len() }
-    fn with_int(&mut self, val:usize) { self.offset += val       }
-    fn with_chr(&mut self,_val:char ) { self.offset += 1         }
-    fn with_ast(&mut self, val:&Ast ) {
-        let begin = self.offset;
-        val.shape().tokenize(self);
-        if let Some(id) = val.wrapped.id {
-            let span = Span::new(Index::new(begin), Size::new(self.offset));
-            self.id_map.0.push((span, id));
+impl TokenConsumer for IdMapBuilder {
+    fn feed(&mut self, token:Token) {
+        match token {
+            Token::Off(val) => self.offset += val,
+            Token::Chr( _ ) => self.offset += 1,
+            Token::Str(val) => self.offset += val.len(),
+            Token::Ast(val) => {
+                let begin = self.offset;
+                val.shape().feed(self);
+                if let Some(id) = val.id {
+                    let span = Span::new_index_size(begin, self.offset);
+                    self.id_map.insert(span, id);
+                }
+            }
         }
     }
 }
 
-impl<T:Tokenizer> HasIdMap for T {
+impl<T: HasTokens> HasIdMap for T {
     fn id_map(&self) -> IdMap {
-        let mut builder = IdMapBuilder {id_map:default(),offset:default()};
-        self.tokenize(&mut builder);
-        builder.id_map
+        let mut consumer = IdMapBuilder::default();
+        self.feed(&mut consumer);
+        consumer.id_map
     }
 }
 
@@ -714,48 +721,59 @@ pub trait HasSize {
     fn size(&self) -> usize;
 }
 
+#[derive(Debug,Clone,Copy,Default)]
 struct SpanBuilder { offset:usize }
 
-impl TokenBuilder for SpanBuilder {
-    fn with_str(&mut self, val:&str ) { self.offset += val.len()    }
-    fn with_int(&mut self, val:usize) { self.offset += val          }
-    fn with_chr(&mut self,_val:char ) { self.offset += 1            }
-    fn with_ast(&mut self, val:&Ast ) { val.shape().tokenize(self)  }
+impl TokenConsumer for SpanBuilder {
+    fn feed(&mut self, token:Token) {
+        match token {
+            Token::Off(val) => self.offset += val,
+            Token::Chr( _ ) => self.offset += 1,
+            Token::Str(val) => self.offset += val.len(),
+            Token::Ast(val) => val.shape().feed(self),
+        }
+    }
 }
 
-impl<T:Tokenizer> HasSize for T {
+impl<T: HasTokens> HasSize for T {
     fn size(&self) -> usize {
-        let mut builder = SpanBuilder {offset:default()};
-        self.tokenize(&mut builder);
-        builder.offset
+        let mut consumer = SpanBuilder::default();
+        self.feed(&mut consumer);
+        consumer.offset
     }
 }
 
 
 // === HasRepr ===
 
-///// Things that can be asked about their textual representation.
-/////
-///// See also `HasSize`.
+/// Things that can be asked about their textual representation.
+///
+/// See also `HasSize`.
 pub trait HasRepr {
     /// Obtain the text representation for the This type.
     fn repr(&self) -> String;
 }
 
+#[derive(Debug,Clone,Default)]
 struct ReprBuilder { repr:String }
 
-impl TokenBuilder for ReprBuilder {
-    fn with_str(&mut self, val:&str ) { self.repr.push_str(val)              }
-    fn with_int(&mut self, val:usize) { self.repr.push_str(&" ".repeat(val)) }
-    fn with_chr(&mut self, val:char ) { self.repr.push(val)                  }
-    fn with_ast(&mut self, val:&Ast ) { val.shape().tokenize(self)           }
+impl TokenConsumer for ReprBuilder {
+    fn feed(&mut self, token:Token) {
+        println!("{:?}", token);
+        match token {
+            Token::Off(val) => self.repr.push_str(&" ".repeat(val)),
+            Token::Chr(val) => self.repr.push(val),
+            Token::Str(val) => self.repr.push_str(val),
+            Token::Ast(val) => val.shape().feed(self),
+        }
+    }
 }
 
-impl<T:Tokenizer> HasRepr for T {
+impl<T: HasTokens> HasRepr for T {
     fn repr(&self) -> String {
-        let mut builder = ReprBuilder {repr:default()};
-        self.tokenize(&mut builder);
-        builder.repr
+        let mut consumer = ReprBuilder::default();
+        self.feed(&mut consumer);
+        consumer.repr
     }
 }
 
@@ -1033,7 +1051,7 @@ mod tests {
 
     #[test]
     fn ast_id_map() {
-        let span = |ix,size| Span::new(Index::new(ix), Size::new(size));
+        let span = |ix,size| Span::new_index_size(ix, size);
         let uid  = default();
         let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));

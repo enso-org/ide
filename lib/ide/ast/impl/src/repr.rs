@@ -49,14 +49,14 @@ pub const FMT_BLOCK_QUOTES:&str = "'''";
 
 
 // ===============
-// === Builder ===
+// === consumer ===
 // ===============
 
-tokenizer!(Empty);
-tokenizer!(Letter, self.char);
-tokenizer!(Space , self);
-tokenizer!(Text  , self.str);
-tokenizer!(Seq   , self.first, self.second);
+has_tokens!(Empty);
+has_tokens!(Letter, self.char);
+has_tokens!(Space , self);
+has_tokens!(Text  , self.str);
+has_tokens!(Seq   , self.first, self.second);
 
 
 // =====================
@@ -64,12 +64,12 @@ tokenizer!(Seq   , self.first, self.second);
 // =====================
 
 /// Not an instance of `Tokenizer`, as it needs to know parent block's offset.
-impl<T:Tokenizer> TextBlockLine<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder, offset:usize) {
+impl<T: HasTokens> TextBlockLine<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer, offset:usize) {
         for empty_line_spaces in &self.empty_lines {
-            (NEWLINE,empty_line_spaces).tokenize(builder);
+            (NEWLINE,empty_line_spaces).feed(consumer);
         }
-        (NEWLINE,offset,&self.text).tokenize(builder);
+        (NEWLINE,offset,&self.text).feed(consumer);
     }
 }
 
@@ -79,41 +79,41 @@ impl<T:Tokenizer> TextBlockLine<T> {
 // === Text Segments ===
 // =====================
 
-tokenizer!(SegmentPlain    ,             self.value);
-tokenizer!(SegmentRawEscape, BACKSLASH,  self.code );
-tokenizer!(SegmentExpr<T>  , EXPR_QUOTE, self.value, EXPR_QUOTE);
-tokenizer!(SegmentEscape   , BACKSLASH,  self.code );
+has_tokens!(SegmentPlain    ,             self.value);
+has_tokens!(SegmentRawEscape, BACKSLASH,  self.code );
+has_tokens!(SegmentExpr<T>  , EXPR_QUOTE, self.value, EXPR_QUOTE);
+has_tokens!(SegmentEscape   , BACKSLASH,  self.code );
 
 
 // =================
 // === RawEscape ===
 // =================
 
-tokenizer!(Unfinished);
-tokenizer!(Invalid , self.str );
-tokenizer!(Slash   , BACKSLASH);
-tokenizer!(Quote   , FMT_QUOTE);
-tokenizer!(RawQuote, RAW_QUOTE);
+has_tokens!(Unfinished);
+has_tokens!(Invalid , self.str );
+has_tokens!(Slash   , BACKSLASH);
+has_tokens!(Quote   , FMT_QUOTE);
+has_tokens!(RawQuote, RAW_QUOTE);
 
 
 // ==============
 // === Escape ===
 // ==============
 
-tokenizer!(EscapeCharacter , self.c     );
-tokenizer!(EscapeControl   , self.name  );
-tokenizer!(EscapeNumber    , self.digits);
-tokenizer!(EscapeUnicode16 , UNICODE16_INTRODUCER, self.digits);
-tokenizer!(EscapeUnicode21 , UNICODE21_OPENER.deref() , self.digits
+has_tokens!(EscapeCharacter , self.c     );
+has_tokens!(EscapeControl   , self.name  );
+has_tokens!(EscapeNumber    , self.digits);
+has_tokens!(EscapeUnicode16 , UNICODE16_INTRODUCER, self.digits);
+has_tokens!(EscapeUnicode21 , UNICODE21_OPENER.deref() , self.digits
                            , UNICODE21_CLOSER.deref());
-tokenizer!(EscapeUnicode32 , UNICODE32_INTRODUCER, self.digits);
+has_tokens!(EscapeUnicode32 , UNICODE32_INTRODUCER, self.digits);
 
 
 // =============
 // === Block ===
 // =============
 
-tokenizer!(BlockLine<T>, self.elem, self.off);
+has_tokens!(BlockLine<T>, self.elem, self.off);
 
 
 // =============
@@ -122,45 +122,45 @@ tokenizer!(BlockLine<T>, self.elem, self.off);
 
 // === Macro Segments ==
 
-tokenizer!(MacroMatchSegment<T> , self.head, self.body);
-tokenizer!(MacroAmbiguousSegment, self.head, self.body);
+has_tokens!(MacroMatchSegment<T> , self.head, self.body);
+has_tokens!(MacroAmbiguousSegment, self.head, self.body);
 
 
 // === MacroPatternMatch subtypes ===
 
-tokenizer!(MacroPatternMatchRawBegin  );
-tokenizer!(MacroPatternMatchRawEnd    );
-tokenizer!(MacroPatternMatchRawNothing);
-tokenizer!(MacroPatternMatchRawSeq    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawOr     <T>, self.elem);
-tokenizer!(MacroPatternMatchRawMany   <T>, self.elem);
-tokenizer!(MacroPatternMatchRawExcept <T>, self.elem);
-tokenizer!(MacroPatternMatchRawBuild  <T>, self.elem);
-tokenizer!(MacroPatternMatchRawErr    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawTag    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawCls    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawTok    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawBlank  <T>, self.elem);
-tokenizer!(MacroPatternMatchRawVar    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawCons   <T>, self.elem);
-tokenizer!(MacroPatternMatchRawOpr    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawMod    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawNum    <T>, self.elem);
-tokenizer!(MacroPatternMatchRawText   <T>, self.elem);
-tokenizer!(MacroPatternMatchRawBlock  <T>, self.elem);
-tokenizer!(MacroPatternMatchRawMacro  <T>, self.elem);
-tokenizer!(MacroPatternMatchRawInvalid<T>, self.elem);
+has_tokens!(MacroPatternMatchRawBegin  );
+has_tokens!(MacroPatternMatchRawEnd    );
+has_tokens!(MacroPatternMatchRawNothing);
+has_tokens!(MacroPatternMatchRawSeq    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawOr     <T>, self.elem);
+has_tokens!(MacroPatternMatchRawMany   <T>, self.elem);
+has_tokens!(MacroPatternMatchRawExcept <T>, self.elem);
+has_tokens!(MacroPatternMatchRawBuild  <T>, self.elem);
+has_tokens!(MacroPatternMatchRawErr    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawTag    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawCls    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawTok    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawBlank  <T>, self.elem);
+has_tokens!(MacroPatternMatchRawVar    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawCons   <T>, self.elem);
+has_tokens!(MacroPatternMatchRawOpr    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawMod    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawNum    <T>, self.elem);
+has_tokens!(MacroPatternMatchRawText   <T>, self.elem);
+has_tokens!(MacroPatternMatchRawBlock  <T>, self.elem);
+has_tokens!(MacroPatternMatchRawMacro  <T>, self.elem);
+has_tokens!(MacroPatternMatchRawInvalid<T>, self.elem);
 
 
 // === Switch ===
 
-tokenizer!(Switch<T>, self.get().deref());
+has_tokens!(Switch<T>, self.get().deref());
 
 
 // === Shifted ===
 
-tokenizer!(Shifted    <T>, self.off,  self.wrapped);
-tokenizer!(ShiftedVec1<T>, self.head, self.tail);
+has_tokens!(Shifted    <T>, self.off,  self.wrapped);
+has_tokens!(ShiftedVec1<T>, self.head, self.tail);
 
 
 // =============================================================================
@@ -171,21 +171,21 @@ tokenizer!(ShiftedVec1<T>, self.head, self.tail);
 // === Invalid ===
 // ===============
 
-tokenizer!(Unrecognized, self.str  );
-tokenizer!(InvalidQuote, self.quote);
-tokenizer!(InlineBlock , self.quote);
+has_tokens!(Unrecognized, self.str  );
+has_tokens!(InvalidQuote, self.quote);
+has_tokens!(InlineBlock , self.quote);
 
 
 // ===================
 // === Identifiers ===
 // ===================
 
-tokenizer!(Blank           , BLANK_TOKEN);
-tokenizer!(Var             , self.name  );
-tokenizer!(Cons            , self.name  );
-tokenizer!(Opr             , self.name  );
-tokenizer!(Mod             , self.name, MOD_SUFFIX );
-tokenizer!(InvalidSuffix<T>, self.elem, self.suffix);
+has_tokens!(Blank           , BLANK_TOKEN);
+has_tokens!(Var             , self.name  );
+has_tokens!(Cons            , self.name  );
+has_tokens!(Opr             , self.name  );
+has_tokens!(Mod             , self.name, MOD_SUFFIX );
+has_tokens!(InvalidSuffix<T>, self.elem, self.suffix);
 
 
 // ==============
@@ -195,9 +195,9 @@ tokenizer!(InvalidSuffix<T>, self.elem, self.suffix);
 /// Helper to represent that optional number base has additional character.
 struct NumberBase<T>(T);
 
-tokenizer!(NumberBase<T>, self.0, NUMBER_BASE_SEPARATOR);
-tokenizer!(Number       , self.base.as_ref().map(NumberBase) , self.int);
-tokenizer!(DanglingBase , self.base, NUMBER_BASE_SEPARATOR);
+has_tokens!(NumberBase<T>, self.0, NUMBER_BASE_SEPARATOR);
+has_tokens!(Number       , self.base.as_ref().map(NumberBase) , self.int);
+has_tokens!(DanglingBase , self.base, NUMBER_BASE_SEPARATOR);
 
 
 
@@ -210,7 +210,7 @@ tokenizer!(DanglingBase , self.base, NUMBER_BASE_SEPARATOR);
 /// Helper to represent line with additional spacing prepended.
 struct Indented<T>(usize,T);
 
-tokenizer!(Indented<T>, self.0, self.1);
+has_tokens!(Indented<T>, self.0, self.1);
 
 impl<T> Block<T> {
     fn indented<'t, U>(&self, t:&'t U) -> Indented<&'t U> {
@@ -221,17 +221,17 @@ impl<T> Block<T> {
 
 // === Lines ===
 
-tokenizer!(TextLineRaw    , RAW_QUOTE, self.text, RAW_QUOTE);
-tokenizer!(TextLineFmt<T> , FMT_QUOTE, self.text, FMT_QUOTE);
+has_tokens!(TextLineRaw    , RAW_QUOTE, self.text, RAW_QUOTE);
+has_tokens!(TextLineFmt<T> , FMT_QUOTE, self.text, FMT_QUOTE);
 
 
 // === TextBlockRaw ==
 
-impl Tokenizer for TextBlockRaw {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        (RAW_BLOCK_QUOTES, self.spaces).tokenize(builder);
+impl HasTokens for TextBlockRaw {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        (RAW_BLOCK_QUOTES, self.spaces).feed(consumer);
         for line in self.text.iter() {
-            line.tokenize(builder,self.offset);
+            line.feed(consumer,self.offset);
         }
     }
 }
@@ -239,11 +239,11 @@ impl Tokenizer for TextBlockRaw {
 
 // === TextBlockFmt ==
 
-impl<T:Tokenizer> Tokenizer for TextBlockFmt<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        (FMT_BLOCK_QUOTES,self.spaces).tokenize(builder);
+impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        (FMT_BLOCK_QUOTES,self.spaces).feed(consumer);
         for line in self.text.iter() {
-            line.tokenize(builder,self.offset);
+            line.feed(consumer,self.offset);
         };
     }
 }
@@ -254,12 +254,12 @@ impl<T:Tokenizer> Tokenizer for TextBlockFmt<T> {
 // TODO: [mwu] `TextUnclosed<T>` as it needs to cut off closing quote from the
 //             stored text line. Likely this type should be stored like this.
 
-// TODO: [jv] this implementation is wrong since we cannot `pop` from TokenBuilder
+// TODO: [jv] this implementation is wrong since we cannot `pop` from `TokenConsumer`
 //            either redesign TextUnclosed, so that it can use Tokenizer,
 //            or come up with some smart/ugly hack
-impl <T:Tokenizer> Tokenizer for TextUnclosed<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        self.line.tokenize(builder);
+impl <T: HasTokens> HasTokens for TextUnclosed<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        self.line.feed(consumer);
         // now we should remove missing quote
     }
 }
@@ -268,12 +268,12 @@ impl <T:Tokenizer> Tokenizer for TextUnclosed<T> {
 // === Applications ===
 // ====================
 
-tokenizer!(Infix<T>, self.larg, self.loff, self.opr, self.roff, self.rarg);
+has_tokens!(Infix<T>, self.larg, self.loff, self.opr, self.roff, self.rarg);
 
-tokenizer!(Prefix      <T>, self.func, self.off, self.arg);
-tokenizer!(SectionLeft <T>, self.arg,  self.off, self.opr);
-tokenizer!(SectionRight<T>, self.opr,  self.off, self.arg);
-tokenizer!(SectionSides<T>, self.opr);
+has_tokens!(Prefix      <T>, self.func, self.off, self.arg);
+has_tokens!(SectionLeft <T>, self.arg,  self.off, self.opr);
+has_tokens!(SectionRight<T>, self.opr,  self.off, self.arg);
+has_tokens!(SectionSides<T>, self.opr);
 
 // ==============
 // === Module ===
@@ -281,14 +281,14 @@ tokenizer!(SectionSides<T>, self.opr);
 
 // === Module ==
 
-impl<T:Tokenizer> Tokenizer for Module<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+impl<T: HasTokens> HasTokens for Module<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
         let mut iter = self.lines.iter();
         if let Some(first_line) = iter.next() {
-            first_line.tokenize(builder);
+            first_line.feed(consumer);
         }
         for line in iter {
-            (NEWLINE,line).tokenize(builder);
+            (NEWLINE,line).feed(consumer);
         }
     }
 }
@@ -296,15 +296,15 @@ impl<T:Tokenizer> Tokenizer for Module<T> {
 
 // === Block ==
 
-impl<T:Tokenizer> Tokenizer for Block<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
-        (!self.is_orphan).as_some(NEWLINE).tokenize(builder);
+impl<T: HasTokens> HasTokens for Block<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
+        (!self.is_orphan).as_some(NEWLINE).feed(consumer);
         for empty_line_space in &self.empty_lines {
-            (empty_line_space,NEWLINE).tokenize(builder);
+            (empty_line_space,NEWLINE).feed(consumer);
         }
-        self.indented(&self.first_line).tokenize(builder);
+        self.indented(&self.first_line).feed(consumer);
         for line in &self.lines {
-            (NEWLINE,self.indented(line)).tokenize(builder);
+            (NEWLINE,self.indented(line)).feed(consumer);
         }
     }
 }
@@ -317,34 +317,34 @@ impl<T:Tokenizer> Tokenizer for Block<T> {
 
 // === Match ==
 
-impl<T:Tokenizer> Tokenizer for Match<T> {
-    fn tokenize(&self, builder:&mut impl TokenBuilder) {
+impl<T: HasTokens> HasTokens for Match<T> {
+    fn feed(&self, consumer:&mut impl TokenConsumer) {
         for pat_match in &self.pfx {
             for sast in pat_match.iter() {
                 // reverse the order for prefix: ast before spacing
-                (&sast.wrapped,&sast.off).tokenize(builder);
+                (&sast.wrapped,&sast.off).feed(consumer);
             }
         }
-        self.segs.tokenize(builder);
+        self.segs.feed(consumer);
     }
 }
 
 
 // === Ambiguous ===
 
-tokenizer!(Ambiguous, self.segs);
+has_tokens!(Ambiguous, self.segs);
 
 
 // =====================
 // === Spaceless AST ===
 // =====================
 
-no_tokenizer!(Comment);
-no_tokenizer!(Import<T>);
-no_tokenizer!(Mixfix<T>);
-no_tokenizer!(Group<T>);
-no_tokenizer!(Def<T>);
-no_tokenizer!(Foreign);
+spaceless_ast!(Comment);
+spaceless_ast!(Import<T>);
+spaceless_ast!(Mixfix<T>);
+spaceless_ast!(Group<T>);
+spaceless_ast!(Def<T>);
+spaceless_ast!(Foreign);
 
 
 

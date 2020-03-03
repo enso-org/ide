@@ -257,13 +257,13 @@ pub fn to_variant_types
     output.into()
 }
 
-/// Creates a `Tokenizer` implementations for a given enum type.
+/// Creates a `HasTokens` implementations for a given enum type.
 ///
 /// Given type may only consist of single-elem tuple-like variants.
-/// The implementation uses underlying Tokenizer implementation for
+/// The implementation uses underlying HasTokens implementation for
 /// stored values.
-#[proc_macro_derive(Tokenizer)]
-pub fn derive_tokenizer
+#[proc_macro_derive(HasTokens)]
+pub fn derive_has_tokens
 (input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let decl   = syn::parse_macro_input!(input as syn::DeriveInput);
     let ret = match decl.data {
@@ -275,37 +275,37 @@ pub fn derive_tokenizer
 
 /// Provides only `HasTokens` implementation.
 #[proc_macro]
-pub fn tokenizer(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn has_tokens(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let maker = syn::parse::<TokenDescription>(input).unwrap();
-    maker.tokenizer().into()
+    maker.has_tokens().into()
 }
 
-/// Generates `Tokenizer` instances that are just sum of their parts.
+/// Generates `HasTokens` instances that are just sum of their parts.
 ///
 /// Takes 1+ parameters:
 /// * first goes the typename for which implementations are generated (can take
-///   type parameters, as long as they implement `Tokenizer`)
+///   type parameters, as long as they implement `HasTokens`)
 /// * then arbitrary number (0 or more) of expressions, that shall yield values
-///   implementing `Tokenizer`. The `self` can be used in th
+///   implementing `HasTokens`. The `self` can be used in th
 ///   expressions.
 ///
 /// For example, for invocation:
 /// ```ignore
-/// tokenizer!(SegmentExpr<T>, EXPR_QUOTE, self.value, EXPR_QUOTE);
+/// has_tokens!(SegmentExpr<T>, EXPR_QUOTE, self.value, EXPR_QUOTE);
 /// ```
 /// the following output is produced:
 ///    ```ignore
-///    impl<T: Tokenizer> Tokenizer for SegmentExpr<T> {
-///        fn tokenize(&self, builder:&mut impl TokenBuilder) {
-///            EXPR_QUOTE.tokenize(builder);
-///            self.value.tokenize(builder);
-///            EXPR_QUOTE.tokenize(builder);
+///    impl<T: HasTokens> HasTokens for SegmentExpr<T> {
+///        fn feed(&self, consumer:&mut impl TokenConsumer) {
+///            EXPR_QUOTE.feed(consumer);
+///            self.value.feed(consumer);
+///            EXPR_QUOTE.feed(consumer);
 ///        }
 ///    }
 ///    ```
 
-/// Generates `Tokenizer` implementations that panic when used.
+/// Generates `HasTokens` implementations for spaceless AST that panics when used.
 #[proc_macro]
-pub fn no_tokenizer(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    crate::token::no_tokenizer(input)
+pub fn spaceless_ast(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    crate::token::spaceless_ast(input)
 }
