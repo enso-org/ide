@@ -355,7 +355,21 @@ pub enum Shape<T> {
     Foreign       (Foreign),
 }
 
-
+/// Macrot that calls its argument (possibly other macro
+#[macro_export]
+macro_rules! with_shape_variants {
+    ($f:ident) => {
+        $f! { [Unrecognized] [InvalidQuote] [InlineBlock]
+              [Blank] [Var] [Cons] [Opr] [Mod] [InvalidSuffix Ast]
+              [Number] [DanglingBase]
+              [TextLineRaw] [TextLineFmt Ast] [TextBlockRaw] [TextBlockFmt Ast] [TextUnclosed Ast]
+              [Prefix Ast] [Infix Ast] [SectionLeft Ast] [SectionRight Ast] [SectionSides Ast]
+              [Module Ast] [Block Ast]
+              [Match Ast] [Ambiguous]
+              // Note: Spaceless AST is intentionally omitted here.
+            }
+    };
+}
 
 // ===============
 // === Builder ===

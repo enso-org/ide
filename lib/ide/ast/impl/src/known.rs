@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::Ast;
 use crate::Shape;
+use crate::with_shape_variants;
 
 
 
@@ -37,7 +38,7 @@ impl<T> KnownAst<T> {
 
 impl<T,E> Deref for KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
-                           E : Debug, {
+      E                      : Debug, {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         let result = self.0.shape().try_into();
@@ -71,35 +72,25 @@ impl<T> From<KnownAst<T>> for Ast {
 }
 
 
+
 // ===============
 // === Aliases ===
 // ===============
 
-pub type Unrecognized  = KnownAst<crate::Unrecognized>;
-pub type InvalidQuote  = KnownAst<crate::InvalidQuote>;
-pub type InlineBlock   = KnownAst<crate::InlineBlock>;
-pub type Blank         = KnownAst<crate::Blank>;
-pub type Var           = KnownAst<crate::Var>;
-pub type Cons          = KnownAst<crate::Cons>;
-pub type Opr           = KnownAst<crate::Opr>;
-pub type Mod           = KnownAst<crate::Mod>;
-pub type InvalidSuffix = KnownAst<crate::InvalidSuffix<Ast>>;
-pub type Number        = KnownAst<crate::Number>;
-pub type DanglingBase  = KnownAst<crate::DanglingBase>;
-pub type TextLineRaw   = KnownAst<crate::TextLineRaw>;
-pub type TextLineFmt   = KnownAst<crate::TextLineFmt<Ast>>;
-pub type TextBlockRaw  = KnownAst<crate::TextBlockRaw>;
-pub type TextBlockFmt  = KnownAst<crate::TextBlockFmt<Ast>>;
-pub type TextUnclosed  = KnownAst<crate::TextUnclosed<Ast>>;
-pub type Prefix        = KnownAst<crate::Prefix<Ast>>;
-pub type Infix         = KnownAst<crate::Infix<Ast>>;
-pub type SectionLeft   = KnownAst<crate::SectionLeft<Ast>>;
-pub type SectionRight  = KnownAst<crate::SectionRight<Ast>>;
-pub type SectionSides  = KnownAst<crate::SectionSides<Ast>>;
-pub type Module        = KnownAst<crate::Module<Ast>>;
-pub type Block         = KnownAst<crate::Block<Ast>>;
-pub type Match         = KnownAst<crate::Match<Ast>>;
-pub type Ambiguous     = KnownAst<crate::Ambiguous>;
+/// For input like `[Unrecognized] [Prefix Ast]` generates aliases like:
+/// ```compile_fail
+/// pub type Unrecognized = KnownAst<crate::Unrecognized>;
+/// pub type Prefix = KnownAst<crate::Prefix<Ast>>;
+/// // etc ...
+/// ```
+macro_rules! generate_alias {
+    ( $([$name:ident $($tp:ty)? ])* ) => {$(
+        pub type $name = KnownAst<crate::$name $(<$tp>)? >;
+    )*};
+}
+
+// Generates aliases for each Shape variant.
+with_shape_variants!(generate_alias);
 
 
 
