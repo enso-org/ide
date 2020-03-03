@@ -18,7 +18,7 @@ use ast::opr::GeneralizedInfix;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-#[test]
+#[wasm_bindgen_test]
 pub fn generalized_infix_test() {
     let mut parser         = parser::Parser::new_or_panic();
     let mut make_gen_infix = |code:&str| {
