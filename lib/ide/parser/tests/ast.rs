@@ -9,6 +9,8 @@ use ast::prefix;
 use parser::api::IsParser;
 use wasm_bindgen_test::wasm_bindgen_test;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[wasm_bindgen_test]
 pub fn flatten_prefix_test() {
     fn expect_pieces(flattened:&prefix::Chain, pieces:Vec<&str>) {
@@ -30,6 +32,7 @@ pub fn flatten_prefix_test() {
 
     case("a", vec!["a"]);
     case("a b c d", vec!["a","b","c","d"]);
+    case("+ a b c", vec!["+","a","b","c"]);
     case("a b + c d", vec!["a b + c d"]); // nothing to flatten, this is infix, not prefix
 }
 
