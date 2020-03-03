@@ -24,7 +24,7 @@ use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssig
 use crate::display::world::World;
 
 use data::text::TextChange;
-use data::text::TextChangedNotification;
+use data::text::TextChangedInfo;
 use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -82,7 +82,7 @@ shared! { TextField
         display_object       : DisplayObjectData,
         frp                  : Option<TextFieldFrp>,
         #[derivative(Debug="ignore")]
-        text_change_callback : Option<Box<dyn FnMut(&TextChangedNotification)>>
+        text_change_callback : Option<Box<dyn FnMut(&TextChangedInfo)>>
     }
 
     impl {
@@ -201,7 +201,7 @@ shared! { TextField
         ///
         /// This callback will be called once per `write` function call and all functions using it.
         /// That's include all edits being an effect of keyboard or mouse event.
-        pub fn set_text_edit_callback<Callback:FnMut(&TextChangedNotification) + 'static>
+        pub fn set_text_edit_callback<Callback:FnMut(&TextChangedInfo) + 'static>
         (&mut self, callback:Callback) {
             self.text_change_callback = Some(Box::new(callback))
         }
@@ -341,7 +341,7 @@ impl TextFieldData {
 
     fn apply_one_cursor_change
     (&mut self, location_change:&mut TextLocationChange, cursor_id:CursorId, to_insert:&str)
-    -> TextChangedNotification {
+    -> TextChangedInfo {
         let CursorId(id)   = cursor_id;
         let cursor         = &mut self.cursors.cursors[id];
         let replaced       = location_change.apply_to_range(cursor.selection_range());
@@ -350,7 +350,7 @@ impl TextFieldData {
         location_change.add_change(&change);
         *cursor = Cursor::new(change.inserted_text_range().end);
         self.content.apply_change(change.clone());
-        TextChangedNotification {change,replaced_chars}
+        TextChangedInfo {change,replaced_chars}
     }
 }
 

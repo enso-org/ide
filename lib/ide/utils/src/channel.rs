@@ -1,4 +1,4 @@
-//! General-purpose code for dealing with mpsc channels.
+//! General-purpose code for dealing with futures channels, sinks and streams.
 
 use futures::channel::mpsc::UnboundedSender;
 

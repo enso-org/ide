@@ -71,6 +71,7 @@ impl SubAssign for Size {
     }
 }
 
+
 // === Span ===
 
 /// Strongly typed span into container with index and size.
@@ -137,6 +138,7 @@ impl Sub for Index {
         Size {value:self.value - rhs.value}
     }
 }
+
 
 // === TextLocation ===
 
@@ -256,15 +258,15 @@ impl TextChange {
 
 
 
-// ===========================
-// === Change Notification ===
-// ===========================
+// ==========================
+// === Change Information ===
+// ==========================
 
-/// A notification about text change.
+/// An information about text change.
 ///
-/// In essence, it's `TextChange` with some additional useful information.
+/// In essence, it's `TextChange` with some additional useful data.
 #[derive(Clone,Debug,Shrinkwrap)]
-pub struct TextChangedNotification {
+pub struct TextChangedInfo {
     /// A change which has occurred.
     #[shrinkwrap(main_field)]
     pub change : TextChange,
