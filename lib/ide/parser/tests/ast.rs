@@ -27,7 +27,7 @@ pub fn to_assignment_test() {
         ast::opr::to_assignment(line).is_some()
     };
 
-    let expected_assignments = vec!["a = 5","a=5","foo bar = a b c","(x,y) = pos"];
+    let expected_assignments     = vec!["a = 5","a=5","foo bar = a b c","(x,y) = pos"];
     let expected_not_assignments = vec!["= 5","a=","=","foo","a->b","a+b"];
 
     for code in expected_assignments {
