@@ -14,11 +14,29 @@ pub mod predefined {
     pub const ACCESS : &str = ".";
 }
 
+/// Checks if given Ast is an assignment operator identifier.
+pub fn is_assignment_opr(ast:&Ast) -> bool {
+    let opr_opt = known::Opr::try_from(ast);
+    opr_opt.map(|opr| opr.name == predefined::ASSIGNMENT).unwrap_or(false)
+}
+
+/// If given Ast is an assignment operator, returns it as Some known::Infix.
+pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
+    let infix = known::Infix::try_from(ast).ok()?;
+    is_assignment_opr(&infix.opr).then(infix)
+}
+
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
 pub type Operand = Option<Ast>;
 
 /// Infix operator standing between (optional) operands.
 pub type Operator = known::Opr;
+
+
+
+// ========================
+// === GeneralizedInfix ===
+// ========================
 
 /// An abstraction over `Infix` and all `SectionSth` nodes.
 pub struct GeneralizedInfix {
@@ -98,6 +116,12 @@ impl GeneralizedInfix {
         target_subtree_flat
     }
 }
+
+
+
+// =============
+// === Chain ===
+// =============
 
 /// Result of flattening infix operator chain, like `a+b+c` or `Foo.Bar.Baz`.
 pub struct Chain {

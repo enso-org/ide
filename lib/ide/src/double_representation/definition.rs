@@ -1,4 +1,4 @@
-//! TODO TODO
+//! Code for definition discovery in the blocks, finding definition by name and related utilities.
 
 use crate::prelude::*;
 
@@ -9,31 +9,13 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 
-/// Describes the kind of code block (scope).
+/// Describes the kind of code block (scope) to which definition can belong.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ScopeKind {
     /// Module scope is a file's top-level block.
     Root,
-    /// Any other block, e.g. introduced as body of some definition.
+    /// Any other block, e.g. introduced as body of some definition binding.
     NonRoot,
-}
-
-
-
-// ==================
-// === Assignment ===
-// ==================
-
-/// Checks if given Ast is an assignment operator identifier.
-pub fn is_assignment_opr(ast:&Ast) -> bool {
-    let opr_opt = known::Opr::try_from(ast);
-    opr_opt.map(|opr| opr.name == opr::predefined::ASSIGNMENT).unwrap_or(false)
-}
-
-/// If given Ast is an assignment operator, returns it as Some known::Infix.
-pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
-    let infix = known::Infix::try_from(ast).ok()?;
-    is_assignment_opr(&infix.opr).then(infix)
 }
 
 
@@ -42,8 +24,7 @@ pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
 // === Identifier ===
 // ==================
 
-/// Checks if given Ast node can be used to represent identifier (that is e.g.
-/// used to name a defined function).
+/// Checks if given Ast node can be used to represent identifier being part of definition name.
 pub fn is_identifier(ast:&Ast) -> bool {
     match ast.shape() {
         Shape::Var          {..} => true,
@@ -142,7 +123,7 @@ impl DefinitionInfo {
 /// Tries to interpret given `Ast` as a function definition. `Ast` is expected to represent the
 /// whole line of the program.
 pub fn get_definition_info(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
-    let ast  = to_assignment(ast)?;
+    let ast  = opr::to_assignment(ast)?;
 
     // There two cases - function name is either a Var or operator.
     // If this is a Var, we have Var, optionally under a Prefix chain with args.
@@ -237,7 +218,7 @@ mod tests {
     }
 
     fn indented(line:impl Display) -> String {
-        format!("    {}",line)
+        iformat!("    {line}")
     }
 
     #[wasm_bindgen_test]
@@ -280,7 +261,6 @@ mod tests {
         // === Program with definition in `some_func`'s body `Block` ===
         let indented_lines = definition_lines.iter().map(indented).collect_vec();
         let program = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
-        println!("{}", program);
         let root_block  = parser.parse_module(program,default()).unwrap();
         let root_defs   = GeneralizedBlock::from_module(&*root_block).list_definitions();
         let (only_def,) = root_defs.expect_tuple();
