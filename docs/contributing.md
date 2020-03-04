@@ -1,13 +1,17 @@
 # Development and Contributing
 
 
-## Development
+## Development Environment
+The project builds on MacOS, Windows, and Linux. Please note that cross-platform builds work on all
+of these platforms, however, MacOS packages built on Windows and on Linux will not have a proper 
+icon, as generation of MacOS icons is a non-trivial task on these platforms.
+
+<br/>
 
 ### Code Style Guide
-Please note that this codebase does not use autoformatters. Please read the following
-documents to learn more about reasons behind this decision and the recommended
-code style guide. Be sure to carefully read the documents before contributing to
-this repository:
+Please note that you should not use a code auto-formatter in this codebase. Please read the following
+documents to learn more about reasons behind this decision and the recommended code style guide. 
+Be sure to carefully read the documents before contributing to this repository:
 - [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
 - [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
 
@@ -35,19 +39,36 @@ package manager is officially not supported and can cause issues. Follow the
   ```bash
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
   ```
+
+<br/>
+<br/>
 <br/>
 
-### Working with the sources
+## Working with sources
+As this is a multi-part project with many complex dependencies, it was equipped with a build script
+which both validates your working environment as well as takes care of providing the most suitable
+flags suitable for a particular development stage. In order to learn more about the commands and 
+available options, simply run `./run` and read the manual.
+
+
+### Interactive builds
 Run `./run watch` to start a source-file watch utility which will build the project on every change. 
 By default, the script disables heavyweight optimizations to provide interactive development 
-experience. In order to build the project in a release mode, use `./run build` instead. The scripts 
-are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same 
+experience. The scripts are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) 
+and accept the same 
 [command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
 
 <br/>
 
-### Building for production
-In order to enable all optimizations, remove minimize the resulting 
+### Production builds
+In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
+minimize the output binaries), run `./run build` or `./run dist`. The latter creates also packages
+and installers for all supported platforms.
+
+
+
+
+
 After building the project you can use the `scripts/minimize_wasm.py` to optimize 
 the binary and compress it by using `gzip`. After the script is complete, the
 final size is printed to stdout.
