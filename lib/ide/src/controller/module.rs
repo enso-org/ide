@@ -257,7 +257,7 @@ mod test {
             let code         = "2+2";
             let id_map       = IdMap(vec!
             [ (Span::new(Index::new(0), Size::new(1)),uuid1.clone())
-              , (Span::new(Index::new(2), Size::new(1)),uuid2)
+            , (Span::new(Index::new(2), Size::new(1)),uuid2)
             ]);
 
             let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
