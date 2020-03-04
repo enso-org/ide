@@ -59,7 +59,7 @@ jobs:
         with:
           command: run
           args: >
-            --manifest-path=script/rust/Cargo.toml
+            --manifest-path=build/rust/Cargo.toml
             --bin test-all
             -- --headless --chrome
 
@@ -83,10 +83,10 @@ jobs:
           args: wasm-pack --version 0.8.1
 
       - name: Compile to WASM
-        run: ./script/build.py
+        run: ./run build
 
       - name: Check WASM size
-        run: ./script/assert_max_wasm_size.sh
+        run: ./build/assert_max_wasm_size.sh
 
 
   clippy:
@@ -167,23 +167,12 @@ jobs:
           command: install
           args: wasm-pack
 
-      - name: Set up Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
+      - uses: actions/setup-node@v1
+          with:
+            node-version: '10.x'
 
       - name: Build Enso IDE
-        run: python script/build.py
-
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '10.x'
-
-      - run: npm install
-        working-directory: ./app
-
-      - run: npm run electron:dist
-        working-directory: ./app
+        run: ./run dist
 
       - uses: actions/upload-artifact@v1
         name: Upload Artifacts (Ubuntu, AppImage)

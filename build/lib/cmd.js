@@ -1,10 +1,18 @@
 let spawn = require('child_process').spawn
 let exec = require('child_process').exec
 
-let root = __dirname + '/../..'
 
-process.chdir(root)
-
+function section(title) {
+    let border = '-'.repeat(8 + title.length)
+    let middle = '--- ' + title + ' ---'
+    console.log()
+    console.log()
+    console.log()
+    console.log(border)
+    console.log(middle)
+    console.log(border)
+    console.log()
+}
 
 async function with_cwd(dir,fn) {
     let cwd = process.cwd()
@@ -17,7 +25,7 @@ async function with_cwd(dir,fn) {
 function run(cmd,args) {
     let out = ''
     return new Promise((resolve, reject) => {
-        let proc = spawn(cmd,args,{stdio: "inherit"})
+        let proc = spawn(cmd,args,{stdio:'inherit'})
         proc.on('exit', () => resolve(out))
     })
 }
@@ -32,13 +40,24 @@ function run_read(cmd,args) {
     })
 }
 
-async function checkVersion (name,required) {
+async function copy(src,tgt) {
+    return new Promise((resolve, reject) => {
+        ncp(src,tgt,(err) => {
+            if (err) { reject(`${err}`) }
+            resolve()
+        })
+    })
+}
+
+async function check_version (name,required,cfg) {
+    if (!cfg) { cfg = {} }
     let version = await run_read(name,['--version'])
     version     = version.trim()
+    if (cfg.preprocess) { version = cfg.preprocess(version) }
     console.log(`Checking '${name}' version.`)
     if (version != required) {
         throw `[ERROR] The '${name}' version '${version}' does not match the required one '${required}'.`
     }
 }
 
-module.exports = {root,run,checkVersion,with_cwd}
+module.exports = {copy,section,run,check_version,with_cwd}
