@@ -163,7 +163,7 @@ async function lint_js() {}
 // =============
 
 async function watch_rust () {
-    let target = "node ./run build --dev " + child_argv.join(" ")
+    let target = '"' + 'node ./run build -- --dev ' + child_argv.join(" ") + '"'
     let args = ['watch','--watch','lib','-s',`${target}`]
     await cmd.run('cargo',args)
 }
