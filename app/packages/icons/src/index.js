@@ -302,12 +302,11 @@ exports.generateText = fastGenerate(Text);
 
 
 
-const fs   = require('fs')
-const fsp  = fs.promises
-const exec = require('child_process').exec;
-
+const fs    = require('fs')
+const fsp   = fs.promises
+const exec  = require('child_process').exec;
+const spawn = require('child_process').spawn;
 const toIco = require('to-ico')
-
 const sharp = require("sharp")
 
 
@@ -354,7 +353,7 @@ async function genIcons() {
 
     console.log("Generating ICNS.")
     exec(`cp -R dist/png dist/png.iconset`)
-    exec(`iconutil --convert icns --output dist/icon.icns dist/png.iconset`)
+    exec(`iconutilx --convert icns --output dist/icon.icns dist/png.iconset`)
 
     console.log("Generating ICO.")
     let files = []

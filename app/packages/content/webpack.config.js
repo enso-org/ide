@@ -21,8 +21,8 @@ module.exports = {
         new CompressionPlugin(),
         new CopyWebpackPlugin([
             path.resolve(root,'src','index.html'),
-            path.resolve(root,'..','..','generated','src-rust-gen','gui.wasm'),
-            path.resolve(root,'..','..','generated','src-rust-gen','gui.wasm.gz'),
+            path.resolve(root,'..','..','generated','wasm','gui.wasm'),
+            path.resolve(root,'..','..','generated','wasm','gui.wasm.gz'),
         ]),
     ],
     devServer: {
@@ -33,7 +33,7 @@ module.exports = {
     },
     resolve: {
         alias: {
-            wasm_rust_glue$: path.resolve(root,'..','..','generated','src-rust-gen','gui.js')
+            wasm_rust_glue$: path.resolve(root,'..','..','generated','wasm','gui.js')
         }
     },
     performance: {

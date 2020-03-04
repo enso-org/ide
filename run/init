@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+let cmd = require('./lib/cmd')
+
+
+
+main()
