@@ -4,20 +4,9 @@
 ## Development Environment
 The project builds on MacOS, Windows, and Linux. Please note that cross-platform builds work on all
 of these platforms, however, MacOS packages built on Windows and on Linux will not have a proper 
-icon, as generation of MacOS icons is a non-trivial task on these platforms.
+icon, as generation of MacOS icons is a non-trivial task on these platforms. In order to develop the
+source code you will need the following setup:
 
-<br/>
-
-### Code Style Guide
-Please note that you should not use a code auto-formatter in this codebase. Please read the following
-documents to learn more about reasons behind this decision and the recommended code style guide. 
-Be sure to carefully read the documents before contributing to this repository:
-- [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
-- [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
-
-<br/>
-
-### Setup
 - **The Rust Toolchain (nightly-2019-11-04)**  
   This project uses several features available only in the nightly Rust toolchain.
   Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
@@ -41,6 +30,16 @@ Be sure to carefully read the documents before contributing to this repository:
 <br/>
 
 ## Working with sources
+
+### Code Style Guide
+Please note that you should not use a code auto-formatter in this codebase. Please read the following
+documents to learn more about reasons behind this decision and the recommended code style guide. 
+Be sure to carefully read the documents before contributing to this repository:
+- [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
+- [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
+
+
+### Development
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
 which both validates your working environment as well as takes care of providing most suitable 
 compilation flags for a particular development stage. In order to learn more about the commands and 
