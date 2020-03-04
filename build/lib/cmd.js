@@ -34,7 +34,7 @@ function run(cmd,args) {
 function run_read(cmd,args) {
     let out = ''
     return new Promise((resolve, reject) => {
-        let proc = spawn(cmd,args)
+        let proc = spawn(cmd,args,{shell:true})
         proc.stderr.pipe(process.stderr)
         proc.stdout.on('data', (data) => { out += data })
         proc.on('exit', () => resolve(out))
