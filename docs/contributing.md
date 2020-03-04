@@ -1,5 +1,8 @@
 # Contributing Guide
 
+<br/>
+<br/>
+<br/>
 
 ## Development Environment
 The project builds on MacOS, Windows, and Linux. Cross-platform targets work well on all of these 
