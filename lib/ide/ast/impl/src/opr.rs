@@ -7,8 +7,7 @@ use crate::assoc::Assoc;
 use crate::known;
 use crate::Shape;
 
-
-
+/// Identifiers of operators with special meaning for IDE.
 pub mod predefined {
     /// Used to create bindings, e.g. `add a b = a + b` or `foo = 5`.
     pub const ASSIGNMENT : &str = "=";
@@ -104,6 +103,9 @@ impl GeneralizedInfix {
         }
     }
 
+    /// Converts chain of infix applications using the same operator into `Chain`.
+    /// Sample inputs are `x,y,x` or `a+b+` or `+5+5+5`. Note that `Sides*` nodes
+    /// are also supported, along the `Infix` nodes.
     pub fn flatten(&self) -> Chain {
         let target = self.target_operand();
         let rest   = ChainElement {
@@ -155,6 +157,7 @@ impl Chain {
     }
 }
 
+/// Element of the infix application chain, i.e. operator and its operand.
 #[derive(Clone,Debug)]
 pub struct ChainElement {
     pub operator : Operator,

@@ -63,6 +63,9 @@ pub fn generalized_infix_test() {
 
     let sides = make_gen_infix("+").unwrap();
     assert_eq!(sides.name(),"+");
+
+    let var_as_infix = make_gen_infix("a");
+    assert!(var_as_infix.is_none());
 }
 
 #[wasm_bindgen_test]
