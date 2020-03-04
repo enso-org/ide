@@ -1,4 +1,4 @@
-# Development and Contributing
+# Contributing Guide
 
 
 ## Development Environment
