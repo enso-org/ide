@@ -67,13 +67,18 @@ below:
 
 
 ## Testing, Linting, and Validation
+After changing the code it's always a good idea to lint and test the code. We have prepared several 
+scripts which maximally automate the process:
 
-
-
-After building the project you can use the `scripts/minimize_wasm.py` to optimize 
-the binary and compress it by using `gzip`. After the script is complete, the
-final size is printed to stdout.
-
+- **Size Validation**
+  Use `run check-size` to check if the size of the final binary did not grew too much in comparison
+  to the previous release. Watching the resulting binary size is one of the most important 
+  responsibility of each contributor in order to keep the project small and suitable for web-based
+  usage.
+  
+- **Testing**
+  Use `run test` run both unit and web-based test.
+  
 <br/>
 
 ### Testing

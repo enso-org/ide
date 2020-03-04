@@ -76,6 +76,6 @@
     "clean": "rm -Rf dist",
     "start": "electron dist/unpacked -- ",
     "build": "webpack ",
-    "dist": "electron-builder --mac --win --linux"
+    "dist": "electron-builder"
   }
 }
