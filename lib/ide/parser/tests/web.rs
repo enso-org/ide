@@ -22,7 +22,7 @@ fn web_test() {
     let mut parser = Parser::new_or_panic();
 
     let mut parse = |input| {
-        let span = Span::new_index_size(0,5);
+        let span = Span::from((0,5));
         let ids  = IdMap(vec![(span,uuid)]);
         let ast  = parser.parse(String::from(input), ids).unwrap().wrapped;
 

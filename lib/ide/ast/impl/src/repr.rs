@@ -349,7 +349,7 @@ spaceless_ast!(Foreign);
 // =============
 
 /// Tests for spacelesss AST. Other AST is covered by parsing tests that verify
-/// that correct sizes and text representation are generated. Only spaceless AST
+/// that correct lengths and text representation are generated. Only spaceless AST
 /// is not returned by the parser and can't be covered in this way.
 #[cfg(test)]
 mod tests {
@@ -369,8 +369,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn comment_panics_on_size() {
-        make_comment().size();
+    fn comment_panics_on_length() {
+        make_comment().len();
     }
 
 
@@ -388,8 +388,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn import_panics_on_size() {
-        make_import().size();
+    fn import_panics_on_length() {
+        make_import().len();
     }
 
 
@@ -410,8 +410,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn mixfix_panics_on_size() {
-        make_mixfix().size();
+    fn mixfix_panics_on_length() {
+        make_mixfix().len();
     }
 
 
@@ -429,8 +429,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn group_panics_on_size() {
-        make_group().size();
+    fn group_panics_on_length() {
+        make_group().len();
     }
 
 
@@ -452,8 +452,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn def_panics_on_size() {
-        make_def().size();
+    fn def_panics_on_length() {
+        make_def().len();
     }
 
     // === Foreign ===
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn foreign_panics_on_size() {
-        make_foreign().size();
+    fn foreign_panics_on_length() {
+        make_foreign().len();
     }
 }

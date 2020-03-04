@@ -142,7 +142,7 @@ impl<T> Layer<T> for Layered<T> {
 #[derive(Eq, PartialEq, Debug, Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct Ast {
-    pub wrapped: Rc<WithID<WithSize<Shape<Ast>>>>
+    pub wrapped: Rc<WithID<WithLength<Shape<Ast>>>>
 }
 
 impl Clone for Ast {
@@ -165,20 +165,20 @@ impl Ast {
         self
     }
 
-    /// Wraps given shape with an optional ID into Ast. Size will ba
-    /// automatically calculated based on Shape.
+    /// Wraps given shape with an optional ID into Ast.
+    /// Length will ba automatically calculated based on Shape.
     pub fn new<S:Into<Shape<Ast>>>(shape:S, id:Option<ID>) -> Ast {
         let shape: Shape<Ast> = shape.into();
-        let size = shape.size();
-        Ast::new_with_size(shape, id, size)
+        let length = shape.len();
+        Ast::new_with_length(shape,id,length)
     }
 
-    /// As `new` but sets given declared size for the shape.
-    pub fn new_with_size<S:Into<Shape<Ast>>>
-    (shape:S, id:Option<ID>, size:usize) -> Ast {
-        let shape     = shape.into();
-        let with_size = WithSize { wrapped:shape    , size };
-        let with_id   = WithID   { wrapped:with_size, id   };
+    /// As `new` but sets given declared length for the shape.
+    pub fn new_with_length<S:Into<Shape<Ast>>>
+    (shape:S, id:Option<ID>, len:usize) -> Ast {
+        let shape       = shape.into();
+        let with_length = WithLength { wrapped:shape      , len };
+        let with_id     = WithID     { wrapped:with_length, id  };
         Ast { wrapped: Rc::new(with_id) }
     }
 
@@ -205,8 +205,8 @@ pub mod ast_schema {
     pub const STRUCT_NAME: &str      = "Ast";
     pub const SHAPE:       &str      = "shape";
     pub const ID:          &str      = "id";
-    pub const SIZE:        &str      = "span"; // scala parser is still using `span`
-    pub const FIELDS:      [&str; 3] = [SHAPE, ID, SIZE];
+    pub const LENGTH:      &str      = "span"; // scala parser is still using `span`
+    pub const FIELDS:      [&str; 3] = [SHAPE, ID, LENGTH];
     pub const COUNT:       usize     = FIELDS.len();
 }
 
@@ -219,7 +219,7 @@ impl Serialize for Ast {
         if self.id.is_some() {
             state.serialize_field(ID, &self.id)?;
         }
-        state.serialize_field(SIZE, &self.size)?;
+        state.serialize_field(LENGTH, &self.len)?;
         state.end()
     }
 }
@@ -233,7 +233,7 @@ impl<'de> Visitor<'de> for AstDeserializationVisitor {
     fn expecting
     (&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ast_schema::*;
-        write!(formatter, "an object with `{}` and `{}` fields", SHAPE, SIZE)
+        write!(formatter, "an object with `{}` and `{}` fields", SHAPE, LENGTH)
     }
 
     fn visit_map<A>
@@ -243,21 +243,21 @@ impl<'de> Visitor<'de> for AstDeserializationVisitor {
 
         let mut shape: Option<Shape<Ast>> = None;
         let mut id:    Option<Option<ID>> = None;
-        let mut size:  Option<usize>      = None;
+        let mut len:   Option<usize>      = None;
 
         while let Some(key) = map.next_key()? {
             match key {
-                SHAPE => shape = Some(map.next_value()?),
-                ID    => id    = Some(map.next_value()?),
-                SIZE  => size  = Some(map.next_value()?),
-                _     => {},
+                SHAPE  => shape = Some(map.next_value()?),
+                ID     => id    = Some(map.next_value()?),
+                LENGTH => len   = Some(map.next_value()?),
+                _      => {},
             }
         }
 
         let shape = shape.ok_or_else(|| serde::de::Error::missing_field(SHAPE))?;
         let id    = id.unwrap_or(None); // allow missing `id` field
-        let size  = size.ok_or_else(|| serde::de::Error::missing_field(SIZE))?;
-        Ok(Ast::new_with_size(shape,id,size))
+        let len   = len.ok_or_else(|| serde::de::Error::missing_field(LENGTH))?;
+        Ok(Ast::new_with_length(shape,id,len))
     }
 }
 
@@ -692,7 +692,7 @@ impl TokenConsumer for IdMapBuilder {
                 let begin = self.offset;
                 val.shape().feed_to(self);
                 if let Some(id) = val.id {
-                    let span = Span::new_index_size(begin, self.offset);
+                    let span = Span::from((begin, self.offset));
                     self.id_map.insert(span, id);
                 }
             }
@@ -709,36 +709,36 @@ impl<T:HasTokens> HasIdMap for T {
 }
 
 
-// === HasSize ===
+// === HasLength ===
 
-/// Things that can be asked about their size.
-pub trait HasSize {
+/// Things that can be asked about their length.
+pub trait HasLength {
     /// Length of the textual representation of This type in Unicode codepoints.
     ///
-    /// Usually implemented together with `HasRepr`.For any `T:HasSize+HasRepr`
-    /// for `t:T` the following must hold: `t.size() == t.repr().len()`.
-    fn size(&self) -> usize;
+    /// Usually implemented together with `HasRepr`.For any `T:HasLength+HasRepr`
+    /// for `t:T` the following must hold: `t.len() == t.repr().len()`.
+    fn len(&self) -> usize;
 }
 
 #[derive(Debug,Clone,Copy,Default)]
-struct SizeBuilder { offset:usize }
+struct LengthBuilder { length:usize }
 
-impl TokenConsumer for SizeBuilder {
+impl TokenConsumer for LengthBuilder {
     fn feed(&mut self, token:Token) {
         match token {
-            Token::Off(val) => self.offset += val,
-            Token::Chr( _ ) => self.offset += 1,
-            Token::Str(val) => self.offset += val.len(),
+            Token::Off(val) => self.length += val,
+            Token::Chr( _ ) => self.length += 1,
+            Token::Str(val) => self.length += val.len(),
             Token::Ast(val) => val.shape().feed_to(self),
         }
     }
 }
 
-impl<T:HasTokens> HasSize for T {
-    fn size(&self) -> usize {
-        let mut consumer = SizeBuilder::default();
+impl<T:HasTokens> HasLength for T {
+    fn len(&self) -> usize {
+        let mut consumer = LengthBuilder::default();
         self.feed_to(&mut consumer);
-        consumer.offset
+        consumer.length
     }
 }
 
@@ -747,7 +747,7 @@ impl<T:HasTokens> HasSize for T {
 
 /// Things that can be asked about their textual representation.
 ///
-/// See also `HasSize`.
+/// See also `HasLength`.
 pub trait HasRepr {
     /// Obtain the text representation for the This type.
     fn repr(&self) -> String;
@@ -807,42 +807,42 @@ Layer<T> for WithID<S> {
     }
 }
 
-impl<T> HasSize for WithID<T>
-where T:HasSize {
-    fn size(&self) -> usize {
-        self.deref().size()
+impl<T> HasLength for WithID<T>
+where T:HasLength {
+    fn len(&self) -> usize {
+        self.deref().len()
     }
 }
 
 
-// === WithSize ===
+// === WithLength ===
 
-/// Stores a value of type `T` and information about its size.
+/// Stores a value of type `T` and information about its length.
 ///
-/// Even if `T` is `Spanned`, keeping `size` variable is desired for performance
+/// Even if `T` is `Spanned`, keeping `length` variable is desired for performance
 /// purposes.
 #[derive(Eq, PartialEq, Debug, Shrinkwrap, Serialize, Deserialize)]
 #[shrinkwrap(mutable)]
-pub struct WithSize<T> {
+pub struct WithLength<T> {
     #[shrinkwrap(main_field)]
     #[serde(flatten)]
     pub wrapped: T,
-    pub size: usize
+    pub len: usize
 }
 
-impl<T> HasSize for WithSize<T> {
-    fn size(&self) -> usize { self.size }
+impl<T> HasLength for WithLength<T> {
+    fn len(&self) -> usize { self.len }
 }
 
-impl<T, S> Layer<T> for WithSize<S>
-where T: HasSize + Into<S> {
+impl<T, S> Layer<T> for WithLength<S>
+where T: HasLength + Into<S> {
     fn layered(t: T) -> Self {
-        let size = t.size();
-        WithSize { wrapped: t.into(), size: size }
+        let length = t.len();
+        WithLength { wrapped: t.into(), len: length }
     }
 }
 
-impl<T> HasID for WithSize<T>
+impl<T> HasID for WithLength<T>
     where T: HasID {
     fn id(&self) -> Option<ID> {
         self.deref().id()
@@ -1036,9 +1036,9 @@ mod tests {
     }
 
     #[test]
-    fn ast_size() {
+    fn ast_length() {
         let ast = Ast::prefix(Ast::var("XX"), Ast::var("YY"));
-        assert_eq!(ast.size(), 5)
+        assert_eq!(ast.len(), 5)
     }
 
     #[test]
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn ast_id_map() {
-        let span = |ix,size| Span::new_index_size(ix, size);
+        let span = |ix,length| Span::from((ix,length));
         let uid  = default();
         let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
@@ -1060,12 +1060,12 @@ mod tests {
 
     #[test]
     fn ast_wrapping() {
-        // We can convert `Var` into AST without worrying about size nor id.
+        // We can convert `Var` into AST without worrying about length nor id.
         let ident = "foo".to_string();
         let v     = Var{ name: ident.clone() };
         let ast   = Ast::from(v);
         assert_eq!(ast.wrapped.id, None);
-        assert_eq!(ast.wrapped.wrapped.size, ident.size());
+        assert_eq!(ast.wrapped.wrapped.len, ident.len());
     }
 
     #[test]
@@ -1097,8 +1097,8 @@ mod tests {
         let expected_uuid = Uuid::parse_str(uuid_str).ok();
         assert_eq!(ast.id, expected_uuid);
 
-        let expected_size = 3;
-        assert_eq!(ast.size, expected_size);
+        let expected_length = 3;
+        assert_eq!(ast.len, expected_length);
 
         let expected_var   = Var { name: var_name.into() };
         let expected_shape = Shape::from(expected_var);
