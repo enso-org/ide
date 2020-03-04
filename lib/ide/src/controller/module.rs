@@ -84,7 +84,7 @@ shared! { Handle
         file_manager: fmc::Handle,
         /// The Parser handle.
         parser: Parser,
-        /// Publisher of "code changed" notifications
+        /// Publisher of "text changed" notifications
         text_notifications  : notification::TextChangedPublisher,
         /// Publisher of "graph changed" notifications
         graph_notifications : notification::GraphChangedPublisher,
