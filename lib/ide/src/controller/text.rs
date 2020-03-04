@@ -78,7 +78,7 @@ shared! { Handle
 impl Handle {
     /// Create controller managing plain text file (which is not a module).
     pub fn new_for_plain_text(path:fmc::Path, file_manager:fmc::Handle) -> Self {
-         Self::new(FileHandle::PlainText {path,file_manager})
+        Self::new(FileHandle::PlainText {path,file_manager})
     }
     /// Create controller managing Luna module file.
     pub fn new_for_module(controller:controller::module::Handle) -> Self {
