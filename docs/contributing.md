@@ -37,15 +37,17 @@ package manager is officially not supported and can cause issues. Follow the
   ```
 <br/>
 
-### Building Rust Sources
-Run `script/watch.py` to start a source-file watch utility which will build the
-project on every change. By default, the `watch` script disables some optimizations to provide interactive development experience. In order to build the project in a release mode, use `script/build.py` instead. The scripts 
-are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same [command
-line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
+### Working with the sources
+Run `./run watch` to start a source-file watch utility which will build the project on every change. 
+By default, the script disables heavyweight optimizations to provide interactive development 
+experience. In order to build the project in a release mode, use `./run build` instead. The scripts 
+are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same 
+[command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
 
 <br/>
 
-### Minimizing the WASM binary size (optional)
+### Building for production
+In order to enable all optimizations, remove minimize the resulting 
 After building the project you can use the `scripts/minimize_wasm.py` to optimize 
 the binary and compress it by using `gzip`. After the script is complete, the
 final size is printed to stdout.
