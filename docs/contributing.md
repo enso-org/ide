@@ -17,10 +17,10 @@ need the following setup:
   rustup component add clippy                 # Install the linter.
   ```
 
-- **Node (12.16.1) and Node Package Manager (6.13.4)**  
+- **Node and Node Package Manager LTS**  
   In order to build the web and desktop applications you will need 
-  [the latest LTS version of node and npm](https://nodejs.org/en/download/). Even minor release 
-  changes are known to cause serious issues, thus **we provide support for the LTS version only.
+  [the latest LTS version of node and npm](https://nodejs.org/en/download). Even minor release 
+  changes are known to cause serious issues, thus **we provide support for the latest LTS version only.
   Please do not report build issues if you use other versions.** In case you run run MacOS or Linux 
   the easiest way to setup the proper version is by installing the 
   [Node Version Manager](https://github.com/nvm-sh/nvm) and running `nvm use` in the root of 
