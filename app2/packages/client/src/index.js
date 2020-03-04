@@ -57,6 +57,7 @@ Options:
     --debug-scene [SCENE]  Run the debug scene instead of the main app.
     --dev                  Run the application in development mode.
     --devtron              Install the Devtron Developer Tools extension.
+    --no-server            Do not run server, connect to existing one instead.
     --no-window            Do not show window. Run in a batch mode.
     --port                 Port to use [${Server.DEFAULT_PORT}].
     --help                 Print the help message and exit.
@@ -171,10 +172,12 @@ let server     = null
 let mainWindow = null
 
 async function main() {
-    let serverCfg      = Object.assign({},args)
-    serverCfg.dir      = Electron.app.getAppPath()
-    serverCfg.fallback = '/assets/index.html'
-    server             = await Server.create(serverCfg)
+    if(args.server !== false) {
+        let serverCfg      = Object.assign({},args)
+        serverCfg.dir      = Electron.app.getAppPath()
+        serverCfg.fallback = '/assets/index.html'
+        server             = await Server.create(serverCfg)
+    }
     mainWindow         = createWindow()
     mainWindow.on("close", (evt) => {
        if (hideInsteadOfQuit) {
@@ -183,6 +186,11 @@ async function main() {
        }
    })
 }
+
+let port = Server.DEFAULT_PORT
+if      (server)    { port = server.port }
+else if (args.port) { port = args.port }
+
 
 function urlParamsFromObject(obj) {
     let params = []
@@ -226,7 +234,9 @@ function createWindow() {
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
     }
-    window.loadURL(`http://localhost:${server.port}/${targetScene}?${params}`)
+    let address = `http://localhost:${port}/${targetScene}?${params}`
+    console.log(`Loading the window address ${address}`)
+    window.loadURL(address)
 
     return window
 }

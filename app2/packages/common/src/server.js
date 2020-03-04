@@ -43,9 +43,8 @@ class Server {
         },
         function (errs) {
             if (errs) { return console.log(errs.http) }
-            console.log(`Server started.`)
+            console.log(`Server started on port ${this.port}.`)
             console.log(`Serving files from '${process.cwd()}/${this.dir}'.`)
-            console.log(`Listening on port ${this.port}.`)
         }.bind(this))
     }
 
