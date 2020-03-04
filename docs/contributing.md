@@ -46,37 +46,33 @@ package manager is officially not supported and can cause issues. Follow the
 
 ## Working with sources
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
-which both validates your working environment as well as takes care of providing the most suitable
-flags suitable for a particular development stage. In order to learn more about the commands and 
-available options, simply run `./run` and read the manual.
+which both validates your working environment as well as takes care of providing most suitable 
+compilation flags for a particular development stage. In order to learn more about the commands and 
+available options, simply run `./run` and read the manual. The most common options are presented 
+below:
+
+- **Interactive builds**  
+  Run `./run watch` to start a local web-server and a source-file watch utility which will build the 
+  project on every change. Open `http://localhost:8080` to run the application, or 
+  `http://localhost:8080/debug` to see example demo scenes. Please remember to disable the cache in 
+  your browser during development! By default, the script disables heavyweight optimizations to 
+  provide interactive development experience. The scripts are thin wrappers for 
+  [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same 
+  [command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
+
+- **Production builds**  
+  In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
+  minimize the output binaries), run `./run build` or `./run dist`. The latter creates also packages
+  and installers for all supported platforms.
 
 
-### Interactive builds
-Run `./run watch` to start a source-file watch utility which will build the project on every change. 
-By default, the script disables heavyweight optimizations to provide interactive development 
-experience. The scripts are thin wrappers for [wasm-pack](https://github.com/rustwasm/wasm-pack) 
-and accept the same 
-[command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
-
-<br/>
-
-### Production builds
-In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
-minimize the output binaries), run `./run build` or `./run dist`. The latter creates also packages
-and installers for all supported platforms.
-
-
+## Testing, Linting, and Validation
 
 
 
 After building the project you can use the `scripts/minimize_wasm.py` to optimize 
 the binary and compress it by using `gzip`. After the script is complete, the
 final size is printed to stdout.
-
-<br/>
-
-### Building the Web Application
-Enter the `app` directory, run `nvm use` to set up the correct node environment, `npm install` to install dependencies, and `npm run web:dev` to start a file-watch server with a hot-reloading utility. Open `http://localhost:8080` to run the application, or `http://localhost:8080/debug` to see example demo scenes. Please remember to disable the cache in your browser during development!
 
 <br/>
 
