@@ -26,6 +26,8 @@ need the following setup:
   this codebase.
 
 <br/>
+<br/>
+<br/>
 
 ## Working with sources
 Please note that you should not use a code auto-formatter in this codebase. Please read the following
@@ -33,6 +35,8 @@ documents to learn more about reasons behind this decision and the recommended c
 Be sure to carefully read the [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
 and the [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) before
 contributing to the codebase.
+
+<br/>
 
 ### Development
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
@@ -56,6 +60,8 @@ pass the `--dev` flag to `cargo` (Rust build tool). The most common options are 
   In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
   minimize the output binaries, etc.), run `./run build`. To create platform-specific packages and
   installers use `./run dist` instead. The final packages will be located at `app/dist/native`.
+
+<br/>
 
 ### Testing, Linting, and Validation
 After changing the code it's always a good idea to lint and test the code. We have prepared several 
