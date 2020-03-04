@@ -115,7 +115,7 @@ shared! { Handle
             let graph_change = notification::GraphChanged::Entirely;
             let code_notify  = self.text_notifications.publish(text_change);
             let graph_notify = self.graph_notifications.publish(graph_change);
-            spawn(future::join(code_notify,graph_notify).map(|((),())| ()));
+            spawn(async move { futures::join!(code_notify,graph_notify); });
 
             Ok(())
         }
