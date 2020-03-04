@@ -718,6 +718,9 @@ pub trait HasLength {
     /// Usually implemented together with `HasRepr`.For any `T:HasLength+HasRepr`
     /// for `t:T` the following must hold: `t.len() == t.repr().len()`.
     fn len(&self) -> usize;
+
+    /// More efficient implementation of `t.len() == 0`
+    fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 #[derive(Debug,Clone,Copy,Default)]
