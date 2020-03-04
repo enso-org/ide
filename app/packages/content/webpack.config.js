@@ -22,7 +22,6 @@ module.exports = {
         new CopyWebpackPlugin([
             path.resolve(root,'src','index.html'),
             path.resolve(root,'..','..','generated','wasm','gui.wasm'),
-            path.resolve(root,'..','..','generated','wasm','gui.wasm.gz'),
         ]),
     ],
     devServer: {

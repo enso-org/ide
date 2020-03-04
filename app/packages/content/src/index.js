@@ -96,6 +96,8 @@ function show_debug_screen(wasm,msg) {
     let newContent = document.createTextNode(msg + "Choose an example:")
     let currentDiv = document.getElementById("app")
     let ul         = document.createElement('ul')
+    debug_screen_div.style.position = 'absolute'
+    debug_screen_div.style.zIndex   = 1
     newDiv.appendChild(newContent)
     debug_screen_div.appendChild(newDiv)
     newDiv.appendChild(ul)

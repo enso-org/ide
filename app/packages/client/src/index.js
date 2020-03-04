@@ -167,7 +167,6 @@ Electron.app.on('web-contents-created', (event,contents) => {
 
 let hideInsteadOfQuit = false
 
-
 let server     = null
 let mainWindow = null
 
