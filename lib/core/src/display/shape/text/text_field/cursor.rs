@@ -7,6 +7,7 @@ use crate::display::shape::text::text_field::content::TextFieldContent;
 
 use data::text::TextLocation;
 use nalgebra::Vector2;
+use nalgebra::min;
 use std::cmp::Ordering;
 use std::ops::Range;
 
@@ -27,14 +28,31 @@ pub struct Cursor {
 impl Cursor {
     /// Create a new cursor at given position and without any selection.
     pub fn new(position:TextLocation) -> Self {
-        Cursor {position,
-            selected_to : position
-        }
+        let selected_to = position;
+        Cursor {position,selected_to}
+    }
+
+    /// Recalculate cursor position adjusting itself to new content.
+    pub fn recalculate_position(&mut self, content:&TextFieldContent) {
+        let lines               = content.lines();
+        let max_line_index      = lines.len() - 1;
+        self.position.line      = min(self.position.line,max_line_index);
+        self.selected_to.line   = min(self.selected_to.line,max_line_index);
+        let max_column_index    = lines[self.position.line].len();
+        self.position.column    = min(self.position.column,max_column_index);
+        let max_column_index    = lines[self.selected_to.line].len();
+        self.selected_to.column = min(self.selected_to.column,max_column_index);
     }
 
     /// Returns true if some selection is bound to this cursor.
     pub fn has_selection(&self) -> bool {
         self.position != self.selected_to
+    }
+
+    /// Select text range.
+    pub fn select_range(&mut self, range:&Range<TextLocation>) {
+        self.position    = range.end;
+        self.selected_to = range.start;
     }
 
     /// Get range of selected text by this cursor.
@@ -270,9 +288,23 @@ impl Cursors {
         self.cursors = vec![Cursor::new(position)];
     }
 
+    /// Recalculate cursors positions adjusting to new content.
+    pub fn recalculate_positions(&mut self, content:&TextFieldContent) {
+        for cursor in &mut self.cursors {
+            cursor.recalculate_position(content);
+        }
+        self.merge_overlapping_cursors();
+    }
+
     /// Remove all cursors except the active one.
     pub fn remove_additional_cursors(&mut self) {
         self.cursors.drain(0..self.cursors.len()-1);
+    }
+
+    /// Return the active (last added) cursor as mutable reference. Even on multiline edit some
+    /// operations are applied to one, active cursor only (e.g. extending selection by mouse).
+    pub fn active_cursor_mut(&mut self) -> &mut Cursor {
+        self.cursors.last_mut().unwrap()
     }
 
     /// Return the active (last added) cursor. Even on multiline edit some operations are applied
@@ -384,8 +416,11 @@ mod test {
     use super::*;
     use Step::*;
 
+    use basegl_core_msdf_sys as msdf_sys;
+
     use crate::display::shape::text::glyph::font::FontRegistry;
     use crate::display::shape::text::text_field::content::TextFieldContent;
+    use crate::display::shape::text::text_field::content::test::mock_properties;
     use crate::display::shape::text::text_field::TextFieldProperties;
 
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -503,5 +538,28 @@ mod test {
         cursors.merge_overlapping_cursors();
 
         assert_eq!(expected_cursors, cursors.cursors);
+    }
+
+    #[wasm_bindgen_test(async)]
+    async fn recalculate_positions() {
+        msdf_sys::initialized().await;
+        let content     = "first sentence\r\nthis is a second sentence\r\nlast sentence\n";
+        let new_content = "first sentence\r\nsecond one";
+        let mut content = TextFieldContent::new(content,&mock_properties());
+        let mut cursors = Cursors::default();
+        cursors.cursors[0].position    = TextLocation{line:0,column:6};
+        cursors.cursors[0].selected_to = TextLocation{line:0,column:14};
+        cursors.add_cursor(TextLocation{line:1,column:17});
+        cursors.cursors[1].selected_to = TextLocation{line:1,column:25};
+        cursors.add_cursor(TextLocation{line:2,column:1});
+        cursors.cursors[2].selected_to = TextLocation{line:2,column:2};
+        content.set_content(new_content);
+        cursors.recalculate_positions(&content);
+        assert_eq!(cursors.cursors[0].position   , TextLocation{line:0,column:6});
+        assert_eq!(cursors.cursors[0].selected_to, TextLocation{line:0,column:14});
+        assert_eq!(cursors.cursors[1].position   , TextLocation{line:1,column:10});
+        assert_eq!(cursors.cursors[1].selected_to, TextLocation{line:1,column:10});
+        assert_eq!(cursors.cursors[2].position   , TextLocation{line:1,column:1});
+        assert_eq!(cursors.cursors[2].selected_to, TextLocation{line:1,column:2});
     }
 }
