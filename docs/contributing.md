@@ -2,10 +2,10 @@
 
 
 ## Development Environment
-The project builds on MacOS, Windows, and Linux. Please note that cross-platform builds work on all
-of these platforms, however, MacOS packages built on Windows and on Linux will not have a proper 
-icon, as generation of MacOS icons is a non-trivial task on these platforms. In order to develop the
-source code you will need the following setup:
+The project builds on MacOS, Windows, and Linux. Cross-platform targets work well on all of these 
+platforms, however, MacOS package will miss the right application icon if built on Linux or Window
+due to non-trival icon generation on these platforms. In order to develop the source code you will 
+need the following setup:
 
 - **The Rust Toolchain (nightly-2019-11-04)**  
   This project uses several features available only in the nightly Rust toolchain.
@@ -19,11 +19,12 @@ source code you will need the following setup:
 
 - **Node (12.16.1) and Node Package Manager (6.13.4)**  
   In order to build the web and desktop applications you will need 
-  [node and npm](https://nodejs.org/en/download/). Even minor release changes are known to cause 
-  serious issues, thus **we only support the Latest LTS Version of node and npm. Please do not 
-  report build issues if you use other versions.** If you run MacOS or Linux the easiest way to 
-  setup the proper version is by installing [Node Version Manager](https://github.com/nvm-sh/nvm) 
-  and running `nvm use` in the root of this codebase.
+  [the latest LTS version of node and npm](https://nodejs.org/en/download/). Even minor release 
+  changes are known to cause serious issues, thus **we provide support for the LTS version only.
+  Please do not report build issues if you use other versions.** In case you run run MacOS or Linux 
+  the easiest way to setup the proper version is by installing the 
+  [Node Version Manager](https://github.com/nvm-sh/nvm) and running `nvm use` in the root of 
+  this codebase.
 
 <br/>
 <br/>
