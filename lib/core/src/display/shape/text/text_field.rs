@@ -5,25 +5,29 @@ pub mod cursor;
 pub mod frp;
 pub mod location;
 pub mod render;
+pub mod word_occurrence;
 
 use crate::prelude::*;
 
 use crate::display::object::DisplayObjectData;
 use crate::display::shape::text::text_field::content::TextFieldContent;
-use crate::display::shape::text::text_field::content::TextChange;
 use crate::display::shape::text::text_field::cursor::Cursors;
 use crate::display::shape::text::text_field::cursor::Cursor;
+use crate::display::shape::text::text_field::cursor::CursorId;
 use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
-use crate::display::shape::text::text_field::location::TextLocation;
 use crate::display::shape::text::text_field::location::TextLocationChange;
 use crate::display::shape::text::text_field::frp::TextFieldFrp;
+use crate::display::shape::text::text_field::word_occurrence::WordOccurrences;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::world::World;
 
+use data::text::TextChange;
+use data::text::TextChangedNotification;
+use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
@@ -70,7 +74,8 @@ shared! { TextField
     ///
     /// This component is under heavy construction, so the api may easily changed in few future
     /// commits.
-    #[derive(Debug)]
+    #[derive(Derivative)]
+    #[derivative(Debug)]
     pub struct TextFieldData {
         properties       : TextFieldProperties,
         content          : TextFieldContent,
@@ -78,6 +83,9 @@ shared! { TextField
         rendered         : TextFieldSprites,
         display_object   : DisplayObjectData,
         frp              : Option<TextFieldFrp>,
+        word_occurrences : Option<WordOccurrences>,
+        #[derivative(Debug="ignore")]
+        text_change_callback : Option<Box<dyn FnMut(&TextChangedNotification)>>
     }
 
     impl {
@@ -115,8 +123,14 @@ shared! { TextField
             self.rendered.display_object.position().xy()
         }
 
+        /// Clear word occurrences.
+        pub fn clear_word_occurrences(&mut self) {
+            self.word_occurrences = None;
+        }
+
         /// Removes all cursors except one which is set and given point.
         pub fn set_cursor(&mut self, point:Vector2<f32>) {
+            self.clear_word_occurrences();
             self.cursors.remove_additional_cursors();
             self.jump_cursor(point,false);
         }
@@ -145,10 +159,21 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+        /// Discards all current content and replaces it with new one.
+        /// Whenever possible, tries to maintain cursor positions.
+        pub fn set_content(&mut self, text:&str) {
+            // FIXME [ao] It should check if cursors positions are valid.
+            //       See: https://github.com/luna/ide/issues/187
+            self.clear_word_occurrences();
+            self.content.set_content(text);
+            self.assignment_update().update_after_text_edit();
+            self.rendered.update_glyphs(&mut self.content);
+        }
+
         /// Make change in text content.
         ///
-        /// As an opposite to `edit` function, here we don't care about cursors, just do the change
-        /// described in `TextChange` structure.
+        /// As an opposite to `edit` function, here we don't care about cursors, nor call any
+        /// "text changed" callback, just do the change described in `TextChange` structure.
         pub fn apply_change(&mut self, change:TextChange) {
             self.content.apply_change(change);
             self.assignment_update().update_after_text_edit();
@@ -157,7 +182,7 @@ shared! { TextField
 
         /// Obtains the whole text content as a single String.
         pub fn get_content(&self) -> String {
-            let mut line_strings = self.content.lines.iter().map(|l| l.to_string());
+            let mut line_strings = self.content.lines().iter().map(|l| l.to_string());
             line_strings.join("\n")
         }
 
@@ -168,54 +193,32 @@ shared! { TextField
             selections.join("\n")
         }
 
-        /// Edit text.
-        ///
-        /// All the currently selected text will be removed, and the given string will be inserted
-        /// by each cursor.
-        pub fn write(&mut self, text:&str) {
-            let trimmed                 = text.trim_end_matches('\n');
-            let is_line_per_cursor_edit = trimmed.contains('\n') && self.cursors.cursors.len() > 1;
-            let cursor_ids              = self.cursors.sorted_cursor_indices();
-
-            if is_line_per_cursor_edit {
-                let cursor_with_line = cursor_ids.iter().cloned().zip(trimmed.split('\n'));
-                self.write_per_cursor(cursor_with_line);
-            } else {
-                let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,text));
-                self.write_per_cursor(cursor_with_line);
-            };
-            self.assignment_update().update_after_text_edit();
-            self.rendered.update_glyphs(&mut self.content);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+        /// Text field has a selected text.
+        pub fn has_selection(&self) -> bool {
+            self.cursors.cursors.iter().any(|cursor| cursor.has_selection())
         }
 
+        /// Selects the current word, if the cursor is inside a word, or select a next word if a
+        /// word is already selected. For definition of word check `word_occurrence` module doc.
+        pub fn select_next_word_occurrence(&mut self) {
+            let not_multicursors = self.cursors.cursors.len() == 1;
+            if self.word_occurrences.is_none() && not_multicursors {
+                let cursor            = self.cursors.active_cursor();
+                self.word_occurrences = WordOccurrences::new(&self.content,&cursor);
+            }
 
-        /// Discards all current content and replaces it with new one.
-        /// Whenever possible, tries to maintain cursor positions.
-        pub fn set_content(&mut self, text:&str) {
-            // FIXME [mwu] This is a provisional stub to allow `TextEditor` use
-            //       proper API. This implementation should correctly remove old
-            //       contents and update the cursors.
-            //       See: https://github.com/luna/ide/issues/187
-            self.write(text)
-        }
+            let has_selection             = self.has_selection();
+            if let Some(word_occurrences) = &mut self.word_occurrences {
+                if let Some(word) = word_occurrences.select_next() {
+                    if has_selection {
+                        self.cursors.add_cursor(TextLocation::at_document_begin());
+                    }
 
-        /// Remove all text selected by all cursors.
-        pub fn remove_selection(&mut self) {
-            self.write("");
-        }
-
-        /// Do delete operation on text.
-        ///
-        /// For cursors with selection it will just remove the selected text. For the rest, it will
-        /// remove all content covered by `step`.
-        pub fn do_delete_operation(&mut self, step:Step) {
-            let content           = &mut self.content;
-            let selecting         = true;
-            let mut navigation    = CursorNavigation {content,selecting};
-            let without_selection = |c:&Cursor| !c.has_selection();
-            self.cursors.navigate_cursors(&mut navigation,step,without_selection);
-            self.remove_selection();
+                    let cursor = self.cursors.active_cursor_mut();
+                    cursor.select_range(&word);
+                    self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+                }
+            }
         }
 
         /// Update underlying Display Object.
@@ -230,6 +233,15 @@ shared! { TextField
             let x_range  = position.x ..= (position.x + size.x);
             let y_range  = (position.y - size.y) ..= position.y;
             x_range.contains(&point.x) && y_range.contains(&point.y)
+        }
+
+        /// Set text edit callback.
+        ///
+        /// This callback will be called once per `write` function call and all functions using it.
+        /// That's include all edits being an effect of keyboard or mouse event.
+        pub fn set_text_edit_callback<Callback:FnMut(&TextChangedNotification) + 'static>
+        (&mut self, callback:Callback) {
+            self.text_change_callback = Some(Box::new(callback))
         }
     }
 }
@@ -248,31 +260,109 @@ impl TextField {
     -> Self {
         let data = TextFieldData::new(world,initial_content,properties);
         let rc   = Rc::new(RefCell::new(data));
-        let frp  = TextFieldFrp::new(world,Rc::downgrade(&rc));
-        with(rc.borrow_mut(), move |mut data| {
-            data.frp = Some(frp);
+        let this = Self {rc};
+        let frp  = TextFieldFrp::new(world,this.downgrade());
+        this.with_borrowed(move |mut data| { data.frp = Some(frp); });
+        this
+    }
+}
+
+
+// === Editing text ===
+
+impl TextField {
+    /// Edit text.
+    ///
+    /// All the currently selected text will be removed, and the given string will be inserted
+    /// by each cursor.
+    pub fn write(&self, text:&str) {
+        let trimmed    = text.trim_end_matches('\n');
+        let cursor_ids = self.with_borrowed(|this| this.cursors.sorted_cursor_indices());
+        // When we insert (e.g. paste) many lines in multicursor mode, under some circumnstances
+        // we insert one line per cursor, instead of having all cursors inserting the whole
+        // content. Such situation we call here Line Per Cursor Edit.
+        let is_line_per_cursor_edit = trimmed.contains('\n') && cursor_ids.len() > 1;
+
+        if is_line_per_cursor_edit {
+            let cursor_with_line = cursor_ids.iter().cloned().zip(trimmed.split('\n'));
+            self.write_per_cursor(cursor_with_line);
+        } else {
+            let cursor_with_line = cursor_ids.iter().map(|cursor_id| (*cursor_id,text));
+            self.write_per_cursor(cursor_with_line);
+        };
+        self.with_borrowed(|this| {
+            this.clear_word_occurrences();
+            // TODO[ao] updates should be done only in one place and only once per frame
+            // see https://github.com/luna/ide/issues/178
+            this.assignment_update().update_after_text_edit();
+            this.rendered.update_glyphs(&mut this.content);
+            this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);
         });
-        Self{rc}
+    }
+
+    /// Remove all text selected by all cursors.
+    pub fn remove_selection(&self) {
+        self.write("");
+    }
+
+    /// Do delete operation on text.
+    ///
+    /// For cursors with selection it will just remove the selected text. For the rest, it will
+    /// remove all content covered by `step`.
+    pub fn do_delete_operation(&self, step:Step) {
+        self.with_borrowed(|this| {
+            let content           = &mut this.content;
+            let selecting         = true;
+            let mut navigation    = CursorNavigation {content,selecting};
+            let without_selection = |c:&Cursor| !c.has_selection();
+            this.cursors.navigate_cursors(&mut navigation,step,without_selection);
+        });
+        self.remove_selection();
     }
 }
 
 
 // === Private ===
 
+impl TextField {
+
+    fn write_per_cursor<'a,It>(&self, text_per_cursor:It)
+        where It : Iterator<Item=(CursorId,&'a str)> {
+        let mut location_change = TextLocationChange::default();
+        let mut opt_callback    = self.with_borrowed(|this| std::mem::take(&mut this.text_change_callback));
+        for (cursor_id,to_insert) in text_per_cursor {
+            let notification = self.with_borrowed(|this| {
+                this.apply_one_cursor_change(&mut location_change,cursor_id,to_insert)
+            });
+            if let Some(callback) = opt_callback.as_mut() {
+                callback(&notification);
+            }
+        }
+        self.with_borrowed(|this| {
+            if this.text_change_callback.is_none() {
+                this.text_change_callback = opt_callback
+            }
+        });
+    }
+}
+
 impl TextFieldData {
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
-        let logger         = Logger::new("TextField");
-        let display_object = DisplayObjectData::new(logger);
-        let content        = TextFieldContent::new(initial_content,&properties);
-        let cursors        = Cursors::default();
-        let rendered       = TextFieldSprites::new(world,&properties);
-        let frp            = None;
+        let logger               = Logger::new("TextField");
+        let display_object       = DisplayObjectData::new(logger);
+        let content              = TextFieldContent::new(initial_content,&properties);
+        let cursors              = Cursors::default();
+        let rendered             = TextFieldSprites::new(world,&properties);
+        let frp                  = None;
+        let word_occurrences     = None;
+        let text_change_callback = None;
         display_object.add_child(rendered.display_object.clone_ref());
 
-        Self {properties,content,cursors,rendered,display_object,frp}.initialize()
+        Self {properties,content,cursors,rendered,display_object,frp,word_occurrences,
+              text_change_callback}.initialize()
     }
 
-    fn initialize(mut self) -> Self{
+    fn initialize(mut self) -> Self {
         self.assignment_update().update_line_assignment();
         self.rendered.update_glyphs(&mut self.content);
         self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
@@ -288,17 +378,18 @@ impl TextFieldData {
         }
     }
 
-    fn write_per_cursor<'a,It>(&mut self, cursor_id_with_text_to_insert:It)
-    where It : Iterator<Item=(usize,&'a str)> {
-        let mut location_change = TextLocationChange::default();
-        for (cursor_id,to_insert) in cursor_id_with_text_to_insert {
-            let cursor   = &mut self.cursors.cursors[cursor_id];
-            let replaced = location_change.apply_to_range(cursor.selection_range());
-            let change   = TextChange::replace(replaced,to_insert);
-            location_change.add_change(&change);
-            *cursor = Cursor::new(change.inserted_text_range().end);
-            self.content.apply_change(change);
-        }
+    fn apply_one_cursor_change
+    (&mut self, location_change:&mut TextLocationChange, cursor_id:CursorId, to_insert:&str)
+    -> TextChangedNotification {
+        let CursorId(id)   = cursor_id;
+        let cursor         = &mut self.cursors.cursors[id];
+        let replaced       = location_change.apply_to_range(cursor.selection_range());
+        let replaced_chars = self.content.convert_location_range_to_char_index(&replaced);
+        let change         = TextChange::replace(replaced,to_insert);
+        location_change.add_change(&change);
+        *cursor = Cursor::new(change.inserted_text_range().end);
+        self.content.apply_change(change.clone());
+        TextChangedNotification {change,replaced_chars}
     }
 }
 
