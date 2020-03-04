@@ -45,6 +45,21 @@ function print_help () {
 
 
 // =============
+// === Utils ===
+// =============
+
+async function copy(src,tgt) {
+    return new Promise((resolve, reject) => {
+        ncp(src,tgt,(err) => {
+            if (err) { reject(`${err}`) }
+            resolve()
+        })
+    })
+}
+
+
+
+// =============
 // === Clean ===
 // =============
 
@@ -95,7 +110,7 @@ async function build_rust () {
     /// get errors from processing unpatched files. Also, here we copy into (overwriting), without
     /// removing old files. Backpack on Windows does not tolerate removing files it watches.
     await fs.mkdir('app/generated', {recursive:true})
-    await cmd.copy('target/web','app/generated/wasm')
+    await copy('target/web','app/generated/wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -149,6 +164,10 @@ async function watch_js () {
 // ============
 // === Dist ===
 // ============
+
+async function dist_rust () {
+    await build_rust()
+}
 
 async function dist_js () {
     await cmd.with_cwd('app', async () => {
@@ -207,6 +226,7 @@ async function main () {
 
     if (command == 'dist') {
         cmd.section('Packaging')
+        await dist_rust()
         await dist_js()
         return
     }

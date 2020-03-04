@@ -40,15 +40,6 @@ function run_read(cmd,args) {
     })
 }
 
-async function copy(src,tgt) {
-    return new Promise((resolve, reject) => {
-        ncp(src,tgt,(err) => {
-            if (err) { reject(`${err}`) }
-            resolve()
-        })
-    })
-}
-
 async function check_version (name,required,cfg) {
     if (!cfg) { cfg = {} }
     let version = await run_read(name,['--version'])
@@ -60,4 +51,4 @@ async function check_version (name,required,cfg) {
     }
 }
 
-module.exports = {copy,section,run,check_version,with_cwd}
+module.exports = {section,run,check_version,with_cwd}
