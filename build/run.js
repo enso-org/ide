@@ -111,9 +111,6 @@ async function build_rust () {
     /// removing old files. Backpack on Windows does not tolerate removing files it watches.
     await fs.mkdir('app/generated', {recursive:true})
     await copy('target/web','app/generated/wasm')
-    console.log("DONE !!! ")
-    let content = await fs.readFile('app/generated/wasm/gui.js','utf8')
-    console.log(content)
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790

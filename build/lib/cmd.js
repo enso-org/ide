@@ -25,6 +25,7 @@ async function with_cwd(dir,fn) {
 function run(cmd,args) {
     let out = ''
     return new Promise((resolve, reject) => {
+        console.log(`Calling '${cmd} ${args.join(' ')}'`)
         let proc = spawn(cmd,args,{stdio:'inherit'})
         proc.on('exit', () => resolve(out))
     })
