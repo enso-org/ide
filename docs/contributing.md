@@ -18,9 +18,9 @@ Be sure to carefully read the documents before contributing to this repository:
 <br/>
 
 ### Setup
-- **The Rust Toolchain**  
+- **The Rust Toolchain (nightly-2019-11-04)**  
   This project uses several features available only in the nightly Rust toolchain.
-Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
+  Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
 
   ```bash
   rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
@@ -28,17 +28,13 @@ Please use the [the Rust toolchain installer](https://rustup.rs) to install it:
   rustup component add clippy                 # Install the linter.
   ```
 
-- **Node Version Manager**  
-  In order to build the web and desktop applications you will need [node](https://nodejs.org) and 
-[npm](https://www.npmjs.com). Please note that the versions available in your system package manager
-will probably crash while building native-extensions. The only known stable solution is to use the 
-[Node Version Manager](https://github.com/nvm-sh/nvm). Please note that installing it from any 
-package manager is officially not supported and can cause issues. Follow the 
-[official guide](https://github.com/nvm-sh/nvm#installing-and-updating) to install it:
-
-  ```bash
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
-  ```
+- **Node (12.16.1) and Node Package Manager (6.13.4)**  
+  In order to build the web and desktop applications you will need 
+  [node and npm](https://nodejs.org/en/download/). Even minor release changes are known to cause 
+  serious issues, thus **we only support the Latest LTS Version of node and npm. Please do not 
+  report build issues if you use other versions.** If you run MacOS or Linux the easiest way to 
+  setup the proper version is by installing [Node Version Manager](https://github.com/nvm-sh/nvm) 
+  and running `nvm use` in the root of this codebase.
 
 <br/>
 <br/>
@@ -48,22 +44,24 @@ package manager is officially not supported and can cause issues. Follow the
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
 which both validates your working environment as well as takes care of providing most suitable 
 compilation flags for a particular development stage. In order to learn more about the commands and 
-available options, simply run `./run` and read the manual. The most common options are presented 
-below:
+available options, simply run `./run` (or `node run` if you are using Windows) and read the manual. 
+All arguments after `--` will be passed to sub-commands. For example `./run build -- --dev` will
+pass the `--dev` flag to `cargo` (Rust build tool). The most common options are presented below:
 
-- **Interactive builds**  
+- **Interactive mode**  
   Run `./run watch` to start a local web-server and a source-file watch utility which will build the 
-  project on every change. Open `http://localhost:8080` to run the application, or 
-  `http://localhost:8080/debug` to see example demo scenes. Please remember to disable the cache in 
-  your browser during development! By default, the script disables heavyweight optimizations to 
-  provide interactive development experience. The scripts are thin wrappers for 
+  project on every change. Open `http://localhost:8080` (the port may vary and will be reported in
+  the terminal if `8080` was already in use) to run the application, or `http://localhost:8080/debug`
+  to open example demo scenes. Please remember to disable the cache in your browser during the 
+  development! By default, the script disables heavyweight optimizations to provide interactive 
+  development experience. The scripts are thin wrappers for 
   [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same 
   [command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).
 
-- **Production builds**  
+- **Production mode**  
   In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
-  minimize the output binaries), run `./run build` or `./run dist`. The latter creates also packages
-  and installers for all supported platforms.
+  minimize the output binaries, etc.), run `./run build`. To create platform-specific packages and
+  installers use `./run dist` instead.
 
 
 ## Testing, Linting, and Validation

@@ -46,7 +46,9 @@ async function check_version (name,required,cfg) {
     let version = await run_read(name,['--version'])
     version     = version.trim()
     if (cfg.preprocess) { version = cfg.preprocess(version) }
-    console.log(`Checking '${name}' version.`)
+    if (cfg.silent !== true) {
+        console.log(`Checking '${name}' version.`)
+    }
     if (version != required) {
         throw `[ERROR] The '${name}' version '${version}' does not match the required one '${required}'.`
     }
