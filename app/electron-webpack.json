@@ -1,8 +1,0 @@
-{
-  "main": {
-    "sourceDirectory": "src/bin/native"
-  },
-  "renderer": {
-    "sourceDirectory": null
-  }
-}
