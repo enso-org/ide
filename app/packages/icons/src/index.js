@@ -302,8 +302,8 @@ exports.generateText = fastGenerate(Text);
 
 
 
-const fs    = require('fs')
-const fsp   = fs.promises
+const fss   = require('fs')
+const fs    = fss.promises
 const exec  = require('child_process').exec;
 const spawn = require('child_process').spawn;
 const toIco = require('to-ico')
@@ -314,17 +314,17 @@ async function genIcons() {
     let sizes     = [16,32,64,128,256,512,1024]
     let win_sizes = [16,32,64,128,256]
 
-    if(fs.existsSync('dist')) {
-        console.log("The 'dist' directory exists. Icons will not be regenerated.")
+    if(fss.existsSync('dist/.initialized')) {
+        console.log("The 'dist/.initialized' file exists. Icons will not be regenerated.")
         return
     }
 
     console.log("Generating SVG icons.")
-    await fsp.mkdir('dist/svg', {recursive:true})
-    await fsp.mkdir('dist/png', {recursive:true})
+    await fs.mkdir('dist/svg', {recursive:true})
+    await fs.mkdir('dist/png', {recursive:true})
     for (let size of sizes) {
         let name = `icon_${size}x${size}.svg`
-        await fsp.writeFile(`dist/svg/${name}`,exports.generateMinimalWhiteLogo(size,true))
+        await fs.writeFile(`dist/svg/${name}`,exports.generateMinimalWhiteLogo(size,true))
     }
 
     /// Please note that this function converts the SVG to PNG
@@ -359,10 +359,12 @@ async function genIcons() {
     let files = []
     for (let size of win_sizes) {
         let inName = `icon_${size}x${size}.png`
-        let data   = await fsp.readFile(`dist/png/${inName}`)
+        let data   = await fs.readFile(`dist/png/${inName}`)
         files.push(data)
     }
-    toIco(files).then(buf => { fs.writeFileSync('dist/icon.ico', buf) })
+    toIco(files).then(buf => { fss.writeFileSync('dist/icon.ico', buf) })
+
+    await fs.open('dist/.initialized','w')
 }
 
 genIcons()
