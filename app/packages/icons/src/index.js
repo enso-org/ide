@@ -206,7 +206,7 @@ class MinimalWhiteLogo extends Logo {
         this.borderMax = 10
         this.borderSpread = 0
         this.init()
-        this.body = `<use ${this.ref}="#logo" fill="#24292f"/>`
+        this.body = `<use ${this.ref}="#logo" fill="#fafafa"/>`
     }
 }
 

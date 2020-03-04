@@ -83,7 +83,7 @@ jobs:
           args: wasm-pack --version 0.8.1
 
       - name: Compile to WASM
-        run: ./run build
+        run: ./run build --no-nvm-check
 
       - name: Check WASM size
         run: ./build/assert_max_wasm_size.sh

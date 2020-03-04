@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "lerna run build --stream",
-    "clean": "lerna clean -y && lerna run clean && rm -Rf node_modules",
+    "clean": "lerna clean -y && lerna run clean && rm -Rf node_modules && rm -Rf dist",
     "dist": "lerna run build --stream && lerna run dist --stream",
     "install": "lerna bootstrap",
     "start": "npm run build && lerna run start --stream -- -- ",
