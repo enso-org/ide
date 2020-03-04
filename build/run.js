@@ -24,6 +24,7 @@ Please note that all arguments after '--' will be passed to sub-commands.
 Commands:
     help         Print this help message.
     clean        Clean all build artifacts.
+    check        Fast check if project builds (only Rust target).
     build        Build the sources.
     dist         Build the sources and create distribution packages.
     watch        Start a file-watch utility and run interactive mode.
@@ -58,6 +59,18 @@ async function clean_rust () {
     try { await fs.rmdir('app/generated') } catch {}
     // TODO finish
 }
+
+
+
+// =============
+// === Check ===
+// =============
+
+async function check_rust() {
+    await cmd.run('cargo',['check'].concat(child_argv))
+}
+
+async function check_js() {}
 
 
 
@@ -120,7 +133,7 @@ async function lint_js() {}
 // =============
 
 async function watch_rust () {
-    let target = "./run build " + child_argv.join(" ")
+    let target = "./run build --dev " + child_argv.join(" ")
     let args = ['watch','--watch','lib','-s',`${target}`]
     await cmd.run('cargo',args)
 }
@@ -175,6 +188,13 @@ async function main () {
         cmd.section('Building')
         if (do_rust) { await build_rust() }
         if (do_js)   { await build_js() }
+        return
+    }
+
+    if (command == 'check') {
+        cmd.section('Checking')
+        if (do_rust) { await check_rust() }
+        if (do_js)   { await check_js() }
         return
     }
 

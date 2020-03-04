@@ -49,7 +49,7 @@
       }
     ],
     "directories": {
-      "output": "dist/native"
+      "output": "../../dist/native"
     }
   },
 
