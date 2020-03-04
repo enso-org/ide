@@ -26,7 +26,7 @@ function run(cmd,args) {
     let out = ''
     return new Promise((resolve, reject) => {
         console.log(`Calling '${cmd} ${args.join(' ')}'`)
-        let proc = spawn(cmd,args,{stdio:'inherit'})
+        let proc = spawn(cmd,args,{stdio:'inherit', shell:true})
         proc.on('exit', () => resolve(out))
     })
 }
