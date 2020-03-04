@@ -88,7 +88,7 @@ shared! { Handle
         text_notifications  : notification::TextChangedPublisher,
         /// Publisher of "graph changed" notifications
         graph_notifications : notification::GraphChangedPublisher,
-        /// THe logger handle.
+        /// The logger handle.
         logger: Logger,
     }
 
