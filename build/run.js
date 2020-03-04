@@ -42,6 +42,21 @@ function print_help () {
     process.exit()
 }
 
+function validate_options() {
+    let args_check = Object.assign({},argv)
+    for (arg of ['_','--','help','only-rust','only-js','rust','js']) {
+        delete args_check[arg]
+    }
+
+    let unrecognized = Object.keys(args_check)
+    if (unrecognized.length > 0) {
+        console.error(`[ERROR] The following arguments were not recognized: ${unrecognized}.`)
+        console.error(`Use --help to learn about available commands and options.`)
+        process.exit()
+    }
+}
+validate_options()
+
 
 
 // =============
