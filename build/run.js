@@ -44,7 +44,7 @@ function print_help () {
 
 function validate_options() {
     let args_check = Object.assign({},argv)
-    for (arg of ['_','--','help','only-rust','only-js','rust','js']) {
+    for (arg of ['_','--','validation','help','only-rust','only-js','rust','js']) {
         delete args_check[arg]
     }
 

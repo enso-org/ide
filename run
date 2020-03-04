@@ -6,13 +6,6 @@ let fs  = require('fs').promises
 let args = process.argv.slice(2)
 
 let no_validation = '--no-validation'
-let no_nvm_check  = '--no-nvm-check'
-let nvm_error = `
-You are not using Node Version Manager. Building the project will probably fail.
-Follow the link to learn how to use NVM: https://github.com/nvm-sh/nvm
-Please use '${no_nvm_check}' to skip this check (not recommended).
-`
-
 async function init () {
     if(!args.includes(no_validation)) {
         await cmd.check_version('npm','6.14.1',{silent:true})
