@@ -51,8 +51,8 @@ unique technologies worldwide.
 ### Getting Started
 
 [Download a pre-build package for MacOS, Windows, or Linux](https://github.com/luna/ide/releases), 
-see the [demo scenes](TODO), and read the 
-[documentation](TODO).
+see the [demo scenes](http://TODO), and read the 
+[documentation](http://TODO).
 
 <br/>
 
