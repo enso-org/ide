@@ -62,7 +62,7 @@ Enso language is a community-driven open source project which is and will always
 use. We are committed to a fully transparent development process and highly appreciate every 
 contribution. If you love the vision behind Enso and you want to redefine the data processing world, 
 join us and help us track down bugs, implement new features, improve the documentation or spread the 
-word! Join our community on a Discord chat](http://chat.luna-lang.org) and read the 
+word! Join our community on a [Discord chat](http://chat.luna-lang.org) and read the 
 [development and contributing guidelines](https://github.com/luna/ide/docs/contributing.md).
 
 <br/>
