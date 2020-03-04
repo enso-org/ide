@@ -171,6 +171,9 @@ jobs:
         with:
           node-version: '12.16.1'
 
+      - name: check npm
+        run: npm --version
+
       - name: Build Enso IDE
         run: node run dist --no-validation
 
