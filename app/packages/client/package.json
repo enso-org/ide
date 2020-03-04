@@ -1,5 +1,6 @@
 {
   "name": "enso-studio-client",
+  "description": "The standalone client part of the IDE.",
   "version": "1.0.0",
   "author": {
     "name": "Enso Team",
