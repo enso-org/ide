@@ -168,8 +168,8 @@ jobs:
           args: wasm-pack
 
       - uses: actions/setup-node@v1
-          with:
-            node-version: '10.x'
+        with:
+          node-version: '10.x'
 
       - name: Build Enso IDE
         run: ./run dist
