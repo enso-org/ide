@@ -36,12 +36,12 @@ impl Cursor {
     pub fn recalculate_position(&mut self, content:&TextFieldContent) {
         let lines               = content.lines();
         let max_line_index      = lines.len() - 1;
-        self.position.line      = min(self.position.line, max_line_index);
-        self.selected_to.line   = min(self.selected_to.line, max_line_index);
+        self.position.line      = min(self.position.line,max_line_index);
+        self.selected_to.line   = min(self.selected_to.line,max_line_index);
         let max_column_index    = lines[self.position.line].len();
-        self.position.column    = min(self.position.column, max_column_index);
+        self.position.column    = min(self.position.column,max_column_index);
         let max_column_index    = lines[self.selected_to.line].len();
-        self.selected_to.column = min(self.selected_to.column, max_column_index);
+        self.selected_to.column = min(self.selected_to.column,max_column_index);
     }
 
     /// Returns true if some selection is bound to this cursor.
