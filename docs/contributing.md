@@ -38,6 +38,7 @@ Be sure to carefully read the documents before contributing to this repository:
 - [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
 - [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) 
 
+<br/>
 
 ### Development
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
@@ -60,59 +61,24 @@ pass the `--dev` flag to `cargo` (Rust build tool). The most common options are 
 - **Production mode**  
   In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
   minimize the output binaries, etc.), run `./run build`. To create platform-specific packages and
-  installers use `./run dist` instead.
+  installers use `./run dist` instead. The final packages will be located at `app/dist/native`.
 
+<br/>
 
-## Testing, Linting, and Validation
+### Testing, Linting, and Validation
 After changing the code it's always a good idea to lint and test the code. We have prepared several 
 scripts which maximally automate the process:
 
 - **Size Validation**
-  Use `run check-size` to check if the size of the final binary did not grew too much in comparison
+  Use `./run check-size` to check if the size of the final binary did not grew too much in comparison
   to the previous release. Watching the resulting binary size is one of the most important 
   responsibility of each contributor in order to keep the project small and suitable for web-based
   usage.
   
 - **Testing**
-  Use `run test` run both unit and web-based test.
+  Use `run test` run both unit and web-based visual test.
   
-<br/>
-
-### Testing
-The sources use both unit tests and web test, which are run in a browser and
-produce visual results. To run them, use the `scripts/test.sh` script and follow
-the output in the terminal.
-
-<br/>
-
-### Linting 
-Please be sure to fix all errors reported by `scripts/lint.sh` before creating a
-pull request to this repository.
-
-<br/>
-<br/>
-
-## Distribution
-
-### Building the Native Application
-Enter the `app` directory, run `nvm use` to set up the correct node environment and run `npm run electron:dev` to build and start a native application in a development mode. 
-
-<br/>
-
-### Packaging the Native Application
-Enter the `app` directory, run `nvm use` to set up the correct node environment and run `npm run electron:dist` to create packages for your current platform. You can also run `npm run electron:dist:all` to create package for all supported platforms, however, such multi-platform builds are currently supported only on MacOS. This sitiuation is unlikely to change, as it is very hard to generate icons for MacOS on Windows and Linux.
-
-<br/>
-<br/>
-
-## Running
-
-### Running the Native Application
-The standalone application provides a rich set of command line switches. Provide it with `--help` to learn more. You can even use it as a standalone app server by running `Enso Studio --no-window`.
-
-
-### Running the Standalone Server
-To be described.
-
-
-
+- **Linting**  
+  Please be sure to fix all errors reported by `scripts/lint.sh` before creating a pull request to 
+  this repository.
+  
