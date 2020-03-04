@@ -41,14 +41,16 @@ contributing to the codebase.
 ### Development
 As this is a multi-part project with many complex dependencies, it was equipped with a build script
 which both validates your working environment as well as takes care of providing most suitable 
-compilation flags for a particular development stage. In order to learn more about the commands and 
-available options, simply run `./run` (or `node run` if you are using Windows) and read the manual. 
-All arguments after `--` will be passed to sub-commands. For example `./run build -- --dev` will
-pass the `--dev` flag to `cargo` (Rust build tool). The most common options are presented below:
+compilation flags for a particular development stage. In order to run the build script simply run 
+`node ./run` in the root of the codebase. On MacOS and Linux you can use a simpler form of `./run`, 
+however, this doc will use the former form in order to stay cross-platform compatible. Run 
+`node ./run help` to learn about available commands and options. All arguments provided after the 
+`--` symbol will be passed to sub-commands. For example `node ./run build -- --dev` will pass the 
+`--dev` flag to `cargo` (Rust build tool). The most common options are presented below:
 
 - **Interactive mode**  
-  Run `./run watch` to start a local web-server and a source-file watch utility which will build the 
-  project on every change. Open `http://localhost:8080` (the port may vary and will be reported in
+  Run `node ./run watch` to start a local web-server and a source-file watch utility which will build 
+  the project on every change. Open `http://localhost:8080` (the port may vary and will be reported in
   the terminal if `8080` was already in use) to run the application, or `http://localhost:8080/debug`
   to open example demo scenes. Please remember to disable the cache in your browser during the 
   development! By default, the script disables heavyweight optimizations to provide interactive 
@@ -58,8 +60,8 @@ pass the `--dev` flag to `cargo` (Rust build tool). The most common options are 
 
 - **Production mode**  
   In order to compile in a production mode (enable all optimizations, strip WASM debug symbols, 
-  minimize the output binaries, etc.), run `./run build`. To create platform-specific packages and
-  installers use `./run dist` instead. The final packages will be located at `app/dist/native`.
+  minimize the output binaries, etc.), run `node ./run build`. To create platform-specific packages and
+  installers use `node ./run dist` instead. The final packages will be located at `app/dist/native`.
 
 <br/>
 
@@ -68,15 +70,15 @@ After changing the code it's always a good idea to lint and test the code. We ha
 scripts which maximally automate the process:
 
 - **Size Validation**
-  Use `./run check-size` to check if the size of the final binary did not grew too much in comparison
+  Use `node ./run check-size` to check if the size of the final binary did not grew too much in comparison
   to the previous release. Watching the resulting binary size is one of the most important 
   responsibility of each contributor in order to keep the project small and suitable for web-based
   usage.
   
 - **Testing**
-  Use `run test` run both unit and web-based visual test.
+  Use `node ./run test` run both unit and web-based visual test.
   
 - **Linting**  
-  Please be sure to fix all errors reported by `scripts/lint.sh` before creating a pull request to 
+  Please be sure to fix all errors reported by `node ./run line` before creating a pull request to 
   this repository.
   
