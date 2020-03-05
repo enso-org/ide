@@ -47,7 +47,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: wasm-pack --version 0.8.1
+          args: wasm-pack --locked --version 0.8.1
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -80,7 +80,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: wasm-pack --version 0.8.1
+          args: wasm-pack --locked --version 0.8.1
 
       - name: Compile to WASM
         run: ./run build
@@ -165,7 +165,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: wasm-pack --version 0.8.1
+          args: wasm-pack --locked --version 0.8.1
 
       - uses: actions/setup-node@v1
         with:
