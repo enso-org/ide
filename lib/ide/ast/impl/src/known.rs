@@ -88,6 +88,7 @@ impl<T> From<KnownAst<T>> for Ast {
 /// ```
 macro_rules! generate_alias {
     ( $([$name:ident $($tp:ty)? ])* ) => {$(
+        #[allow(missing_docs)]
         pub type $name = KnownAst<crate::$name $(<$tp>)? >;
     )*};
 }

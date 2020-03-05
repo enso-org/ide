@@ -4,12 +4,19 @@
 #![feature(trivial_bounds)]
 #![feature(type_alias_impl_trait)]
 
+#[warn(missing_docs)]
 pub mod assoc;
+#[warn(missing_docs)]
 pub mod internal;
+#[warn(missing_docs)]
 pub mod known;
+#[warn(missing_docs)]
 pub mod opr;
+#[warn(missing_docs)]
 pub mod prefix;
+#[warn(missing_docs)]
 pub mod repr;
+#[warn(missing_docs)]
 pub mod test_utils;
 
 use prelude::*;

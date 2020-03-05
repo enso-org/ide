@@ -51,6 +51,8 @@ pub struct GeneralizedInfix {
 }
 
 impl GeneralizedInfix {
+    /// Tries interpret given AST node as GeneralizedInfix. Returns None, if Ast is not any kind of
+    /// application on infix operator.
     pub fn try_new(ast:&Ast) -> Option<GeneralizedInfix> {
         match ast.shape() {
             Shape::Infix(infix) => Some(GeneralizedInfix{
@@ -160,6 +162,10 @@ impl Chain {
 /// Element of the infix application chain, i.e. operator and its operand.
 #[derive(Clone,Debug)]
 pub struct ChainElement {
+    #[allow(missing_docs)]
     pub operator : Operator,
+    /// Operand on the opposite side to `this` argument.
+    /// Depending on operator's associativity it is either right (for left-associative operators)
+    /// or on the left side of operator.
     pub operand  : Operand,
 }
