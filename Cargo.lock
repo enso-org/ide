@@ -1080,6 +1080,7 @@ dependencies = [
  "json-rpc 0.1.0",
  "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parser 0.1.0",
+ "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.48 (registry+https://github.com/rust-lang/crates.io-index)",
  "shapely 0.1.0",

@@ -33,6 +33,8 @@ uuid                     = { version = "0.8", features = ["serde", "v5"] }
 wasm-bindgen             = { version = "=0.2.58"                          }
 wasm-bindgen-test        = { version = "0.3.8"                           }
 
+quote = "=1.0.2" # HOT FIX FOR: https://github.com/rust-lang-nursery/failure/issues/342
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 websocket = "0.23.0"
 
