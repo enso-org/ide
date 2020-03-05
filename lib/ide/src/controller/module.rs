@@ -16,14 +16,11 @@ use ast;
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
-use data::text::Index;
-use data::text::Size;
 use data::text::Span;
-use data::text::TextChangedInfo;
+use data::text::TextChange;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
-use futures::future;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
@@ -85,9 +82,9 @@ shared! { Handle
         /// The Parser handle.
         parser: Parser,
         /// Publisher of "text changed" notifications
-        text_notifications  : notification::TextChangedPublisher,
+        text_notifications  : notification::Publisher<notification::Text>,
         /// Publisher of "graph changed" notifications
-        graph_notifications : notification::GraphChangedPublisher,
+        graph_notifications : notification::Publisher<notification::Graph>,
         /// The logger handle.
         logger: Logger,
     }
@@ -99,23 +96,17 @@ shared! { Handle
         }
 
         /// Updates AST after code change.
-        pub fn apply_code_change(&mut self,change:&TextChangedInfo) -> FallibleResult<()> {
-            let mut code        = self.code();
-            let replaced_range  = change.replaced_chars.clone();
-            let inserted_string = change.inserted_string();
-            let replaced_size   = Size::new(replaced_range.end - replaced_range.start);
-            let replaced_span   = Span::new(Index::new(replaced_range.start),replaced_size);
+        pub fn apply_code_change(&mut self,change:&TextChange) -> FallibleResult<()> {
+            let mut code         = self.code();
+            let replaced_size    = change.replaced.end - change.replaced.start;
+            let replaced_span    = Span::new(change.replaced.start,replaced_size);
+            let replaced_indices = change.replaced.start.value..change.replaced.end.value;
 
-            code.replace_range(replaced_range,&inserted_string);
-            apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
-            self.ast = self.parser.parse(code, self.id_map.clone())?;
+            code.replace_range(replaced_indices,&change.inserted);
+            apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&change.inserted);
+            let ast = self.parser.parse(code, self.id_map.clone())?;
+            self.update_ast(ast);
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.ast));
-
-            let text_change  = notification::TextChanged::Entirely;
-            let graph_change = notification::GraphChanged::Entirely;
-            let code_notify  = self.text_notifications.publish(text_change);
-            let graph_notify = self.graph_notifications.publish(graph_change);
-            spawn(async move { futures::join!(code_notify,graph_notify); });
 
             Ok(())
         }
@@ -139,12 +130,12 @@ shared! { Handle
         }
 
         /// Get subscriber receiving notifications about changes in module's text representation.
-        pub fn subscribe_text_notifications(&mut self) -> Subscriber<notification::TextChanged> {
+        pub fn subscribe_text_notifications(&mut self) -> Subscriber<notification::Text> {
             self.text_notifications.subscribe()
         }
 
         /// Get subscriber receiving notifications about changes in module's graph representation.
-        pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::GraphChanged> {
+        pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::Graph> {
             self.graph_notifications.subscribe()
         }
     }
@@ -154,16 +145,14 @@ impl Handle {
     /// Create a module controller for given location.
     ///
     /// It may wait for module content, because the module must initialize its state.
-    pub async fn new(location:Location, mut file_manager:fmc::Handle, parser:Parser)
+    pub async fn new(location:Location, file_manager:fmc::Handle, parser:Parser)
     -> FallibleResult<Self> {
         let logger              = Logger::new(format!("Module Controller {}", location));
-        let path                = location.to_path();
-        let ast                 = Ast::new(ast::Blank{},None);
+        let ast                 = Ast::new(ast::Module{lines:default()},None);
         let id_map              = default();
         let text_notifications  = default();
         let graph_notifications = default();
 
-        file_manager.touch(path).await?;
         let data = Controller {location,ast,file_manager,parser,id_map,logger,text_notifications,
             graph_notifications};
         let handle = Handle::new_from_data(data);
@@ -186,7 +175,7 @@ impl Handle {
         let ast = parser.parse(content,default())?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
-        self.with_borrowed(|data| data.ast = ast);
+        self.with_borrowed(|data| data.update_ast(ast));
         Ok(())
     }
 
@@ -213,26 +202,36 @@ impl Handle {
     }
 }
 
+impl Controller {
+    /// Update current ast in module controller and emit notification about overall invalidation.
+    fn update_ast(&mut self,ast:Ast) {
+        self.ast = ast;
+        let text_change  = notification::Text::Invalidate;
+        let graph_change = notification::Graph::Invalidate;
+        let code_notify  = self.text_notifications.publish(text_change);
+        let graph_notify = self.graph_notifications.publish(graph_change);
+        spawn(async move { futures::join!(code_notify,graph_notify); });
+    }
+}
 
 
 #[cfg(test)]
 mod test {
     use super::*;
 
+    use crate::controller::notification;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
     use ast;
     use ast::BlockLine;
     use data::text::Index;
     use data::text::Span;
     use data::text::Size;
-    use data::text::TextChange;
-    use data::text::TextLocation;
+    use file_manager_client::Path;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use file_manager_client::Path;
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::controller::notification::{TextChanged, GraphChanged};
 
     #[test]
     fn get_location_from_path() {
@@ -266,10 +265,7 @@ mod test {
             let mut graph_notifications = controller.subscribe_graph_notifications();
 
             // Change code from "2+2" to "22+2"
-            let change = TextChangedInfo {
-                change        : TextChange::insert(TextLocation{line:0,column:1}, "2"),
-                replaced_chars: 1..1
-            };
+            let change = TextChange::insert(Index::new(1),"2".to_string());
             controller.apply_code_change(&change).unwrap();
             let expected_ast = Ast::new(ast::Module {
                 lines: vec![BlockLine {
@@ -286,8 +282,8 @@ mod test {
             assert_eq!(expected_ast, controller.with_borrowed(|data| data.ast.clone()));
 
             // Check emitted notifications
-            assert_eq!(Some(TextChanged::Entirely ), text_notifications.next().await );
-            assert_eq!(Some(GraphChanged::Entirely), graph_notifications.next().await);
+            assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
+            assert_eq!(Some(notification::Graph::Invalidate), graph_notifications.next().await);
         });
     }
 }

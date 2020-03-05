@@ -16,40 +16,25 @@ use crate::prelude::*;
 /// therefore there is no need for setting big buffers.
 const NOTIFICATION_BUFFER_SIZE : usize = 36;
 
-/// A macro generating newtype for notification publisher which implements Debug and Default.
-///
-/// For message Msg you can write
-/// ```rust
-/// publisher_newtype(MsgPub,Msg);
-/// ```
-/// which generate
-/// ```rust
-/// /// A publisher newtype which implements Debug and Default.
-///  #[derive(Shrinkwrap)]
-///  #[shrinkwrap(mutable)]
-///  pub struct MsgPub(pub flo_stream::Publisher<Msg>);
-/// ```
-/// along with some basic implementation of Default and Debug.
-macro_rules! publisher_newtype {
-    ($name:ident, $message:ty) => {
-        /// A publisher newtype which implements Debug and Default.
-        #[derive(Shrinkwrap)]
-        #[shrinkwrap(mutable)]
-        pub struct $name(pub flo_stream::Publisher<$message>);
 
-        impl Default for $name {
-            fn default() -> Self {
-                Self(flo_stream::Publisher::new(NOTIFICATION_BUFFER_SIZE))
-            }
-        }
+/// A notification publisher which implements Debug and Default.
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct Publisher<Message>(pub flo_stream::Publisher<Message>);
 
-        impl Debug for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-                write!(f, "{:?}", std::any::TypeId::of::<Self>())
-            }
-        }
+impl<Message:Clone> Default for Publisher<Message> {
+    fn default() -> Self {
+        Self(flo_stream::Publisher::new(NOTIFICATION_BUFFER_SIZE))
     }
 }
+
+impl<Message:'static> Debug for Publisher<Message> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "notification::Publisher<{:?}>", std::any::TypeId::of::<Message>())
+    }
+}
+
+
 
 
 // =====================================
@@ -60,20 +45,17 @@ macro_rules! publisher_newtype {
 
 /// A notification about changes of text representation or plain text file content.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum TextChanged {
-    /// A notification indicating that the whole content was changed and should be fully reloaded.
-    Entirely,
+pub enum Text {
+    /// The content should be fully reloaded.
+    Invalidate,
 }
 
-publisher_newtype!(TextChangedPublisher,TextChanged);
 
 // === Graph ===
 
 /// A notification about changes of graph representation of a module.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum GraphChanged {
-    /// A notification indicating that the whole graph was changed and should be fully reloaded.
-    Entirely,
+pub enum Graph {
+    /// The content should be fully reloaded.
+    Invalidate,
 }
-
-publisher_newtype!(GraphChangedPublisher,GraphChanged);

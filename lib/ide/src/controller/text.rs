@@ -7,14 +7,14 @@
 use crate::prelude::*;
 use crate::controller::FallibleResult;
 use crate::controller::notification;
+use crate::executor::global::spawn;
 
-use data::text::TextChangedInfo;
+use data::text::TextChange;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use json_rpc::error::RpcError;
 use shapely::shared;
-use crate::executor::global::spawn;
 
 
 
@@ -56,12 +56,12 @@ shared! { Handle
     pub struct Controller {
         file: FileHandle,
         /// Sink where we put events to be consumed by the view.
-        notifications: notification::TextChangedPublisher,
+        notifications: notification::Publisher<notification::Text>,
     }
 
     impl {
         /// Get subscriber receiving controller's notifications.
-        pub fn subscribe(&mut self) -> Subscriber<notification::TextChanged> {
+        pub fn subscribe(&mut self) -> Subscriber<notification::Text> {
             self.notifications.subscribe()
         }
 
@@ -122,7 +122,7 @@ impl Handle {
     /// This function should be called by view on every user interaction changing the text content
     /// of file. It will e.g. update the Module Controller state and notify other views about
     /// update in case of module files.
-    pub fn apply_text_change(&self, change:&TextChangedInfo) -> FallibleResult<()> {
+    pub fn apply_text_change(&self, change:&TextChange) -> FallibleResult<()> {
         if let FileHandle::Module {controller} =  self.file_handle() {
             controller.apply_code_change(change)
         } else {

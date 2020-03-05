@@ -181,12 +181,9 @@ mod test {
             assert_eq!(another_loc, another_module_ctrl.location());
             assert!(module_ctrl.identity_equals(&same_module_ctrl));
         });
-        // Load module (touch + read content)
-        test.when_stalled_send_response(None);
-        test.when_stalled_send_response(Some("2 + 2"));
-        // Load Another Module (touch + read content)
-        test.when_stalled_send_response(None);
-        test.when_stalled_send_response(Some("3+3"));
+
+        test.when_stalled_send_response("2 + 2");
+        test.when_stalled_send_response("3+3");
     }
 
     #[wasm_bindgen_test]
@@ -221,7 +218,6 @@ mod test {
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });
-        test.when_stalled_send_response(None);
-        test.when_stalled_send_response(Some("2 + 2"));
+        test.when_stalled_send_response("2 + 2");
     }
 }

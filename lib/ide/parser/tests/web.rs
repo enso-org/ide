@@ -1,5 +1,3 @@
-use enso_prelude::*;
-
 use ast::Ast;
 use ast::IdMap;
 use data::text::*;
