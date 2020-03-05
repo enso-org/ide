@@ -15,24 +15,7 @@ use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use json_rpc::error::RpcError;
 use shapely::shared;
-
-
-
-async fn process_stream_with_handle<Stream,Weak,F,R>(mut stream:Stream, weak:Weak, mut function:F)
-where Stream : StreamExt + Unpin,
-      Weak   : WeakElement,
-      F      : FnMut(Stream::Item,Weak::Strong) -> R,
-      R      : Future<Output=()> {
-    loop {
-        let item_opt   = stream.next().await;
-        let handle_opt = weak.view();
-        match (item_opt,handle_opt) {
-            (Some(item),Some(handle)) => function(item,handle).await,
-            _                         => break,
-        }
-    }
-}
-
+use utils::channel::process_stream_with_handle;
 
 
 // =======================
