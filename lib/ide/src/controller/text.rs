@@ -18,15 +18,16 @@ use shapely::shared;
 
 
 
-async fn process_stream_with_handle<Stream,Weak,F>(mut stream:Stream, weak:Weak, mut function:F)
+async fn process_stream_with_handle<Stream,Weak,F,R>(mut stream:Stream, weak:Weak, mut function:F)
 where Stream : StreamExt + Unpin,
       Weak   : WeakElement,
-      F      : FnMut(Stream::Item,Weak::Strong) {
+      F      : FnMut(Stream::Item,Weak::Strong) -> R,
+      R      : Future<Output=()> {
     loop {
         let item_opt   = stream.next().await;
         let handle_opt = weak.view();
         match (item_opt,handle_opt) {
-            (Some(item),Some(handle)) => function(item,handle),
+            (Some(item),Some(handle)) => function(item,handle).await,
             _                         => break,
         }
     }
@@ -86,7 +87,7 @@ impl Handle {
         let handle             = Self::new(FileHandle::Module {controller});
         let weak               = handle.downgrade();
         spawn(process_stream_with_handle(text_notifications,weak,|notification,this| {
-            this.with_borrowed(move |data| data.notifications.publish(notification));
+            this.with_borrowed(move |data| data.notifications.publish(notification))
         }));
         handle
     }
@@ -170,5 +171,30 @@ impl Handle {
 
 #[cfg(test)]
 mod test {
-    
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    use data::text::Index;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use parser::Parser;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn passing_notifications_from_modue() {
+        let mut test  = TestWithLocalPoolExecutor::set_up();
+        test.run_test(async move {
+            let fm         = file_manager_client::Handle::new(MockTransport::new());
+            let loc        = controller::module::Location("test".to_string());
+            let parser     = Parser::new().unwrap();
+            let module_res = controller::module::Handle::new_mock(loc,"2+2",default(),fm,parser);
+            let module     = module_res.unwrap();
+            let controller = Handle::new_for_module(module.clone_ref());
+            let mut sub    = controller.subscribe();
+//            let mut sub    = module.subscribe_text_notifications();
+
+            module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
+            assert_eq!(Some(notification::Text::Invalidate), sub.next().await);
+        })
+    }
 }

@@ -189,7 +189,7 @@ impl Handle {
     }
 
     #[cfg(test)]
-    fn new_mock
+    pub fn new_mock
     (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:Parser)
     -> FallibleResult<Self> {
         let logger              = Logger::new("Mocked Module Controller");
