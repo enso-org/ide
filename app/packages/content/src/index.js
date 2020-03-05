@@ -129,28 +129,7 @@ function show_debug_screen(wasm,msg) {
 let root = document.getElementById('root')
 
 function prepare_root(cfg) {
-    root.style.opacity         = 0
-    root.style.backgroundColor = '#e8e7e6'
-    if(cfg.desktop) {
-        root.style.borderRadius = '10px'
-    }
-}
-
-function animate_root_show() {
-    return new Promise(function(resolve, reject) {
-        let opacity = 0
-        function show_step(timestamp) {
-            opacity += 0.02
-            if (opacity > 1) { opacity = 1 }
-            root.style.opacity = animation.ease_in_out_quad(opacity)
-            if (opacity < 1) {
-                window.requestAnimationFrame(show_step)
-            } else {
-                resolve()
-            }
-        }
-        window.requestAnimationFrame(show_step)
-    })
+    root.style.backgroundColor = '#e8e7e699'
 }
 
 function getUrlParams() {
@@ -164,19 +143,24 @@ function getUrlParams() {
     return result
 }
 
+/// Waits for the window to finish its show animation. It is used when the website is run in
+/// Electron. Please note that it returns immediately in the web browser.
+async function windowShowAnimation() {
+    await window.showAnimation
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
     let target = window.location.pathname.split('/')
     target.splice(0,1)
-
     let cfg = getUrlParams()
-
     prepare_root(cfg)
-    await animate_root_show()
 
     let debug_mode    = target[0] == "debug"
     let debug_target  = target[1]
     let no_loader     = debug_mode && debug_target
+
+    await windowShowAnimation()
     let {wasm,loader} = await download_content({no_loader})
 
     if (debug_mode) {

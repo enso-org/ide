@@ -26,6 +26,10 @@ module.exports = {
             {
                 from : path.resolve('package.json'),
                 to   : path.resolve(root,'dist','unpacked','package.json')
+            },
+            {
+                from : path.resolve('src/preload.js'),
+                to   : path.resolve(root,'dist','unpacked','preload.js')
             }
         ]),
     ],

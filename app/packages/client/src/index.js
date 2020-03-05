@@ -14,8 +14,8 @@ import * as Server    from 'enso-studio-common/src/server'
 // ================
 
 let windowCfg = {
-    width  : 1024,
-    height : 768,
+    width  : 640,
+    height : 640,
 }
 
 
@@ -53,16 +53,25 @@ ${pkg.build.productName} ${pkg.version} command line interface.
 
 Usage: ${pkg.build.productName} [options]
 
-Options:
-    --debug-scene [SCENE]  Run the debug scene instead of the main app.
-    --dev                  Run the application in development mode.
-    --devtron              Install the Devtron Developer Tools extension.
-    --no-server            Do not run server, connect to existing one instead.
-    --no-window            Do not show window. Run in a batch mode.
-    --port                 Port to use [${Server.DEFAULT_PORT}].
-    --help                 Print the help message and exit.
-    --window-size [SIZE]   Set the window size [${windowCfg.width}x${windowCfg.height}].
-    --version              Print the version and exit.
+Config Options:
+    --port                   Port to use [${Server.DEFAULT_PORT}].
+    --server                 Run the server [true].
+    --window                 Show the window [true].
+
+Debug Options:
+    --background-throttling  Throttle animations when the app becomes background.
+    --debug-scene [SCENE]    Run the debug scene instead of the main app.
+    --dev                    Run the application in development mode.
+    --devtron                Install the Devtron Developer Tools extension.
+
+Style Options:
+    --frame                  Draw window frame.
+    --vibrancy               Use the vibrancy effect [true].
+    --window-size [SIZE]     Set the window size [${windowCfg.width}x${windowCfg.height}].
+
+Other Options:
+    --help                   Print the help message and exit.
+    --version                Print the version and exit.
 `
 
 let args = parseCmdArgs()
@@ -114,8 +123,10 @@ function secureWebPreferences(webPreferences) {
     delete webPreferences.experimentalFeatures
     delete webPreferences.enableBlinkFeatures
     delete webPreferences.allowpopups
-    webPreferences.contextIsolation   = true
-    webPreferences.enableRemoteModule = false
+    // TODO[WD]: We may want to enable it and use IPC to communicate with preload script.
+    //           https://stackoverflow.com/questions/38335004/how-to-pass-parameters-from-main-process-to-render-processes-in-electron
+    // webPreferences.contextIsolation = true
+    // webPreferences.enableRemoteModule = false
     return webPreferences
 }
 
@@ -190,7 +201,6 @@ let port = Server.DEFAULT_PORT
 if      (server)    { port = server.port }
 else if (args.port) { port = args.port }
 
-
 function urlParamsFromObject(obj) {
     let params = []
     for (let key in obj) {
@@ -203,32 +213,52 @@ function urlParamsFromObject(obj) {
 }
 
 function createWindow() {
-
-    let preferences = secureWebPreferences()
-    if (args.devtron) {
-        preferences.preload = path.join(Electron.app.getAppPath(),'..','assets','preload.js')
-        preferences.enableRemoteModule = true
+    let webPreferences     = secureWebPreferences()
+    webPreferences.preload = path.join(Electron.app.getAppPath(),'..','unpacked','preload.js')
+    let windowPreferences  = {
+        webPreferences       : webPreferences,
+        width                : windowCfg.width,
+        height               : windowCfg.height,
+        frame                : false,
+        devTools             : false,
+        sandbox              : true,
+        backgroundThrottling : false,
+        vibrancy             : 'fullscreen-ui',
+        backgroundColor      : "#00000000",
+        titleBarStyle        : 'hiddenInset'
     }
 
-    const window = new Electron.BrowserWindow({
-        webPreferences : preferences,
-        width          : windowCfg.width,
-        height         : windowCfg.height,
-        frame          : false,
-        transparent    : true
-    })
+    if (args.dev) {
+        windowPreferences.devTools = true
+    }
+
+    if (args.frame) {
+        windowPreferences.frame         = true
+        windowPreferences.titleBarStyle = 'default'
+    }
+
+    if (args['background-throttling']) {
+        windowPreferences.backgroundThrottling = true
+    }
+
+    if (args.vibrancy == false) {
+        windowPreferences.vibrancy = false
+    }
+
+    const window = new Electron.BrowserWindow(windowPreferences)
+    window.setVibrancy('appearance-based')
 
     if (args.dev) {
         window.webContents.openDevTools()
     }
 
-    let cfg = {
+    let urlCfg = {
         desktop      : true,
         dark         : Electron.nativeTheme.shouldUseDarkColors,
         highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
     }
 
-    let params      = urlParamsFromObject(cfg)
+    let params      = urlParamsFromObject(urlCfg)
     let targetScene = ""
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
@@ -236,7 +266,6 @@ function createWindow() {
     let address = `http://localhost:${port}/${targetScene}?${params}`
     console.log(`Loading the window address ${address}`)
     window.loadURL(address)
-
     return window
 }
 
@@ -288,3 +317,11 @@ if (process.platform === 'darwin') {
 Electron.app.allowRendererProcessReuse = true
 
 // FIXME Enable Metal backend on MacOS https://github.com/electron/electron/issues/22465
+
+// TODO[WD] Windows vibrancy
+// https://github.com/fstudio/clangbuilder/issues/39
+// https://github.com/Microsoft/vscode/issues/32257
+// https://github.com/arkenthera/electron-vibrancy/issues/21
+
+// TODO[WD] Window corner radius
+// https://github.com/electron/electron/issues/22542
