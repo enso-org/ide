@@ -18,7 +18,13 @@ use serde::Serialize;
 use shapely::*;
 use uuid::Uuid;
 
+/// Any kind of node metadata used in visualization.
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+pub struct Metadata();
 
+/// Mapping between ID and metadata.
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+pub struct IdMetadataMap(HashMap<ID,Metadata>);
 
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
 pub struct IdMap(pub Vec<(Span,ID)>);

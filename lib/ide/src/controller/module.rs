@@ -10,9 +10,10 @@ use crate::prelude::*;
 use crate::controller::FallibleResult;
 use crate::double_representation::apply_code_change_to_id_map;
 
-use ast::Ast;
+use ast::{Ast, HasIdMap};
 use ast::HasRepr;
 use ast::IdMap;
+use ast::IdMetadataMap;
 use data::text::Index;
 use data::text::Size;
 use data::text::Span;
@@ -70,6 +71,8 @@ shared! { Handle
         location: Location,
         /// The current module ast, used by synchronizing both module representations.
         ast: Ast,
+        /// The current module metadata
+        metadata: IdMetadataMap,
         /// The id map of current ast
         // TODO: written for test purposes, should be removed once generating id_map from AST will
         // be implemented.
@@ -134,30 +137,45 @@ impl Handle {
         file_manager.touch(path.clone()).await?;
         let content = file_manager.read(path).await?;
         logger.info(|| "Parsing code");
-        let ast     = parser.parse(content,default())?;
+        let (ast,metadata) = parser.parse_file(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
-        let id_map  = default();
-        let data    = Controller {location,ast,file_manager,parser,id_map,logger};
+        let id_map  = ast.id_map();
+        let data    = Controller {location,ast,file_manager,parser,id_map,metadata,logger};
         Ok(Handle::new_from_data(data))
     }
 
     /// Save the module to file.
-    pub fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
-        let (path,mut fm) = self.with_borrowed(|data| {
-            (data.location.to_path(),data.file_manager.clone_ref())
+    pub async fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
+        let (path,mut fm,metadata,ids) = self.with_borrowed(|data| {
+            let path = data.location.to_path();
+            let fm   = data.file_manager.clone_ref();
+            let ids  = serde_json::to_string(&data.id_map).expect(
+                "It should be possible to serialize idmap."
+            );
+            let meta = serde_json::to_string(&data.metadata).expect(
+                "It should be possible to serialize metadata."
+            );
+            (path,fm,meta,ids)
         });
-        fm.write(path,self.code())
-        // TODO [ao] here save also the id_map and metadata.
+        fm.write(path.clone(),self.code()).await;
+        fm.write(path.clone(), format!("{} {}\n", IDTAG, ids)).await;
+        fm.write(path, format!("{} {}\n", METATAG, metadata))
+        // TODO [ao] here save also the id_map.
     }
 
     #[cfg(test)]
     fn new_mock
-    (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:Parser)
-    -> FallibleResult<Self> {
-        let logger   = Logger::new("Mocked Module Controller");
-        let ast      = parser.parse(code.to_string(),id_map.clone())?;
-        let data     = Controller {location,ast,file_manager,parser,id_map,logger};
+    ( location     : Location
+    , code         : &str
+    , id_map       : IdMap
+    , metadata     : IdMetadataMap
+    , file_manager : fmc::Handle
+    , mut parser   : Parser
+    ) -> FallibleResult<Self> {
+        let logger = Logger::new("Mocked Module Controller");
+        let ast    = parser.parse(code.to_string(),id_map.clone())?;
+        let data   = Controller {location,ast,file_manager,parser,id_map,metadata,logger};
         Ok(Handle::new_from_data(data))
     }
 
@@ -171,9 +189,7 @@ mod test {
 
     use ast;
     use ast::BlockLine;
-    use data::text::Index;
     use data::text::Span;
-    use data::text::Size;
     use data::text::TextChange;
     use data::text::TextLocation;
     use json_rpc::test_util::transport::mock::MockTransport;
@@ -202,12 +218,20 @@ mod test {
         let uuid1        = Uuid::new_v4();
         let uuid2        = Uuid::new_v4();
         let code         = "2+2";
+        let metadata     = default();
         let id_map       = IdMap(vec!
-            [ (Span::new(Index::new(0), Size::new(1)),uuid1.clone())
-            , (Span::new(Index::new(2), Size::new(1)),uuid2)
+            [ (Span::from((0,1)),uuid1.clone())
+            , (Span::from((2,1)),uuid2)
             ]);
 
-        let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
+        let controller   = Handle::new_mock(
+            location,
+            code,
+            id_map,
+            metadata,
+            file_manager,
+            parser
+        ).unwrap();
 
         // Change code from "2+2" to "22+2"
         let change = TextChangedNotification {
