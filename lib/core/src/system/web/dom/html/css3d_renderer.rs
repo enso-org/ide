@@ -7,6 +7,7 @@ use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::system::web::dom::html::{Css3dObject, Css3dSystem};
 use crate::system::gpu::data::JsBufferView;
+use crate::system::web;
 use crate::system::web::Result;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
@@ -23,6 +24,7 @@ use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
+use web_sys::HtmlDivElement;
 use js_sys::Object;
 
 
@@ -136,19 +138,19 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 
 #[derive(Debug)]
 struct Css3dRendererData {
-    pub front_dom                 : HtmlElement,
-    pub back_dom                  : HtmlElement,
-    pub front_dom_view_projection : HtmlElement,
-    pub back_dom_view_projection  : HtmlElement,
+    pub front_dom                 : HtmlDivElement,
+    pub back_dom                  : HtmlDivElement,
+    pub front_dom_view_projection : HtmlDivElement,
+    pub back_dom_view_projection  : HtmlDivElement,
     logger                        : Logger
 }
 
 impl Css3dRendererData {
     pub fn new
-    ( front_dom                 : HtmlElement
-    , back_dom                  : HtmlElement
-    , front_dom_view_projection : HtmlElement
-    , back_dom_view_projection  : HtmlElement
+    ( front_dom                 : HtmlDivElement
+    , back_dom                  : HtmlDivElement
+    , front_dom_view_projection : HtmlDivElement
+    , back_dom_view_projection  : HtmlDivElement
     , logger                    : Logger) -> Self {
         Self {logger,front_dom,back_dom, front_dom_view_projection, back_dom_view_projection }
     }
@@ -186,48 +188,39 @@ pub struct Css3dRenderer {
 impl Css3dRenderer {
     /// Creates a Css3dRenderer inside an element.
     pub fn from_element_or_panic(logger:&Logger, element:HtmlElement) -> Self {
-        let logger           = logger.sub("Css3dRenderer");
-        let container        = DomContainer::from_element(element);
-        let front_dom        = create_div();
-        let back_dom         = create_div();
-        let front_camera_dom = create_div();
-        let back_camera_dom  = create_div();
+        let logger    = logger.sub("Css3dRenderer");
+        let container = DomContainer::from_element(element);
+        let (front_dom , front_dom_view_projection) = Self::create_layer(&logger);
+        let (back_dom  , back_dom_view_projection)  = Self::create_layer(&logger);
 
-        front_dom.set_style_or_warn("position","absolute",&logger);
-        front_dom.set_style_or_warn("top","0px",&logger);
-        front_dom.set_style_or_warn("overflow","hidden",&logger);
-        front_dom.set_style_or_warn("overflow","hidden",&logger);
-        front_dom.set_style_or_warn("width","100%",&logger);
-        front_dom.set_style_or_warn("height","100%",&logger);
-        front_dom.set_style_or_warn("pointer-events","none",&logger);
-        back_dom.set_style_or_warn("position","absolute",&logger);
-        back_dom.set_style_or_warn("top","0px",&logger);
-        back_dom.set_style_or_warn("overflow","hidden",&logger);
-        back_dom.set_style_or_warn("overflow","hidden",&logger);
-        back_dom.set_style_or_warn("width","100%",&logger);
-        back_dom.set_style_or_warn("height","100%",&logger);
-        back_dom.set_style_or_warn("pointer-events","none",&logger);
         back_dom.set_style_or_warn("z-index","-1",&logger);
-        front_camera_dom.set_style_or_warn("width", "100%", &logger);
-        front_camera_dom.set_style_or_warn("height", "100%", &logger);
-        front_camera_dom.set_style_or_warn("transform-style", "preserve-3d", &logger);
-        back_camera_dom.set_style_or_warn("width", "100%", &logger);
-        back_camera_dom.set_style_or_warn("height", "100%", &logger);
-        back_camera_dom.set_style_or_warn("transform-style", "preserve-3d", &logger);
-
         container.dom.append_or_warn(&front_dom,&logger);
         container.dom.append_or_warn(&back_dom,&logger);
-        front_dom.append_or_warn(&front_camera_dom, &logger);
-        back_dom.append_or_warn(&back_camera_dom, &logger);
 
-        let data = Css3dRendererData::new(
-            front_dom,
-            back_dom,
-            front_camera_dom,
-            back_camera_dom,
-            logger);
+        let data = Css3dRendererData::new
+            (front_dom,back_dom,front_dom_view_projection,back_dom_view_projection,logger);
         let data = Rc::new(data);
         Self{container,data}.init()
+    }
+
+    fn create_layer(logger:&Logger) -> (HtmlDivElement,HtmlDivElement) {
+        let dom                 = web::create_div();
+        let dom_view_projection = web::create_div();
+
+        dom.set_style_or_warn("position"       , "absolute" , &logger);
+        dom.set_style_or_warn("top"            , "0px"      , &logger);
+        dom.set_style_or_warn("overflow"       , "hidden"   , &logger);
+        dom.set_style_or_warn("overflow"       , "hidden"   , &logger);
+        dom.set_style_or_warn("width"          , "100%"     , &logger);
+        dom.set_style_or_warn("height"         , "100%"     , &logger);
+        dom.set_style_or_warn("pointer-events" , "none"     , &logger);
+
+        dom_view_projection.set_style_or_warn("width"           , "100%"        , &logger);
+        dom_view_projection.set_style_or_warn("height"          , "100%"        , &logger);
+        dom_view_projection.set_style_or_warn("transform-style" , "preserve-3d" , &logger);
+
+        dom.append_or_warn(&dom_view_projection,&logger);
+        return (dom,dom_view_projection);
     }
 
     /// Creates a Css3dRenderer.
@@ -251,36 +244,34 @@ impl Css3dRenderer {
     }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
-    pub(super) fn new_instance<S:Str>
-    (&self, dom_name:S, parent:DisplayObjectData) -> Result<Css3dObject> {
-        let front_camera = self.data.front_dom_view_projection.clone();
-        let back_camera  = self.data.back_dom_view_projection.clone();
-        let logger       = self.data.logger.sub("object");
-        let object       = Css3dObject::new(logger,dom_name);
-        object.as_ref().map(|object| {
-            parent.add_child(object);
-            let display_object : DisplayObjectData = object.into();
-            display_object.set_on_render(enclose!((object,display_object) move || {
-                let object_dom    = object.dom();
-                let mut transform = display_object.matrix();
-                transform.iter_mut().for_each(|a| *a = eps(*a));
+    pub(super) fn new_instance
+    (&self,parent:DisplayObjectData) -> Css3dObject {
+        let front_layer = self.data.front_dom_view_projection.clone();
+        let back_layer  = self.data.back_dom_view_projection.clone();
+        let logger      = self.data.logger.sub("object");
+        let object      = Css3dObject::new(logger);
+        parent.add_child(&object);
+        let display_object : DisplayObjectData = (&object).into();
+        display_object.set_on_render(enclose!((object,display_object) move || {
+            let object_dom    = object.dom();
+            let mut transform = display_object.matrix();
+            transform.iter_mut().for_each(|a| *a = eps(*a));
 
-                let camera_node = match object.css3d_order() {
-                    Css3dOrder::Front => &front_camera,
-                    Css3dOrder::Back  => &back_camera
-                };
+            let layer = match object.css3d_order() {
+                Css3dOrder::Front => &front_layer,
+                Css3dOrder::Back  => &back_layer
+            };
 
-                let parent_node = object.dom().parent_node();
-                if !camera_node.is_same_node(parent_node.as_ref()) {
-                    display_object.with_logger(|logger| {
-                        object_dom.remove_from_parent_or_warn(logger);
-                        camera_node.append_or_warn(&object_dom,logger);
-                    });
-                }
+            let parent_node = object.dom().parent_node();
+            if !layer.is_same_node(parent_node.as_ref()) {
+                display_object.with_logger(|logger| {
+                    object_dom.remove_from_parent_or_warn(logger);
+                    layer.append_or_warn(&object_dom,logger);
+                });
+            }
 
-                set_object_transform(&object_dom, &transform);
-            }));
-        }).ok();
+            set_object_transform(&object_dom, &transform);
+        }));
         object
     }
 
@@ -296,14 +287,14 @@ impl Css3dRenderer {
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.front_dom, &near.into());
-                js::setup_perspective(&self.data.back_dom, &near.into());
-                setup_camera_perspective(&self.data.front_dom_view_projection, near, &trans_cam);
-                setup_camera_perspective(&self.data.back_dom_view_projection, near, &trans_cam);
+                js::setup_perspective(&self.data.front_dom , &near.into());
+                js::setup_perspective(&self.data.back_dom  , &near.into());
+                setup_camera_perspective(&self.data.front_dom_view_projection , near, &trans_cam);
+                setup_camera_perspective(&self.data.back_dom_view_projection  , near, &trans_cam);
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.front_dom_view_projection, &trans_cam);
-                setup_camera_orthographic(&self.data.back_dom_view_projection, &trans_cam);
+                setup_camera_orthographic(&self.data.front_dom_view_projection , &trans_cam);
+                setup_camera_orthographic(&self.data.back_dom_view_projection  , &trans_cam);
             }
         }
     }
@@ -345,11 +336,6 @@ impl Css3dRenderer {
 // =============
 // === Utils ===
 // =============
-
-fn create_div() -> HtmlElement {
-    let element = create_element("div").expect("Couldn't create element");
-    dyn_into(element).expect("Couldn't cast to HtmlElement")
-}
 
 /// eps is used to round very small values to 0.0 for numerical stability
 pub fn eps(value: f32) -> f32 {

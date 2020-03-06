@@ -46,15 +46,9 @@ mod tests {
 
     fn initialize_system(name:&str,color:&str) -> (World,Css3dSystem) {
         web::set_stdout();
-//        let canvas_name   = format!("canvas_{}",name);
-        let container     = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
-//        let canvas        = dyn_into::<_,HtmlElement>(create_element("canvas").unwrap()).unwrap();
-//        canvas.set_attribute_or_panic("id", &canvas_name);
-//        canvas.set_style_or_panic("width", "100%");
-//        canvas.set_style_or_panic("height", "100%");
-//        container.append_or_panic(&canvas);
-        let world         = WorldData::new(&container);
-        let css3d_system  = Css3dSystem::new(&world);
+        let container    = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
+        let world        = WorldData::new(&container);
+        let css3d_system = Css3dSystem::new(&world);
         container.set_style_or_panic("background-color", color);
         world.add_child(&css3d_system);
         (world,css3d_system)
@@ -66,7 +60,7 @@ mod tests {
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
             // Creates 10 HTMLObjects per axis.
             for i in 0 .. 10 {
-                let mut object = system.new_instance("div").unwrap();
+                let mut object = system.new_instance();
                 object.set_dimensions(Vector2::new(10.0, 10.0));
 
                 // Using axis for masking.
@@ -149,7 +143,7 @@ mod tests {
 
         let mut objects = Vec::new();
         for _ in 0..400 {
-            let mut object = css3d_system.new_instance("div").expect("Failed to create object");
+            let mut object = css3d_system.new_instance();
             object.set_dimensions(Vector2::new(1.0, 1.0));
             object.mod_scale(|t| *t = Vector3::new(0.5, 0.5, 0.5));
             objects.push(object);

@@ -362,9 +362,6 @@ impl {
             }
         }
 
-
-
-
         group!(self.logger, "Updating.", {
             if self.shape_dirty.check_all() {
                 let screen = self.shape.screen_shape();
@@ -378,9 +375,11 @@ impl {
                 self.symbols_dirty.unset_all();
             }
             self.logger.info("Rendering meshes.");
-            self.symbols.render(&self.camera);
-            self.css3d_renderer.render(&self.camera);
-
+            let camera_changed = self.camera.update();
+            if camera_changed {
+                self.symbols.render(&self.camera);
+                self.css3d_renderer.render(&self.camera);
+            }
             self.composer.run();
         })
     }

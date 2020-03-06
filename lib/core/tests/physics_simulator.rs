@@ -41,11 +41,11 @@ mod tests {
 
         container.set_style_or_panic("background-color", "black");
 
-        let mut target = css3d_system.new_instance("div").unwrap();
+        let mut target = css3d_system.new_instance();
         target.set_dimensions(Vector2::new(10.0, 10.0));
         target.dom().set_style_or_panic("background-color", "green");
 
-        let mut object = css3d_system.new_instance("div").unwrap();
+        let mut object = css3d_system.new_instance();
         object.set_dimensions(Vector2::new(10.0, 10.0));
         object.dom().set_style_or_panic("background-color", "red");
 

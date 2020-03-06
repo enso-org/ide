@@ -25,8 +25,8 @@ impl Css3dSystem {
     }
 
     /// Creates a new instance of Css3dObject.
-    pub fn new_instance<S:Str>(&self, dom_name:S) -> Result<Css3dObject> {
-        self.css3d_renderer.new_instance(dom_name, self.into())
+    pub fn new_instance(&self) -> Css3dObject {
+        self.css3d_renderer.new_instance(self.into())
     }
 }
 

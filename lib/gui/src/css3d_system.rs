@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 use basegl::system::web;
+use basegl::system::web::NodeInserter;
 use web::dom::html::Css3dSystem;
 use web::dom::html::Css3dObject;
 use web::dom::html::Css3dOrder;
@@ -40,9 +41,9 @@ fn init(world:World) {
     let mut css3d_objects: Vec<Css3dObject> = default();
     let count = 10;
     for i in 0 .. count {
-        let x          = i as f32;
-        let width      = screen.width * 1.5 / count as f32;
-        let height     = screen.height;
+        let x      = i as f32;
+        let width  = screen.width * 1.5 / count as f32;
+        let height = screen.height;
         if i % 2 == 0 {
             let height = height * 0.75;
             let dimensions = Vector2::new(width, height);
@@ -53,14 +54,19 @@ fn init(world:World) {
             sprite.mod_position(|t| *t = position);
             sprites.push(sprite);
         } else {
+            let div        = web::create_div();
+            div.set_style_or_panic("width"  , "100%");
+            div.set_style_or_panic("height" , "100%");
+
             let dimensions = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
-            let mut object = css3d_system.new_instance("div").expect("Couldn't create div");
+            let mut object = css3d_system.new_instance();
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
             let b          = ((x + 4.0) * 64.0) as u8;
             let color      = iformat!("rgb({r},{g},{b})");
-            object.dom().set_style_or_panic("background-color",color);
+            div.set_style_or_panic("background-color",color);
+            object.dom().append_or_panic(&div);
             object.set_dimensions(dimensions);
             object.mod_position(|t| *t = position);
             css3d_objects.push(object);
@@ -77,10 +83,10 @@ fn init(world:World) {
         let _keep_alive = &sprite_system;
         let _keep_alive = &css3d_system;
 
-        i = (i + 1) % 2;
-        for (j, object) in css3d_objects.iter_mut().enumerate() {
-            object.set_css3d_order(css3d_position[(i + j) % 2]);
-        }
+//        i = (i + 1) % 2;
+//        for (j, object) in css3d_objects.iter_mut().enumerate() {
+//            object.set_css3d_order(css3d_position[(i + j) % 2]);
+//        }
     });
     std::mem::forget(animator);
 }

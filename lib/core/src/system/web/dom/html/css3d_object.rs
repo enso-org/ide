@@ -4,6 +4,7 @@
 use crate::prelude::*;
 
 use crate::display::object::DisplayObjectData;
+use crate::system::web;
 use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::Result;
@@ -14,6 +15,7 @@ use crate::system::web::NodeRemover;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use web_sys::HtmlElement;
+use web_sys::HtmlDivElement;
 
 
 
@@ -45,7 +47,7 @@ impl Default for Css3dOrder {
 #[derive(Debug)]
 struct Css3dObjectProperties {
     display_object : DisplayObjectData,
-    dom            : HtmlElement,
+    dom            : HtmlDivElement,
     dimensions     : Vector2<f32>,
     css3d_order    : Css3dOrder
 }
@@ -73,7 +75,7 @@ pub(super) struct Css3dObjectData {
 impl Css3dObjectData {
     fn new
     ( display_object : DisplayObjectData
-    , dom            : HtmlElement
+    , dom            : HtmlDivElement
     , dimensions     : Vector2<f32>
     , css3d_order    : Css3dOrder) -> Self {
         let properties = Css3dObjectProperties {display_object,dom,dimensions,css3d_order};
@@ -106,7 +108,7 @@ impl Css3dObjectData {
         self.properties.borrow().dimensions
     }
 
-    fn dom(&self) -> HtmlElement {
+    fn dom(&self) -> HtmlDivElement {
         self.properties.borrow().dom.clone()
     }
 
@@ -135,42 +137,36 @@ pub struct Css3dObject {
 
 impl Css3dObject {
     /// Creates a Css3dObject from element name.
-    pub(super) fn new<L:Into<Logger>,S:Str>(logger:L, dom_name:S) -> Result<Self> {
-        let dom = dyn_into(create_element(dom_name.as_ref())?)?;
-        Ok(Self::from_element(logger,dom))
+    pub(super) fn new<L:Into<Logger>>(logger:L) -> Self {
+        let dom = web::create_div();
+        Self::from_element(logger,dom)
     }
 
     /// Creates a Css3dObject from a web_sys::HtmlElement.
-    pub(super) fn from_element<L:Into<Logger>>(logger:L, element:HtmlElement) -> Self {
+    pub(super) fn from_element<L:Into<Logger>>(logger:L, div:HtmlDivElement) -> Self {
         let logger = logger.into();
-        element.set_style_or_warn("position", "absolute", &logger);
-        element.set_style_or_warn("width"   , "0px"     , &logger);
-        element.set_style_or_warn("height"  , "0px"     , &logger);
-        let dom            = element;
+        div.set_style_or_warn("position", "absolute", &logger);
+        div.set_style_or_warn("width"   , "0px"     , &logger);
+        div.set_style_or_warn("height"  , "0px"     , &logger);
         let display_object = DisplayObjectData::new(logger);
-        let dimensions     = Vector2::new(0.0, 0.0);
+        let dimensions     = Vector2::new(0.0,0.0);
         let css3d_order    = default();
-        let data = Css3dObjectData::new(
-            display_object,
-            dom,
-            dimensions,
-            css3d_order
-        );
+        let data = Css3dObjectData::new(display_object,div,dimensions,css3d_order);
         Self {data}
     }
 
-    /// Creates a Css3dObject from a HTML string.
-    pub(super) fn from_html_string<L:Into<Logger>,T:Str>(logger:L, html_string:T) -> Result<Self> {
-        let element = create_element("div")?;
-        element.set_inner_html(html_string.as_ref());
-        match element.first_element_child() {
-            Some(element) => {
-                let element = dyn_into(element)?;
-                Ok(Self::from_element(logger,element))
-            },
-            None => Err(Error::missing("valid HTML")),
-        }
-    }
+//    /// Creates a Css3dObject from a HTML string.
+//    pub(super) fn from_html_string<L:Into<Logger>,T:Str>(logger:L, html_string:T) -> Result<Self> {
+//        let element = create_element("div")?;
+//        element.set_inner_html(html_string.as_ref());
+//        match element.first_element_child() {
+//            Some(element) => {
+//                let element = dyn_into(element)?;
+//                Ok(Self::from_element(logger,element))
+//            },
+//            None => Err(Error::missing("valid HTML")),
+//        }
+//    }
 
     /// Sets Css3dOrder.
     pub fn set_css3d_order(&mut self, css3d_order: Css3dOrder) {
@@ -193,7 +189,7 @@ impl Css3dObject {
     }
 
     /// Gets Css3dObject's dom.
-    pub fn dom(&self) -> HtmlElement {
+    pub fn dom(&self) -> HtmlDivElement {
         self.data.dom()
     }
 

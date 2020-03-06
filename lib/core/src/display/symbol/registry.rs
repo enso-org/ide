@@ -98,14 +98,6 @@ impl {
     }
 
     pub fn render(&self, camera:&Camera2d) {
-        let changed = camera.update();
-        if changed {
-            self.view_projection.set(camera.view_projection_matrix());
-        }
-//        group!(self.logger, "Rendering.", {
-//            for symbol in &self.symbols {
-//                symbol.render();
-//            }
-//        })
+        self.view_projection.set(camera.view_projection_matrix());
     }
 }}

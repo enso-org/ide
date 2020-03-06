@@ -54,7 +54,7 @@ pub struct WorldData {
     pub display_mode  : Uniform<i32>,
     pub update_handle : Option<CallbackHandle>,
     pub stats         : Stats,
-    pub stats_monitor : StatsMonitor,
+//    pub stats_monitor : StatsMonitor,
 }
 
 
@@ -123,18 +123,19 @@ impl WorldData {
         let display_mode       = variables.add_or_panic("display_mode",0);
         let event_loop         = EventLoop::new();
         let update_handle      = default();
-        let stats_monitor      = StatsMonitor::new(&stats);
+//        let stats_monitor      = StatsMonitor::new(&stats);
         let performance        = web::get_performance().unwrap();
         let start_time         = performance.now() as f32;
-        let stats_monitor_cp_1 = stats_monitor.clone();
-        let stats_monitor_cp_2 = stats_monitor.clone();
+//        let stats_monitor_cp_1 = stats_monitor.clone();
+//        let stats_monitor_cp_2 = stats_monitor.clone();
+        println!("ULALALA");
 
-        stats_monitor.hide();
+//        stats_monitor.hide();
 
-        event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
-        event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
+//        event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
+//        event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });
         Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,update_handle,stats,stats_monitor}
+             ,update_handle,stats}//,stats_monitor}
     }
 
 
