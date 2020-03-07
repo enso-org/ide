@@ -2,14 +2,13 @@
 
 use crate::prelude::*;
 
-use crate::display::object::DisplayObjectData;
+use crate::display;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::system::web::dom::html::{Css3dObject, Css3dSystem};
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::Result;
-use crate::system::web::create_element;
 use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
@@ -231,7 +230,7 @@ impl Css3dRenderer {
     pub(super) fn new_system(&self) -> Css3dSystem {
         let css3d_renderer = self.clone();
         let logger         = self.data.logger.sub("Css3dSystem");
-        let display_object = DisplayObjectData::new(&logger);
+        let display_object = display::object::Node::new(&logger);
         Css3dSystem {display_object,css3d_renderer,logger}
     }
 
@@ -245,13 +244,10 @@ impl Css3dRenderer {
 
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub(super) fn new_instance
-    (&self,parent:DisplayObjectData) -> Css3dObject {
+    (&self,object:&Css3dObject) {
         let front_layer = self.data.front_dom_view_projection.clone();
         let back_layer  = self.data.back_dom_view_projection.clone();
-        let logger      = self.data.logger.sub("object");
-        let object      = Css3dObject::new(logger);
-        parent.add_child(&object);
-        let display_object : DisplayObjectData = (&object).into();
+        let display_object : display::object::Node = object.into();
         display_object.set_on_render(enclose!((object,display_object) move || {
             let object_dom    = object.dom();
             let mut transform = display_object.matrix();
@@ -272,7 +268,6 @@ impl Css3dRenderer {
 
             set_object_transform(&object_dom, &transform);
         }));
-        object
     }
 
     /// Renders `Camera`'s point of view.

@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::display::object::DisplayObjectData;
+use crate::display;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 
@@ -15,12 +15,12 @@ use crate::system::gpu::*;
 /// Pass allowing rendering a chosen display object. The results are stored in a `'color'` variable.
 #[derive(Clone,Debug)]
 pub struct DisplayObjectRenderPass {
-    target: DisplayObjectData
+    target: display::object::Node
 }
 
 impl DisplayObjectRenderPass {
     /// Constructor.
-    pub fn new(target:&DisplayObjectData) -> Self {
+    pub fn new(target:&display::object::Node) -> Self {
         let target = target.clone_ref();
         Self {target}
     }

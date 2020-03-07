@@ -1,17 +1,17 @@
 use crate::prelude::*;
 
 use super::Css3dObject;
-use crate::display::object::DisplayObjectData;
+use crate::display;
 use crate::display::world::World;
-use crate::system::web::Result;
 use crate::system::web::dom::html::Css3dRenderer;
+use crate::display::object::DisplayObjectOps;
 
 use logger::Logger;
 
 /// Css3dSystem enables us to create instances of HtmlElement objects in the 3d world.
 #[derive(Debug)]
 pub struct Css3dSystem {
-    pub(super) display_object : DisplayObjectData,
+    pub(super) display_object : display::object::Node,
     pub(super) css3d_renderer : Css3dRenderer,
     pub(super) logger         : Logger
 }
@@ -25,12 +25,13 @@ impl Css3dSystem {
     }
 
     /// Creates a new instance of Css3dObject.
-    pub fn new_instance(&self) -> Css3dObject {
-        self.css3d_renderer.new_instance(self.into())
+    pub fn add_child2(&self,object:&Css3dObject) {
+        self.add_child(object);
+        self.css3d_renderer.new_instance(object);
     }
 }
 
-impl From<&Css3dSystem> for DisplayObjectData {
+impl From<&Css3dSystem> for display::object::Node {
     fn from(t:&Css3dSystem) -> Self {
         t.display_object.clone_ref()
     }

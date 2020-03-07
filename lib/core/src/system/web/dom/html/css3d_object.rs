@@ -3,18 +3,14 @@
 
 use crate::prelude::*;
 
-use crate::display::object::DisplayObjectData;
+use crate::display;
 use crate::system::web;
-use crate::system::web::create_element;
-use crate::system::web::dyn_into;
-use crate::system::web::Result;
-use crate::system::web::Error;
 use crate::system::web::StyleSetter;
 use crate::system::web::NodeRemover;
+use crate::system::web::NodeInserter;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use web_sys::HtmlElement;
 use web_sys::HtmlDivElement;
 
 
@@ -46,7 +42,7 @@ impl Default for Css3dOrder {
 
 #[derive(Debug)]
 struct Css3dObjectProperties {
-    display_object : DisplayObjectData,
+    display_object : display::object::Node,
     dom            : HtmlDivElement,
     dimensions     : Vector2<f32>,
     css3d_order    : Css3dOrder
@@ -74,7 +70,7 @@ pub(super) struct Css3dObjectData {
 
 impl Css3dObjectData {
     fn new
-    ( display_object : DisplayObjectData
+    ( display_object : display::object::Node
     , dom            : HtmlDivElement
     , dimensions     : Vector2<f32>
     , css3d_order    : Css3dOrder) -> Self {
@@ -124,7 +120,6 @@ impl Css3dObjectData {
 }
 
 
-
 // ===================
 // === Css3dObject ===
 // ===================
@@ -137,18 +132,14 @@ pub struct Css3dObject {
 
 impl Css3dObject {
     /// Creates a Css3dObject from element name.
-    pub(super) fn new<L:Into<Logger>>(logger:L) -> Self {
-        let dom = web::create_div();
-        Self::from_element(logger,dom)
-    }
-
-    /// Creates a Css3dObject from a web_sys::HtmlElement.
-    pub(super) fn from_element<L:Into<Logger>>(logger:L, div:HtmlDivElement) -> Self {
-        let logger = logger.into();
+    pub fn new(dom:&web_sys::Node) -> Self {
+        let div    = web::create_div();
+        let logger = Logger::new("DomObject");
         div.set_style_or_warn("position", "absolute", &logger);
         div.set_style_or_warn("width"   , "0px"     , &logger);
         div.set_style_or_warn("height"  , "0px"     , &logger);
-        let display_object = DisplayObjectData::new(logger);
+        div.append_or_panic(dom);
+        let display_object = display::object::Node::new(logger);
         let dimensions     = Vector2::new(0.0,0.0);
         let css3d_order    = default();
         let data = Css3dObjectData::new(display_object,div,dimensions,css3d_order);
@@ -209,8 +200,15 @@ impl Css3dObject {
     }
 }
 
-impl From<&Css3dObject> for DisplayObjectData {
+impl From<&Css3dObject> for display::object::Node {
     fn from(t:&Css3dObject) -> Self {
         t.data.properties.borrow().display_object.clone_ref()
     }
+}
+
+
+
+
+pub struct DomSymbolRegistry {
+
 }

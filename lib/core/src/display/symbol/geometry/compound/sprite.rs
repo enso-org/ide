@@ -6,6 +6,7 @@ use crate::prelude::*;
 
 use crate::debug::Stats;
 use crate::display::layout::types::*;
+use crate::display;
 use crate::display::object::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
@@ -28,7 +29,7 @@ shared! { Sprite
 pub struct SpriteData {
     symbol         : Symbol,
     instance_id    : AttributeInstanceIndex,
-    display_object : DisplayObjectData,
+    display_object : display::object::Node,
     transform      : Attribute<Matrix4<f32>>,
     bbox           : Attribute<Vector2<f32>>,
     stats          : Stats,
@@ -46,7 +47,7 @@ impl {
         stats.inc_sprite_count();
         let symbol         = symbol.clone_ref();
         let logger         = Logger::new(iformat!("Sprite{instance_id}"));
-        let display_object = DisplayObjectData::new(logger);
+        let display_object = display::object::Node::new(logger);
         let stats          = stats.clone_ref();
         display_object.set_on_updated(enclose!((transform) move |t| {transform.set(t.matrix())}));
         Self {symbol,instance_id,display_object,transform,bbox,stats}
@@ -78,7 +79,7 @@ impl {
     }
 }}
 
-impl From<&Sprite> for DisplayObjectData {
+impl From<&Sprite> for display::object::Node {
     fn from(t:&Sprite) -> Self {
         t.rc.borrow().display_object.clone_ref()
     }
@@ -245,13 +246,13 @@ impl SpriteSystemData {
     }
 }
 
-impl From<&SpriteSystemData> for DisplayObjectData {
+impl From<&SpriteSystemData> for display::object::Node {
     fn from(t:&SpriteSystemData) -> Self {
         t.symbol.display_object()
     }
 }
 
-impl From<&SpriteSystem> for DisplayObjectData {
+impl From<&SpriteSystem> for display::object::Node {
     fn from(t:&SpriteSystem) -> Self {
         t.rc.borrow().display_object()
     }

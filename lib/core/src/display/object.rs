@@ -14,6 +14,10 @@ use nalgebra::Vector3;
 use nalgebra::Matrix4;
 use transform::CachedTransform;
 
+use crate::control::callback::DynEventDispatcher;
+use crate::control::callback::DynEvent;
+use shapely::shared;
+
 
 
 // ==================
@@ -25,7 +29,7 @@ use transform::CachedTransform;
 /// update the old parent with the information that the child was removed.
 #[derive(Clone,Debug)]
 pub struct ParentBind {
-    pub parent : DisplayObjectData,
+    pub parent : Node,
     pub index  : usize
 }
 
@@ -36,100 +40,27 @@ impl ParentBind {
 }
 
 
-use crate::control::callback::DynEventDispatcher;
-use crate::control::callback::DynEvent;
 
+// =================
+// === Callbacks ===
+// =================
 
-
-// =====================================
-// === HierarchicalObjectDescription ===
-// =====================================
-
-/// Hierarchical description of objects. Each object contains binding to its parent and to its
-/// children. This is the most underlying structure in the display object hierarchy.
-#[derive(Debug)]
-pub struct HierarchicalObjectData {
-    pub parent_bind : Option<ParentBind>,
-    pub children    : OptVec<DisplayObjectData>,
-    pub dispatcher  : DynEventDispatcher,
-    pub logger      : Logger,
+#[derive(Default)]
+pub struct Callbacks {
+    pub on_updated : Option<Box<dyn Fn(&NodeData)>>,
+    pub on_render  : Option<Box<dyn Fn()>>,
 }
 
-
-// === Public API ===
-
-impl HierarchicalObjectData {
-    pub fn new(logger:Logger) -> Self {
-        let parent_bind = default();
-        let children    = default();
-        let dispatcher  = default();
-        Self {parent_bind,children,dispatcher,logger}
-    }
-
-    pub fn dispatch(&mut self, event:&DynEvent) {
-        self.dispatcher.dispatch(event);
-        self.parent_bind.iter().for_each(|bind| bind.parent.dispatch(event));
-    }
-
-    pub fn child_count(&self) -> usize {
-        self.children.len()
+impl Debug for Callbacks {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Callbacks")
     }
 }
 
 
-// === Private API ===
-
-impl HierarchicalObjectData {
-    fn take_parent_bind(&mut self) -> Option<ParentBind> {
-        self.parent_bind.take()
-    }
-
-    fn set_parent_bind(&mut self, bind:ParentBind) {
-        self.parent_bind = Some(bind);
-    }
-
-    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
-        let child = child.display_object();
-        self.children.insert(child)
-    }
-
-    pub fn remove_child_by_index(&mut self, index:usize) {
-        let opt_child = self.children.remove(index);
-        opt_child.for_each(|t| t.raw_unset_parent());
-    }
-}
-
-
-// === Getters ===
-
-impl DisplayObjectDataMut {
-    pub fn parent(&self) -> Option<&DisplayObjectData> {
-        self.parent_bind.as_ref().map(|ref t| &t.parent)
-    }
-}
-
-
-
-// ======================================
-// === LazyTransformObjectDescription ===
-// ======================================
-
-/// Internal representation of `ObjectData`. See it's documentation for more information.
-#[derive(Derivative,Shrinkwrap)]
-#[shrinkwrap(mutable)]
-#[derivative(Debug)]
-pub struct DisplayObjectDataMut {
-    #[shrinkwrap(main_field)]
-    pub wrapped          : HierarchicalObjectData,
-    pub transform        : CachedTransform<Option<OnChange>>,
-    pub child_dirty      : ChildDirty,
-    pub new_parent_dirty : NewParentDirty,
-    #[derivative(Debug="ignore")]
-    pub on_updated: Option<Box<dyn Fn(&DisplayObjectDataMut)>>,
-    #[derivative(Debug="ignore")]
-    pub on_render: Option<Box<dyn Fn()>>,
-}
-
+// ============
+// === Node ===
+// ============
 
 // === Types ===
 
@@ -145,21 +76,115 @@ fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 }
 
 
-// === API ===
+// === Definition ===
 
-impl DisplayObjectDataMut {
-    pub fn new(logger:Logger) -> Self {
+shared! { Node
+/// A hierarchical representation of object containing a position, a scale and a rotation.
+#[derive(Debug)]
+pub struct NodeData {
+    parent_bind      : Option<ParentBind>,
+    children         : OptVec<Node>,
+    child_dirty      : ChildDirty,
+    new_parent_dirty : NewParentDirty,
+    transform        : CachedTransform<Option<OnChange>>,
+    event_dispatcher : DynEventDispatcher,
+    callbacks        : Callbacks,
+    logger           : Logger,
+}
+
+impl {
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let logger           = logger.into();
+        let parent_bind      = default();
+        let children         = default();
+        let event_dispatcher = default();
         let transform        = CachedTransform :: new(logger.sub("transform")       ,None);
         let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")     ,None);
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty"),());
-        let wrapped          = HierarchicalObjectData::new(logger);
-        let on_updated       = None;
-        let on_render        = None;
-        Self {wrapped,transform,child_dirty,new_parent_dirty,on_updated,on_render}
+        let callbacks        = default();
+        Self {logger,parent_bind,children,event_dispatcher,transform,child_dirty,new_parent_dirty,callbacks}
+    }
+
+    pub fn parent(&self) -> Option<Node> {
+        self.parent_bind.as_ref().map(|t| t.parent.clone_ref())
+    }
+}
+
+// === Getters ===
+
+impl {
+    pub fn global_position(&self) -> Vector3<f32> {
+        self.transform.global_position()
+    }
+
+    pub fn position(&self) -> Vector3<f32> {
+        self.transform.position()
+    }
+
+    pub fn scale(&self) -> Vector3<f32> {
+        self.transform.scale()
+    }
+
+    pub fn rotation(&self) -> Vector3<f32> {
+        self.transform.rotation()
+    }
+
+    pub fn matrix(&self) -> Matrix4<f32> {
+        self.transform.matrix()
+    }
+}
+
+// === Setters ===
+
+impl {
+    pub fn set_position(&mut self, t:Vector3<f32>) {
+        self.transform.set_position(t);
+    }
+
+    pub fn set_scale(&mut self, t:Vector3<f32>) {
+        self.transform.set_scale(t);
+    }
+
+    pub fn set_rotation(&mut self, t:Vector3<f32>) {
+        self.transform.set_rotation(t);
+    }
+
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_position(f)
+    }
+
+    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_rotation(f)
+    }
+
+    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        self.transform.mod_scale(f)
+    }
+
+    pub fn set_on_updated<F:Fn(&NodeData)+'static>(&mut self, f:F) {
+        self.callbacks.on_updated = Some(Box::new(f))
+    }
+
+    pub fn set_on_render<F:Fn()+'static>(&mut self, f:F) {
+        self.callbacks.on_render = Some(Box::new(f))
+    }
+}}
+
+
+// === API ===
+
+impl NodeData {
+    pub fn dispatch_event(&mut self, event:&DynEvent) {
+        self.event_dispatcher.dispatch(event);
+        self.parent_bind.map_ref(|bind| bind.parent.dispatch(event));
+    }
+
+    pub fn child_count(&self) -> usize {
+        self.children.len()
     }
 
     pub fn render(&self) {
-        if let Some(f) = &self.on_render { f() }
+        if let Some(f) = &self.callbacks.on_render { f() }
         self.children.iter().for_each(|child| {
             child.render();
         });
@@ -202,22 +227,25 @@ impl DisplayObjectDataMut {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-        if let Some(f) = &self.on_updated { f(self) }
+        if let Some(f) = &self.callbacks.on_updated { f(self) }
     }
 }
 
 
 // === Private API ===
 
-impl DisplayObjectDataMut {
+impl NodeData {
+
     fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
-        let index = self.wrapped.register_child(child);
+        let child = child.display_object();
+        let index = self.children.insert(child);
         self.child_dirty.set(index);
         index
     }
 
     fn remove_child_by_index(&mut self, index:usize) {
-        self.wrapped.remove_child_by_index(index);
+        let opt_child = self.children.remove(index);
+        opt_child.for_each(|t| t.raw_unset_parent());
         self.child_dirty.unset(&index);
     }
 
@@ -226,7 +254,7 @@ impl DisplayObjectDataMut {
         self.transform.dirty.set_callback(None);
         self.child_dirty.set_callback(None);
         self.new_parent_dirty.set();
-        self.wrapped.take_parent_bind();
+        self.take_parent_bind();
     }
 
     fn set_parent_bind(&mut self, bind:ParentBind) {
@@ -237,83 +265,19 @@ impl DisplayObjectDataMut {
         self.transform.dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.child_dirty.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
-        self.wrapped.set_parent_bind(bind);
+        self.parent_bind = Some(bind);
+    }
+
+    /// Take parent bind and replace it with `None`.
+    fn take_parent_bind(&mut self) -> Option<ParentBind> {
+        self.parent_bind.take()
     }
 }
 
 
-// === Getters ===
-
-impl DisplayObjectDataMut {
-    pub fn global_position(&self) -> Vector3<f32> {
-        self.transform.global_position()
-    }
-
-    pub fn position(&self) -> Vector3<f32> {
-        self.transform.position()
-    }
-
-    pub fn scale(&self) -> Vector3<f32> {
-        self.transform.scale()
-    }
-
-    pub fn rotation(&self) -> Vector3<f32> {
-        self.transform.rotation()
-    }
-
-    pub fn matrix(&self) -> Matrix4<f32> {
-        self.transform.matrix()
-    }
-}
 
 
-// === Setters ===
 
-impl DisplayObjectDataMut {
-    pub fn position_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.position_mut()
-    }
-
-    pub fn scale_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.scale_mut()
-    }
-
-    pub fn rotation_mut(&mut self) -> &mut Vector3<f32> {
-        self.transform.rotation_mut()
-    }
-
-    pub fn set_position(&mut self, t:Vector3<f32>) {
-        self.transform.set_position(t);
-    }
-
-    pub fn set_scale(&mut self, t:Vector3<f32>) {
-        self.transform.set_scale(t);
-    }
-
-    pub fn set_rotation(&mut self, t:Vector3<f32>) {
-        self.transform.set_rotation(t);
-    }
-
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_position(f)
-    }
-
-    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_rotation(f)
-    }
-
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_scale(f)
-    }
-
-    pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&mut self, f:F) {
-        self.on_updated = Some(Box::new(f))
-    }
-
-    pub fn set_on_render<F:Fn()+'static>(&mut self, f:F) {
-        self.on_render = Some(Box::new(f))
-    }
-}
 
 
 
@@ -321,35 +285,17 @@ impl DisplayObjectDataMut {
 // === DisplayObjectDescription ===
 // ================================
 
-/// A hierarchical representation of object containing a position, a scale and a rotation.
-///
-/// # Safety
-/// Please note that you will get runtime crash when running the `update` function if your object
-/// hierarchy forms a loop, for example, `obj2` is child of `obj1`, while `obj1` is child of `obj2`.
-/// It is not easy to discover such situations, but maybe it will be worth to add some additional
-/// safety on top of that in the future.
-#[derive(Clone,Debug)]
-pub struct DisplayObjectData {
-    rc: Rc<RefCell<DisplayObjectDataMut>>,
-}
-
 
 // === Public API ==
 
-impl DisplayObjectData {
-    /// Creates a new object instance.
-    pub fn new<L:Into<Logger>>(logger:L) -> Self {
-        let data = DisplayObjectDataMut::new(logger.into());
-        let rc   = Rc::new(RefCell::new(data));
-        Self {rc}
-    }
+impl Node {
 
     pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
         f(&self.rc.borrow().logger)
     }
 
-    pub fn dispatch(&self, event:&DynEvent) {
-        self.rc.borrow_mut().dispatch(event)
+    pub fn dispatch_event(&self, event:&DynEvent) {
+        self.rc.borrow_mut().dispatch_event(event)
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
@@ -419,7 +365,7 @@ impl DisplayObjectData {
 
 // === Private API ===
 
-impl DisplayObjectData {
+impl Node {
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
@@ -457,93 +403,29 @@ impl DisplayObjectData {
 
 // === Getters ===
 
-impl DisplayObjectData {
-    pub fn parent(&self) -> Option<DisplayObjectData> {
-        self.rc.borrow().parent().map(|t| t.clone_ref())
-    }
-
+impl Node {
     pub fn index(&self) -> Option<usize> {
         self.parent_bind().map(|t| t.index)
     }
-
-    pub fn global_position(&self) -> Vector3<f32> {
-        self.rc.borrow().global_position()
-    }
-
-    pub fn position(&self) -> Vector3<f32> {
-        self.rc.borrow().position()
-    }
-
-    pub fn scale(&self) -> Vector3<f32> {
-        self.rc.borrow().scale()
-    }
-
-    pub fn rotation(&self) -> Vector3<f32> {
-        self.rc.borrow().rotation()
-    }
-
-    pub fn matrix(&self) -> Matrix4<f32> {
-        self.rc.borrow().matrix()
-    }
 }
-
-
-// === Setters ===
-
-impl DisplayObjectData {
-    pub fn set_position(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_position(t);
-    }
-
-    pub fn set_scale(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_scale(t);
-    }
-
-    pub fn set_rotation(&self, t:Vector3<f32>) {
-        self.rc.borrow_mut().set_rotation(t);
-    }
-
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_position(f)
-    }
-
-    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_rotation(f)
-    }
-
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.rc.borrow_mut().mod_scale(f)
-    }
-
-    pub fn set_on_updated<F:Fn(&DisplayObjectDataMut)+'static>(&self, f:F) {
-        self.rc.borrow_mut().set_on_updated(f)
-    }
-
-    pub fn set_on_render<F:Fn()+'static>(&self, f:F) {
-        self.rc.borrow_mut().set_on_render(f)
-    }
-}
-
 
 // === Instances ===
 
-impl From<&DisplayObjectData> for DisplayObjectData {
-    fn from(t:&DisplayObjectData) -> Self { t.clone_ref() }
+impl From<&Node> for Node {
+    fn from(t:&Node) -> Self { t.clone_ref() }
 }
 
-impl From<Rc<RefCell<DisplayObjectDataMut>>> for DisplayObjectData {
-    fn from(rc: Rc<RefCell<DisplayObjectDataMut>>) -> Self {
+impl From<Rc<RefCell<NodeData>>> for Node {
+    fn from(rc: Rc<RefCell<NodeData>>) -> Self {
         Self {rc}
     }
 }
 
-impl PartialEq for DisplayObjectData {
+impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
     }
 }
-
-impl CloneRef for DisplayObjectData {}
 
 
 
@@ -551,13 +433,13 @@ impl CloneRef for DisplayObjectData {}
 // === DisplayObject ===
 // =====================
 
-pub trait DisplayObject: Into<DisplayObjectData> {
-    fn display_object(self) -> DisplayObjectData {
+pub trait DisplayObject: Into<Node> {
+    fn display_object(self) -> Node {
         self.into()
     }
 }
 
-impl<T:Into<DisplayObjectData>> DisplayObject for T {}
+impl<T:Into<Node>> DisplayObject for T {}
 
 
 pub trait DisplayObjectOps<'t>
@@ -587,9 +469,9 @@ mod tests {
 
     #[test]
     fn hierarchy_test() {
-        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
-        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
-        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
+        let obj1 = Node::new(Logger::new("obj1"));
+        let obj2 = Node::new(Logger::new("obj2"));
+        let obj3 = Node::new(Logger::new("obj3"));
         obj1.add_child(&obj2);
         assert_eq!(obj2.index(),Some(0));
 
@@ -605,9 +487,9 @@ mod tests {
 
     #[test]
     fn transformation_test() {
-        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
-        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
-        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
+        let obj1 = Node::new(Logger::new("obj1"));
+        let obj2 = Node::new(Logger::new("obj2"));
+        let obj3 = Node::new(Logger::new("obj3"));
         assert_eq!(obj1.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(obj2.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(obj3.position()        , Vector3::new(0.0,0.0,0.0));
@@ -672,9 +554,9 @@ mod tests {
 
     #[test]
     fn parent_test() {
-        let obj1 = DisplayObjectData::new(Logger::new("obj1"));
-        let obj2 = DisplayObjectData::new(Logger::new("obj2"));
-        let obj3 = DisplayObjectData::new(Logger::new("obj3"));
+        let obj1 = Node::new(Logger::new("obj1"));
+        let obj2 = Node::new(Logger::new("obj2"));
+        let obj3 = Node::new(Logger::new("obj3"));
         obj1.add_child(&obj2);
         obj1.add_child(&obj3);
         obj2.unset_parent();

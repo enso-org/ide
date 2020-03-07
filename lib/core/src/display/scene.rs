@@ -13,8 +13,8 @@ use crate::control::io::mouse;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
+use crate::display;
 use crate::display::camera::Camera2d;
-use crate::display::object::DisplayObjectData;
 use crate::display::object::DisplayObjectOps;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
@@ -224,7 +224,7 @@ shared! { Scene
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct SceneData {
-    root           : DisplayObjectData,
+    root           : display::object::Node,
     canvas         : web_sys::HtmlCanvasElement,
     context        : Context,
     css3d_renderer : Css3dRenderer,
@@ -254,7 +254,7 @@ impl {
     pub fn new<OnMut:Fn()+Clone+'static>
     (parent_dom:&HtmlElement, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         logger.trace("Initializing.");
-        let root            = DisplayObjectData::new(&logger);
+        let root            = display::object::Node::new(&logger);
         let dom             = web::create_div();
         let canvas          = web::create_canvas();
         dom.set_style_or_panic("height","100vh");
@@ -412,14 +412,14 @@ impl {
     }
 }}
 
-impl Into<DisplayObjectData> for &SceneData {
-    fn into(self) -> DisplayObjectData {
+impl Into<display::object::Node> for &SceneData {
+    fn into(self) -> display::object::Node {
         self.root.clone()
     }
 }
 
-impl Into<DisplayObjectData> for &Scene {
-    fn into(self) -> DisplayObjectData {
+impl Into<display::object::Node> for &Scene {
+    fn into(self) -> display::object::Node {
         let data:&SceneData = &self.rc.borrow();
         data.into()
     }

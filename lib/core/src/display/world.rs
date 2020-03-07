@@ -15,6 +15,7 @@ use crate::control::event_loop::EventLoop;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
+use crate::display;
 use crate::display::object::*;
 use crate::display::render::*;
 use crate::display::scene::Scene;
@@ -161,8 +162,8 @@ impl WorldData {
     }
 }
 
-impl Into<DisplayObjectData> for &WorldData {
-    fn into(self) -> DisplayObjectData {
+impl Into<display::object::Node> for &WorldData {
+    fn into(self) -> display::object::Node {
         (&self.scene).into()
     }
 }
@@ -264,8 +265,8 @@ impl<T> AddMut<T> for World where WorldData: AddMut<T> {
     }
 }
 
-impl Into<DisplayObjectData> for &World {
-    fn into(self) -> DisplayObjectData {
+impl Into<display::object::Node> for &World {
+    fn into(self) -> display::object::Node {
         let data:&WorldData = &self.rc.borrow();
         data.into()
     }

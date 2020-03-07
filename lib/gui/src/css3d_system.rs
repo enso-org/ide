@@ -60,12 +60,14 @@ fn init(world:World) {
 
             let dimensions = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
-            let mut object = css3d_system.new_instance();
+            let mut object = Css3dObject::new(&div);
+            css3d_system.add_child2(&object);
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
             let b          = ((x + 4.0) * 64.0) as u8;
             let color      = iformat!("rgb({r},{g},{b})");
             div.set_style_or_panic("background-color",color);
+
             object.dom().append_or_panic(&div);
             object.set_dimensions(dimensions);
             object.mod_position(|t| *t = position);
@@ -83,10 +85,10 @@ fn init(world:World) {
         let _keep_alive = &sprite_system;
         let _keep_alive = &css3d_system;
 
-//        i = (i + 1) % 2;
-//        for (j, object) in css3d_objects.iter_mut().enumerate() {
-//            object.set_css3d_order(css3d_position[(i + j) % 2]);
-//        }
+        i = (i + 1) % 2;
+        for (j, object) in css3d_objects.iter_mut().enumerate() {
+            object.set_css3d_order(css3d_position[(i + j) % 2]);
+        }
     });
     std::mem::forget(animator);
 }

@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use super::def::*;
 
+use crate::display;
 use crate::display::object::*;
 use crate::display::shape::primitive::shader;
 use crate::display::symbol::geometry::SpriteSystem;
@@ -50,7 +51,7 @@ impl ShapeSystem {
     }
 }
 
-impl From<&ShapeSystem> for DisplayObjectData {
+impl From<&ShapeSystem> for display::object::Node {
     fn from(t:&ShapeSystem) -> Self {
         (&t.sprite_system).into()
     }
