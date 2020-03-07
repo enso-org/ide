@@ -108,11 +108,76 @@ impl {
     pub fn parent(&self) -> Option<Node> {
         self.parent_bind.as_ref().map(|t| t.parent.clone_ref())
     }
+
+    pub fn dispatch_event(&mut self, event:&DynEvent) {
+        self.event_dispatcher.dispatch(event);
+        self.parent_bind.map_ref(|bind| bind.parent.dispatch(event));
+    }
+
+    pub fn child_count(&self) -> usize {
+        self.children.len()
+    }
+
+    /// Removes child by a given index. Does nothing if the index was incorrect. Please use the
+    /// `remove_child` method unless you are 100% sure that the index is correct.
+    pub fn remove_child_by_index(&mut self, index:usize) {
+        let opt_child = self.children.remove(index);
+        opt_child.for_each(|t| t.raw_unset_parent());
+        self.child_dirty.unset(&index);
+    }
+
+    /// Recompute the transformation matrix of this object and update all of its dirty children.
+    pub fn update(&mut self) {
+        let origin0 = Matrix4::identity();
+        self.update_with(&origin0,false)
+    }
+
+    /// Updates object transformations by providing a new origin location. See docs of `update` to
+    /// learn more.
+    pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
+        let use_origin = force || self.new_parent_dirty.check();
+        let new_origin = use_origin.as_some(parent_origin);
+        let msg        = match new_origin {
+            Some(_) => "Update with new parent origin.",
+            None    => "Update with old parent origin."
+        };
+        group!(self.logger, "{msg}", {
+            let origin_changed = self.transform.update(new_origin);
+            let origin         = &self.transform.matrix;
+            if origin_changed {
+                self.logger.info("Self origin changed.");
+                if !self.children.is_empty() {
+                    group!(self.logger, "Updating all children.", {
+                        self.children.iter().for_each(|child| {
+                            child.update_with(origin,true);
+                        });
+                    })
+                }
+            } else {
+                self.logger.info("Self origin did not change.");
+                if self.child_dirty.check_all() {
+                    group!(self.logger, "Updating dirty children.", {
+                        self.child_dirty.take().iter().for_each(|ix| {
+                            self.children[*ix].update_with(origin,false)
+                        });
+                    })
+                }
+            }
+            self.child_dirty.unset_all();
+        });
+        self.new_parent_dirty.unset();
+        if let Some(f) = &self.callbacks.on_updated { f(self) }
+    }
 }
 
 // === Getters ===
 
 impl {
+    /// Gets a clone of parent bind.
+    pub fn parent_bind(&self) -> Option<ParentBind> {
+        self.parent_bind.clone()
+    }
+
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.global_position()
     }
@@ -168,88 +233,25 @@ impl {
     pub fn set_on_render<F:Fn()+'static>(&mut self, f:F) {
         self.callbacks.on_render = Some(Box::new(f))
     }
-}}
-
-
-// === API ===
-
-impl NodeData {
-    pub fn dispatch_event(&mut self, event:&DynEvent) {
-        self.event_dispatcher.dispatch(event);
-        self.parent_bind.map_ref(|bind| bind.parent.dispatch(event));
-    }
-
-    pub fn child_count(&self) -> usize {
-        self.children.len()
-    }
-
-    pub fn render(&self) {
-        if let Some(f) = &self.callbacks.on_render { f() }
-        self.children.iter().for_each(|child| {
-            child.render();
-        });
-    }
-
-    pub fn update(&mut self) {
-        let origin0 = Matrix4::identity();
-        self.update_with(&origin0,false)
-    }
-
-    pub fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
-        let use_origin = force || self.new_parent_dirty.check();
-        let new_origin = use_origin.as_some(parent_origin);
-        let msg        = match new_origin {
-            Some(_) => "Update with new parent origin.",
-            None    => "Update with old parent origin."
-        };
-        group!(self.logger, "{msg}", {
-            let origin_changed = self.transform.update(new_origin);
-            let origin         = &self.transform.matrix;
-            if origin_changed {
-                self.logger.info("Self origin changed.");
-                if !self.children.is_empty() {
-                    group!(self.logger, "Updating all children.", {
-                        self.children.iter().for_each(|child| {
-                            child.update_with(origin,true);
-                        });
-                    })
-                }
-            } else {
-                self.logger.info("Self origin did not change.");
-                if self.child_dirty.check_all() {
-                    group!(self.logger, "Updating dirty children.", {
-                        self.child_dirty.take().iter().for_each(|ix| {
-                            self.children[*ix].update_with(origin,false)
-                        });
-                    })
-                }
-            }
-            self.child_dirty.unset_all();
-        });
-        self.new_parent_dirty.unset();
-        if let Some(f) = &self.callbacks.on_updated { f(self) }
-    }
 }
-
 
 // === Private API ===
 
-impl NodeData {
-
-    fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
+impl {
+    pub fn register_child<T:DisplayObject>(&mut self, child:T) -> usize {
         let child = child.display_object();
         let index = self.children.insert(child);
         self.child_dirty.set(index);
         index
     }
 
-    fn remove_child_by_index(&mut self, index:usize) {
-        let opt_child = self.children.remove(index);
-        opt_child.for_each(|t| t.raw_unset_parent());
-        self.child_dirty.unset(&index);
+    /// Removes and returns the parent bind. Please note that the parent is not updated.
+    pub fn take_parent_bind(&mut self) -> Option<ParentBind> {
+        self.parent_bind.take()
     }
 
-    fn raw_unset_parent(&mut self) {
+    /// Removes the binding to the parent object.
+    pub fn raw_unset_parent(&mut self) {
         self.logger.info("Removing parent bind.");
         self.transform.dirty.set_callback(None);
         self.child_dirty.set_callback(None);
@@ -257,7 +259,8 @@ impl NodeData {
         self.take_parent_bind();
     }
 
-    fn set_parent_bind(&mut self, bind:ParentBind) {
+    /// Set parent of the object. If the object already has a parent, the parent would be replaced.
+    pub fn set_parent_bind(&mut self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
         let dirty  = bind.parent.rc.borrow().child_dirty.clone_ref();
         let index  = bind.index;
@@ -267,16 +270,19 @@ impl NodeData {
         self.new_parent_dirty.set();
         self.parent_bind = Some(bind);
     }
+}}
 
-    /// Take parent bind and replace it with `None`.
-    fn take_parent_bind(&mut self) -> Option<ParentBind> {
-        self.parent_bind.take()
+
+// === API ===
+
+impl NodeData {
+    pub fn render(&self) {
+        if let Some(f) = &self.callbacks.on_render { f() }
+        self.children.iter().for_each(|child| {
+            child.render();
+        });
     }
 }
-
-
-
-
 
 
 
@@ -289,19 +295,10 @@ impl NodeData {
 // === Public API ==
 
 impl Node {
-
     pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
         f(&self.rc.borrow().logger)
     }
 
-    pub fn dispatch_event(&self, event:&DynEvent) {
-        self.rc.borrow_mut().dispatch_event(event)
-    }
-
-    /// Recompute the transformation matrix of this object and update all of its dirty children.
-    pub fn update(&self) {
-        self.rc.borrow_mut().update();
-    }
 
     /// Adds a new `DisplayObject` as a child to the current one.
     pub fn add_child<T:DisplayObject>(&self, child:T) {
@@ -313,7 +310,7 @@ impl Node {
         self.rc.borrow().logger.info("Adding new child.");
         let child = child.display_object();
         child.unset_parent();
-        let index = self.rc.borrow_mut().register_child(&child);
+        let index = self.register_child(&child);
         self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
         let parent_bind = ParentBind {parent:self,index};
         child.set_parent_bind(parent_bind);
@@ -351,54 +348,12 @@ impl Node {
         })
     }
 
-    /// Returns the number of children of this node.
-    pub fn child_count(&self) -> usize {
-        self.rc.borrow().child_count()
-    }
-
     /// Renders the object to the screen.
     pub fn render(&self) {
         self.rc.borrow().render()
     }
 }
 
-
-// === Private API ===
-
-impl Node {
-
-    /// Updates object transformations by providing a new origin location. See docs of `update` to
-    /// learn more.
-    fn update_with(&self, new_origin:&Matrix4<f32>, force:bool) {
-        self.rc.borrow_mut().update_with(new_origin,force);
-    }
-
-    /// Removes and returns the parent bind. Please note that the parent is not updated.
-    fn take_parent_bind(&self) -> Option<ParentBind> {
-        self.rc.borrow_mut().take_parent_bind()
-    }
-
-    /// Gets a reference to a parent bind description, if exists.
-    fn parent_bind(&self) -> Option<ParentBind> {
-        self.rc.borrow().parent_bind.clone()
-    }
-
-    /// Set parent of the object. If the object already has a parent, the parent would be replaced.
-    fn set_parent_bind(&self, parent:ParentBind) {
-        self.rc.borrow_mut().set_parent_bind(parent);
-    }
-
-    /// Removes the binding to the parent object.
-    fn raw_unset_parent(&self) {
-        self.rc.borrow_mut().raw_unset_parent();
-    }
-
-    /// Removes child by a given index. Does nothing if the index was incorrect. Please use the
-    /// `remove_child` method unless you are 100% sure that the index is correct.
-    fn remove_child_by_index(&self, index:usize) {
-        self.rc.borrow_mut().remove_child_by_index(index);
-    }
-}
 
 
 // === Getters ===
