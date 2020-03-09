@@ -1,5 +1,3 @@
-cargo-features = ["named-profiles"]
-
 [workspace]
 
 members = [
@@ -30,13 +28,9 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 2
 lto       = false
 debug     = true
-
-[profile.webdev]
-inherits = "dev"
-opt-level = 2
 
 [profile.release]
 opt-level = 3

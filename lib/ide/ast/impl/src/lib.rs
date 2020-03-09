@@ -189,7 +189,7 @@ impl Ast {
     }
 
     /// Just wraps shape, id and len into Ast node.
-    pub fn wrap_triple(shape:Shape<Ast>, id:Option<ID>, len:usize) -> Ast {
+    pub fn from_ast_id_len(shape:Shape<Ast>, id:Option<ID>, len:usize) -> Ast {
         let with_length = WithLength { wrapped:shape      , len };
         let with_id     = WithID     { wrapped:with_length, id  };
         Ast { wrapped: Rc::new(with_id) }
@@ -198,21 +198,14 @@ impl Ast {
     /// As `new` but sets given declared length for the shape.
     pub fn new_with_length<S:Into<Shape<Ast>>>
     (shape:S, id:Option<ID>, len:usize) -> Ast {
-        let shape       = shape.into();
-        Self::wrap_triple(shape,id,len)
+        let shape = shape.into();
+        Self::from_ast_id_len(shape,id,len)
     }
 
     /// Iterates over all transitive child nodes (including self).
     pub fn iter_recursive(&self) -> impl Iterator<Item=&Ast> {
         internal::iterate_subtree(self)
     }
-
-//    /// Copy of this node with id set to the given value.
-//    pub fn with_id(&self, id:ID) -> Ast {
-//        let shape = self.shape();
-//        let shape : Shape<Ast> = shape.clone();
-//        Self::wrap_triple(self.shape().deref().clone(), Some(id), self.len())
-//    }
 }
 
 /// Fills `id` with `None` by default.
