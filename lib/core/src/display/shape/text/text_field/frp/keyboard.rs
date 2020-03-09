@@ -151,10 +151,15 @@ impl TextFieldKeyboardFrp {
         setter.set_navigation_action(&[End],          Step::LineEnd);
         setter.set_navigation_action(&[Control,Home], Step::DocBegin);
         setter.set_navigation_action(&[Control,End],  Step::DocEnd);
+        setter.set_word_navigation_action(&[Control, ArrowLeft],  Step::Left);
+        setter.set_word_navigation_action(&[Control, ArrowRight], Step::Right);
         setter.set_action(&[Alt, Character("j".into())], |t| t.select_next_word_occurrence());
         setter.set_action(&[Enter],                      |t| t.write("\n"));
         setter.set_action(&[Delete],                     |t| t.do_delete_operation(Step::Right));
         setter.set_action(&[Backspace],                  |t| t.do_delete_operation(Step::Left));
+        setter.set_action(&[Escape],                     |t| t.remove_additional_cursors());
+        setter.set_action(&[PageDown],                   |t| t.page_down());
+        setter.set_action(&[PageUp],                     |t| t.page_up());
     }
 }
 
@@ -179,10 +184,15 @@ impl<'a> TextFieldActionsSetter<'a> {
         });
     }
 
-    fn set_navigation_action(&mut self, base_keys:&[Key], step:Step) {
-        self.set_action(base_keys, move |t| t.navigate_cursors(step,false));
-        let base_keys_cloned = base_keys.iter().cloned();
-        let selecting_keys   = base_keys_cloned.chain(std::iter::once(Key::Shift)).collect_vec();
-        self.set_action(selecting_keys.as_ref(), move |t| t.navigate_cursors(step,true));
+    fn set_word_navigation_action(&mut self, base:&[Key], step:Step) {
+        let selecting   = base.iter().cloned().chain(std::iter::once(Key::Shift)).collect_vec();
+        self.set_action(base, move |t| t.navigate_cursors(step,false,true));
+        self.set_action(selecting.as_ref(), move |t| t.navigate_cursors(step,true,true));
+    }
+
+    fn set_navigation_action(&mut self, base:&[Key], step:Step) {
+        let selecting   = base.iter().cloned().chain(std::iter::once(Key::Shift)).collect_vec();
+        self.set_action(base, move |t| t.navigate_cursors(step,false,false));
+        self.set_action(selecting.as_ref(), move |t| t.navigate_cursors(step,true,false));
     }
 }

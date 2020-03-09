@@ -143,18 +143,36 @@ impl WordOccurrences {
 
 
 // =============
+// === Words ===
+// =============
+
+/// This struct holds a list of words composed with alphanumeric and underscore character and its
+/// indexes.
+#[derive(Shrinkwrap,Debug)]
+pub struct Words {
+    /// A list of alphanumeric words and its indexes.
+    pub words : Vec<Vec<(usize,char)>>
+}
+
+impl Words {
+    /// Creates a list of words contained in `content`.
+    pub fn new(content:&[char]) -> Self {
+        let indexed:Vec<(usize,char)> = content.iter().copied().enumerate().collect();
+        let words = indexed.split(|(_,character)| !character.is_alphanumeric() && *character != '_');
+        let words = words.filter(|word_in_context| !word_in_context.is_empty());
+        let words = words.map(|c| c.to_vec()).collect();
+        Self {words}
+    }
+}
+
+
+
+// =============
 // === Utils ===
 // =============
 
-fn get_words(content:&[char]) -> Vec<Vec<(usize,char)>> {
-    let indexed:Vec<(usize,char)> = content.iter().copied().enumerate().collect();
-    let words = indexed.split(|(_,character)| !character.is_alphanumeric() && *character != '_');
-    let words = words.filter(|word_in_context| !word_in_context.is_empty());
-    words.map(|c| c.to_vec()).collect()
-}
-
 fn get_index_range_of_word_at(content:&[char], index:usize) -> Option<Range<usize>> {
-    let words       = get_words(content);
+    let words       = Words::new(content);
     let mut ranges  = words.iter().map(|word| {
         let (start,_) = word.first().unwrap();
         let end       = start + word.len();
@@ -166,7 +184,7 @@ fn get_index_range_of_word_at(content:&[char], index:usize) -> Option<Range<usiz
 fn get_word_occurrences(content:&[char], word:&[char]) -> Vec<Range<usize>> {
     let mut occurrences = Vec::new();
 
-    for word_in_content in get_words(content) {
+    for word_in_content in Words::new(content).words {
         let count = word_in_content.iter().zip(word).filter(|&((_, a), b)| a == b).count();
         if count == word_in_content.len() {
             let (start,_) = word_in_content.first().unwrap();
