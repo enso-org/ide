@@ -172,16 +172,13 @@ impl DefinitionInfo {
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
-pub fn list_line_asts<'a>(lines:impl Iterator<Item = &'a Ast>, kind:ScopeKind) -> Vec<DefinitionInfo> {
-    lines.flat_map(|ast| DefinitionInfo::from_line_ast(ast,kind)).collect()
-}
-
 
 
 // ==========================
 // === DefinitionProvider ===
 // ==========================
 
+/// An entity that contains lines that we want to interpret as definitions.
 pub trait DefinitionProvider {
     /// What kind of scope this is.
     fn scope_kind() -> ScopeKind;
@@ -191,7 +188,9 @@ pub trait DefinitionProvider {
 
     /// Lists all the definitions in the entity.
     fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        list_line_asts(self.line_asts(), Self::scope_kind())
+        self.line_asts().flat_map(|ast| {
+            DefinitionInfo::from_line_ast(ast,Self::scope_kind())
+        }).collect()
     }
     /// Tries to find definition by given name in the entity.
     fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
@@ -215,6 +214,12 @@ impl DefinitionProvider for known::Block {
         Box::new(self.iter())
     }
 }
+
+
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
