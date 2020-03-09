@@ -25,42 +25,55 @@
 ### Overview
 
 <p>
-  <a href="https://github.com/luna/basegl/blob/master/LICENSE">
-    <img src="https://img.shields.io/static/v1?label=License&message=MIT&color=2ec352&labelColor=2c3239"
+  <a href="http://chat.luna-lang.org">
+    <img src="https://img.shields.io/discord/401396655599124480?label=Chat&color=2ec352&labelColor=2c3239"
+         alt="Chat">
+  </a>
+  <a href="https://github.com/luna/enso/blob/master/LICENSE">
+    <img src="https://img.shields.io/static/v1?label=Compiler%20License&message=Apache%20v2&color=2ec352&labelColor=2c3239"
          alt="License">
   </a>
-  <a href="https://github.com/luna/basegl/actions">
+  <a href="https://github.com/luna/ide/blob/master/LICENSE">
+    <img src="https://img.shields.io/static/v1?label=GUI%20License&message=AGPL%20v3&color=2ec352&labelColor=2c3239"
+         alt="License">
+  </a>
+  <a href="https://github.com/luna/ide/actions">
     <img src="https://github.com/luna/basegl/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
          alt="Actions Status">
   </a>
-  <a href="https://codecov.io/gh/luna/basegl/branch/master">
+  <a href="https://codecov.io/gh/luna/ide/branch/master">
     <img src="https://img.shields.io/codecov/c/github/luna/basegl?label=Coverage&labelColor=2c3239"
          alt="Coverage">
   </a>
-  <a>
-    <img src="https://img.shields.io/static/v1?label=Stability&message=Unstable&color=d52229&labelColor=2c3239"
-         alt="Stability">
-  </a>
 </p>
 
-Enso is a visual data science language selected by Singularity University and NASA as one of 20 most 
-unique technologies worldwide.
+Enso is an open source visual data science language selected by Singularity University and NASA as one 
+of 20 most unique technologies worldwide. Enso consist of several sub-projects, including the 
+[Enso Language Compiler](https://github.com/luna/enso), the [Enso Integrated Development Environment (IDE)](https://github.com/luna/ide), and [a high performance WebGL UI framework (EnsoGL)](https://github.com/luna/ide/tree/master/lib/core).
 
 <br/>
 
 ### Getting Started
 
-[Download a pre-build package for MacOS, Windows, or Linux](https://github.com/luna/ide/releases), 
-see the [demo scenes](http://TODO), and read the 
-[documentation](http://TODO).
+Enso is distributed both in form of 
+[pre-build packages for MacOS, Windows, or Linux](https://github.com/luna/ide/releases), as well as the
+[source code](https://github.com/luna). See the [demo scenes](http://TODO), and read the 
+[documentation](http://TODO) to learn more.
 
 <br/>
 
+### Building
+
+The project builds on MacOS, Linux, and Windows. Simply run `node ./run build` to build it and use 
+`node ./run --help` to learn about other available commands and options. Read the detailed 
+[development guide](docs/contributing.md) to learn more.
+
+<br/>
 
 ### License
 
-The Enso Language Compiler is released under the terms of the [Apache v2 License](). The Enso 
-Graphical Interface and it's rendering engine are released under the terms of the [AGPL License](). 
+The Enso Language Compiler is released under the terms of the [Apache v2 License](https://github.com/luna/enso/blob/master/LICENSE). The Enso 
+Graphical Interface and it's rendering engine are released under the terms of the [AGPL v3 License](https://github.com/luna/ide/blob/master/LICENSE). 
 This license set was choosen to both provide you with a complete freedom to use Enso, create 
 libraries, and release them under any license of your choice, while also allowing us to release 
 commercial products on top of the platform, including Enso Cloud and Enso Enterprise on-premise 
@@ -70,7 +83,7 @@ server managers.
 
 ### Contributing
 
-Enso language is a community-driven open source project which is and will always be open and free to 
+Enso is a community-driven open source project which is and will always be open and free to 
 use. We are committed to a fully transparent development process and highly appreciate every 
 contribution. If you love the vision behind Enso and you want to redefine the data processing world, 
 join us and help us track down bugs, implement new features, improve the documentation or spread the 
@@ -78,6 +91,6 @@ word! Join our community on a [Discord chat](http://chat.luna-lang.org) and read
 [development and contributing guidelines](docs/contributing.md).
 
 <a href="https://github.com/luna/ide/graphs/contributors">
-  <img src="https://contributors-img.firebaseapp.com/image?repo=luna/ide" />
+  <img src="https://opencollective.com/enso-language/contributors.svg?width=890&button=false" />
 </a>
 
