@@ -21,16 +21,16 @@ pub struct GraphInfo {
     args           : Vec<Ast>,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
-    pub node_infos : Vec<node::NodeInfo>,
+    pub nodes: Vec<node::NodeInfo>,
 }
 
 impl GraphInfo {
     /// Describe graph of the given definition.
     pub fn from_definition(info:&definition::DefinitionInfo) -> GraphInfo {
-        let name       = info.name.clone();
-        let args       = info.args.clone();
-        let node_infos = Self::from_function_binding(info.ast.clone());
-        GraphInfo {name,args,node_infos}
+        let name  = info.name.clone();
+        let args  = info.args.clone();
+        let nodes = Self::from_function_binding(info.ast.clone());
+        GraphInfo {name,args,nodes}
     }
 
     /// Lists nodes in the given binding's ast (infix expression).
@@ -104,8 +104,8 @@ mod tests {
         ];
         for program in programs {
             let graph = main_graph(&mut parser, program);
-            assert_eq!(graph.node_infos.len(), 1);
-            let node = &graph.node_infos[0];
+            assert_eq!(graph.nodes.len(), 1);
+            let node = &graph.nodes[0];
             assert_eq!(node.expression_text(), "2+2");
             let _ = node.id(); // just to make sure it is available
         }
@@ -122,7 +122,8 @@ main =
     node
 ";
         let graph = main_graph(&mut parser, program);
-        for node in graph.node_infos.iter() {
+        assert_eq!(graph.nodes.len(), 3);
+        for node in graph.nodes.iter() {
             assert_eq!(node.expression_text(), "node");
         }
     }
