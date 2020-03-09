@@ -188,19 +188,31 @@ impl Ast {
         Ast::new_with_length(shape,id,length)
     }
 
+    /// Just wraps shape, id and len into Ast node.
+    pub fn wrap_triple(shape:Shape<Ast>, id:Option<ID>, len:usize) -> Ast {
+        let with_length = WithLength { wrapped:shape      , len };
+        let with_id     = WithID     { wrapped:with_length, id  };
+        Ast { wrapped: Rc::new(with_id) }
+    }
+
     /// As `new` but sets given declared length for the shape.
     pub fn new_with_length<S:Into<Shape<Ast>>>
     (shape:S, id:Option<ID>, len:usize) -> Ast {
         let shape       = shape.into();
-        let with_length = WithLength { wrapped:shape      , len };
-        let with_id     = WithID     { wrapped:with_length, id  };
-        Ast { wrapped: Rc::new(with_id) }
+        Self::wrap_triple(shape,id,len)
     }
 
     /// Iterates over all transitive child nodes (including self).
     pub fn iter_recursive(&self) -> impl Iterator<Item=&Ast> {
         internal::iterate_subtree(self)
     }
+
+//    /// Copy of this node with id set to the given value.
+//    pub fn with_id(&self, id:ID) -> Ast {
+//        let shape = self.shape();
+//        let shape : Shape<Ast> = shape.clone();
+//        Self::wrap_triple(self.shape().deref().clone(), Some(id), self.len())
+//    }
 }
 
 /// Fills `id` with `None` by default.
@@ -895,6 +907,11 @@ impl Ast {
     // TODO smart constructors for other cases
     //  as part of https://github.com/luna/enso/issues/338
 
+    pub fn number(number:i64) -> Ast {
+        let number = Number { base:None,int:number.to_string() };
+        Ast::from(number)
+    }
+
     pub fn cons<Str: ToString>(name:Str) -> Ast {
         let cons = Cons{ name: name.to_string() };
         Ast::from(cons)
@@ -916,7 +933,7 @@ impl Ast {
         Ast::from(opr)
     }
 
-    pub fn infix<Str0, Str1, Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Ast
+    pub fn infix_var<Str0, Str1, Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Ast
     where Str0: ToString
         , Str1: ToString
         , Str2: ToString {
@@ -1148,7 +1165,7 @@ mod tests {
             _                 => "«invalid»".to_string(),
         };
 
-        let infix   = Ast::infix("foo", "+", "bar");
+        let infix   = Ast::infix_var("foo", "+", "bar");
         let strings = infix.iter().map(to_string);
         let strings = strings.collect::<Vec<_>>();
 

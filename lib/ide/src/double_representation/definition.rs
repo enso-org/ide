@@ -54,7 +54,7 @@ pub fn identifier_name(ast:&Ast) -> Option<String> {
 
 /// Structure representing definition name. If this is an extension method, extended type is
 /// also included.
-#[derive(Clone,Debug,PartialEq)]
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
 pub struct DefinitionName {
     /// Used when definition is an extension method. Then it stores the segments
     /// of the extended target type path.
@@ -124,34 +124,42 @@ impl DefinitionInfo {
     pub fn body(&self) -> Ast {
         self.ast.rarg.clone()
     }
-}
 
-/// Tries to interpret `Line`'s `Ast` as a function definition.
-pub fn get_definition_info
-(line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
-    let ast  = opr::to_assignment(line.elem.as_ref()?)?;
+    /// Tries to interpret `Line`'s contents as a function definition.
+    pub fn from_line
+    (line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
+        let ast  = line.elem.as_ref()?;
+        Self::from_line_ast(ast,kind)
+    }
 
-    // There two cases - function name is either a Var or operator.
-    // If this is a Var, we have Var, optionally under a Prefix chain with args.
-    // If this is an operator, we have SectionRight with (if any prefix in arguments).
-    let lhs  = prefix::Chain::new_non_strict(&ast.larg);
-    let name = DefinitionName::from_ast(&lhs.func)?;
-    let args = lhs.args;
-    let ret  = DefinitionInfo {ast,name,args};
+    /// Tries to interpret `Line`'s `Ast` as a function definition.
+    ///
+    /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of
+    /// some binding or other kind of subtree).
+    pub fn from_line_ast(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
+        let infix  = opr::to_assignment(ast)?;
+        // There two cases - function name is either a Var or operator.
+        // If this is a Var, we have Var, optionally under a Prefix chain with args.
+        // If this is an operator, we have SectionRight with (if any prefix in arguments).
+        let lhs  = prefix::Chain::new_non_strict(&infix.larg);
+        let name = DefinitionName::from_ast(&lhs.func)?;
+        let args = lhs.args;
+        let ret  = DefinitionInfo {ast:infix,name,args};
 
-    // Note [Scope Differences]
-    if kind == ScopeKind::NonRoot {
-        // 1. Not an extension method but setter.
-        let is_setter = !ret.name.extended_target.is_empty();
-        // 2. No explicit args -- this is a node, not a definition.
-        let is_node = ret.args.is_empty();
-        if is_setter || is_node {
-            None
+        // Note [Scope Differences]
+        if kind == ScopeKind::NonRoot {
+            // 1. Not an extension method but setter.
+            let is_setter = !ret.name.extended_target.is_empty();
+            // 2. No explicit args -- this is a node, not a definition.
+            let is_node = ret.args.is_empty();
+            if is_setter || is_node {
+                None
+            } else {
+                Some(ret)
+            }
         } else {
             Some(ret)
         }
-    } else {
-        Some(ret)
     }
 }
 
@@ -164,6 +172,11 @@ pub fn get_definition_info
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
+
+
+// ========================
+// === GeneralizedBlock ===
+// ========================
 
 /// Either ast::Block or Module's root contents.
 #[derive(Clone,Debug)]
@@ -186,17 +199,23 @@ impl<'a> GeneralizedBlock<'a> {
 
     /// Returns information about all definition defined in this block.
     pub fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        self.lines.iter().flat_map(|ast| get_definition_info(ast,self.kind)).collect()
+        self.lines.iter().flat_map(|ast| DefinitionInfo::from_line(ast,self.kind)).collect()
     }
 
     /// Goes through definitions introduced in this block and returns one with matching name.
     pub fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
         self.lines.iter().find_map(|ast| {
-            let definition = get_definition_info(ast, self.kind)?;
+            let definition = DefinitionInfo::from_line(ast, self.kind)?;
             let matches    = &definition.name == name;
             matches.as_some(definition)
         })
     }
+}
+
+/// Looks for a definition by given name in the module and returns its description.
+pub fn lookup_definition_in_module
+(module:known::Module, name:&DefinitionName) -> Option<DefinitionInfo> {
+    GeneralizedBlock::from_module(&*module).find_definition(name)
 }
 
 #[cfg(test)]
