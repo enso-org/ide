@@ -11,28 +11,13 @@ pub use ast::Ast;
 // == Parser ==
 // ============
 
-const METATAG:&str = "# [metadata]";
-const IDTAG:&str = "# [idmap]";
-
 /// Entity being able to parse programs into AST.
 pub trait IsParser : Debug {
     /// Parse program.
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
-    fn parse_file(&mut self, file:String) -> Result<(Ast,IdMetadataMap)> {
-        let lines = &file.lines().rev().take(2).collect_vec()[..];
-        if lines[0].starts_with(METATAG) {
-            let meta = serde_json::from_str(lines[0].trim_start_matches(METATAG))?;
-            let ids  = serde_json::from_str(lines[1].trim_start_matches(IDTAG))?;
-            let code = &file.lines().rev().skip(2).rev().collect();
-            let ast  = self.parse(code, ids)?;
-            Ok((ast, meta))
-        }
-        else {
-            let ast  = self.parse(file,default())?;
-            Ok((ast, default()))
-        }
-    }
+    /// Parse a file content that contains idmap and metadata.
+    fn parse_file(&mut self, content:String) -> Result<(Ast,IdMetadataMap)>;
 }
 
 

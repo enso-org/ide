@@ -9,6 +9,8 @@ use websocket::{
 };
 
 use ast::IdMap;
+use ast::IdMetadataMap;
+use api::Ast;
 use std::fmt::Formatter;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
@@ -85,13 +87,14 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest { program:String, ids:IdMap },
+    ParseRequest     { program: String, ids: IdMap },
+    ParseFileRequest { content: String },
 }
 
 /// All responses that Parser Service might reply with.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Response {
-    Success { ast_json: String },
+    Success { ast_json: String, metadata: String },
     Error   { message:  String },
 }
 
@@ -170,8 +173,8 @@ mod internal {
     }
 
     /// Deserialize AST from JSON text received from WS Parser Service.
-    pub fn from_json(json_text: &str) -> api::Result<api::Ast> {
-        let ast = serde_json::from_str::<api::Ast>(json_text);
+    pub fn from_json(json_text: &str) -> api::Result<Ast> {
+        let ast = serde_json::from_str::<Ast>(json_text);
         Ok(ast.map_err(|e| Error::JsonDeserializationError(e, json_text.into()))?)
     }
 }
@@ -204,14 +207,33 @@ impl Debug for Client {
 
 impl api::IsParser for Client {
 
-   fn parse(&mut self, program:String, ids:IdMap) -> api::Result<api::Ast> {
+
+    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call(request)?;
         match response {
-            Response::Success { ast_json } => internal::from_json(&ast_json),
-            Response::Error   { message  } => Err(ParsingError(message)),
+            Response::Success {ast_json,metadata:_} =>
+                internal::from_json(&ast_json),
+            Response::Error {message} => Err(ParsingError(message)),
         }
-   }
+    }
+
+    fn parse_file(&mut self, content:String) -> api::Result<(Ast,IdMetadataMap)> {
+        let request  = Request::ParseFileRequest {content};
+        let response = self.rpc_call(request)?;
+        match response {
+            Response::Success {ast_json,metadata} => {
+                let result = || {
+                    let ast  = serde_json::from_str(&ast_json)?;
+                    let meta = serde_json::from_str(&metadata)?;
+                    Result::Ok((ast, meta))
+                };
+                Ok(result()?)
+            }
+            Response::Error {message} => Err(ParsingError(message)),
+        }
+    }
+
 }
 
 

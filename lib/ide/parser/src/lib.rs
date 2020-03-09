@@ -21,6 +21,7 @@ mod wsclient;
 use crate::prelude::*;
 
 use ast::Ast;
+use ast::IdMetadataMap;
 use ast::IdMap;
 use std::panic;
 
@@ -67,6 +68,10 @@ impl Parser {
 impl api::IsParser for Parser {
     fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
         self.borrow_mut().parse(program,ids)
+    }
+
+    fn parse_file(&mut self, content:String) -> api::Result<(Ast, IdMetadataMap)> {
+        self.borrow_mut().parse_file(content)
     }
 }
 

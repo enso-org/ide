@@ -10,7 +10,8 @@ use crate::prelude::*;
 use crate::controller::FallibleResult;
 use crate::double_representation::apply_code_change_to_id_map;
 
-use ast::{Ast, HasIdMap};
+use ast::Ast;
+use ast::HasIdMap;
 use ast::HasRepr;
 use ast::IdMap;
 use ast::IdMetadataMap;
@@ -23,6 +24,10 @@ use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
 use shapely::shared;
+
+
+const METATAG:&str = "# [metadata]";
+const IDTAG:&str = "# [idmap]";
 
 
 // =======================
@@ -161,7 +166,6 @@ impl Handle {
         fm.write(path.clone(),self.code()).await;
         fm.write(path.clone(), format!("{} {}\n", IDTAG, ids)).await;
         fm.write(path, format!("{} {}\n", METATAG, metadata))
-        // TODO [ao] here save also the id_map.
     }
 
     #[cfg(test)]
