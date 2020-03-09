@@ -405,7 +405,8 @@ impl Cursors {
         cursor.select_line_range(&content.line(from_line),from_column..to_column);
 
         let range = if from_location.line > to_location.line {
-            to_location.line..=from_location.line-1
+            let from_line = from_location.line - 1;
+            to_location.line..=from_line
         } else {
             from_location.line+1..=to_location.line
         };
@@ -421,15 +422,15 @@ impl Cursors {
     pub fn block_selection(&mut self, content:&mut TextFieldContent, point:Vector2<f32>) {
         let from_location = self.cursors.first().expect("Couldn't get first").selected_to;
         let from_line     = from_location.line;
-        let to_line       = content.line_location_at_point(&point);
+        let to_line       = content.line_location_at_point(point);
         let mut start     = from_line;
         let mut end       = to_line;
         if start > end {
             std::mem::swap(&mut start, &mut end)
         }
         let range     = start..=end;
-        let locations = range.into_iter().map(|line| {
-            content.column_location_at_point(line,&point)
+        let locations = range.map(|line| {
+            content.column_location_at_point(line,point)
         });
         let to_column   = locations.max().expect("Couldn't get max");
         let to_location = TextLocation{line:to_line,column:to_column};

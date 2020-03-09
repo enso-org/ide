@@ -173,7 +173,7 @@ impl TextFieldContent {
     }
 
     /// Get the nearest line from the point on the screen.
-    pub fn line_location_at_point(&mut self, point:&Vector2<f32>) -> usize {
+    pub fn line_location_at_point(&mut self, point:Vector2<f32>) -> usize {
         let line_opt = self.line_at_y_position(point.y);
         let line     = match line_opt {
             Some(line)             => line,
@@ -184,7 +184,7 @@ impl TextFieldContent {
     }
 
     /// Get the nearest column from te point on the screen.
-    pub fn column_location_at_point(&mut self, line:usize, point:&Vector2<f32>) -> usize {
+    pub fn column_location_at_point(&mut self, line:usize, point:Vector2<f32>) -> usize {
         let mut line   = self.line(line);
         let column_opt = line.find_char_at_x_position(point.x);
         match column_opt {
@@ -196,8 +196,8 @@ impl TextFieldContent {
 
     /// Get the nearest text location from the point on the screen.
     pub fn location_at_point(&mut self, point:Vector2<f32>) -> TextLocation {
-        let line   = self.line_location_at_point(&point);
-        let column = self.column_location_at_point(line,&point);
+        let line   = self.line_location_at_point(point);
+        let column = self.column_location_at_point(line,point);
         TextLocation{line,column}
     }
 
