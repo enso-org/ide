@@ -89,6 +89,7 @@ mod tests {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
         let main   = module.find_definition(&name).unwrap();
+        println!("{:?}",module);
         GraphInfo::from_definition(&main)
     }
 
@@ -118,9 +119,11 @@ mod tests {
 main =
     foo = node
     foo a = not_node
-    Int.= a = node
     node
 ";
+        // TODO [mwu]
+        //  Add case like `Int.= a = node` once https://github.com/luna/enso/issues/565 is fixed
+
         let graph = main_graph(&mut parser, program);
         assert_eq!(graph.nodes.len(), 3);
         for node in graph.nodes.iter() {
