@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::display;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
+use crate::display::symbol::registry::SymbolRegistry;
 
 
 
@@ -15,12 +16,12 @@ use crate::system::gpu::*;
 /// Pass allowing rendering a chosen display object. The results are stored in a `'color'` variable.
 #[derive(Clone,Debug)]
 pub struct DisplayObjectRenderPass {
-    target: display::object::Node
+    target: SymbolRegistry
 }
 
 impl DisplayObjectRenderPass {
     /// Constructor.
-    pub fn new(target:&display::object::Node) -> Self {
+    pub fn new(target:&SymbolRegistry) -> Self {
         let target = target.clone_ref();
         Self {target}
     }
@@ -38,6 +39,6 @@ impl RenderPass for DisplayObjectRenderPass {
         let arr2 = vec![0,0,0,0];
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         context.clear_bufferuiv_with_u32_array(Context::COLOR,1,&arr2);
-        self.target.render();
+        self.target.render2();
     }
 }

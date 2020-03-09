@@ -11,6 +11,7 @@
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
+#![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]

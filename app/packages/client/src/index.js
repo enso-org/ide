@@ -5,6 +5,7 @@ import * as isDev     from 'electron-is-dev'
 import * as minimist  from 'minimist'
 import * as path      from 'path'
 import * as pkg       from '../package.json'
+import * as rootCfg   from '../../../package.json'
 import * as Server    from 'enso-studio-common/src/server'
 
 
@@ -82,7 +83,7 @@ if (args.help) {
 }
 
 if (args.version) {
-    console.log(pkg.version)
+    console.log(`${rootCfg.version} (build ${rootCfg.buildVersion})`)
     process.exit();
 }
 

@@ -17,7 +17,7 @@ use wasm_bindgen::prelude::*;
 //use basegl::display::navigation::navigator::Navigator;
 
 use basegl::prelude::*;
-use enso_frp::*;
+//use enso_frp::*;
 
 use basegl::system::web;
 use basegl::control::io::mouse::event::*;
@@ -27,13 +27,37 @@ use basegl::data::color::*;
 use basegl::display::shape::Var;
 
 
+use basegl::display::object::*;
+
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    init(&WorldData::new(&web::get_html_element_by_id("root").unwrap()));
+//    init(&WorldData::new(&web::get_html_element_by_id("root").unwrap()));
+    let node1 = Node::new(Logger::new("node1"));
+    let node2 = Node::new(Logger::new("node2"));
+    let node3 = Node::new(Logger::new("node3"));
+    assert_eq!(node3.is_visible(),true);
+    node3.update();
+    assert_eq!(node3.is_visible(),true);
+    node1.add_child(&node2);
+    node2.add_child(&node3);
+    node1.update();
+    assert_eq!(node3.is_visible(),true);
+    println!("1 ----------");
+    node3.unset_parent();
+    assert_eq!(node3.is_visible(),true);
+    println!("2 ----------");
+    node1.update();
+    assert_eq!(node3.is_visible(),false);
+    node1.add_child(&node3);
+    node1.update();
+    assert_eq!(node3.is_visible(),true);
+    node2.add_child(&node3);
+    node1.update();
+//    assert_eq!(node3.is_visible(),true);
 }
 
 pub mod icons {
@@ -219,49 +243,49 @@ pub fn on_frame
 
 
 
-// ================
-// === FRP Test ===
-// ================
-
-#[allow(unused_variables)]
-pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
-    let document        = web::document().unwrap();
-    let mouse_manager   = MouseManager::new(&document);
-    let mouse           = Mouse::new();
-
-    frp! {
-        mouse_down_position    = mouse.position.sample       (&mouse.on_down);
-        mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
-        final_position_ref     = recursive::<Position>       ();
-        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
-        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
-        debug                  = final_position.sample       (&mouse.position);
-    }
-    final_position_ref.initialize(&final_position);
-
-    // final_position.event.display_graphviz();
-
-//    trace("X" , &debug.event);
-
-//    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
-
-    let target = mouse.position.event.clone_ref();
-    let handle = mouse_manager.on_move.add(move |event:&OnMove| {
-        target.emit(Position::new(event.client_x(),event.client_y()));
-    });
-    handle.forget();
-
-    let target = mouse.on_down.event.clone_ref();
-    let handle = mouse_manager.on_down.add(move |event:&OnDown| {
-        target.emit(());
-    });
-    handle.forget();
-
-    let target = mouse.on_up.event.clone_ref();
-    let handle = mouse_manager.on_up.add(move |event:&OnUp| {
-        target.emit(());
-    });
-    handle.forget();
-
-    mouse_manager
-}
+//// ================
+//// === FRP Test ===
+//// ================
+//
+//#[allow(unused_variables)]
+//pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
+//    let document        = web::document().unwrap();
+//    let mouse_manager   = MouseManager::new(&document);
+//    let mouse           = Mouse::new();
+//
+//    frp! {
+//        mouse_down_position    = mouse.position.sample       (&mouse.on_down);
+//        mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
+//        final_position_ref     = recursive::<Position>       ();
+//        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
+//        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
+//        debug                  = final_position.sample       (&mouse.position);
+//    }
+//    final_position_ref.initialize(&final_position);
+//
+//    // final_position.event.display_graphviz();
+//
+////    trace("X" , &debug.event);
+//
+////    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
+//
+//    let target = mouse.position.event.clone_ref();
+//    let handle = mouse_manager.on_move.add(move |event:&OnMove| {
+//        target.emit(Position::new(event.client_x(),event.client_y()));
+//    });
+//    handle.forget();
+//
+//    let target = mouse.on_down.event.clone_ref();
+//    let handle = mouse_manager.on_down.add(move |event:&OnDown| {
+//        target.emit(());
+//    });
+//    handle.forget();
+//
+//    let target = mouse.on_up.event.clone_ref();
+//    let handle = mouse_manager.on_up.add(move |event:&OnUp| {
+//        target.emit(());
+//    });
+//    handle.forget();
+//
+//    mouse_manager
+//}

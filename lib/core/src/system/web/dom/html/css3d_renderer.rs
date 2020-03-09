@@ -248,26 +248,26 @@ impl Css3dRenderer {
         let front_layer = self.data.front_dom_view_projection.clone();
         let back_layer  = self.data.back_dom_view_projection.clone();
         let display_object : display::object::Node = object.into();
-        display_object.set_on_render(enclose!((object,display_object) move || {
-            let object_dom    = object.dom();
-            let mut transform = display_object.matrix();
-            transform.iter_mut().for_each(|a| *a = eps(*a));
-
-            let layer = match object.css3d_order() {
-                Css3dOrder::Front => &front_layer,
-                Css3dOrder::Back  => &back_layer
-            };
-
-            let parent_node = object.dom().parent_node();
-            if !layer.is_same_node(parent_node.as_ref()) {
-                display_object.with_logger(|logger| {
-                    object_dom.remove_from_parent_or_warn(logger);
-                    layer.append_or_warn(&object_dom,logger);
-                });
-            }
-
-            set_object_transform(&object_dom, &transform);
-        }));
+//        display_object.set_on_render(enclose!((object,display_object) move || {
+//            let object_dom    = object.dom();
+//            let mut transform = display_object.matrix();
+//            transform.iter_mut().for_each(|a| *a = eps(*a));
+//
+//            let layer = match object.css3d_order() {
+//                Css3dOrder::Front => &front_layer,
+//                Css3dOrder::Back  => &back_layer
+//            };
+//
+//            let parent_node = object.dom().parent_node();
+//            if !layer.is_same_node(parent_node.as_ref()) {
+//                display_object.with_logger(|logger| {
+//                    object_dom.remove_from_parent_or_warn(logger);
+//                    layer.append_or_warn(&object_dom,logger);
+//                });
+//            }
+//
+//            set_object_transform(&object_dom, &transform);
+//        }));
     }
 
     /// Renders `Camera`'s point of view.

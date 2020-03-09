@@ -312,6 +312,10 @@ impl {
              , css3d_renderer,zoom_callback }
     }
 
+    pub fn symbol_registry(&self) -> SymbolRegistry {
+        self.symbols.clone_ref()
+    }
+
     pub fn css3d_renderer(&self) -> Css3dRenderer {
         self.css3d_renderer.clone()
     }
@@ -346,6 +350,11 @@ impl {
         let height   = self.shape.canvas_shape().height as i32;
         self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
     }
+
+    pub fn render2(&self) {
+        self.symbols.render2()
+    }
+
 
     pub fn render(&mut self) {
 

@@ -166,7 +166,7 @@ async function lint_js() {}
 // =============
 
 async function watch_rust () {
-    let target = '"' + 'node ./run build -- --dev ' + child_argv.join(" ") + '"'
+    let target = '"' + 'node ./run build --no-js -- --dev ' + child_argv.join(" ") + '"'
     let args = ['watch','--watch','lib','-s',`${target}`]
     await cmd.run('cargo',args)
 }
@@ -199,11 +199,24 @@ async function dist_js () {
 // === Main ===
 // ============
 
+async function updateBuildVersion () {
+    let configPath    = 'app/package.json'
+    let commitHashCmd = await cmd.run_read('git',['rev-parse','--short','HEAD'])
+    let commitHash    = commitHashCmd.trim()
+    let configFile    = await fs.readFile(configPath)
+    let config        = JSON.parse(configFile)
+    if (config.buildVersion != commitHash) {
+        config.buildVersion = commitHash
+        await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
+    }
+}
+
 async function main () {
     let command = argv._[0]
-
     let do_rust = (argv.rust == true) || (argv.rust == undefined)
     let do_js   = (argv.js   == true) || (argv.js   == undefined)
+
+    updateBuildVersion()
 
     if (command == 'clean') {
         cmd.section('Cleaning')
