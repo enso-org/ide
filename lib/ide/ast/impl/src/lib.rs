@@ -926,6 +926,7 @@ impl Ast {
         Ast::from(opr)
     }
 
+    /// Creates an AST node with `Infix` shape, where both its operands are Vars.
     pub fn infix_var<Str0, Str1, Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Ast
     where Str0: ToString
         , Str1: ToString
