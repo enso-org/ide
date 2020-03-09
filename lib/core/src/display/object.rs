@@ -45,6 +45,10 @@ impl ParentBind {
 // === Callbacks ===
 // =================
 
+/// Callbacks manager for display objects. Callbacks can be set only once. Panics if you try set
+/// another callback to field with an already assigned callback. This design wa chosen because it is
+/// very lightweight and is not confusing (setting a callback unregisters previous one). We may want
+/// to switch to a real callback registry in the future if there will be suitable use cases for it.
 #[derive(Default)]
 pub struct Callbacks {
     pub on_updated : Option<Box<dyn Fn(&NodeData)>>,
@@ -52,11 +56,33 @@ pub struct Callbacks {
     pub on_hide    : Option<Box<dyn Fn()>>,
 }
 
+impl Callbacks {
+    /// Setter.
+    pub fn set_on_updated<F:Fn(&NodeData)+'static>(&mut self, f:F) {
+        if self.on_updated.is_some() { panic!("The `on_updated` callback was already set.") }
+        self.on_updated = Some(Box::new(f))
+    }
+
+    /// Setter.
+    pub fn set_on_show<F:Fn()+'static>(&mut self, f:F) {
+        if self.on_show.is_some() { panic!("The `on_show` callback was already set.") }
+        self.on_show = Some(Box::new(f))
+    }
+
+    /// Setter.
+    pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
+        if self.on_hide.is_some() { panic!("The `on_hide` callback was already set.") }
+        self.on_hide = Some(Box::new(f))
+    }
+}
+
 impl Debug for Callbacks {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Callbacks")
     }
 }
+
+
 
 
 
@@ -334,24 +360,15 @@ impl {
     }
 
     pub fn set_on_updated<F:Fn(&NodeData)+'static>(&mut self, f:F) {
-        if self.callbacks.on_updated.is_some() {
-            panic!("The `on_updated` callback was already set.")
-        }
-        self.callbacks.on_updated = Some(Box::new(f))
+        self.callbacks.set_on_updated(f)
     }
 
     pub fn set_on_show<F:Fn()+'static>(&mut self, f:F) {
-        if self.callbacks.on_show.is_some() {
-            panic!("The `on_show` callback was already set.")
-        }
-        self.callbacks.on_show = Some(Box::new(f))
+        self.callbacks.set_on_show(f)
     }
 
     pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
-        if self.callbacks.on_hide.is_some() {
-            panic!("The `on_hide` callback was already set.")
-        }
-        self.callbacks.on_hide = Some(Box::new(f))
+        self.callbacks.set_on_hide(f)
     }
 }}
 
@@ -471,6 +488,10 @@ where &'t Self:DisplayObject, Self:'t {
         self.display_object().add_child_take(child);
     }
 
+    fn unset_parent(&'t self) {
+        self.display_object().unset_parent();
+    }
+
     fn dispatch(&'t self, event:&DynEvent) {
         self.display_object().dispatch(event)
     }
@@ -490,102 +511,102 @@ mod tests {
     use super::*;
     use std::f32::consts::PI;
 
-//    #[test]
-//    fn hierarchy_test() {
-//        let node1 = Node::new(Logger::new("node1"));
-//        let node2 = Node::new(Logger::new("node2"));
-//        let node3 = Node::new(Logger::new("node3"));
-//        node1.add_child(&node2);
-//        assert_eq!(node2.index(),Some(0));
-//
-//        node1.add_child(&node2);
-//        assert_eq!(node2.index(),Some(0));
-//
-//        node1.add_child(&node3);
-//        assert_eq!(node3.index(),Some(1));
-//
-//        node1.remove_child(&node3);
-//        assert_eq!(node3.index(),None);
-//    }
-//
-//    #[test]
-//    fn transformation_test() {
-//        let node1 = Node::new(Logger::new("node1"));
-//        let node2 = Node::new(Logger::new("node2"));
-//        let node3 = Node::new(Logger::new("node3"));
-//        assert_eq!(node1.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node1.global_position() , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(0.0,0.0,0.0));
-//
-//        node1.mod_position(|t| t.x += 7.0);
-//        node1.add_child(&node2);
-//        node2.add_child(&node3);
-//        assert_eq!(node1.position()        , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node1.global_position() , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(0.0,0.0,0.0));
-//
-//        node1.update();
-//        assert_eq!(node1.position()        , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
-//        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(7.0,0.0,0.0));
-//
-//        node2.mod_position(|t| t.y += 5.0);
-//        node1.update();
-//        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(7.0,5.0,0.0));
-//
-//        node3.mod_position(|t| t.x += 1.0);
-//        node1.update();
-//        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(8.0,5.0,0.0));
-//
-//        node2.mod_rotation(|t| t.z += PI/2.0);
-//        node1.update();
-//        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
-//        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
-//        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
-//
-//        node1.add_child(&node3);
-//        node1.update();
-//        assert_eq!(node3.global_position() , Vector3::new(8.0,0.0,0.0));
-//
-//        node1.remove_child(&node3);
-//        node3.update();
-//        assert_eq!(node3.global_position() , Vector3::new(1.0,0.0,0.0));
-//
-//        node2.add_child(&node3);
-//        node1.update();
-//        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
-//
-//        node1.remove_child(&node3);
-//        node1.update();
-//        node2.update();
-//        node3.update();
-//        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
-//    }
-//
-//    #[test]
-//    fn parent_test() {
-//        let node1 = Node::new(Logger::new("node1"));
-//        let node2 = Node::new(Logger::new("node2"));
-//        let node3 = Node::new(Logger::new("node3"));
-//        node1.add_child(&node2);
-//        node1.add_child(&node3);
-//        node2.unset_parent();
-//        node3.unset_parent();
-//        assert_eq!(node1.child_count(),0);
-//    }
+    #[test]
+    fn hierarchy_test() {
+        let node1 = Node::new(Logger::new("node1"));
+        let node2 = Node::new(Logger::new("node2"));
+        let node3 = Node::new(Logger::new("node3"));
+        node1.add_child(&node2);
+        assert_eq!(node2.index(),Some(0));
+
+        node1.add_child(&node2);
+        assert_eq!(node2.index(),Some(0));
+
+        node1.add_child(&node3);
+        assert_eq!(node3.index(),Some(1));
+
+        node1.remove_child(&node3);
+        assert_eq!(node3.index(),None);
+    }
+
+    #[test]
+    fn transformation_test() {
+        let node1 = Node::new(Logger::new("node1"));
+        let node2 = Node::new(Logger::new("node2"));
+        let node3 = Node::new(Logger::new("node3"));
+        assert_eq!(node1.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node1.global_position() , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(0.0,0.0,0.0));
+
+        node1.mod_position(|t| t.x += 7.0);
+        node1.add_child(&node2);
+        node2.add_child(&node3);
+        assert_eq!(node1.position()        , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node1.global_position() , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(0.0,0.0,0.0));
+
+        node1.update();
+        assert_eq!(node1.position()        , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
+        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(7.0,0.0,0.0));
+
+        node2.mod_position(|t| t.y += 5.0);
+        node1.update();
+        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(7.0,5.0,0.0));
+
+        node3.mod_position(|t| t.x += 1.0);
+        node1.update();
+        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(8.0,5.0,0.0));
+
+        node2.mod_rotation(|t| t.z += PI/2.0);
+        node1.update();
+        assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
+        assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
+        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
+
+        node1.add_child(&node3);
+        node1.update();
+        assert_eq!(node3.global_position() , Vector3::new(8.0,0.0,0.0));
+
+        node1.remove_child(&node3);
+        node3.update();
+        assert_eq!(node3.global_position() , Vector3::new(1.0,0.0,0.0));
+
+        node2.add_child(&node3);
+        node1.update();
+        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
+
+        node1.remove_child(&node3);
+        node1.update();
+        node2.update();
+        node3.update();
+        assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
+    }
+
+    #[test]
+    fn parent_test() {
+        let node1 = Node::new(Logger::new("node1"));
+        let node2 = Node::new(Logger::new("node2"));
+        let node3 = Node::new(Logger::new("node3"));
+        node1.add_child(&node2);
+        node1.add_child(&node3);
+        node2.unset_parent();
+        node3.unset_parent();
+        assert_eq!(node1.child_count(),0);
+    }
 
 
     #[test]

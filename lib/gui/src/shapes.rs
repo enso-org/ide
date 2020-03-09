@@ -35,29 +35,7 @@ pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-//    init(&WorldData::new(&web::get_html_element_by_id("root").unwrap()));
-    let node1 = Node::new(Logger::new("node1"));
-    let node2 = Node::new(Logger::new("node2"));
-    let node3 = Node::new(Logger::new("node3"));
-    assert_eq!(node3.is_visible(),true);
-    node3.update();
-    assert_eq!(node3.is_visible(),true);
-    node1.add_child(&node2);
-    node2.add_child(&node3);
-    node1.update();
-    assert_eq!(node3.is_visible(),true);
-    println!("1 ----------");
-    node3.unset_parent();
-    assert_eq!(node3.is_visible(),true);
-    println!("2 ----------");
-    node1.update();
-    assert_eq!(node3.is_visible(),false);
-    node1.add_child(&node3);
-    node1.update();
-    assert_eq!(node3.is_visible(),true);
-    node2.add_child(&node3);
-    node1.update();
-//    assert_eq!(node3.is_visible(),true);
+    init(&WorldData::new(&web::get_html_element_by_id("root").unwrap()));
 }
 
 pub mod icons {

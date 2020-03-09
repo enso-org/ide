@@ -243,8 +243,6 @@ pub struct SceneData {
     zoom_uniform   : Uniform<f32>,
     zoom_callback  : CallbackHandle,
     mouse          : Mouse,
-
-
     #[derivative(Debug="ignore")]
     on_resize: Option<Box<dyn Fn(&Shape)>>,
 }
@@ -400,6 +398,7 @@ impl {
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
+        self.root.update();
         self.render();
     }
 

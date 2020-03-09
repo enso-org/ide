@@ -192,6 +192,7 @@ pub struct SymbolData {
     uniforms          : Vec<UniformBinding>,
     textures          : Vec<TextureBinding>,
     stats             : Stats,
+    is_hidden         : Rc<Cell<bool>>,
 }
 
 impl {
@@ -234,6 +235,9 @@ impl {
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {
+            if self.is_hidden.get() == true {
+                return;
+            }
             self.with_program(|_|{
                 for binding in &self.uniforms {
                     binding.upload(&self.context);
@@ -291,8 +295,11 @@ impl SymbolData {
             let context           = context.clone();
             let symbol_id_uniform = variables.add_or_panic("symbol_id",id);
             let display_object    = display::object::Node::new(logger.clone());
+            let is_hidden         = Rc::new(Cell::new(false));
+            display_object.set_on_hide(enclose!((is_hidden) move || { is_hidden.set(true)  }));
+            display_object.set_on_show(enclose!((is_hidden) move || { is_hidden.set(false) }));
             Self{id,surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger,context
-                ,vao,uniforms,textures,stats,symbol_id_uniform,display_object}
+                ,vao,uniforms,textures,stats,symbol_id_uniform,display_object,is_hidden}
         })
     }
 }
@@ -307,10 +314,9 @@ impl Symbol {
     , global_variables : &UniformScope
     , on_mut           : OnMut
     ) -> Self {
-        let data     = SymbolData::new(logger,context,stats,id,global_variables,on_mut);
-        let rc       = Rc::new(RefCell::new(data));
-        let this     = Self {rc};
-        let this_ref = this.clone_ref();
+        let data = SymbolData::new(logger,context,stats,id,global_variables,on_mut);
+        let rc   = Rc::new(RefCell::new(data));
+        let this = Self {rc};
         this
     }
 }
