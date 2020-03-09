@@ -172,50 +172,48 @@ impl DefinitionInfo {
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
-
-
-// ========================
-// === GeneralizedBlock ===
-// ========================
-
-/// Either ast::Block or Module's root contents.
-#[derive(Clone,Debug)]
-pub struct GeneralizedBlock<'a> {
-    /// If this is a root-scope (module) or nested scope.
-    pub kind  : ScopeKind,
-    /// Lines placed directly in this scope.
-    pub lines : &'a Vec<ast::BlockLine<Option<Ast>>>,
+pub fn list_line_asts<'a>(lines:impl Iterator<Item = &'a Ast>, kind:ScopeKind) -> Vec<DefinitionInfo> {
+    lines.flat_map(|ast| DefinitionInfo::from_line_ast(ast,kind)).collect()
 }
 
-impl<'a> GeneralizedBlock<'a> {
-    /// Wrap `Module` into `GeneralizedBlock`.
-    pub fn from_module(module:&'a ast::Module<Ast>) -> GeneralizedBlock<'a> {
-        GeneralizedBlock { kind:ScopeKind::Root, lines:&module.lines }
-    }
-    /// Wrap `Block` into `GeneralizedBlock`.
-    pub fn from_block(block:&'a ast::Block<Ast>) -> GeneralizedBlock<'a> {
-        GeneralizedBlock { kind:ScopeKind::NonRoot, lines:&block.lines }
-    }
 
-    /// Returns information about all definition defined in this block.
-    pub fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        self.lines.iter().flat_map(|ast| DefinitionInfo::from_line(ast,self.kind)).collect()
-    }
 
-    /// Goes through definitions introduced in this block and returns one with matching name.
-    pub fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
-        self.lines.iter().find_map(|ast| {
-            let definition = DefinitionInfo::from_line(ast, self.kind)?;
+// ==========================
+// === DefinitionProvider ===
+// ==========================
+
+pub trait DefinitionProvider {
+    /// What kind of scope this is.
+    fn scope_kind() -> ScopeKind;
+
+    /// Iterates over non-empty lines' ASTs.
+    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a>;
+
+    /// Lists all the definitions in the entity.
+    fn list_definitions(&self) -> Vec<DefinitionInfo> {
+        list_line_asts(self.line_asts(), Self::scope_kind())
+    }
+    /// Tries to find definition by given name in the entity.
+    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
+        self.line_asts().find_map(|ast| {
+            let definition = DefinitionInfo::from_line_ast(ast, Self::scope_kind())?;
             let matches    = &definition.name == name;
             matches.as_some(definition)
-        })
+        })}
+}
+
+impl DefinitionProvider for known::Module {
+    fn scope_kind() -> ScopeKind { ScopeKind::Root }
+    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
+        Box::new(self.iter())
     }
 }
 
-/// Looks for a definition by given name in the module and returns its description.
-pub fn lookup_definition_in_module
-(module:known::Module, name:&DefinitionName) -> Option<DefinitionInfo> {
-    GeneralizedBlock::from_module(&*module).find_definition(name)
+impl DefinitionProvider for known::Block {
+    fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
+    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
+        Box::new(self.iter())
+    }
 }
 
 #[cfg(test)]
@@ -266,27 +264,26 @@ mod tests {
         let expected_def_names_in_def = vec!["add", "*"];
 
         // === Program with defnitions in root ===
-        let program              = definition_lines.join("\n");
-        let module               = parser.parse_module(program.into(), default()).unwrap();
-        let block                = GeneralizedBlock::from_module(&*module);
-        let definitions          = block.list_definitions();
+        let program     = definition_lines.join("\n");
+        let module      = parser.parse_module(program.into(), default()).unwrap();
+        let definitions = module.list_definitions();
         assert_eq_strings(to_names(&definitions),expected_def_names_in_module);
 
         // Check that definition can be found and their body is properly described.
         let add_name = DefinitionName::new_plain("add");
-        let add      = block.find_definition(&add_name).expect("failed to find `add` function");
+        let add      = module.find_definition(&add_name).expect("failed to find `add` function");
         let body     = known::Number::try_new(add.body()).expect("add body should be a Block");
         assert_eq!(body.int,"50");
 
         // === Program with definition in `some_func`'s body `Block` ===
         let indented_lines = definition_lines.iter().map(indented).collect_vec();
         let program        = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
-        let root_block     = parser.parse_module(program,default()).unwrap();
-        let root_defs      = GeneralizedBlock::from_module(&*root_block).list_definitions();
+        let module         = parser.parse_module(program,default()).unwrap();
+        let root_defs      = module.list_definitions();
         let (only_def,)    = root_defs.expect_tuple();
         assert_eq!(&only_def.name.to_string(),"some_func");
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
-        let nested_defs = GeneralizedBlock::from_block(&body_block).list_definitions();
+        let nested_defs = body_block.list_definitions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 }

@@ -77,6 +77,7 @@ mod tests {
     use super::*;
 
     use crate::double_representation::definition::DefinitionName;
+    use crate::double_representation::definition::DefinitionProvider;
 
     use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -85,9 +86,9 @@ mod tests {
 
     /// Takes a program with main definition in root and returns main's graph.
     fn main_graph(parser:&mut impl IsParser, program:impl Str) -> GraphInfo {
-        let ast  = parser.parse_module(program.into(), default()).unwrap();
-        let name = DefinitionName::new_plain("main");
-        let main = definition::lookup_definition_in_module(ast,&name).unwrap();
+        let module = parser.parse_module(program.into(), default()).unwrap();
+        let name   = DefinitionName::new_plain("main");
+        let main   = module.find_definition(&name).unwrap();
         GraphInfo::from_definition(&main)
     }
 
