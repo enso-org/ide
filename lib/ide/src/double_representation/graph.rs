@@ -17,11 +17,11 @@ use ast::known;
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    name           : definition::DefinitionName,
-    args           : Vec<Ast>,
+    name : definition::DefinitionName,
+    args : Vec<Ast>,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
-    pub nodes: Vec<node::NodeInfo>,
+    pub nodes:Vec<node::NodeInfo>,
 }
 
 impl GraphInfo {

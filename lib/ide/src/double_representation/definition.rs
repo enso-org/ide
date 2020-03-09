@@ -128,7 +128,7 @@ impl DefinitionInfo {
     /// Tries to interpret `Line`'s contents as a function definition.
     pub fn from_line
     (line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
-        let ast  = line.elem.as_ref()?;
+        let ast = line.elem.as_ref()?;
         Self::from_line_ast(ast,kind)
     }
 
@@ -192,6 +192,7 @@ pub trait DefinitionProvider {
             DefinitionInfo::from_line_ast(ast,Self::scope_kind())
         }).collect()
     }
+
     /// Tries to find definition by given name in the entity.
     fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
         self.line_asts().find_map(|ast| {

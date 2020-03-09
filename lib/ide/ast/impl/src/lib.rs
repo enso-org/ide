@@ -901,22 +901,22 @@ impl Ast {
     //  as part of https://github.com/luna/enso/issues/338
 
     pub fn number(number:i64) -> Ast {
-        let number = Number { base:None,int:number.to_string() };
+        let number = Number {base:None,int:number.to_string()};
         Ast::from(number)
     }
 
     pub fn cons<Str: ToString>(name:Str) -> Ast {
-        let cons = Cons{ name: name.to_string() };
+        let cons = Cons {name:name.to_string()};
         Ast::from(cons)
     }
 
     pub fn var<Str: ToString>(name:Str) -> Ast {
-        let var = Var{ name: name.to_string() };
+        let var = Var{name:name.to_string()};
         Ast::from(var)
     }
 
     pub fn opr<Str: ToString>(name:Str) -> Ast {
-        let opr = Opr{ name: name.to_string() };
+        let opr = Opr{name:name.to_string() };
         Ast::from(opr)
     }
 
