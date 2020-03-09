@@ -106,12 +106,12 @@ shared! { TextField
 
         /// Scroll one page down.
         pub fn page_down(&mut self) {
-            self.scroll(Vector2::new(0.0, -self.size().x))
+            self.scroll(Vector2::new(0.0, -self.size().y))
         }
 
         /// Scroll one page up.
         pub fn page_up(&mut self) {
-            self.scroll(Vector2::new(0.0, self.size().x))
+            self.scroll(Vector2::new(0.0, self.size().y))
         }
 
         /// Scroll text by given offset in pixels.
