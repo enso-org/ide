@@ -20,13 +20,13 @@ use data::text::Span;
 use data::text::TextChangedNotification;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
-use parser::api::{IsParser, ModuleWithMetadata};
+use parser::api::IsParser;
+use parser::api::ModuleWithMetadata;
 use parser::Parser;
 
 use serde::Serialize;
 use serde::Deserialize;
 use shapely::shared;
-use js_sys::code_point_at;
 
 
 
@@ -202,7 +202,7 @@ impl Handle {
         let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
-            let code = ModuleWithMetadata::from(data.module).to_string();
+            let code = ModuleWithMetadata::from(data.module.clone()).to_string();
             (path,fm,code)
         });
         fm.write(path.clone(),code)
