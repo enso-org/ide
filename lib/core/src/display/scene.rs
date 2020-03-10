@@ -5,6 +5,8 @@ use crate::prelude::*;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::closure;
+use crate::control::callback::CallbackRegistry1;
+use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
@@ -79,7 +81,6 @@ impl Shape {
         Self::new(width,height)
     }
 
-
     pub fn screen_shape(&self) -> ShapeData {
         *self.rc.borrow()
     }
@@ -123,6 +124,42 @@ impl ShapeData {
         self.height = height;
     }
 }
+
+
+
+// ================
+// === SizedDom ===
+// ================
+
+#[derive(Debug,Shrinkwrap)]
+pub struct SizedDom<T=web_sys::HtmlElement> {
+    #[shrinkwrap(main_field)]
+    dom       : T,
+    shape     : Shape,
+    observer  : ResizeObserver,
+    on_resize : Rc<RefCell<CallbackRegistry1<ShapeData>>>,
+}
+
+impl<T> SizedDom<T> {
+    pub fn new(dom:&T) -> Self
+    where T : Clone + AsRef<JsValue> + Into<web_sys::HtmlElement> {
+        let dom          = dom.clone();
+        let html_element = dom.clone().into();
+        let shape        = Shape::from_element(&html_element);
+        let on_resize    = Rc::new(RefCell::new(CallbackRegistry1::default()));
+        let callback     = Closure::new(enclose!((shape,on_resize) move |width, height| {
+            shape.set_screen_dimension(width as f32,height as f32);
+            on_resize.borrow_mut().run_all(&shape.screen_shape())
+        }));
+        let observer = ResizeObserver::new(dom.as_ref(),callback);
+        Self {dom,shape,observer,on_resize}
+    }
+
+    pub fn on_resize<F:CallbackMut1Fn<ShapeData>>(&self, callback:F) -> CallbackHandle {
+        self.on_resize.borrow_mut().add(callback)
+    }
+}
+
 
 
 
@@ -224,7 +261,7 @@ impl Mouse {
 #[derive(Debug)]
 pub struct Dom {
     /// Root DOM element of the scene.
-    pub root : web_sys::HtmlDivElement,
+    pub root : SizedDom<web_sys::HtmlDivElement>,
     /// Layers of the scene.
     pub layers : Layers,
 }
@@ -237,6 +274,7 @@ impl Dom {
         root.set_style_or_panic("height"  , "100vh");
         root.set_style_or_panic("width"   , "100vw");
         root.set_style_or_panic("display" , "block");
+        let root = SizedDom::new(&root);
         Self {root,layers}
     }
 }
@@ -305,8 +343,8 @@ pub struct SceneData {
     zoom_uniform   : Uniform<f32>,
     zoom_callback  : CallbackHandle,
     mouse          : Mouse,
-    #[derivative(Debug="ignore")]
-    on_resize: Option<Box<dyn Fn(&Shape)>>,
+//    #[derivative(Debug="ignore")]
+//    on_resize2: Option<Box<dyn Fn(&Shape)>>,
 }
 
 impl {
@@ -334,7 +372,7 @@ impl {
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
         let zoom_uniform    = variables.add_or_panic("zoom", 1.0);
-        let on_resize       = default();
+//        let on_resize2       = default();
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", shape.pixel_ratio());
         let mouse           = Mouse::new(&shape,&variables);
@@ -357,7 +395,7 @@ impl {
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape,shape_dirty
-             , logger,listeners,variables,on_resize,stats,pixel_ratio,mouse,zoom_uniform
+             , logger,listeners,variables,stats,pixel_ratio,mouse,zoom_uniform
              ,zoom_callback }
     }
 
@@ -542,7 +580,7 @@ impl SceneData {
             self.dom.layers.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
             self.dom.layers.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
             self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
-            self.on_resize.iter().for_each(|f| f(shape));
+//            self.on_resize2.iter().for_each(|f| f(shape));
         });
     }
 }

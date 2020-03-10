@@ -129,7 +129,6 @@ impl WorldData {
         let start_time         = performance.now() as f32;
 //        let stats_monitor_cp_1 = stats_monitor.clone();
 //        let stats_monitor_cp_2 = stats_monitor.clone();
-        println!("ULALALA");
 
 //        stats_monitor.hide();
 
