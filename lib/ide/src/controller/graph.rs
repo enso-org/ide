@@ -3,33 +3,26 @@
 //! This controller provides access to a specific graph. It lives under a module controller, as
 //! each graph belongs to some module.
 
-
 use crate::prelude::*;
-
-use crate::double_representation::definition::DefinitionName;
-use crate::controller::FallibleResult;
 
 use flo_stream::Subscriber;
 
+pub use double_representation::graph::Id;
+
+
+
+// ============
+// === Node ===
+// ============
 
 /// Used e.g. for node posittion
 // TODO [mwu] use some common dictionary type for positions
 type Position = (f64,f64);
 
-/// Crumb describes step that needs to be done when going from context (for graph being a module)
-/// to the target.
-// TODO [mwu]
-//  Currently we support only entering named definitions.
-pub type Crumb = DefinitionName;
-
-/// Identifies graph in the module.
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-pub struct Id {
-    /// Sequence of traverses from module root up to the identified graph.
-    pub crumbs : Vec<Crumb>,
-}
-
 /// Describes node in the graph for the view.
+///
+/// Currently just a thin wrapper over double rep info, in future will be enriched with information
+/// received from the Language server/
 #[derive(Clone,Debug)]
 pub struct Node {
     info : double_representation::node::NodeInfo,
@@ -58,6 +51,11 @@ impl Node {
 }
 
 
+
+// ====================
+// === Notification ===
+// ====================
+
 /// Notification about change in this graph's scope.
 #[derive(Clone,Copy,Debug)]
 pub enum Notification {
@@ -70,20 +68,13 @@ shared! { Handle
     #[derive(Debug)]
     pub struct Controller {
         /// Controller of the module which this graph belongs to.
-        module: controller::module::Handle,
-
-        id : Id
-//        notifications  : notification::Publisher<Notification>,
+        module : controller::module::Handle,
+        id     : Id
         // TODO [mwu] support nested definitions
         // TODO [mwu] notifications
     }
 
     impl {
-//        /// Gets the name of the definition that this graph is body of.
-//        pub fn get_name(&self) -> DefinitionName {
-//            self.name.clone()
-//        }
-
         /// Gets a handle to a controller of the module that this definition belongs to.
         pub fn get_module(&self) -> controller::module::Handle {
             self.module.clone()
@@ -95,29 +86,18 @@ shared! { Handle
         }
     }
 }
-//
-//impl Controller {
-//    /// Returns information about all nodes in the graph.
-//    pub fn list_nodes(&self) -> Vec<Node> {
-//        let name = self.get_name();
-//        let definition = match self.get_module().find_definition(&name) {
-//            Some(def) => def,
-//            _ => return default(),
-//        };
-//
-//        let graph = double_representation::graph::GraphInfo::from_definition(definition);
-//        graph.nodes.into_iter().map(|node_info| Node {info:node_info}).collect()
-//    }
-//}
 
 impl Handle {
-    /// Creates a new graph controller. Given name should identify a definition in the module's
-    /// root scope.
+    /// Creates a new graph controller. Given ID should uniquely identify a definition in the
+    /// module.
     pub fn new(module:controller::module::Handle, id:Id) -> FallibleResult<Handle> {
         let data = Controller {module,id};
-        Ok(Handle::new_from_data(data))
+        let ret = Handle::new_from_data(data);
+        let _ = ret.get_definition()?; // make sure that definition exists
+        Ok(ret)
     }
 
+    /// Retrieves information about definition providing this graph.
     pub fn get_definition
     (&self) -> FallibleResult<double_representation::definition::DefinitionInfo> {
         let module = self.get_module();
@@ -139,27 +119,34 @@ impl Handle {
     }
 
     /// Adds a new node to this graph.
-    pub fn add_node(&self, info:NewNodeInfo) -> ast::ID {
+    pub fn add_node(&self, _info:NewNodeInfo) -> ast::ID {
         todo!()
     }
 
     /// Removed the node from graph.
-    pub fn remove_node(&self, node_id:ast::ID) -> FallibleResult<()> {
+    pub fn remove_node(&self, _node_id:ast::ID) -> FallibleResult<()> {
         todo!()
     }
 
     /// Sets the visual position of the given node.
-    pub fn move_node(&self, node_id:ast::ID, new_position:Position) -> FallibleResult<()> {
+    pub fn move_node(&self, _node_id:ast::ID, _new_position:Position) -> FallibleResult<()> {
         todo!()
     }
 
     /// Sets expression of the given node.
-    pub fn edit_node(&self, node_id:ast::ID, new_expression:impl Str) -> FallibleResult<()> {
+    pub fn edit_node(&self, _node_id:ast::ID, _new_expression:impl Str) -> FallibleResult<()> {
         todo!()
     }
 }
 
+
+
+// ====================
+// === Notification ===
+// ====================
+
 /// Describes the node to be added.
+#[derive(Clone,Debug)]
 pub struct NewNodeInfo {
     /// Expression to be placed on the node
     pub expression:String,
@@ -174,12 +161,13 @@ pub struct NewNodeInfo {
 
 
 
+// =============
+// === Tests ===
+// =============
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+//    use super::*;
 
-    pub fn ttt() {
-
-    }
 }
 

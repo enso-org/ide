@@ -5,7 +5,6 @@
 //! user.
 
 use crate::prelude::*;
-use crate::controller::FallibleResult;
 
 use data::text::TextChangedNotification;
 use failure::_core::fmt::Formatter;

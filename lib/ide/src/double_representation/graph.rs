@@ -3,10 +3,59 @@
 use crate::prelude::*;
 
 use crate::double_representation::definition;
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node;
 
 use ast::Ast;
 use ast::known;
+
+
+
+// ================
+// === Graph Id ===
+// ================
+
+/// Crumb describes step that needs to be done when going from context (for graph being a module)
+/// to the target.
+// TODO [mwu]
+//  Currently we support only entering named definitions.
+pub type Crumb = DefinitionName;
+
+/// Identifies graph in the module.
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+pub struct Id {
+    /// Sequence of traverses from module root up to the identified graph.
+    pub crumbs : Vec<Crumb>,
+}
+
+
+
+// ===============================
+// === Finding Graph In Module ===
+// ===============================
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display = "Definition ID was empty")]
+struct CannotFindDefinition(Id);
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display = "Definition ID was empty")]
+struct EmptyDefinitionId;
+
+/// Looks up graph in the module.
+pub fn traverse_for_definition
+(ast:ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
+    let err            = || CannotFindDefinition(id.clone());
+    let mut crumb_iter = id.crumbs.iter();
+    let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
+    let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
+    while let Some(crumb) = crumb_iter.next() {
+        definition = definition.find_definition(crumb).ok_or_else(err)?;
+    }
+    Ok(definition)
+}
 
 
 
@@ -17,7 +66,7 @@ use ast::known;
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    source:definition::DefinitionInfo,
+    source:DefinitionInfo,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
     pub nodes:Vec<node::NodeInfo>,
@@ -25,7 +74,7 @@ pub struct GraphInfo {
 
 impl GraphInfo {
     /// Describe graph of the given definition.
-    pub fn from_definition(source:definition::DefinitionInfo) -> GraphInfo {
+    pub fn from_definition(source:DefinitionInfo) -> GraphInfo {
         let nodes = Self::from_function_binding(source.ast.clone());
         GraphInfo {source,nodes}
     }

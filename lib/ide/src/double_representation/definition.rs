@@ -93,7 +93,7 @@ impl DefinitionName {
     }
 }
 
-impl fmt::Display for DefinitionName {
+impl Display for DefinitionName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut pieces = self.extended_target.iter().map(|s| s.as_str()).collect_vec();
         pieces.push(&self.name);

@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
-use crate::controller::FallibleResult;
 
 use basegl::control::callback::CallbackHandle;
 use basegl::control::io::keyboard::listener::KeyboardFrpBindings;

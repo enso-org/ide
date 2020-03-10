@@ -7,11 +7,8 @@
 
 use crate::prelude::*;
 
-use crate::controller::FallibleResult;
 use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::double_representation::definition::DefinitionInfo;
-use crate::double_representation::definition::DefinitionName;
-use crate::double_representation::definition::DefinitionProvider;
 
 use ast::Ast;
 use ast::HasRepr;
@@ -21,12 +18,18 @@ use data::text::Index;
 use data::text::Size;
 use data::text::Span;
 use data::text::TextChangedNotification;
+use double_representation as dr;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
 use shapely::shared;
 
+
+//
+//#[derive(Fail,Clone,Debug)]
+//#[fail(display = "AST for module {} is ill-formed.", _0)]
+//struct WrongRootAST(Location);
 
 // =======================
 // === Module Location ===
@@ -83,7 +86,7 @@ shared! { Handle
         /// The Parser handle
         parser: Parser,
         /// Cache of graph controllers.
-        graph_cache: WeakValueHashMap<controller::graph::Id,controller::graph::WeakHandle>,
+        graph_cache: WeakValueHashMap<dr::graph::Id,controller::graph::WeakHandle>,
         logger: Logger,
     }
 
@@ -113,9 +116,10 @@ shared! { Handle
             self.ast.repr()
         }
 
-        pub fn find_definition(&self,id:&controller::graph::Id) -> FallibleResult<DefinitionInfo> {
+        /// Obtains definition information for given graph id.
+        pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
             let module = known::Module::try_new(self.ast.clone())?;
-            traverse_for_definition(module,id)
+            double_representation::graph::traverse_for_definition(module,id)
         }
 
         /// Check if current module state is synchronized with given code. If it's not, log error,
@@ -131,41 +135,6 @@ shared! { Handle
             Ok(())
         }
     }
-}
-
-#[derive(Fail,Clone,Debug)]
-#[fail(display = "AST for module {} is ill-formed.", _0)]
-struct WrongRootAST(Location);
-//
-//#[derive(Fail,Clone,Debug)]
-//#[fail(display = "Module {} cannot locate definition by path {:?}.", _0, _1)]
-//struct MissingChildDefinition(Location,controller::graph::Id);
-//
-//#[derive(Fail,Clone,Debug)]
-//#[fail(display = "In module {} definition {} cannot be found.", _0, _1)]
-//struct MissingTopLevelDefinition(Location,DefinitionName);
-
-#[derive(Fail,Clone,Debug)]
-#[fail(display = "Definition ID was empty")]
-struct CannotFindDefinition(controller::graph::Id);
-
-#[derive(Fail,Clone,Debug)]
-#[fail(display = "Definition ID was empty")]
-struct EmptyDefinitionId;
-
-
-pub fn traverse_for_definition
-(ast:ast::known::Module, id:&controller::graph::Id) -> FallibleResult<DefinitionInfo> {
-    let location : Location = todo!();
-    let err = || CannotFindDefinition(id.clone());
-
-    let mut crumb_iter = id.crumbs.iter();
-    let first_crumb = crumb_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
-    while let Some(crumb) = crumb_iter.next() {
-        definition = definition.find_definition(crumb).ok_or_else(err)?;
-    }
-    Ok(definition)
 }
 
 impl Handle {
@@ -199,14 +168,15 @@ impl Handle {
         // TODO [ao] here save also the id_map and metadata.
     }
 
-    pub fn create_graph_controller(&self, id:controller::graph::Id)
+    /// Creates a new graph controller for graph in this module's subtree identified by `id`.
+    pub fn create_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
-        let _ = self.find_definition(&id)?; // validate id
         controller::graph::Handle::new(self.clone(),id)
     }
 
-    /// Returns a module controller which have module opened from file.
-    pub fn get_graph_controller(&self, id:controller::graph::Id)
+    /// Returns a graph controller for graph in this module's subtree identified by `id`.
+    /// Reuses already existing controller if possible.
+    pub fn get_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
         let cached = self.with_borrowed(|data| data.graph_cache.get(&id));
         match cached {
@@ -233,10 +203,13 @@ impl Handle {
         let data        = Controller {location,ast,file_manager,parser,id_map,graph_cache,logger};
         Ok(Handle::new_from_data(data))
     }
-
 }
 
 
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod test {
