@@ -17,8 +17,7 @@ use ast::known;
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    name : definition::DefinitionName,
-    args : Vec<Ast>,
+    source:definition::DefinitionInfo,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
     pub nodes:Vec<node::NodeInfo>,
@@ -26,11 +25,9 @@ pub struct GraphInfo {
 
 impl GraphInfo {
     /// Describe graph of the given definition.
-    pub fn from_definition(info:&definition::DefinitionInfo) -> GraphInfo {
-        let name  = info.name.clone();
-        let args  = info.args.clone();
-        let nodes = Self::from_function_binding(info.ast.clone());
-        GraphInfo {name,args,nodes}
+    pub fn from_definition(source:definition::DefinitionInfo) -> GraphInfo {
+        let nodes = Self::from_function_binding(source.ast.clone());
+        GraphInfo {source,nodes}
     }
 
     /// Lists nodes in the given binding's ast (infix expression).
@@ -89,8 +86,7 @@ mod tests {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
         let main   = module.find_definition(&name).unwrap();
-        println!("{:?}",module);
-        GraphInfo::from_definition(&main)
+        GraphInfo::from_definition(main)
     }
 
     #[wasm_bindgen_test]
@@ -119,11 +115,9 @@ mod tests {
 main =
     foo = node
     foo a = not_node
+    Int.= a = node
     node
 ";
-        // TODO [mwu]
-        //  Add case like `Int.= a = node` once https://github.com/luna/enso/issues/565 is fixed
-
         let graph = main_graph(&mut parser, program);
         assert_eq!(graph.nodes.len(), 2);
         for node in graph.nodes.iter() {

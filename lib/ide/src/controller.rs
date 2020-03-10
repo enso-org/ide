@@ -15,9 +15,10 @@
 //! Controllers store their handles using `utils::cell` handle types to ensure
 //! that mutable state is safely accessed.
 
-pub mod text;
+pub mod graph;
 pub mod module;
 pub mod project;
+pub mod text;
 
 /// General-purpose `Result` supporting any `Error`-compatible failures.
 pub type FallibleResult<T> = Result<T,failure::Error>;

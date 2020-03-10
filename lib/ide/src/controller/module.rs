@@ -9,10 +9,14 @@ use crate::prelude::*;
 
 use crate::controller::FallibleResult;
 use crate::double_representation::text::apply_code_change_to_id_map;
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::definition::DefinitionProvider;
 
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
+use ast::known;
 use data::text::Index;
 use data::text::Size;
 use data::text::Span;
@@ -78,6 +82,8 @@ shared! { Handle
         file_manager: fmc::Handle,
         /// The Parser handle
         parser: Parser,
+        /// Cache of graph controllers.
+        graph_cache: WeakValueHashMap<controller::graph::Id,controller::graph::WeakHandle>,
         logger: Logger,
     }
 
@@ -107,6 +113,11 @@ shared! { Handle
             self.ast.repr()
         }
 
+        pub fn find_definition(&self,id:&controller::graph::Id) -> FallibleResult<DefinitionInfo> {
+            let module = known::Module::try_new(self.ast.clone())?;
+            traverse_for_definition(module,id)
+        }
+
         /// Check if current module state is synchronized with given code. If it's not, log error,
         /// and update module state to match the `code` passed as argument.
         pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
@@ -120,6 +131,41 @@ shared! { Handle
             Ok(())
         }
     }
+}
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display = "AST for module {} is ill-formed.", _0)]
+struct WrongRootAST(Location);
+//
+//#[derive(Fail,Clone,Debug)]
+//#[fail(display = "Module {} cannot locate definition by path {:?}.", _0, _1)]
+//struct MissingChildDefinition(Location,controller::graph::Id);
+//
+//#[derive(Fail,Clone,Debug)]
+//#[fail(display = "In module {} definition {} cannot be found.", _0, _1)]
+//struct MissingTopLevelDefinition(Location,DefinitionName);
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display = "Definition ID was empty")]
+struct CannotFindDefinition(controller::graph::Id);
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display = "Definition ID was empty")]
+struct EmptyDefinitionId;
+
+
+pub fn traverse_for_definition
+(ast:ast::known::Module, id:&controller::graph::Id) -> FallibleResult<DefinitionInfo> {
+    let location : Location = todo!();
+    let err = || CannotFindDefinition(id.clone());
+
+    let mut crumb_iter = id.crumbs.iter();
+    let first_crumb = crumb_iter.next().ok_or(EmptyDefinitionId)?;
+    let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
+    while let Some(crumb) = crumb_iter.next() {
+        definition = definition.find_definition(crumb).ok_or_else(err)?;
+    }
+    Ok(definition)
 }
 
 impl Handle {
@@ -137,8 +183,10 @@ impl Handle {
         let ast     = parser.parse(content,default())?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
-        let id_map  = default();
-        let data    = Controller {location,ast,file_manager,parser,id_map,logger};
+        let id_map      = default();
+        let graph_cache = default();
+
+        let data = Controller {location,ast,file_manager,parser,id_map,graph_cache,logger};
         Ok(Handle::new_from_data(data))
     }
 
@@ -151,13 +199,38 @@ impl Handle {
         // TODO [ao] here save also the id_map and metadata.
     }
 
+    pub fn create_graph_controller(&self, id:controller::graph::Id)
+    -> FallibleResult<controller::graph::Handle> {
+        let _ = self.find_definition(&id)?; // validate id
+        controller::graph::Handle::new(self.clone(),id)
+    }
+
+    /// Returns a module controller which have module opened from file.
+    pub fn get_graph_controller(&self, id:controller::graph::Id)
+    -> FallibleResult<controller::graph::Handle> {
+        let cached = self.with_borrowed(|data| data.graph_cache.get(&id));
+        match cached {
+            Some(controller) => Ok(controller),
+            None => {
+                let graph = self.create_graph_controller(id.clone())?;
+                let cached = self.with_borrowed(|data| {
+                    // This is synchronous, so nothing got inserted between our checks.
+                    data.graph_cache.insert(id, graph.clone_ref());
+                    graph
+                });
+                Ok(cached)
+            },
+        }
+    }
+
     #[cfg(test)]
     fn new_mock
     (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:Parser)
     -> FallibleResult<Self> {
-        let logger   = Logger::new("Mocked Module Controller");
-        let ast      = parser.parse(code.to_string(),id_map.clone())?;
-        let data     = Controller {location,ast,file_manager,parser,id_map,logger};
+        let logger      = Logger::new("Mocked Module Controller");
+        let ast         = parser.parse(code.to_string(),id_map.clone())?;
+        let graph_cache = default();
+        let data        = Controller {location,ast,file_manager,parser,id_map,graph_cache,logger};
         Ok(Handle::new_from_data(data))
     }
 
@@ -201,12 +274,10 @@ mod test {
 
         let uuid1        = Uuid::new_v4();
         let uuid2        = Uuid::new_v4();
-        let uuid3        = Uuid::new_v4();
         let code         = "2+2";
         let id_map       = IdMap(vec!
             [ (Span::new(Index::new(0), Size::new(1)),uuid1.clone())
             , (Span::new(Index::new(2), Size::new(1)),uuid2)
-            , (Span::new(Index::new(0), Size::new(3)),uuid3)
             ]);
 
         let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
@@ -225,7 +296,7 @@ mod test {
                     opr  : Ast::new(ast::Opr {name:"+".to_string()}, None),
                     roff : 0,
                     rarg : Ast::new(ast::Number{base:None, int:"2".to_string()}, Some(uuid2)),
-                }, Some(uuid3))),
+                }, None)),
                 off: 0
             }]
         }, None);

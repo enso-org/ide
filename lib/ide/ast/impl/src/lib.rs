@@ -166,6 +166,10 @@ impl Clone for Ast {
     }
 }
 
+impl CloneRef for Ast {
+    fn clone_ref(&self) -> Self { self.clone() }
+}
+
 /// `IntoIterator` for `&Ast` that just delegates to `&Shape`'s `IntoIterator`.
 impl<'t> IntoIterator for &'t Ast {
     type Item     = <&'t Shape<Ast> as IntoIterator>::Item;
