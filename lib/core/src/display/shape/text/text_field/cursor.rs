@@ -431,9 +431,15 @@ impl Cursors {
             from_location.line+1..=to_location.line
         };
         for line in range {
-            self.add_cursor(TextLocation::at_document_begin());
+            let line  = content.line(line);
+            let range = from_location.column..to_location.column;
+            let start = TextLocation{line:line.line_id,column:min(range.start,line.len())};
+            let end   = TextLocation{line:line.line_id,column:min(range.end,line.len())};
+            let range = start..end;
+
+            self.add_cursor(range.end);
             let cursor = self.active_cursor_mut();
-            cursor.select_line_range(&content.line(line),from_location.column..to_location.column);
+            cursor.selected_to = range.start
         }
     }
 
