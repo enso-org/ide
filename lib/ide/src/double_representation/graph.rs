@@ -17,7 +17,8 @@ use ast::known;
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    source:definition::DefinitionInfo,
+    name : definition::DefinitionName,
+    args : Vec<Ast>,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
     pub nodes:Vec<node::NodeInfo>,
@@ -25,9 +26,11 @@ pub struct GraphInfo {
 
 impl GraphInfo {
     /// Describe graph of the given definition.
-    pub fn from_definition(source:definition::DefinitionInfo) -> GraphInfo {
+    pub fn from_definition(info:&definition::DefinitionInfo) -> GraphInfo {
+        let name  = info.name.clone();
+        let args  = info.args.clone();
         let nodes = Self::from_function_binding(info.ast.clone());
-        GraphInfo {source,nodes}
+        GraphInfo {name,args,nodes}
     }
 
     /// Lists nodes in the given binding's ast (infix expression).
