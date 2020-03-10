@@ -221,7 +221,9 @@ impl Mouse {
 
 #[derive(Debug)]
 pub struct Layers {
-    pub canvas : web_sys::HtmlCanvasElement
+//    pub dom_front : Css3dRenderer,
+    pub canvas    : web_sys::HtmlCanvasElement
+//    pub dom_back  : Css3dRenderer,
 }
 
 impl Default for Layers {

@@ -147,15 +147,15 @@ impl Css3dRendererData {
         Self {logger,dom, view_projection_dom }
     }
 
-    fn set_dimensions(&self, dimensions:Vector2<f32>) {
-        let width  = format!("{}px", dimensions.x);
-        let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.dom, &self.view_projection_dom];
-        for dom in doms {
-            dom.set_style_or_warn("width"  , &width  , &self.logger);
-            dom.set_style_or_warn("height" , &height , &self.logger);
-        }
-    }
+//    fn set_dimensions(&self, dimensions:Vector2<f32>) {
+//        let width  = format!("{}px", dimensions.x);
+//        let height = format!("{}px", dimensions.y);
+//        let doms   = vec![&self.dom, &self.view_projection_dom];
+//        for dom in doms {
+//            dom.set_style_or_warn("width"  , &width  , &self.logger);
+//            dom.set_style_or_warn("height" , &height , &self.logger);
+//        }
+//    }
 }
 
 
@@ -204,12 +204,16 @@ impl Css3dRenderer {
         let data = Rc::new(data);
 
 
-        container.add_resize_callback(enclose!((data) move |dimensions:&Vector2<f32>| {
-            data.set_dimensions(*dimensions);
-        }));
+//        container.add_resize_callback(enclose!((data) move |dimensions:&Vector2<f32>| {
+//            data.set_dimensions(*dimensions);
+//        }));
 
         Self {container,data}
     }
+
+//    pub fn resize(&self, size:Vector2<f32>) {
+//        self.data.set_dimensions(size);
+//    }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub fn manage(&self, object:&Css3dObject) {
@@ -224,9 +228,9 @@ impl Css3dRenderer {
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
         let trans_cam  = invert_y(trans_cam);
-        let half_dim   = self.container.dimensions() / 2.0;
+        let half_dim   = camera.screen().height / 2.0;
         let fovy_slope = camera.half_fovy_slope();
-        let near       = half_dim.y / fovy_slope;
+        let near       = half_dim / fovy_slope;
 
         match camera.projection() {
             Projection::Perspective{..} => {
@@ -239,30 +243,20 @@ impl Css3dRenderer {
         }
     }
 
-    /// Sets Css3dRenderer's container dimensions.
-    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-        self.data.set_dimensions(dimensions);
-        self.container.set_dimensions(dimensions);
-    }
+//    /// Sets Css3dRenderer's container dimensions.
+//    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
+//        self.data.set_dimensions(dimensions);
+//        self.container.set_dimensions(dimensions);
+//    }
 }
 
 
 // === Getters ===
 
 impl Css3dRenderer {
-    /// Gets Css3dRenderer's container.
-    pub fn container(&self) -> &DomContainer {
-        &self.container
-    }
-
     /// Gets Css3dRenderer's DOM.
     pub fn dom(&self) -> &HtmlElement {
         &self.data.dom
-    }
-
-    /// Gets the Css3dRenderer's dimensions.
-    pub fn dimensions(&self) -> Vector2<f32> {
-        self.container.dimensions()
     }
 }
 
