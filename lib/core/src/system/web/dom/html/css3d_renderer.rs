@@ -138,26 +138,26 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 #[derive(Debug)]
 struct Css3dRendererData {
     pub front_dom                 : HtmlDivElement,
-    pub back_dom                  : HtmlDivElement,
+//    pub back_dom                  : HtmlDivElement,
     pub front_dom_view_projection : HtmlDivElement,
-    pub back_dom_view_projection  : HtmlDivElement,
+//    pub back_dom_view_projection  : HtmlDivElement,
     logger                        : Logger
 }
 
 impl Css3dRendererData {
     pub fn new
     ( front_dom                 : HtmlDivElement
-    , back_dom                  : HtmlDivElement
+//    , back_dom                  : HtmlDivElement
     , front_dom_view_projection : HtmlDivElement
-    , back_dom_view_projection  : HtmlDivElement
+//    , back_dom_view_projection  : HtmlDivElement
     , logger                    : Logger) -> Self {
-        Self {logger,front_dom,back_dom, front_dom_view_projection, back_dom_view_projection }
+        Self {logger,front_dom, front_dom_view_projection } // back_dom back_dom_view_projection
     }
 
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.front_dom, &self.back_dom, &self.front_dom_view_projection, &self.back_dom_view_projection];
+        let doms   = vec![&self.front_dom, &self.front_dom_view_projection]; // &self.back_dom &self.back_dom_view_projection
         for dom in doms {
             dom.set_style_or_warn("width" , &width, &self.logger);
             dom.set_style_or_warn("height", &height, &self.logger);
@@ -181,7 +181,7 @@ impl Css3dRendererData {
 #[derive(Clone,Debug)]
 pub struct Css3dRenderer {
     container : DomContainer,
-    data      : Rc<Css3dRendererData>
+    data      : Rc<Css3dRendererData>,
 }
 
 impl Css3dRenderer {
@@ -190,14 +190,14 @@ impl Css3dRenderer {
         let logger    = logger.sub("Css3dRenderer");
         let container = DomContainer::from_element(element);
         let (front_dom , front_dom_view_projection) = Self::create_layer(&logger);
-        let (back_dom  , back_dom_view_projection)  = Self::create_layer(&logger);
+//        let (back_dom  , back_dom_view_projection)  = Self::create_layer(&logger);
 
-        back_dom.set_style_or_warn("z-index","-1",&logger);
+//        back_dom.set_style_or_warn("z-index","-1",&logger);
         container.dom.append_or_warn(&front_dom,&logger);
-        container.dom.append_or_warn(&back_dom,&logger);
+//        container.dom.append_or_warn(&back_dom,&logger);
 
         let data = Css3dRendererData::new
-            (front_dom,back_dom,front_dom_view_projection,back_dom_view_projection,logger);
+            (front_dom,front_dom_view_projection,logger); // back_dom back_dom_view_projection
         let data = Rc::new(data);
         Self{container,data}.init()
     }
@@ -227,7 +227,7 @@ impl Css3dRenderer {
         Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
     }
 
-    pub(super) fn new_system(&self) -> Css3dSystem {
+    pub fn new_system(&self) -> Css3dSystem {
         let css3d_renderer = self.clone();
         let logger         = self.data.logger.sub("Css3dSystem");
         let display_object = display::object::Node::new(&logger);
@@ -246,26 +246,28 @@ impl Css3dRenderer {
     pub(super) fn new_instance
     (&self,object:&Css3dObject) {
         let front_layer = self.data.front_dom_view_projection.clone();
-        let back_layer  = self.data.back_dom_view_projection.clone();
+//        let back_layer  = self.data.back_dom_view_projection.clone();
         let display_object : display::object::Node = object.into();
+
+        front_layer.append_or_warn(&object.dom(),&self.data.logger);
+
         display_object.set_on_updated(enclose!((object) move |t| {
             let object_dom    = object.dom();
             let mut transform = t.matrix();
             transform.iter_mut().for_each(|a| *a = eps(*a));
+//            let layer = match object.css3d_order() {
+//                Css3dOrder::Front => &front_layer,
+//                Css3dOrder::Back  => &back_layer
+//            };
 
-            let layer = match object.css3d_order() {
-                Css3dOrder::Front => &front_layer,
-                Css3dOrder::Back  => &back_layer
-            };
-
-            let parent_node = object.dom().parent_node();
-            if !layer.is_same_node(parent_node.as_ref()) {
-//                display_object.with_logger(|logger| {
-                    let logger = Logger::new("tmp");
-                    object_dom.remove_from_parent_or_warn(&logger);
-                    layer.append_or_warn(&object_dom,&logger);
-//                });
-            }
+//            let parent_node = object.dom().parent_node();
+//            if !layer.is_same_node(parent_node.as_ref()) {
+////                display_object.with_logger(|logger| {
+//                    let logger = Logger::new("tmp");
+//                    object_dom.remove_from_parent_or_warn(&logger);
+//                    layer.append_or_warn(&object_dom,&logger);
+////                });
+//            }
 
             set_object_transform(&object_dom, &transform);
         }));
@@ -285,13 +287,13 @@ impl Css3dRenderer {
         match camera.projection() {
             Projection::Perspective{..} => {
                 js::setup_perspective(&self.data.front_dom , &near.into());
-                js::setup_perspective(&self.data.back_dom  , &near.into());
+//                js::setup_perspective(&self.data.back_dom  , &near.into());
                 setup_camera_perspective(&self.data.front_dom_view_projection , near, &trans_cam);
-                setup_camera_perspective(&self.data.back_dom_view_projection  , near, &trans_cam);
+//                setup_camera_perspective(&self.data.back_dom_view_projection  , near, &trans_cam);
             },
             Projection::Orthographic => {
                 setup_camera_orthographic(&self.data.front_dom_view_projection , &trans_cam);
-                setup_camera_orthographic(&self.data.back_dom_view_projection  , &trans_cam);
+//                setup_camera_orthographic(&self.data.back_dom_view_projection  , &trans_cam);
             }
         }
     }
