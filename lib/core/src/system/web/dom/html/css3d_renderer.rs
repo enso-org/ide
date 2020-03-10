@@ -139,26 +139,21 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 struct Css3dRendererData {
     pub dom                 : HtmlDivElement,
     pub view_projection_dom : HtmlDivElement,
-    logger                        : Logger
+    logger                  : Logger
 }
 
 impl Css3dRendererData {
-    pub fn new
-    ( dom                 : HtmlDivElement
-//    , back_dom                  : HtmlDivElement
-    , view_projection_dom : HtmlDivElement
-//    , back_dom_view_projection  : HtmlDivElement
-    , logger                    : Logger) -> Self {
-        Self {logger,dom, view_projection_dom } // back_dom back_dom_view_projection
+    pub fn new(dom:HtmlDivElement, view_projection_dom:HtmlDivElement, logger:Logger) -> Self {
+        Self {logger,dom, view_projection_dom }
     }
 
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.dom, &self.view_projection_dom]; // &self.back_dom &self.back_dom_view_projection
+        let doms   = vec![&self.dom, &self.view_projection_dom];
         for dom in doms {
-            dom.set_style_or_warn("width" , &width, &self.logger);
-            dom.set_style_or_warn("height", &height, &self.logger);
+            dom.set_style_or_warn("width"  , &width  , &self.logger);
+            dom.set_style_or_warn("height" , &height , &self.logger);
         }
     }
 }
@@ -207,55 +202,19 @@ impl Css3dRenderer {
 
         let data = Css3dRendererData::new (dom,view_projection_dom,logger);
         let data = Rc::new(data);
-        Self{container,data}.init()
-    }
 
-//    /// Creates a Css3dRenderer.
-//    pub fn new(logger:&Logger, dom_id:&str) -> Result<Self> {
-//        Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
-//    }
 
-//    pub fn new_system(&self) -> Css3dSystem {
-//        let css3d_renderer = self.clone();
-//        let logger         = self.data.logger.sub("Css3dSystem");
-//        let display_object = display::object::Node::new(&logger);
-//        Css3dSystem {display_object,css3d_renderer,logger}
-//    }
-
-    fn init(mut self) -> Self {
-        let data = self.data.clone();
-        self.add_resize_callback(move |dimensions:&Vector2<f32>| {
+        container.add_resize_callback(enclose!((data) move |dimensions:&Vector2<f32>| {
             data.set_dimensions(*dimensions);
-        });
-        self
+        }));
+
+        Self {container,data}
     }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub fn manage(&self, object:&Css3dObject) {
         let front_layer = self.data.view_projection_dom.clone();
         front_layer.append_or_warn(&object.dom(),&self.data.logger);
-//        let display_object : display::object::Node = object.into();
-
-//        display_object.set_on_updated(enclose!((object) move |t| {
-//            let object_dom    = object.dom();
-//            let mut transform = t.matrix();
-//            transform.iter_mut().for_each(|a| *a = eps(*a));
-////            let layer = match object.css3d_order() {
-////                Css3dOrder::Front => &front_layer,
-////                Css3dOrder::Back  => &back_layer
-////            };
-//
-////            let parent_node = object.dom().parent_node();
-////            if !layer.is_same_node(parent_node.as_ref()) {
-//////                display_object.with_logger(|logger| {
-////                    let logger = Logger::new("tmp");
-////                    object_dom.remove_from_parent_or_warn(&logger);
-////                    layer.append_or_warn(&object_dom,&logger);
-//////                });
-////            }
-//
-//            set_object_transform(&object_dom, &transform);
-//        }));
     }
 
     /// Update the objects to match the new camera's point of view. This function should be called
@@ -278,11 +237,6 @@ impl Css3dRenderer {
                 setup_camera_orthographic(&self.data.view_projection_dom , &trans_cam);
             }
         }
-    }
-
-    /// Adds a ResizeCallback.
-    pub fn add_resize_callback<T:ResizeCallback>(&mut self, callback:T) {
-        self.container.add_resize_callback(callback);
     }
 
     /// Sets Css3dRenderer's container dimensions.

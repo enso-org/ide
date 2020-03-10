@@ -160,7 +160,7 @@ impl DomContainer {
     }
 
     /// Adds a ResizeCallback.
-    pub fn add_resize_callback<T:ResizeCallback>(&mut self, callback:T) {
+    pub fn add_resize_callback<T:ResizeCallback>(&self, callback:T) {
         self.data.add_resize_callback(callback);
     }
 }
