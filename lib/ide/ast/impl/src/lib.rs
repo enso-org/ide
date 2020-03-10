@@ -18,13 +18,41 @@ use serde::Serialize;
 use shapely::*;
 use uuid::Uuid;
 
-/// Any kind of node metadata used in visualization.
-#[derive(Debug,Clone,Default,Deserialize,Serialize)]
-pub struct Metadata();
+
+#[derive(Debug,Clone,Serialize,Deserialize)]
+pub struct ModuleWithMetada { pub module: Ast, pub metadata: Metadata }
+
+
+const IDTAG   : &str = "# [idmap] ";
+const METATAG : &str = "# [metadata] ";
+
+impl ModuleWithMetada {
+    fn to_str(&self) -> String {
+        let code = self.module.repr();
+        let ids  = serde_json::to_string(&self.module.id_map()).expect(
+            "It should be possible to serialize idmap."
+        );
+        let meta = serde_json::to_string(&self.metadata).expect(
+            "It should be possible to serialize metadata."
+        );
+        format!("{}\n\n\n{}{}\n{}{}", code, IDTAG, ids, METATAG, meta)
+    }
+}
 
 /// Mapping between ID and metadata.
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]
-pub struct IdMetadataMap(HashMap<ID,Metadata>);
+pub struct Metadata {
+    // metadata used by us (ide) with rust
+    pub ide  : IdeMetadata,
+    // metadata used by user (via javascript) trough ide API
+    pub user : HashMap<String,serde_json::Value>,
+    #[serde(flatten)]
+    // metadata used by anyone else - i.e. language server
+    rest : HashMap<String,serde_json::Value>,
+}
+
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+pub struct IdeMetadata {}
 
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
 pub struct IdMap(pub Vec<(Span,ID)>);

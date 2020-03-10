@@ -21,8 +21,9 @@ mod wsclient;
 use crate::prelude::*;
 
 use ast::Ast;
-use ast::IdMetadataMap;
 use ast::IdMap;
+use ast::ModuleWithMetada;
+
 use std::panic;
 
 pub use enso_prelude as prelude;
@@ -70,8 +71,8 @@ impl api::IsParser for Parser {
         self.borrow_mut().parse(program,ids)
     }
 
-    fn parse_file(&mut self, content:String) -> api::Result<(Ast, IdMetadataMap)> {
-        self.borrow_mut().parse_file(content)
+    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetada> {
+        self.borrow_mut().parse_as_module(program)
     }
 }
 

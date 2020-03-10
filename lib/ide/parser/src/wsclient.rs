@@ -8,9 +8,10 @@ use websocket::{
     stream::sync::TcpStream, ClientBuilder, Message,
 };
 
-use ast::IdMap;
-use ast::IdMetadataMap;
 use api::Ast;
+use ast::IdMap;
+use ast::ModuleWithMetada;
+
 use std::fmt::Formatter;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
@@ -87,15 +88,15 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest     { program: String, ids: IdMap },
-    ParseFileRequest { content: String },
+    ParseRequest         { program: String, ids: IdMap },
+    ParseAsModuleRequest { program: String },
 }
 
 /// All responses that Parser Service might reply with.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Response {
-    Success { ast_json: String, metadata: String },
-    Error   { message:  String },
+    Success { module  : ModuleWithMetada },
+    Error   { message : String },
 }
 
 
@@ -171,12 +172,6 @@ mod internal {
             self.recv_response()
         }
     }
-
-    /// Deserialize AST from JSON text received from WS Parser Service.
-    pub fn from_json(json_text: &str) -> api::Result<Ast> {
-        let ast = serde_json::from_str::<Ast>(json_text);
-        Ok(ast.map_err(|e| Error::JsonDeserializationError(e, json_text.into()))?)
-    }
 }
 
 impl Client {
@@ -212,25 +207,17 @@ impl api::IsParser for Client {
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call(request)?;
         match response {
-            Response::Success {ast_json,metadata:_} =>
-                internal::from_json(&ast_json),
+            Response::Success {module} => Ok(module.module),
             Response::Error {message} => Err(ParsingError(message)),
         }
     }
 
-    fn parse_file(&mut self, content:String) -> api::Result<(Ast,IdMetadataMap)> {
-        let request  = Request::ParseFileRequest {content};
+    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetada> {
+        let request  = Request::ParseAsModuleRequest {program};
         let response = self.rpc_call(request)?;
         match response {
-            Response::Success {ast_json,metadata} => {
-                let result = || {
-                    let ast  = serde_json::from_str(&ast_json)?;
-                    let meta = serde_json::from_str(&metadata)?;
-                    Result::Ok((ast, meta))
-                };
-                Ok(result()?)
-            }
-            Response::Error {message} => Err(ParsingError(message)),
+            Response::Success {module} => Ok(module),
+            Response::Error {message}  => Err(ParsingError(message)),
         }
     }
 

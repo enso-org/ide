@@ -24,10 +24,7 @@ use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
 use shapely::shared;
-
-
-const METATAG:&str = "# [metadata]";
-const IDTAG:&str = "# [idmap]";
+use js_sys::code_point_at;
 
 
 // =======================
@@ -74,10 +71,8 @@ shared! { Handle
     pub struct Controller {
         /// This module's location.
         location: Location,
-        /// The current module ast, used by synchronizing both module representations.
-        ast: Ast,
-        /// The current module metadata
-        metadata: IdMetadataMap,
+        /// The current module used by synchronizing both module representations.
+        module: ModuleWithMetadata,
         /// The id map of current ast
         // TODO: written for test purposes, should be removed once generating id_map from AST will
         // be implemented.
@@ -112,7 +107,7 @@ shared! { Handle
 
         /// Read module code.
         pub fn code(&self) -> String {
-            self.ast.repr()
+            self.module.module.repr()
         }
 
         /// Check if current module state is synchronized with given code. If it's not, log error,
@@ -142,30 +137,23 @@ impl Handle {
         file_manager.touch(path.clone()).await?;
         let content = file_manager.read(path).await?;
         logger.info(|| "Parsing code");
-        let (ast,metadata) = parser.parse_file(content)?;
+        let module = parser.parse_module(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
         let id_map  = ast.id_map();
-        let data    = Controller {location,ast,file_manager,parser,id_map,metadata,logger};
+        let data    = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
 
     /// Save the module to file.
     pub async fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
-        let (path,mut fm,metadata,ids) = self.with_borrowed(|data| {
+        let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
-            let ids  = serde_json::to_string(&data.id_map).expect(
-                "It should be possible to serialize idmap."
-            );
-            let meta = serde_json::to_string(&data.metadata).expect(
-                "It should be possible to serialize metadata."
-            );
-            (path,fm,meta,ids)
+            let code = data.module.to_str();
+            (path,fm,code)
         });
-        fm.write(path.clone(),self.code()).await;
-        fm.write(path.clone(), format!("{} {}\n", IDTAG, ids)).await;
-        fm.write(path, format!("{} {}\n", METATAG, metadata))
+        fm.write(path.clone(),code)
     }
 
     #[cfg(test)]
@@ -173,13 +161,12 @@ impl Handle {
     ( location     : Location
     , code         : &str
     , id_map       : IdMap
-    , metadata     : IdMetadataMap
     , file_manager : fmc::Handle
     , mut parser   : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
-        let ast    = parser.parse(code.to_string(),id_map.clone())?;
-        let data   = Controller {location,ast,file_manager,parser,id_map,metadata,logger};
+        let module = parser.parse_module(code.to_string(),id_map.clone())?;
+        let data   = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
 
@@ -221,8 +208,7 @@ mod test {
 
         let uuid1        = Uuid::new_v4();
         let uuid2        = Uuid::new_v4();
-        let code         = "2+2";
-        let metadata     = default();
+        let module       = "2+2";
         let id_map       = IdMap(vec!
             [ (Span::from((0,1)),uuid1.clone())
             , (Span::from((2,1)),uuid2)
@@ -230,9 +216,8 @@ mod test {
 
         let controller   = Handle::new_mock(
             location,
-            code,
+            module,
             id_map,
-            metadata,
             file_manager,
             parser
         ).unwrap();

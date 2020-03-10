@@ -6,8 +6,9 @@ use crate::api;
 
 use api::Ast;
 use api::IsParser;
+
 use ast::IdMap;
-use ast::IdMetadataMap;
+use ast::ModuleWithMetada;
 
 use wasm_bindgen::prelude::*;
 
@@ -47,7 +48,7 @@ extern "C" {
     (input:String, ids:String) -> std::result::Result<String,JsValue>;
     #[wasm_bindgen(catch)]
     fn parse_file
-    (content:String) -> std::result::Result<(String,String),JsValue>;
+    (content:String) -> std::result::Result<String,JsValue>;
 }
 
 /// Wrapper over the JS-compiled parser.
@@ -74,12 +75,11 @@ impl IsParser for Client {
         Ok(ast()?)
     }
 
-    fn parse_file(&mut self, content:String) -> api::Result<(Ast,IdMetadataMap)> {
+    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetada> {
         let result = || {
-            let (json_ast, json_meta) = parse_file(content)?;
-            let ast      = serde_json::from_str(&json_ast)?;
-            let metadata = serde_json::from_str(&json_meta)?;
-            Result::Ok(ast);
+            let json   = &parse_file(program)?;
+            let module = serde_json::from_str(&json)?;
+            Result::Ok(module)
         };
         Ok(result()?)
     }
