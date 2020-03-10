@@ -2,7 +2,7 @@
 
 use basegl::system::web;
 use basegl::system::web::NodeInserter;
-use web::dom::html::Css3dSystem;
+//use web::dom::html::Css3dSystem;
 use web::dom::html::Css3dObject;
 use web::dom::html::Css3dOrder;
 use web::StyleSetter;
@@ -33,9 +33,10 @@ fn init(world:World) {
     let screen        = camera.screen();
     let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
     let sprite_system = SpriteSystem::new(&world);
-    let css3d_system  = Css3dSystem::new(&world);
+//    let css3d_system  = Css3dSystem::new(&world);
+    let css3d_renderer = scene.css3d_renderer();
     world.add_child(&sprite_system);
-    world.add_child(&css3d_system);
+//    world.add_child(&css3d_system);
 
     let mut sprites: Vec<Sprite> = default();
     let mut css3d_objects: Vec<Css3dObject> = default();
@@ -61,7 +62,9 @@ fn init(world:World) {
             let dimensions = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
             let mut object = Css3dObject::new(&div);
-            css3d_system.add_child2(&object);
+//            css3d_system.add_child2(&object);
+            css3d_renderer.manage(&object);
+            world.add_child(&object);
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
             let b          = ((x + 4.0) * 64.0) as u8;
@@ -83,7 +86,7 @@ fn init(world:World) {
         let _keep_alive = &navigator;
         let _keep_alive = &sprites;
         let _keep_alive = &sprite_system;
-        let _keep_alive = &css3d_system;
+//        let _keep_alive = &css3d_system;
 
         i = (i + 1) % 2;
         for (j, object) in css3d_objects.iter_mut().enumerate() {

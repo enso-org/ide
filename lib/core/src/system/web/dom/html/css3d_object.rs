@@ -13,6 +13,7 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use web_sys::HtmlDivElement;
 
+use super::css3d_renderer::set_object_transform;
 
 
 // ==================
@@ -142,6 +143,27 @@ impl Css3dObject {
         let display_object = display::object::Node::new(logger);
         let dimensions     = Vector2::new(0.0,0.0);
         let css3d_order    = default();
+
+        display_object.set_on_updated(enclose!((dom) move |t| {
+//            let object_dom    = object.dom();
+            let mut transform = t.matrix();
+            transform.iter_mut().for_each(|a| *a = eps(*a));
+//            let layer = match object.css3d_order() {
+//                Css3dOrder::Front => &front_layer,
+//                Css3dOrder::Back  => &back_layer
+//            };
+
+//            let parent_node = object.dom().parent_node();
+//            if !layer.is_same_node(parent_node.as_ref()) {
+////                display_object.with_logger(|logger| {
+//                    let logger = Logger::new("tmp");
+//                    object_dom.remove_from_parent_or_warn(&logger);
+//                    layer.append_or_warn(&object_dom,&logger);
+////                });
+//            }
+
+            set_object_transform(&dom, &transform);
+        }));
         let data = Css3dObjectData::new(display_object,div,dimensions,css3d_order);
         Self {data}
     }
@@ -209,6 +231,13 @@ impl From<&Css3dObject> for display::object::Node {
 
 
 
-pub struct DomSymbolRegistry {
 
+
+// =============
+// === Utils ===
+// =============
+
+/// eps is used to round very small values to 0.0 for numerical stability
+pub fn eps(value: f32) -> f32 {
+    if value.abs() < 1e-10 { 0.0 } else { value }
 }

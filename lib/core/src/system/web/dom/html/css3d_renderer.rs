@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::display;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::{Css3dObject, Css3dSystem};
+use crate::system::web::dom::html::Css3dObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::Result;
@@ -79,7 +79,7 @@ mod js {
 }
 
 #[allow(unsafe_code)]
-fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
+pub fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
@@ -137,27 +137,25 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 
 #[derive(Debug)]
 struct Css3dRendererData {
-    pub front_dom                 : HtmlDivElement,
-//    pub back_dom                  : HtmlDivElement,
-    pub front_dom_view_projection : HtmlDivElement,
-//    pub back_dom_view_projection  : HtmlDivElement,
+    pub dom                 : HtmlDivElement,
+    pub view_projection_dom : HtmlDivElement,
     logger                        : Logger
 }
 
 impl Css3dRendererData {
     pub fn new
-    ( front_dom                 : HtmlDivElement
+    ( dom                 : HtmlDivElement
 //    , back_dom                  : HtmlDivElement
-    , front_dom_view_projection : HtmlDivElement
+    , view_projection_dom : HtmlDivElement
 //    , back_dom_view_projection  : HtmlDivElement
     , logger                    : Logger) -> Self {
-        Self {logger,front_dom, front_dom_view_projection } // back_dom back_dom_view_projection
+        Self {logger,dom, view_projection_dom } // back_dom back_dom_view_projection
     }
 
     fn set_dimensions(&self, dimensions:Vector2<f32>) {
         let width  = format!("{}px", dimensions.x);
         let height = format!("{}px", dimensions.y);
-        let doms   = vec![&self.front_dom, &self.front_dom_view_projection]; // &self.back_dom &self.back_dom_view_projection
+        let doms   = vec![&self.dom, &self.view_projection_dom]; // &self.back_dom &self.back_dom_view_projection
         for dom in doms {
             dom.set_style_or_warn("width" , &width, &self.logger);
             dom.set_style_or_warn("height", &height, &self.logger);
@@ -187,24 +185,10 @@ pub struct Css3dRenderer {
 impl Css3dRenderer {
     /// Creates a Css3dRenderer inside an element.
     pub fn from_element_or_panic(logger:&Logger, element:HtmlElement) -> Self {
-        let logger    = logger.sub("Css3dRenderer");
-        let container = DomContainer::from_element(element);
-        let (front_dom , front_dom_view_projection) = Self::create_layer(&logger);
-//        let (back_dom  , back_dom_view_projection)  = Self::create_layer(&logger);
-
-//        back_dom.set_style_or_warn("z-index","-1",&logger);
-        container.dom.append_or_warn(&front_dom,&logger);
-//        container.dom.append_or_warn(&back_dom,&logger);
-
-        let data = Css3dRendererData::new
-            (front_dom,front_dom_view_projection,logger); // back_dom back_dom_view_projection
-        let data = Rc::new(data);
-        Self{container,data}.init()
-    }
-
-    fn create_layer(logger:&Logger) -> (HtmlDivElement,HtmlDivElement) {
+        let logger              = logger.sub("Css3dRenderer");
+        let container           = DomContainer::from_element(element);
         let dom                 = web::create_div();
-        let dom_view_projection = web::create_div();
+        let view_projection_dom = web::create_div();
 
         dom.set_style_or_warn("position"       , "absolute" , &logger);
         dom.set_style_or_warn("top"            , "0px"      , &logger);
@@ -214,12 +198,16 @@ impl Css3dRenderer {
         dom.set_style_or_warn("height"         , "100%"     , &logger);
         dom.set_style_or_warn("pointer-events" , "none"     , &logger);
 
-        dom_view_projection.set_style_or_warn("width"           , "100%"        , &logger);
-        dom_view_projection.set_style_or_warn("height"          , "100%"        , &logger);
-        dom_view_projection.set_style_or_warn("transform-style" , "preserve-3d" , &logger);
+        view_projection_dom.set_style_or_warn("width"           , "100%"        , &logger);
+        view_projection_dom.set_style_or_warn("height"          , "100%"        , &logger);
+        view_projection_dom.set_style_or_warn("transform-style" , "preserve-3d" , &logger);
 
-        dom.append_or_warn(&dom_view_projection,&logger);
-        return (dom,dom_view_projection);
+        dom.append_or_warn(&view_projection_dom,&logger);
+        container.dom.append_or_warn(&dom,&logger);
+
+        let data = Css3dRendererData::new (dom,view_projection_dom,logger);
+        let data = Rc::new(data);
+        Self{container,data}.init()
     }
 
     /// Creates a Css3dRenderer.
@@ -227,12 +215,12 @@ impl Css3dRenderer {
         Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
     }
 
-    pub fn new_system(&self) -> Css3dSystem {
-        let css3d_renderer = self.clone();
-        let logger         = self.data.logger.sub("Css3dSystem");
-        let display_object = display::object::Node::new(&logger);
-        Css3dSystem {display_object,css3d_renderer,logger}
-    }
+//    pub fn new_system(&self) -> Css3dSystem {
+//        let css3d_renderer = self.clone();
+//        let logger         = self.data.logger.sub("Css3dSystem");
+//        let display_object = display::object::Node::new(&logger);
+//        Css3dSystem {display_object,css3d_renderer,logger}
+//    }
 
     fn init(mut self) -> Self {
         let data = self.data.clone();
@@ -243,34 +231,31 @@ impl Css3dRenderer {
     }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
-    pub(super) fn new_instance
-    (&self,object:&Css3dObject) {
-        let front_layer = self.data.front_dom_view_projection.clone();
-//        let back_layer  = self.data.back_dom_view_projection.clone();
-        let display_object : display::object::Node = object.into();
-
+    pub fn manage(&self, object:&Css3dObject) {
+        let front_layer = self.data.view_projection_dom.clone();
         front_layer.append_or_warn(&object.dom(),&self.data.logger);
+//        let display_object : display::object::Node = object.into();
 
-        display_object.set_on_updated(enclose!((object) move |t| {
-            let object_dom    = object.dom();
-            let mut transform = t.matrix();
-            transform.iter_mut().for_each(|a| *a = eps(*a));
-//            let layer = match object.css3d_order() {
-//                Css3dOrder::Front => &front_layer,
-//                Css3dOrder::Back  => &back_layer
-//            };
-
-//            let parent_node = object.dom().parent_node();
-//            if !layer.is_same_node(parent_node.as_ref()) {
-////                display_object.with_logger(|logger| {
-//                    let logger = Logger::new("tmp");
-//                    object_dom.remove_from_parent_or_warn(&logger);
-//                    layer.append_or_warn(&object_dom,&logger);
-////                });
-//            }
-
-            set_object_transform(&object_dom, &transform);
-        }));
+//        display_object.set_on_updated(enclose!((object) move |t| {
+//            let object_dom    = object.dom();
+//            let mut transform = t.matrix();
+//            transform.iter_mut().for_each(|a| *a = eps(*a));
+////            let layer = match object.css3d_order() {
+////                Css3dOrder::Front => &front_layer,
+////                Css3dOrder::Back  => &back_layer
+////            };
+//
+////            let parent_node = object.dom().parent_node();
+////            if !layer.is_same_node(parent_node.as_ref()) {
+//////                display_object.with_logger(|logger| {
+////                    let logger = Logger::new("tmp");
+////                    object_dom.remove_from_parent_or_warn(&logger);
+////                    layer.append_or_warn(&object_dom,&logger);
+//////                });
+////            }
+//
+//            set_object_transform(&object_dom, &transform);
+//        }));
     }
 
     /// Update the objects to match the new camera's point of view. This function should be called
@@ -286,14 +271,11 @@ impl Css3dRenderer {
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.front_dom , &near.into());
-//                js::setup_perspective(&self.data.back_dom  , &near.into());
-                setup_camera_perspective(&self.data.front_dom_view_projection , near, &trans_cam);
-//                setup_camera_perspective(&self.data.back_dom_view_projection  , near, &trans_cam);
+                js::setup_perspective(&self.data.dom , &near.into());
+                setup_camera_perspective(&self.data.view_projection_dom , near, &trans_cam);
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.front_dom_view_projection , &trans_cam);
-//                setup_camera_orthographic(&self.data.back_dom_view_projection  , &trans_cam);
+                setup_camera_orthographic(&self.data.view_projection_dom , &trans_cam);
             }
         }
     }
@@ -321,7 +303,7 @@ impl Css3dRenderer {
 
     /// Gets Css3dRenderer's DOM.
     pub fn dom(&self) -> &HtmlElement {
-        &self.data.front_dom
+        &self.data.dom
     }
 
     /// Gets the Css3dRenderer's dimensions.
