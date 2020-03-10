@@ -200,7 +200,7 @@ async function dist_js () {
 // ============
 
 async function updateBuildVersion () {
-    let configPath    = 'app/package.json'
+    let configPath    = root + '/app/package.json'
     let commitHashCmd = await cmd.run_read('git',['rev-parse','--short','HEAD'])
     let commitHash    = commitHashCmd.trim()
     let configFile    = await fs.readFile(configPath)

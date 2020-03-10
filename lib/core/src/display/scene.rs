@@ -355,7 +355,6 @@ impl {
 
 
     pub fn render(&mut self) {
-
         let mouse_hover_ids = self.mouse.hover_ids.get();
         if mouse_hover_ids != self.mouse.last_hover_ids {
             self.mouse.last_hover_ids = mouse_hover_ids;
@@ -385,7 +384,7 @@ impl {
             let camera_changed = self.camera.update();
             if camera_changed {
                 self.symbols.render(&self.camera);
-                self.css3d_renderer.render(&self.camera);
+                self.css3d_renderer.update(&self.camera);
             }
             self.composer.run();
         })

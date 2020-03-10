@@ -248,30 +248,32 @@ impl Css3dRenderer {
         let front_layer = self.data.front_dom_view_projection.clone();
         let back_layer  = self.data.back_dom_view_projection.clone();
         let display_object : display::object::Node = object.into();
-//        display_object.set_on_render(enclose!((object,display_object) move || {
-//            let object_dom    = object.dom();
-//            let mut transform = display_object.matrix();
-//            transform.iter_mut().for_each(|a| *a = eps(*a));
-//
-//            let layer = match object.css3d_order() {
-//                Css3dOrder::Front => &front_layer,
-//                Css3dOrder::Back  => &back_layer
-//            };
-//
-//            let parent_node = object.dom().parent_node();
-//            if !layer.is_same_node(parent_node.as_ref()) {
+        display_object.set_on_updated(enclose!((object) move |t| {
+            let object_dom    = object.dom();
+            let mut transform = t.matrix();
+            transform.iter_mut().for_each(|a| *a = eps(*a));
+
+            let layer = match object.css3d_order() {
+                Css3dOrder::Front => &front_layer,
+                Css3dOrder::Back  => &back_layer
+            };
+
+            let parent_node = object.dom().parent_node();
+            if !layer.is_same_node(parent_node.as_ref()) {
 //                display_object.with_logger(|logger| {
-//                    object_dom.remove_from_parent_or_warn(logger);
-//                    layer.append_or_warn(&object_dom,logger);
+                    let logger = Logger::new("tmp");
+                    object_dom.remove_from_parent_or_warn(&logger);
+                    layer.append_or_warn(&object_dom,&logger);
 //                });
-//            }
-//
-//            set_object_transform(&object_dom, &transform);
-//        }));
+            }
+
+            set_object_transform(&object_dom, &transform);
+        }));
     }
 
-    /// Renders `Camera`'s point of view.
-    pub fn render(&self, camera:&Camera2d) {
+    /// Update the objects to match the new camera's point of view. This function should be called
+    /// only after camera position change.
+    pub fn update(&self, camera:&Camera2d) {
         let trans_cam  = camera.transform().matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);

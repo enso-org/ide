@@ -51,16 +51,31 @@ impl {
         let display_object   = display::object::Node::new(logger);
         let stats            = stats.clone_ref();
         let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
-        display_object.set_on_updated(enclose!((transform) move |t| {transform.set(t.matrix())}));
-        display_object.set_on_hide(enclose!((bbox,size_when_hidden) move || {
-            size_when_hidden.set(bbox.get());
-//            bbox.set(Vector2::new(0.0,0.0));
+
+        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden};
+        this.init_display_object();
+        this
+    }
+
+    /// Init display object bindings. In particular defines the behavior of the show and hide
+    /// callbacks.
+    fn init_display_object(&self) {
+        let bbox             = &self.bbox;
+        let transform        = &self.transform;
+        let size_when_hidden = &self.size_when_hidden;
+
+        self.display_object.set_on_updated(enclose!((transform) move |t| {
+            transform.set(t.matrix())
         }));
 
-        display_object.set_on_show(enclose!((bbox,size_when_hidden) move || {
-//            bbox.set(size_when_hidden.get());
+        self.display_object.set_on_hide(enclose!((bbox,size_when_hidden) move || {
+            size_when_hidden.set(bbox.get());
+            bbox.set(Vector2::new(0.0,0.0));
         }));
-        Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden}
+
+        self.display_object.set_on_show(enclose!((bbox,size_when_hidden) move || {
+            bbox.set(size_when_hidden.get());
+        }));
     }
 
     /// Modifies the position of the sprite.
