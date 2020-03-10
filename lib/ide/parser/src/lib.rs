@@ -22,7 +22,6 @@ use crate::prelude::*;
 
 use ast::Ast;
 use ast::IdMap;
-use ast::ModuleWithMetadata;
 
 use std::panic;
 
@@ -71,8 +70,9 @@ impl api::IsParser for Parser {
         self.borrow_mut().parse(program,ids)
     }
 
-    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetadata> {
-        self.borrow_mut().parse_as_module(program)
+    fn parse_with_metadata
+    (&mut self, program:String) -> api::Result<api::ModuleWithMetadata> {
+        self.borrow_mut().parse_with_metadata(program)
     }
 }
 

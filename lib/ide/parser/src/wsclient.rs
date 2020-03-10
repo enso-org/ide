@@ -1,7 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use crate::api;
-use crate::api::Error::*;
 use crate::prelude::*;
 
 use websocket::{
@@ -9,8 +8,9 @@ use websocket::{
 };
 
 use api::Ast;
+use api::Error::*;
+use api::ModuleWithMetadata;
 use ast::IdMap;
-use ast::ModuleWithMetadata;
 
 use std::fmt::Formatter;
 
@@ -88,8 +88,8 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest         { program: String, ids: IdMap },
-    ParseAsModuleRequest { program: String },
+    ParseRequest             { program: String, ids: IdMap },
+    ParseWithMetadataRequest { program: String },
 }
 
 /// All responses that Parser Service might reply with.
@@ -212,8 +212,9 @@ impl api::IsParser for Client {
         }
     }
 
-    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetadata> {
-        let request  = Request::ParseAsModuleRequest {program};
+    fn parse_with_metadata
+    (&mut self, program:String) -> api::Result<ModuleWithMetadata> {
+        let request  = Request::ParseWithMetadataRequest {program};
         let response = self.rpc_call(request)?;
         match response {
             Response::Success {module} => Ok(module),

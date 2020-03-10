@@ -8,7 +8,6 @@ use api::Ast;
 use api::IsParser;
 
 use ast::IdMap;
-use ast::ModuleWithMetadata;
 
 use wasm_bindgen::prelude::*;
 
@@ -47,7 +46,7 @@ extern "C" {
     fn parse
     (input:String, ids:String) -> std::result::Result<String,JsValue>;
     #[wasm_bindgen(catch)]
-    fn parse_file
+    fn parse_with_metadata
     (content:String) -> std::result::Result<String,JsValue>;
 }
 
@@ -75,9 +74,10 @@ impl IsParser for Client {
         Ok(ast()?)
     }
 
-    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetadata> {
+    fn parse_with_metadata
+    (&mut self, program:String) -> api::Result<api::ModuleWithMetadata> {
         let result = || {
-            let json   = &parse_file(program)?;
+            let json   = &parse_with_metadata(program)?;
             let module = serde_json::from_str(&json)?;
             Result::Ok(module)
         };

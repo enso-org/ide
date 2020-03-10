@@ -3,9 +3,51 @@
 use crate::prelude::*;
 
 use ast::IdMap;
-use ast::ModuleWithMetadata;
+use ast::HasRepr;
+use ast::HasIdMap;
 
 pub use ast::Ast;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+
+// ============
+// == Module ==
+// ============
+
+/// Parsed file / module with metadata
+#[derive(Debug,Clone,Serialize,Deserialize)]
+pub struct ModuleWithMetadata {
+    /// ast representation
+    pub ast: Ast,
+    /// raw metadata in json
+    pub metadata: serde_json::Value
+}
+
+const IDTAG   : &str = "# [idmap] ";
+const METATAG : &str = "# [metadata] ";
+
+impl String {
+    /// removes all whitespaces from string
+    fn filter_whitespace(&self) -> String {
+        self.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+}
+
+impl ToString for ModuleWithMetadata {
+    fn to_string(&self) -> String {
+        let code = self.ast.repr();
+        let ids  = serde_json::to_string(&self.ast.id_map())
+            .expect("It should be possible to serialize idmap.")
+            .filter_whitespace();
+        let meta = serde_json::to_string(&self.metadata)
+            .expect("It should be possible to serialize metadata.")
+            .filter_whitespace();
+        format!("{}\n\n\n{}{}\n{}{}", code, IDTAG, ids, METATAG, meta)
+    }
+}
+
 
 
 // ============
@@ -18,8 +60,10 @@ pub trait IsParser : Debug {
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
     /// Parse a module content that contains idmap and metadata.
-    fn parse_as_module(&mut self, program:String) -> Result<ModuleWithMetadata>;
+    fn parse_with_metadata
+    (&mut self, program:String) -> Result<ModuleWithMetadata>;
 }
+
 
 
 // ===========
