@@ -135,8 +135,8 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 // === Css3dRendererData ===
 // =========================
 
-#[derive(Debug)]
-struct Css3dRendererData {
+#[derive(Clone,Debug)]
+pub struct Css3dRendererData {
     pub dom                 : HtmlDivElement,
     pub view_projection_dom : HtmlDivElement,
     logger                  : Logger
@@ -171,17 +171,19 @@ impl Css3dRendererData {
 /// To make use of its functionalities, the API user can create a `Css3dSystem` by using
 /// the `Css3dRenderer::new_system` method which creates and manages instances of
 /// `Css3dObject`s.
-#[derive(Clone,Debug)]
+
+
+
+
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct Css3dRenderer {
-    container : DomContainer,
-    data      : Rc<Css3dRendererData>,
+    data : Rc<Css3dRendererData>,
 }
 
 impl Css3dRenderer {
-    /// Creates a Css3dRenderer inside an element.
-    pub fn from_element_or_panic(logger:&Logger, element:&HtmlElement) -> Self {
+    /// Constructor.
+    pub fn new(logger:&Logger) -> Self {
         let logger              = logger.sub("Css3dRenderer");
-        let container           = DomContainer::from_element(element);
         let dom                 = web::create_div();
         let view_projection_dom = web::create_div();
 
@@ -198,22 +200,15 @@ impl Css3dRenderer {
         view_projection_dom.set_style_or_warn("transform-style" , "preserve-3d" , &logger);
 
         dom.append_or_warn(&view_projection_dom,&logger);
-        container.dom.append_or_warn(&dom,&logger);
 
         let data = Css3dRendererData::new (dom,view_projection_dom,logger);
         let data = Rc::new(data);
-
-
-//        container.add_resize_callback(enclose!((data) move |dimensions:&Vector2<f32>| {
-//            data.set_dimensions(*dimensions);
-//        }));
-
-        Self {container,data}
+        Self {data}
     }
 
-//    pub fn resize(&self, size:Vector2<f32>) {
-//        self.data.set_dimensions(size);
-//    }
+    pub fn set_z_index(&self, z:i32) {
+        self.data.dom.set_style_or_warn("z-index", z.to_string(), &self.logger);
+    }
 
     /// Creates a new instance of Css3dObject and adds it to parent.
     pub fn manage(&self, object:&Css3dObject) {
@@ -242,23 +237,9 @@ impl Css3dRenderer {
             }
         }
     }
-
-//    /// Sets Css3dRenderer's container dimensions.
-//    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-//        self.data.set_dimensions(dimensions);
-//        self.container.set_dimensions(dimensions);
-//    }
 }
 
-
-// === Getters ===
-
-impl Css3dRenderer {
-    /// Gets Css3dRenderer's DOM.
-    pub fn dom(&self) -> &HtmlElement {
-        &self.data.dom
-    }
-}
+impl CloneRef for Css3dRenderer {}
 
 
 
