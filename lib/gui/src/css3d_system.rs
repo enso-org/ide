@@ -86,7 +86,6 @@ fn init(world:World) {
         let _keep_alive = &navigator;
         let _keep_alive = &sprites;
         let _keep_alive = &sprite_system;
-//        let _keep_alive = &css3d_system;
 
         i = (i + 1) % 2;
         for (j, object) in css3d_objects.iter_mut().enumerate() {

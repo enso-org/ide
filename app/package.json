@@ -1,7 +1,7 @@
 {
   "name": "root",
   "version": "1.0.0",
-  "buildVersion": "c60e19b",
+  "buildVersion": "3823267",
   "private": true,
   "devDependencies": {
     "lerna": "^3.20.2",

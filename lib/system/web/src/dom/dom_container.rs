@@ -38,6 +38,8 @@ struct DOMContainerProperties {
     resize_callbacks   : Vec<Box<dyn ResizeCallback>>,
 }
 
+
+
 // ========================
 // === DomContainerData ===
 // ========================
@@ -93,23 +95,23 @@ impl DomContainerData {
 // === DomContainer ===
 // ====================
 
-/// A struct used to keep track of HtmlElement dimensions without worrying about style
-/// reflow.
+/// A struct used to keep track of HtmlElement dimensions without worrying about style reflow.
 #[derive(Debug)]
 pub struct DomContainer {
-    pub dom               : HtmlElement,
-    resize_observer       : Option<ResizeObserver>,
-    data                  : Rc<DomContainerData>
+    pub dom         : HtmlElement,
+    resize_observer : Option<ResizeObserver>,
+    data            : Rc<DomContainerData>
 }
 
 impl Clone for DomContainer {
     fn clone(&self) -> Self {
-        DomContainer::from_element(self.dom.clone())
+        DomContainer::from_element(&self.dom)
     }
 }
 
 impl DomContainer {
-    pub fn from_element(dom:HtmlElement) -> Self {
+    pub fn from_element(dom:&HtmlElement) -> Self {
+        let dom                   = dom.clone();
         let rect                  = dom.get_bounding_client_rect();
         let width                 = rect.width()  as f32;
         let height                = rect.height() as f32;
@@ -123,7 +125,7 @@ impl DomContainer {
     }
     pub fn from_id(dom_id:&str) -> Result<Self> {
         let dom : HtmlElement = dyn_into(get_element_by_id(dom_id)?)?;
-        Ok(Self::from_element(dom))
+        Ok(Self::from_element(&dom))
     }
 
     fn init_listeners(&mut self) {

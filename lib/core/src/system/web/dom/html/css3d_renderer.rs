@@ -184,7 +184,7 @@ pub struct Css3dRenderer {
 
 impl Css3dRenderer {
     /// Creates a Css3dRenderer inside an element.
-    pub fn from_element_or_panic(logger:&Logger, element:HtmlElement) -> Self {
+    pub fn from_element_or_panic(logger:&Logger, element:&HtmlElement) -> Self {
         let logger              = logger.sub("Css3dRenderer");
         let container           = DomContainer::from_element(element);
         let dom                 = web::create_div();
@@ -210,10 +210,10 @@ impl Css3dRenderer {
         Self{container,data}.init()
     }
 
-    /// Creates a Css3dRenderer.
-    pub fn new(logger:&Logger, dom_id:&str) -> Result<Self> {
-        Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
-    }
+//    /// Creates a Css3dRenderer.
+//    pub fn new(logger:&Logger, dom_id:&str) -> Result<Self> {
+//        Ok(Self::from_element_or_panic(logger,dyn_into(get_element_by_id(dom_id)?)?))
+//    }
 
 //    pub fn new_system(&self) -> Css3dSystem {
 //        let css3d_renderer = self.clone();

@@ -219,13 +219,36 @@ impl Mouse {
 // === Scene ===
 // =============
 
+#[derive(Debug)]
+pub struct Layers {
+    pub canvas : web_sys::HtmlCanvasElement
+}
+
+impl Default for Layers {
+    fn default() -> Self {
+        let canvas = web::create_canvas();
+        canvas.set_style_or_panic("height","100vh");
+        canvas.set_style_or_panic("width","100vw");
+        canvas.set_style_or_panic("display","block");
+        Self {canvas}
+    }
+}
+
+impl Layers {
+    pub fn new() -> Self {
+        default()
+    }
+}
+
+
 shared! { Scene
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct SceneData {
     root           : display::object::Node,
-    canvas         : web_sys::HtmlCanvasElement,
+    layers         : Layers,
+//    canvas         : web_sys::HtmlCanvasElement,
     context        : Context,
     css3d_renderer : Css3dRenderer,
     symbols        : SymbolRegistry,
@@ -254,16 +277,17 @@ impl {
         logger.trace("Initializing.");
         let root            = display::object::Node::new(&logger);
         let dom             = web::create_div();
-        let canvas          = web::create_canvas();
+//        let canvas          = web::create_canvas();
+        let layers          = Layers::new();
         dom.set_style_or_panic("height","100vh");
         dom.set_style_or_panic("width","100vw");
         dom.set_style_or_panic("display","block");
-        canvas.set_style_or_panic("height","100vh");
-        canvas.set_style_or_panic("width","100vw");
-        canvas.set_style_or_panic("display","block");
+//        canvas.set_style_or_panic("height","100vh");
+//        canvas.set_style_or_panic("width","100vw");
+//        canvas.set_style_or_panic("display","block");
         parent_dom.append_child(&dom).unwrap();
-        dom.append_child(&canvas).unwrap();
-        let context         = web::get_webgl2_context(&canvas).unwrap();
+        dom.append_child(&layers.canvas).unwrap();
+        let context         = web::get_webgl2_context(&layers.canvas).unwrap();
         let sub_logger      = logger.sub("shape_dirty");
         let shape_dirty     = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
         let sub_logger      = logger.sub("symbols_dirty");
@@ -272,12 +296,11 @@ impl {
         let sub_logger      = logger.sub("symbols");
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
-        let canvas_parent   = dyn_into::<_,HtmlElement>(canvas.parent_node().unwrap()).unwrap();
-        let shape           = Shape::from_element(&canvas_parent);
+        let shape           = Shape::from_element(&dom);
         let screen_shape    = shape.screen_shape();
         let width           = screen_shape.width;
         let height          = screen_shape.height;
-        let listeners       = Self::init_listeners(&logger,&canvas,&shape,&shape_dirty);
+        let listeners       = Self::init_listeners(&logger,&layers.canvas,&shape,&shape_dirty);
         let symbols_dirty   = dirty_flag;
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
         let zoom_uniform    = variables.add_or_panic("zoom", 1.0);
@@ -303,9 +326,9 @@ impl {
         let height   = shape.canvas_shape().height as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
-        let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,canvas_parent);
+        let css3d_renderer = Css3dRenderer::from_element_or_panic(&logger,&dom);
 
-        Self { pipeline,composer,root,canvas,context,symbols,camera,symbols_dirty,shape,shape_dirty
+        Self { pipeline,composer,root,layers,context,symbols,camera,symbols_dirty,shape,shape_dirty
              , logger,listeners,variables,on_resize,stats,pixel_ratio,mouse,zoom_uniform
              , css3d_renderer,zoom_callback }
     }
@@ -319,7 +342,7 @@ impl {
     }
 
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
-        self.canvas.clone()
+        self.layers.canvas.clone()
     }
 
     pub fn context(&self) -> Context {
@@ -487,8 +510,8 @@ impl SceneData {
         let screen = shape.screen_shape();
         let canvas = shape.canvas_shape();
         self.logger.group(fmt!("Resized to {}px x {}px.", screen.width, screen.height), || {
-            self.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
-            self.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
+            self.layers.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();
+            self.layers.canvas.set_attribute("height", &canvas.height.to_string()).unwrap();
             self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
             self.on_resize.iter().for_each(|f| f(shape));
         });

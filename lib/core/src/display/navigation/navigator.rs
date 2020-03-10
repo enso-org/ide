@@ -36,7 +36,7 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
-        let dom                       = dyn_into(scene.canvas())?;
+        let dom                       = &scene.canvas();
         let dom                       = DomContainer::from_element(dom);
         let (_simulator, properties)  = Self::start_simulator(camera.clone());
         let zoom_speed                = 2.0;
@@ -44,14 +44,8 @@ impl Navigator {
         let max_zoom                  = 10000.0;
         let scaled_down_zoom_speed    = zoom_speed / 1000.0;
         let camera                    = camera.clone();
-        let (resize_callback,_events) = Self::start_navigator_events(
-            &dom,
-            camera,
-            min_zoom,
-            max_zoom,
-            scaled_down_zoom_speed,
-            properties
-        );
+        let (resize_callback,_events) = Self::start_navigator_events
+            (&dom,camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
         let _events = _events?;
         Ok(Self {_simulator,_events,resize_callback})
     }
