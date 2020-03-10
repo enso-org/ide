@@ -162,8 +162,7 @@ shared! { TextField
         pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool) {
             let point_on_text  = self.relative_position(point);
             let content        = &mut self.content;
-            let jumping_words  = false;
-            let mut navigation = CursorNavigation {content,selecting,jumping_words};
+            let mut navigation = CursorNavigation {selecting, ..CursorNavigation::default(content)};
             self.cursors.jump_cursor(&mut navigation,point_on_text);
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
@@ -343,8 +342,8 @@ impl TextField {
         self.with_borrowed(|this| {
             let content           = &mut this.content;
             let selecting         = true;
-            let jumping_words     = false;
-            let mut navigation    = CursorNavigation {content,selecting,jumping_words};
+            let mut navigation    = CursorNavigation
+                {selecting,..CursorNavigation::default(content)};
             let without_selection = |c:&Cursor| !c.has_selection();
             this.cursors.navigate_cursors(&mut navigation,step,without_selection);
         });
