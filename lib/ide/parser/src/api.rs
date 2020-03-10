@@ -25,29 +25,30 @@ pub struct ModuleWithMetadata {
     pub metadata: serde_json::Value
 }
 
-const IDTAG   : &str = "# [idmap] ";
-const METATAG : &str = "# [metadata] ";
-
-impl String {
-    /// removes all whitespaces from string
-    fn filter_whitespace(&self) -> String {
-        self.chars().filter(|c| !c.is_whitespace()).collect()
-    }
-}
+const ID_TAG       : &str = "# [idmap] ";
+const METADATA_TAG : &str = "# [metadata] ";
 
 impl ToString for ModuleWithMetadata {
     fn to_string(&self) -> String {
+        let remove_newlines = |string:String| string
+            .chars()
+            .filter(|c| c != &'\n' && c != &'\r')
+            .collect::<String>();
+
         let code = self.ast.repr();
-        let ids  = serde_json::to_string(&self.ast.id_map())
-            .expect("It should be possible to serialize idmap.")
-            .filter_whitespace();
-        let meta = serde_json::to_string(&self.metadata)
-            .expect("It should be possible to serialize metadata.")
-            .filter_whitespace();
-        format!("{}\n\n\n{}{}\n{}{}", code, IDTAG, ids, METATAG, meta)
+        let ids  = remove_newlines(
+            serde_json::to_string(&self.ast.id_map()).expect(
+                "It should be possible to serialize idmap."
+            )
+        );
+        let meta = remove_newlines(
+            serde_json::to_string(&self.metadata).expect(
+                "It should be possible to serialize metadata."
+            )
+        );
+        format!("{}\n\n\n{}{}\n{}{}", code, ID_TAG, ids, METADATA_TAG, meta)
     }
 }
-
 
 
 // ============
