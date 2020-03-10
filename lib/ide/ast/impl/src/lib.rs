@@ -20,16 +20,16 @@ use uuid::Uuid;
 
 
 #[derive(Debug,Clone,Serialize,Deserialize)]
-pub struct ModuleWithMetada { pub module: Ast, pub metadata: Metadata }
+pub struct ModuleWithMetadata { pub ast: Ast, pub metadata: Metadata }
 
 
 const IDTAG   : &str = "# [idmap] ";
 const METATAG : &str = "# [metadata] ";
 
-impl ModuleWithMetada {
-    fn to_str(&self) -> String {
-        let code = self.module.repr();
-        let ids  = serde_json::to_string(&self.module.id_map()).expect(
+impl ModuleWithMetadata {
+    pub fn to_str(&self) -> String {
+        let code = self.ast.repr();
+        let ids  = serde_json::to_string(&self.ast.id_map()).expect(
             "It should be possible to serialize idmap."
         );
         let meta = serde_json::to_string(&self.metadata).expect(

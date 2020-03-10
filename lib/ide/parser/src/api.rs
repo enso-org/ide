@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use ast::IdMap;
-use ast::ModuleWithMetada;
+use ast::ModuleWithMetadata;
 
 pub use ast::Ast;
 
@@ -18,7 +18,7 @@ pub trait IsParser : Debug {
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
     /// Parse a module content that contains idmap and metadata.
-    fn parse_as_module(&mut self, program:String) -> Result<ModuleWithMetada>;
+    fn parse_as_module(&mut self, program:String) -> Result<ModuleWithMetadata>;
 }
 
 

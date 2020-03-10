@@ -8,7 +8,7 @@ use api::Ast;
 use api::IsParser;
 
 use ast::IdMap;
-use ast::ModuleWithMetada;
+use ast::ModuleWithMetadata;
 
 use wasm_bindgen::prelude::*;
 
@@ -75,7 +75,7 @@ impl IsParser for Client {
         Ok(ast()?)
     }
 
-    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetada> {
+    fn parse_as_module(&mut self, program:String) -> api::Result<ModuleWithMetadata> {
         let result = || {
             let json   = &parse_file(program)?;
             let module = serde_json::from_str(&json)?;

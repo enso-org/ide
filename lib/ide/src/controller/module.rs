@@ -14,7 +14,7 @@ use ast::Ast;
 use ast::HasIdMap;
 use ast::HasRepr;
 use ast::IdMap;
-use ast::IdMetadataMap;
+use ast::ModuleWithMetadata;
 use data::text::Index;
 use data::text::Size;
 use data::text::Span;
@@ -100,14 +100,14 @@ shared! { Handle
 
             code.replace_range(replaced_range,&inserted_string);
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
-            self.ast = self.parser.parse(code, self.id_map.clone())?;
-            self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.ast));
+            self.module.ast = self.parser.parse(code, self.id_map.clone())?;
+            self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
             Ok(())
         }
 
         /// Read module code.
         pub fn code(&self) -> String {
-            self.module.module.repr()
+            self.module.ast.repr()
         }
 
         /// Check if current module state is synchronized with given code. If it's not, log error,
@@ -117,8 +117,8 @@ shared! { Handle
             if code != my_code {
                 self.logger.error(|| format!("The module controller ast was not synchronized with \
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
-                self.ast    = self.parser.parse(code,default())?;
-                self.id_map = default();
+                self.module.ast  = self.parser.parse(code,default())?;
+                self.id_map      = default();
             }
             Ok(())
         }
@@ -137,16 +137,16 @@ impl Handle {
         file_manager.touch(path.clone()).await?;
         let content = file_manager.read(path).await?;
         logger.info(|| "Parsing code");
-        let module = parser.parse_module(content)?;
+        let module = parser.parse_as_module(content)?;
         logger.info(|| "Code parsed");
-        logger.trace(|| format!("The parsed ast is {:?}", ast));
-        let id_map  = ast.id_map();
+        logger.trace(|| format!("The parsed ast is {:?}", module.ast));
+        let id_map  = module.ast.id_map();
         let data    = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
 
     /// Save the module to file.
-    pub async fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
+    pub fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
         let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
@@ -165,7 +165,8 @@ impl Handle {
     , mut parser   : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
-        let module = parser.parse_module(code.to_string(),id_map.clone())?;
+        let ast    = parser.parse(code.to_string(),id_map.clone())?;
+        let module = ModuleWithMetadata {ast,metadata:default()};
         let data   = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
@@ -240,6 +241,6 @@ mod test {
                 off: 0
             }]
         }, None);
-        assert_eq!(expected_ast, controller.with_borrowed(|data| data.ast.clone()));
+        assert_eq!(expected_ast, controller.with_borrowed(|data| data.module.ast.clone()));
     }
 }
