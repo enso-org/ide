@@ -9,6 +9,7 @@ use crate::system::web::dom::DomContainer;
 use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::ignore_context_menu;
 use crate::system::web::dyn_into;
+use crate::system::web;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
@@ -190,10 +191,10 @@ pub struct NavigatorEvents {
 
 impl NavigatorEvents {
     pub fn new
-    <P,Z>(dom:&DomContainer, pan_callback:P, zoom_callback:Z, zoom_speed:f32) -> Result<Self>
+    <P,Z>(event_target:&web::HtmlElement, pan_callback:P, zoom_callback:Z, zoom_speed:f32) -> Result<Self>
     where P : FnPanEvent, Z : FnZoomEvent {
-        let event_target         = dyn_into(dom.dom.clone())?;
-        let mouse_manager        = MouseManager::new(&event_target);
+//        let event_target         = dyn_into(dom.dom.clone())?;
+        let mouse_manager        = MouseManager::new(event_target);
         let pan_callback         = Box::new(pan_callback);
         let zoom_callback        = Box::new(zoom_callback);
         let mouse_move           = None;
@@ -214,7 +215,7 @@ impl NavigatorEvents {
             wheel_zoom
         };
 
-        event_handler.initialize_mouse_events(&event_target)?;
+        event_handler.initialize_mouse_events(event_target)?;
         Ok(event_handler)
     }
 

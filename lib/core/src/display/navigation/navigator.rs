@@ -2,24 +2,25 @@ mod events;
 
 use crate::prelude::*;
 
-use events::NavigatorEvents;
-use events::ZoomEvent;
-use events::PanEvent;
-use crate::display::camera::Camera2d;
-use crate::display::Scene;
-use crate::system::web::Result;
-use crate::system::web::dom::DomContainer;
+use crate::animation::physics::inertia::DragProperties;
+use crate::animation::physics::inertia::KinematicsProperties;
+use crate::animation::physics::inertia::PhysicsProperties;
 use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
-use crate::animation::physics::inertia::DragProperties;
-use crate::animation::physics::inertia::PhysicsProperties;
-use crate::animation::physics::inertia::KinematicsProperties;
-use crate::system::web::dyn_into;
 use crate::control::callback::CallbackHandle;
-
-use nalgebra::{Vector3, zero};
-use nalgebra::Vector2;
+use crate::display::camera::Camera2d;
+use crate::display::Scene;
+use crate::system::web::dom;
+use crate::system::web::dyn_into;
+use crate::system::web::Result;
+use crate::system::web;
+use events::NavigatorEvents;
+use events::PanEvent;
+use events::ZoomEvent;
 use nalgebra::clamp;
+use nalgebra::Vector2;
+use nalgebra::{Vector3, zero};
+
 
 
 // =================
@@ -36,8 +37,7 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
-        let dom                       = &scene.canvas();
-        let dom                       = DomContainer::from_element(dom);
+        let dom                       = scene.dom().root;
         let (_simulator, properties)  = Self::start_simulator(camera.clone());
         let zoom_speed                = 2.0;
         let min_zoom                  = 10.0;
@@ -45,7 +45,7 @@ impl Navigator {
         let scaled_down_zoom_speed    = zoom_speed / 1000.0;
         let camera                    = camera.clone();
         let (resize_callback,_events) = Self::start_navigator_events
-            (&dom,camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
+            (dom,camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
         let _events = _events?;
         Ok(Self {_simulator,_events,resize_callback})
     }
@@ -67,27 +67,24 @@ impl Navigator {
     }
 
     fn start_navigator_events
-    ( dom:&DomContainer
+    ( dom:dom::WithKnownShape<web::HtmlDivElement>
     , camera:Camera2d
     , min_zoom:f32
     , max_zoom:f32
     , zoom_speed:f32
     , mut properties:PhysicsProperties) -> (CallbackHandle, Result<NavigatorEvents>) {
-        let dom_clone            = dom.clone();
-        let camera_clone         = camera.clone();
-        let panning_callback     = enclose!((mut properties) move |pan: PanEvent| {
-            let fovy_slope = camera_clone.half_fovy_slope();
-            // base_distance is a distance where the camera covers all the UI.
-            let base_distance = dom_clone.dimensions().y / 2.0 / fovy_slope;
-            // We can then scale the movement based on the camera distance. If we are closer, the
-            // movement will be slower, if we are further, the movement is faster.
-            let scale         = camera_clone.transform().position().z / base_distance;
+        let dom_clone        = dom.clone();
+        let camera_clone     = camera.clone();
+        let panning_callback = enclose!((mut properties) move |pan: PanEvent| {
+            let fovy_slope                  = camera_clone.half_fovy_slope();
+            let distance                    = camera_clone.transform().position().z;
+            let distance_to_show_full_ui    = dom_clone.shape().height() / 2.0 / fovy_slope;
+            let movement_scale_for_distance = distance / distance_to_show_full_ui;
 
-            let x = pan.movement.x * scale;
-            let y = pan.movement.y * scale;
-            let z = 0.0;
-
-            properties.modify_spring(|spring| { spring.fixed_point += Vector3::new(x, y, z); });
+            let dx   = pan.movement.x * movement_scale_for_distance;
+            let dy   = pan.movement.y * movement_scale_for_distance;
+            let diff = Vector3::new(dx,dy,0.0);
+            properties.modify_spring(|spring| { spring.fixed_point += diff; });
         });
 
         let transform       = camera.transform();
@@ -105,7 +102,7 @@ impl Navigator {
         let dom_clone     = dom.clone();
         let zoom_callback = move |zoom:ZoomEvent| {
                 let point       = zoom.focus;
-                let normalized  = normalize_point2(point, dom_clone.dimensions());
+                let normalized  = normalize_point2(point,dom_clone.shape().into());
                 let normalized  = normalized_to_range2(normalized, -1.0, 1.0);
                 let half_height = 1.0;
 
@@ -122,7 +119,7 @@ impl Navigator {
 
                 properties.modify_spring(|spring| spring.fixed_point = position);
         };
-        (resize_callback, NavigatorEvents::new(dom, panning_callback, zoom_callback, zoom_speed))
+        (resize_callback, NavigatorEvents::new(&dom, panning_callback, zoom_callback, zoom_speed))
     }
 }
 

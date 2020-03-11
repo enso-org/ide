@@ -5,7 +5,9 @@ use crate::control::callback::CallbackRegistry1;
 use crate::prelude::*;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
+use nalgebra::Vector2;
 use wasm_bindgen::prelude::Closure;
+
 
 
 // =============
@@ -101,6 +103,12 @@ impl Default for ShapeData {
     }
 }
 
+impl Into<Vector2<f32>> for &Shape {
+    fn into(self) -> Vector2<f32> {
+        Vector2::new(self.width(),self.height())
+    }
+}
+
 
 
 // ======================
@@ -109,12 +117,12 @@ impl Default for ShapeData {
 
 /// A wrapper for `HtmlElement` or anything which derefs to it. It tracks the element size without
 /// causing browser reflow.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct WithKnownShape<T=web_sys::HtmlElement> {
     #[shrinkwrap(main_field)]
     dom       : T,
     shape     : Shape,
-    observer  : ResizeObserver,
+    observer  : Rc<ResizeObserver>,
     on_resize : Rc<RefCell<CallbackRegistry1<ShapeData>>>,
 }
 
@@ -130,7 +138,7 @@ impl<T> WithKnownShape<T> {
             shape.set(width as f32,height as f32);
             on_resize.borrow_mut().run_all(&shape.current())
         }));
-        let observer = ResizeObserver::new(dom.as_ref(),callback);
+        let observer = Rc::new(ResizeObserver::new(dom.as_ref(),callback));
         Self {dom,shape,observer,on_resize}
     }
 

@@ -151,10 +151,10 @@ impl Mouse {
 // ===========
 
 /// DOM element manager
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Dom {
     /// Root DOM element of the scene.
-    pub root : dom::WithKnownShape<web_sys::HtmlDivElement>,
+    pub root : dom::WithKnownShape<web::HtmlDivElement>,
     /// Layers of the scene.
     pub layers : Layers,
 }
@@ -174,6 +174,10 @@ impl Dom {
     pub fn shape(&self) -> &dom::Shape {
         self.root.shape()
     }
+
+    pub fn recompute_shape_with_reflow(&self) {
+        self.shape().set_from_element_with_reflow(&self.root);
+    }
 }
 
 
@@ -185,7 +189,7 @@ impl Dom {
 /// DOM Layers of the scene. It contains a 2 CSS 3D layers and a canvas layer in the middle. The
 /// CSS layers are used to manage DOM elements and to simulate depth-sorting of DOM and canvas
 /// elements.
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Layers {
     /// Front DOM scene layer.
     pub dom_front : Css3dRenderer,
@@ -249,6 +253,7 @@ impl {
 
         let dom = Dom::new(&logger);
         parent_dom.append_child(&dom.root).unwrap();
+        dom.recompute_shape_with_reflow();
 
         let display_object  = display::object::Node::new(&logger);
         let context         = web::get_webgl2_context(&dom.layers.canvas).unwrap();
@@ -260,9 +265,6 @@ impl {
         let sub_logger      = logger.sub("symbols");
         let variables       = UniformScope::new(logger.sub("global_variables"),&context);
         let symbols         = SymbolRegistry::new(&variables,&stats,&context,sub_logger,on_change);
-
-        dom.shape().set_from_element_with_reflow(&dom.root);
-
         let screen_shape    = dom.shape().current();
         let width           = screen_shape.width();
         let height          = screen_shape.height();
@@ -297,6 +299,10 @@ impl {
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
              , logger,variables,stats,pixel_ratio,mouse,zoom_uniform
              ,zoom_callback,on_resize }
+    }
+
+    pub fn dom(&self) -> Dom {
+        self.dom.clone()
     }
 
     pub fn symbol_registry(&self) -> SymbolRegistry {
