@@ -46,8 +46,8 @@ let var_xy  = ast::Var { name: "xy".into() };
         let ast  = Ast::new(ast::Module {lines:default()}, None);
         let file = SourceFile {ast, metadata: serde_json::json!({})};
         let code = String::try_from(&file).unwrap();
-        assert_eq!(self.0.parse_with_metadata(code).unwrap(), file);
-    }
+        assert_eq!(parser.parse_with_metadata(code).unwrap(), file);
+    };
 
     deserialize_metadata()
 }
