@@ -38,18 +38,14 @@ use shapely::shared;
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
-    pub ide  : IdeMetadata,
+    pub ide : serde_json::Value,
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
-    rest : HashMap<String,serde_json::Value>,
+    rest    : serde_json::Value,
 }
 
 impl parser::api::Metadata for Metadata {}
-
-/// Ide related metadata.
-#[derive(Debug,Clone,Copy,Default,Deserialize,Serialize)]
-pub struct IdeMetadata {}
 
 
 
@@ -176,7 +172,7 @@ impl Handle {
         let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
-            let code = data.module.to_string();
+            let code = String::try_from(&data.module).unwrap();
             (path,fm,code)
         });
         fm.write(path.clone(),code)
@@ -236,7 +232,7 @@ mod test {
         let uuid1        = Uuid::new_v4();
         let uuid2        = Uuid::new_v4();
         let module       = "2+2";
-        let id_map       = IdMap(vec!
+        let id_map       = IdMap::new(vec!
             [ (Span::from((0,1)),uuid1.clone())
             , (Span::from((2,1)),uuid2)
             ]);

@@ -14,8 +14,6 @@ use api::SourceFile;
 use ast::IdMap;
 
 use std::fmt::Formatter;
-use serde::Serialize;
-use serde::Deserialize;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
 
@@ -110,6 +108,7 @@ pub enum Response<M:Metadata> {
 // ============
 
 /// Describes a WS endpoint.
+#[derive(Debug,Clone)]
 pub struct Config {
     pub host: String,
     pub port: i32,
@@ -205,14 +204,10 @@ impl Debug for Client {
     }
 }
 
-#[derive(Debug,Clone,Serialize,Deserialize)]
-struct NoMetadata();
-impl Metadata for NoMetadata {}
-
 impl api::IsParser for Client {
     fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
         let request  = Request::ParseRequest {program,ids};
-        let response = self.rpc_call::<NoMetadata>(request)?;
+        let response = self.rpc_call::<serde_json::Value>(request)?;
         match response {
             Response::Success {module} => Ok(module.ast),
             Response::Error {message}  => Err(ParsingError(message)),

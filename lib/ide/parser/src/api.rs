@@ -21,8 +21,11 @@ use serde::Serialize;
 /// Things that are metadata.
 pub trait Metadata:Serialize+DeserializeOwned {}
 
+/// Raw netadata.
+impl Metadata for serde_json::Value {}
+
 /// Parsed file / module with metadata.
-#[derive(Debug,Clone,Serialize,Deserialize)]
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq)]
 pub struct SourceFile<M:Metadata> {
     /// Ast representation.
     pub ast: Ast,
@@ -41,16 +44,13 @@ fn to_json_single_line
     Ok(line)
 }
 
-impl<M:Metadata> ToString for SourceFile<M> {
-    fn to_string(&self) -> String {
-        let code = self.ast.repr();
-        let ids  = to_json_single_line(&self.ast.id_map()).expect(
-            "It should be possible to serialize idmap."
-        );
-        let meta = to_json_single_line(&self.metadata).expect(
-            "It should be possible to serialize metadata."
-        );
-        iformat!("{code}\n\n\n{ID_TAG}{ids}\n{METADATA_TAG}{meta}")
+impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
+    type Error = serde_json::Error;
+    fn try_from(val:&SourceFile<M>) -> std::result::Result<String,Self::Error> {
+        let code = val.ast.repr();
+        let ids  = to_json_single_line(&val.ast.id_map())?;
+        let meta = to_json_single_line(&val.metadata)?;
+        Ok(iformat!("{code}\n\n\n{ID_TAG}{ids}\n{METADATA_TAG}{meta}"))
     }
 }
 

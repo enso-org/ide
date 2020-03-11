@@ -19,14 +19,18 @@ use shapely::*;
 use uuid::Uuid;
 
 
-/// A mapping between text position and immutable ID
+/// A mapping between text position and immutable ID.
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
-pub struct IdMap(pub Vec<(Span,ID)>);
+pub struct IdMap{ pub vec:Vec<(Span,ID)> }
 
 impl IdMap {
-    /// Assigns Span to given ID
+    /// Create a new instance.
+    pub fn new(vec:Vec<(Span,ID)>) -> IdMap {
+        IdMap {vec}
+    }
+    /// Assigns Span to given ID.
     pub fn insert(&mut self, span:Span, id:ID) {
-        self.0.push((span, id));
+        self.vec.push((span, id));
     }
 }
 

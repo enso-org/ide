@@ -5,6 +5,7 @@ use ast::IdMap;
 use data::text::*;
 use parser::Parser;
 use parser::api::IsParser;
+use parser::api::SourceFile;
 
 use std::rc::Rc;
 use uuid::Uuid;
@@ -23,7 +24,7 @@ fn web_test() {
 
     let mut parse = |input| {
         let span = Span::from((0,5));
-        let ids  = IdMap(vec![(span,uuid)]);
+        let ids  = IdMap::new(vec![(span,uuid)]);
         let ast  = parser.parse(String::from(input), ids).unwrap().wrapped;
 
         match Rc::try_unwrap(ast).unwrap().wrapped.wrapped {
@@ -36,12 +37,18 @@ fn web_test() {
         ast::Module {lines: vec![ast::BlockLine {elem:term,off:0}]}
     };
 
-
     let app_x_y = ast::Prefix {func: Ast::var("x"), off: 3, arg: Ast::var("y")};
-
 
     assert_eq!(parse(""),       line(None));
     assert_eq!(parse("xy"),     line(Some(Ast::var("xy"))));
     assert_eq!(parse("x   y"),  line(Some(Ast::new(app_x_y, Some(uuid)))));
 
+    let mut deserialize_metadata = || {
+        let ast  = Ast::new(ast::Module {lines:default()}, None);
+        let file = SourceFile {ast, metadata: serde_json::json!({})};
+        let code = String::try_from(&file).unwrap();
+        assert_eq!(self.0.parse_with_metadata(code).unwrap(), file);
+    }
+
+    deserialize_metadata()
 }

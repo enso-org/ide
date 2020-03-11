@@ -52,7 +52,7 @@ extern "C" {
 /// Wrapper over the JS-compiled parser.
 ///
 /// Can only be used when targeting WebAssembly.
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub struct Client {}
 
 impl Client {

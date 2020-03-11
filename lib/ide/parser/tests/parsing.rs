@@ -4,7 +4,7 @@ use parser::prelude::*;
 
 use ast::*;
 use parser::api::IsParser;
-
+use parser::api::SourceFile;
 
 
 // ===============
@@ -160,6 +160,13 @@ impl Fixture {
 
 
     // === Test Methods ===
+
+    fn deserialize_metadata(&mut self) {
+        let ast  = Ast::new(ast::Module {lines:default()}, None);
+        let file = SourceFile {ast, metadata: serde_json::json!({})};
+        let code = String::try_from(&file).unwrap();
+        assert_eq!(self.0.parse_with_metadata(code).unwrap(), file);
+    }
     
     fn deserialize_unrecognized(&mut self) {
         let unfinished = "`";
@@ -463,6 +470,7 @@ impl Fixture {
         // * Opr (doesn't parse on its own, covered by Infix and other)
         // * Module (covered by every single test, as parser wraps everything
         //   into module)
+        self.deserialize_metadata();
         self.deserialize_unrecognized();
         self.deserialize_invalid_quote();
         self.deserialize_inline_block();
