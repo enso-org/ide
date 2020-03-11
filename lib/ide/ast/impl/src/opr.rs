@@ -24,7 +24,7 @@ pub fn is_assignment_opr(ast:&Ast) -> bool {
 /// If given Ast is an assignment operator, returns it as Some known::Infix.
 pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
     let infix = known::Infix::try_from(ast).ok()?;
-    is_assignment_opr(&infix.opr).then(infix)
+    is_assignment_opr(&infix.opr).then(|| infix)
 }
 
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
