@@ -63,6 +63,12 @@ pub trait IsParser : Debug {
     /// Parse program.
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
+    /// Parse program into module.
+    fn parse_module(&mut self, program:String, ids:IdMap) -> Result<ast::known::Module> {
+        let ast = self.parse(program,ids)?;
+        ast::known::Module::try_from(ast).map_err(|_| Error::NonModuleRoot)
+    }
+
     /// Parse contents of the program source file,
     /// where program code may be followed by idmap and metadata.
     fn parse_with_metadata<M:Metadata>
@@ -82,10 +88,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Fail)]
 pub enum Error {
     /// Error due to inner workings of the parser.
-    #[fail(display = "Internal parser error: {:?}", _0)]
+    #[fail(display = "Internal parser error: {:?}.", _0)]
     ParsingError(String),
+    /// Parser returned non-module AST root.
+    #[fail(display = "Internal parser error: non-module root node.")]
+    NonModuleRoot,
     /// Error related to wrapping = communication with the parser service.
-    #[fail(display = "Interop error: {}", _0)]
+    #[fail(display = "Interop error: {}.", _0)]
     InteropError(#[cause] Box<dyn Fail>),
 }
 

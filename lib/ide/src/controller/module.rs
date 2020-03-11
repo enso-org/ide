@@ -8,7 +8,7 @@
 use crate::prelude::*;
 
 use crate::controller::FallibleResult;
-use crate::double_representation::apply_code_change_to_id_map;
+use crate::double_representation::text::apply_code_change_to_id_map;
 
 use parser::api::SourceFile;
 use ast::HasIdMap;
@@ -231,10 +231,12 @@ mod test {
 
         let uuid1        = Uuid::new_v4();
         let uuid2        = Uuid::new_v4();
+        let uuid3        = Uuid::new_v4();
         let module       = "2+2";
         let id_map       = IdMap::new(vec!
             [ (Span::from((0,1)),uuid1.clone())
             , (Span::from((2,1)),uuid2)
+            , (Span::new(Index::new(0), Size::new(3)),uuid3)
             ]);
 
         let controller   = Handle::new_mock
@@ -254,7 +256,7 @@ mod test {
                     opr  : Ast::new(ast::Opr {name:"+".to_string()}, None),
                     roff : 0,
                     rarg : Ast::new(ast::Number{base:None, int:"2".to_string()}, Some(uuid2)),
-                }, None)),
+                }, Some(uuid3))),
                 off: 0
             }]
         }, None);
