@@ -13,7 +13,8 @@ mod tests {
     use basegl::animation::physics::inertia::PhysicsSimulator;
     use basegl::animation::physics::inertia::PhysicsProperties;
     use basegl::animation::animator::fixed_step::FixedStepAnimator;
-    use basegl::system::web::dom::html::Css3dSystem;
+    use basegl::system::web::dom::html::Css3dRenderer;
+    use basegl::system::web::dom::html::Css3dObject;
     use web_test::*;
     use nalgebra::{zero, Vector3};
     use js_sys::Math::random;
@@ -25,29 +26,34 @@ mod tests {
     use nalgebra::Vector2;
     use basegl::system::web::set_stdout;
     use basegl::display::object::DisplayObject;
+    use basegl::system::web;
 
     #[web_test]
     fn simulator() {
         set_stdout();
-        let name          = "simulator";
-//        let canvas_name   = format!("canvas_{}",name);
-        let container     = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
-//        let canvas        = create_element("canvas").unwrap();
-//        canvas.set_attribute_or_panic("id", &canvas_name);
-//        container.append_or_panic(&canvas);
-        let world         = WorldData::new(&container);
-        let css3d_system  = Css3dSystem::new(&world);
-        world.add_child(&css3d_system);
+        let name      = "simulator";
+        let container = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
+        let world     = WorldData::new(&container);
+        let scene     = world.scene();
+        let renderer  = scene.css3d_renderer();
 
         container.set_style_or_panic("background-color", "black");
 
-        let mut target = css3d_system.new_instance();
+        let div = web::create_div();
+        div.set_style_or_panic("width"  , "100%");
+        div.set_style_or_panic("height" , "100%");
+        let mut target = Css3dObject::new(&div);
+        renderer.manage(&target);
         target.set_dimensions(Vector2::new(10.0, 10.0));
-        target.dom().set_style_or_panic("background-color", "green");
+        div.set_style_or_panic("background-color", "green");
 
-        let mut object = css3d_system.new_instance();
+        let div = web::create_div();
+        div.set_style_or_panic("width"  , "100%");
+        div.set_style_or_panic("height" , "100%");
+        let mut object = Css3dObject::new(&div);
+        renderer.manage(&object);
         object.set_dimensions(Vector2::new(10.0, 10.0));
-        object.dom().set_style_or_panic("background-color", "red");
+        div.set_style_or_panic("background-color", "red");
 
         let mass             = 2.0;
         let position         = object.position();
@@ -71,7 +77,7 @@ mod tests {
         let every    = 2.0;
         let animator = FixedStepAnimator::new(1.0 / every, move |_| {
             let _keep_alive = &simulator;
-            let _keep_alive = &css3d_system;
+            let _keep_alive = &renderer;
 
             let x = 320.0 * random() as f32;
             let y = 240.0 * random() as f32;

@@ -55,7 +55,7 @@ fn init(world:World) {
             sprite.mod_position(|t| *t = position);
             sprites.push(sprite);
         } else {
-            let div        = web::create_div();
+            let div = web::create_div();
             div.set_style_or_panic("width"  , "100%");
             div.set_style_or_panic("height" , "100%");
 
