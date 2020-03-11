@@ -14,7 +14,7 @@ use basegl::display::world::*;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 
-//use basegl::display::navigation::navigator::Navigator;
+use basegl::display::navigation::navigator::Navigator;
 
 use basegl::prelude::*;
 //use enso_frp::*;
@@ -149,6 +149,7 @@ fn init(world: &World) {
     let scene  = world.scene();
     let camera = scene.camera();
     let screen = camera.screen();
+    let navigator = Navigator::new(&scene,&camera).expect("Couldn't create navigator");
 
 
     let node_shape =     nodes2();
@@ -192,6 +193,8 @@ fn init(world: &World) {
 //            shape_system.set_shape(&node_shape2);
         }
         let _keep_alive = &sprite;
+        let _keep_alive = &navigator;
+
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
         on_frame(&mut time,&mut iter,&sprite,&shape_system);
