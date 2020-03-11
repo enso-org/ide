@@ -17,9 +17,10 @@ use crate::animation::physics::inertia::KinematicsProperties;
 use crate::system::web::dyn_into;
 use crate::control::callback::CallbackHandle;
 
-use nalgebra::{Vector3, zero};
-use nalgebra::Vector2;
 use nalgebra::clamp;
+use nalgebra::Vector2;
+use nalgebra::Vector3;
+use nalgebra::zero;
 
 
 // =================
@@ -122,7 +123,11 @@ impl Navigator {
                 let direction    = Vector3::new(x, y, z).normalize();
                 let mut position = properties.spring().fixed_point;
                 let zoom_amount  = zoom.amount * position.z;
-                position        += direction   * zoom_amount;
+                let direction    = direction   * zoom_amount;
+                let zoom_limit   = max_zoom - position.z;
+                let depth        = direction.z;
+                let zoom_factor  = if depth > zoom_limit { zoom_limit/depth } else { 1.0 };
+                position        += direction * zoom_factor;
                 let min_zoom     = camera.clipping().near  + min_zoom;
                 position.z       = clamp(position.z, min_zoom, max_zoom);
 
