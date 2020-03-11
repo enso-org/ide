@@ -166,6 +166,7 @@ macro_rules! shared_bracket_fn {
 macro_rules! shared_bracket_normalized {
     ( [$name:ident] [
         $(#[$($meta:tt)*])*
+        $(##[$($imeta:tt)*])*
         pub struct $name_mut:ident $params:tt {
             $($(#[$($field_meta:tt)*])* $field:ident : $field_type:ty),* $(,)?
         }
@@ -174,6 +175,7 @@ macro_rules! shared_bracket_normalized {
     ]) => {
         $crate::shared_struct! {
             $(#[$($meta)*])*
+            $(##[$($imeta)*])*
             pub struct $name $name_mut $params {
                 $($(#[$($field_meta)*])* $field : $field_type),*
             }
@@ -189,6 +191,7 @@ macro_rules! shared_bracket_normalized {
 macro_rules! shared_struct {
     (
         $(#[$($meta:tt)*])*
+        $(##[$($imeta:tt)*])*
         pub struct $name:ident $name_mut:ident [$($params:tt)*] {
             $($(#[$($field_meta:tt)*])* $field:ident : $field_type:ty),* $(,)?
         }
@@ -197,6 +200,7 @@ macro_rules! shared_struct {
         pub struct $name <$($params)*> { rc: Rc<RefCell<$name_mut<$($params)*>>> }
 
         $(#[$($meta)*])*
+        $(#[$($imeta)*])*
         pub struct $name_mut <$($params)*> { $($(#[$($field_meta)*])* $field : $field_type),* }
 
         impl<$($params)*> Clone for $name <$($params)*> {
