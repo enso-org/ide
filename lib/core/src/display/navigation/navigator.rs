@@ -117,19 +117,24 @@ impl Navigator {
                 let half_height = 1.0;
 
                 // Scale X and Y to compensate aspect and fov.
-                let x            = -normalized.x * camera.screen().aspect();
-                let y            =  normalized.y;
-                let z            = half_height / camera.half_fovy_slope();
-                let direction    = Vector3::new(x, y, z).normalize();
-                let mut position = properties.spring().fixed_point;
-                let zoom_amount  = zoom.amount * position.z;
-                let direction    = direction   * zoom_amount;
-                let zoom_limit   = max_zoom - position.z;
-                let depth        = direction.z;
-                let zoom_factor  = if depth > zoom_limit { zoom_limit/depth } else { 1.0 };
-                position        += direction * zoom_factor;
-                let min_zoom     = camera.clipping().near  + min_zoom;
-                position.z       = clamp(position.z, min_zoom, max_zoom);
+                let x              = -normalized.x * camera.screen().aspect();
+                let y              =  normalized.y;
+                let z              = half_height / camera.half_fovy_slope();
+                let direction      = Vector3::new(x, y, z).normalize();
+                let mut position   = properties.spring().fixed_point;
+                let min_zoom       = camera.clipping().near  + min_zoom;
+                let zoom_amount    = zoom.amount * position.z;
+                let direction      = direction   * zoom_amount;
+                let max_zoom_limit = max_zoom - position.z;
+                let min_zoom_limit = min_zoom - position.z;
+                let zoom_factor    = if direction.z > max_zoom_limit {
+                    max_zoom_limit / direction.z
+                } else if direction.z < min_zoom_limit {
+                    min_zoom_limit / direction.z
+                } else {
+                    1.0
+                };
+                position          += direction * zoom_factor;
 
                 properties.modify_spring(|spring| spring.fixed_point = position);
         };
