@@ -5,7 +5,6 @@
 #![feature(set_stdio)]
 
 pub mod closure;
-pub mod dom;
 pub mod resize_observer;
 
 /// Common types that should be visible across the whole crate.

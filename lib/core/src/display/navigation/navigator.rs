@@ -39,7 +39,7 @@ impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
         let dom                       = scene.dom().root;
         let (_simulator, properties)  = Self::start_simulator(camera.clone());
-        let zoom_speed                = 2.0;
+        let zoom_speed                = 10.0;
         let min_zoom                  = 10.0;
         let max_zoom                  = 10000.0;
         let scaled_down_zoom_speed    = zoom_speed / 1000.0;
@@ -50,12 +50,12 @@ impl Navigator {
         Ok(Self {_simulator,_events,resize_callback})
     }
 
-    fn start_simulator(camera:Camera2d) -> (PhysicsSimulator, PhysicsProperties) {
+    fn start_simulator(camera:Camera2d) -> (PhysicsSimulator,PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
         let position           = camera.transform().position();
         let kinematics         = KinematicsProperties::new(position, velocity, zero(), mass);
-        let spring_coefficient = 10000.0;
+        let spring_coefficient = 20000.0;
         let fixed_point        = position;
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);
         let drag               = DragProperties::new(1500.0);

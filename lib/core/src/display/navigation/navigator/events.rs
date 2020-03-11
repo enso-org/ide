@@ -5,7 +5,6 @@ use crate::control::io::mouse::event::*;
 use crate::control::io::mouse::button;
 use crate::control::callback::CallbackHandle;
 use crate::system::web::Result;
-use crate::system::web::dom::DomContainer;
 use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::ignore_context_menu;
 use crate::system::web::dyn_into;

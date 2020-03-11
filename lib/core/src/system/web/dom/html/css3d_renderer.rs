@@ -9,13 +9,9 @@ use crate::system::web::dom::html::Css3dObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::Result;
-use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
 use crate::system::web::NodeRemover;
 use crate::system::web::StyleSetter;
-use crate::system::web::dom::DomContainer;
-use crate::system::web::dom::ResizeCallback;
-use crate::system::web::get_element_by_id;
 use super::css3d_object::Css3dOrder;
 
 use nalgebra::Vector2;
@@ -35,7 +31,7 @@ mod js {
     use super::*;
     #[wasm_bindgen(inline_js = "
         function arr_to_css_matrix3d(a) {
-            return 'matrix3d(' + a.join(',') + ')'
+            return `matrix3d(${a.join(',')})`
         }
 
         export function set_object_transform(dom, matrix_array) {
