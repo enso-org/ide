@@ -6,7 +6,7 @@ pub mod button;
 pub mod event;
 
 use crate::control::callback::*;
-use crate::display::scene::Shape;
+use crate::system::web::dom::Shape;
 
 use enso_frp::EventEmitterPoly;
 use enso_frp::Position;
