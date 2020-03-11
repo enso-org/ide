@@ -202,6 +202,7 @@ mod test {
 
     use ast;
     use ast::BlockLine;
+    use ast::Ast;
     use data::text::Span;
     use data::text::TextChange;
     use data::text::TextLocation;

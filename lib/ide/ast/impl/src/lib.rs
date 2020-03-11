@@ -1063,7 +1063,7 @@ mod tests {
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
         let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
         let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
-        assert_eq!(ast.id_map(), IdMap(ids));
+        assert_eq!(ast.id_map(), IdMap::new(ids));
     }
 
     #[test]

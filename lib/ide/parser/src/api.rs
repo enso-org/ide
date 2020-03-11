@@ -26,12 +26,11 @@ impl Metadata for serde_json::Value {}
 
 /// Parsed file / module with metadata.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq)]
-pub struct SourceFile<M:Metadata> {
+pub struct SourceFile<Metadata> {
     /// Ast representation.
     pub ast: Ast,
     /// Raw metadata in json.
-    #[serde(bound(deserialize = ""))]
-    pub metadata: M
+    pub metadata: Metadata
 }
 
 const ID_TAG       : &str = "# [idmap] ";

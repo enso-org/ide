@@ -95,10 +95,9 @@ pub enum Request {
 
 /// All responses that Parser Service might reply with.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum Response<M:Metadata> {
-    #[serde(bound(deserialize = ""))]
-    Success { module  : SourceFile<M> },
-    Error   { message : String },
+pub enum Response<Metadata> {
+    Success { module  : SourceFile<Metadata> },
+    Error   { message : String               },
 }
 
 
