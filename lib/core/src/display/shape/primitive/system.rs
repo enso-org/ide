@@ -6,7 +6,6 @@ use crate::prelude::*;
 use super::def::*;
 
 use crate::display;
-use crate::display::object::*;
 use crate::display::shape::primitive::shader;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;

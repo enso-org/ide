@@ -2,9 +2,7 @@
 
 use basegl::system::web;
 use basegl::system::web::NodeInserter;
-//use web::dom::html::Css3dSystem;
 use web::dom::html::Css3dObject;
-use web::dom::html::Css3dOrder;
 use web::StyleSetter;
 use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;
@@ -31,7 +29,7 @@ fn init(world:World) {
     let scene         = world.scene();
     let camera        = scene.camera();
     let screen        = camera.screen();
-    let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
+    let navigator     = Navigator::new(&scene,&camera);
     let sprite_system = SpriteSystem::new(&world);
 //    let css3d_system  = Css3dSystem::new(&world);
     let css3d_renderer = scene.css3d_renderer();
@@ -79,7 +77,6 @@ fn init(world:World) {
     }
     world.display_object().update();
 
-    let css3d_position = vec![Css3dOrder::Front, Css3dOrder::Back];
     let mut i = 0;
     let animator = FixedStepAnimator::new(2.0, move |_| {
         let _keep_alive = &world;
@@ -88,9 +85,9 @@ fn init(world:World) {
         let _keep_alive = &sprite_system;
 
         i = (i + 1) % 2;
-        for (j, object) in css3d_objects.iter_mut().enumerate() {
-            object.set_css3d_order(css3d_position[(i + j) % 2]);
-        }
+//        for (j, object) in css3d_objects.iter_mut().enumerate() {
+//            object.set_css3d_order(css3d_position[(i + j) % 2]);
+//        }
     });
     std::mem::forget(animator);
 }

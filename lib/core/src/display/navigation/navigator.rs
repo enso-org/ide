@@ -11,15 +11,13 @@ use crate::control::callback::CallbackHandle;
 use crate::display::camera::Camera2d;
 use crate::display::Scene;
 use crate::system::web::dom;
-use crate::system::web::dyn_into;
-use crate::system::web::Result;
 use crate::system::web;
 use events::NavigatorEvents;
 use events::PanEvent;
 use events::ZoomEvent;
-use nalgebra::clamp;
 use nalgebra::Vector2;
-use nalgebra::{Vector3, zero};
+use nalgebra::Vector3;
+use nalgebra::zero;
 
 
 
@@ -36,7 +34,7 @@ pub struct Navigator {
 }
 
 impl Navigator {
-    pub fn new(scene:&Scene, camera:&Camera2d) -> Result<Self> {
+    pub fn new(scene:&Scene, camera:&Camera2d) -> Self {
         let dom                       = scene.dom().root;
         let (_simulator, properties)  = Self::start_simulator(camera.clone());
         let zoom_speed                = 10.0;
@@ -46,8 +44,7 @@ impl Navigator {
         let camera                    = camera.clone();
         let (resize_callback,_events) = Self::start_navigator_events
             (dom,camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
-        let _events = _events?;
-        Ok(Self {_simulator,_events,resize_callback})
+        Self {_simulator,_events,resize_callback}
     }
 
     fn start_simulator(camera:Camera2d) -> (PhysicsSimulator,PhysicsProperties) {
@@ -72,7 +69,7 @@ impl Navigator {
     , min_zoom:f32
     , max_zoom:f32
     , zoom_speed:f32
-    , mut properties:PhysicsProperties) -> (CallbackHandle, Result<NavigatorEvents>) {
+    , mut properties:PhysicsProperties) -> (CallbackHandle,NavigatorEvents) {
         let dom_clone        = dom.clone();
         let camera_clone     = camera.clone();
         let panning_callback = enclose!((mut properties) move |pan: PanEvent| {

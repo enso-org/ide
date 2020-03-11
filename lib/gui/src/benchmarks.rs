@@ -1,8 +1,6 @@
 #![allow(missing_docs)]
 
 use basegl::display::camera::Camera2d;
-use basegl::display::navigation::navigator::Navigator;
-use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
 use basegl::display::symbol::geometry::SpriteSystem;
@@ -56,12 +54,12 @@ fn init(world:&World) {
 #[allow(clippy::many_single_char_names)]
 pub fn on_frame
 ( world         : &World
-, camera        : &Camera2d
-, time          : f64
-, iter          : &mut i32
+, _camera        : &Camera2d
+, _time          : f64
+, _iter          : &mut i32
 , hidden        : &mut bool
 , sprite1       : &Sprite
-, sprites       : &mut Vec<Sprite>
+, _sprites       : &mut Vec<Sprite>
 , sprite_system : &SpriteSystem) {
 //    *iter += 1;
 //

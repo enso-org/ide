@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::display;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 use crate::display::symbol::registry::SymbolRegistry;

@@ -17,17 +17,13 @@ use wasm_bindgen::prelude::*;
 use basegl::display::navigation::navigator::Navigator;
 
 use basegl::prelude::*;
-//use enso_frp::*;
 
 use basegl::system::web;
-use basegl::control::io::mouse::event::*;
-use basegl::control::io::mouse::MouseManager;
 use basegl::data::color::*;
 
 use basegl::display::shape::Var;
 
 
-use basegl::display::object::*;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -149,7 +145,7 @@ fn init(world: &World) {
     let scene  = world.scene();
     let camera = scene.camera();
     let screen = camera.screen();
-    let navigator = Navigator::new(&scene,&camera).expect("Couldn't create navigator");
+    let navigator = Navigator::new(&scene,&camera);
 
 
     let node_shape =     nodes2();
@@ -203,7 +199,7 @@ fn init(world: &World) {
                 t.parent_node().map(|p| {
                     p.remove_child(&t).unwrap()
                 })
-            }).ok();
+            });
             loader_hidden = true;
         }
         was_rendered = true;

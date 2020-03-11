@@ -248,7 +248,6 @@ function createWindow() {
     }
 
     const window = new Electron.BrowserWindow(windowPreferences)
-    window.setVibrancy('appearance-based')
 
     if (args.dev) {
         window.webContents.openDevTools()

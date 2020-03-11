@@ -18,8 +18,7 @@ pub fn run_example_ide() {
             t.parent_node().map(|p| {
                 p.remove_child(&t).unwrap()
             })
-        }).ok();
-
+        });
         run_ide()
     });
 }

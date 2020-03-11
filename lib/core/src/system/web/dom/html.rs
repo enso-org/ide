@@ -4,5 +4,4 @@ mod css3d_object;
 mod css3d_renderer;
 
 pub use css3d_object::Css3dObject;
-pub use css3d_object::Css3dOrder;
 pub use css3d_renderer::Css3dRenderer;

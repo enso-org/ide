@@ -20,6 +20,18 @@ use shapely::shared;
 
 
 
+// ==============
+// === Traits ===
+// ==============
+
+/// Common traits.
+pub mod traits {
+    pub use super::DisplayObject;
+    pub use super::DisplayObjectOps;
+}
+
+
+
 // ==================
 // === ParentBind ===
 // ==================

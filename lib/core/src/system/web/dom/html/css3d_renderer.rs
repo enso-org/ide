@@ -2,25 +2,20 @@
 
 use crate::prelude::*;
 
-use crate::display;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::system::web::dom::html::Css3dObject;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
-use crate::system::web::Result;
 use crate::system::web::NodeInserter;
-use crate::system::web::NodeRemover;
 use crate::system::web::StyleSetter;
-use super::css3d_object::Css3dOrder;
 
-use nalgebra::Vector2;
 use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use web_sys::HtmlElement;
 use web_sys::HtmlDivElement;
 use js_sys::Object;
+
 
 
 // ===================
@@ -202,6 +197,7 @@ impl Css3dRenderer {
         Self {data}
     }
 
+    /// Sets the z-index of this DOM element.
     pub fn set_z_index(&self, z:i32) {
         self.data.dom.set_style_or_warn("z-index", z.to_string(), &self.logger);
     }

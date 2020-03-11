@@ -6,8 +6,6 @@ pub use crate::display::symbol::registry::SymbolId;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::control::callback::CallbackMut1Fn;
-use crate::control::callback::CallbackRegistry1;
 use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::control::io::mouse::MouseManager;
@@ -28,7 +26,6 @@ use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
 use crate::system::web::dom::html::Css3dRenderer;
 use crate::system::web::dom;
-use crate::system::web::dyn_into;
 use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
@@ -37,18 +34,6 @@ use crate::system::web;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
-
-
-
-// =============
-// === Error ===
-// =============
-
-#[derive(Debug, Fail, From)]
-pub enum Error {
-    #[fail(display = "Web Platform error: {}", error)]
-    WebError { error: web::Error },
-}
 
 
 
@@ -89,7 +74,7 @@ impl Mouse {
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
         let last_hover_ids  = empty_hover_ids;
-        let document        = web::document().unwrap();
+        let document        = web::document();
         let mouse_manager   = MouseManager::new(&document);
 
         let shape_ref       = shape.clone_ref();
@@ -252,7 +237,7 @@ impl {
         dom.recompute_shape_with_reflow();
 
         let display_object  = display::object::Node::new(&logger);
-        let context         = web::get_webgl2_context(&dom.layers.canvas).unwrap();
+        let context         = web::get_webgl2_context(&dom.layers.canvas);
         let sub_logger      = logger.sub("shape_dirty");
         let shape_dirty     = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
         let sub_logger      = logger.sub("symbols_dirty");

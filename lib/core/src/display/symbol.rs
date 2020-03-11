@@ -9,13 +9,6 @@ pub mod registry;
 #[warn(missing_docs)]
 pub mod shader;
 
-pub mod types {
-    use super::*;
-    pub use geometry::types::*;
-}
-pub use types::*;
-
-
 use crate::prelude::*;
 
 use crate::data::dirty::traits::*;
@@ -28,18 +21,31 @@ use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::display;
-use crate::display::object::*;
 
 use shader::Shader;
-
-use web_sys::WebGlVertexArrayObject;
+use shapely::shared;
+use wasm_bindgen::JsValue;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
-use wasm_bindgen::JsValue;
-
-use shapely::shared;
+use web_sys::WebGlVertexArrayObject;
 
 
+
+// ===============
+// === Exports ===
+// ===============
+
+pub mod types {
+    use super::*;
+    pub use geometry::types::*;
+}
+pub use types::*;
+
+
+
+// ======================
+// === UniformBinding ===
+// ======================
 
 /// Binds input variable definition in shader to both its location and an uniform declaration.
 #[derive(Clone,Debug)]
@@ -167,7 +173,6 @@ pub enum ScopeType {
 
 pub type GeometryDirty = dirty::SharedBool<Box<dyn Fn()>>;
 pub type ShaderDirty   = dirty::SharedBool<Box<dyn Fn()>>;
-
 
 
 

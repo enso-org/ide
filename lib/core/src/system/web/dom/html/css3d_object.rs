@@ -6,7 +6,6 @@ use crate::prelude::*;
 use crate::display;
 use crate::system::web;
 use crate::system::web::StyleSetter;
-use crate::system::web::NodeRemover;
 use crate::system::web::NodeInserter;
 
 use nalgebra::Vector2;
@@ -14,26 +13,6 @@ use nalgebra::Vector3;
 use web_sys::HtmlDivElement;
 
 use super::css3d_renderer::set_object_transform;
-
-
-// ==================
-// === Css3dOrder ===
-// ==================
-
-/// This enumeration is used for moving the object from front to back of the surrounding HtmlElement
-/// (usually a WebGL canvas).
-#[allow(missing_docs)]
-#[derive(Debug,Clone,Copy)]
-pub enum Css3dOrder {
-    Front,
-    Back
-}
-
-impl Default for Css3dOrder {
-    fn default() -> Self {
-        Css3dOrder::Front
-    }
-}
 
 
 
@@ -46,14 +25,11 @@ struct Css3dObjectProperties {
     display_object : display::object::Node,
     dom            : HtmlDivElement,
     dimensions     : Vector2<f32>,
-    css3d_order    : Css3dOrder
 }
 
 impl Drop for Css3dObjectProperties {
     fn drop(&mut self) {
-        self.display_object.with_logger(|logger| {
-            self.dom.remove_from_parent_or_warn(logger);
-        });
+        self.dom.remove();
         self.display_object.unset_parent();
     }
 }
@@ -74,18 +50,10 @@ impl Css3dObjectData {
     ( display_object : display::object::Node
     , dom            : HtmlDivElement
     , dimensions     : Vector2<f32>
-    , css3d_order    : Css3dOrder) -> Self {
-        let properties = Css3dObjectProperties {display_object,dom,dimensions,css3d_order};
+    ) -> Self {
+        let properties = Css3dObjectProperties {display_object,dom,dimensions};
         let properties = Rc::new(RefCell::new(properties));
         Self {properties}
-    }
-
-    fn set_css3d_order(&self, css3d_order: Css3dOrder) {
-        self.properties.borrow_mut().css3d_order = css3d_order
-    }
-
-    fn css3d_order(&self) -> Css3dOrder {
-        self.properties.borrow().css3d_order
     }
 
     fn position(&self) -> Vector3<f32> {
@@ -121,6 +89,7 @@ impl Css3dObjectData {
 }
 
 
+
 // ===================
 // === Css3dObject ===
 // ===================
@@ -142,53 +111,13 @@ impl Css3dObject {
         div.append_or_panic(dom);
         let display_object = display::object::Node::new(logger);
         let dimensions     = Vector2::new(0.0,0.0);
-        let css3d_order    = default();
-
         display_object.set_on_updated(enclose!((dom) move |t| {
-//            let object_dom    = object.dom();
             let mut transform = t.matrix();
             transform.iter_mut().for_each(|a| *a = eps(*a));
-//            let layer = match object.css3d_order() {
-//                Css3dOrder::Front => &front_layer,
-//                Css3dOrder::Back  => &back_layer
-//            };
-
-//            let parent_node = object.dom().parent_node();
-//            if !layer.is_same_node(parent_node.as_ref()) {
-////                display_object.with_logger(|logger| {
-//                    let logger = Logger::new("tmp");
-//                    object_dom.remove_from_parent_or_warn(&logger);
-//                    layer.append_or_warn(&object_dom,&logger);
-////                });
-//            }
-
             set_object_transform(&dom, &transform);
         }));
-        let data = Css3dObjectData::new(display_object,div,dimensions,css3d_order);
+        let data = Css3dObjectData::new(display_object,div,dimensions);
         Self {data}
-    }
-
-//    /// Creates a Css3dObject from a HTML string.
-//    pub(super) fn from_html_string<L:Into<Logger>,T:Str>(logger:L, html_string:T) -> Result<Self> {
-//        let element = create_element("div")?;
-//        element.set_inner_html(html_string.as_ref());
-//        match element.first_element_child() {
-//            Some(element) => {
-//                let element = dyn_into(element)?;
-//                Ok(Self::from_element(logger,element))
-//            },
-//            None => Err(Error::missing("valid HTML")),
-//        }
-//    }
-
-    /// Sets Css3dOrder.
-    pub fn set_css3d_order(&mut self, css3d_order: Css3dOrder) {
-        self.data.set_css3d_order(css3d_order)
-    }
-
-    /// Gets Css3dOrder.
-    pub fn css3d_order(&self) -> Css3dOrder {
-        self.data.css3d_order()
     }
 
     /// Sets the underlying HtmlElement dimension.

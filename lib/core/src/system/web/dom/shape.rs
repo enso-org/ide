@@ -1,3 +1,6 @@
+//! This module defines an abstraction for DOM shapes and provides utility for efficient shape
+//! change tracking which does not cause a reflow.
+//! Learn more: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
 
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackMut1Fn;
@@ -34,7 +37,7 @@ impl {
     pub fn new() -> Self {
         let width       = 0.0;
         let height      = 0.0;
-        let pixel_ratio = web::device_pixel_ratio().unwrap_or(1.0) as f32;
+        let pixel_ratio = web::device_pixel_ratio() as f32;
         Self {width,height,pixel_ratio}
     }
 
@@ -80,12 +83,14 @@ impl ShapeData {
 }
 
 impl Shape {
+    /// Constructor.
     pub fn from_element_with_reflow(element:&web::HtmlElement) -> Self {
-        let mut this = Self::default();
+        let this = Self::default();
         this.set_from_element_with_reflow(element);
         this
     }
 
+    /// Current value of the shape.
     pub fn current(&self) -> ShapeData {
         *self.rc.borrow()
     }

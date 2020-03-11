@@ -4,10 +4,11 @@
 
 use crate::prelude::*;
 
+use crate::display::traits::*;
+
 use crate::debug::Stats;
 use crate::display::layout::types::*;
 use crate::display;
-use crate::display::object::*;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
 use crate::display::world::World;
@@ -177,10 +178,12 @@ impl {
         sprite
     }
 
+    /// Hide the symbol. Hidden symbols will not be rendered.
     pub fn hide(&self) {
         self.symbol.hide();
     }
 
+    /// Show the symbol. It will be rendered on next render call.
     pub fn show(&self) {
         self.symbol.show();
     }
