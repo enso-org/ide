@@ -110,10 +110,14 @@ impl Navigator {
                 let x            = -normalized.x * camera.screen().aspect();
                 let y            =  normalized.y;
                 let z            = half_height / camera.half_fovy_slope();
-                let direction    = Vector3::new(x, y, z).normalize();
+                let direction    = Vector3::new(x,y,z).normalize();
                 let mut position = properties.spring().fixed_point;
                 let zoom_amount  = zoom.amount * position.z;
-                position        += direction   * zoom_amount;
+                let direction    = direction * zoom_amount;
+                let zoom_limit   = max_zoom - position.z;
+                let depth        = direction.z;
+                let zoom_factor  = if depth > zoom_limit { zoom_limit/depth } else { 1.0 };
+                position        += direction * zoom_factor;
                 let min_zoom     = camera.clipping().near  + min_zoom;
                 position.z       = clamp(position.z, min_zoom, max_zoom);
 
