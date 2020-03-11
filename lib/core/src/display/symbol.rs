@@ -208,6 +208,22 @@ impl {
         self.variables.clone_ref()
     }
 
+    pub fn set_hidden(&self, b:bool) {
+        self.is_hidden.set(b)
+    }
+
+    pub fn hide(&self) {
+        self.set_hidden(true)
+    }
+
+    pub fn show(&self) {
+        self.set_hidden(false)
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.is_hidden.get()
+    }
+
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         group!(self.logger, "Updating.", {
@@ -235,7 +251,7 @@ impl {
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {
-            if self.is_hidden.get() == true {
+            if self.is_hidden() {
                 return;
             }
             self.with_program(|_|{

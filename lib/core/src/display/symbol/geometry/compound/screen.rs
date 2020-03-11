@@ -33,6 +33,14 @@ impl Screen {
         Self {sprite_system,sprite}
     }
 
+    pub fn hide(&self) {
+        self.sprite_system.hide();
+    }
+
+    pub fn show(&self) {
+        self.sprite_system.show();
+    }
+
     /// Local variables used by the screen object.
     pub fn variables(&self) -> UniformScope {
         self.sprite_system.symbol().variables()

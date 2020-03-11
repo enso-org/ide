@@ -177,6 +177,14 @@ impl {
         sprite
     }
 
+    pub fn hide(&self) {
+        self.symbol.hide();
+    }
+
+    pub fn show(&self) {
+        self.symbol.show();
+    }
+
     /// Accessor.
     pub fn symbol(&self) -> Symbol {
         self.symbol.clone_ref()

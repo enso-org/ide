@@ -248,8 +248,8 @@ impl World {
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
             .add(DisplayObjectRenderPass::new(&root))
-            .add(ScreenRenderPass::new(self))
-            .add(pixel_read_pass);
+            .add(ScreenRenderPass::new(self));
+//            .add(pixel_read_pass);
         self.rc.borrow_mut().scene.set_render_pipeline(pipeline);
     }
 }

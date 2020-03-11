@@ -339,8 +339,6 @@ impl {
         self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
     }
 
-
-
     /// Bind FRP graph to mouse js events.
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
         mouse::bind_frp_to_mouse(&self.dom.shape(),frp,&self.mouse.mouse_manager)
