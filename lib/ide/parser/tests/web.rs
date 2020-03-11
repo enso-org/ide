@@ -6,7 +6,6 @@ use data::text::*;
 use parser::Parser;
 use parser::api::IsParser;
 
-use std::rc::Rc;
 use uuid::Uuid;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -21,8 +20,8 @@ fn web_test() {
 
     let mut parser = Parser::new_or_panic();
 
-    let mut parse = |input| {
-        let span = Span::from((0,5));
+    let mut parse = |input:&str| {
+        let span = Span::from((0,input.len()));
         let ids  = IdMap(vec![(span,uuid)]);
         let ast  = parser.parse(String::from(input), ids).unwrap().wrapped;
 
@@ -38,10 +37,10 @@ fn web_test() {
 
 
     let app_x_y = ast::Prefix {func: Ast::var("x"), off: 3, arg: Ast::var("y")};
-
+    let var_xy  = ast::Var { name: "xy".into() };
 
     assert_eq!(parse(""),       line(None));
-    assert_eq!(parse("xy"),     line(Some(Ast::var("xy"))));
+    assert_eq!(parse("xy"),     line(Some(Ast::new(var_xy,  Some(uuid)))));
     assert_eq!(parse("x   y"),  line(Some(Ast::new(app_x_y, Some(uuid)))));
 
 }
