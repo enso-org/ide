@@ -5,9 +5,9 @@ use crate::prelude::*;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::closure;
-use crate::control::callback::CallbackRegistry1;
-use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback::CallbackHandle;
+use crate::control::callback::CallbackMut1Fn;
+use crate::control::callback::CallbackRegistry1;
 use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::control::io::mouse::MouseManager;
@@ -15,24 +15,24 @@ use crate::control::io::mouse;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display;
 use crate::display::camera::Camera2d;
 use crate::display::object::DisplayObjectOps;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::symbol::Symbol;
+use crate::display;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
 use crate::system::web::dom::html::Css3dRenderer;
+use crate::system::web::dom;
 use crate::system::web::dyn_into;
+use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-use crate::system::web::NodeInserter;
-use crate::system::web::dom;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
@@ -49,10 +49,6 @@ pub enum Error {
     #[fail(display = "Web Platform error: {}", error)]
     WebError { error: web::Error },
 }
-
-
-
-
 
 
 
@@ -274,9 +270,8 @@ impl {
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", dom.shape().pixel_ratio());
         let mouse           = Mouse::new(&dom.shape(),&variables);
-        let zoom_uniform_cp = zoom_uniform.clone();
         let zoom_callback   = camera.add_zoom_update_callback(
-            move |zoom:&f32| zoom_uniform_cp.set(*zoom)
+            enclose!((zoom_uniform) move |zoom:&f32| zoom_uniform.set(*zoom))
         );
 
         let on_resize = dom.root.on_resize(enclose!((shape_dirty) move |_:&dom::ShapeData| {
@@ -344,47 +339,7 @@ impl {
         self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
     }
 
-    pub fn render2(&self) {
-        self.symbols.render2()
-    }
 
-
-    pub fn render(&mut self) {
-        let mouse_hover_ids = self.mouse.hover_ids.get();
-        if mouse_hover_ids != self.mouse.last_hover_ids {
-            self.mouse.last_hover_ids = mouse_hover_ids;
-            let is_not_background = mouse_hover_ids.w != 0;
-            if is_not_background {
-                let symbol_id = mouse_hover_ids.x;
-                let symbol = self.symbols.index(symbol_id as usize);
-                symbol.dispatch(&DynEvent::new(()));
-                // println!("{:?}",self.mouse.hover_ids.get());
-                // TODO: finish events sending, including OnOver and OnOut.
-            }
-        }
-
-        group!(self.logger, "Updating.", {
-            if self.shape_dirty.check_all() {
-                let screen = self.dom.shape().current();
-                self.resize_canvas(&self.dom.shape());
-                self.camera.set_screen(screen.width(), screen.height());
-                self.init_composer();
-                self.shape_dirty.unset_all();
-            }
-            if self.symbols_dirty.check_all() {
-                self.symbols.update();
-                self.symbols_dirty.unset_all();
-            }
-            self.logger.info("Rendering meshes.");
-            let camera_changed = self.camera.update();
-            if camera_changed {
-                self.symbols.render(&self.camera);
-                self.dom.layers.dom_front.update(&self.camera);
-                self.dom.layers.dom_back.update(&self.camera);
-            }
-            self.composer.run();
-        })
-    }
 
     /// Bind FRP graph to mouse js events.
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
@@ -392,8 +347,8 @@ impl {
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
-        self.display_object.update();
+    pub fn update_and_render(&mut self) {
+        self.update();
         self.render();
     }
 
@@ -412,6 +367,68 @@ impl {
     /// Create a new `Symbol` instance.
     pub fn new_symbol(&self) -> Symbol {
         self.symbols.new_symbol()
+    }
+}
+
+
+// === Render & Update ===
+
+impl {
+    pub fn render(&mut self) {
+        group!(self.logger, "Rendering.", {
+            self.composer.run();
+        })
+    }
+
+    pub fn update(&mut self) {
+        group!(self.logger, "Updating.", {
+            self.display_object.update();
+            self.update_shape();
+            self.update_symbols();
+            self.update_camera();
+            self.handle_mouse_events();
+        })
+    }
+
+    fn handle_mouse_events(&mut self) {
+        let mouse_hover_ids = self.mouse.hover_ids.get();
+        if mouse_hover_ids != self.mouse.last_hover_ids {
+            self.mouse.last_hover_ids = mouse_hover_ids;
+            let is_not_background = mouse_hover_ids.w != 0;
+            if is_not_background {
+                let symbol_id = mouse_hover_ids.x;
+                let symbol = self.symbols.index(symbol_id as usize);
+                symbol.dispatch_event(&DynEvent::new(()));
+                // println!("{:?}",self.mouse.hover_ids.get());
+                // TODO: finish events sending, including OnOver and OnOut.
+            }
+        }
+    }
+
+    fn update_shape(&mut self) {
+        if self.shape_dirty.check_all() {
+            let screen = self.dom.shape().current();
+            self.resize_canvas(&self.dom.shape());
+            self.camera.set_screen(screen.width(), screen.height());
+            self.init_composer();
+            self.shape_dirty.unset_all();
+        }
+    }
+
+    fn update_symbols(&self) {
+        if self.symbols_dirty.check_all() {
+            self.symbols.update();
+            self.symbols_dirty.unset_all();
+        }
+    }
+
+    fn update_camera(&self) {
+        let camera_changed = self.camera.update();
+        if camera_changed {
+            self.symbols.update_view_projection(&self.camera);
+            self.dom.layers.dom_front.update_view_projection(&self.camera);
+            self.dom.layers.dom_back.update_view_projection(&self.camera);
+        }
     }
 }}
 

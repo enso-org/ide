@@ -189,7 +189,6 @@ fn init(world: &World) {
     world.on_frame(move |_| {
         i -= 1;
         if i == 0 {
-            println!("now!");
 //            shape_system.set_shape(&node_shape2);
         }
         let _keep_alive = &sprite;

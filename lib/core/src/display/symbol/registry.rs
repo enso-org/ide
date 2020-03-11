@@ -97,7 +97,8 @@ impl {
         })
     }
 
-    pub fn render(&self, camera:&Camera2d) {
+    /// Updates the view-projection matrix after camera movement.
+    pub fn update_view_projection(&self, camera:&Camera2d) {
         self.view_projection.set(camera.view_projection_matrix());
     }
 

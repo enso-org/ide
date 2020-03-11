@@ -8,6 +8,7 @@ use crate::prelude::*;
 pub use crate::data::container::*;
 pub use crate::display::symbol::types::*;
 pub use crate::display::scene::SymbolId;
+pub use stats::*;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
@@ -15,21 +16,17 @@ use crate::control::event_loop::EventLoop;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
-use crate::display;
 use crate::display::object::*;
 use crate::display::render::*;
 use crate::display::scene::Scene;
 use crate::display::symbol::Symbol;
+use crate::display;
 use crate::system::web;
-
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use web_sys::Performance;
+use wasm_bindgen::prelude::Closure;
 use web_sys::KeyboardEvent;
-
-
-pub use stats::*;
+use web_sys::Performance;
 
 
 
@@ -151,7 +148,7 @@ impl WorldData {
         //          if self.scene_dirty.check_all() {
         group!(self.logger, "Updating.", {
             self.scene_dirty.unset_all();
-            self.scene.update();
+            self.scene.update_and_render();
         });
     }
 

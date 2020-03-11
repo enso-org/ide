@@ -151,7 +151,7 @@ impl {
 
     pub fn dispatch_event(&mut self, event:&DynEvent) {
         self.event_dispatcher.dispatch(event);
-        self.parent_bind.map_ref(|bind| bind.parent.dispatch(event));
+        self.parent_bind.map_ref(|bind| bind.parent.dispatch_event(event));
     }
 
     pub fn child_count(&self) -> usize {
@@ -492,8 +492,8 @@ where &'t Self:DisplayObject, Self:'t {
         self.display_object().unset_parent();
     }
 
-    fn dispatch(&'t self, event:&DynEvent) {
-        self.display_object().dispatch(event)
+    fn dispatch_event(&'t self, event:&DynEvent) {
+        self.display_object().dispatch_event(event)
     }
 }
 

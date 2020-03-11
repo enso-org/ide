@@ -214,7 +214,7 @@ impl Css3dRenderer {
 
     /// Update the objects to match the new camera's point of view. This function should be called
     /// only after camera position change.
-    pub fn update(&self, camera:&Camera2d) {
+    pub fn update_view_projection(&self, camera:&Camera2d) {
         let trans_cam  = camera.transform().matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
