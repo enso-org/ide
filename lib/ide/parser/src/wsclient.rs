@@ -8,11 +8,14 @@ use websocket::{
 };
 
 use api::Ast;
+use api::Metadata;
 use api::Error::*;
-use api::ModuleWithMetadata;
+use api::SourceFile;
 use ast::IdMap;
 
 use std::fmt::Formatter;
+use serde::Serialize;
+use serde::Deserialize;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
 
@@ -94,8 +97,9 @@ pub enum Request {
 
 /// All responses that Parser Service might reply with.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum Response {
-    Success { module  : ModuleWithMetadata },
+pub enum Response<M:Metadata> {
+    #[serde(bound(deserialize = ""))]
+    Success { module  : SourceFile<M> },
     Error   { message : String },
 }
 
@@ -155,7 +159,7 @@ mod internal {
         /// into a `Response`.
         ///
         /// Should be called exactly once after each `send_request` invocation.
-        pub fn recv_response(&mut self) -> Result<Response> {
+        pub fn recv_response<M:Metadata>(&mut self) -> Result<Response<M>> {
             let response = self.connection.recv_message()?;
             match response {
                 websocket::OwnedMessage::Text(text) => Ok(serde_json::from_str(&text)?),
@@ -167,7 +171,8 @@ mod internal {
         ///
         /// Both request and response are exchanged in JSON using text messages
         /// over WebSocket.
-        pub fn rpc_call(&mut self, request: Request) -> Result<Response> {
+        pub fn rpc_call<M:Metadata>
+        (&mut self, request: Request) -> Result<Response<M>> {
             self.send_request(request)?;
             self.recv_response()
         }
@@ -200,20 +205,22 @@ impl Debug for Client {
     }
 }
 
+#[derive(Debug,Clone,Serialize,Deserialize)]
+struct NoMetadata();
+impl Metadata for NoMetadata {}
+
 impl api::IsParser for Client {
-
-
     fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
         let request  = Request::ParseRequest {program,ids};
-        let response = self.rpc_call(request)?;
+        let response = self.rpc_call::<NoMetadata>(request)?;
         match response {
             Response::Success {module} => Ok(module.ast),
-            Response::Error {message} => Err(ParsingError(message)),
+            Response::Error {message}  => Err(ParsingError(message)),
         }
     }
 
-    fn parse_with_metadata
-    (&mut self, program:String) -> api::Result<ModuleWithMetadata> {
+    fn parse_with_metadata<M:Metadata>
+    (&mut self, program:String) -> api::Result<SourceFile<M>> {
         let request  = Request::ParseWithMetadataRequest {program};
         let response = self.rpc_call(request)?;
         match response {

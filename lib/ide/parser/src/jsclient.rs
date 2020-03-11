@@ -6,7 +6,6 @@ use crate::api;
 
 use api::Ast;
 use api::IsParser;
-
 use ast::IdMap;
 
 use wasm_bindgen::prelude::*;
@@ -74,8 +73,8 @@ impl IsParser for Client {
         Ok(ast()?)
     }
 
-    fn parse_with_metadata
-    (&mut self, program:String) -> api::Result<api::ModuleWithMetadata> {
+    fn parse_with_metadata<M:api::Metadata>
+    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
         let result = || {
             let json   = &parse_with_metadata(program)?;
             let module = serde_json::from_str(&json)?;

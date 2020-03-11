@@ -10,6 +10,7 @@ use crate::prelude::*;
 use crate::controller::FallibleResult;
 use crate::double_representation::apply_code_change_to_id_map;
 
+use parser::api::SourceFile;
 use ast::Ast;
 use ast::HasIdMap;
 use ast::HasRepr;
@@ -21,7 +22,6 @@ use data::text::TextChangedNotification;
 use file_manager_client as fmc;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
-use parser::api::ModuleWithMetadata;
 use parser::Parser;
 
 use serde::Serialize;
@@ -30,51 +30,25 @@ use shapely::shared;
 
 
 
-// ============
-// == Module ==
-// ============
-
-/// Parsed file / module with metadata
-#[derive(Debug,Clone)]
-pub struct Module {
-    /// ast representation
-    pub ast: Ast,
-    /// strongly typed metadata
-    pub metadata: Metadata
-}
-
-impl TryFrom<ModuleWithMetadata> for Module {
-    type Error = serde_json::Error;
-
-    fn try_from(value:ModuleWithMetadata) -> Result<Self,Self::Error> {
-        let metadata = Metadata::deserialize(value.metadata)?;
-        Ok(Module {ast:value.ast,metadata})
-    }
-}
-
-impl From<Module> for ModuleWithMetadata {
-    fn from(value:Module) -> Self {
-        let metadata = serde_json::to_value(value.metadata).expect(
-            "Should be possible to serialize metadata to json."
-        );
-        ModuleWithMetadata { ast:value.ast, metadata }
-    }
-}
-
+// ==============
+// == Metadata ==
+// ==============
 
 /// Mapping between ID and metadata.
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]
 pub struct Metadata {
-    /// metadata used within ide
+    /// Metadata used within ide.
     pub ide  : IdeMetadata,
     #[serde(flatten)]
-    /// metadata used by anyone else - i.e. language server
+    /// Metadata of other users of SourceFile<Metadata> API.
+    /// Ide should not modify this part of metadata.
     rest : HashMap<String,serde_json::Value>,
 }
 
+impl parser::api::Metadata for Metadata {}
 
 /// Ide related metadata.
-#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+#[derive(Debug,Clone,Copy,Default,Deserialize,Serialize)]
 pub struct IdeMetadata {}
 
 
@@ -124,7 +98,7 @@ shared! { Handle
         /// This module's location.
         location: Location,
         /// The current module used by synchronizing both module representations.
-        module: Module,
+        module: SourceFile<Metadata>,
         /// The id map of current ast
         // TODO: written for test purposes, should be removed once generating id_map from AST will
         // be implemented.
@@ -152,7 +126,7 @@ shared! { Handle
 
             code.replace_range(replaced_range,&inserted_string);
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
-            self.module.ast = self.parser.parse(code, self.id_map.clone())?;
+            self.module.ast     = self.parser.parse(code, self.id_map.clone())?;
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
             Ok(())
         }
@@ -169,8 +143,8 @@ shared! { Handle
             if code != my_code {
                 self.logger.error(|| format!("The module controller ast was not synchronized with \
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
-                self.module.ast  = self.parser.parse(code,default())?;
-                self.id_map      = default();
+                self.module.ast = self.parser.parse(code,default())?;
+                self.id_map     = default();
             }
             Ok(())
         }
@@ -183,17 +157,17 @@ impl Handle {
     /// It may wait for module content, because the module must initialize its state.
     pub async fn new(location:Location, mut file_manager:fmc::Handle, mut parser:Parser)
     -> FallibleResult<Self> {
-        let logger   = Logger::new(format!("Module Controller {}", location));
+        let logger  = Logger::new(format!("Module Controller {}", location));
         logger.info(|| "Loading module file");
-        let path     = location.to_path();
+        let path    = location.to_path();
         file_manager.touch(path.clone()).await?;
-        let content  = file_manager.read(path).await?;
+        let content = file_manager.read(path).await?;
         logger.info(|| "Parsing code");
-        let module   = Module::try_from(parser.parse_with_metadata(content)?)?;
+        let module  = parser.parse_with_metadata(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", module.ast));
-        let id_map   = module.ast.id_map();
-        let data     = Controller {location,module,file_manager,parser,id_map,logger};
+        let id_map  = module.ast.id_map();
+        let data    = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
 
@@ -202,7 +176,7 @@ impl Handle {
         let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
-            let code = ModuleWithMetadata::from(data.module.clone()).to_string();
+            let code = data.module.to_string();
             (path,fm,code)
         });
         fm.write(path.clone(),code)
@@ -218,7 +192,7 @@ impl Handle {
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
         let ast    = parser.parse(code.to_string(),id_map.clone())?;
-        let module = Module {ast, metadata:default()};
+        let module = SourceFile{ast, metadata:Metadata::default()};
         let data   = Controller {location,module,file_manager,parser,id_map,logger};
         Ok(Handle::new_from_data(data))
     }
@@ -267,13 +241,8 @@ mod test {
             , (Span::from((2,1)),uuid2)
             ]);
 
-        let controller   = Handle::new_mock(
-            location,
-            module,
-            id_map,
-            file_manager,
-            parser
-        ).unwrap();
+        let controller   = Handle::new_mock
+            (location,module,id_map,file_manager,parser).unwrap();
 
         // Change code from "2+2" to "22+2"
         let change = TextChangedNotification {

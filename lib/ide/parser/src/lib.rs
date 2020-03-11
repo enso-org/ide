@@ -28,7 +28,6 @@ use std::panic;
 pub use enso_prelude as prelude;
 
 
-
 // ==============
 // === Parser ===
 // ==============
@@ -40,7 +39,12 @@ pub use enso_prelude as prelude;
 /// implementation provided by `wsclient` or `jsclient`.
 #[derive(Clone,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct Parser(pub Rc<RefCell<dyn api::IsParser>>);
+pub struct Parser<>(
+    #[cfg(not(target_arch = "wasm32"))]
+    pub Rc<RefCell<wsclient::Client>>,
+    #[cfg(target_arch = "wasm32")]
+    pub Rc<RefCell<jsclient::Client>>,
+);
 
 impl Parser {
     /// Obtains a default parser implementation.
@@ -70,8 +74,8 @@ impl api::IsParser for Parser {
         self.borrow_mut().parse(program,ids)
     }
 
-    fn parse_with_metadata
-    (&mut self, program:String) -> api::Result<api::ModuleWithMetadata> {
+    fn parse_with_metadata<M:api::Metadata>
+    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
         self.borrow_mut().parse_with_metadata(program)
     }
 }

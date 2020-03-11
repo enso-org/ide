@@ -8,45 +8,49 @@ use ast::HasIdMap;
 
 pub use ast::Ast;
 
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 
 
-// ============
-// == Module ==
-// ============
 
-/// Parsed file / module with metadata
+// ================
+// == SourceFile ==
+// ================
+
+/// Things that are metadata.
+pub trait Metadata:Serialize+DeserializeOwned {}
+
+/// Parsed file / module with metadata.
 #[derive(Debug,Clone,Serialize,Deserialize)]
-pub struct ModuleWithMetadata {
-    /// ast representation
+pub struct SourceFile<M:Metadata> {
+    /// Ast representation.
     pub ast: Ast,
-    /// raw metadata in json
-    pub metadata: serde_json::Value
+    /// Raw metadata in json.
+    #[serde(bound(deserialize = ""))]
+    pub metadata: M
 }
 
 const ID_TAG       : &str = "# [idmap] ";
 const METADATA_TAG : &str = "# [metadata] ";
 
-impl ToString for ModuleWithMetadata {
-    fn to_string(&self) -> String {
-        let remove_newlines = |string:String| string
-            .chars()
-            .filter(|c| c != &'\n' && c != &'\r')
-            .collect::<String>();
+fn to_json_single_line
+(val:&impl Serialize) -> std::result::Result<String,serde_json::Error> {
+    let json = serde_json::to_string(val)?;
+    let line = json.chars().filter(|c| c != &'\n' && c != &'\r').collect();
+    Ok(line)
+}
 
+impl<M:Metadata> ToString for SourceFile<M> {
+    fn to_string(&self) -> String {
         let code = self.ast.repr();
-        let ids  = remove_newlines(
-            serde_json::to_string(&self.ast.id_map()).expect(
-                "It should be possible to serialize idmap."
-            )
+        let ids  = to_json_single_line(&self.ast.id_map()).expect(
+            "It should be possible to serialize idmap."
         );
-        let meta = remove_newlines(
-            serde_json::to_string(&self.metadata).expect(
-                "It should be possible to serialize metadata."
-            )
+        let meta = to_json_single_line(&self.metadata).expect(
+            "It should be possible to serialize metadata."
         );
-        format!("{}\n\n\n{}{}\n{}{}", code, ID_TAG, ids, METADATA_TAG, meta)
+        iformat!("{code}\n\n\n{ID_TAG}{ids}\n{METADATA_TAG}{meta}")
     }
 }
 
@@ -60,9 +64,10 @@ pub trait IsParser : Debug {
     /// Parse program.
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
-    /// Parse a module content that contains idmap and metadata.
-    fn parse_with_metadata
-    (&mut self, program:String) -> Result<ModuleWithMetadata>;
+    /// Parse contents of the program source file,
+    /// where program code may be followed by idmap and metadata.
+    fn parse_with_metadata<M:Metadata>
+    (&mut self, program:String) -> Result<SourceFile<M>>;
 }
 
 
