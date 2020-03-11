@@ -11,7 +11,6 @@ use crate::controller::FallibleResult;
 use crate::double_representation::apply_code_change_to_id_map;
 
 use parser::api::SourceFile;
-use ast::Ast;
 use ast::HasIdMap;
 use ast::HasRepr;
 use ast::IdMap;
@@ -172,10 +171,10 @@ impl Handle {
         let (path,mut fm,code) = self.with_borrowed(|data| {
             let path = data.location.to_path();
             let fm   = data.file_manager.clone_ref();
-            let code = String::try_from(&data.module).unwrap();
+            let code = String::try_from(&data.module);
             (path,fm,code)
         });
-        fm.write(path.clone(),code)
+        async move { fm.write(path.clone(),code?).await }
     }
 
     #[cfg(test)]
