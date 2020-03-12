@@ -1,5 +1,8 @@
 #![allow(missing_docs)]
 
+#[warn(missing_docs)]
+pub mod dom;
+
 use crate::prelude::*;
 
 pub use crate::display::symbol::registry::SymbolId;
@@ -24,8 +27,7 @@ use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
-use crate::system::web::dom::html::Css3dRenderer;
-use crate::system::web::dom;
+use crate::display::scene::dom::DomScene;
 use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
@@ -63,7 +65,7 @@ struct Mouse {
 }
 
 impl Mouse {
-    pub fn new(shape:&dom::Shape, variables:&UniformScope) -> Self {
+    pub fn new(shape:&web::dom::Shape, variables:&UniformScope) -> Self {
 
         let empty_hover_ids = Vector4::<u32>::new(0,0,0,0);
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
@@ -135,7 +137,7 @@ impl Mouse {
 #[derive(Clone,Debug)]
 pub struct Dom {
     /// Root DOM element of the scene.
-    pub root : dom::WithKnownShape<web::HtmlDivElement>,
+    pub root : web::dom::WithKnownShape<web::HtmlDivElement>,
     /// Layers of the scene.
     pub layers : Layers,
 }
@@ -149,11 +151,11 @@ impl Dom {
         root.set_style_or_panic("height"  , "100vh");
         root.set_style_or_panic("width"   , "100vw");
         root.set_style_or_panic("display" , "block");
-        let root = dom::WithKnownShape::new(&root);
+        let root = web::dom::WithKnownShape::new(&root);
         Self {root,layers}
     }
 
-    pub fn shape(&self) -> &dom::Shape {
+    pub fn shape(&self) -> &web::dom::Shape {
         self.root.shape()
     }
 
@@ -174,19 +176,19 @@ impl Dom {
 #[derive(Clone,Debug)]
 pub struct Layers {
     /// Front DOM scene layer.
-    pub dom_front : Css3dRenderer,
+    pub dom_front : DomScene,
     /// The WebGL scene layer.
     pub canvas : web_sys::HtmlCanvasElement,
     /// Back DOM scene layer.
-    pub dom_back : Css3dRenderer,
+    pub dom_back : DomScene,
 }
 
 impl Layers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
         let canvas    = web::create_canvas();
-        let dom_front = Css3dRenderer::new(&logger);
-        let dom_back  = Css3dRenderer::new(&logger);
+        let dom_front = DomScene::new(&logger);
+        let dom_back  = DomScene::new(&logger);
         canvas.set_style_or_panic("height"  , "100vh");
         canvas.set_style_or_panic("width"   , "100vw");
         canvas.set_style_or_panic("display" , "block");
@@ -262,7 +264,7 @@ impl {
             enclose!((zoom_uniform) move |zoom:&f32| zoom_uniform.set(*zoom))
         );
 
-        let on_resize = dom.root.on_resize(enclose!((shape_dirty) move |_:&dom::ShapeData| {
+        let on_resize = dom.root.on_resize(enclose!((shape_dirty) move |_:&web::dom::ShapeData| {
             shape_dirty.set();
         }));
 
@@ -292,7 +294,7 @@ impl {
         self.symbols.clone_ref()
     }
 
-    pub fn css3d_renderer(&self) -> Css3dRenderer {
+    pub fn dom_layer(&self) -> DomScene {
         self.dom.layers.dom_front.clone()
     }
 
@@ -463,7 +465,7 @@ impl SceneData {
     /// Resize the underlying canvas. This function should rather not be called
     /// directly. If you want to change the canvas size, modify the `shape` and
     /// set the dirty flag.
-    fn resize_canvas(&self, shape:&dom::Shape) {
+    fn resize_canvas(&self, shape:&web::dom::Shape) {
         let screen = shape.current();
         let canvas = shape.current().device_pixels();
         self.logger.group(fmt!("Resized to {}px x {}px.", screen.width(), screen.height()), || {

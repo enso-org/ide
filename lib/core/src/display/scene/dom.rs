@@ -1,4 +1,4 @@
-//! This module contains the Css3dRenderer, a struct used to render CSS3D elements.
+//! This module contains the DomScene, a struct used to render CSS3D elements.
 
 use crate::prelude::*;
 
@@ -96,18 +96,22 @@ pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
 
 
 
-// =========================
-// === Css3dRendererData ===
-// =========================
+// ====================
+// === DomSceneData ===
+// ====================
 
+/// Internal representation for `DomScene`.
 #[derive(Clone,Debug)]
-pub struct Css3dRendererData {
-    pub dom                 : HtmlDivElement,
+pub struct DomSceneData {
+    /// The root dom element of this scene.
+    pub dom : HtmlDivElement,
+    /// The child div of the `dom` element with view-projection Css 3D transformations applied.
     pub view_projection_dom : HtmlDivElement,
-    logger                  : Logger
+    logger : Logger
 }
 
-impl Css3dRendererData {
+impl DomSceneData {
+    /// Constructor.
     pub fn new(dom:HtmlDivElement, view_projection_dom:HtmlDivElement, logger:Logger) -> Self {
         Self {logger,dom,view_projection_dom }
     }
@@ -115,26 +119,26 @@ impl Css3dRendererData {
 
 
 
-// =====================
-// === Css3dRenderer ===
-// =====================
+// ================
+// === DomScene ===
+// ================
 
-/// `Css3dRenderer` is a renderer for `DomSymbol`s. It integrates with other rendering contexts,
+/// `DomScene` is a renderer for `DomSymbol`s. It integrates with other rendering contexts,
 /// such as WebGL, by placing two HtmlElements in front and behind of the Canvas element,
 /// allowing the move `DomSymbol`s between these two layers, mimicking z-index ordering.
 ///
 /// To make use of its functionalities, the API user can create a `Css3dSystem` by using
-/// the `Css3dRenderer::new_system` method which creates and manages instances of
+/// the `DomScene::new_system` method which creates and manages instances of
 /// `DomSymbol`s.
 #[derive(Clone,Debug,Shrinkwrap)]
-pub struct Css3dRenderer {
-    data : Rc<Css3dRendererData>,
+pub struct DomScene {
+    data : Rc<DomSceneData>,
 }
 
-impl Css3dRenderer {
+impl DomScene {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
-        let logger              = logger.sub("Css3dRenderer");
+        let logger              = logger.sub("DomScene");
         let dom                 = web::create_div();
         let view_projection_dom = web::create_div();
 
@@ -154,7 +158,7 @@ impl Css3dRenderer {
 
         dom.append_or_warn(&view_projection_dom,&logger);
 
-        let data = Css3dRendererData::new (dom,view_projection_dom,logger);
+        let data = DomSceneData::new (dom,view_projection_dom,logger);
         let data = Rc::new(data);
         Self {data}
     }
@@ -192,7 +196,7 @@ impl Css3dRenderer {
     }
 }
 
-impl CloneRef for Css3dRenderer {}
+impl CloneRef for DomScene {}
 
 
 

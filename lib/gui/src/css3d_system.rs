@@ -32,7 +32,7 @@ fn init(world:World) {
     let navigator     = Navigator::new(&scene,&camera);
     let sprite_system = SpriteSystem::new(&world);
 //    let css3d_system  = Css3dSystem::new(&world);
-    let css3d_renderer = scene.css3d_renderer();
+    let dom_layer = scene.dom_layer();
     world.add_child(&sprite_system);
 //    world.add_child(&css3d_system);
 
@@ -61,7 +61,7 @@ fn init(world:World) {
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
             let object     = DomSymbol::new(&div);
 //            css3d_system.add_child2(&object);
-            css3d_renderer.manage(&object);
+            dom_layer.manage(&object);
             world.add_child(&object);
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
@@ -85,7 +85,7 @@ fn init(world:World) {
         let _keep_alive = &sprite_system;
 
         i = (i + 1) % 2;
-        for (j, object) in css3d_objects.iter_mut().enumerate() {
+        for (_j, _object) in css3d_objects.iter_mut().enumerate() {
 //            object.set_css3d_order(css3d_position[(i + j) % 2]);
         }
     });
