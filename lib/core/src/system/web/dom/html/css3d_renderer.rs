@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::DomSymbol;
+use crate::display::symbol::DomSymbol;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
@@ -12,9 +12,7 @@ use crate::system::web::StyleSetter;
 
 use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
-use wasm_bindgen::JsValue;
 use web_sys::HtmlDivElement;
-use js_sys::Object;
 
 
 
@@ -27,11 +25,6 @@ mod js {
     #[wasm_bindgen(inline_js = "
         function arr_to_css_matrix3d(a) {
             return `matrix3d(${a.join(',')})`
-        }
-
-        export function set_object_transform(dom, matrix_array) {
-            let css = arr_to_css_matrix3d(matrix_array);
-            dom.style.transform = 'translate(-50%, -50%)' + css;
         }
 
         export function setup_perspective(dom, perspective) {
@@ -53,36 +46,21 @@ mod js {
     extern "C" {
         /// Setup perspective CSS 3D projection on DOM.
         #[allow(unsafe_code)]
-        pub fn setup_perspective(dom: &JsValue, znear: &JsValue);
+        pub fn setup_perspective(dom: &web::JsValue, znear: &web::JsValue);
 
         /// Setup Camera orthographic projection on DOM.
         #[allow(unsafe_code)]
-        pub fn setup_camera_orthographic(dom:&JsValue, matrix_array:&JsValue);
+        pub fn setup_camera_orthographic(dom:&web::JsValue, matrix_array:&web::JsValue);
 
         /// Setup Camera perspective projection on DOM.
         #[allow(unsafe_code)]
-        pub fn setup_camera_perspective(dom:&JsValue, near:&JsValue, matrix_array:&JsValue);
-
-        /// Sets object's CSS 3D transform.
-        #[allow(unsafe_code)]
-        pub fn set_object_transform(dom:&JsValue, matrix_array:&Object);
+        pub fn setup_camera_perspective
+        (dom:&web::JsValue, near:&web::JsValue, matrix_array:&web::JsValue);
     }
 }
 
 #[allow(unsafe_code)]
-pub fn set_object_transform(dom:&JsValue, matrix:&Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
-    // resized. Check documentation of IntoFloat32ArrayView trait for more
-    // details.
-    unsafe {
-        let matrix_array = matrix.js_buffer_view();
-        js::set_object_transform(&dom,&matrix_array);
-    }
-}
-
-
-#[allow(unsafe_code)]
-fn setup_camera_perspective(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) {
+fn setup_camera_perspective(dom:&web::JsValue, near:f32, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
@@ -93,7 +71,7 @@ fn setup_camera_perspective(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) {
 }
 
 #[allow(unsafe_code)]
-fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
+fn setup_camera_orthographic(dom:&web::JsValue, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
@@ -188,7 +166,6 @@ impl Css3dRenderer {
 
     /// Creates a new instance of DomSymbol and adds it to parent.
     pub fn manage(&self, object:&DomSymbol) {
-        println!("APPEND");
         self.data.view_projection_dom.append_or_panic(&object.dom());
     }
 

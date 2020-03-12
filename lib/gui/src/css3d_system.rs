@@ -2,7 +2,7 @@
 
 use basegl::system::web;
 use basegl::system::web::NodeInserter;
-use web::dom::html::DomSymbol;
+use basegl::display::symbol::DomSymbol;
 use web::StyleSetter;
 use basegl::display::object::DisplayObject;
 use basegl::display::object::DisplayObjectOps;

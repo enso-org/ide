@@ -59,4 +59,5 @@ pub mod prelude {
     pub use shapely::newtype_copy;
     pub use shapely::shared;
     pub use super::data::container::AddMut;
+    pub use super::math::types::*;
 }
