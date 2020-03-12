@@ -174,7 +174,6 @@ mod test {
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone_ref());
             let mut sub    = controller.subscribe();
-//            let mut sub    = module.subscribe_text_notifications();
 
             module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
             assert_eq!(Some(notification::Text::Invalidate), sub.next().await);
