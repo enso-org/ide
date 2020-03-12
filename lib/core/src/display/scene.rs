@@ -145,6 +145,7 @@ impl Dom {
     pub fn new(logger:&Logger) -> Self {
         let root   = web::create_div();
         let layers = Layers::new(&logger,&root);
+        root.set_class_name("scene");
         root.set_style_or_panic("height"  , "100vh");
         root.set_style_or_panic("width"   , "100vw");
         root.set_style_or_panic("display" , "block");
@@ -189,6 +190,8 @@ impl Layers {
         canvas.set_style_or_panic("height"  , "100vh");
         canvas.set_style_or_panic("width"   , "100vw");
         canvas.set_style_or_panic("display" , "block");
+        dom_front.dom.set_class_name("front");
+        dom_back.dom.set_class_name("back");
         dom.append_or_panic(&dom_front.dom);
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&dom_back.dom);

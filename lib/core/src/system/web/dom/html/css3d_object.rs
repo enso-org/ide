@@ -1,4 +1,4 @@
-//! This module contains the implementation of Css3dObject, a struct used to represent CSS3D
+//! This module contains the implementation of DomSymbol, a struct used to represent CSS3D
 //! elements.
 
 use crate::prelude::*;
@@ -17,17 +17,17 @@ use super::css3d_renderer::set_object_transform;
 
 
 // =============================
-// === Css3dObjectProperties ===
+// === DomSymbolData ===
 // =============================
 
 #[derive(Debug)]
-struct Css3dObjectProperties {
+struct DomSymbolData {
     display_object : display::object::Node,
     dom            : HtmlDivElement,
-    dimensions     : Vector2<f32>,
+    size           : Vector2<f32>,
 }
 
-impl Drop for Css3dObjectProperties {
+impl Drop for DomSymbolData {
     fn drop(&mut self) {
         self.dom.remove();
         self.display_object.unset_parent();
@@ -37,123 +37,80 @@ impl Drop for Css3dObjectProperties {
 
 
 // =======================
-// === Css3dObjectData ===
+// === DomSymbolData ===
 // =======================
 
 #[derive(Clone,Debug)]
-pub(super) struct Css3dObjectData {
-    properties : Rc<RefCell<Css3dObjectProperties>>
+pub struct DomSymbol {
+    rc : Rc<RefCell<DomSymbolData>>
 }
 
-impl Css3dObjectData {
-    fn new
-    ( display_object : display::object::Node
-    , dom            : HtmlDivElement
-    , dimensions     : Vector2<f32>
-    ) -> Self {
-        let properties = Css3dObjectProperties {display_object,dom,dimensions};
-        let properties = Rc::new(RefCell::new(properties));
-        Self {properties}
+impl DomSymbol {
+
+    pub fn position(&self) -> Vector3<f32> {
+        self.rc.borrow().display_object.position()
     }
 
-    fn position(&self) -> Vector3<f32> {
-        self.properties.borrow().display_object.position()
-    }
-
-    fn set_dimensions(&self, dimensions:Vector2<f32>) {
-        let mut properties = self.properties.borrow_mut();
-        properties.dimensions = dimensions;
+    pub fn set_size(&self, size:Vector2<f32>) {
+        let mut properties = self.rc.borrow_mut();
+        properties.size = size;
         properties.display_object.with_logger(|logger| {
-            properties.dom.set_style_or_warn("width",  format!("{}px", dimensions.x), logger);
-            properties.dom.set_style_or_warn("height", format!("{}px", dimensions.y), logger);
+            properties.dom.set_style_or_warn("width",  format!("{}px", size.x), logger);
+            properties.dom.set_style_or_warn("height", format!("{}px", size.y), logger);
         });
     }
 
-    fn dimensions(&self) -> Vector2<f32> {
-        self.properties.borrow().dimensions
+    pub fn size(&self) -> Vector2<f32> {
+        self.rc.borrow().size
     }
 
-    fn dom(&self) -> HtmlDivElement {
-        self.properties.borrow().dom.clone()
+    pub fn dom(&self) -> HtmlDivElement {
+        self.rc.borrow().dom.clone()
     }
 
-    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         let mut position = self.position();
         f(&mut position);
-        self.properties.borrow().display_object.set_position(position);
+        self.rc.borrow().display_object.set_position(position);
     }
 
-    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.properties.borrow().display_object.mod_scale(f);
+    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.rc.borrow().display_object.mod_scale(f);
     }
 }
 
 
 
 // ===================
-// === Css3dObject ===
+// === DomSymbol ===
 // ===================
 
-/// A structure for representing a HtmlElement in the 3d world.
-#[derive(Debug,Clone)]
-pub struct Css3dObject {
-    pub(super) data : Css3dObjectData
-}
-
-impl Css3dObject {
-    /// Creates a Css3dObject from element name.
-    pub fn new(dom:&web_sys::Node) -> Self {
-        let div    = web::create_div();
-        let logger = Logger::new("DomObject");
-        div.set_style_or_warn("position", "absolute", &logger);
-        div.set_style_or_warn("width"   , "0px"     , &logger);
-        div.set_style_or_warn("height"  , "0px"     , &logger);
-        div.append_or_panic(dom);
+impl DomSymbol {
+    /// Creates a DomSymbol from element name.
+    pub fn new(content:&web_sys::Node) -> Self {
+        let dom    = web::create_div();
+        let logger = Logger::new("DomSymbol");
+        dom.set_style_or_warn("position", "absolute", &logger);
+        dom.set_style_or_warn("width"   , "0px"     , &logger);
+        dom.set_style_or_warn("height"  , "0px"     , &logger);
+        dom.append_or_panic(content);
         let display_object = display::object::Node::new(logger);
-        let dimensions     = Vector2::new(0.0,0.0);
+        let size     = Vector2::new(0.0,0.0);
         display_object.set_on_updated(enclose!((dom) move |t| {
             let mut transform = t.matrix();
             transform.iter_mut().for_each(|a| *a = eps(*a));
-            set_object_transform(&dom, &transform);
+            set_object_transform(&dom,&transform);
         }));
-        let data = Css3dObjectData::new(display_object,div,dimensions);
-        Self {data}
-    }
 
-    /// Sets the underlying HtmlElement dimension.
-    pub fn set_dimensions(&mut self, dimensions:Vector2<f32>) {
-        self.data.set_dimensions(dimensions)
-    }
-
-    /// Gets the underlying HtmlElement dimension.
-    pub fn dimensions(&self) -> Vector2<f32> {
-        self.data.dimensions()
-    }
-
-    /// Gets Css3dObject's dom.
-    pub fn dom(&self) -> HtmlDivElement {
-        self.data.dom()
-    }
-
-    /// Gets object's position.
-    pub fn position(&self) -> Vector3<f32> {
-        self.data.position()
-    }
-
-    /// Modifies the position of the object.
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.data.mod_position(f);
-    }
-
-    /// Modifies the scale of the object.
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.data.mod_scale(f);
+        let data = DomSymbolData {display_object,dom,size};
+        let rc   = Rc::new(RefCell::new(data));
+        Self {rc}
     }
 }
 
-impl From<&Css3dObject> for display::object::Node {
-    fn from(t:&Css3dObject) -> Self {
-        t.data.properties.borrow().display_object.clone_ref()
+impl From<&DomSymbol> for display::object::Node {
+    fn from(obj:&DomSymbol) -> Self {
+        obj.rc.borrow().display_object.clone_ref()
     }
 }
 

@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
-use crate::system::web::dom::html::Css3dObject;
+use crate::system::web::dom::html::DomSymbol;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
@@ -131,7 +131,7 @@ pub struct Css3dRendererData {
 
 impl Css3dRendererData {
     pub fn new(dom:HtmlDivElement, view_projection_dom:HtmlDivElement, logger:Logger) -> Self {
-        Self {logger,dom, view_projection_dom }
+        Self {logger,dom,view_projection_dom }
     }
 }
 
@@ -141,13 +141,13 @@ impl Css3dRendererData {
 // === Css3dRenderer ===
 // =====================
 
-/// `Css3dRenderer` is a renderer for `Css3dObject`s. It integrates with other rendering contexts,
+/// `Css3dRenderer` is a renderer for `DomSymbol`s. It integrates with other rendering contexts,
 /// such as WebGL, by placing two HtmlElements in front and behind of the Canvas element,
-/// allowing the move `Css3dObject`s between these two layers, mimicking z-index ordering.
+/// allowing the move `DomSymbol`s between these two layers, mimicking z-index ordering.
 ///
 /// To make use of its functionalities, the API user can create a `Css3dSystem` by using
 /// the `Css3dRenderer::new_system` method which creates and manages instances of
-/// `Css3dObject`s.
+/// `DomSymbol`s.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Css3dRenderer {
     data : Rc<Css3dRendererData>,
@@ -160,6 +160,7 @@ impl Css3dRenderer {
         let dom                 = web::create_div();
         let view_projection_dom = web::create_div();
 
+        dom.set_class_name("dom-scene-layer");
         dom.set_style_or_warn("position"       , "absolute" , &logger);
         dom.set_style_or_warn("top"            , "0px"      , &logger);
         dom.set_style_or_warn("overflow"       , "hidden"   , &logger);
@@ -168,6 +169,7 @@ impl Css3dRenderer {
         dom.set_style_or_warn("height"         , "100%"     , &logger);
         dom.set_style_or_warn("pointer-events" , "none"     , &logger);
 
+        view_projection_dom.set_class_name("view_projection");
         view_projection_dom.set_style_or_warn("width"           , "100%"        , &logger);
         view_projection_dom.set_style_or_warn("height"          , "100%"        , &logger);
         view_projection_dom.set_style_or_warn("transform-style" , "preserve-3d" , &logger);
@@ -184,10 +186,10 @@ impl Css3dRenderer {
         self.data.dom.set_style_or_warn("z-index", z.to_string(), &self.logger);
     }
 
-    /// Creates a new instance of Css3dObject and adds it to parent.
-    pub fn manage(&self, object:&Css3dObject) {
-        let front_layer = self.data.view_projection_dom.clone();
-        front_layer.append_or_warn(&object.dom(),&self.data.logger);
+    /// Creates a new instance of DomSymbol and adds it to parent.
+    pub fn manage(&self, object:&DomSymbol) {
+        println!("APPEND");
+        self.data.view_projection_dom.append_or_panic(&object.dom());
     }
 
     /// Update the objects to match the new camera's point of view. This function should be called
