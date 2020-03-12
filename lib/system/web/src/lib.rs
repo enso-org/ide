@@ -484,3 +484,9 @@ pub fn forward_panic_hook_to_console() {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     console_error_panic_hook::set_once();
 }
+
+/// Common traits.
+pub mod traits {
+    pub use super::NodeInserter;
+    pub use super::NodeRemover;
+}

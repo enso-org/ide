@@ -3,9 +3,10 @@
 #[warn(missing_docs)]
 pub mod dom;
 
-use crate::prelude::*;
-
 pub use crate::display::symbol::registry::SymbolId;
+
+use crate::prelude::*;
+use crate::display::traits::*;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
@@ -17,7 +18,6 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::camera::Camera2d;
-use crate::display::object::DisplayObjectOps;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::symbol::registry::SymbolRegistry;
@@ -294,8 +294,12 @@ impl {
         self.symbols.clone_ref()
     }
 
-    pub fn dom_layer(&self) -> DomScene {
+    pub fn dom_front_layer(&self) -> DomScene {
         self.dom.layers.dom_front.clone()
+    }
+
+    pub fn dom_back_layer(&self) -> DomScene {
+        self.dom.layers.dom_back.clone()
     }
 
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {

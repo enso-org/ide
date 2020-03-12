@@ -18,10 +18,10 @@ extern "C" {
 
 #[cfg(test)]
 mod tests {
-    use basegl::system::web::dom::html::Css3dObject;
-    use basegl::system::web::dom::html::Css3dRenderer;
+    use basegl::display;
+    use basegl::display::DomSymbol;
+    use basegl::display::DomScene;
     use basegl::system::web::StyleSetter;
-    use basegl::system::web::get_performance;
     use web_test::*;
     use web_sys::Performance;
     use nalgebra::Vector3;
@@ -29,24 +29,23 @@ mod tests {
     use basegl::system::web;
     use basegl::display::world::{WorldData, World};
     use basegl::display::navigation::navigator::Navigator;
-    use basegl::display::object::DisplayObjectOps;
-    use basegl::display::object::DisplayObject;
+    use basegl::traits::*;
     use nalgebra::Vector2;
-    use basegl::system::web::dyn_into;
     use basegl::system::web::get_element_by_id;
     use web_sys::HtmlElement;
+    use wasm_bindgen::JsCast;
 
-    fn initialize_system(name:&str,color:&str) -> (World,Css3dRenderer) {
+    fn initialize_system(name:&str,color:&str) -> (World,DomScene) {
         web::set_stdout();
-        let container      = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
-        let world          = WorldData::new(&container);
-        let scene          = world.scene();
-        let css3d_renderer = scene.css3d_renderer();
+        let container : HtmlElement = get_element_by_id(name).unwrap().dyn_into().unwrap();
+        let world                   = WorldData::new(&container);
+        let scene                   = world.scene();
+        let css3d_renderer          = scene.dom_front_layer();
         container.set_style_or_panic("background-color", color);
         (world,css3d_renderer)
     }
 
-    fn create_scene(renderer:&Css3dRenderer) -> Vec<Css3dObject> {
+    fn create_scene(renderer:&DomScene) -> Vec<display::DomSymbol> {
         let mut objects = Vec::new();
         // Iterate over 3 axes.
         for axis in vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
@@ -55,10 +54,10 @@ mod tests {
                 let div = web::create_div();
                 div.set_style_or_panic("width"  , "100%");
                 div.set_style_or_panic("height" , "100%");
-                let mut object = Css3dObject::new(&div);
+                let mut object = display::DomSymbol::new(&div);
                 renderer.manage(&object);
 
-                object.set_dimensions(Vector2::new(10.0, 10.0));
+                object.set_size(Vector2::new(10.0, 10.0));
 
                 // Using axis for masking.
                 // For instance, the axis (0, 1, 0) creates:
@@ -101,7 +100,7 @@ mod tests {
         std::mem::forget(world);
     }
 
-    fn make_sphere(mut scene : &mut Vec<Css3dObject>, performance : &Performance) {
+    fn make_sphere(mut scene : &mut Vec<display::DomSymbol>, performance : &Performance) {
         use super::set_gradient_bg;
 
         let t = (performance.now() / 1000.0) as f32;
@@ -143,15 +142,15 @@ mod tests {
             let div = web::create_div();
             div.set_style_or_panic("width"  , "100%");
             div.set_style_or_panic("height" , "100%");
-            let mut object = Css3dObject::new(&div);
+            let mut object = display::DomSymbol::new(&div);
             css3d_renderer.manage(&object);
 
-            object.set_dimensions(Vector2::new(1.0, 1.0));
+            object.set_size(Vector2::new(1.0, 1.0));
             object.mod_scale(|t| *t = Vector3::new(0.5, 0.5, 0.5));
             objects.push(object);
         }
 
-        let performance = get_performance().expect("Couldn't get performance obj");
+        let performance = web::performance();
         b.iter(move || {
             let _keep_alive = &navigator;
             let _keep_alive = &css3d_renderer;

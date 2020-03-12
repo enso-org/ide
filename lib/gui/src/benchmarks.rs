@@ -1,7 +1,12 @@
 #![allow(missing_docs)]
 
+//! NOTE
+//! This file is under a heavy development. It contains commented lines of code and some code may
+//! be of poor quality. Expect drastic changes.
+//!
+use basegl::traits::*;
+
 use basegl::display::camera::Camera2d;
-use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
 use basegl::display::symbol::geometry::SpriteSystem;
 use basegl::display::world::*;

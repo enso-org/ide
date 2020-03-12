@@ -1,4 +1,4 @@
-//! This module contains the DomScene, a struct used to render CSS3D elements.
+//! This module defines a DOM management utilities.
 
 use crate::prelude::*;
 
@@ -10,7 +10,6 @@ use crate::system::web;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 
-use nalgebra::Matrix4;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlDivElement;
 

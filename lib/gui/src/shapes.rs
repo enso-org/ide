@@ -4,24 +4,19 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
-use basegl::display::object::DisplayObject;
-use basegl::display::object::DisplayObjectOps;
-use basegl::display::symbol::geometry::Sprite;
-use basegl::display::shape::primitive::system::ShapeSystem;
-use basegl::display::shape::*;
-use basegl::display::world::*;
+use basegl::traits::*;
 
+use basegl::data::color::*;
+use basegl::display::navigation::navigator::Navigator;
+use basegl::display::shape::*;
+use basegl::display::shape::primitive::system::ShapeSystem;
+use basegl::display::shape::Var;
+use basegl::display::symbol::geometry::Sprite;
+use basegl::display::world::*;
+use basegl::prelude::*;
+use basegl::system::web;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
-
-use basegl::display::navigation::navigator::Navigator;
-
-use basegl::prelude::*;
-
-use basegl::system::web;
-use basegl::data::color::*;
-
-use basegl::display::shape::Var;
 
 
 

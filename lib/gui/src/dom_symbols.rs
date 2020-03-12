@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 
+use basegl::traits::*;
+
 use basegl::system::web;
 use basegl::system::web::NodeInserter;
 use basegl::display::symbol::DomSymbol;
 use web::StyleSetter;
-use basegl::display::object::DisplayObject;
-use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
 use basegl::display::symbol::geometry::SpriteSystem;
 use basegl::display::world::*;
@@ -32,7 +32,8 @@ fn init(world:World) {
     let navigator     = Navigator::new(&scene,&camera);
     let sprite_system = SpriteSystem::new(&world);
 //    let css3d_system  = Css3dSystem::new(&world);
-    let dom_layer = scene.dom_layer();
+    let dom_front_layer = scene.dom_front_layer();
+    let dom_back_layer  = scene.dom_back_layer();
     world.add_child(&sprite_system);
 //    world.add_child(&css3d_system);
 
@@ -61,7 +62,7 @@ fn init(world:World) {
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
             let object     = DomSymbol::new(&div);
 //            css3d_system.add_child2(&object);
-            dom_layer.manage(&object);
+            dom_front_layer.manage(&object);
             world.add_child(&object);
             let r          = ((x + 0.0) * 16.0) as u8;
             let g          = ((x + 2.0) * 32.0) as u8;
@@ -77,6 +78,8 @@ fn init(world:World) {
     }
     world.display_object().update();
 
+    let layers = vec![dom_front_layer,dom_back_layer];
+
     let mut i = 0;
     let animator = FixedStepAnimator::new(2.0, move |_| {
         let _keep_alive = &world;
@@ -85,8 +88,8 @@ fn init(world:World) {
         let _keep_alive = &sprite_system;
 
         i = (i + 1) % 2;
-        for (_j, _object) in css3d_objects.iter_mut().enumerate() {
-//            object.set_css3d_order(css3d_position[(i + j) % 2]);
+        for (j, object) in css3d_objects.iter_mut().enumerate() {
+            layers[(i + j) % 2].manage(&object);
         }
     });
     std::mem::forget(animator);

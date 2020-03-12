@@ -61,3 +61,9 @@ pub mod prelude {
     pub use super::data::container::AddMut;
     pub use super::math::types::*;
 }
+
+/// Common traits.
+pub mod traits {
+    use super::*;
+    pub use display::traits::*;
+}

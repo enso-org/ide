@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
+use basegl::traits::*;
+
 use basegl::display::camera::Camera2d;
 use basegl::display::navigation::navigator::Navigator;
-use basegl::display::object::DisplayObject;
-use basegl::display::object::DisplayObjectOps;
 use basegl::display::symbol::geometry::Sprite;
 use basegl::display::symbol::geometry::SpriteSystem;
 use basegl::display::world::*;
