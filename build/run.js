@@ -25,6 +25,7 @@ Commands:
     help     Print this help message.
     clean    Clean all build artifacts.
     check    Fast check if project builds (only Rust target).
+    lint     Run the linter on the codebase.
     build    Build the sources.
     dist     Build the sources and create distribution packages.
     watch    Start a file-watch utility and run interactive mode.

@@ -36,13 +36,6 @@ mod tests {
     use basegl::system::web::get_element_by_id;
     use web_sys::HtmlElement;
 
-//    #[web_test(no_container)]
-//    fn invalid_container() {
-//        let logger   = Logger::new("invalid_container");
-//        let renderer = Css3dRenderer::new(&logger, "nonexistent_id");
-//        assert!(renderer.is_err(),"Tried to attach to a non-existent HtmlElement and succeeded.");
-//    }
-
     fn initialize_system(name:&str,color:&str) -> (World,Css3dRenderer) {
         web::set_stdout();
         let container      = dyn_into::<_,HtmlElement>(get_element_by_id(name).unwrap()).unwrap();
@@ -94,7 +87,7 @@ mod tests {
         let (world,css3d_renderer) = initialize_system("rhs_coordinates", "black");
         let scene         = world.scene();
         let camera        = scene.camera();
-        let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
+        let navigator     = Navigator::new(&scene, &camera);
 
         let scene = create_scene(&css3d_renderer);
 
@@ -143,7 +136,7 @@ mod tests {
         let (world,css3d_renderer) = initialize_system("object_x400_update", "black");
         let scene         = world.scene();
         let camera        = scene.camera();
-        let navigator     = Navigator::new(&scene, &camera).expect("Couldn't create navigator");
+        let navigator     = Navigator::new(&scene, &camera);
 
         let mut objects = Vec::new();
         for _ in 0..400 {
