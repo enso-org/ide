@@ -267,6 +267,15 @@ impl Monitor {
         self.dom     = None;
     }
 
+    /// Toggle the visibility of the monitor.
+    pub fn toggle(&mut self) {
+        if self.visible() {
+            self.hide();
+        } else {
+            self.show();
+        }
+    }
+
     /// Draw the Monitor and update all of it's values.
     pub fn draw(&mut self) {
         if let Some(dom) = self.dom.clone() {

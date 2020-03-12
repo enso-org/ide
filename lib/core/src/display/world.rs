@@ -93,7 +93,8 @@ impl WorldData {
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             let val = val.unchecked_into::<KeyboardEvent>();
             let key = val.key();
-            if      key == "0" { world_copy.rc.borrow_mut().display_mode.set(0) }
+            if      key == "`" { world_copy.rc.borrow_mut().stats_monitor.toggle() }
+            else if key == "0" { world_copy.rc.borrow_mut().display_mode.set(0) }
             else if key == "1" { world_copy.rc.borrow_mut().display_mode.set(1) }
         }));
         web::document().add_event_listener_with_callback
@@ -125,8 +126,6 @@ impl WorldData {
         let start_time         = performance.now() as f32;
         let stats_monitor_cp_1 = stats_monitor.clone();
         let stats_monitor_cp_2 = stats_monitor.clone();
-
-//        stats_monitor.hide();
 
         event_loop.set_on_loop_started  (move || { stats_monitor_cp_1.begin(); });
         event_loop.set_on_loop_finished (move || { stats_monitor_cp_2.end();   });

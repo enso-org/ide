@@ -43,7 +43,6 @@ impl {
             monitor.add( monitor::SpriteSystemCount  :: new(&stats) ),
             monitor.add( monitor::SpriteCount        :: new(&stats) ),
         ];
-        monitor.show();
         Self {stats,monitor,panels}
     }
 
@@ -80,5 +79,10 @@ impl {
     /// Hide the monitor.
     pub fn hide(&mut self) {
         self.monitor.hide()
+    }
+
+    /// Toggle the visibility of the monitor.
+    pub fn toggle(&mut self) {
+        self.monitor.toggle()
     }
 }}
