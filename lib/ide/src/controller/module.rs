@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use crate::controller::FallibleResult;
 use crate::controller::notification;
-use crate::double_representation::apply_code_change_to_id_map;
+use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::executor::global::spawn;
 
 use ast;
@@ -245,6 +245,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
+<<<<<<< HEAD
         TestWithLocalPoolExecutor::set_up().run_test(async {
             let transport    = MockTransport::new();
             let file_manager = file_manager_client::Handle::new(transport);
@@ -255,10 +256,24 @@ mod test {
             let uuid2        = Uuid::new_v4();
             let code         = "2+2";
             let id_map       = IdMap(vec!
+=======
+        let transport    = MockTransport::new();
+        let file_manager = file_manager_client::Handle::new(transport);
+        let parser       = Parser::new().unwrap();
+        let location     = Location("Test".to_string());
+
+        let uuid1        = Uuid::new_v4();
+        let uuid2        = Uuid::new_v4();
+        let uuid3        = Uuid::new_v4();
+        let code         = "2+2";
+        let id_map       = IdMap(vec!
+>>>>>>> 1370aaf431f023a99a5eda5754d9ab53ae1cff31
             [ (Span::new(Index::new(0), Size::new(1)),uuid1.clone())
             , (Span::new(Index::new(2), Size::new(1)),uuid2)
+            , (Span::new(Index::new(0), Size::new(3)),uuid3)
             ]);
 
+<<<<<<< HEAD
             let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
 
             let mut text_notifications  = controller.subscribe_text_notifications();
@@ -285,5 +300,28 @@ mod test {
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
             assert_eq!(Some(notification::Graph::Invalidate), graph_notifications.next().await);
         });
+=======
+        let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
+
+        // Change code from "2+2" to "22+2"
+        let change = TextChangedNotification {
+            change        : TextChange::insert(TextLocation{line:0,column:1}, "2"),
+            replaced_chars: 1..1
+        };
+        controller.apply_code_change(&change).unwrap();
+        let expected_ast = Ast::new(ast::Module {
+            lines: vec![BlockLine {
+                elem: Some(Ast::new(ast::Infix {
+                    larg : Ast::new(ast::Number{base:None, int:"22".to_string()}, Some(uuid1)),
+                    loff : 0,
+                    opr  : Ast::new(ast::Opr {name:"+".to_string()}, None),
+                    roff : 0,
+                    rarg : Ast::new(ast::Number{base:None, int:"2".to_string()}, Some(uuid2)),
+                }, Some(uuid3))),
+                off: 0
+            }]
+        }, None);
+        assert_eq!(expected_ast, controller.with_borrowed(|data| data.ast.clone()));
+>>>>>>> 1370aaf431f023a99a5eda5754d9ab53ae1cff31
     }
 }
