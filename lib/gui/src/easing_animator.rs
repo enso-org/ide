@@ -190,7 +190,7 @@ impl SubExample {
         let weak     = Rc::downgrade(&data);
         let duration = 2.0;
         let easing_animator = EasingAnimator::new(
-            move |value| { weak.upgrade().map(|data| data.borrow_mut().properties = value); },
+            move |value| { weak.upgrade().for_each(|data| data.borrow_mut().properties = value); },
             f,
             initial_value,
             final_value,
@@ -203,7 +203,7 @@ impl SubExample {
     fn set_properties(&mut self, value:Properties) {
         let mut data      = self.data.borrow_mut();
         let initial_value = data.properties;
-        data.easing_animator.as_mut().map(
+        data.easing_animator.as_mut().for_each(
             |easing| easing.animate(initial_value, value, 2.0)
         );
     }

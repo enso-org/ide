@@ -239,10 +239,8 @@ impl {
         }
 
         let parent_changed = self.new_parent_dirty.check();
-        if parent_changed {
-            if !self.is_orphan() {
-                self.show()
-            }
+        if parent_changed && !self.is_orphan() {
+            self.show()
         }
     }
 

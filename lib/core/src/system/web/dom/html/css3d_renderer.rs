@@ -88,11 +88,7 @@ fn setup_camera_perspective(dom:&JsValue, near:f32, matrix:&Matrix4<f32>) {
     // details.
     unsafe {
         let matrix_array = matrix.js_buffer_view();
-        js::setup_camera_perspective(
-            &dom,
-            &near.into(),
-            &matrix_array
-        )
+        js::setup_camera_perspective(&dom,&near.into(),&matrix_array)
     }
 }
 
@@ -103,7 +99,7 @@ fn setup_camera_orthographic(dom:&JsValue, matrix:&Matrix4<f32>) {
     // details.
     unsafe {
         let matrix_array = matrix.js_buffer_view();
-        js::setup_camera_orthographic(&dom, &matrix_array)
+        js::setup_camera_orthographic(&dom,&matrix_array)
     }
 }
 
@@ -137,16 +133,6 @@ impl Css3dRendererData {
     pub fn new(dom:HtmlDivElement, view_projection_dom:HtmlDivElement, logger:Logger) -> Self {
         Self {logger,dom, view_projection_dom }
     }
-
-//    fn set_dimensions(&self, dimensions:Vector2<f32>) {
-//        let width  = format!("{}px", dimensions.x);
-//        let height = format!("{}px", dimensions.y);
-//        let doms   = vec![&self.dom, &self.view_projection_dom];
-//        for dom in doms {
-//            dom.set_style_or_warn("width"  , &width  , &self.logger);
-//            dom.set_style_or_warn("height" , &height , &self.logger);
-//        }
-//    }
 }
 
 
@@ -162,10 +148,6 @@ impl Css3dRendererData {
 /// To make use of its functionalities, the API user can create a `Css3dSystem` by using
 /// the `Css3dRenderer::new_system` method which creates and manages instances of
 /// `Css3dObject`s.
-
-
-
-
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Css3dRenderer {
     data : Rc<Css3dRendererData>,

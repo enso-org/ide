@@ -337,8 +337,7 @@ impl Symbol {
     ) -> Self {
         let data = SymbolData::new(logger,context,stats,id,global_variables,on_mut);
         let rc   = Rc::new(RefCell::new(data));
-        let this = Self {rc};
-        this
+        Self {rc}
     }
 }
 
@@ -356,7 +355,6 @@ impl From<&Symbol> for display::object::Node {
 
 
 impl SymbolData {
-
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_variable_bindings(&mut self, var_bindings:&[shader::VarBinding]) {
