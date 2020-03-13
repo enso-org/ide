@@ -20,7 +20,7 @@ let distPath         = root + '/dist'
 let initLockPath     = distPath + '/init.lock'
 let buildScriptsPath = root + '/build'
 let runScriptPath    = buildScriptsPath + '/run.js'
-
+let jsGenSrcPath     = jsSrcPath + '/generated'
 
 
 
@@ -86,7 +86,7 @@ commands.clean.js = async function() {
 }
 
 commands.clean.rust = async function() {
-    try { await fs.rmdir('app/generated') } catch {}
+    try { await fs.rmdir(jsGenSrcPath) } catch {}
     await run('cargo',['clean'])
 }
 
@@ -118,8 +118,8 @@ commands.build.rust = async function() {
     /// We build to provisional location and patch files there before copying, so the backpack don't
     /// get errors from processing unpatched files. Also, here we copy into (overwriting), without
     /// removing old files. Backpack on Windows does not tolerate removing files it watches.
-    await fs.mkdir('app/generated', {recursive:true})
-    await copy('target/web','app/generated/wasm')
+    await fs.mkdir(jsGenSrcPath, {recursive:true})
+    await copy('target/web',jsGenSrcPath+'/wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -278,7 +278,7 @@ for (let command of commandList) {
 
 async function updateBuildVersion () {
     let config        = {}
-    let generatedPath = root + '/app/generated'
+    let generatedPath = jsGenSrcPath
     let configPath    = generatedPath + '/build.json'
     let exists        = fss.existsSync(configPath)
     if(exists) {
