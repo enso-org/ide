@@ -37,6 +37,7 @@ use shapely::shared;
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
+    #[serde(default="default")]
     pub ide : serde_json::Value,
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
