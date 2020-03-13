@@ -6,7 +6,9 @@
 use crate::prelude::*;
 
 use crate::controller::graph::Interface;
+use crate::controller::graph::NewNodeInfo;
 use crate::controller::graph::NodeNotFound;
+use crate::controller::graph::NodeHandle;
 use crate::controller::notification;
 use crate::executor::global::spawn;
 
@@ -38,9 +40,23 @@ impl Debug for MockGraph {
 pub struct Handle(pub Rc<RefCell<MockGraph>>);
 
 impl Interface for Handle {
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Rc<dyn controller::node::Interface>> {
+    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<NodeHandle> {
+//        let ast  = node.expression
+//        let node = controller::node::mock::Handle::new_expr_ast(ast,position);
+        todo!()
+    }
+
+    fn get_node(&self, id:ast::ID) -> FallibleResult<NodeHandle> {
         let node_result = self.0.borrow().nodes.get(&id).cloned();
         Ok(node_result.ok_or_else(|| NodeNotFound(id))?)
+    }
+
+    fn get_nodes(&self) -> FallibleResult<Vec<NodeHandle>> {
+        let mut ret: Vec<NodeHandle> = default();
+        for node in self.0.borrow_mut().nodes.values() {
+            ret.push(node.clone())
+        }
+        Ok(ret)
     }
 
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()> {

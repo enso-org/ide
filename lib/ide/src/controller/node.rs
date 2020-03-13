@@ -73,9 +73,18 @@ pub trait Interface {
 // === Controller ===
 // ==================
 
-struct Controller {
+#[derive(Clone,Debug)]
+pub struct Controller {
     graph : controller::graph::Handle,
     id    : ID,
+}
+
+impl Controller {
+    /// Creates a new node controller, providing a view into a graph.s node.
+    pub fn new(graph:controller::graph::Handle, id:ID) -> Controller {
+        // TODO [mwu] notification
+        Controller {graph,id}
+    }
 }
 
 impl Interface for Controller {

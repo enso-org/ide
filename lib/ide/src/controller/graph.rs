@@ -11,11 +11,52 @@ use flo_stream::Subscriber;
 
 pub use double_representation::graph::Id;
 pub use controller::node::Position;
+pub use controller::notification;
 
+/// Handle to a shared node controller.
+type NodeHandle = Rc<dyn controller::node::Interface>;
+
+
+
+// ==============
+// === Errors ===
+// ==============
 
 #[derive(Clone,Debug,Fail)]
 #[fail(display = "Node by ID {} was not found.", _0)]
 struct NodeNotFound(ast::ID);
+
+
+
+// ===================
+// === NewNodeInfo ===
+// ===================
+
+/// Describes the node to be added.
+#[derive(Clone,Debug)]
+pub struct NewNodeInfo {
+    /// Expression to be placed on the node
+    pub expression:String,
+    /// Visual node position in the graph scene.
+    pub location:Position,
+    /// ID to be given to the node.
+    pub id:Option<ast::ID>,
+    /// Where line created by adding this node should appear.
+    pub location_hint:LocationHint
+}
+
+/// Describes the desired position of the node's line in the graph's code block.
+#[derive(Clone,Copy,Debug)]
+pub enum LocationHint {
+    /// Try placing this node's line before the line described by id.
+    Before(ast::ID),
+    /// Try placing this node's line after the line described by id.
+    After(ast::ID),
+    /// Try placing this node's line at the start of the graph's code block.
+    Start,
+    /// Try placing this node's line at the end of the graph's code block.
+    End,
+}
 
 
 
@@ -25,8 +66,14 @@ struct NodeNotFound(ast::ID);
 
 /// Graph controller interface.
 pub trait Interface {
+    /// Adds a new node to the graph and returns a controller managing this node.
+    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<NodeHandle>;
+
     /// Retrieves a controller to the node with given ID.
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Rc<dyn controller::node::Interface>>;
+    fn get_node(&self, id:ast::ID) -> FallibleResult<NodeHandle>;
+
+    /// Returns controllers for all the nodes in the graph.
+    fn get_nodes(&self) -> FallibleResult<Vec<NodeHandle>>;
 
     /// Removes node with given ID from the graph.
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
@@ -35,49 +82,6 @@ pub trait Interface {
     fn subscribe(&mut self) -> Subscriber<controller::notification::Graph>;
 }
 
-
-// ============
-// === Node ===
-// ============
-
-/// Describes node in the graph for the view.
-///
-/// Currently just a thin wrapper over double rep info, in future will be enriched with information
-/// received from the Language server/
-#[derive(Clone,Debug)]
-pub struct Node {
-    info : double_representation::node::NodeInfo,
-}
-
-impl Node {
-    /// Node's unique ID.
-    pub fn id(&self) -> ast::ID {
-        self.info.id()
-    }
-
-    /// Text representation of the node's expression.
-    pub fn expression(&self) -> ast::Ast {
-        self.info.expression().clone_ref()
-    }
-
-    /// Nodes visual position in the scene.
-    pub fn position() -> Position {
-        default()
-    }
-}
-
-
-
-// ====================
-// === Notification ===
-// ====================
-
-/// Notification about change in this graph's scope.
-#[derive(Clone,Copy,Debug)]
-pub enum Notification {
-    /// Invalidates the whole graph, it should be re-retrieved.
-    Invalidate
-}
 
 shared! { Handle
     /// State data of the module controller.
@@ -136,27 +140,34 @@ impl Handle {
     }
 }
 
+impl Interface for Handle {
+    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<NodeHandle> {
+        todo!()
+    }
 
+    fn get_node(&self, id:ast::ID) -> FallibleResult<NodeHandle> {
+        let _ = self.node_info(id)?;
+        Ok(Rc::new(controller::node::Controller::new(self.clone(),id)))
+    }
 
-// ====================
-// === Notification ===
-// ====================
+    fn get_nodes(&self) -> FallibleResult<Vec<NodeHandle>> {
+//        self.list_node_infos?.iter().map(|n| -> NodeHandle)
+//        let mut ret: Vec<Rc<NodeHandle>> = default();
+//        for node in self.rc.borrow_mut().nodes.values() {
+//            ret.push(node.clone())
+//        }
+//        Ok(ret)
+        todo!()
+    }
 
-/// Describes the node to be added.
-#[derive(Clone,Debug)]
-pub struct NewNodeInfo {
-    /// Expression to be placed on the node
-    pub expression:String,
-    /// Visual node position in the graph scene.
-    pub location:Position,
-    /// ID to be given to the node.
-    pub id:Option<ast::ID>,
-    /// ID of the node that this node should be placed before. If `None`, it will be placed at the
-    /// block's end.
-    pub next_node:Option<ast::ID>,
+    fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
+        todo!()
+    }
+
+    fn subscribe(&mut self) -> Subscriber<notification::Graph> {
+        todo!()
+    }
 }
-
-
 
 // =============
 // === Tests ===
