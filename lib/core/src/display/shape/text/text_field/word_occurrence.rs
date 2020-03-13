@@ -185,11 +185,14 @@ fn get_word_occurrences(content:&[char], word:&[char]) -> Vec<Range<usize>> {
     let mut occurrences = Vec::new();
 
     for word_in_content in Words::new(content).words {
-        let count = word_in_content.iter().zip(word).filter(|&((_, a), b)| a == b).count();
-        if count == word_in_content.len() {
-            let (start,_) = word_in_content.first().unwrap();
-            let end       = start + word_in_content.len();
-            occurrences.push(*start..end)
+        let is_equal = word_in_content.len() == word.len();
+        if is_equal {
+            let count = word_in_content.iter().zip(word).filter(|&((_, a), b)| a == b).count();
+            if count == word.len() {
+                let (start,_) = word_in_content.first().unwrap();
+                let end       = start + word_in_content.len();
+                occurrences.push(*start..end)
+            }
         }
     }
     occurrences
