@@ -12,13 +12,13 @@ use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::executor::global::spawn;
 
+use parser::api::SourceFile;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
 use ast::known;
-use data::text::Span;
-use data::text::TextChange;
+use data::text::*;
 use double_representation as dr;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
@@ -26,13 +26,32 @@ use flo_stream::Subscriber;
 use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
+
+use serde::Serialize;
+use serde::Deserialize;
 use shapely::shared;
 
 
-//
-//#[derive(Fail,Clone,Debug)]
-//#[fail(display = "AST for module {} is ill-formed.", _0)]
-//struct WrongRootAST(Location);
+
+// ==============
+// == Metadata ==
+// ==============
+
+/// Mapping between ID and metadata.
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+pub struct Metadata {
+    /// Metadata used within ide.
+    #[serde(default="default")]
+    pub ide : serde_json::Value,
+    #[serde(flatten)]
+    /// Metadata of other users of SourceFile<Metadata> API.
+    /// Ide should not modify this part of metadata.
+    rest : serde_json::Value,
+}
+
+impl parser::api::Metadata for Metadata {}
+
+
 
 // =======================
 // === Module Location ===
@@ -78,8 +97,8 @@ shared! { Handle
     pub struct Controller {
         /// This module's location.
         location: Location,
-        /// The current module ast, used by synchronizing both module representations.
-        ast: Ast,
+        /// The current module used by synchronizing both module representations.
+        module: SourceFile<Metadata>,
         /// The id map of current ast
         // TODO: written for test purposes, should be removed once generating id_map from AST will
         // be implemented.
@@ -115,19 +134,19 @@ shared! { Handle
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&change.inserted);
             let ast = self.parser.parse(code, self.id_map.clone())?;
             self.update_ast(ast);
-            self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.ast));
+            self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
 
             Ok(())
         }
 
         /// Read module code.
         pub fn code(&self) -> String {
-            self.ast.repr()
+            self.module.ast.repr()
         }
 
         /// Obtains definition information for given graph id.
         pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
-            let module = known::Module::try_new(self.ast.clone())?;
+            let module = known::Module::try_new(self.module.ast.clone())?;
             double_representation::graph::traverse_for_definition(module,id)
         }
 
@@ -138,8 +157,8 @@ shared! { Handle
             if code != my_code {
                 self.logger.error(|| format!("The module controller ast was not synchronized with \
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
-                self.ast    = self.parser.parse(code,default())?;
-                self.id_map = default();
+                self.module.ast = self.parser.parse(code,default())?;
+                self.id_map     = default();
             }
             Ok(())
         }
@@ -164,13 +183,14 @@ impl Handle {
     -> FallibleResult<Self> {
         let logger              = Logger::new(format!("Module Controller {}", location));
         let ast                 = Ast::new(ast::Module{lines:default()},None);
+        let module              = SourceFile {ast, metadata:default()};
         let id_map              = default();
         let graph_cache         = default();
         let text_notifications  = default();
         let graph_notifications = default();
 
 
-        let data = Controller {location,ast,file_manager,parser,id_map,logger,graph_cache,
+        let data = Controller {location,module,file_manager,parser,id_map,logger,graph_cache,
             text_notifications,graph_notifications};
         let handle = Handle::new_from_data(data);
         handle.load_file().await?;
@@ -189,20 +209,23 @@ impl Handle {
         logger.info(|| "Loading module file");
         let content = fm.read(path).await?;
         logger.info(|| "Parsing code");
-        let ast = parser.parse(content,default())?;
+        let SourceFile{ast,metadata} = parser.parse_with_metadata(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
+        self.with_borrowed(|data| data.module.metadata = metadata);
         self.with_borrowed(|data| data.update_ast(ast));
         Ok(())
     }
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
-        let (path,mut fm) = self.with_borrowed(|data| {
-            (data.location.to_path(),data.file_manager.clone_ref())
+        let (path,mut fm,code) = self.with_borrowed(|data| {
+            let path = data.location.to_path();
+            let fm   = data.file_manager.clone_ref();
+            let code = String::try_from(&data.module);
+            (path,fm,code)
         });
-        fm.write(path,self.code())
-        // TODO [ao] here save also the id_map and metadata.
+        async move { fm.write(path.clone(),code?).await }
     }
 
     /// Creates a new graph controller for graph in this module's subtree identified by `id`.
@@ -232,14 +255,19 @@ impl Handle {
 
     #[cfg(test)]
     pub fn new_mock
-    (location:Location, code:&str, id_map:IdMap, file_manager:fmc::Handle, mut parser:Parser)
-    -> FallibleResult<Self> {
-        let logger              = Logger::new("Mocked Module Controller");
-        let ast                 = parser.parse(code.to_string(),id_map.clone())?;
+    ( location     : Location
+    , code         : &str
+    , id_map       : IdMap
+    , file_manager : fmc::Handle
+    , mut parser   : Parser
+    ) -> FallibleResult<Self> {
+        let logger = Logger::new("Mocked Module Controller");
+        let ast    = parser.parse(code.to_string(),id_map.clone())?;
+        let module = SourceFile{ast, metadata:Metadata::default()};
         let graph_cache         = default();
         let text_notifications  = default();
         let graph_notifications = default();
-        let data                = Controller {location,ast,file_manager,parser,id_map,logger,
+        let data   = Controller {location,module,file_manager,parser,id_map,logger,
             graph_cache,text_notifications,graph_notifications};
         Ok(Handle::new_from_data(data))
     }
@@ -248,7 +276,7 @@ impl Handle {
 impl Controller {
     /// Update current ast in module controller and emit notification about overall invalidation.
     fn update_ast(&mut self,ast:Ast) {
-        self.ast = ast;
+        self.module.ast  = ast;
         let text_change  = notification::Text::Invalidate;
         let graph_change = notification::Graphs::Invalidate;
         let code_notify  = self.text_notifications.publish(text_change);
@@ -271,9 +299,8 @@ mod test {
 
     use ast;
     use ast::BlockLine;
-    use data::text::Index;
+    use ast::Ast;
     use data::text::Span;
-    use data::text::Size;
     use file_manager_client::Path;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
@@ -301,14 +328,15 @@ mod test {
             let uuid1        = Uuid::new_v4();
             let uuid2        = Uuid::new_v4();
             let uuid3        = Uuid::new_v4();
-            let code         = "2+2";
-            let id_map       = IdMap(vec!
-                [ (Span::new(Index::new(0), Size::new(1)),uuid1.clone())
-                , (Span::new(Index::new(2), Size::new(1)),uuid2)
-                , (Span::new(Index::new(0), Size::new(3)),uuid3)
+            let module       = "2+2";
+            let id_map       = IdMap::new(vec!
+                [ (Span::from((0,1)),uuid1.clone())
+                , (Span::from((2,1)),uuid2)
+                , (Span::from((0,3)),uuid3)
                 ]);
 
-            let controller   = Handle::new_mock(location,code,id_map,file_manager,parser).unwrap();
+            let controller   = Handle::new_mock
+            (location,module,id_map,file_manager,parser).unwrap();
 
             let mut text_notifications  = controller.subscribe_text_notifications();
             let mut graph_notifications = controller.subscribe_graph_notifications();
@@ -328,7 +356,7 @@ mod test {
                     off: 0
                 }]
             }, None);
-            assert_eq!(expected_ast, controller.with_borrowed(|data| data.ast.clone()));
+            assert_eq!(expected_ast, controller.with_borrowed(|data| data.module.ast.clone()));
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
