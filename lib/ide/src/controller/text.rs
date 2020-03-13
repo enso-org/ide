@@ -107,7 +107,7 @@ impl Handle {
                 },
                 FileHandle::Module {controller} => {
                     controller.check_code_sync(content)?;
-                    controller.save_file().await?;
+                    controller.save_file().await?
                 }
             }
             Ok(())
