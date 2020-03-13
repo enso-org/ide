@@ -79,15 +79,15 @@ impl Interface for Controller {
         todo!()
     }
 
-    fn set_expression(&self, ast:Ast) -> FallibleResult<()> {
+    fn set_expression(&self, _ast:Ast) -> FallibleResult<()> {
         todo!()
     }
 
-    fn set_expression_text(&self, expression:&str) -> FallibleResult<()> {
+    fn set_expression_text(&self, _expression:&str) -> FallibleResult<()> {
         todo!()
     }
 
-    fn set_position(&self, new_position:Position) -> FallibleResult<()> {
+    fn set_position(&self, _new_position:Position) -> FallibleResult<()> {
         todo!()
     }
 }

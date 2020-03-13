@@ -3,6 +3,8 @@
 //! This controller provides access to a specific graph. It lives under a module controller, as
 //! each graph belongs to some module.
 
+pub mod mock;
+
 use crate::prelude::*;
 
 use flo_stream::Subscriber;
@@ -10,14 +12,18 @@ use flo_stream::Subscriber;
 pub use double_representation::graph::Id;
 pub use controller::node::Position;
 
-pub mod mock;
 
 #[derive(Clone,Debug,Fail)]
 #[fail(display = "Node by ID {} was not found.", _0)]
 struct NodeNotFound(ast::ID);
 
+pub trait Interface {
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Rc<dyn controller::node::Interface>>;
+    fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
 
-
+    /// Get subscriber receiving controller's notifications.
+    fn subscribe(&mut self) -> Subscriber<controller::notification::Graph>;
+}
 
 
 // ============

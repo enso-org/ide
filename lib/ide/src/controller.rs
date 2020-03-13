@@ -18,5 +18,6 @@
 pub mod graph;
 pub mod module;
 pub mod node;
+pub mod notification;
 pub mod project;
 pub mod text;

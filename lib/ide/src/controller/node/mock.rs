@@ -1,3 +1,6 @@
+//! Module with mock implementation of graph controller interface.
+//!
+//! Should not be used outside tests and/or debug scenes.
 
 use crate::prelude::*;
 
@@ -9,21 +12,31 @@ use ast::ID;
 use parser::api::IsParser;
 use crate::double_representation::node::NodeInfo;
 
+#[derive(Clone,Debug)]
 struct NodeState {
-    node_info : double_representation::node::NodeInfo,
+    node_info : NodeInfo,
     position  : Position,
+    graph     : Option<controller::graph::mock::Handle>,
 }
 
-struct Controller {
+#[derive(Clone,Debug)]
+pub struct Controller {
     state : Rc<RefCell<NodeState>>,
 }
 
 impl Controller {
     pub fn new_expr_ast(expression: Ast, position: Position) -> Option<Controller> {
         let node_info  = NodeInfo::new_expression(expression)?;
-        let state_data = NodeState {node_info,position};
+        let graph      = None;
+        let state_data = NodeState {node_info,position,graph};
         let state      = Rc::new(RefCell::new(state_data));
         Some(Controller {state})
+    }
+
+    fn invalidate_graph(&self) {
+        if let Some(ref graph) = self.state.borrow_mut().graph {
+            graph.0.borrow_mut().invalidate();
+        }
     }
 }
 
@@ -44,6 +57,7 @@ impl Interface for Controller {
         let new_node_info = NodeInfo::new_expression(ast).unwrap();
         assert_eq!(new_node_info.id(), self.id(), "node's id must not be changed");
         self.state.borrow_mut().node_info = new_node_info;
+        self.invalidate_graph();
         Ok(())
     }
 
@@ -51,11 +65,13 @@ impl Interface for Controller {
         let mut parser = parser::Parser::new_or_panic();
         let module     = parser.parse_module(expression.into(),default()).unwrap();
         let expression = module.lines[0].elem.as_ref().unwrap().clone();
+        self.invalidate_graph();
         self.set_expression(expression)
     }
 
     fn set_position(&self, new_position:Position) -> FallibleResult<()> {
         self.state.borrow_mut().position = new_position;
+        self.invalidate_graph();
         Ok(())
     }
 }
