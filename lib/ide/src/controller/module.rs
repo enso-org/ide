@@ -121,7 +121,7 @@ shared! { Handle
 
             code.replace_range(replaced_range,&inserted_string);
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&inserted_string);
-            self.module.ast     = self.parser.parse(code, self.id_map.clone())?;
+            self.module.ast = self.parser.parse(code, self.id_map.clone())?;
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
             Ok(())
         }
