@@ -13,6 +13,24 @@ let yargs = require('yargs')
 let root = __dirname + '/..'
 process.chdir(root)
 
+
+let jsSrcPath        = root + '/src/js'
+let rustSrcPath      = root + '/src/rust'
+let distPath         = root + '/dist'
+let initLockPath     = distPath + '/init.lock'
+let buildScriptsPath = root + '/build'
+let runScriptPath    = buildScriptsPath + '/run.js'
+
+
+
+
+
+
+
+
+
+
+
 /// Arguments passed to sub-processes called from this script. This variable is set to a specific
 /// value after the command line args get parsed.
 let subProcessArgs = undefined
@@ -61,7 +79,7 @@ let commands = {}
 
 commands.clean = command(`Clean all build artifacts`)
 commands.clean.js = async function() {
-    await cmd.with_cwd('app', async () => {
+    await cmd.with_cwd(jsSrcPath, async () => {
         await run('npm',['run','clean'])
     })
     try { await fs.unlink('.initialized') } catch {}
@@ -84,16 +102,16 @@ commands.check.rust = async function() {
 // === Build ===
 
 commands.build = command(`Build the sources in release mode`)
-commands.build.js = async function() {
-    console.log(`Building JS target.`)
-    await cmd.with_cwd('app', async () => {
-        await run('npm',['run','build'])
-    })
-}
+//commands.build.js = async function() {
+//    console.log(`Building JS target.`)
+//    await cmd.with_cwd(jsSrcPath, async () => {
+//        await run('npm',['run','build'])
+//    })
+//}
 
 commands.build.rust = async function() {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','lib/gui'])
+    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','src/rust/lib/debug-scenes'])
     await patch_file('target/web/gui.js', js_workaround_patcher)
     await fs.rename('target/web/gui_bg.wasm','target/web/gui.wasm')
 
@@ -130,7 +148,7 @@ commands.start.rust = async function() {
 
 commands.start.js = async function() {
     console.log(`Building JS target.`)
-    await cmd.with_cwd('app', async () => {
+    await cmd.with_cwd(jsSrcPath, async () => {
         await run('npm',['run','start','--'].concat(targetArgs))
     })
 }
@@ -168,7 +186,7 @@ commands.watch.rust = async function() {
 }
 
 commands.watch.js = async function() {
-    await cmd.with_cwd('app', async () => {
+    await cmd.with_cwd(jsSrcPath, async () => {
         await run('npm',['run','watch'])
     })
 }
@@ -182,7 +200,7 @@ commands.dist.rust = async function() {
 }
 
 commands.dist.js = async function() {
-    await cmd.with_cwd('app', async () => {
+    await cmd.with_cwd(jsSrcPath, async () => {
         await run('npm',['run','dist'])
     })
 }
