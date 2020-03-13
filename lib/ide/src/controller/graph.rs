@@ -17,7 +17,7 @@ pub use double_representation::graph::Id;
 
 /// Used e.g. for node posittion
 // TODO [mwu] use some common dictionary type for positions
-type Position = (f64,f64);
+pub type Position = (f64,f64);
 
 /// Describes node in the graph for the view.
 ///
@@ -123,7 +123,7 @@ impl Handle {
         todo!()
     }
 
-    /// Removed the node from graph.
+    /// Removes the node from graph.
     pub fn remove_node(&self, _node_id:ast::ID) -> FallibleResult<()> {
         todo!()
     }
