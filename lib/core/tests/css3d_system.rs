@@ -19,13 +19,11 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use basegl::display;
-    use basegl::display::DomSymbol;
     use basegl::display::DomScene;
     use basegl::system::web::StyleSetter;
     use web_test::*;
     use web_sys::Performance;
     use nalgebra::Vector3;
-    use logger::Logger;
     use basegl::system::web;
     use basegl::display::world::{WorldData, World};
     use basegl::display::navigation::navigator::Navigator;
@@ -54,7 +52,7 @@ mod tests {
                 let div = web::create_div();
                 div.set_style_or_panic("width"  , "100%");
                 div.set_style_or_panic("height" , "100%");
-                let mut object = display::DomSymbol::new(&div);
+                let object = display::DomSymbol::new(&div);
                 renderer.manage(&object);
 
                 object.set_size(Vector2::new(10.0, 10.0));
@@ -142,7 +140,7 @@ mod tests {
             let div = web::create_div();
             div.set_style_or_panic("width"  , "100%");
             div.set_style_or_panic("height" , "100%");
-            let mut object = display::DomSymbol::new(&div);
+            let object = display::DomSymbol::new(&div);
             css3d_renderer.manage(&object);
 
             object.set_size(Vector2::new(1.0, 1.0));

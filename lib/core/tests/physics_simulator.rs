@@ -41,7 +41,7 @@ mod tests {
         let div = web::create_div();
         div.set_style_or_panic("width"  , "100%");
         div.set_style_or_panic("height" , "100%");
-        let mut target = DomSymbol::new(&div);
+        let target = DomSymbol::new(&div);
         renderer.manage(&target);
         target.set_size(Vector2::new(10.0, 10.0));
         div.set_style_or_panic("background-color", "green");
@@ -49,7 +49,7 @@ mod tests {
         let div = web::create_div();
         div.set_style_or_panic("width"  , "100%");
         div.set_style_or_panic("height" , "100%");
-        let mut object = DomSymbol::new(&div);
+        let object = DomSymbol::new(&div);
         renderer.manage(&object);
         object.set_size(Vector2::new(10.0, 10.0));
         div.set_style_or_panic("background-color", "red");
