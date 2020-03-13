@@ -13,12 +13,12 @@ use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::executor::global::spawn;
 
 use parser::api::SourceFile;
-use ast::HasIdMap;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
 use data::text::Span;
+use data::text::Index;
 use data::text::TextChange;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
@@ -130,8 +130,8 @@ shared! { Handle
 
             code.replace_range(replaced_indices,&change.inserted);
             apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&change.inserted);
-            let module.ast = self.parser.parse(code, self.id_map.clone())?;
-            self.update_ast(module.ast);
+            let ast = self.parser.parse(code, self.id_map.clone())?;
+            self.update_ast(ast);
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
 
             Ok(())
@@ -175,11 +175,12 @@ impl Handle {
     -> FallibleResult<Self> {
         let logger              = Logger::new(format!("Module Controller {}", location));
         let ast                 = Ast::new(ast::Module{lines:default()},None);
+        let module              = SourceFile {ast, metadata:default()};
         let id_map              = default();
         let text_notifications  = default();
         let graph_notifications = default();
 
-        let data = Controller {location,ast,file_manager,parser,id_map,logger,text_notifications,
+        let data = Controller {location,module,file_manager,parser,id_map,logger,text_notifications,
             graph_notifications};
         let handle = Handle::new_from_data(data);
         handle.load_file().await?;
@@ -198,10 +199,11 @@ impl Handle {
         logger.info(|| "Loading module file");
         let content = fm.read(path).await?;
         logger.info(|| "Parsing code");
-        let module  = parser.parse_with_metadata(content)?;
+        let SourceFile{ast,metadata} = parser.parse_with_metadata(content)?;
         logger.info(|| "Code parsed");
-        logger.trace(|| format!("The parsed ast is {:?}", module.ast));
-        self.with_borrowed(|data| data.update_ast(module.ast));
+        logger.trace(|| format!("The parsed ast is {:?}", ast));
+        self.with_borrowed(|data| data.module.metadata = metadata);
+        self.with_borrowed(|data| data.update_ast(ast));
         Ok(())
     }
 
@@ -217,7 +219,7 @@ impl Handle {
     }
 
     #[cfg(test)]
-    pubfn new_mock
+    pub fn new_mock
     ( location     : Location
     , code         : &str
     , id_map       : IdMap
@@ -229,7 +231,7 @@ impl Handle {
         let module = SourceFile{ast, metadata:Metadata::default()};
         let text_notifications  = default();
         let graph_notifications = default();
-        letdata   = Controller {location,module,file_manager,parser,id_map,logger,
+        let data   = Controller {location,module,file_manager,parser,id_map,logger,
             text_notifications,graph_notifications};
         Ok(Handle::new_from_data(data))
     }
@@ -238,7 +240,7 @@ impl Handle {
 impl Controller {
     /// Update current ast in module controller and emit notification about overall invalidation.
     fn update_ast(&mut self,ast:Ast) {
-        self.ast = ast;
+        self.module.ast  = ast;
         let text_change  = notification::Text::Invalidate;
         let graph_change = notification::Graph::Invalidate;
         let code_notify  = self.text_notifications.publish(text_change);
@@ -290,7 +292,7 @@ mod test {
             let id_map       = IdMap::new(vec!
                 [ (Span::from((0,1)),uuid1.clone())
                 , (Span::from((2,1)),uuid2)
-                , (Span::new(Index::new(0), Size::new(3)),uuid3)
+                , (Span::from((0,3)),uuid3)
                 ]);
 
             let controller   = Handle::new_mock
