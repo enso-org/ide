@@ -8,6 +8,8 @@ use ast::Ast;
 use ast::ID;
 use nalgebra::Vector2;
 
+use flo_stream::Subscriber;
+
 
 
 // ================
@@ -22,6 +24,7 @@ pub struct Position {
 }
 
 impl Position {
+    /// Create a new `Position` value.
     pub fn new(x:f32, y:f32) -> Position {
         let vector = Vector2::new(x,y);
         Position {vector}
@@ -40,25 +43,35 @@ impl Default for Position {
 // === Interface ===
 // =================
 
+/// Interface of the node controller.
 pub trait Interface {
+    /// Gets the node unique ID.
     fn id(&self) -> ID;
 
+    /// Gets the node's expression's AST.
     fn expression(&self) -> FallibleResult<Ast>;
 
+    /// Gets the node's visual position.
     fn position(&self) -> FallibleResult<Position>;
 
+    /// Sets the node's expression to a new AST.
     fn set_expression(&self, ast:Ast) -> FallibleResult<()>;
 
+    /// Sets the node's expression to a result of parsing the given text.
     fn set_expression_text(&self, expression:&str) -> FallibleResult<()>;
 
+    /// Sets the node's position.
     fn set_position(&self, new_position:Position) -> FallibleResult<()>;
+
+    /// Subscribes to the notifications of the controller.
+    fn subscribe(&mut self) -> Subscriber<controller::notification::Node>;
 }
 
 
 
-// =============
-// === Trait ===
-// =============
+// ==================
+// === Controller ===
+// ==================
 
 struct Controller {
     graph : controller::graph::Handle,
@@ -88,6 +101,10 @@ impl Interface for Controller {
     }
 
     fn set_position(&self, _new_position:Position) -> FallibleResult<()> {
+        todo!()
+    }
+
+    fn subscribe(&mut self) -> Subscriber<controller::notification::Node> {
         todo!()
     }
 }

@@ -17,8 +17,18 @@ pub use controller::node::Position;
 #[fail(display = "Node by ID {} was not found.", _0)]
 struct NodeNotFound(ast::ID);
 
+
+
+// =================
+// === Interface ===
+// =================
+
+/// Graph controller interface.
 pub trait Interface {
+    /// Retrieves a controller to the node with given ID.
     fn get_node(&self, id:ast::ID) -> FallibleResult<Rc<dyn controller::node::Interface>>;
+
+    /// Removes node with given ID from the graph.
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
 
     /// Get subscriber receiving controller's notifications.
@@ -112,11 +122,6 @@ impl Handle {
         module.find_definition(&id)
     }
 
-    /// Get subscriber receiving notifications about changes in graph.
-    pub fn subscribe_notifications(&self) -> Subscriber<Notification> {
-        todo!() // TODO implement once https://github.com/luna/ide/pull/231/ is ready
-    }
-
     /// Returns information about all nodes in the graph.
     pub fn list_node_infos(&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.get_definition()?;
@@ -124,6 +129,7 @@ impl Handle {
         Ok(graph.nodes)
     }
 
+    /// Retrieves double rep information about node with given ID.
     pub fn node_info(&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
         let nodes = self.list_node_infos()?;
         Ok(nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id))?)

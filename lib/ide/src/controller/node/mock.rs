@@ -6,31 +6,41 @@ use crate::prelude::*;
 
 use crate::controller::node::Interface;
 use crate::controller::node::Position;
+use crate::controller::notification;
+use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
 use ast::ID;
+use flo_stream::MessagePublisher;
+use flo_stream::Subscriber;
 use parser::api::IsParser;
-use crate::double_representation::node::NodeInfo;
 
-#[derive(Clone,Debug)]
+/// Internal state storage of the mock node.
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct NodeState {
-    node_info : NodeInfo,
-    position  : Position,
-    graph     : Option<controller::graph::mock::Handle>,
+    node_info              : NodeInfo,
+    position               : Position,
+    graph                  : Option<controller::graph::mock::Handle>,
+    #[derivative(Debug="ignore")]
+    notification_publisher : notification::Publisher<notification::Node>,
 }
 
+/// Mock node controller.
 #[derive(Clone,Debug)]
-pub struct Controller {
+pub struct Handle {
     state : Rc<RefCell<NodeState>>,
 }
 
-impl Controller {
-    pub fn new_expr_ast(expression: Ast, position: Position) -> Option<Controller> {
+impl Handle {
+    /// Creates a mock node controller for given node state.
+    pub fn new_expr_ast(expression: Ast, position: Position) -> Option<Handle> {
         let node_info  = NodeInfo::new_expression(expression)?;
         let graph      = None;
-        let state_data = NodeState {node_info,position,graph};
+        let notification_publisher = default();
+        let state_data = NodeState {node_info,position,graph,notification_publisher};
         let state      = Rc::new(RefCell::new(state_data));
-        Some(Controller {state})
+        Some(Handle {state})
     }
 
     fn invalidate_graph(&self) {
@@ -40,7 +50,7 @@ impl Controller {
     }
 }
 
-impl Interface for Controller {
+impl Interface for Handle {
     fn id(&self) -> ID {
         self.state.borrow().node_info.id()
     }
@@ -74,6 +84,10 @@ impl Interface for Controller {
         self.invalidate_graph();
         Ok(())
     }
+
+    fn subscribe(&mut self) -> Subscriber<controller::notification::Node> {
+        self.state.borrow_mut().notification_publisher.subscribe()
+    }
 }
 
 
@@ -90,7 +104,7 @@ mod test {
         let id   = Uuid::new_v4();
         let ast  = ast::Ast::var_with_id("foo",id);
         let position = default();
-        let mut node = Controller::new_expr_ast(ast.clone_ref(), position).unwrap();
+        let mut node = Handle::new_expr_ast(ast.clone_ref(), position).unwrap();
 
         // limit ourselves to trait-based api
         let node: &mut dyn Interface = &mut node;
