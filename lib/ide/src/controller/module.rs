@@ -41,7 +41,7 @@ pub struct Metadata {
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
-    rest    : serde_json::Value,
+    rest : serde_json::Value,
 }
 
 impl parser::api::Metadata for Metadata {}

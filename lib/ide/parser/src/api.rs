@@ -33,8 +33,7 @@ pub struct SourceFile<Metadata> {
     pub metadata: Metadata
 }
 
-const ID_TAG       : &str = "# [idmap] ";
-const METADATA_TAG : &str = "# [metadata] ";
+const METADATA_TAG:&str = "\n\n\n#### METADATA ####\n";
 
 fn to_json_single_line
 (val:&impl Serialize) -> std::result::Result<String,serde_json::Error> {
@@ -49,7 +48,7 @@ impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
         let code = val.ast.repr();
         let ids  = to_json_single_line(&val.ast.id_map())?;
         let meta = to_json_single_line(&val.metadata)?;
-        Ok(iformat!("{code}\n\n\n{ID_TAG}{ids}\n{METADATA_TAG}{meta}"))
+        Ok(iformat!("{code}{METADATA_TAG}{ids}\n{meta}"))
     }
 }
 

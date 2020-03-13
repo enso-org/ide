@@ -36,6 +36,7 @@ use uuid::Uuid;
 
 /// A mapping between text position and immutable ID.
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
+#[serde(transparent)]
 pub struct IdMap{ pub vec:Vec<(Span,ID)> }
 
 impl IdMap {

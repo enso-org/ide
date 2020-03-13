@@ -90,7 +90,7 @@ impl From<serde_json::error::Error> for Error {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
     ParseRequest             { program: String, ids: IdMap },
-    ParseWithMetadataRequest { program: String },
+    ParseRequestWithMetadata { content: String },
 }
 
 /// All responses that Parser Service might reply with.
@@ -215,7 +215,7 @@ impl api::IsParser for Client {
 
     fn parse_with_metadata<M:Metadata>
     (&mut self, program:String) -> api::Result<SourceFile<M>> {
-        let request  = Request::ParseWithMetadataRequest {program};
+        let request  = Request::ParseRequestWithMetadata {content:program};
         let response = self.rpc_call(request)?;
         match response {
             Response::Success {module} => Ok(module),

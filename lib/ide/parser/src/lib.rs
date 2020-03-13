@@ -32,6 +32,15 @@ pub use enso_prelude as prelude;
 // === Parser ===
 // ==============
 
+/// Websocket parser client.
+/// Used as an interface for our (scala) parser.
+#[cfg(not(target_arch = "wasm32"))]
+type Client = wsclient::Client;
+/// Javascript parser client.
+/// Used as an interface for our (scala) parser.
+#[cfg(target_arch = "wasm32")]
+type Client = jsclient::Client;
+
 /// Handle to a parser implementation.
 ///
 /// Currently this component is implemented as a wrapper over parser written
@@ -39,12 +48,7 @@ pub use enso_prelude as prelude;
 /// implementation provided by `wsclient` or `jsclient`.
 #[derive(Clone,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct Parser<>(
-    #[cfg(not(target_arch = "wasm32"))]
-    pub Rc<RefCell<wsclient::Client>>,
-    #[cfg(target_arch = "wasm32")]
-    pub Rc<RefCell<jsclient::Client>>,
-);
+pub struct Parser(pub Rc<RefCell<Client>>);
 
 impl Parser {
     /// Obtains a default parser implementation.

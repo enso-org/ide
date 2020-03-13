@@ -37,13 +37,13 @@ fn web_test() {
     };
 
     let app_x_y = ast::Prefix {func: Ast::var("x"), off: 3, arg: Ast::var("y")};
-let var_xy  = ast::Var { name: "xy".into() };
+    let var_xy  = ast::Var {name:"xy".into()};
     assert_eq!(parse(""),       line(None));
     assert_eq!(parse("xy"),     line(Some(Ast::new(var_xy,  Some(uuid)))));
     assert_eq!(parse("x   y"),  line(Some(Ast::new(app_x_y, Some(uuid)))));
 
     let mut deserialize_metadata = || {
-        let ast  = Ast::new(ast::Module {lines:default()}, None);
+        let ast  = Ast::new(line(None), None);
         let file = SourceFile {ast, metadata: serde_json::json!({})};
         let code = String::try_from(&file).unwrap();
         assert_eq!(parser.parse_with_metadata(code).unwrap(), file);
