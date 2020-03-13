@@ -157,7 +157,7 @@ impl TextFieldKeyboardFrp {
         setter.set_action(&[Enter],                      |t| t.write("\n"));
         setter.set_action(&[Delete],                     |t| t.do_delete_operation(Step::Right));
         setter.set_action(&[Backspace],                  |t| t.do_delete_operation(Step::Left));
-        setter.set_action(&[Escape],                     |t| t.remove_additional_cursors());
+        setter.set_action(&[Escape],                     |t| t.finish_multicursor_mode());
         setter.set_action(&[PageDown],                   |t| t.page_down());
         setter.set_action(&[PageUp],                     |t| t.page_up());
     }

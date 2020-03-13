@@ -138,8 +138,8 @@ shared! { TextField
             self.word_occurrences = None;
         }
 
-        /// Removes additional cursors.
-        pub fn remove_additional_cursors(&mut self) {
+        /// Finish multicursor mode, removing any additional cursors.
+        pub fn finish_multicursor_mode(&mut self) {
             self.cursors.remove_additional_cursors();
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
             self.clear_word_occurrences();
@@ -215,9 +215,9 @@ shared! { TextField
             self.cursors.cursors.iter().any(|cursor| cursor.has_selection())
         }
 
-        /// Transforms absolute position to relative position from TextField's origin.
-        pub fn relative_position(&self, position:Vector2<f32>) -> Vector2<f32> {
-            position - self.rendered.display_object.global_position().xy()
+        /// Transforms `absolute_position` to relative position from TextField's content origin.
+        pub fn relative_position(&self, absolute_position:Vector2<f32>) -> Vector2<f32> {
+            absolute_position - self.rendered.display_object.global_position().xy()
         }
 
         /// Block selects a text from active cursor's position to screen `position`.
@@ -232,7 +232,7 @@ shared! { TextField
         pub fn select_next_word_occurrence(&mut self) {
             let not_multicursors = self.cursors.cursors.len() == 1;
             if self.word_occurrences.is_none() && not_multicursors {
-                let cursor            = self.cursors.active_cursor();
+                let cursor            = self.cursors.last_cursor();
                 self.word_occurrences = WordOccurrences::new(&self.content,&cursor);
             }
 
@@ -243,7 +243,7 @@ shared! { TextField
                         self.cursors.add_cursor(TextLocation::at_document_begin());
                     }
 
-                    let cursor = self.cursors.active_cursor_mut();
+                    let cursor = self.cursors.last_cursor_mut();
                     cursor.select_range(&word);
                     self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
                 }

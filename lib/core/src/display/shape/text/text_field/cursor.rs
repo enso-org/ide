@@ -394,20 +394,32 @@ impl Cursors {
         self.merge_overlapping_cursors();
     }
 
-    /// Remove all cursors except the active one.
+    /// Remove all cursors except the last one.
     pub fn remove_additional_cursors(&mut self) {
         self.cursors.drain(0..self.cursors.len()-1);
     }
 
-    /// Return the active (last added) cursor as mutable reference. Even on multiline edit some
+    /// Return the first cursor as mutable reference. Even on multiline edit some
     /// operations are applied to one, active cursor only (e.g. extending selection by mouse).
-    pub fn active_cursor_mut(&mut self) -> &mut Cursor {
+    pub fn first_cursor_mut(&mut self) -> &mut Cursor {
+        self.cursors.first_mut().unwrap()
+    }
+
+    /// Return the last cursor. Even on multiline edit some operations are applied
+    /// to one, active cursor only (e.g. extending selection by mouse).
+    pub fn first_cursor(&self) -> &Cursor {
+        self.cursors.first().unwrap()
+    }
+
+    /// Return the last cursor as mutable reference. Even on multiline edit some
+    /// operations are applied to one, active cursor only (e.g. extending selection by mouse).
+    pub fn last_cursor_mut(&mut self) -> &mut Cursor {
         self.cursors.last_mut().unwrap()
     }
 
-    /// Return the active (last added) cursor. Even on multiline edit some operations are applied
+    /// Return the last cursor. Even on multiline edit some operations are applied
     /// to one, active cursor only (e.g. extending selection by mouse).
-    pub fn active_cursor(&self) -> &Cursor {
+    pub fn last_cursor(&self) -> &Cursor {
         self.cursors.last().unwrap()
     }
 
@@ -417,7 +429,7 @@ impl Cursors {
     , from_location : TextLocation
     , to_location   : TextLocation) {
         self.remove_additional_cursors();
-        let cursor = self.active_cursor_mut();
+        let cursor = self.last_cursor_mut();
 
         let from_column = from_location.column;
         let to_column   = to_location.column;
@@ -438,16 +450,15 @@ impl Cursors {
             let range = start..end;
 
             self.add_cursor(range.end);
-            let cursor = self.active_cursor_mut();
+            let cursor = self.last_cursor_mut();
             cursor.selected_to = range.start
         }
     }
 
-    /// Selects a block from active cursor position to the nearest location from given point of
+    /// Selects a block from first cursor position to the nearest location from given point of
     /// the screen.
     pub fn block_selection(&mut self, content:&mut TextFieldContent, point:Vector2<f32>) {
-        let error_message = "Couldn't get first cursor.";
-        let from_location = self.cursors.first().expect(error_message).selected_to;
+        let from_location = self.first_cursor().selected_to;
         let from_line     = from_location.line;
         let to_line       = content.line_location_at_point(point);
         let start         = min(from_line,to_line);
@@ -488,12 +499,12 @@ impl Cursors {
         self.merge_overlapping_cursors();
     }
 
-    /// Jump the active cursor to the nearest location from given point of the screen.
+    /// Jump the last cursor to the nearest location from given point of the screen.
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
     pub fn jump_cursor(&mut self, navigation:&mut CursorNavigation, point:Vector2<f32>) {
-        navigation.move_cursor_to_point(self.cursors.first_mut().unwrap(),point);
+        navigation.move_cursor_to_point(self.last_cursor_mut(),point);
         self.merge_overlapping_cursors();
     }
 
@@ -629,8 +640,8 @@ mod test {
         let mut navigation = CursorNavigation::default(&mut content);
         let mut cursors = Cursors::mock(initial_cursors.clone());
         cursors.navigate_all_cursors(&mut navigation,LineEnd);
-        assert_eq!(new_position, cursors.cursors.first().unwrap().position);
-        assert_eq!(new_position, cursors.cursors.first().unwrap().selected_to);
+        assert_eq!(new_position, cursors.first_cursor().position);
+        assert_eq!(new_position, cursors.first_cursor().selected_to);
     }
 
     #[wasm_bindgen_test(async)]
@@ -648,8 +659,8 @@ mod test {
             {selecting:true, ..CursorNavigation::default(&mut content)};
         let mut cursors = Cursors::mock(initial_cursors.clone());
         cursors.navigate_all_cursors(&mut navigation,LineEnd);
-        assert_eq!(new_loc    , cursors.cursors.first().unwrap().position);
-        assert_eq!(initial_loc, cursors.cursors.first().unwrap().selected_to);
+        assert_eq!(new_loc    , cursors.first_cursor().position);
+        assert_eq!(initial_loc, cursors.first_cursor().selected_to);
     }
 
     #[wasm_bindgen_test(async)]
