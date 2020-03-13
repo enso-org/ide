@@ -36,6 +36,27 @@ pub use web_sys::Window;
 
 
 
+// =============
+// === Error ===
+// =============
+
+/// Generic error representation. We may want to support errors in form of structs and enums, but it
+/// requires significant work, so a simpler solution was chosen for now.
+#[derive(Debug)]
+pub struct Error{
+    message : String
+}
+
+#[allow(non_snake_case)]
+pub fn Error<S:Into<String>>(message:S) -> Error {
+    let message = message.into();
+    Error {message}
+}
+
+pub type Result<T> = std::result::Result<T,Error>;
+
+
+
 // ==============
 // === String ===
 // ==============
@@ -96,37 +117,38 @@ pub fn ignore_context_menu(target:&EventTarget) -> Option<IgnoreContextMenuHandl
 // ===================
 
 /// Access the `window` object if exists.
-pub fn try_window() -> Option<Window> {
-    web_sys::window()
+pub fn try_window() -> Result<Window> {
+    web_sys::window().ok_or_else(|| Error("Cannot access 'window'."))
 }
 
 /// Access the `window` object or panic if it does not exist.
 pub fn window() -> Window {
-    try_window().unwrap_or_else(|| panic!("Cannot access 'window'."))
+    try_window().unwrap()
 }
 
 /// Access the `window.document` object if exists.
-pub fn try_document() -> Option<Document> {
-    try_window().and_then(|w| w.document())
+pub fn try_document() -> Result<Document> {
+    try_window().and_then(|w| w.document().ok_or_else(|| Error("Cannot access 'window.document'.")))
 }
 
 /// Access the `window.document` object or panic if it does not exist.
 pub fn document() -> Document {
-    try_document().unwrap_or_else(|| panic!("Cannot access 'window.document'."))
+    try_document().unwrap()
 }
 
 /// Access the `window.document.body` object if exists.
-pub fn try_body() -> Option<HtmlElement> {
-    try_document().and_then(|d| d.body())
+pub fn try_body() -> Result<HtmlElement> {
+    try_document().and_then(|d| d.body().ok_or_else(||
+        Error("Cannot access 'window.document.body'.")))
 }
 
 /// Access the `window.document.body` object or panic if it does not exist.
 pub fn body() -> HtmlElement {
-    try_body().unwrap_or_else(|| panic!("Cannot access 'window.document.body'."))
+    try_body().unwrap()
 }
 
 /// Access the `window.devicePixelRatio` value if the window exists.
-pub fn try_device_pixel_ratio() -> Option<f64> {
+pub fn try_device_pixel_ratio() -> Result<f64> {
     try_window().map(|window| window.device_pixel_ratio())
 }
 
@@ -140,46 +162,26 @@ pub fn performance() -> Performance {
     window().performance().unwrap_or_else(|| panic!("Cannot access window.performance."))
 }
 
-
-
-//
-//pub fn dyn_into<T,U>(obj :T) -> Result<U>
-//where T : wasm_bindgen::JsCast + Debug,
-//      U : wasm_bindgen::JsCast
-//{
-//    let expected = type_name::<T>();
-//    let got = format!("{:?}", obj);
-//    obj.dyn_into().map_err(|_| Error::type_mismatch(&expected, &got))
-//}
-
-
-
-
-
-
-pub fn get_element_by_id(id:&str) -> Option<Element> {
-    try_document()?.get_element_by_id(id)
+pub fn get_element_by_id(id:&str) -> Result<Element> {
+    try_document()?.get_element_by_id(id).ok_or_else(||
+        Error(format!("Element with id '{}' not found.",id)))
 }
 
-pub fn get_html_element_by_id(id:&str) -> Option<HtmlElement> {
+pub fn get_html_element_by_id(id:&str) -> Result<HtmlElement> {
     let elem = get_element_by_id(id)?;
-    elem.dyn_into().ok()
+    elem.dyn_into().map_err(|_| Error("Type cast error."))
 }
 
-//#[deprecated(note = "Use get_element_by_id with dyn_into instead")]
-//pub fn get_element_by_id_as<T:wasm_bindgen::JsCast>(id:&str) -> Result<T> {
-//    let elem = get_element_by_id(id)?;
-//    dyn_into(elem)
-//}
-pub fn try_create_element(id:&str) -> Option<Element> {
-    try_document()?.create_element(id).ok()
+pub fn try_create_element(name:&str) -> Result<Element> {
+    try_document()?.create_element(name).map_err(|_|
+        Error(format!("Cannot create element '{}'",name)))
 }
 
-pub fn create_element(id:&str) -> Element {
-    try_create_element(id).unwrap_or_else(|| panic!("Cannot create '{}' element.",id))
+pub fn create_element(name:&str) -> Element {
+    try_create_element(name).unwrap()
 }
 
-pub fn try_create_div() -> Option<HtmlDivElement> {
+pub fn try_create_div() -> Result<HtmlDivElement> {
     try_create_element("div").map(|t| t.unchecked_into())
 }
 
@@ -187,10 +189,7 @@ pub fn create_div() -> HtmlDivElement {
     create_element("div").unchecked_into()
 }
 
-
-
-
-pub fn try_create_canvas() -> Option<HtmlCanvasElement> {
+pub fn try_create_canvas() -> Result<HtmlCanvasElement> {
     try_create_element("canvas").map(|t| t.unchecked_into())
 }
 
@@ -198,20 +197,16 @@ pub fn create_canvas() -> HtmlCanvasElement {
     create_element("canvas").unchecked_into()
 }
 
-//pub fn get_canvas(id:&str) -> Result<web_sys::HtmlCanvasElement> {
-//    dyn_into(get_element_by_id(id)?)
-//}
-
-pub fn get_webgl2_context
-(canvas:&HtmlCanvasElement) -> WebGl2RenderingContext {
+pub fn get_webgl2_context(canvas:&HtmlCanvasElement) -> WebGl2RenderingContext {
     let options = js_sys::Object::new();
     js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
     let context = canvas.get_context_with_context_options("webgl2",&options).unwrap().unwrap();
     context.dyn_into().unwrap()
 }
 
-pub fn try_request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> Option<i32> {
-    try_window()?.request_animation_frame(f.as_ref().unchecked_ref()).ok()
+pub fn try_request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> Result<i32> {
+    try_window()?.request_animation_frame(f.as_ref().unchecked_ref())
+        .map_err(|_| Error("Cannot access 'requestAnimationFrame'."))
 }
 
 pub fn request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> i32 {
@@ -221,10 +216,6 @@ pub fn request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> i32 {
 pub fn cancel_animation_frame(id:i32) {
     window().cancel_animation_frame(id).unwrap();
 }
-
-//pub fn get_performance() -> Result<Performance> {
-//    try_window()?.performance().ok_or_else(|| Error::missing("performance"))
-//}
 
 
 

@@ -102,7 +102,7 @@ impl {
         self.view_projection.set(camera.view_projection_matrix());
     }
 
-    pub fn render2(&self) {
+    pub fn render(&self) {
         for symbol in &self.symbols {
             symbol.render()
         }

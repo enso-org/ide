@@ -58,9 +58,10 @@ impl ParentBind {
 // =================
 
 /// Callbacks manager for display objects. Callbacks can be set only once. Panics if you try set
-/// another callback to field with an already assigned callback. This design wa chosen because it is
-/// very lightweight and is not confusing (setting a callback unregisters previous one). We may want
-/// to switch to a real callback registry in the future if there will be suitable use cases for it.
+/// another callback to field with an already assigned callback. This design was chosen because it
+/// is very lightweight and is not confusing (setting a callback unregisters previous one). We may
+/// want to switch to a real callback registry in the future if there will be suitable use cases for
+/// it.
 #[derive(Default)]
 pub struct Callbacks {
     pub on_updated : Option<Box<dyn Fn(&NodeData)>>,
@@ -69,19 +70,22 @@ pub struct Callbacks {
 }
 
 impl Callbacks {
-    /// Setter.
+    /// Setter. Warning, altering the node structure during execution of the callback may cause
+    /// panic.
     pub fn set_on_updated<F:Fn(&NodeData)+'static>(&mut self, f:F) {
         if self.on_updated.is_some() { panic!("The `on_updated` callback was already set.") }
         self.on_updated = Some(Box::new(f))
     }
 
-    /// Setter.
+    /// Setter. Warning, altering the node structure during execution of the callback may cause
+    /// panic.
     pub fn set_on_show<F:Fn()+'static>(&mut self, f:F) {
         if self.on_show.is_some() { panic!("The `on_show` callback was already set.") }
         self.on_show = Some(Box::new(f))
     }
 
-    /// Setter.
+    /// Setter. Warning, altering the node structure during execution of the callback may cause
+    /// panic.
     pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
         if self.on_hide.is_some() { panic!("The `on_hide` callback was already set.") }
         self.on_hide = Some(Box::new(f))
@@ -146,7 +150,8 @@ impl {
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty") , ());
         let visible          = true;
         let callbacks        = default();
-        Self {logger,parent_bind,children,removed_children,event_dispatcher,transform,child_dirty,new_parent_dirty,visible,callbacks}
+        Self {logger,parent_bind,children,removed_children,event_dispatcher,transform,child_dirty
+             ,new_parent_dirty,visible,callbacks}
     }
 
     pub fn is_visible(&self) -> bool {
@@ -396,9 +401,9 @@ impl Debug for Node {
 
 
 
-// ================================
-// === ObjectDescription ===
-// ================================
+// ============
+// === Node ===
+// ============
 
 // === Public API ==
 
@@ -412,7 +417,8 @@ impl Node {
         self.clone_ref().add_child_take(child);
     }
 
-    /// Adds a new `Object` as a child to the current one.
+    /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
+    /// the ownership of `self`.
     pub fn add_child_take<T:Object>(self, child:T) {
         self.rc.borrow().logger.info("Adding new child.");
         let child = child.display_object();
@@ -480,9 +486,9 @@ impl PartialEq for Node {
 
 
 
-// =====================
+// ==============
 // === Object ===
-// =====================
+// ==============
 
 pub trait Object: Into<Node> {
     fn display_object(self) -> Node {

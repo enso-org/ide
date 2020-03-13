@@ -138,7 +138,7 @@ impl Config {
 
 /// Dom elements of the monitor. Please note that it uses `Rc` to both implement cheap copy as well
 /// as to use `Drop` to clean the HTML when not used anymore.
-#[derive(Clone,Debug,Default,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct Dom {
     rc : Rc<DomData>
 }
@@ -153,16 +153,19 @@ pub struct DomData {
 
 impl Dom {
     /// Constructor.
-    pub fn new() -> Self { default() }
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let data = DomData::new();
+        let rc   = Rc::new(data);
+        Self {rc}
+    }
 }
+
 
 impl DomData {
     /// Constructor.
-    pub fn new() -> Self { default() }
-}
-
-impl Default for DomData {
-    fn default() -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         let root = web::create_div();
         root.set_class_name("performance-monitor");
         root.set_style_or_panic("position"      , "absolute");
@@ -206,7 +209,6 @@ pub struct Monitor {
     dom         : Option<Dom>,
     panels      : Vec<Panel>,
     first_draw  : bool,
-    visible     : bool,
 }
 
 
@@ -219,10 +221,9 @@ impl Default for Monitor {
         let width       = default();
         let height      = default();
         let first_draw  = true;
-        let visible     = false;
         let config      = user_config.to_js_config();
         let dom         = None;
-        let mut out = Self{user_config,config,width,height,dom,panels,first_draw,visible};
+        let mut out     = Self {user_config,config,width,height,dom,panels,first_draw};
         out.update_config();
         out
     }
@@ -248,13 +249,12 @@ impl Monitor {
 
     /// Check whether the mointor is visible.
     pub fn visible(&self) -> bool {
-        self.visible
+        self.dom.is_some()
     }
 
     /// Show the monitor and add it's DOM to the scene.
     pub fn show(&mut self) {
-        if !self.visible {
-            self.visible    = true;
+        if !self.visible() {
             self.first_draw = true;
             self.dom = Some(Dom::new());
             self.resize();
@@ -263,8 +263,7 @@ impl Monitor {
 
     /// Hides the monitor and remove it's DOM from the scene.
     pub fn hide(&mut self) {
-        self.visible = false;
-        self.dom     = None;
+        self.dom = None;
     }
 
     /// Toggle the visibility of the monitor.

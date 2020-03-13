@@ -1,6 +1,6 @@
 //! This module defines utilities for working with the `Option` type.
 
-/// Adds `for_each` method to the `Option` type.
+/// Adds mapping methods to the `Option` type.
 pub trait OptionOps {
     type Item;
     fn map_ref      <U,F> (&self , f:F) -> Option<U> where F : FnOnce(&Self::Item) -> U;

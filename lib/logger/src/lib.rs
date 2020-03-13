@@ -98,7 +98,6 @@ impl Logger {
     }
 }
 
-// FIXME: Add the non-wasm impl
 #[cfg(not(target_arch = "wasm32"))]
 impl Logger {
     pub fn trace<M: LogMsg>(&self, msg:M) {

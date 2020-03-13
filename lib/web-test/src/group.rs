@@ -19,9 +19,9 @@ impl Group {
     pub fn new(name:&str) -> Self {
         let div:web::HtmlDivElement = match web::get_element_by_id(name) {
             // If id=name exists, we use it.
-            Some(div) => div.dyn_into().expect("div should be a HtmlElement"),
+            Ok(div) => div.dyn_into().expect("div should be a HtmlElement"),
             // If it doesn't exist, we create a new element.
-            None => {
+            Err(_) => {
                 let div = web::create_div();
                 div.set_attribute_or_panic("id"           , name);
                 div.set_style_or_panic ("display"      , "flex");

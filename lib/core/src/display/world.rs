@@ -26,7 +26,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
 use web_sys::KeyboardEvent;
 use web_sys::Performance;
-
+use crate::display::render::passes::SymbolsRenderPass;
 
 
 // =================
@@ -247,7 +247,7 @@ impl World {
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
-            .add(DisplayObjectRenderPass::new(&root))
+            .add(SymbolsRenderPass::new(&root))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
         self.rc.borrow_mut().scene.set_render_pipeline(pipeline);

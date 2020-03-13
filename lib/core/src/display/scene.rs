@@ -295,11 +295,11 @@ impl {
     }
 
     pub fn dom_front_layer(&self) -> DomScene {
-        self.dom.layers.dom_front.clone()
+        self.dom.layers.dom_front.clone_ref()
     }
 
     pub fn dom_back_layer(&self) -> DomScene {
-        self.dom.layers.dom_back.clone()
+        self.dom.layers.dom_back.clone_ref()
     }
 
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
