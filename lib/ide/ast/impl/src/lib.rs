@@ -179,6 +179,12 @@ impl<'t> IntoIterator for &'t Ast {
     }
 }
 
+impl ToString for Ast {
+    fn to_string(&self) -> String {
+        self.repr()
+    }
+}
+
 impl Ast {
     pub fn shape(&self) -> &Shape<Ast> {
         self
@@ -912,6 +918,11 @@ impl Ast {
     pub fn cons<Str: ToString>(name:Str) -> Ast {
         let cons = Cons {name:name.to_string()};
         Ast::from(cons)
+    }
+
+    pub fn var_with_id<Str: ToString>(name:Str, id:ID) -> Ast {
+        let var = Var{name:name.to_string()};
+        Ast::new(var,Some(id))
     }
 
     pub fn var<Str: ToString>(name:Str) -> Ast {

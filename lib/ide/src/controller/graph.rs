@@ -8,16 +8,21 @@ use crate::prelude::*;
 use flo_stream::Subscriber;
 
 pub use double_representation::graph::Id;
+pub use controller::node::Position;
+
+pub mod mock;
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display = "Node by ID {} was not found.", _0)]
+struct NodeNotFound(ast::ID);
+
+
 
 
 
 // ============
 // === Node ===
 // ============
-
-/// Used e.g. for node posittion
-// TODO [mwu] use some common dictionary type for positions
-type Position = (f64,f64);
 
 /// Describes node in the graph for the view.
 ///
@@ -35,13 +40,8 @@ impl Node {
     }
 
     /// Text representation of the node's expression.
-    pub fn expression_text(&self) -> String {
-        self.info.expression_text()
-    }
-
-    /// Text representation of the node's expression.
-    pub fn expression_ast(&self) -> ast::Ast {
-        self.info.expression_ast().clone_ref()
+    pub fn expression(&self) -> ast::Ast {
+        self.info.expression().clone_ref()
     }
 
     /// Nodes visual position in the scene.
@@ -87,6 +87,7 @@ shared! { Handle
     }
 }
 
+//struct Handle;
 impl Handle {
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module.
@@ -111,31 +112,15 @@ impl Handle {
     }
 
     /// Returns information about all nodes in the graph.
-    pub fn list_nodes(&self) -> FallibleResult<Vec<Node>> {
+    pub fn list_node_infos(&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.get_definition()?;
         let graph = double_representation::graph::GraphInfo::from_definition(definition);
-        let ret = graph.nodes.into_iter().map(|node_info| Node { info: node_info });
-        Ok(ret.collect())
+        Ok(graph.nodes)
     }
 
-    /// Adds a new node to this graph.
-    pub fn add_node(&self, _info:NewNodeInfo) -> ast::ID {
-        todo!()
-    }
-
-    /// Removed the node from graph.
-    pub fn remove_node(&self, _node_id:ast::ID) -> FallibleResult<()> {
-        todo!()
-    }
-
-    /// Sets the visual position of the given node.
-    pub fn move_node(&self, _node_id:ast::ID, _new_position:Position) -> FallibleResult<()> {
-        todo!()
-    }
-
-    /// Sets expression of the given node.
-    pub fn edit_node(&self, _node_id:ast::ID, _new_expression:impl Str) -> FallibleResult<()> {
-        todo!()
+    pub fn node_info(&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
+        let nodes = self.list_node_infos()?;
+        Ok(nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id))?)
     }
 }
 

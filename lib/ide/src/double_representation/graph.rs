@@ -9,6 +9,7 @@ use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node;
 
 use ast::Ast;
+//use ast::HasRepr;
 use ast::known;
 
 
@@ -125,6 +126,7 @@ mod tests {
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::definition::DefinitionProvider;
 
+    use ast::HasRepr;
     use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -152,7 +154,7 @@ mod tests {
             let graph = main_graph(&mut parser, program);
             assert_eq!(graph.nodes.len(), 1);
             let node = &graph.nodes[0];
-            assert_eq!(node.expression_text(), "2+2");
+            assert_eq!(node.expression().repr(), "2+2");
             let _ = node.id(); // just to make sure it is available
         }
     }
@@ -170,7 +172,7 @@ main =
         let graph = main_graph(&mut parser, program);
         assert_eq!(graph.nodes.len(), 2);
         for node in graph.nodes.iter() {
-            assert_eq!(node.expression_text(), "node");
+            assert_eq!(node.expression().repr(), "node");
         }
     }
 }

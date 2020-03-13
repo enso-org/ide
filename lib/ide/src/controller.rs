@@ -17,5 +17,6 @@
 
 pub mod graph;
 pub mod module;
+pub mod node;
 pub mod project;
 pub mod text;
