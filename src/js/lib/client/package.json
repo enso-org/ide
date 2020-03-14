@@ -22,20 +22,20 @@
     "productName": "Enso Studio",
     "copyright": "Copyright © 2020 ${author}.",
     "mac": {
-      "icon": "dist/icons/icon.icns",
+      "icon": "../../../../dist/icons/icon.icns",
       "category": "public.app-category.developer-tools",
       "darkModeSupport": true,
       "type": "distribution"
     },
     "win": {
-      "icon": "dist/icons/icon.ico"
+      "icon": "../../../../dist/icons/icon.ico"
     },
     "linux": {
-      "icon": "dist/icons/png",
+      "icon": "../../../../dist/icons/png",
       "category": "Development"
     },
     "files": [
-      { "from": "dist/unpacked" , "to": "." }
+      { "from": "../../../../dist/unpacked" , "to": "." }
     ],
     "fileAssociations": [
       {
@@ -50,7 +50,7 @@
       }
     ],
     "directories": {
-      "output": "../../dist/native"
+      "output": "../../../../dist/native"
     }
   },
 

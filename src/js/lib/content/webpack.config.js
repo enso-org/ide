@@ -1,16 +1,18 @@
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const CompressionPlugin = require('compression-webpack-plugin')
+const path              = require('path')
 
-const path = require('path')
-const root = path.resolve(__dirname)
+const thisPath = path.resolve(__dirname)
+const root     = path.resolve(thisPath,'..','..','..','..')
+const distPath = path.resolve(root,'dist')
 
 module.exports = {
     entry: {
-        index: path.resolve(root,'src','index.js'),
+        index: path.resolve(thisPath,'src','index.js'),
         wasm_imports: './src/wasm_imports.js',
     },
     output: {
-        path: path.resolve(root,'dist','assets'),
+        path: path.resolve(root,'dist','unpacked','assets'),
         filename: '[name].js',
         libraryTarget: 'umd',
     },
@@ -20,8 +22,8 @@ module.exports = {
     plugins: [
         new CompressionPlugin(),
         new CopyWebpackPlugin([
-            path.resolve(root,'src','index.html'),
-            path.resolve(root,'..','..','..','rust','target','web','gui.wasm'),
+            path.resolve(thisPath,'src','index.html'),
+            path.resolve(root,'src','rust','target','web','gui.wasm'),
         ]),
     ],
     devServer: {
@@ -32,7 +34,7 @@ module.exports = {
     },
     resolve: {
         alias: {
-            wasm_rust_glue$: path.resolve(root,'..','..','..','rust','target','web','gui.js')
+            wasm_rust_glue$: path.resolve(root,'src','rust','target','web','gui.js')
         }
     },
     performance: {

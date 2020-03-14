@@ -308,23 +308,29 @@ const exec  = require('child_process').exec;
 const spawn = require('child_process').spawn;
 const toIco = require('to-ico')
 const sharp = require("sharp")
+const path  = require('path')
+
+const thisPath = path.resolve(__dirname)
+const root     = path.resolve(thisPath,'..','..','..','..','..')
+const distPath = path.resolve(root,'dist','icons')
+const donePath = path.resolve(distPath,'done')
 
 
 async function genIcons() {
     let sizes     = [16,32,64,128,256,512,1024]
     let win_sizes = [16,32,64,128,256]
 
-    if(fss.existsSync('dist/.initialized')) {
-        console.log("The 'dist/.initialized' file exists. Icons will not be regenerated.")
+    if(fss.existsSync(donePath)) {
+        console.log(`The ${donePath} file exists. Icons will not be regenerated.`)
         return
     }
 
     console.log("Generating SVG icons.")
-    await fs.mkdir('dist/svg', {recursive:true})
-    await fs.mkdir('dist/png', {recursive:true})
+    await fs.mkdir(path.resolve(distPath,'svg'), {recursive:true})
+    await fs.mkdir(path.resolve(distPath,'png'), {recursive:true})
     for (let size of sizes) {
         let name = `icon_${size}x${size}.svg`
-        await fs.writeFile(`dist/svg/${name}`,exports.generateMinimalWhiteLogo(size,true))
+        await fs.writeFile(`${distPath}/svg/${name}`,exports.generateMinimalWhiteLogo(size,true))
     }
 
     /// Please note that this function converts the SVG to PNG
@@ -335,36 +341,36 @@ async function genIcons() {
     for (let size of sizes) {
         let inName  = `icon_${size}x${size}.svg`
         let outName = `icon_${size}x${size}.png`
-        await sharp(`dist/svg/${inName}`,{density:144}).png().resize({
+        await sharp(`${distPath}/svg/${inName}`,{density:144}).png().resize({
             width  : size,
             kernel : sharp.kernel.mitchell
-        }).toFile(`dist/png/${outName}`)
+        }).toFile(`${distPath}/png/${outName}`)
     }
 
     for (let size of sizes.slice(1)) {
         let size2 = size / 2
         let inName  = `icon_${size}x${size}.svg`
         let outName = `icon_${size2}x${size2}@2x.png`
-        await sharp(`dist/svg/${inName}`,{density:144}).png().resize({
+        await sharp(`${distPath}/svg/${inName}`,{density:144}).png().resize({
             width  : size,
             kernel : sharp.kernel.mitchell
-        }).toFile(`dist/png/${outName}`)
+        }).toFile(`${distPath}/png/${outName}`)
     }
 
     console.log("Generating ICNS.")
-    exec(`cp -R dist/png dist/png.iconset`)
-    exec(`iconutil --convert icns --output dist/icon.icns dist/png.iconset`)
+    exec(`cp -R ${distPath}/png ${distPath}/png.iconset`)
+    exec(`iconutil --convert icns --output ${distPath}/icon.icns ${distPath}/png.iconset`)
 
     console.log("Generating ICO.")
     let files = []
     for (let size of win_sizes) {
         let inName = `icon_${size}x${size}.png`
-        let data   = await fs.readFile(`dist/png/${inName}`)
+        let data   = await fs.readFile(`${distPath}/png/${inName}`)
         files.push(data)
     }
-    toIco(files).then(buf => { fss.writeFileSync('dist/icon.ico', buf) })
+    toIco(files).then(buf => { fss.writeFileSync(`${distPath}/icon.ico`, buf) })
 
-    await fs.open('dist/.initialized','w')
+    await fs.open(`${distPath}/.initialized`,'w')
 }
 
 genIcons()

@@ -275,7 +275,7 @@ for (let command of commandList) {
 
 async function updateBuildVersion () {
     let config        = {}
-    let configPath    = jsDistPath + '/build.json'
+    let configPath    = distPath + '/build.json'
     let exists        = fss.existsSync(configPath)
     if(exists) {
         let configFile = await fs.readFile(configPath)
@@ -285,7 +285,7 @@ async function updateBuildVersion () {
     let commitHash    = commitHashCmd.trim()
     if (config.buildVersion != commitHash) {
         config.buildVersion = commitHash
-        await fs.mkdir(jsDistPath,{recursive:true})
+        await fs.mkdir(distPath,{recursive:true})
         await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
     }
 }
