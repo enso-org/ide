@@ -1,38 +1,15 @@
-let fss   = require('fs')
-let fs    = require('fs').promises
-let cmd   = require('./lib/cmd')
-let ncp   = require('ncp').ncp
-let yargs = require('yargs')
+const cmd   = require('./lib/cmd')
+const fs    = require('fs').promises
+const fss   = require('fs')
+const ncp   = require('ncp').ncp
+const path  = require('path')
+const yargs = require('yargs')
 
 
 
-// ====================
-// === Global Setup ===
-// ====================
-
-let root = __dirname + '/..'
-process.chdir(root)
-
-
-let jsRootPath        = root + '/src/js'
-let rustRootPath      = root + '/src/rust'
-let rustTargetPath    = rustRootPath + '/target'
-let rustTargetWebPath = rustTargetPath + '/web'
-let distPath          = root + '/dist'
-let initLockPath      = distPath + '/init.lock'
-let buildScriptsPath  = root + '/build'
-let runScriptPath     = buildScriptsPath + '/run.js'
-let jsGenSrcPath      = jsRootPath + '/generated'
-let jsDistPath        = jsRootPath + '/dist'
-
-
-
-
-
-
-
-
-
+// ========================
+// === Global Variables ===
+// ========================
 
 /// Arguments passed to sub-processes called from this script. This variable is set to a specific
 /// value after the command line args get parsed.
@@ -41,6 +18,27 @@ let subProcessArgs = undefined
 /// Arguments passed to a target binary if any. This variable is set to a specific value after the
 // command line args get parsed.
 let targetArgs = undefined
+
+
+
+// =============
+// === Paths ===
+// =============
+
+let root      = path.dirname(__dirname)
+let runScript = path.join(root,'/run')
+process.chdir(root)
+
+let jsRootPath        = path.join(root,'/src/js')
+let rustRootPath      = path.join(root,'/src/rust')
+let rustTargetPath    = path.join(rustRootPath,'/target')
+let rustTargetWebPath = path.join(rustTargetPath,'/web')
+let distPath          = path.join(root,'/dist')
+let initLockPath      = path.join(distPath,'/init.lock')
+let buildScriptsPath  = path.join(root,'/build')
+let runScriptPath     = path.join(buildScriptsPath,'/run.js')
+let jsGenSrcPath      = path.join(jsRootPath,'/generated')
+let jsDistPath        = path.join(jsRootPath,'/dist')
 
 
 
@@ -85,7 +83,7 @@ commands.clean.js = async function() {
     await cmd.with_cwd(jsRootPath, async () => {
         await run('npm',['run','clean'])
     })
-    try { await fs.unlink('.initialized') } catch {}
+    try { await fs.unlink('.initialized') } catch {} // FIXME
 }
 
 commands.clean.rust = async function() {
@@ -107,22 +105,14 @@ commands.check.rust = async function() {
 commands.build = command(`Build the sources in release mode`)
 commands.build.js = async function() {
     console.log(`Building JS target.`)
-    await cmd.with_cwd(jsRootPath, async () => {
-        await run('npm',['run','build'])
-    })
+    await run('npm',['run','build'])
 }
 
 commands.build.rust = async function() {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','src/rust/lib/debug-scenes'])
+    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','lib/debug-scenes'])
     await patch_file(rustTargetWebPath + '/gui.js', js_workaround_patcher)
     await fs.rename(rustTargetWebPath + '/gui_bg.wasm', rustTargetWebPath + '/gui.wasm')
-
-    /// We build to provisional location and patch files there before copying, so the backpack don't
-    /// get errors from processing unpatched files. Also, here we copy into (overwriting), without
-    /// removing old files. Backpack on Windows does not tolerate removing files it watches.
-//    await fs.mkdir(jsGenSrcPath, {recursive:true})
-//    await copy(rustTargetWebPath,jsGenSrcPath+'/wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -183,9 +173,11 @@ commands.lint.rust = async function() {
 commands.watch = command(`Start a file-watch utility and run interactive mode`)
 commands.watch.parallel = true
 commands.watch.rust = async function() {
-    let target = '"' + 'node ./run build --no-js -- --dev ' + subProcessArgs.join(" ") + '"'
-    let args = ['watch','--watch','lib','-s',`${target}`]
-    await cmd.run('cargo',args)
+    let target = '"' + `node ${runScript} build --no-js -- --dev ` + subProcessArgs.join(" ") + '"'
+    let args   = ['watch','--watch','lib','-s',`${target}`]
+    await cmd.with_cwd(rustRootPath, async () => {
+        await cmd.run('cargo',args)
+    })
 }
 
 commands.watch.js = async function() {
@@ -258,14 +250,16 @@ for (let command of commandList) {
         let runner = async function () {
             let do_rust = argv.rust && config.rust
             let do_js   = argv.js   && config.js
+            let rustCmd = () => cmd.with_cwd(rustRootPath, async () => config.rust(argv))
+            let jsCmd   = () => cmd.with_cwd(jsRootPath  , async () => config.js(argv))
             if(config.parallel) {
                 let promises = []
-                if (do_rust) { promises.push(config.rust(argv)) }
-                if (do_js)   { promises.push(config.js(argv)) }
+                if (do_rust) { promises.push(rustCmd()) }
+                if (do_js)   { promises.push(jsCmd()) }
                 await Promise.all(promises)
             } else {
-                if (do_rust) { await config.rust(argv) }
-                if (do_js)   { await config.js(argv)   }
+                if (do_rust) { await rustCmd() }
+                if (do_js)   { await jsCmd()   }
             }
         }
         cmd.section(command)

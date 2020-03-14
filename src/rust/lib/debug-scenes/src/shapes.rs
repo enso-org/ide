@@ -135,8 +135,6 @@ fn nodes3() -> AnyShape {
 
 
 fn init(world: &World) {
-
-
     let scene  = world.scene();
     let camera = scene.camera();
     let screen = camera.screen();
