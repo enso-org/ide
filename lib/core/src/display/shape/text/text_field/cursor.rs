@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::shape::text::text_field::content::line::LineFullInfo;
 use crate::display::shape::text::text_field::content::TextFieldContent;
-use crate::display::shape::text::text_field::word_occurrence::Words;
+use crate::display::shape::text::text_field::word_occurrence::IndexedWords;
 
 use data::text::TextLocation;
 use nalgebra::Vector2;
@@ -133,7 +133,7 @@ impl Cursor {
 /// Home, End, Ctrl+Home, etc.)
 #[derive(Copy,Clone,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
-pub enum Step {Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
+pub enum Step {Left,LeftWord,Right,RightWord,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
 /// A struct for cursor navigation process.
 #[derive(Debug)]
@@ -143,16 +143,13 @@ pub struct CursorNavigation<'a> {
     pub content: &'a mut TextFieldContent,
     /// Selecting navigation selects/unselects all text between current and new cursor position.
     pub selecting: bool,
-    /// Indicate if the cursor is jumping words.
-    pub jumping_words: bool
 }
 
 impl<'a> CursorNavigation<'a> {
     /// Creates a new CursorNavigation with defaults.
     pub fn default(content:&'a mut TextFieldContent) -> Self {
         let selecting     = default();
-        let jumping_words = default();
-        Self {content,selecting,jumping_words}
+        Self {content,selecting}
     }
 
     /// Jump cursor directly to given position.
@@ -252,13 +249,13 @@ impl<'a> CursorNavigation<'a> {
     /// If there is a word after `position`, returns its end index.
     fn next_word_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
         let line        = position.line;
-        let words       = Words::new(self.content.lines()[line].chars());
+        let words       = IndexedWords::new(self.content.lines()[line].chars());
         let next_column = words.iter().find(|word| {
-            let (word_start, _) = word[0];
-            let word_end        = word_start + word.len();
+            let word_start = word[0].index;
+            let word_end   = word_start + word.len();
             position.column < word_end
         }).map(|word| {
-            let (word_start, _) = word[0];
+            let word_start = word[0].index;
             word_start + word.len()
         });
         let next_line  = Some(line + 1).filter(|l| *l < self.content.lines().len());
@@ -269,12 +266,12 @@ impl<'a> CursorNavigation<'a> {
     /// If there is a word before `position`, returns its start index.
     fn prev_word_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
         let line            = position.line;
-        let words           = Words::new(self.content.lines()[line].chars());
+        let words           = IndexedWords::new(self.content.lines()[line].chars());
         let previous_column = words.iter().rev().find(|word| {
-            let (word_start, _) = word[0];
+            let word_start = word[0].index;
             position.column > word_start
         }).map(|word| {
-            let (word_start, _) = word[0];
+            let word_start = word[0].index;
             word_start
         });
         let previous_line = Some(line).filter(|l| *l > 0).map(|l| l - 1);
@@ -283,8 +280,8 @@ impl<'a> CursorNavigation<'a> {
     }
 
     /// Calculates the next position of the cursor when navigating right.
-    fn step_forward(&mut self, position:TextLocation) -> TextLocation {
-        if self.jumping_words {
+    fn step_forward(&mut self, position:TextLocation, jumping_words:bool) -> TextLocation {
+        if jumping_words {
             self.next_word_position(&position)
         } else {
             self.next_char_position(&position)
@@ -292,8 +289,8 @@ impl<'a> CursorNavigation<'a> {
     }
 
     /// Calculates the previous position of the cursor when navigating left.
-    fn step_backwards(&mut self, position:TextLocation) -> TextLocation {
-        if self.jumping_words {
+    fn step_backwards(&mut self, position:TextLocation, jumping_words:bool) -> TextLocation {
+        if jumping_words {
             self.prev_word_position(&position)
         } else {
             self.prev_char_position(&position)
@@ -303,8 +300,10 @@ impl<'a> CursorNavigation<'a> {
     /// New position of cursor at `position` after applying `step`.
     fn new_position(&mut self, position: TextLocation, step:Step) -> TextLocation {
         match step {
-            Step::Left      => self.step_backwards(position),
-            Step::Right     => self.step_forward(position),
+            Step::LeftWord  => self.prev_word_position(&position).unwrap_or(position),
+            Step::RightWord => self.next_word_position(&position).unwrap_or(position),
+            Step::Left      => self.prev_char_position(&position).unwrap_or(position),
+            Step::Right     => self.next_char_position(&position).unwrap_or(position),
             Step::Up        => self.line_up_position(&position).unwrap_or(position),
             Step::Down      => self.line_down_position(&position).unwrap_or(position),
             Step::LineBegin => TextLocation::at_line_begin(position.line),
@@ -394,8 +393,8 @@ impl Cursors {
         self.merge_overlapping_cursors();
     }
 
-    /// Remove all cursors except the last one.
-    pub fn remove_additional_cursors(&mut self) {
+    /// Finish multicursor mode, removing any additional cursors.
+    pub fn finish_multicursor_mode(&mut self) {
         self.cursors.drain(0..self.cursors.len()-1);
     }
 
@@ -428,7 +427,7 @@ impl Cursors {
     , content       : &mut TextFieldContent
     , from_location : TextLocation
     , to_location   : TextLocation) {
-        self.remove_additional_cursors();
+        self.finish_multicursor_mode();
         let cursor = self.last_cursor_mut();
 
         let from_column = from_location.column;
@@ -455,8 +454,8 @@ impl Cursors {
         }
     }
 
-    /// Selects a block from first cursor position to the nearest location from given point of
-    /// the screen.
+    /// Creates a multiline block selection from the first cursor position to the nearest
+    /// location from the given point of the screen.
     pub fn block_selection(&mut self, content:&mut TextFieldContent, point:Vector2<f32>) {
         let from_location = self.first_cursor().selected_to;
         let from_line     = from_location.line;

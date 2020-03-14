@@ -140,7 +140,7 @@ shared! { TextField
 
         /// Finish multicursor mode, removing any additional cursors.
         pub fn finish_multicursor_mode(&mut self) {
-            self.cursors.remove_additional_cursors();
+            self.cursors.finish_multicursor_mode();
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
             self.clear_word_occurrences();
         }
@@ -148,7 +148,7 @@ shared! { TextField
         /// Removes all cursors except one which is set and given point.
         pub fn set_cursor(&mut self, point:Vector2<f32>) {
             self.clear_word_occurrences();
-            self.cursors.remove_additional_cursors();
+            self.cursors.finish_multicursor_mode();
             self.jump_cursor(point,false);
         }
 
@@ -168,12 +168,12 @@ shared! { TextField
         }
 
         /// Move all cursors by given step.
-        pub fn navigate_cursors(&mut self, step:Step, selecting:bool, jumping_words:bool) {
+        pub fn navigate_cursors(&mut self, step:Step, selecting:bool) {
             if !selecting {
                 self.clear_word_occurrences()
             }
             let content        = &mut self.content;
-            let mut navigation = CursorNavigation {content,selecting,jumping_words};
+            let mut navigation = CursorNavigation {content,selecting};
             self.cursors.navigate_all_cursors(&mut navigation,step);
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
