@@ -29,16 +29,16 @@ let root      = path.dirname(__dirname)
 let runScript = path.join(root,'/run')
 process.chdir(root)
 
-let jsRootPath        = path.join(root,'/src/js')
-let rustRootPath      = path.join(root,'/src/rust')
-let rustTargetPath    = path.join(rustRootPath,'/target')
-let rustTargetWebPath = path.join(rustTargetPath,'/web')
-let distPath          = path.join(root,'/dist')
-let initLockPath      = path.join(distPath,'/init.lock')
-let buildScriptsPath  = path.join(root,'/build')
-let runScriptPath     = path.join(buildScriptsPath,'/run.js')
-let jsGenSrcPath      = path.join(jsRootPath,'/generated')
-let jsDistPath        = path.join(jsRootPath,'/dist')
+let jsRootPath       = path.join(root,'/src/js')
+let rustRootPath     = path.join(root,'/src/rust')
+let distPath         = path.join(root,'/dist')
+let buildScriptsPath = path.join(root,'/build')
+let rustDistWasmPath = path.join(distPath,'/wasm')
+let initStatusPath   = path.join(distPath,'/init')
+let initLockPath     = path.join(initStatusPath,'/init.lock')
+let runScriptPath    = path.join(buildScriptsPath,'/run.js')
+let jsGenSrcPath     = path.join(jsRootPath,'/generated')
+let jsDistPath       = path.join(jsRootPath,'/dist')
 
 
 
@@ -110,9 +110,9 @@ commands.build.js = async function() {
 
 commands.build.rust = async function() {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','lib/debug-scenes'])
-    await patch_file(rustTargetWebPath + '/gui.js', js_workaround_patcher)
-    await fs.rename(rustTargetWebPath + '/gui_bg.wasm', rustTargetWebPath + '/gui.wasm')
+    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir',rustDistWasmPath,'lib/debug-scenes'])
+    await patch_file(rustDistWasmPath + '/gui.js', js_workaround_patcher)
+    await fs.rename(rustDistWasmPath + '/gui_bg.wasm', rustDistWasmPath + '/gui.wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790

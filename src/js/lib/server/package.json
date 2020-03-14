@@ -13,9 +13,6 @@
   "bugs": {
     "url": "https://github.com/luna/basegl/issues"
   },
-  "scripts": {
-    "clean": "rm -Rf dist"
-  },
   "dependencies": {
     "copy-webpack-plugin": "^5.1.1"
   },

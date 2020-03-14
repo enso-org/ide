@@ -35,7 +35,7 @@
       "category": "Development"
     },
     "files": [
-      { "from": "../../../../dist/unpacked" , "to": "." }
+      { "from": "../../../../dist/content" , "to": "." }
     ],
     "fileAssociations": [
       {
@@ -50,7 +50,7 @@
       }
     ],
     "directories": {
-      "output": "../../../../dist/native"
+      "output": "../../../../dist/client"
     }
   },
 
@@ -73,8 +73,7 @@
 
 
   "scripts": {
-    "clean": "rm -Rf dist",
-    "start": "electron dist/unpacked -- ",
+    "start": "electron dist/content -- ",
     "build": "webpack ",
     "dist": "electron-builder",
     "dist:crossplatform": "electron-builder --mac --win --linux"

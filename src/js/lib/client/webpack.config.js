@@ -12,22 +12,18 @@ module.exports = {
     mode: 'production',
     target: "electron-main",
     output: {
-        path: path.resolve(distPath,'unpacked'),
+        path: path.resolve(distPath,'content'),
         filename: '[name].js',
     },
     plugins: [
         new Copy([
             {
-                from : path.resolve(thisPath,'..','content','dist','assets'),
-                to   : path.resolve(distPath,'unpacked','assets')
-            },
-            {
                 from : path.resolve(thisPath,'package.json'),
-                to   : path.resolve(distPath,'unpacked','package.json')
+                to   : path.resolve(distPath,'content','package.json')
             },
             {
                 from : path.resolve(thisPath,'src','preload.js'),
-                to   : path.resolve(distPath,'unpacked','preload.js')
+                to   : path.resolve(distPath,'content','preload.js')
             }
         ]),
     ],
