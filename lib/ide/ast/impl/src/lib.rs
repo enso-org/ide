@@ -34,13 +34,19 @@ use shapely::*;
 use uuid::Uuid;
 
 
-
+/// A mapping between text position and immutable ID.
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
-pub struct IdMap(pub Vec<(Span,ID)>);
+#[serde(transparent)]
+pub struct IdMap{ pub vec:Vec<(Span,ID)> }
 
 impl IdMap {
+    /// Create a new instance.
+    pub fn new(vec:Vec<(Span,ID)>) -> IdMap {
+        IdMap {vec}
+    }
+    /// Assigns Span to given ID.
     pub fn insert(&mut self, span:Span, id:ID) {
-        self.0.push((span, id));
+        self.vec.push((span, id));
     }
 }
 
@@ -176,6 +182,12 @@ impl<'t> IntoIterator for &'t Ast {
     type IntoIter = <&'t Shape<Ast> as IntoIterator>::IntoIter;
     fn into_iter(self) -> Self::IntoIter {
         self.shape().into_iter()
+    }
+}
+
+impl ToString for Ast {
+    fn to_string(&self) -> String {
+        self.repr()
     }
 }
 
@@ -914,6 +926,11 @@ impl Ast {
         Ast::from(cons)
     }
 
+    pub fn var_with_id<Str: ToString>(name:Str, id:ID) -> Ast {
+        let var = Var{name:name.to_string()};
+        Ast::new(var,Some(id))
+    }
+
     pub fn var<Str: ToString>(name:Str) -> Ast {
         let var = Var{name:name.to_string()};
         Ast::from(var)
@@ -1102,7 +1119,7 @@ mod tests {
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
         let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
         let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
-        assert_eq!(ast.id_map(), IdMap(ids));
+        assert_eq!(ast.id_map(), IdMap::new(ids));
     }
 
     #[test]

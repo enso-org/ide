@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::controller::graph::{NewNodeInfo, Position};
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition::DefinitionName;
@@ -10,6 +9,7 @@ use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
+//use ast::HasRepr;
 use ast::IdMap;
 use ast::ID;
 use ast::known;
@@ -17,6 +17,7 @@ use utils::fail::FallibleResult;
 use parser::api::IsParser;
 use ast::test_utils::expect_single_line;
 use data::text::{Span, Index, Size};
+use crate::controller::graph::{NewNodeInfo, LocationHint};
 
 
 // ================
@@ -98,20 +99,21 @@ impl GraphInfo {
     /// Adds a new node to this graph.
     pub fn add_node
     (&mut self, new_node:NewNodeInfo, parser:&mut impl IsParser) -> FallibleResult<ID> {
-        let index = new_node.next_node.map(|id| {
-            self.nodes.iter().find_position(|node| {
-                node.id() == id
-            }).map(|(index,_)| index + 1).unwrap_or(self.nodes.len())
-        }).unwrap_or(self.nodes.len());
+        let index = match new_node.location_hint {
+            LocationHint::Start => 0,
+            LocationHint::End => self.nodes.len(),
+            LocationHint::After(id) => {
+                self.nodes.iter().find_position(|node| {
+                    node.id() == id
+                }).map(|(index, _)| index + 1).unwrap_or(self.nodes.len())
+            }
+            LocationHint::Before(_) => 0
+        };
 
         let error_message = format!("Couldn't parse {}", new_node.expression);
 
         let id            = new_node.id.unwrap_or(ID::new_v4());
-        let ix = Index{value:0};
-        let size  = Size{value:new_node.expression.len()};
-        let span  = Span::new(ix, size);
-        let id_map   = IdMap(vec![(span, id)]);
-        let node_ast = parser.parse(new_node.expression, id_map)?;
+        let node_ast = parser.parse(new_node.expression, default())?;
         let line_ast = expect_single_line(&node_ast);
         println!("{:#?}", line_ast);
         let node          = NodeInfo::from_line_ast(&line_ast);
@@ -124,11 +126,6 @@ impl GraphInfo {
 
     /// Removes the node from graph.
     pub fn remove_node(&mut self, _node_id:ID) -> FallibleResult<()> {
-        todo!()
-    }
-
-    /// Sets the visual position of the given node.
-    pub fn move_node(&self, _node_id:ID, _new_position:Position) -> FallibleResult<()> {
         todo!()
     }
 
@@ -173,9 +170,11 @@ mod tests {
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::definition::DefinitionProvider;
 
+    use ast::HasRepr;
     use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use ast::ID;
+    use crate::controller::graph::{NewNodeInfo, LocationHint};
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -201,7 +200,7 @@ mod tests {
             let graph = main_graph(&mut parser, program);
             assert_eq!(graph.nodes.len(), 1);
             let node = &graph.nodes[0];
-            assert_eq!(node.expression_text(), "2+2");
+            assert_eq!(node.expression().repr(), "2+2");
             let _ = node.id(); // just to make sure it is available
         }
     }
@@ -217,17 +216,17 @@ main =
     node
 ";
         let mut graph = main_graph(&mut parser, program);
-        let next_node  = Some(graph.nodes[0].id());
-        let expression = "4 + 4".to_string();
-        let id         = Some(ID::new_v4());
-        let location   = default();
+        let expression    = "4 + 4".to_string();
+        let id            = Some(ID::new_v4());
+        let location_hint = LocationHint::After(graph.nodes[0].id());
+        let location      = default();
 
-        assert!(graph.add_node(NewNodeInfo {expression,id,location,next_node},&mut parser).is_ok());
+        assert!(graph.add_node(NewNodeInfo {expression,id,location_hint,location},&mut parser).is_ok());
 
         assert_eq!(graph.nodes.len(), 3);
-        assert_eq!(graph.nodes[0].expression_text(), "node");
-        assert_eq!(graph.nodes[1].expression_text(), "4 + 4");
-        assert_eq!(graph.nodes[2].expression_text(), "node");
+        assert_eq!(graph.nodes[0].expression().repr(), "node");
+        assert_eq!(graph.nodes[1].expression().repr(), "4 + 4");
+        assert_eq!(graph.nodes[2].expression().repr(), "node");
     }
 
     #[wasm_bindgen_test]
@@ -240,13 +239,10 @@ main =
     Int.= a = node
     node
 ";
-        // TODO [mwu]
-        //  Add case like `Int.= a = node` once https://github.com/luna/enso/issues/565 is fixed
-
         let graph = main_graph(&mut parser, program);
         assert_eq!(graph.nodes.len(), 2);
         for node in graph.nodes.iter() {
-            assert_eq!(node.expression_text(), "node");
+            assert_eq!(node.expression().repr(), "node");
         }
     }
 }
