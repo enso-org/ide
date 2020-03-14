@@ -8,6 +8,7 @@ use basegl_build_utilities::PathRef;
 use basegl_build_utilities::absolute_path;
 use basegl_build_utilities::targeting_wasm;
 
+use std::fs;
 use std::fs::File;
 use std::fs::create_dir_all;
 use std::io::prelude::*;
@@ -67,8 +68,8 @@ impl ParserVersion {
 
 /// Stores information which parser version should be provided where.
 ///
-/// Implementation provides methods that download desired parser version, patch
-/// it and store to the file, so parser can be consumed by `wasm_bindgen`.
+/// Implementation provides methods that download desired parser version, patch it and store to the
+/// file, so parser can be consumed by `wasm_bindgen`.
 struct ParserProvider {
     /// Required parser version.
     version      : ParserVersion,
@@ -107,19 +108,29 @@ impl ParserProvider {
 
     /// Ensures that target's parent directory exists.
     pub fn prepare_target_location(&self) {
-        if let Some(parent_directory) = self.parser_path.parent() {
-            let create_dir_error = format!(
-                "Failed to create directory: {}.",
-                parent_directory.display());
-            create_dir_all(parent_directory).expect(&create_dir_error);
-        }
+        let parent_directory = self.parser_path.parent().expect("Unable to access parent directory.");
+        let create_dir_error = format!(
+            "Failed to create directory: {}.",
+            parent_directory.display());
+        create_dir_all(parent_directory).expect(&create_dir_error);
     }
 
     /// Places required parser version in the target location.
     pub async fn run(&self) {
         self.prepare_target_location();
-        let parser_js = self.download().await;
-        self.patch_and_store(parser_js);
+        let parent_directory = self.parser_path.parent().expect("Unable to access parent directory.");
+        let fingerprint      = parent_directory.join("parser.fingerprint");
+        let opt_version      = fs::read_to_string(&fingerprint);
+        let changed          = match opt_version {
+            Err(_)   => true,
+            Ok(hash) => hash != PARSER_COMMIT
+        };
+        if changed {
+            println!("cargo:warning=Parser version changed. Rebuilding.");
+            let parser_js = self.download().await;
+            self.patch_and_store(parser_js);
+            fs::write(&fingerprint,PARSER_COMMIT).expect("Unable to write parser fingerprint.");
+        }
     }
 }
 
@@ -134,7 +145,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     if targeting_wasm() {
         let required_version = ParserVersion::required();
         let parser_path      = absolute_path(PARSER_PATH)?;
-        let provider = ParserProvider::new(required_version,&parser_path);
+        let provider         = ParserProvider::new(required_version,&parser_path);
         provider.run().await;
     }
     Ok(())

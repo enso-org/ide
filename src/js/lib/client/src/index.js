@@ -6,7 +6,7 @@ import * as minimist  from 'minimist'
 import * as path      from 'path'
 import * as pkg       from '../package.json'
 import * as rootCfg   from '../../../package.json'
-import * as buildCfg  from '../../../generated/build.json'
+import * as buildCfg  from '../../../dist/build.json'
 import * as Server    from 'enso-studio-common/src/server'
 
 

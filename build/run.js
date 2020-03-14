@@ -14,13 +14,16 @@ let root = __dirname + '/..'
 process.chdir(root)
 
 
-let jsSrcPath        = root + '/src/js'
-let rustSrcPath      = root + '/src/rust'
-let distPath         = root + '/dist'
-let initLockPath     = distPath + '/init.lock'
-let buildScriptsPath = root + '/build'
-let runScriptPath    = buildScriptsPath + '/run.js'
-let jsGenSrcPath     = jsSrcPath + '/generated'
+let jsRootPath        = root + '/src/js'
+let rustRootPath      = root + '/src/rust'
+let rustTargetPath    = rustRootPath + '/target'
+let rustTargetWebPath = rustTargetPath + '/web'
+let distPath          = root + '/dist'
+let initLockPath      = distPath + '/init.lock'
+let buildScriptsPath  = root + '/build'
+let runScriptPath     = buildScriptsPath + '/run.js'
+let jsGenSrcPath      = jsRootPath + '/generated'
+let jsDistPath        = jsRootPath + '/dist'
 
 
 
@@ -79,14 +82,14 @@ let commands = {}
 
 commands.clean = command(`Clean all build artifacts`)
 commands.clean.js = async function() {
-    await cmd.with_cwd(jsSrcPath, async () => {
+    await cmd.with_cwd(jsRootPath, async () => {
         await run('npm',['run','clean'])
     })
     try { await fs.unlink('.initialized') } catch {}
 }
 
 commands.clean.rust = async function() {
-    try { await fs.rmdir(jsGenSrcPath) } catch {}
+    try { await fs.rmdir(jsDistPath) } catch {}
     await run('cargo',['clean'])
 }
 
@@ -102,24 +105,24 @@ commands.check.rust = async function() {
 // === Build ===
 
 commands.build = command(`Build the sources in release mode`)
-//commands.build.js = async function() {
-//    console.log(`Building JS target.`)
-//    await cmd.with_cwd(jsSrcPath, async () => {
-//        await run('npm',['run','build'])
-//    })
-//}
+commands.build.js = async function() {
+    console.log(`Building JS target.`)
+    await cmd.with_cwd(jsRootPath, async () => {
+        await run('npm',['run','build'])
+    })
+}
 
 commands.build.rust = async function() {
     console.log(`Building WASM target.`)
     await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','src/rust/lib/debug-scenes'])
-    await patch_file('target/web/gui.js', js_workaround_patcher)
-    await fs.rename('target/web/gui_bg.wasm','target/web/gui.wasm')
+    await patch_file(rustTargetWebPath + '/gui.js', js_workaround_patcher)
+    await fs.rename(rustTargetWebPath + '/gui_bg.wasm', rustTargetWebPath + '/gui.wasm')
 
     /// We build to provisional location and patch files there before copying, so the backpack don't
     /// get errors from processing unpatched files. Also, here we copy into (overwriting), without
     /// removing old files. Backpack on Windows does not tolerate removing files it watches.
-    await fs.mkdir(jsGenSrcPath, {recursive:true})
-    await copy('target/web',jsGenSrcPath+'/wasm')
+//    await fs.mkdir(jsGenSrcPath, {recursive:true})
+//    await copy(rustTargetWebPath,jsGenSrcPath+'/wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -148,7 +151,7 @@ commands.start.rust = async function() {
 
 commands.start.js = async function() {
     console.log(`Building JS target.`)
-    await cmd.with_cwd(jsSrcPath, async () => {
+    await cmd.with_cwd(jsRootPath, async () => {
         await run('npm',['run','start','--'].concat(targetArgs))
     })
 }
@@ -186,7 +189,7 @@ commands.watch.rust = async function() {
 }
 
 commands.watch.js = async function() {
-    await cmd.with_cwd(jsSrcPath, async () => {
+    await cmd.with_cwd(jsRootPath, async () => {
         await run('npm',['run','watch'])
     })
 }
@@ -200,7 +203,7 @@ commands.dist.rust = async function() {
 }
 
 commands.dist.js = async function() {
-    await cmd.with_cwd(jsSrcPath, async () => {
+    await cmd.with_cwd(jsRootPath, async () => {
         await run('npm',['run','dist'])
     })
 }
@@ -278,8 +281,7 @@ for (let command of commandList) {
 
 async function updateBuildVersion () {
     let config        = {}
-    let generatedPath = jsGenSrcPath
-    let configPath    = generatedPath + '/build.json'
+    let configPath    = jsDistPath + '/build.json'
     let exists        = fss.existsSync(configPath)
     if(exists) {
         let configFile = await fs.readFile(configPath)
@@ -289,7 +291,7 @@ async function updateBuildVersion () {
     let commitHash    = commitHashCmd.trim()
     if (config.buildVersion != commitHash) {
         config.buildVersion = commitHash
-        await fs.mkdir(generatedPath,{recursive:true})
+        await fs.mkdir(jsDistPath,{recursive:true})
         await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
     }
 }

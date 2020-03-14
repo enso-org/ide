@@ -37,7 +37,7 @@ pub fn run_example_text_typing() {
         let now             = js_sys::Date::now();
         let animation_start = now + 3000.0;
         let start_scrolling = animation_start + 10000.0;
-        let mut chars       = typed_character_list(animation_start,include_str!("../../core/src/lib.rs"));
+        let mut chars       = typed_character_list(animation_start,include_str!("text_typing.rs"));
         world.on_frame(move |_| {
             animate_text_component(&mut text_field,&mut chars,start_scrolling)
         }).forget();

@@ -1,0 +1,14 @@
+dist
+
+# Rust
+/target
+/build/target/
+**/*.rs.bk
+pkg/
+wasm-pack.log
+
+# A thirdparty downloaded js
+/ensogl/msdf-sys/msdfgen_wasm.js
+
+# JavaScript
+node_modules
