@@ -1082,7 +1082,7 @@ mod tests {
         let ast = Ast::new(var, None);
         assert!(ast.id.is_none());
 
-        let id  = Uuid::new_v4();
+        let id  = Uuid::default();
         let ast = ast.with_id(id);
         assert_eq!(ast.id, Some(id));
     }
