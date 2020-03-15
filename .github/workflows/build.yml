@@ -23,10 +23,8 @@ jobs:
           toolchain: nightly-2019-11-04
           override: true
 
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - name: ./run check
+        run: node ./run check
 
 
   test:
