@@ -136,8 +136,8 @@ jobs:
           node-version: '12.16.1'
 
       - name: Generate test profile
-        working-directory: src/rust
         uses: actions-rs/cargo@v1
+        working-directory: src/rust
         with:
           command: test
           args: --all-features --no-fail-fast
