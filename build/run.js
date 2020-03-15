@@ -5,7 +5,9 @@ const ncp   = require('ncp').ncp
 const path  = require('path')
 const yargs = require('yargs')
 const glob  = require('glob')
+const paths = require('./paths')
 
+process.chdir(paths.root)
 
 
 // ========================
@@ -19,41 +21,6 @@ let subProcessArgs = undefined
 /// Arguments passed to a target binary if any. This variable is set to a specific value after the
 // command line args get parsed.
 let targetArgs = undefined
-
-
-
-// =============
-// === Paths ===
-// =============
-
-
-let paths  = {}
-
-paths.root          = path.dirname(__dirname)
-paths.runScript     = path.join(paths.root,'/run')
-paths.buildScripts  = path.join(paths.root,'/build')
-
-
-paths.dist          = {}
-paths.dist.root     = path.join(paths.root,'/dist')
-paths.dist.client   = path.join(paths.dist.root,'/client')
-paths.dist.content  = path.join(paths.dist.root,'/content')
-paths.initStatus    = path.join(paths.dist.root,'/init')
-paths.initLock      = path.join(paths.initStatus,'/init.lock')
-
-paths.js            = {}
-paths.js.root       = path.join(paths.root,'/src/js')
-
-paths.rust          = {}
-paths.rust.root     = path.join(paths.root,'/src/rust')
-paths.rust.wasmDist = path.join(paths.dist.root,'/wasm')
-
-
-
-process.chdir(paths.root)
-
-
-
 
 
 
@@ -98,7 +65,7 @@ commands.clean.js = async function() {
     await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','clean'])
     })
-    try { await fs.unlink('.initialized') } catch {} // FIXME
+    try { await fs.unlink(paths.dist.init) } catch {}
 }
 
 commands.clean.rust = async function() {
@@ -289,7 +256,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: "1.0.0",
+        version: "2.0.0-alpha.0",
         author: {
             name: "Enso Team",
             email: "contact@luna-lang.org"
@@ -310,7 +277,6 @@ async function processPackageConfigs() {
     files = files.concat(glob.sync(paths.js.root + "/package.js", {cwd:paths.root}))
     files = files.concat(glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root}))
     for (file of files) {
-        console.log(file)
         let dirPath = path.dirname(file)
         let outPath = path.join(dirPath,'package.json')
         let src     = await fs.readFile(file,'utf8')
@@ -332,7 +298,7 @@ async function processPackageConfigs() {
 
 async function updateBuildVersion () {
     let config        = {}
-    let configPath    = paths.dist.root + '/build.json'
+    let configPath    = paths.dist.buildInfo
     let exists        = fss.existsSync(configPath)
     if(exists) {
         let configFile = await fs.readFile(configPath)

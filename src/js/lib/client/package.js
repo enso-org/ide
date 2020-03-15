@@ -1,4 +1,34 @@
-let build = {
+let config = {
+    name: "enso-studio-client",
+    description: "The standalone client for the Enso IDE.",
+    main: "index.js",
+
+    dependencies: {
+        "enso-studio-content": "*",
+        "enso-studio-common": "*",
+        "enso-studio-icons": "*",
+        "copy-webpack-plugin": "^5.1.1",
+        "create-servers": "^3.1.0",
+        "electron-is-dev": "^1.1.0"
+    },
+
+    devDependencies: {
+        "compression-webpack-plugin": "^3.1.0",
+        "copy-webpack-plugin": "^5.1.1",
+        "devtron": "^1.4.0",
+        "electron": "8.0.2",
+        "electron-builder": "^22.3.2"
+    },
+
+    scripts: {
+        "start": `electron ${paths.dist.content} -- `,
+        "build": "webpack ",
+        "dist": "electron-builder",
+        "dist:crossplatform": "electron-builder --mac --win --linux"
+    }
+}
+
+config.build = {
     appId: "org.enso.studio",
     productName: "Enso Studio",
     copyright: "Copyright © 2020 ${author}.",
@@ -35,35 +65,4 @@ let build = {
     }
 }
 
-
-module.exports = {
-    config: {
-        name: "enso-studio-client",
-        description: "The standalone client part of the IDE.",
-        main: "index.js",
-        build,
-
-        dependencies: {
-            "enso-studio-content": "1.0.0",
-            "enso-studio-common": "1.0.0",
-            "enso-studio-icons": "1.0.0",
-            "copy-webpack-plugin": "^5.1.1",
-            "create-servers": "^3.1.0",
-            "electron-is-dev": "^1.1.0"
-        },
-        devDependencies: {
-            "compression-webpack-plugin": "^3.1.0",
-            "copy-webpack-plugin": "^5.1.1",
-            "devtron": "^1.4.0",
-            "electron": "8.0.2",
-            "electron-builder": "^22.3.2"
-        },
-
-        scripts: {
-            "start": "electron dist/content -- ",
-            "build": "webpack ",
-            "dist": "electron-builder",
-            "dist:crossplatform": "electron-builder --mac --win --linux"
-        }
-    }
-}
+module.exports = {config}

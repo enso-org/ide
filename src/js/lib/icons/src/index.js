@@ -313,7 +313,7 @@ const path  = require('path')
 const thisPath = path.resolve(__dirname)
 const root     = path.resolve(thisPath,'..','..','..','..','..')
 const distPath = path.resolve(root,'dist','icons')
-const donePath = path.resolve(distPath,'done')
+const donePath = path.resolve(distPath,'init')
 
 
 async function genIcons() {
@@ -370,7 +370,7 @@ async function genIcons() {
     }
     toIco(files).then(buf => { fss.writeFileSync(`${distPath}/icon.ico`, buf) })
 
-    await fs.open(`${distPath}/.initialized`,'w')
+    await fs.open(donePath,'w')
 }
 
 genIcons()

@@ -1,18 +1,11 @@
 #!/usr/bin/env node
-let cmd = require('./build/lib/cmd')
-let fss = require('fs')
-let fs  = require('fs').promises
+
+const cmd   = require('./build/lib/cmd')
+const fs    = require('fs').promises
+const fss   = require('fs')
+const paths = require('./build/paths')
 
 let args = process.argv.slice(2)
-
-let root             = __dirname
-let jsSrcPath        = root + '/src/js'
-let rustSrcPath      = root + '/src/rust'
-let distPath         = root + '/dist'
-let initLockPath     = distPath + '/init.lock'
-let buildScriptsPath = root + '/build'
-let runScriptPath    = buildScriptsPath + '/run.js'
-
 
 let no_validation = '--no-validation'
 async function init () {
@@ -24,7 +17,7 @@ async function init () {
         })
     }
 
-    let initialized = fss.existsSync(initLockPath)
+    let initialized = fss.existsSync(paths.dist.init)
     if (!initialized) {
         cmd.section('Initialization')
         console.log('Installing build script dependencies.')
@@ -33,21 +26,21 @@ async function init () {
         })
 
         if(args[0] == 'clean') {
-            try { await fs.unlink(initLockPath) } catch {}
+            try { await fs.unlink(paths.dist.init) } catch {}
         } else {
             console.log('Installing application dependencies')
-            await cmd.with_cwd(jsSrcPath, async () => {
+            await cmd.with_cwd(paths.js.root, async () => {
                 await cmd.run('npm',['run','install'])
             })
-            await fs.mkdir(distPath, {recursive:true})
-            await fs.open(initLockPath,'w')
+            await fs.mkdir(paths.dist.root, {recursive:true})
+            await fs.open(paths.dist.init,'w')
         }
     }
 }
 
 async function main() {
     await init()
-    cmd.run('node',[runScriptPath].concat(args))
+    cmd.run('node',[paths.script.run].concat(args))
 }
 
 main()
