@@ -9,7 +9,7 @@ jobs:
 
 
   build:
-    name: Build & Lint
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
