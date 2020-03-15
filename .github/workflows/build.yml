@@ -230,8 +230,10 @@ jobs:
 
 
   package-fm:
-    name: Package mock File Manager Server
+    name: Package File Manager Server Mock
     runs-on: ${{ matrix.os }}
+    env:
+      working-directory: src/rust
     strategy:
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
