@@ -53,49 +53,7 @@ paths.rust.wasmDist = path.join(paths.dist.root,'/wasm')
 process.chdir(paths.root)
 
 
-function defaultConfig() {
-    return {
-        version: "1.0.0",
-        author: {
-            name: "Enso Team",
-            email: "contact@luna-lang.org"
-        },
-        homepage: "https://github.com/luna/ide",
-        repository: {
-            type: "git",
-            url: "git@github.com:luna/ide.git"
-        },
-        bugs: {
-            url: "https://github.com/luna/ide/issues"
-        },
-    }
-}
 
-
-async function processPackageConfigs() {
-    let files = glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root})
-    for (file of files) {
-//        console.log(file)
-        let dirPath = path.dirname(file)
-        let outPath = path.join(dirPath,'package.json')
-
-        let src     = await fs.readFile(file,'utf8')
-        let modSrc  = `module = {}\n${src}\nreturn module.exports`
-        let fn      = new Function('require','paths',modSrc)
-        let mod     = fn(require,paths)
-        let config  = mod.config
-
-        if (!config) {
-            throw(`Package config '${file}' do not export 'module.config'.`)
-        }
-
-        config = Object.assign(defaultConfig(),config)
-
-        fs.writeFile(outPath,JSON.stringify(config,undefined,4))
-    }
-}
-
-processPackageConfigs()
 
 
 
@@ -325,6 +283,49 @@ for (let command of commandList) {
 
 
 
+// ======================
+// === Package Config ===
+// ======================
+
+function defaultConfig() {
+    return {
+        version: "1.0.0",
+        author: {
+            name: "Enso Team",
+            email: "contact@luna-lang.org"
+        },
+        homepage: "https://github.com/luna/ide",
+        repository: {
+            type: "git",
+            url: "git@github.com:luna/ide.git"
+        },
+        bugs: {
+            url: "https://github.com/luna/ide/issues"
+        },
+    }
+}
+
+async function processPackageConfigs() {
+    let files = []
+    files = files.concat(glob.sync(paths.js.root + "/package.js", {cwd:paths.root}))
+    files = files.concat(glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root}))
+    for (file of files) {
+        console.log(file)
+        let dirPath = path.dirname(file)
+        let outPath = path.join(dirPath,'package.json')
+        let src     = await fs.readFile(file,'utf8')
+        let modSrc  = `module = {}\n${src}\nreturn module.exports`
+        let fn      = new Function('require','paths',modSrc)
+        let mod     = fn(require,paths)
+        let config  = mod.config
+        if (!config) { throw(`Package config '${file}' do not export 'module.config'.`) }
+        config = Object.assign(defaultConfig(),config)
+        fs.writeFile(outPath,JSON.stringify(config,undefined,4))
+    }
+}
+
+
+
 // ============
 // === Main ===
 // ============
@@ -347,6 +348,7 @@ async function updateBuildVersion () {
 }
 
 async function main () {
+    await processPackageConfigs()
     updateBuildVersion()
     optParser.argv
 }
