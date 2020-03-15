@@ -136,11 +136,8 @@ jobs:
           node-version: '12.16.1'
 
       - name: Generate test profile
-        uses: actions-rs/cargo@v1
         working-directory: src/rust
-        with:
-          command: test
-          args: --all-features --no-fail-fast
+        run: cargo test --all-features --no-fail-fast
         env:
           'CARGO_INCREMENTAL': '0'
           'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
@@ -235,8 +232,6 @@ jobs:
   package-fm:
     name: Package File Manager Server Mock
     runs-on: ${{ matrix.os }}
-    env:
-      working-directory: src/rust
     strategy:
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
@@ -251,32 +246,26 @@ jobs:
           override: true
 
       - name: Build File Manager Server
-        uses: actions-rs/cargo@v1
-        working-directory: ${{env.working-directory}}
-        with:
-          command: build
-          args: --release --bin file-manager-server
+        working-directory: src/rust
+        run: cargo build --release --bin file-manager-server
 
       - name: Upload Artifacts (Ubuntu)
         uses: actions/upload-artifact@v1
-        working-directory: ${{env.working-directory}}
         with:
           name: File Manager Server (Linux)
-          path: target/release/file-manager-server
+          path: src/rust/target/release/file-manager-server
         if: matrix.os == 'ubuntu-latest'
 
       - name: Upload Artifacts (macOS)
         uses: actions/upload-artifact@v1
-        working-directory: ${{env.working-directory}}
         with:
           name: File Manager Server (macOS)
-          path: target/release/file-manager-server
+          path: src/rust/target/release/file-manager-server
         if: matrix.os == 'macos-latest'
 
       - name: Upload Artifacts (Ubuntu)
         uses: actions/upload-artifact@v1
-        working-directory: ${{env.working-directory}}
         with:
           name: File Manager Server (Windows)
-          path: target/release/file-manager-server.exe
+          path: src/rust/target/release/file-manager-server.exe
         if: matrix.os == 'windows-latest'
