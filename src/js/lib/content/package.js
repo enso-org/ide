@@ -5,7 +5,7 @@ let config = {
         "watch": "webpack-dev-server"
     },
     dependencies: {
-        "enso-studio-common": "*",
+        "enso-studio-common": "2.0.0-alpha.0",
         "copy-webpack-plugin": "^5.1.1"
     },
     devDependencies: {

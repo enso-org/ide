@@ -4,9 +4,9 @@ let config = {
     main: "index.js",
 
     dependencies: {
-        "enso-studio-content": "*",
-        "enso-studio-common": "*",
-        "enso-studio-icons": "*",
+        "enso-studio-content": "2.0.0-alpha.0",
+        "enso-studio-common": "2.0.0-alpha.0",
+        "enso-studio-icons": "2.0.0-alpha.0",
         "copy-webpack-plugin": "^5.1.1",
         "create-servers": "^3.1.0",
         "electron-is-dev": "^1.1.0"
