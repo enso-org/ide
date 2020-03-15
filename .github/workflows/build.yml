@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '12.16.1'
 
-      - name: ./run check
+      - name: Building Rust Sources
         run: node ./run check
 
 
@@ -41,7 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
           override: true
@@ -52,19 +53,13 @@ jobs:
           command: install
           args: wasm-pack --version 0.8.1
 
-      - name: Run tests
-        uses: actions-rs/cargo@v1
+      - name: Install Node
+        uses: actions/setup-node@v1
         with:
-          command: test
+          node-version: '12.16.1'
 
-      - name: Run wasm-pack tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: >
-            --manifest-path=build/rust/Cargo.toml
-            --bin test-all
-            -- --headless --chrome
+      - name: Run tests
+        run: node ./run test
 
 
   size:
@@ -93,7 +88,7 @@ jobs:
         run: npm --version
 
       - name: Compile to WASM
-        run: ./run build
+        run: node ./run build
 
       - name: Check WASM size
         run: ./build/assert_max_wasm_size.sh
@@ -105,17 +100,22 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
           override: true
 
-      - run: rustup component add clippy
+      - name: Install Clippy
+        run: rustup component add clippy
 
-      - uses: actions-rs/cargo@v1
+      - name: Install Node
+        uses: actions/setup-node@v1
         with:
-          command: clippy
-          args: -- -D warnings
+          node-version: '12.16.1'
+
+      - name: Run Linter
+        run: node ./run lint
 
 
   coverage:
@@ -166,7 +166,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
           override: true
@@ -177,15 +178,13 @@ jobs:
           command: install
           args: wasm-pack --version 0.8.1
 
-      - uses: actions/setup-node@v1
+      - name: Install Node
+        uses: actions/setup-node@v1
         with:
           node-version: '12.16.1'
 
-      - name: check npm
-        run: npm --version
-
       - name: Build Enso IDE
-        run: node run dist --no-validation
+        run: node ./run dist
 
       - uses: actions/upload-artifact@v1
         name: Upload Artifacts (Ubuntu, AppImage)
