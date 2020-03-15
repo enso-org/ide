@@ -7,7 +7,9 @@ const yargs = require('yargs')
 const glob  = require('glob')
 const paths = require('./paths')
 
+process.on('unhandledRejection', error => { throw(error) })
 process.chdir(paths.root)
+
 
 
 // ========================
