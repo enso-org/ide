@@ -4,6 +4,7 @@ const fss   = require('fs')
 const ncp   = require('ncp').ncp
 const path  = require('path')
 const yargs = require('yargs')
+const glob  = require('glob')
 
 
 
@@ -25,20 +26,76 @@ let targetArgs = undefined
 // === Paths ===
 // =============
 
-let root      = path.dirname(__dirname)
-let runScript = path.join(root,'/run')
-process.chdir(root)
 
-let jsRootPath       = path.join(root,'/src/js')
-let rustRootPath     = path.join(root,'/src/rust')
-let distPath         = path.join(root,'/dist')
-let buildScriptsPath = path.join(root,'/build')
-let rustDistWasmPath = path.join(distPath,'/wasm')
-let initStatusPath   = path.join(distPath,'/init')
-let initLockPath     = path.join(initStatusPath,'/init.lock')
-let runScriptPath    = path.join(buildScriptsPath,'/run.js')
-let jsGenSrcPath     = path.join(jsRootPath,'/generated')
-let jsDistPath       = path.join(jsRootPath,'/dist')
+let paths  = {}
+
+paths.root          = path.dirname(__dirname)
+paths.runScript     = path.join(paths.root,'/run')
+paths.buildScripts  = path.join(paths.root,'/build')
+
+
+paths.dist          = {}
+paths.dist.root     = path.join(paths.root,'/dist')
+paths.dist.client   = path.join(paths.dist.root,'/client')
+paths.dist.content  = path.join(paths.dist.root,'/content')
+paths.initStatus    = path.join(paths.dist.root,'/init')
+paths.initLock      = path.join(paths.initStatus,'/init.lock')
+
+paths.js            = {}
+paths.js.root       = path.join(paths.root,'/src/js')
+
+paths.rust          = {}
+paths.rust.root     = path.join(paths.root,'/src/rust')
+paths.rust.wasmDist = path.join(paths.dist.root,'/wasm')
+
+
+
+process.chdir(paths.root)
+
+
+function defaultConfig() {
+    return {
+        version: "1.0.0",
+        author: {
+            name: "Enso Team",
+            email: "contact@luna-lang.org"
+        },
+        homepage: "https://github.com/luna/ide",
+        repository: {
+            type: "git",
+            url: "git@github.com:luna/ide.git"
+        },
+        bugs: {
+            url: "https://github.com/luna/ide/issues"
+        },
+    }
+}
+
+
+async function processPackageConfigs() {
+    let files = glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root})
+    for (file of files) {
+//        console.log(file)
+        let dirPath = path.dirname(file)
+        let outPath = path.join(dirPath,'package.json')
+
+        let src     = await fs.readFile(file,'utf8')
+        let modSrc  = `module = {}\n${src}\nreturn module.exports`
+        let fn      = new Function('require','paths',modSrc)
+        let mod     = fn(require,paths)
+        let config  = mod.config
+
+        if (!config) {
+            throw(`Package config '${file}' do not export 'module.config'.`)
+        }
+
+        config = Object.assign(defaultConfig(),config)
+
+        fs.writeFile(outPath,JSON.stringify(config,undefined,4))
+    }
+}
+
+processPackageConfigs()
 
 
 
@@ -80,14 +137,13 @@ let commands = {}
 
 commands.clean = command(`Clean all build artifacts`)
 commands.clean.js = async function() {
-    await cmd.with_cwd(jsRootPath, async () => {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','clean'])
     })
     try { await fs.unlink('.initialized') } catch {} // FIXME
 }
 
 commands.clean.rust = async function() {
-    try { await fs.rmdir(jsDistPath) } catch {}
     await run('cargo',['clean'])
 }
 
@@ -110,9 +166,9 @@ commands.build.js = async function() {
 
 commands.build.rust = async function() {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir',rustDistWasmPath,'lib/debug-scenes'])
-    await patch_file(rustDistWasmPath + '/gui.js', js_workaround_patcher)
-    await fs.rename(rustDistWasmPath + '/gui_bg.wasm', rustDistWasmPath + '/gui.wasm')
+    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir',paths.rust.wasmDist,'lib/debug-scenes'])
+    await patch_file(paths.rust.wasmDist + '/gui.js', js_workaround_patcher)
+    await fs.rename(paths.rust.wasmDist + '/gui_bg.wasm', paths.rust.wasmDist + '/gui.wasm')
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -141,7 +197,7 @@ commands.start.rust = async function() {
 
 commands.start.js = async function() {
     console.log(`Building JS target.`)
-    await cmd.with_cwd(jsRootPath, async () => {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','start','--'].concat(targetArgs))
     })
 }
@@ -173,15 +229,15 @@ commands.lint.rust = async function() {
 commands.watch = command(`Start a file-watch utility and run interactive mode`)
 commands.watch.parallel = true
 commands.watch.rust = async function() {
-    let target = '"' + `node ${runScript} build --no-js -- --dev ` + subProcessArgs.join(" ") + '"'
+    let target = '"' + `node ${paths.runScript} build --no-js -- --dev ` + subProcessArgs.join(" ") + '"'
     let args   = ['watch','--watch','lib','-s',`${target}`]
-    await cmd.with_cwd(rustRootPath, async () => {
+    await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
     })
 }
 
 commands.watch.js = async function() {
-    await cmd.with_cwd(jsRootPath, async () => {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','watch'])
     })
 }
@@ -195,7 +251,7 @@ commands.dist.rust = async function() {
 }
 
 commands.dist.js = async function() {
-    await cmd.with_cwd(jsRootPath, async () => {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','dist'])
     })
 }
@@ -250,8 +306,8 @@ for (let command of commandList) {
         let runner = async function () {
             let do_rust = argv.rust && config.rust
             let do_js   = argv.js   && config.js
-            let rustCmd = () => cmd.with_cwd(rustRootPath, async () => config.rust(argv))
-            let jsCmd   = () => cmd.with_cwd(jsRootPath  , async () => config.js(argv))
+            let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => config.rust(argv))
+            let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => config.js(argv))
             if(config.parallel) {
                 let promises = []
                 if (do_rust) { promises.push(rustCmd()) }
@@ -275,7 +331,7 @@ for (let command of commandList) {
 
 async function updateBuildVersion () {
     let config        = {}
-    let configPath    = distPath + '/build.json'
+    let configPath    = paths.dist.root + '/build.json'
     let exists        = fss.existsSync(configPath)
     if(exists) {
         let configFile = await fs.readFile(configPath)
@@ -285,7 +341,7 @@ async function updateBuildVersion () {
     let commitHash    = commitHashCmd.trim()
     if (config.buildVersion != commitHash) {
         config.buildVersion = commitHash
-        await fs.mkdir(distPath,{recursive:true})
+        await fs.mkdir(paths.dist.root,{recursive:true})
         await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
     }
 }
