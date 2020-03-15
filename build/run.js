@@ -252,6 +252,50 @@ for (let command of commandList) {
 
 
 
+// ======================
+// === Package Config ===
+// ======================
+
+function defaultConfig() {
+    return {
+        version: "2.0.0-alpha.0",
+        author: {
+            name: "Enso Team",
+            email: "contact@luna-lang.org"
+        },
+        homepage: "https://github.com/luna/ide",
+        repository: {
+            type: "git",
+            url: "git@github.com:luna/ide.git"
+        },
+        bugs: {
+            url: "https://github.com/luna/ide/issues"
+        },
+    }
+}
+
+async function processPackageConfigs() {
+    let files = []
+    files = files.concat(glob.sync(paths.js.root + "/package.js", {cwd:paths.root}))
+    files = files.concat(glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root}))
+    for (file of files) {
+        let dirPath = path.dirname(file)
+        let outPath = path.join(dirPath,'package.json')
+        let src     = await fs.readFile(file,'utf8')
+        let modSrc  = `module = {}\n${src}\nreturn module.exports`
+        let fn      = new Function('require','paths',modSrc)
+        let mod     = fn(require,paths)
+        let config  = mod.config
+        if (!config) { throw(`Package config '${file}' do not export 'module.config'.`) }
+        config = Object.assign(defaultConfig(),config)
+        fs.writeFile(outPath,JSON.stringify(config,undefined,4))
+    }
+}
+
+
+
+
+
 // ============
 // === Main ===
 // ============
@@ -274,7 +318,28 @@ async function updateBuildVersion () {
 }
 
 async function main () {
+    await processPackageConfigs()
     updateBuildVersion()
+
+
+    let initialized = fss.existsSync(paths.dist.init)
+    if (!initialized) {
+//    if(args[0] == 'clean') {
+//        try { await fs.unlink(paths.dist.init) } catch {}
+//    } else {
+        console.log('Installing application dependencies')
+        await cmd.with_cwd(paths.js.root, async () => {
+            await cmd.run('npm',['run','install'])
+        })
+        await fs.mkdir(paths.dist.root, {recursive:true})
+        await fs.open(paths.dist.init,'w')
+//    }
+    }
+
+
+
+
+
     optParser.argv
 }
 
