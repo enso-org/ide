@@ -17,11 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Install Rust Nightly Toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
           override: true
+
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.16.1'
 
       - name: ./run check
         run: node ./run check
@@ -68,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Install Rust Nightly Toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
@@ -119,7 +124,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Install Rust Nightly Toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
