@@ -1,14 +1,27 @@
-const cmd   = require('./lib/cmd')
-const fs    = require('fs').promises
-const fss   = require('fs')
-const ncp   = require('ncp').ncp
-const path  = require('path')
-const yargs = require('yargs')
-const glob  = require('glob')
-const paths = require('./paths')
+const cmd    = require('./lib/cmd')
+const fs     = require('fs').promises
+const fss    = require('fs')
+const glob   = require('glob')
+const ncp    = require('ncp').ncp
+const path   = require('path')
+const paths  = require('./paths')
+const stream = require('stream');
+const yargs  = require('yargs')
+const zlib   = require('zlib');
 
 process.on('unhandledRejection', error => { throw(error) })
 process.chdir(paths.root)
+
+
+const { promisify } = require('util')
+const pipe = promisify(stream.pipeline)
+
+async function gzip(input, output) {
+  const gzip        = zlib.createGzip()
+  const source      = fss.createReadStream(input)
+  const destination = fss.createWriteStream(output)
+  await pipe(source,gzip,destination)
+}
 
 
 
@@ -91,11 +104,28 @@ commands.build.js = async function() {
     await run('npm',['run','build'])
 }
 
-commands.build.rust = async function() {
+commands.build.rust = async function(argv) {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir',paths.rust.wasmDist,'lib/debug-scenes'])
-    await patch_file(paths.rust.wasmDist + '/gui.js', js_workaround_patcher)
-    await fs.rename(paths.rust.wasmDist + '/gui_bg.wasm', paths.rust.wasmDist + '/gui.wasm')
+    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'lib/debug-scenes']
+    if (argv.dev) { args.push('--dev') }
+    await run('wasm-pack',args)
+    await patch_file(paths.dist.wasm.glue, js_workaround_patcher)
+    await fs.rename(paths.dist.wasm.mainRaw, paths.dist.wasm.main)
+    if (!argv.dev) {
+        console.log('Optimizing the WASM binary.')
+        await cmd.run('npx',['wasm-opt','-O3','-o',paths.dist.wasm.mainOpt,paths.dist.wasm.main])
+
+        console.log('Minimizing the WASM binary.')
+        await gzip(paths.dist.wasm.mainOpt,paths.dist.wasm.mainOptGz)
+
+        console.log('Checking the resulting WASM size.')
+        let stats = fss.statSync(paths.dist.wasm.mainOptGz)
+        let limit = 2.23
+        let size = Math.round(100 * stats.size / 1024 / 1024) / 100
+        if (size > limit) {
+            throw(`Output file size exceeds the limit (${size}MB > ${limit}MB).`)
+        }
+    }
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -156,7 +186,7 @@ commands.lint.rust = async function() {
 commands.watch = command(`Start a file-watch utility and run interactive mode`)
 commands.watch.parallel = true
 commands.watch.rust = async function() {
-    let target = '"' + `node ${paths.runScript} build --no-js -- --dev ` + subProcessArgs.join(" ") + '"'
+    let target = '"' + `node ${paths.script.main} build --no-js --dev -- ` + subProcessArgs.join(" ") + '"'
     let args   = ['watch','--watch','lib','-s',`${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
@@ -215,39 +245,21 @@ optParser.options('js', {
     default  : true
 })
 
+optParser.options('release', {
+    describe : "Enable all optimizations",
+    type     : 'bool',
+})
+
+optParser.options('dev', {
+    describe : "Optimize for fast builds",
+    type     : 'bool',
+})
+
 let commandList = Object.keys(commands)
 commandList.sort()
 for (let command of commandList) {
     let config = commands[command]
-    optParser.command(command,config.docs,(args) => {}, function (argv) {
-        subProcessArgs = argv['--']
-        if(subProcessArgs === undefined) { subProcessArgs = [] }
-        let index = subProcessArgs.indexOf('--')
-        if (index == -1) {
-            targetArgs = []
-        }
-        else {
-            targetArgs     = subProcessArgs.slice(index + 1)
-            subProcessArgs = subProcessArgs.slice(0,index)
-        }
-        let runner = async function () {
-            let do_rust = argv.rust && config.rust
-            let do_js   = argv.js   && config.js
-            let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => config.rust(argv))
-            let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => config.js(argv))
-            if(config.parallel) {
-                let promises = []
-                if (do_rust) { promises.push(rustCmd()) }
-                if (do_js)   { promises.push(jsCmd()) }
-                await Promise.all(promises)
-            } else {
-                if (do_rust) { await rustCmd() }
-                if (do_js)   { await jsCmd()   }
-            }
-        }
-        cmd.section(command)
-        runner()
-    })
+    optParser.command(command,config.docs)
 }
 
 
@@ -294,8 +306,6 @@ async function processPackageConfigs() {
 
 
 
-
-
 // ============
 // === Main ===
 // ============
@@ -317,30 +327,60 @@ async function updateBuildVersion () {
     }
 }
 
-async function main () {
-    await processPackageConfigs()
-    updateBuildVersion()
-
-
+async function installJsDeps() {
     let initialized = fss.existsSync(paths.dist.init)
     if (!initialized) {
-//    if(args[0] == 'clean') {
-//        try { await fs.unlink(paths.dist.init) } catch {}
-//    } else {
         console.log('Installing application dependencies')
         await cmd.with_cwd(paths.js.root, async () => {
             await cmd.run('npm',['run','install'])
         })
         await fs.mkdir(paths.dist.root, {recursive:true})
         await fs.open(paths.dist.init,'w')
-//    }
     }
+}
 
+async function runCommand(command,argv) {
+    let config     = commands[command]
+    subProcessArgs = argv['--']
+    if(subProcessArgs === undefined) { subProcessArgs = [] }
+    let index = subProcessArgs.indexOf('--')
+    if (index == -1) {
+        targetArgs = []
+    }
+    else {
+        targetArgs     = subProcessArgs.slice(index + 1)
+        subProcessArgs = subProcessArgs.slice(0,index)
+    }
+    let runner = async function () {
+        let do_rust = argv.rust && config.rust
+        let do_js   = argv.js   && config.js
+        let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => config.rust(argv))
+        let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => config.js(argv))
+        if(config.parallel) {
+            let promises = []
+            if (do_rust) { promises.push(rustCmd()) }
+            if (do_js)   { promises.push(jsCmd()) }
+            await Promise.all(promises)
+        } else {
+            if (do_rust) { await rustCmd() }
+            if (do_js)   { await jsCmd()   }
+        }
+    }
+    cmd.section(command)
+    runner()
+}
 
-
-
-
-    optParser.argv
+async function main () {
+    await processPackageConfigs()
+    updateBuildVersion()
+    let argv    = optParser.parse()
+    let command = argv._[0]
+    if(command == 'clean') {
+        try { await fs.unlink(paths.dist.init) } catch {}
+    } else {
+        await installJsDeps()
+    }
+    await runCommand(command,argv)
 }
 
 main()
