@@ -1,6 +1,5 @@
 let spawn = require('child_process').spawn
-let exec = require('child_process').exec
-
+let exec  = require('child_process').exec
 
 function section(title) {
     let border = '-'.repeat(8 + title.length)

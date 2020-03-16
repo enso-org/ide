@@ -1,4 +1,4 @@
-const cmd    = require('./lib/cmd')
+const cmd    = require('./cmd')
 const fs     = require('fs').promises
 const fss    = require('fs')
 const glob   = require('glob')

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmd   = require('./build/lib/cmd')
+const cmd   = require('./build/cmd')
 const fs    = require('fs').promises
 const fss   = require('fs')
 const paths = require('./build/paths')
