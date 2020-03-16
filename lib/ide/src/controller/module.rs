@@ -15,6 +15,7 @@ use crate::executor::global::spawn;
 use parser::api::SourceFile;
 use ast;
 use ast::Ast;
+use ast::ID;
 use ast::HasRepr;
 use ast::IdMap;
 use ast::known;
@@ -30,7 +31,18 @@ use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
 use shapely::shared;
+use crate::controller::node::Position;
 
+
+
+/// ============
+/// == Errors ==
+/// ============
+
+/// Failure for missing node.
+#[derive(Debug,Clone,Fail)]
+#[fail(display="Node with ID {} was not found.", _0)]
+struct NodeNotFound(ID);
 
 
 // ==============
@@ -42,7 +54,7 @@ use shapely::shared;
 pub struct Metadata {
     /// Metadata used within ide.
     #[serde(default="default")]
-    pub ide : serde_json::Value,
+    pub ide : IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
@@ -51,6 +63,12 @@ pub struct Metadata {
 
 impl parser::api::Metadata for Metadata {}
 
+/// Metadata used within ide.
+#[derive(Debug,Clone,Default,Serialize,Deserialize)]
+pub struct IdeMetadata {
+    /// Position in x,y coordinates for each Id.
+    position: HashMap<ID,Position>
+}
 
 
 // =======================
@@ -138,6 +156,18 @@ shared! { Handle
 
             Ok(())
         }
+
+        /// Get position of node.
+        pub fn get_node_position(&mut self, id:ID) -> FallibleResult<Position> {
+            let position = self.module.metadata.ide.position.get(&id);
+            Ok(position.ok_or(NodeNotFound(id))?.clone())
+        }
+
+        /// Set position of node.
+        pub fn set_node_position(&mut self, id:ID, pos:Position) {
+            self.module.metadata.ide.position.insert(id, pos);
+        }
+
 
         /// Read module code.
         pub fn code(&self) -> String {

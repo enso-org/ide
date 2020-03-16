@@ -8,6 +8,9 @@ use ast::Ast;
 use ast::ID;
 use nalgebra::Vector2;
 
+use serde::Serialize;
+use serde::Deserialize;
+
 use flo_stream::Subscriber;
 
 
@@ -17,7 +20,7 @@ use flo_stream::Subscriber;
 // ================
 
 /// Used e.g. for node position
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq,Serialize,Deserialize)]
 pub struct Position {
     /// Vector storing coordinates of the visual position.
     pub vector:Vector2<f32>
@@ -54,14 +57,15 @@ pub trait Interface {
     /// Gets the node's visual position.
     fn position(&self) -> FallibleResult<Position>;
 
+    /// Sets the node's position.
+    fn set_position(&self, new_position:Position) -> FallibleResult<()>;
+
     /// Sets the node's expression to a new AST.
     fn set_expression(&self, ast:Ast) -> FallibleResult<()>;
 
     /// Sets the node's expression to a result of parsing the given text.
     fn set_expression_text(&self, expression:&str) -> FallibleResult<()>;
 
-    /// Sets the node's position.
-    fn set_position(&self, new_position:Position) -> FallibleResult<()>;
 
     /// Subscribes to the notifications of the controller.
     fn subscribe(&mut self) -> Subscriber<controller::notification::Node>;
@@ -99,7 +103,11 @@ impl Interface for Controller {
     }
 
     fn position(&self) -> FallibleResult<Position> {
-        todo!()
+        self.graph.get_module().get_node_position(self.id)
+    }
+
+    fn set_position(&self, new_position:Position) -> FallibleResult<()> {
+        Ok(self.graph.get_module().set_node_position(self.id, new_position))
     }
 
     fn set_expression(&self, _ast:Ast) -> FallibleResult<()> {
@@ -110,11 +118,47 @@ impl Interface for Controller {
         todo!()
     }
 
-    fn set_position(&self, _new_position:Position) -> FallibleResult<()> {
-        todo!()
-    }
-
     fn subscribe(&mut self) -> Subscriber<controller::notification::Node> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use enso_prelude::default;
+    use crate::double_representation::graph::Id;
+    use crate::controller;
+    use controller::node::Position;
+    use controller::module;
+    use controller::graph;
+    use controller::graph::Interface;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use parser::Parser;
+    use uuid::Uuid;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn node_operations() {
+        let transport    = MockTransport::new();
+        let file_manager = file_manager_client::Handle::new(transport);
+        let parser       = Parser::new().unwrap();
+        let location     = module::Location("Test".to_string());
+
+        let code         = "";
+        let idmap        = default();
+
+        let module       = module::Handle::new_mock
+            (location,code,idmap,file_manager,parser).unwrap();
+
+        let uid          = Uuid::new_v4();
+        let pos          = Position::default();
+
+        module.set_node_position(uid, pos);
+
+        let controller   = graph::Handle::new
+            (module, Id {crumbs:default()}).unwrap();
+
+
+        assert_eq!(controller.get_node(uid).unwrap().position().unwrap(), pos);
     }
 }
