@@ -40,11 +40,11 @@ impl MockGraph {
     /// Adds mock node with given Ast as expression and visually located at given position.
     pub fn insert_node
     (&mut self, node:controller::node::mock::Handle)
-    -> FallibleResult<Box<dyn controller::node::Interface>> {
+    -> FallibleResult<controller::node::mock::Handle> {
         let id   = node.id();
         assert_eq!(self.nodes.contains_key(&id), false, "Node IDs must be unique.");
         self.nodes.insert(id,node.clone());
-        Ok(Box::new(node))
+        Ok(node)
     }
 }
 
@@ -61,30 +61,32 @@ impl Handle {
     /// Adds mock node with given Ast as expression and visually located at given position.
     pub fn add_node_ast
     (&self, expression: Ast, position: Position)
-     -> FallibleResult<Box<dyn controller::node::Interface>> {
+     -> FallibleResult<controller::node::mock::Handle> {
         let node = controller::node::mock::Handle::new_expr_ast(expression,position).unwrap();
         self.0.borrow_mut().insert_node(node)
     }
 }
 
 impl Interface for Handle {
-    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Box<dyn controller::node::Interface>> {
+    type NodeHandle = controller::node::mock::Handle;
+
+    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Self::NodeHandle> {
         let mut parser = parser::Parser::new_or_panic();
         let module     = parser.parse_module(node.expression,default()).unwrap();
         let ast        = module.lines[0].elem.as_ref().unwrap().with_id(ast::ID::new_v4());
         self.add_node_ast(ast, node.position)
     }
 
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>> {
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Self::NodeHandle> {
         let node_result = self.0.borrow().nodes.get(&id).cloned();
         let node = node_result.ok_or_else(|| NodeNotFound(id))?;
-        Ok(Box::new(node))
+        Ok(node)
     }
 
-    fn get_nodes(&self) -> FallibleResult<Vec<Box<dyn controller::node::Interface>>> {
-        let mut ret: Vec<Box<dyn controller::node::Interface>> = default();
+    fn get_nodes(&self) -> FallibleResult<Vec<Self::NodeHandle>> {
+        let mut ret: Vec<Self::NodeHandle> = default();
         for node in self.0.borrow_mut().nodes.values() {
-            ret.push(Box::new(node.clone()))
+            ret.push(node.clone())
         }
         Ok(ret)
     }

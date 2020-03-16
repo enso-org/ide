@@ -63,14 +63,17 @@ pub enum LocationHint {
 
 /// Graph controller interface.
 pub trait Interface: Sized {
+    /// Type of the node controller handle that this graph controller uses.
+    type NodeHandle : controller::node::Interface;
+
     /// Adds a new node to the graph and returns a controller managing this node.
-    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Box<dyn controller::node::Interface>>;
+    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Self::NodeHandle>;
 
     /// Retrieves a controller to the node with given ID.
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>>;
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Self::NodeHandle>;
 
     /// Returns controllers for all the nodes in the graph.
-    fn get_nodes(&self) -> FallibleResult<Vec<Box<dyn controller::node::Interface>>>;
+    fn get_nodes(&self) -> FallibleResult<Vec<Self::NodeHandle>>;
 
     /// Removes node with given ID from the graph.
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
@@ -138,27 +141,28 @@ impl Handle {
     /// Retrieves double rep information about node with given ID.
     pub fn node_info(&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
         let nodes = self.list_node_infos()?;
-        Ok(nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id))?)
+        nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id).into())
     }
 
     /// Creates a new controller for node with given ID.
-    fn create_node_controller(&self, id:ast::ID) -> Box<dyn controller::node::Interface> {
-        // TODO cache or sth
-        Box::new(controller::node::Controller::new(self.clone(),id))
+    fn create_node_controller(&self, id:ast::ID) -> controller::node::Controller {
+        controller::node::Controller::new(self.clone(),id)
     }
 }
 
 impl Interface for Handle {
-    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Box<dyn controller::node::Interface>> {
+    type NodeHandle = controller::node::Controller;
+
+    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Self::NodeHandle> {
         todo!()
     }
 
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>> {
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Self::NodeHandle> {
         let _ = self.node_info(id)?;
-        Ok(Box::new(controller::node::Controller::new(self.clone(),id)))
+        Ok(controller::node::Controller::new(self.clone(),id))
     }
 
-    fn get_nodes(&self) -> FallibleResult<Vec<Box<dyn controller::node::Interface>>> {
+    fn get_nodes(&self) -> FallibleResult<Vec<Self::NodeHandle>> {
         let node_infos = self.list_node_infos()?;
         let nodes      = node_infos.into_iter().map(|node_info| {
             self.create_node_controller(node_info.id())
