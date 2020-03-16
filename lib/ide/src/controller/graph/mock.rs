@@ -19,7 +19,7 @@ use flo_stream::Subscriber;
 use parser::api::IsParser;
 
 /// State of the mock graph controller.
-#[derive(Default)]
+#[derive(Debug,Default)]
 pub struct MockGraph {
     nodes                  : HashMap<ast::ID,controller::node::mock::Handle>,
     notification_publisher : notification::Publisher<notification::Graph>,
@@ -45,12 +45,6 @@ impl MockGraph {
         assert_eq!(self.nodes.contains_key(&id), false, "Node IDs must be unique.");
         self.nodes.insert(id,node.clone());
         Ok(Box::new(node))
-    }
-}
-
-impl Debug for MockGraph {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Mock Graph Controller>")
     }
 }
 

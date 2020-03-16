@@ -16,8 +16,7 @@ use flo_stream::Subscriber;
 use parser::api::IsParser;
 
 /// Internal state storage of the mock node.
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 struct NodeState {
     node_info              : NodeInfo,
     position               : Position,
