@@ -33,13 +33,13 @@ struct NodeNotFound(ast::ID);
 #[derive(Clone,Debug)]
 pub struct NewNodeInfo {
     /// Expression to be placed on the node
-    pub expression:String,
+    pub expression : String,
     /// Visual node position in the graph scene.
-    pub position:Position,
+    pub position : Position,
     /// ID to be given to the node.
-    pub id:Option<ast::ID>,
+    pub id : Option<ast::ID>,
     /// Where line created by adding this node should appear.
-    pub location_hint:LocationHint
+    pub location_hint : LocationHint
 }
 
 /// Describes the desired position of the node's line in the graph's code block.
