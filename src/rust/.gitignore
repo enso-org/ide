@@ -1,6 +1,5 @@
 # Rust
-/target
-/build/target/
+target
 **/*.rs.bk
 
 # A thirdparty downloaded js

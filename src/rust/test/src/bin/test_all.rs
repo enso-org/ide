@@ -6,8 +6,8 @@ use std::path::Path;
 /// List of workspace members that should not be tested by wasm-pack test.
 /// (e.g. because they do not target wasm at all)
 const PACKAGE_BLACKLIST:[&str;2] = [
-    "build/utilities",
-    "lib/ide/file-manager/mock-server"
+    "build",
+    "ide/file-manager/mock-server"
 ];
 
 /// Lists members of given Cargo.toml workspace.
@@ -55,9 +55,8 @@ fn get_proc_macro(cargo_toml:toml::Value) -> Option<bool> {
 
 /// Call wasm-pack test for each workspace member
 ///
-/// This function reads workspace members list from `Cargo.toml` in current
-/// directory, and call `wasm-pack test` each member. All script arguments
-/// are passed to `wasm-pack` process.
+/// This function reads workspace members list from `Cargo.toml` in current directory, and call
+/// `wasm-pack test` each member. All script arguments are passed to `wasm-pack` process.
 fn main() {
     let wasm_pack_args  = std::env::args().skip(1).collect::<Vec<_>>();
     let cargo_toml_root = parse_toml("Cargo.toml");

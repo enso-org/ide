@@ -166,12 +166,12 @@ commands.start.js = async function() {
 
 commands.test = command(`Run test suites`)
 commands.test.rust = async function() {
-    console.log(`Running WASM test suite.`)
+    console.log(`Running Rust test suite.`)
     await run('cargo',['test'])
 
-    console.log(`Running WASM visual test suite.`)
-    await run('cargo',['run','--manifest-path=build/rust/Cargo.toml','--bin','test-all',
-                       '--','--headless','--chrome'])
+    console.log(`Running Rust visual test suite.`)
+    let args = ['run','--manifest-path=test/Cargo.toml','--bin','test_all','--','--headless','--chrome']
+    await run('cargo',args)
 }
 
 
