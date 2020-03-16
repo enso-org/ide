@@ -4,27 +4,27 @@
 class Logo {
     constructor(size = 64, compatibleMode = true) {
         this.xsize = size
-        this.size = 64;
-        this.compatibleMode = compatibleMode;
+        this.size = 64
+        this.compatibleMode = compatibleMode
         this.borderMax = 10
         this.borderSpread = 0
-        this.init();
+        this.init()
     }
 
     init() {
-        var scaleStop = 128;
-        var scaleLog = Math.log2(scaleStop);
-        this.borderWidth = 6 // this.borderMax - Math.pow(Math.log2(Math.min(this.size, 128)) / scaleLog, 3) * scaleLog;
-        this.topRadius = 32;
-        this.borderOffset = this.borderWidth - this.borderSpread;
-        this.innerRadius = this.topRadius - this.borderWidth - this.borderOffset;
-        this.atomRadius = this.innerRadius / 2;
-        this.atomDiff = 0;
-        this.d = 4;
+        var scaleStop = 128
+        var scaleLog = Math.log2(scaleStop)
+        this.borderWidth = 6
+        this.topRadius = 32
+        this.borderOffset = this.borderWidth - this.borderSpread
+        this.innerRadius = this.topRadius - this.borderWidth - this.borderOffset
+        this.atomRadius = this.innerRadius / 2
+        this.atomDiff = 0
+        this.d = 4
         let innerSize = 56
-        this.scale1 = innerSize / 64;
-        this.scale = (this.xsize / 64);
-        this.tx = (64 - innerSize) / 2;
+        this.scale1 = innerSize / 64
+        this.scale = (this.xsize / 64)
+        this.tx = (64 - innerSize) / 2
         if (this.compatibleMode) { this.ref = "xlink:href" } else { this.ref = "href" }
         this.defs = ''
     }
@@ -92,7 +92,7 @@ class Logo {
 
 class MinimalWhiteLogo extends Logo {
     constructor(size, compatibleMode) {
-        super(size, compatibleMode);
+        super(size, compatibleMode)
         this.borderMax = 10
         this.borderSpread = 0
         this.init()
@@ -101,13 +101,13 @@ class MinimalWhiteLogo extends Logo {
 
 fastGenerate = (cons) => (...args) => new cons(...args).generate()
 
-exports.generateMinimalWhiteLogo = fastGenerate(MinimalWhiteLogo);
+exports.generateMinimalWhiteLogo = fastGenerate(MinimalWhiteLogo)
 
 
 const fss   = require('fs')
 const fs    = fss.promises
-const exec  = require('child_process').exec;
-const spawn = require('child_process').spawn;
+const exec  = require('child_process').exec
+const spawn = require('child_process').spawn
 const toIco = require('to-ico')
 const sharp = require("sharp")
 const path  = require('path')
