@@ -944,7 +944,7 @@ impl Ast {
 
     /// Creates an Ast node with Var inside and given ID.
     pub fn var_with_id<Name:Str>(name:Name, id:ID) -> Ast {
-        let name = name.into()
+        let name = name.into();
         let var  = Var{name};
         Ast::new(var,Some(id))
     }
