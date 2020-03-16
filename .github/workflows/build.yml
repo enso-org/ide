@@ -10,6 +10,7 @@ jobs:
 
   build:
     name: Build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
