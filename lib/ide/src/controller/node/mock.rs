@@ -22,7 +22,6 @@ struct NodeState {
     node_info              : NodeInfo,
     position               : Position,
     graph                  : Option<controller::graph::mock::Handle>,
-    #[derivative(Debug="ignore")]
     notification_publisher : notification::Publisher<notification::Node>,
 }
 
