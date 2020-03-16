@@ -1,17 +1,17 @@
 #![allow(missing_docs)]
 
-use basegl::traits::*;
+use ensogl::traits::*;
 
-use basegl::system::web;
-use basegl::system::web::NodeInserter;
-use basegl::display::symbol::DomSymbol;
+use ensogl::system::web;
+use ensogl::system::web::NodeInserter;
+use ensogl::display::symbol::DomSymbol;
 use web::StyleSetter;
-use basegl::display::symbol::geometry::Sprite;
-use basegl::display::symbol::geometry::SpriteSystem;
-use basegl::display::world::*;
-use basegl::display::navigation::navigator::Navigator;
-use basegl::prelude::*;
-use basegl::animation::animator::fixed_step::FixedStepAnimator;
+use ensogl::display::symbol::geometry::Sprite;
+use ensogl::display::symbol::geometry::SpriteSystem;
+use ensogl::display::world::*;
+use ensogl::display::navigation::navigator::Navigator;
+use ensogl::prelude::*;
+use ensogl::animation::animator::fixed_step::FixedStepAnimator;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;

@@ -32,7 +32,7 @@ pub use macros::*;
 pub use crate::core::*;
 
 use enso_prelude      as prelude;
-use basegl_system_web as web;
+use ensogl_system_web as web;
 
 
 

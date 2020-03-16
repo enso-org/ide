@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use basegl_core_msdf_sys as msdf_sys;
+use ensogl_core_msdf_sys as msdf_sys;
 use msdf_sys::MultichannelSignedDistanceField;
 use nalgebra::clamp;
 
@@ -134,7 +134,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn msdf_translation_converting() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let mut msdf = MultichannelSignedDistanceField::mock_results();
         msdf.translation = Vector2::new(16.0, 4.0);
 

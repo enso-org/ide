@@ -139,89 +139,6 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "basegl"
-version = "0.1.0"
-dependencies = [
- "Inflector 0.11.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "basegl-core-embedded-fonts 0.1.0",
- "basegl-core-msdf-sys 0.1.0",
- "basegl-system-web 0.1.0",
- "bit_field 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "code-builder 0.1.0",
- "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "data 0.1.0",
- "enso-frp 0.1.0",
- "enso-prelude 0.1.0",
- "enum_dispatch 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "eval-tt 0.1.0",
- "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "logger 0.1.0",
- "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_enum 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "optics 0.1.0",
- "palette 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "paste 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-hash 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "shapely 0.1.0",
- "shrinkwraprs 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "web-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "web-test 0.1.0",
-]
-
-[[package]]
-name = "basegl-build-utilities"
-version = "0.1.0"
-dependencies = [
- "download-lp 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "path-clean 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "basegl-core-embedded-fonts"
-version = "0.1.0"
-dependencies = [
- "basegl-build-utilities 0.1.0",
- "enso-prelude 0.1.0",
- "zip 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "basegl-core-msdf-sys"
-version = "0.1.0"
-dependencies = [
- "basegl-build-utilities 0.1.0",
- "basegl-core-embedded-fonts 0.1.0",
- "enso-prelude 0.1.0",
- "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "basegl-system-web"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "data 0.1.0",
- "enso-prelude 0.1.0",
- "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "logger 0.1.0",
- "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "web-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "bit_field"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,8 +482,8 @@ dependencies = [
 name = "enso-frp"
 version = "0.1.0"
 dependencies = [
- "basegl-system-web 0.1.0",
  "enso-prelude 0.1.0",
+ "ensogl-system-web 0.1.0",
  "keyboard-types 0.4.3 (git+https://github.com/farmaazon/keyboard-types)",
  "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-dense-bitset 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -590,6 +507,89 @@ dependencies = [
  "shrinkwraprs 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "weak-table 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ensogl"
+version = "0.1.0"
+dependencies = [
+ "Inflector 0.11.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bit_field 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "code-builder 0.1.0",
+ "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "data 0.1.0",
+ "enso-frp 0.1.0",
+ "enso-prelude 0.1.0",
+ "ensogl-core-embedded-fonts 0.1.0",
+ "ensogl-core-msdf-sys 0.1.0",
+ "ensogl-system-web 0.1.0",
+ "enum_dispatch 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eval-tt 0.1.0",
+ "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger 0.1.0",
+ "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_enum 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "optics 0.1.0",
+ "palette 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "paste 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hash 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "shapely 0.1.0",
+ "shrinkwraprs 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-test 0.1.0",
+]
+
+[[package]]
+name = "ensogl-build-utilities"
+version = "0.1.0"
+dependencies = [
+ "download-lp 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "path-clean 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ensogl-core-embedded-fonts"
+version = "0.1.0"
+dependencies = [
+ "enso-prelude 0.1.0",
+ "ensogl-build-utilities 0.1.0",
+ "zip 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ensogl-core-msdf-sys"
+version = "0.1.0"
+dependencies = [
+ "enso-prelude 0.1.0",
+ "ensogl-build-utilities 0.1.0",
+ "ensogl-core-embedded-fonts 0.1.0",
+ "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ensogl-system-web"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "data 0.1.0",
+ "enso-prelude 0.1.0",
+ "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger 0.1.0",
+ "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -861,11 +861,11 @@ dependencies = [
 name = "gui"
 version = "0.1.0"
 dependencies = [
- "basegl 0.1.0",
- "basegl-core-msdf-sys 0.1.0",
- "basegl-system-web 0.1.0",
  "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
+ "ensogl 0.1.0",
+ "ensogl-core-msdf-sys 0.1.0",
+ "ensogl-system-web 0.1.0",
  "ide 0.1.0",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1068,13 +1068,13 @@ name = "ide"
 version = "0.1.0"
 dependencies = [
  "ast 0.1.0",
- "basegl 0.1.0",
- "basegl-core-msdf-sys 0.1.0",
- "basegl-system-web 0.1.0",
  "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "data 0.1.0",
  "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
+ "ensogl 0.1.0",
+ "ensogl-core-msdf-sys 0.1.0",
+ "ensogl-system-web 0.1.0",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "file-manager-client 0.1.0",
  "flo_stream 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1660,11 +1660,11 @@ name = "parser"
 version = "0.1.0"
 dependencies = [
  "ast 0.1.0",
- "basegl-build-utilities 0.1.0",
  "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "data 0.1.0",
  "enso-prelude 0.1.0",
+ "ensogl-build-utilities 0.1.0",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2935,9 +2935,9 @@ dependencies = [
 name = "web-test"
 version = "0.1.0"
 dependencies = [
- "basegl 0.1.0",
- "basegl-system-web 0.1.0",
  "enso-prelude 0.1.0",
+ "ensogl 0.1.0",
+ "ensogl-system-web 0.1.0",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "shrinkwraprs 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",

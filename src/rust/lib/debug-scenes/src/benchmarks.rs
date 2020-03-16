@@ -4,16 +4,16 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 //!
-use basegl::traits::*;
+use ensogl::traits::*;
 
-use basegl::display::camera::Camera2d;
-use basegl::display::symbol::geometry::Sprite;
-use basegl::display::symbol::geometry::SpriteSystem;
-use basegl::display::world::*;
-use basegl::prelude::*;
-use basegl::system::web::forward_panic_hook_to_console;
-use basegl::system::web::set_stdout;
-use basegl::system::web;
+use ensogl::display::camera::Camera2d;
+use ensogl::display::symbol::geometry::Sprite;
+use ensogl::display::symbol::geometry::SpriteSystem;
+use ensogl::display::world::*;
+use ensogl::prelude::*;
+use ensogl::system::web::forward_panic_hook_to_console;
+use ensogl::system::web::set_stdout;
+use ensogl::system::web;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;

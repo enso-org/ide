@@ -416,7 +416,7 @@ mod test {
     use super::*;
     use Step::*;
 
-    use basegl_core_msdf_sys as msdf_sys;
+    use ensogl_core_msdf_sys as msdf_sys;
 
     use crate::display::shape::text::glyph::font::FontRegistry;
     use crate::display::shape::text::text_field::content::TextFieldContent;
@@ -430,7 +430,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn moving_cursors() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let text        = "FirstLine.\nSecondLine\nThirdLine";
         let initial_cursors = vec!
             [ Cursor::new(TextLocation {line:0, column:0 })
@@ -468,7 +468,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn moving_without_select() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let text              = "FirstLine\nSecondLine";
         let initial_cursor   = Cursor {
             position    : TextLocation {line:1, column:0},
@@ -492,7 +492,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn moving_with_select() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let text              = "FirstLine\nSecondLine";
         let initial_loc     = TextLocation {line:0,column:1};
         let initial_cursors = vec![Cursor::new(initial_loc)];
@@ -513,7 +513,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn merging_selection_after_moving() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let make_char_loc  = |(line,column):(usize,usize)| TextLocation {line,column};
         let cursor_on_left = |range:&Range<(usize,usize)>| Cursor {
             position    : make_char_loc(range.start),

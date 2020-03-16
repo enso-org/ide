@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
-use basegl::traits::*;
+use ensogl::traits::*;
 
-use basegl::display::world::WorldData;
-use basegl::display::shape::text::glyph::font::FontRegistry;
-use basegl::display::shape::text::text_field::TextField;
-use basegl::display::shape::text::text_field::TextFieldProperties;
-use basegl::display::world::*;
-use basegl::system::web;
+use ensogl::display::world::WorldData;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::text_field::TextField;
+use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::display::world::*;
+use ensogl::system::web;
 use nalgebra::Vector2;
 use nalgebra::Vector4;
 use wasm_bindgen::prelude::*;
@@ -31,7 +31,7 @@ Devoutly to be wish'd.";
 pub fn run_example_text_field() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
-    basegl_core_msdf_sys::run_once_initialized(|| {
+    ensogl_core_msdf_sys::run_once_initialized(|| {
         let world     = &WorldData::new(&web::get_html_element_by_id("root").unwrap());
         let mut fonts = FontRegistry::new();
         let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();

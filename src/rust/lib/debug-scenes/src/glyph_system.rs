@@ -1,12 +1,12 @@
 //! An example showing usage of GlyphSystem.
 
-use basegl::traits::*;
+use ensogl::traits::*;
 
-use basegl::display::shape::text::glyph::font::FontRegistry;
-use basegl::display::shape::text::glyph::system::GlyphSystem;
-use basegl::display::world::*;
-use basegl::system::web;
-use basegl_core_msdf_sys::run_once_initialized;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::glyph::system::GlyphSystem;
+use ensogl::display::world::*;
+use ensogl::system::web;
+use ensogl_core_msdf_sys::run_once_initialized;
 use nalgebra::Vector4;
 use wasm_bindgen::prelude::*;
 

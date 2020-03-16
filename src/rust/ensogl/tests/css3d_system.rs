@@ -18,18 +18,18 @@ extern "C" {
 
 #[cfg(test)]
 mod tests {
-    use basegl::display;
-    use basegl::display::DomScene;
-    use basegl::system::web::StyleSetter;
+    use ensogl::display;
+    use ensogl::display::DomScene;
+    use ensogl::system::web::StyleSetter;
     use web_test::*;
     use web_sys::Performance;
     use nalgebra::Vector3;
-    use basegl::system::web;
-    use basegl::display::world::{WorldData, World};
-    use basegl::display::navigation::navigator::Navigator;
-    use basegl::traits::*;
+    use ensogl::system::web;
+    use ensogl::display::world::{WorldData, World};
+    use ensogl::display::navigation::navigator::Navigator;
+    use ensogl::traits::*;
     use nalgebra::Vector2;
-    use basegl::system::web::get_element_by_id;
+    use ensogl::system::web::get_element_by_id;
     use web_sys::HtmlElement;
     use wasm_bindgen::JsCast;
 

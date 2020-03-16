@@ -148,8 +148,8 @@ async function patch_file(path,patcher) {
 // === Start ===
 
 commands.start = command(`Build and start desktop client`)
-commands.start.rust = async function() {
-   await commands.build.rust()
+commands.start.rust = async function(argv) {
+   await commands.build.rust(argv)
 }
 
 commands.start.js = async function() {
@@ -203,8 +203,8 @@ commands.watch.js = async function() {
 // === Dist ===
 
 commands.dist = command(`Build the sources and create distribution packages`)
-commands.dist.rust = async function() {
-    await commands.build.rust()
+commands.dist.rust = async function(argv) {
+    await commands.build.rust(argv)
 }
 
 commands.dist.js = async function() {
@@ -354,8 +354,8 @@ async function runCommand(command,argv) {
     let runner = async function () {
         let do_rust = argv.rust && config.rust
         let do_js   = argv.js   && config.js
-        let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => config.rust(argv))
-        let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => config.js(argv))
+        let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => await config.rust(argv))
+        let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => await config.js(argv))
         if(config.parallel) {
             let promises = []
             if (do_rust) { promises.push(rustCmd()) }

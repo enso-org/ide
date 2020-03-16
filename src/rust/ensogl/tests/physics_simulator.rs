@@ -6,25 +6,25 @@ web_configure!(run_in_browser);
 
 #[cfg(test)]
 mod tests {
-    use basegl::traits::*;
+    use ensogl::traits::*;
 
-    use basegl::system::web::StyleSetter;
-    use basegl::animation::physics::inertia::DragProperties;
-    use basegl::animation::physics::inertia::SpringProperties;
-    use basegl::animation::physics::inertia::KinematicsProperties;
-    use basegl::animation::physics::inertia::PhysicsSimulator;
-    use basegl::animation::physics::inertia::PhysicsProperties;
-    use basegl::animation::animator::fixed_step::FixedStepAnimator;
-    use basegl::display::DomSymbol;
+    use ensogl::system::web::StyleSetter;
+    use ensogl::animation::physics::inertia::DragProperties;
+    use ensogl::animation::physics::inertia::SpringProperties;
+    use ensogl::animation::physics::inertia::KinematicsProperties;
+    use ensogl::animation::physics::inertia::PhysicsSimulator;
+    use ensogl::animation::physics::inertia::PhysicsProperties;
+    use ensogl::animation::animator::fixed_step::FixedStepAnimator;
+    use ensogl::display::DomSymbol;
     use web_test::*;
     use nalgebra::{zero, Vector3};
     use js_sys::Math::random;
-    use basegl::display::world::WorldData;
-    use basegl::system::web::get_element_by_id;
+    use ensogl::display::world::WorldData;
+    use ensogl::system::web::get_element_by_id;
     use web_sys::HtmlElement;
     use nalgebra::Vector2;
-    use basegl::system::web::set_stdout;
-    use basegl::system::web;
+    use ensogl::system::web::set_stdout;
+    use ensogl::system::web;
     use wasm_bindgen::JsCast;
 
     #[web_test]

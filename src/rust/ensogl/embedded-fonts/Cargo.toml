@@ -1,5 +1,5 @@
 [package]
-name = "basegl-core-embedded-fonts"
+name = "ensogl-core-embedded-fonts"
 version = "0.1.0"
 authors = ["Enso Team <contact@luna-lang.org>"]
 edition = "2018"
@@ -13,5 +13,5 @@ crate-type = ["cdylib", "rlib"]
 enso-prelude           = { version = "0.1.0", path="../../lib/prelude"}
 
 [build-dependencies]
-basegl-build-utilities = { version = "0.1.0", path="../../build" }
+ensogl-build-utilities = { version = "0.1.0", path="../../build" }
 zip          = "0.5"

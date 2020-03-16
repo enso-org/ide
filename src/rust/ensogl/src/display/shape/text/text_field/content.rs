@@ -305,7 +305,7 @@ pub(crate) mod test {
 
     use crate::display::shape::text::glyph::font::FontRenderInfo;
 
-    use basegl_core_msdf_sys as msdf_sys;
+    use ensogl_core_msdf_sys as msdf_sys;
     use nalgebra::Vector2;
     use nalgebra::Vector4;
     use wasm_bindgen_test::wasm_bindgen_test;

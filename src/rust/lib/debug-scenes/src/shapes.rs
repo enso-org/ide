@@ -4,17 +4,17 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
-use basegl::traits::*;
+use ensogl::traits::*;
 
-use basegl::data::color::*;
-use basegl::display::navigation::navigator::Navigator;
-use basegl::display::shape::*;
-use basegl::display::shape::primitive::system::ShapeSystem;
-use basegl::display::shape::Var;
-use basegl::display::symbol::geometry::Sprite;
-use basegl::display::world::*;
-use basegl::prelude::*;
-use basegl::system::web;
+use ensogl::data::color::*;
+use ensogl::display::navigation::navigator::Navigator;
+use ensogl::display::shape::*;
+use ensogl::display::shape::primitive::system::ShapeSystem;
+use ensogl::display::shape::Var;
+use ensogl::display::symbol::geometry::Sprite;
+use ensogl::display::world::*;
+use ensogl::prelude::*;
+use ensogl::system::web;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
 

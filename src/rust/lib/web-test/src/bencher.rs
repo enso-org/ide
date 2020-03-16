@@ -2,8 +2,8 @@ use crate::prelude::*;
 
 use super::BenchContainer;
 use crate::system::web;
-use basegl::control::EventLoop;
-use basegl::control::callback::CallbackHandle;
+use ensogl::control::EventLoop;
+use ensogl::control::callback::CallbackHandle;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;

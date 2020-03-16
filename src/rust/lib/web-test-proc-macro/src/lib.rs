@@ -22,7 +22,7 @@ use quote::quote;
 /// ```rust,compile_fail
 /// use web_test::web_test;
 /// use web_test::web_configure;
-/// use basegl::system::web::get_element_by_id;
+/// use ensogl::system::web::get_element_by_id;
 ///
 /// web_configure!(run_in_browser);
 ///
@@ -67,8 +67,8 @@ pub fn web_test(_args:TokenStream, input:TokenStream) -> TokenStream {
 /// ```rust,compile_fail
 /// use web_test::web_bench;
 /// use web_test::web_configure;
-/// use basegl::system::web::get_element_by_id;
-/// use basegl::system::web::dyn_into;
+/// use ensogl::system::web::get_element_by_id;
+/// use ensogl::system::web::dyn_into;
 /// use web_sys::HtmlElement;
 ///
 /// web_configure!(run_in_browser);

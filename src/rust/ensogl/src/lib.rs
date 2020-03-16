@@ -1,4 +1,4 @@
-//! BaseGL is a blazing fast 2D vector rendering engine with a rich set of primitives and a GUI
+//! ensogl is a blazing fast 2D vector rendering engine with a rich set of primitives and a GUI
 //! component library. It is able to display millions of shapes 60 frames per second in a web
 //! browser on a modern laptop hardware. This is the main entry point to the library.
 

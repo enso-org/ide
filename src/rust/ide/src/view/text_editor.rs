@@ -1,15 +1,15 @@
 //! This module contains TextEditor, an UiComponent to edit Enso Modules or Text Files.
 
-use basegl::traits::*;
+use ensogl::traits::*;
 use crate::prelude::*;
 
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
-use basegl::display::shape::text::glyph::font::FontRegistry;
-use basegl::display::shape::text::text_field::TextField;
-use basegl::display::shape::text::text_field::TextFieldProperties;
-use basegl::display::world::*;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::text_field::TextField;
+use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::display::world::*;
 use enso_frp::io::KeyboardActions;
 use enso_frp::io::KeyMask;
 use nalgebra::Vector2;

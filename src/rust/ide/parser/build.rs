@@ -4,9 +4,9 @@
 
 #![feature(option_result_contains)]
 
-use basegl_build_utilities::PathRef;
-use basegl_build_utilities::absolute_path;
-use basegl_build_utilities::targeting_wasm;
+use ensogl_build_utilities::PathRef;
+use ensogl_build_utilities::absolute_path;
+use ensogl_build_utilities::targeting_wasm;
 
 use std::fs;
 use std::fs::File;

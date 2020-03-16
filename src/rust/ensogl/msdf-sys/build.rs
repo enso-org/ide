@@ -1,6 +1,6 @@
 
 mod msdfgen_wasm {
-    use basegl_build_utilities::GithubRelease;
+    use ensogl_build_utilities::GithubRelease;
 
     use std::{path,fs};
     use std::io::Write;

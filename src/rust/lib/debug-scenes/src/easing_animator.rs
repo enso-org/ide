@@ -2,16 +2,16 @@
 
 use crate::prelude::*;
 
-use basegl::animation::animator::continuous::ContinuousAnimator;
-use basegl::animation::animator::easing::EasingAnimator;
-use basegl::animation::animator::fixed_step::FixedStepAnimator;
-use basegl::animation::easing::*;
-use basegl::system::web::AttributeSetter;
-use basegl::system::web::create_element;
-use basegl::system::web::get_element_by_id;
-use basegl::system::web::NodeInserter;
-use basegl::system::web::StyleSetter;
-use basegl::system::web;
+use ensogl::animation::animator::continuous::ContinuousAnimator;
+use ensogl::animation::animator::easing::EasingAnimator;
+use ensogl::animation::animator::fixed_step::FixedStepAnimator;
+use ensogl::animation::easing::*;
+use ensogl::system::web::AttributeSetter;
+use ensogl::system::web::create_element;
+use ensogl::system::web::get_element_by_id;
+use ensogl::system::web::NodeInserter;
+use ensogl::system::web::StyleSetter;
+use ensogl::system::web;
 use js_sys::Math;
 use nalgebra::Vector2;
 use nalgebra::zero;

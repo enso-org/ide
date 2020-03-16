@@ -7,7 +7,7 @@ use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 
-use basegl::display::world::World;
+use ensogl::display::world::World;
 use enso_frp::io::KeyboardActions;
 use enso_frp::io::KeyMask;
 use nalgebra::zero;

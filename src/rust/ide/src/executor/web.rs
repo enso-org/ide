@@ -3,16 +3,16 @@
 
 use crate::prelude::*;
 
-use basegl::control::callback::CallbackHandle;
-use basegl::control::EventLoop;
-use basegl::control::EventLoopCallback;
+use ensogl::control::callback::CallbackHandle;
+use ensogl::control::EventLoop;
+use ensogl::control::EventLoopCallback;
 use futures::task::LocalSpawn;
 use futures::task::LocalFutureObj;
 use futures::task::SpawnError;
 use futures::executor::LocalPool;
 use futures::executor::LocalSpawner;
 
-/// Executor. Uses a single-threaded `LocalPool` underneath, relying on basegl's
+/// Executor. Uses a single-threaded `LocalPool` underneath, relying on ensogl's
 /// `EventLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
 pub struct EventLoopExecutor {

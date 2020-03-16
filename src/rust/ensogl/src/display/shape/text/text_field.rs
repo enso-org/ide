@@ -1,4 +1,4 @@
-//! A module defining TextField. TextField is a basegl component displaying editable block of text.
+//! A module defining TextField. TextField is a ensogl component displaying editable block of text.
 
 pub mod content;
 pub mod cursor;

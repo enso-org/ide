@@ -21,7 +21,7 @@ pub mod view;
 
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
-    pub use basegl::prelude::*;
+    pub use ensogl::prelude::*;
     pub use enso_prelude::*;
     pub use wasm_bindgen::prelude::*;
 

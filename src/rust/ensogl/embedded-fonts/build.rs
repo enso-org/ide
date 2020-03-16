@@ -38,7 +38,7 @@ mod deja_vu {
     use crate::FillMapRsFile;
 
     use std::path;
-    use basegl_build_utilities::GithubRelease;
+    use ensogl_build_utilities::GithubRelease;
 
     pub const PACKAGE : GithubRelease<&str> = GithubRelease {
         project_url : "https://github.com/dejavu-fonts/dejavu-fonts/",

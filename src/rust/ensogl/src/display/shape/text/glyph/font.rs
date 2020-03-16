@@ -6,8 +6,8 @@ use crate::display::shape::text::glyph::msdf::MsdfTexture;
 use crate::display::shape::text::glyph::msdf::convert_msdf_translation;
 use crate::display::shape::text::glyph::msdf::x_distance_from_msdf_value;
 
-use basegl_core_msdf_sys as msdf_sys;
-use basegl_core_embedded_fonts::EmbeddedFonts;
+use ensogl_core_msdf_sys as msdf_sys;
+use ensogl_core_embedded_fonts::EmbeddedFonts;
 use msdf_sys::MsdfParameters;
 use msdf_sys::MultichannelSignedDistanceField;
 use nalgebra::Vector2;
@@ -285,7 +285,7 @@ mod tests {
     use super::*;
     use crate::display::shape::text::glyph::msdf::MsdfTexture;
 
-    use basegl_core_embedded_fonts::EmbeddedFonts;
+    use ensogl_core_embedded_fonts::EmbeddedFonts;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
@@ -303,7 +303,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn empty_font_render_info() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let font_render_info = create_test_font_render_info();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
@@ -313,7 +313,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn loading_glyph_info() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let font_render_info = create_test_font_render_info();
 
         font_render_info.get_glyph_info('A');
@@ -341,7 +341,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn getting_or_creating_char() {
-        basegl_core_msdf_sys::initialized().await;
+        ensogl_core_msdf_sys::initialized().await;
         let font_render_info = create_test_font_render_info();
 
         {

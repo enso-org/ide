@@ -213,7 +213,7 @@ impl Drop for MultichannelSignedDistanceField {
 mod tests {
     use super::*;
 
-    use basegl_core_embedded_fonts::EmbeddedFonts;
+    use ensogl_core_embedded_fonts::EmbeddedFonts;
     use nalgebra::Vector2;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;

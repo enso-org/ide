@@ -2,8 +2,8 @@
 
 use crate::prelude::*;
 
-use basegl_system_web::closure::storage::OptionalFmMutClosure;
-use basegl_system_web::js_to_string;
+use ensogl_system_web::closure::storage::OptionalFmMutClosure;
+use ensogl_system_web::js_to_string;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
