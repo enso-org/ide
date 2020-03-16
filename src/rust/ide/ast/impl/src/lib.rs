@@ -34,13 +34,19 @@ use shapely::*;
 use uuid::Uuid;
 
 
-
+/// A mapping between text position and immutable ID.
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
-pub struct IdMap(pub Vec<(Span,ID)>);
+#[serde(transparent)]
+pub struct IdMap{ pub vec:Vec<(Span,ID)> }
 
 impl IdMap {
+    /// Create a new instance.
+    pub fn new(vec:Vec<(Span,ID)>) -> IdMap {
+        IdMap {vec}
+    }
+    /// Assigns Span to given ID.
     pub fn insert(&mut self, span:Span, id:ID) {
-        self.0.push((span, id));
+        self.vec.push((span, id));
     }
 }
 
@@ -68,7 +74,7 @@ pub struct WrongEnum { pub expected_con: String }
 /// number of children nodes, each marked with a single `K`.
 ///
 /// It is used to describe ambiguous macro match.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone,Eq,PartialEq,Debug,Serialize,Deserialize)]
 pub struct Tree<K,V> {
     pub value    : Option<V>,
     pub branches : Vec<(K, Tree<K,V>)>,
@@ -81,7 +87,7 @@ pub struct Tree<K,V> {
 // ===============
 
 /// A value of type `T` annotated with offset value `off`.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize, Shrinkwrap, Iterator)]
+#[derive(Clone,Eq,PartialEq,Debug,Serialize,Deserialize,Shrinkwrap,Iterator)]
 #[shrinkwrap(mutable)]
 pub struct Shifted<T> {
     #[shrinkwrap(main_field)]
@@ -90,7 +96,7 @@ pub struct Shifted<T> {
 }
 
 /// A non-empty sequence of `T`s interspersed by offsets.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize, Iterator)]
+#[derive(Clone,Eq,PartialEq,Debug,Serialize,Deserialize,Iterator)]
 pub struct ShiftedVec1<T> {
     pub head: T,
     pub tail: Vec<Shifted<T>>
@@ -205,6 +211,16 @@ impl Ast {
     /// Iterates over all transitive child nodes (including self).
     pub fn iter_recursive(&self) -> impl Iterator<Item=&Ast> {
         internal::iterate_subtree(self)
+    }
+
+    /// Returns this AST node with ID set to given value.
+    pub fn with_id(&self, id:ID) -> Ast {
+        Ast::from_ast_id_len(self.shape().clone(), Some(id), self.len())
+    }
+
+    /// Returns this AST node with removed ID.
+    pub fn without_id(&self) -> Ast {
+        Ast::from_ast_id_len(self.shape().clone(), None, self.len())
     }
 }
 
@@ -1067,6 +1083,17 @@ mod tests {
     }
 
     #[test]
+    fn ast_updating_id() {
+        let var = Var {name:"foo".into()};
+        let ast = Ast::new(var, None);
+        assert!(ast.id.is_none());
+
+        let id  = Uuid::default();
+        let ast = ast.with_id(id);
+        assert_eq!(ast.id, Some(id));
+    }
+
+    #[test]
     fn var_smart_constructor() {
         let name = "foo".to_string();
         let v    = Ast::var(name.clone());
@@ -1098,7 +1125,7 @@ mod tests {
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
         let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
         let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
-        assert_eq!(ast.id_map(), IdMap(ids));
+        assert_eq!(ast.id_map(), IdMap::new(ids));
     }
 
     #[test]
