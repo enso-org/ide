@@ -172,9 +172,7 @@ impl Clone for Ast {
     }
 }
 
-impl CloneRef for Ast {
-    fn clone_ref(&self) -> Self { self.clone() }
-}
+impl CloneRef for Ast {}
 
 /// `IntoIterator` for `&Ast` that just delegates to `&Shape`'s `IntoIterator`.
 impl<'t> IntoIterator for &'t Ast {
@@ -945,8 +943,9 @@ impl Ast {
     }
 
     /// Creates an Ast node with Var inside and given ID.
-    pub fn var_with_id<Str: ToString>(name:Str, id:ID) -> Ast {
-        let var = Var{name:name.to_string()};
+    pub fn var_with_id<Name:Str>(name:Name, id:ID) -> Ast {
+        let name = name.into()
+        let var  = Var{name};
         Ast::new(var,Some(id))
     }
 
