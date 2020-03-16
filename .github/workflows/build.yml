@@ -82,8 +82,8 @@ jobs:
           path: dist/client/mac/Enso Studio.app
 
 
-  lint:
-    name: Lint
+  check:
+    name: Check
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
