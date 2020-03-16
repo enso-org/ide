@@ -8,8 +8,8 @@ on: [push]
 jobs:
 
 
-  build:
-    name: Build
+  lint:
+    name: Lint
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -64,6 +64,7 @@ jobs:
       - name: Run tests
         run: node ./run test
 
+
   # TODO: enable after fixing https://github.com/actions-rs/grcov/issues/50
   # coverage:
   #   name: Coverage
@@ -103,8 +104,8 @@ jobs:
   #         file: ./lcov.info
 
 
-  package:
-    name: Package
+  build:
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -176,8 +177,8 @@ jobs:
           path: dist/client/mac/Enso Studio.app
 
 
-  package-fm:
-    name: Package File Manager Server Mock
+  build-fm:
+    name: Build File Manager Server Mock
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
