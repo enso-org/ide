@@ -19,9 +19,10 @@ pub use controller::notification;
 // === Errors ===
 // ==============
 
-#[derive(Clone,Debug,Fail)]
-#[fail(display="Node with ID {} was not found.", _0)]
-struct NodeNotFound(ast::ID);
+/// Error raised when node with given Id was not found in the graph's body.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Node with Id {} was not found.", _0)]
+pub struct NodeNotFound(ast::ID);
 
 
 
@@ -134,14 +135,15 @@ impl Handle {
     /// Returns information about all nodes in the graph.
     pub fn list_node_infos(&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.get_definition()?;
-        let graph = double_representation::graph::GraphInfo::from_definition(definition);
+        let graph      = double_representation::graph::GraphInfo::from_definition(definition);
         Ok(graph.nodes)
     }
 
     /// Retrieves double rep information about node with given ID.
     pub fn node_info(&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
         let nodes = self.list_node_infos()?;
-        nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id).into())
+        let node  = nodes.into_iter().find(|node_info| node_info.id() == id);
+        node.ok_or(NodeNotFound(id).into())
     }
 
     /// Creates a new controller for node with given ID.
