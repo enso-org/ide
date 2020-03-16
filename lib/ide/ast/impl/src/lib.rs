@@ -191,6 +191,12 @@ impl ToString for Ast {
     }
 }
 
+impl From<Ast> for String {
+    fn from(ast: Ast) -> Self {
+        ast.to_string()
+    }
+}
+
 impl Ast {
     pub fn shape(&self) -> &Shape<Ast> {
         self

@@ -13,9 +13,6 @@ pub use double_representation::graph::Id;
 pub use controller::node::Position;
 pub use controller::notification;
 
-/// Handle to a shared node controller.
-type NodeHandle = Rc<dyn controller::node::Interface>;
-
 
 
 // ==============
@@ -38,7 +35,7 @@ pub struct NewNodeInfo {
     /// Expression to be placed on the node
     pub expression:String,
     /// Visual node position in the graph scene.
-    pub location:Position,
+    pub position:Position,
     /// ID to be given to the node.
     pub id:Option<ast::ID>,
     /// Where line created by adding this node should appear.
@@ -65,15 +62,15 @@ pub enum LocationHint {
 // =================
 
 /// Graph controller interface.
-pub trait Interface {
+pub trait Interface: Sized {
     /// Adds a new node to the graph and returns a controller managing this node.
-    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<NodeHandle>;
+    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Box<dyn controller::node::Interface>>;
 
     /// Retrieves a controller to the node with given ID.
-    fn get_node(&self, id:ast::ID) -> FallibleResult<NodeHandle>;
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>>;
 
     /// Returns controllers for all the nodes in the graph.
-    fn get_nodes(&self) -> FallibleResult<Vec<NodeHandle>>;
+    fn get_nodes(&self) -> FallibleResult<Vec<Box<dyn controller::node::Interface>>>;
 
     /// Removes node with given ID from the graph.
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
@@ -82,6 +79,11 @@ pub trait Interface {
     fn subscribe(&mut self) -> Subscriber<controller::notification::Graph>;
 }
 
+
+
+// ==================
+// === Controller ===
+// ==================
 
 shared! { Handle
     /// State data of the module controller.
@@ -107,7 +109,7 @@ shared! { Handle
     }
 }
 
-//struct Handle;
+//pub struct H(andle;
 impl Handle {
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module.
@@ -138,26 +140,30 @@ impl Handle {
         let nodes = self.list_node_infos()?;
         Ok(nodes.into_iter().find(|node_info| node_info.id() == id).ok_or(NodeNotFound(id))?)
     }
+
+    /// Creates a new controller for node with given ID.
+    fn create_node_controller(&self, id:ast::ID) -> Box<dyn controller::node::Interface> {
+        // TODO cache or sth
+        Box::new(controller::node::Controller::new(self.clone(),id))
+    }
 }
 
 impl Interface for Handle {
-    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<NodeHandle> {
+    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Box<dyn controller::node::Interface>> {
         todo!()
     }
 
-    fn get_node(&self, id:ast::ID) -> FallibleResult<NodeHandle> {
+    fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>> {
         let _ = self.node_info(id)?;
-        Ok(Rc::new(controller::node::Controller::new(self.clone(),id)))
+        Ok(Box::new(controller::node::Controller::new(self.clone(),id)))
     }
 
-    fn get_nodes(&self) -> FallibleResult<Vec<NodeHandle>> {
-//        self.list_node_infos?.iter().map(|n| -> NodeHandle)
-//        let mut ret: Vec<Rc<NodeHandle>> = default();
-//        for node in self.rc.borrow_mut().nodes.values() {
-//            ret.push(node.clone())
-//        }
-//        Ok(ret)
-        todo!()
+    fn get_nodes(&self) -> FallibleResult<Vec<Box<dyn controller::node::Interface>>> {
+        let node_infos = self.list_node_infos()?;
+        let nodes      = node_infos.into_iter().map(|node_info| {
+            self.create_node_controller(node_info.id())
+        }).collect();
+        Ok(nodes)
     }
 
     fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
@@ -167,15 +173,5 @@ impl Interface for Handle {
     fn subscribe(&mut self) -> Subscriber<notification::Graph> {
         todo!()
     }
-}
-
-// =============
-// === Tests ===
-// =============
-
-#[cfg(test)]
-mod tests {
-//    use super::*;
-
 }
 
