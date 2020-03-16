@@ -20,7 +20,7 @@ pub use controller::notification;
 // ==============
 
 #[derive(Clone,Debug,Fail)]
-#[fail(display = "Node by ID {} was not found.", _0)]
+#[fail(display="Node with ID {} was not found.", _0)]
 struct NodeNotFound(ast::ID);
 
 
@@ -109,7 +109,7 @@ shared! { Handle
     }
 }
 
-//pub struct H(andle;
+//pub struct Handle;
 impl Handle {
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module.

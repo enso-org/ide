@@ -38,11 +38,11 @@ pub struct Id {
 // ===============================
 
 #[derive(Fail,Clone,Debug)]
-#[fail(display = "Definition ID was empty")]
+#[fail(display="Definition ID was empty")]
 struct CannotFindDefinition(Id);
 
 #[derive(Fail,Clone,Debug)]
-#[fail(display = "Definition ID was empty")]
+#[fail(display="Definition ID was empty")]
 struct EmptyDefinitionId;
 
 /// Looks up graph in the module.
