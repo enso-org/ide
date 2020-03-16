@@ -117,6 +117,7 @@ impl Drop for SpriteData {
         self.bbox.set(Vector2::new(0.0,0.0));
         self.symbol.surface().instance_scope().dispose(self.instance_id);
         self.display_object.unset_parent();
+        self.display_object.clear_callbacks();
     }
 }
 
