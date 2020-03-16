@@ -112,15 +112,17 @@ commands.build.rust = async function(argv) {
     await patch_file(paths.dist.wasm.glue, js_workaround_patcher)
     await fs.rename(paths.dist.wasm.mainRaw, paths.dist.wasm.main)
     if (!argv.dev) {
-        console.log('Optimizing the WASM binary.')
-        await cmd.run('npx',['wasm-opt','-O3','-o',paths.dist.wasm.mainOpt,paths.dist.wasm.main])
+        // TODO: Enable after updating wasm-pack
+        // https://github.com/rustwasm/wasm-pack/issues/696
+        // console.log('Optimizing the WASM binary.')
+        // await cmd.run('npx',['wasm-opt','-O3','-o',paths.dist.wasm.mainOpt,paths.dist.wasm.main])
 
         console.log('Minimizing the WASM binary.')
-        await gzip(paths.dist.wasm.mainOpt,paths.dist.wasm.mainOptGz)
+        await gzip(paths.dist.wasm.main,paths.dist.wasm.mainOptGz) // TODO main -> mainOpt
 
         console.log('Checking the resulting WASM size.')
         let stats = fss.statSync(paths.dist.wasm.mainOptGz)
-        let limit = 2.23
+        let limit = 2.31
         let size = Math.round(100 * stats.size / 1024 / 1024) / 100
         if (size > limit) {
             throw(`Output file size exceeds the limit (${size}MB > ${limit}MB).`)
