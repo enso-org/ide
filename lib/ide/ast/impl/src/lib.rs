@@ -932,16 +932,19 @@ impl Ast {
     // TODO smart constructors for other cases
     //  as part of https://github.com/luna/enso/issues/338
 
+    /// Creates an Ast node with Number inside.
     pub fn number(number:i64) -> Ast {
         let number = Number {base:None,int:number.to_string()};
         Ast::from(number)
     }
 
+    /// Creates an Ast node with Cons inside.
     pub fn cons<Str: ToString>(name:Str) -> Ast {
         let cons = Cons {name:name.to_string()};
         Ast::from(cons)
     }
 
+    /// Creates an Ast node with Var inside and given ID.
     pub fn var_with_id<Str: ToString>(name:Str, id:ID) -> Ast {
         let var = Var{name:name.to_string()};
         Ast::new(var,Some(id))
