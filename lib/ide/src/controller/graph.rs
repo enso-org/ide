@@ -10,6 +10,7 @@ use crate::prelude::*;
 use flo_stream::Subscriber;
 
 pub use double_representation::graph::Id;
+pub use double_representation::graph::LocationHint;
 pub use controller::node::Position;
 pub use controller::notification;
 
@@ -43,19 +44,6 @@ pub struct NewNodeInfo {
     pub id:Option<ast::ID>,
     /// Where line created by adding this node should appear.
     pub location_hint:LocationHint
-}
-
-/// Describes the desired position of the node's line in the graph's code block.
-#[derive(Clone,Copy,Debug)]
-pub enum LocationHint {
-    /// Try placing this node's line before the line described by id.
-    Before(ast::ID),
-    /// Try placing this node's line after the line described by id.
-    After(ast::ID),
-    /// Try placing this node's line at the start of the graph's code block.
-    Start,
-    /// Try placing this node's line at the end of the graph's code block.
-    End,
 }
 
 
@@ -130,7 +118,7 @@ impl Handle {
     pub fn list_node_infos(&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.get_definition()?;
         let graph = double_representation::graph::GraphInfo::from_definition(definition);
-        Ok(graph.nodes)
+        Ok(graph.nodes())
     }
 
     /// Retrieves double rep information about node with given ID.

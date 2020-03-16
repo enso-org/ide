@@ -10,14 +10,39 @@ use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
 //use ast::HasRepr;
-use ast::IdMap;
 use ast::ID;
 use ast::known;
 use utils::fail::FallibleResult;
-use parser::api::IsParser;
-use ast::test_utils::expect_single_line;
-use data::text::{Span, Index, Size};
-use crate::controller::graph::{NewNodeInfo, LocationHint};
+
+
+
+// =============
+// === Error ===
+// =============
+
+#[derive(Display,Debug)]
+struct IDNotFound {id:ID}
+impl std::error::Error for IDNotFound {}
+
+
+
+// ====================
+// === LocationHint ===
+// ====================
+
+/// Describes the desired position of the node's line in the graph's code block.
+#[derive(Clone,Copy,Debug)]
+pub enum LocationHint {
+    /// Try placing this node's line before the line described by id.
+    Before(ID),
+    /// Try placing this node's line after the line described by id.
+    After(ID),
+    /// Try placing this node's line at the start of the graph's code block.
+    Start,
+    /// Try placing this node's line at the end of the graph's code block.
+    End,
+}
+
 
 
 // ================
@@ -74,16 +99,12 @@ pub fn traverse_for_definition
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
     source:DefinitionInfo,
-    /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
-    /// inputs and outputs).
-    pub nodes:Vec<NodeInfo>,
 }
 
 impl GraphInfo {
     /// Describe graph of the given definition.
     pub fn from_definition(source:DefinitionInfo) -> GraphInfo {
-        let nodes = Self::from_function_binding(source.ast.clone());
-        GraphInfo {source,nodes}
+        GraphInfo {source}
     }
 
     /// Lists nodes in the given binding's ast (infix expression).
@@ -96,32 +117,55 @@ impl GraphInfo {
         }
     }
 
+    /// Gets all known nodes in this graph (does not include special pseudo-nodes like graph
+    /// inputs and outputs).
+    pub fn nodes(&self) -> Vec<NodeInfo> {
+        Self::from_function_binding(self.source.ast.clone())
+    }
+
     /// Adds a new node to this graph.
     pub fn add_node
-    (&mut self, new_node:NewNodeInfo, parser:&mut impl IsParser) -> FallibleResult<ID> {
-        let index = match new_node.location_hint {
-            LocationHint::Start => 0,
-            LocationHint::End => self.nodes.len(),
-            LocationHint::After(id) => {
-                self.nodes.iter().find_position(|node| {
-                    node.id() == id
-                }).map(|(index, _)| index + 1).unwrap_or(self.nodes.len())
-            }
-            LocationHint::Before(_) => 0
+    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<ID> {
+        let block  = self.source.ast.rarg.clone();
+        let block  = known::Block::try_from(block)?;
+
+        let first_line = block.first_line.clone();
+        let mut lines  = block.lines.clone();
+        lines.insert(0, ast::BlockLine{elem:Some(first_line.elem),off:first_line.off});
+
+        let find_position = |id| {
+            lines.iter().find_position(|line| {
+                line.elem.as_ref().map(|line_ast| {
+                    NodeInfo::from_line_ast(line_ast).map(|node| node.id() == id).unwrap_or(false)
+                }).unwrap_or(false)
+            }).map(|(index,_)| index).ok_or(IDNotFound{id})
         };
 
-        let error_message = format!("Couldn't parse {}", new_node.expression);
+        let index = match location_hint {
+            LocationHint::Start      => 0,
+            LocationHint::End        => lines.len(),
+            LocationHint::After(id)  => find_position(id)? + 1,
+            LocationHint::Before(id) => find_position(id)?
+        };
 
-        let id            = new_node.id.unwrap_or(ID::new_v4());
-        let node_ast = parser.parse(new_node.expression, default())?;
-        let line_ast = expect_single_line(&node_ast);
-        println!("{:#?}", line_ast);
-        let node          = NodeInfo::from_line_ast(&line_ast);
-        let node          = node.ok_or(parser::api::Error::ParsingError(error_message))?;
-        assert_eq!(node.id(), id);
+        lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
+        let first_line = lines.remove(0);
+        let first_line = ast::BlockLine{elem:first_line.elem.unwrap(),off:first_line.off};
 
-        self.nodes.insert(index,node);
-        Ok(id)
+        let ty          = block.ty.clone();
+        let indent      = block.indent.clone();
+        let empty_lines = block.empty_lines.clone();
+        let is_orphan   = block.is_orphan.clone();
+        let block = Ast::new(ast::Block {ty,indent,empty_lines,first_line,lines,is_orphan}, None);
+
+        let larg  = self.source.ast.larg.clone();
+        let loff  = self.source.ast.loff.clone();
+        let opr   = self.source.ast.opr.clone();
+        let roff  = self.source.ast.roff.clone();
+        let rarg  = block.try_into()?;
+        let infix = Ast::new(ast::Infix {larg,loff,opr,roff,rarg}, None);
+        self.source.ast = infix.try_into()?;
+        Ok(ID::new_v4())
     }
 
     /// Removes the node from graph.
@@ -174,7 +218,7 @@ mod tests {
     use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use ast::ID;
-    use crate::controller::graph::{NewNodeInfo, LocationHint};
+    use ast::test_utils::expect_single_line;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -198,35 +242,60 @@ mod tests {
         ];
         for program in programs {
             let graph = main_graph(&mut parser, program);
-            assert_eq!(graph.nodes.len(), 1);
-            let node = &graph.nodes[0];
+            let nodes = graph.nodes();
+            assert_eq!(nodes.len(), 1);
+            let node = &nodes[0];
             assert_eq!(node.expression().repr(), "2+2");
             let _ = node.id(); // just to make sure it is available
         }
     }
 
-    #[wasm_bindgen_test]
-    fn add_node() {
-        basegl::system::web::set_stdout();
-        let mut parser = parser::Parser::new_or_panic();
+    fn create_graph(parser:&mut impl IsParser) -> GraphInfo {
         let program = r"
 main =
     foo = node
     foo a = not_node
     node
 ";
-        let mut graph = main_graph(&mut parser, program);
-        let expression    = "4 + 4".to_string();
-        let id            = Some(ID::new_v4());
-        let location_hint = LocationHint::After(graph.nodes[0].id());
-        let location      = default();
 
-        assert!(graph.add_node(NewNodeInfo {expression,id,location_hint,location},&mut parser).is_ok());
+        main_graph(parser, program)
+    }
 
-        assert_eq!(graph.nodes.len(), 3);
-        assert_eq!(graph.nodes[0].expression().repr(), "node");
-        assert_eq!(graph.nodes[1].expression().repr(), "4 + 4");
-        assert_eq!(graph.nodes[2].expression().repr(), "node");
+    fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ID) {
+        let id         = ID::new_v4();
+        let node_ast   = parser.parse(expression.to_string(), default()).unwrap();
+        let line_ast   = expect_single_line(&node_ast).with_id(id);
+        (line_ast,id)
+    }
+
+    #[wasm_bindgen_test]
+    fn add_node() {
+        // TODO [dg] Also add test for binding node when it's possible to update its id.
+        let mut parser = parser::Parser::new_or_panic();
+
+        let mut graph     = create_graph(&mut parser);
+        let (line_ast0,id0) = create_node_ast(&mut parser, "4 + 4");
+        let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");
+        let (line_ast2,id2) = create_node_ast(&mut parser, "x * x");
+        let (line_ast3,id3) = create_node_ast(&mut parser, "x / x");
+
+        assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
+        assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
+        assert!(graph.add_node(line_ast2, LocationHint::After(graph.nodes()[1].id())).is_ok());
+        assert!(graph.add_node(line_ast3, LocationHint::End).is_ok());
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 6);
+        assert_eq!(nodes[0].expression().repr(), "a + b");
+        assert_eq!(nodes[0].id(), id1);
+        assert_eq!(nodes[1].expression().repr(), "4 + 4");
+        assert_eq!(nodes[1].id(), id0);
+        assert_eq!(nodes[2].expression().repr(), "x * x");
+        assert_eq!(nodes[2].id(), id2);
+        assert_eq!(nodes[3].expression().repr(), "node");
+        assert_eq!(nodes[4].expression().repr(), "node");
+        assert_eq!(nodes[5].expression().repr(), "x / x");
+        assert_eq!(nodes[5].id(), id3);
     }
 
     #[wasm_bindgen_test]
@@ -240,8 +309,9 @@ main =
     node
 ";
         let graph = main_graph(&mut parser, program);
-        assert_eq!(graph.nodes.len(), 2);
-        for node in graph.nodes.iter() {
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 2);
+        for node in nodes.iter() {
             assert_eq!(node.expression().repr(), "node");
         }
     }
