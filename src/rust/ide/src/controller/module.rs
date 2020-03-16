@@ -107,8 +107,6 @@ shared! { Handle
         file_manager: fmc::Handle,
         /// The Parser handle.
         parser: Parser,
-        /// Cache of graph controllers.
-        graph_cache: WeakValueHashMap<dr::graph::Id,controller::graph::WeakHandle>,
         /// Publisher of "text changed" notifications
         text_notifications  : notification::Publisher<notification::Text>,
         /// Publisher of "graph changed" notifications
@@ -185,12 +183,11 @@ impl Handle {
         let ast                 = Ast::new(ast::Module{lines:default()},None);
         let module              = SourceFile {ast, metadata:default()};
         let id_map              = default();
-        let graph_cache         = default();
         let text_notifications  = default();
         let graph_notifications = default();
 
 
-        let data = Controller {location,module,file_manager,parser,id_map,logger,graph_cache,
+        let data = Controller {location,module,file_manager,parser,id_map,logger,
             text_notifications,graph_notifications};
         let handle = Handle::new_from_data(data);
         handle.load_file().await?;
@@ -228,29 +225,17 @@ impl Handle {
         async move { fm.write(path.clone(),code?).await }
     }
 
-    /// Creates a new graph controller for graph in this module's subtree identified by `id`.
-    pub fn create_graph_controller(&self, id:dr::graph::Id)
-    -> FallibleResult<controller::graph::Handle> {
-        controller::graph::Handle::new(self.clone(),id)
-    }
+//    /// Creates a new graph controller for graph in this module's subtree identified by `id`.
+//    pub fn create_graph_controller(&self, id:dr::graph::Id)
+//    -> FallibleResult<controller::graph::Handle> {
+//        controller::graph::Handle::new(self.clone(),id)
+//    }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     /// Reuses already existing controller if possible.
     pub fn get_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
-        let cached = self.with_borrowed(|data| data.graph_cache.get(&id));
-        match cached {
-            Some(controller) => Ok(controller),
-            None => {
-                let graph = self.create_graph_controller(id.clone())?;
-                let cached = self.with_borrowed(|data| {
-                    // This is synchronous, so nothing got inserted between our checks.
-                    data.graph_cache.insert(id, graph.clone_ref());
-                    graph
-                });
-                Ok(cached)
-            },
-        }
+        controller::graph::Handle::new(self.clone(),id)
     }
 
     #[cfg(test)]
@@ -264,11 +249,10 @@ impl Handle {
         let logger = Logger::new("Mocked Module Controller");
         let ast    = parser.parse(code.to_string(),id_map.clone())?;
         let module = SourceFile{ast, metadata:Metadata::default()};
-        let graph_cache         = default();
         let text_notifications  = default();
         let graph_notifications = default();
         let data   = Controller {location,module,file_manager,parser,id_map,logger,
-            graph_cache,text_notifications,graph_notifications};
+            text_notifications,graph_notifications};
         Ok(Handle::new_from_data(data))
     }
 }

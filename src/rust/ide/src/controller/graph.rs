@@ -3,16 +3,12 @@
 //! This controller provides access to a specific graph. It lives under a module controller, as
 //! each graph belongs to some module.
 
-pub mod mock;
-
 use crate::prelude::*;
 
 use flo_stream::Subscriber;
 
 pub use double_representation::graph::Id;
-pub use controller::node::Position;
 pub use controller::notification;
-
 
 
 // ==============
@@ -26,6 +22,25 @@ pub struct NodeNotFound(ast::ID);
 
 
 
+// ============
+// === Node ===
+// ============
+
+/// TODO: replace with usage of the structure to be provided by Josef
+#[derive(Clone,Copy,Debug)]
+pub struct NodeMetadata; // here goes position
+
+/// Error raised when node with given Id was not found in the graph's body.
+#[derive(Clone,Debug)]
+pub struct Node {
+    /// Information based on AST, from double_representation module.
+    pub info : double_representation::node::NodeInfo,
+    /// Information about this node stored in the module's metadata.
+    pub metadata : NodeMetadata
+}
+
+
+
 // ===================
 // === NewNodeInfo ===
 // ===================
@@ -36,7 +51,7 @@ pub struct NewNodeInfo {
     /// Expression to be placed on the node
     pub expression : String,
     /// Visual node position in the graph scene.
-    pub position : Position,
+    pub metadata : NodeMetadata,
     /// ID to be given to the node.
     pub id : Option<ast::ID>,
     /// Where line created by adding this node should appear.
@@ -58,73 +73,60 @@ pub enum LocationHint {
 
 
 
-// =================
-// === Interface ===
-// =================
-
-/// Graph controller interface.
-pub trait Interface: Sized {
-    /// Type of the node controller handle that this graph controller uses.
-    type NodeHandle : controller::node::Interface;
-
-    /// Adds a new node to the graph and returns a controller managing this node.
-    fn add_node(&self, node:NewNodeInfo) -> FallibleResult<Self::NodeHandle>;
-
-    /// Retrieves a controller to the node with given ID.
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Self::NodeHandle>;
-
-    /// Returns controllers for all the nodes in the graph.
-    fn get_nodes(&self) -> FallibleResult<Vec<Self::NodeHandle>>;
-
-    /// Removes node with given ID from the graph.
-    fn remove_node(&self, id:ast::ID) -> FallibleResult<()>;
-
-    /// Get subscriber receiving controller's notifications.
-    fn subscribe(&mut self) -> Subscriber<controller::notification::Graph>;
-}
-
-
-
 // ==================
 // === Controller ===
 // ==================
 
-shared! { Handle
-    /// State data of the module controller.
-    #[derive(Debug)]
-    pub struct Controller {
-        /// Controller of the module which this graph belongs to.
-        module : controller::module::Handle,
-        id     : Id
-        // TODO [mwu] support nested definitions
-        // TODO [mwu] notifications
+/// State data of the module controller.
+#[derive(Debug)]
+pub struct Handle {
+    /// Controller of the module which this graph belongs to.
+    module    : controller::module::Handle,
+    id        : Id,
+    publisher : controller::notification::Publisher<controller::notification::Graph>,
+    // TODO [mwu] support nested definitions
+}
+
+impl Clone for Handle {
+    fn clone(&self) -> Self {
+        Self::new_unchecked(self.module.clone(), self.id.clone())
+    }
+}
+
+impl Handle {
+    /// Gets a handle to a controller of the module that this definition belongs to.
+    pub fn get_module(&self) -> controller::module::Handle {
+        self.module.clone()
     }
 
-    impl {
-        /// Gets a handle to a controller of the module that this definition belongs to.
-        pub fn get_module(&self) -> controller::module::Handle {
-            self.module.clone()
-        }
-
-        /// Gets a handle to a controller of the module that this definition belongs to.
-        pub fn get_id(&self) -> Id {
-            self.id.clone()
-        }
+    /// Gets a handle to a controller of the module that this definition belongs to.
+    pub fn get_id(&self) -> Id {
+        self.id.clone()
     }
 }
 
 //pub struct Handle;
 impl Handle {
+    /// Creates a new controller. Does not check if id is valid.
+    pub fn new_unchecked(module:controller::module::Handle, id:Id) -> Handle {
+//        let _graphs_notifications = module.subscribe_graph_notifications();
+//        executor::global::spawn(process_stream_with_handle(_graphs_notifications,weak,|notification,this| {
+//            this.with_borrowed(move |data| data.notifications.publish(notification))
+//        }));
+        // TODO [mwu] wire notifications together
+        let publisher = default();
+        Handle {module,id,publisher}
+    }
+
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
-    /// module.
+    /// module. Fails if ID cannot be resolved.
     pub fn new(module:controller::module::Handle, id:Id) -> FallibleResult<Handle> {
-        let data = Controller {module,id};
-        let ret = Handle::new_from_data(data);
+        let ret = Self::new_unchecked(module,id);
         let _ = ret.get_definition()?; // make sure that definition exists
         Ok(ret)
     }
 
-    /// Retrieves information about definition providing this graph.
+    /// Retrieves double rep information about definition providing this graph.
     pub fn get_definition
     (&self) -> FallibleResult<double_representation::definition::DefinitionInfo> {
         let module = self.get_module();
@@ -132,7 +134,7 @@ impl Handle {
         module.find_definition(&id)
     }
 
-    /// Returns information about all nodes in the graph.
+    /// Returns double rep information about all nodes in the graph.
     pub fn list_node_infos(&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.get_definition()?;
         let graph      = double_representation::graph::GraphInfo::from_definition(definition);
@@ -145,38 +147,55 @@ impl Handle {
         let node  = nodes.into_iter().find(|node_info| node_info.id() == id);
         node.ok_or(NodeNotFound(id).into())
     }
-
-    /// Creates a new controller for node with given ID.
-    fn create_node_controller(&self, id:ast::ID) -> controller::node::Controller {
-        controller::node::Controller::new(self.clone(),id)
-    }
 }
 
-impl Interface for Handle {
-    type NodeHandle = controller::node::Controller;
-
-    fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Self::NodeHandle> {
-        todo!()
+//impl Interface for Handle {
+impl Handle {
+    /// Gets information about node with given id.
+    ///
+    /// Note that it is more efficient to use `get_nodes` to obtain all information at once,
+    /// rather then repeatedly call this method.
+    pub fn get_node(&self, id:ast::ID) -> FallibleResult<Node> {
+        let info = self.node_info(id)?;
+        let metadata = self.get_node_metadata(id)?;
+        Ok( Node{info,metadata})
     }
 
-    fn get_node(&self, id:ast::ID) -> FallibleResult<Self::NodeHandle> {
-        let _ = self.node_info(id)?;
-        Ok(controller::node::Controller::new(self.clone(),id))
-    }
-
-    fn get_nodes(&self) -> FallibleResult<Vec<Self::NodeHandle>> {
+    /// Returns information about all the nodes currently present in this graph.
+    pub fn get_nodes(&self) -> FallibleResult<Vec<Node>> {
         let node_infos = self.list_node_infos()?;
-        let nodes      = node_infos.into_iter().map(|node_info| {
-            self.create_node_controller(node_info.id())
-        }).collect();
+        let mut nodes = Vec::new();
+        for info in node_infos {
+            let metadata = self.get_node_metadata(info.id())?;
+            nodes.push(Node {info,metadata})
+        }
+
         Ok(nodes)
     }
 
-    fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
+    /// Adds a new node to the graph and returns information about created node.
+    pub fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Node> {
         todo!()
     }
 
-    fn subscribe(&mut self) -> Subscriber<notification::Graph> {
+    /// Removes the node with given Id.
+    pub fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
+        todo!()
+    }
+
+    /// Subscribe to updates about changes in this graph.
+    pub fn subscribe(&mut self) -> Subscriber<notification::Graph> {
+        todo!()
+    }
+
+    /// Retrieves metadata for the given node.
+    pub fn get_node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
+        todo!()
+    }
+
+    /// Update metadata for the given node.
+    pub fn update_node_metadata<F>(&self, _id:ast::ID, _updater:F) -> FallibleResult<NodeMetadata>
+    where F : FnOnce(&mut NodeMetadata) {
         todo!()
     }
 }
