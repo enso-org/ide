@@ -38,7 +38,7 @@
          alt="License">
   </a>
   <a href="https://github.com/luna/ide/actions">
-    <img src="https://github.com/luna/basegl/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
+    <img src="https://github.com/luna/ide/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
          alt="Actions Status">
   </a>
   <a href="https://codecov.io/gh/luna/ide/branch/master">
