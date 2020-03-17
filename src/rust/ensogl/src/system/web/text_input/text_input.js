@@ -33,8 +33,8 @@ export class TextInputHandlers {
     }
 
     // Set callback called each time the browser window lose focus.
-    set_window_blur_handler(handler) {
-        this.window_blur_handler = handler
+    set_window_defocus_handler(handler) {
+        this.window_defocus_handler = handler
     }
 
     // Remove the textarea element and stop handling any events.
@@ -64,7 +64,6 @@ export class TextInputHandlers {
             e.preventDefault()
         })
         this.text_area.addEventListener('blur', e => {
-            console.error("Blurred!")
             this.text_area.focus()
         })
         this.text_area.addEventListener('keydown', e => {
@@ -99,8 +98,8 @@ export class TextInputHandlers {
 
     bind_window_events() {
         window.addEventListener('blur', e => {
-            if (typeof this.window_blur_handler !== 'undefined') {
-                this.window_blur_handler()
+            if (typeof this.window_defocus_handler !== 'undefined') {
+                this.window_defocus_handler()
             }
         })
     }

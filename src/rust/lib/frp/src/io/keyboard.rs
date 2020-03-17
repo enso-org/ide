@@ -145,7 +145,7 @@ pub struct Keyboard {
     pub on_released: Dynamic<Key>,
     /// The "losing focus" event. When we're losing focus we should clear keymask, because we are
     /// not sure what keys were released during being unfocused.
-    pub on_blur: Dynamic<()>,
+    pub on_defocus: Dynamic<()>,
     /// The structure holding mask of all of the currently pressed keys.
     pub key_mask: Dynamic<KeyMask>,
 }
@@ -157,10 +157,10 @@ impl Default for Keyboard {
         frp! {
             keyboard.on_pressed        = source();
             keyboard.on_released       = source();
-            keyboard.on_blur           = source();
+            keyboard.on_defocus        = source();
             keyboard.change_set        = on_pressed .map(change_set);
             keyboard.change_unset      = on_released.map(change_unset);
-            keyboard.change_clear      = on_blur    .map(|()|  KeyMaskChange::Clear);
+            keyboard.change_clear      = on_defocus .map(|()| KeyMaskChange::Clear);
             keyboard.change_set_unset  = change_set.merge(&change_unset);
             keyboard.change            = change_set_unset.merge(&change_clear);
             keyboard.previous_key_mask = recursive::<KeyMask>();
@@ -168,7 +168,7 @@ impl Default for Keyboard {
         }
         previous_key_mask.initialize(&key_mask);
 
-        Keyboard { on_pressed,on_released,on_blur,key_mask}
+        Keyboard { on_pressed,on_released,on_defocus,key_mask}
     }
 }
 
