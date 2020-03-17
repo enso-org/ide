@@ -83,7 +83,7 @@ impl Interface for Handle {
 
     fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>> {
         let node_result = self.0.borrow().nodes.get(&id).cloned();
-        let node = node_result.ok_or_else(|| NodeNotFound(id))?;
+        let node        = node_result.ok_or_else(|| NodeNotFound(id))?;
         Ok(Box::new(node))
     }
 

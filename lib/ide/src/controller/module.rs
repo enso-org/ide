@@ -15,7 +15,6 @@ use crate::executor::global::spawn;
 use parser::api::SourceFile;
 use ast;
 use ast::Ast;
-use ast::ID;
 use ast::HasRepr;
 use ast::IdMap;
 use ast::known;
@@ -41,8 +40,8 @@ use crate::controller::node::Position;
 
 /// Failure for missing node.
 #[derive(Debug,Clone,Fail)]
-#[fail(display="Node with ID {} was not found.", _0)]
-struct NodeNotFound(ID);
+#[fail(display="Node with ID {} was not found in metadata.", _0)]
+struct NodeMetadataNotFound(ast::ID);
 
 
 // ==============
@@ -54,7 +53,7 @@ struct NodeNotFound(ID);
 pub struct Metadata {
     /// Metadata used within ide.
     #[serde(default="default")]
-    pub ide : IdeMetadata,
+    pub ide : HashMap<ast::ID,NodeMetadata>,
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
@@ -63,11 +62,11 @@ pub struct Metadata {
 
 impl parser::api::Metadata for Metadata {}
 
-/// Metadata used within ide.
-#[derive(Debug,Clone,Default,Serialize,Deserialize)]
-pub struct IdeMetadata {
-    /// Position in x,y coordinates for each Id.
-    position: HashMap<ID,Position>
+/// Metadata of specific node.
+#[derive(Debug,Clone,Copy,Default,Serialize,Deserialize)]
+pub struct NodeMetadata {
+    /// Position in x,y coordinates.
+    position: Option<Position>
 }
 
 
@@ -158,14 +157,15 @@ shared! { Handle
         }
 
         /// Get position of node.
-        pub fn get_node_position(&mut self, id:ID) -> FallibleResult<Position> {
-            let position = self.module.metadata.ide.position.get(&id);
-            Ok(position.ok_or(NodeNotFound(id))?.clone())
+        pub fn get_node_position(&mut self, id:ast::ID) -> FallibleResult<Position> {
+            let position = || Some(self.module.metadata.ide.get(&id)?.position?);
+            position().ok_or(NodeMetadataNotFound(id).into())
         }
 
         /// Set position of node.
-        pub fn set_node_position(&mut self, id:ID, pos:Position) {
-            self.module.metadata.ide.position.insert(id, pos);
+        pub fn set_node_position(&mut self, id:ast::ID, pos:Position) {
+            let mut metadata = self.module.metadata.ide.entry(id).or_default();
+            metadata.position = Some(pos);
         }
 
 

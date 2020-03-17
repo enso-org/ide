@@ -66,7 +66,6 @@ pub trait Interface {
     /// Sets the node's expression to a result of parsing the given text.
     fn set_expression_text(&self, expression:&str) -> FallibleResult<()>;
 
-
     /// Subscribes to the notifications of the controller.
     fn subscribe(&mut self) -> Subscriber<controller::notification::Node>;
 }
@@ -126,6 +125,7 @@ impl Interface for Controller {
 #[cfg(test)]
 mod test {
     use enso_prelude::default;
+    use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::graph::Id;
     use crate::controller;
     use controller::node::Position;
@@ -136,15 +136,18 @@ mod test {
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use basegl_system_web::set_stdout;
+
 
     #[wasm_bindgen_test]
     fn node_operations() {
+        set_stdout();
         let transport    = MockTransport::new();
         let file_manager = file_manager_client::Handle::new(transport);
         let parser       = Parser::new().unwrap();
         let location     = module::Location("Test".to_string());
 
-        let code         = "";
+        let code         = "main = Hello World";
         let idmap        = default();
 
         let module       = module::Handle::new_mock
@@ -155,8 +158,8 @@ mod test {
 
         module.set_node_position(uid, pos);
 
-        let controller   = graph::Handle::new
-            (module, Id {crumbs:default()}).unwrap();
+        let crumbs       = vec![DefinitionName::new_plain("main")];
+        let controller   = graph::Handle::new(module, Id {crumbs}).unwrap();
 
 
         assert_eq!(controller.get_node(uid).unwrap().position().unwrap(), pos);

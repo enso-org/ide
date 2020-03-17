@@ -154,7 +154,7 @@ impl Interface for Handle {
     }
 
     fn get_node(&self, id:ast::ID) -> FallibleResult<Box<dyn controller::node::Interface>> {
-        let _ = self.node_info(id)?;
+//        let _ = self.node_info(id)?; // TODO What is the purpose of this [mwu]?
         Ok(Box::new(controller::node::Controller::new(self.clone(),id)))
     }
 
