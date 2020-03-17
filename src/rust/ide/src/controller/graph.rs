@@ -39,7 +39,7 @@ pub struct Node {
     /// Information based on AST, from double_representation module.
     pub info : double_representation::node::NodeInfo,
     /// Information about this node stored in the module's metadata.
-    pub metadata : NodeMetadata
+    pub metadata : Option<NodeMetadata>,
 }
 
 
@@ -54,7 +54,7 @@ pub struct NewNodeInfo {
     /// Expression to be placed on the node
     pub expression : String,
     /// Visual node position in the graph scene.
-    pub metadata : NodeMetadata,
+    pub metadata : Option<NodeMetadata>,
     /// ID to be given to the node.
     pub id : Option<ast::ID>,
     /// Where line created by adding this node should appear.
@@ -161,7 +161,7 @@ impl Handle {
     /// rather then repeatedly call this method.
     pub fn get_node(&self, id:ast::ID) -> FallibleResult<Node> {
         let info     = self.get_node_info(id)?;
-        let metadata = self.get_node_metadata(id)?;
+        let metadata = self.get_node_metadata(id).ok();
         Ok(Node {info,metadata})
     }
 
@@ -170,7 +170,7 @@ impl Handle {
         let node_infos = self.get_all_node_infos()?;
         let mut nodes  = Vec::new();
         for info in node_infos {
-            let metadata = self.get_node_metadata(info.id())?;
+            let metadata = self.get_node_metadata(info.id()).ok();
             nodes.push(Node {info,metadata})
         }
 
