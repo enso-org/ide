@@ -33,7 +33,7 @@ pub struct NodeNotFound(ast::ID);
 #[derive(Clone,Copy,Debug)]
 pub struct NodeMetadata; // here goes position
 
-/// Error raised when node with given Id was not found in the graph's body.
+/// Description of the node with all information available to the graph controller.
 #[derive(Clone,Debug)]
 pub struct Node {
     /// Information based on AST, from double_representation module.
@@ -94,7 +94,7 @@ pub struct Handle {
 impl Handle {
     /// Gets a handle to a controller of the module that this definition belongs to.
     pub fn get_module(&self) -> controller::module::Handle {
-        self.module.clone()
+        self.module.clone_ref()
     }
 
     /// Gets a handle to a controller of the module that this definition belongs to.
