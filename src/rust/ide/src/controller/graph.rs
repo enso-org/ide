@@ -110,9 +110,7 @@ impl Handle {
         let publisher = default();
         let ret       = Handle {module,id,publisher};
         let weak      = Rc::downgrade(&ret.publisher);
-        let relay_notifications = process_stream_with_handle(
-            graphs_notifications,
-            weak,
+        let relay_notifications = process_stream_with_handle(graphs_notifications,weak,
             |notification,this| {
                 match notification {
                     controller::notification::Graphs::Invalidate =>
@@ -215,4 +213,3 @@ mod tests {
     fn test_graph_controller() {
     }
 }
-

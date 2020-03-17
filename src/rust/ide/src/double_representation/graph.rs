@@ -9,7 +9,6 @@ use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node;
 
 use ast::Ast;
-//use ast::HasRepr;
 use ast::known;
 
 
