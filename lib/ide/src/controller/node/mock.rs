@@ -60,7 +60,7 @@ impl Interface for Handle {
     }
 
     fn position(&self) -> FallibleResult<Position> {
-        Ok(self.state.borrow().position.clone())
+        Ok(self.state.borrow().position)
     }
 
     fn set_expression(&self, ast:Ast) -> FallibleResult<()> {

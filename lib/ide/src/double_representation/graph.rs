@@ -52,7 +52,7 @@ pub fn traverse_for_definition
     let mut crumb_iter = id.crumbs.iter();
     let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
     let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
-    while let Some(crumb) = crumb_iter.next() {
+    for crumb in crumb_iter {
         definition = definition.find_definition(crumb).ok_or_else(err)?;
     }
     Ok(definition)

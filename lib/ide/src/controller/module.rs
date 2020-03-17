@@ -39,9 +39,9 @@ use crate::controller::node::Position;
 /// ============
 
 /// Failure for missing node.
-#[derive(Debug,Clone,Fail)]
+#[derive(Debug,Clone,Copy,Fail)]
 #[fail(display="Node with ID {} was not found in metadata.", _0)]
-struct NodeMetadataNotFound(ast::ID);
+pub struct NodeMetadataNotFound(pub ast::ID);
 
 
 // ==============
@@ -66,7 +66,7 @@ impl parser::api::Metadata for Metadata {}
 #[derive(Debug,Clone,Copy,Default,Serialize,Deserialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    position: Option<Position>
+    pub position: Option<Position>
 }
 
 
@@ -156,18 +156,21 @@ shared! { Handle
             Ok(())
         }
 
-        /// Get position of node.
-        pub fn get_node_position(&mut self, id:ast::ID) -> FallibleResult<Position> {
-            let position = || Some(self.module.metadata.ide.get(&id)?.position?);
-            position().ok_or(NodeMetadataNotFound(id).into())
+        /// Returns metadata for given node.
+        pub fn node_metadata(&mut self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+            self.module.metadata.ide.get(&id).cloned()
+                .ok_or_else(|| NodeMetadataNotFound(id).into())
         }
 
-        /// Set position of node.
-        pub fn set_node_position(&mut self, id:ast::ID, pos:Position) {
-            let mut metadata = self.module.metadata.ide.entry(id).or_default();
-            metadata.position = Some(pos);
+        /// Modify metadata of given node.
+        pub fn with_node_metadata(&mut self, id:ast::ID, fun:&impl Fn(&mut NodeMetadata)) {
+            fun(self.module.metadata.ide.entry(id).or_default());
         }
 
+        /// Delete metadata of given node.
+        pub fn remove_node_metadata(&mut self, id:ast::ID) {
+            self.module.metadata.ide.remove(&id);
+        }
 
         /// Read module code.
         pub fn code(&self) -> String {

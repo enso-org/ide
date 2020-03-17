@@ -3,6 +3,7 @@
 pub mod mock;
 
 use crate::prelude::*;
+use crate::controller::module::NodeMetadataNotFound;
 
 use ast::Ast;
 use ast::ID;
@@ -12,7 +13,6 @@ use serde::Serialize;
 use serde::Deserialize;
 
 use flo_stream::Subscriber;
-
 
 
 // ================
@@ -102,11 +102,15 @@ impl Interface for Controller {
     }
 
     fn position(&self) -> FallibleResult<Position> {
-        self.graph.get_module().get_node_position(self.id)
+        let meta = self.graph.get_module().node_metadata(self.id)?;
+        meta.position.ok_or_else(|| NodeMetadataNotFound(self.id).into())
     }
 
     fn set_position(&self, new_position:Position) -> FallibleResult<()> {
-        Ok(self.graph.get_module().set_node_position(self.id, new_position))
+        self.graph.get_module().with_node_metadata(self.id, &|meta|
+            meta.position = Some(new_position)
+        );
+        Ok(())
     }
 
     fn set_expression(&self, _ast:Ast) -> FallibleResult<()> {
@@ -146,22 +150,18 @@ mod test {
         let file_manager = file_manager_client::Handle::new(transport);
         let parser       = Parser::new().unwrap();
         let location     = module::Location("Test".to_string());
-
         let code         = "main = Hello World";
         let idmap        = default();
-
         let module       = module::Handle::new_mock
             (location,code,idmap,file_manager,parser).unwrap();
-
         let uid          = Uuid::new_v4();
         let pos          = Position::default();
-
-        module.set_node_position(uid, pos);
-
         let crumbs       = vec![DefinitionName::new_plain("main")];
         let controller   = graph::Handle::new(module, Id {crumbs}).unwrap();
+        let node         = controller.get_node(uid).unwrap();
 
+        node.set_position(pos).unwrap();
 
-        assert_eq!(controller.get_node(uid).unwrap().position().unwrap(), pos);
+        assert_eq!(node.position().unwrap(), pos);
     }
 }

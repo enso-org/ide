@@ -96,7 +96,7 @@ impl Interface for Handle {
     }
 
     fn remove_node(&self, id:ast::ID) -> FallibleResult<()> {
-        if let Some(_) = self.0.borrow_mut().nodes.remove(&id) {
+        if self.0.borrow_mut().nodes.remove(&id).is_some() {
             Ok(())
         } else {
             Err(NodeNotFound(id).into())
