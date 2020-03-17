@@ -52,7 +52,7 @@ pub fn traverse_for_definition
     let mut crumb_iter = id.crumbs.iter();
     let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
     let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
-    while let Some(crumb) = crumb_iter.next() {
+    for crumb in crumb_iter {
         definition = definition.find_definition(crumb).ok_or_else(err)?;
     }
     Ok(definition)
@@ -67,10 +67,10 @@ pub fn traverse_for_definition
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    source:DefinitionInfo,
+    source : DefinitionInfo,
     /// Describes all known nodes in this graph (does not include special pseudo-nodes like graph
     /// inputs and outputs).
-    pub nodes:Vec<node::NodeInfo>,
+    pub nodes : Vec<node::NodeInfo>,
 }
 
 impl GraphInfo {
