@@ -189,13 +189,16 @@ impl Handle {
     }
 
     /// Subscribe to updates about changes in this graph.
-    pub fn subscribe(&mut self) -> Subscriber<controller::notification::Graph> {
-        todo!()
+    pub fn subscribe(&self) -> Subscriber<controller::notification::Graph> {
+        self.publisher.borrow_mut().0.subscribe()
     }
 
     /// Retrieves metadata for the given node.
     pub fn node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
-        todo!()
+        // todo!()
+        #[derive(Clone,Copy,Debug,Display,Fail)]
+        struct NotImplemented;
+        Err(NotImplemented.into())
     }
 
     /// Update metadata for the given node.
@@ -208,9 +211,91 @@ impl Handle {
 
 #[cfg(test)]
 mod tests {
-//    use super::*;
+    use super::*;
 
-    #[test]
-    fn test_graph_controller() {
+    use crate::double_representation::definition::DefinitionName;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::controller::module;
+    use crate::controller::notification;
+
+    use ast::HasRepr;
+    use data::text::Index;
+    use data::text::TextChange;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use parser::Parser;
+    use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    struct GraphControllerFixture(TestWithLocalPoolExecutor);
+    impl GraphControllerFixture {
+        pub fn set_up() -> GraphControllerFixture {
+            let nested = TestWithLocalPoolExecutor::set_up();
+            Self(nested)
+        }
+
+        pub fn run_graph_for_program<Test,Fut>(&mut self, code:impl Str, function_name:impl Str, test:Test)
+        where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+              Fut  : Future<Output=()> {
+            let fm       = file_manager_client::Handle::new(MockTransport::new());
+            let loc      = controller::module::Location("Main".to_string());
+            let parser   = Parser::new_or_panic();
+            let module   = controller::module::Handle::new_mock(loc,code.as_ref(),default(),fm,parser).unwrap();
+            let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
+            let graph    = module.get_graph_controller(graph_id).unwrap();
+            self.0.run_test(async move {
+                test(module,graph).await
+            })
+        }
+
+        pub fn run_inline_graph<Test,Fut>(&mut self, definition_body:impl Str, test:Test)
+        where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+              Fut  : Future<Output=()> {
+            assert_eq!(definition_body.as_ref().contains('\n'), false);
+            let code = format!("main = {}", definition_body.as_ref());
+            let name = "main";
+            self.run_graph_for_program(code,name,test)
+        }
+    }
+
+    #[wasm_bindgen_test]
+    fn graph_controller_notification_relay() {
+        let mut test = GraphControllerFixture::set_up();
+        test.run_graph_for_program("main = 2 + 2", "main", |module,graph| async move {
+            let text_change = TextChange::insert(Index::new(12), "2".into());
+            module.apply_code_change(&text_change).unwrap();
+
+            let mut sub = graph.subscribe();
+            module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
+            assert_eq!(Some(notification::Graph::Invalidate), sub.next().await);
+        })
+    }
+
+    #[wasm_bindgen_test]
+    fn graph_controller_inline_definition() {
+        let mut test = GraphControllerFixture::set_up();
+        const EXPRESSION: &str = "2+2";
+        test.run_inline_graph(EXPRESSION, |_,graph| async move {
+            let nodes   = graph.nodes().unwrap();
+            let (node,) = nodes.expect_tuple();
+            assert_eq!(node.info.expression().repr(), EXPRESSION);
+            let id   = node.info.id();
+            let node = graph.node(id).unwrap();
+            assert_eq!(node.info.expression().repr(), EXPRESSION);
+        })
+    }
+
+    #[wasm_bindgen_test]
+    fn graph_controller_block_definition() {
+        let mut test  = GraphControllerFixture::set_up();
+        let program = r"
+main =
+    foo = 2
+    print foo";
+        test.run_graph_for_program(program, "main", |_,graph| async move {
+            let nodes   = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+        })
     }
 }

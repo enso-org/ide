@@ -30,6 +30,13 @@ pub struct Id {
     pub crumbs : Vec<Crumb>,
 }
 
+impl Id {
+    /// Creates a new graph identifier consisting of a single crumb.
+    pub fn new_single_crumb(crumb:DefinitionName) -> Id {
+        let crumbs = vec![crumb];
+        Id {crumbs}
+    }
+}
 
 
 // ===============================
