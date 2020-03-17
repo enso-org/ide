@@ -38,7 +38,7 @@
          alt="License">
   </a>
   <a href="https://github.com/luna/ide/actions">
-    <img src="https://github.com/luna/basegl/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
+    <img src="https://github.com/luna/ide/workflows/Build%20%28MacOS%2C%20Linux%2C%20Windows%29/badge.svg"
          alt="Actions Status">
   </a>
   <a href="https://codecov.io/gh/luna/ide/branch/master">
@@ -49,7 +49,7 @@
 
 Enso is an open source visual data science language selected by Singularity University and NASA as one 
 of 20 most unique technologies worldwide. Enso consist of several sub-projects, including the 
-[Enso Language Compiler](https://github.com/luna/enso), the [Enso Integrated Development Environment (IDE)](https://github.com/luna/ide), and [a high performance WebGL UI framework (EnsoGL)](https://github.com/luna/ide/tree/master/lib/core).
+[Enso Language Compiler](https://github.com/luna/enso), the [Enso Integrated Development Environment (IDE)](https://github.com/luna/ide), and [a high performance WebGL UI framework (EnsoGL)](https://github.com/luna/ide/tree/master/src/rust/ensogl).
 
 <br/>
 

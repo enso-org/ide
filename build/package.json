@@ -4,8 +4,10 @@
   "description": "Build Scripts",
   "repository": "git@github.com:luna/ide.git",
   "dependencies": {
-    "minimist": "^1.2.0",
-    "ncp": "^2.0.0"
+    "binaryen": "^91.0.0",
+    "glob": "^7.1.6",
+    "ncp": "^2.0.0",
+    "yargs": "^15.3.0"
   },
   "license": "MIT"
 }

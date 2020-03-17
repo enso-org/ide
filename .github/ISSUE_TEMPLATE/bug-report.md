@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in BaseGL.
+about: Report a bug in Enso IDE.
 title: ''
 labels: 'Type: Bug'
 assignees: ''
@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-Please ensure that you are using the latest version of BaseGL before reporting 
+Please ensure that you are using the latest version of Enso IDE before reporting 
 the bug! It may have been fixed since.
 -->
 
@@ -33,7 +33,7 @@ Please list the reproduction steps for your bug.
 - Please include any error output if relevant.
 -->
 
-### Luna Version
+### Enso Version
 <!--
-- Please include the version of BaseGL you are using here.
+- Please include the version of Enso IDE you are using here.
 -->

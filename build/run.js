@@ -1,59 +1,41 @@
-let fss = require('fs')
-let fs  = require('fs').promises
-let cmd = require('./lib/cmd')
-let ncp = require('ncp').ncp
+const cmd    = require('./cmd')
+const fs     = require('fs').promises
+const fss    = require('fs')
+const glob   = require('glob')
+const ncp    = require('ncp').ncp
+const path   = require('path')
+const paths  = require('./paths')
+const stream = require('stream');
+const yargs  = require('yargs')
+const zlib   = require('zlib');
 
-let argv = require('minimist')(process.argv.slice(2),{'--':true})
-let child_argv = argv['--']
-
-let root = __dirname + '/..'
-process.chdir(root)
+process.on('unhandledRejection', error => { throw(error) })
+process.chdir(paths.root)
 
 
+const { promisify } = require('util')
+const pipe = promisify(stream.pipeline)
 
-// ============
-// === Help ===
-// ============
-
-const HELP_MESSAGE = `
-Enso building utility.
-
-Usage: run command [options]
-Please note that all arguments after '--' will be passed to sub-commands.
-
-Commands:
-    help     Print this help message.
-    clean    Clean all build artifacts.
-    check    Fast check if project builds (only Rust target).
-    build    Build the sources.
-    dist     Build the sources and create distribution packages.
-    watch    Start a file-watch utility and run interactive mode.
-
-Options:
-    --help   Print this help message
-    --js     Run the JavaScript target [true].
-    --rust   Run the Rust target [true].
-`
-
-function print_help () {
-    console.log(HELP_MESSAGE)
-    process.exit()
+async function gzip(input, output) {
+  const gzip        = zlib.createGzip()
+  const source      = fss.createReadStream(input)
+  const destination = fss.createWriteStream(output)
+  await pipe(source,gzip,destination)
 }
 
-function validate_options() {
-    let args_check = Object.assign({},argv)
-    for (arg of ['_','--','validation','help','rust','js']) {
-        delete args_check[arg]
-    }
 
-    let unrecognized = Object.keys(args_check)
-    if (unrecognized.length > 0) {
-        console.error(`[ERROR] The following arguments were not recognized: ${unrecognized}.`)
-        console.error(`Use --help to learn about available commands and options.`)
-        process.exit()
-    }
-}
-validate_options()
+
+// ========================
+// === Global Variables ===
+// ========================
+
+/// Arguments passed to sub-processes called from this script. This variable is set to a specific
+/// value after the command line args get parsed.
+let subProcessArgs = undefined
+
+/// Arguments passed to a target binary if any. This variable is set to a specific value after the
+// command line args get parsed.
+let targetArgs = undefined
 
 
 
@@ -61,6 +43,7 @@ validate_options()
 // === Utils ===
 // =============
 
+/// Copy files and directories.
 async function copy(src,tgt) {
     return new Promise((resolve, reject) => {
         ncp(src,tgt,(err) => {
@@ -72,63 +55,79 @@ async function copy(src,tgt) {
 
 /// Run the command with the provided args and all args passed to this script after the `--` symbol.
 async function run(command,args) {
-    await cmd.run(command,args.concat(child_argv))
+    await cmd.run(command,args.concat(subProcessArgs))
+}
+
+
+/// Defines a new command argument builder.
+function command(docs) {
+    return {docs}
 }
 
 
 
-// =============
-// === Clean ===
-// =============
+// ================
+// === Commands ===
+// ================
 
-async function clean_js () {
-    await cmd.with_cwd('app', async () => {
+let commands = {}
+
+
+// === Clean ===
+
+commands.clean = command(`Clean all build artifacts`)
+commands.clean.js = async function() {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','clean'])
     })
-    try { await fs.unlink('.initialized') } catch {}
+    try { await fs.unlink(paths.dist.init) } catch {}
 }
 
-async function clean_rust () {
-    try { await fs.rmdir('app/generated') } catch {}
+commands.clean.rust = async function() {
     await run('cargo',['clean'])
 }
 
 
-
-// =============
 // === Check ===
-// =============
 
-async function check_rust() {
+commands.check = command(`Fast check if project builds (only Rust target)`)
+commands.check.rust = async function() {
     await run('cargo',['check'])
 }
 
-async function check_js() {}
 
-
-
-// =============
 // === Build ===
-// =============
 
-async function build_js () {
+commands.build = command(`Build the sources in release mode`)
+commands.build.js = async function() {
     console.log(`Building JS target.`)
-    await cmd.with_cwd('app', async () => {
-        await run('npm',['run','build'])
-    })
+    await run('npm',['run','build'])
 }
 
-async function build_rust () {
+commands.build.rust = async function(argv) {
     console.log(`Building WASM target.`)
-    await run('wasm-pack',['build','--target','web','--no-typescript','--out-dir','../../target/web','lib/gui'])
-    await patch_file('target/web/gui.js', js_workaround_patcher)
-    await fs.rename('target/web/gui_bg.wasm','target/web/gui.wasm')
+    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'lib/debug-scenes']
+    if (argv.dev) { args.push('--dev') }
+    await run('wasm-pack',args)
+    await patch_file(paths.dist.wasm.glue, js_workaround_patcher)
+    await fs.rename(paths.dist.wasm.mainRaw, paths.dist.wasm.main)
+    if (!argv.dev) {
+        // TODO: Enable after updating wasm-pack
+        // https://github.com/rustwasm/wasm-pack/issues/696
+        // console.log('Optimizing the WASM binary.')
+        // await cmd.run('npx',['wasm-opt','-O3','-o',paths.dist.wasm.mainOpt,paths.dist.wasm.main])
 
-    /// We build to provisional location and patch files there before copying, so the backpack don't
-    /// get errors from processing unpatched files. Also, here we copy into (overwriting), without
-    /// removing old files. Backpack on Windows does not tolerate removing files it watches.
-    await fs.mkdir('app/generated', {recursive:true})
-    await copy('target/web','app/generated/wasm')
+        console.log('Minimizing the WASM binary.')
+        await gzip(paths.dist.wasm.main,paths.dist.wasm.mainOptGz) // TODO main -> mainOpt
+
+        console.log('Checking the resulting WASM size.')
+        let stats = fss.statSync(paths.dist.wasm.mainOptGz)
+        let limit = 2.4
+        let size = Math.round(100 * stats.size / 1024 / 1024) / 100
+        if (size > limit) {
+            throw(`Output file size exceeds the limit (${size}MB > ${limit}MB).`)
+        }
+    }
 }
 
 /// Workaround fix by wdanilo, see: https://github.com/rustwasm/wasm-pack/issues/790
@@ -148,49 +147,178 @@ async function patch_file(path,patcher) {
 }
 
 
+// === Start ===
 
-// ============
+commands.start = command(`Build and start desktop client`)
+commands.start.rust = async function(argv) {
+   await commands.build.rust(argv)
+}
+
+commands.start.js = async function() {
+    console.log(`Building JS target.`)
+    await cmd.with_cwd(paths.js.root, async () => {
+        await run('npm',['run','start','--'].concat(targetArgs))
+    })
+}
+
+
+// === Test ===
+
+commands.test = command(`Run test suites`)
+commands.test.rust = async function(argv) {
+    if (argv.native) {
+        console.log(`Running Rust test suite.`)
+        await run('cargo',['test'])
+    }
+
+    if (argv.wasm) {
+        console.log(`Running Rust WASM test suite.`)
+        let args = ['run','--manifest-path=test/Cargo.toml','--bin','test_all','--','--headless','--chrome']
+        await run('cargo',args)
+    }
+}
+
+
 // === Lint ===
-// ============
 
-async function lint_rust() {
+commands.lint = command(`Lint the codebase`)
+commands.lint.rust = async function() {
     await run('cargo',['clippy','--','-D','warnings'])
 }
 
-async function lint_js() {}
 
-
-
-// =============
 // === Watch ===
-// =============
 
-async function watch_rust () {
-    let target = '"' + 'node ./run build -- --dev ' + child_argv.join(" ") + '"'
-    let args = ['watch','--watch','lib','-s',`${target}`]
-    await cmd.run('cargo',args)
+commands.watch = command(`Start a file-watch utility and run interactive mode`)
+commands.watch.parallel = true
+commands.watch.rust = async function() {
+    let target = '"' + `node ${paths.script.main} build --no-js --dev -- ` + subProcessArgs.join(" ") + '"'
+    let args   = ['watch','--watch','lib','-s',`${target}`]
+    await cmd.with_cwd(paths.rust.root, async () => {
+        await cmd.run('cargo',args)
+    })
 }
 
-async function watch_js () {
-    await cmd.with_cwd('app', async () => {
+commands.watch.js = async function() {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','watch'])
     })
 }
 
 
-
-// ============
 // === Dist ===
-// ============
 
-async function dist_rust () {
-    await build_rust()
+commands.dist = command(`Build the sources and create distribution packages`)
+commands.dist.rust = async function(argv) {
+    await commands.build.rust(argv)
 }
 
-async function dist_js () {
-    await cmd.with_cwd('app', async () => {
+commands.dist.js = async function() {
+    await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','dist'])
     })
+}
+
+
+
+// ===========================
+// === Command Line Parser ===
+// ===========================
+
+let usage = `run command [options]
+
+All arguments after '--' will be passed to build sub-commands.
+All arguments after second '--' will be passed to target executable if any.
+For example, 'run start -- --dev -- --debug-scene shapes' will pass '--dev' to build \
+utilities and '--debug-scene shapes' to the output binary.`
+
+let optParser = yargs
+    .scriptName("")
+    .usage(usage)
+    .help()
+    .parserConfiguration({'populate--':true})
+    .demandCommand()
+
+optParser.options('rust', {
+    describe : 'Run the Rust target',
+    type     : 'bool',
+    default  : true
+})
+
+optParser.options('js', {
+    describe : 'Run the JavaScript target',
+    type     : 'bool',
+    default  : true
+})
+
+optParser.options('release', {
+    describe : "Enable all optimizations",
+    type     : 'bool',
+})
+
+optParser.options('dev', {
+    describe : "Optimize for fast builds",
+    type     : 'bool',
+})
+
+let commandList = Object.keys(commands)
+commandList.sort()
+for (let command of commandList) {
+    let config = commands[command]
+    optParser.command(command,config.docs,(args) => {
+        args.options('native', {
+            describe : 'Run native tests',
+            type     : 'bool',
+            default  : true
+        })
+        args.options('wasm', {
+            describe : 'Run WASM tests',
+            type     : 'bool',
+            default  : true
+        })
+    })
+}
+
+
+
+// ======================
+// === Package Config ===
+// ======================
+
+function defaultConfig() {
+    return {
+        version: "2.0.0-alpha.0",
+        author: {
+            name: "Enso Team",
+            email: "contact@luna-lang.org"
+        },
+        homepage: "https://github.com/luna/ide",
+        repository: {
+            type: "git",
+            url: "git@github.com:luna/ide.git"
+        },
+        bugs: {
+            url: "https://github.com/luna/ide/issues"
+        },
+    }
+}
+
+async function processPackageConfigs() {
+    let files = []
+    files = files.concat(glob.sync(paths.js.root + "/package.js", {cwd:paths.root}))
+    files = files.concat(glob.sync(paths.js.root + "/lib/*/package.js", {cwd:paths.root}))
+    for (file of files) {
+        let dirPath = path.dirname(file)
+        let outPath = path.join(dirPath,'package.json')
+        let src     = await fs.readFile(file,'utf8')
+        let modSrc  = `module = {}\n${src}\nreturn module.exports`
+        let fn      = new Function('require','paths',modSrc)
+        let mod     = fn(require,paths)
+        let config  = mod.config
+        if (!config) { throw(`Package config '${file}' do not export 'module.config'.`) }
+        config = Object.assign(defaultConfig(),config)
+        fs.writeFile(outPath,JSON.stringify(config,undefined,4))
+    }
 }
 
 
@@ -199,57 +327,77 @@ async function dist_js () {
 // === Main ===
 // ============
 
+async function updateBuildVersion () {
+    let config        = {}
+    let configPath    = paths.dist.buildInfo
+    let exists        = fss.existsSync(configPath)
+    if(exists) {
+        let configFile = await fs.readFile(configPath)
+        config         = JSON.parse(configFile)
+    }
+    let commitHashCmd = await cmd.run_read('git',['rev-parse','--short','HEAD'])
+    let commitHash    = commitHashCmd.trim()
+    if (config.buildVersion != commitHash) {
+        config.buildVersion = commitHash
+        await fs.mkdir(paths.dist.root,{recursive:true})
+        await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
+    }
+}
+
+async function installJsDeps() {
+    let initialized = fss.existsSync(paths.dist.init)
+    if (!initialized) {
+        console.log('Installing application dependencies')
+        await cmd.with_cwd(paths.js.root, async () => {
+            await cmd.run('npm',['run','install'])
+        })
+        await fs.mkdir(paths.dist.root, {recursive:true})
+        await fs.open(paths.dist.init,'w')
+    }
+}
+
+async function runCommand(command,argv) {
+    let config     = commands[command]
+    subProcessArgs = argv['--']
+    if(subProcessArgs === undefined) { subProcessArgs = [] }
+    let index = subProcessArgs.indexOf('--')
+    if (index == -1) {
+        targetArgs = []
+    }
+    else {
+        targetArgs     = subProcessArgs.slice(index + 1)
+        subProcessArgs = subProcessArgs.slice(0,index)
+    }
+    let runner = async function () {
+        let do_rust = argv.rust && config.rust
+        let do_js   = argv.js   && config.js
+        let rustCmd = () => cmd.with_cwd(paths.rust.root, async () => await config.rust(argv))
+        let jsCmd   = () => cmd.with_cwd(paths.js.root  , async () => await config.js(argv))
+        if(config.parallel) {
+            let promises = []
+            if (do_rust) { promises.push(rustCmd()) }
+            if (do_js)   { promises.push(jsCmd()) }
+            await Promise.all(promises)
+        } else {
+            if (do_rust) { await rustCmd() }
+            if (do_js)   { await jsCmd()   }
+        }
+    }
+    cmd.section(command)
+    runner()
+}
+
 async function main () {
+    await processPackageConfigs()
+    updateBuildVersion()
+    let argv    = optParser.parse()
     let command = argv._[0]
-
-    let do_rust = (argv.rust == true) || (argv.rust == undefined)
-    let do_js   = (argv.js   == true) || (argv.js   == undefined)
-
-    if (command == 'clean') {
-        cmd.section('Cleaning')
-        if (do_rust) { await clean_rust() }
-        if (do_js)   { await clean_js() }
-        return
+    if(command == 'clean') {
+        try { await fs.unlink(paths.dist.init) } catch {}
+    } else {
+        await installJsDeps()
     }
-
-    if (command == 'watch') {
-        cmd.section('Watching')
-        let promises = []
-        if (do_rust) { promises.push(watch_rust()) }
-        if (do_js)   { promises.push(watch_js()) }
-        await Promise.all(promises)
-        return
-    }
-
-    if (command == 'build') {
-        cmd.section('Building')
-        if (do_rust) { await build_rust() }
-        if (do_js)   { await build_js() }
-        return
-    }
-
-    if (command == 'check') {
-        cmd.section('Checking')
-        if (do_rust) { await check_rust() }
-        if (do_js)   { await check_js() }
-        return
-    }
-
-    if (command == 'lint') {
-        cmd.section('Linting')
-        if (do_rust) { await lint_rust() }
-        if (do_js)   { await lint_js() }
-        return
-    }
-
-    if (command == 'dist') {
-        cmd.section('Packaging')
-        await dist_rust()
-        await dist_js()
-        return
-    }
-
-    print_help()
+    await runCommand(command,argv)
 }
 
 main()

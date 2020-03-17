@@ -1,6 +1,8 @@
+dist
+
 # Rust
 /target
-/script/rust/target/
+/build/rust/target/
 **/*.rs.bk
 pkg/
 wasm-pack.log
@@ -9,7 +11,7 @@ wasm-pack.log
 .idea/
 *.iml
 
-# VisualStudio Code
+# Visual Studio Code
 .vscode/
 
 # A thirdparty downloaded js

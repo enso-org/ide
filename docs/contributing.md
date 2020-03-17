@@ -14,6 +14,7 @@ need the following setup:
   rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
   rustup default nightly                      # Set it as the default one.
   rustup component add clippy                 # Install the linter.
+  cargo install cargo-watch                   # To enable ./run watch utility
   ```
 
 - **Node and Node Package Manager LTS**  
@@ -22,7 +23,7 @@ need the following setup:
   changes are known to cause serious issues, thus **we provide support for the latest LTS version only.
   Please do not report build issues if you use other versions.** In case you run run MacOS or Linux 
   the easiest way to setup the proper version is by installing the 
-  [Node Version Manager](https://github.com/nvm-sh/nvm) and running `nvm use --lts`.
+  [Node Version Manager](https://github.com/nvm-sh/nvm) and running `nvm install --lts && nvm use --lts`.
 
 <br/>
 <br/>
@@ -31,7 +32,7 @@ need the following setup:
 ## Working with sources
 Please note that you should not use a code auto-formatter in this codebase. Please read the following
 documents to learn more about reasons behind this decision and the recommended code style guide. 
-Be sure to carefully read the [Rust style guide 1](https://github.com/luna/basegl/blob/master/docs/style-guide.md)
+Be sure to carefully read the [Rust style guide 1](https://github.com/luna/ide/blob/master/docs/style-guide.md)
 and the [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md) before
 contributing to the codebase.
 
