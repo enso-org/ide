@@ -203,9 +203,9 @@ impl HasSprite for Node {
     }
 }
 
-impl display::ObjectRef for Node {
-    fn display_object(&self) -> &display::object::Node {
-        &self.display_object
+impl<'t> From<&'t Node> for &'t display::object::Node {
+    fn from(node:&'t Node) -> Self {
+        &node.display_object
     }
 }
 

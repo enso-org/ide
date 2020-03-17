@@ -508,13 +508,20 @@ pub trait ObjectRef {
     fn display_object(&self) -> &Node;
 }
 
-impl ObjectRef for Node {
-    fn display_object(&self) -> &Node {
-        self
-    }
-}
+//impl ObjectRef for Node {
+//    fn display_object(&self) -> &Node {
+//        self
+//    }
+//}
 
 impl<T:Into<Node>> Object for T {}
+
+
+impl<T> ObjectRef for T where for<'t> &'t T:Into<&'t Node> {
+    fn display_object(&self) -> &Node {
+        self.into()
+    }
+}
 
 
 
