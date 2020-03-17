@@ -45,7 +45,7 @@ impl Screen {
 
     /// Local variables used by the screen object.
     pub fn variables(&self) -> UniformScope {
-        self.sprite_system.symbol().variables()
+        self.sprite_system.symbol().variables().clone() // FIXME remove clone
     }
 
     /// Render the shape.

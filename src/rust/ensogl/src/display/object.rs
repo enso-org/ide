@@ -558,6 +558,10 @@ pub trait ObjectRefOps : ObjectRef {
         self.display_object().dispatch_event(event)
     }
 
+    fn dispatch_event2(&self, event:&DynEvent) {
+        self.display_object().dispatch_event(event)
+    }
+
     fn position(&self) -> Vector3<f32> {
         self.display_object().position()
     }

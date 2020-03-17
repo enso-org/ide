@@ -390,7 +390,7 @@ impl {
             if is_not_background {
                 let symbol_id = mouse_hover_ids.x;
                 let symbol = self.symbols.index(symbol_id as usize);
-                symbol.dispatch_event(&DynEvent::new(()));
+                symbol.dispatch_event2(&DynEvent::new(()));
                 // println!("{:?}",self.mouse.hover_ids.get());
                 // TODO: finish events sending, including OnOver and OnOut.
             }

@@ -194,7 +194,7 @@ commands.watch = command(`Start a file-watch utility and run interactive mode`)
 commands.watch.parallel = true
 commands.watch.rust = async function() {
     let target = '"' + `node ${paths.script.main} build --no-js --dev -- ` + subProcessArgs.join(" ") + '"'
-    let args   = ['watch','--watch','lib','-s',`${target}`]
+    let args   = ['watch','-s',`${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
     })
