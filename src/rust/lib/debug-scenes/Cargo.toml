@@ -8,6 +8,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
+shapely              = { version = "0.1.0"  , path = "../shapely/impl" }
 ensogl               = { version = "0.1.0"  , path = "../../ensogl" }
 ensogl-core-msdf-sys = { version = "0.1.0"  , path = "../../ensogl/msdf-sys" }
 ensogl-system-web    = { version = "0.1.0"  , path = "../system/web" }

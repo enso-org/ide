@@ -28,6 +28,7 @@ use shapely::shared;
 pub mod traits {
     pub use super::Object;
     pub use super::ObjectOps;
+    pub use super::ObjectRefOps;
 }
 
 
@@ -503,7 +504,19 @@ pub trait Object: Into<Node> {
     }
 }
 
+pub trait ObjectRef {
+    fn display_object(&self) -> &Node;
+}
+
+impl ObjectRef for Node {
+    fn display_object(&self) -> &Node {
+        self
+    }
+}
+
 impl<T:Into<Node>> Object for T {}
+
+
 
 pub trait ObjectOps<'t>
 where &'t Self:Object, Self:'t {
@@ -522,6 +535,58 @@ where &'t Self:Object, Self:'t {
 
 impl<'t,T> ObjectOps<'t> for T
 where T:'t, &'t T:Object {}
+
+
+impl<T:ObjectRef> ObjectRefOps for T {}
+pub trait ObjectRefOps : ObjectRef {
+    fn add_child<T:ObjectRef>(&self, child:&T) {
+        self.display_object().add_child(child.display_object());
+    }
+
+    fn unset_parent(&self) {
+        self.display_object().unset_parent();
+    }
+
+    fn dispatch_event(&self, event:&DynEvent) {
+        self.display_object().dispatch_event(event)
+    }
+
+    fn position(&self) -> Vector3<f32> {
+        self.display_object().position()
+    }
+
+    fn scale(&self) -> Vector3<f32> {
+        self.display_object().scale()
+    }
+
+    fn rotation(&self) -> Vector3<f32> {
+        self.display_object().rotation()
+    }
+
+    fn set_position(&self, t:Vector3<f32>) {
+        self.display_object().set_position(t);
+    }
+
+    fn set_scale(&self, t:Vector3<f32>) {
+        self.display_object().set_scale(t);
+    }
+
+    fn set_rotation(&self, t:Vector3<f32>) {
+        self.display_object().set_rotation(t);
+    }
+
+    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.display_object().mod_position(f)
+    }
+
+    fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.display_object().mod_rotation(f)
+    }
+
+    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.display_object().mod_scale(f)
+    }
+}
 
 
 

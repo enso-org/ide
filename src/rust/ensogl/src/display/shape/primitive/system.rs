@@ -15,7 +15,7 @@ use crate::system::gpu::types::*;
 
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct ShapeSystem {
     /// The underlying `SpriteSystem`.
     pub sprite_system: SpriteSystem

@@ -4,19 +4,61 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
+use ensogl::prelude::*;
 use ensogl::traits::*;
 
 use ensogl::data::color::*;
+use ensogl::display;
+use ensogl::display::Sprite;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::shape::Var;
-use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display::world::*;
-use ensogl::prelude::*;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;
+use shapely::shared;
+
+
+use std::cell::UnsafeCell;
+
+
+// =================
+// === CloneCell ===
+// =================
+
+#[derive(Debug)]
+struct CloneCell<T> {
+    data : UnsafeCell<T>
+}
+
+impl<T> CloneCell<T> {
+    fn new(elem:T) -> CloneCell<T> {
+        CloneCell { data:UnsafeCell::new(elem) }
+    }
+
+    fn get(&self) -> T where T:Clone {
+        unsafe {(*self.data.get()).clone()}
+    }
+
+    fn set(&self, elem:T) {
+        unsafe { *self.data.get() = elem; }
+    }
+}
+
+impl<T:Clone> Clone for CloneCell<T> {
+    fn clone(&self) -> Self {
+        Self::new(self.get())
+    }
+}
+
+impl<T:Default> Default for CloneCell<T> {
+    fn default() -> Self {
+        Self::new(default())
+    }
+}
+
 
 
 
@@ -111,7 +153,7 @@ fn nodes2() -> AnyShape {
     let shadow2 = Circle((node_radius + border_size).px());
     let shadow2_color = LinearGradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.3).into_linear());
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
 //    let shadow2_color = ExponentSampler::new(shadow2_color);
     let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
@@ -135,6 +177,63 @@ fn nodes3() -> AnyShape {
 }
 
 
+pub trait HasSprite {
+    fn set_sprite(&self, sprite:&Sprite);
+}
+
+#[derive(Debug,Clone)]
+pub struct Node {
+    logger         : Logger,
+    sprite         : CloneCell<Option<Sprite>>,
+    display_object : display::object::Node,
+}
+
+impl Node {
+    pub fn new() -> Self {
+        let logger         = Logger::new("node");
+        let sprite         = default();
+        let display_object = display::object::Node::new(&logger);
+        Self {logger,sprite,display_object}
+    }
+}
+
+impl HasSprite for Node {
+    fn set_sprite(&self, sprite:&Sprite) {
+        self.sprite.set(Some(sprite.clone()))
+    }
+}
+
+impl display::ObjectRef for Node {
+    fn display_object(&self) -> &display::object::Node {
+        &self.display_object
+    }
+}
+
+use std::any::TypeId;
+
+#[derive(Debug,Default)]
+pub struct ShapeScene {
+    shape_system_map : HashMap<TypeId,ShapeSystem>
+}
+
+impl ShapeScene {
+    pub fn add_child<T:display::ObjectRef+HasSprite+'static>(&self, target:&T) {
+        let type_id      = TypeId::of::<T>();
+        let shape_system = self.shape_system_map.get(&type_id).unwrap();
+        let sprite       = shape_system.new_instance();
+
+        shape_system.add_child(target.display_object());
+        target.add_child(&sprite.display_object());
+        sprite.size().set(Vector2::new(200.0,200.0));
+//        sprite.mod_position(|t| {
+//            t.x += 200.0;
+//            t.y += 200.0;
+//        });
+        target.set_sprite(&sprite);
+    }
+}
+
+
 fn init(world: &World) {
     let scene  = world.scene();
     let camera = scene.camera();
@@ -147,23 +246,53 @@ fn init(world: &World) {
 
     let shape_system =     ShapeSystem::new(world,&node_shape);
 
+    let mut shape_scene = ShapeScene::default();
+
+//    let sprite = shape_system.new_instance();
+//    sprite.size().set(Vector2::new(200.0,200.0));
+//    sprite.mod_position(|t| {
+//        t.x += screen.width / 2.0;
+//        t.y += screen.height / 2.0;
+//    });
 
 
-    let sprite = shape_system.new_instance();
-    sprite.size().set(Vector2::new(200.0,200.0));
-    sprite.mod_position(|t| {
-        t.x += screen.width / 2.0;
-        t.y += screen.height / 2.0;
+
+    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),shape_system.clone());
+
+
+    let node1 = Node::new();
+    let node2 = Node::new();
+    let node3 = Node::new();
+    shape_scene.add_child(&node1);
+    shape_scene.add_child(&node2);
+    shape_scene.add_child(&node3);
+
+    node1.mod_position(|t| {
+        t.x += 200.0;
+        t.y += 200.0;
     });
 
-    let sprite_2 = shape_system.new_instance();
-    sprite_2.size().set(Vector2::new(200.0,200.0));
-    sprite_2.mod_position(|t| {
-        t.x += screen.width / 2.0 + 5.0;
-        t.y += screen.height / 2.0 + 20.0;
+    node2.mod_position(|t| {
+        t.x += 300.0;
+        t.y += 300.0;
     });
 
-    let _sprite2 = sprite.clone();
+    node3.mod_position(|t| {
+        t.x += 400.0;
+        t.y += 200.0;
+    });
+
+    let nodes = vec![node1,node2,node3];
+
+
+//    let sprite_2 = shape_system.new_instance();
+//    sprite_2.size().set(Vector2::new(200.0,200.0));
+//    sprite_2.mod_position(|t| {
+//        t.x += screen.width / 2.0 + 5.0;
+//        t.y += screen.height / 2.0 + 20.0;
+//    });
+//
+//    let _sprite2 = sprite.clone();
 
 
     world.add_child(&shape_system);
@@ -182,12 +311,13 @@ fn init(world: &World) {
         if i == 0 {
 //            shape_system.set_shape(&node_shape2);
         }
-        let _keep_alive = &sprite;
+//        let _keep_alive = &sprite;
         let _keep_alive = &navigator;
+        let _keep_alive = &nodes;
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
-        on_frame(&mut time,&mut iter,&sprite,&shape_system);
+        on_frame(&mut time,&mut iter,&shape_system);
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
@@ -205,7 +335,6 @@ fn init(world: &World) {
 pub fn on_frame
 ( _time        : &mut i32
 , iter         : &mut i32
-, _sprite1     : &Sprite
 , shape_system : &ShapeSystem) {
     *iter += 1;
     shape_system.display_object().update();
