@@ -11,7 +11,7 @@ use crate::double_representation::node::NodeInfo;
 use ast::Ast;
 use ast::known;
 use utils::fail::FallibleResult;
-use ast::known::KnownAst;
+
 
 
 // =============
@@ -123,10 +123,7 @@ impl GraphInfo {
     /// Adds a new node to this graph.
     pub fn add_node
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<()> {
-        let block = self.source.ast.rarg.clone();
-        let block = known::Block::try_from(block)?;
-
-        let mut lines = block.all_lines();
+        let mut lines = self.source.block_lines()?;
 
         let find_position = |id| {
             lines.iter().find_position(|line| {
@@ -145,8 +142,7 @@ impl GraphInfo {
 
         lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
 
-        let rarg        = Ast::new(block.with_all_lines(lines), None);
-        self.source.ast = KnownAst::new(ast::Infix {rarg, ..self.source.ast.deref().clone()}, None);
+        self.source.set_block_lines(lines);
         Ok(())
     }
 
@@ -231,17 +227,6 @@ mod tests {
         }
     }
 
-    fn create_graph(parser:&mut impl IsParser) -> GraphInfo {
-        let program = r"
-main =
-    foo = node
-    foo a = not_node
-    node
-";
-
-        main_graph(parser, program)
-    }
-
     fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ast::ID) {
         let id         = ast::ID::new_v4();
         let node_ast   = parser.parse(expression.to_string(), default()).unwrap();
@@ -250,11 +235,49 @@ main =
     }
 
     #[wasm_bindgen_test]
-    fn add_node() {
-        // TODO [dg] Also add test for binding node when it's possible to update its id.
-        let mut parser = parser::Parser::new_or_panic();
+    fn add_node_to_graph_with_single_line() {
+        ensogl::system::web::set_stdout();
 
-        let mut graph     = create_graph(&mut parser);
+        let program = r"
+main = a + b
+";
+        let mut parser = parser::Parser::new_or_panic();
+        let mut graph = main_graph(&mut parser, program);
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].expression().repr(), "a + b");
+
+        let expr0 = "a + 2";
+        let expr1 = "b + 3";
+        let (line_ast0,id0) = create_node_ast(&mut parser, expr0);
+        let (line_ast1,id1) = create_node_ast(&mut parser, expr1);
+
+        assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
+        assert_eq!(graph.nodes().len(), 2);
+        assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[0].expression().repr(), expr1);
+        assert_eq!(nodes[0].id(), id1);
+        assert_eq!(nodes[1].expression().repr(), expr0);
+        assert_eq!(nodes[1].id(), id0);
+        assert_eq!(nodes[2].expression().repr(), "a + b");
+    }
+
+    #[wasm_bindgen_test]
+    fn add_node_to_graph_with_multiple_lines() {
+        // TODO [dg] Also add test for binding node when it's possible to update its id.
+        let program = r"
+main =
+    foo = node
+    foo a = not_node
+    node
+";
+        let mut parser = parser::Parser::new_or_panic();
+        let mut graph = main_graph(&mut parser, program);
+
         let (line_ast0,id0) = create_node_ast(&mut parser, "4 + 4");
         let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");
         let (line_ast2,id2) = create_node_ast(&mut parser, "x * x");

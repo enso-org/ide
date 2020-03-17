@@ -229,13 +229,6 @@ impl<T:Clone> Block<T> {
         lines.insert(0, BlockLine{elem:Some(first_line.elem),off:first_line.off});
         lines
     }
-
-    /// Returns a clone of this structure with the new provided `lines`.
-    pub fn with_all_lines(&self, mut lines:Vec<BlockLine<Option<T>>>) -> Block<T> {
-        let first_line = lines.remove(0);
-        let first_line = BlockLine{elem:first_line.elem.unwrap(),off:first_line.off};
-        Self {first_line, lines, ..self.clone()}
-    }
 }
 
 

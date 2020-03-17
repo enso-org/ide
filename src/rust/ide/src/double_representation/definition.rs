@@ -132,6 +132,34 @@ impl DefinitionInfo {
         Self::from_line_ast(ast,kind)
     }
 
+    /// Gets the definition block lines.
+    pub fn block_lines(&self) -> FallibleResult<Vec<ast::BlockLine<Option<Ast>>>> {
+        if let Ok(block) = known::Block::try_from(self.ast.rarg.clone()) {
+            Ok(block.all_lines())
+        } else {
+            let infix = known::Infix::try_from(self.ast.rarg.clone())?;
+            let elem  = Some(infix.try_into()?);
+            let off   = 0;
+            Ok(vec![ast::BlockLine{elem,off}])
+        }
+    }
+
+    /// Sets the definition block lines.
+    pub fn set_block_lines
+    (&mut self, mut lines:Vec<ast::BlockLine<Option<Ast>>>) {
+        if !lines.is_empty() {
+            let empty_lines = default();
+            let first_line  = lines.remove(0);
+            let first_line  = ast::BlockLine {elem:first_line.elem.unwrap(),off:first_line.off};
+            let indent      = crate::double_representation::INDENT;
+            let is_orphan   = false;
+            let ty          = ast::BlockType::Discontinuous {};
+            let block       = ast::Block {empty_lines,first_line,lines,indent,is_orphan,ty};
+            let rarg        = Ast::new(block, None);
+            self.ast = known::KnownAst::new(ast::Infix { rarg, ..self.ast.deref().clone() }, None);
+        }
+    }
+
     /// Tries to interpret `Line`'s `Ast` as a function definition.
     ///
     /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of

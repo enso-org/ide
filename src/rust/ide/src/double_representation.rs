@@ -5,3 +5,10 @@ pub mod definition;
 pub mod graph;
 pub mod node;
 pub mod text;
+
+// ==============
+// === Consts ===
+// ==============
+
+/// Indentation value defined in language specification.
+pub const INDENT : usize = 4;
