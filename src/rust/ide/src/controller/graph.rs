@@ -197,7 +197,7 @@ impl Handle {
     }
 
     /// Update metadata for the given node.
-    pub fn update_node_metadata<F>(&self, id:ast::ID, updater:F) -> FallibleResult<NodeMetadata>
+    pub fn with_node_metadata<F>(&self, id:ast::ID, updater:F) -> FallibleResult<NodeMetadata>
     where F : FnOnce(&mut NodeMetadata) {
         self.get_module().with_node_metadata(id, updater);
         self.node_metadata(id)
@@ -209,6 +209,7 @@ impl Handle {
 mod tests {
 //    use super::*;
     use enso_prelude::default;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::graph::Id;
     use crate::controller;
@@ -228,23 +229,24 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn node_operations() {
-        set_stdout();
-        let transport    = MockTransport::new();
-        let file_manager = file_manager_client::Handle::new(transport);
-        let parser       = Parser::new().unwrap();
-        let location     = module::Location("Test".to_string());
-        let code         = "main = Hello World";
-        let idmap        = default();
-        let module       = module::Handle::new_mock
-            (location,code,idmap,file_manager,parser).unwrap();
-        let uid          = Uuid::new_v4();
-        let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
-        let crumbs       = vec![DefinitionName::new_plain("main")];
-        let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();
+        TestWithLocalPoolExecutor::set_up().run_test(async {
+            let transport    = MockTransport::new();
+            let file_manager = file_manager_client::Handle::new(transport);
+            let parser       = Parser::new().unwrap();
+            let location     = module::Location("Test".to_string());
+            let code         = "main = Hello World";
+            let idmap        = default();
+            let module       = module::Handle::new_mock
+                (location,code,idmap,file_manager,parser).unwrap();
+            let uid          = Uuid::new_v4();
+            let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
+            let crumbs       = vec![DefinitionName::new_plain("main")];
+            let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();
 
-        graph.update_node_metadata(uid, |data| data.position = Some(pos)).unwrap();
+            graph.with_node_metadata(uid, |data| data.position = Some(pos)).unwrap();
 
-        assert_eq!(graph.node_metadata(uid).unwrap().position, Some(pos));
+            assert_eq!(graph.node_metadata(uid).unwrap().position, Some(pos));
+        })
     }
 }
 
