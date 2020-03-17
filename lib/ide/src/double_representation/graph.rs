@@ -12,16 +12,15 @@ use ast::Ast;
 //use ast::HasRepr;
 use ast::known;
 use utils::fail::FallibleResult;
-
+use ast::known::KnownAst;
 
 
 // =============
 // === Error ===
 // =============
 
-#[derive(Display,Debug)]
+#[derive(Fail,Display,Debug)]
 struct IDNotFound {id:ast::ID}
-impl std::error::Error for IDNotFound {}
 
 
 
@@ -124,13 +123,11 @@ impl GraphInfo {
 
     /// Adds a new node to this graph.
     pub fn add_node
-    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<ast::ID> {
-        let block  = self.source.ast.rarg.clone();
-        let block  = known::Block::try_from(block)?;
+    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<()> {
+        let block = self.source.ast.rarg.clone();
+        let block = known::Block::try_from(block)?;
 
-        let first_line = block.first_line.clone();
-        let mut lines  = block.lines.clone();
-        lines.insert(0, ast::BlockLine{elem:Some(first_line.elem),off:first_line.off});
+        let mut lines = block.all_lines();
 
         let find_position = |id| {
             lines.iter().find_position(|line| {
@@ -148,23 +145,10 @@ impl GraphInfo {
         };
 
         lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
-        let first_line = lines.remove(0);
-        let first_line = ast::BlockLine{elem:first_line.elem.unwrap(),off:first_line.off};
 
-        let ty          = block.ty.clone();
-        let indent      = block.indent.clone();
-        let empty_lines = block.empty_lines.clone();
-        let is_orphan   = block.is_orphan.clone();
-        let block = Ast::new(ast::Block {ty,indent,empty_lines,first_line,lines,is_orphan}, None);
-
-        let larg  = self.source.ast.larg.clone();
-        let loff  = self.source.ast.loff.clone();
-        let opr   = self.source.ast.opr.clone();
-        let roff  = self.source.ast.roff.clone();
-        let rarg  = block.try_into()?;
-        let infix = Ast::new(ast::Infix {larg,loff,opr,roff,rarg}, None);
-        self.source.ast = infix.try_into()?;
-        Ok(ast::ID::new_v4())
+        let rarg        = Ast::new(block.with_all_lines(lines), None);
+        self.source.ast = KnownAst::new(ast::Infix {rarg, ..self.source.ast.deref().clone()}, None);
+        Ok(())
     }
 
     /// Removes the node from graph.

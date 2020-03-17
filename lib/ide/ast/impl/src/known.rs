@@ -37,6 +37,19 @@ impl<T> KnownAst<T> {
             Ok(KnownAst {ast,phantom:default()})
         }
     }
+
+    /// Creates a new `KnownAst<T>` from `Ast`.
+    pub fn new_unchecked(ast:Ast) -> KnownAst<T> {
+        KnownAst {ast,phantom:default()}
+    }
+}
+
+impl<T:Into<Shape<Ast>>> KnownAst<T> {
+    /// Creates a new `KnownAst<T>` from `shape`.
+    pub fn new(shape:T, id:Option<crate::ID>) -> KnownAst<T> {
+        let ast = Ast::new(shape,id);
+        Self::new_unchecked(ast)
+    }
 }
 
 impl<T,E> Deref for KnownAst<T>

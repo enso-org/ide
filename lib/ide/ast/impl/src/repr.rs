@@ -221,6 +221,23 @@ impl<T> Block<T> {
     }
 }
 
+impl<T:Clone> Block<T> {
+    /// Concatenate `Block`'s `first_line` with `lines` and returns a collection with all the lines.
+    pub fn all_lines(&self) -> Vec<BlockLine<Option<T>>> {
+        let first_line = self.first_line.clone();
+        let mut lines  = self.lines.clone();
+        lines.insert(0, BlockLine{elem:Some(first_line.elem),off:first_line.off});
+        lines
+    }
+
+    /// Returns a clone of this structure with the new provided `lines`.
+    pub fn with_all_lines(&self, mut lines:Vec<BlockLine<Option<T>>>) -> Block<T> {
+        let first_line = lines.remove(0);
+        let first_line = BlockLine{elem:first_line.elem.unwrap(),off:first_line.off};
+        Self {first_line, lines, ..self.clone()}
+    }
+}
+
 
 // === Lines ===
 
