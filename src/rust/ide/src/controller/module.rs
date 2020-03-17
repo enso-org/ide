@@ -225,12 +225,6 @@ impl Handle {
         async move { fm.write(path.clone(),code?).await }
     }
 
-//    /// Creates a new graph controller for graph in this module's subtree identified by `id`.
-//    pub fn create_graph_controller(&self, id:dr::graph::Id)
-//    -> FallibleResult<controller::graph::Handle> {
-//        controller::graph::Handle::new(self.clone(),id)
-//    }
-
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     /// Reuses already existing controller if possible.
     pub fn get_graph_controller(&self, id:dr::graph::Id)
