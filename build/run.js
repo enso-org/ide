@@ -151,7 +151,8 @@ async function patch_file(path,patcher) {
 
 commands.start = command(`Build and start desktop client`)
 commands.start.rust = async function(argv) {
-   await commands.build.rust(argv)
+   let argv2 = Object.assign({},argv,{dev:true})
+   await commands.build.rust(argv2)
 }
 
 commands.start.js = async function() {

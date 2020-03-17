@@ -83,7 +83,8 @@ where R : Into<Var<Distance<Pixels>>>,
     let pie     = &ring * &section;
     let out     = &pie + &corner1 + &corner2;
 //    let out     = out.fill(Srgba::new(0.22,0.83,0.54,1.0));
-    let out     = out.fill(Srgba::new(0.0,0.0,0.0,0.2));
+//    let out     = out.fill(Srgba::new(0.0,0.0,0.0,0.2));
+    let out     = out.fill(Srgba::new(0.9,0.9,0.9,1.0));
     out.into()
 }
 
@@ -125,7 +126,7 @@ fn nodes2() -> AnyShape {
     let icon = icons::history();
 
 
-    let out = bg + loader + shadow2 + node + icon;
+    let out = loader + shadow2 + node + icon;
     out.into()
 }
 
