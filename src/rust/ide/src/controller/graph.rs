@@ -80,7 +80,7 @@ pub enum LocationHint {
 // === Controller ===
 // ==================
 
-/// State data of the module controller.
+/// Handle providing graph controller interface.
 #[derive(Clone,Debug)]
 pub struct Handle {
     /// Controller of the module which this graph belongs to.
@@ -88,17 +88,18 @@ pub struct Handle {
     id        : Id,
     /// Publisher. When creating a controller, it sets up task to emit notifications through this
     /// publisher to relay changes from the module controller.
+    // TODO: [mwu] Remove in favor of streams mapping over centralized module-scope publisher
     publisher : Rc<RefCell<controller::notification::Publisher<controller::notification::Graph>>>,
 }
 
 impl Handle {
     /// Gets a handle to a controller of the module that this definition belongs to.
-    pub fn get_module(&self) -> controller::module::Handle {
+    pub fn module(&self) -> controller::module::Handle {
         self.module.clone_ref()
     }
 
     /// Gets a handle to a controller of the module that this definition belongs to.
-    pub fn get_id(&self) -> Id {
+    pub fn id(&self) -> Id {
         self.id.clone()
     }
 
@@ -127,30 +128,31 @@ impl Handle {
     /// Requires global executor to spawn the events relay task.
     pub fn new(module:controller::module::Handle, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,id);
-        let _ = ret.get_graph_definition_info()?; // make sure that definition exists
+        // Get and discard definition info, we are just making sure it can be obtained.
+        let _ = ret.graph_definition_info()?;
         Ok(ret)
     }
 
     /// Retrieves double rep information about definition providing this graph.
-    pub fn get_graph_definition_info
+    pub fn graph_definition_info
     (&self) -> FallibleResult<double_representation::definition::DefinitionInfo> {
-        let module = self.get_module();
-        let id     = self.get_id();
+        let module = self.module();
+        let id     = self.id();
         module.find_definition(&id)
     }
 
     /// Returns double rep information about all nodes in the graph.
-    pub fn get_all_node_infos
+    pub fn all_node_infos
     (&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
-        let definition = self.get_graph_definition_info()?;
+        let definition = self.graph_definition_info()?;
         let graph      = double_representation::graph::GraphInfo::from_definition(definition);
         Ok(graph.nodes)
     }
 
     /// Retrieves double rep information about node with given ID.
-    pub fn get_node_info
+    pub fn node_info
     (&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
-        let nodes = self.get_all_node_infos()?;
+        let nodes = self.all_node_infos()?;
         let node  = nodes.into_iter().find(|node_info| node_info.id() == id);
         node.ok_or_else(|| NodeNotFound(id).into())
     }
@@ -159,21 +161,20 @@ impl Handle {
     ///
     /// Note that it is more efficient to use `get_nodes` to obtain all information at once,
     /// rather then repeatedly call this method.
-    pub fn get_node(&self, id:ast::ID) -> FallibleResult<Node> {
-        let info     = self.get_node_info(id)?;
-        let metadata = self.get_node_metadata(id).ok();
+    pub fn node(&self, id:ast::ID) -> FallibleResult<Node> {
+        let info     = self.node_info(id)?;
+        let metadata = self.node_metadata(id).ok();
         Ok(Node {info,metadata})
     }
 
     /// Returns information about all the nodes currently present in this graph.
-    pub fn get_nodes(&self) -> FallibleResult<Vec<Node>> {
-        let node_infos = self.get_all_node_infos()?;
+    pub fn nodes(&self) -> FallibleResult<Vec<Node>> {
+        let node_infos = self.all_node_infos()?;
         let mut nodes  = Vec::new();
         for info in node_infos {
-            let metadata = self.get_node_metadata(info.id()).ok();
+            let metadata = self.node_metadata(info.id()).ok();
             nodes.push(Node {info,metadata})
         }
-
         Ok(nodes)
     }
 
@@ -193,7 +194,7 @@ impl Handle {
     }
 
     /// Retrieves metadata for the given node.
-    pub fn get_node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
+    pub fn node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
         todo!()
     }
 

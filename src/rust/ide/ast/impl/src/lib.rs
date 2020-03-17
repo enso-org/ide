@@ -190,7 +190,13 @@ impl ToString for Ast {
 }
 
 impl From<Ast> for String {
-    fn from(ast: Ast) -> Self {
+    fn from(ast:Ast) -> Self {
+        ast.to_string()
+    }
+}
+
+impl From<&Ast> for String {
+    fn from(ast:&Ast) -> Self {
         ast.to_string()
     }
 }
@@ -937,7 +943,7 @@ impl Ast {
     }
 
     /// Creates an Ast node with Cons inside.
-    pub fn cons<Str: ToString>(name:Str) -> Ast {
+    pub fn cons<Str:ToString>(name:Str) -> Ast {
         let cons = Cons {name:name.to_string()};
         Ast::from(cons)
     }
@@ -949,27 +955,27 @@ impl Ast {
         Ast::new(var,Some(id))
     }
 
-    pub fn var<Str: ToString>(name:Str) -> Ast {
+    pub fn var<Str:ToString>(name:Str) -> Ast {
         let var = Var{name:name.to_string()};
         Ast::from(var)
     }
 
-    pub fn opr<Str: ToString>(name:Str) -> Ast {
+    pub fn opr<Str:ToString>(name:Str) -> Ast {
         let opr = Opr{name:name.to_string() };
         Ast::from(opr)
     }
 
     pub fn prefix<Func:Into<Ast>, Arg:Into<Ast>>(func:Func, arg:Arg) -> Ast {
         let off = 1;
-        let opr = Prefix{ func:func.into(), off, arg:arg.into() };
+        let opr = Prefix { func:func.into(), off, arg:arg.into() };
         Ast::from(opr)
     }
 
     /// Creates an AST node with `Infix` shape, where both its operands are Vars.
-    pub fn infix_var<Str0, Str1, Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Ast
-    where Str0: ToString
-        , Str1: ToString
-        , Str2: ToString {
+    pub fn infix_var<Str0,Str1,Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Ast
+    where Str0 : ToString
+        , Str1 : ToString
+        , Str2 : ToString {
         let larg  = Ast::var(larg);
         let loff  = 1;
         let opr   = Ast::opr(opr);
