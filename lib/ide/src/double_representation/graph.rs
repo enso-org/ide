@@ -10,7 +10,6 @@ use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
 //use ast::HasRepr;
-use ast::ID;
 use ast::known;
 use utils::fail::FallibleResult;
 
@@ -21,7 +20,7 @@ use utils::fail::FallibleResult;
 // =============
 
 #[derive(Display,Debug)]
-struct IDNotFound {id:ID}
+struct IDNotFound {id:ast::ID}
 impl std::error::Error for IDNotFound {}
 
 
@@ -34,9 +33,9 @@ impl std::error::Error for IDNotFound {}
 #[derive(Clone,Copy,Debug)]
 pub enum LocationHint {
     /// Try placing this node's line before the line described by id.
-    Before(ID),
+    Before(ast::ID),
     /// Try placing this node's line after the line described by id.
-    After(ID),
+    After(ast::ID),
     /// Try placing this node's line at the start of the graph's code block.
     Start,
     /// Try placing this node's line at the end of the graph's code block.
@@ -125,7 +124,7 @@ impl GraphInfo {
 
     /// Adds a new node to this graph.
     pub fn add_node
-    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<ID> {
+    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<ast::ID> {
         let block  = self.source.ast.rarg.clone();
         let block  = known::Block::try_from(block)?;
 
@@ -165,16 +164,16 @@ impl GraphInfo {
         let rarg  = block.try_into()?;
         let infix = Ast::new(ast::Infix {larg,loff,opr,roff,rarg}, None);
         self.source.ast = infix.try_into()?;
-        Ok(ID::new_v4())
+        Ok(ast::ID::new_v4())
     }
 
     /// Removes the node from graph.
-    pub fn remove_node(&mut self, _node_id:ID) -> FallibleResult<()> {
+    pub fn remove_node(&mut self, _node_id:ast::ID) -> FallibleResult<()> {
         todo!()
     }
 
     /// Sets expression of the given node.
-    pub fn edit_node(&self, _node_id:ID, _new_expression:impl Str) -> FallibleResult<()> {
+    pub fn edit_node(&self, _node_id:ast::ID, _new_expression:impl Str) -> FallibleResult<()> {
         todo!()
     }
 }
@@ -217,7 +216,6 @@ mod tests {
     use ast::HasRepr;
     use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use ast::ID;
     use ast::test_utils::expect_single_line;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -261,8 +259,8 @@ main =
         main_graph(parser, program)
     }
 
-    fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ID) {
-        let id         = ID::new_v4();
+    fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ast::ID) {
+        let id         = ast::ID::new_v4();
         let node_ast   = parser.parse(expression.to_string(), default()).unwrap();
         let line_ast   = expect_single_line(&node_ast).with_id(id);
         (line_ast,id)
