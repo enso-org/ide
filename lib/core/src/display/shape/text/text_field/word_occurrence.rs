@@ -147,11 +147,10 @@ impl WordOccurrences {
 // ===================
 
 /// A character represention with the index of its occurrence in text.
+#[allow(missing_docs)]
 #[derive(Debug,Clone,Copy)]
 pub struct IndexedChar {
-    #[allow(missing_docs)]
     pub index     : usize,
-    #[allow(missing_docs)]
     pub character : char
 }
 
