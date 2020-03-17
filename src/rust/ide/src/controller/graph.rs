@@ -238,10 +238,11 @@ mod tests {
             let idmap        = default();
             let module       = module::Handle::new_mock
                 (location,code,idmap,file_manager,parser).unwrap();
-            let uid          = Uuid::new_v4();
             let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
             let crumbs       = vec![DefinitionName::new_plain("main")];
             let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();
+
+            let uid          = graph.get_all_node_infos().unwrap()[0].id();
 
             graph.with_node_metadata(uid, |data| data.position = Some(pos)).unwrap();
 
