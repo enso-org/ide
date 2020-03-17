@@ -7,11 +7,11 @@
 use crate::prelude::*;
 
 pub use crate::double_representation::graph::Id;
+use crate::controller::module::NodeMetadata;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
-
 
 
 // ==============
@@ -28,10 +28,6 @@ pub struct NodeNotFound(ast::ID);
 // ============
 // === Node ===
 // ============
-
-/// TODO: replace with usage of the structure to be provided by Josef
-#[derive(Clone,Copy,Debug)]
-pub struct NodeMetadata; // here goes position
 
 /// Error raised when node with given Id was not found in the graph's body.
 #[derive(Clone,Debug)]
@@ -163,7 +159,7 @@ impl Handle {
     /// rather then repeatedly call this method.
     pub fn get_node(&self, id:ast::ID) -> FallibleResult<Node> {
         let info     = self.get_node_info(id)?;
-        let metadata = self.get_node_metadata(id)?;
+        let metadata = self.node_metadata(id)?;
         Ok(Node {info,metadata})
     }
 
@@ -172,7 +168,7 @@ impl Handle {
         let node_infos = self.get_all_node_infos()?;
         let mut nodes  = Vec::new();
         for info in node_infos {
-            let metadata = self.get_node_metadata(info.id())?;
+            let metadata = self.node_metadata(info.id())?;
             nodes.push(Node {info,metadata})
         }
 
@@ -185,7 +181,8 @@ impl Handle {
     }
 
     /// Removes the node with given Id.
-    pub fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
+    pub fn remove_node(&self, id:ast::ID) -> FallibleResult<()> {
+        self.get_module().remove_node_metadata(id);
         todo!()
     }
 
@@ -195,14 +192,15 @@ impl Handle {
     }
 
     /// Retrieves metadata for the given node.
-    pub fn get_node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
-        todo!()
+    pub fn node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+        self.get_module().node_metadata(id)
     }
 
     /// Update metadata for the given node.
-    pub fn update_node_metadata<F>(&self, _id:ast::ID, _updater:F) -> FallibleResult<NodeMetadata>
+    pub fn update_node_metadata<F>(&self, id:ast::ID, updater:F) -> FallibleResult<NodeMetadata>
     where F : FnOnce(&mut NodeMetadata) {
-        todo!()
+        self.get_module().with_node_metadata(id, updater);
+        self.node_metadata(id)
     }
 }
 
@@ -210,9 +208,43 @@ impl Handle {
 #[cfg(test)]
 mod tests {
 //    use super::*;
+    use enso_prelude::default;
+    use crate::double_representation::definition::DefinitionName;
+    use crate::double_representation::graph::Id;
+    use crate::controller;
+    use controller::module;
+    use controller::graph;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use parser::Parser;
+    use uuid::Uuid;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use ensogl_system_web::set_stdout;
+    use nalgebra::Vector2;
+
 
     #[test]
     fn test_graph_controller() {
+    }
+
+    #[wasm_bindgen_test]
+    fn node_operations() {
+        set_stdout();
+        let transport    = MockTransport::new();
+        let file_manager = file_manager_client::Handle::new(transport);
+        let parser       = Parser::new().unwrap();
+        let location     = module::Location("Test".to_string());
+        let code         = "main = Hello World";
+        let idmap        = default();
+        let module       = module::Handle::new_mock
+            (location,code,idmap,file_manager,parser).unwrap();
+        let uid          = Uuid::new_v4();
+        let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
+        let crumbs       = vec![DefinitionName::new_plain("main")];
+        let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();
+
+        graph.update_node_metadata(uid, |data| data.position = Some(pos)).unwrap();
+
+        assert_eq!(graph.node_metadata(uid).unwrap().position, Some(pos));
     }
 }
 

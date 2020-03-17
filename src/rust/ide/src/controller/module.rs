@@ -30,7 +30,6 @@ use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
 use shapely::shared;
-use crate::controller::node::Position;
 
 
 
@@ -68,6 +67,14 @@ pub struct NodeMetadata {
     /// Position in x,y coordinates.
     pub position: Option<Position>
 }
+
+/// Used for storing node position.
+#[derive(Clone,Copy,Debug,PartialEq,Serialize,Deserialize)]
+pub struct Position {
+    /// Vector storing coordinates of the visual position.
+    pub vector:Vector2<f32>
+}
+
 
 
 // =======================
@@ -161,7 +168,7 @@ shared! { Handle
         }
 
         /// Modify metadata of given node.
-        pub fn with_node_metadata(&mut self, id:ast::ID, fun:&impl Fn(&mut NodeMetadata)) {
+        pub fn with_node_metadata(&mut self, id:ast::ID, fun:impl FnOnce(&mut NodeMetadata)) {
             fun(self.module.metadata.ide.entry(id).or_default());
         }
 
