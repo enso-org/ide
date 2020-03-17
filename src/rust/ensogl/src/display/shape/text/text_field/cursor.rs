@@ -251,11 +251,11 @@ impl<'a> CursorNavigation<'a> {
         let line        = position.line;
         let words       = IndexedWords::new(self.content.lines()[line].chars());
         let next_column = words.iter().find(|word| {
-            let word_start = word[0].index;
+            let word_start = word.index;
             let word_end   = word_start + word.len();
             position.column < word_end
         }).map(|word| {
-            let word_start = word[0].index;
+            let word_start = word.index;
             word_start + word.len()
         });
         let next_line  = Some(line + 1).filter(|l| *l < self.content.lines().len());
@@ -268,11 +268,9 @@ impl<'a> CursorNavigation<'a> {
         let line            = position.line;
         let words           = IndexedWords::new(self.content.lines()[line].chars());
         let previous_column = words.iter().rev().find(|word| {
-            let word_start = word[0].index;
-            position.column > word_start
+            position.column > word.index
         }).map(|word| {
-            let word_start = word[0].index;
-            word_start
+            word.index
         });
         let previous_line = Some(line).filter(|l| *l > 0).map(|l| l - 1);
         let line_end      = |line:usize| self.content.lines()[line].len();

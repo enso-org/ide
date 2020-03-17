@@ -161,21 +161,32 @@ pub struct IndexedChar {
 // ===================
 
 /// A word with indexed characters.
-#[derive(Debug,Shrinkwrap,Clone)]
+#[derive(Debug,Clone)]
 pub struct IndexedWord {
+    /// Index of the word in text.
+    pub index : usize,
     /// A collection of IndexedChar.
-    pub indexed_chars:Vec<IndexedChar>
+    pub chars : Vec<char>
 }
 
 impl IndexedWord {
-    /// Creates IndexedWord from a slice of (usize,char).
-    pub fn new(word:&[(usize,char)]) -> Self {
-        let indexed_chars = word.iter().map(|(index,character)| {
-            let index     = *index;
-            let character = *character;
-            IndexedChar{index,character}
+    /// Creates IndexedWord from a slice of IndexedChar.
+    pub fn new(word:&[IndexedChar]) -> Self {
+        let index = word[0].index;
+        let chars = word.iter().map(|indexed_char| {
+            indexed_char.character
         }).collect();
-        Self {indexed_chars}
+        Self {index,chars}
+    }
+
+    /// Get the length of word.
+    pub fn len(&self) -> usize {
+        self.chars.len()
+    }
+
+    /// Check if it's an empty word.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -196,8 +207,12 @@ pub struct IndexedWords {
 impl IndexedWords {
     /// Creates a list of words contained in `content`.
     pub fn new(content:&[char]) -> Self {
-        let indexed:Vec<(usize,char)> = content.iter().copied().enumerate().collect();
-        let words = indexed.split(|(_,character)| !character.is_alphanumeric() && *character != '_');
+        let indexed:Vec<IndexedChar> = content.iter().copied().enumerate().map(|(index,character)| {
+            IndexedChar{index,character}
+        }).collect();
+        let words = indexed.split(|indexed_char| {
+            !indexed_char.character.is_alphanumeric() && indexed_char.character != '_'
+        });
         let words = words.filter(|word_in_context| !word_in_context.is_empty());
         let words = words.map(|word| IndexedWord::new(word)).collect();
         Self {words}
@@ -213,7 +228,7 @@ impl IndexedWords {
 fn get_index_range_of_word_at(content:&[char], index:usize) -> Option<Range<usize>> {
     let words       = IndexedWords::new(content);
     let mut ranges  = words.iter().map(|word| {
-        let start = word.first().unwrap().index;
+        let start = word.index;
         let end   = start + word.len();
         start..end
     });
@@ -226,11 +241,11 @@ fn get_word_occurrences(content:&[char], word:&[char]) -> Vec<Range<usize>> {
     for word_in_content in IndexedWords::new(content).words {
         let is_equal = word_in_content.len() == word.len();
         if is_equal {
-            let count = word_in_content.iter().zip(word).filter(|&(indexed_char, b)| {
-                indexed_char.character == *b
+            let count = word_in_content.chars.iter().zip(word).filter(|&(a, b)| {
+                *a == *b
             }).count();
             if count == word.len() {
-                let start = word_in_content.first().unwrap().index;
+                let start = word_in_content.index;
                 let end   = start + word_in_content.len();
                 occurrences.push(start..end)
             }
