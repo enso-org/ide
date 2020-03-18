@@ -27,6 +27,7 @@ use shapely::shared;
 /// Common traits.
 pub mod traits {
     pub use super::Object;
+    pub use super::ObjectRef;
     pub use super::ObjectOps;
     pub use super::ObjectRefOps;
 }
@@ -506,6 +507,9 @@ pub trait Object: Into<Node> {
 
 pub trait ObjectRef {
     fn display_object(&self) -> &Node;
+    fn display_object2(&self) -> &Node {
+        ObjectRef::display_object2(self)
+    }
 }
 
 //impl ObjectRef for Node {
@@ -550,7 +554,15 @@ pub trait ObjectRefOps : ObjectRef {
         self.display_object().add_child(child.display_object());
     }
 
+    fn add_child2<T:ObjectRef>(&self, child:&T) {
+        self.display_object().add_child(child.display_object());
+    }
+
     fn unset_parent(&self) {
+        self.display_object().unset_parent();
+    }
+
+    fn unset_parent2(&self) {
         self.display_object().unset_parent();
     }
 

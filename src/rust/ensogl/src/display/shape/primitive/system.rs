@@ -11,8 +11,13 @@ use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
 use crate::display::world::World;
 use crate::system::gpu::types::*;
+use crate::display::object::traits::*;
 
 
+
+// ===================
+// === ShapeSystem ===
+// ===================
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Clone,Debug,Shrinkwrap)]
@@ -52,6 +57,6 @@ impl ShapeSystem {
 
 impl From<&ShapeSystem> for display::object::Node {
     fn from(t:&ShapeSystem) -> Self {
-        (&t.sprite_system).into()
+        (&t.sprite_system).display_object2().clone()
     }
 }

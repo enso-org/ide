@@ -34,6 +34,6 @@ fn init(world: &World) {
     world.add_child(glyph_system.sprite_system());
     world.on_frame(move |_| {
         let &_ = &line;
-        glyph_system.sprite_system().display_object().update();
+        glyph_system.sprite_system().display_object2().update();
     }).forget();
 }

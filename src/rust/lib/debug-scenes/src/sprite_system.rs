@@ -109,5 +109,5 @@ pub fn on_frame
         }
     }
 
-    sprite_system.display_object().update();
+    sprite_system.display_object2().update();
 }

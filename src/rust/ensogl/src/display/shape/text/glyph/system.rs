@@ -12,10 +12,13 @@ use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::display::world::*;
 use crate::system::gpu::texture::*;
 use crate::system::gpu::types::*;
+use crate::display::object::traits::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector4;
 use crate::display;
+
+
 
 // =============
 // === Glyph ===
@@ -233,7 +236,7 @@ impl GlyphSystem {
 
 impl From<&GlyphSystem> for display::object::Node {
     fn from(glyph_system: &GlyphSystem) -> Self {
-        (&glyph_system.sprite_system).into()
+        (&glyph_system.sprite_system).display_object2().clone()
     }
 }
 

@@ -137,22 +137,20 @@ impl Drop for SpriteData {
 // === SpriteSystem ===
 // ====================
 
-shared! { SpriteSystem
-
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
-#[derive(Debug)]
-pub struct SpriteSystemData {
-    symbol         : Symbol,
-    transform      : Buffer<Matrix4<f32>>,
-    uv             : Buffer<Vector2<f32>>,
-    size           : Buffer<Vector2<f32>>,
-    alignment      : Uniform<Vector2<f32>>,
-    stats          : Stats,
+#[derive(Clone,Debug)]
+pub struct SpriteSystem {
+    symbol    : Symbol,
+    transform : Buffer  <Matrix4<f32>>,
+    uv        : Buffer  <Vector2<f32>>,
+    size      : Buffer  <Vector2<f32>>,
+    alignment : Uniform <Vector2<f32>>,
+    stats     : Stats,
 }
 
-impl {
+impl SpriteSystem {
     /// Constructor.
     pub fn new(world:&World) -> Self {
         let scene             = world.scene();
@@ -185,7 +183,7 @@ impl {
         let default_size = Vector2::new(1.0,1.0);
         size.set(default_size);
         let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
-        self.add_child(&sprite);
+        self.add_child2(&sprite.display_object()); // FIXME
         sprite
     }
 
@@ -215,20 +213,20 @@ impl {
     }
 
     /// Sets the geometry material for all sprites in this system.
-    pub fn set_geometry_material<M:Into<Material>>(&mut self, material:M) {
+    pub fn set_geometry_material<M:Into<Material>>(&self, material:M) {
         self.symbol.shader().set_geometry_material(material);
     }
 
     /// Sets the surface material for all sprites in this system.
-    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
+    pub fn set_material<M:Into<Material>>(&self, material:M) {
         self.symbol.shader().set_material(material);
     }
-}}
+}
 
 
 // === Initialization ===
 
-impl SpriteSystemData {
+impl SpriteSystem {
     fn init_attributes(&self) {
         let mesh        = self.symbol.surface();
         let point_scope = mesh.point_scope();
@@ -294,14 +292,14 @@ impl SpriteSystemData {
     }
 }
 
-impl From<&SpriteSystemData> for display::object::Node {
-    fn from(t:&SpriteSystemData) -> Self {
-        t.symbol.display_object()
+impl<'t> From<&'t SpriteSystem> for &'t display::object::Node {
+    fn from(sprite_system:&'t SpriteSystem) -> Self {
+        sprite_system.symbol.display_object2()
     }
 }
 
 impl From<&SpriteSystem> for display::object::Node {
-    fn from(t:&SpriteSystem) -> Self {
-        t.rc.borrow().display_object()
+    fn from(sprite_system:&SpriteSystem) -> Self {
+        sprite_system.symbol.display_object2().clone()
     }
 }
