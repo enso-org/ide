@@ -29,7 +29,7 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = "s"
 lto       = false
 debug     = true
 
