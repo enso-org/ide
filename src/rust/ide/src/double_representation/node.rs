@@ -1,6 +1,8 @@
 //! Code for node discovery and other node-related tasks.
 
-use ast::Ast;
+use crate::prelude::*;
+
+use ast::{Ast, Shape};
 use ast::ID;
 use ast::known;
 
@@ -56,6 +58,26 @@ impl NodeInfo {
         match self {
             NodeInfo::Binding   {infix} => &infix.rarg,
             NodeInfo::Expression{ast}   => &ast,
+        }
+    }
+
+    /// Mutable AST of the node's expression.
+    pub fn set_expression(&mut self, expression:Ast) {
+        match self {
+            NodeInfo::Binding{ref mut infix} => {
+                let rarg = expression;
+                let old_infix = infix.deref().deref().clone();
+                *infix = known::Infix::new(ast::Infix {rarg,..old_infix}, infix.id());
+            }
+            NodeInfo::Expression{ref mut ast}   => { *ast = expression; },
+        }
+    }
+
+    /// The whole AST of node.
+    pub fn ast(&self) -> &Ast {
+        match self {
+            NodeInfo::Binding   {infix} => infix.into(),
+            NodeInfo::Expression{ast}   => ast,
         }
     }
 }

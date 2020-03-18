@@ -150,15 +150,28 @@ impl GraphInfo {
     pub fn remove_node(&mut self, node_id:ast::ID) -> FallibleResult<()> {
         let mut lines = self.source.block_lines()?;
         lines.drain_filter(|line| {
-            line.elem.as_ref().and_then(|ast| NodeInfo::from_line_ast(&ast)).map(|node| node.id() == node_id).unwrap_or(false)
+            let node         = line.elem.as_ref().and_then(NodeInfo::from_line_ast);
+            let removed_node = node.filter(|node| node.id() == node_id);
+            removed_node.is_some()
         });
         self.source.set_block_lines(lines);
         Ok(())
     }
 
     /// Sets expression of the given node.
-    pub fn edit_node(&self, _node_id:ast::ID, _new_expression:impl Str) -> FallibleResult<()> {
-        todo!()
+    pub fn edit_node(&mut self, node_id:ast::ID, new_expression:Ast) -> FallibleResult<()> {
+        let mut lines      = self.source.block_lines()?;
+        let mut node_entry = lines.iter().enumerate().find_map(|(index,line)| {
+            let node     = line.elem.as_ref().and_then(NodeInfo::from_line_ast);
+            let filtered = node.filter(|node| node.id() == node_id);
+            filtered.map(|node| (index,node))
+        });
+        if let Some((index,mut node)) = node_entry {
+            node.set_expression(new_expression);
+            lines[index].elem = Some(node.ast().clone_ref());
+        }
+        self.source.set_block_lines(lines);
+        Ok(())
     }
 
     #[cfg(test)]
@@ -341,12 +354,33 @@ main =
     bar = 3 + 17
 ";
         let mut graph = main_graph(&mut parser, program);
-        let node_ids = graph.nodes().iter().map(|node| node.id()).next();
-        graph.remove_node(node_ids.unwrap()).unwrap();
+        let node_id = graph.nodes().iter().map(|node| node.id()).next();
+        graph.remove_node(node_id.unwrap()).unwrap();
 
         let expected_code = r"main =
     bar = 3 + 17
     "; // TODO[ao] There is bug with parser, where it does not keep whitespaces properly.
+        graph.check_code(expected_code)
+    }
+
+    #[wasm_bindgen_test]
+    fn editing_nodes_expression_in_graph() {
+        let mut parser = parser::Parser::new_or_panic();
+        let program = r"
+main =
+    foo = 2 + 2
+    bar = 3 + 17
+";
+        let new_expression = parser.parse("print \"HELLO\"".to_string(), default()).unwrap();
+
+        let mut graph = main_graph(&mut parser, program);
+        let node_id = graph.nodes().iter().map(|node| node.id()).next();
+        graph.edit_node(node_id.unwrap(),new_expression);
+
+        let expected_code = r#"main =
+    foo = print "HELLO"
+    bar = 3 + 17
+    "#;
         graph.check_code(expected_code)
     }
 }

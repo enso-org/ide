@@ -42,6 +42,10 @@ impl<T> KnownAst<T> {
     pub fn new_unchecked(ast:Ast) -> KnownAst<T> {
         KnownAst {ast,phantom:default()}
     }
+
+    pub fn id(&self) -> Option<crate::ID> {
+        self.ast.id
+    }
 }
 
 impl<T:Into<Shape<Ast>>> KnownAst<T> {
@@ -86,6 +90,13 @@ impl<T> From<KnownAst<T>> for Ast {
         known_ast.ast
     }
 }
+
+impl<'a,T> From<&'a KnownAst<T>> for &'a Ast {
+    fn from(known_ast:&'a KnownAst<T>) -> &'a Ast {
+        &known_ast.ast
+    }
+}
+
 
 
 
