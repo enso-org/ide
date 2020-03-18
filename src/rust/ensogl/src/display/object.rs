@@ -508,7 +508,7 @@ pub trait Object: Into<Node> {
 pub trait ObjectRef {
     fn display_object(&self) -> &Node;
     fn display_object2(&self) -> &Node {
-        ObjectRef::display_object2(self)
+        ObjectRef::display_object(self)
     }
 }
 
