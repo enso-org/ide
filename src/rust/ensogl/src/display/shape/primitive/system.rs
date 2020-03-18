@@ -60,3 +60,9 @@ impl From<&ShapeSystem> for display::object::Node {
         (&t.sprite_system).display_object2().clone()
     }
 }
+
+impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
+    fn from(shape_system:&'t ShapeSystem) -> Self {
+        shape_system.sprite_system.display_object2()
+    }
+}

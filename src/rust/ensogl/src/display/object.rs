@@ -28,7 +28,7 @@ use shapely::shared;
 pub mod traits {
     pub use super::Object;
     pub use super::ObjectRef;
-    pub use super::ObjectOps;
+//    pub use super::ObjectOps;
     pub use super::ObjectRefOps;
 }
 

@@ -32,7 +32,7 @@ pub fn run_example_text_typing() {
 
         let mut text_field = TextField::new(&world,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
-        world.add_child(&text_field);
+        world.add_child(&text_field.display_object());
 
         let now             = js_sys::Date::now();
         let animation_start = now + 3000.0;

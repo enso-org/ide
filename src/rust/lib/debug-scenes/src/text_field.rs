@@ -46,7 +46,7 @@ pub fn run_example_text_field() {
         let text_field = TextField::new_with_content(&world,TEXT,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
         text_field.jump_cursor(Vector2::new(50.0, -40.0),false);
-        world.add_child(&text_field);
+        world.add_child(&text_field.display_object());
 
         world.on_frame(move |_| { let _keep_alive = &text_field; }).forget();
     });

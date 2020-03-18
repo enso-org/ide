@@ -81,7 +81,7 @@ impl TextEditor {
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(&world,properties);
-        world.add_child(&text_field);
+        world.add_child(&text_field.display_object());
 
         let data = TextEditorData {controller,text_field,padding,position,size,logger};
         Self::new_from_data(data).initialize(keyboard_actions)

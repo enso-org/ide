@@ -20,6 +20,7 @@ use crate::display::render::*;
 use crate::display::scene::Scene;
 use crate::display::symbol::Symbol;
 use crate::display;
+use crate::display::traits::*;
 use crate::system::web;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -27,6 +28,7 @@ use wasm_bindgen::prelude::Closure;
 use web_sys::KeyboardEvent;
 use web_sys::Performance;
 use crate::display::render::passes::SymbolsRenderPass;
+
 
 
 // =================
@@ -234,6 +236,10 @@ impl World {
 
     pub fn scene(&self) -> Scene {
         self.rc.borrow().scene.clone()
+    }
+
+    pub fn add_child<T:display::ObjectRef>(&self, child:&T) {
+        self.scene().display_object().add_child2(child)
     }
 
     fn init_composer(&self) {

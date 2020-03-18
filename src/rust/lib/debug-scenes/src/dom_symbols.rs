@@ -61,7 +61,6 @@ fn init(world:World) {
             let size       = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, height / 2.0, 0.0);
             let object     = DomSymbol::new(&div);
-//            css3d_system.add_child2(&object);
             dom_front_layer.manage(&object);
             world.add_child(&object);
             let r          = ((x + 0.0) * 16.0) as u8;

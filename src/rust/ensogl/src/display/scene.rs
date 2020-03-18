@@ -283,7 +283,11 @@ impl {
 
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
              , logger,variables,stats,pixel_ratio,mouse,zoom_uniform
-             ,zoom_callback,on_resize }
+             , zoom_callback,on_resize }
+    }
+
+    pub fn display_object(&self) -> display::object::Node {
+        self.display_object.clone()
     }
 
     pub fn dom(&self) -> Dom {

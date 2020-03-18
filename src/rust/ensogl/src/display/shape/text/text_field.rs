@@ -87,6 +87,11 @@ shared! { TextField
     }
 
     impl {
+        /// Display object getter.
+        pub fn display_object(&self) -> display::object::Node {
+            self.display_object.clone()
+        }
+
         /// Set position of this TextField.
         pub fn set_position(&mut self, position:Vector3<f32>) {
             self.display_object.set_position(position);
