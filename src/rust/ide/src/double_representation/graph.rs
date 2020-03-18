@@ -129,21 +129,18 @@ impl GraphInfo {
         Self::from_function_binding(self.source.ast.clone())
     }
 
+    fn is_node_by_id(line:&BlockLine<Option<Ast>>, id:ast::ID) -> bool {
+        let node_info  = line.elem.as_ref().and_then(NodeInfo::from_line_ast);
+        let id_matches = node_info.map(|node| node.id() == id);
+        id_matches.unwrap_or(false)
+    }
+
     /// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
     /// the Id is not found.
     pub fn find_node_index_in_lines
-    (lines:&Vec<BlockLine<Option<Ast>>>, id:ast::ID) -> FallibleResult<usize> {
-        let found_node = lines.iter().find_position(|line| {
-            let line_ast      = line.elem.as_ref();
-            let opt_node_info = line_ast.map(|line_ast| NodeInfo::from_line_ast(line_ast));
-            let is_node       = opt_node_info.map(|opt_node_info| {
-                let is_node = opt_node_info.map(|node_info| node_info.id() == id);
-                is_node.unwrap_or(false)
-            });
-            is_node.unwrap_or(false)
-        });
-        let node_index = found_node.map(|(index,_)| index);
-        node_index.ok_or(IdNotFound{id}.into())
+    (lines:&[BlockLine<Option<Ast>>], id:ast::ID) -> FallibleResult<usize> {
+        let position = lines.iter().position(|line| Self::is_node_by_id(&line,id));
+        position.ok_or(IdNotFound{id}.into())
     }
 
     /// Adds a new node to this graph.
