@@ -223,7 +223,7 @@ impl ShapeScene {
         let sprite       = shape_system.new_instance();
 
         shape_system.add_child(target.display_object());
-        target.add_child(&sprite.display_object());
+        target.add_child(&sprite);
         sprite.size().set(Vector2::new(200.0,200.0));
 //        sprite.mod_position(|t| {
 //            t.x += 200.0;

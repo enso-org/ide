@@ -16,28 +16,115 @@ use crate::system::gpu::types::*;
 
 
 
+// ===================
+// === SpriteStats ===
+// ===================
+
+/// Wrapper for `Stats` which counts the number of sprites.
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct SpriteStats {
+    rc : Rc<SpriteStatsData>
+}
+
+/// Internal representation for `SpriteStats`.
+#[derive(Debug,Shrinkwrap)]
+pub struct SpriteStatsData {
+    stats : Stats
+}
+
+impl SpriteStats {
+    /// Constructor.
+    pub fn new(stats:&Stats) -> Self {
+        let rc = Rc::new(SpriteStatsData::new(stats));
+        Self {rc}
+    }
+}
+
+impl SpriteStatsData {
+    /// Constructor.
+    pub fn new(stats:&Stats) -> Self {
+        stats.inc_sprite_count();
+        let stats = stats.clone_ref();
+        Self {stats}
+    }
+}
+
+impl Drop for SpriteStatsData {
+    fn drop(&mut self) {
+        self.stats.dec_sprite_count();
+    }
+}
+
+
+
+// ===================
+// === SpriteGuard ===
+// ===================
+
+#[derive(Debug)]
+pub struct SpriteGuard {
+    instance_id    : AttributeInstanceIndex,
+    symbol         : Symbol,
+    bbox           : Attribute<Vector2<f32>>,
+    display_object : display::object::Node,
+}
+
+impl SpriteGuard {
+    fn new
+    ( instance_id   : AttributeInstanceIndex
+    , symbol        : &Symbol
+    , bbox          : &Attribute<Vector2<f32>>
+    , display_object: &display::object::Node
+    ) -> Self {
+        let symbol         = symbol.clone();
+        let bbox           = bbox.clone();
+        let display_object = display_object.clone();
+        Self {instance_id,symbol,bbox,display_object}
+    }
+}
+
+impl Drop for SpriteGuard {
+    fn drop(&mut self) {
+        self.bbox.set(Vector2::new(0.0,0.0));
+        self.symbol.surface().instance_scope().dispose(self.instance_id);
+        self.display_object.unset_parent();
+        // TODO[ao] this is a temporary workaround for problem with dropping and creating sprites
+        // in the same frame.
+        //
+        // In detail: detaching display::object::Node from parent does not remove it immediately,
+        // but parent keeps its reference to the next update, and call "hide" during this update.
+        //
+        // The Sprites set on its display object Node a callback setting bbox to (0.0,0.0). When
+        // sprite is removed, the node with its callback persists. If the new sprite is created in
+        // this same frame, it could receive same instance_id as the removed one, so the hide
+        // callback of the old Node sets bbox of the new sprite to (0.0,0.0)
+        self.display_object.clear_callbacks();
+    }
+}
+
+
+
 // ==============
 // === Sprite ===
 // ==============
-
-shared! { Sprite
 
 /// Sprite is a simple rectangle object. In most cases, sprites always face the camera and can be
 /// freely rotated only by their local z-axis. This implementation, however, implements sprites as
 /// full 3D objects. We may want to fork this implementation in the future to create a specialized
 /// 2d representation as well.
-#[derive(Debug)]
-pub struct SpriteData {
+#[derive(Clone,Debug)]
+pub struct Sprite {
     symbol           : Symbol,
     instance_id      : AttributeInstanceIndex,
     display_object   : display::object::Node,
     transform        : Attribute<Matrix4<f32>>,
     bbox             : Attribute<Vector2<f32>>,
-    stats            : Stats,
+    stats            : SpriteStats,
     size_when_hidden : Rc<Cell<Vector2<f32>>>,
+    guard            : Rc<SpriteGuard>,
 }
 
-impl {
+impl Sprite {
     /// Constructor.
     pub fn new
     ( symbol      : &Symbol
@@ -46,14 +133,14 @@ impl {
     , bbox        : Attribute<Vector2<f32>>
     , stats       : &Stats
     ) -> Self {
-        stats.inc_sprite_count();
         let symbol           = symbol.clone_ref();
         let logger           = Logger::new(iformat!("Sprite{instance_id}"));
         let display_object   = display::object::Node::new(logger);
-        let stats            = stats.clone_ref();
+        let stats            = SpriteStats::new(stats);
         let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
+        let guard            = Rc::new(SpriteGuard::new(instance_id,&symbol,&bbox,&display_object));
 
-        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden};
+        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard};
         this.init_display_object();
         this
     }
@@ -103,31 +190,17 @@ impl {
     pub fn instance_id(&self) -> AttributeInstanceIndex {
         self.instance_id
     }
-}}
+}
 
-impl From<&Sprite> for display::object::Node {
-    fn from(t:&Sprite) -> Self {
-        t.rc.borrow().display_object.clone_ref()
+impl<'t> From<&'t Sprite> for &'t display::object::Node {
+    fn from(sprite:&'t Sprite) -> Self {
+        &sprite.display_object
     }
 }
 
-impl Drop for SpriteData {
-    fn drop(&mut self) {
-        self.stats.dec_sprite_count();
-        self.bbox.set(Vector2::new(0.0,0.0));
-        self.symbol.surface().instance_scope().dispose(self.instance_id);
-        self.display_object.unset_parent();
-        // TODO[ao] this is a temporary workaround for problem with dropping and creating sprites
-        // in the same frame.
-        //
-        // In detail: detaching display::object::Node from parent does not remove it immediately,
-        // but parent keeps its reference to the next update, and call "hide" during this update.
-        //
-        // The Sprites set on its display object Node a callback setting bbox to (0.0,0.0). When
-        // sprite is removed, the node with its callback persists. If the new sprite is created in
-        // this same frame, it could receive same instance_id as the removed one, so the hide
-        // callback of the old Node sets bbox of the new sprite to (0.0,0.0)
-        self.display_object.clear_callbacks();
+impl From<&Sprite> for display::object::Node {
+    fn from(sprite:&Sprite) -> Self {
+        sprite.display_object.clone_ref()
     }
 }
 
@@ -183,7 +256,7 @@ impl SpriteSystem {
         let default_size = Vector2::new(1.0,1.0);
         size.set(default_size);
         let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
-        self.add_child2(&sprite.display_object()); // FIXME
+        self.add_child2(&sprite); // FIXME
         sprite
     }
 
