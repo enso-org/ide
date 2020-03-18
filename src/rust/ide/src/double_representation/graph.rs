@@ -147,13 +147,25 @@ impl GraphInfo {
     }
 
     /// Removes the node from graph.
-    pub fn remove_node(&mut self, _node_id:ast::ID) -> FallibleResult<()> {
-        todo!()
+    pub fn remove_node(&mut self, node_id:ast::ID) -> FallibleResult<()> {
+        let mut lines = self.source.block_lines()?;
+        lines.drain_filter(|line| {
+            line.elem.as_ref().and_then(|ast| NodeInfo::from_line_ast(&ast)).map(|node| node.id() == node_id).unwrap_or(false)
+        });
+        self.source.set_block_lines(lines);
+        Ok(())
     }
 
     /// Sets expression of the given node.
     pub fn edit_node(&self, _node_id:ast::ID, _new_expression:impl Str) -> FallibleResult<()> {
         todo!()
+    }
+
+    #[cfg(test)]
+    pub fn check_code(&self, expected_code:&str) {
+        use ast::HasRepr;
+        let code = self.source.ast.repr();
+        assert_eq!(expected_code.to_string(),code);
     }
 }
 
@@ -318,5 +330,23 @@ main =
         for node in nodes.iter() {
             assert_eq!(node.expression().repr(), "node");
         }
+    }
+
+    #[wasm_bindgen_test]
+    fn removing_node_from_graph() {
+        let mut parser = parser::Parser::new_or_panic();
+        let program = r"
+main =
+    foo = 2 + 2
+    bar = 3 + 17
+";
+        let mut graph = main_graph(&mut parser, program);
+        let node_ids = graph.nodes().iter().map(|node| node.id()).next();
+        graph.remove_node(node_ids.unwrap()).unwrap();
+
+        let expected_code = r"main =
+    bar = 3 + 17
+    "; // TODO[ao] There is bug with parser, where it does not keep whitespaces properly.
+        graph.check_code(expected_code)
     }
 }
