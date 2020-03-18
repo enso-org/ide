@@ -29,9 +29,10 @@ members = [
 ]
 
 [profile.dev]
-opt-level = "s"
+opt-level = 0
 lto       = false
 debug     = true
+debuginfo = 0
 
 [profile.release]
 opt-level = 3
