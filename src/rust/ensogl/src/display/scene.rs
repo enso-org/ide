@@ -261,7 +261,7 @@ impl {
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", dom.shape().pixel_ratio());
         let mouse           = Mouse::new(&dom.shape(),&variables);
         let zoom_callback   = camera.add_zoom_update_callback(
-            enclose!((zoom_uniform) move |zoom:&f32| zoom_uniform.set(*zoom))
+            enclose!((zoom_uniform) move |zoom:&f32| {            println!("CAM UPDATE {}", *zoom); zoom_uniform.set(*zoom); } )
         );
 
         let on_resize = dom.root.on_resize(enclose!((shape_dirty) move |_:&web::dom::ShapeData| {

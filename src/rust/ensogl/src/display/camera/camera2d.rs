@@ -202,11 +202,13 @@ impl Camera2dData {
         self.transform.update();
         let mut changed = false;
         if self.transform_dirty.check() {
+            // println!("transform dirty");
             self.recompute_view_matrix();
             self.transform_dirty.unset();
             changed = true;
         }
         if self.projection_dirty.check() {
+            // println!("projection dirty");
             self.recompute_projection_matrix();
             self.projection_dirty.unset();
             changed = true;
@@ -403,6 +405,24 @@ impl Camera2d {
         *self.data.borrow().view_projection_matrix()
     }
 }
+
+
+// === Setters ===
+
+impl Camera2d {
+    /// Modifies position.
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.data.borrow_mut().mod_position(f)
+    }
+
+    /// Sets position.
+    pub fn set_position(&self, value:Vector3<f32>) {
+        self.data.borrow_mut().set_position(value)
+    }
+}
+
+
+// === Conversions ===
 
 impl<'t> From<&'t Camera2d> for &'t display::object::Node {
     fn from(camera:&'t Camera2d) -> Self {
