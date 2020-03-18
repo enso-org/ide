@@ -719,23 +719,23 @@ mod test {
         let content        = &mut TextFieldContent::new(content,&mock_properties());
         let selecting      = false;
         let jumping_words  = true;
-        let mut navigation = CursorNavigation{content,selecting,jumping_words};
+        let mut navigation = CursorNavigation{content,selecting};
         let mut location   = TextLocation::at_document_begin();
-        location           = navigation.step_forward(location);
+        location           = navigation.step_forward(location,true);
         assert_eq!(location, TextLocation{line:0, column:5});
-        location = navigation.step_forward(location);
+        location = navigation.step_forward(location,true);
         assert_eq!(location, TextLocation{line:0, column:14});
-        location = navigation.step_forward(location);
+        location = navigation.step_forward(location,true);
         assert_eq!(location, TextLocation{line:1, column:0});
-        location = navigation.step_forward(location);
+        location = navigation.step_forward(location,true);
         assert_eq!(location, TextLocation{line:1, column:4});
-        location = navigation.step_backwards(location);
+        location = navigation.step_backwards(location,true);
         assert_eq!(location, TextLocation{line:1, column:0});
-        location = navigation.step_backwards(location);
+        location = navigation.step_backwards(location,true);
         assert_eq!(location, TextLocation{line:0, column:14});
-        location = navigation.step_backwards(location);
+        location = navigation.step_backwards(location,true);
         assert_eq!(location, TextLocation{line:0, column:6});
-        location = navigation.step_backwards(location);
+        location = navigation.step_backwards(location,true);
         assert_eq!(location, TextLocation::at_document_begin());
     }
 
