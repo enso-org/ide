@@ -167,7 +167,7 @@ impl Default for Keyboard {
         frp! {
             keyboard.on_pressed        = source();
             keyboard.on_released       = source();
-            keyboard.on_blur           = source();
+            keyboard.on_defocus        = source();
             keyboard.change_set        = on_pressed .map(KeyMaskChange::on_pressed);
             keyboard.change_unset      = on_released.map(KeyMaskChange::on_released);
             keyboard.change_clear      = on_defocus .map(|()| KeyMaskChange::on_defocus());
