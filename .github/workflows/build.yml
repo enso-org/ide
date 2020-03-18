@@ -203,7 +203,7 @@ jobs:
         with:
           path: src/rust/target/wasm32-unknown-unknown/debug/deps
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
+          restore-keys: | 
             ${{ runner.os }}-cargo-build-target-
 
       - name: Install Rust
