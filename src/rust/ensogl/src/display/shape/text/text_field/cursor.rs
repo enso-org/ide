@@ -702,21 +702,21 @@ mod test {
         let selecting      = false;
         let mut navigation = CursorNavigation{content,selecting};
         let mut location   = TextLocation::at_document_begin();
-        location           = navigation.next_word_position(&location).unwrap_or(location);
+        location           = navigation.next_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:0, column:5});
-        location = navigation.next_word_position(&location).unwrap_or(location);
+        location = navigation.next_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:0, column:14});
-        location = navigation.next_word_position(&location).unwrap_or(location);
+        location = navigation.next_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:1, column:0});
-        location = navigation.next_word_position(&location).unwrap_or(location);
+        location = navigation.next_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:1, column:4});
-        location = navigation.prev_word_position(&location).unwrap_or(location);
+        location = navigation.prev_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:1, column:0});
-        location = navigation.prev_word_position(&location).unwrap_or(location);
+        location = navigation.prev_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:0, column:14});
-        location = navigation.prev_word_position(&location).unwrap_or(location);
+        location = navigation.prev_word_position(&location).unwrap();
         assert_eq!(location, TextLocation{line:0, column:6});
-        location = navigation.prev_word_position(&location).unwrap_or(location);
+        location = navigation.prev_word_position(&location).unwrap();
         assert_eq!(location, TextLocation::at_document_begin());
     }
 
