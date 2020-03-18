@@ -9,6 +9,7 @@ use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
+use ast::BlockLine;
 use ast::known;
 use utils::fail::FallibleResult;
 
@@ -128,27 +129,38 @@ impl GraphInfo {
         Self::from_function_binding(self.source.ast.clone())
     }
 
+    /// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
+    /// the Id is not found.
+    pub fn find_node_index_in_lines
+    (lines:&Vec<BlockLine<Option<Ast>>>, id:ast::ID) -> FallibleResult<usize> {
+        let found_node = lines.iter().find_position(|line| {
+            let line_ast      = line.elem.as_ref();
+            let opt_node_info = line_ast.map(|line_ast| NodeInfo::from_line_ast(line_ast));
+            let is_node       = opt_node_info.map(|opt_node_info| {
+                let is_node = opt_node_info.map(|node_info| node_info.id() == id);
+                is_node.unwrap_or(false)
+            });
+            is_node.unwrap_or(false)
+        });
+        let node_index = found_node.map(|(index,_)| index);
+        node_index.ok_or(IdNotFound{id}.into())
+    }
+
     /// Adds a new node to this graph.
     pub fn add_node
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<()> {
         let mut lines = self.source.block_lines()?;
 
-        let find_position = |id| {
-            lines.iter().find_position(|line| {
-                line.elem.as_ref().map(|line_ast| {
-                    NodeInfo::from_line_ast(line_ast).map(|node| node.id() == id).unwrap_or(false)
-                }).unwrap_or(false)
-            }).map(|(index,_)| index).ok_or(IdNotFound {id})
-        };
-
         let index = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => lines.len(),
-            LocationHint::After(id)  => find_position(id)? + 1,
-            LocationHint::Before(id) => find_position(id)?
+            LocationHint::After(id)  => Self::find_node_index_in_lines(&lines, id)? + 1,
+            LocationHint::Before(id) => Self::find_node_index_in_lines(&lines, id)?
         };
 
-        lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
+        let elem = Some(line_ast);
+        let off  = 0;
+        lines.insert(index,BlockLine{elem,off});
 
         self.source.set_block_lines(lines)?;
         Ok(())
@@ -244,8 +256,6 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_single_line() {
-        ensogl::system::web::set_stdout();
-
         let program = "main = print \"hello\"";
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
