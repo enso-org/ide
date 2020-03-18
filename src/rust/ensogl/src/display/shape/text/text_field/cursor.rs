@@ -718,7 +718,6 @@ mod test {
         let content        = "first sentence\r\nthis is a second sentence\r\nlast sentence\n";
         let content        = &mut TextFieldContent::new(content,&mock_properties());
         let selecting      = false;
-        let jumping_words  = true;
         let mut navigation = CursorNavigation{content,selecting};
         let mut location   = TextLocation::at_document_begin();
         location           = navigation.step_forward(location,true);
