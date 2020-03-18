@@ -574,6 +574,10 @@ pub trait ObjectRefOps : ObjectRef {
         self.display_object().dispatch_event(event)
     }
 
+    fn transform_matrix(&self) -> Matrix4<f32> {
+        self.display_object().matrix()
+    }
+
     fn position(&self) -> Vector3<f32> {
         self.display_object().position()
     }

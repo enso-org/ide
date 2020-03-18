@@ -9,6 +9,7 @@ use crate::animation::physics::inertia::PhysicsSimulator;
 use crate::animation::physics::inertia::SpringProperties;
 use crate::control::callback::CallbackHandle;
 use crate::display::camera::Camera2d;
+use crate::display::object::traits::*;
 use crate::display::Scene;
 use crate::system::web::dom;
 use crate::system::web;
@@ -50,8 +51,8 @@ impl Navigator {
     fn start_simulator(camera:Camera2d) -> (PhysicsSimulator,PhysicsProperties) {
         let mass               = 30.0;
         let velocity           = zero();
-        let position           = camera.transform().position();
-        let kinematics         = KinematicsProperties::new(position, velocity, zero(), mass);
+        let position           = camera.position();
+        let kinematics         = KinematicsProperties::new(position,velocity,zero(),mass);
         let spring_coefficient = 20000.0;
         let fixed_point        = position;
         let spring             = SpringProperties::new(spring_coefficient, fixed_point);
@@ -74,7 +75,7 @@ impl Navigator {
         let camera_clone     = camera.clone();
         let panning_callback = enclose!((mut properties) move |pan: PanEvent| {
             let fovy_slope                  = camera_clone.half_fovy_slope();
-            let distance                    = camera_clone.transform().position().z;
+            let distance                    = camera_clone.position().z;
             let distance_to_show_full_ui    = dom_clone.shape().height() / 2.0 / fovy_slope;
             let movement_scale_for_distance = distance / distance_to_show_full_ui;
 
@@ -84,13 +85,13 @@ impl Navigator {
             properties.modify_spring(|spring| { spring.fixed_point += diff; });
         });
 
-        let transform       = camera.transform();
+        let transform       = camera.display_object();
         let resize_callback = camera.add_screen_update_callback(
             enclose!((mut properties,transform) move |_:&Vector2<f32>| {
                 let position = transform.position();
                 properties.modify_kinematics(|kinematics| {
                     kinematics.set_position(position);
-                    kinematics.set_velocity(Vector3::new(0.0, 0.0, 0.0));
+                    kinematics.set_velocity(Vector3::new(0.0,0.0,0.0));
                 });
                 properties.modify_spring(|spring| spring.fixed_point = position);
             })
