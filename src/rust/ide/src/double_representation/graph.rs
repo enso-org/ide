@@ -18,8 +18,9 @@ use utils::fail::FallibleResult;
 // === Error ===
 // =============
 
-#[derive(Fail,Display,Debug)]
-struct IDNotFound {id:ast::ID}
+#[derive(Fail,Debug)]
+#[fail(display="ID was not found.")]
+struct IdNotFound {id:ast::ID}
 
 
 
@@ -59,6 +60,13 @@ pub struct Id {
     pub crumbs : Vec<Crumb>,
 }
 
+impl Id {
+    /// Creates a new graph identifier consisting of a single crumb.
+    pub fn new_single_crumb(crumb:DefinitionName) -> Id {
+        let crumbs = vec![crumb];
+        Id {crumbs}
+    }
+}
 
 
 // ===============================
@@ -130,7 +138,7 @@ impl GraphInfo {
                 line.elem.as_ref().map(|line_ast| {
                     NodeInfo::from_line_ast(line_ast).map(|node| node.id() == id).unwrap_or(false)
                 }).unwrap_or(false)
-            }).map(|(index,_)| index).ok_or(IDNotFound{id})
+            }).map(|(index,_)| index).ok_or(IdNotFound {id})
         };
 
         let index = match location_hint {
@@ -142,7 +150,7 @@ impl GraphInfo {
 
         lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
 
-        self.source.set_block_lines(lines);
+        self.source.set_block_lines(lines)?;
         Ok(())
     }
 
@@ -228,9 +236,9 @@ mod tests {
     }
 
     fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ast::ID) {
-        let id         = ast::ID::new_v4();
-        let node_ast   = parser.parse(expression.to_string(), default()).unwrap();
-        let line_ast   = expect_single_line(&node_ast).with_id(id);
+        let node_ast = parser.parse(expression.to_string(), default()).unwrap();
+        let line_ast = expect_single_line(&node_ast).clone();
+        let id       = line_ast.id.expect("line_ast should have an ID");
         (line_ast,id)
     }
 
@@ -238,15 +246,13 @@ mod tests {
     fn add_node_to_graph_with_single_line() {
         ensogl::system::web::set_stdout();
 
-        let program = r"
-main = a + b
-";
+        let program = "main = print \"hello\"";
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].expression().repr(), "a + b");
+        assert_eq!(nodes[0].expression().repr(), "print \"hello\"");
 
         let expr0 = "a + 2";
         let expr1 = "b + 3";
@@ -263,18 +269,22 @@ main = a + b
         assert_eq!(nodes[0].id(), id1);
         assert_eq!(nodes[1].expression().repr(), expr0);
         assert_eq!(nodes[1].id(), id0);
-        assert_eq!(nodes[2].expression().repr(), "a + b");
+        assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_multiple_lines() {
         // TODO [dg] Also add test for binding node when it's possible to update its id.
-        let program = r"
+        let program = r#"
 main =
+
     foo = node
+
     foo a = not_node
-    node
-";
+
+    print "hello"
+
+"#;
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
 
@@ -297,7 +307,7 @@ main =
         assert_eq!(nodes[2].expression().repr(), "x * x");
         assert_eq!(nodes[2].id(), id2);
         assert_eq!(nodes[3].expression().repr(), "node");
-        assert_eq!(nodes[4].expression().repr(), "node");
+        assert_eq!(nodes[4].expression().repr(), "print \"hello\"");
         assert_eq!(nodes[5].expression().repr(), "x / x");
         assert_eq!(nodes[5].id(), id3);
     }
