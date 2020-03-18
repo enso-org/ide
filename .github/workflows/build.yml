@@ -19,6 +19,22 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Cache wasm build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/wasm32-unknown-unknown/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -91,6 +107,22 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Cache wasm build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/wasm32-unknown-unknown/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -114,6 +146,22 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Cache wasm build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/wasm32-unknown-unknown/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -141,6 +189,22 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Cache wasm build
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target/wasm32-unknown-unknown/debug/deps
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
