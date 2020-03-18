@@ -347,7 +347,7 @@ impl TextFieldData {
         let frp                  = None;
         let word_occurrences     = None;
         let text_change_callback = None;
-        display_object.add_child(rendered.display_object.clone_ref());
+        display_object.add_child(&rendered.display_object);
 
         Self {properties,content,cursors,rendered,display_object,frp,word_occurrences,
               text_change_callback}.initialize()

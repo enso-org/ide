@@ -27,9 +27,7 @@ use shapely::shared;
 /// Common traits.
 pub mod traits {
     pub use super::Object;
-    pub use super::ObjectRef;
-//    pub use super::ObjectOps;
-    pub use super::ObjectRefOps;
+    pub use super::ObjectOps;
 }
 
 
@@ -293,8 +291,8 @@ impl {
 // === Private API ===
 
 impl {
-    pub fn register_child<T:Object>(&mut self, child:T) -> usize {
-        let child = child.display_object();
+    pub fn register_child<T:Object>(&mut self, child:&T) -> usize {
+        let child = child.display_object().clone();
         let index = self.children.insert(child);
         self.child_dirty.set(index);
         index
@@ -423,17 +421,17 @@ impl Node {
     }
 
     /// Adds a new `Object` as a child to the current one.
-    pub fn add_child<T:Object>(&self, child:T) {
+    pub fn add_child<T:Object>(&self, child:&T) {
         self.clone_ref().add_child_take(child);
     }
 
     /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
     /// the ownership of `self`.
-    pub fn add_child_take<T:Object>(self, child:T) {
+    pub fn add_child_take<T:Object>(self, child:&T) {
         self.rc.borrow().logger.info("Adding new child.");
         let child = child.display_object();
         child.unset_parent();
-        let index = self.register_child(&child);
+        let index = self.register_child(child);
         self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
         let parent_bind = ParentBind {parent:self,index};
         child.set_parent_bind(parent_bind);
@@ -441,16 +439,16 @@ impl Node {
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn remove_child<T:Object>(&self, child:T) {
+    pub fn remove_child<T:Object>(&self, child:&T) {
         let child = child.display_object();
-        if self.has_child(&child) {
+        if self.has_child(child) {
             child.unset_parent()
         }
     }
 
     /// Replaces the parent binding with a new parent.
-    pub fn set_parent<T:Object>(&self, parent:T) {
-        parent.display_object().add_child_take(self);
+    pub fn set_parent<T:Object>(&self, parent:&T) {
+        parent.display_object().add_child(self);
     }
 
     /// Removes the current parent binding.
@@ -459,12 +457,12 @@ impl Node {
     }
 
     /// Checks if the provided object is child of the current one.
-    pub fn has_child<T:Object>(&self, child:T) -> bool {
+    pub fn has_child<T:Object>(&self, child:&T) -> bool {
         self.child_index(child).is_some()
     }
 
     /// Returns the index of the provided object if it was a child of the current one.
-    pub fn child_index<T:Object>(&self, child:T) -> Option<usize> {
+    pub fn child_index<T:Object>(&self, child:&T) -> Option<usize> {
         let child = child.display_object();
         child.parent_bind().and_then(|bind| {
             if self == &bind.parent { Some(bind.index) } else { None }
@@ -499,70 +497,23 @@ impl PartialEq for Node {
 // === Object ===
 // ==============
 
-pub trait Object: Into<Node> {
-    fn display_object(self) -> Node {
-        self.into()
-    }
-}
-
-pub trait ObjectRef {
+pub trait Object {
     fn display_object(&self) -> &Node;
-    fn display_object2(&self) -> &Node {
-        ObjectRef::display_object(self)
-    }
 }
 
-//impl ObjectRef for Node {
-//    fn display_object(&self) -> &Node {
-//        self
-//    }
-//}
-
-impl<T:Into<Node>> Object for T {}
-
-
-impl<T> ObjectRef for T where for<'t> &'t T:Into<&'t Node> {
+impl<T> Object for T where for<'t> &'t T:Into<&'t Node> {
     fn display_object(&self) -> &Node {
         self.into()
     }
 }
 
-
-
-pub trait ObjectOps<'t>
-where &'t Self:Object, Self:'t {
-    fn add_child<T:Object>(&'t self, child:T) {
-        self.display_object().add_child_take(child);
-    }
-
-    fn unset_parent(&'t self) {
-        self.display_object().unset_parent();
-    }
-
-    fn dispatch_event(&'t self, event:&DynEvent) {
-        self.display_object().dispatch_event(event)
-    }
-}
-
-impl<'t,T> ObjectOps<'t> for T
-where T:'t, &'t T:Object {}
-
-
-impl<T:ObjectRef> ObjectRefOps for T {}
-pub trait ObjectRefOps : ObjectRef {
-    fn add_child<T:ObjectRef>(&self, child:&T) {
-        self.display_object().add_child(child.display_object());
-    }
-
-    fn add_child2<T:ObjectRef>(&self, child:&T) {
+impl<T:Object> ObjectOps for T {}
+pub trait ObjectOps : Object {
+    fn add_child<T:Object>(&self, child:&T) {
         self.display_object().add_child(child.display_object());
     }
 
     fn unset_parent(&self) {
-        self.display_object().unset_parent();
-    }
-
-    fn unset_parent2(&self) {
         self.display_object().unset_parent();
     }
 

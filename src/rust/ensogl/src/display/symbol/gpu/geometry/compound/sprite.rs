@@ -256,7 +256,7 @@ impl SpriteSystem {
         let default_size = Vector2::new(1.0,1.0);
         size.set(default_size);
         let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
-        self.add_child2(&sprite); // FIXME
+        self.add_child(&sprite); // FIXME
         sprite
     }
 
@@ -367,12 +367,12 @@ impl SpriteSystem {
 
 impl<'t> From<&'t SpriteSystem> for &'t display::object::Node {
     fn from(sprite_system:&'t SpriteSystem) -> Self {
-        sprite_system.symbol.display_object2()
+        sprite_system.symbol.display_object()
     }
 }
 
 impl From<&SpriteSystem> for display::object::Node {
     fn from(sprite_system:&SpriteSystem) -> Self {
-        sprite_system.symbol.display_object2().clone()
+        sprite_system.symbol.display_object().clone()
     }
 }

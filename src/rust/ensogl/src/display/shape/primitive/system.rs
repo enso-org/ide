@@ -57,12 +57,12 @@ impl ShapeSystem {
 
 impl From<&ShapeSystem> for display::object::Node {
     fn from(t:&ShapeSystem) -> Self {
-        (&t.sprite_system).display_object2().clone()
+        (&t.sprite_system).display_object().clone()
     }
 }
 
 impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
     fn from(shape_system:&'t ShapeSystem) -> Self {
-        shape_system.sprite_system.display_object2()
+        shape_system.sprite_system.display_object()
     }
 }

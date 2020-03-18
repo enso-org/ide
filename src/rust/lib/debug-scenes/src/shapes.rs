@@ -217,12 +217,12 @@ pub struct ShapeScene {
 }
 
 impl ShapeScene {
-    pub fn add_child<T:display::ObjectRef+HasSprite+'static>(&self, target:&T) {
+    pub fn add_child<T:display::Object+HasSprite+'static>(&self, target:&T) {
         let type_id      = TypeId::of::<T>();
         let shape_system = self.shape_system_map.get(&type_id).unwrap();
         let sprite       = shape_system.new_instance();
 
-        shape_system.add_child2(target.display_object());
+        shape_system.add_child(target.display_object());
         target.add_child(&sprite);
         sprite.size().set(Vector2::new(200.0,200.0));
 //        sprite.mod_position(|t| {
@@ -337,7 +337,7 @@ pub fn on_frame
 , iter         : &mut i32
 , shape_system : &ShapeSystem) {
     *iter += 1;
-    shape_system.display_object2().update();
+    shape_system.display_object().update();
 }
 
 

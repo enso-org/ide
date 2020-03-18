@@ -234,12 +234,16 @@ impl World {
         self.rc.borrow().event_loop.clone()
     }
 
+    pub fn display_object(&self) -> display::object::Node {
+        self.scene().display_object()
+    }
+
     pub fn scene(&self) -> Scene {
         self.rc.borrow().scene.clone()
     }
 
-    pub fn add_child<T:display::ObjectRef>(&self, child:&T) {
-        self.scene().display_object().add_child2(child)
+    pub fn add_child<T:display::Object>(&self, child:&T) {
+        self.scene().display_object().add_child(child)
     }
 
     fn init_composer(&self) {

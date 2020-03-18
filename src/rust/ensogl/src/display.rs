@@ -31,6 +31,5 @@ pub mod types {
     pub use scene::dom::DomScene;
     pub use super::symbol::*;
     pub use object::Object;
-    pub use object::ObjectRef;
 }
 pub use types::*;

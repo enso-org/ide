@@ -93,7 +93,7 @@ pub fn on_frame
     if sprite1.position().y % 20.0 == 0.0 {
         *hidden = !*hidden;
         if *hidden {
-            sprite_system.unset_parent2();
+            sprite_system.unset_parent();
         } else {
             world.add_child(sprite_system);
         }
