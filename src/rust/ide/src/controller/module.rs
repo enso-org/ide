@@ -7,9 +7,9 @@
 
 use crate::prelude::*;
 
-use crate::controller::FallibleResult;
 use crate::controller::notification;
 use crate::double_representation::text::apply_code_change_to_id_map;
+use crate::double_representation::definition::DefinitionInfo;
 use crate::executor::global::spawn;
 
 use parser::api::SourceFile;
@@ -17,7 +17,10 @@ use ast;
 use ast::Ast;
 use ast::HasRepr;
 use ast::IdMap;
+use ast::HasIdMap;
+use ast::known;
 use data::text::*;
+use double_representation as dr;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
@@ -95,12 +98,8 @@ shared! { Handle
     pub struct Controller {
         /// This module's location.
         location: Location,
-        /// The current module used by synchronizing both module representations.
+        /// The current source code of file containing ast and metadata.
         module: SourceFile<Metadata>,
-        /// The id map of current ast
-        // TODO: written for test purposes, should be removed once generating id_map from AST will
-        // be implemented.
-        id_map: IdMap,
         /// The File Manager Client handle.
         file_manager: fmc::Handle,
         /// The Parser handle.
@@ -108,7 +107,7 @@ shared! { Handle
         /// Publisher of "text changed" notifications
         text_notifications  : notification::Publisher<notification::Text>,
         /// Publisher of "graph changed" notifications
-        graph_notifications : notification::Publisher<notification::Graph>,
+        graph_notifications : notification::Publisher<notification::Graphs>,
         /// The logger handle.
         logger: Logger,
     }
@@ -122,13 +121,14 @@ shared! { Handle
         /// Updates AST after code change.
         pub fn apply_code_change(&mut self,change:&TextChange) -> FallibleResult<()> {
             let mut code         = self.code();
+            let mut id_map       = self.module.ast.id_map();
             let replaced_size    = change.replaced.end - change.replaced.start;
             let replaced_span    = Span::new(change.replaced.start,replaced_size);
             let replaced_indices = change.replaced.start.value..change.replaced.end.value;
 
             code.replace_range(replaced_indices,&change.inserted);
-            apply_code_change_to_id_map(&mut self.id_map,&replaced_span,&change.inserted);
-            let ast = self.parser.parse(code, self.id_map.clone())?;
+            apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
+            let ast = self.parser.parse(code, id_map)?;
             self.update_ast(ast);
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
 
@@ -140,6 +140,12 @@ shared! { Handle
             self.module.ast.repr()
         }
 
+        /// Obtains definition information for given graph id.
+        pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
+            let module = known::Module::try_new(self.module.ast.clone())?;
+            double_representation::graph::traverse_for_definition(module,id)
+        }
+
         /// Check if current module state is synchronized with given code. If it's not, log error,
         /// and update module state to match the `code` passed as argument.
         pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
@@ -148,7 +154,6 @@ shared! { Handle
                 self.logger.error(|| format!("The module controller ast was not synchronized with \
                     text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
                 self.module.ast = self.parser.parse(code,default())?;
-                self.id_map     = default();
             }
             Ok(())
         }
@@ -159,7 +164,7 @@ shared! { Handle
         }
 
         /// Get subscriber receiving notifications about changes in module's graph representation.
-        pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::Graph> {
+        pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::Graphs> {
             self.graph_notifications.subscribe()
         }
     }
@@ -174,12 +179,12 @@ impl Handle {
         let logger              = Logger::new(format!("Module Controller {}", location));
         let ast                 = Ast::new(ast::Module{lines:default()},None);
         let module              = SourceFile {ast, metadata:default()};
-        let id_map              = default();
         let text_notifications  = default();
         let graph_notifications = default();
 
-        let data = Controller {location,module,file_manager,parser,id_map,logger,text_notifications,
-            graph_notifications};
+
+        let data = Controller {location,module,file_manager,parser,logger,
+            text_notifications,graph_notifications};
         let handle = Handle::new_from_data(data);
         handle.load_file().await?;
         Ok(handle)
@@ -216,6 +221,13 @@ impl Handle {
         async move { fm.write(path.clone(),code?).await }
     }
 
+    /// Returns a graph controller for graph in this module's subtree identified by `id`.
+    /// Reuses already existing controller if possible.
+    pub fn get_graph_controller(&self, id:dr::graph::Id)
+    -> FallibleResult<controller::graph::Handle> {
+        controller::graph::Handle::new(self.clone(),id)
+    }
+
     #[cfg(test)]
     pub fn new_mock
     ( location     : Location
@@ -229,7 +241,7 @@ impl Handle {
         let module = SourceFile{ast, metadata:Metadata::default()};
         let text_notifications  = default();
         let graph_notifications = default();
-        let data   = Controller {location,module,file_manager,parser,id_map,logger,
+        let data   = Controller {location,module,file_manager,parser,logger,
             text_notifications,graph_notifications};
         Ok(Handle::new_from_data(data))
     }
@@ -240,13 +252,17 @@ impl Controller {
     fn update_ast(&mut self,ast:Ast) {
         self.module.ast  = ast;
         let text_change  = notification::Text::Invalidate;
-        let graph_change = notification::Graph::Invalidate;
+        let graph_change = notification::Graphs::Invalidate;
         let code_notify  = self.text_notifications.publish(text_change);
         let graph_notify = self.graph_notifications.publish(graph_change);
         spawn(async move { futures::join!(code_notify,graph_notify); });
     }
 }
 
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod test {
@@ -318,7 +334,7 @@ mod test {
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
-            assert_eq!(Some(notification::Graph::Invalidate), graph_notifications.next().await);
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_notifications.next().await);
         });
     }
 }
