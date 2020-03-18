@@ -70,7 +70,7 @@ pub struct IdeMetadata {
 }
 
 /// Metadata of specific node.
-#[derive(Debug,Clone,Copy,Default,Serialize,Deserialize)]
+#[derive(Debug,Clone,Copy,Default,Serialize,Deserialize,Shrinkwrap)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
     pub position: Option<Position>
@@ -206,19 +206,19 @@ shared! { Handle
 
         /// Returns metadata for given node, if present.
         pub fn node_metadata(&mut self, id:ast::ID) -> FallibleResult<NodeMetadata> {
-            self.module.metadata.ide.node.get(&id).cloned()
-                .ok_or_else(|| NodeMetadataNotFound(id).into())
+            let data = self.module.metadata.ide.node.get(&id).cloned();
+            data.ok_or_else(|| NodeMetadataNotFound(id).into())
         }
 
-        /// Modify metadata of given node.
-        /// If ID doesn't have metadata, empty (default) metadata is inserted.
-        pub fn with_node_metadata(&mut self, id:ast::ID, fun:impl FnOnce(&mut NodeMetadata)) {
-            fun(self.module.metadata.ide.node.entry(id).or_default());
+        /// Sets metadata for given node.
+        pub fn set_node_metadata(&mut self, id:ast::ID, data:NodeMetadata) {
+            self.module.metadata.ide.node.insert(id,data);
         }
 
-        /// Delete metadata of given node.
-        pub fn remove_node_metadata(&mut self, id:ast::ID) {
-            self.module.metadata.ide.node.remove(&id);
+        /// Removes metadata of given node and returns them.
+        pub fn pop_node_metadata(&mut self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+            let data = self.module.metadata.ide.node.remove(&id);
+            data.ok_or_else(|| NodeMetadataNotFound(id).into())
         }
     }
 }

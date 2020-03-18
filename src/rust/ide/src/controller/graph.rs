@@ -181,7 +181,7 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::ID) -> FallibleResult<()> {
-        self.module().remove_node_metadata(id);
+        self.module().pop_node_metadata(id)?;
         todo!()
     }
 
@@ -197,10 +197,11 @@ impl Handle {
 
     /// Modify metadata of given node.
     /// If ID doesn't have metadata, empty (default) metadata is inserted.
-    pub fn with_node_metadata<F>(&self, id:ast::ID, updater:F) -> FallibleResult<NodeMetadata>
-    where F : FnOnce(&mut NodeMetadata) {
-        self.module().with_node_metadata(id, updater);
-        self.node_metadata(id)
+    pub fn with_node_metadata(&self, id:ast::ID, fun:impl FnOnce(&mut NodeMetadata)) {
+        let     module = self.module();
+        let mut data   = module.pop_node_metadata(id).unwrap_or(default());
+        fun(&mut data);
+        module.set_node_metadata(id, data);
     }
 }
 
@@ -271,7 +272,7 @@ mod tests {
 
             let uid          = graph.all_node_infos().unwrap()[0].id();
 
-            graph.with_node_metadata(uid, |data| data.position = Some(pos)).unwrap();
+            graph.with_node_metadata(uid, |data| data.position = Some(pos));
 
             assert_eq!(graph.node_metadata(uid).unwrap().position, Some(pos));
         })
