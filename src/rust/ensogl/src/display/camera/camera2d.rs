@@ -142,11 +142,10 @@ impl Camera2dData {
         let view_projection_matrix = Matrix4::identity();
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty::new(logger.sub("transform_dirty"),());
-        let transform_dirty_copy   = transform_dirty.clone();
         let transform              = transform.clone();
         let zoom_update_registry   = default();
         let screen_update_registry = default();
-        transform.set_on_updated(move |_| { transform_dirty_copy.set(); });
+        transform.set_on_updated(enclose!((transform_dirty) move |_| transform_dirty.set() ));
         transform.mod_position(|p| p.z = 1.0);
         projection_dirty.set();
         let mut camera = Self {transform,screen,projection,clipping,alignment,zoom,native_z,
@@ -202,13 +201,11 @@ impl Camera2dData {
         self.transform.update();
         let mut changed = false;
         if self.transform_dirty.check() {
-            // println!("transform dirty");
             self.recompute_view_matrix();
             self.transform_dirty.unset();
             changed = true;
         }
         if self.projection_dirty.check() {
-            // println!("projection dirty");
             self.recompute_projection_matrix();
             self.projection_dirty.unset();
             changed = true;

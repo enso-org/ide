@@ -208,6 +208,7 @@ impl {
             let origin         = &self.transform.matrix;
             if origin_changed {
                 self.logger.info("Self origin changed.");
+                if let Some(f) = &self.callbacks.on_updated { f(self) }
                 if !self.children.is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.iter().for_each(|child| {
@@ -228,7 +229,6 @@ impl {
             self.child_dirty.unset_all();
         });
         self.new_parent_dirty.unset();
-        if let Some(f) = &self.callbacks.on_updated { f(self) }
     }
 
     /// Internal

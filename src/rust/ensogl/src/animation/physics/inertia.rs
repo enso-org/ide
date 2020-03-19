@@ -345,7 +345,8 @@ impl PhysicsSimulator {
     pub fn new<F:PhysicsCallback,Properties:Into<PhysicsProperties>>
     ( steps_per_second : f64
     , properties       : Properties
-    , mut callback     : F) -> Self {
+    , mut callback     : F
+    ) -> Self {
         let mut properties       = properties.into();
         let step_ms              = 1000.0 / steps_per_second;
         let mut current_position = properties.kinematics().position();
@@ -357,30 +358,30 @@ impl PhysicsSimulator {
                 current_position = next_position;
                 next_position    = simulate(&mut properties,step_ms);
             }
-
-            let transition = interval_counter.accumulated_time / interval_counter.interval_duration;
-
+            let transition  = interval_counter.accumulated_time / interval_counter.interval_duration;
             let fixed_point = properties.spring().fixed_point;
             let thresholds  = properties.thresholds();
             properties.modify_kinematics(|kinematics| {
-                let speed    = kinematics.velocity.magnitude();
+                let velocity = kinematics.velocity.magnitude();
                 let position = kinematics.position();
                 let distance = (position - fixed_point).magnitude();
-                if speed < thresholds.speed && distance < thresholds.fixed_point_distance {
-                    kinematics.set_position(fixed_point);
-                    kinematics.set_velocity(zero());
-                    callback(fixed_point)
-                } else {
-                    let interpolated_position = linear_interpolation(
-                        current_position,
-                        next_position,
-                        transition as f32
-                    );
-                    callback(interpolated_position)
+                let is_dirty = velocity != 0.0 || distance != 0.0;
+                if is_dirty {
+                    let snap_velocity = velocity > 0.0 && velocity < thresholds.speed;
+                    let snap_distance = distance < thresholds.fixed_point_distance;
+                    let should_snap   = snap_velocity && snap_distance;
+                    if should_snap {
+                        kinematics.set_position(fixed_point);
+                        kinematics.set_velocity(zero());
+                        callback(fixed_point)
+                    } else {
+                        let trans = transition as f32;
+                        let pos   = linear_interpolation(current_position,next_position,trans);
+                        callback(pos)
+                    }
                 }
             });
         });
-
         Self { _animator }
     }
 }
