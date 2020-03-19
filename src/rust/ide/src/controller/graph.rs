@@ -21,7 +21,7 @@ use utils::channel::process_stream_with_handle;
 /// Error raised when node with given Id was not found in the graph's body.
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Node with Id {} was not found.", _0)]
-pub struct NodeNotFound(ast::ID);
+pub struct NodeNotFound(ast::Id);
 
 
 
@@ -56,7 +56,7 @@ pub struct NewNodeInfo {
     /// Visual node position in the graph scene.
     pub metadata : Option<NodeMetadata>,
     /// ID to be given to the node.
-    pub id : Option<ast::ID>,
+    pub id : Option<ast::Id>,
     /// Where line created by adding this node should appear.
     pub location_hint : LocationHint
 }
@@ -65,9 +65,9 @@ pub struct NewNodeInfo {
 #[derive(Clone,Copy,Debug)]
 pub enum LocationHint {
     /// Try placing this node's line before the line described by id.
-    Before(ast::ID),
+    Before(ast::Id),
     /// Try placing this node's line after the line described by id.
-    After(ast::ID),
+    After(ast::Id),
     /// Try placing this node's line at the start of the graph's code block.
     Start,
     /// Try placing this node's line at the end of the graph's code block.
@@ -151,7 +151,7 @@ impl Handle {
 
     /// Retrieves double rep information about node with given ID.
     pub fn node_info
-    (&self, id:ast::ID) -> FallibleResult<double_representation::node::NodeInfo> {
+    (&self, id:ast::Id) -> FallibleResult<double_representation::node::NodeInfo> {
         let nodes = self.all_node_infos()?;
         let node  = nodes.into_iter().find(|node_info| node_info.id() == id);
         node.ok_or_else(|| NodeNotFound(id).into())
@@ -161,7 +161,7 @@ impl Handle {
     ///
     /// Note that it is more efficient to use `get_nodes` to obtain all information at once,
     /// rather then repeatedly call this method.
-    pub fn node(&self, id:ast::ID) -> FallibleResult<Node> {
+    pub fn node(&self, id:ast::Id) -> FallibleResult<Node> {
         let info     = self.node_info(id)?;
         let metadata = self.node_metadata(id).ok();
         Ok(Node {info,metadata})
@@ -184,7 +184,7 @@ impl Handle {
     }
 
     /// Removes the node with given Id.
-    pub fn remove_node(&self, _id:ast::ID) -> FallibleResult<()> {
+    pub fn remove_node(&self, _id:ast::Id) -> FallibleResult<()> {
         todo!()
     }
 
@@ -194,7 +194,7 @@ impl Handle {
     }
 
     /// Retrieves metadata for the given node.
-    pub fn node_metadata(&self, _id:ast::ID) -> FallibleResult<NodeMetadata> {
+    pub fn node_metadata(&self, _id:ast::Id) -> FallibleResult<NodeMetadata> {
         // todo!()
         #[derive(Clone,Copy,Debug,Display,Fail)]
         struct NotImplemented;
@@ -202,7 +202,7 @@ impl Handle {
     }
 
     /// Update metadata for the given node.
-    pub fn update_node_metadata<F>(&self, _id:ast::ID, _updater:F) -> FallibleResult<NodeMetadata>
+    pub fn update_node_metadata<F>(&self, _id:ast::Id, _updater:F) -> FallibleResult<NodeMetadata>
     where F : FnOnce(&mut NodeMetadata) {
         todo!()
     }

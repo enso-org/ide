@@ -3,12 +3,14 @@
 use crate::prelude::*;
 
 use ast::Ast;
+use ast::crumbs::Crumbable;
 use ast::HasRepr;
 use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
 use shapely::EmptyIterator;
+
 
 
 // =================
@@ -103,6 +105,7 @@ impl Display for DefinitionName {
 }
 
 
+
 // ======================
 // === DefinitionInfo ===
 // ======================
@@ -183,47 +186,112 @@ pub trait DefinitionProvider {
     /// What kind of scope this is.
     fn scope_kind() -> ScopeKind;
 
-    /// Iterates over non-empty lines' ASTs.
-    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a>;
+    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)>;
 
-    /// Lists all the definitions in the entity.
-    fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        self.line_asts().flat_map(|ast| {
-            DefinitionInfo::from_line_ast(ast,Self::scope_kind())
+    fn all_definitions(&self) -> Vec<(ast::crumbs::Crumbs,DefinitionInfo)> {
+        self.potential_definition_asts().into_iter().flat_map(|(crumbs,ast)| {
+            let definition_opt = DefinitionInfo::from_line_ast(ast,Self::scope_kind());
+            definition_opt.map(|def| (crumbs,def))
         }).collect()
     }
 
-    /// Tries to find definition by given name in the entity.
-    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
-        self.line_asts().find_map(|ast| {
-            let definition = DefinitionInfo::from_line_ast(ast, Self::scope_kind())?;
-            let matches    = &definition.name == name;
-            matches.as_some(definition)
-        })}
+    /// Lists all the definitions in the entity.
+    fn list_definitions(&self) -> Vec<DefinitionInfo> {
+        self.all_definitions().into_iter().map(|(crumb,def)| def).collect()
+    }
+
+    fn definition_from_line(&self, ast:&Ast) -> Option<DefinitionInfo> {
+        DefinitionInfo::from_line_ast(ast, Self::scope_kind())
+    }
+
+    fn to_matching_definition(&self, ast:&Ast, name:&DefinitionName) -> Option<DefinitionInfo> {
+        let definition  = self.definition_from_line(ast);
+        definition.filter(|definition| &definition.name == name)
+    }
+
+    fn does_line_ast_match(&self, ast:&Ast, name:&DefinitionName) -> bool {
+        self.to_matching_definition(ast,name).is_some()
+    }
+
+//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
+//        None
+//    }
+//
+//    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
+//        self.find_definition_crumb(name).map(|(_,def)| def)
+//    }
+//    fn crumb_of(&self, name:&DefinitionName) -> Option<ast::crumbs::Crumb> {
+//        self.find_definition_crumb(name).map(|(crumb,_)| crumb)
+//    }
 }
+
+fn locate_definition<T>(this:&T, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)>
+    where T: Crumbable<Crumb = ast::crumbs::Crumb> + DefinitionProvider {
+    this.enumerate().into_iter().find_map(|(crumb,ast)| {
+        this.to_matching_definition(ast,name).map(|definition| (crumb,definition))
+    })
+}
+
+fn list_definitions<T>(this:&T) -> Vec<(ast::crumbs::Crumb,DefinitionInfo)>
+    where T: Crumbable<Crumb = ast::crumbs::Crumb> + DefinitionProvider {
+    this.enumerate().into_iter().flat_map(|(crumb,ast)| {
+        this.definition_from_line(ast).map(|definition| (crumb,definition))
+    }).collect()
+}
+
 
 impl DefinitionProvider for known::Module {
     fn scope_kind() -> ScopeKind { ScopeKind::Root }
-    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-        Box::new(self.iter())
+
+    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+        self.lines.iter().enumerate().flat_map(|(line_index,line)| {
+            let ast = line.elem.as_ref();
+            ast.map(|ast| {
+                let crumb = ast::crumbs::ModuleCrumb {line_index};
+                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
+                (crumbs,ast)
+            })
+        }).collect()
     }
+
+//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
+//        Box::new(self.iter())
+//    }
+//
+//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
+//        locate_definition(self,name)
+//    }
 }
 
 impl DefinitionProvider for known::Block {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
-    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-        Box::new(self.iter())
+
+
+    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+        todo!()
     }
+//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
+//        Box::new(self.iter())
+//    }
+//
+//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
+//        locate_definition(self,name)
+//    }
 }
 
 impl DefinitionProvider for DefinitionInfo {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
-    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-        match self.ast.rarg.shape() {
-            ast::Shape::Block(_) => self.ast.rarg.iter(),
-            _                    => Box::new(EmptyIterator::new())
-        }
+
+    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+        todo!()
     }
+
+//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
+//        match self.ast.rarg.shape() {
+//            ast::Shape::Block(_) => self.ast.rarg.iter(),
+//            _                    => Box::new(EmptyIterator::new())
+//        }
+//    }
 }
 
 

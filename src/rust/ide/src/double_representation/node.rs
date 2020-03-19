@@ -1,7 +1,7 @@
 //! Code for node discovery and other node-related tasks.
 
 use ast::Ast;
-use ast::ID;
+use ast::Id;
 use ast::known;
 
 
@@ -45,7 +45,7 @@ impl NodeInfo {
     }
 
     /// Node's unique ID.
-    pub fn id(&self) -> ID {
+    pub fn id(&self) -> Id {
         // Panic must not happen, as the only available constructors checks that
         // there is an ID present.
         self.expression().id.expect("Node AST must bear an ID")
@@ -75,7 +75,7 @@ mod tests {
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    fn expect_node(ast:Ast, expression_text:&str, id:ID) {
+    fn expect_node(ast:Ast, expression_text:&str, id: Id) {
         let node_info = NodeInfo::from_line_ast(&ast).expect("expected a node");
         assert_eq!(node_info.expression().repr(),expression_text);
         assert_eq!(node_info.id(), id);
@@ -84,7 +84,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn expression_node_test() {
         // expression: `4`
-        let id = ID::new_v4();
+        let id = Id::new_v4();
         let ast = Ast::new(ast::Number { base:None, int: "4".into()}, Some(id));
         expect_node(ast,"4",id);
     }
@@ -92,7 +92,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn binding_node_test() {
         // expression: `foo = 4`
-        let id = ID::new_v4();
+        let id = Id::new_v4();
         let number = ast::Number { base:None, int: "4".into()};
         let larg   = Ast::var("foo");
         let loff   = 1;

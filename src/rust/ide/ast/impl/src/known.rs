@@ -37,6 +37,8 @@ impl<T> KnownAst<T> {
             Ok(KnownAst {ast,phantom:default()})
         }
     }
+
+    pub fn ast(&self) -> &Ast { &self.ast }
 }
 
 impl<T,E> Deref for KnownAst<T>
