@@ -40,20 +40,28 @@ struct LineDoesNotContainAst;
 #[derive(Debug,Display,Fail,Clone,Copy)]
 struct MismatchedCrumbType;
 
+fn indices<T>(slice:&[T]) -> impl Iterator<Item = usize> {
+    (0 .. slice.len()).into_iter()
+}
+
+
 pub trait Crumbable {
     type Crumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast>;
+
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> where Self:Sized;
 
-    fn children_crumbs(&self) -> Vec<Self::Crumb>;
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>>;
 
-    fn enumerate(&self) -> Vec<(Self::Crumb,&Ast)> {
-        self.children_crumbs().into_iter().map(|crumb| {
-            // NOTE safe if this module is correct - children crumbs are always accessible.
+    fn enumerate<'a>(&'a self) -> Box<dyn Iterator<Item = (Self::Crumb,&'a Ast)> + 'a> {
+        let indices = self.iter_subcrumbs();
+        let iter = indices.map(move |crumb| {
+            // NOTE Safe if this module is correct - children crumbs are always accessible.
             let child = self.get(&crumb).unwrap();
             (crumb,child)
-        }).collect()
+        });
+        Box::new(iter)
     }
 }
 
@@ -68,6 +76,7 @@ impl Crumbable for crate::Infix<Ast> {
         };
         Ok(ret)
     }
+
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut ret = self.clone();
         let target  = match crumb {
@@ -79,17 +88,20 @@ impl Crumbable for crate::Infix<Ast> {
         Ok(ret)
     }
 
-    fn children_crumbs(&self) -> Vec<Self::Crumb> {
-        vec![InfixCrumb::LeftOperand, InfixCrumb::Operator, InfixCrumb::RightOperand]
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+        const CHILDREN: [InfixCrumb; 3] = [InfixCrumb::LeftOperand, InfixCrumb::Operator, InfixCrumb::RightOperand];
+        Box::new(CHILDREN.iter().copied())
     }
 }
 
 impl Crumbable for crate::Module<Ast> {
     type Crumb = ModuleCrumb;
+
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         let line = self.lines.get(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
         line.elem.as_ref().ok_or(LineDoesNotContainAst.into())
     }
+
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut module = self.clone();
         let line = module.lines.get_mut(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
@@ -97,16 +109,16 @@ impl Crumbable for crate::Module<Ast> {
         Ok(module)
     }
 
-    fn children_crumbs(&self) -> Vec<Self::Crumb> {
-        let lines = self.lines.iter().enumerate();
-        lines.flat_map(|(line_index,line)| {
-            line.elem.as_ref().map(|_| ModuleCrumb {line_index})
-        }).collect()
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+        let indices = indices(&self.lines);
+        let iter    = indices.map(|line_index| ModuleCrumb {line_index});
+        Box::new(iter)
     }
 }
 
 impl Crumbable for crate::Block<Ast> {
     type Crumb = BlockCrumb;
+
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         match crumb {
             BlockCrumb::HeadLine => Ok(&self.first_line.elem),
@@ -116,6 +128,7 @@ impl Crumbable for crate::Block<Ast> {
             }
         }
     }
+
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut block = self.clone();
         match crumb {
@@ -128,16 +141,12 @@ impl Crumbable for crate::Block<Ast> {
         Ok(block)
     }
 
-    fn children_crumbs(&self) -> Vec<Self::Crumb> {
-        let tail_lines = self.lines.iter().enumerate();
-        let tail_line_crumbs = tail_lines.flat_map(|(tail_index,line)| {
-            line.elem.as_ref().map(|_| BlockCrumb::TailLine {tail_index})
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+        let first_line = std::iter::once(BlockCrumb::HeadLine);
+        let tail_lines = indices(&self.lines).map(|tail_index| {
+            BlockCrumb::TailLine {tail_index}
         });
-
-        let mut ret = Vec::new();
-        ret.push(BlockCrumb::HeadLine);
-        ret.extend(tail_line_crumbs);
-        ret
+        Box::new(first_line.chain(tail_lines))
     }
 }
 
@@ -161,12 +170,12 @@ impl Crumbable for Ast {
         }
     }
 
-    fn children_crumbs(&self) -> Vec<Self::Crumb> {
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
         match self.shape() {
-            Shape::Block(shape)  => shape.children_crumbs().into_iter().map(Crumb::Block).collect(),
-            Shape::Module(shape) => shape.children_crumbs().into_iter().map(Crumb::Module).collect(),
-            Shape::Infix(shape)  => shape.children_crumbs().into_iter().map(Crumb::Infix).collect(),
-            _                    => vec![],
+            Shape::Block(shape)  => Box::new(shape.iter_subcrumbs().map(Crumb::Block)),
+            Shape::Module(shape) => Box::new(shape.iter_subcrumbs().map(Crumb::Module)),
+            Shape::Infix(shape)  => Box::new(shape.iter_subcrumbs().map(Crumb::Infix)),
+            _                    => Box::new(std::iter::empty()),
         }
     }
 }
@@ -175,13 +184,18 @@ impl<T,E> Crumbable for known::KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
       E                      : failure::Fail {
     type Crumb = Crumb;
+
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> { self.ast().get(crumb) }
+
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let new_ast = self.ast().set(crumb,new_ast)?;
         let ret = known::KnownAst::try_new(new_ast)?;
         Ok(ret)
     }
-    fn children_crumbs(&self) -> Vec<Self::Crumb> { self.ast().children_crumbs() }
+
+    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+        self.ast().iter_subcrumbs()
+    }
 }
 
 fn set_traversing(ast:&Ast, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {

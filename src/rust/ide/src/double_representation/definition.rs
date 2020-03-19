@@ -10,7 +10,7 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 use shapely::EmptyIterator;
-
+use crate::double_representation::graph::Crumb;
 
 
 // =================
@@ -181,12 +181,18 @@ impl DefinitionInfo {
 // === DefinitionProvider ===
 // ==========================
 
+type ChildAst<'a> = (ast::crumbs::Crumbs,&'a Ast);
+
 /// An entity that contains lines that we want to interpret as definitions.
 pub trait DefinitionProvider {
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a>;
+
     /// What kind of scope this is.
     fn scope_kind() -> ScopeKind;
 
-    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)>;
+    fn potential_definition_asts(&self) -> Vec<ChildAst> {
+        self.enumerate_asts().collect()
+    }
 
     fn all_definitions(&self) -> Vec<(ast::crumbs::Crumbs,DefinitionInfo)> {
         self.potential_definition_asts().into_iter().flat_map(|(crumbs,ast)| {
@@ -211,6 +217,10 @@ pub trait DefinitionProvider {
 
     fn does_line_ast_match(&self, ast:&Ast, name:&DefinitionName) -> bool {
         self.to_matching_definition(ast,name).is_some()
+    }
+
+    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
+        todo!();
     }
 
 //    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
@@ -243,23 +253,34 @@ fn list_definitions<T>(this:&T) -> Vec<(ast::crumbs::Crumb,DefinitionInfo)>
 impl DefinitionProvider for known::Module {
     fn scope_kind() -> ScopeKind { ScopeKind::Root }
 
-    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
-        self.lines.iter().enumerate().flat_map(|(line_index,line)| {
-            let ast = line.elem.as_ref();
-            ast.map(|ast| {
-                let crumb = ast::crumbs::ModuleCrumb {line_index};
-                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
-                (crumbs,ast)
-            })
-        }).collect()
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
+        let iter = self.enumerate().map(|(crumb,ast)| {
+            (vec![crumb],ast)
+        });
+        Box::new(iter)
     }
 
-//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-//        Box::new(self.iter())
+//    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
+//        let iter = self.lines.iter().enumerate().flat_map(|(line_index,line)| {
+//            let ast = line.elem.as_ref();
+//            ast.map(|ast| {
+//                let crumb = ast::crumbs::ModuleCrumb {line_index};
+//                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
+//                (crumbs,ast)
+//            })
+//        });
+//        Box::new(iter)
 //    }
 //
-//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
-//        locate_definition(self,name)
+//    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+//        self.lines.iter().enumerate().flat_map(|(line_index,line)| {
+//            let ast = line.elem.as_ref();
+//            ast.map(|ast| {
+//                let crumb = ast::crumbs::ModuleCrumb {line_index};
+//                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
+//                (crumbs,ast)
+//            })
+//        }).collect()
 //    }
 }
 
@@ -267,22 +288,15 @@ impl DefinitionProvider for known::Block {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
 
 
-    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
         todo!()
     }
-//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-//        Box::new(self.iter())
-//    }
-//
-//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
-//        locate_definition(self,name)
-//    }
 }
 
 impl DefinitionProvider for DefinitionInfo {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
 
-    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
+    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
         todo!()
     }
 
