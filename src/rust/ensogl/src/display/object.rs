@@ -17,6 +17,7 @@ use transform::CachedTransform;
 use crate::control::callback::DynEventDispatcher;
 use crate::control::callback::DynEvent;
 use shapely::shared;
+use crate::display::scene::Scene;
 
 
 
@@ -64,9 +65,11 @@ impl ParentBind {
 /// it.
 #[derive(Default)]
 pub struct Callbacks {
-    pub on_updated : Option<Box<dyn Fn(&NodeData)>>,
-    pub on_show    : Option<Box<dyn Fn()>>,
-    pub on_hide    : Option<Box<dyn Fn()>>,
+    pub on_updated   : Option<Box<dyn Fn(&NodeData)>>,
+    pub on_show      : Option<Box<dyn Fn()>>,
+    pub on_hide      : Option<Box<dyn Fn()>>,
+    pub on_show_with : Option<Rc<dyn Fn(&mut NodeData, &Scene)>>,
+    pub on_hide_with : Option<Box<dyn Fn(&Scene)>>,
 }
 
 impl Callbacks {
@@ -89,6 +92,16 @@ impl Callbacks {
     pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
         if self.on_hide.is_some() { panic!("The `on_hide` callback was already set.") }
         self.on_hide = Some(Box::new(f))
+    }
+
+    pub fn set_on_show_with<F:Fn(&mut NodeData, &Scene)+'static>(&mut self, f:F) {
+        if self.on_show_with.is_some() { panic!("The `on_show_with` callback was already set.") }
+        self.on_show_with = Some(Rc::new(f))
+    }
+
+    pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&mut self, f:F) {
+        if self.on_hide_with.is_some() { panic!("The `on_hide_with` callback was already set.") }
+        self.on_hide_with = Some(Box::new(f))
     }
 }
 
@@ -187,13 +200,19 @@ impl {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&mut self) {
         let origin0 = Matrix4::identity();
-        self.update_with(&origin0,false)
+        self.update_origin(&None,&origin0,false)
+    }
+
+    /// Recompute the transformation matrix of this object and update all of its dirty children.
+    pub fn update_with(&mut self, scene:&Scene) {
+        let origin0 = Matrix4::identity();
+        self.update_origin(&Some(scene),&origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_with(&mut self, parent_origin:&Matrix4<f32>, force:bool) {
-        self.update_visibility();
+    fn update_origin(&mut self, scene:&Option<&Scene>, parent_origin:&Matrix4<f32>, force:bool) {
+        self.update_visibility(scene);
         let parent_changed = self.new_parent_dirty.check();
         let use_origin     = force || parent_changed;
         let new_origin     = use_origin.as_some(parent_origin);
@@ -210,7 +229,7 @@ impl {
                 if !self.children.is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.iter().for_each(|child| {
-                            child.update_with(origin,true);
+                            child.update_origin(scene,origin,true);
                         });
                     })
                 }
@@ -219,7 +238,7 @@ impl {
                 if self.child_dirty.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.child_dirty.take().iter().for_each(|ix| {
-                            self.children[*ix].update_with(origin,false)
+                            self.children[*ix].update_origin(scene,origin,false)
                         });
                     })
                 }
@@ -230,12 +249,16 @@ impl {
     }
 
     /// Internal
-    fn update_visibility(&mut self) {
+    fn update_visibility(&mut self, scene:&Option<&Scene>) {
         if self.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.removed_children.take().into_iter().for_each(|child| {
                     if child.is_orphan() {
                         child.hide();
+                        match scene {
+                            Some(s) => child.hide_with(s),
+                            _ => {}
+                        }
                     }
                 });
             })
@@ -243,7 +266,11 @@ impl {
 
         let parent_changed = self.new_parent_dirty.check();
         if parent_changed && !self.is_orphan() {
-            self.show()
+            self.show();
+            match scene {
+                Some(s) => self.show_with(s),
+                _ => {}
+            }
         }
     }
 
@@ -260,6 +287,16 @@ impl {
         }
     }
 
+    pub fn hide_with(&mut self, scene:&Scene) {
+//        if self.visible {
+            self.logger.info("Hiding.");
+            if let Some(f) = &self.callbacks.on_hide_with { f(scene) }
+            self.children.iter().for_each(|child| {
+                child.hide_with(scene);
+            });
+//        }
+    }
+
     /// Show this node and all of its children. This function is called automatically when updating
     /// a node with a newly attached parent.
     pub fn show(&mut self) {
@@ -273,15 +310,28 @@ impl {
         }
     }
 
+    pub fn show_with(&mut self, scene:&Scene) {
+//        if !self.visible {
+            self.logger.info("Showing.");
+            let cb = self.callbacks.on_show_with.clone();
+            if let Some(f) = cb { f(self,scene) }
+            self.children.iter().for_each(|child| {
+                child.show_with(scene);
+            });
+//        }
+    }
+
     /// Unset all node's callbacks. Because the Node structure may live longer than one's could
     /// expect (usually to the next scene refresh), it is wise to unset all callbacks when disposing
     /// object.
     // TODO[ao] Instead if this, the Node should keep weak references to its children (at least in
     // "removed" list) and do not extend their lifetime.
     pub fn clear_callbacks(&mut self) {
-        self.callbacks.on_updated = None;
-        self.callbacks.on_show    = None;
-        self.callbacks.on_hide    = None;
+        self.callbacks.on_updated   = default();
+        self.callbacks.on_show      = default();
+        self.callbacks.on_hide      = default();
+        self.callbacks.on_show_with = default();
+        self.callbacks.on_hide_with = default();
     }
 }
 
@@ -321,6 +371,27 @@ impl {
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
         self.parent_bind = Some(bind);
+    }
+
+    pub fn set_parent_bind2(&mut self, bind:ParentBind, dirty:ChildDirty) {
+        self.logger.info("Adding new parent bind.");
+        let index  = bind.index;
+        let on_mut = move || {dirty.set(index)};
+        self.transform.dirty.set_callback(Some(Box::new(on_mut.clone())));
+        self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
+        self.removed_children.set_callback(Some(Box::new(on_mut)));
+        self.new_parent_dirty.set();
+        self.parent_bind = Some(bind);
+    }
+
+    pub fn add_child_tmp<T:Object>(&mut self, this:&Node, child:&T) {
+        self.logger.info("Adding new child.");
+        let child = child.display_object();
+        child.unset_parent();
+        let index = self.register_child(child);
+        self.logger.info(|| format!("Child index is {}.", index));
+        let parent_bind = ParentBind {parent:this.clone(),index};
+        child.set_parent_bind2(parent_bind,self.child_dirty.clone_ref());
     }
 }
 
@@ -390,6 +461,14 @@ impl {
 
     pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
         self.callbacks.set_on_hide(f)
+    }
+
+    pub fn set_on_show_with<F:Fn(&mut NodeData, &Scene)+'static>(&mut self, f:F) {
+        self.callbacks.set_on_show_with(f)
+    }
+
+    pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&mut self, f:F) {
+        self.callbacks.set_on_hide_with(f)
     }
 }}
 

@@ -32,10 +32,34 @@ use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
 use crate::system::web;
+use crate::display::shape::primitive::system::ShapeSystem;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
+
+
+
+// =====================
+// === ShapeRegistry ===
+// =====================
+
+use std::any::TypeId;
+
+#[derive(Debug,Default)]
+pub struct ShapeRegistry {
+    shape_system_map : HashMap<TypeId,ShapeSystem>
+}
+
+impl ShapeRegistry {
+    pub fn get(&self, id:&TypeId) -> Option<ShapeSystem> {
+        self.shape_system_map.get(id).map(|s| s.clone())
+    }
+
+    pub fn insert(&mut self, id:TypeId, shape_system:ShapeSystem) {
+        self.shape_system_map.insert(id,shape_system);
+    }
+}
 
 
 
@@ -229,6 +253,7 @@ pub struct SceneData {
     zoom_callback  : CallbackHandle,
     mouse          : Mouse,
     on_resize      : CallbackHandle,
+    shape_registry : ShapeRegistry,
 }
 
 impl {
@@ -260,6 +285,7 @@ impl {
         let stats           = stats.clone();
         let pixel_ratio     = variables.add_or_panic("pixel_ratio", dom.shape().pixel_ratio());
         let mouse           = Mouse::new(&dom.shape(),&variables);
+        let shape_registry  = default();
         let zoom_callback   = camera.add_zoom_update_callback(
             enclose!((zoom_uniform) move |zoom:&f32| zoom_uniform.set(*zoom))
         );
@@ -283,7 +309,7 @@ impl {
 
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
              , logger,variables,stats,pixel_ratio,mouse,zoom_uniform
-             , zoom_callback,on_resize }
+             , zoom_callback,on_resize,shape_registry }
     }
 
     pub fn display_object(&self) -> display::object::Node {
@@ -292,6 +318,14 @@ impl {
 
     pub fn dom(&self) -> Dom {
         self.dom.clone()
+    }
+
+    pub fn lookup_shape(&self, id:&TypeId) -> Option<ShapeSystem> {
+        self.shape_registry.get(id)
+    }
+
+    pub fn register_shape(&mut self, id:TypeId, shape_system:ShapeSystem) {
+        self.shape_registry.insert(id,shape_system)
     }
 
     pub fn symbol_registry(&self) -> SymbolRegistry {
@@ -342,11 +376,11 @@ impl {
         mouse::bind_frp_to_mouse(&self.dom.shape(),frp,&self.mouse.mouse_manager)
     }
 
-    /// Check dirty flags and update the state accordingly.
-    pub fn update_and_render(&mut self) {
-        self.update();
-        self.render();
-    }
+//    /// Check dirty flags and update the state accordingly.
+//    pub fn update_and_render(&mut self) {
+//        self.update();
+//        self.render();
+//    }
 
     pub fn camera(&self) -> Camera2d {
         self.camera.clone_ref()
@@ -376,15 +410,15 @@ impl {
         })
     }
 
-    pub fn update(&mut self) {
-        group!(self.logger, "Updating.", {
-            self.display_object.update();
-            self.update_shape();
-            self.update_symbols();
-            self.update_camera();
-            self.handle_mouse_events();
-        })
-    }
+//    pub fn update(&mut self) {
+//        group!(self.logger, "Updating.", {
+//            self.display_object.update();
+//            self.update_shape();
+//            self.update_symbols();
+//            self.update_camera();
+//            self.handle_mouse_events();
+//        })
+//    }
 
     fn handle_mouse_events(&mut self) {
         let mouse_hover_ids = self.mouse.hover_ids.get();
@@ -427,6 +461,26 @@ impl {
         }
     }
 }}
+
+impl Scene {
+    pub fn update(&self) {
+//        group!(self.logger, "Updating.", {
+            let display_object = self.rc.borrow().display_object();
+            display_object.update_with(self);
+            let mut data = self.rc.borrow_mut();
+            data.update_shape();
+            data.update_symbols();
+            data.update_camera();
+            data.handle_mouse_events();
+//        })
+    }
+
+    /// Check dirty flags and update the state accordingly.
+    pub fn update_and_render(&self) {
+        self.update();
+        self.render();
+    }
+}
 
 impl Into<display::object::Node> for &SceneData {
     fn into(self) -> display::object::Node {

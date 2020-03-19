@@ -184,15 +184,29 @@ pub trait HasSprite {
 #[derive(Debug,Clone)]
 pub struct Node {
     logger         : Logger,
-    sprite         : CloneCell<Option<Sprite>>,
+    sprite         : Rc<CloneCell<Option<Sprite>>>,
     display_object : display::object::Node,
 }
 
 impl Node {
     pub fn new() -> Self {
         let logger         = Logger::new("node");
-        let sprite         = default();
+        let sprite : Rc<CloneCell<Option<Sprite>>>        = default();
+        let sprite2        = sprite.clone();
         let display_object = display::object::Node::new(&logger);
+        let display_object2 = display_object.clone();
+        display_object.set_on_show_with(move |this,scene| {
+            let type_id      = TypeId::of::<Node>();
+            let shape_system = scene.lookup_shape(&type_id).unwrap();
+            let sprite       = shape_system.new_instance();
+            this.add_child_tmp(&display_object2,&sprite);
+            sprite.size().set(Vector2::new(200.0,200.0));
+            sprite2.set(Some(sprite));
+        });
+
+        display_object.set_on_hide_with(|scene| {
+            println!("set_on_hide_with");
+        });
         Self {logger,sprite,display_object}
     }
 }
@@ -210,28 +224,28 @@ impl<'t> From<&'t Node> for &'t display::object::Node {
 }
 
 use std::any::TypeId;
-
-#[derive(Debug,Default)]
-pub struct ShapeScene {
-    shape_system_map : HashMap<TypeId,ShapeSystem>
-}
-
-impl ShapeScene {
-    pub fn add_child<T:display::Object+HasSprite+'static>(&self, target:&T) {
-        let type_id      = TypeId::of::<T>();
-        let shape_system = self.shape_system_map.get(&type_id).unwrap();
-        let sprite       = shape_system.new_instance();
-
-        shape_system.add_child(target.display_object());
-        target.add_child(&sprite);
-        sprite.size().set(Vector2::new(200.0,200.0));
-//        sprite.mod_position(|t| {
-//            t.x += 200.0;
-//            t.y += 200.0;
-//        });
-        target.set_sprite(&sprite);
-    }
-}
+//
+//#[derive(Debug,Default)]
+//pub struct ShapeScene {
+//    shape_system_map : HashMap<TypeId,ShapeSystem>
+//}
+//
+//impl ShapeScene {
+//    pub fn add_child<T:display::Object+HasSprite+'static>(&self, target:&T) {
+//        let type_id      = TypeId::of::<T>();
+//        let shape_system = self.shape_system_map.get(&type_id).unwrap();
+//        let sprite       = shape_system.new_instance();
+//
+//        shape_system.add_child(target.display_object());
+//        target.add_child(&sprite);
+//        sprite.size().set(Vector2::new(200.0,200.0));
+////        sprite.mod_position(|t| {
+////            t.x += 200.0;
+////            t.y += 200.0;
+////        });
+//        target.set_sprite(&sprite);
+//    }
+//}
 
 
 fn init(world: &World) {
@@ -241,31 +255,20 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let node_shape =     nodes2();
-    let _node_shape2 =     nodes3();
+    let node_shape   =     nodes2();
+    let shape_system = ShapeSystem::new(world,&node_shape);
+    scene.register_shape(TypeId::of::<Node>(),shape_system.clone());
 
-    let shape_system =     ShapeSystem::new(world,&node_shape);
-
-    let mut shape_scene = ShapeScene::default();
-
-//    let sprite = shape_system.new_instance();
-//    sprite.size().set(Vector2::new(200.0,200.0));
-//    sprite.mod_position(|t| {
-//        t.x += screen.width / 2.0;
-//        t.y += screen.height / 2.0;
-//    });
-
-
-
-    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),shape_system.clone());
+//    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),shape_system.clone());
 
 
     let node1 = Node::new();
     let node2 = Node::new();
     let node3 = Node::new();
-    shape_scene.add_child(&node1);
-    shape_scene.add_child(&node2);
-    shape_scene.add_child(&node3);
+
+    world.add_child(&node1);
+    world.add_child(&node2);
+    world.add_child(&node3);
 
     node1.mod_position(|t| {
         t.x += 200.0;
@@ -285,21 +288,8 @@ fn init(world: &World) {
     let nodes = vec![node1,node2,node3];
 
 
-//    let sprite_2 = shape_system.new_instance();
-//    sprite_2.size().set(Vector2::new(200.0,200.0));
-//    sprite_2.mod_position(|t| {
-//        t.x += screen.width / 2.0 + 5.0;
-//        t.y += screen.height / 2.0 + 20.0;
-//    });
-//
-//    let _sprite2 = sprite.clone();
-
-
     world.add_child(&shape_system);
-//
-//    let out = frp_test(Box::new(move|x:f32,y:f32| {
-//        sprite2.set_position(Vector3::new(x,y,0.0));
-//    }));
+
 
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
