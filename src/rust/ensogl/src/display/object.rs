@@ -151,12 +151,12 @@ impl Node {
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 #[derive(Debug)]
 pub struct NodeData {
-    parent_bind      : RefCell<Option<ParentBind>>,
+    parent_bind      : CloneCell<Option<ParentBind>>,
     children         : RefCell<OptVec<Node>>,
     removed_children : RemovedChildren,
     child_dirty      : ChildDirty,
     new_parent_dirty : NewParentDirty,
-    transform        : RefCell<CachedTransform>,
+    transform        : Cell<CachedTransform>,
     event_dispatcher : DynEventDispatcher,
     visible          : Cell<bool>,
     callbacks        : RefCell<Callbacks>,
@@ -169,7 +169,7 @@ impl NodeData {
         let parent_bind      = default();
         let children         = default();
         let event_dispatcher = default();
-        let transform        = RefCell::new(CachedTransform::new());
+        let transform        = default();
         let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")      , None);
         let removed_children = RemovedChildren :: new(logger.sub("removed_children") , None);
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty") , ());
@@ -184,16 +184,16 @@ impl NodeData {
     }
 
     pub fn parent(&self) -> Option<Node> {
-        self.parent_bind.borrow().as_ref().map(|t| t.parent.clone())
+        self.parent_bind.get().map(|t| t.parent)
     }
 
     pub fn is_orphan(&self) -> bool {
-        self.parent_bind.borrow().is_none()
+        self.parent_bind.get().is_none()
     }
 
     pub fn dispatch_event(&mut self, event:&DynEvent) {
         self.event_dispatcher.dispatch(event);
-        self.parent_bind.borrow().map_ref(|bind| bind.parent.dispatch_event(event));
+        self.parent_bind.get().map_ref(|bind| bind.parent.dispatch_event(event));
     }
 
     pub fn child_count(&self) -> usize {
@@ -214,18 +214,18 @@ impl NodeData {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self) {
         let origin0 = Matrix4::identity();
-        self.update_origin(&None,&origin0,false)
+        self.update_origin(&None,origin0,false)
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update_with(&self, scene:&Scene) {
         let origin0 = Matrix4::identity();
-        self.update_origin(&Some(scene),&origin0,false)
+        self.update_origin(&Some(scene),origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_origin(&self, scene:&Option<&Scene>, parent_origin:&Matrix4<f32>, force:bool) {
+    fn update_origin(&self, scene:&Option<&Scene>, parent_origin:Matrix4<f32>, force:bool) {
         self.update_visibility(scene);
         let parent_changed = self.new_parent_dirty.check();
         let use_origin     = force || parent_changed;
@@ -235,8 +235,10 @@ impl NodeData {
             None    => "Update with old parent origin."
         };
         group!(self.logger, "{msg}", {
-            let origin_changed = self.transform.borrow_mut().update(new_origin);
-            let origin         = &self.transform.borrow().matrix;
+            let mut transform  = self.transform.get();
+            let origin_changed = transform.update(new_origin);
+            let origin         = transform.matrix;
+            self.transform.set(transform);
             if origin_changed {
                 self.logger.info("Self origin changed.");
                 if let Some(f) = &self.callbacks.borrow().on_updated { f(self) }
@@ -362,7 +364,7 @@ impl NodeData {
 
     /// Removes and returns the parent bind. Please note that the parent is not updated.
     pub fn take_parent_bind(&self) -> Option<ParentBind> {
-        self.parent_bind.borrow_mut().take()
+        self.parent_bind.take()
     }
 
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
@@ -382,7 +384,7 @@ impl NodeData {
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
-        *self.parent_bind.borrow_mut() = Some(bind);
+        self.parent_bind.set(Some(bind));
     }
 
     pub fn set_parent_bind2(&self, bind:ParentBind, dirty:ChildDirty) {
@@ -392,7 +394,7 @@ impl NodeData {
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
-        *self.parent_bind.borrow_mut() = Some(bind);
+        self.parent_bind.set(Some(bind));
     }
 
     pub fn add_child_tmp<T:Object>(&self, this:&Node, child:&T) {
@@ -411,63 +413,66 @@ impl NodeData {
 impl NodeData {
     /// Gets a clone of parent bind.
     pub fn parent_bind(&self) -> Option<ParentBind> {
-        self.parent_bind.borrow().clone()
+        self.parent_bind.get()
     }
 
     pub fn global_position(&self) -> Vector3<f32> {
-        self.transform.borrow().global_position()
+        self.transform.get().global_position()
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.transform.borrow().position()
+        self.transform.get().position()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.transform.borrow().scale()
+        self.transform.get().scale()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.transform.borrow().rotation()
+        self.transform.get().rotation()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.transform.borrow().matrix()
+        self.transform.get().matrix()
     }
 }
 
 // === Setters ===
 
 impl NodeData {
-    fn with_borrowed_transform<F,T>(&self, f:F) -> T
+    fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
-        if let Some(bind) = &*self.parent_bind.borrow() {
+        if let Some(bind) = self.parent_bind.get() {
             bind.parent.child_dirty.set(bind.index);
         }
-        f(&mut self.transform.borrow_mut())
+        let mut transform = self.transform.get();
+        let out = f(&mut transform);
+        self.transform.set(transform);
+        out
     }
 
     pub fn set_position(&self, t:Vector3<f32>) {
-        self.with_borrowed_transform(|transform| transform.set_position(t));
+        self.with_transform(|transform| transform.set_position(t));
     }
 
     pub fn set_scale(&self, t:Vector3<f32>) {
-        self.with_borrowed_transform(|transform| transform.set_scale(t));
+        self.with_transform(|transform| transform.set_scale(t));
     }
 
     pub fn set_rotation(&self, t:Vector3<f32>) {
-        self.with_borrowed_transform(|transform| transform.set_rotation(t));
+        self.with_transform(|transform| transform.set_rotation(t));
     }
 
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_borrowed_transform(|transform| transform.mod_position(f));
+        self.with_transform(|transform| transform.mod_position(f));
     }
 
     pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_borrowed_transform(|transform| transform.mod_rotation(f));
+        self.with_transform(|transform| transform.mod_rotation(f));
     }
 
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_borrowed_transform(|transform| transform.mod_scale(f));
+        self.with_transform(|transform| transform.mod_scale(f));
     }
 
     pub fn set_on_updated<F:Fn(&NodeData)+'static>(&self, f:F) {

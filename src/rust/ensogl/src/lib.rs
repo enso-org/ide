@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 #![feature(associated_type_defaults)]
+#![feature(cell_update)]
 #![feature(drain_filter)]
 #![feature(overlapping_marker_traits)]
 #![feature(specialization)]

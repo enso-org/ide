@@ -166,12 +166,11 @@ pub struct CachedTransform {
     transform_matrix : Matrix4<f32>,
     origin           : Matrix4<f32>,
     pub matrix       : Matrix4<f32>,
-//    pub dirty        : dirty::SharedBool<OnChange>,
     pub dirty        : bool,
 }
 
-impl CachedTransform {
-    pub fn new() -> Self {
+impl Default for CachedTransform {
+    fn default() -> Self {
         let transform        = default();
         let transform_matrix = Matrix4::identity();
         let origin           = Matrix4::identity();
@@ -179,9 +178,16 @@ impl CachedTransform {
         let dirty            = default();
         Self {transform,transform_matrix,origin,matrix,dirty}
     }
+}
+
+impl CachedTransform {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
 
     /// Update the transformation matrix and return information if the data was really updated.
-    pub fn update(&mut self, new_origin:Option<&Matrix4<f32>>) -> bool {
+    pub fn update(&mut self, new_origin:Option<Matrix4<f32>>) -> bool {
         let origin_changed = new_origin.is_some();
         let changed        = self.dirty || origin_changed;
         if changed {
@@ -190,7 +196,7 @@ impl CachedTransform {
                     self.transform_matrix = self.transform.matrix();
                     self.dirty = false;
                 }
-                new_origin.iter().for_each(|t| self.origin = **t);
+                new_origin.into_iter().for_each(|t| self.origin = t);
                 self.matrix = self.origin * self.transform_matrix;
 //            })
         }

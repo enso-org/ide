@@ -226,7 +226,6 @@ impl NavigatorEvents {
             event.prevent_default();
             if let Some(data) = data.upgrade() {
                 if event.ctrl_key() {
-                    println!("tt");
                     let position   = data.mouse_position();
                     let zoom_speed = data.zoom_speed();
                     let movement   = Vector2::new(event.delta_x() as f32, event.delta_y() as f32);
