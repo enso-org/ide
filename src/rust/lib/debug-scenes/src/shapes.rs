@@ -291,6 +291,8 @@ fn init(world: &World) {
     world.add_child(&shape_system);
 
 
+
+
     let mut iter:i32 = 0;
     let mut time:i32 = 0;
     let mut was_rendered = false;

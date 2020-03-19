@@ -6,6 +6,7 @@ pub mod selection;
 use crate::prelude::*;
 
 use crate::display;
+use crate::display::object::traits::*;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::system::GlyphSystem;
 use crate::display::shape::text::text_field::content::TextFieldContent;

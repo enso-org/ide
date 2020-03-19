@@ -9,6 +9,7 @@ pub mod word_occurrence;
 use crate::prelude::*;
 
 use crate::display;
+use crate::display::object::traits::*;
 use crate::display::shape::text::text_field::content::location::TextLocationChange;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::cursor::Cursors;

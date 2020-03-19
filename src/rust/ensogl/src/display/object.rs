@@ -68,7 +68,7 @@ pub struct Callbacks {
     pub on_updated   : Option<Box<dyn Fn(&NodeData)>>,
     pub on_show      : Option<Box<dyn Fn()>>,
     pub on_hide      : Option<Box<dyn Fn()>>,
-    pub on_show_with : Option<Rc<dyn Fn(&mut NodeData, &Scene)>>,
+    pub on_show_with : Option<Rc<dyn Fn(&NodeData, &Scene)>>,
     pub on_hide_with : Option<Box<dyn Fn(&Scene)>>,
 }
 
@@ -94,7 +94,7 @@ impl Callbacks {
         self.on_hide = Some(Box::new(f))
     }
 
-    pub fn set_on_show_with<F:Fn(&mut NodeData, &Scene)+'static>(&mut self, f:F) {
+    pub fn set_on_show_with<F:Fn(&NodeData, &Scene)+'static>(&mut self, f:F) {
         if self.on_show_with.is_some() { panic!("The `on_show_with` callback was already set.") }
         self.on_show_with = Some(Rc::new(f))
     }
@@ -134,63 +134,77 @@ fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
 
 // === Definition ===
 
-shared! { Node
+#[derive(Clone,Shrinkwrap)]
+pub struct Node {
+    pub rc : Rc<NodeData>
+}
+
+impl CloneRef for Node {}
+
+impl Node {
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let rc = Rc::new(NodeData::new(logger));
+        Self {rc}
+    }
+}
+
 /// A hierarchical representation of object containing a position, a scale and a rotation.
+#[derive(Debug)]
 pub struct NodeData {
-    parent_bind      : Option<ParentBind>,
-    children         : OptVec<Node>,
+    parent_bind      : RefCell<Option<ParentBind>>,
+    children         : RefCell<OptVec<Node>>,
     removed_children : RemovedChildren,
     child_dirty      : ChildDirty,
     new_parent_dirty : NewParentDirty,
-    transform        : CachedTransform<Option<OnChange>>,
+    transform        : RefCell<CachedTransform<Option<OnChange>>>,
     event_dispatcher : DynEventDispatcher,
-    visible          : bool,
-    callbacks        : Callbacks,
+    visible          : Cell<bool>,
+    callbacks        : RefCell<Callbacks>,
     logger           : Logger,
 }
 
-impl {
+impl NodeData {
     pub fn new<L:Into<Logger>>(logger:L) -> Self {
         let logger           = logger.into();
         let parent_bind      = default();
         let children         = default();
         let event_dispatcher = default();
-        let transform        = CachedTransform :: new(logger.sub("transform")        , None);
+        let transform        = RefCell::new(CachedTransform :: new(logger.sub("transform")        , None));
         let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")      , None);
         let removed_children = RemovedChildren :: new(logger.sub("removed_children") , None);
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty") , ());
-        let visible          = true;
+        let visible          = Cell::new(true);
         let callbacks        = default();
         Self {logger,parent_bind,children,removed_children,event_dispatcher,transform,child_dirty
              ,new_parent_dirty,visible,callbacks}
     }
 
     pub fn is_visible(&self) -> bool {
-        self.visible
+        self.visible.get()
     }
 
     pub fn parent(&self) -> Option<Node> {
-        self.parent_bind.as_ref().map(|t| t.parent.clone_ref())
+        self.parent_bind.borrow().as_ref().map(|t| t.parent.clone())
     }
 
     pub fn is_orphan(&self) -> bool {
-        self.parent_bind.is_none()
+        self.parent_bind.borrow().is_none()
     }
 
     pub fn dispatch_event(&mut self, event:&DynEvent) {
         self.event_dispatcher.dispatch(event);
-        self.parent_bind.map_ref(|bind| bind.parent.dispatch_event(event));
+        self.parent_bind.borrow().map_ref(|bind| bind.parent.dispatch_event(event));
     }
 
     pub fn child_count(&self) -> usize {
-        self.children.len()
+        self.children.borrow().len()
     }
 
     /// Removes child by a given index. Does nothing if the index was incorrect. In general, it is a
     /// better idea to use `remove_child` instead. Storing and using index explicitly is error
     /// prone.
-    pub fn remove_child_by_index(&mut self, index:usize) {
-        self.children.remove(index).for_each(|child| {
+    pub fn remove_child_by_index(&self, index:usize) {
+        self.children.borrow_mut().remove(index).for_each(|child| {
             child.raw_unset_parent();
             self.child_dirty.unset(&index);
             self.removed_children.set(child);
@@ -198,20 +212,20 @@ impl {
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
-    pub fn update(&mut self) {
+    pub fn update(&self) {
         let origin0 = Matrix4::identity();
         self.update_origin(&None,&origin0,false)
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
-    pub fn update_with(&mut self, scene:&Scene) {
+    pub fn update_with(&self, scene:&Scene) {
         let origin0 = Matrix4::identity();
         self.update_origin(&Some(scene),&origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_origin(&mut self, scene:&Option<&Scene>, parent_origin:&Matrix4<f32>, force:bool) {
+    fn update_origin(&self, scene:&Option<&Scene>, parent_origin:&Matrix4<f32>, force:bool) {
         self.update_visibility(scene);
         let parent_changed = self.new_parent_dirty.check();
         let use_origin     = force || parent_changed;
@@ -221,14 +235,14 @@ impl {
             None    => "Update with old parent origin."
         };
         group!(self.logger, "{msg}", {
-            let origin_changed = self.transform.update(new_origin);
-            let origin         = &self.transform.matrix;
+            let origin_changed = self.transform.borrow_mut().update(new_origin);
+            let origin         = &self.transform.borrow().matrix;
             if origin_changed {
                 self.logger.info("Self origin changed.");
-                if let Some(f) = &self.callbacks.on_updated { f(self) }
-                if !self.children.is_empty() {
+                if let Some(f) = &self.callbacks.borrow().on_updated { f(self) }
+                if !self.children.borrow().is_empty() {
                     group!(self.logger, "Updating all children.", {
-                        self.children.iter().for_each(|child| {
+                        self.children.borrow().iter().for_each(|child| {
                             child.update_origin(scene,origin,true);
                         });
                     })
@@ -238,7 +252,7 @@ impl {
                 if self.child_dirty.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.child_dirty.take().iter().for_each(|ix| {
-                            self.children[*ix].update_origin(scene,origin,false)
+                            self.children.borrow()[*ix].update_origin(scene,origin,false)
                         });
                     })
                 }
@@ -249,7 +263,7 @@ impl {
     }
 
     /// Internal
-    fn update_visibility(&mut self, scene:&Option<&Scene>) {
+    fn update_visibility(&self, scene:&Option<&Scene>) {
         if self.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.removed_children.take().into_iter().for_each(|child| {
@@ -276,22 +290,22 @@ impl {
 
     /// Hide this node and all of its children. This function is called automatically when updating
     /// a node with a disconnected parent.
-    pub fn hide(&mut self) {
-        if self.visible {
+    pub fn hide(&self) {
+        if self.visible.get() {
             self.logger.info("Hiding.");
-            self.visible = false;
-            if let Some(f) = &self.callbacks.on_hide { f() }
-            self.children.iter().for_each(|child| {
+            self.visible.set(false);
+            if let Some(f) = &self.callbacks.borrow().on_hide { f() }
+            self.children.borrow().iter().for_each(|child| {
                 child.hide();
             });
         }
     }
 
-    pub fn hide_with(&mut self, scene:&Scene) {
+    pub fn hide_with(&self, scene:&Scene) {
 //        if self.visible {
             self.logger.info("Hiding.");
-            if let Some(f) = &self.callbacks.on_hide_with { f(scene) }
-            self.children.iter().for_each(|child| {
+            if let Some(f) = &self.callbacks.borrow().on_hide_with { f(scene) }
+            self.children.borrow().iter().for_each(|child| {
                 child.hide_with(scene);
             });
 //        }
@@ -299,23 +313,23 @@ impl {
 
     /// Show this node and all of its children. This function is called automatically when updating
     /// a node with a newly attached parent.
-    pub fn show(&mut self) {
-        if !self.visible {
+    pub fn show(&self) {
+        if !self.visible.get() {
             self.logger.info("Showing.");
-            self.visible = true;
-            if let Some(f) = &self.callbacks.on_show { f() }
-            self.children.iter().for_each(|child| {
+            self.visible.set(true);
+            if let Some(f) = &self.callbacks.borrow().on_show { f() }
+            self.children.borrow().iter().for_each(|child| {
                 child.show();
             });
         }
     }
 
-    pub fn show_with(&mut self, scene:&Scene) {
+    pub fn show_with(&self, scene:&Scene) {
 //        if !self.visible {
             self.logger.info("Showing.");
-            let cb = self.callbacks.on_show_with.clone();
+            let cb = self.callbacks.borrow().on_show_with.clone();
             if let Some(f) = cb { f(self,scene) }
-            self.children.iter().for_each(|child| {
+            self.children.borrow().iter().for_each(|child| {
                 child.show_with(scene);
             });
 //        }
@@ -326,65 +340,65 @@ impl {
     /// object.
     // TODO[ao] Instead if this, the Node should keep weak references to its children (at least in
     // "removed" list) and do not extend their lifetime.
-    pub fn clear_callbacks(&mut self) {
-        self.callbacks.on_updated   = default();
-        self.callbacks.on_show      = default();
-        self.callbacks.on_hide      = default();
-        self.callbacks.on_show_with = default();
-        self.callbacks.on_hide_with = default();
+    pub fn clear_callbacks(&self) {
+        self.callbacks.borrow_mut().on_updated   = default();
+        self.callbacks.borrow_mut().on_show      = default();
+        self.callbacks.borrow_mut().on_hide      = default();
+        self.callbacks.borrow_mut().on_show_with = default();
+        self.callbacks.borrow_mut().on_hide_with = default();
     }
 }
 
 
 // === Private API ===
 
-impl {
-    pub fn register_child<T:Object>(&mut self, child:&T) -> usize {
+impl NodeData {
+    pub fn register_child<T:Object>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
-        let index = self.children.insert(child);
+        let index = self.children.borrow_mut().insert(child);
         self.child_dirty.set(index);
         index
     }
 
     /// Removes and returns the parent bind. Please note that the parent is not updated.
-    pub fn take_parent_bind(&mut self) -> Option<ParentBind> {
-        self.parent_bind.take()
+    pub fn take_parent_bind(&self) -> Option<ParentBind> {
+        self.parent_bind.borrow_mut().take()
     }
 
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
-    pub fn raw_unset_parent(&mut self) {
+    pub fn raw_unset_parent(&self) {
         self.logger.info("Removing parent bind.");
-        self.transform.dirty.set_callback(None);
+        self.transform.borrow().dirty.set_callback(None);
         self.child_dirty.set_callback(None);
         self.removed_children.set_callback(None);
         self.new_parent_dirty.set();
     }
 
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
-    pub fn set_parent_bind(&mut self, bind:ParentBind) {
+    pub fn set_parent_bind(&self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
-        let dirty  = bind.parent.rc.borrow().child_dirty.clone_ref();
+        let dirty  = bind.parent.child_dirty.clone_ref();
         let index  = bind.index;
         let on_mut = move || {dirty.set(index)};
-        self.transform.dirty.set_callback(Some(Box::new(on_mut.clone())));
+        self.transform.borrow().dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
-        self.parent_bind = Some(bind);
+        *self.parent_bind.borrow_mut() = Some(bind);
     }
 
-    pub fn set_parent_bind2(&mut self, bind:ParentBind, dirty:ChildDirty) {
+    pub fn set_parent_bind2(&self, bind:ParentBind, dirty:ChildDirty) {
         self.logger.info("Adding new parent bind.");
         let index  = bind.index;
         let on_mut = move || {dirty.set(index)};
-        self.transform.dirty.set_callback(Some(Box::new(on_mut.clone())));
+        self.transform.borrow().dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
-        self.parent_bind = Some(bind);
+        *self.parent_bind.borrow_mut() = Some(bind);
     }
 
-    pub fn add_child_tmp<T:Object>(&mut self, this:&Node, child:&T) {
+    pub fn add_child_tmp<T:Object>(&self, this:&Node, child:&T) {
         self.logger.info("Adding new child.");
         let child = child.display_object();
         child.unset_parent();
@@ -397,80 +411,80 @@ impl {
 
 // === Getters ===
 
-impl {
+impl NodeData {
     /// Gets a clone of parent bind.
     pub fn parent_bind(&self) -> Option<ParentBind> {
-        self.parent_bind.clone()
+        self.parent_bind.borrow().clone()
     }
 
     pub fn global_position(&self) -> Vector3<f32> {
-        self.transform.global_position()
+        self.transform.borrow().global_position()
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.transform.position()
+        self.transform.borrow().position()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.transform.scale()
+        self.transform.borrow().scale()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.transform.rotation()
+        self.transform.borrow().rotation()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.transform.matrix()
+        self.transform.borrow().matrix()
     }
 }
 
 // === Setters ===
 
-impl {
-    pub fn set_position(&mut self, t:Vector3<f32>) {
-        self.transform.set_position(t);
+impl NodeData {
+    pub fn set_position(&self, t:Vector3<f32>) {
+        self.transform.borrow_mut().set_position(t);
     }
 
-    pub fn set_scale(&mut self, t:Vector3<f32>) {
-        self.transform.set_scale(t);
+    pub fn set_scale(&self, t:Vector3<f32>) {
+        self.transform.borrow_mut().set_scale(t);
     }
 
-    pub fn set_rotation(&mut self, t:Vector3<f32>) {
-        self.transform.set_rotation(t);
+    pub fn set_rotation(&self, t:Vector3<f32>) {
+        self.transform.borrow_mut().set_rotation(t);
     }
 
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_position(f)
+    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.transform.borrow_mut().mod_position(f)
     }
 
-    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_rotation(f)
+    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.transform.borrow_mut().mod_rotation(f)
     }
 
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        self.transform.mod_scale(f)
+    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.transform.borrow_mut().mod_scale(f)
     }
 
-    pub fn set_on_updated<F:Fn(&NodeData)+'static>(&mut self, f:F) {
-        self.callbacks.set_on_updated(f)
+    pub fn set_on_updated<F:Fn(&NodeData)+'static>(&self, f:F) {
+        self.callbacks.borrow_mut().set_on_updated(f)
     }
 
-    pub fn set_on_show<F:Fn()+'static>(&mut self, f:F) {
-        self.callbacks.set_on_show(f)
+    pub fn set_on_show<F:Fn()+'static>(&self, f:F) {
+        self.callbacks.borrow_mut().set_on_show(f)
     }
 
-    pub fn set_on_hide<F:Fn()+'static>(&mut self, f:F) {
-        self.callbacks.set_on_hide(f)
+    pub fn set_on_hide<F:Fn()+'static>(&self, f:F) {
+        self.callbacks.borrow_mut().set_on_hide(f)
     }
 
-    pub fn set_on_show_with<F:Fn(&mut NodeData, &Scene)+'static>(&mut self, f:F) {
-        self.callbacks.set_on_show_with(f)
+    pub fn set_on_show_with<F:Fn(&NodeData, &Scene)+'static>(&self, f:F) {
+        self.callbacks.borrow_mut().set_on_show_with(f)
     }
 
-    pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&mut self, f:F) {
-        self.callbacks.set_on_hide_with(f)
+    pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&self, f:F) {
+        self.callbacks.borrow_mut().set_on_hide_with(f)
     }
-}}
+}
 
 impl Display for Node {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
@@ -494,22 +508,22 @@ impl Debug for Node {
 
 impl Node {
     pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
-        f(&self.rc.borrow().logger)
+        f(&self.rc.logger)
     }
 
     /// Adds a new `Object` as a child to the current one.
-    pub fn add_child<T:Object>(&self, child:&T) {
+    pub fn _add_child<T:Object>(&self, child:&T) {
         self.clone_ref().add_child_take(child);
     }
 
     /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
     /// the ownership of `self`.
     pub fn add_child_take<T:Object>(self, child:&T) {
-        self.rc.borrow().logger.info("Adding new child.");
+        self.rc.logger.info("Adding new child.");
         let child = child.display_object();
         child.unset_parent();
         let index = self.register_child(child);
-        self.rc.borrow().logger.info(|| format!("Child index is {}.", index));
+        self.rc.logger.info(|| format!("Child index is {}.", index));
         let parent_bind = ParentBind {parent:self,index};
         child.set_parent_bind(parent_bind);
     }
@@ -529,7 +543,7 @@ impl Node {
     }
 
     /// Removes the current parent binding.
-    pub fn unset_parent(&self) {
+    pub fn _unset_parent(&self) {
         self.take_parent_bind().for_each(|t| t.dispose());
     }
 
@@ -587,59 +601,59 @@ impl<T> Object for T where for<'t> &'t T:Into<&'t Node> {
 impl<T:Object> ObjectOps for T {}
 pub trait ObjectOps : Object {
     fn add_child<T:Object>(&self, child:&T) {
-        self.display_object().add_child(child.display_object());
+        self.display_object()._add_child(child.display_object());
     }
 
     fn unset_parent(&self) {
-        self.display_object().unset_parent();
+        self.display_object()._unset_parent();
     }
 
     fn dispatch_event(&self, event:&DynEvent) {
-        self.display_object().dispatch_event(event)
+//        self.display_object().rc.dispatch_event(event)
     }
 
     fn dispatch_event2(&self, event:&DynEvent) {
-        self.display_object().dispatch_event(event)
+//        self.display_object().rc.dispatch_event(event)
     }
 
     fn transform_matrix(&self) -> Matrix4<f32> {
-        self.display_object().matrix()
+        self.display_object().rc.matrix()
     }
 
     fn position(&self) -> Vector3<f32> {
-        self.display_object().position()
+        self.display_object().rc.position()
     }
 
     fn scale(&self) -> Vector3<f32> {
-        self.display_object().scale()
+        self.display_object().rc.scale()
     }
 
     fn rotation(&self) -> Vector3<f32> {
-        self.display_object().rotation()
+        self.display_object().rc.rotation()
     }
 
     fn set_position(&self, t:Vector3<f32>) {
-        self.display_object().set_position(t);
+        self.display_object().rc.set_position(t);
     }
 
     fn set_scale(&self, t:Vector3<f32>) {
-        self.display_object().set_scale(t);
+        self.display_object().rc.set_scale(t);
     }
 
     fn set_rotation(&self, t:Vector3<f32>) {
-        self.display_object().set_rotation(t);
+        self.display_object().rc.set_rotation(t);
     }
 
     fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object().mod_position(f)
+        self.display_object().rc.mod_position(f)
     }
 
     fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object().mod_rotation(f)
+        self.display_object().rc.mod_rotation(f)
     }
 
     fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object().mod_scale(f)
+        self.display_object().rc.mod_scale(f)
     }
 }
 

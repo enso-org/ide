@@ -4,6 +4,7 @@
 use crate::prelude::*;
 
 use crate::display;
+use crate::display::object::traits::*;
 use crate::system::web;
 use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;

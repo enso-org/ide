@@ -259,14 +259,14 @@ impl<OnChange:Function0> CachedTransform<OnChange> {
     }
 
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        f(self.position_mut())
+        f(self.position_mut());
     }
 
     pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        f(self.rotation_mut())
+        f(self.rotation_mut());
     }
 
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
-        f(self.scale_mut())
+        f(self.scale_mut());
     }
 }
