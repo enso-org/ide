@@ -15,12 +15,13 @@ use enso_prelude::std_reexports::fmt::{Formatter, Error};
 
 type EditCallback = Box<dyn Fn(&Node) + 'static>;
 
+// FIXME We should use real event registers here instead.
 #[derive(Default)]
 pub struct OnEditCallbacks {
-    pub label_changed    : Option<EditCallback>,
-    pub color_changed    : Option<EditCallback>,
-    pub position_changed : Option<EditCallback>,
-    pub removed          : Option<EditCallback>,
+    pub expression_changed : Option<EditCallback>,
+    pub color_changed      : Option<EditCallback>,
+    pub position_changed   : Option<EditCallback>,
+    pub removed            : Option<EditCallback>,
 }
 
 impl Debug for OnEditCallbacks {
@@ -31,8 +32,8 @@ impl Debug for OnEditCallbacks {
 
 #[derive(Debug,Default)]
 pub struct NodeData {
-    label        : String,
-    color        : Srgba,
+    expression : String,
+    color      : Srgba, // FIXME what is node color?
 }
 
 #[derive(Debug,Clone)]
@@ -41,6 +42,8 @@ pub struct Node {
     sprite         : Rc<CloneCell<Option<Sprite>>>,
     display_object : display::object::Node,
     data           : Rc<RefCell<NodeData>>,
+    // FIXME: Refcells should be as deep as possible. Each callback manager should have internal mut
+    // pattern. This way you can register callbacks while running other callbacks.
     callbacks      : Rc<RefCell<OnEditCallbacks>>,
 }
 
@@ -73,6 +76,8 @@ impl Node {
 
 
 impl Node {
+    // FIXME this is bad. It does not cover all position modifiers like `mod_position`. Should be
+    // done as transform callback instead.
     pub fn set_position(&self, pos:Vector3<f32>, change_type:ChangeType) {
         self.display_object.set_position(pos);
         if let ChangeType::FromGUI = change_type {
@@ -80,11 +85,15 @@ impl Node {
         }
     }
 
-    pub fn set_label(&self, new_label:String, change_type:ChangeType) {
-        self.data.borrow_mut().label = new_label;
+    // FIXME Remove the `change_type` parameter. It should not be part of the API. If we need a
+    // special way of handling thins, lets create separate functions like
+    // `set_expression_no_callback`. The basic API should be a generic graph API so this parameter
+    // should not be there.
+    pub fn set_expression(&self, new_expression:String, change_type:ChangeType) {
+        self.data.borrow_mut().expression = new_expression;
         //TODO[ao] update sprites
         if let ChangeType::FromGUI = change_type {
-            self.call_edit_callback(&self.callbacks.borrow().label_changed);
+            self.call_edit_callback(&self.callbacks.borrow().expression_changed);
         }
     }
 

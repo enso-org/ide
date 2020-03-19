@@ -16,6 +16,7 @@ use prelude::*;
 
 use ensogl::display;
 use ensogl::display::Sprite;
+use ensogl::display::traits::*;
 use logger::Logger;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
 
