@@ -16,6 +16,7 @@ use parser::api::SourceFile;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
+#[cfg(test)]
 use ast::IdMap;
 use ast::HasIdMap;
 use ast::known;
@@ -249,7 +250,7 @@ impl Handle {
 
 impl Controller {
     /// Update current ast in module controller and emit notification about overall invalidation.
-    fn update_ast(&mut self,ast:Ast) {
+    fn update_ast(&mut self, ast:Ast) {
         self.module.ast  = ast;
         let text_change  = notification::Text::Invalidate;
         let graph_change = notification::Graphs::Invalidate;

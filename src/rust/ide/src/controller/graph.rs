@@ -11,7 +11,7 @@ pub use crate::double_representation::graph::Id;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
-
+use crate::double_representation::definition::DefinitionInfo;
 
 
 // ==============
@@ -176,6 +176,12 @@ impl Handle {
             nodes.push(Node {info,metadata})
         }
         Ok(nodes)
+    }
+
+    pub fn update_definition_ast(&self, definition:DefinitionInfo) -> FallibleResult<()> {
+        let ast = definition.ast.ast();
+//        self.module.update_ast(ast);
+        Ok(())
     }
 
     /// Adds a new node to the graph and returns information about created node.

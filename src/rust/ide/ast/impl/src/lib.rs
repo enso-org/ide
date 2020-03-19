@@ -6,7 +6,6 @@
 
 #[warn(missing_docs)]
 pub mod assoc;
-#[warn(missing_docs)]
 pub mod crumbs;
 #[warn(missing_docs)]
 pub mod internal;

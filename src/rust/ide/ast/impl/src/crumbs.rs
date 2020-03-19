@@ -4,21 +4,23 @@ use crate::Ast;
 use crate::known;
 use crate::Shape;
 use utils::fail::FallibleResult;
-use crate::Shape::Mod;
 
 pub type Crumbs = Vec<Crumb>;
 
+#[derive(Clone,Copy,Debug)]
 pub enum Crumb {
     Block(BlockCrumb),
     Module(ModuleCrumb),
     Infix(InfixCrumb),
 }
 
+#[derive(Clone,Copy,Debug)]
 pub enum BlockCrumb {
     HeadLine,
     TailLine {tail_index:usize},
 }
 
+#[derive(Clone,Copy,Debug)]
 pub struct ModuleCrumb {pub line_index:usize}
 
 #[derive(Clone,Copy,Debug)]
@@ -26,6 +28,22 @@ pub enum InfixCrumb {
     LeftOperand,
     Operator,
     RightOperand,
+}
+
+impl From<BlockCrumb> for Crumb {
+    fn from(crumb: BlockCrumb) -> Self {
+        Crumb::Block(crumb)
+    }
+}
+impl From<ModuleCrumb> for Crumb {
+    fn from(crumb: ModuleCrumb) -> Self {
+        Crumb::Module(crumb)
+    }
+}
+impl From<InfixCrumb> for Crumb {
+    fn from(crumb: InfixCrumb) -> Self {
+        Crumb::Infix(crumb)
+    }
 }
 
 #[derive(Debug,Display,Fail,Clone,Copy)]
@@ -46,7 +64,7 @@ fn indices<T>(slice:&[T]) -> impl Iterator<Item = usize> {
 
 
 pub trait Crumbable {
-    type Crumb;
+    type Crumb : Into<Crumb>;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast>;
 
@@ -198,7 +216,7 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
     }
 }
 
-fn set_traversing(ast:&Ast, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {
+pub fn set_traversing(ast:&Ast, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {
     if let Some(first_crumb) = crumbs.first() {
         let child = ast.get(first_crumb)?;
         let updated_child = set_traversing(child, &crumbs[1..], new_ast)?;
@@ -208,7 +226,7 @@ fn set_traversing(ast:&Ast, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast>
     }
 }
 
-fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
+pub fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
     if let Some(first_crumb) = crumbs.first() {
         let child = ast.get(first_crumb)?;
         get_traversing(child, &crumbs[1..])
@@ -217,6 +235,7 @@ fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::HasRepr;

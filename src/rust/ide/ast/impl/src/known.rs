@@ -38,6 +38,7 @@ impl<T> KnownAst<T> {
         }
     }
 
+    /// Returns a reference to the stored `Ast` with `Shape` of `T`.
     pub fn ast(&self) -> &Ast { &self.ast }
 }
 

@@ -58,9 +58,9 @@ pub fn traverse_for_definition
     let err            = || CannotFindDefinition(id.clone());
     let mut crumb_iter = id.crumbs.iter();
     let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut definition = ast.find_definition(first_crumb).ok_or_else(err)?;
+    let mut definition = ast.def_iter().find_definition(first_crumb).ok_or_else(err)?.item;
     for crumb in crumb_iter {
-        definition = definition.find_definition(crumb).ok_or_else(err)?;
+        definition = definition.def_iter().find_definition(crumb).ok_or_else(err)?.item;
     }
     Ok(definition)
 }
@@ -143,8 +143,8 @@ mod tests {
     fn main_graph(parser:&mut impl IsParser, program:impl Str) -> GraphInfo {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
-        let main   = module.find_definition(&name).unwrap();
-        GraphInfo::from_definition(main)
+        let main   = module.def_iter().find_definition(&name).unwrap();
+        GraphInfo::from_definition(main.item)
     }
 
     #[wasm_bindgen_test]

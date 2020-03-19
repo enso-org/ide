@@ -10,7 +10,7 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 use shapely::EmptyIterator;
-use crate::double_representation::graph::Crumb;
+
 
 
 // =================
@@ -175,137 +175,125 @@ impl DefinitionInfo {
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct DefinitionChild<T> {
+    /// Crumbs from containing parent.
+    pub crumbs : ast::crumbs::Crumbs,
+    /// The child item representation.
+    #[shrinkwrap(main_field)]
+    pub item   : T
+}
+
+impl<T> DefinitionChild<T> {
+    pub fn new(crumbs:ast::crumbs::Crumbs, item:T) -> DefinitionChild<T> {
+        DefinitionChild {crumbs,item}
+    }
+
+    pub fn map<U>(self, f:impl FnOnce(T) -> U) -> DefinitionChild<U> {
+        DefinitionChild::new(self.crumbs,f(self.item))
+    }
+}
+
+type ChildAst<'a> = DefinitionChild<&'a Ast>;
+
+type ChildDefinition = DefinitionChild<DefinitionInfo>;
+
+pub struct DefinitionIterator<'a> {
+    pub iterator   : Box<dyn Iterator<Item = ChildAst<'a>>+'a>,
+    pub scope_kind : ScopeKind
+}
+
+impl<'a> DefinitionIterator<'a> {
+    pub fn potential_definition_asts(self) -> impl Iterator<Item = ChildAst<'a>> {
+        self.iterator
+    }
+
+    pub fn child_definitions(self) -> impl Iterator<Item = ChildDefinition> + 'a {
+        let scope_kind = self.scope_kind;
+        self.iterator.flat_map(move |child_ast| {
+            let definition_opt = DefinitionInfo::from_line_ast(child_ast.item,scope_kind);
+            definition_opt.map(|def| ChildDefinition::new(child_ast.crumbs,def))
+        })
+    }
+
+    pub fn definitions(self) -> impl Iterator<Item = DefinitionInfo> + 'a {
+        self.child_definitions().map(|child_def| child_def.item)
+    }
+
+    pub fn find_definition(self, name:&DefinitionName) -> Option<ChildDefinition> {
+        self.child_definitions().find(|child_def| &child_def.item.name == name)
+    }
+
+    pub fn collect_definitions(self) -> Vec<DefinitionInfo> {
+        self.definitions().collect()
+    }
+}
+
 
 
 // ==========================
 // === DefinitionProvider ===
 // ==========================
 
-type ChildAst<'a> = (ast::crumbs::Crumbs,&'a Ast);
-
 /// An entity that contains lines that we want to interpret as definitions.
 pub trait DefinitionProvider {
-    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a>;
-
     /// What kind of scope this is.
     fn scope_kind() -> ScopeKind;
 
-    fn potential_definition_asts(&self) -> Vec<ChildAst> {
-        self.enumerate_asts().collect()
-    }
+    /// Iterator going over all line-like Ast's that can hold a child definition.
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a>;
 
-    fn all_definitions(&self) -> Vec<(ast::crumbs::Crumbs,DefinitionInfo)> {
-        self.potential_definition_asts().into_iter().flat_map(|(crumbs,ast)| {
-            let definition_opt = DefinitionInfo::from_line_ast(ast,Self::scope_kind());
-            definition_opt.map(|def| (crumbs,def))
-        }).collect()
+    /// Returns a scope iterator allowing browsing definition provided under this provider.
+    fn def_iter(&self) -> DefinitionIterator {
+        let iterator   = self.enumerate_asts();
+        let scope_kind = Self::scope_kind();
+        DefinitionIterator {iterator,scope_kind}
     }
-
-    /// Lists all the definitions in the entity.
-    fn list_definitions(&self) -> Vec<DefinitionInfo> {
-        self.all_definitions().into_iter().map(|(crumb,def)| def).collect()
-    }
-
-    fn definition_from_line(&self, ast:&Ast) -> Option<DefinitionInfo> {
-        DefinitionInfo::from_line_ast(ast, Self::scope_kind())
-    }
-
-    fn to_matching_definition(&self, ast:&Ast, name:&DefinitionName) -> Option<DefinitionInfo> {
-        let definition  = self.definition_from_line(ast);
-        definition.filter(|definition| &definition.name == name)
-    }
-
-    fn does_line_ast_match(&self, ast:&Ast, name:&DefinitionName) -> bool {
-        self.to_matching_definition(ast,name).is_some()
-    }
-
-    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
-        todo!();
-    }
-
-//    fn find_definition_crumb(&self, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)> {
-//        None
-//    }
-//
-//    fn find_definition(&self, name:&DefinitionName) -> Option<DefinitionInfo> {
-//        self.find_definition_crumb(name).map(|(_,def)| def)
-//    }
-//    fn crumb_of(&self, name:&DefinitionName) -> Option<ast::crumbs::Crumb> {
-//        self.find_definition_crumb(name).map(|(crumb,_)| crumb)
-//    }
 }
 
-fn locate_definition<T>(this:&T, name:&DefinitionName) -> Option<(ast::crumbs::Crumb,DefinitionInfo)>
-    where T: Crumbable<Crumb = ast::crumbs::Crumb> + DefinitionProvider {
-    this.enumerate().into_iter().find_map(|(crumb,ast)| {
-        this.to_matching_definition(ast,name).map(|definition| (crumb,definition))
-    })
+pub fn enumerate_direct_children<'a>(ast:&'a impl Crumbable) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
+    let iter = ast.enumerate().map(|(crumb,ast)| {
+        let crumbs = vec![crumb.into()];
+        ChildAst::new(crumbs,ast)
+    });
+    Box::new(iter)
 }
-
-fn list_definitions<T>(this:&T) -> Vec<(ast::crumbs::Crumb,DefinitionInfo)>
-    where T: Crumbable<Crumb = ast::crumbs::Crumb> + DefinitionProvider {
-    this.enumerate().into_iter().flat_map(|(crumb,ast)| {
-        this.definition_from_line(ast).map(|definition| (crumb,definition))
-    }).collect()
-}
-
 
 impl DefinitionProvider for known::Module {
     fn scope_kind() -> ScopeKind { ScopeKind::Root }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-        let iter = self.enumerate().map(|(crumb,ast)| {
-            (vec![crumb],ast)
-        });
-        Box::new(iter)
+        enumerate_direct_children(self.ast())
     }
-
-//    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
-//        let iter = self.lines.iter().enumerate().flat_map(|(line_index,line)| {
-//            let ast = line.elem.as_ref();
-//            ast.map(|ast| {
-//                let crumb = ast::crumbs::ModuleCrumb {line_index};
-//                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
-//                (crumbs,ast)
-//            })
-//        });
-//        Box::new(iter)
-//    }
-//
-//    fn potential_definition_asts(&self) -> Vec<(ast::crumbs::Crumbs,&Ast)> {
-//        self.lines.iter().enumerate().flat_map(|(line_index,line)| {
-//            let ast = line.elem.as_ref();
-//            ast.map(|ast| {
-//                let crumb = ast::crumbs::ModuleCrumb {line_index};
-//                let crumbs = vec![ast::crumbs::Crumb::Module(crumb)];
-//                (crumbs,ast)
-//            })
-//        }).collect()
-//    }
 }
 
 impl DefinitionProvider for known::Block {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
 
-
-    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
-        todo!()
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
+        enumerate_direct_children(self.ast())
     }
 }
 
 impl DefinitionProvider for DefinitionInfo {
     fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
 
-    fn enumerate_asts(&self) -> Box<dyn Iterator<Item = ChildAst>> {
-        todo!()
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
+        use ast::crumbs::Crumb;
+        use ast::crumbs::InfixCrumb;
+        match self.ast.rarg.shape() {
+            ast::Shape::Block(_) => {
+                let parent_crumb = Crumb::Infix(InfixCrumb::RightOperand);
+                let rarg = &self.ast.rarg;
+                let iter = rarg.enumerate().map(move |(crumb,ast)| {
+                    let crumbs = vec![parent_crumb,crumb.into()];
+                    ChildAst::new(crumbs,ast)
+                });
+                Box::new(iter)
+            }
+            _ => Box::new(std::iter::empty())
+        }
     }
-
-//    fn line_asts<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Ast> + 'a> {
-//        match self.ast.rarg.shape() {
-//            ast::Shape::Block(_) => self.ast.rarg.iter(),
-//            _                    => Box::new(EmptyIterator::new())
-//        }
-//    }
 }
 
 
@@ -319,7 +307,6 @@ mod tests {
     use super::*;
     use parser::api::IsParser;
     use utils::test::ExpectTuple;
-    use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -337,7 +324,7 @@ mod tests {
         iformat!("    {line}")
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn list_definition_test() {
         let mut parser = parser::Parser::new_or_panic();
 
@@ -364,12 +351,12 @@ mod tests {
         // === Program with defnitions in root ===
         let program     = definition_lines.join("\n");
         let module      = parser.parse_module(program.into(), default()).unwrap();
-        let definitions = module.list_definitions();
+        let definitions = module.def_iter().collect_definitions();
         assert_eq_strings(to_names(&definitions),expected_def_names_in_module);
 
         // Check that definition can be found and their body is properly described.
         let add_name = DefinitionName::new_plain("add");
-        let add      = module.find_definition(&add_name).expect("failed to find `add` function");
+        let add      = module.def_iter().find_definition(&add_name).expect("failed to find `add` function");
         let body     = known::Number::try_new(add.body()).expect("add body should be a Block");
         assert_eq!(body.int,"50");
 
@@ -377,11 +364,11 @@ mod tests {
         let indented_lines = definition_lines.iter().map(indented).collect_vec();
         let program        = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
         let module         = parser.parse_module(program,default()).unwrap();
-        let root_defs      = module.list_definitions();
+        let root_defs      = module.def_iter().collect_definitions();
         let (only_def,)    = root_defs.expect_tuple();
         assert_eq!(&only_def.name.to_string(),"some_func");
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
-        let nested_defs = body_block.list_definitions();
+        let nested_defs = body_block.def_iter().collect_definitions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 }
