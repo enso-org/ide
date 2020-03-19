@@ -44,6 +44,7 @@ pub use weak_table::traits::WeakElement;
 pub use weak_table::WeakValueHashMap;
 pub use weak_table;
 
+use std::cell::UnsafeCell;
 
 
 // ================
@@ -116,3 +117,40 @@ macro_rules! clone_boxed {
 
 /// Alias for `for<'t> &'t Self : Into<T>`.
 pub trait RefInto<T> = where for<'t> &'t Self : Into<T>;
+
+
+
+// =================
+// === CloneCell ===
+// =================
+
+#[derive(Debug)]
+pub struct CloneCell<T> {
+    data : UnsafeCell<T>
+}
+
+impl<T> CloneCell<T> {
+    pub fn new(elem:T) -> CloneCell<T> {
+        CloneCell { data:UnsafeCell::new(elem) }
+    }
+
+    pub fn get(&self) -> T where T:Clone {
+        unsafe {(*self.data.get()).clone()}
+    }
+
+    pub fn set(&self, elem:T) {
+        unsafe { *self.data.get() = elem; }
+    }
+}
+
+impl<T:Clone> Clone for CloneCell<T> {
+    fn clone(&self) -> Self {
+        Self::new(self.get())
+    }
+}
+
+impl<T:Default> Default for CloneCell<T> {
+    fn default() -> Self {
+        Self::new(default())
+    }
+}

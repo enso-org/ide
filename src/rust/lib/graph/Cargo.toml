@@ -1,0 +1,10 @@
+[package]
+name    = "graph"
+version = "0.1.0"
+authors = ["Enso Team <contact@luna-lang.org>"]
+edition = "2018"
+
+[dependencies]
+ensogl       = { version = "0.1.0" , path = "../../ensogl" }
+enso-prelude = { version = "0.1.0" , path = "../prelude"   }
+logger       = { version = "0.1.0" , path = "../logger"    }

@@ -24,43 +24,6 @@ use shapely::shared;
 use std::cell::UnsafeCell;
 
 
-// =================
-// === CloneCell ===
-// =================
-
-#[derive(Debug)]
-struct CloneCell<T> {
-    data : UnsafeCell<T>
-}
-
-impl<T> CloneCell<T> {
-    fn new(elem:T) -> CloneCell<T> {
-        CloneCell { data:UnsafeCell::new(elem) }
-    }
-
-    fn get(&self) -> T where T:Clone {
-        unsafe {(*self.data.get()).clone()}
-    }
-
-    fn set(&self, elem:T) {
-        unsafe { *self.data.get() = elem; }
-    }
-}
-
-impl<T:Clone> Clone for CloneCell<T> {
-    fn clone(&self) -> Self {
-        Self::new(self.get())
-    }
-}
-
-impl<T:Default> Default for CloneCell<T> {
-    fn default() -> Self {
-        Self::new(default())
-    }
-}
-
-
-
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -177,53 +140,8 @@ fn nodes3() -> AnyShape {
 }
 
 
-pub trait HasSprite {
-    fn set_sprite(&self, sprite:&Sprite);
-}
-
-#[derive(Debug,Clone)]
-pub struct Node {
-    logger         : Logger,
-    sprite         : Rc<CloneCell<Option<Sprite>>>,
-    display_object : display::object::Node,
-}
-
-impl Node {
-    pub fn new() -> Self {
-        let logger         = Logger::new("node");
-        let sprite : Rc<CloneCell<Option<Sprite>>>        = default();
-        let sprite2        = sprite.clone();
-        let display_object = display::object::Node::new(&logger);
-        let display_object2 = display_object.clone();
-        display_object.set_on_show_with(move |this,scene| {
-            let type_id      = TypeId::of::<Node>();
-            let shape_system = scene.lookup_shape(&type_id).unwrap();
-            let sprite       = shape_system.new_instance();
-            this.add_child_tmp(&display_object2,&sprite);
-            sprite.size().set(Vector2::new(200.0,200.0));
-            sprite2.set(Some(sprite));
-        });
-
-        display_object.set_on_hide_with(|scene| {
-            println!("set_on_hide_with");
-        });
-        Self {logger,sprite,display_object}
-    }
-}
-
-impl HasSprite for Node {
-    fn set_sprite(&self, sprite:&Sprite) {
-        self.sprite.set(Some(sprite.clone()))
-    }
-}
-
-impl<'t> From<&'t Node> for &'t display::object::Node {
-    fn from(node:&'t Node) -> Self {
-        &node.display_object
-    }
-}
-
 use std::any::TypeId;
+use graph::node::Node;
 //
 //#[derive(Debug,Default)]
 //pub struct ShapeScene {

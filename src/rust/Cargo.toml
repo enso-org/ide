@@ -19,6 +19,7 @@ members = [
     "lib/debug-scenes",
     "lib/eval-tt",
     "lib/frp",
+    "lib/graph",
     "lib/logger",
     "lib/macro-utils",
     "lib/optics",
