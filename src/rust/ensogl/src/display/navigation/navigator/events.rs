@@ -190,12 +190,12 @@ impl NavigatorEvents {
         let mouse_manager        = MouseManager::new(event_target);
         let pan_callback         = Box::new(pan_callback);
         let zoom_callback        = Box::new(zoom_callback);
-        let mouse_move           = None;
-        let mouse_up             = None;
-        let mouse_down           = None;
-        let wheel_zoom           = None;
-        let disable_context_menu = None;
-        let mouse_leave          = None;
+        let mouse_move           = default();
+        let mouse_up             = default();
+        let mouse_down           = default();
+        let wheel_zoom           = default();
+        let disable_context_menu = default();
+        let mouse_leave          = default();
         let data = NavigatorEventsData::new(pan_callback,zoom_callback,zoom_speed);
         let mut event_handler = Self {
             data,
@@ -226,10 +226,12 @@ impl NavigatorEvents {
             event.prevent_default();
             if let Some(data) = data.upgrade() {
                 if event.ctrl_key() {
+                    println!("tt");
                     let position   = data.mouse_position();
                     let zoom_speed = data.zoom_speed();
-                    let amount     = event.delta_y() as f32;
-                    let zoom_event = ZoomEvent::new(position, amount, zoom_speed);
+                    let movement   = Vector2::new(event.delta_x() as f32, event.delta_y() as f32);
+                    let amount     = movement_to_zoom(movement);
+                    let zoom_event = ZoomEvent::new(position,amount,zoom_speed);
                     data.on_zoom(zoom_event);
                 } else {
                     let x         =  event.delta_x() as f32;
@@ -253,7 +255,7 @@ impl NavigatorEvents {
                     },
                     button::SecondaryButton => {
                         let focus = Vector2::new(event.offset_x() as f32, event.offset_y() as f32);
-                        data.set_movement_type(Some(MovementType::Zoom { focus }))
+                        data.set_movement_type(Some(MovementType::Zoom{focus}))
                     },
                     _ => ()
                 }
@@ -296,8 +298,9 @@ impl NavigatorEvents {
                 if let Some(movement_type) = data.movement_type() {
                     match movement_type {
                         MovementType::Zoom { focus } => {
-                            let zoom_speed = data.zoom_speed();
-                            let zoom_event = ZoomEvent::new(focus,movement.y,zoom_speed);
+                            let zoom_speed  = data.zoom_speed();
+                            let zoom_amount = movement_to_zoom(movement);
+                            let zoom_event  = ZoomEvent::new(focus,zoom_amount,zoom_speed);
                             data.on_zoom(zoom_event);
                         },
                         MovementType::Pan => {
@@ -310,4 +313,10 @@ impl NavigatorEvents {
         });
         self.mouse_move = Some(listener);
     }
+}
+
+fn movement_to_zoom(v:Vector2<f32>) -> f32 {
+    let len  = v.magnitude();
+    let sign = if (v.x + v.y < 0.0) { -1.0 } else { 1.0 };
+    sign * len
 }

@@ -156,7 +156,7 @@ pub struct NodeData {
     removed_children : RemovedChildren,
     child_dirty      : ChildDirty,
     new_parent_dirty : NewParentDirty,
-    transform        : RefCell<CachedTransform<Option<OnChange>>>,
+    transform        : RefCell<CachedTransform>,
     event_dispatcher : DynEventDispatcher,
     visible          : Cell<bool>,
     callbacks        : RefCell<Callbacks>,
@@ -169,7 +169,7 @@ impl NodeData {
         let parent_bind      = default();
         let children         = default();
         let event_dispatcher = default();
-        let transform        = RefCell::new(CachedTransform :: new(logger.sub("transform")        , None));
+        let transform        = RefCell::new(CachedTransform::new());
         let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")      , None);
         let removed_children = RemovedChildren :: new(logger.sub("removed_children") , None);
         let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty") , ());
@@ -368,7 +368,6 @@ impl NodeData {
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
     pub fn raw_unset_parent(&self) {
         self.logger.info("Removing parent bind.");
-        self.transform.borrow().dirty.set_callback(None);
         self.child_dirty.set_callback(None);
         self.removed_children.set_callback(None);
         self.new_parent_dirty.set();
@@ -380,7 +379,6 @@ impl NodeData {
         let dirty  = bind.parent.child_dirty.clone_ref();
         let index  = bind.index;
         let on_mut = move || {dirty.set(index)};
-        self.transform.borrow().dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
@@ -391,7 +389,6 @@ impl NodeData {
         self.logger.info("Adding new parent bind.");
         let index  = bind.index;
         let on_mut = move || {dirty.set(index)};
-        self.transform.borrow().dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
         self.removed_children.set_callback(Some(Box::new(on_mut)));
         self.new_parent_dirty.set();
@@ -441,28 +438,36 @@ impl NodeData {
 // === Setters ===
 
 impl NodeData {
+    fn with_borrowed_transform<F,T>(&self, f:F) -> T
+    where F : FnOnce(&mut CachedTransform) -> T {
+        if let Some(bind) = &*self.parent_bind.borrow() {
+            bind.parent.child_dirty.set(bind.index);
+        }
+        f(&mut self.transform.borrow_mut())
+    }
+
     pub fn set_position(&self, t:Vector3<f32>) {
-        self.transform.borrow_mut().set_position(t);
+        self.with_borrowed_transform(|transform| transform.set_position(t));
     }
 
     pub fn set_scale(&self, t:Vector3<f32>) {
-        self.transform.borrow_mut().set_scale(t);
+        self.with_borrowed_transform(|transform| transform.set_scale(t));
     }
 
     pub fn set_rotation(&self, t:Vector3<f32>) {
-        self.transform.borrow_mut().set_rotation(t);
+        self.with_borrowed_transform(|transform| transform.set_rotation(t));
     }
 
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.transform.borrow_mut().mod_position(f)
+        self.with_borrowed_transform(|transform| transform.mod_position(f));
     }
 
     pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.transform.borrow_mut().mod_rotation(f)
+        self.with_borrowed_transform(|transform| transform.mod_rotation(f));
     }
 
     pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.transform.borrow_mut().mod_scale(f)
+        self.with_borrowed_transform(|transform| transform.mod_scale(f));
     }
 
     pub fn set_on_updated<F:Fn(&NodeData)+'static>(&self, f:F) {

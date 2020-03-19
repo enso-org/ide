@@ -50,7 +50,7 @@ pub struct Node {
 impl Node {
     pub fn new() -> Self {
         let logger = Logger::new("node");
-        let sprite : Rc<CloneCell<Option<Sprite>>>        = default();
+        let sprite : Rc<CloneCell<Option<Sprite>>> = default();
         let display_object = display::object::Node::new(&logger);
         display_object.set_on_show_with(enclose!((sprite,display_object) move |this,scene| {
             let type_id      = TypeId::of::<Node>();
