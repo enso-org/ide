@@ -4,66 +4,15 @@ use crate::prelude::*;
 
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionInfo;
-use crate::double_representation::definition::DefinitionName;
-use crate::double_representation::definition::DefinitionProvider;
+//use crate::double_representation::definition::DefinitionName;
+//use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node;
 
 use ast::Ast;
 use ast::known;
 
 
-
-// ================
-// === Graph Id ===
-// ================
-
-/// Crumb describes step that needs to be done when going from context (for graph being a module)
-/// to the target.
-// TODO [mwu]
-//  Currently we support only entering named definitions.
-pub type Crumb = DefinitionName;
-
-/// Identifies graph in the module.
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-pub struct Id {
-    /// Sequence of traverses from module root up to the identified graph.
-    pub crumbs : Vec<Crumb>,
-}
-
-impl Id {
-    /// Creates a new graph identifier consisting of a single crumb.
-    pub fn new_single_crumb(crumb:DefinitionName) -> Id {
-        let crumbs = vec![crumb];
-        Id {crumbs}
-    }
-}
-
-
-
-// ===============================
-// === Finding Graph In Module ===
-// ===============================
-
-#[derive(Fail,Clone,Debug)]
-#[fail(display="Definition ID was empty")]
-struct CannotFindDefinition(Id);
-
-#[derive(Fail,Clone,Debug)]
-#[fail(display="Definition ID was empty")]
-struct EmptyDefinitionId;
-
-/// Looks up graph in the module.
-pub fn traverse_for_definition
-(ast:ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
-    let err            = || CannotFindDefinition(id.clone());
-    let mut crumb_iter = id.crumbs.iter();
-    let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut definition = ast.def_iter().find_definition(first_crumb).ok_or_else(err)?.item;
-    for crumb in crumb_iter {
-        definition = definition.def_iter().find_definition(crumb).ok_or_else(err)?.item;
-    }
-    Ok(definition)
-}
+pub type Id = double_representation::definition::Id;
 
 
 

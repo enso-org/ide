@@ -11,7 +11,6 @@ pub use crate::double_representation::graph::Id;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
-use crate::double_representation::definition::DefinitionInfo;
 
 
 // ==============
@@ -178,8 +177,10 @@ impl Handle {
         Ok(nodes)
     }
 
-    pub fn update_definition_ast(&self, definition:DefinitionInfo) -> FallibleResult<()> {
+    pub fn update_definition_ast
+    (&self, definition:double_representation::definition::DefinitionInfo) -> FallibleResult<()> {
         let ast = definition.ast.ast();
+//        self.module.update_ast()
 //        self.module.update_ast(ast);
         Ok(())
     }

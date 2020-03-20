@@ -9,7 +9,91 @@ use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
-use shapely::EmptyIterator;
+
+
+
+// =====================
+// === Definition Id ===
+// =====================
+
+/// Crumb describes step that needs to be done when going from context (for graph being a module)
+/// to the target.
+// TODO [mwu]
+//  Currently we support only entering named definitions.
+pub type Crumb = DefinitionName;
+
+/// Identifies graph in the module.
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+pub struct Id {
+    /// Sequence of traverses from module root up to the identified graph.
+    pub crumbs : Vec<Crumb>,
+}
+
+impl Id {
+    /// Creates a new graph identifier consisting of a single crumb.
+    pub fn new_single_crumb(crumb:DefinitionName) -> Id {
+        let crumbs = vec![crumb];
+        Id {crumbs}
+    }
+
+    /// Creates a new identifier with a single plain name.
+    pub fn new_plain_name(name:impl Str) -> Id {
+        Self::new_plain_names(std::iter::once(name.into()))
+    }
+
+    /// Creates a new identifier from a sequence of plain definition names.
+    pub fn new_plain_names<S>(names:impl IntoIterator<Item = S>) -> Id
+    where S:ToString {
+        let crumbs = names.into_iter().map(|name| {
+            DefinitionName::new_plain(name.to_string())
+        }).collect_vec();
+        Id {crumbs}
+    }
+}
+
+
+// ===============================
+// === Finding Graph In Module ===
+// ===============================
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display="Definition ID was empty")]
+struct CannotFindDefinition(Id);
+
+#[derive(Fail,Clone,Debug)]
+#[fail(display="Definition ID was empty")]
+struct EmptyDefinitionId;
+
+
+
+// =====================
+// === Id Resolution ===
+// =====================
+
+/// Looks up graph in the module.
+pub fn traverse_for_definition
+(ast:ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
+    let err            = || CannotFindDefinition(id.clone());
+    let mut crumb_iter = id.crumbs.iter();
+    let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
+    let mut definition = ast.def_iter().find_definition(first_crumb).ok_or_else(err)?.item;
+    for crumb in crumb_iter {
+        definition = definition.def_iter().find_definition(crumb).ok_or_else(err)?.item;
+    }
+    Ok(definition)
+}
+
+pub fn locate_definition(ast:ast::known::Module, id:&Id) -> FallibleResult<ast::crumbs::Crumbs> {
+    let err     = || CannotFindDefinition(id.clone());
+    let mut ret = ast::crumbs::Crumbs::new();
+    let mut provider : Box<dyn DefinitionProvider> = Box::new(ast);
+    for id_piece in id.crumbs.iter() {
+        let child = provider.def_iter().find_definition(&id_piece).ok_or_else(err)?;
+        ret.extend(child.crumbs);
+        provider = Box::new(child.item);
+    }
+    Ok(ret)
+}
 
 
 
@@ -198,6 +282,7 @@ type ChildAst<'a> = DefinitionChild<&'a Ast>;
 
 type ChildDefinition = DefinitionChild<DefinitionInfo>;
 
+#[allow(missing_debug_implementations)]
 pub struct DefinitionIterator<'a> {
     pub iterator   : Box<dyn Iterator<Item = ChildAst<'a>>+'a>,
     pub scope_kind : ScopeKind
@@ -238,7 +323,7 @@ impl<'a> DefinitionIterator<'a> {
 /// An entity that contains lines that we want to interpret as definitions.
 pub trait DefinitionProvider {
     /// What kind of scope this is.
-    fn scope_kind() -> ScopeKind;
+    fn scope_kind(&self) -> ScopeKind;
 
     /// Iterator going over all line-like Ast's that can hold a child definition.
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a>;
@@ -246,7 +331,7 @@ pub trait DefinitionProvider {
     /// Returns a scope iterator allowing browsing definition provided under this provider.
     fn def_iter(&self) -> DefinitionIterator {
         let iterator   = self.enumerate_asts();
-        let scope_kind = Self::scope_kind();
+        let scope_kind = self.scope_kind();
         DefinitionIterator {iterator,scope_kind}
     }
 }
@@ -260,7 +345,7 @@ pub fn enumerate_direct_children<'a>(ast:&'a impl Crumbable) -> Box<dyn Iterator
 }
 
 impl DefinitionProvider for known::Module {
-    fn scope_kind() -> ScopeKind { ScopeKind::Root }
+    fn scope_kind(&self) -> ScopeKind { ScopeKind::Root }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
         enumerate_direct_children(self.ast())
@@ -268,7 +353,7 @@ impl DefinitionProvider for known::Module {
 }
 
 impl DefinitionProvider for known::Block {
-    fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
+    fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
         enumerate_direct_children(self.ast())
@@ -276,7 +361,7 @@ impl DefinitionProvider for known::Block {
 }
 
 impl DefinitionProvider for DefinitionInfo {
-    fn scope_kind() -> ScopeKind { ScopeKind::NonRoot }
+    fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
         use ast::crumbs::Crumb;
@@ -307,6 +392,7 @@ mod tests {
     use super::*;
     use parser::api::IsParser;
     use utils::test::ExpectTuple;
+    use ast::crumbs::ModuleCrumb;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -348,9 +434,9 @@ mod tests {
         // In definition there are no extension methods nor arg-less definitions.
         let expected_def_names_in_def = vec!["add", "*"];
 
-        // === Program with defnitions in root ===
+        // === Program with definitions in root ===
         let program     = definition_lines.join("\n");
-        let module      = parser.parse_module(program.into(), default()).unwrap();
+        let module      = parser.parse_module(program, default()).unwrap();
         let definitions = module.def_iter().collect_definitions();
         assert_eq_strings(to_names(&definitions),expected_def_names_in_module);
 
@@ -370,5 +456,46 @@ mod tests {
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
         let nested_defs = body_block.def_iter().collect_definitions();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
+    }
+
+    #[test]
+    fn finding_root_definition() {
+        let program_to_expected_main_pos = vec![
+            ("main = bar",              0),
+            ("\nmain = bar",            1),
+            ("\n\nmain = bar",          2),
+            ("foo = bar\nmain = bar",   1),
+            ("foo = bar\n\nmain = bar", 2),
+        ];
+
+        let mut parser  = parser::Parser::new_or_panic();
+        let main_id = Id::new_plain_name("main");
+        for (program,expected_line_index) in program_to_expected_main_pos {
+            let module = parser.parse_module(program,default()).unwrap();
+            let location = locate_definition(module,&main_id).unwrap();
+            let (crumb,) = location.expect_tuple();
+            match crumb {
+                ast::crumbs::Crumb::Module(m) => assert_eq!(m.line_index, expected_line_index),
+                _                             => panic!("Expected module crumb, got: {:?}.", crumb)
+            }
+        }
+    }
+
+    #[test]
+    fn editing_nested_definition() {
+        let program = r"
+main =
+    foo = 2
+    bar = 3
+    add a b = a + b
+    baz arg =
+        subbaz arg = 4
+    add foo bar";
+
+        let module = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
+        let baz_id = Id::new_plain_names(&["main", "add"]);
+        let definition = traverse_for_definition(module,&baz_id).unwrap();
+        assert_eq!(definition.body().repr(), "subbaz arg = 4");
+
     }
 }

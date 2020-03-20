@@ -63,8 +63,8 @@ pub trait IsParser : Debug {
     fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
 
     /// Parse program into module.
-    fn parse_module(&mut self, program:String, ids:IdMap) -> Result<ast::known::Module> {
-        let ast = self.parse(program,ids)?;
+    fn parse_module(&mut self, program:impl Str, ids:IdMap) -> Result<ast::known::Module> {
+        let ast = self.parse(program.into(),ids)?;
         ast::known::Module::try_from(ast).map_err(|_| Error::NonModuleRoot)
     }
 

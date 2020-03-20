@@ -2,9 +2,9 @@ use parser::prelude::*;
 
 use parser::Parser;
 use parser::api::IsParser;
-use parser::test_utils::ParserTestExts;
+//use parser::test_utils::ParserTestExts;
 use ast::Ast;
-use ast::crumbs::Crumbable;
+//use ast::crumbs::Crumbable;
 use ast::HasRepr;
 
 #[test]

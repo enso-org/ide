@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::Ast;
+use crate::{Ast, HasRepr};
 use crate::known;
 use crate::Shape;
 use utils::fail::FallibleResult;
@@ -35,9 +35,19 @@ impl From<BlockCrumb> for Crumb {
         Crumb::Block(crumb)
     }
 }
+impl From<&BlockCrumb> for Crumb {
+    fn from(crumb: &BlockCrumb) -> Self {
+        Crumb::Block(crumb.clone())
+    }
+}
 impl From<ModuleCrumb> for Crumb {
     fn from(crumb: ModuleCrumb) -> Self {
         Crumb::Module(crumb)
+    }
+}
+impl From<&ModuleCrumb> for Crumb {
+    fn from(crumb: &ModuleCrumb) -> Self {
+        Crumb::Module(crumb.clone())
     }
 }
 impl From<InfixCrumb> for Crumb {
@@ -45,15 +55,33 @@ impl From<InfixCrumb> for Crumb {
         Crumb::Infix(crumb)
     }
 }
+impl From<&InfixCrumb> for Crumb {
+    fn from(crumb: &InfixCrumb) -> Self {
+        Crumb::Infix(crumb.clone())
+    }
+}
 
 #[derive(Debug,Display,Fail,Clone,Copy)]
-struct NotYetImplemented;
+pub struct NotYetImplemented;
 
 #[derive(Debug,Display,Fail,Clone,Copy)]
-struct LineIndexOutOfBounds;
+pub struct LineIndexOutOfBounds;
 
-#[derive(Debug,Display,Fail,Clone,Copy)]
-struct LineDoesNotContainAst;
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "The line designated by crumb {:?} does not contain any AST. Context AST was {}.",
+crumb,repr)]
+pub struct LineDoesNotContainAst {
+    repr  : String,
+    crumb : Crumb,
+}
+
+impl LineDoesNotContainAst {
+    pub fn new(repr:impl HasRepr, crumb:impl Into<Crumb>) -> LineDoesNotContainAst {
+        let repr = repr.repr();
+        let crumb = crumb.into();
+        LineDoesNotContainAst {repr,crumb}
+    }
+}
 
 #[derive(Debug,Display,Fail,Clone,Copy)]
 struct MismatchedCrumbType;
@@ -70,7 +98,7 @@ pub trait Crumbable {
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> where Self:Sized;
 
-    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>>;
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a>;
 
     fn enumerate<'a>(&'a self) -> Box<dyn Iterator<Item = (Self::Crumb,&'a Ast)> + 'a> {
         let indices = self.iter_subcrumbs();
@@ -117,7 +145,7 @@ impl Crumbable for crate::Module<Ast> {
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         let line = self.lines.get(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
-        line.elem.as_ref().ok_or(LineDoesNotContainAst.into())
+        line.elem.as_ref().ok_or(LineDoesNotContainAst::new(self,crumb).into())
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
@@ -127,10 +155,12 @@ impl Crumbable for crate::Module<Ast> {
         Ok(module)
     }
 
-    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
-        let indices = indices(&self.lines);
-        let iter    = indices.map(|line_index| ModuleCrumb {line_index});
-        Box::new(iter)
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        let indices = self.lines.iter().enumerate().flat_map(|(line_index,line)| {
+            let non_empty_line = line.elem.is_some();
+            non_empty_line.as_some_from(|| ModuleCrumb {line_index})
+        });
+        Box::new(indices)
     }
 }
 
@@ -142,7 +172,7 @@ impl Crumbable for crate::Block<Ast> {
             BlockCrumb::HeadLine => Ok(&self.first_line.elem),
             BlockCrumb::TailLine {tail_index} => {
                 let line = self.lines.get(*tail_index).ok_or(LineIndexOutOfBounds)?;
-                line.elem.as_ref().ok_or(LineDoesNotContainAst.into())
+                line.elem.as_ref().ok_or(LineDoesNotContainAst::new(self,crumb).into())
             }
         }
     }
@@ -188,7 +218,7 @@ impl Crumbable for Ast {
         }
     }
 
-    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
         match self.shape() {
             Shape::Block(shape)  => Box::new(shape.iter_subcrumbs().map(Crumb::Block)),
             Shape::Module(shape) => Box::new(shape.iter_subcrumbs().map(Crumb::Module)),
@@ -211,7 +241,7 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
         Ok(ret)
     }
 
-    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
         self.ast().iter_subcrumbs()
     }
 }
