@@ -159,8 +159,7 @@ impl GraphInfo {
         let off  = 0;
         lines.insert(index,BlockLine{elem,off});
 
-        self.source.set_block_lines(lines)?;
-        Ok(())
+        self.source.set_block_lines(lines)
     }
 
     /// Removes the node from graph.
@@ -171,14 +170,13 @@ impl GraphInfo {
             let removed_node = node.filter(|node| node.id() == node_id);
             removed_node.is_some()
         });
-        self.source.set_block_lines(lines);
-        Ok(())
+        self.source.set_block_lines(lines)
     }
 
     /// Sets expression of the given node.
     pub fn edit_node(&mut self, node_id:ast::ID, new_expression:Ast) -> FallibleResult<()> {
-        let mut lines      = self.source.block_lines()?;
-        let mut node_entry = lines.iter().enumerate().find_map(|(index,line)| {
+        let mut lines    = self.source.block_lines()?;
+        let node_entry   = lines.iter().enumerate().find_map(|(index,line)| {
             let node     = line.elem.as_ref().and_then(NodeInfo::from_line_ast);
             let filtered = node.filter(|node| node.id() == node_id);
             filtered.map(|node| (index,node))
@@ -187,8 +185,7 @@ impl GraphInfo {
             node.set_expression(new_expression);
             lines[index].elem = Some(node.ast().clone_ref());
         }
-        self.source.set_block_lines(lines);
-        Ok(())
+        self.source.set_block_lines(lines)
     }
 
     #[cfg(test)]
@@ -301,9 +298,9 @@ mod tests {
         let (line_ast0,id0) = create_node_ast(&mut parser, expr0);
         let (line_ast1,id1) = create_node_ast(&mut parser, expr1);
 
-        assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
+        graph.add_node(line_ast0, LocationHint::Start).unwrap();
         assert_eq!(graph.nodes().len(), 2);
-        assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
+        graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).unwrap();
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 3);
@@ -336,10 +333,10 @@ main =
         let (line_ast3,id3) = create_node_ast(&mut parser, "x / x");
         let (line_ast4,id4) = create_node_ast(&mut parser, "2 - 2");
 
-        assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
-        assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
-        assert!(graph.add_node(line_ast2, LocationHint::After(graph.nodes()[1].id())).is_ok());
-        assert!(graph.add_node(line_ast3, LocationHint::End).is_ok());
+        graph.add_node(line_ast0, LocationHint::Start).unwrap();
+        graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).unwrap();
+        graph.add_node(line_ast2, LocationHint::After(graph.nodes()[1].id())).unwrap();
+        graph.add_node(line_ast3, LocationHint::End).unwrap();
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 6);
@@ -357,7 +354,7 @@ main =
         let mut graph = find_graph(&mut parser, program, "main.foo");
 
         assert_eq!(graph.nodes().len(), 1);
-        assert!(graph.add_node(line_ast4, LocationHint::Start).is_ok());
+        graph.add_node(line_ast4, LocationHint::Start).unwrap();
         assert_eq!(graph.nodes().len(), 2);
         assert_eq!(graph.nodes()[0].expression().repr(), "2 - 2");
         assert_eq!(graph.nodes()[0].id(), id4);
@@ -391,8 +388,17 @@ main =
     bar = 3 + 17
 ";
         let mut graph = main_graph(&mut parser, program);
-        let node_id = graph.nodes().iter().map(|node| node.id()).next();
-        graph.remove_node(node_id.unwrap()).unwrap();
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].expression().repr(), "2 + 2");
+        assert_eq!(nodes[1].expression().repr(), "3 + 17");
+
+        graph.remove_node(nodes[0].id()).unwrap();
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].expression().repr(), "3 + 17");
 
         let expected_code = r"main =
     bar = 3 + 17
@@ -409,10 +415,20 @@ main =
     bar = 3 + 17
 ";
         let new_expression = parser.parse("print \"HELLO\"".to_string(), default()).unwrap();
+        let new_expression = expect_single_line(&new_expression).clone();
 
         let mut graph = main_graph(&mut parser, program);
-        let node_id = graph.nodes().iter().map(|node| node.id()).next();
-        graph.edit_node(node_id.unwrap(),new_expression);
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].expression().repr(), "2 + 2");
+        assert_eq!(nodes[1].expression().repr(), "3 + 17");
+
+        graph.edit_node(nodes[0].id(),new_expression).unwrap();
+
+        let nodes = graph.nodes();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].expression().repr(), "print \"HELLO\"");
+        assert_eq!(nodes[1].expression().repr(), "3 + 17");
 
         let expected_code = r#"main =
     foo = print "HELLO"

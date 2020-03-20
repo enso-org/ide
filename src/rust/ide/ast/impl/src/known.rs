@@ -46,6 +46,7 @@ impl<T> KnownAst<T> {
         KnownAst {ast,phantom:default()}
     }
 
+    /// Gets AST id.
     pub fn id(&self) -> Option<crate::ID> {
         self.ast.id
     }

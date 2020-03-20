@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use ast::{Ast, Shape};
+use ast::Ast;
 use ast::ID;
 use ast::known;
 
