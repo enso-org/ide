@@ -224,6 +224,16 @@ mod tests {
         GraphInfo::from_definition(main)
     }
 
+    fn find_graph(parser:&mut impl IsParser, program:impl Str, name:impl Str) -> GraphInfo {
+        let module     = parser.parse_module(program.into(), default()).unwrap();
+        let crumbs     = name.into().split(".").map(|name| {
+            DefinitionName::new_plain(name)
+        }).collect();
+        let id         = Id{crumbs};
+        let definition = traverse_for_definition(module,&id).unwrap();
+        GraphInfo::from_definition(definition)
+    }
+
     #[wasm_bindgen_test]
     fn detect_a_node() {
         let mut parser = parser::Parser::new_or_panic();
@@ -299,6 +309,7 @@ main =
         let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");
         let (line_ast2,id2) = create_node_ast(&mut parser, "x * x");
         let (line_ast3,id3) = create_node_ast(&mut parser, "x / x");
+        let (line_ast4,id4) = create_node_ast(&mut parser, "2 - 2");
 
         assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
         assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
@@ -317,6 +328,15 @@ main =
         assert_eq!(nodes[4].expression().repr(), "print \"hello\"");
         assert_eq!(nodes[5].expression().repr(), "x / x");
         assert_eq!(nodes[5].id(), id3);
+
+        let mut graph = find_graph(&mut parser, program, "main.foo");
+
+        assert_eq!(graph.nodes().len(), 1);
+        assert!(graph.add_node(line_ast4, LocationHint::Start).is_ok());
+        assert_eq!(graph.nodes().len(), 2);
+        assert_eq!(graph.nodes()[0].expression().repr(), "2 - 2");
+        assert_eq!(graph.nodes()[0].id(), id4);
+        assert_eq!(graph.nodes()[1].expression().repr(), "not_node");
     }
 
     #[wasm_bindgen_test]
