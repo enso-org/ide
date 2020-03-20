@@ -11,12 +11,14 @@ pub use crate::double_representation::graph::LocationHint;
 use crate::controller::module::NodeMetadata;
 use crate::double_representation::graph::GraphInfo;
 use crate::double_representation::definition;
+use crate::double_representation::node;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
 use parser::api::IsParser;
 use ast::HasRepr;
+
 
 
 // ==============
@@ -27,6 +29,16 @@ use ast::HasRepr;
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Node with Id {} was not found.", _0)]
 pub struct NodeNotFound(ast::Id);
+
+/// Error raised when an attempt to set node's expression to a binding has been made.
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Illegal string `{}` given for node expression. It must not be a binding.", _0)]
+pub struct BindingExpressionNotAllowed(String);
+
+/// Expression AST cannot be used to produce a node. Means a bug in parser and id-giving code.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Internal error: failed to create a new node.")]
+pub struct FailedToCreateNode;
 
 
 
@@ -181,18 +193,26 @@ impl Handle {
         })
     }
 
+    /// Parses given text as a node expression.
+    pub fn parse_node_expression
+    (&self, expression_text:impl Str) -> FallibleResult<ast::Ast> {
+        let mut parser    = self.module.parser();
+        let node_ast      = parser.parse_line(expression_text.as_ref())?;
+        if ast::opr::is_assignment(&node_ast) {
+            Err(BindingExpressionNotAllowed(expression_text.into()).into())
+        } else {
+            Ok(node_ast)
+        }
+    }
+
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-        let def = self.graph_definition_info()?;
-        println!("AST before: {}", def.ast.repr());
-
-        let mut parser = self.module.parser();
-        let node_ast   = parser.parse_line(&node.expression)?;
-        let node_info  = double_representation::node::NodeInfo::from_line_ast(&node_ast).unwrap(); // TODO
+        let node_ast  = self.parse_node_expression(&node.expression)?;
+        let node_info = node::NodeInfo::from_line_ast(&node_ast).ok_or(FailedToCreateNode)?;
 
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
-            graph.add_node(node_ast.clone(), node.location_hint);
+            graph.add_node(node_ast,node.location_hint)?;
             Ok(graph.source)
         })?;
 
@@ -202,7 +222,7 @@ impl Handle {
             })
         }
 
-        Ok(default())
+        Ok(node_info.id())
     }
 
     /// Removes the node with given Id.
@@ -214,6 +234,17 @@ impl Handle {
         })?;
 
         self.module().pop_node_metadata(id)?;
+        Ok(())
+    }
+
+    /// Sets the given's node expression.
+    pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
+        let new_expression_ast = self.parse_node_expression(expression_text)?;
+        self.update_definition_ast(|definition| {
+            let mut graph = GraphInfo::from_definition(definition);
+            graph.edit_node(id,new_expression_ast)?;
+            Ok(graph.source)
+        })?;
         Ok(())
     }
 
@@ -233,7 +264,7 @@ impl Handle {
         let     module = self.module();
         let mut data   = module.pop_node_metadata(id).unwrap_or_default();
         fun(&mut data);
-        module.set_node_metadata(id, data);
+        module.set_node_metadata(id,data);
     }
 }
 
@@ -255,6 +286,7 @@ mod tests {
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use ast::test_utils::expect_shape;
 
     struct GraphControllerFixture(TestWithLocalPoolExecutor);
     impl GraphControllerFixture {
@@ -352,9 +384,24 @@ main =
         })
     }
 
+    #[test]
+    fn graph_controller_parse_expression() {
+        let mut test  = GraphControllerFixture::set_up();
+        let program = r"main = 0";
+        test.run_graph_for_program(program, "main", |_,graph| async move {
+            let foo = graph.parse_node_expression("foo").unwrap();
+            assert_eq!(expect_shape::<ast::Var>(&foo), &ast::Var {name:"foo".into()});
+
+            assert!(graph.parse_node_expression("Vec").is_ok());
+            assert!(graph.parse_node_expression("5").is_ok());
+            assert!(graph.parse_node_expression("5+5").is_ok());
+            assert!(graph.parse_node_expression("a+5").is_ok());
+            assert!(graph.parse_node_expression("a=5").is_err());
+        })
+    }
 
     #[test]
-    fn graph_controller_add_node() {
+    fn graph_controller_node_operations_node() {
         let mut test  = GraphControllerFixture::set_up();
         let program = r"
 main =
@@ -371,7 +418,7 @@ main =
                 id            : None,
                 location_hint : LocationHint::End,
             };
-            graph.add_node(info);
+            graph.add_node(info).unwrap();
 
 //            let text = controller::text::Handle::new_for_module(module);
             let new_program = module.code();
@@ -380,6 +427,13 @@ main =
             let nodes = graph.nodes().unwrap();
             let (_,_,node3) = nodes.expect_tuple();
             assert_eq!(node3.info.expression().repr(), "a+b");
+
+            graph.remove_node(node3.info.id()).unwrap();
+
+            let nodes = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
         })
     }
 }

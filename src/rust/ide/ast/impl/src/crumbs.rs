@@ -97,16 +97,21 @@ fn indices<T>(slice:&[T]) -> impl Iterator<Item = usize> {
     (0 .. slice.len()).into_iter()
 }
 
-
+/// Any type that can be traversed using Crumb.
 pub trait Crumbable {
+    /// Specific `Crumb` type used by `Self`.
     type Crumb : Into<Crumb>;
 
+    /// Retrieves `Ast` under the crumb.
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast>;
 
+    /// Sets `Ast` under the crumb, returns updated entity.
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> where Self:Sized;
 
+    /// Iterates all valid crumbs available for `self`.
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a>;
 
+    /// Iterates pairs (crumb,child_ast) for `self`.
     fn enumerate<'a>(&'a self) -> Box<dyn Iterator<Item = (Self::Crumb,&'a Ast)> + 'a> {
         let indices = self.iter_subcrumbs();
         let iter = indices.map(move |crumb| {

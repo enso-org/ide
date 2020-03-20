@@ -51,6 +51,13 @@ impl<T> KnownAst<T> {
 
     /// Returns a reference to the stored `Ast` with `Shape` of `T`.
     pub fn ast(&self) -> &Ast { &self.ast }
+
+    /// Returns the AST's shape.
+    pub fn shape<E>(&self) -> &T
+    where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
+          E                      : Debug, {
+        self.deref()
+    }
 }
 
 impl<T:Into<Shape<Ast>>> KnownAst<T> {

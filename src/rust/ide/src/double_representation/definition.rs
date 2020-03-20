@@ -57,10 +57,12 @@ impl Id {
 // === Finding Graph In Module ===
 // ===============================
 
+#[allow(missing_docs)]
 #[derive(Fail,Clone,Debug)]
 #[fail(display="Cannot find definition child by id {:?}.",_0)]
 pub struct CannotFindChild(Crumb);
 
+#[allow(missing_docs)]
 #[derive(Copy,Fail,Clone,Debug)]
 #[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
 pub struct EmptyDefinitionId;

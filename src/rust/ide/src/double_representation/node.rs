@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use ast::Ast;
 use ast::Id;
+use ast::crumbs::Crumbable;
 use ast::known;
 
 
@@ -53,6 +54,20 @@ impl NodeInfo {
         self.expression().id.expect("Node AST must bear an ID")
     }
 
+    /// Updates the node's AST so the node bears the given ID.
+    pub fn set_id(&mut self, new_id:Id) {
+        match self {
+            NodeInfo::Binding{ref mut infix} => {
+                let new_rarg = infix.rarg.with_id(new_id);
+                let set      = infix.set(&ast::crumbs::InfixCrumb::RightOperand.into(),new_rarg);
+                set.expect("Internal error: setting infix operand should always succeed.");
+            }
+            NodeInfo::Expression{ref mut ast} => {
+                *ast = ast.with_id(new_id);
+            }
+        };
+    }
+
     /// AST of the node's expression.
     pub fn expression(&self) -> &Ast {
         match self {
@@ -61,16 +76,19 @@ impl NodeInfo {
         }
     }
 
-    /// Mutable AST of the node's expression.
+    /// Mutable AST of the node's expression. Maintains ID.
     pub fn set_expression(&mut self, expression:Ast) {
+        let id = self.id();
         match self {
             NodeInfo::Binding{ref mut infix} => {
                 let rarg = expression;
-                let old_infix = infix.deref().deref().clone();
+                let old_infix = infix.shape().clone();
                 *infix = known::Infix::new(ast::Infix {rarg,..old_infix}, infix.id());
             }
             NodeInfo::Expression{ref mut ast}   => { *ast = expression; },
         }
+        // Id might have been overwritten by the AST we have set. Now we restore it.
+        self.set_id(id);
     }
 
     /// The whole AST of node.
