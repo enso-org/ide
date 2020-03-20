@@ -323,6 +323,7 @@ mod test {
     use ast;
     use ast::BlockLine;
     use ast::Ast;
+    use ast::IdMap;
     use data::text::Span;
     use file_manager_client::Path;
     use json_rpc::test_util::transport::mock::MockTransport;
