@@ -128,17 +128,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-test-
 
+      - name: Cache cargo test registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-test-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo test index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-test-index-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
           override: true
-
-      - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack --version 0.8.1
 
       - name: Install Node
         uses: actions/setup-node@v1
