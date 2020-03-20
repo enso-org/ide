@@ -19,14 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: src/rust/target/debug/deps
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-target-
-        if: matrix.os == 'macos-latest'
+#      - name: Cache cargo build
+#        uses: actions/cache@v1
+#        with:
+#          path: src/rust/target/debug/deps
+#          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
+#          restore-keys: |
+#            ${{ runner.os }}-cargo-build-target-
+#        if: matrix.os == 'macos-latest'
 
 #      - name: Cache wasm build
 #        uses: actions/cache@v1
@@ -104,26 +104,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macOS-latest, ubuntu-latest]
+        os: macOS-latest
     steps:
       - uses: actions/checkout@v1
 
       - name: Cache cargo build
         uses: actions/cache@v1
         with:
-          path: src/rust/target/debug/deps
+          path: src/rust/target/debug
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-target-
-        if: matrix.os == 'macos-latest'
-
-#      - name: Cache wasm build
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target/wasm32-unknown-unknown/debug/deps
-#          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-cargo-build-target-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -152,19 +143,10 @@ jobs:
       - name: Cache cargo build
         uses: actions/cache@v1
         with:
-          path: src/rust/target/debug/deps
+          path: src/rust/target/debug
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-target-
-        if: matrix.os == 'macos-latest'
-
-#      - name: Cache wasm build
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target/wasm32-unknown-unknown/debug/deps
-#          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-cargo-build-target-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -193,21 +175,13 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: src/rust/target/debug/deps
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-target-
-
 #      - name: Cache wasm build
 #        uses: actions/cache@v1
 #        with:
-#          path: src/rust/target/wasm32-unknown-unknown/debug/deps
-#          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
+#          path: src/rust/target/wasm32-unknown-unknown/debug
+#          key: ${{ runner.os }}-wasm-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
 #          restore-keys: |
-#            ${{ runner.os }}-cargo-build-target-
+#            ${{ runner.os }}-wasm-build-target-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -271,6 +245,7 @@ jobs:
 
   build-fm:
     name: Build File Manager Server Mock
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
