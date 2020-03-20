@@ -9,11 +9,14 @@ use crate::prelude::*;
 pub use crate::double_representation::graph::Id;
 pub use crate::double_representation::graph::LocationHint;
 use crate::controller::module::NodeMetadata;
+use crate::double_representation::graph::GraphInfo;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
-
+use parser::api::IsParser;
+use ast::HasRepr;
+use crate::double_representation::node::NodeInfo;
 
 
 // ==============
@@ -173,8 +176,38 @@ impl Handle {
     }
 
     /// Adds a new node to the graph and returns information about created node.
-    pub fn add_node(&self, _node:NewNodeInfo) -> FallibleResult<Node> {
-        todo!()
+    pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
+        let def = self.graph_definition_info()?;
+        println!("AST before: {}", def.ast.repr());
+
+        let mut parser = self.module.parser();
+        let ast        = parser.parse_line(&node.expression)?;
+        let node_info  = NodeInfo::from_line_ast(&ast).unwrap(); // TODO
+
+        self.module.modify_ast(|ast_so_far : ast::known::Module| -> FallibleResult<ast::known::Module> {
+            use double_representation::definition::ChildDefinition;
+            use double_representation::definition::locate_definition;
+            let ChildDefinition {crumbs,item} = locate_definition(&ast_so_far,&self.id)?;
+            let mut graph = GraphInfo::from_definition(item);
+            graph.add_node(ast.clone(),node.location_hint);
+            let new_def_ast = graph.ast();
+            println!("AST after: {}", new_def_ast.repr());
+
+            println!("MODULE before: {}", ast_so_far.repr());
+            let new_module = ast::crumbs::set_traversing(&ast_so_far.into(),&crumbs,new_def_ast)?;
+            let new_module = ast::known::Module::try_from(new_module)?;
+
+            println!("MODULE after: {}", new_module.repr());
+            Ok(new_module)
+        })?;
+
+        if let Some(initial_metadata) = node.metadata {
+            self.with_node_metadata(node_info.id(),|metadata| {
+                *metadata = initial_metadata;
+            })
+        }
+
+        Ok(default())
     }
 
     /// Removes the node with given Id.
@@ -315,6 +348,37 @@ main =
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
+        })
+    }
+
+
+    #[test]
+    fn graph_controller_add_node() {
+        let mut test  = GraphControllerFixture::set_up();
+        let program = r"
+main =
+    foo = 2
+    print foo";
+        test.run_graph_for_program(program, "main", |module,graph| async move {
+            let nodes   = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+            let info = NewNodeInfo {
+                expression    : "a+b".into(),
+                metadata      : None,
+                id            : None,
+                location_hint : LocationHint::End,
+            };
+            graph.add_node(info);
+
+//            let text = controller::text::Handle::new_for_module(module);
+            let new_program = module.code();
+            println!("Final code: {}", new_program);
+
+            let nodes = graph.nodes().unwrap();
+            let (_,_,node3) = nodes.expect_tuple();
+            assert_eq!(node3.info.expression().repr(), "a+b");
         })
     }
 }

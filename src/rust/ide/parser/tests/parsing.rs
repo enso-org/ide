@@ -55,7 +55,7 @@ impl Fixture {
     fn test_shape<T,F>(&mut self, program:&str, tester:F)
     where for<'t> &'t Shape<Ast>: TryInto<&'t T>,
                       F         : FnOnce(&T) -> () {
-        let ast   = self.parser.parse_line(program);
+        let ast   = self.parser.parse_line(program).unwrap();
         let shape = expect_shape(&ast);
         tester(shape);
     }
@@ -352,7 +352,7 @@ impl Fixture {
             ];
 
         for macro_usage in macro_usages.iter() {
-            let ast = self.parser.parse_line(*macro_usage);
+            let ast = self.parser.parse_line(*macro_usage).unwrap();
             expect_shape::<Match<Ast>>(&ast);
         };
     }

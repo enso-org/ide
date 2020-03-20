@@ -53,7 +53,7 @@ pub enum LocationHint {
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
-    source:DefinitionInfo,
+    pub source:DefinitionInfo,
 }
 
 impl GraphInfo {
@@ -70,6 +70,11 @@ impl GraphInfo {
         } else {
             expression_node(body)
         }
+    }
+
+    /// Gets the AST of this graph definition.
+    pub fn ast(&self) -> Ast {
+        self.source.ast.clone().into()
     }
 
     /// Gets all known nodes in this graph (does not include special pseudo-nodes like graph

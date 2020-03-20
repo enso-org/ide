@@ -14,14 +14,6 @@ use ast::test_utils::validate_spans;
 
 /// Additional methods for parser to ease writing tests.
 pub trait ParserTestExts : IsParser {
-    /// Program is expected to be single line module. The line's AST is
-    /// returned. Panics otherwise.
-    fn parse_line(&mut self, program:impl Str) -> Ast {
-        let ast  = self.parse_testing(program);
-        let line = expect_single_line(&ast);
-        line.clone()
-    }
-
     /// Program is expected to be a module with a single non-emty line. Its AST
     /// is reinterpret as given `Shape`.
     fn parse_shape<T>(&mut self, program:impl Str) -> T

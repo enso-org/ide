@@ -322,9 +322,9 @@ impl<T> DefinitionChild<T> {
     }
 }
 
-type ChildAst<'a> = DefinitionChild<&'a Ast>;
+pub type ChildAst<'a> = DefinitionChild<&'a Ast>;
 
-type ChildDefinition = DefinitionChild<DefinitionInfo>;
+pub type ChildDefinition = DefinitionChild<DefinitionInfo>;
 
 #[allow(missing_debug_implementations)]
 pub struct DefinitionIterator<'a> {

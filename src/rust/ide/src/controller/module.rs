@@ -167,6 +167,11 @@ shared! { Handle
             Ok(())
         }
 
+        /// Obtain parser handle.
+        pub fn parser(&self) -> Parser {
+            self.parser.clone()
+        }
+
         /// Read module code.
         pub fn code(&self) -> String {
             self.module.ast.repr()
@@ -272,10 +277,10 @@ impl Handle {
 
     /// Updates the module's AST by passing it through a given function.
     pub fn modify_ast<AstUpdate>
-    (&mut self, ast_update:AstUpdate) -> FallibleResult<()>
-    where AstUpdate: FnOnce(known::Module) -> known::Module, {
+    (&self, ast_update:AstUpdate) -> FallibleResult<()>
+    where AstUpdate: FnOnce(known::Module) -> FallibleResult<known::Module>, {
         let module_so_far = known::Module::try_new(self.rc.borrow().module.ast.clone())?;
-        let new_module = ast_update(module_so_far);
+        let new_module = ast_update(module_so_far)?;
         self.with_borrowed(|data| data.update_ast(new_module.into()));
         Ok(())
     }
