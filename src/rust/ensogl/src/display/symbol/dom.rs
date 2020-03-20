@@ -71,7 +71,7 @@ pub struct Guard {
 impl Guard {
     /// Constructor.
     pub fn new(display_object:&display::object::Node, dom:&HtmlDivElement) -> Self {
-        let display_object = display_object.clone();
+        let display_object = display_object.clone2();
         let dom            = dom.clone();
         Self {display_object,dom}
     }
@@ -137,11 +137,11 @@ impl DomSymbol {
     }
 }
 
-impl From<&DomSymbol> for display::object::Node {
-    fn from(obj:&DomSymbol) -> Self {
-        obj.display_object.clone_ref()
-    }
-}
+//impl From<&DomSymbol> for display::object::Node {
+//    fn from(obj:&DomSymbol) -> Self {
+//        obj.display_object.clone_ref()
+//    }
+//}
 
 impl<'t> From<&'t DomSymbol> for &'t display::object::Node {
     fn from(obj:&'t DomSymbol) -> Self {

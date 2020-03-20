@@ -234,11 +234,11 @@ impl GlyphSystem {
     }
 }
 
-impl From<&GlyphSystem> for display::object::Node {
-    fn from(glyph_system: &GlyphSystem) -> Self {
-        (&glyph_system.sprite_system).display_object().clone()
-    }
-}
+//impl From<&GlyphSystem> for display::object::Node {
+//    fn from(glyph_system: &GlyphSystem) -> Self {
+//        (&glyph_system.sprite_system).display_object().clone()
+//    }
+//}
 
 impl<'t> From<&'t GlyphSystem> for &'t display::object::Node {
     fn from(glyph_system:&'t GlyphSystem) -> Self {

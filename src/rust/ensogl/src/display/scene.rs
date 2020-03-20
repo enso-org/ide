@@ -482,18 +482,18 @@ impl Scene {
     }
 }
 
-impl Into<display::object::Node> for &SceneData {
-    fn into(self) -> display::object::Node {
-        self.display_object.clone()
-    }
-}
-
-impl Into<display::object::Node> for &Scene {
-    fn into(self) -> display::object::Node {
-        let data:&SceneData = &self.rc.borrow();
-        data.into()
-    }
-}
+//impl Into<display::object::Node> for &SceneData {
+//    fn into(self) -> display::object::Node {
+//        self.display_object.clone()
+//    }
+//}
+//
+//impl Into<display::object::Node> for &Scene {
+//    fn into(self) -> display::object::Node {
+//        let data:&SceneData = &self.rc.borrow();
+//        data.into()
+//    }
+//}
 
 
 // === Types ===

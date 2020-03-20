@@ -142,7 +142,7 @@ impl Camera2dData {
         let view_projection_matrix = Matrix4::identity();
         let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
         let transform_dirty        = TransformDirty::new(logger.sub("transform_dirty"),());
-        let transform              = transform.clone();
+        let transform              = transform.clone2();
         let zoom_update_registry   = default();
         let screen_update_registry = default();
         transform.set_on_updated(enclose!((transform_dirty) move |_| transform_dirty.set() ));
@@ -314,10 +314,18 @@ impl Camera2dData {
 ///   in the center of the view will not move visually. If you set the alignment to bottom-left
 ///   corner, you will get a view which behaves like a window in window-based GUIs. When scaling
 ///   the window, the left-bottom corner will stay in place.
-#[derive(Clone,Debug)]
+#[derive(Debug)] // Clone
 pub struct Camera2d {
     display_object : display::object::Node,
     data           : Rc<RefCell<Camera2dData>>,
+}
+
+impl Clone for Camera2d {
+    fn clone(&self) -> Self {
+        let display_object = self.display_object.clone2();
+        let data           = self.data.clone();
+        Self {display_object,data}
+    }
 }
 
 impl CloneRef for Camera2d {}

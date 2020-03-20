@@ -198,17 +198,18 @@ fn init(world: &World) {
         t.y += 300.0;
     });
 
+    println!("touch node 3");
     node3.mod_position(|t| {
         t.x += 400.0;
         t.y += 200.0;
     });
 
+    println!("after touch node 3");
+
     let nodes = vec![node1,node2];//,node3];
 
 
     world.add_child(&shape_system);
-
-
 
 
     let mut iter:i32 = 0;

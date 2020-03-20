@@ -165,7 +165,7 @@ impl DirtyFlags {
 #[derive(Debug)]
 pub struct NodeData {
     parent_bind      : CloneCell<Option<ParentBind>>,
-    children         : RefCell<OptVec<Node>>,
+    children         : RefCell<OptVec<WeakNode>>,
     transform        : Cell<CachedTransform>,
     event_dispatcher : RefCell<DynEventDispatcher>,
     dirty            : DirtyFlags,
@@ -213,9 +213,11 @@ impl NodeData {
     /// prone.
     pub fn remove_child_by_index(&self, index:usize) {
         self.children.borrow_mut().remove(index).for_each(|child| {
-            child.raw_unset_parent();
             self.dirty.children.unset(&index);
-            self.dirty.removed_children.set(child);
+            child.upgrade().for_each(|child| {
+                child.raw_unset_parent();
+                self.dirty.removed_children.set(child);
+            });
         });
     }
 
@@ -253,7 +255,7 @@ impl NodeData {
                 if !self.children.borrow().is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.borrow().iter().for_each(|child| {
-                            child.update_origin(scene,origin,true);
+                            child.upgrade().for_each(|t| t.update_origin(scene,origin,true));
                         });
                     })
                 }
@@ -262,7 +264,7 @@ impl NodeData {
                 if self.dirty.children.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.dirty.children.take().iter().for_each(|ix| {
-                            self.children.borrow()[*ix].update_origin(scene,origin,false)
+                            self.children.borrow()[*ix].upgrade().for_each(|t| t.update_origin(scene,origin,false))
                         });
                     })
                 }
@@ -307,7 +309,7 @@ impl NodeData {
             self.visible.set(false);
             self.callbacks.on_hide();
             self.children.borrow().iter().for_each(|child| {
-                child.hide();
+                child.upgrade().for_each(|t| t.hide());
             });
         }
     }
@@ -317,7 +319,7 @@ impl NodeData {
             self.logger.info("Hiding.");
             self.callbacks.on_hide_with(scene);
             self.children.borrow().iter().for_each(|child| {
-                child.hide_with(scene);
+                child.upgrade().for_each(|t| t.hide_with(scene));
             });
 //        }
     }
@@ -330,7 +332,7 @@ impl NodeData {
             self.visible.set(true);
             self.callbacks.on_show();
             self.children.borrow().iter().for_each(|child| {
-                child.show();
+                child.upgrade().for_each(|t| t.show());
             });
         }
     }
@@ -340,7 +342,7 @@ impl NodeData {
             self.logger.info("Showing.");
             self.callbacks.on_show_with(self,scene);
             self.children.borrow().iter().for_each(|child| {
-                child.show_with(scene);
+                child.upgrade().for_each(|t| t.show_with(scene));
             });
 //        }
     }
@@ -365,7 +367,7 @@ impl NodeData {
 impl NodeData {
     pub fn register_child<T:Object>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
-        let index = self.children.borrow_mut().insert(child);
+        let index = self.children.borrow_mut().insert(child.downgrade());
         self.dirty.children.set(index);
         index
     }
@@ -499,6 +501,12 @@ impl Debug for Node {
     }
 }
 
+impl Drop for NodeData {
+    fn drop(&mut self) {
+        println!("DROP!");
+    }
+}
+
 
 
 // ============
@@ -514,6 +522,10 @@ pub struct Node {
 impl CloneRef for Node {}
 
 impl Node {
+    pub fn clone2(&self) -> Self {
+        Self {rc:self.rc.clone()}
+    }
+
     /// Constructor.
     pub fn new<L:Into<Logger>>(logger:L) -> Self {
         let rc = Rc::new(NodeData::new(logger));
@@ -536,7 +548,7 @@ impl Node {
 
     /// Adds a new `Object` as a child to the current one.
     pub fn _add_child<T:Object>(&self, child:&T) {
-        self.clone_ref().add_child_take(child);
+        self.clone2().add_child_take(child);
     }
 
     /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
@@ -596,9 +608,9 @@ impl Node {
 
 // === Instances ===
 
-impl From<&Node> for Node {
-    fn from(t:&Node) -> Self { t.clone_ref() }
-}
+//impl From<&Node> for Node {
+//    fn from(t:&Node) -> Self { t.clone_ref() }
+//}
 
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {

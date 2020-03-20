@@ -85,7 +85,7 @@ impl Graph {
 impl Graph {
     pub fn add_node(&self, new_node:node::Node, change_type:ChangeType) {
         self.display_object.add_child(&new_node);
-        self.data.borrow_mut().nodes.push(new_node.clone());
+//        self.data.borrow_mut().nodes.push(new_node.clone()); //FIXME uncomment
         if let ChangeType::FromGUI = change_type {
             if let Some(callback) = &self.callbacks.borrow().node_added {
                 callback(&new_node)

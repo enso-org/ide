@@ -160,11 +160,11 @@ impl WorldData {
     }
 }
 
-impl Into<display::object::Node> for &WorldData {
-    fn into(self) -> display::object::Node {
-        (&self.scene).into()
-    }
-}
+//impl Into<display::object::Node> for &WorldData {
+//    fn into(self) -> display::object::Node {
+//        (&self.scene).into()
+//    }
+//}
 
 impl Drop for WorldData {
     fn drop(&mut self) {
@@ -271,9 +271,9 @@ impl<T> AddMut<T> for World where WorldData: AddMut<T> {
     }
 }
 
-impl Into<display::object::Node> for &World {
-    fn into(self) -> display::object::Node {
-        let data:&WorldData = &self.rc.borrow();
-        data.into()
-    }
-}
+//impl Into<display::object::Node> for &World {
+//    fn into(self) -> display::object::Node {
+//        let data:&WorldData = &self.rc.borrow();
+//        data.into()
+//    }
+//}

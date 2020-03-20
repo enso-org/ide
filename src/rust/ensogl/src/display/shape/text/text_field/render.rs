@@ -140,11 +140,11 @@ impl TextFieldSprites {
 
 // === DisplayObject ===
 
-impl From<&TextFieldSprites> for display::object::Node {
-    fn from(rendered_content:&TextFieldSprites) -> Self {
-        rendered_content.display_object.clone_ref()
-    }
-}
+//impl From<&TextFieldSprites> for display::object::Node {
+//    fn from(rendered_content:&TextFieldSprites) -> Self {
+//        rendered_content.display_object.clone_ref()
+//    }
+//}
 
 
 // === Update ===
