@@ -233,7 +233,8 @@ impl Handle {
             Ok(graph.source)
         })?;
 
-        self.module().pop_node_metadata(id)?;
+        // It's fine if there were no metadata.
+        let _ = self.module().pop_node_metadata(id);
         Ok(())
     }
 
