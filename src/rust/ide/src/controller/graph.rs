@@ -7,11 +7,13 @@
 use crate::prelude::*;
 
 pub use crate::double_representation::graph::Id;
+pub use crate::double_representation::graph::LocationHint;
 use crate::controller::module::NodeMetadata;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
+
 
 
 // ==============
@@ -55,19 +57,6 @@ pub struct NewNodeInfo {
     pub id : Option<ast::Id>,
     /// Where line created by adding this node should appear.
     pub location_hint : LocationHint
-}
-
-/// Describes the desired position of the node's line in the graph's code block.
-#[derive(Clone,Copy,Debug)]
-pub enum LocationHint {
-    /// Try placing this node's line before the line described by id.
-    Before(ast::Id),
-    /// Try placing this node's line after the line described by id.
-    After(ast::Id),
-    /// Try placing this node's line at the start of the graph's code block.
-    Start,
-    /// Try placing this node's line at the end of the graph's code block.
-    End,
 }
 
 
@@ -142,7 +131,7 @@ impl Handle {
     (&self) -> FallibleResult<Vec<double_representation::node::NodeInfo>> {
         let definition = self.graph_definition_info()?;
         let graph      = double_representation::graph::GraphInfo::from_definition(definition);
-        Ok(graph.nodes)
+        Ok(graph.nodes())
     }
 
     /// Retrieves double rep information about node with given ID.
@@ -208,7 +197,7 @@ impl Handle {
     /// If ID doesn't have metadata, empty (default) metadata is inserted.
     pub fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
         let     module = self.module();
-        let mut data   = module.pop_node_metadata(id).unwrap_or(default());
+        let mut data   = module.pop_node_metadata(id).unwrap_or_default();
         fun(&mut data);
         module.set_node_metadata(id, data);
     }

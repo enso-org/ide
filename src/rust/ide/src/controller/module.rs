@@ -16,8 +16,6 @@ use parser::api::SourceFile;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
-#[cfg(test)]
-use ast::IdMap;
 use ast::HasIdMap;
 use ast::known;
 use data::text::*;
@@ -293,7 +291,7 @@ impl Handle {
     pub fn new_mock
     ( location     : Location
     , code         : &str
-    , id_map       : IdMap
+    , id_map       : ast::IdMap
     , file_manager : fmc::Handle
     , mut parser   : Parser
     ) -> FallibleResult<Self> {
@@ -364,7 +362,7 @@ mod test {
             let uuid2        = Uuid::new_v4();
             let uuid3        = Uuid::new_v4();
             let module       = "2+2";
-            let id_map       = IdMap::new(vec!
+            let id_map       = ast::IdMap::new(vec!
                 [ (Span::from((0,1)),uuid1.clone())
                 , (Span::from((2,1)),uuid2)
                 , (Span::from((0,3)),uuid3)

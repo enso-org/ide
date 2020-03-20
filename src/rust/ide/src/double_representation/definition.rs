@@ -9,6 +9,7 @@ use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
+use utils::vec::pop_front;
 
 
 
@@ -43,7 +44,7 @@ impl Id {
 
     /// Creates a new identifier from a sequence of plain definition names.
     pub fn new_plain_names<S>(names:impl IntoIterator<Item = S>) -> Id
-    where S:ToString {
+        where S:ToString {
         let crumbs = names.into_iter().map(|name| {
             DefinitionName::new_plain(name.to_string())
         }).collect_vec();
@@ -64,12 +65,6 @@ pub struct CannotFindChild(Crumb);
 #[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
 pub struct EmptyDefinitionId;
 
-
-
-// =====================
-// === Id Resolution ===
-// =====================
-
 /// Looks up graph in the module.
 pub fn traverse_for_definition
 (ast:&ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
@@ -87,6 +82,17 @@ pub fn locate_definition(ast:&ast::known::Module, id:&Id) -> FallibleResult<Chil
     }
     Ok(child)
 }
+
+
+
+// =============
+// === Error ===
+// =============
+
+#[derive(Fail,Debug)]
+#[fail(display="Cannot set Block lines because no line with Some(Ast) was found. Block must have \
+at least one non-empty line.")]
+struct MissingLineWithAst;
 
 
 
@@ -210,6 +216,42 @@ impl DefinitionInfo {
     (line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
         let ast = line.elem.as_ref()?;
         Self::from_line_ast(ast,kind)
+    }
+
+    /// Gets the definition block lines. If `body` is a `Block`, it returns its `BlockLine`s,
+    /// concatenating `empty_lines`, `first_line` and `lines`, in this exact order. If `body` is
+    /// `Infix`, it returns a single `BlockLine`.
+    pub fn block_lines(&self) -> FallibleResult<Vec<ast::BlockLine<Option<Ast>>>> {
+        if let Ok(block) = known::Block::try_from(self.body()) {
+            Ok(block.all_lines())
+        } else {
+            let elem = Some(self.body());
+            let off  = 0;
+            Ok(vec![ast::BlockLine{elem,off}])
+        }
+    }
+
+    /// Sets the definition block lines. `lines` must contain at least one non-empty line to
+    /// succeed.
+    pub fn set_block_lines
+    (&mut self, mut lines:Vec<ast::BlockLine<Option<Ast>>>) -> FallibleResult<()> {
+        let mut empty_lines = Vec::new();
+        let mut line        = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
+        while let None = line.elem {
+            empty_lines.push(line.off);
+            line = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
+        }
+        let elem       = line.elem.ok_or(MissingLineWithAst)?;
+        let off        = line.off;
+        let first_line = ast::BlockLine {elem,off};
+        let indent     = crate::double_representation::INDENT;
+        let is_orphan  = false;
+        let ty         = ast::BlockType::Discontinuous {};
+        let block      = ast::Block {empty_lines,first_line,lines,indent,is_orphan,ty};
+        let rarg       = Ast::new(block, None);
+        let infix      = self.ast.deref().clone();
+        self.ast       = known::KnownAst::new(ast::Infix {rarg,..infix}, None);
+        Ok(())
     }
 
     /// Tries to interpret `Line`'s `Ast` as a function definition.
