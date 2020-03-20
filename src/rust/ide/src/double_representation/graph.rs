@@ -9,6 +9,7 @@ use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
+use ast::BlockLine;
 use ast::known;
 use utils::fail::FallibleResult;
 
@@ -18,8 +19,9 @@ use utils::fail::FallibleResult;
 // === Error ===
 // =============
 
-#[derive(Fail,Display,Debug)]
-struct IDNotFound {id:ast::ID}
+#[derive(Fail,Debug)]
+#[fail(display="ID was not found.")]
+struct IdNotFound {id:ast::ID}
 
 
 
@@ -59,6 +61,13 @@ pub struct Id {
     pub crumbs : Vec<Crumb>,
 }
 
+impl Id {
+    /// Creates a new graph identifier consisting of a single crumb.
+    pub fn new_single_crumb(crumb:DefinitionName) -> Id {
+        let crumbs = vec![crumb];
+        Id {crumbs}
+    }
+}
 
 
 // ===============================
@@ -120,29 +129,37 @@ impl GraphInfo {
         Self::from_function_binding(self.source.ast.clone())
     }
 
+    fn is_node_by_id(line:&BlockLine<Option<Ast>>, id:ast::ID) -> bool {
+        let node_info  = line.elem.as_ref().and_then(NodeInfo::from_line_ast);
+        let id_matches = node_info.map(|node| node.id() == id);
+        id_matches.unwrap_or(false)
+    }
+
+    /// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
+    /// the Id is not found.
+    pub fn find_node_index_in_lines
+    (lines:&[BlockLine<Option<Ast>>], id:ast::ID) -> FallibleResult<usize> {
+        let position = lines.iter().position(|line| Self::is_node_by_id(&line,id));
+        position.ok_or(IdNotFound{id}.into())
+    }
+
     /// Adds a new node to this graph.
     pub fn add_node
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<()> {
         let mut lines = self.source.block_lines()?;
 
-        let find_position = |id| {
-            lines.iter().find_position(|line| {
-                line.elem.as_ref().map(|line_ast| {
-                    NodeInfo::from_line_ast(line_ast).map(|node| node.id() == id).unwrap_or(false)
-                }).unwrap_or(false)
-            }).map(|(index,_)| index).ok_or(IDNotFound{id})
-        };
-
         let index = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => lines.len(),
-            LocationHint::After(id)  => find_position(id)? + 1,
-            LocationHint::Before(id) => find_position(id)?
+            LocationHint::After(id)  => Self::find_node_index_in_lines(&lines, id)? + 1,
+            LocationHint::Before(id) => Self::find_node_index_in_lines(&lines, id)?
         };
 
-        lines.insert(index, ast::BlockLine { elem: Some(line_ast), off: 0 });
+        let elem = Some(line_ast);
+        let off  = 0;
+        lines.insert(index,BlockLine{elem,off});
 
-        self.source.set_block_lines(lines);
+        self.source.set_block_lines(lines)?;
         Ok(())
     }
 
@@ -232,6 +249,16 @@ mod tests {
         GraphInfo::from_definition(main)
     }
 
+    fn find_graph(parser:&mut impl IsParser, program:impl Str, name:impl Str) -> GraphInfo {
+        let module     = parser.parse_module(program.into(), default()).unwrap();
+        let crumbs     = name.into().split(".").map(|name| {
+            DefinitionName::new_plain(name)
+        }).collect();
+        let id         = Id{crumbs};
+        let definition = traverse_for_definition(module,&id).unwrap();
+        GraphInfo::from_definition(definition)
+    }
+
     #[wasm_bindgen_test]
     fn detect_a_node() {
         let mut parser = parser::Parser::new_or_panic();
@@ -253,25 +280,21 @@ mod tests {
     }
 
     fn create_node_ast(parser:&mut impl IsParser, expression:&str) -> (Ast,ast::ID) {
-        let id         = ast::ID::new_v4();
-        let node_ast   = parser.parse(expression.to_string(), default()).unwrap();
-        let line_ast   = expect_single_line(&node_ast).with_id(id);
+        let node_ast = parser.parse(expression.to_string(), default()).unwrap();
+        let line_ast = expect_single_line(&node_ast).clone();
+        let id       = line_ast.id.expect("line_ast should have an ID");
         (line_ast,id)
     }
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_single_line() {
-        ensogl::system::web::set_stdout();
-
-        let program = r"
-main = a + b
-";
+        let program = "main = print \"hello\"";
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].expression().repr(), "a + b");
+        assert_eq!(nodes[0].expression().repr(), "print \"hello\"");
 
         let expr0 = "a + 2";
         let expr1 = "b + 3";
@@ -288,18 +311,22 @@ main = a + b
         assert_eq!(nodes[0].id(), id1);
         assert_eq!(nodes[1].expression().repr(), expr0);
         assert_eq!(nodes[1].id(), id0);
-        assert_eq!(nodes[2].expression().repr(), "a + b");
+        assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_multiple_lines() {
         // TODO [dg] Also add test for binding node when it's possible to update its id.
-        let program = r"
+        let program = r#"
 main =
+
     foo = node
+
     foo a = not_node
-    node
-";
+
+    print "hello"
+
+"#;
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
 
@@ -307,6 +334,7 @@ main =
         let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");
         let (line_ast2,id2) = create_node_ast(&mut parser, "x * x");
         let (line_ast3,id3) = create_node_ast(&mut parser, "x / x");
+        let (line_ast4,id4) = create_node_ast(&mut parser, "2 - 2");
 
         assert!(graph.add_node(line_ast0, LocationHint::Start).is_ok());
         assert!(graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).is_ok());
@@ -322,9 +350,18 @@ main =
         assert_eq!(nodes[2].expression().repr(), "x * x");
         assert_eq!(nodes[2].id(), id2);
         assert_eq!(nodes[3].expression().repr(), "node");
-        assert_eq!(nodes[4].expression().repr(), "node");
+        assert_eq!(nodes[4].expression().repr(), "print \"hello\"");
         assert_eq!(nodes[5].expression().repr(), "x / x");
         assert_eq!(nodes[5].id(), id3);
+
+        let mut graph = find_graph(&mut parser, program, "main.foo");
+
+        assert_eq!(graph.nodes().len(), 1);
+        assert!(graph.add_node(line_ast4, LocationHint::Start).is_ok());
+        assert_eq!(graph.nodes().len(), 2);
+        assert_eq!(graph.nodes()[0].expression().repr(), "2 - 2");
+        assert_eq!(graph.nodes()[0].id(), id4);
+        assert_eq!(graph.nodes()[1].expression().repr(), "not_node");
     }
 
     #[wasm_bindgen_test]

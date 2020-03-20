@@ -38,8 +38,11 @@ impl<T> KnownAst<T> {
         }
     }
 
-    /// Creates a new `KnownAst<T>` from `Ast`.
-    pub fn new_unchecked(ast:Ast) -> KnownAst<T> {
+    /// Creates a new `KnownAst<T>` from ast node containing shape of variant `T`.
+    ///
+    /// Note that this API requires caller to ensure that Ast stores proper shape. Violating this
+    /// rule will lead to panics later.
+    fn new_unchecked(ast:Ast) -> KnownAst<T> {
         KnownAst {ast,phantom:default()}
     }
 
