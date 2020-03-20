@@ -185,7 +185,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
-          override: true
+          override: true 
 
       - name: Install wasm-pack
         env:
