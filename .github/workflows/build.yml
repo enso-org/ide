@@ -106,11 +106,11 @@ jobs:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-3-cargo-registry
 
-#      - name: Cache Cargo Check 
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target
-#          key: ${{ runner.os }}-2-cargo-check
+      - name: Cache Cargo Check
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target
+          key: ${{ runner.os }}-3-cargo-check
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -142,11 +142,11 @@ jobs:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-3-cargo-registry
 
-#      - name: Cache Cargo Test
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target
-#          key: ${{ runner.os }}-2-cargo-test
+      - name: Cache Cargo Test
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target
+          key: ${{ runner.os }}-3-cargo-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -175,11 +175,11 @@ jobs:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-3-wasm-registry
 
-#      - name: Cache Wasm Test
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target
-#          key: ${{ runner.os }}-2-wasm-test
+      - name: Cache Wasm Test
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target
+          key: ${{ runner.os }}-3-wasm-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
