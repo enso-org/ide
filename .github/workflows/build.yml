@@ -19,6 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -123,7 +129,7 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
-        -
+
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
@@ -244,6 +250,12 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
