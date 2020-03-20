@@ -134,14 +134,17 @@ impl<T> CloneCell<T> {
         CloneCell { data:UnsafeCell::new(elem) }
     }
 
+    #[allow(unsafe_code)]
     pub fn get(&self) -> T where T:Clone {
         unsafe {(*self.data.get()).clone()}
     }
 
+    #[allow(unsafe_code)]
     pub fn set(&self, elem:T) {
         unsafe { *self.data.get() = elem; }
     }
 
+    #[allow(unsafe_code)]
     pub fn take(&self) -> T where T:Default {
         let ptr:&mut T = unsafe { &mut *self.data.get() };
         std::mem::take(ptr)

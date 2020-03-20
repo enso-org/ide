@@ -1,7 +1,7 @@
 
 use crate::prelude::*;
 
-use crate::{HasSprite, ChangeType};
+use crate::HasSprite;
 
 use ensogl::control::callback::CallbackMut1;
 use ensogl::data::color::Srgba;
@@ -19,10 +19,10 @@ type EditCallback = Box<dyn Fn(&Node) + 'static>;
 // FIXME We should use real event registers here instead.
 #[derive(Default)]
 pub struct OnEditCallbacks {
-    pub expression_changed : Option<EditCallback>,
-    pub color_changed      : Option<EditCallback>,
-    pub position_changed   : Option<EditCallback>,
-    pub removed            : Option<EditCallback>,
+    pub label_changed    : Option<EditCallback>,
+    pub color_changed    : Option<EditCallback>,
+    pub position_changed : Option<EditCallback>,
+    pub removed          : Option<EditCallback>,
 }
 
 impl Debug for OnEditCallbacks {
@@ -33,8 +33,8 @@ impl Debug for OnEditCallbacks {
 
 #[derive(Debug,Default)]
 pub struct NodeData {
-    expression : String,
-    color      : Srgba, // FIXME what is node color?
+    label : String,
+    color : Srgba, // FIXME what is node color?
 }
 
 #[derive(Debug,Clone)]
@@ -55,12 +55,12 @@ impl Node {
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
         display_object.set_on_show_with(enclose!((sprite) move |this,scene| {
-            let type_id      = TypeId::of::<Node>();
-            let shape_system = scene.lookup_shape(&type_id).unwrap();
-            let new_sprite   = shape_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
-            new_sprite.size().set(Vector2::new(200.0,200.0));
-            sprite.set(Some(new_sprite));
+//            let type_id      = TypeId::of::<Node>();
+//            let shape_system = scene.lookup_shape(&type_id).unwrap();
+//            let new_sprite   = shape_system.new_instance();
+//            display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
+//            new_sprite.size().set(Vector2::new(200.0,200.0));
+//            sprite.set(Some(new_sprite));
         }));
 
         display_object.set_on_hide_with(|scene| {
@@ -76,38 +76,60 @@ impl Node {
     }
 }
 
+impl Default for Node {
+    fn default() -> Self {
+        Node::new()
+    }
+}
+
+// === Interface for library users ===
 
 impl Node {
     // FIXME this is bad. It does not cover all position modifiers like `mod_position`. Should be
     // done as transform callback instead.
-    pub fn set_position(&self, pos:Vector3<f32>, change_type:ChangeType) {
+    pub fn set_position(&self, pos:Vector3<f32>) {
         self.display_object.set_position(pos);
-        if let ChangeType::FromGUI = change_type {
-            self.call_edit_callback(&self.callbacks.borrow().position_changed);
-        }
     }
 
-    // FIXME Remove the `change_type` parameter. It should not be part of the API. If we need a
-    // special way of handling thins, lets create separate functions like
-    // `set_expression_no_callback`. The basic API should be a generic graph API so this parameter
-    // should not be there.
-    pub fn set_expression(&self, new_expression:String, change_type:ChangeType) {
-        self.data.borrow_mut().expression = new_expression;
+    pub fn set_label(&self, new_label:String) {
+        self.data.borrow_mut().label = new_label;
         //TODO[ao] update sprites
-        if let ChangeType::FromGUI = change_type {
-            self.call_edit_callback(&self.callbacks.borrow().expression_changed);
-        }
     }
 
-    pub fn set_color(&self, new_color:Srgba, change_type:ChangeType) {
+    pub fn set_color(&self, new_color:Srgba) {
         self.data.borrow_mut().color = new_color;
         //TODO[ao] update sprites
-        if let ChangeType::FromGUI = change_type {
-            self.call_edit_callback(&self.callbacks.borrow().color_changed);
-        }
     }
 
     pub fn remove_from_graph(&self) {
+        todo!()
+    }
+}
+
+
+// === Interface for GUI events ===
+
+impl Node {
+    // FIXME this is bad. It does not cover all position modifiers like `mod_position`. Should be
+    // done as transform callback instead.
+    pub fn gui_set_position(&self, pos:Vector3<f32>) {
+        self.set_position(pos);
+        self.call_edit_callback(&self.callbacks.borrow().position_changed);
+    }
+
+    pub fn gui_set_label(&self, new_label:String) {
+        self.set_label(new_label);
+        //TODO[ao] update sprites
+        self.call_edit_callback(&self.callbacks.borrow().label_changed);
+    }
+
+    pub fn gui_set_color(&self, new_color:Srgba) {
+        self.set_color(new_color);
+        //TODO[ao] update sprites
+        self.call_edit_callback(&self.callbacks.borrow().color_changed);
+    }
+
+    pub fn gui_remove_from_graph(&self) {
         todo!()
     }
 
@@ -115,6 +137,18 @@ impl Node {
         if let Some(callback) = callback {
             callback(self)
         }
+    }
+}
+
+// === Getters ===
+
+impl Node {
+    pub fn label(&self) -> String {
+        self.data.borrow().label.clone()
+    }
+
+    pub fn color(&self) -> Srgba {
+        self.data.borrow().color.clone()
     }
 }
 

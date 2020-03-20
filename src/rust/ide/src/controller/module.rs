@@ -252,6 +252,8 @@ impl Handle {
         logger.info(|| "Loading module file");
         let content = fm.read(path).await?;
         logger.info(|| "Parsing code");
+        // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
+        // default instead.
         let SourceFile{ast,metadata} = parser.parse_with_metadata(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));

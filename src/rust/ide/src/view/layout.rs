@@ -7,6 +7,8 @@ use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 
+use ensogl::display;
+use ensogl::display::ObjectOps;
 use ensogl::display::world::World;
 use enso_frp::io::KeyboardActions;
 use enso_frp::io::KeyMask;
@@ -14,29 +16,7 @@ use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
-
-
-
-// ==================
-// === LayoutMode ===
-// ==================
-//TODO: LayoutMode is a temporary enumeration, it will be replaced by proper Panel impl.
-
-/// Defines the element's layout mode. It can fully occupy the screen or only half of it.
-#[derive(Clone,Copy,Debug)]
-pub enum LayoutMode {
-    #[allow(missing_docs)]
-    Full,
-    #[allow(missing_docs)]
-    Half
-}
-
-impl Default for LayoutMode {
-    fn default() -> Self {
-        Self::Half
-    }
-}
-
+use crate::view::graph_editor::GraphEditor;
 
 
 // ==================
@@ -45,25 +25,16 @@ impl Default for LayoutMode {
 
 shared! { ViewLayout
 
-/// Initial implementation of ViewLayout with a single TextEditor. Pressing ctrl+f toggles
-/// fullscreen mode.
+/// Initial implementation of ViewLayout with a TextEditor and GraphEditor.
 #[derive(Debug)]
 pub struct ViewLayoutData {
     text_editor  : TextEditor,
-    layout_mode  : LayoutMode,
+    graph_editor : GraphEditor,
     size         : Vector2<f32>,
     logger       : Logger
 }
 
 impl {
-    /// Switches LayoutMode between Half and Full.
-    pub fn switch_layout_mode(&mut self) {
-        if let LayoutMode::Half = self.layout_mode {
-            self.set_layout_mode(LayoutMode::Full)
-        } else {
-            self.set_layout_mode(LayoutMode::Half)
-        }
-    }
 
     /// Sets ViewLayout size.
     pub fn set_size(&mut self, size:Vector2<f32>) {
@@ -76,25 +47,17 @@ impl {
 // === Private Methods ===
 
 impl ViewLayoutData {
-    fn set_layout_mode(&mut self, layout_mode:LayoutMode) {
-        self.layout_mode = layout_mode;
-        self.recalculate_layout();
-    }
 
     fn recalculate_layout(&mut self) {
-        let size            = self.size;
-        let (position,size) = match self.layout_mode {
-            LayoutMode::Full => {
-                let position   = Vector2::new(0.0,size.y);
-                (position,size)
-            },
-            LayoutMode::Half => {
-                let position = Vector2::new(0.0,size.y / 2.0);
-                let size     = Vector2::new(size.x,size.y / 2.0);
-                (position,size)
-            }
-        };
-        let padding = TemporaryPadding {
+        self.update_text_editor();
+        self.update_graph_editor();
+    }
+
+    fn update_text_editor(&mut self) {
+        let screen_size = self.size;
+        let position    = Vector2::new(0.0,screen_size.y / 2.0);
+        let size        = Vector2::new(screen_size.x,screen_size.y / 2.0);
+        let padding     = TemporaryPadding {
             left   : 10.0,
             top    : 0.0,
             right  : 10.0,
@@ -104,6 +67,14 @@ impl ViewLayoutData {
         self.text_editor.set_size(size);
         self.text_editor.set_position(position);
     }
+
+    fn update_graph_editor(&mut self) {
+        let screen_size = self.size;
+        let position    = Vector3::new(50.0, screen_size.y * 3.0 / 4.0, 0.0);
+
+        let graph_object:&display::object::Node = (&self.graph_editor).into();
+        graph_object.set_position(position);
+    }
 }
 
 impl ViewLayout {
@@ -112,23 +83,21 @@ impl ViewLayout {
     ( logger     : &Logger
     , kb_actions : &mut KeyboardActions
     , world      : &World
-    , controller : controller::text::Handle
+    , text_controller  : controller::text::Handle
+    , graph_controller : controller::graph::Handle
     ) -> Self {
         let logger       = logger.sub("ViewLayout");
-        let text_editor  = TextEditor::new(&logger,&world,controller,kb_actions);
-        let layout_mode  = default();
+        let text_editor  = TextEditor::new(&logger,&world,text_controller,kb_actions);
+        let graph_editor = GraphEditor::new(&logger,graph_controller);
+        world.add_child(&graph_editor);
         let size         = zero();
-        let data         = ViewLayoutData {text_editor,layout_mode,size,logger};
+        let data         = ViewLayoutData {text_editor,graph_editor,size,logger};
         let rc           = Rc::new(RefCell::new(data));
         Self {rc}.init(world,kb_actions)
     }
 
-    fn init_keyboard(self, keyboard_actions:&mut KeyboardActions) -> Self {
-        let switch_mode_keys = KeyMask::new_control_character('f');
-        let view_layout = self.clone();
-        keyboard_actions.set_action(switch_mode_keys,move |_| {
-            view_layout.switch_layout_mode();
-        });
+    fn init_keyboard(self, _keyboard_actions:&mut KeyboardActions) -> Self {
+        // TODO[ao] add here some useful staff (quitting project for example)
         self
     }
 

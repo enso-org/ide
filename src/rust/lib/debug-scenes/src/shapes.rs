@@ -16,12 +16,11 @@ use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
+use graph::node::Node;
 use nalgebra::Vector2;
-use wasm_bindgen::prelude::*;
 use shapely::shared;
-
-
-use std::cell::UnsafeCell;
+use std::any::TypeId;
+use wasm_bindgen::prelude::*;
 
 
 
@@ -139,9 +138,6 @@ fn nodes3() -> AnyShape {
     nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
 }
 
-
-use std::any::TypeId;
-use graph::node::Node;
 //
 //#[derive(Debug,Default)]
 //pub struct ShapeScene {

@@ -187,7 +187,7 @@ impl Handle {
 
     /// Subscribe to updates about changes in this graph.
     pub fn subscribe(&self) -> Subscriber<controller::notification::Graph> {
-        self.publisher.borrow_mut().0.subscribe()
+        self.publisher.borrow_mut().subscribe()
     }
 
     /// Retrieves metadata for the given node.

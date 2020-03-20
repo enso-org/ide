@@ -16,13 +16,21 @@ use prelude::*;
 
 use ensogl::display;
 use ensogl::display::Sprite;
-use ensogl::display::traits::*;
+use ensogl::traits::*;
 use logger::Logger;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
+use nalgebra::Vector2;
 
 pub mod prelude {
     pub use enso_prelude::*;
 }
+
+pub use node::Node;
+use ensogl::display::shape::system::ShapeSystem;
+use ensogl::display::shape::*;
+use std::any::TypeId;
+use ensogl::display::world::World;
+
 
 
 // =========================
@@ -33,11 +41,12 @@ pub trait HasSprite {
     fn set_sprite(&self, sprite:&Sprite);
 }
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub enum ChangeType {
-    FromGUI, FromController
+pub fn register_shapes(world:&World) {
+    // TODO[ao] where shall I put these?
+//    let node_shape   = Rect(Vector2::new(50.0,50.0));;
+//    let shape_system = ShapeSystem::new(world,&node_shape);
+//    world.scene().register_shape(TypeId::of::<Node>(),shape_system.clone());
 }
-
 
 
 // =============
@@ -45,7 +54,7 @@ pub enum ChangeType {
 // =============
 
 #[derive(Default)]
-struct OnEditCallbacks {
+pub struct OnEditCallbacks {
     node_added : Option<Box<dyn Fn(&node::Node) + 'static>>,
 }
 
@@ -61,7 +70,7 @@ struct GraphData {
 }
 
 #[derive(Debug)]
-struct Graph {
+pub struct Graph {
     data           : Rc<RefCell<GraphData>>,
     display_object : display::object::Node,
     callbacks      : Rc<RefCell<OnEditCallbacks>>,
@@ -82,14 +91,46 @@ impl Graph {
     }
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Graph::new()
+    }
+}
+
+impl<'a> From<&'a Graph> for &'a display::object::Node {
+    fn from(graph: &'a Graph) -> Self {
+        &graph.display_object
+    }
+}
+
+
+// === Interface for library users ===
+
 impl Graph {
-    pub fn add_node(&self, new_node:node::Node, change_type:ChangeType) {
+    pub fn add_node(&self, new_node:node::Node) {
+        self.logger.warning(|| format!("Add new node with label {}", new_node.label()));
         self.display_object.add_child(&new_node);
-//        self.data.borrow_mut().nodes.push(new_node.clone()); //FIXME uncomment
-        if let ChangeType::FromGUI = change_type {
-            if let Some(callback) = &self.callbacks.borrow().node_added {
-                callback(&new_node)
-            }
+        self.data.borrow_mut().nodes.push(new_node);
+    }
+
+    pub fn clear_graph(&self) {
+        self.logger.warning("Clear graph");
+        let mut data = self.data.borrow_mut();
+        for node in &data.nodes {
+            self.display_object.remove_child(node);
+        }
+        data.nodes.clear();
+    }
+}
+
+
+// === Interface for GUI events ===
+
+impl Graph {
+    pub fn gui_add_node(&self, new_node:node::Node) {
+        self.gui_add_node(new_node.clone());
+        if let Some(callback) = &self.callbacks.borrow().node_added {
+            callback(&new_node)
         }
     }
 }
