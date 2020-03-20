@@ -35,6 +35,17 @@ use shapely::shared;
 
 
 
+// ============
+// == Errors ==
+// ============
+
+/// Failure for missing node metadata.
+#[derive(Debug,Clone,Copy,Fail)]
+#[fail(display="Node with ID {} was not found in metadata.", _0)]
+pub struct NodeMetadataNotFound(pub ast::Id);
+
+
+
 // ==============
 // == Metadata ==
 // ==============
@@ -44,7 +55,7 @@ use shapely::shared;
 pub struct Metadata {
     /// Metadata used within ide.
     #[serde(default="default")]
-    pub ide : serde_json::Value,
+    pub ide : IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of SourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
@@ -52,6 +63,28 @@ pub struct Metadata {
 }
 
 impl parser::api::Metadata for Metadata {}
+
+/// Metadata that belongs to ide.
+#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+pub struct IdeMetadata {
+    /// Metadata that belongs to nodes.
+    node : HashMap<ast::Id,NodeMetadata>
+}
+
+/// Metadata of specific node.
+#[derive(Debug,Clone,Copy,Default,Serialize,Deserialize,Shrinkwrap)]
+pub struct NodeMetadata {
+    /// Position in x,y coordinates.
+    pub position: Option<Position>
+}
+
+/// Used for storing node position.
+#[derive(Clone,Copy,Debug,PartialEq,Serialize,Deserialize)]
+pub struct Position {
+    /// Vector storing coordinates of the visual position.
+    pub vector:Vector2<f32>
+}
+
 
 
 
@@ -167,6 +200,23 @@ shared! { Handle
         /// Get subscriber receiving notifications about changes in module's graph representation.
         pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::Graphs> {
             self.graph_notifications.subscribe()
+        }
+
+        /// Returns metadata for given node, if present.
+        pub fn node_metadata(&mut self, id:ast::Id) -> FallibleResult<NodeMetadata> {
+            let data = self.module.metadata.ide.node.get(&id).cloned();
+            data.ok_or_else(|| NodeMetadataNotFound(id).into())
+        }
+
+        /// Sets metadata for given node.
+        pub fn set_node_metadata(&mut self, id:ast::Id, data:NodeMetadata) {
+            self.module.metadata.ide.node.insert(id,data);
+        }
+
+        /// Removes metadata of given node and returns them.
+        pub fn pop_node_metadata(&mut self, id:ast::Id) -> FallibleResult<NodeMetadata> {
+            let data = self.module.metadata.ide.node.remove(&id);
+            data.ok_or_else(|| NodeMetadataNotFound(id).into())
         }
     }
 }
