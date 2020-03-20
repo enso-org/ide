@@ -16,7 +16,6 @@ use parser::api::SourceFile;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
-use ast::IdMap;
 use ast::HasIdMap;
 use ast::known;
 use data::text::*;
