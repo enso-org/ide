@@ -101,26 +101,62 @@ impl Debug for Callbacks {
 
 
 
-// ============
-// === Node ===
-// ============
+// ==================
+// === DirtyFlags ===
+// ==================
 
 // === Types ===
 
-pub type ChildDirty      = dirty::SharedSet<usize,Option<OnChange>>;
-pub type RemovedChildren = dirty::SharedVector<Node,Option<OnChange>>;
+pub type ChildrenDirty   = dirty::SharedSet<usize,Option<Box<dyn Fn()>>>;
+pub type RemovedChildren = dirty::SharedVector<Node,Option<Box<dyn Fn()>>>;
 pub type NewParentDirty  = dirty::SharedBool<()>;
-pub type TransformDirty  = dirty::SharedBool<Option<OnChange>>;
-
-
-// === Callbacks ===
-
-closure! {
-fn fn_on_change(dirty:ChildDirty, ix:usize) -> OnChange { || dirty.set(ix) }
-}
+pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
 
 
 // === Definition ===
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct DirtyFlags {
+    parent           : NewParentDirty,
+    children         : ChildrenDirty,
+    removed_children : RemovedChildren,
+    transform        : TransformDirty,
+    #[derivative(Debug="ignore")]
+    callback         : Rc<RefCell<Box<dyn Fn()>>>,
+}
+
+impl DirtyFlags {
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let logger           = logger.into();
+        let parent           = NewParentDirty  :: new(logger.sub("dirty.parent"),());
+        let children         = ChildrenDirty   :: new(logger.sub("dirty.children"),None);
+        let removed_children = RemovedChildren :: new(logger.sub("dirty.removed_children"),None);
+        let transform        = TransformDirty  :: new(logger.sub("dirty.transform"),None);
+        let callback         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
+
+        let on_mut = enclose!((callback) move || (callback.borrow())() );
+        transform        . set_callback(Some(Box::new(on_mut.clone())));
+        children         . set_callback(Some(Box::new(on_mut.clone())));
+        removed_children . set_callback(Some(Box::new(on_mut)));
+
+        Self {parent,children,removed_children,transform,callback}
+    }
+
+    pub fn set_callback<F:'static+Fn()>(&self,f:F) {
+        *self.callback.borrow_mut() = Box::new(f);
+    }
+
+    pub fn unset_callback(&self) {
+        *self.callback.borrow_mut() = Box::new(||{});
+    }
+}
+
+
+
+// ============
+// === Node ===
+// ============
 
 #[derive(Clone,Shrinkwrap)]
 pub struct Node {
@@ -130,6 +166,7 @@ pub struct Node {
 impl CloneRef for Node {}
 
 impl Node {
+    /// Constructor.
     pub fn new<L:Into<Logger>>(logger:L) -> Self {
         let rc = Rc::new(NodeData::new(logger));
         Self {rc}
@@ -141,11 +178,9 @@ impl Node {
 pub struct NodeData {
     parent_bind      : CloneCell<Option<ParentBind>>,
     children         : RefCell<OptVec<Node>>,
-    removed_children : RemovedChildren,
-    child_dirty      : ChildDirty,
-    new_parent_dirty : NewParentDirty,
     transform        : Cell<CachedTransform>,
-    event_dispatcher : DynEventDispatcher,
+    event_dispatcher : RefCell<DynEventDispatcher>,
+    dirty            : DirtyFlags,
     visible          : Cell<bool>,
     callbacks        : Callbacks,
     logger           : Logger,
@@ -158,13 +193,10 @@ impl NodeData {
         let children         = default();
         let event_dispatcher = default();
         let transform        = default();
-        let child_dirty      = ChildDirty      :: new(logger.sub("child_dirty")      , None);
-        let removed_children = RemovedChildren :: new(logger.sub("removed_children") , None);
-        let new_parent_dirty = NewParentDirty  :: new(logger.sub("new_parent_dirty") , ());
+        let dirty            = DirtyFlags::new(&logger);
         let visible          = Cell::new(true);
         let callbacks        = default();
-        Self {logger,parent_bind,children,removed_children,event_dispatcher,transform,child_dirty
-             ,new_parent_dirty,visible,callbacks}
+        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty}
     }
 
     pub fn is_visible(&self) -> bool {
@@ -179,8 +211,8 @@ impl NodeData {
         self.parent_bind.get().is_none()
     }
 
-    pub fn dispatch_event(&mut self, event:&DynEvent) {
-        self.event_dispatcher.dispatch(event);
+    pub fn dispatch_event(&self, event:&DynEvent) {
+        self.event_dispatcher.borrow_mut().dispatch(event);
         self.parent_bind.get().map_ref(|bind| bind.parent.dispatch_event(event));
     }
 
@@ -194,8 +226,8 @@ impl NodeData {
     pub fn remove_child_by_index(&self, index:usize) {
         self.children.borrow_mut().remove(index).for_each(|child| {
             child.raw_unset_parent();
-            self.child_dirty.unset(&index);
-            self.removed_children.set(child);
+            self.dirty.children.unset(&index);
+            self.dirty.removed_children.set(child);
         });
     }
 
@@ -215,7 +247,7 @@ impl NodeData {
     /// learn more.
     fn update_origin(&self, scene:&Option<&Scene>, parent_origin:Matrix4<f32>, force:bool) {
         self.update_visibility(scene);
-        let parent_changed = self.new_parent_dirty.check();
+        let parent_changed = self.dirty.parent.check();
         let use_origin     = force || parent_changed;
         let new_origin     = use_origin.as_some(parent_origin);
         let msg            = match new_origin {
@@ -239,24 +271,25 @@ impl NodeData {
                 }
             } else {
                 self.logger.info("Self origin did not change.");
-                if self.child_dirty.check_all() {
+                if self.dirty.children.check_all() {
                     group!(self.logger, "Updating dirty children.", {
-                        self.child_dirty.take().iter().for_each(|ix| {
+                        self.dirty.children.take().iter().for_each(|ix| {
                             self.children.borrow()[*ix].update_origin(scene,origin,false)
                         });
                     })
                 }
             }
-            self.child_dirty.unset_all();
+            self.dirty.children.unset_all();
         });
-        self.new_parent_dirty.unset();
+        self.dirty.transform.unset();
+        self.dirty.parent.unset();
     }
 
     /// Internal
     fn update_visibility(&self, scene:&Option<&Scene>) {
-        if self.removed_children.check_all() {
+        if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
-                self.removed_children.take().into_iter().for_each(|child| {
+                self.dirty.removed_children.take().into_iter().for_each(|child| {
                     if child.is_orphan() {
                         child.hide();
                         match scene {
@@ -268,7 +301,7 @@ impl NodeData {
             })
         }
 
-        let parent_changed = self.new_parent_dirty.check();
+        let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
             self.show();
             match scene {
@@ -345,7 +378,7 @@ impl NodeData {
     pub fn register_child<T:Object>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child);
-        self.child_dirty.set(index);
+        self.dirty.children.set(index);
         index
     }
 
@@ -357,20 +390,19 @@ impl NodeData {
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
     pub fn raw_unset_parent(&self) {
         self.logger.info("Removing parent bind.");
-        self.child_dirty.set_callback(None);
-        self.removed_children.set_callback(None);
-        self.new_parent_dirty.set();
+        self.dirty.unset_callback();
+        self.dirty.parent.set();
     }
 
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
     pub fn set_parent_bind(&self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
-        let dirty  = bind.parent.child_dirty.clone_ref();
+        let dirty  = bind.parent.dirty.children.clone_ref();
         let index  = bind.index;
         let on_mut = move || {dirty.set(index)};
-        self.child_dirty.set_callback(Some(Box::new(on_mut.clone())));
-        self.removed_children.set_callback(Some(Box::new(on_mut)));
-        self.new_parent_dirty.set();
+        let dirty  = bind.parent.dirty.children.clone_ref();
+        self.dirty.set_callback(move || dirty.set(index));
+        self.dirty.parent.set();
         self.parent_bind.set(Some(bind));
     }
 }
@@ -409,9 +441,11 @@ impl NodeData {
 impl NodeData {
     fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
-        if let Some(bind) = self.parent_bind.get() {
-            bind.parent.child_dirty.set(bind.index);
-        }
+//        if let Some(bind) = self.parent_bind.get() {
+//            bind.parent.dirty.children.set(bind.index);
+//        }
+        self.dirty.transform.set();
+
         let mut transform = self.transform.get();
         let out = f(&mut transform);
         self.transform.set(transform);
@@ -586,11 +620,7 @@ pub trait ObjectOps : Object {
     }
 
     fn dispatch_event(&self, event:&DynEvent) {
-//        self.display_object().rc.dispatch_event(event)
-    }
-
-    fn dispatch_event2(&self, event:&DynEvent) {
-//        self.display_object().rc.dispatch_event(event)
+        self.display_object().rc.dispatch_event(event)
     }
 
     fn transform_matrix(&self) -> Matrix4<f32> {
