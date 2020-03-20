@@ -101,10 +101,7 @@ jobs:
 
   check:
     name: Check
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: macOS-latest
+    runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
 
