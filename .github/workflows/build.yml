@@ -88,13 +88,17 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry
+
       - name: Cache cargo build
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-check-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-check-
+          key: ${{ runner.os }}-cargo-check
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -119,26 +123,18 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
+        -
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Cache cargo test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-
-
-      - name: Cache cargo test registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-test-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo test index
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-test-index-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -158,19 +154,20 @@ jobs:
   wasm-test:
     name: WASM Tests
     runs-on: macOS-latest
-    env:
-      WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
-      WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Cache wasm test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-test-
+          key: ${{ runner.os }}-wasm-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -179,11 +176,15 @@ jobs:
           override: true
 
       - name: Install wasm-pack
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
+          WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
         run: |
           curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
           mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
           rm -r $WASMPACKDIR
         shell: bash
+
 
       - name: Install Node
         uses: actions/setup-node@v1
