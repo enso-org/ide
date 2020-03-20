@@ -28,7 +28,7 @@ use wasm_bindgen::prelude::Closure;
 use web_sys::KeyboardEvent;
 use web_sys::Performance;
 use crate::display::render::passes::SymbolsRenderPass;
-
+use crate::display::shape::text::text_field;
 
 
 // =================
@@ -54,6 +54,7 @@ pub struct WorldData {
     pub update_handle : Option<CallbackHandle>,
     pub stats         : Stats,
     pub stats_monitor : StatsMonitor,
+    pub focus_manager : text_field::FocusManager,
 }
 
 
@@ -126,6 +127,7 @@ impl WorldData {
         let stats_monitor      = StatsMonitor::new(&stats);
         let performance        = web::performance();
         let start_time         = performance.now() as f32;
+        let focus_manager      = text_field::FocusManager::new_with_js_handlers();
 
         event_loop.set_on_loop_started  (enclose! ((stats_monitor) move || {
             stats_monitor.begin();
@@ -134,7 +136,7 @@ impl WorldData {
             stats_monitor.end();
         }));
         Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,update_handle,stats,stats_monitor}
+             ,update_handle,stats,stats_monitor,focus_manager}
     }
 
 
@@ -240,6 +242,10 @@ impl World {
 
     pub fn scene(&self) -> Scene {
         self.rc.borrow().scene.clone()
+    }
+
+    pub fn text_field_focus_manager(&self) -> text_field::FocusManager {
+        self.rc.borrow().focus_manager.clone_ref()
     }
 
     pub fn add_child<T:display::Object>(&self, child:&T) {

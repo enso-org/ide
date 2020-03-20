@@ -78,6 +78,7 @@ impl TextFieldMouseFrp {
         move |position,multicursor| {
             let position = Vector2::new(position.x as f32,position.y as f32);
             if let Some(text_field) = text_field.upgrade() {
+                text_field.set_focus();
                 if *multicursor {
                     text_field.add_cursor(position);
                 } else {
@@ -91,6 +92,7 @@ impl TextFieldMouseFrp {
         move |position,block_selection| {
             let position = Vector2::new(position.x as f32,position.y as f32);
             if let Some(text_field) = text_field.upgrade() {
+                text_field.set_focus();
                 if *block_selection {
                     text_field.block_selection(position);
                 } else {
