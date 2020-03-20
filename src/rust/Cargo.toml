@@ -29,7 +29,7 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 lto       = false
 debug     = true
 
@@ -44,6 +44,6 @@ lto       = true
 debug     = false
 
 [profile.test]
-opt-level = 0
+opt-level = 3
 lto       = false
 debug     = false
