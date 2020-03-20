@@ -87,8 +87,8 @@ impl ViewLayout {
     , graph_controller : controller::graph::Handle
     ) -> Self {
         let logger       = logger.sub("ViewLayout");
-        let text_editor  = TextEditor::new(&logger,&world,text_controller,kb_actions);
-        let graph_editor = GraphEditor::new(&logger,graph_controller);
+        let text_editor  = TextEditor::new(&logger,world,text_controller,kb_actions);
+        let graph_editor = GraphEditor::new(&logger,world,graph_controller);
         world.add_child(&graph_editor);
         let size         = zero();
         let data         = ViewLayoutData {text_editor,graph_editor,size,logger};

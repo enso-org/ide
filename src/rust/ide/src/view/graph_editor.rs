@@ -30,13 +30,13 @@ pub struct GraphEditor {
 }
 
 impl GraphEditor {
-    pub fn new(logger:&Logger, controller:controller::graph::Handle) -> Self {
+    pub fn new(logger:&Logger, world:&World, controller:controller::graph::Handle) -> Self {
         let logger         = logger.sub("GraphEditor");
         let display_object = display::object::Node::new(&logger);
-        let graph          = graph::Graph::new();
+        let graph          = graph::Graph::new(world);
         display_object.add_child(&graph);
         let graph          = Rc::new(RefCell::new(graph));
-        let editor   = GraphEditor{ display_object,controller,logger,graph};
+        let editor         = GraphEditor{display_object,controller,logger,graph};
         editor.initialize()
     }
 

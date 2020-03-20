@@ -16,6 +16,8 @@ use prelude::*;
 
 use ensogl::display;
 use ensogl::display::Sprite;
+use ensogl::display::shape::*;
+use ensogl::display::object::traits::*;
 use ensogl::traits::*;
 use logger::Logger;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
@@ -33,6 +35,26 @@ use ensogl::display::world::World;
 
 
 
+
+use ensogl::prelude::*;
+
+use ensogl::display::object::traits::*;
+use ensogl::display::shape::text::glyph::font::FontHandle;
+use ensogl::display::shape::text::glyph::system::GlyphSystem;
+use ensogl::display::shape::text::text_field::content::TextFieldContent;
+use ensogl::display::shape::text::text_field::cursor::Cursor;
+use ensogl::display::shape::text::text_field::cursor::Cursors;
+use ensogl::display::shape::text::text_field::render::assignment::GlyphLinesAssignment;
+use ensogl::display::shape::text::text_field::render::assignment::LineFragment;
+use ensogl::display::shape::text::text_field::render::selection::SelectionSpritesGenerator;
+use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::display::shape::*;
+
+use ensogl::math::topology::unit::PixelDistance;
+use ensogl::display::Glsl;
+
+
+
 // =========================
 // === Library Utilities ===
 // =========================
@@ -41,12 +63,13 @@ pub trait HasSprite {
     fn set_sprite(&self, sprite:&Sprite);
 }
 
+/// Registers Node shape.
 pub fn register_shapes(world:&World) {
-    // TODO[ao] where shall I put these?
-//    let node_shape   = Rect(Vector2::new(50.0,50.0));;
-//    let shape_system = ShapeSystem::new(world,&node_shape);
-//    world.scene().register_shape(TypeId::of::<Node>(),shape_system.clone());
+   let node_shape   = Rect(Vector2::new(50.0.px(),50.0.px()));;
+   let shape_system = ShapeSystem::new(world,&node_shape);
+   world.scene().register_shape(TypeId::of::<Node>(),shape_system.clone());
 }
+
 
 
 // =============
@@ -78,22 +101,17 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new() -> Self {
+    pub fn new(world:&World) -> Self {
         let logger         = Logger::new("graph");
         let data           = default();
         let display_object = display::object::Node::new(&logger);
         let callbacks      = default();
+        register_shapes(world);
         Self {data,display_object,callbacks,logger}
     }
 
     pub fn set_on_edit_callbacks(&self, callbacks: OnEditCallbacks) {
         *self.callbacks.borrow_mut() = callbacks
-    }
-}
-
-impl Default for Graph {
-    fn default() -> Self {
-        Graph::new()
     }
 }
 
