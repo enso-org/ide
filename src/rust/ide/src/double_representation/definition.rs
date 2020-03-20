@@ -71,6 +71,7 @@ pub fn traverse_for_definition
     Ok(locate(ast, id)?.item)
 }
 
+/// Traverses the given sequence of crumbs, looking up the definition by given ID.
 pub fn locate(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition> {
     let mut crumbs_iter = id.crumbs.iter();
     // Not exactly regular - first crumb is a little special, because module is not a definition
