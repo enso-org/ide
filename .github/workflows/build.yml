@@ -17,7 +17,7 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v1 
+      - uses: actions/checkout@v1
 
 #      - name: Cache cargo build
 #        uses: actions/cache@v1
@@ -108,10 +108,10 @@ jobs:
       - name: Cache cargo build
         uses: actions/cache@v1
         with:
-          path: src/rust/target/debug
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
+          path: src/rust/target
+          key: ${{ runner.os }}-cargo-check-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-build-target-
+            ${{ runner.os }}-cargo-check-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -137,13 +137,13 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Cache cargo build
+      - name: Cache cargo test
         uses: actions/cache@v1
         with:
-          path: src/rust/target/debug
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
+          path: src/rust/target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-build-target-
+            ${{ runner.os }}-cargo-test-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -172,13 +172,13 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-#      - name: Cache wasm build
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target/wasm32-unknown-unknown/debug
-#          key: ${{ runner.os }}-wasm-build-target-${{ hashFiles('src/rust/Cargo.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-wasm-build-target-
+      - name: Cache wasm test
+        uses: actions/cache@v1
+        with:
+          path: src/rust/target
+          key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-test-
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
