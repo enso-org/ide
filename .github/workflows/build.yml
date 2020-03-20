@@ -160,7 +160,7 @@ jobs:
     runs-on: macOS-latest
     env:
       WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
-        WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
+      WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v1
 
