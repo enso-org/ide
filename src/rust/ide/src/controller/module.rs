@@ -16,6 +16,7 @@ use parser::api::SourceFile;
 use ast;
 use ast::Ast;
 use ast::HasRepr;
+use ast::IdMap;
 use ast::HasIdMap;
 use ast::known;
 use data::text::*;
@@ -323,7 +324,6 @@ mod test {
     use ast;
     use ast::BlockLine;
     use ast::Ast;
-    use ast::IdMap;
     use data::text::Span;
     use file_manager_client::Path;
     use json_rpc::test_util::transport::mock::MockTransport;

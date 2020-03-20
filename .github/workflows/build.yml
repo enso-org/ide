@@ -104,13 +104,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-3-cargo-registry
+          key: ${{ runner.os }}-4-cargo-registry
 
       - name: Cache Cargo Check
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-3-cargo-check
+          key: ${{ runner.os }}-4-cargo-check
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -140,13 +140,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-3-cargo-registry
+          key: ${{ runner.os }}-4-cargo-registry
 
       - name: Cache Cargo Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-3-cargo-test
+          key: ${{ runner.os }}-4-cargo-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -173,19 +173,19 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-3-wasm-registry
+          key: ${{ runner.os }}-4-wasm-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-3-wasm-test
+          key: ${{ runner.os }}-4-wasm-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2019-11-04
-          override: true 
+          override: true
 
       - name: Install wasm-pack
         env:
