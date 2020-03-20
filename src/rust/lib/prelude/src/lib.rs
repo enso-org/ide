@@ -159,3 +159,31 @@ impl<T:Default> Default for CloneCell<T> {
         Self::new(default())
     }
 }
+
+
+
+// ================================
+// === RefCell<Option<T>> Utils ===
+// ================================
+
+pub trait RefcellOptionOps<T> {
+    fn clear(&self);
+    fn set(&self, val:T);
+    fn set_if_none(&self, val:T);
+}
+
+impl<T> RefcellOptionOps<T> for RefCell<Option<T>> {
+    fn clear(&self) {
+        *self.borrow_mut() = None;
+    }
+
+    fn set(&self, val:T) {
+        *self.borrow_mut() = Some(val);
+    }
+
+    fn set_if_none(&self, val:T) {
+        let mut ptr = self.borrow_mut();
+        if ptr.is_some() { panic!("The value was already set.") }
+        *ptr = Some(val)
+    }
+}

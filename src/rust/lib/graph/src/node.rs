@@ -6,6 +6,7 @@ use crate::{HasSprite, ChangeType};
 use ensogl::control::callback::CallbackMut1;
 use ensogl::data::color::Srgba;
 use ensogl::display;
+use ensogl::display::traits::*;
 use ensogl::display::Sprite;
 use ensogl::math::Vector2;
 use ensogl::math::Vector3;
@@ -56,7 +57,7 @@ impl Node {
             let type_id      = TypeId::of::<Node>();
             let shape_system = scene.lookup_shape(&type_id).unwrap();
             let new_sprite   = shape_system.new_instance();
-            this.add_child_tmp(&display_object,&new_sprite);
+            display_object.add_child(&new_sprite);
             new_sprite.size().set(Vector2::new(200.0,200.0));
             sprite.set(Some(new_sprite));
         }));
