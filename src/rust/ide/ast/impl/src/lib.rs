@@ -163,7 +163,7 @@ impl<T> Layer<T> for Layered<T> {
 /// Each AST node is annotated with span and an optional ID.
 #[derive(Eq, PartialEq, Debug, Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct Ast {
+pub struct  Ast {
     pub wrapped: Rc<WithID<WithLength<Shape<Ast>>>>
 }
 

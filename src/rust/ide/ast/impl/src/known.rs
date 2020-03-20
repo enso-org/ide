@@ -46,6 +46,9 @@ impl<T> KnownAst<T> {
         KnownAst {ast,phantom:default()}
     }
 
+    /// Gets AST id.
+    pub fn id(&self) -> Option<crate::Id> { self.ast.id }
+
     /// Returns a reference to the stored `Ast` with `Shape` of `T`.
     pub fn ast(&self) -> &Ast { &self.ast }
 }
@@ -92,6 +95,13 @@ impl<T> From<KnownAst<T>> for Ast {
         known_ast.ast
     }
 }
+
+impl<'a,T> From<&'a KnownAst<T>> for &'a Ast {
+    fn from(known_ast:&'a KnownAst<T>) -> &'a Ast {
+        &known_ast.ast
+    }
+}
+
 
 
 
