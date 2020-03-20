@@ -1,6 +1,11 @@
-#![feature(bool_to_option)]
+#![feature(associated_type_defaults)]
 #![feature(drain_filter)]
+#![feature(overlapping_marker_traits)]
+#![feature(specialization)]
 #![feature(trait_alias)]
+#![feature(type_alias_impl_trait)]
+#![feature(unboxed_closures)]
+#![feature(weak_into_raw)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
@@ -28,31 +33,19 @@ pub mod prelude {
 }
 
 pub use node::Node;
-use ensogl::display::shape::system::ShapeSystem;
-use ensogl::display::shape::*;
-use std::any::TypeId;
-use ensogl::display::world::World;
-
-
-
 
 use ensogl::prelude::*;
+use ensogl::traits::*;
 
-use ensogl::display::object::traits::*;
-use ensogl::display::shape::text::glyph::font::FontHandle;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::display::shape::text::text_field::content::TextFieldContent;
-use ensogl::display::shape::text::text_field::cursor::Cursor;
-use ensogl::display::shape::text::text_field::cursor::Cursors;
-use ensogl::display::shape::text::text_field::render::assignment::GlyphLinesAssignment;
-use ensogl::display::shape::text::text_field::render::assignment::LineFragment;
-use ensogl::display::shape::text::text_field::render::selection::SelectionSpritesGenerator;
-use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::data::color::*;
+use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::*;
-
-use ensogl::math::topology::unit::PixelDistance;
-use ensogl::display::Glsl;
-
+use ensogl::display::shape::primitive::system::ShapeSystem;
+use ensogl::display::shape::Var;
+use ensogl::display::world::*;
+use ensogl::system::web;
+use shapely::shared;
+use std::any::TypeId;
 
 
 // =========================
@@ -63,9 +56,114 @@ pub trait HasSprite {
     fn set_sprite(&self, sprite:&Sprite);
 }
 
+
+// TODO[ao] copied from shapes example, consider where to move it.
+pub mod icons {
+    use super::*;
+
+    pub fn history() -> AnyShape {
+        let radius_diff    = 0.5.px();
+        let corners_radius = 2.0.px();
+        let width_diff     = &corners_radius * 3.0;
+        let offset         = 2.px();
+        let width          = 32.px();
+        let height         = 16.px();
+        let persp_diff1    = 6.px();
+
+        let width2          = &width  - &width_diff;
+        let width3          = &width2 - &width_diff;
+        let corners_radius2 = &corners_radius  - &radius_diff;
+        let corners_radius3 = &corners_radius2 - &radius_diff;
+        let persp_diff2     = &persp_diff1 * 2.0;
+
+        let rect1 = Rect((&width ,&height)).corners_radius(&corners_radius);
+        let rect2 = Rect((&width2,&height)).corners_radius(&corners_radius2).translate_y(&persp_diff1);
+        let rect3 = Rect((&width3,&height)).corners_radius(&corners_radius3).translate_y(&persp_diff2);
+
+        let rect3 = rect3 - rect2.translate_y(&offset);
+        let rect2 = rect2 - rect1.translate_y(&offset);
+
+        let rect1 = rect1.fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
+        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
+        let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
+
+        let icon = (rect3 + rect2 + rect1).translate_y(-persp_diff2/2.0);
+        icon.into()
+    }
+}
+
+fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
+    where R : Into<Var<Distance<Pixels>>>,
+          W : Into<Var<Distance<Pixels>>>,
+          A : Into<Var<Angle<Radians>>> {
+    let inner_radius = inner_radius.into();
+    let width        = width.into();
+    let angle        = angle.into();
+
+    let angle2  = &angle / 2.0;
+    let radius  = &width / 2.0;
+    let inner   = Circle(&inner_radius);
+    let outer   = Circle(&inner_radius + &width);
+    let section = Plane().cut_angle(&angle);
+    let corner1 = Circle(&radius).translate_y(inner_radius + radius);
+    let corner2 = corner1.rotate(&angle2);
+    let corner1 = corner1.rotate(-&angle2);
+    let ring    = &outer - &inner;
+    let pie     = &ring * &section;
+    let out     = &pie + &corner1 + &corner2;
+//    let out     = out.fill(Srgba::new(0.22,0.83,0.54,1.0));
+//    let out     = out.fill(Srgba::new(0.0,0.0,0.0,0.2));
+    let out     = out.fill(Srgba::new(0.9,0.9,0.9,1.0));
+    out.into()
+}
+
+fn nodes2() -> AnyShape {
+    let node_radius = 32.0;
+    let border_size = 16.0;
+    let node   = Circle(node_radius.px());
+//    let border = Circle((node_radius + border_size).px());
+    let node   = node.fill(Srgb::new(0.97,0.96,0.95));
+//    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
+//    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
+
+    let bg   = Circle((node_radius*2.0).px());
+    let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
+
+
+//    let shadow1 = Circle((node_radius + border_size).px());
+//    let shadow1_color = LinearGradient::new()
+//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
+//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
+//    let shadow1_color = SdfSampler::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
+//    let shadow1       = shadow1.fill(shadow1_color);
+
+    let shadow2 = Circle((node_radius + border_size).px());
+    let shadow2_color = LinearGradient::new()
+        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+        .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
+//    let shadow2_color = ExponentSampler::new(shadow2_color);
+    let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+    let shadow2       = shadow2.fill(shadow2_color);
+
+
+    let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+    let loader_angle2 = &loader_angle / 2.0;
+    let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
+    let loader        = loader.rotate(loader_angle2);
+    let loader        = loader.rotate("Radians(input_time/200.0)");
+
+    let icon = icons::history();
+
+
+    let out = loader + shadow2 + node + icon;
+    out.into()
+}
+
+
+
 /// Registers Node shape.
 pub fn register_shapes(world:&World) {
-   let node_shape   = Rect(Vector2::new(50.0.px(),50.0.px()));;
+   let node_shape   = nodes2();
    let shape_system = ShapeSystem::new(world,&node_shape);
    world.scene().register_shape(TypeId::of::<Node>(),shape_system.clone());
 }
@@ -126,13 +224,11 @@ impl<'a> From<&'a Graph> for &'a display::object::Node {
 
 impl Graph {
     pub fn add_node(&self, new_node:node::Node) {
-        self.logger.warning(|| format!("Add new node with label {}", new_node.label()));
         self.display_object.add_child(&new_node);
         self.data.borrow_mut().nodes.push(new_node);
     }
 
     pub fn clear_graph(&self) {
-        self.logger.warning("Clear graph");
         let mut data = self.data.borrow_mut();
         for node in &data.nodes {
             self.display_object.remove_child(node);
