@@ -140,7 +140,7 @@ impl GraphInfo {
     pub fn find_node_index_in_lines
     (lines:&[BlockLine<Option<Ast>>], id:ast::ID) -> FallibleResult<usize> {
         let position = lines.iter().position(|line| Self::is_node_by_id(&line,id));
-        position.ok_or(IdNotFound{id}.into())
+        position.ok_or_else(|| IdNotFound{id}.into())
     }
 
     /// Adds a new node to this graph.
