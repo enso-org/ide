@@ -193,6 +193,11 @@ shared! { TextField
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
+        /// Clear content.
+        pub fn clear_content(&mut self) {
+            self.set_content("");
+        }
+
         /// Obtains the whole text content as a single String.
         pub fn get_content(&self) -> String {
             let mut line_strings = self.content.lines().iter().map(|l| l.to_string());

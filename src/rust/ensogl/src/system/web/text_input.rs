@@ -81,7 +81,7 @@ pub struct KeyboardBinding {
     js_handlers      : js::TextInputHandlers,
     copy_handler     : Option<Closure<dyn CopyHandler>>,
     paste_handler    : Option<Closure<dyn PasteHandler>>,
-    defocus_handler: Option<Closure<dyn WindowDefocusHandler>>,
+    defocus_handler  : Option<Closure<dyn WindowDefocusHandler>>,
     key_down_handler : Option<Closure<dyn KeyboardEventHandler>>,
     key_up_handler   : Option<Closure<dyn KeyboardEventHandler>>,
 }
@@ -94,7 +94,7 @@ impl KeyboardBinding {
             js_handlers      : js::TextInputHandlers::new(),
             copy_handler     : None,
             paste_handler    : None,
-            defocus_handler: None,
+            defocus_handler  : None,
             key_down_handler : None,
             key_up_handler   : None
         }

@@ -66,12 +66,12 @@ impl TextEditor {
     ( logger           : &Logger
     , world            : &World
     , controller       : controller::text::Handle
-    , keyboard_actions : &mut KeyboardActions) -> Self {
+    , keyboard_actions : &mut KeyboardActions
+    , fonts            : &mut FontRegistry) -> Self {
         let logger     = logger.sub("TextEditor");
         let scene      = world.scene();
         let camera     = scene.camera();
         let screen     = camera.screen();
-        let mut fonts  = FontRegistry::new();
         let font       = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let padding    = default();
         let position   = zero();

@@ -3,6 +3,7 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::definition::DefinitionName;
 use crate::view::layout::ViewLayout;
 
 use ensogl::control::callback::CallbackHandle;
@@ -15,7 +16,7 @@ use enso_frp::KeyboardActions;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-use crate::double_representation::definition::DefinitionName;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
 
 
 // =================
@@ -87,8 +88,9 @@ impl ProjectView {
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = KeyboardActions::new(&keyboard);
         let resize_callback      = None;
+        let mut fonts            = FontRegistry::new();
         let layout               = ViewLayout::new
-            (&logger,&mut keyboard_actions,&world,text_controller,graph_controller);
+            (&logger,&mut keyboard_actions,&world,text_controller,graph_controller,&mut fonts);
         let data = ProjectViewData
             {world,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
         Ok(Self::new_from_data(data).init())
