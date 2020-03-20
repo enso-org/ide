@@ -6,18 +6,16 @@ pub mod transform;
 use crate::prelude::*;
 
 use crate::closure;
-use crate::data::dirty;
-use crate::data::dirty::traits::*;
-use data::opt_vec::OptVec;
-
-use nalgebra::Vector3;
-use nalgebra::Matrix4;
-use transform::CachedTransform;
-
-use crate::control::callback::DynEventDispatcher;
 use crate::control::callback::DynEvent;
-use shapely::shared;
+use crate::control::callback::DynEventDispatcher;
+use crate::data::dirty::traits::*;
+use crate::data::dirty;
 use crate::display::scene::Scene;
+use data::opt_vec::OptVec;
+use nalgebra::Matrix4;
+use nalgebra::Vector3;
+use shapely::shared;
+use transform::CachedTransform;
 
 
 
@@ -42,15 +40,20 @@ pub mod traits {
 /// update the old parent with the information that the child was removed.
 #[derive(Clone,Debug)]
 pub struct ParentBind {
-    pub parent : Node,
+    pub parent : WeakNode,
     pub index  : usize
 }
 
 impl ParentBind {
     pub fn dispose(&self) {
-        self.parent.remove_child_by_index(self.index);
+        self.parent.upgrade().for_each(|p| p.remove_child_by_index(self.index));
+    }
+
+    pub fn parent(&self) -> Option<Node> {
+        self.parent.upgrade()
     }
 }
+
 
 
 // =================
@@ -154,24 +157,9 @@ impl DirtyFlags {
 
 
 
-// ============
-// === Node ===
-// ============
-
-#[derive(Clone,Shrinkwrap)]
-pub struct Node {
-    pub rc : Rc<NodeData>
-}
-
-impl CloneRef for Node {}
-
-impl Node {
-    /// Constructor.
-    pub fn new<L:Into<Logger>>(logger:L) -> Self {
-        let rc = Rc::new(NodeData::new(logger));
-        Self {rc}
-    }
-}
+// ================
+// === NodeData ===
+// ================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 #[derive(Debug)]
@@ -204,7 +192,7 @@ impl NodeData {
     }
 
     pub fn parent(&self) -> Option<Node> {
-        self.parent_bind.get().map(|t| t.parent)
+        self.parent_bind.get().and_then(|t| t.parent())
     }
 
     pub fn is_orphan(&self) -> bool {
@@ -213,7 +201,7 @@ impl NodeData {
 
     pub fn dispatch_event(&self, event:&DynEvent) {
         self.event_dispatcher.borrow_mut().dispatch(event);
-        self.parent_bind.get().map_ref(|bind| bind.parent.dispatch_event(event));
+        self.parent_bind.get().and_then(|b| b.parent()).map_ref(|p| p.dispatch_event(event));
     }
 
     pub fn child_count(&self) -> usize {
@@ -397,13 +385,15 @@ impl NodeData {
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
     pub fn set_parent_bind(&self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
-        let dirty  = bind.parent.dirty.children.clone_ref();
-        let index  = bind.index;
-        let on_mut = move || {dirty.set(index)};
-        let dirty  = bind.parent.dirty.children.clone_ref();
-        self.dirty.set_callback(move || dirty.set(index));
-        self.dirty.parent.set();
-        self.parent_bind.set(Some(bind));
+        if let Some(parent) = bind.parent() {
+            let dirty  = parent.dirty.children.clone_ref();
+            let index  = bind.index;
+            let on_mut = move || { dirty.set(index) };
+            let dirty  = parent.dirty.children.clone_ref();
+            self.dirty.set_callback(move || dirty.set(index));
+            self.dirty.parent.set();
+            self.parent_bind.set(Some(bind));
+        }
     }
 }
 
@@ -515,6 +505,28 @@ impl Debug for Node {
 // === Node ===
 // ============
 
+
+#[derive(Clone,Shrinkwrap)]
+pub struct Node {
+    pub rc : Rc<NodeData>
+}
+
+impl CloneRef for Node {}
+
+impl Node {
+    /// Constructor.
+    pub fn new<L:Into<Logger>>(logger:L) -> Self {
+        let rc = Rc::new(NodeData::new(logger));
+        Self {rc}
+    }
+
+    pub fn downgrade(&self) -> WeakNode {
+        let weak = Rc::downgrade(&self.rc);
+        WeakNode{weak}
+    }
+}
+
+
 // === Public API ==
 
 impl Node {
@@ -535,7 +547,7 @@ impl Node {
         child.unset_parent();
         let index = self.register_child(child);
         self.rc.logger.info(|| format!("Child index is {}.", index));
-        let parent_bind = ParentBind {parent:self,index};
+        let parent_bind = ParentBind {parent:self.downgrade(),index};
         child.set_parent_bind(parent_bind);
     }
 
@@ -567,7 +579,7 @@ impl Node {
     pub fn child_index<T:Object>(&self, child:&T) -> Option<usize> {
         let child = child.display_object();
         child.parent_bind().and_then(|bind| {
-            if self == &bind.parent { Some(bind.index) } else { None }
+            if bind.parent().as_ref() == Some(self) { Some(bind.index) } else { None }
         })
     }
 }
@@ -581,6 +593,7 @@ impl Node {
     }
 }
 
+
 // === Instances ===
 
 impl From<&Node> for Node {
@@ -590,6 +603,23 @@ impl From<&Node> for Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
+    }
+}
+
+
+
+// ================
+// === WeakNode ===
+// ================
+
+#[derive(Clone,Debug)]
+pub struct WeakNode {
+    pub weak : Weak<NodeData>
+}
+
+impl WeakNode {
+    pub fn upgrade(&self) -> Option<Node> {
+        self.weak.upgrade().map(|rc| Node {rc})
     }
 }
 
@@ -608,6 +638,12 @@ impl<T> Object for T where for<'t> &'t T:Into<&'t Node> {
         self.into()
     }
 }
+
+
+
+// =================
+// === ObjectOps ===
+// =================
 
 impl<T:Object> ObjectOps for T {}
 pub trait ObjectOps : Object {

@@ -203,7 +203,7 @@ fn init(world: &World) {
         t.y += 200.0;
     });
 
-    let nodes = vec![node1,node2,node3];
+    let nodes = vec![node1,node2];//,node3];
 
 
     world.add_child(&shape_system);
