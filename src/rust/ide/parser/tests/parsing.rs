@@ -7,7 +7,7 @@ use ast::test_utils::expect_shape;
 //use ast::test_utils::expect_single_line;
 use parser::api::IsParser;
 use parser::api::SourceFile;
-use parser::test_utils::ParserTestExts;
+//use parser::test_utils::ParserTestExts;
 use utils::test::ExpectTuple;
 
 

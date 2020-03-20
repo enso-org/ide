@@ -68,10 +68,10 @@ pub struct EmptyDefinitionId;
 /// Looks up graph in the module.
 pub fn traverse_for_definition
 (ast:&ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
-    Ok(locate_definition(ast,id)?.item)
+    Ok(locate(ast, id)?.item)
 }
 
-pub fn locate_definition(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition> {
+pub fn locate(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition> {
     let mut crumbs_iter = id.crumbs.iter();
     // Not exactly regular - first crumb is a little special, because module is not a definition
     // nor a children.
@@ -517,7 +517,7 @@ mod tests {
         let main_id = Id::new_plain_name("main");
         for (program,expected_line_index) in program_to_expected_main_pos {
             let module = parser.parse_module(program,default()).unwrap();
-            let location = locate_definition(&module,&main_id).unwrap();
+            let location = locate(&module, &main_id).unwrap();
             let (crumb,) = location.crumbs.expect_tuple();
             match crumb {
                 ast::crumbs::Crumb::Module(m) => assert_eq!(m.line_index, expected_line_index),

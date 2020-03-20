@@ -10,13 +10,13 @@ pub use crate::double_representation::graph::Id;
 pub use crate::double_representation::graph::LocationHint;
 use crate::controller::module::NodeMetadata;
 use crate::double_representation::graph::GraphInfo;
+use crate::double_representation::definition;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
 use parser::api::IsParser;
 use ast::HasRepr;
-use crate::double_representation::node::NodeInfo;
 
 
 // ==============
@@ -166,13 +166,19 @@ impl Handle {
         Ok(nodes)
     }
 
-    /// Updates the module's AST by passing it through a given function.
-    pub fn update_definition_ast
-    (&self, definition:double_representation::definition::DefinitionInfo) -> FallibleResult<()> {
-        let ast = definition.ast.ast();
-//        self.module.update_ast()
-//        self.module.update_ast(ast);
-        Ok(())
+    /// Updates the AST of the given definition.
+    pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
+    where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
+        self.module.modify_ast(|ast_so_far| {
+            use definition::ChildDefinition;
+            let ChildDefinition {crumbs,item} = definition::locate(&ast_so_far, &self.id)?;
+            let new_definition = f(item)?;
+            let new_ast = new_definition.ast.into();
+            let new_module = ast::crumbs::set_traversing(&ast_so_far.into(),&crumbs,new_ast)?;
+            let new_module = ast::known::Module::try_from(new_module)?;
+            println!("MODULE after: {}", new_module.repr());
+            Ok(new_module)
+        })
     }
 
     /// Adds a new node to the graph and returns information about created node.
@@ -181,24 +187,13 @@ impl Handle {
         println!("AST before: {}", def.ast.repr());
 
         let mut parser = self.module.parser();
-        let ast        = parser.parse_line(&node.expression)?;
-        let node_info  = NodeInfo::from_line_ast(&ast).unwrap(); // TODO
+        let node_ast   = parser.parse_line(&node.expression)?;
+        let node_info  = double_representation::node::NodeInfo::from_line_ast(&node_ast).unwrap(); // TODO
 
-        self.module.modify_ast(|ast_so_far : ast::known::Module| -> FallibleResult<ast::known::Module> {
-            use double_representation::definition::ChildDefinition;
-            use double_representation::definition::locate_definition;
-            let ChildDefinition {crumbs,item} = locate_definition(&ast_so_far,&self.id)?;
-            let mut graph = GraphInfo::from_definition(item);
-            graph.add_node(ast.clone(),node.location_hint);
-            let new_def_ast = graph.ast();
-            println!("AST after: {}", new_def_ast.repr());
-
-            println!("MODULE before: {}", ast_so_far.repr());
-            let new_module = ast::crumbs::set_traversing(&ast_so_far.into(),&crumbs,new_def_ast)?;
-            let new_module = ast::known::Module::try_from(new_module)?;
-
-            println!("MODULE after: {}", new_module.repr());
-            Ok(new_module)
+        self.update_definition_ast(|definition| {
+            let mut graph = GraphInfo::from_definition(definition);
+            graph.add_node(node_ast.clone(), node.location_hint);
+            Ok(graph.source)
         })?;
 
         if let Some(initial_metadata) = node.metadata {
@@ -212,8 +207,14 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
+        self.update_definition_ast(|definition| {
+            let mut graph = GraphInfo::from_definition(definition);
+            graph.remove_node(id)?;
+            Ok(graph.source)
+        })?;
+
         self.module().pop_node_metadata(id)?;
-        todo!()
+        Ok(())
     }
 
     /// Subscribe to updates about changes in this graph.
