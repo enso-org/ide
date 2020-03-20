@@ -57,12 +57,12 @@ impl Id {
 // ===============================
 
 #[derive(Fail,Clone,Debug)]
-#[fail(display="Definition ID was empty")]
-struct CannotFindDefinition(Id);
+#[fail(display="Cannot find definition child by id {:?}.",_0)]
+pub struct CannotFindChild(Crumb);
 
-#[derive(Fail,Clone,Debug)]
-#[fail(display="Definition ID was empty")]
-struct EmptyDefinitionId;
+#[derive(Copy,Fail,Clone,Debug)]
+#[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
+pub struct EmptyDefinitionId;
 
 
 
@@ -72,27 +72,20 @@ struct EmptyDefinitionId;
 
 /// Looks up graph in the module.
 pub fn traverse_for_definition
-(ast:ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
-    let err            = || CannotFindDefinition(id.clone());
-    let mut crumb_iter = id.crumbs.iter();
-    let first_crumb    = crumb_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut definition = ast.def_iter().find_definition(first_crumb).ok_or_else(err)?.item;
-    for crumb in crumb_iter {
-        definition = definition.def_iter().find_definition(crumb).ok_or_else(err)?.item;
-    }
-    Ok(definition)
+(ast:&ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
+    Ok(locate_definition(ast,id)?.item)
 }
 
-pub fn locate_definition(ast:ast::known::Module, id:&Id) -> FallibleResult<ast::crumbs::Crumbs> {
-    let err     = || CannotFindDefinition(id.clone());
-    let mut ret = ast::crumbs::Crumbs::new();
-    let mut provider : Box<dyn DefinitionProvider> = Box::new(ast);
-    for id_piece in id.crumbs.iter() {
-        let child = provider.def_iter().find_definition(&id_piece).ok_or_else(err)?;
-        ret.extend(child.crumbs);
-        provider = Box::new(child.item);
+pub fn locate_definition(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition> {
+    let mut crumbs_iter = id.crumbs.iter();
+    // Not exactly regular - first crumb is a little special, because module is not a definition
+    // nor a children.
+    let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
+    let mut child = ast.def_iter().find_definition(&first_crumb)?;
+    for crumb in crumbs_iter {
+        child = child.go_down(crumb)?;
     }
-    Ok(ret)
+    Ok(child)
 }
 
 
@@ -276,6 +269,15 @@ impl<T> DefinitionChild<T> {
     pub fn map<U>(self, f:impl FnOnce(T) -> U) -> DefinitionChild<U> {
         DefinitionChild::new(self.crumbs,f(self.item))
     }
+
+    pub fn go_down(self, id:&Crumb) -> FallibleResult<ChildDefinition>
+    where T : DefinitionProvider {
+        let my_child = self.item.def_iter().find_definition(id)?;
+        let mut crumbs = self.crumbs;
+        crumbs.extend(my_child.crumbs);
+
+        Ok(ChildDefinition {crumbs, item: my_child.item})
+    }
 }
 
 type ChildAst<'a> = DefinitionChild<&'a Ast>;
@@ -305,8 +307,9 @@ impl<'a> DefinitionIterator<'a> {
         self.child_definitions().map(|child_def| child_def.item)
     }
 
-    pub fn find_definition(self, name:&DefinitionName) -> Option<ChildDefinition> {
-        self.child_definitions().find(|child_def| &child_def.item.name == name)
+    pub fn find_definition(self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
+        let err = || CannotFindChild(name.clone());
+        self.child_definitions().find(|child_def| &child_def.item.name == name).ok_or_else(err)
     }
 
     pub fn collect_definitions(self) -> Vec<DefinitionInfo> {
@@ -392,7 +395,7 @@ mod tests {
     use super::*;
     use parser::api::IsParser;
     use utils::test::ExpectTuple;
-    use ast::crumbs::ModuleCrumb;
+//    use ast::crumbs::ModuleCrumb;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -472,8 +475,8 @@ mod tests {
         let main_id = Id::new_plain_name("main");
         for (program,expected_line_index) in program_to_expected_main_pos {
             let module = parser.parse_module(program,default()).unwrap();
-            let location = locate_definition(module,&main_id).unwrap();
-            let (crumb,) = location.expect_tuple();
+            let location = locate_definition(&module,&main_id).unwrap();
+            let (crumb,) = location.crumbs.expect_tuple();
             match crumb {
                 ast::crumbs::Crumb::Module(m) => assert_eq!(m.line_index, expected_line_index),
                 _                             => panic!("Expected module crumb, got: {:?}.", crumb)
@@ -482,20 +485,34 @@ mod tests {
     }
 
     #[test]
-    fn editing_nested_definition() {
+    fn getting_nested_definition() {
         let program = r"
 main =
     foo = 2
-    bar = 3
     add a b = a + b
     baz arg =
         subbaz arg = 4
+    baz2 arg =
+        subbaz2 = 4
+
     add foo bar";
 
         let module = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
-        let baz_id = Id::new_plain_names(&["main", "add"]);
-        let definition = traverse_for_definition(module,&baz_id).unwrap();
-        assert_eq!(definition.body().repr(), "subbaz arg = 4");
 
+        let check_def = |id, expected_body| {
+            let definition = traverse_for_definition(&module,&id).unwrap();
+            assert_eq!(definition.body().repr(), expected_body);
+        };
+        let check_not_found = |id| {
+            assert!(traverse_for_definition(&module,&id).is_err())
+        };
+
+        check_def(Id::new_plain_names(&["main","add"]), "a + b");
+        check_def(Id::new_plain_names(&["main","baz"]), "\n        subbaz arg = 4");
+        check_def(Id::new_plain_names(&["main","baz","subbaz"]), "4");
+
+        // Node are not definitions
+        check_not_found(Id::new_plain_names(&["main", "foo"]));
+        check_not_found(Id::new_plain_names(&["main","baz2","subbaz2"]));
     }
 }

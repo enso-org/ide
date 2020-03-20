@@ -7,23 +7,30 @@ use utils::fail::FallibleResult;
 
 pub type Crumbs = Vec<Crumb>;
 
-#[derive(Clone,Copy,Debug)]
+/// Crumb identifies location of child AST in an AST node.
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[allow(missing_docs)]
 pub enum Crumb {
     Block(BlockCrumb),
     Module(ModuleCrumb),
     Infix(InfixCrumb),
 }
 
-#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub enum BlockCrumb {
+    /// The first non-empty line in block.
     HeadLine,
+    /// Index in the sequence of lines (not counting the HeadLine).
     TailLine {tail_index:usize},
 }
 
-#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub struct ModuleCrumb {pub line_index:usize}
 
-#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub enum InfixCrumb {
     LeftOperand,
     Operator,
@@ -268,7 +275,10 @@ pub fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a As
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::HasRepr;
+
+    use utils::test::ExpectTuple;
 
     #[test]
     fn infix_crumb() -> FallibleResult<()> {
@@ -324,6 +334,21 @@ mod tests {
         assert_eq!(get(&[RightOperand,LeftOperand])?.repr(), "foo");
         assert_eq!(get(&[RightOperand,RightOperand])?.repr(), "bar");
         Ok(())
+    }
+
+
+    #[test]
+    fn iterate_infix() {
+        let sum = Ast::infix_var("foo", "+", "bar");
+        let (larg,opr,rarg) = sum.iter_subcrumbs().expect_tuple();
+        assert_eq!(larg, Crumb::Infix(InfixCrumb::LeftOperand));
+        assert_eq!(opr,  Crumb::Infix(InfixCrumb::Operator));
+        assert_eq!(rarg, Crumb::Infix(InfixCrumb::RightOperand));
+    }
+
+    #[test]
+    fn iterate_module() {
+
     }
 }
 

@@ -144,7 +144,7 @@ shared! { Handle
         /// Obtains definition information for given graph id.
         pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
             let module = known::Module::try_new(self.module.ast.clone())?;
-            double_representation::definition::traverse_for_definition(module,id)
+            double_representation::definition::traverse_for_definition(&module,id)
         }
 
         /// Check if current module state is synchronized with given code. If it's not, log error,
@@ -222,7 +222,8 @@ impl Handle {
         async move { fm.write(path.clone(),code?).await }
     }
 
-    pub fn update_ast<AstUpdate>
+    /// Updates the module's AST by passing it through a given function.
+    pub fn modify_ast<AstUpdate>
     (&mut self, ast_update:AstUpdate) -> FallibleResult<()>
     where AstUpdate: FnOnce(known::Module) -> known::Module, {
         let module_so_far = known::Module::try_new(self.rc.borrow().module.ast.clone())?;

@@ -177,6 +177,7 @@ impl Handle {
         Ok(nodes)
     }
 
+    /// Updates the module's AST by passing it through a given function.
     pub fn update_definition_ast
     (&self, definition:double_representation::definition::DefinitionInfo) -> FallibleResult<()> {
         let ast = definition.ast.ast();
