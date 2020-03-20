@@ -158,6 +158,9 @@ jobs:
   wasm-test:
     name: WASM Tests
     runs-on: macOS-latest
+    env:
+      WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
+        WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v1
 
@@ -176,10 +179,11 @@ jobs:
           override: true
 
       - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack --version 0.8.1
+        run: |
+          curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+          mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+          rm -r $WASMPACKDIR
+        shell: bash
 
       - name: Install Node
         uses: actions/setup-node@v1
