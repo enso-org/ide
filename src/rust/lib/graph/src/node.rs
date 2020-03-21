@@ -54,7 +54,7 @@ impl Node {
         let sprite : Rc<CloneCell<Option<Sprite>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
-            display_object.set_on_show_with(enclose!((sprite) move |this,scene| {
+            display_object.set_on_show_with(enclose!((sprite) move |scene| {
             let type_id      = TypeId::of::<Node>();
             let shape_system = scene.lookup_shape(&type_id).unwrap();
             let new_sprite   = shape_system.new_instance();
@@ -63,9 +63,10 @@ impl Node {
             sprite.set(Some(new_sprite));
         }));
 
-        display_object.set_on_hide_with(|scene| {
-            println!("set_on_hide_with");
-        });
+        display_object.set_on_hide_with(enclose!((sprite) move |_| {
+            sprite.set(None);
+        }));
+
         let data      = default();
         let callbacks = default();
         Self {logger,sprite,display_object,data,callbacks}

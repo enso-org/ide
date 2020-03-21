@@ -70,7 +70,7 @@ pub struct Callbacks {
     pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeData)>>>,
     pub on_show      : RefCell<Option<Box<dyn Fn()>>>,
     pub on_hide      : RefCell<Option<Box<dyn Fn()>>>,
-    pub on_show_with : RefCell<Option<Box<dyn Fn(&NodeData,&Scene)>>>,
+    pub on_show_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
     pub on_hide_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
 }
 
@@ -87,8 +87,8 @@ impl Callbacks {
         if let Some(f) = &*self.on_hide.borrow() { f() }
     }
 
-    pub fn on_show_with(&self, data:&NodeData, scene:&Scene) {
-        if let Some(f) = &*self.on_show_with.borrow() { f(data,scene) }
+    pub fn on_show_with(&self, scene:&Scene) {
+        if let Some(f) = &*self.on_show_with.borrow() { f(scene) }
     }
 
     pub fn on_hide_with(&self, scene:&Scene) {
@@ -340,7 +340,7 @@ impl NodeData {
     pub fn show_with(&self, scene:&Scene) {
 //        if !self.visible {
             self.logger.info("Showing.");
-            self.callbacks.on_show_with(self,scene);
+            self.callbacks.on_show_with(scene);
             self.children.borrow().iter().for_each(|child| {
                 child.upgrade().for_each(|t| t.show_with(scene));
             });
@@ -480,7 +480,7 @@ impl NodeData {
         self.callbacks.on_hide.set(Box::new(f))
     }
 
-    pub fn set_on_show_with<F:Fn(&NodeData, &Scene)+'static>(&self, f:F) {
+    pub fn set_on_show_with<F:Fn(&Scene)+'static>(&self, f:F) {
         self.callbacks.on_show_with.set(Box::new(f))
     }
 

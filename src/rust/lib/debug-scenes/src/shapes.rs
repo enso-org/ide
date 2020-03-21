@@ -194,15 +194,13 @@ fn init(world: &World) {
         t.y += 300.0;
     });
 
-    println!("touch node 3");
     node3.mod_position(|t| {
         t.x += 400.0;
         t.y += 200.0;
     });
 
-    println!("after touch node 3");
 
-    let nodes = vec![node1,node2];//,node3];
+    let nodes = vec![node1,node2,node3];
 
 
     world.add_child(&shape_system);
@@ -212,10 +210,11 @@ fn init(world: &World) {
     let mut time:i32 = 0;
     let mut was_rendered = false;
     let mut loader_hidden = false;
-    let mut i = 10;
+    let mut i = 200;
     world.on_frame(move |_| {
         i -= 1;
         if i == 0 {
+            nodes[1].unset_parent();
 //            shape_system.set_shape(&node_shape2);
         }
 //        let _keep_alive = &sprite;
