@@ -83,6 +83,13 @@ pub struct Position {
     pub vector:Vector2<f32>
 }
 
+impl Position {
+    /// Creates a new position with given coordinates.
+    pub fn new(x:f32, y:f32) -> Position {
+        let vector = Vector2::new(x,y);
+        Position {vector}
+    }
+}
 
 
 

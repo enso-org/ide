@@ -207,11 +207,18 @@ impl Handle {
 
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-        let node_ast  = self.parse_node_expression(&node.expression)?;
-        let node_info = node::NodeInfo::from_line_ast(&node_ast).ok_or(FailedToCreateNode)?;
+//        println!("Adding node: {:?}", node);
+        let ast           = self.parse_node_expression(&node.expression)?;
+        let mut node_info = node::NodeInfo::from_line_ast(&ast).ok_or(FailedToCreateNode)?;
+        if let Some(desired_id) = node.id {
+            node_info.set_id(desired_id)
+        }
+
+//        println!("NodeInfo of the new node: {:?}", node_info);
 
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
+            let node_ast  = node_info.ast().clone();
             graph.add_node(node_ast,node.location_hint)?;
             Ok(graph.source)
         })?;
@@ -409,32 +416,44 @@ main =
     foo = 2
     print foo";
         test.run_graph_for_program(program, "main", |module,graph| async move {
+            // === Initial nodes ===
             let nodes   = graph.nodes().unwrap();
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
-            let info = NewNodeInfo {
+
+            // === Add node ===
+            let id       = ast::Id::new_v4();
+            let position = Some(controller::module::Position::new(10.0,20.0));
+            let metadata = NodeMetadata {position};
+            let info     = NewNodeInfo {
                 expression    : "a+b".into(),
-                metadata      : None,
-                id            : None,
+                metadata      : Some(metadata),
+                id            : Some(id),
                 location_hint : LocationHint::End,
             };
             graph.add_node(info).unwrap();
-
-//            let text = controller::text::Handle::new_for_module(module);
-            let new_program = module.code();
-            println!("Final code: {}", new_program);
-
+            let expected_program = r"
+main =
+    foo = 2
+    print foo
+    a+b";
+            assert_eq!(module.code(), expected_program);
             let nodes = graph.nodes().unwrap();
             let (_,_,node3) = nodes.expect_tuple();
+            assert_eq!(node3.info.id(),id);
             assert_eq!(node3.info.expression().repr(), "a+b");
+            let pos = node3.metadata.unwrap().position;
+            assert_eq!(pos, position);
+            assert!(graph.node_metadata(id).is_ok());
 
+            // === Remove node ===
             graph.remove_node(node3.info.id()).unwrap();
-
             let nodes = graph.nodes().unwrap();
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
+            assert!(graph.node_metadata(id).is_err());
         })
     }
 }
