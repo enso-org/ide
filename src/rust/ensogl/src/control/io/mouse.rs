@@ -7,6 +7,7 @@ pub mod event;
 
 use crate::control::callback::*;
 use crate::system::web::dom::Shape;
+use crate::system::web;
 
 use enso_frp::EventEmitterPoly;
 use enso_frp::Position;
@@ -18,6 +19,7 @@ use wasm_bindgen::prelude::Closure;
 use web_sys::EventTarget;
 
 pub use button::*;
+pub use event::*;
 
 
 
@@ -62,7 +64,7 @@ pub struct MouseManager {
     #[shrinkwrap(main_field)]
     dispatchers : MouseManagerDispatchers,
     closures    : MouseManagerClosures,
-    dom         : EventTarget,
+    dom         : web::dom::WithKnownShape<web::EventTarget>
 }
 
 /// A JavaScript callback closure for any mouse event.
@@ -86,14 +88,15 @@ macro_rules! define_bindings {
 
         impl MouseManager {
             /// Constructor.
-            pub fn new (dom:&EventTarget) -> Self {
+            pub fn new (dom:&web::dom::WithKnownShape<web::EventTarget>) -> Self {
                 let dispatchers = MouseManagerDispatchers::default();
                 let dom         = dom.clone();
                 $(
                     let dispatcher = dispatchers.$name.clone_ref();
+                    let shape      = dom.shape().current();
                     let $name : MouseEventJsClosure = Closure::wrap(Box::new(move |event:JsValue| {
                         let event = event.unchecked_into::<web_sys::$js_event>();
-                        dispatcher.dispatch(&event.into())
+                        dispatcher.dispatch(&event::$target::new(event,shape))
                     }));
                     let js_closure = $name.as_ref().unchecked_ref();
                     let js_name    = stringify!($js_name);

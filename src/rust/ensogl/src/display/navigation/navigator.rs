@@ -44,7 +44,7 @@ impl Navigator {
         let scaled_down_zoom_speed    = zoom_speed / 1000.0;
         let camera                    = camera.clone();
         let (resize_callback,_events) = Self::start_navigator_events
-            (dom,camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
+            (&dom.into(),camera,min_zoom,max_zoom,scaled_down_zoom_speed,properties);
         Self {_simulator,_events,resize_callback}
     }
 
@@ -65,7 +65,7 @@ impl Navigator {
     }
 
     fn start_navigator_events
-    ( dom:dom::WithKnownShape<web::HtmlDivElement>
+    ( dom       : &dom::WithKnownShape<web::EventTarget>
     , camera:Camera2d
     , min_zoom:f32
     , max_zoom:f32

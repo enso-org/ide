@@ -38,6 +38,8 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
+use enso_frp;
+use enso_frp::core::node::class::EventEmitterPoly;
 
 
 // =====================
@@ -100,8 +102,8 @@ impl Mouse {
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
         let last_hover_ids  = empty_hover_ids;
-        let document        = web::document();
-        let mouse_manager   = MouseManager::new(&document);
+        let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
+        let mouse_manager   = MouseManager::new(&document.into());
 
         let shape_ref       = shape.clone_ref();
         let position_ref    = position.clone_ref();
@@ -254,6 +256,7 @@ pub struct SceneData {
     mouse            : Mouse,
     on_resize        : CallbackHandle,
     shape_registry   : ShapeRegistry,
+    frp_mouse        : Rc<enso_frp::Mouse>,
 }
 
 impl {
@@ -307,9 +310,62 @@ impl {
         let height   = dom.shape().current().device_pixels().height() as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
 
+
+
+        let mouse_manager   = &mouse.mouse_manager;
+        let frp_mouse       = enso_frp::Mouse::new();
+
+        enso_frp::frp! {
+            mouse_down_position    = frp_mouse.position.sample   (&frp_mouse.on_down);
+            mouse_position_if_down = frp_mouse.position.gate     (&frp_mouse.is_down);
+            final_position_ref     = recursive::<enso_frp::Position>       ();
+            pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
+            final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
+            debug                  = final_position.sample       (&frp_mouse.position);
+        }
+        final_position_ref.initialize(&final_position);
+
+        // final_position.event.display_graphviz();
+
+    //    trace("X" , &debug.event);
+
+    //    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
+
+        let target = frp_mouse.position.event.clone_ref();
+        let handle = mouse_manager.on_move.add(move |event:&mouse::OnMove| {
+            target.emit(enso_frp::Position::new(event.client_x(),event.client_y()));
+        });
+        handle.forget();
+
+        let target = frp_mouse.on_down.event.clone_ref();
+        let handle = mouse_manager.on_down.add(move |event:&mouse::OnDown| {
+            target.emit(());
+        });
+        handle.forget();
+
+        let target = frp_mouse.on_up.event.clone_ref();
+        let handle = mouse_manager.on_up.add(move |event:&mouse::OnUp| {
+            target.emit(());
+        });
+        handle.forget();
+
+
+//        frp_mouse.position.map("foo", move |p| {
+//            println!("pos: {:?}",p);
+//        });
+
+
+
+        let frp_mouse = Rc::new(frp_mouse);
+
+
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
              , logger,variables,stats,pixel_ratio,mouse,zoom_uniform
-             , zoom_callback,on_resize,shape_registry }
+             , zoom_callback,on_resize,shape_registry,frp_mouse }
+    }
+
+    pub fn mouse(&self) -> Rc<enso_frp::Mouse> {
+        self.frp_mouse.clone()
     }
 
     pub fn display_object(&self) -> display::object::Node {

@@ -21,6 +21,51 @@ use nalgebra::Vector2;
 use shapely::shared;
 use std::any::TypeId;
 use wasm_bindgen::prelude::*;
+use ensogl::control::io::mouse::MouseManager;
+use enso_frp::{frp, Position};
+use enso_frp::Mouse;
+use ensogl::control::io::mouse;
+use enso_frp::core::node::class::EventEmitterPoly;
+use ensogl_system_web::StyleSetter;
+
+
+
+pub struct Pointer {
+    logger         : Logger,
+    display_object : display::object::Node,
+    sprite         : Rc<CloneCell<Option<Sprite>>>,
+}
+
+impl Pointer {
+    pub fn new() -> Self {
+        let logger = Logger::new("mouse.pointer");
+        let sprite : Rc<CloneCell<Option<Sprite>>> = default();
+        let display_object      = display::object::Node::new(&logger);
+        let display_object_weak = display_object.downgrade();
+
+        display_object.set_on_show_with(enclose!((sprite) move |scene| {
+            let type_id      = TypeId::of::<Pointer>();
+            let shape_system = scene.lookup_shape(&type_id).unwrap();
+            let new_sprite   = shape_system.new_instance();
+            display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
+            new_sprite.size().set(Vector2::new(200.0,200.0));
+            sprite.set(Some(new_sprite));
+        }));
+
+        display_object.set_on_hide_with(enclose!((sprite) move |_| {
+            sprite.set(None);
+        }));
+
+        Self {logger,sprite,display_object}
+    }
+}
+
+impl<'t> From<&'t Pointer> for &'t display::object::Node {
+    fn from(ptr:&'t Pointer) -> Self {
+        &ptr.display_object
+    }
+}
+
 
 
 
@@ -134,6 +179,13 @@ fn nodes2() -> AnyShape {
     out.into()
 }
 
+
+fn mouse_pointer() -> AnyShape {
+    let pointer   = Circle(20.px());
+    let pointer   = pointer.fill(Srgb::new(1.0,0.0,0.0));
+    pointer.into()
+}
+
 fn nodes3() -> AnyShape {
     nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
 }
@@ -169,16 +221,22 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let node_shape   =     nodes2();
-    let shape_system = ShapeSystem::new(world,&node_shape);
-    scene.register_shape(TypeId::of::<Node>(),shape_system.clone());
+    let node_shape_system    = ShapeSystem::new(world,&nodes2());
+    let pointer_shape_system = ShapeSystem::new(world,&mouse_pointer());
 
-//    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),shape_system.clone());
+    scene.register_shape(TypeId::of::<Node>(),node_shape_system.clone());
+    scene.register_shape(TypeId::of::<Pointer>(),pointer_shape_system.clone());
 
+//    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
+
+
+    let pointer = Pointer::new();
 
     let node1 = Node::new();
     let node2 = Node::new();
     let node3 = Node::new();
+
+    world.add_child(&pointer);
 
     world.add_child(&node1);
     world.add_child(&node2);
@@ -203,7 +261,21 @@ fn init(world: &World) {
     let nodes = vec![node1,node2,node3];
 
 
-    world.add_child(&shape_system);
+    world.add_child(&node_shape_system);
+    world.add_child(&pointer_shape_system);
+
+
+
+
+    web::body().set_style_or_panic("cursor","none");
+    scene.mouse().position.map("foo", move |p| {
+        pointer.set_position(Vector3::new(p.x as f32,p.y as f32,0.0));
+    });
+
+
+
+
+
 
 
     let mut iter:i32 = 0;
@@ -214,8 +286,8 @@ fn init(world: &World) {
     world.on_frame(move |_| {
         i -= 1;
         if i == 0 {
-            nodes[1].unset_parent();
-//            shape_system.set_shape(&node_shape2);
+//            nodes[1].unset_parent();
+//            node_shape_system.set_shape(&node_shape2);
         }
 //        let _keep_alive = &sprite;
         let _keep_alive = &navigator;
@@ -223,7 +295,7 @@ fn init(world: &World) {
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
-        on_frame(&mut time,&mut iter,&shape_system);
+        on_frame(&mut time,&mut iter,&node_shape_system);
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
@@ -243,18 +315,17 @@ pub fn on_frame
 , iter         : &mut i32
 , shape_system : &ShapeSystem) {
     *iter += 1;
-    shape_system.display_object().update();
 }
 
 
 
-//// ================
-//// === FRP Test ===
-//// ================
-//
+// ================
+// === FRP Test ===
+// ================
+
 //#[allow(unused_variables)]
 //pub fn frp_test (callback: Box<dyn Fn(f32,f32)>) -> MouseManager {
-//    let document        = web::document().unwrap();
+//    let document        = web::document();
 //    let mouse_manager   = MouseManager::new(&document);
 //    let mouse           = Mouse::new();
 //
@@ -275,19 +346,19 @@ pub fn on_frame
 ////    final_position.map("foo",move|p| {callback(p.x as f32,-p.y as f32)});
 //
 //    let target = mouse.position.event.clone_ref();
-//    let handle = mouse_manager.on_move.add(move |event:&OnMove| {
+//    let handle = mouse_manager.on_move.add(move |event:&mouse::OnMove| {
 //        target.emit(Position::new(event.client_x(),event.client_y()));
 //    });
 //    handle.forget();
 //
 //    let target = mouse.on_down.event.clone_ref();
-//    let handle = mouse_manager.on_down.add(move |event:&OnDown| {
+//    let handle = mouse_manager.on_down.add(move |event:&mouse::OnDown| {
 //        target.emit(());
 //    });
 //    handle.forget();
 //
 //    let target = mouse.on_up.event.clone_ref();
-//    let handle = mouse_manager.on_up.add(move |event:&OnUp| {
+//    let handle = mouse_manager.on_up.add(move |event:&mouse::OnUp| {
 //        target.emit(());
 //    });
 //    handle.forget();

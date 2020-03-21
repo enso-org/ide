@@ -185,7 +185,7 @@ pub struct NavigatorEvents {
 
 impl NavigatorEvents {
     pub fn new
-    <P,Z>(event_target:&web::HtmlElement, pan_callback:P, zoom_callback:Z, zoom_speed:f32) -> Self
+    <P,Z>(event_target:&web::dom::WithKnownShape<web::EventTarget>, pan_callback:P, zoom_callback:Z, zoom_speed:f32) -> Self
     where P : FnPanEvent, Z : FnZoomEvent {
         let mouse_manager        = MouseManager::new(event_target);
         let pan_callback         = Box::new(pan_callback);
