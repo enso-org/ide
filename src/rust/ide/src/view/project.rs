@@ -8,7 +8,6 @@ use crate::view::layout::ViewLayout;
 
 use ensogl::control::callback::CallbackHandle;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
-use ensogl::display::world::WorldData;
 use ensogl::display::world::World;
 use ensogl::system::web;
 use enso_frp::Keyboard;
@@ -81,7 +80,7 @@ impl ProjectView {
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
         let module_controller    = controller.get_module_controller(location).await?;
         let graph_controller     = controller::graph::Handle::new_unchecked(module_controller,graph_id);
-        let world                = WorldData::new(&web::get_html_element_by_id("root").unwrap());
+        let world                = World::new(&web::get_html_element_by_id("root").unwrap());
         graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();
@@ -97,7 +96,7 @@ impl ProjectView {
     }
 
     fn init(self) -> Self {
-        let scene = self.with_borrowed(|data| data.world.scene());
+        let scene = self.with_borrowed(|data| data.world.scene().clone_ref());
         let weak  = self.downgrade();
         let resize_callback = scene.camera().add_screen_update_callback(
             move |size:&Vector2<f32>| {

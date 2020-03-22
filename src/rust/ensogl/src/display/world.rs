@@ -31,31 +31,33 @@ use crate::display::render::passes::SymbolsRenderPass;
 use crate::display::shape::text::text_field;
 
 
-// =================
-// === WorldData ===
-// =================
+
+// =============
+// === World ===
+// =============
 
 // === Definition ===
 
 /// World is the top-level application structure. It used to manage several instances of
 /// `Scene`, and there is probability that we will get back to this design in the future.
 /// It is responsible for updating the system on every animation frame.
-#[derive(Derivative)]
-#[derivative(Debug(bound=""))]
-pub struct WorldData {
-    pub scene         : Scene,
-    pub scene_dirty   : SceneDirty,
-    pub logger        : Logger,
-    pub event_loop    : EventLoop,
-    pub performance   : Performance,
-    pub start_time    : f32,
-    pub time          : Uniform<f32>,
-    pub display_mode  : Uniform<i32>,
-    pub update_handle : Option<CallbackHandle>,
-    pub stats         : Stats,
-    pub stats_monitor : StatsMonitor,
-    pub focus_manager : text_field::FocusManager,
+#[derive(Clone,Debug)]
+pub struct World {
+    scene         : Scene,
+    scene_dirty   : SceneDirty,
+    logger        : Logger,
+    event_loop    : EventLoop,
+    performance   : Performance,
+    start_time    : f32,
+    time          : Uniform<f32>,
+    display_mode  : Uniform<i32>,
+    update_handle : Option<CallbackHandle>,
+    stats         : Stats,
+    stats_monitor : StatsMonitor,
+    focus_manager : text_field::FocusManager,
 }
+
+impl CloneRef for World {}
 
 
 // === Types ===
@@ -74,38 +76,67 @@ fn scene_on_change(dirty:SceneDirty) -> SceneOnChange {
 
 // === Implementation ===
 
-impl WorldData {
+impl World {
     /// Create and initialize new world instance.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(dom:&web_sys::HtmlElement) -> World {
-        println!("NOTICE! When profiling in Chrome check 'Disable JavaScript Samples' under the \
-                  gear icon in the 'Performance' tab. It can drastically slow the rendering.");
-        let world          = World::new(Self::new_uninitialized(dom));
-        let world_ref      = world.clone_ref();
-        with(world.rc.borrow_mut(), |mut data| {
-            let update = move |_:&f64| {
-                world_ref.rc.borrow_mut().run();
-            };
-            let update_handle   = data.event_loop.add_callback(update);
-            data.update_handle  = Some(update_handle);
-        });
+        let mut this = Self::new_uninitialized(dom);
+        this.init_composer();
+        let time        = this.time.clone_ref();
+        let scene_dirty = this.scene_dirty.clone_ref();
+        let scene       = this.scene.clone_ref();
+        let performance = this.performance.clone();
+        let start_time  = this.start_time;
+        let update      = move |_:&f64| {
+            let relative_time = performance.now() as f32 - start_time;
+            time.set(relative_time);
+                // group!(self.logger, "Updating.", {
+                scene_dirty.unset_all();
+                scene.update_and_render();
+                // });
+        };
+        let update_handle  = this.event_loop.add_callback(update);
+        this.update_handle = Some(update_handle);
 
         // -----------------------------------------------------------------------------------------
         // FIXME[WD]: Hacky way of switching display_mode. To be fixed and refactored out.
-        let world_copy = world.clone();
+        let stats_monitor = this.stats_monitor.clone_ref();
+        let display_mode  = this.display_mode.clone_ref();
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             let val = val.unchecked_into::<KeyboardEvent>();
             let key = val.key();
-            if      key == "`" { world_copy.rc.borrow_mut().stats_monitor.toggle() }
-            else if key == "0" { world_copy.rc.borrow_mut().display_mode.set(0) }
-            else if key == "1" { world_copy.rc.borrow_mut().display_mode.set(1) }
+            if      key == "`" { stats_monitor.toggle() }
+            else if key == "0" { display_mode.set(0) }
+            else if key == "1" { display_mode.set(1) }
         }));
         web::document().add_event_listener_with_callback
         ("keydown",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
         // -----------------------------------------------------------------------------------------
 
-        world
+        this
+    }
+
+    pub fn scene(&self) -> &Scene {
+        &self.scene
+    }
+
+    pub fn text_field_focus_manager(&self) -> &text_field::FocusManager {
+        &self.focus_manager
+    }
+
+    pub fn add_child<T:display::Object>(&self, child:&T) {
+        self.scene().display_object().add_child(child)
+    }
+
+    pub fn on_frame<F:FnMut(&f64)+'static>
+    (&self, mut callback:F) -> CallbackHandle {
+        let func = move |time_ms:&f64| callback(time_ms);
+        self.event_loop.add_callback(func)
+    }
+
+    pub fn display_object(&self) -> display::object::Node {
+        self.scene().display_object()
     }
 
     /// Create new uninitialized world instance. You should rather not need to
@@ -139,123 +170,10 @@ impl WorldData {
              ,update_handle,stats,stats_monitor,focus_manager}
     }
 
-
-    pub fn run(&mut self) {
-        let relative_time = self.performance.now() as f32 - self.start_time;
-        self.time.set(relative_time);
-        self.update();
-    }
-
-    /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
-        //TODO[WD]: Re-think when should we check the condition (uniform update):
-        //          if self.scene_dirty.check_all() {
-        group!(self.logger, "Updating.", {
-            self.scene_dirty.unset_all();
-            self.scene.update_and_render();
-        });
-    }
-
-    /// Dispose the world object, cancel all handlers and events.
-    pub fn dispose(&mut self) {
-        self.update_handle = None;
-    }
-}
-
-//impl Into<display::object::Node> for &WorldData {
-//    fn into(self) -> display::object::Node {
-//        (&self.scene).into()
-//    }
-//}
-
-impl Drop for WorldData {
-    fn drop(&mut self) {
-        self.logger.info("Dropping.");
-    }
-}
-
-
-
-// =============
-// === World ===
-// =============
-
-// === Definition ===
-
-/// Shared reference to the `World` object.
-#[derive(Clone,Debug)]
-pub struct World {
-    pub rc: Rc<RefCell<WorldData>>,
-}
-
-impl World {
-    /// Create new shared reference.
-    pub fn new(world_data: WorldData) -> Self {
-        let rc = Rc::new(RefCell::new(world_data));
-        let out = Self {rc};
-        out.init_composer();
-        out
-    }
-
-    /// Cheap clone of the world reference.
-    pub fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-
-    /// Dispose the world object, cancel all handlers and events.
-    pub fn dispose(&self) {
-        self.rc.borrow_mut().dispose()
-    }
-
-    pub fn stats(&self) -> Stats {
-        self.rc.borrow().stats.clone_ref()
-    }
-
-    pub fn new_symbol(&self) -> Symbol {
-        self.rc.borrow().scene.new_symbol()
-    }
-
-    /// Run the provided callback on every frame. Returns a `CallbackHandle`,
-    /// which when dropped will cancel the callback. If you want the function
-    /// to run forever, you can use the `forget` method in the handle.
-    pub fn on_frame<F:FnMut(&f64)+'static>
-    (&self, mut callback:F) -> CallbackHandle {
-        let func = move |time_ms:&f64| callback(time_ms);
-        self.rc.borrow_mut().event_loop.add_callback(func)
-    }
-
-    pub fn mod_stats<F:FnOnce(&Stats)>(&self, f:F) {
-        f(&self.rc.borrow().stats);
-    }
-
-    pub fn render(&self) {
-        self.rc.borrow_mut().run();
-    }
-
-    pub fn event_loop(&self) -> EventLoop {
-        self.rc.borrow().event_loop.clone()
-    }
-
-    pub fn display_object(&self) -> display::object::Node {
-        self.scene().display_object()
-    }
-
-    pub fn scene(&self) -> Scene {
-        self.rc.borrow().scene.clone()
-    }
-
-    pub fn text_field_focus_manager(&self) -> text_field::FocusManager {
-        self.rc.borrow().focus_manager.clone_ref()
-    }
-
-    pub fn add_child<T:display::Object>(&self, child:&T) {
-        self.scene().display_object().add_child(child)
-    }
-
     fn init_composer(&self) {
-        let root                = self.rc.borrow().scene.symbol_registry();
-        let mouse_hover_ids     = self.rc.borrow().scene.mouse_hover_ids();
-        let mouse_position      = self.rc.borrow().scene.mouse_position_uniform();
+        let root                = self.scene.symbol_registry();
+        let mouse_hover_ids     = self.scene.mouse_hover_ids();
+        let mouse_position      = self.scene.mouse_position_uniform();
         let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
         pixel_read_pass.set_callback(move |v| {
             mouse_hover_ids.set(Vector4::from_iterator(v))
@@ -266,20 +184,17 @@ impl World {
             .add(SymbolsRenderPass::new(&root))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
-        self.rc.borrow_mut().scene.set_render_pipeline(pipeline);
+        self.scene.set_render_pipeline(pipeline);
+    }
+
+    /// Dispose the world object, cancel all handlers and events.
+    pub fn dispose(&mut self) {
+        self.update_handle = None;
     }
 }
 
-impl<T> AddMut<T> for World where WorldData: AddMut<T> {
-    type Output = <WorldData as AddMut<T>>::Output;
-    fn add(&mut self, t:T) -> Self::Output {
-        self.rc.borrow_mut().add(t)
+impl Drop for World {
+    fn drop(&mut self) {
+        self.logger.info("Dropping.");
     }
 }
-
-//impl Into<display::object::Node> for &World {
-//    fn into(self) -> display::object::Node {
-//        let data:&WorldData = &self.rc.borrow();
-//        data.into()
-//    }
-//}

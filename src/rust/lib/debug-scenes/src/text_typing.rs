@@ -19,7 +19,7 @@ pub fn run_example_text_typing() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     ensogl_core_msdf_sys::run_once_initialized(|| {
-        let world     = &WorldData::new(&web::get_html_element_by_id("root").unwrap());
+        let world     = &World::new(&web::get_html_element_by_id("root").unwrap());
         let mut fonts = FontRegistry::new();
         let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
 

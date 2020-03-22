@@ -432,7 +432,7 @@ impl TextFieldData {
         let frp                  = None;
         let word_occurrences     = None;
         let text_change_callback = None;
-        let focus_manager        = world.text_field_focus_manager();
+        let focus_manager        = world.text_field_focus_manager().clone_ref();
         let focused              = false;
         display_object.add_child(&rendered.display_object);
 

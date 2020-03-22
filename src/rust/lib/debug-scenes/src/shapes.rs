@@ -79,7 +79,7 @@ pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    init(&WorldData::new(&web::get_html_element_by_id("root").unwrap()));
+    init(&World::new(&web::get_html_element_by_id("root").unwrap()));
 }
 
 pub mod icons {
@@ -329,6 +329,8 @@ fn init(world: &World) {
     let mut was_rendered = false;
     let mut loader_hidden = false;
     let mut i = 200;
+
+    let world_clone = world.clone_ref();
     world.on_frame(move |_| {
         i -= 1;
         if i == 0 {
@@ -336,6 +338,7 @@ fn init(world: &World) {
 //            node_shape_system.set_shape(&node_shape2);
         }
 //        let _keep_alive = &sprite;
+        let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &nodes;
 

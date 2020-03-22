@@ -39,6 +39,8 @@ pub struct EventLoop {
     rc: Rc<RefCell<EventLoopData>>,
 }
 
+impl CloneRef for EventLoop {}
+
 impl EventLoop {
     /// Create and start a new event loop.
     pub fn new() -> Self {
