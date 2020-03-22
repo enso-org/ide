@@ -48,12 +48,13 @@ use enso_frp::core::node::class::EventEmitterPoly;
 
 use std::any::TypeId;
 
+shared! { ShapeRegistry
 #[derive(Debug,Default)]
-pub struct ShapeRegistry {
+pub struct ShapeRegistryData {
     shape_system_map : HashMap<TypeId,ShapeSystem>
 }
 
-impl ShapeRegistry {
+impl {
     pub fn get(&self, id:&TypeId) -> Option<ShapeSystem> {
         self.shape_system_map.get(id).map(|s| s.clone())
     }
@@ -61,7 +62,7 @@ impl ShapeRegistry {
     pub fn insert(&mut self, id:TypeId, shape_system:ShapeSystem) {
         self.shape_system_map.insert(id,shape_system);
     }
-}
+}}
 
 
 
@@ -76,7 +77,7 @@ fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
     Closure::wrap(Box::new(f))
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct Mouse {
     mouse_manager   : MouseManager,
     position        : Uniform<Vector2<i32>>,
@@ -86,8 +87,25 @@ struct Mouse {
     button2_pressed : Uniform<bool>,
     button3_pressed : Uniform<bool>,
     button4_pressed : Uniform<bool>,
-    last_hover_ids  : Vector4<u32>,
-    handles         : Vec<CallbackHandle>,
+    last_hover_ids  : Rc<Cell<Vector4<u32>>>,
+    handles         : Rc<Vec<CallbackHandle>>,
+}
+
+impl CloneRef for Mouse {
+    fn clone_ref(&self) -> Self {
+        let mouse_manager   = self.mouse_manager.clone_ref();
+        let position        = self.position.clone_ref();
+        let hover_ids       = self.hover_ids.clone_ref();
+        let button0_pressed = self.button0_pressed.clone_ref();
+        let button1_pressed = self.button1_pressed.clone_ref();
+        let button2_pressed = self.button2_pressed.clone_ref();
+        let button3_pressed = self.button3_pressed.clone_ref();
+        let button4_pressed = self.button4_pressed.clone_ref();
+        let last_hover_ids  = self.last_hover_ids.clone_ref();
+        let handles         = self.handles.clone_ref();
+        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
+             ,button3_pressed,button4_pressed,last_hover_ids,handles}
+    }
 }
 
 impl Mouse {
@@ -101,7 +119,7 @@ impl Mouse {
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
-        let last_hover_ids  = empty_hover_ids;
+        let last_hover_ids  = Rc::new(Cell::new(empty_hover_ids));
         let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
         let mouse_manager   = MouseManager::new(&document.into());
 
@@ -146,7 +164,7 @@ impl Mouse {
             }
         });
 
-        let handles = vec![on_move_handle,on_down_handle,on_up_handle];
+        let handles = Rc::new(vec![on_move_handle,on_down_handle,on_up_handle]);
 
         Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
              ,button4_pressed,last_hover_ids,handles}
@@ -316,10 +334,8 @@ impl Views {
 // === Scene ===
 // =============
 
-shared! { Scene
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct SceneData {
+#[derive(Clone,Debug)]
+pub struct Scene {
     display_object   : display::object::Node,
     dom              : Dom,
     context          : Context,
@@ -329,8 +345,8 @@ pub struct SceneData {
     shape_dirty      : ShapeDirty,
     logger           : Logger,
     variables        : UniformScope,
-    pipeline         : RenderPipeline,
-    composer         : RenderComposer,
+    pipeline         : Rc<CloneCell<RenderPipeline>>,
+    composer         : Rc<CloneCell<RenderComposer>>,
     stats            : Stats,
     pixel_ratio      : Uniform<f32>,
     zoom_uniform     : Uniform<f32>,
@@ -341,7 +357,34 @@ pub struct SceneData {
     frp_mouse        : Rc<enso_frp::Mouse>,
 }
 
-impl {
+impl CloneRef for Scene {
+    fn clone_ref(&self) -> Self {
+        let display_object   = self.display_object.clone_ref();
+        let dom              = self.dom.clone_ref();
+        let context          = self.context.clone_ref();
+        let symbols          = self.symbols.clone_ref();
+        let symbols_dirty    = self.symbols_dirty.clone_ref();
+        let camera           = self.camera.clone_ref();
+        let shape_dirty      = self.shape_dirty.clone_ref();
+        let logger           = self.logger.clone_ref();
+        let variables        = self.variables.clone_ref();
+        let pipeline         = self.pipeline.clone_ref();
+        let composer         = self.composer.clone_ref();
+        let stats            = self.stats.clone_ref();
+        let pixel_ratio      = self.pixel_ratio.clone_ref();
+        let zoom_uniform     = self.zoom_uniform.clone_ref();
+        let zoom_callback    = self.zoom_callback.clone_ref();
+        let mouse            = self.mouse.clone_ref();
+        let on_resize        = self.on_resize.clone_ref();
+        let shape_registry   = self.shape_registry.clone_ref();
+        let frp_mouse        = self.frp_mouse.clone_ref();
+        Self {display_object,dom,context,symbols,symbols_dirty,camera,shape_dirty,logger,variables
+             ,pipeline,composer,stats,pixel_ratio,zoom_uniform,zoom_callback,mouse,on_resize
+             ,shape_registry,frp_mouse}
+    }
+}
+
+impl Scene {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<OnMut:Fn()+Clone+'static>
     (parent_dom:&HtmlElement, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
@@ -391,7 +434,8 @@ impl {
         let width    = dom.shape().current().device_pixels().width()  as i32;
         let height   = dom.shape().current().device_pixels().height() as i32;
         let composer = RenderComposer::new(&pipeline,&context,&variables,width,height);
-
+        let composer = Rc::new(CloneCell::new(composer));
+        let pipeline = Rc::new(CloneCell::new(pipeline));
 
 
         let mouse_manager   = &mouse.mouse_manager;
@@ -431,13 +475,6 @@ impl {
         });
         handle.forget();
 
-
-//        frp_mouse.position.map("foo", move |p| {
-//            println!("pos: {:?}",p);
-//        });
-
-
-
         let frp_mouse = Rc::new(frp_mouse);
 
 
@@ -462,7 +499,7 @@ impl {
         self.shape_registry.get(id)
     }
 
-    pub fn register_shape(&mut self, id:TypeId, shape_system:ShapeSystem) {
+    pub fn register_shape(&self, id:TypeId, shape_system:ShapeSystem) {
         self.shape_registry.insert(id,shape_system)
     }
 
@@ -498,15 +535,15 @@ impl {
         self.mouse.hover_ids.clone_ref()
     }
 
-    pub fn set_render_pipeline<P:Into<RenderPipeline>>(&mut self, pipeline:P) {
-        self.pipeline = pipeline.into();
+    pub fn set_render_pipeline<P:Into<RenderPipeline>>(&self, pipeline:P) {
+        self.pipeline.set(pipeline.into());
         self.init_composer();
     }
 
-    pub fn init_composer(&mut self) {
-        let width    = self.dom.shape().current().device_pixels().width()  as i32;
-        let height   = self.dom.shape().current().device_pixels().height() as i32;
-        self.composer = RenderComposer::new(&self.pipeline,&self.context,&self.variables,width,height);
+    pub fn init_composer(&self) {
+        let width  = self.dom.shape().current().device_pixels().width()  as i32;
+        let height = self.dom.shape().current().device_pixels().height() as i32;
+        self.composer.set(RenderComposer::new(&self.pipeline.get(),&self.context,&self.variables,width,height));
     }
 
     /// Bind FRP graph to mouse js events.
@@ -514,11 +551,11 @@ impl {
         mouse::bind_frp_to_mouse(&self.dom.shape(),frp,&self.mouse.mouse_manager)
     }
 
-//    /// Check dirty flags and update the state accordingly.
-//    pub fn update_and_render(&mut self) {
-//        self.update();
-//        self.render();
-//    }
+    /// Check dirty flags and update the state accordingly.
+    pub fn update_and_render(&self) {
+        self.update();
+        self.render();
+    }
 
     pub fn camera(&self) -> Camera2d {
         self.camera.clone_ref()
@@ -541,31 +578,21 @@ impl {
 
 // === Render & Update ===
 
-impl {
-    pub fn render(&mut self) {
+impl Scene {
+    pub fn render(&self) {
         group!(self.logger, "Rendering.", {
-            self.composer.run();
+            self.composer.get().run();
         })
     }
 
-//    pub fn update(&mut self) {
-//        group!(self.logger, "Updating.", {
-//            self.display_object.update();
-//            self.update_shape();
-//            self.update_symbols();
-//            self.update_camera();
-//            self.handle_mouse_events();
-//        })
-//    }
-
-    fn handle_mouse_events(&mut self) {
+    fn handle_mouse_events(&self) {
         let mouse_hover_ids = self.mouse.hover_ids.get();
-        if mouse_hover_ids != self.mouse.last_hover_ids {
-            self.mouse.last_hover_ids = mouse_hover_ids;
+        if mouse_hover_ids != self.mouse.last_hover_ids.get() {
+            self.mouse.last_hover_ids.set(mouse_hover_ids);
             let is_not_background = mouse_hover_ids.w != 0;
             if is_not_background {
                 let symbol_id = mouse_hover_ids.x;
-                let symbol = self.symbols.index(symbol_id as usize);
+                let symbol    = self.symbols.index(symbol_id as usize);
                 symbol.dispatch_event(&DynEvent::new(()));
                 // println!("{:?}",self.mouse.hover_ids.get());
                 // TODO: finish events sending, including OnOver and OnOut.
@@ -573,7 +600,7 @@ impl {
         }
     }
 
-    fn update_shape(&mut self) {
+    fn update_shape(&self) {
         if self.shape_dirty.check_all() {
             let screen = self.dom.shape().current();
             self.resize_canvas(&self.dom.shape());
@@ -598,40 +625,19 @@ impl {
             self.dom.layers.dom_back.update_view_projection(&self.camera);
         }
     }
-}}
+}
 
 impl Scene {
     pub fn update(&self) {
 //        group!(self.logger, "Updating.", {
-            let display_object = self.rc.borrow().display_object();
-            display_object.update_with(self);
-            let mut data = self.rc.borrow_mut();
-            data.update_shape();
-            data.update_symbols();
-            data.update_camera();
-            data.handle_mouse_events();
+            self.display_object.update_with(self);
+            self.update_shape();
+            self.update_symbols();
+            self.update_camera();
+            self.handle_mouse_events();
 //        })
     }
-
-    /// Check dirty flags and update the state accordingly.
-    pub fn update_and_render(&self) {
-        self.update();
-        self.render();
-    }
 }
-
-//impl Into<display::object::Node> for &SceneData {
-//    fn into(self) -> display::object::Node {
-//        self.display_object.clone()
-//    }
-//}
-//
-//impl Into<display::object::Node> for &Scene {
-//    fn into(self) -> display::object::Node {
-//        let data:&SceneData = &self.rc.borrow();
-//        data.into()
-//    }
-//}
 
 
 // === Types ===
@@ -648,20 +654,7 @@ fn symbols_on_change(dirty:SymbolRegistryDirty) -> OnSymbolRegistryChange {
 }}
 
 
-// === Implementation ===
-
-#[derive(Debug)]
-pub struct Listeners {
-    resize: ResizeObserver,
-}
-
 impl Scene {
-    pub fn tmp_borrow_mut(&self) -> RefMut<'_,SceneData> {
-        self.rc.borrow_mut()
-    }
-}
-
-impl SceneData {
     /// Resize the underlying canvas. This function should rather not be called
     /// directly. If you want to change the canvas size, modify the `shape` and
     /// set the dirty flag.

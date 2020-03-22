@@ -37,6 +37,8 @@ pub struct EventDispatcher<T> {
     rc: Rc<RefCell<CallbackRegistry1<T>>>
 }
 
+impl<T> CloneRef for EventDispatcher<T> {}
+
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
     pub fn add<F:CallbackMut1Fn<T>>(&self, callback:F) -> CallbackHandle {
@@ -49,8 +51,6 @@ impl<T> EventDispatcher<T> {
     }
 }
 
-impl<T> CloneRef for EventDispatcher<T> {}
-
 
 
 // ====================
@@ -59,13 +59,15 @@ impl<T> CloneRef for EventDispatcher<T> {}
 
 /// An utility which registers JavaScript handlers for mouse events and translates them to Rust
 /// handlers. It is a top level mouse registry hub.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct MouseManager {
     #[shrinkwrap(main_field)]
     dispatchers : MouseManagerDispatchers,
-    closures    : MouseManagerClosures,
+    closures    : Rc<MouseManagerClosures>,
     dom         : web::dom::WithKnownShape<web::EventTarget>
 }
+
+impl CloneRef for MouseManager {}
 
 /// A JavaScript callback closure for any mouse event.
 pub type MouseEventJsClosure = Closure<dyn Fn(JsValue)>;
@@ -80,11 +82,13 @@ macro_rules! define_bindings {
         }
 
         /// Set of dispatchers for various mouse events.
-        #[derive(Debug,Default)]
+        #[derive(Clone,Debug,Default)]
         #[allow(missing_docs)]
         pub struct MouseManagerDispatchers {
             $(pub $name : EventDispatcher<event::$target>),*
         }
+
+        impl CloneRef for MouseManagerDispatchers {}
 
         impl MouseManager {
             /// Constructor.
@@ -103,7 +107,7 @@ macro_rules! define_bindings {
                     let result     = dom.add_event_listener_with_callback(js_name,js_closure);
                     if let Err(e)  = result { panic!("Cannot add event listener. {:?}",e) }
                 )*
-                let closures = MouseManagerClosures {$($name),*};
+                let closures = Rc::new(MouseManagerClosures {$($name),*});
                 Self {dispatchers,closures,dom}
             }
         }

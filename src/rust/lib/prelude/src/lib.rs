@@ -108,6 +108,7 @@ impl<T:?Sized> CloneRef for Rc<T> {
 }
 
 impl CloneRef for web_sys::Performance {}
+impl CloneRef for web_sys::WebGl2RenderingContext {}
 
 
 
