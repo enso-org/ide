@@ -48,16 +48,33 @@ pub struct World {
     logger        : Logger,
     event_loop    : EventLoop,
     performance   : Performance,
-    start_time    : f32,
+    start_time    : Immutable<f32>,
     time          : Uniform<f32>,
     display_mode  : Uniform<i32>,
-    update_handle : Option<CallbackHandle>,
+    update_handle : Rc<RefCell<Option<CallbackHandle>>>,
     stats         : Stats,
     stats_monitor : StatsMonitor,
     focus_manager : text_field::FocusManager,
 }
 
-impl CloneRef for World {}
+impl CloneRef for World {
+    fn clone_ref(&self) -> Self {
+        let scene         = self.scene.clone_ref();
+        let scene_dirty   = self.scene_dirty.clone_ref();
+        let logger        = self.logger.clone_ref();
+        let event_loop    = self.event_loop.clone_ref();
+        let performance   = self.performance.clone_ref();
+        let start_time    = self.start_time.clone_ref();
+        let time          = self.time.clone_ref();
+        let display_mode  = self.display_mode.clone_ref();
+        let update_handle = self.update_handle.clone_ref();
+        let stats         = self.stats.clone_ref();
+        let stats_monitor = self.stats_monitor.clone_ref();
+        let focus_manager = self.focus_manager.clone_ref();
+        Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
+             ,update_handle,stats,stats_monitor,focus_manager}
+    }
+}
 
 
 // === Types ===
@@ -85,10 +102,10 @@ impl World {
         let time        = this.time.clone_ref();
         let scene_dirty = this.scene_dirty.clone_ref();
         let scene       = this.scene.clone_ref();
-        let performance = this.performance.clone();
+        let performance = this.performance.clone_ref();
         let start_time  = this.start_time;
         let update      = move |_:&f64| {
-            let relative_time = performance.now() as f32 - start_time;
+            let relative_time = performance.now() as f32 - *start_time;
             time.set(relative_time);
                 // group!(self.logger, "Updating.", {
                 scene_dirty.unset_all();
@@ -96,7 +113,7 @@ impl World {
                 // });
         };
         let update_handle  = this.event_loop.add_callback(update);
-        this.update_handle = Some(update_handle);
+        this.update_handle = Rc::new(RefCell::new(Some(update_handle)));
 
         // -----------------------------------------------------------------------------------------
         // FIXME[WD]: Hacky way of switching display_mode. To be fixed and refactored out.
@@ -157,7 +174,7 @@ impl World {
         let update_handle      = default();
         let stats_monitor      = StatsMonitor::new(&stats);
         let performance        = web::performance();
-        let start_time         = performance.now() as f32;
+        let start_time         = Immutable(performance.now() as f32);
         let focus_manager      = text_field::FocusManager::new_with_js_handlers();
 
         event_loop.set_on_loop_started  (enclose! ((stats_monitor) move || {
@@ -189,7 +206,7 @@ impl World {
 
     /// Dispose the world object, cancel all handlers and events.
     pub fn dispose(&mut self) {
-        self.update_handle = None;
+        *self.update_handle.borrow_mut() = None;
     }
 }
 

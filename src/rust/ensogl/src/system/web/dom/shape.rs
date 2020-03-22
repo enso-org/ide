@@ -131,6 +131,8 @@ pub struct WithKnownShape<T=web_sys::HtmlElement> {
     on_resize : Rc<RefCell<CallbackRegistry1<ShapeData>>>,
 }
 
+impl<T:CloneRef> CloneRef for WithKnownShape<T> {}
+
 impl<T> WithKnownShape<T> {
     /// Constructor.
     pub fn new(dom:&T) -> Self

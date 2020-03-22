@@ -47,12 +47,50 @@ pub use weak_table;
 use std::cell::UnsafeCell;
 
 
+
+// =================
+// === Immutable ===
+// =================
+
+#[derive(Clone,Copy,Default,Shrinkwrap)]
+pub struct Immutable<T> {
+    data : T
+}
+
+pub fn Immutable<T>(data:T) -> Immutable<T> {
+    Immutable {data}
+}
+
+impl<T:Debug> Debug for Immutable<T> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+impl<T:Display> Display for Immutable<T> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+impl<T:Clone> CloneRef for Immutable<T> {
+    fn clone_ref(&self) -> Self {
+        Self {data:self.data.clone()}
+    }
+}
+
+
+
 // ================
 // === CloneRef ===
 // ================
 
-/// Like `Clone` but should be implemented only for cheap reference-based clones. Using `clone_ref`
-/// instead of `clone` makes the code more clear and makes it easier to predict its performance.
+/// Clone for internal-mutable structures. This trait can be implemented only if mutating one
+/// structure will be reflected in all of its clones. Please note that it does not mean that all the
+/// fields needs to provide internal mutability as well. For example, a structure can remember it's
+/// creation time and store it as `f32`. As long as it cannot be mutated, the structure can
+/// implement `CloneRef`. In order to guide the auto-deriving mechanism, it is advised to wrap all
+/// immutable fields in the `Immutable` newtype.
 pub trait CloneRef: Sized + Clone {
     fn clone_ref(&self) -> Self {
         self.clone()
@@ -68,6 +106,10 @@ impl<T:?Sized> CloneRef for Rc<T> {
         self.clone()
     }
 }
+
+impl CloneRef for web_sys::Performance {}
+
+
 
 /// Provides method `to`, which is just like `into` but allows fo superfish syntax.
 pub trait ToImpl: Sized {

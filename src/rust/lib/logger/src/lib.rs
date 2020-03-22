@@ -43,6 +43,8 @@ pub struct Logger {
     pub path: String,
 }
 
+impl CloneRef for Logger {}
+
 #[allow(dead_code)]
 impl Logger {
     pub fn new<T:Str>(path:T) -> Self {

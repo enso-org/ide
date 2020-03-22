@@ -13,29 +13,28 @@ use crate::system::gpu::texture::*;
 
 /// The pipeline is a set of subsequent passes which can consume and produce data. Please note that
 /// although passes are run sequentially, their dependency graph (data passing graph) can be DAG.
+shared! { RenderPipeline
 #[derive(Debug,Default)]
-pub struct RenderPipeline {
+pub struct RenderPipelineData {
     passes: Vec<Box<dyn RenderPass>>
 }
 
-impl RenderPipeline {
+impl {
     /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
     /// Getter.
-    pub fn passes(&self) -> &Vec<Box<dyn RenderPass>> {
-        &self.passes
+    pub fn passes_clone(&self) -> Vec<Box<dyn RenderPass>> {
+        self.passes.clone()
     }
-}
+}}
 
-impl<Pass:RenderPass> Add<Pass> for RenderPipeline {
-    type Output = Self;
-
-    fn add(mut self, pass:Pass) -> Self::Output {
+impl RenderPipeline {
+    pub fn add<Pass:RenderPass>(self, pass:Pass) -> Self {
         let pass = Box::new(pass);
-        self.passes.push(pass);
+        self.rc.borrow_mut().passes.push(pass);
         self
     }
 }

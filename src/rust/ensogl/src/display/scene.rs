@@ -168,6 +168,8 @@ pub struct Dom {
     pub layers : Layers,
 }
 
+impl CloneRef for Dom {}
+
 impl Dom {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
