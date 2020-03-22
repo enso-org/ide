@@ -31,11 +31,14 @@ use ensogl::display::layout::alignment;
 
 
 
+#[derive(Debug,Clone)]
 pub struct Pointer {
     logger         : Logger,
     display_object : display::object::Node,
     sprite         : Rc<CloneCell<Option<Sprite>>>,
 }
+
+impl CloneRef for Pointer {}
 
 impl Pointer {
     pub fn new(width:f32,height:f32) -> Self {
@@ -184,8 +187,11 @@ fn nodes2() -> AnyShape {
 fn mouse_pointer() -> AnyShape {
     let radius  = 10.px();
     let side    = &radius * 2.0;
-    let pointer = Rect((&side + "input_selection_size.x",&side + "input_selection_size.y"))
+    let width   = Var::<Distance<Pixels>>::from("input_selection_size.x");
+    let height  = Var::<Distance<Pixels>>::from("input_selection_size.y");
+    let pointer = Rect((&side + width.abs(),&side + height.abs()))
         .corners_radius(radius)
+        .translate((-&width/2.0, -&height/2.0))
         .translate(("input_position.x","input_position.y"))
         .fill(Srgba::new(0.0,0.0,0.0,0.3));
     pointer.into()
@@ -217,6 +223,29 @@ fn nodes3() -> AnyShape {
 //        target.set_sprite(&sprite);
 //    }
 //}
+
+
+//#[derive(Clone,Copy,Debug,Shrinkwrap)]
+//#[shrinkwrap(mutable)]
+//pub struct Position2<T>
+//where T : nalgebra::Scalar {
+//    pub vec : Vector2<T>
+//}
+//
+//impl<T> Position2<T>
+//where T : nalgebra::Scalar {
+//    pub fn new(x:T, y:T) -> Self {
+//        let vec = Vector2::new(x,y);
+//        Self {vec}
+//    }
+//}
+//
+//impl Default for Position2<f32>   { fn default() -> Self { Self::new(0.0,0.0) } }
+//impl Default for Position2<f64>   { fn default() -> Self { Self::new(0.0,0.0) } }
+//impl Default for Position2<i32>   { fn default() -> Self { Self::new(0,0) } }
+//impl Default for Position2<i64>   { fn default() -> Self { Self::new(0,0) } }
+//impl Default for Position2<usize> { fn default() -> Self { Self::new(0,0) } }
+
 
 
 fn init(world: &World) {
@@ -284,27 +313,30 @@ fn init(world: &World) {
 
     let mouse = scene.mouse();
 
-//    frp! {
-//        mouse_down_position    = mouse.position.sample       (&mouse.on_down);
-//        selection_zero         = source_init(Vector2::new(0.0,0.0));
-//        selection_size         = mouse.position.map2 (&mouse_down_position,|m,n|{m-n});
-////        mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
-////        final_position_ref     = recursive::<Position>       ();
-////        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
-////        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
-////        debug                  = final_position.sample       (&mouse.position);
-//
+    frp! {
+        mouse_down_position    = mouse.position.sample        (&mouse.on_down);
+        selection_zero         = source::<Position>           ();
+        selection_size_down    = mouse.position.map2          (&mouse_down_position,|m,n|{m-n});
+        selection_size_if_down = selection_size_down.gate     (&mouse.is_down);
+        selection_size_on_up   = selection_zero.sample        (&mouse.on_up);
+        selection_size         = selection_size_if_down.merge (&selection_size_on_up);
+//        final_position_ref     = recursive::<Position>       ();
+//        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
+//        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
+//        debug                  = final_position.sample       (&mouse.position);
+
 //        debug = selection_size.map(|t| {println!("{:?}",t);})
-//    }
+    }
 
-    mouse.position.map("foo", move |p| {
+    mouse.position.map("foo", enclose!((pointer) move |p| {
         let pointer_position = pointer_position_buffer.at(pointer.sprite.get().unwrap().instance_id());
-        let pointer_size     = pointer_selection_size_buffer.at(pointer.sprite.get().unwrap().instance_id());
         pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
-        pointer_size.modify(|v| v.x += 1.0);
+    }));
 
-//        pointer.set_position(Vector3::new(p.x as f32,p.y as f32,0.0));
-    });
+    selection_size.map("foo", enclose!((pointer) move |p| {
+        let pointer_size = pointer_selection_size_buffer.at(pointer.sprite.get().unwrap().instance_id());
+        pointer_size.set(Vector2::new(p.x as f32, p.y as f32));
+    }));
 
 
 

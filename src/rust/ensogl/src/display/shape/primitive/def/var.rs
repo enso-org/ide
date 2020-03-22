@@ -116,6 +116,22 @@ impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
 
 
 
+// ==================
+// === Operations ===
+// ==================
+
+impl<T> Abs for Var<T>
+where T:Abs {
+    fn abs(&self) -> Self {
+        match self {
+            Self::Static  (t) => Self::Static(t.abs()),
+            Self::Dynamic (t) => Self::Dynamic(format!("abs({})",t).into())
+        }
+    }
+}
+
+
+
 // =================
 // === Operators ===
 // =================
