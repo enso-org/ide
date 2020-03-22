@@ -100,6 +100,15 @@ impl<Out:Value> Dynamic<Out> {
         (&event).into()
     }
 
+//    pub fn source_init<Label>(label:Label, value:Out) -> Self
+//        where Label : Into<CowString> {
+//        let label  = label.into();
+//        let source = Dynamic::<()>::source(label.clone());
+//        let out    = source.constant(label,value);
+//        source.event.emit(&());
+//        out
+//    }
+
     /// Create a new node which will be a placeholder (reference) to another node. Please note that
     /// this node has to be initialized before the FRP network is run.
     pub fn recursive<Label>(label:Label) -> RefinedDynamic<Recursive<EventData<Out>>>

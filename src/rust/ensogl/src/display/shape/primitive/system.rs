@@ -8,11 +8,12 @@ use super::def::*;
 use crate::display;
 use crate::display::shape::primitive::shader;
 use crate::display::symbol::geometry::SpriteSystem;
+use crate::display::symbol::material;
 use crate::display::symbol::material::Material;
 use crate::display::world::World;
 use crate::system::gpu::types::*;
 use crate::display::object::traits::*;
-
+use crate::system::gpu::data::buffer::item::Storable;
 
 
 // ===================
@@ -23,20 +24,23 @@ use crate::display::object::traits::*;
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct ShapeSystem {
     /// The underlying `SpriteSystem`.
-    pub sprite_system: SpriteSystem
+    #[shrinkwrap(main_field)]
+    pub sprite_system : SpriteSystem,
+    material          : Rc<RefCell<Material>>,
 }
 
 impl ShapeSystem {
     /// Constructor.
     pub fn new<S:Shape>(world:&World, shape:&S) -> Self {
         let sprite_system = SpriteSystem::new(world);
-        let this = Self {sprite_system};
+        let material      = Rc::new(RefCell::new(Self::surface_material()));
+        let this          = Self {sprite_system,material};
         this.set_shape(shape);
         this
     }
 
     /// Defines a default material of this system.
-    fn surface_material<S:Shape>(shape:&S) -> Material {
+    fn surface_material() -> Material {
         let mut material = Material::new();
         material.add_input  ("pixel_ratio"  , 1.0);
         material.add_input  ("zoom"         , 1.0);
@@ -44,22 +48,28 @@ impl ShapeSystem {
         material.add_input  ("symbol_id"    , 0);
         material.add_input  ("display_mode" , 0);
         material.add_output ("id"           , Vector4::<u32>::new(0,0,0,0));
-        let code = shader::builder::Builder::run(shape);
-        material.set_code(code);
         material
     }
 
     /// Replaces the shape definition.
     pub fn set_shape<S:Shape>(&self, shape:&S) {
-        self.sprite_system.set_material(Self::surface_material(shape));
+        let code = shader::builder::Builder::run(shape);
+        self.material.borrow_mut().set_code(code);
+        self.reload_material();
+    }
+
+    pub fn add_input<T:material::Input + Storable>(&self, name:&str, t:T) -> Buffer<T>
+    where AnyBuffer: From<Buffer<T>> {
+        self.material.borrow_mut().add_input(name,t);
+        let buffer = self.sprite_system.symbol().surface().instance_scope().add_buffer(name);
+        self.reload_material();
+        buffer
+    }
+
+    fn reload_material(&self) {
+        self.sprite_system.set_material(&*self.material.borrow());
     }
 }
-
-//impl From<&ShapeSystem> for display::object::Node {
-//    fn from(t:&ShapeSystem) -> Self {
-//        (&t.sprite_system).display_object().clone()
-//    }
-//}
 
 impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
     fn from(shape_system:&'t ShapeSystem) -> Self {

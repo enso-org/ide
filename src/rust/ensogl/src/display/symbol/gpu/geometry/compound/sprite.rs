@@ -121,6 +121,7 @@ pub struct Sprite {
     bbox             : Attribute<Vector2<f32>>,
     stats            : SpriteStats,
     size_when_hidden : Rc<Cell<Vector2<f32>>>,
+//    buffers          : Rc<RefCell<HashMap<String,AnyBuffer>>>,
     guard            : Rc<SpriteGuard>,
 }
 
@@ -131,16 +132,18 @@ impl Sprite {
     , instance_id : AttributeInstanceIndex
     , transform   : Attribute<Matrix4<f32>>
     , bbox        : Attribute<Vector2<f32>>
+//    , buffers     : &Rc<RefCell<HashMap<String,AnyBuffer>>>
     , stats       : &Stats
     ) -> Self {
         let symbol           = symbol.clone_ref();
         let logger           = Logger::new(iformat!("Sprite{instance_id}"));
         let display_object   = display::object::Node::new(logger);
+//        let buffers          = buffers.clone_ref();
         let stats            = SpriteStats::new(stats);
         let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
         let guard            = Rc::new(SpriteGuard::new(instance_id,&symbol,&bbox,&display_object));
 
-        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard};
+        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard}; // buffers
         this.init_display_object();
         this
     }
@@ -220,6 +223,7 @@ pub struct SpriteSystem {
     uv        : Buffer  <Vector2<f32>>,
     size      : Buffer  <Vector2<f32>>,
     alignment : Uniform <Vector2<f32>>,
+//    buffers   : Rc<RefCell<HashMap<String,AnyBuffer>>>,
     stats     : Stats,
 }
 
@@ -239,10 +243,11 @@ impl SpriteSystem {
         let vertical          = VerticalAlignment::Center;
         let initial_alignment = Self::uv_offset(horizontal,vertical);
         let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
+//        let buffers           = default();
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,alignment,stats};
+        let this = Self {symbol,transform,uv,size,alignment,stats}; // buffers
         this.init_attributes();
         this.init_shader();
         this
@@ -255,10 +260,17 @@ impl SpriteSystem {
         let size         = self.size.at(instance_id);
         let default_size = Vector2::new(1.0,1.0);
         size.set(default_size);
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats); // &self.buffers
         self.add_child(&sprite); // FIXME
         sprite
     }
+
+//    pub fn add_input<T:Storable>(&self, name:&str) -> Buffer<T>
+//    where AnyBuffer: From<Buffer<T>> {
+//        let buffer = self.symbol().surface().instance_scope().add_buffer(name);
+//        self.buffers.borrow_mut().insert(name.to_string(),buffer.clone_ref().into());
+//        buffer
+//    }
 
     /// Hide the symbol. Hidden symbols will not be rendered.
     pub fn hide(&self) {

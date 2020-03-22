@@ -155,3 +155,10 @@ Radians div(Radians a, float b) {
 Radians neg(Radians a) {
     return Radians(-a.value);
 }
+
+
+// === Add ===
+
+float add(float a, float b) {
+    return a + b;
+}

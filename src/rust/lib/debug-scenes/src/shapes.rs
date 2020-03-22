@@ -27,6 +27,7 @@ use enso_frp::Mouse;
 use ensogl::control::io::mouse;
 use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl_system_web::StyleSetter;
+use ensogl::display::layout::alignment;
 
 
 
@@ -37,7 +38,7 @@ pub struct Pointer {
 }
 
 impl Pointer {
-    pub fn new() -> Self {
+    pub fn new(width:f32,height:f32) -> Self {
         let logger = Logger::new("mouse.pointer");
         let sprite : Rc<CloneCell<Option<Sprite>>> = default();
         let display_object      = display::object::Node::new(&logger);
@@ -48,7 +49,7 @@ impl Pointer {
             let shape_system = scene.lookup_shape(&type_id).unwrap();
             let new_sprite   = shape_system.new_instance();
             display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
-            new_sprite.size().set(Vector2::new(200.0,200.0));
+            new_sprite.size().set(Vector2::new(width,height));
             sprite.set(Some(new_sprite));
         }));
 
@@ -181,8 +182,12 @@ fn nodes2() -> AnyShape {
 
 
 fn mouse_pointer() -> AnyShape {
-    let pointer   = Circle(20.px());
-    let pointer   = pointer.fill(Srgb::new(1.0,0.0,0.0));
+    let radius  = 10.px();
+    let side    = &radius * 2.0;
+    let pointer = Rect((&side + "input_selection_size.x",&side + "input_selection_size.y"))
+        .corners_radius(radius)
+        .translate(("input_position.x","input_position.y"))
+        .fill(Srgba::new(0.0,0.0,0.0,0.3));
     pointer.into()
 }
 
@@ -221,8 +226,16 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let node_shape_system    = ShapeSystem::new(world,&nodes2());
-    let pointer_shape_system = ShapeSystem::new(world,&mouse_pointer());
+    let node_shape_system             = ShapeSystem::new(world,&nodes2());
+    let pointer_shape_system          = ShapeSystem::new(world,&mouse_pointer());
+    let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
+    let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
+
+    let shape = scene.dom().shape().current();
+
+    let pointer = Pointer::new(shape.width(), shape.height());
+
+    pointer_shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
 
     scene.register_shape(TypeId::of::<Node>(),node_shape_system.clone());
     scene.register_shape(TypeId::of::<Pointer>(),pointer_shape_system.clone());
@@ -230,13 +243,13 @@ fn init(world: &World) {
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
 
-    let pointer = Pointer::new();
-
     let node1 = Node::new();
     let node2 = Node::new();
     let node3 = Node::new();
 
     world.add_child(&pointer);
+
+
 
     world.add_child(&node1);
     world.add_child(&node2);
@@ -268,9 +281,32 @@ fn init(world: &World) {
 
 
     web::body().set_style_or_panic("cursor","none");
-    scene.mouse().position.map("foo", move |p| {
-        pointer.set_position(Vector3::new(p.x as f32,p.y as f32,0.0));
+
+    let mouse = scene.mouse();
+
+//    frp! {
+//        mouse_down_position    = mouse.position.sample       (&mouse.on_down);
+//        selection_zero         = source_init(Vector2::new(0.0,0.0));
+//        selection_size         = mouse.position.map2 (&mouse_down_position,|m,n|{m-n});
+////        mouse_position_if_down = mouse.position.gate         (&mouse.is_down);
+////        final_position_ref     = recursive::<Position>       ();
+////        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
+////        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
+////        debug                  = final_position.sample       (&mouse.position);
+//
+//        debug = selection_size.map(|t| {println!("{:?}",t);})
+//    }
+
+    mouse.position.map("foo", move |p| {
+        let pointer_position = pointer_position_buffer.at(pointer.sprite.get().unwrap().instance_id());
+        let pointer_size     = pointer_selection_size_buffer.at(pointer.sprite.get().unwrap().instance_id());
+        pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
+        pointer_size.modify(|v| v.x += 1.0);
+
+//        pointer.set_position(Vector3::new(p.x as f32,p.y as f32,0.0));
     });
+
+
 
 
 
