@@ -21,10 +21,12 @@ pub use nalgebra::Matrix4x3;
 // === Traits ===
 // ==============
 
+/// Describes types that have a zero value.
 pub trait Zero {
     fn zero() -> Self;
 }
 
+/// Describes types that have an absolute value.
 pub trait Abs {
     fn abs(&self) -> Self;
 }

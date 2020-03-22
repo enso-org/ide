@@ -201,28 +201,6 @@ fn nodes3() -> AnyShape {
     nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
 }
 
-//
-//#[derive(Debug,Default)]
-//pub struct ShapeScene {
-//    shape_system_map : HashMap<TypeId,ShapeSystem>
-//}
-//
-//impl ShapeScene {
-//    pub fn add_child<T:display::Object+HasSprite+'static>(&self, target:&T) {
-//        let type_id      = TypeId::of::<T>();
-//        let shape_system = self.shape_system_map.get(&type_id).unwrap();
-//        let sprite       = shape_system.new_instance();
-//
-//        shape_system.add_child(target.display_object());
-//        target.add_child(&sprite);
-//        sprite.size().set(Vector2::new(200.0,200.0));
-////        sprite.mod_position(|t| {
-////            t.x += 200.0;
-////            t.y += 200.0;
-////        });
-//        target.set_sprite(&sprite);
-//    }
-//}
 
 
 //#[derive(Clone,Copy,Debug,Shrinkwrap)]
@@ -328,12 +306,12 @@ fn init(world: &World) {
 //        debug = selection_size.map(|t| {println!("{:?}",t);})
     }
 
-    mouse.position.map("foo", enclose!((pointer) move |p| {
+    mouse.position.map("pointer_position", enclose!((pointer) move |p| {
         let pointer_position = pointer_position_buffer.at(pointer.sprite.get().unwrap().instance_id());
         pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
     }));
 
-    selection_size.map("foo", enclose!((pointer) move |p| {
+    selection_size.map("pointer_size", enclose!((pointer) move |p| {
         let pointer_size = pointer_selection_size_buffer.at(pointer.sprite.get().unwrap().instance_id());
         pointer_size.set(Vector2::new(p.x as f32, p.y as f32));
     }));

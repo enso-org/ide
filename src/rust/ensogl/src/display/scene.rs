@@ -230,6 +230,86 @@ impl Layers {
 
 
 
+// ============
+// === View ===
+// ============
+
+// === Definition ===
+
+#[derive(Debug,Clone)]
+pub struct View {
+    data : Rc<ViewData>
+}
+
+#[derive(Debug,Clone)]
+pub struct WeakView {
+    data : Weak<ViewData>
+}
+
+#[derive(Debug,Clone)]
+pub struct ViewData {
+    logger  : Logger,
+    camera  : Camera2d,
+    symbols : RefCell<Vec<SymbolId>>,
+}
+
+impl CloneRef for View {}
+impl CloneRef for WeakView {}
+
+
+// === API ===
+
+impl View {
+    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
+        let data = ViewData::new(logger,width,height);
+        let data = Rc::new(data);
+        Self {data}
+    }
+
+    pub fn downgrade(&self) -> WeakView {
+        let data = Rc::downgrade(&self.data);
+        WeakView {data}
+    }
+}
+
+impl WeakView {
+    pub fn upgrade(&self) -> Option<View> {
+        self.data.upgrade().map(|data| View{data})
+    }
+}
+
+impl ViewData {
+    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
+        let logger  = logger.sub("view");
+        let camera  = Camera2d::new(logger.sub("camera"),width,height);
+        let symbols = default();
+        Self {logger,camera,symbols}
+    }
+}
+
+
+
+// =============
+// === Views ===
+// =============
+
+pub struct Views {
+    logger : Logger,
+    main   : View,
+    other  : Vec<View>,
+}
+
+impl Views {
+    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
+        let logger = logger.sub("views");
+        let main   = View::new(&logger,width,height);
+        let other  = default();
+        Self {logger,main,other}
+    }
+}
+
+
+
 // =============
 // === Scene ===
 // =============
