@@ -238,7 +238,7 @@ fn init(world: &World) {
     let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
     let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
 
-    let shape = scene.dom().shape().current();
+    let shape = scene.dom.shape().current();
 
     let pointer = Pointer::new(shape.width(), shape.height());
 

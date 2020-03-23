@@ -36,7 +36,7 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Self {
-        let dom                       = scene.dom().root.clone_ref();
+        let dom                       = scene.dom.root.clone_ref();
         let (_simulator, properties)  = Self::start_simulator(camera.clone());
         let zoom_speed                = 10.0;
         let min_zoom                  = 10.0;

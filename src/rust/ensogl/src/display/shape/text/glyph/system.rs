@@ -170,7 +170,7 @@ impl GlyphSystem {
         let msdf_width    = MsdfTexture::WIDTH as f32;
         let msdf_height   = MsdfTexture::ONE_GLYPH_HEIGHT as f32;
         let scene         = world.scene();
-        let context       = scene.context().clone_ref();
+        let context       = scene.context.clone_ref();
         let sprite_system = SpriteSystem::new(world);
         let symbol        = sprite_system.symbol();
         let texture       = Texture::<GpuOnly,Rgb,u8>::new(&context,(0,0));
@@ -178,8 +178,8 @@ impl GlyphSystem {
 
         sprite_system.set_material(Self::material());
         sprite_system.set_alignment(HorizontalAlignment::Left,VerticalAlignment::Bottom);
-        scene.variables().add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
-        scene.variables().add("msdf_size",Vector2::new(msdf_width,msdf_height));
+        scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
+        scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font,
             msdf_uniform       : symbol.variables().add_or_panic("msdf_texture",texture),
             color              : mesh.instance_scope().add_buffer("color"),

@@ -32,8 +32,8 @@ fn init(world:World) {
     let navigator     = Navigator::new(scene,camera);
     let sprite_system = SpriteSystem::new(&world);
 //    let css3d_system  = Css3dSystem::new(&world);
-    let dom_front_layer = scene.dom_front_layer();
-    let dom_back_layer  = scene.dom_back_layer();
+    let dom_front_layer = &scene.dom.layers.front;
+    let dom_back_layer  = &scene.dom.layers.back;
     world.add_child(&sprite_system);
 //    world.add_child(&css3d_system);
 

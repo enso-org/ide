@@ -167,9 +167,8 @@ impl World {
         let scene_dirty2       = scene_dirty.clone();
         let on_change          = move || {scene_dirty2.set()};
         let scene              = Scene::new(dom,scene_logger,&stats,on_change);
-        let variables          = &scene.variables();
-        let time               = variables.add_or_panic("time",0.0);
-        let display_mode       = variables.add_or_panic("display_mode",0);
+        let time               = scene.variables.add_or_panic("time",0.0);
+        let display_mode       = scene.variables.add_or_panic("display_mode",0);
         let event_loop         = EventLoop::new();
         let update_handle      = default();
         let stats_monitor      = StatsMonitor::new(&stats);
@@ -188,17 +187,15 @@ impl World {
     }
 
     fn init_composer(&self) {
-        let root                = self.scene.symbol_registry();
-        let mouse_hover_ids     = self.scene.mouse_hover_ids().clone_ref();
-        let mouse_position      = self.scene.mouse_position_uniform();
-        let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
+        let mouse_hover_ids     = self.scene.mouse.hover_ids.clone_ref();
+        let mut pixel_read_pass = PixelReadPass::<u32>::new(&self.scene.mouse.position);
         pixel_read_pass.set_callback(move |v| {
             mouse_hover_ids.set(Vector4::from_iterator(v))
         });
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
-            .add(SymbolsRenderPass::new(&root))
+            .add(SymbolsRenderPass::new(&self.scene.symbols))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
         self.scene.set_render_pipeline(pipeline);
