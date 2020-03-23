@@ -6,6 +6,7 @@
 
 #[warn(missing_docs)]
 pub mod assoc;
+#[warn(missing_docs)]
 pub mod crumbs;
 #[warn(missing_docs)]
 pub mod internal;
@@ -22,7 +23,7 @@ pub mod test_utils;
 #[warn(missing_docs)]
 pub mod traits;
 
-#[allow(missing_docs)]
+
 pub mod prelude {
     pub use enso_prelude::*;
 

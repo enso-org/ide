@@ -47,9 +47,10 @@ struct MismatchedCrumbType;
 
 // === Ast ===
 
+/// Sequence of `Crumb`s describing traversal path through AST.
 pub type Crumbs = Vec<Crumb>;
 
-/// Crumb identifies location of child AST in an AST node.
+/// Crumb identifies location of child AST in an AST node. Allows for a single step AST traversal.
 #[derive(Clone,Copy,Debug,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub enum Crumb {
@@ -406,12 +407,14 @@ impl<T> Located<T> {
         Located::new(self.crumbs, f(self.item))
     }
 
+    /// Replaces the item, while pushing given crumbs on top of already present ones.
     pub fn into_descendant<U>(self, crumbs:Crumbs, item:U) -> Located<U> {
         let mut ret = self.map(|_| item);
         ret.crumbs.extend(crumbs);
         ret
     }
 
+    /// Maps into child, concatenating this crumbs and child crumbs.
     pub fn push_descendant<U>(self, child:Located<U>) -> Located<U> {
         self.into_descendant(child.crumbs,child.item)
     }
