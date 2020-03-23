@@ -170,7 +170,7 @@ impl GlyphSystem {
         let msdf_width    = MsdfTexture::WIDTH as f32;
         let msdf_height   = MsdfTexture::ONE_GLYPH_HEIGHT as f32;
         let scene         = world.scene();
-        let context       = scene.context();
+        let context       = scene.context().clone_ref();
         let sprite_system = SpriteSystem::new(world);
         let symbol        = sprite_system.symbol();
         let texture       = Texture::<GpuOnly,Rgb,u8>::new(&context,(0,0));

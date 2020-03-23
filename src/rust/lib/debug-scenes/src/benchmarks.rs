@@ -29,7 +29,7 @@ pub fn run_example_benchmarks() {
 
 fn init(world:&World) {
     let scene         = world.scene();
-    let camera        = scene.camera();
+    let camera        = scene.camera().clone_ref();
     let sprite_system = SpriteSystem::new(world);
     let sprite1       = sprite_system.new_instance();
     sprite1.size().set(Vector2::new(10.0, 10.0));

@@ -152,9 +152,9 @@ impl World {
         self.event_loop.add_callback(func)
     }
 
-    pub fn display_object(&self) -> display::object::Node {
-        self.scene().display_object()
-    }
+//    pub fn display_object(&self) -> display::object::Node {
+//        self.scene().display_object()
+//    }
 
     /// Create new uninitialized world instance. You should rather not need to
     /// call this function directly.
@@ -189,7 +189,7 @@ impl World {
 
     fn init_composer(&self) {
         let root                = self.scene.symbol_registry();
-        let mouse_hover_ids     = self.scene.mouse_hover_ids();
+        let mouse_hover_ids     = self.scene.mouse_hover_ids().clone_ref();
         let mouse_position      = self.scene.mouse_position_uniform();
         let mut pixel_read_pass = PixelReadPass::<u32>::new(&mouse_position);
         pixel_read_pass.set_callback(move |v| {
@@ -210,8 +210,8 @@ impl World {
     }
 }
 
-impl Drop for World {
-    fn drop(&mut self) {
-        self.logger.info("Dropping.");
+impl<'t> From<&'t World> for &'t display::object::Node {
+    fn from(world:&'t World) -> Self {
+        world.scene.display_object()
     }
 }

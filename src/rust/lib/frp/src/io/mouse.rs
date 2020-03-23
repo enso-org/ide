@@ -42,7 +42,7 @@ impl Sub<&Position> for &Position {
 // =============
 
 /// Mouse FRP bindings.
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Mouse {
     /// The mouse up event.
     pub on_up : Dynamic<()>,
@@ -57,6 +57,8 @@ pub struct Mouse {
     /// Current mouse position.
     pub position : Dynamic<Position>,
 }
+
+impl CloneRef for Mouse {}
 
 impl Default for Mouse {
     fn default() -> Self {

@@ -354,7 +354,7 @@ pub struct Scene {
     mouse            : Mouse,
     on_resize        : CallbackHandle,
     shape_registry   : ShapeRegistry,
-    frp_mouse        : Rc<enso_frp::Mouse>,
+    frp_mouse        : enso_frp::Mouse,
 }
 
 impl CloneRef for Scene {
@@ -475,24 +475,18 @@ impl Scene {
         });
         handle.forget();
 
-        let frp_mouse = Rc::new(frp_mouse);
-
 
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
              , logger,variables,stats,pixel_ratio,mouse,zoom_uniform
              , zoom_callback,on_resize,shape_registry,frp_mouse }
     }
 
-    pub fn mouse(&self) -> Rc<enso_frp::Mouse> {
-        self.frp_mouse.clone()
+    pub fn mouse(&self) -> &enso_frp::Mouse {
+        &self.frp_mouse
     }
 
-    pub fn display_object(&self) -> display::object::Node {
-        self.display_object.clone()
-    }
-
-    pub fn dom(&self) -> Dom {
-        self.dom.clone()
+    pub fn dom(&self) -> &Dom {
+        &self.dom
     }
 
     pub fn lookup_shape(&self, id:&TypeId) -> Option<ShapeSystem> {
@@ -503,36 +497,36 @@ impl Scene {
         self.shape_registry.insert(id,shape_system)
     }
 
-    pub fn symbol_registry(&self) -> SymbolRegistry {
-        self.symbols.clone_ref()
+    pub fn symbol_registry(&self) -> &SymbolRegistry {
+        &self.symbols
     }
 
-    pub fn dom_front_layer(&self) -> DomScene {
-        self.dom.layers.dom_front.clone_ref()
+    pub fn dom_front_layer(&self) -> &DomScene {
+        &self.dom.layers.dom_front
     }
 
-    pub fn dom_back_layer(&self) -> DomScene {
-        self.dom.layers.dom_back.clone_ref()
+    pub fn dom_back_layer(&self) -> &DomScene {
+        &self.dom.layers.dom_back
     }
 
-    pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
-        self.dom.layers.canvas.clone()
+    pub fn canvas(&self) -> &web_sys::HtmlCanvasElement {
+        &self.dom.layers.canvas
     }
 
-    pub fn context(&self) -> Context {
-        self.context.clone()
+    pub fn context(&self) -> &Context {
+        &self.context
     }
 
-    pub fn variables(&self) -> UniformScope {
-        self.variables.clone_ref()
+    pub fn variables(&self) -> &UniformScope {
+        &self.variables
     }
 
-    pub fn mouse_position_uniform(&self) -> Uniform<Vector2<i32>> {
-        self.mouse.position.clone_ref()
+    pub fn mouse_position_uniform(&self) -> &Uniform<Vector2<i32>> {
+        &self.mouse.position
     }
 
-    pub fn mouse_hover_ids(&self) -> Uniform<Vector4<u32>> {
-        self.mouse.hover_ids.clone_ref()
+    pub fn mouse_hover_ids(&self) -> &Uniform<Vector4<u32>> {
+        &self.mouse.hover_ids
     }
 
     pub fn set_render_pipeline<P:Into<RenderPipeline>>(&self, pipeline:P) {
@@ -557,12 +551,12 @@ impl Scene {
         self.render();
     }
 
-    pub fn camera(&self) -> Camera2d {
-        self.camera.clone_ref()
+    pub fn camera(&self) -> &Camera2d {
+        &self.camera
     }
 
-    pub fn stats(&self) -> Stats {
-        self.stats.clone_ref()
+    pub fn stats(&self) -> &Stats {
+        &self.stats
     }
 
     pub fn index(&self, ix:usize) -> Symbol {
@@ -574,6 +568,13 @@ impl Scene {
         self.symbols.new_symbol()
     }
 }
+
+impl<'t> From<&'t Scene> for &'t display::object::Node {
+    fn from(scene:&'t Scene) -> Self {
+        &scene.display_object
+    }
+}
+
 
 
 // === Render & Update ===

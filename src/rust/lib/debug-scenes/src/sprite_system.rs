@@ -26,7 +26,7 @@ pub fn run_example_sprite_system() {
 
 fn init(world:&World) {
     let scene         = world.scene();
-    let camera        = scene.camera()  ;
+    let camera        = scene.camera().clone_ref();
     let navigator     = Navigator::new(&scene,&camera);
     let sprite_system = SpriteSystem::new(world);
 

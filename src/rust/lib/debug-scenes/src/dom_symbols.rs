@@ -29,7 +29,7 @@ fn init(world:World) {
     let scene         = world.scene();
     let camera        = scene.camera();
     let screen        = camera.screen();
-    let navigator     = Navigator::new(&scene,&camera);
+    let navigator     = Navigator::new(scene,camera);
     let sprite_system = SpriteSystem::new(&world);
 //    let css3d_system  = Css3dSystem::new(&world);
     let dom_front_layer = scene.dom_front_layer();
@@ -77,7 +77,7 @@ fn init(world:World) {
     }
     world.display_object().update();
 
-    let layers = vec![dom_front_layer,dom_back_layer];
+    let layers = vec![dom_front_layer.clone_ref(),dom_back_layer.clone_ref()];
 
     let mut i = 0;
     let animator = FixedStepAnimator::new(2.0, move |_| {
