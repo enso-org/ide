@@ -49,10 +49,12 @@ impl EventLoop {
     fn init(self) -> Self {
         let data = Rc::downgrade(&self.rc);
         let main = move |time_ms| { data.upgrade().map(|t| t.borrow_mut().run(time_ms)); };
+        let mut id = default();
         with(self.rc.borrow_mut(), |mut data| {
             data.main = Some(Closure::new(main));
-            web::request_animation_frame(&data.main.as_ref().unwrap());
+            id = web::request_animation_frame(&data.main.as_ref().unwrap());
         });
+        self.rc.borrow_mut().main_id = id;
         self
     }
 
