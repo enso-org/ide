@@ -1,9 +1,52 @@
+//! Crumbs for AST. Crumb identifies children node location in AST node. The access should be
+//! possible in a constant time.
+
 use crate::prelude::*;
 
 use crate::{Ast, HasRepr};
 use crate::known;
 use crate::Shape;
 use utils::fail::FallibleResult;
+
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[allow(missing_docs)]
+#[fail(display = "The crumb refers to line by index that is out of bounds.")]
+#[derive(Debug,Fail,Clone,Copy)]
+pub struct LineIndexOutOfBounds;
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "The line designated by crumb {:?} does not contain any AST. Context AST was {}.",
+crumb,repr)]
+pub struct LineDoesNotContainAst {
+    repr  : String,
+    crumb : Crumb,
+}
+
+impl LineDoesNotContainAst {
+    /// Creates a new instance of error about missing AST in the designated line.
+    pub fn new(repr:impl HasRepr, crumb:impl Into<Crumb>) -> LineDoesNotContainAst {
+        let repr = repr.repr();
+        let crumb = crumb.into();
+        LineDoesNotContainAst {repr,crumb}
+    }
+}
+
+#[derive(Debug,Display,Fail,Clone,Copy)]
+struct MismatchedCrumbType;
+
+
+
+// =============
+// === Crumb ===
+// =============
+
+// === Ast ===
 
 pub type Crumbs = Vec<Crumb>;
 
@@ -16,18 +59,27 @@ pub enum Crumb {
     Infix(InfixCrumb),
 }
 
+
+// === Block ===
+
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub enum BlockCrumb {
     /// The first non-empty line in block.
     HeadLine,
-    /// Index in the sequence of lines (not counting the HeadLine).
+    /// Index in the sequence of "rest of" lines (not counting the HeadLine).
     TailLine {tail_index:usize},
 }
+
+
+// === Module ===
 
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub struct ModuleCrumb {pub line_index:usize}
+
+
+// === Infix ===
 
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,PartialEq,Hash)]
@@ -36,6 +88,8 @@ pub enum InfixCrumb {
     Operator,
     RightOperand,
 }
+
+// === Conversion Traits ===
 
 impl From<BlockCrumb> for Crumb {
     fn from(crumb: BlockCrumb) -> Self {
@@ -68,34 +122,11 @@ impl From<&InfixCrumb> for Crumb {
     }
 }
 
-#[derive(Debug,Display,Fail,Clone,Copy)]
-pub struct NotYetImplemented;
 
-#[derive(Debug,Display,Fail,Clone,Copy)]
-pub struct LineIndexOutOfBounds;
 
-#[derive(Debug,Fail,Clone)]
-#[fail(display = "The line designated by crumb {:?} does not contain any AST. Context AST was {}.",
-crumb,repr)]
-pub struct LineDoesNotContainAst {
-    repr  : String,
-    crumb : Crumb,
-}
-
-impl LineDoesNotContainAst {
-    pub fn new(repr:impl HasRepr, crumb:impl Into<Crumb>) -> LineDoesNotContainAst {
-        let repr = repr.repr();
-        let crumb = crumb.into();
-        LineDoesNotContainAst {repr,crumb}
-    }
-}
-
-#[derive(Debug,Display,Fail,Clone,Copy)]
-struct MismatchedCrumbType;
-
-fn indices<T>(slice:&[T]) -> impl Iterator<Item = usize> {
-    (0 .. slice.len()).into_iter()
-}
+// =============
+// === Crumb ===
+// =============
 
 /// Any type that can be traversed using Crumb.
 pub trait Crumbable {
@@ -168,11 +199,9 @@ impl Crumbable for crate::Module<Ast> {
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        let indices = self.lines.iter().enumerate().flat_map(|(line_index,line)| {
-            let non_empty_line = line.elem.is_some();
-            non_empty_line.as_some_from(|| ModuleCrumb {line_index})
-        });
-        Box::new(indices)
+        let indices = non_empty_line_indices(self.lines.iter());
+        let crumbs  = indices.map(|line_index| ModuleCrumb {line_index});
+        Box::new(crumbs)
     }
 }
 
@@ -201,19 +230,20 @@ impl Crumbable for crate::Block<Ast> {
         Ok(block)
     }
 
-    fn iter_subcrumbs(&self) -> Box<dyn Iterator<Item = Self::Crumb>> {
-        let first_line = std::iter::once(BlockCrumb::HeadLine);
-        let tail_lines = indices(&self.lines).map(|tail_index| {
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        let first_line        = std::iter::once(BlockCrumb::HeadLine);
+        let tail_line_indices = non_empty_line_indices(self.lines.iter());
+        let tail_lines        = tail_line_indices.map(|tail_index| {
             BlockCrumb::TailLine {tail_index}
         });
         Box::new(first_line.chain(tail_lines))
     }
 }
 
-impl Crumbable for Ast {
+impl Crumbable for Shape<Ast> {
     type Crumb = Crumb;
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        match (self.shape(),crumb) {
+        match (self,crumb) {
             (Shape::Block(shape), Crumb::Block(crumb))  => shape.get(crumb),
             (Shape::Module(shape),Crumb::Module(crumb)) => shape.get(crumb),
             (Shape::Infix(shape), Crumb::Infix(crumb))  => shape.get(crumb),
@@ -222,16 +252,16 @@ impl Crumbable for Ast {
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
-        match (self.shape(),crumb) {
-            (Shape::Block(shape),  Crumb::Block(crumb))  => Ok(self.with_shape(shape.set(crumb,new_ast)?)),
-            (Shape::Module(shape), Crumb::Module(crumb)) => Ok(self.with_shape(shape.set(crumb,new_ast)?)),
-            (Shape::Infix(shape),  Crumb::Infix(crumb))  => Ok(self.with_shape(shape.set(crumb,new_ast)?)),
+        match (self,crumb) {
+            (Shape::Block(shape),  Crumb::Block(crumb))  => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Module(shape), Crumb::Module(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Infix(shape),  Crumb::Infix(crumb))  => Ok(shape.set(crumb,new_ast)?.into()),
             _                                            => Err(MismatchedCrumbType.into()),
         }
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        match self.shape() {
+        match self {
             Shape::Block(shape)  => Box::new(shape.iter_subcrumbs().map(Crumb::Block)),
             Shape::Module(shape) => Box::new(shape.iter_subcrumbs().map(Crumb::Module)),
             Shape::Infix(shape)  => Box::new(shape.iter_subcrumbs().map(Crumb::Infix)),
@@ -240,6 +270,26 @@ impl Crumbable for Ast {
     }
 }
 
+/// Just delegates the implementation to shape.
+impl Crumbable for Ast {
+    type Crumb = Crumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        self.shape().get(crumb)
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let new_shape = self.shape().set(crumb,new_ast)?;
+        Ok(self.with_shape(new_shape))
+
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        self.shape().iter_subcrumbs()
+    }
+}
+
+/// Just delegates to Ast. TODO ??? [mwu] consider using shape-specific crumb type?
 impl<T,E> Crumbable for known::KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
       E                      : failure::Fail {
@@ -275,6 +325,13 @@ pub fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a As
     } else {
         Ok(ast)
     }
+}
+
+fn non_empty_line_indices<'a, T:'a>
+(iter:impl Iterator<Item = &'a crate::BlockLine<Option<T>>> + 'a) -> impl Iterator<Item=usize> + 'a {
+    iter.enumerate().flat_map(|(line_index,line)| {
+        line.elem.as_ref().map(|_| line_index)
+    })
 }
 
 #[cfg(test)]
@@ -344,16 +401,43 @@ mod tests {
 
     #[test]
     fn iterate_infix() {
-        let sum = Ast::infix_var("foo", "+", "bar");
+        let sum = crate::Infix::from_vars("foo", "+", "bar");
         let (larg,opr,rarg) = sum.iter_subcrumbs().expect_tuple();
-        assert_eq!(larg, Crumb::Infix(InfixCrumb::LeftOperand));
-        assert_eq!(opr,  Crumb::Infix(InfixCrumb::Operator));
-        assert_eq!(rarg, Crumb::Infix(InfixCrumb::RightOperand));
+        assert_eq!(larg, InfixCrumb::LeftOperand);
+        assert_eq!(opr,  InfixCrumb::Operator);
+        assert_eq!(rarg, InfixCrumb::RightOperand);
     }
 
     #[test]
     fn iterate_module() {
+        let var = crate::Ast::var("foo");
+        let lines = [
+            Some(var.clone_ref()),
+            None,
+            Some(var.clone_ref()),
+        ];
+        let module = crate::Module::from_lines(&lines);
+        assert_eq!(module.repr(), "foo\n\nfoo");
 
+        let (line0,line2) = module.iter_subcrumbs().expect_tuple();
+        assert_eq!(line0.line_index,0);
+        assert_eq!(line2.line_index,2);
+    }
+
+    #[test]
+    fn iterate_block() {
+        let first_line = crate::Ast::var("foo");
+        let lines = [
+            Some(crate::Ast::var("bar")),
+            None,
+            Some(crate::Ast::var("baz")),
+        ];
+        let block = crate::Block::from_lines(&first_line,&lines);
+
+        let (line0,line1,line3) = block.iter_subcrumbs().expect_tuple();
+        assert_eq!(line0, BlockCrumb::HeadLine);
+        assert_eq!(line1, BlockCrumb::TailLine {tail_index:0});
+        assert_eq!(line3, BlockCrumb::TailLine {tail_index:2});
     }
 }
 

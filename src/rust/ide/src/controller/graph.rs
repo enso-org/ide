@@ -17,7 +17,6 @@ use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use utils::channel::process_stream_with_handle;
 use parser::api::IsParser;
-use ast::HasRepr;
 
 
 
@@ -74,6 +73,17 @@ pub struct NewNodeInfo {
     pub location_hint : LocationHint
 }
 
+impl NewNodeInfo {
+    /// New node with given expression.
+    pub fn new(expression:impl Str) -> NewNodeInfo {
+        NewNodeInfo {
+            expression    : expression.into(),
+            metadata      : default(),
+            id            : default(),
+            location_hint : LocationHint::End,
+        }
+    }
+}
 
 
 // ==================
@@ -188,7 +198,7 @@ impl Handle {
             let new_ast = new_definition.ast.into();
             let new_module = ast::crumbs::set_traversing(&ast_so_far.into(),&crumbs,new_ast)?;
             let new_module = ast::known::Module::try_from(new_module)?;
-            println!("MODULE after: {}", new_module.repr());
+//            println!("MODULE after: {}", new_module.repr());
             Ok(new_module)
         })
     }
@@ -303,7 +313,7 @@ mod tests {
             Self(nested)
         }
 
-        pub fn run_graph_for_program<Test,Fut>(&mut self, code:impl Str, function_name:impl Str, test:Test)
+        pub fn run_graph_for_main<Test,Fut>(&mut self, code:impl Str, function_name:impl Str, test:Test)
         where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let fm       = file_manager_client::Handle::new(MockTransport::new());
@@ -317,13 +327,26 @@ mod tests {
             })
         }
 
+        pub fn run_graph_for<Test,Fut>(&mut self, code:impl Str, graph_id:Id, test:Test)
+            where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+                  Fut  : Future<Output=()> {
+            let fm       = file_manager_client::Handle::new(MockTransport::new());
+            let loc      = controller::module::Location("Main".to_string());
+            let parser   = Parser::new_or_panic();
+            let module   = controller::module::Handle::new_mock(loc,code.as_ref(),default(),fm,parser).unwrap();
+            let graph    = module.get_graph_controller(graph_id).unwrap();
+            self.0.run_test(async move {
+                test(module,graph).await
+            })
+        }
+
         pub fn run_inline_graph<Test,Fut>(&mut self, definition_body:impl Str, test:Test)
         where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             assert_eq!(definition_body.as_ref().contains('\n'), false);
             let code = format!("main = {}", definition_body.as_ref());
             let name = "main";
-            self.run_graph_for_program(code,name,test)
+            self.run_graph_for_main(code, name, test)
         }
     }
 
@@ -353,7 +376,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn graph_controller_notification_relay() {
         let mut test = GraphControllerFixture::set_up();
-        test.run_graph_for_program("main = 2 + 2", "main", |module,graph| async move {
+        test.run_graph_for_main("main = 2 + 2", "main", |module, graph| async move {
             let text_change = TextChange::insert(Index::new(12), "2".into());
             module.apply_code_change(&text_change).unwrap();
 
@@ -384,7 +407,7 @@ mod tests {
 main =
     foo = 2
     print foo";
-        test.run_graph_for_program(program, "main", |_,graph| async move {
+        test.run_graph_for_main(program, "main", |_, graph| async move {
             let nodes   = graph.nodes().unwrap();
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
@@ -392,11 +415,11 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_parse_expression() {
         let mut test  = GraphControllerFixture::set_up();
         let program = r"main = 0";
-        test.run_graph_for_program(program, "main", |_,graph| async move {
+        test.run_graph_for_main(program, "main", |_, graph| async move {
             let foo = graph.parse_node_expression("foo").unwrap();
             assert_eq!(expect_shape::<ast::Var>(&foo), &ast::Var {name:"foo".into()});
 
@@ -409,18 +432,69 @@ main =
     }
 
     #[test]
+    fn aaa() {
+
+
+        let program1 = "foo\n bar\n  \n";
+
+        let mut parser = parser::Parser::new_or_panic();
+        let m1 = parser.parse_module(program1, default()).unwrap();
+        println!("{:?}", m1);
+        println!("===\n{}\n===", m1.repr());
+        assert_eq!(program1,m1.repr());
+    }
+
+    #[test]
+    fn ffdbf() {
+
+
+        let program1 = "main =\n    foo = 2\n\n        print foo";
+        let program2 = "main =\n    foo = 2\n    \n        print foo";
+
+        assert_ne!(program1,program2);
+        let mut parser = parser::Parser::new_or_panic();
+        let m1 = parser.parse_module(program1, default());
+        let m2 = parser.parse_module(program2, default());
+        println!("{:?}", m1);
+        println!("{:?}", m2);
+
+        println!("{}", m1.unwrap().repr());
+        println!("{}", m2.unwrap().repr());
+    }
+
+    #[test]
+    fn graph_controller_nested_definition() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    foo a =
+        bar b = 5
+    print foo";
+
+        let definition = definition::Id::new_plain_names(vec!["main","foo"]);
+        test.run_graph_for(PROGRAM, definition, |module, graph| async move {
+            let expression = "println 'Hello!'";
+            graph.add_node(NewNodeInfo::new(expression)).unwrap();
+
+            println!("{}",module.code());
+
+        })
+    }
+
+    #[test]
     fn graph_controller_node_operations_node() {
         let mut test  = GraphControllerFixture::set_up();
-        let program = r"
+        const PROGRAM:&str = r"
 main =
     foo = 2
     print foo";
-        test.run_graph_for_program(program, "main", |module,graph| async move {
+        test.run_graph_for_main(PROGRAM, "main", |module, graph| async move {
             // === Initial nodes ===
             let nodes   = graph.nodes().unwrap();
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
+
 
             // === Add node ===
             let id       = ast::Id::new_v4();
@@ -447,6 +521,15 @@ main =
             assert_eq!(pos, position);
             assert!(graph.node_metadata(id).is_ok());
 
+
+            // === Edit node ===
+            graph.set_expression(id, "bar baz").unwrap();
+            let (_,_,node3) = graph.nodes().unwrap().expect_tuple();
+            assert_eq!(node3.info.id(),id);
+            assert_eq!(node3.info.expression().repr(), "bar baz");
+            assert_eq!(node3.metadata.unwrap().position, position);
+
+
             // === Remove node ===
             graph.remove_node(node3.info.id()).unwrap();
             let nodes = graph.nodes().unwrap();
@@ -454,6 +537,8 @@ main =
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
             assert!(graph.node_metadata(id).is_err());
+
+            assert_eq!(module.code(), PROGRAM);
         })
     }
 }

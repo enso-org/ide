@@ -937,6 +937,50 @@ impl<T> HasID for WithLength<T>
 // TODO: the definitions below should be removed and instead generated using
 //  macros, as part of https://github.com/luna/enso/issues/338
 
+// === Shape ===
+
+impl<T> BlockLine<T> {
+    /// Creates a new BlockLine wrapping given item and having 0 offset.
+    pub fn new(elem:T) -> BlockLine<T> {
+        BlockLine {elem,off:0}
+    }
+}
+
+impl Block<Ast> {
+    /// Creates block from given line ASTs. There is no leading AST (it is orphan block).
+    pub fn from_lines(first_line:&Ast, tail_lines:&[Option<Ast>]) -> Block<Ast> {
+        let ty          = BlockType::Discontinuous {};
+        let indent      = 0;
+        let empty_lines = Vec::new();
+        let first_line  = BlockLine::new(first_line.clone_ref());
+        let lines       = tail_lines.iter().cloned().map(BlockLine::new).collect();
+        let is_orphan   = true;
+        Block {ty,indent,empty_lines,first_line,lines,is_orphan}
+    }
+}
+
+impl Infix<Ast> {
+    /// Creates an `Infix` Shape, where both its operands are Vars and spacing is 1.
+    pub fn from_vars<Str0,Str1,Str2>(larg:Str0, opr:Str1, rarg:Str2) -> Infix<Ast>
+        where Str0 : ToString,
+              Str1 : ToString,
+              Str2 : ToString, {
+        let larg  = Ast::var(larg);
+        let loff  = 1;
+        let opr   = Ast::opr(opr);
+        let roff  = 1;
+        let rarg  = Ast::var(rarg);
+        Infix {larg,loff,opr,roff,rarg}
+    }
+}
+
+impl Module<Ast> {
+    /// Creates a `Module` Shape with lines storing given Asts and having 0 offset.
+    pub fn from_lines(line_asts:&[Option<Ast>]) -> Module<Ast> {
+        let lines = line_asts.iter().cloned().map(|elem| BlockLine {elem, off:0}).collect();
+        Module {lines}
+    }
+}
 
 // === AST ===
 
@@ -995,12 +1039,7 @@ impl Ast {
     where Str0 : ToString
         , Str1 : ToString
         , Str2 : ToString {
-        let larg  = Ast::var(larg);
-        let loff  = 1;
-        let opr   = Ast::opr(opr);
-        let roff  = 1;
-        let rarg  = Ast::var(rarg);
-        let infix = Infix {larg,loff,opr,roff,rarg};
+        let infix = Infix::from_vars(larg,opr,rarg);
         Ast::from(infix)
     }
 }

@@ -297,24 +297,36 @@ impl DefinitionInfo {
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
 
+
+
+// =======================
+// === DefinitionChild ===
+// =======================
+
+/// A sub-item living under some definition and crumbs identifying its position.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct DefinitionChild<T> {
     /// Crumbs from containing parent.
     pub crumbs : ast::crumbs::Crumbs,
-    /// The child item representation.
+    /// The sub-item representation.
     #[shrinkwrap(main_field)]
     pub item   : T
 }
 
 impl<T> DefinitionChild<T> {
+    /// Creates a new DefinitionChild by describing given item with crumbs identifying its
+    /// location.
     pub fn new(crumbs:ast::crumbs::Crumbs, item:T) -> DefinitionChild<T> {
         DefinitionChild {crumbs,item}
     }
 
+    /// Uses given function to map over the stored item.
     pub fn map<U>(self, f:impl FnOnce(T) -> U) -> DefinitionChild<U> {
         DefinitionChild::new(self.crumbs,f(self.item))
     }
 
+    /// Tries to add a new crumb to current path to obtain a deeper child.
+    /// Its crumbs will accumulate both current crumbs and the passed one.
     pub fn go_down(self, id:&Crumb) -> FallibleResult<ChildDefinition>
     where T : DefinitionProvider {
         let my_child = self.item.def_iter().find_definition(id)?;
@@ -325,13 +337,24 @@ impl<T> DefinitionChild<T> {
     }
 }
 
+/// Ast stored under some known crumbs path.
 pub type ChildAst<'a> = DefinitionChild<&'a Ast>;
 
+/// Definition stored under some known crumbs path.
 pub type ChildDefinition = DefinitionChild<DefinitionInfo>;
 
+
+
+// ==========================
+// === DefinitionIterator ===
+// ==========================
+
+/// Iterator that iterates over child definitions, along with a few related helper utilities.
 #[allow(missing_debug_implementations)]
 pub struct DefinitionIterator<'a> {
+    /// Iterator going over ASTs of potential child definitions.
     pub iterator   : Box<dyn Iterator<Item = ChildAst<'a>>+'a>,
+    /// What kind of scope are we getting our ASTs from.
     pub scope_kind : ScopeKind
 }
 
