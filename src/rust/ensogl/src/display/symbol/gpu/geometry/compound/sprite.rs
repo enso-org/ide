@@ -231,7 +231,7 @@ impl SpriteSystem {
     /// Constructor.
     pub fn new(world:&World) -> Self {
         let scene             = world.scene();
-        let stats             = scene.stats().clone_ref();
+        let stats             = scene.stats.clone_ref();
         let symbol            = scene.new_symbol();
         let mesh              = symbol.surface();
         let point_scope       = mesh.point_scope();

@@ -329,13 +329,22 @@ impl Views {
 }
 
 
+
+// ================
+// === Uniforms ===
+// ================
+
+/// Uniforms owned by the scene.
 #[derive(Clone,Debug)]
 pub struct Uniforms {
+    /// Pixel ratio of the screen used to display the scene.
     pub pixel_ratio : Uniform<f32>,
-    pub zoom        : Uniform<f32>,
+    /// Zoom of the camera to objects on the scene. Zoom of 1.0 means that unit distance is 1 px.
+    pub zoom : Uniform<f32>,
 }
 
 impl Uniforms {
+    /// Constructor.
     pub fn new(scope:&UniformScope) -> Self {
         let pixel_ratio = scope.add_or_panic("pixel_ratio" , 1.0);
         let zoom        = scope.add_or_panic("zoom"        , 1.0);
@@ -350,6 +359,16 @@ impl CloneRef for Uniforms {
         Self {pixel_ratio,zoom}
     }
 }
+
+
+
+// =============
+// === Dirty ===
+// =============
+//
+//pub struct Dirty {
+//
+//}
 
 
 
@@ -396,28 +415,32 @@ impl Deref for Scene {
     }
 }
 
+
+
+// =================
+// === SceneData ===
+// =================
+
 #[derive(Clone,Debug)]
 pub struct SceneData {
     display_object   : display::object::Node,
     pub dom          : Dom,
     pub context      : Context,
     pub symbols      : SymbolRegistry,
-    camera           : Camera2d,
     pub variables    : UniformScope,
     pub mouse        : Mouse,
     pub uniforms     : Uniforms,
+    pub shapes       : ShapeRegistry,
+    pub stats        : Stats,
 
+    camera           : Camera2d,
     symbols_dirty    : SymbolRegistryDirty,
     shape_dirty      : ShapeDirty,
     logger           : Logger,
     pipeline         : Rc<CloneCell<RenderPipeline>>,
     composer         : Rc<CloneCell<RenderComposer>>,
-    stats            : Stats,
-//    pixel_ratio      : Uniform<f32>,
-//    zoom_uniform     : Uniform<f32>,
-    zoom_callback    : CallbackHandle,
+    on_zoom          : CallbackHandle,
     on_resize        : CallbackHandle,
-    shape_registry   : ShapeRegistry,
     frp_mouse        : enso_frp::Mouse,
 }
 
@@ -436,14 +459,14 @@ impl CloneRef for SceneData {
         let composer         = self.composer.clone_ref();
         let stats            = self.stats.clone_ref();
         let uniforms         = self.uniforms.clone_ref();
-        let zoom_callback    = self.zoom_callback.clone_ref();
+        let on_zoom          = self.on_zoom.clone_ref();
         let mouse            = self.mouse.clone_ref();
         let on_resize        = self.on_resize.clone_ref();
-        let shape_registry   = self.shape_registry.clone_ref();
+        let shapes           = self.shapes.clone_ref();
         let frp_mouse        = self.frp_mouse.clone_ref();
         Self {display_object,dom,context,symbols,symbols_dirty,camera,shape_dirty,logger,variables
-             ,pipeline,composer,stats,uniforms,zoom_callback,mouse,on_resize
-             ,shape_registry,frp_mouse}
+             ,pipeline,composer,stats,uniforms,on_zoom,mouse,on_resize
+             ,shapes,frp_mouse}
     }
 }
 
@@ -474,9 +497,9 @@ impl SceneData {
         let camera          = Camera2d::new(logger.sub("camera"),width,height);
         let stats           = stats.clone();
         let mouse           = Mouse::new(&dom.shape(),&variables);
-        let shape_registry  = default();
+        let shapes          = default();
         let uniforms        = Uniforms::new(&variables);
-        let zoom_callback   = camera.add_zoom_update_callback(
+        let on_zoom         = camera.add_zoom_update_callback(
             enclose!((uniforms) move |zoom:&f32| uniforms.zoom.set(*zoom))
         );
 
@@ -541,56 +564,12 @@ impl SceneData {
 
 
         Self { pipeline,composer,display_object,dom,context,symbols,camera,symbols_dirty,shape_dirty
-             , logger,variables,stats,uniforms,mouse,zoom_callback,on_resize,shape_registry,frp_mouse }
+             , logger,variables,stats,uniforms,mouse,on_zoom,on_resize,shapes,frp_mouse }
     }
 
     pub fn mouse(&self) -> &enso_frp::Mouse {
         &self.frp_mouse
     }
-
-//    pub fn dom(&self) -> &Dom {
-//        &self.dom
-//    }
-
-    pub fn lookup_shape(&self, id:&TypeId) -> Option<ShapeSystem> {
-        self.shape_registry.get(id)
-    }
-
-    pub fn register_shape(&self, id:TypeId, shape_system:ShapeSystem) {
-        self.shape_registry.insert(id,shape_system)
-    }
-
-//    pub fn symbol_registry(&self) -> &SymbolRegistry {
-//        &self.symbols
-//    }
-
-//    pub fn dom_front_layer(&self) -> &DomScene {
-//        &self.dom.layers.front
-//    }
-//
-//    pub fn dom_back_layer(&self) -> &DomScene {
-//        &self.dom.layers.back
-//    }
-//
-//    pub fn canvas(&self) -> &web_sys::HtmlCanvasElement {
-//        &self.dom.layers.canvas
-//    }
-
-//    pub fn context(&self) -> &Context {
-//        &self.context
-//    }
-
-//    pub fn variables(&self) -> &UniformScope {
-//        &self.variables
-//    }
-
-//    pub fn mouse_position_uniform(&self) -> &Uniform<Vector2<i32>> {
-//        &self.mouse.position
-//    }
-
-//    pub fn mouse_hover_ids(&self) -> &Uniform<Vector4<u32>> {
-//        &self.mouse.hover_ids
-//    }
 
     pub fn set_render_pipeline<P:Into<RenderPipeline>>(&self, pipeline:P) {
         self.pipeline.set(pipeline.into());
@@ -612,14 +591,6 @@ impl SceneData {
 
     pub fn camera(&self) -> &Camera2d {
         &self.camera
-    }
-
-    pub fn stats(&self) -> &Stats {
-        &self.stats
-    }
-
-    pub fn index(&self, ix:usize) -> Symbol {
-        self.symbols.index(ix)
     }
 
     /// Create a new `Symbol` instance.
