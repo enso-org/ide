@@ -110,7 +110,7 @@ impl SymbolRegistry {
     }
 
     /// Updates the view-projection matrix after camera movement.
-    pub fn update_view_projection(&self, camera:&Camera2d) {
+    pub fn set_camera(&self, camera:&Camera2d) {
         self.view_projection.set(camera.view_projection_matrix());
     }
 
@@ -118,5 +118,15 @@ impl SymbolRegistry {
         for symbol in &*self.symbols.borrow() {
             symbol.render()
         }
+    }
+
+    pub fn render_by_ids(&self,ids:&[SymbolId]) {
+        let symbols = self.symbols.borrow();
+        for id in ids {
+            symbols[*id].render();
+        }
+//        for symbol in &*self.symbols.borrow() {
+//            symbol.render()
+//        }
     }
 }

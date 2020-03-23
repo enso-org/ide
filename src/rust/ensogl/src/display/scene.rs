@@ -130,7 +130,7 @@ impl Mouse {
         let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse::event::OnMove| {
             let pixel_ratio = shape_ref.pixel_ratio() as i32;
             let screen_x    = event.offset_x();
-            let screen_y    = shape_ref.current().height() as i32 - event.offset_y();
+            let screen_y    = event.offset_y();
             let canvas_x    = pixel_ratio * screen_x;
             let canvas_y    = pixel_ratio * screen_y;
             position_ref.set(Vector2::new(canvas_x,canvas_y))
@@ -265,86 +265,6 @@ impl Layers {
         dom.append_or_panic(&back.dom);
         back.set_z_index(-1);
         Self {front,canvas,back}
-    }
-}
-
-
-
-// ============
-// === View ===
-// ============
-
-// === Definition ===
-
-#[derive(Debug,Clone)]
-pub struct View {
-    data : Rc<ViewData>
-}
-
-#[derive(Debug,Clone)]
-pub struct WeakView {
-    data : Weak<ViewData>
-}
-
-#[derive(Debug,Clone)]
-pub struct ViewData {
-    logger  : Logger,
-    camera  : Camera2d,
-    symbols : RefCell<Vec<SymbolId>>,
-}
-
-impl CloneRef for View {}
-impl CloneRef for WeakView {}
-
-
-// === API ===
-
-impl View {
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let data = ViewData::new(logger,width,height);
-        let data = Rc::new(data);
-        Self {data}
-    }
-
-    pub fn downgrade(&self) -> WeakView {
-        let data = Rc::downgrade(&self.data);
-        WeakView {data}
-    }
-}
-
-impl WeakView {
-    pub fn upgrade(&self) -> Option<View> {
-        self.data.upgrade().map(|data| View{data})
-    }
-}
-
-impl ViewData {
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger  = logger.sub("view");
-        let camera  = Camera2d::new(&logger,width,height);
-        let symbols = default();
-        Self {logger,camera,symbols}
-    }
-}
-
-
-
-// =============
-// === Views ===
-// =============
-
-pub struct Views {
-    logger : Logger,
-    main   : View,
-    other  : Vec<View>,
-}
-
-impl Views {
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger = logger.sub("views");
-        let main   = View::new(&logger,width,height);
-        let other  = default();
-        Self {logger,main,other}
     }
 }
 
@@ -499,6 +419,141 @@ impl CloneRef for Renderer {
 
 
 
+// ============
+// === View ===
+// ============
+
+// === Definition ===
+
+#[derive(Debug,Clone)]
+pub struct View {
+    data : Rc<ViewData>
+}
+
+#[derive(Debug,Clone)]
+pub struct WeakView {
+    data : Weak<ViewData>
+}
+
+#[derive(Debug,Clone)]
+pub struct ViewData {
+    logger  : Logger,
+    pub camera  : Camera2d,
+    symbols : RefCell<Vec<SymbolId>>,
+}
+
+impl CloneRef for View {}
+impl CloneRef for WeakView {}
+
+impl AsRef<ViewData> for View {
+    fn as_ref(&self) -> &ViewData {
+        &self.data
+    }
+}
+
+impl std::borrow::Borrow<ViewData> for View {
+    fn borrow(&self) -> &ViewData {
+        &self.data
+    }
+}
+
+impl Deref for View {
+    type Target = ViewData;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+
+// === API ===
+
+impl View {
+    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
+        let data = ViewData::new(logger,width,height);
+        let data = Rc::new(data);
+        Self {data}
+    }
+
+    pub fn downgrade(&self) -> WeakView {
+        let data = Rc::downgrade(&self.data);
+        WeakView {data}
+    }
+
+    pub fn add(&self, symbol:&Symbol) {
+        self.symbols.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+    }
+
+    pub fn remove(&self, symbol:&Symbol) {
+        self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    }
+}
+
+impl WeakView {
+    pub fn upgrade(&self) -> Option<View> {
+        self.data.upgrade().map(|data| View{data})
+    }
+}
+
+impl ViewData {
+    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
+        let logger  = logger.sub("view");
+        let camera  = Camera2d::new(&logger,width,height);
+        let symbols = default();
+        Self {logger,camera,symbols}
+    }
+
+    pub fn symbols(&self) -> Ref<Vec<SymbolId>> {
+        self.symbols.borrow()
+    }
+}
+
+
+
+// =============
+// === Views ===
+// =============
+
+#[derive(Clone,Debug)]
+pub struct Views {
+    logger   : Logger,
+    pub main : View,
+    all      : Rc<RefCell<Vec<WeakView>>>,
+    width    : f32,
+    height   : f32,
+}
+
+impl CloneRef for Views {
+    fn clone_ref(&self) -> Self {
+        let logger = self.logger.clone_ref();
+        let main   = self.main.clone_ref();
+        let all    = self.all.clone_ref();
+        let width  = self.width;  // FIXME
+        let height = self.height; // FIXME
+        Self {logger,main,all,width,height}
+    }
+}
+
+impl Views {
+    pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
+        let logger = logger.sub("views");
+        let main   = View::new(&logger,width,height);
+        let all    = Rc::new(RefCell::new(vec![main.downgrade()]));
+        Self {logger,main,all,width,height}
+    }
+
+    pub fn new(&self) -> View {
+        let view = View::new(&self.logger,self.width,self.height);
+        self.all.borrow_mut().push(view.downgrade());
+        view
+    }
+
+    pub fn all(&self) -> Ref<Vec<WeakView>> {
+        self.all.borrow()
+    }
+}
+
+
+
 // =================
 // === SceneData ===
 // =================
@@ -508,7 +563,7 @@ pub struct SceneData {
     pub display_object : display::object::Node,
     pub dom            : Dom,
     pub context        : Context,
-    pub symbols        : SymbolRegistry,
+    symbols            : SymbolRegistry,
     pub variables      : UniformScope,
     pub mouse          : Mouse,
     pub uniforms       : Uniforms,
@@ -518,8 +573,7 @@ pub struct SceneData {
     pub logger         : Logger,
     pub callbacks      : Callbacks,
     pub renderer       : Renderer,
-
-    camera         : Camera2d,
+    pub views          : Views,
 }
 
 impl CloneRef for SceneData {
@@ -529,7 +583,7 @@ impl CloneRef for SceneData {
         let context        = self.context.clone_ref();
         let symbols        = self.symbols.clone_ref();
         let dirty          = self.dirty.clone_ref();
-        let camera         = self.camera.clone_ref();
+        let views          = self.views.clone_ref();
         let logger         = self.logger.clone_ref();
         let variables      = self.variables.clone_ref();
         let renderer       = self.renderer.clone_ref();
@@ -538,7 +592,7 @@ impl CloneRef for SceneData {
         let mouse          = self.mouse.clone_ref();
         let callbacks      = self.callbacks.clone_ref();
         let shapes         = self.shapes.clone_ref();
-        Self {display_object,dom,context,symbols,dirty,camera,logger,variables,renderer,stats
+        Self {display_object,dom,context,symbols,dirty,views,logger,variables,renderer,stats
              ,uniforms,callbacks,mouse,shapes}
     }
 }
@@ -566,7 +620,7 @@ impl SceneData {
         let width          = screen_shape.width();
         let height         = screen_shape.height();
         let symbols_dirty  = dirty_flag;
-        let camera         = Camera2d::new(&logger,width,height);
+        let views          = Views::mk(&logger,width,height);
         let stats          = stats.clone();
         let mouse          = Mouse::new(&dom.shape(),&variables);
         let shapes         = default();
@@ -575,12 +629,12 @@ impl SceneData {
         let renderer       = Renderer::new(&logger,&dom,&context,&variables);
         let on_zoom_cb     = enclose!((uniforms) move |zoom:&f32| uniforms.zoom.set(*zoom));
         let on_resize_cb   = enclose!((dirty) move |_:&web::dom::ShapeData| dirty.shape.set());
-        let on_zoom        = camera.add_zoom_update_callback(on_zoom_cb);
+        let on_zoom        = views.main.camera.add_zoom_update_callback(on_zoom_cb);
         let on_resize      = dom.root.on_resize(on_resize_cb);
         let callbacks      = Callbacks {on_zoom,on_resize};
 
         uniforms.zoom.set(dom.shape().pixel_ratio());
-        Self {renderer,display_object,dom,context,symbols,camera,dirty,logger,variables
+        Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables
              ,stats,uniforms,mouse,callbacks,shapes}
     }
 
@@ -591,7 +645,17 @@ impl SceneData {
     }
 
     pub fn camera(&self) -> &Camera2d {
-        &self.camera
+        &self.views.main.camera
+    }
+
+    pub fn new_symbol(&self) -> Symbol {
+        let symbol = self.symbols.new();
+        self.views.main.add(&symbol);
+        symbol
+    }
+
+    pub fn symbols(&self) -> &SymbolRegistry {
+        &self.symbols
     }
 
     fn handle_mouse_events(&self) {
@@ -603,7 +667,7 @@ impl SceneData {
                 let symbol_id = mouse_hover_ids.x;
                 let symbol    = self.symbols.index(symbol_id as usize);
                 symbol.dispatch_event(&DynEvent::new(()));
-                // println!("{:?}",self.mouse.hover_ids.get());
+                 println!("{:?}",self.mouse.hover_ids.get());
                 // TODO: finish events sending, including OnOver and OnOut.
             }
         }
@@ -613,7 +677,10 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape().current();
             self.resize_canvas(&self.dom.shape());
-            self.camera.set_screen(screen.width(), screen.height());
+            for view in &*self.views.all.borrow() {
+                view.upgrade().for_each(|v| v.camera.set_screen(screen.width(), screen.height()))
+            }
+//            self.camera.set_screen(screen.width(), screen.height());
             self.renderer.reload_composer();
             self.dirty.shape.unset_all();
         }
@@ -627,11 +694,19 @@ impl SceneData {
     }
 
     fn update_camera(&self) {
-        let changed = self.camera.update();
+        // Updating camera for DOM layers. Please note that DOM layers cannot use multi-camera
+        // setups now, so we are using here the main camera only.
+        let camera  = self.camera();
+        let changed = camera.update();
         if changed {
-            self.symbols.update_view_projection(&self.camera);
-            self.dom.layers.front.update_view_projection(&self.camera);
-            self.dom.layers.back.update_view_projection(&self.camera);
+            self.symbols.set_camera(camera);
+            self.dom.layers.front.update_view_projection(camera);
+            self.dom.layers.back.update_view_projection(camera);
+        }
+
+        // Updating all other cameras (the main camera was already updated, so it will be skipped).
+        for view in &*self.views.all() {
+            view.upgrade().for_each(|v| v.camera.update());
         }
     }
 

@@ -247,6 +247,11 @@ fn init(world: &World) {
     scene.shapes.insert(TypeId::of::<Node>(),node_shape_system.clone());
     scene.shapes.insert(TypeId::of::<Pointer>(),pointer_shape_system.clone());
 
+
+    let pointer_view = scene.views.new();
+    scene.views.main.remove(&pointer_shape_system.symbol);
+    pointer_view.add(&pointer_shape_system.symbol);
+
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
 
@@ -341,6 +346,7 @@ fn init(world: &World) {
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &nodes;
+        let _keep_alive = &pointer_view;
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;

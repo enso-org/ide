@@ -218,13 +218,13 @@ impl From<&Sprite> for display::object::Node {
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 #[derive(Clone,Debug)]
 pub struct SpriteSystem {
-    symbol    : Symbol,
-    transform : Buffer  <Matrix4<f32>>,
-    uv        : Buffer  <Vector2<f32>>,
-    size      : Buffer  <Vector2<f32>>,
-    alignment : Uniform <Vector2<f32>>,
+    pub symbol : Symbol,
+    transform  : Buffer  <Matrix4<f32>>,
+    uv         : Buffer  <Vector2<f32>>,
+    size       : Buffer  <Vector2<f32>>,
+    alignment  : Uniform <Vector2<f32>>,
 //    buffers   : Rc<RefCell<HashMap<String,AnyBuffer>>>,
-    stats     : Stats,
+    stats      : Stats,
 }
 
 impl SpriteSystem {
@@ -232,7 +232,7 @@ impl SpriteSystem {
     pub fn new(world:&World) -> Self {
         let scene             = world.scene();
         let stats             = scene.stats.clone_ref();
-        let symbol            = scene.symbols.new();
+        let symbol            = scene.new_symbol();
         let mesh              = symbol.surface();
         let point_scope       = mesh.point_scope();
         let instance_scope    = mesh.instance_scope();

@@ -196,9 +196,11 @@ impl World {
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
-            .add(SymbolsRenderPass::new(&self.scene.symbols))
+            .add(SymbolsRenderPass::new(&self.scene.symbols(),&self.scene.views))
             .add(ScreenRenderPass::new(self))
-            .add(pixel_read_pass);
+            .add(pixel_read_pass)
+            .add(SymbolsRenderPass2::new(&self.scene.symbols(),&self.scene.views)); // FIXME ugly way of rendering top layers
+
         self.scene.renderer.set_pipeline(pipeline);
     }
 

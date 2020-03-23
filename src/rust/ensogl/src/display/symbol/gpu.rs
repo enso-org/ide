@@ -250,7 +250,7 @@ pub struct Bindings {
 #[derive(Debug,Clone)]
 pub struct Symbol {
     display_object    : display::object::Node,
-    id                : i32,
+    pub id            : i32,
     surface           : Mesh,
     shader            : Shader,
     surface_dirty     : GeometryDirty,
