@@ -74,7 +74,21 @@ macro_rules! define_bindings {
         /// Keeps references to JavaScript closures in order to keep them alive.
         #[derive(Debug)]
         pub struct MouseManagerClosures {
+            dom     : EventTarget,
             $($name : MouseEventJsClosure),*
+        }
+
+        impl Drop for MouseManagerClosures {
+            fn drop(&mut self) {
+            $(
+                    let dom        = &self.dom;
+                    let js_closure = self.$name.as_ref().unchecked_ref();
+                    let js_name    = stringify!($js_name);
+                    let result     = dom.remove_event_listener_with_callback(js_name,js_closure);
+                    if let Err(e)  = result { panic!("Cannot add event listener. {:?}",e) }
+            )*
+
+            }
         }
 
         /// Set of dispatchers for various mouse events.
@@ -100,7 +114,7 @@ macro_rules! define_bindings {
                     let result     = dom.add_event_listener_with_callback(js_name,js_closure);
                     if let Err(e)  = result { panic!("Cannot add event listener. {:?}",e) }
                 )*
-                let closures = MouseManagerClosures {$($name),*};
+                let closures = MouseManagerClosures {dom:dom.clone(),$($name),*};
                 Self {dispatchers,closures,dom}
             }
         }
