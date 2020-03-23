@@ -182,6 +182,7 @@ jobs:
           override: true
 
       - name: Install wasm-pack
+        # We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
           WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
