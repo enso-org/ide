@@ -9,7 +9,7 @@ jobs:
 
 
   check:
-    name: Check
+    name: Linter
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v1
@@ -25,8 +25,8 @@ jobs:
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-check-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-check
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('src/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-lint
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
