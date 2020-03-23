@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::{Ast, HasRepr};
 use crate::known;
 use crate::Shape;
 use utils::fail::FallibleResult;
@@ -124,11 +123,11 @@ impl From<&InfixCrumb> for Crumb {
 
 
 
-// =============
-// === Crumb ===
-// =============
+// =================
+// === Crumbable ===
+// =================
 
-/// Any type that can be traversed using Crumb.
+/// Interface for items that allow getting/setting stored Ast located by arbitrary `Crumb`.
 pub trait Crumbable {
     /// Specific `Crumb` type used by `Self`.
     type Crumb : Into<Crumb>;
@@ -308,31 +307,124 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
     }
 }
 
-pub fn set_traversing(ast:&Ast, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {
-    if let Some(first_crumb) = crumbs.first() {
-        let child = ast.get(first_crumb)?;
-        let updated_child = set_traversing(child, &crumbs[1..], new_ast)?;
-        ast.set(first_crumb,updated_child)
-    } else {
-        Ok(new_ast)
+
+
+// ===========================
+// === Recursive Traversal ===
+// ===========================
+
+/// Interface for recursive AST traversal using `Crumb` sequence.
+pub trait TraversableAst {
+    /// Returns rewritten AST where child AST under location designated by `crumbs` is updated.
+    ///
+    /// Works recursively.
+    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {
+        let ast = self.ast_ref();
+        if let Some(first_crumb) = crumbs.first() {
+            let child = ast.get(first_crumb)?;
+            let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
+            ast.set(first_crumb,updated_child)
+        } else {
+            Ok(new_ast)
+        }
     }
+
+    /// Recursively traverses AST to retrieve AST node located by given crumbs sequence.
+    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
+        let ast = self.ast_ref();
+        if let Some(first_crumb) = crumbs.first() {
+            let child = ast.get(first_crumb)?;
+            child.get_traversing(&crumbs[1..])
+        } else {
+            Ok(ast)
+        }
+    }
+
+    /// Access this node's AST.
+    fn ast_ref(&self) -> &Ast;
 }
 
-pub fn get_traversing<'a>(ast:&'a Ast, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
-    if let Some(first_crumb) = crumbs.first() {
-        let child = ast.get(first_crumb)?;
-        get_traversing(child, &crumbs[1..])
-    } else {
-        Ok(ast)
-    }
+impl TraversableAst for Ast {
+    fn ast_ref(&self) -> &Ast { self }
 }
 
-fn non_empty_line_indices<'a, T:'a>
-(iter:impl Iterator<Item = &'a crate::BlockLine<Option<T>>> + 'a) -> impl Iterator<Item=usize> + 'a {
-    iter.enumerate().flat_map(|(line_index,line)| {
+impl<T> TraversableAst for known::KnownAst<T> {
+    fn ast_ref(&self) -> &Ast { self.ast() }
+}
+
+
+
+// ===============
+// === Utility ===
+// ===============
+
+/// Iterates over indices of non-empty lines.
+pub fn non_empty_line_indices<'a, T:'a>
+(iter:impl Iterator<Item = &'a crate::BlockLine<Option<T>>> + 'a)
+ -> impl Iterator<Item=usize> + 'a {
+    iter.enumerate().filter_map(|(line_index,line)| {
         line.elem.as_ref().map(|_| line_index)
     })
 }
+
+
+
+// ===============
+// === Located ===
+// ===============
+
+/// Item which location is identified by `Crumbs`.
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct Located<T> {
+    /// Crumbs from containing parent.
+    pub crumbs : Crumbs,
+    /// The sub-item representation.
+    #[shrinkwrap(main_field)]
+    pub item   : T
+}
+
+impl<T> Located<T> {
+    /// Creates a new located item.
+    pub fn new(crumbs:Crumbs, item:T) -> Located<T> {
+        Located {crumbs,item}
+    }
+
+    /// Creates a new item in a root location (empty crumbs list).
+    pub fn new_root(item:T) -> Located<T> {
+        let crumbs = default();
+        Located {crumbs,item}
+    }
+
+    /// Creates a new item in a root location (single crumb location).
+    pub fn new_direct_child(crumb:impl Into<Crumb>, item:T) -> Located<T> {
+        let crumbs = vec![crumb.into()];
+        Located {crumbs,item}
+    }
+
+    /// Uses given function to map over the item.
+    pub fn map<U>(self, f:impl FnOnce(T) -> U) -> Located<U> {
+        Located::new(self.crumbs, f(self.item))
+    }
+
+    pub fn into_descendant<U>(self, crumbs:Crumbs, item:U) -> Located<U> {
+        let mut ret = self.map(|_| item);
+        ret.crumbs.extend(crumbs);
+        ret
+    }
+
+    pub fn push_descendant<U>(self, child:Located<U>) -> Located<U> {
+        self.into_descendant(child.crumbs,child.item)
+    }
+}
+
+/// Reference to AST stored under some known crumbs path.
+pub type ChildAst<'a> = Located<&'a Ast>;
+
+
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
@@ -380,11 +472,11 @@ mod tests {
 
         let set = |crumbs: &[InfixCrumb], ast| {
             let crumbs = crumbs.iter().map(|c| Crumb::Infix(*c)).collect_vec();
-            set_traversing(&infix, &crumbs, ast)
+            infix.set_traversing(&crumbs, ast)
         };
         let get = |crumbs: &[InfixCrumb]| {
             let crumbs = crumbs.iter().map(|c| Crumb::Infix(*c)).collect_vec();
-            get_traversing(&infix, &crumbs)
+            infix.get_traversing(&crumbs)
         };
 
         assert_eq!(set(&[RightOperand,LeftOperand], Ast::var("baz"))?.repr(), "main = baz + bar");

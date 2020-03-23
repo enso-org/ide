@@ -13,6 +13,7 @@ use ast::BlockLine;
 use ast::known;
 use utils::fail::FallibleResult;
 
+/// Graph uses the same `Id` as the definition which introduces the graph.
 pub type Id = double_representation::definition::Id;
 
 
@@ -53,6 +54,7 @@ pub enum LocationHint {
 /// Description of the graph, based on information available in AST.
 #[derive(Clone,Debug)]
 pub struct GraphInfo {
+    /// The definition providing this graph.
     pub source:DefinitionInfo,
 }
 
@@ -144,7 +146,6 @@ impl GraphInfo {
 
     #[cfg(test)]
     pub fn check_code(&self, expected_code:&str) {
-        use ast::HasRepr;
         let code = self.source.ast.repr();
         assert_eq!(expected_code.to_string(),code);
     }

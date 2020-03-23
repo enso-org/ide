@@ -19,8 +19,18 @@ pub mod prefix;
 pub mod repr;
 #[warn(missing_docs)]
 pub mod test_utils;
+#[warn(missing_docs)]
+pub mod traits;
 
-use prelude::*;
+#[allow(missing_docs)]
+pub mod prelude {
+    pub use enso_prelude::*;
+
+    pub use crate::Ast;
+    pub use crate::traits::*;
+}
+
+use crate::prelude::*;
 
 use ast_macros::*;
 use data::text::*;

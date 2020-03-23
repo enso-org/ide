@@ -196,7 +196,7 @@ impl Handle {
             let ChildDefinition {crumbs,item} = definition::locate(&ast_so_far, &self.id)?;
             let new_definition = f(item)?;
             let new_ast = new_definition.ast.into();
-            let new_module = ast::crumbs::set_traversing(&ast_so_far.into(),&crumbs,new_ast)?;
+            let new_module = ast_so_far.set_traversing(&crumbs,new_ast)?;
             let new_module = ast::known::Module::try_from(new_module)?;
 //            println!("MODULE after: {}", new_module.repr());
             Ok(new_module)
@@ -205,7 +205,7 @@ impl Handle {
 
     /// Parses given text as a node expression.
     pub fn parse_node_expression
-    (&self, expression_text:impl Str) -> FallibleResult<ast::Ast> {
+    (&self, expression_text:impl Str) -> FallibleResult<Ast> {
         let mut parser    = self.module.parser();
         let node_ast      = parser.parse_line(expression_text.as_ref())?;
         if ast::opr::is_assignment(&node_ast) {
