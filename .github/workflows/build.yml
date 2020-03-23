@@ -92,14 +92,14 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Check
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-check-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-cargo-check-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-check
 
       - name: Install Rust
@@ -130,14 +130,14 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-test
 
       - name: Install Rust
@@ -165,14 +165,14 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-wasm-registry-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-wasm-registry-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-wasm-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock) }}
+          key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-wasm-test
 
       - name: Install Rust
