@@ -19,18 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-#      - name: Cache Cargo Registry
-#        uses: actions/cache@v1
-#        with:
-#          path: ~/.cargo/registry
-#          key: ${{ runner.os }}-2-cargo-registry
-#
-#      - name: Cache Cargo Build
-#        uses: actions/cache@v1
-#        with:
-#          path: src/rust/target
-#          key: ${{ runner.os }}-2-cargo-build
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -104,13 +92,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-4-cargo-registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Check
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-4-cargo-check
+          key: ${{ runner.os }}-cargo-check
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -140,13 +128,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-4-cargo-registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-4-cargo-test
+          key: ${{ runner.os }}-cargo-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -173,13 +161,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-4-wasm-registry
+          key: ${{ runner.os }}-wasm-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-4-wasm-test
+          key: ${{ runner.os }}-wasm-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -256,12 +244,6 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-
-      - name: Cache Cargo Registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-2-cargo-registry
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1

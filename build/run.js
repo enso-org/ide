@@ -183,7 +183,7 @@ commands.test.rust = async function(argv) {
 
 commands.lint = command(`Lint the codebase`)
 commands.lint.rust = async function() {
-    await run('cargo',['clippy','--','-D','warnings'])
+    await run('cargo',['clippy-preview','-Z','unstable-options','--','-D','warnings'])
 }
 
 
