@@ -265,6 +265,17 @@ impl SpriteSystem {
         sprite
     }
 
+    pub fn from_instance_id(&self, instance_id:usize) -> Sprite {
+        let instance_id  = instance_id.into();
+        let transform    = self.transform.at(instance_id);
+        let size         = self.size.at(instance_id);
+        let default_size = Vector2::new(1.0,1.0);
+        size.set(default_size);
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats); // &self.buffers
+        self.add_child(&sprite); // FIXME
+        sprite
+    }
+
 //    pub fn add_input<T:Storable>(&self, name:&str) -> Buffer<T>
 //    where AnyBuffer: From<Buffer<T>> {
 //        let buffer = self.symbol().surface().instance_scope().add_buffer(name);

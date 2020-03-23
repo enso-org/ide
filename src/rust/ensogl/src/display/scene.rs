@@ -66,6 +66,52 @@ impl {
 
 
 
+// ==============
+// === Target ===
+// ==============
+
+#[derive(Debug,Clone,Copy,Eq,PartialEq)]
+pub enum Target {
+    Background,
+    Symbol {
+        symbol_id   : u32,
+        instance_id : u32,
+    }
+}
+
+impl Target {
+    fn to_internal(&self) -> Vector4<u32> {
+        match self {
+            Self::Background                     => Vector4::new(0,0,0,0),
+            Self::Symbol {symbol_id,instance_id} => Vector4::new(*symbol_id,*instance_id,0,1),
+        }
+    }
+
+    fn from_internal(v:Vector4<u32>) -> Self {
+        if v.z != 0 {
+            panic!("Wrong internal format for mouse target.")
+        }
+        if v.w == 0 {
+            Self::Background
+        }
+        else if v.w == 1 {
+            let symbol_id   = v.x;
+            let instance_id = v.y;
+            Self::Symbol {symbol_id,instance_id}
+        } else {
+            panic!("Wrong internal format alpha for mouse target.")
+        }
+    }
+}
+
+impl Default for Target {
+    fn default() -> Self {
+        Self::Background
+    }
+}
+
+
+
 // =============
 // === Mouse ===
 // =============
@@ -87,7 +133,7 @@ pub struct Mouse {
     pub button2_pressed : Uniform<bool>,
     pub button3_pressed : Uniform<bool>,
     pub button4_pressed : Uniform<bool>,
-    pub last_hover_ids  : Rc<Cell<Vector4<u32>>>,
+    pub target          : Rc<Cell<Target>>,
     pub handles         : Rc<Vec<CallbackHandle>>,
     pub frp             : enso_frp::Mouse,
 }
@@ -102,26 +148,26 @@ impl CloneRef for Mouse {
         let button2_pressed = self.button2_pressed.clone_ref();
         let button3_pressed = self.button3_pressed.clone_ref();
         let button4_pressed = self.button4_pressed.clone_ref();
-        let last_hover_ids  = self.last_hover_ids.clone_ref();
+        let target          = self.target.clone_ref();
         let handles         = self.handles.clone_ref();
         let frp             = self.frp.clone_ref();
         Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
-             ,button3_pressed,button4_pressed,last_hover_ids,handles,frp}
+             ,button3_pressed,button4_pressed,target,handles,frp}
     }
 }
 
 impl Mouse {
     pub fn new(shape:&web::dom::Shape, variables:&UniformScope) -> Self {
 
-        let empty_hover_ids = Vector4::<u32>::new(0,0,0,0);
+        let target          = Target::default();
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
-        let hover_ids       = variables.add_or_panic("mouse_hover_ids",empty_hover_ids);
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal());
         let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
         let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
-        let last_hover_ids  = Rc::new(Cell::new(empty_hover_ids));
+        let target          = Rc::new(Cell::new(target));
         let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
         let mouse_manager   = MouseManager::new(&document.into());
 
@@ -170,24 +216,24 @@ impl Mouse {
 
         let frp = enso_frp::Mouse::new();
 
-        let target = frp.position.event.clone_ref();
-        mouse_manager.on_move.add(move |event:&mouse::OnMove| {
-            let position = enso_frp::Position::new(event.client_x(),event.client_y());
-            target.emit(position);
+        let event = frp.position.event.clone_ref();
+        mouse_manager.on_move.add(move |e:&mouse::OnMove| {
+            let position = enso_frp::Position::new(e.client_x(),e.client_y());
+            event.emit(position);
         }).forget();
 
-        let target = frp.on_down.event.clone_ref();
-        mouse_manager.on_down.add(move |event:&mouse::OnDown| {
-            target.emit(());
+        let event = frp.on_down.event.clone_ref();
+        mouse_manager.on_down.add(move |_:&mouse::OnDown| {
+            event.emit(());
         }).forget();
 
-        let target = frp.on_up.event.clone_ref();
-        mouse_manager.on_up.add(move |event:&mouse::OnUp| {
-            target.emit(());
+        let event = frp.on_up.event.clone_ref();
+        mouse_manager.on_up.add(move |_:&mouse::OnUp| {
+            event.emit(());
         }).forget();
 
         Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
-             ,button4_pressed,last_hover_ids,handles,frp}
+             ,button4_pressed,target,handles,frp}
     }
 }
 
@@ -659,16 +705,17 @@ impl SceneData {
     }
 
     fn handle_mouse_events(&self) {
-        let mouse_hover_ids = self.mouse.hover_ids.get();
-        if mouse_hover_ids != self.mouse.last_hover_ids.get() {
-            self.mouse.last_hover_ids.set(mouse_hover_ids);
-            let is_not_background = mouse_hover_ids.w != 0;
-            if is_not_background {
-                let symbol_id = mouse_hover_ids.x;
-                let symbol    = self.symbols.index(symbol_id as usize);
-                symbol.dispatch_event(&DynEvent::new(()));
-                 println!("{:?}",self.mouse.hover_ids.get());
-                // TODO: finish events sending, including OnOver and OnOut.
+        let target = Target::from_internal(self.mouse.hover_ids.get());
+        if target != self.mouse.target.get() {
+            self.mouse.target.set(target);
+            match target {
+                Target::Background => {}
+                Target::Symbol {symbol_id, instance_id} => {
+                    let symbol = self.symbols.index(symbol_id as usize);
+                    symbol.dispatch_event(&DynEvent::new(()));
+                    // println!("{:?}",target);
+                    // TODO: finish events sending, including OnOver and OnOut.
+                }
             }
         }
     }

@@ -72,7 +72,6 @@ impl<'t> From<&'t Pointer> for &'t display::object::Node {
 
 
 
-
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_shapes() {
@@ -135,54 +134,38 @@ where R : Into<Var<Distance<Pixels>>>,
     let ring    = &outer - &inner;
     let pie     = &ring * &section;
     let out     = &pie + &corner1 + &corner2;
-//    let out     = out.fill(Srgba::new(0.22,0.83,0.54,1.0));
-//    let out     = out.fill(Srgba::new(0.0,0.0,0.0,0.2));
     let out     = out.fill(Srgba::new(0.9,0.9,0.9,1.0));
     out.into()
 }
 
-fn nodes2() -> AnyShape {
+fn nodes_shape() -> AnyShape {
     let node_radius = 32.0;
     let border_size = 16.0;
-    let node   = Circle(node_radius.px());
-//    let border = Circle((node_radius + border_size).px());
-    let node   = node.fill(Srgb::new(0.97,0.96,0.95));
-//    let node   = node.fill(Srgb::new(0.26,0.69,0.99));
-//    let border = border.fill(Srgba::new(0.0,0.0,0.0,0.06));
 
+    let node = Circle(node_radius.px());
+    let node = node.fill(Srgb::new(0.97,0.96,0.95));
     let bg   = Circle((node_radius*2.0).px());
     let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
-
-
-//    let shadow1 = Circle((node_radius + border_size).px());
-//    let shadow1_color = LinearGradient::new()
-//        .add(0.0,Srgba::new(0.0,0.0,0.0,0.08).into_linear())
-//        .add(1.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear());
-//    let shadow1_color = SdfSampler::new(shadow1_color).max_distance(border_size).slope(Slope::InvExponent(5.0));
-//    let shadow1       = shadow1.fill(shadow1_color);
 
     let shadow2 = Circle((node_radius + border_size).px());
     let shadow2_color = LinearGradient::new()
         .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
         .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-//    let shadow2_color = ExponentSampler::new(shadow2_color);
     let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
+    let selection = Circle((node_radius + border_size).px() * "input_selection");
+    let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
     let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
     let loader_angle2 = &loader_angle / 2.0;
     let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
     let loader        = loader.rotate(loader_angle2);
     let loader        = loader.rotate("Radians(input_time/200.0)");
-
-    let icon = icons::history();
-
-
-    let out = loader + shadow2 + node + icon;
+    let icon          = icons::history();
+    let out           = loader + selection + shadow2 + node + icon;
     out.into()
 }
-
 
 fn mouse_pointer() -> AnyShape {
     let radius  = 10.px();
@@ -197,35 +180,6 @@ fn mouse_pointer() -> AnyShape {
     pointer.into()
 }
 
-fn nodes3() -> AnyShape {
-    nodes2().fill(Srgb::new(1.0,0.0,0.0)).into()
-}
-
-
-
-//#[derive(Clone,Copy,Debug,Shrinkwrap)]
-//#[shrinkwrap(mutable)]
-//pub struct Position2<T>
-//where T : nalgebra::Scalar {
-//    pub vec : Vector2<T>
-//}
-//
-//impl<T> Position2<T>
-//where T : nalgebra::Scalar {
-//    pub fn new(x:T, y:T) -> Self {
-//        let vec = Vector2::new(x,y);
-//        Self {vec}
-//    }
-//}
-//
-//impl Default for Position2<f32>   { fn default() -> Self { Self::new(0.0,0.0) } }
-//impl Default for Position2<f64>   { fn default() -> Self { Self::new(0.0,0.0) } }
-//impl Default for Position2<i32>   { fn default() -> Self { Self::new(0,0) } }
-//impl Default for Position2<i64>   { fn default() -> Self { Self::new(0,0) } }
-//impl Default for Position2<usize> { fn default() -> Self { Self::new(0,0) } }
-
-
-
 fn init(world: &World) {
     let scene  = world.scene();
     let camera = scene.camera();
@@ -233,10 +187,13 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let node_shape_system             = ShapeSystem::new(world,&nodes2());
+    let node_shape_system             = ShapeSystem::new(world,&nodes_shape());
     let pointer_shape_system          = ShapeSystem::new(world,&mouse_pointer());
     let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
     let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
+
+    let node_selection_buffer         = node_shape_system.add_input("selection" , 0.0);
+
 
     let shape = scene.dom.shape().current();
 
@@ -303,22 +260,43 @@ fn init(world: &World) {
         selection_size_if_down = selection_size_down.gate     (&mouse.is_down);
         selection_size_on_up   = selection_zero.sample        (&mouse.on_up);
         selection_size         = selection_size_if_down.merge (&selection_size_on_up);
+
+
+        mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
 //        final_position_ref     = recursive::<Position>       ();
 //        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
 //        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
 //        debug                  = final_position.sample       (&mouse.position);
 
-//        debug = selection_size.map(|t| {println!("{:?}",t);})
+//        debug = mouse_down_target.map(|t| {println!("{:?}",t);})
     }
 
     mouse.position.map("pointer_position", enclose!((pointer) move |p| {
-        let pointer_position = pointer_position_buffer.at(pointer.sprite.get().unwrap().instance_id());
-        pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
+        pointer.sprite.get().for_each(|sprite| {
+            let pointer_position = pointer_position_buffer.at(sprite.instance_id());
+            pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
+        })
     }));
 
     selection_size.map("pointer_size", enclose!((pointer) move |p| {
-        let pointer_size = pointer_selection_size_buffer.at(pointer.sprite.get().unwrap().instance_id());
-        pointer_size.set(Vector2::new(p.x as f32, p.y as f32));
+        pointer.sprite.get().for_each(|sprite| {
+            let pointer_size = pointer_selection_size_buffer.at(sprite.instance_id());
+            pointer_size.set(Vector2::new(p.x as f32, p.y as f32));
+        })
+    }));
+
+
+    mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
+        match target {
+            display::scene::Target::Background => {}
+            display::scene::Target::Symbol {symbol_id, instance_id} => {
+                // FIXME
+                // 1. The following line is unsound. It creates a new sprite which when gets dropped, is removed from buffers (!)
+                // 2. We have not checked if the selection was node sprite.
+                // let sprite = node_shape_system.from_instance_id(*instance_id as usize); // FIXME conversion
+            }
+        }
+        println!("SELECTING {:?}", target);
     }));
 
 
@@ -350,7 +328,7 @@ fn init(world: &World) {
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
-        on_frame(&mut time,&mut iter,&node_shape_system);
+        on_frame(&mut time,&mut iter);
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
@@ -367,8 +345,7 @@ fn init(world: &World) {
 #[allow(clippy::many_single_char_names)]
 pub fn on_frame
 ( _time        : &mut i32
-, iter         : &mut i32
-, shape_system : &ShapeSystem) {
+, iter         : &mut i32) {
     *iter += 1;
 }
 
