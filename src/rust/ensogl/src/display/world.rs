@@ -109,7 +109,8 @@ impl World {
             time.set(relative_time);
                 // group!(self.logger, "Updating.", {
                 scene_dirty.unset_all();
-                scene.update_and_render();
+                scene.update();
+                scene.renderer.run();
                 // });
         };
         let update_handle  = this.event_loop.add_callback(update);
@@ -198,7 +199,7 @@ impl World {
             .add(SymbolsRenderPass::new(&self.scene.symbols))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
-        self.scene.set_render_pipeline(pipeline);
+        self.scene.renderer.set_pipeline(pipeline);
     }
 
     /// Dispose the world object, cancel all handlers and events.

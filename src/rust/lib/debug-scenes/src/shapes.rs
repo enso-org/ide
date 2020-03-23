@@ -289,7 +289,7 @@ fn init(world: &World) {
 
     web::body().set_style_or_panic("cursor","none");
 
-    let mouse = scene.mouse();
+    let mouse = &scene.mouse.frp;
 
     frp! {
         mouse_down_position    = mouse.position.sample        (&mouse.on_down);

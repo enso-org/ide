@@ -59,8 +59,10 @@ impl CloneRef for SymbolRegistry {
 }
 
 impl SymbolRegistry {
-    /// Create new instance with the provided on-dirty callback.
-    pub fn new<OnMut:Fn()+'static>(variables:&UniformScope, stats:&Stats, context:&Context, logger:Logger, on_mut:OnMut) -> Self {
+    /// Constructor.
+    pub fn mk<OnMut:Fn()+'static>
+    (variables:&UniformScope, stats:&Stats, context:&Context, logger:&Logger, on_mut:OnMut) -> Self {
+        let logger = logger.sub("symbol_registry");
         logger.info("Initializing.");
         let symbol_logger   = logger.sub("symbol_dirty");
         let symbol_dirty    = SymbolDirty::new(symbol_logger,Box::new(on_mut));
@@ -72,8 +74,8 @@ impl SymbolRegistry {
         Self {symbols,symbol_dirty,logger,view_projection,variables,context,stats}
     }
 
-    /// Creates a new `Symbol` instance.
-    pub fn new_symbol_by_id(&self) -> SymbolId {
+    /// Creates a new `Symbol` instance and returns its id.
+    pub fn new_get_id(&self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
         let variables    = &self.variables;
         let logger       = &self.logger;
@@ -88,8 +90,8 @@ impl SymbolRegistry {
     }
 
     /// Creates a new `Symbol` instance.
-    pub fn new_symbol(&self) -> Symbol {
-        let ix = self.new_symbol_by_id();
+    pub fn new(&self) -> Symbol {
+        let ix = self.new_get_id();
         self.index(ix)
     }
 
