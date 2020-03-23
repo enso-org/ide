@@ -33,12 +33,10 @@ pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
 
 // === Definition ===
 
-shared! { SymbolRegistry
-
 /// Registry for all the created symbols.
-#[derive(Debug)]
-pub struct SymbolRegistryData {
-    symbols         : OptVec<Symbol>,
+#[derive(Clone,Debug)]
+pub struct SymbolRegistry {
+    symbols         : Rc<RefCell<OptVec<Symbol>>>,
     symbol_dirty    : SymbolDirty,
     logger          : Logger,
     view_projection : Uniform<Matrix4<f32>>,
@@ -47,8 +45,20 @@ pub struct SymbolRegistryData {
     stats           : Stats,
 }
 
-impl {
+impl CloneRef for SymbolRegistry {
+    fn clone_ref(&self) -> Self {
+        let symbols         = self.symbols.clone_ref();
+        let symbol_dirty    = self.symbol_dirty.clone_ref();
+        let logger          = self.logger.clone_ref();
+        let view_projection = self.view_projection.clone_ref();
+        let variables       = self.variables.clone_ref();
+        let context         = self.context.clone_ref();
+        let stats           = self.stats.clone_ref();
+        Self {symbols,symbol_dirty,logger,view_projection,variables,context,stats}
+    }
+}
 
+impl SymbolRegistry {
     /// Create new instance with the provided on-dirty callback.
     pub fn new<OnMut:Fn()+'static>(variables:&UniformScope, stats:&Stats, context:&Context, logger:Logger, on_mut:OnMut) -> Self {
         logger.info("Initializing.");
@@ -63,13 +73,13 @@ impl {
     }
 
     /// Creates a new `Symbol` instance.
-    pub fn new_symbol_by_id(&mut self) -> SymbolId {
+    pub fn new_symbol_by_id(&self) -> SymbolId {
         let symbol_dirty = self.symbol_dirty.clone();
         let variables    = &self.variables;
         let logger       = &self.logger;
         let context      = &self.context;
         let stats        = &self.stats;
-        self.symbols.insert_with_ix(|ix| {
+        self.symbols.borrow_mut().insert_with_ix(|ix| {
             let on_mut = move || {symbol_dirty.set(ix)};
             let logger = logger.sub(format!("symbol{}",ix));
             let id     = ix as i32;
@@ -78,20 +88,20 @@ impl {
     }
 
     /// Creates a new `Symbol` instance.
-    pub fn new_symbol(&mut self) -> Symbol {
+    pub fn new_symbol(&self) -> Symbol {
         let ix = self.new_symbol_by_id();
         self.index(ix)
     }
 
     pub fn index(&self, ix:usize) -> Symbol {
-        self.symbols[ix].clone_ref()
+        self.symbols.borrow()[ix].clone_ref()
     }
 
     /// Check dirty flags and update the state accordingly.
-    pub fn update(&mut self) {
+    pub fn update(&self) {
         group!(self.logger, "Updating.", {
             for id in self.symbol_dirty.take().iter() {
-                self.symbols[*id].update()
+                self.symbols.borrow()[*id].update()
             }
             self.symbol_dirty.unset_all();
         })
@@ -103,8 +113,8 @@ impl {
     }
 
     pub fn render(&self) {
-        for symbol in &self.symbols {
+        for symbol in &*self.symbols.borrow() {
             symbol.render()
         }
     }
-}}
+}
