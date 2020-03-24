@@ -65,11 +65,11 @@ impl Navigator {
     }
 
     fn start_navigator_events
-    ( dom       : &dom::WithKnownShape<web::EventTarget>
-    , camera:Camera2d
-    , min_zoom:f32
-    , max_zoom:f32
-    , zoom_speed:f32
+    ( dom        : &dom::WithKnownShape<web::EventTarget>
+    , camera     : Camera2d
+    , min_zoom   : f32
+    , max_zoom   : f32
+    , zoom_speed : f32
     , mut properties:PhysicsProperties) -> (CallbackHandle,NavigatorEvents) {
         let dom_clone        = dom.clone();
         let camera_clone     = camera.clone();
@@ -106,7 +106,7 @@ impl Navigator {
 
                 // Scale X and Y to compensate aspect and fov.
                 let x              = -normalized.x * camera.screen().aspect();
-                let y              =  normalized.y;
+                let y              = -normalized.y;
                 let z              = half_height / camera.half_fovy_slope();
                 let direction      = Vector3::new(x, y, z).normalize();
                 let mut position   = properties.spring().fixed_point;
