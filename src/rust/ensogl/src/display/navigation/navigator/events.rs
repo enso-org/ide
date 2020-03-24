@@ -228,7 +228,7 @@ impl NavigatorEvents {
                 if event.ctrl_key() {
                     let position   = data.mouse_position();
                     let zoom_speed = data.zoom_speed();
-                    let movement   = Vector2::new(event.delta_x() as f32, event.delta_y() as f32);
+                    let movement   = Vector2::new(event.delta_x() as f32, -event.delta_y() as f32);
                     let amount     = movement_to_zoom(movement);
                     let zoom_event = ZoomEvent::new(position,amount,zoom_speed);
                     data.on_zoom(zoom_event);
@@ -297,6 +297,7 @@ impl NavigatorEvents {
                 if let Some(movement_type) = data.movement_type() {
                     match movement_type {
                         MovementType::Zoom { focus } => {
+                            movement.y = -movement.y;
                             let zoom_speed  = data.zoom_speed();
                             let zoom_amount = movement_to_zoom(movement);
                             let zoom_event  = ZoomEvent::new(focus,zoom_amount,zoom_speed);
@@ -316,6 +317,6 @@ impl NavigatorEvents {
 
 fn movement_to_zoom(v:Vector2<f32>) -> f32 {
     let len  = v.magnitude();
-    let sign = if (v.x + v.y < 0.0) { -1.0 } else { 1.0 };
+    let sign = if v.x + v.y < 0.0 { -1.0 } else { 1.0 };
     sign * len
 }
