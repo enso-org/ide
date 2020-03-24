@@ -114,18 +114,78 @@ impl Drop for SpriteGuard {
 /// 2d representation as well.
 #[derive(Clone,Debug)]
 pub struct Sprite {
+    data : Rc<SpriteData>
+}
+
+#[derive(Clone,Debug)]
+pub struct WeakSprite {
+    data : Weak<SpriteData>
+}
+
+impl CloneRef for Sprite {}
+impl CloneRef for WeakSprite {}
+
+impl AsRef<SpriteData> for Sprite {
+    fn as_ref(&self) -> &SpriteData {
+        &self.data
+    }
+}
+
+impl std::borrow::Borrow<SpriteData> for Sprite {
+    fn borrow(&self) -> &SpriteData {
+        &self.data
+    }
+}
+
+impl Deref for Sprite {
+    type Target = SpriteData;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl Sprite {
+    pub fn downgrade(&self) -> WeakSprite {
+        let data = Rc::downgrade(&self.data);
+        WeakSprite {data}
+    }
+}
+
+impl WeakSprite {
+    pub fn upgrade(&self) -> Option<Sprite> {
+        self.data.upgrade().map(|data| Sprite {data})
+    }
+}
+
+impl Sprite {
+    /// Constructor.
+    pub fn new
+    ( symbol      : &Symbol
+    , instance_id : AttributeInstanceIndex
+    , transform   : Attribute<Matrix4<f32>>
+    , bbox        : Attribute<Vector2<f32>>
+    , stats       : &Stats
+    ) -> Self {
+        let data = SpriteData::new(symbol,instance_id,transform,bbox,stats);
+        let data = Rc::new(data);
+        Self {data}
+    }
+}
+
+#[derive(Debug)]
+pub struct SpriteData {
     symbol           : Symbol,
     instance_id      : AttributeInstanceIndex,
     display_object   : display::object::Node,
     transform        : Attribute<Matrix4<f32>>,
     bbox             : Attribute<Vector2<f32>>,
     stats            : SpriteStats,
-    size_when_hidden : Rc<Cell<Vector2<f32>>>,
+    size_when_hidden : Cell<Vector2<f32>>,
 //    buffers          : Rc<RefCell<HashMap<String,AnyBuffer>>>,
-    guard            : Rc<SpriteGuard>,
+    guard            : SpriteGuard,
 }
 
-impl Sprite {
+impl SpriteData {
     /// Constructor.
     pub fn new
     ( symbol      : &Symbol
@@ -140,8 +200,8 @@ impl Sprite {
         let display_object   = display::object::Node::new(logger);
 //        let buffers          = buffers.clone_ref();
         let stats            = SpriteStats::new(stats);
-        let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
-        let guard            = Rc::new(SpriteGuard::new(instance_id,&symbol,&bbox,&display_object));
+        let size_when_hidden = Cell::new(Vector2::new(0.0,0.0));
+        let guard            = SpriteGuard::new(instance_id,&symbol,&bbox,&display_object);
 
         let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard}; // buffers
         this.init_display_object();
@@ -195,15 +255,15 @@ impl Sprite {
     }
 }
 
-impl<'t> From<&'t Sprite> for &'t display::object::Node {
-    fn from(sprite:&'t Sprite) -> Self {
+impl<'t> From<&'t SpriteData> for &'t display::object::Node {
+    fn from(sprite:&'t SpriteData) -> Self {
         &sprite.display_object
     }
 }
 
-impl From<&Sprite> for display::object::Node {
-    fn from(sprite:&Sprite) -> Self {
-        sprite.display_object.clone_ref()
+impl<'t> From<&'t Sprite> for &'t display::object::Node {
+    fn from(sprite:&'t Sprite) -> Self {
+        &sprite.display_object
     }
 }
 
@@ -223,6 +283,7 @@ pub struct SpriteSystem {
     uv         : Buffer  <Vector2<f32>>,
     size       : Buffer  <Vector2<f32>>,
     alignment  : Uniform <Vector2<f32>>,
+    sprite_map : Rc<RefCell<HashMap<usize,WeakSprite>>>,
 //    buffers   : Rc<RefCell<HashMap<String,AnyBuffer>>>,
     stats      : Stats,
 }
@@ -243,11 +304,12 @@ impl SpriteSystem {
         let vertical          = VerticalAlignment::Center;
         let initial_alignment = Self::uv_offset(horizontal,vertical);
         let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
+        let sprite_map        = default();
 //        let buffers           = default();
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,alignment,stats}; // buffers
+        let this = Self {symbol,transform,uv,size,alignment,stats,sprite_map}; // buffers
         this.init_attributes();
         this.init_shader();
         this
@@ -262,26 +324,13 @@ impl SpriteSystem {
         size.set(default_size);
         let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats); // &self.buffers
         self.add_child(&sprite); // FIXME
+        self.sprite_map.borrow_mut().insert(instance_id.into(),sprite.downgrade());
         sprite
     }
 
-    pub fn from_instance_id(&self, instance_id:usize) -> Sprite {
-        let instance_id  = instance_id.into();
-        let transform    = self.transform.at(instance_id);
-        let size         = self.size.at(instance_id);
-        let default_size = Vector2::new(1.0,1.0);
-        size.set(default_size);
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats); // &self.buffers
-        self.add_child(&sprite); // FIXME
-        sprite
+    pub fn get(&self, id:usize) -> Option<Sprite> {
+        self.sprite_map.borrow().get(&id).and_then(|s| s.upgrade())
     }
-
-//    pub fn add_input<T:Storable>(&self, name:&str) -> Buffer<T>
-//    where AnyBuffer: From<Buffer<T>> {
-//        let buffer = self.symbol().surface().instance_scope().add_buffer(name);
-//        self.buffers.borrow_mut().insert(name.to_string(),buffer.clone_ref().into());
-//        buffer
-//    }
 
     /// Hide the symbol. Hidden symbols will not be rendered.
     pub fn hide(&self) {

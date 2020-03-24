@@ -293,7 +293,10 @@ fn init(world: &World) {
                 // FIXME
                 // 1. The following line is unsound. It creates a new sprite which when gets dropped, is removed from buffers (!)
                 // 2. We have not checked if the selection was node sprite.
-                // let sprite = node_shape_system.from_instance_id(*instance_id as usize); // FIXME conversion
+                node_shape_system.get(*instance_id as usize).for_each(|sprite|{
+                    let selection = node_selection_buffer.at(sprite.instance_id());
+                    selection.set(1.0);
+                })
             }
         }
         println!("SELECTING {:?}", target);
