@@ -234,7 +234,8 @@ where Callback : AnimationCallback {
         let weak_data = Rc::downgrade(&data);
         let on_frame  = move |time| weak_data.upgrade().for_each(|t| t.borrow_mut().run(time));
         data.borrow_mut().on_frame = Some(Closure::new(on_frame));
-        web::request_animation_frame(&data.borrow_mut().on_frame.as_ref().unwrap());
+        let handle_id = web::request_animation_frame(&data.borrow_mut().on_frame.as_ref().unwrap());
+        data.borrow_mut().handle_id = handle_id;
         Self {data}
     }
 }
@@ -259,7 +260,7 @@ impl<Callback> AnimationLoopData<Callback> {
 
     /// Run the animation frame.
     fn run(&mut self, current_time_ms:f64)
-        where Callback:FnMut(f64) {
+    where Callback:FnMut(f64) {
         let callback   = &mut self.callback;
         self.handle_id = self.on_frame.as_ref().map_or(default(), |on_frame| {
             callback(current_time_ms);
