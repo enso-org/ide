@@ -290,13 +290,11 @@ fn init(world: &World) {
         match target {
             display::scene::Target::Background => {}
             display::scene::Target::Symbol {symbol_id, instance_id} => {
-                // FIXME
-                // 1. The following line is unsound. It creates a new sprite which when gets dropped, is removed from buffers (!)
-                // 2. We have not checked if the selection was node sprite.
-                node_shape_system.get(*instance_id as usize).for_each(|sprite|{
-                    let selection = node_selection_buffer.at(sprite.instance_id());
-                    selection.set(1.0);
-                })
+                node_selection_buffer.at((*instance_id as usize).into()).set(1.0);
+//                node_shape_system.get(*instance_id as usize).for_each(|sprite|{
+//                    let selection = node_selection_buffer.at(sprite.instance_id());
+//                    selection.set(1.0);
+//                })
             }
         }
         println!("SELECTING {:?}", target);

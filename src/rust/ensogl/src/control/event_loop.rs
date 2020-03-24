@@ -109,11 +109,11 @@ impl Default for EventLoopData {
 
 impl EventLoopData {
     /// Create new instance.
-    pub fn run(&mut self, time_ms:f64) {
+    pub fn run(&mut self, current_time_ms:f64) {
         (self.on_loop_started)();
         let callbacks   = &mut self.callbacks;
         let callback_id = self.main.as_ref().map_or(default(), |main| {
-            callbacks.run_all(&time_ms);
+            callbacks.run_all(&current_time_ms);
             web::request_animation_frame(main)
         });
         self.main_id = callback_id;
