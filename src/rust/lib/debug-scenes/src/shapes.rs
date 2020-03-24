@@ -180,6 +180,11 @@ fn mouse_pointer() -> AnyShape {
     pointer.into()
 }
 
+
+use ensogl::control::event_loop::AnimationLoop;
+use ensogl::control::event_loop::Animator;
+use ensogl::control::event_loop::TimeInfo;
+
 fn init(world: &World) {
     let scene  = world.scene();
     let camera = scene.camera();
@@ -210,6 +215,15 @@ fn init(world: &World) {
     pointer_view.add(&pointer_shape_system.symbol);
 
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
+
+    let animator_ref : Rc<RefCell<Option<Animator<Box<dyn Fn(TimeInfo)>>>>> = default();
+    let animator = Animator::new(Box::new(enclose!((animator_ref) move |t:TimeInfo| {
+        if t.local > 1000.0 {
+            *animator_ref.borrow_mut() = None;
+        }
+        println!("{:?}",t)
+    })) as Box<dyn Fn(TimeInfo)>);
+    *animator_ref.borrow_mut() = Some(animator);
 
 
     let node1 = Node::new();
@@ -290,10 +304,11 @@ fn init(world: &World) {
         match target {
             display::scene::Target::Background => {}
             display::scene::Target::Symbol {symbol_id, instance_id} => {
-                // FIXME
-                // 1. The following line is unsound. It creates a new sprite which when gets dropped, is removed from buffers (!)
-                // 2. We have not checked if the selection was node sprite.
-                // let sprite = node_shape_system.from_instance_id(*instance_id as usize); // FIXME conversion
+                node_selection_buffer.at((*instance_id as usize).into()).set(1.0);
+//                node_shape_system.get(*instance_id as usize).for_each(|sprite|{
+//                    let selection = node_selection_buffer.at(sprite.instance_id());
+//                    selection.set(1.0);
+//                })
             }
         }
         println!("SELECTING {:?}", target);
@@ -325,6 +340,7 @@ fn init(world: &World) {
         let _keep_alive = &navigator;
         let _keep_alive = &nodes;
         let _keep_alive = &pointer_view;
+        let _keep_alive = &animator_ref;
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
