@@ -65,11 +65,11 @@ impl Navigator {
     }
 
     fn start_navigator_events
-    ( dom       : &dom::WithKnownShape<web::EventTarget>
-    , camera:Camera2d
-    , min_zoom:f32
-    , max_zoom:f32
-    , zoom_speed:f32
+    ( dom        : &dom::WithKnownShape<web::EventTarget>
+    , camera     : Camera2d
+    , min_zoom   : f32
+    , max_zoom   : f32
+    , zoom_speed : f32
     , mut properties:PhysicsProperties) -> (CallbackHandle,NavigatorEvents) {
         let dom_clone        = dom.clone();
         let camera_clone     = camera.clone();
