@@ -391,12 +391,20 @@ pub enum Shape<T> {
 
     // === Module ===
     Module        { lines       : Vec<BlockLine<Option<T>>>  },
-    Block         { ty          : BlockType
-                  , indent      : usize
-                  , empty_lines : Vec<usize>
-                  , first_line  : BlockLine<T>
-                  , lines       : Vec<BlockLine<Option<T>>>
-                  , is_orphan   : bool                       },
+    Block         { /// Type of Block, depending on whether it is introduced by an operator.
+                    /// Note [mwu] Doesn't really do anything right now, likely to be removed.
+                    ty          : BlockType,
+                    /// Absolute's block indent, counting from the module's root.
+                    indent      : usize,
+                    /// Leading empty lines. Each line is represented by absolute count of spaces
+                    /// it contains, counting from the root.
+                    empty_lines : Vec<usize>,
+                    /// First line with non-empty item.
+                    first_line  : BlockLine<T>,
+                    /// Rest of lines, each of them optionally having contents.
+                    lines       : Vec<BlockLine<Option<T>>>,
+                    /// Does the Block start with a leading newline.
+                    is_orphan   : bool                       },
 
     // === Macros ===
     Match         { pfx      : Option<MacroPatternMatch<Shifted<Ast>>>
@@ -519,8 +527,16 @@ pub enum Escape {
 // === Block ===
 // =============
 
-#[ast_node] pub enum   BlockType     { Continuous { } , Discontinuous { } }
-#[ast]      pub struct BlockLine <T> { pub elem: T, pub off: usize }
+#[ast_node] pub enum BlockType {Continuous {} , Discontinuous {}}
+
+/// Holder for line in `Block` or `Module`. Lines store value of `T` and trailing whitespace info.
+#[ast]
+pub struct BlockLine <T> {
+    /// The AST stored in the line.
+    pub elem: T,
+    /// The trailing whitespace in the line after the `elem`.
+    pub off: usize
+}
 
 
 

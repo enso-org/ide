@@ -115,7 +115,11 @@ impl GraphInfo {
         let off  = 0;
         lines.insert(index,BlockLine{elem,off});
 
-        self.source.set_block_lines(lines)
+        println!("BEFORE {}", self.ast().repr());
+        let ret = self.source.set_block_lines(lines);
+        println!("AFTER {}", self.ast().repr());
+        ret
+//        self.source.set_block_lines(lines)
     }
 
     /// Removes the node from graph.
@@ -145,9 +149,9 @@ impl GraphInfo {
     }
 
     #[cfg(test)]
-    pub fn check_code(&self, expected_code:&str) {
+    pub fn expect_code(&self, expected_code:impl Str) {
         let code = self.source.ast.repr();
-        assert_eq!(expected_code.to_string(),code);
+        assert_eq!(code,expected_code.as_ref());
     }
 }
 
@@ -160,8 +164,10 @@ impl GraphInfo {
 /// Collects information about nodes in given code `Block`.
 pub fn block_nodes(ast:&known::Block) -> Vec<NodeInfo> {
     ast.iter().flat_map(|line_ast| {
+        let kind   = definition::ScopeKind::NonRoot;
+        let indent = ast.indent;
         // If this can be a definition, then don't treat it as a node.
-        match definition::DefinitionInfo::from_line_ast(line_ast, definition::ScopeKind::NonRoot) {
+        match definition::DefinitionInfo::from_line_ast(line_ast,kind,indent) {
             None    => NodeInfo::from_line_ast(line_ast),
             Some(_) => None
         }
@@ -267,19 +273,13 @@ mod tests {
         assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn add_node_to_graph_with_multiple_lines() {
         // TODO [dg] Also add test for binding node when it's possible to update its id.
-        let program = r#"
-main =
-
+        let program = r#"main =
     foo = node
-
     foo a = not_node
-
-    print "hello"
-
-"#;
+    print "hello""#;
         let mut parser = parser::Parser::new_or_panic();
         let mut graph = main_graph(&mut parser, program);
 
@@ -306,6 +306,19 @@ main =
         assert_eq!(nodes[4].expression().repr(), "print \"hello\"");
         assert_eq!(nodes[5].expression().repr(), "x / x");
         assert_eq!(nodes[5].id(), id3);
+
+        let expected_code = r#"main =
+    a + b
+    4 + 4
+    x * x
+    foo = node
+    foo a = not_node
+    print "hello"
+    x / x"#;
+        graph.expect_code(expected_code);
+        // TODO [mwu]
+        //  Test what happens with empty lines in the block.
+        //  Currently impossible because of the parser issue.
 
         let mut graph = find_graph(&mut parser, program, "main.foo");
 
@@ -341,11 +354,9 @@ main =
         let program = r"
 main =
     foo = 2 + 2
-    bar = 3 + 17
-";
+    bar = 3 + 17";
         let mut graph = main_graph(&mut parser, program);
-
-        let nodes = graph.nodes();
+        let nodes     = graph.nodes();
         assert_eq!(nodes.len(), 2);
         assert_eq!(nodes[0].expression().repr(), "2 + 2");
         assert_eq!(nodes[1].expression().repr(), "3 + 17");
@@ -356,10 +367,8 @@ main =
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].expression().repr(), "3 + 17");
 
-        let expected_code = r"main =
-    bar = 3 + 17
-    "; // TODO[ao] There is bug with parser, where it does not keep whitespaces properly.
-        graph.check_code(expected_code)
+        let expected_code = "main =\n    bar = 3 + 17";
+        graph.expect_code(expected_code)
     }
 
     #[wasm_bindgen_test]
@@ -368,8 +377,7 @@ main =
         let program = r"
 main =
     foo = 2 + 2
-    bar = 3 + 17
-";
+    bar = 3 + 17";
         let new_expression = parser.parse("print \"HELLO\"".to_string(), default()).unwrap();
         let new_expression = expect_single_line(&new_expression).clone();
 
@@ -388,8 +396,7 @@ main =
 
         let expected_code = r#"main =
     foo = print "HELLO"
-    bar = 3 + 17
-    "#;
-        graph.check_code(expected_code)
+    bar = 3 + 17"#;
+        graph.expect_code(expected_code)
     }
 }

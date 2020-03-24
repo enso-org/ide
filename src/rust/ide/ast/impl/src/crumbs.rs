@@ -96,11 +96,13 @@ impl From<BlockCrumb> for Crumb {
         Crumb::Block(crumb)
     }
 }
+
 impl From<&BlockCrumb> for Crumb {
     fn from(crumb: &BlockCrumb) -> Self {
         Crumb::Block(crumb.clone())
     }
 }
+
 impl From<ModuleCrumb> for Crumb {
     fn from(crumb: ModuleCrumb) -> Self {
         Crumb::Module(crumb)
@@ -111,11 +113,13 @@ impl From<&ModuleCrumb> for Crumb {
         Crumb::Module(crumb.clone())
     }
 }
+
 impl From<InfixCrumb> for Crumb {
     fn from(crumb: InfixCrumb) -> Self {
         Crumb::Infix(crumb)
     }
 }
+
 impl From<&InfixCrumb> for Crumb {
     fn from(crumb: &InfixCrumb) -> Self {
         Crumb::Infix(crumb.clone())
@@ -130,7 +134,7 @@ impl From<&InfixCrumb> for Crumb {
 
 /// Interface for items that allow getting/setting stored Ast located by arbitrary `Crumb`.
 pub trait Crumbable {
-    /// Specific `Crumb` type used by `Self`.
+    /// Specific `Crumb` type used by `Self` to locate child Asts.
     type Crumb : Into<Crumb>;
 
     /// Retrieves `Ast` under the crumb.
@@ -289,7 +293,7 @@ impl Crumbable for Ast {
     }
 }
 
-/// Just delegates to Ast. TODO ??? [mwu] consider using shape-specific crumb type?
+/// Just delegates to Ast.
 impl<T,E> Crumbable for known::KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
       E                      : failure::Fail {
@@ -315,19 +319,23 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
 // ===========================
 
 /// Interface for recursive AST traversal using `Crumb` sequence.
+///
+/// Intended for `Ast` and `Ast`-like types, like `KnownAst`.
 pub trait TraversableAst {
     /// Returns rewritten AST where child AST under location designated by `crumbs` is updated.
     ///
     /// Works recursively.
-    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Ast> {
-        let ast = self.ast_ref();
-        if let Some(first_crumb) = crumbs.first() {
+    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self>
+    where Self:Sized {
+        let ast         = self.ast_ref();
+        let updated_ast = if let Some(first_crumb) = crumbs.first() {
             let child = ast.get(first_crumb)?;
             let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
             ast.set(first_crumb,updated_child)
         } else {
             Ok(new_ast)
-        }
+        };
+        Self::from_ast(updated_ast?)
     }
 
     /// Recursively traverses AST to retrieve AST node located by given crumbs sequence.
@@ -343,14 +351,23 @@ pub trait TraversableAst {
 
     /// Access this node's AST.
     fn ast_ref(&self) -> &Ast;
+
+    /// Wrap Ast into Self.
+    fn from_ast(ast:Ast) -> FallibleResult<Self> where Self:Sized;
 }
 
 impl TraversableAst for Ast {
     fn ast_ref(&self) -> &Ast { self }
+
+    fn from_ast(ast:Ast) -> FallibleResult<Self> { Ok(ast) }
 }
 
-impl<T> TraversableAst for known::KnownAst<T> {
+impl<T,E> TraversableAst for known::KnownAst<T>
+where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
+      E                      : failure::Fail {
     fn ast_ref(&self) -> &Ast { self.ast() }
+
+    fn from_ast(ast:Ast) -> FallibleResult<Self> { Ok(ast.try_into()?) }
 }
 
 
@@ -359,7 +376,7 @@ impl<T> TraversableAst for known::KnownAst<T> {
 // === Utility ===
 // ===============
 
-/// Iterates over indices of non-empty lines.
+/// Iterates over indices of non-empty lines in a line sequence.
 pub fn non_empty_line_indices<'a, T:'a>
 (iter:impl Iterator<Item = &'a crate::BlockLine<Option<T>>> + 'a)
  -> impl Iterator<Item=usize> + 'a {
@@ -469,7 +486,7 @@ mod tests {
     fn nested_infix() -> FallibleResult<()> {
         use InfixCrumb::*;
 
-        let sum = Ast::infix_var("foo", "+", "bar");
+        let sum   = Ast::infix_var("foo", "+", "bar");
         let infix = Ast::infix(Ast::var("main"), "=", sum);
         assert_eq!(infix.repr(), "main = foo + bar");
 
@@ -522,17 +539,24 @@ mod tests {
     #[test]
     fn iterate_block() {
         let first_line = crate::Ast::var("foo");
-        let lines = [
+        let lines      = [
             Some(crate::Ast::var("bar")),
             None,
             Some(crate::Ast::var("baz")),
         ];
-        let block = crate::Block::from_lines(&first_line,&lines);
-
+        let block               = crate::Block::from_lines(&first_line,&lines);
         let (line0,line1,line3) = block.iter_subcrumbs().expect_tuple();
         assert_eq!(line0, BlockCrumb::HeadLine);
         assert_eq!(line1, BlockCrumb::TailLine {tail_index:0});
         assert_eq!(line3, BlockCrumb::TailLine {tail_index:2});
+    }
+
+    #[test]
+    fn mismatched_crumb() {
+        let sum        = Ast::infix_var("foo", "+", "bar");
+        let crumb      = Crumb::Module(ModuleCrumb {line_index:0});
+        let first_line = sum.get(&crumb);
+        first_line.expect_err("Using module crumb on infix should fail");
     }
 }
 

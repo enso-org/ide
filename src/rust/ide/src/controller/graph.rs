@@ -74,8 +74,8 @@ pub struct NewNodeInfo {
 }
 
 impl NewNodeInfo {
-    /// New node with given expression.
-    pub fn new(expression:impl Str) -> NewNodeInfo {
+    /// New node with given expression added at the end of the graph's blocks.
+    pub fn new_pushed_back(expression:impl Str) -> NewNodeInfo {
         NewNodeInfo {
             expression    : expression.into(),
             metadata      : default(),
@@ -100,6 +100,7 @@ pub struct Handle {
     /// publisher to relay changes from the module controller.
     // TODO: [mwu] Remove in favor of streams mapping over centralized module-scope publisher
     publisher : Rc<RefCell<controller::notification::Publisher<controller::notification::Graph>>>,
+    logger : Logger
 }
 
 impl Handle {
@@ -119,7 +120,8 @@ impl Handle {
     pub fn new_unchecked(module:controller::module::Handle, id:Id) -> Handle {
         let graphs_notifications = module.subscribe_graph_notifications();
         let publisher = default();
-        let ret       = Handle {module,id,publisher};
+        let logger    = Logger::new(format!("Graph Controller {}", id));
+        let ret       = Handle {module,id,publisher,logger};
         let weak      = Rc::downgrade(&ret.publisher);
         let relay_notifications = process_stream_with_handle(graphs_notifications,weak,
             |notification,this| {
@@ -188,17 +190,15 @@ impl Handle {
         Ok(nodes)
     }
 
-    /// Updates the AST of the given definition.
+    /// Updates the AST of the definition of this graph.
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
         self.module.modify_ast(|ast_so_far| {
-            use definition::ChildDefinition;
-            let ChildDefinition {crumbs,item} = definition::locate(&ast_so_far, &self.id)?;
-            let new_definition = f(item)?;
-            let new_ast = new_definition.ast.into();
-            let new_module = ast_so_far.set_traversing(&crumbs,new_ast)?;
-            let new_module = ast::known::Module::try_from(new_module)?;
-//            println!("MODULE after: {}", new_module.repr());
+            let definition     = definition::locate(&ast_so_far, &self.id)?;
+            let new_definition = f(definition.item)?;
+            trace!(self.logger, "Applying graph changes onto definition");
+            let new_ast    = new_definition.ast.into();
+            let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
             Ok(new_module)
         })
     }
@@ -217,14 +217,12 @@ impl Handle {
 
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-//        println!("Adding node: {:?}", node);
+        trace!(self.logger, "Adding node with expression `{node.expression}`");
         let ast           = self.parse_node_expression(&node.expression)?;
         let mut node_info = node::NodeInfo::from_line_ast(&ast).ok_or(FailedToCreateNode)?;
         if let Some(desired_id) = node.id {
             node_info.set_id(desired_id)
         }
-
-//        println!("NodeInfo of the new node: {:?}", node_info);
 
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
@@ -244,6 +242,7 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
+        trace!(self.logger, "Removing node {id}");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.remove_node(id)?;
@@ -257,6 +256,7 @@ impl Handle {
 
     /// Sets the given's node expression.
     pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
+        trace!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
@@ -465,19 +465,43 @@ main =
     #[test]
     fn graph_controller_nested_definition() {
         let mut test  = GraphControllerFixture::set_up();
-        const PROGRAM:&str = r"
-main =
+        const PROGRAM:&str = r"main =
     foo a =
         bar b = 5
     print foo";
-
         let definition = definition::Id::new_plain_names(vec!["main","foo"]);
         test.run_graph_for(PROGRAM, definition, |module, graph| async move {
-            let expression = "println 'Hello!'";
-            graph.add_node(NewNodeInfo::new(expression)).unwrap();
+            let expression = "new_node";
+            graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
+            let expected_program = r"main =
+    foo a =
+        bar b = 5
+        new_node
+    print foo";
+            module.expect_code(expected_program);
+        })
+    }
 
-            println!("{}",module.code());
-
+    #[test]
+    fn graph_controller_doubly_nested_definition() {
+        // Tests editing nested definition that requires transforming inline expression into
+        // into a new block.
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"main =
+    foo a =
+        bar b = 5
+    print foo";
+        let definition = definition::Id::new_plain_names(vec!["main","foo","bar"]);
+        test.run_graph_for(PROGRAM, definition, |module, graph| async move {
+            let expression = "new_node";
+            graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
+            let expected_program = r"main =
+    foo a =
+        bar b =
+            5
+            new_node
+    print foo";
+            module.expect_code(expected_program);
         })
     }
 

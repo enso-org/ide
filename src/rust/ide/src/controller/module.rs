@@ -316,6 +316,12 @@ impl Handle {
             text_notifications,graph_notifications};
         Ok(Handle::new_from_data(data))
     }
+
+    #[cfg(test)]
+    pub fn expect_code(&self, expected_code:impl Str) {
+        let code = self.code();
+        assert_eq!(code,expected_code.as_ref());
+    }
 }
 
 impl Controller {

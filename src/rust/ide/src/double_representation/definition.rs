@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use ast::Ast;
 use ast::crumbs::ChildAst;
 use ast::crumbs::Crumbable;
 use ast::HasRepr;
@@ -11,7 +10,6 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 use utils::vec::pop_front;
-
 
 
 // =====================
@@ -50,6 +48,19 @@ impl Id {
             DefinitionName::new_plain(name.to_string())
         }).collect_vec();
         Id {crumbs}
+    }
+}
+
+impl Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut iter = self.crumbs.iter();
+        if let Some(crumb) = iter.next() {
+            write!(f, "{}", crumb)?
+        }
+        for crumb in iter {
+            write!(f, "⮚{}", crumb)?
+        };
+        Ok(())
     }
 }
 
@@ -202,24 +213,19 @@ impl Display for DefinitionName {
 pub struct DefinitionInfo {
     /// The whole definition. It is an Infix shape with `=` operator. Its left-hand side is
     /// an App.
-    pub ast: known::Infix,
+    pub ast:known::Infix,
     /// Name of this definition. Includes typename, if this is an extension method.
-    pub name: DefinitionName,
+    pub name:DefinitionName,
     /// Arguments for this definition. Does not include any implicit ones (e.g. no `this`).
-    pub args: Vec<Ast>,
+    pub args:Vec<Ast>,
+    /// The absolute indentation of the code block that introduced this definition.
+    pub context_indent:usize
 }
 
 impl DefinitionInfo {
     /// Returns the definition body, i.e. Ast standing on the assignment's right-hand side.
     pub fn body(&self) -> Ast {
         self.ast.rarg.clone()
-    }
-
-    /// Tries to interpret `Line`'s contents as a function definition.
-    pub fn from_line
-    (line:&ast::BlockLine<Option<Ast>>, kind:ScopeKind) -> Option<DefinitionInfo> {
-        let ast = line.elem.as_ref()?;
-        Self::from_line_ast(ast,kind)
     }
 
     /// Gets the definition block lines. If `body` is a `Block`, it returns its `BlockLine`s,
@@ -239,6 +245,12 @@ impl DefinitionInfo {
     /// succeed.
     pub fn set_block_lines
     (&mut self, mut lines:Vec<ast::BlockLine<Option<Ast>>>) -> FallibleResult<()> {
+        // FIXME [mwu]
+        //  This doesn't deal correctly with offsets, but I have no idea how it should behave,
+        //  as the current parser's behavior and AST is inconsistent.
+        //  Basically `empty_lines` currently use absolute offsets, while `BlockLines` use relative
+        //  offsets. This is not desirable, as e.g. an empty line in the middle of block is not
+        //  possible to express with the current AST (it won't round-trip).
         let mut empty_lines = Vec::new();
         let mut line        = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
         while let None = line.elem {
@@ -248,7 +260,7 @@ impl DefinitionInfo {
         let elem       = line.elem.ok_or(MissingLineWithAst)?;
         let off        = line.off;
         let first_line = ast::BlockLine {elem,off};
-        let indent     = crate::double_representation::INDENT;
+        let indent     = self.context_indent + double_representation::INDENT;
         let is_orphan  = false;
         let ty         = ast::BlockType::Discontinuous {};
         let block      = ast::Block {empty_lines,first_line,lines,indent,is_orphan,ty};
@@ -262,7 +274,8 @@ impl DefinitionInfo {
     ///
     /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of
     /// some binding or other kind of subtree).
-    pub fn from_line_ast(ast:&Ast, kind:ScopeKind) -> Option<DefinitionInfo> {
+    pub fn from_line_ast
+    (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
         let infix  = opr::to_assignment(ast)?;
         // There two cases - function name is either a Var or operator.
         // If this is a Var, we have Var, optionally under a Prefix chain with args.
@@ -270,7 +283,7 @@ impl DefinitionInfo {
         let lhs  = prefix::Chain::new_non_strict(&infix.larg);
         let name = DefinitionName::from_ast(&lhs.func)?;
         let args = lhs.args;
-        let ret  = DefinitionInfo {ast:infix,name,args};
+        let ret  = DefinitionInfo {ast:infix,name,args,context_indent};
 
         // Note [Scope Differences]
         if kind == ScopeKind::NonRoot {
@@ -320,7 +333,10 @@ pub struct DefinitionIterator<'a> {
     /// Iterator going over ASTs of potential child definitions.
     pub iterator   : Box<dyn Iterator<Item = ChildAst<'a>>+'a>,
     /// What kind of scope are we getting our ASTs from.
-    pub scope_kind : ScopeKind
+    pub scope_kind : ScopeKind,
+    /// Absolute indentation of the child ASTs we iterate over.
+    pub indent: usize,
+
 }
 
 impl<'a> DefinitionIterator<'a> {
@@ -332,9 +348,10 @@ impl<'a> DefinitionIterator<'a> {
     /// Iterates over child definitions (info + location).
     pub fn child_definitions(self) -> impl Iterator<Item = ChildDefinition> + 'a {
         let scope_kind = self.scope_kind;
-        self.iterator.flat_map(move |child_ast| {
-            let definition_opt = DefinitionInfo::from_line_ast(child_ast.item,scope_kind);
-            definition_opt.map(|def| ChildDefinition::new(child_ast.crumbs,def))
+        let context_indent = self.indent;
+        self.iterator.flat_map(move |ChildAst {item,crumbs}| {
+            let definition_opt = DefinitionInfo::from_line_ast(item,scope_kind,context_indent);
+            definition_opt.map(|def| ChildDefinition::new(crumbs,def))
         })
     }
 
@@ -358,6 +375,10 @@ impl<'a> DefinitionIterator<'a> {
 
 /// An entity that contains lines that we want to interpret as definitions.
 pub trait DefinitionProvider {
+    /// Absolute indentation level of the scope of this provider's body.
+    /// (i.e. the indents of the child definitions)
+    fn indent(&self) -> usize;
+
     /// What kind of scope this is.
     fn scope_kind(&self) -> ScopeKind;
 
@@ -368,7 +389,8 @@ pub trait DefinitionProvider {
     fn def_iter(&self) -> DefinitionIterator {
         let iterator   = self.enumerate_asts();
         let scope_kind = self.scope_kind();
-        DefinitionIterator {iterator,scope_kind}
+        let indent     = self.indent();
+        DefinitionIterator {iterator,scope_kind,indent}
     }
 }
 
@@ -382,6 +404,11 @@ pub fn ast_direct_children<'a>
 }
 
 impl DefinitionProvider for known::Module {
+    fn indent(&self) -> usize {
+        const ROOT_INDENT:usize = 0;
+        ROOT_INDENT
+    }
+
     fn scope_kind(&self) -> ScopeKind { ScopeKind::Root }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
@@ -390,6 +417,8 @@ impl DefinitionProvider for known::Module {
 }
 
 impl DefinitionProvider for known::Block {
+    fn indent(&self) -> usize { self.indent }
+
     fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
@@ -398,6 +427,17 @@ impl DefinitionProvider for known::Block {
 }
 
 impl DefinitionProvider for DefinitionInfo {
+    fn indent(&self) -> usize {
+        match self.ast.rarg.shape() {
+            ast::Shape::Block(block) => block.indent,
+            // If definition has no block of its own, it does not introduce any children and
+            // returned value here is not used anywhere currently. Might matter in the future,
+            // when we deal with lambdas. Anyway, whatever block we might introduce, it should
+            // be more indented than our current context.
+            _ => self.context_indent + double_representation::INDENT,
+        }
+    }
+
     fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
