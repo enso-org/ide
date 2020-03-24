@@ -270,7 +270,6 @@ impl {
                 let first          = 0;
                 let count          = self.surface.point_scope().size()    as i32;
                 let instance_count = self.surface.instance_scope().size() as i32;
-                let instance_count = std::cmp::max(instance_count,1);
 
                 self.stats.inc_draw_call_count();
                 self.context.draw_arrays_instanced(mode,first,count,instance_count);
