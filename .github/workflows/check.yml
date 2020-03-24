@@ -19,11 +19,11 @@ jobs:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-wasm-registry
 
-      - name: Cache Wasm Test
+      - name: Cache Wasm
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-wasm-test
+          key: ${{ runner.os }}-wasm-build
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -32,10 +32,16 @@ jobs:
           override: true
 
       - name: Install wasm-pack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: wasm-pack --version 0.8.1
+        # We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.8.1
+          WASMPACKDIR: wasm-pack-v0.8.1-x86_64-apple-darwin
+        run: |
+          curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+          mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+          rm -r $WASMPACKDIR
+        shell: bash
+
 
       - name: Install Node
         uses: actions/setup-node@v1
@@ -63,7 +69,7 @@ jobs:
         with:
           path: src/rust/target
           key: ${{ runner.os }}-cargo
-          restore-keys: ${{ runner.os }}-cargo-test
+          restore-keys: ${{ runner.os }}-cargo-build
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -101,7 +107,7 @@ jobs:
         with:
           path: src/rust/target
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-test
+          restore-keys: ${{ runner.os }}-cargo-build
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -136,7 +142,7 @@ jobs:
         with:
           path: src/rust/target
           key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-wasm-test
+          restore-keys: ${{ runner.os }}-wasm-build
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
