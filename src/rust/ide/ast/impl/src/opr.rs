@@ -27,7 +27,7 @@ pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
     is_assignment_opr(&infix.opr).then(infix)
 }
 
-/// Checks if given node is an assignment infix expression.
+/// Checks if a given node is an assignment infix expression.
 pub fn is_assignment(ast:&Ast) -> bool {
     let infix = known::Infix::try_from(ast);
     infix.map(|infix| is_assignment_opr(&infix.opr)).unwrap_or(false)

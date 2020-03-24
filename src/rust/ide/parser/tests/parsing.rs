@@ -4,10 +4,8 @@ use parser::prelude::*;
 
 use ast::*;
 use ast::test_utils::expect_shape;
-//use ast::test_utils::expect_single_line;
 use parser::api::IsParser;
 use parser::api::SourceFile;
-//use parser::test_utils::ParserTestExts;
 use utils::test::ExpectTuple;
 
 
@@ -410,18 +408,4 @@ impl Fixture {
 #[ignore]
 fn parser_tests() {
     Fixture::new().run()
-}
-
-
-
-#[test]
-fn iterate_nested() {
-    let a   = Ast::var("a");
-    let b   = Ast::var("b");
-    let c   = Ast::var("c");
-    let ab  = Ast::prefix(a,b);
-    let abc = Ast::prefix(ab, c); // repr is `a b c`
-
-    assert_eq!((&abc).iter().count(), 2); // for App's two children
-    assert_eq!(abc.iter_recursive().count(), 5); // for 2 Apps and 3 Vars
 }

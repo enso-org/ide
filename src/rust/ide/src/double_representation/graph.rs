@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionInfo;
-//use crate::double_representation::definition::DefinitionName;
-//use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
@@ -103,23 +101,16 @@ impl GraphInfo {
     pub fn add_node
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult<()> {
         let mut lines = self.source.block_lines()?;
-
-        let index = match location_hint {
+        let index     = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => lines.len(),
             LocationHint::After(id)  => Self::find_node_index_in_lines(&lines, id)? + 1,
             LocationHint::Before(id) => Self::find_node_index_in_lines(&lines, id)?
         };
-
         let elem = Some(line_ast);
         let off  = 0;
         lines.insert(index,BlockLine{elem,off});
-
-        println!("BEFORE {}", self.ast().repr());
-        let ret = self.source.set_block_lines(lines);
-        println!("AFTER {}", self.ast().repr());
-        ret
-//        self.source.set_block_lines(lines)
+        self.source.set_block_lines(lines)
     }
 
     /// Removes the node from graph.
@@ -247,11 +238,10 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_single_line() {
-        let program = "main = print \"hello\"";
+        let program    = "main = print \"hello\"";
         let mut parser = parser::Parser::new_or_panic();
-        let mut graph = main_graph(&mut parser, program);
-
-        let nodes = graph.nodes();
+        let mut graph  = main_graph(&mut parser, program);
+        let nodes      = graph.nodes();
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].expression().repr(), "print \"hello\"");
 
@@ -281,7 +271,7 @@ mod tests {
     foo a = not_node
     print "hello""#;
         let mut parser = parser::Parser::new_or_panic();
-        let mut graph = main_graph(&mut parser, program);
+        let mut graph  = main_graph(&mut parser, program);
 
         let (line_ast0,id0) = create_node_ast(&mut parser, "4 + 4");
         let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");

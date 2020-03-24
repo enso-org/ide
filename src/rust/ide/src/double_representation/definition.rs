@@ -12,6 +12,7 @@ use ast::opr;
 use utils::vec::pop_front;
 
 
+
 // =====================
 // === Definition Id ===
 // =====================
@@ -63,6 +64,7 @@ impl Display for Id {
         Ok(())
     }
 }
+
 
 
 // ===============================
@@ -251,16 +253,17 @@ impl DefinitionInfo {
         //  Basically `empty_lines` currently use absolute offsets, while `BlockLines` use relative
         //  offsets. This is not desirable, as e.g. an empty line in the middle of block is not
         //  possible to express with the current AST (it won't round-trip).
+
+        let indent          = self.context_indent + double_representation::INDENT;
         let mut empty_lines = Vec::new();
         let mut line        = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
         while let None = line.elem {
-            empty_lines.push(line.off);
+            empty_lines.push(line.off + indent);
             line = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
         }
         let elem       = line.elem.ok_or(MissingLineWithAst)?;
         let off        = line.off;
         let first_line = ast::BlockLine {elem,off};
-        let indent     = self.context_indent + double_representation::INDENT;
         let is_orphan  = false;
         let ty         = ast::BlockType::Discontinuous {};
         let block      = ast::Block {empty_lines,first_line,lines,indent,is_orphan,ty};
@@ -335,7 +338,7 @@ pub struct DefinitionIterator<'a> {
     /// What kind of scope are we getting our ASTs from.
     pub scope_kind : ScopeKind,
     /// Absolute indentation of the child ASTs we iterate over.
-    pub indent: usize,
+    pub indent     : usize,
 
 }
 
@@ -347,7 +350,7 @@ impl<'a> DefinitionIterator<'a> {
 
     /// Iterates over child definitions (info + location).
     pub fn child_definitions(self) -> impl Iterator<Item = ChildDefinition> + 'a {
-        let scope_kind = self.scope_kind;
+        let scope_kind     = self.scope_kind;
         let context_indent = self.indent;
         self.iterator.flat_map(move |ChildAst {item,crumbs}| {
             let definition_opt = DefinitionInfo::from_line_ast(item,scope_kind,context_indent);
@@ -446,8 +449,8 @@ impl DefinitionProvider for DefinitionInfo {
         match self.ast.rarg.shape() {
             ast::Shape::Block(_) => {
                 let parent_crumb = Crumb::Infix(InfixCrumb::RightOperand);
-                let rarg = &self.ast.rarg;
-                let iter = rarg.enumerate().map(move |(crumb,ast)| {
+                let rarg         = &self.ast.rarg;
+                let iter         = rarg.enumerate().map(move |(crumb,ast)| {
                     let crumbs = vec![parent_crumb,crumb.into()];
                     ChildAst::new(crumbs,ast)
                 });
@@ -467,8 +470,10 @@ impl DefinitionProvider for DefinitionInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use parser::api::IsParser;
     use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -486,7 +491,7 @@ mod tests {
         iformat!("    {line}")
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn list_definition_test() {
         let mut parser = parser::Parser::new_or_panic();
 
@@ -534,7 +539,7 @@ mod tests {
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn finding_root_definition() {
         let program_to_expected_main_pos = vec![
             ("main = bar",              0),
@@ -544,10 +549,10 @@ mod tests {
             ("foo = bar\n\nmain = bar", 2),
         ];
 
-        let mut parser  = parser::Parser::new_or_panic();
-        let main_id = Id::new_plain_name("main");
+        let mut parser = parser::Parser::new_or_panic();
+        let main_id    = Id::new_plain_name("main");
         for (program,expected_line_index) in program_to_expected_main_pos {
-            let module = parser.parse_module(program,default()).unwrap();
+            let module   = parser.parse_module(program,default()).unwrap();
             let location = locate(&module, &main_id).unwrap();
             let (crumb,) = location.crumbs.expect_tuple();
             match crumb {
@@ -557,7 +562,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn getting_nested_definition() {
         let program = r"
 main =
@@ -570,8 +575,7 @@ main =
 
     add foo bar";
 
-        let module = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
-
+        let module    = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
         let check_def = |id, expected_body| {
             let definition = traverse_for_definition(&module,&id).unwrap();
             assert_eq!(definition.body().repr(), expected_body);

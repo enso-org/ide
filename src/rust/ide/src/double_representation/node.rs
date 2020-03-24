@@ -81,7 +81,7 @@ impl NodeInfo {
         let id = self.id();
         match self {
             NodeInfo::Binding{ref mut infix} => {
-                let rarg = expression;
+                let rarg      = expression;
                 let old_infix = infix.shape().clone();
                 *infix = known::Infix::new(ast::Infix {rarg,..old_infix}, infix.id());
             }
@@ -115,7 +115,7 @@ mod tests {
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    fn expect_node(ast:Ast, expression_text:&str, id: Id) {
+    fn expect_node(ast:Ast, expression_text:&str, id:Id) {
         let node_info = NodeInfo::from_line_ast(&ast).expect("expected a node");
         assert_eq!(node_info.expression().repr(),expression_text);
         assert_eq!(node_info.id(), id);

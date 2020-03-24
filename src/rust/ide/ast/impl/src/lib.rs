@@ -49,16 +49,16 @@ use uuid::Uuid;
 /// A mapping between text position and immutable ID.
 #[derive(Clone,Debug,Default,Deserialize,Eq,PartialEq,Serialize)]
 #[serde(transparent)]
-pub struct IdMap{ pub vec:Vec<(Span, Id)> }
+pub struct IdMap{ pub vec:Vec<(Span,Id)> }
 
 impl IdMap {
     /// Create a new instance.
-    pub fn new(vec:Vec<(Span, Id)>) -> IdMap {
+    pub fn new(vec:Vec<(Span,Id)>) -> IdMap {
         IdMap {vec}
     }
     /// Assigns Span to given ID.
-    pub fn insert(&mut self, span:Span, id: Id) {
-        self.vec.push((span, id));
+    pub fn insert(&mut self, span:Span, id:Id) {
+        self.vec.push((span,id));
     }
 }
 
@@ -74,7 +74,7 @@ pub type Stream<T> = Vec<T>;
 /// Exception raised by macro-generated TryFrom methods that try to "downcast"
 /// enum type to its variant subtype if different constructor was used.
 #[derive(Display, Debug, Fail)]
-pub struct WrongEnum { pub expected_con: String }
+pub struct WrongEnum {pub expected_con:String}
 
 
 
@@ -89,7 +89,7 @@ pub struct WrongEnum { pub expected_con: String }
 #[derive(Clone,Eq,PartialEq,Debug,Serialize,Deserialize)]
 pub struct Tree<K,V> {
     pub value    : Option<V>,
-    pub branches : Vec<(K, Tree<K,V>)>,
+    pub branches : Vec<(K,Tree<K,V>)>,
 }
 
 
@@ -174,7 +174,7 @@ impl<T> Layer<T> for Layered<T> {
 /// Each AST node is annotated with span and an optional ID.
 #[derive(Eq, PartialEq, Debug, Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct  Ast {
+pub struct Ast {
     pub wrapped: Rc<WithID<WithLength<Shape<Ast>>>>
 }
 
@@ -973,6 +973,30 @@ impl<T> BlockLine<T> {
     }
 }
 
+impl <T> Block<T> {
+    /// Concatenate `Block`'s `first_line` with `lines` and returns a collection with all the lines.
+    pub fn all_lines(&self) -> Vec<BlockLine<Option<T>>> where T:Clone {
+        let mut lines = Vec::new();
+        for off in &self.empty_lines {
+            let elem = None;
+            // TODO [mwu]
+            //  Empty lines use absolute indent, while BlockLines are relative to Block.
+            //  We might lose some data here, as empty lines shorter than block will get filled
+            //  with spaces. This is something that should be improved in the future but also
+            //  requires changes in the AST.
+            let off  = off.checked_sub(self.indent).unwrap_or(0);
+            lines.push(BlockLine{elem,off})
+        }
+
+        let first_line = self.first_line.clone();
+        let elem       = Some(first_line.elem);
+        let off        = first_line.off;
+        lines.push(BlockLine{elem,off});
+        lines.extend(self.lines.iter().cloned());
+        lines
+    }
+}
+
 impl Block<Ast> {
     /// Creates block from given line ASTs. There is no leading AST (it is orphan block).
     pub fn from_lines(first_line:&Ast, tail_lines:&[Option<Ast>]) -> Block<Ast> {
@@ -1028,7 +1052,7 @@ impl Ast {
     }
 
     /// Creates an Ast node with Var inside and given ID.
-    pub fn var_with_id<Name:Str>(name:Name, id: Id) -> Ast {
+    pub fn var_with_id<Name:Str>(name:Name, id:Id) -> Ast {
         let name = name.into();
         let var  = Var{name};
         Ast::new(var,Some(id))

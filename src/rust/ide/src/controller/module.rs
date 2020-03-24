@@ -287,7 +287,7 @@ impl Handle {
     (&self, ast_update:AstUpdate) -> FallibleResult<()>
     where AstUpdate: FnOnce(known::Module) -> FallibleResult<known::Module>, {
         let module_so_far = known::Module::try_new(self.rc.borrow().module.ast.clone())?;
-        let new_module = ast_update(module_so_far)?;
+        let new_module    = ast_update(module_so_far)?;
         self.with_borrowed(|data| data.update_ast(new_module.into()));
         Ok(())
     }
