@@ -57,6 +57,16 @@ pub struct ContinuousAnimator {
     callback   : Rc<RefCell<Box<dyn AnimationCallback>>>,
 }
 
+impl CloneRef for ContinuousAnimator {
+    fn clone_ref(&self) -> Self {
+        let event_loop = self.event_loop.clone_ref();
+        let time       = self.time.clone_ref();
+        let handle     = self.handle.clone_ref();
+        let callback   = self.callback.clone_ref();
+        Self {event_loop,time,handle,callback}
+    }
+}
+
 impl ContinuousAnimator {
     /// Constructor.
     pub fn new<F:AnimationCallback>(f:F) -> Self {
@@ -77,16 +87,16 @@ impl ContinuousAnimator {
         let handle = Rc::new(RefCell::new(Some(handle)));
         Self {event_loop,time,callback,handle}
     }
-}
 
-
-// === Setters ===
-
-impl ContinuousAnimator {
     /// Sets the current animator time.
-    pub fn set_time(&mut self, time_ms:f64) {
+    pub fn set_time(&self, time_ms:f64) {
         let mut time = self.time.get();
         time.set_relative_time(time_ms);
         self.time.set(time);
+    }
+
+    /// Sets the animator time to 0.
+    pub fn reset_time(&self) {
+        self.set_time(0.0);
     }
 }

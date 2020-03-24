@@ -24,11 +24,8 @@ macro_rules! easing_fn {
         /// A $name-in-out transition.
         pub fn [<$name _in_out>](t:f32) -> f32 {
             let t = t * 2.0;
-            if t < 1.0 {
-                [<$name _in>](t) / 2.0
-            } else {
-                ([<$name _out>](t - 1.0) + 1.0) / 2.0
-            }
+            if t < 1.0 { [<$name _in>](t) / 2.0 }
+            else       { ([<$name _out>](t - 1.0) + 1.0) / 2.0 }
         }
     } };
 }
@@ -54,29 +51,15 @@ pub fn bounce(t:f32) -> f32 {
     }
 },
 
-pub fn circ(t:f32) -> f32 { 1.0 - (1.0 - t * t).sqrt() },
-
-pub fn quad(t:f32) -> f32 { t * t },
-
-pub fn cubic(t:f32) -> f32 { t * t * t },
-
-pub fn quart(t:f32) -> f32 { t * t * t * t },
-
-pub fn quint(t:f32) -> f32 { t * t * t * t },
-
-pub fn expo(t:f32) -> f32 {
-    if t == 0.0 {
-        0.0
-    } else {
-        2.0_f32.powf(10.0 * (t - 1.0))
-    }
-},
-
-pub fn sine(t:f32) -> f32 { - (t * PI/2.0).cos() + 1.0 },
-
-pub fn back(t:f32) -> f32 { back_in_params(t, 1.70158) },
-
-pub fn elastic(t:f32) -> f32 { elastic_in_params(t, 0.3, 1.0) }
+pub fn circ    (t:f32) -> f32 { 1.0 - (1.0 - t * t).sqrt() },
+pub fn quad    (t:f32) -> f32 { t * t },
+pub fn cubic   (t:f32) -> f32 { t * t * t },
+pub fn quart   (t:f32) -> f32 { t * t * t * t },
+pub fn quint   (t:f32) -> f32 { t * t * t * t },
+pub fn expo    (t:f32) -> f32 { if t == 0.0 {0.0} else {2.0_f32.powf(10.0 * (t - 1.0))} },
+pub fn sine    (t:f32) -> f32 { - (t * PI/2.0).cos() + 1.0 },
+pub fn back    (t:f32) -> f32 { back_in_params(t, 1.70158) },
+pub fn elastic (t:f32) -> f32 { elastic_in_params(t, 0.3, 1.0) }
 );
 
 /// A linear transition.

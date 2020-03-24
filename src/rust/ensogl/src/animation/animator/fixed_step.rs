@@ -52,9 +52,9 @@ struct FixedStepAnimatorData {
 
 impl FixedStepAnimatorData {
     pub fn new<F:AnimationCallback>(steps_per_second:f64, f:F) -> Self {
-        let callback         = Box::new(f);
-        let step_duration    = 1000.0 / steps_per_second;
-        let counter          = IntervalCounter::new(step_duration);
+        let callback      = Box::new(f);
+        let step_duration = 1000.0 / steps_per_second;
+        let counter       = IntervalCounter::new(step_duration);
         Self {callback,counter}
     }
 }
