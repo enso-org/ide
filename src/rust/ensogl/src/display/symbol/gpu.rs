@@ -272,9 +272,12 @@ impl {
                 let instance_count = self.surface.instance_scope().size() as i32;
 
                 self.stats.inc_draw_call_count();
-                self.context.draw_arrays_instanced(mode,first,count,instance_count);
+                if instance_count > 0 {
+                    self.context.draw_arrays_instanced(mode,first,count,instance_count);
+                } else {
+                    self.context.draw_arrays(mode,first,count);
+                }
             });
-
         })
     }
 }}
