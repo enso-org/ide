@@ -1,4 +1,4 @@
-name: Package (MacOS, Linux, Windows)
+name: Build (MacOS, Linux, Windows)
 
 on:
   push:
