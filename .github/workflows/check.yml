@@ -17,15 +17,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-wasm-registry-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-wasm-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-wasm-test-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-wasm-test
+          restore-keys: ${{ runner.os }}-wasm
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -45,19 +43,7 @@ jobs:
           node-version: '12.16.1'
 
       - name: Build
-        run: node ./run dist --dev
-
-      - name: Upload Artifacts (macOS, dmg)
-        uses: actions/upload-artifact@v1
-        with:
-          name: Enso IDE (macOS, dmg)
-          path: dist/client/Enso Studio-2.0.0-alpha.0.dmg
-
-      - name: Upload Artifacts (macOS, app)
-        uses: actions/upload-artifact@v1
-        with:
-          name: Enso IDE (macOS, app)
-          path: dist/client/mac/Enso Studio.app
+        run: node ./run build --dev
 
 
   check:
@@ -70,15 +56,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src/rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Check
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-lint
+          restore-keys: ${{ runner.os }}-cargo
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
