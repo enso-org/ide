@@ -17,13 +17,13 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          restore-keys: ${{ runner.os }}-wasm-registry
+          key: ${{ runner.os }}-wasm-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          restore-keys: ${{ runner.os }}-wasm
+          key: ${{ runner.os }}-wasm-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -56,13 +56,14 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          restore-keys: ${{ runner.os }}-cargo-registry
+          key: ${{ runner.os }}-cargo-registry
 
       - name: Cache Cargo Check
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          restore-keys: ${{ runner.os }}-cargo
+          key: ${{ runner.os }}-cargo
+          restore-keys: ${{ runner.os }}-cargo-test
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
