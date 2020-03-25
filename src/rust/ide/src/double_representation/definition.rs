@@ -93,7 +93,7 @@ pub fn locate(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition
     // Not exactly regular - first crumb is a little special, because module is not a definition
     // nor a children.
     let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut child = ast.def_iter().find_definition(&first_crumb)?;
+    let mut child = ast.def_iter().find_by_name(&first_crumb)?;
     for crumb in crumbs_iter {
         child = resolve_single_name(child,crumb)?;
     }
@@ -320,7 +320,7 @@ pub type ChildDefinition = ast::crumbs::Located<DefinitionInfo>;
 /// Tries to add a new crumb to current path to obtain a deeper child.
 /// Its crumbs will accumulate both current crumbs and the passed one.
 pub fn resolve_single_name(def:ChildDefinition, id:&Crumb) -> FallibleResult<ChildDefinition> {
-    let child = def.item.def_iter().find_definition(id)?;
+    let child = def.item.def_iter().find_by_name(id)?;
     Ok(def.push_descendant(child))
 }
 
@@ -330,7 +330,7 @@ pub fn resolve_single_name(def:ChildDefinition, id:&Crumb) -> FallibleResult<Chi
 // === DefinitionIterator ===
 // ==========================
 
-/// Iterator that iterates over child definitions, along with a few related helper utilities.
+/// Iterator that iterates over child definitions.
 #[allow(missing_debug_implementations)]
 pub struct DefinitionIterator<'a> {
     /// Iterator going over ASTs of potential child definitions.
@@ -339,34 +339,30 @@ pub struct DefinitionIterator<'a> {
     pub scope_kind : ScopeKind,
     /// Absolute indentation of the child ASTs we iterate over.
     pub indent     : usize,
-
 }
 
-impl<'a> DefinitionIterator<'a> {
-    /// Iterates over ASTs that can hold child definitions.
-    pub fn potential_definition_asts(self) -> impl Iterator<Item = ChildAst<'a>> {
-        self.iterator
-    }
-
-    /// Iterates over child definitions (info + location).
-    pub fn child_definitions(self) -> impl Iterator<Item = ChildDefinition> + 'a {
-        let scope_kind     = self.scope_kind;
-        let context_indent = self.indent;
-        self.iterator.flat_map(move |ChildAst {item,crumbs}| {
-            let definition_opt = DefinitionInfo::from_line_ast(item,scope_kind,context_indent);
+impl<'a> Iterator for DefinitionIterator<'a> {
+    type Item = ChildDefinition;
+    fn next(&mut self) -> Option<Self::Item> {
+        let scope_kind = self.scope_kind;
+        let indent     = self.indent;
+        self.iterator.find_map(|ChildAst {item,crumbs}| {
+            let definition_opt = DefinitionInfo::from_line_ast(item,scope_kind,indent);
             definition_opt.map(|def| ChildDefinition::new(crumbs,def))
         })
     }
+}
 
-    /// Iterates over child definition infos.
-    pub fn definitions(self) -> impl Iterator<Item = DefinitionInfo> + 'a {
-        self.child_definitions().map(|child_def| child_def.item)
+impl<'a> DefinitionIterator<'a> {
+    /// Yields vector of all child definition infos, discarding the crumbs.
+    pub fn infos_vec(self) -> Vec<DefinitionInfo> {
+        self.map(|child_def| child_def.item).collect_vec()
     }
 
     /// Looks up direct child definition by given name.
-    pub fn find_definition(self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
+    pub fn find_by_name(mut self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.child_definitions().find(|child_def| &child_def.item.name == name).ok_or_else(err)
+        self.find(|child_def| &child_def.item.name == name).ok_or_else(err)
     }
 }
 
@@ -407,10 +403,7 @@ pub fn ast_direct_children<'a>
 }
 
 impl DefinitionProvider for known::Module {
-    fn indent(&self) -> usize {
-        const ROOT_INDENT:usize = 0;
-        ROOT_INDENT
-    }
+    fn indent(&self) -> usize { 0 }
 
     fn scope_kind(&self) -> ScopeKind { ScopeKind::Root }
 
@@ -518,12 +511,12 @@ mod tests {
         // === Program with definitions in root ===
         let program     = definition_lines.join("\n");
         let module      = parser.parse_module(program, default()).unwrap();
-        let definitions = module.def_iter().definitions().collect_vec();
+        let definitions = module.def_iter().infos_vec();
         assert_eq_strings(to_names(&definitions),expected_def_names_in_module);
 
         // Check that definition can be found and their body is properly described.
         let add_name = DefinitionName::new_plain("add");
-        let add      = module.def_iter().find_definition(&add_name).expect("failed to find `add` function");
+        let add      = module.def_iter().find_by_name(&add_name).expect("failed to find `add` function");
         let body     = known::Number::try_new(add.body()).expect("add body should be a Block");
         assert_eq!(body.int,"50");
 
@@ -531,11 +524,11 @@ mod tests {
         let indented_lines = definition_lines.iter().map(indented).collect_vec();
         let program        = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
         let module         = parser.parse_module(program,default()).unwrap();
-        let root_defs      = module.def_iter().definitions().collect_vec();
+        let root_defs      = module.def_iter().infos_vec();
         let (only_def,)    = root_defs.expect_tuple();
         assert_eq!(&only_def.name.to_string(),"some_func");
         let body_block  = known::Block::try_from(only_def.body()).unwrap();
-        let nested_defs = body_block.def_iter().definitions().collect_vec();
+        let nested_defs = body_block.def_iter().infos_vec();
         assert_eq_strings(to_names(&nested_defs),expected_def_names_in_def);
     }
 

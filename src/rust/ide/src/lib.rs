@@ -4,6 +4,7 @@
 #![feature(bool_to_option)]
 #![feature(drain_filter)]
 #![feature(trait_alias)]
+#![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]

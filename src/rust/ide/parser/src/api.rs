@@ -11,6 +11,7 @@ pub use ast::Ast;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
+use utils::fail::FallibleResult;
 
 
 // ================
@@ -69,7 +70,7 @@ pub trait IsParser : Debug {
 
     /// Program is expected to be single non-empty line module. The line's AST is
     /// returned. Panics otherwise.
-    fn parse_line(&mut self, program:impl Str) -> Result<Ast> {
+    fn parse_line(&mut self, program:impl Str) -> FallibleResult<Ast> {
         let module = self.parse_module(program,default())?;
 
         let mut lines = module.lines.clone().into_iter().filter_map(|line| {
@@ -77,12 +78,12 @@ pub trait IsParser : Debug {
         });
         if let Some(first_non_empty_line) = lines.next() {
             if lines.next().is_some() {
-                Err(Error::TooManyLinesProduced)
+                Err(TooManyLinesProduced.into())
             } else {
                 Ok(first_non_empty_line)
             }
         } else {
-            Err(Error::NoLinesProduced)
+            Err(NoLinesProduced.into())
         }
     }
 
@@ -113,13 +114,17 @@ pub enum Error {
     /// Error related to wrapping = communication with the parser service.
     #[fail(display = "Interop error: {}.", _0)]
     InteropError(#[cause] Box<dyn Fail>),
-    /// When trying to parse a line, not a single line was produced.
-    #[fail(display = "Expected a single line, parsed none.")]
-    NoLinesProduced,
-    /// When trying to parse a single line, more were generated.
-    #[fail(display = "Expected just a single line, found more.")]
-    TooManyLinesProduced,
 }
+
+/// When trying to parse a line, not a single line was produced.
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "Expected a single line, parsed none.")]
+struct NoLinesProduced;
+
+/// When trying to parse a single line, more were generated.
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "Expected just a single line, found more.")]
+struct TooManyLinesProduced;
 
 /// Wraps an arbitrary `std::error::Error` as an `InteropError.`
 pub fn interop_error<T>(error:T) -> Error

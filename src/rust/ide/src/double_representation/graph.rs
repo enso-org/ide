@@ -195,7 +195,7 @@ mod tests {
     fn main_graph(parser:&mut impl IsParser, program:impl Str) -> GraphInfo {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
-        let main   = module.def_iter().find_definition(&name).unwrap();
+        let main   = module.def_iter().find_by_name(&name).unwrap();
         GraphInfo::from_definition(main.item)
     }
 

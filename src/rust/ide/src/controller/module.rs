@@ -168,7 +168,7 @@ shared! { Handle
             code.replace_range(replaced_indices,&change.inserted);
             apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
             let ast = self.parser.parse(code, id_map)?;
-            self.update_ast(ast);
+            self.update_ast(ast.try_into()?);
             self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
 
             Ok(())
@@ -228,6 +228,22 @@ shared! { Handle
             let data = self.module.metadata.ide.node.remove(&id);
             data.ok_or_else(|| NodeMetadataNotFound(id).into())
         }
+
+        /// Update current ast in module controller and emit notification about overall
+        /// invalidation.
+        pub fn update_ast(&mut self, ast:known::Module) {
+            self.module.ast  = ast.into();
+            let text_change  = notification::Text::Invalidate;
+            let graph_change = notification::Graphs::Invalidate;
+            let code_notify  = self.text_notifications.publish(text_change);
+            let graph_notify = self.graph_notifications.publish(graph_change);
+            spawn(async move { futures::join!(code_notify,graph_notify); });
+        }
+
+        /// Returns the current module's AST.
+        pub fn ast(&mut self) -> FallibleResult<known::Module> {
+            Ok(known::Module::try_from(&self.module.ast)?)
+        }
     }
 }
 
@@ -266,8 +282,9 @@ impl Handle {
         let SourceFile{ast,metadata} = parser.parse_with_metadata(content)?;
         logger.info(|| "Code parsed");
         logger.trace(|| format!("The parsed ast is {:?}", ast));
+        let module_ast = known::Module::try_new(ast)?;
         self.with_borrowed(|data| data.module.metadata = metadata);
-        self.with_borrowed(|data| data.update_ast(ast));
+        self.with_borrowed(|data| data.update_ast(module_ast));
         Ok(())
     }
 
@@ -280,16 +297,6 @@ impl Handle {
             (path,fm,code)
         });
         async move { fm.write(path.clone(),code?).await }
-    }
-
-    /// Updates the module's AST by passing it through a given function.
-    pub fn modify_ast<AstUpdate>
-    (&self, ast_update:AstUpdate) -> FallibleResult<()>
-    where AstUpdate: FnOnce(known::Module) -> FallibleResult<known::Module>, {
-        let module_so_far = known::Module::try_new(self.rc.borrow().module.ast.clone())?;
-        let new_module    = ast_update(module_so_far)?;
-        self.with_borrowed(|data| data.update_ast(new_module.into()));
-        Ok(())
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
@@ -323,19 +330,6 @@ impl Handle {
         assert_eq!(code,expected_code.as_ref());
     }
 }
-
-impl Controller {
-    /// Update current ast in module controller and emit notification about overall invalidation.
-    fn update_ast(&mut self, ast:Ast) {
-        self.module.ast  = ast;
-        let text_change  = notification::Text::Invalidate;
-        let graph_change = notification::Graphs::Invalidate;
-        let code_notify  = self.text_notifications.publish(text_change);
-        let graph_notify = self.graph_notifications.publish(graph_change);
-        spawn(async move { futures::join!(code_notify,graph_notify); });
-    }
-}
-
 
 // =============
 // === Tests ===
