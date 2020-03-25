@@ -456,20 +456,15 @@ main =
         // Tests editing nested definition that requires transforming inline expression into
         // into a new block.
         let mut test  = GraphControllerFixture::set_up();
-        const PROGRAM:&str = r"main =
-    foo a =
-        bar b = 5
-    print foo";
+        // Not using multi-line raw string literals, as we don't want IntelliJ to automatically
+        // strip the trailing whitespace in the lines.
+        const PROGRAM:&str = "main =\n    foo a =\n        bar b = 5\n    print foo";
         let definition = definition::Id::new_plain_names(vec!["main","foo","bar"]);
         test.run_graph_for(PROGRAM, definition, |module, graph| async move {
             let expression = "new_node";
             graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
-            let expected_program = r"main =
-    foo a =
-        bar b = 
-            5
-            new_node
-    print foo";
+            let expected_program = "main =\n    foo a =\n        bar b = \
+                                    \n            5\n            new_node\n    print foo";
             module.expect_code(expected_program);
         })
     }
