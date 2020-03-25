@@ -431,38 +431,7 @@ main =
         })
     }
 
-    #[test]
-    fn aaa() {
-
-
-        let program1 = "foo\n bar\n  \n";
-
-        let mut parser = parser::Parser::new_or_panic();
-        let m1 = parser.parse_module(program1, default()).unwrap();
-        println!("{:?}", m1);
-        println!("===\n{}\n===", m1.repr());
-        assert_eq!(program1,m1.repr());
-    }
-
-    #[test]
-    fn ffdbf() {
-
-
-        let program1 = "main =\n    foo = 2\n\n        print foo";
-        let program2 = "main =\n    foo = 2\n    \n        print foo";
-
-        assert_ne!(program1,program2);
-        let mut parser = parser::Parser::new_or_panic();
-        let m1 = parser.parse_module(program1, default());
-        let m2 = parser.parse_module(program2, default());
-        println!("{:?}", m1);
-        println!("{:?}", m2);
-
-        println!("{}", m1.unwrap().repr());
-        println!("{}", m2.unwrap().repr());
-    }
-
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_nested_definition() {
         let mut test  = GraphControllerFixture::set_up();
         const PROGRAM:&str = r"main =
@@ -482,7 +451,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_doubly_nested_definition() {
         // Tests editing nested definition that requires transforming inline expression into
         // into a new block.
@@ -497,7 +466,7 @@ main =
             graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
             let expected_program = r"main =
     foo a =
-        bar b =
+        bar b = 
             5
             new_node
     print foo";
@@ -505,7 +474,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_node_operations_node() {
         let mut test  = GraphControllerFixture::set_up();
         const PROGRAM:&str = r"
