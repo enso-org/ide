@@ -342,6 +342,8 @@ mod test {
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
+        //FIXME[DG]: This test is failing because Parser is returning a different IdMap from the one
+        // passed to it. For instance, the second Span(2,1) is returned as Span(2,3).
         TestWithLocalPoolExecutor::set_up().run_test(async {
             let transport    = MockTransport::new();
             let file_manager = file_manager_client::Handle::new(transport);
