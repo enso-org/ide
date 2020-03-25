@@ -181,9 +181,10 @@ fn mouse_pointer() -> AnyShape {
 }
 
 
+use ensogl::control::event_loop::RawAnimationLoop;
 use ensogl::control::event_loop::AnimationLoop;
-use ensogl::control::event_loop::Animator;
 use ensogl::control::event_loop::TimeInfo;
+use ensogl::control::event_loop::FixedFrameRateSampler;
 
 fn init(world: &World) {
     let scene  = world.scene();
@@ -216,13 +217,13 @@ fn init(world: &World) {
 
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
-    let animator_ref : Rc<RefCell<Option<Animator<Box<dyn Fn(TimeInfo)>>>>> = default();
-    let animator = Animator::new(Box::new(enclose!((animator_ref) move |t:TimeInfo| {
+    let animator_ref : Rc<RefCell<Option<AnimationLoop<FixedFrameRateSampler<Box<dyn Fn(TimeInfo)>>>>>> = default();
+    let animator = AnimationLoop::new(FixedFrameRateSampler::new(60.0,Box::new(enclose!((animator_ref) move |t:TimeInfo| {
         if t.local > 1000.0 {
             *animator_ref.borrow_mut() = None;
         }
         println!("{:?}",t)
-    })) as Box<dyn Fn(TimeInfo)>);
+    })) as Box<dyn Fn(TimeInfo)>));
     *animator_ref.borrow_mut() = Some(animator);
 
 

@@ -9,6 +9,7 @@
 #![feature(drain_filter)]
 #![feature(overlapping_marker_traits)]
 #![feature(specialization)]
+#![feature(fn_traits)]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
@@ -22,7 +23,6 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
-
 #![recursion_limit="512"]
 
 // To be removed after this gets resolved: https://github.com/rust-lang/cargo/issues/5034
