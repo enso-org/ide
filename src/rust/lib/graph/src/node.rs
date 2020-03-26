@@ -55,21 +55,14 @@ pub struct NodeData {
 #[derive(Derivative,Clone)]
 #[derivative(Debug)]
 pub struct Node {
-    #[derivative(Debug="ignore")]
     logger         : Logger,
-    #[derivative(Debug="ignore")]
     sprite         : Rc<CloneCell<Option<Sprite>>>,
-    #[derivative(Debug="ignore")]
     display_object : display::object::Node,
-    #[derivative(Debug="ignore")]
     data           : Rc<RefCell<NodeData>>,
     // FIXME: Refcells should be as deep as possible. Each callback manager should have internal mut
     // pattern. This way you can register callbacks while running other callbacks.
-    #[derivative(Debug="ignore")]
     callbacks      : Rc<RefCell<OnEditCallbacks>>,
-    #[derivative(Debug="ignore")]
     simulator : DynInertiaSimulator<f32>,
-    #[derivative(Debug="ignore")]
     pub selection : enso_frp::Dynamic<()>,
 }
 
@@ -85,7 +78,7 @@ impl Node {
             selection           = source::<()>            ();
             selected            = selection.toggle        ();
             selection_animation = source::<f32>           ();
-            debug = selection.map(|t| {println!("SS: {:?}",t);})
+//            debug = selection.map(|t| {println!("SS: {:?}",t);})
 
         }
 
