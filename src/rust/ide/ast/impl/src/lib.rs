@@ -395,6 +395,7 @@ pub enum Shape<T> {
     SectionSides  {                         opr : T                         },
 
     // === Module ===
+
     /// Module represent the file's root block: sequence of possibly empty lines with no leading
     /// indentation.
     Module        { lines       : Vec<BlockLine<Option<T>>>  },

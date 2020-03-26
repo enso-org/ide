@@ -194,7 +194,7 @@ impl Handle {
     /// Updates the AST of the definition of this graph.
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
-        let ast_so_far = self.module.ast()?;
+        let ast_so_far     = self.module.ast()?;
         let definition     = definition::locate(&ast_so_far, &self.id)?;
         let new_definition = f(definition.item)?;
         trace!(self.logger, "Applying graph changes onto definition");

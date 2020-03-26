@@ -82,7 +82,7 @@ impl NodeInfo {
         let id = self.id();
         match self {
             NodeInfo::Binding{ref mut infix}  =>
-                *infix = infix.map_shape(|infix| infix.rarg = expression),
+                infix.update_shape(|infix| infix.rarg = expression),
             NodeInfo::Expression{ref mut ast} => *ast = expression,
         };
         // Id might have been overwritten by the AST we have set. Now we restore it.

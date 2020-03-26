@@ -273,7 +273,7 @@ impl DefinitionInfo {
 
     /// Sets the definition body to expression with given Ast.
     pub fn set_body_ast(&mut self, expression:Ast) {
-        self.ast = self.ast.map_shape(|infix| {
+        self.ast.update_shape(|infix| {
             // Keep at least one space after `=` so it doesn't look ugly when converting from
             // previous block definition body.
             infix.roff = std::cmp::max(1,infix.roff);
