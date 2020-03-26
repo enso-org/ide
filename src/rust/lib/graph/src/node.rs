@@ -15,6 +15,7 @@ use std::any::TypeId;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
 use ensogl::animation::physics::inertia::DynInertiaSimulator;
 use enso_frp;
+use enso_frp as frp;
 use enso_frp::frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};

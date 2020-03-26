@@ -155,7 +155,7 @@ fn nodes_shape() -> AnyShape {
     let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
-    let selection = Circle(node_radius.px() + border_size.px() * "input_selection");
+    let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
     let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
     let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
