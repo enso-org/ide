@@ -102,7 +102,6 @@ impl Port{
         if show_debug{
             let debug_circle = circle_inner.fill(Srgba::new(0.1,0.1,0.1,0.5));
             (triangle_rounded + debug_circle).into()
-
         } else{
             triangle_rounded.into()
         }
@@ -133,12 +132,11 @@ impl Port{
 
         let circle_outer = Circle(outer_radius.px());
 
-        let triangle_rounded = Intersection(triangle circle_outer.clone()).fill(spec.color);
+        let triangle_rounded = Intersection(triangle,circle_outer.clone()).fill(spec.color);
 
         if show_debug{
             let debug_circle = circle_outer.fill(Srgba::new(0.1,0.1,0.1, 0.5));
             (triangle_rounded + debug_circle).into()
-
         } else{
             triangle_rounded.into()
         }

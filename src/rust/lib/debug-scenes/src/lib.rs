@@ -23,6 +23,7 @@ pub mod dom_symbols;
 pub mod easing_animator;
 pub mod glyph_system;
 pub mod ide;
+pub mod ports;
 pub mod shapes;
 pub mod sprite_system;
 pub mod text_field;
