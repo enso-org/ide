@@ -108,7 +108,7 @@ impl From<BlockCrumb> for Crumb {
 
 impl From<&BlockCrumb> for Crumb {
     fn from(crumb: &BlockCrumb) -> Self {
-        Crumb::Block(crumb.clone())
+        Crumb::Block(*crumb)
     }
 }
 
@@ -119,7 +119,7 @@ impl From<ModuleCrumb> for Crumb {
 }
 impl From<&ModuleCrumb> for Crumb {
     fn from(crumb: &ModuleCrumb) -> Self {
-        Crumb::Module(crumb.clone())
+        Crumb::Module(*crumb)
     }
 }
 
@@ -131,7 +131,7 @@ impl From<InfixCrumb> for Crumb {
 
 impl From<&InfixCrumb> for Crumb {
     fn from(crumb: &InfixCrumb) -> Self {
-        Crumb::Infix(crumb.clone())
+        Crumb::Infix(*crumb)
     }
 }
 
@@ -201,7 +201,7 @@ impl Crumbable for crate::Module<Ast> {
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         let line = self.lines.get(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
-        line.elem.as_ref().ok_or(LineDoesNotContainAst::new(self,crumb).into())
+        line.elem.as_ref().ok_or_else(|| LineDoesNotContainAst::new(self,crumb).into())
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
@@ -226,7 +226,7 @@ impl Crumbable for crate::Block<Ast> {
             BlockCrumb::HeadLine => Ok(&self.first_line.elem),
             BlockCrumb::TailLine {tail_index} => {
                 let line = self.lines.get(*tail_index).ok_or(LineIndexOutOfBounds)?;
-                line.elem.as_ref().ok_or(LineDoesNotContainAst::new(self,crumb).into())
+                line.elem.as_ref().ok_or_else(|| LineDoesNotContainAst::new(self,crumb).into())
             }
         }
     }

@@ -200,7 +200,8 @@ impl Handle {
         trace!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
         let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
-        Ok(self.module.update_ast(new_module))
+        self.module.update_ast(new_module);
+        Ok(())
     }
 
     /// Parses given text as a node expression.

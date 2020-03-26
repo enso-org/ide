@@ -107,6 +107,7 @@ for Collection {
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<Collection: IntoIterator>
 ExpectTuple<(Collection::Item,Collection::Item,Collection::Item,Collection::Item,Collection::Item)>
 for Collection {
