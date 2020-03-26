@@ -284,7 +284,7 @@ impl Handle {
         logger.trace(|| format!("The parsed ast is {:?}", ast));
         let module_ast = known::Module::try_new(ast)?;
         self.with_borrowed(|data| data.module.metadata = metadata);
-        self.with_borrowed(|data| data.update_ast(module_ast));
+        self.update_ast(module_ast);
         Ok(())
     }
 
