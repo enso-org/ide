@@ -39,6 +39,7 @@ pub mod prelude {
     pub use futures::task::LocalSpawnExt;
 
     pub use utils::fail::FallibleResult;
+    pub use utils::vec::VecExt;
 }
 
 use crate::prelude::*;

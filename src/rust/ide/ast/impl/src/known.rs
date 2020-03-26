@@ -58,6 +58,16 @@ impl<T> KnownAst<T> {
           E                      : Debug, {
         self.deref()
     }
+
+    /// Returns AST with Shape modified with the provided method.
+    pub fn map_shape<E>(&self, f:impl FnOnce(&mut T)) -> KnownAst<T>
+    where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
+          T                      : Clone + Into<Shape<Ast>>,
+          E                      : Debug {
+        let mut shape = self.shape().clone();
+        f(&mut shape);
+        Self::new(shape, self.id())
+    }
 }
 
 impl<T:Into<Shape<Ast>>> KnownAst<T> {

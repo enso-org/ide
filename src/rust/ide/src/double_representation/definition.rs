@@ -9,7 +9,6 @@ use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
-use utils::vec::pop_front;
 
 
 
@@ -256,10 +255,10 @@ impl DefinitionInfo {
 
         let indent          = self.context_indent + double_representation::INDENT;
         let mut empty_lines = Vec::new();
-        let mut line        = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
+        let mut line        = lines.pop_front().ok_or(MissingLineWithAst)?;
         while let None = line.elem {
             empty_lines.push(line.off + indent);
-            line = pop_front(&mut lines).ok_or(MissingLineWithAst)?;
+            line = lines.pop_front().ok_or(MissingLineWithAst)?;
         }
         let elem       = line.elem.ok_or(MissingLineWithAst)?;
         let off        = line.off;
@@ -267,10 +266,19 @@ impl DefinitionInfo {
         let is_orphan  = false;
         let ty         = ast::BlockType::Discontinuous {};
         let block      = ast::Block {empty_lines,first_line,lines,indent,is_orphan,ty};
-        let rarg       = Ast::new(block, None);
-        let infix      = self.ast.deref().clone();
-        self.ast       = known::KnownAst::new(ast::Infix {rarg,..infix}, None);
+        let body_ast   = Ast::new(block,None);
+        self.set_body_ast(body_ast);
         Ok(())
+    }
+
+    /// Sets the definition body to expression with given Ast.
+    pub fn set_body_ast(&mut self, expression:Ast) {
+        self.ast = self.ast.map_shape(|infix| {
+            // Keep at least one space after `=` so it doesn't look ugly when converting from
+            // previous block definition body.
+            infix.roff = std::cmp::max(1,infix.roff);
+            infix.rarg = expression;
+        })
     }
 
     /// Tries to interpret `Line`'s `Ast` as a function definition.

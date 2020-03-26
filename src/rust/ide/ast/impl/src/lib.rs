@@ -250,6 +250,11 @@ impl Ast {
         Ast::from_ast_id_len(self.shape().clone(), Some(id), self.len())
     }
 
+    /// Returns this AST node with a newly generated unique ID.
+    pub fn with_new_id(&self) -> Ast {
+        self.with_id(Id::new_v4())
+    }
+
     /// Returns this AST node with shape set to given value.
     pub fn with_shape<S:Into<Shape<Ast>>>(&self, shape:S) -> Ast {
         Ast::new(shape.into(),self.id)
