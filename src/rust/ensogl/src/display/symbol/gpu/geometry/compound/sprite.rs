@@ -174,8 +174,8 @@ impl Sprite {
 
 #[derive(Debug)]
 pub struct SpriteData {
-    symbol           : Symbol,
-    instance_id      : AttributeInstanceIndex,
+    pub symbol           : Symbol,
+    pub instance_id      : AttributeInstanceIndex,
     display_object   : display::object::Node,
     transform        : Attribute<Matrix4<f32>>,
     bbox             : Attribute<Vector2<f32>>,

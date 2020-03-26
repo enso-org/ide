@@ -863,6 +863,7 @@ dependencies = [
 name = "graph"
 version = "0.1.0"
 dependencies = [
+ "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
  "ensogl 0.1.0",
  "logger 0.1.0",

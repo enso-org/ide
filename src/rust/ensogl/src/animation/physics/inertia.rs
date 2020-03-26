@@ -67,6 +67,19 @@ impl Into<Vector3<f32>> for Position3 {
 }
 
 
+impl Magnitude for f32 {
+    fn magnitude(&self) -> f32 {
+        self.abs()
+    }
+}
+
+impl Normalize for f32 {
+    fn normalize(&self) -> f32 {
+        self.signum()
+    }
+}
+
+
 
 // =============
 // === Value ===
@@ -362,7 +375,7 @@ impl<T:Value> Simulation<T> {
 // ========================
 
 /// Handy alias for `InertiaSimulator` with a boxed closure callback.
-pub type DynInertiaSimulator<T> = InertiaSimulator<T,Box<dyn Fn(Position3)>>;
+pub type DynInertiaSimulator<T> = InertiaSimulator<T,Box<dyn Fn(T)>>;
 
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
@@ -411,6 +424,17 @@ where Callback : Fn(T)+'static {
         }
     }
 
+    fn stop(&self) {
+        self.animation_loop.set(None);
+    }
+
+    pub fn set_callback(&mut self, callback:Callback) {
+        let callback = Rc::new(callback);
+        self.callback = callback;
+        self.stop();
+        self.start();
+    }
+
     pub fn set_position(&self, position:T) {
         self.simulation.set_position(position);
         self.start();
@@ -437,7 +461,7 @@ where Callback : Fn(T)+'static {
             this.simulation.step(delta_seconds);
             (this.callback)(this.simulation.position());
         } else {
-            this.animation_loop.set(None);
+            this.stop();
         }
     }
 }

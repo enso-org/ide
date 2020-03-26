@@ -73,15 +73,16 @@ impl GraphEditor {
 
     fn map_controller_node(index_in_graph:usize, controller_node:&controller::graph::Node)
     -> graph::Node {
-        let mut node     = graph::Node::new();
-        let default_pos  = Vector2::new(100.0 * index_in_graph as f32, 0.0);
-        let opt_position = controller_node.metadata.and_then(|md| md.position).map(|p| p.vector);
-        let position     = opt_position.unwrap_or(default_pos);
-        let id           = controller_node.info.id();
-        let expression   = controller_node.info.expression().repr();
-        node.set_label(expression);
-        node.set_position(Vector3::new(position.x,position.y,0.0));
-        node
+//        let mut node     = graph::Node::new();
+//        let default_pos  = Vector2::new(100.0 * index_in_graph as f32, 0.0);
+//        let opt_position = controller_node.metadata.and_then(|md| md.position).map(|p| p.vector);
+//        let position     = opt_position.unwrap_or(default_pos);
+//        let id           = controller_node.info.id();
+//        let expression   = controller_node.info.expression().repr();
+//        node.set_label(expression);
+//        node.set_position(Vector3::new(position.x,position.y,0.0));
+//        node
+        todo!()
     }
 }
 

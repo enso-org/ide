@@ -17,6 +17,7 @@ use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
 use graph::node::Node;
+use graph::node::NodeRegistry;
 use nalgebra::Vector2;
 use shapely::shared;
 use std::any::TypeId;
@@ -154,7 +155,7 @@ fn nodes_shape() -> AnyShape {
     let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
     let shadow2       = shadow2.fill(shadow2_color);
 
-    let selection = Circle((node_radius + border_size).px() * "input_selection");
+    let selection = Circle(node_radius.px() + border_size.px() * "input_selection");
     let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
     let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
@@ -185,6 +186,8 @@ use ensogl::control::event_loop::RawAnimationLoop;
 use ensogl::control::event_loop::AnimationLoop;
 use ensogl::control::event_loop::TimeInfo;
 use ensogl::control::event_loop::FixedFrameRateSampler;
+use ensogl::animation::physics::inertia::DynInertiaSimulator;
+
 
 fn init(world: &World) {
     let scene  = world.scene();
@@ -217,19 +220,25 @@ fn init(world: &World) {
 
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
-    let animator_ref : Rc<RefCell<Option<AnimationLoop<FixedFrameRateSampler<Box<dyn Fn(TimeInfo)>>>>>> = default();
-    let animator = AnimationLoop::new(FixedFrameRateSampler::new(60.0,Box::new(enclose!((animator_ref) move |t:TimeInfo| {
-        if t.local > 1000.0 {
-            *animator_ref.borrow_mut() = None;
-        }
-        println!("{:?}",t)
-    })) as Box<dyn Fn(TimeInfo)>));
-    *animator_ref.borrow_mut() = Some(animator);
+//    let animator_ref : Rc<RefCell<Option<AnimationLoop<FixedFrameRateSampler<Box<dyn Fn(TimeInfo)>>>>>> = default();
+//    let animator = AnimationLoop::new(FixedFrameRateSampler::new(60.0,Box::new(enclose!((animator_ref) move |t:TimeInfo| {
+//        if t.local > 1000.0 {
+//            *animator_ref.borrow_mut() = None;
+//        }
+//        println!("{:?}",t)
+//    })) as Box<dyn Fn(TimeInfo)>));
+//    *animator_ref.borrow_mut() = Some(animator);
 
 
-    let node1 = Node::new();
-    let node2 = Node::new();
-    let node3 = Node::new();
+
+//    let nodes : Rc<RefCell<HashMap<usize,Node>>> = default();
+
+    let node_registry = NodeRegistry::default();
+
+    let node1 = Node::new(&node_registry);
+    let node2 = Node::new(&node_registry);
+    let node3 = Node::new(&node_registry);
+
 
     world.add_child(&pointer);
 
@@ -284,6 +293,13 @@ fn init(world: &World) {
 //        debug                  = final_position.sample       (&mouse.position);
 
 //        debug = mouse_down_target.map(|t| {println!("{:?}",t);})
+
+        node1_selection         = source::<f32>           ();
+        node1_selection_a       = source::<f32>           ();
+
+        debug = node1_selection_a.map(|t| {println!("{:?}",t);})
+
+
     }
 
     mouse.position.map("pointer_position", enclose!((pointer) move |p| {
@@ -301,11 +317,25 @@ fn init(world: &World) {
     }));
 
 
-    mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
+    let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
+        node1_selection_a.event.emit(t);
+    }));
+
+
+    node1_selection.map("node1_selection", move |value| {
+        simulator.set_target_position(*value);
+    });
+
+    mouse_down_target.map("mouse_down_target", enclose!((node_registry,scene) move |target| {
         match target {
             display::scene::Target::Background => {}
             display::scene::Target::Symbol {symbol_id, instance_id} => {
-                node_selection_buffer.at((*instance_id as usize).into()).set(1.0);
+//                node_selection_buffer.at((*instance_id as usize).into()).set(1.0);
+                let br   = node_registry.map.borrow();
+                let node = br.get(&(*instance_id as usize));
+                node.for_each(|node| {
+                    node.selection.event.emit(());
+                })
 //                node_shape_system.get(*instance_id as usize).for_each(|sprite|{
 //                    let selection = node_selection_buffer.at(sprite.instance_id());
 //                    selection.set(1.0);
@@ -341,7 +371,8 @@ fn init(world: &World) {
         let _keep_alive = &navigator;
         let _keep_alive = &nodes;
         let _keep_alive = &pointer_view;
-        let _keep_alive = &animator_ref;
+//        let _keep_alive = &animator_ref;
+//        let _keep_alive = &simulator;
 
 //        let _keep_alive = &sprite_2;
 //        let _keep_alive = &out;
