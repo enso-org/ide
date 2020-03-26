@@ -329,6 +329,14 @@ pub struct AnimationLoop<Callback> {
     time_info      : Rc<Cell<TimeInfo>>,
 }
 
+impl<Callback> CloneRef for AnimationLoop<Callback> {
+    fn clone_ref(&self) -> Self {
+        let animation_loop = self.animation_loop.clone_ref();
+        let time_info      = self.time_info.clone_ref();
+        Self {animation_loop,time_info}
+    }
+}
+
 impl<Callback> AnimationLoop<Callback>
 where Callback : AnimationLoopCallback {
     pub fn new(callback:Callback) -> Self {
