@@ -134,13 +134,13 @@ impl Thresholds {
 
 
 
-// ==================
-// === Simulation ===
-// ==================
+// ======================
+// === SimulationData ===
+// ======================
 
 /// A fixed step physics simulator used to simulate `PhysicsState`.
 #[derive(Clone,Copy,Debug,Default)]
-pub struct Simulation {
+pub struct SimulationData {
     position        : Position3,
     target_position : Position3,
     velocity        : Position3,
@@ -151,7 +151,7 @@ pub struct Simulation {
     active          : bool,
 }
 
-impl Simulation {
+impl SimulationData {
     /// Constructor.
     pub fn new() -> Self {
         default()
@@ -200,7 +200,11 @@ impl Simulation {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl Simulation {
+impl SimulationData {
+    pub fn active(&self) -> bool {
+        self.active
+    }
+
     pub fn position(&self) -> Position3 {
         self.position
     }
@@ -214,7 +218,7 @@ impl Simulation {
 // === Setters ===
 
 #[allow(missing_docs)]
-impl Simulation {
+impl SimulationData {
     pub fn set_mass(&mut self, mass:Mass) {
         self.mass = mass;
     }
@@ -249,6 +253,90 @@ impl Simulation {
 
 
 
+// ==================
+// === Simulation ===
+// ==================
+
+#[derive(Clone,Debug,Default)]
+pub struct Simulation {
+    data : Rc<Cell<SimulationData>>
+}
+
+impl CloneRef for Simulation {
+    fn clone_ref(&self) -> Self {
+        let data = self.data.clone_ref();
+        Self {data}
+    }
+}
+
+impl Simulation {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
+
+    /// Runs a simulation step.
+    pub fn step(&self, delta_seconds:f32) {
+        let mut data = self.data.get();
+        data.step(delta_seconds);
+        self.data.set(data);
+    }
+}
+
+
+// === Getters ===
+
+#[allow(missing_docs)]
+impl Simulation {
+    pub fn active(&self) -> bool {
+        self.data.get().active()
+    }
+
+    pub fn position(&self) -> Position3 {
+        self.data.get().position()
+    }
+
+    pub fn target_position(&self) -> Position3 {
+        self.data.get().target_position()
+    }
+}
+
+
+// === Setters ===
+
+#[allow(missing_docs)]
+impl Simulation {
+    pub fn set_mass(&self, mass:Mass) {
+        self.data.update(|mut sim| {sim.set_mass(mass); sim});
+    }
+
+    pub fn set_spring(&self, spring:Spring) {
+        self.data.update(|mut sim| {sim.set_spring(spring); sim});
+    }
+
+    pub fn set_drag(&self, drag:Drag) {
+        self.data.update(|mut sim| {sim.set_drag(drag); sim});
+    }
+
+    pub fn set_velocity(&self, velocity:Position3) {
+        self.data.update(|mut sim| {sim.set_velocity(velocity); sim});
+    }
+
+    pub fn set_position(&self, position:Position3) {
+        self.data.update(|mut sim| {sim.set_position(position); sim});
+    }
+
+    pub fn set_target_position(&self, target_position:Position3) {
+        self.data.update(|mut sim| {sim.set_target_position(target_position); sim});
+    }
+
+    pub fn update_target_position<F:FnOnce(Position3) -> Position3>(&self, f:F) {
+        self.data.update(|mut sim| {sim.update_target_position(f); sim});
+    }
+}
+
+
+
 // ========================
 // === InertiaSimulator ===
 // ========================
@@ -256,18 +344,18 @@ impl Simulation {
 /// Handy alias for `InertiaSimulator` with a boxed closure callback.
 pub type DynInertiaSimulator = InertiaSimulator<Box<dyn FnMut(Position3)>>;
 
-#[derive(Derivative)]
+#[derive(Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct InertiaSimulator<Callback> {
-    #[derivative(Debug="ignore")]
-    pub simulation     : Rc<Cell<Simulation>>,
+    #[shrinkwrap(main_field)]
+    pub simulation     : Simulation,
     pub animation_loop : FixedFrameRateAnimationLoop<Step<Callback>>,
 }
 
 impl<Callback> CloneRef for InertiaSimulator<Callback> {
     fn clone_ref(&self) -> Self {
-        let simulation      = self.simulation.clone_ref();
+        let simulation     = self.simulation.clone_ref();
         let animation_loop = self.animation_loop.clone_ref();
         Self {simulation,animation_loop}
     }
@@ -278,7 +366,7 @@ where Callback : FnMut(Position3)+'static {
     /// Constructor.
     pub fn new(callback:Callback) -> Self {
         let frame_rate     = 60.0;
-        let simulation     = Rc::new(Cell::new(Simulation::new()));
+        let simulation     = Simulation::new();
         let step           = step(&simulation,callback);
         let animation_loop = AnimationLoop::new_with_fixed_frame_rate(frame_rate,step);
         Self {simulation,animation_loop}
@@ -286,60 +374,14 @@ where Callback : FnMut(Position3)+'static {
 }
 
 pub type Step<Callback> = impl FnMut(TimeInfo);
-fn step<Callback>(simulation:&Rc<Cell<Simulation>>, mut callback:Callback) -> Step<Callback>
+fn step<Callback>(simulation:&Simulation, mut callback:Callback) -> Step<Callback>
 where Callback : FnMut(Position3)+'static {
     let simulation = simulation.clone_ref();
     move |time:TimeInfo| {
         let delta_seconds = (time.frame_time / 1000.0) as f32;
-        let mut sim = simulation.get();
-        if sim.active {
-            sim.step(delta_seconds);
-            simulation.set(sim);
-            callback(sim.position());
+        if simulation.active() {
+            simulation.step(delta_seconds);
+            callback(simulation.position());
         }
-    }
-}
-
-
-// === Getters ===
-
-#[allow(missing_docs)]
-impl<Callback> InertiaSimulator<Callback> {
-    pub fn target_position(&self) -> Position3 {
-        self.simulation.get().target_position()
-    }
-}
-
-
-// === Setters ===
-
-#[allow(missing_docs)]
-impl<Callback> InertiaSimulator<Callback> {
-    pub fn set_mass(&self, mass:Mass) {
-        self.simulation.update(|mut sim| {sim.set_mass(mass); sim});
-    }
-
-    pub fn set_spring(&self, spring:Spring) {
-        self.simulation.update(|mut sim| {sim.set_spring(spring); sim});
-    }
-
-    pub fn set_drag(&self, drag:Drag) {
-        self.simulation.update(|mut sim| {sim.set_drag(drag); sim});
-    }
-
-    pub fn set_velocity(&self, velocity:Position3) {
-        self.simulation.update(|mut sim| {sim.set_velocity(velocity); sim});
-    }
-
-    pub fn set_position(&self, position:Position3) {
-        self.simulation.update(|mut sim| {sim.set_position(position); sim});
-    }
-
-    pub fn set_target_position(&self, target_position:Position3) {
-        self.simulation.update(|mut sim| {sim.set_target_position(target_position); sim});
-    }
-
-    pub fn update_target_position<F:FnOnce(Position3) -> Position3>(&self, f:F) {
-        self.simulation.update(|mut sim| {sim.update_target_position(f); sim});
     }
 }
