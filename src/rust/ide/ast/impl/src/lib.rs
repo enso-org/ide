@@ -1102,6 +1102,8 @@ impl<T> From<EscapeUnicode32> for SegmentFmt<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use data::text::Size;
     use serde::de::DeserializeOwned;
 
     /// Assert that given value round trips JSON serialization.
