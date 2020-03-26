@@ -210,6 +210,57 @@ impl<T:Default> Default for CloneCell<T> {
 
 
 
+// =================
+// === CloneCell ===
+// =================
+
+#[derive(Debug)]
+pub struct CloneRefCell<T> {
+    data : UnsafeCell<T>
+}
+
+impl<T> CloneRefCell<T> {
+    pub fn new(elem:T) -> CloneRefCell<T> {
+        CloneRefCell { data:UnsafeCell::new(elem) }
+    }
+
+    #[allow(unsafe_code)]
+    pub fn get(&self) -> T where T:CloneRef {
+        unsafe {(*self.data.get()).clone_ref()}
+    }
+
+    #[allow(unsafe_code)]
+    pub fn set(&self, elem:T) {
+        unsafe { *self.data.get() = elem; }
+    }
+
+    #[allow(unsafe_code)]
+    pub fn take(&self) -> T where T:Default {
+        let ptr:&mut T = unsafe { &mut *self.data.get() };
+        std::mem::take(ptr)
+    }
+}
+
+impl<T:CloneRef> Clone for CloneRefCell<T> {
+    fn clone(&self) -> Self {
+        Self::new(self.get())
+    }
+}
+
+impl<T:CloneRef> CloneRef for CloneRefCell<T> {
+    fn clone_ref(&self) -> Self {
+        Self::new(self.get())
+    }
+}
+
+impl<T:Default> Default for CloneRefCell<T> {
+    fn default() -> Self {
+        Self::new(default())
+    }
+}
+
+
+
 // ================================
 // === RefCell<Option<T>> Utils ===
 // ================================

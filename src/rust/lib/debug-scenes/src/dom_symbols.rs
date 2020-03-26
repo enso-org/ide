@@ -11,7 +11,7 @@ use ensogl::display::symbol::geometry::SpriteSystem;
 use ensogl::display::world::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::prelude::*;
-use ensogl::animation::animator::fixed_step::FixedStepAnimator;
+//use ensogl::animation::animator::fixed_step::FixedStepAnimator;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -80,16 +80,16 @@ fn init(world:World) {
     let layers = vec![dom_front_layer.clone_ref(),dom_back_layer.clone_ref()];
 
     let mut i = 0;
-    let animator = FixedStepAnimator::new(2.0, move |_| {
-        let _keep_alive = &world;
-        let _keep_alive = &navigator;
-        let _keep_alive = &sprites;
-        let _keep_alive = &sprite_system;
-
-        i = (i + 1) % 2;
-        for (j, object) in css3d_objects.iter_mut().enumerate() {
-            layers[(i + j) % 2].manage(&object);
-        }
-    });
-    std::mem::forget(animator);
+//    let animator = FixedStepAnimator::new(2.0, move |_| {
+//        let _keep_alive = &world;
+//        let _keep_alive = &navigator;
+//        let _keep_alive = &sprites;
+//        let _keep_alive = &sprite_system;
+//
+//        i = (i + 1) % 2;
+//        for (j, object) in css3d_objects.iter_mut().enumerate() {
+//            layers[(i + j) % 2].manage(&object);
+//        }
+//    });
+//    std::mem::forget(animator);
 }

@@ -30,7 +30,7 @@ use nalgebra::zero;
 #[derive(Debug)]
 pub struct Navigator {
     _events         : NavigatorEvents,
-    simulator      : DynInertiaSimulator,
+    simulator       : DynInertiaSimulator<Position3>,
     resize_callback : CallbackHandle
 }
 
@@ -46,7 +46,7 @@ impl Navigator {
         Self {simulator,_events,resize_callback}
     }
 
-    fn create_simulator(camera:&Camera2d) -> DynInertiaSimulator {
+    fn create_simulator(camera:&Camera2d) -> DynInertiaSimulator<Position3> {
         let simulator = DynInertiaSimulator::new(Box::new(enclose!((camera) move |p:Position3| camera.set_position(p.into()))));
         simulator.set_position(camera.position().into());
         simulator.set_target_position(camera.position().into());
@@ -59,7 +59,7 @@ impl Navigator {
     , min_zoom   : f32
     , max_zoom   : f32
     , zoom_speed : f32
-    ) -> (DynInertiaSimulator,CallbackHandle,NavigatorEvents) {
+    ) -> (DynInertiaSimulator<Position3>,CallbackHandle,NavigatorEvents) {
         let simulator        = Self::create_simulator(&camera);
         let dom_clone        = dom.clone();
         let panning_callback = enclose!((dom,camera,mut simulator) move |pan: PanEvent| {
