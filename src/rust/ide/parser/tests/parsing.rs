@@ -5,7 +5,6 @@ use parser::prelude::*;
 use ast::*;
 use ast::test_utils::expect_shape;
 use ast::test_utils::expect_single_line;
-use parser::api::IsParser;
 use parser::api::SourceFile;
 use utils::test::ExpectTuple;
 

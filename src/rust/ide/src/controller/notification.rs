@@ -34,11 +34,12 @@ impl<Message:'static> Debug for Publisher<Message> {
     }
 }
 
-impl<Message> CloneRef for Publisher<Message> {}
+impl<Message:Clone> CloneRef for Publisher<Message> {}
 
-impl<Message> Clone for Publisher<Message> {
+impl<Message:Clone> Clone for Publisher<Message> {
     fn clone(&self) -> Self {
-        Self(self.republish())
+        let Self(inner) = self;
+        Self(inner.republish())
     }
 }
 

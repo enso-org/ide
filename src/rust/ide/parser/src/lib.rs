@@ -20,9 +20,10 @@ mod wsclient;
 
 use crate::prelude::*;
 
+use crate::api::IsParser;
+
 use ast::Ast;
 use ast::IdMap;
-
 use std::panic;
 
 pub use enso_prelude as prelude;
@@ -71,17 +72,32 @@ impl Parser {
     pub fn new_or_panic() -> Parser {
         Parser::new().unwrap_or_else(|e| panic!("Failed to create a parser: {:?}", e))
     }
-}
 
-impl api::IsParser for Parser {
-    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+    pub fn parse(&self, program:String, ids:IdMap) -> api::Result<Ast> {
         self.borrow_mut().parse(program,ids)
     }
 
-    fn parse_with_metadata<M:api::Metadata>
-    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
+    pub fn parse_with_metadata<M:api::Metadata>
+    (&self, program:String) -> api::Result<api::SourceFile<M>> {
         self.borrow_mut().parse_with_metadata(program)
     }
+
+    /// Parse program into module.
+    pub fn parse_module(&self, program:String, ids:IdMap) -> api::Result<ast::known::Module> {
+        let ast = self.parse(program,ids)?;
+        ast::known::Module::try_from(ast).map_err(|_| api::Error::NonModuleRoot)
+    }
 }
+
+//impl api::IsParser for Parser {
+//    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+//        self.borrow_mut().parse(program,ids)
+//    }
+//
+//    fn parse_with_metadata<M:api::Metadata>
+//    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
+//        self.borrow_mut().parse_with_metadata(program)
+//    }
+//}
 
 impl CloneRef for Parser {}

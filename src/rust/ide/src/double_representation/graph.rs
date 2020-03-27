@@ -133,13 +133,12 @@ mod tests {
     use crate::double_representation::definition::DefinitionProvider;
 
     use ast::HasRepr;
-    use parser::api::IsParser;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     /// Takes a program with main definition in root and returns main's graph.
-    fn main_graph(parser:&mut impl IsParser, program:impl Str) -> GraphInfo {
+    fn main_graph(parser:&parser::Parser, program:impl Str) -> GraphInfo {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
         let main   = module.find_definition(&name).unwrap();

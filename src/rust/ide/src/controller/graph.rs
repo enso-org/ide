@@ -9,9 +9,6 @@ use crate::prelude::*;
 pub use crate::double_representation::graph::Id;
 use crate::controller::module::NodeMetadata;
 
-use flo_stream::MessagePublisher;
-use flo_stream::Subscriber;
-use utils::channel::process_stream_with_handle;
 
 
 // ==============
@@ -80,16 +77,11 @@ pub enum LocationHint {
 #[derive(Clone,Debug)]
 pub struct Handle {
     /// State of the module which this graph belongs to.
-    module    : Rc<controller::module::State>,
-    id        : Id,
+    module : Rc<controller::module::State>,
+    id     : Id,
 }
 
 impl Handle {
-    /// Gets a handle to a controller of the module that this definition belongs to.
-    pub fn module(&self) -> controller::module::Handle {
-        self.module.clone_ref()
-    }
-
     /// Gets a handle to a controller of the module that this definition belongs to.
     pub fn id(&self) -> Id {
         self.id.clone()
@@ -98,27 +90,15 @@ impl Handle {
     /// Creates a new controller. Does not check if id is valid.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new_unchecked(module:controller::module::Handle, id:Id) -> Handle {
-        let graphs_notifications = module.module.subscribe_graph_notifications();
-        let publisher = default();
-        let ret       = Handle {module,id,publisher};
-        let weak      = Rc::downgrade(&ret.publisher);
-        let relay_notifications = process_stream_with_handle(graphs_notifications,weak,
-            |notification,this| {
-                match notification {
-                    controller::notification::Graphs::Invalidate =>
-                    this.borrow_mut().publish(controller::notification::Graph::Invalidate),
-            }
-        });
-        executor::global::spawn(relay_notifications);
-        ret
+    pub fn new_unchecked(module:Rc<controller::module::State>, id:Id) -> Handle {
+        Handle {module,id}
     }
 
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new(module:controller::module::Handle, id:Id) -> FallibleResult<Handle> {
+    pub fn new(module:Rc<controller::module::State>, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,id);
         // Get and discard definition info, we are just making sure it can be obtained.
         let _ = ret.graph_definition_info()?;
@@ -128,9 +108,7 @@ impl Handle {
     /// Retrieves double rep information about definition providing this graph.
     pub fn graph_definition_info
     (&self) -> FallibleResult<double_representation::definition::DefinitionInfo> {
-        let module = self.module();
-        let id     = self.id();
-        module.find_definition(&id)
+        self.module.find_definition(&self.id)
     }
 
     /// Returns double rep information about all nodes in the graph.
@@ -177,27 +155,32 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::ID) -> FallibleResult<()> {
-        self.module().pop_node_metadata(id)?;
+        self.module.take_node_metadata(id)?;
         todo!()
     }
 
     /// Subscribe to updates about changes in this graph.
-    pub fn subscribe(&self) -> Subscriber<controller::notification::Graph> {
-        self.publisher.borrow_mut().0.subscribe()
+    pub fn subscribe(&self) -> impl Stream<Item=controller::notification::Graph> {
+        use controller::notification::*;
+        let module_sub = self.module.subscribe_graph_notifications();
+        module_sub.map(|notification| {
+            match notification {
+                Graphs::Invalidate => Graph::Invalidate
+            }
+        })
     }
 
     /// Retrieves metadata for the given node.
     pub fn node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
-        self.module().node_metadata(id)
+        self.module.node_metadata(id)
     }
 
     /// Modify metadata of given node.
     /// If ID doesn't have metadata, empty (default) metadata is inserted.
     pub fn with_node_metadata(&self, id:ast::ID, fun:impl FnOnce(&mut NodeMetadata)) {
-        let     module = self.module();
-        let mut data   = module.pop_node_metadata(id).unwrap_or_default();
+        let mut data = self.module.take_node_metadata(id).unwrap_or(default());
         fun(&mut data);
-        module.set_node_metadata(id, data);
+        self.module.set_node_metadata(id, data);
     }
 }
 
@@ -231,7 +214,7 @@ mod tests {
         where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let fm       = file_manager_client::Handle::new(MockTransport::new());
-            let loc      = controller::module::Location("Main".to_string());
+            let loc      = controller::module::Location::new("Main");
             let parser   = Parser::new_or_panic();
             let module   = controller::module::Handle::new_mock(loc, code.as_ref(), default(), fm, parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
@@ -254,14 +237,8 @@ mod tests {
     #[wasm_bindgen_test]
     fn node_operations() {
         TestWithLocalPoolExecutor::set_up().run_test(async {
-            let transport    = MockTransport::new();
-            let file_manager = file_manager_client::Handle::new(transport);
-            let parser       = Parser::new().unwrap();
-            let location     = module::Location("Test".to_string());
             let code         = "main = Hello World";
-            let idmap        = default();
-            let module       = module::Handle::new_mock
-                (location,code,idmap,file_manager,parser).unwrap();
+            let module       = module::State::from_code_or_panic(code,default(),default());
             let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
             let crumbs       = vec![DefinitionName::new_plain("main")];
             let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();

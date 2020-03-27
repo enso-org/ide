@@ -235,7 +235,6 @@ impl DefinitionProvider for DefinitionInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::api::IsParser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
 

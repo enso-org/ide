@@ -6,13 +6,10 @@
 
 use crate::prelude::*;
 use crate::controller::notification;
-use crate::executor::global::spawn;
 
 use data::text::TextChange;
 use file_manager_client as fmc;
-use flo_stream::MessagePublisher;
 use json_rpc::error::RpcError;
-use utils::channel::process_stream_with_handle;
 use std::pin::Pin;
 
 
@@ -26,7 +23,7 @@ use std::pin::Pin;
 /// Module Controller, the plain text files are handled directly by File Manager Client.
 #[derive(Clone,Debug)]
 enum FileHandle {
-    PlainText {path:Rc<fmc::Path>, file_manager:fmc::Handle},
+    PlainText {path:fmc::Path, file_manager:fmc::Handle},
     Module    {controller:controller::module::Handle },
 }
 
@@ -45,25 +42,23 @@ impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
     pub fn new_for_plain_text(path:fmc::Path, file_manager:fmc::Handle) -> Self {
-        Self::new(FileHandle::PlainText {path,file_manager})
+        Self {
+            file : FileHandle::PlainText {path,file_manager}
+        }
     }
 
     /// Create controller managing Luna module file.
     pub fn new_for_module(controller:controller::module::Handle) -> Self {
-        let text_notifications = controller.subscribe_text_notifications();
-        let handle             = Self::new(FileHandle::Module {controller});
-        let weak               = handle.downgrade();
-        spawn(process_stream_with_handle(text_notifications,weak,|notification,this| {
-            this.with_borrowed(move |data| data.notifications.publish(notification))
-        }));
-        handle
+        Self {
+            file : FileHandle::Module {controller}
+        }
     }
 
     /// Get clone of file path handled by this controller.
     pub fn file_path(&self) -> fmc::Path {
         match &self.file {
-            FileHandle::PlainText{path,..} => path.deref().clone(),
-            FileHandle::Module{controller} => controller.location().to_path(),
+            FileHandle::PlainText{path,..} => path.clone_ref(),
+            FileHandle::Module{controller} => controller.location.to_path(),
         }
     }
 
@@ -71,18 +66,18 @@ impl Handle {
     pub async fn read_content(&self) -> Result<String,RpcError> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => file_manager.read(path.deref().clone()).await,
+            PlainText {path,file_manager} => file_manager.read(path.clone_ref()).await,
             Module    {controller}        => Ok(controller.code())
         }
     }
 
     /// Store the given content to file.
-    pub fn store_content(&mut self, content:String) -> impl Future<Output=FallibleResult<()>> {
+    pub fn store_content(&self, content:String) -> impl Future<Output=FallibleResult<()>> {
         let file_handle = self.file.clone_ref();
         async move {
             match file_handle {
-                FileHandle::PlainText {path,mut file_manager} => {
-                    file_manager.write(path.deref().clone(),content).await?
+                FileHandle::PlainText {path,file_manager} => {
+                    file_manager.write(path.clone_ref(),content).await?
                 },
                 FileHandle::Module {controller} => {
                     controller.check_code_sync(content)?;
@@ -99,7 +94,7 @@ impl Handle {
     /// of file. It will e.g. update the Module Controller state and notify other views about
     /// update in case of module files.
     pub fn apply_text_change(&self, change:&TextChange) -> FallibleResult<()> {
-        if let FileHandle::Module {controller} =  self.file_handle() {
+        if let FileHandle::Module {controller} = &self.file {
             controller.apply_code_change(change)
         } else {
             Ok(())
@@ -109,10 +104,10 @@ impl Handle {
     /// Get a stream of text changes notifications.
     pub fn subscribe(&self) -> Pin<Box<dyn Stream<Item=notification::Text>>> {
         match &self.file {
-            FileHandle::PlainText{..}       => Pin::boxed(futures::stream::empty()),
+            FileHandle::PlainText{..}       => StreamExt::boxed(futures::stream::empty()),
             FileHandle::Module {controller} => {
                 let subscriber = controller.module.subscribe_text_notifications();
-                Pin::boxed(subscriber)
+                StreamExt::boxed(subscriber)
             }
         }
     }
@@ -127,13 +122,11 @@ impl CloneRef for Handle {}
 impl Handle {
     /// Get FileManagerClient handle used by this controller.
     pub fn file_manager(&self) -> fmc::Handle {
-        self.with_borrowed(|state| {
-            match &state.file {
-                FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
-                FileHandle::Module {..} =>
-                    panic!("Cannot get FileManagerHandle from module file"),
-            }
-        })
+        match &self.file {
+            FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
+            FileHandle::Module {..} =>
+                panic!("Cannot get FileManagerHandle from module file"),
+        }
     }
 }
 
@@ -155,7 +148,7 @@ mod test {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_test(async move {
             let fm         = file_manager_client::Handle::new(MockTransport::new());
-            let loc        = controller::module::Location("test".to_string());
+            let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();
             let module_res = controller::module::Handle::new_mock(loc, "2+2", default(), fm, parser);
             let module     = module_res.unwrap();

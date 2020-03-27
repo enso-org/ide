@@ -22,7 +22,6 @@ use double_representation as dr;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
-use parser::api::IsParser;
 use parser::Parser;
 
 use serde::Serialize;
@@ -80,6 +79,8 @@ pub struct Position {
     pub vector:Vector2<f32>
 }
 
+
+
 // ====================
 // === Module State ===
 // ====================
@@ -105,7 +106,7 @@ impl State {
 
     pub fn new(ast:Ast, metadata:Metadata) -> Self {
         State {
-            source              : Rc::new(RefCell::new(SourceFile{ast,metadata})),
+            source              : RefCell::new(SourceFile{ast,metadata}),
             text_notifications  : default(),
             graph_notifications : default(),
         }
@@ -117,7 +118,7 @@ impl State {
     }
 
     pub fn source_as_string(&self) -> FallibleResult<String> {
-        String::try_from(&self.source.borrow()).into()
+        Ok(String::try_from(&*self.source.borrow())?)
     }
 
     pub fn ast(&self) -> Ast {
@@ -132,7 +133,7 @@ impl State {
 
     /// Obtains definition information for given graph id.
     pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
-        let module = ast::known::Module::try_new(self.ast.borrow().clone())?;
+        let module = ast::known::Module::try_new(self.source.borrow().ast.clone())?;
         double_representation::graph::traverse_for_definition(module,id)
     }
 
@@ -167,6 +168,13 @@ impl State {
         let graph_notify = self.graph_notifications.borrow_mut().publish(graphs_change);
         spawn(async move { futures::join!(code_notify,graph_notify); });
     }
+
+    #[cfg(test)]
+    pub fn from_code_or_panic<S:ToString>(code:S,id_map:ast::IdMap,metadata:Metadata) -> Rc<Self> {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse(code.to_string(),id_map).unwrap();
+        Rc::new(Self::new(ast,metadata))
+    }
 }
 
 // =======================
@@ -176,9 +184,13 @@ impl State {
 /// Structure uniquely identifying module location in the project.
 /// Mappable to filesystem path.
 #[derive(Clone,Debug,Display,Eq,Hash,PartialEq)]
-pub struct Location(pub String);
+pub struct Location(pub Rc<String>);
 
 impl Location {
+    pub fn new<S:ToString>(string:S) -> Self {
+        Location(Rc::new(string.to_string()))
+    }
+
     /// Get the module location from filesystem path. Returns None if path does not lead to
     /// module file.
     pub fn from_path(path:&fmc::Path) -> Option<Self> {
@@ -187,7 +199,7 @@ impl Location {
         let suffix = format!(".{}", constants::LANGUAGE_FILE_EXTENSION);
         path_str.ends_with(suffix.as_str()).and_option_from(|| {
             let cut_from = path_str.len() - suffix.len();
-            Some(Location(path_str[..cut_from].to_string()))
+            Some(Self::new(&path_str[..cut_from]))
         })
     }
 
@@ -219,7 +231,7 @@ pub struct Handle {
     /// The File Manager Client handle.
     pub file_manager: fmc::Handle,
     /// The Parser handle.
-    pub parser: Parser,
+    parser: Parser,
     /// The logger handle.
     pub logger: Logger,
 }
@@ -230,9 +242,7 @@ impl Handle {
     /// It may wait for module content, because the module must initialize its state.
     pub fn new(location:Location, module:Rc<State>, file_manager:fmc::Handle, parser:Parser)
     -> Self {
-        let location = Rc::new(location);
         let logger   = Logger::new(format!("Module Controller {}", location));
-
         Handle {location,module,file_manager,parser,logger}
     }
 
@@ -296,21 +306,20 @@ impl Handle {
     /// Reuses already existing controller if possible.
     pub fn get_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
-        controller::graph::Handle::new(self.clone_ref(),id)
+        controller::graph::Handle::new(self.module.clone_ref(),id)
     }
 
     #[cfg(test)]
     pub fn new_mock
-    ( location     : Location
+    ( location       : Location
     , code         : &str
     , id_map       : ast::IdMap
     , file_manager : fmc::Handle
-    , mut parser   : Parser
+    , parser       : Parser
     ) -> FallibleResult<Self> {
-        let location = Rc::new(location);
         let logger   = Logger::new("Mocked Module Controller");
         let ast      = parser.parse(code.to_string(),id_map.clone())?;
-        let module   = State::new(ast,default());
+        let module   = Rc::new(State::new(ast,default()));
         Ok(Handle {location,module,file_manager,parser,logger})
     }
 }
@@ -342,10 +351,10 @@ mod test {
 
     #[test]
     fn get_location_from_path() {
-        let module     = Path(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
-        let not_module = Path("test.txt".to_string());
+        let module     = Path::new(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
+        let not_module = Path::new("test.txt");
 
-        let expected_loc = Location("test".to_string());
+        let expected_loc = Location::new("test");
         assert_eq!(Some(expected_loc),Location::from_path(&module    ));
         assert_eq!(None,              Location::from_path(&not_module));
     }
@@ -356,7 +365,7 @@ mod test {
             let transport    = MockTransport::new();
             let file_manager = file_manager_client::Handle::new(transport);
             let parser       = Parser::new().unwrap();
-            let location     = Location("Test".to_string());
+            let location     = Location::new("Test");
 
             let uuid1        = Uuid::new_v4();
             let uuid2        = Uuid::new_v4();

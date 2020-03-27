@@ -4,79 +4,119 @@
 //! files and modules. Expected to live as long as the project remains open in the IDE.
 
 use crate::prelude::*;
-use crate::controller::notification::Publisher;
 
 use file_manager_client as fmc;
 use json_rpc::Transport;
 use parser::Parser;
-use weak_table::weak_value_hash_map::Entry::Occupied;
-use weak_table::weak_value_hash_map::Entry::Vacant;
-
 
 
 // ===============================
 // === Module Controller Cache ===
 // ===============================
 
-#[derive(Debug,Clone)]
-enum StateEntry<Handle,Strong> {
-    Loaded(Handle),
-    Loading(Publisher<Strong>),
-}
 
-type ModuleState          = controller::module::State;
-type ModuleStateEntry     = StateEntry<Rc<ModuleState>  , Rc<ModuleState>>;
-type WeakModuleStateEntry = StateEntry<Weak<ModuleState>, Rc<ModuleState>>;
+mod module_state_registry {
+    use crate::prelude::*;
 
-impl WeakElement for WeakModuleStateEntry {
-    type Strong = ModuleStateEntry;
+    use crate::controller::notification::Publisher;
+    use crate::controller::module::State;
+    use crate::controller::module::Location;
 
-    fn new(view: &Self::Strong) -> Self {
-        match view {
-            StateEntry::Loaded(handle)     => StateEntry::Loaded(Rc::downgrade(handle)),
-            StateEntry::Loading(publisher) => StateEntry::Loading(publisher.republish()),
+    use flo_stream::MessagePublisher;
+
+
+
+    #[derive(Clone,Debug,Fail)]
+    #[fail(display="Error while loading module")]
+    struct LoadingError {}
+
+    type LoadedNotification = Result<(), LoadingError>;
+
+    #[derive(Debug,Clone)]
+    enum Entry<Handle> {
+        Loaded(Handle),
+        Loading(Publisher<LoadedNotification>),
+    }
+
+    type StrongEntry = Entry<Rc<State>>;
+    type WeakEntry   = Entry<Weak<State>>;
+
+    impl WeakElement for WeakEntry {
+        type Strong = StrongEntry;
+
+        fn new(view: &Self::Strong) -> Self {
+            match view {
+                Entry::Loaded(handle)     => Entry::Loaded(Rc::downgrade(handle)),
+                Entry::Loading(publisher) => Entry::Loading(publisher.clone()),
+            }
         }
-    }
 
-    fn view(&self) -> Option<Self::Strong> {
-        match self {
-            StateEntry::Loaded(handle)     => handle.upgrade().map(|h| StateEntry::Loaded(h)),
-            StateEntry::Loading(publisher) => Some(StateEntry::Loading(publisher.republish()))
-        }
-    }
-}
-
-impl<Handle,Strong> Default for StateEntry<Handle,Strong> {
-    fn default() -> Self {
-        Self::Loading(default())
-    }
-}
-
-impl CloneRef<Handle,Strong> for StateEntry<Handle,Strong> {}
-
-#[derive(Debug,Default)]
-struct ModuleRegistry {
-    cache : RefCell<WeakValueHashMap<ModuleLocation,WeakModuleStateEntry>>
-}
-
-impl ModuleRegistry {
-
-    pub fn get(&self, loc:&ModuleLocation) -> Option<ModuleStateEntry> {
-        self.cache.borrow_mut().get(loc).map(|rc| rc.clone_ref())
-    }
-
-    /// Returns a module controller which have module opened from file.
-    pub fn get_or_mark_as_loading(&self, loc:ModuleLocation) -> ModuleStateEntry {
-        match self.cache.borrow_mut().entry(loc) {
-            Occupied(entry) => entry.get().clone(),
-            Vacant(entry) => {
-                let loading_entry = default();
-                entry.insert(loading_entry.clone_ref());
-                loading_entry
+        fn view(&self) -> Option<Self::Strong> {
+            match self {
+                Entry::Loaded(handle)     => handle.upgrade().map(|h| Entry::Loaded(h)),
+                Entry::Loading(publisher) => Some(Entry::Loading(publisher.clone()))
             }
         }
     }
+
+    impl<Handle> Default for Entry<Handle> {
+        fn default() -> Self {
+            Self::Loading(default())
+        }
+    }
+
+    impl<Handle:CloneRef> CloneRef for Entry<Handle> {}
+
+    #[derive(Debug,Default)]
+    pub struct ModuleRegistry {
+        cache : RefCell<WeakValueHashMap<Location, WeakEntry>>
+    }
+
+    impl ModuleRegistry {
+
+        pub async fn get_or_load<F>(&self, location:Location, loader:F) -> FallibleResult<Rc<State>>
+        where F : Future<Output=FallibleResult<Rc<State>>> {
+            match self.get(&location).await? {
+                Some(state) => Ok(state),
+                None        => self.load(location,loader).await
+            }
+        }
+
+        async fn get(&self, location:&Location) -> Result<Option<Rc<State>>,LoadingError> {
+            loop {
+                let entry = self.cache.borrow_mut().get(&location);
+                match entry {
+                    Some(Entry::Loaded(state)) => { break Ok(Some(state)); },
+                    Some(Entry::Loading(mut publisher)) => {
+                        // Wait for loading to be finished.
+                        publisher.subscribe().next().await.unwrap()?;
+                    },
+                    None => { break Ok(None); }
+                }
+            }
+
+        }
+
+        async fn load<F>(&self, loc:Location, loader:F) -> FallibleResult<Rc<State>>
+        where F : Future<Output=FallibleResult<Rc<State>>> {
+            let mut publisher = Publisher::default();
+            self.cache.borrow_mut().insert(loc.clone(),Entry::Loading(publisher.clone()));
+
+            let result = loader.await;
+            match &result {
+                Ok(state) => { self.cache.borrow_mut().insert(loc,Entry::Loaded(state.clone_ref())); },
+                Err(_)    => { self.cache.borrow_mut().remove(&loc);                                 },
+            }
+            let message = match &result {
+                Ok(_)  => Ok(()),
+                Err(_) => Err(LoadingError{}),
+            };
+            publisher.publish(message);
+            result
+        }
+    }
 }
+
 
 
 // ==========================
@@ -92,7 +132,7 @@ pub struct Handle {
     /// File Manager Client.
     pub file_manager: fmc::Handle,
     /// Cache of module controllers.
-    pub module_cache: Rc<ModuleRegistry>,
+    pub module_cache: Rc<module_state_registry::ModuleRegistry>,
     /// Parser handle.
     pub parser: Parser,
 }
@@ -135,16 +175,26 @@ impl Handle {
     }
 
     /// Returns a module controller which have module opened from file.
-    pub async fn module_controller(&self, location:ModuleLocation)
-                               -> FallibleResult<controller::module::Handle> {
-        let (cached,module) = self.module_cache.get_or_default(location.clone());
-        let fm              = self.file_manager.clone_ref();
-        let parser          = self.parser.clone_ref();
-        let controller      = controller::module::Handle::new(location,module,fm,parser);
-        if !cached {
-            controller.load_file().await?
-        }
-        Ok(controller)
+    pub async fn module_controller
+    (&self, location:ModuleLocation) -> FallibleResult<controller::module::Handle> {
+        let state_loader = self.load_module(location.clone());
+        let state        = self.module_cache.get_or_load(location.clone(),state_loader).await?;
+        Ok(self.module_controller_with_state(location,state))
+    }
+
+    fn module_controller_with_state
+    (&self, location:ModuleLocation, state:Rc<controller::module::State>)
+    -> controller::module::Handle {
+        let fm     = self.file_manager.clone_ref();
+        let parser = self.parser.clone_ref();
+        controller::module::Handle::new(location,state,fm,parser)
+    }
+
+    async fn load_module
+    (&self, location:ModuleLocation) -> FallibleResult<Rc<controller::module::State>> {
+        let state  = Rc::<controller::module::State>::default();
+        let module = self.module_controller_with_state(location,state.clone_ref());
+        module.load_file().await.map(move |()| state)
     }
 }
 
@@ -173,8 +223,8 @@ mod test {
         let mut test  = TestWithMockedTransport::set_up(&transport);
         test.run_test(async move {
             let project_ctrl = controller::project::Handle::new_running(transport);
-            let location     = controller::module::Location("TestLocation".to_string());
-            let another_loc  = controller::module::Location("TestLocation2".to_string());
+            let location     = controller::module::Location::new("TestLocation");
+            let another_loc  = controller::module::Location::new("TestLocation2");
 
             let module_ctrl         = project_ctrl.module_controller(location.clone()).await.unwrap();
             let same_module_ctrl    = project_ctrl.module_controller(location.clone()).await.unwrap();
@@ -194,17 +244,16 @@ mod test {
         let transport       = MockTransport::new();
         TestWithLocalPoolExecutor::set_up().run_test(async move {
             let project_ctrl        = controller::project::Handle::new_running(transport);
-            let path                = Path("TestPath".to_string());
-            let another_path        = Path("TestPath2".to_string());
+            let path                = Path::new("TestPath");
+            let another_path        = Path::new("TestPath2");
 
-            let text_ctrl        = project_ctrl.text_controller(path.clone()).await.unwrap();
-            let same_text_ctrl   = project_ctrl.text_controller(path.clone()).await.unwrap();
-            let another_txt_ctrl = project_ctrl.text_controller(another_path.clone()).await.unwrap();
+            let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
+            let another_ctrl = project_ctrl.text_controller(another_path.clone()).await.unwrap();
 
-            assert!(project_ctrl.file_manager.identity_equals(&text_ctrl       .file_manager()));
-            assert!(project_ctrl.file_manager.identity_equals(&another_txt_ctrl.file_manager()));
-            assert_eq!(path        , text_ctrl       .file_path()  );
-            assert_eq!(another_path, another_txt_ctrl.file_path()  );
+            assert!(project_ctrl.file_manager.identity_equals(&text_ctrl   .file_manager()));
+            assert!(project_ctrl.file_manager.identity_equals(&another_ctrl.file_manager()));
+            assert_eq!(path        , text_ctrl   .file_path()  );
+            assert_eq!(another_path, another_ctrl.file_path()  );
         });
     }
 
@@ -214,8 +263,8 @@ mod test {
         let mut test        = TestWithMockedTransport::set_up(&transport);
         test.run_test(async move {
             let project_ctrl = controller::project::Handle::new_running(transport);
-            let path         = controller::module::Location("test".to_string()).to_path();
-            let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
+            let path         = controller::module::Location::new("test").to_path();
+            let text_ctrl    = project_ctrl.text_controller(path.clone_ref()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });

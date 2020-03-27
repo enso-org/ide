@@ -40,14 +40,16 @@ pub type Event = json_rpc::handler::Event<Notification>;
 #[derive(Clone,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
 #[derive(Serialize, Deserialize)]
 #[derive(Shrinkwrap)]
-pub struct Path(pub String);
+pub struct Path(pub Rc<String>);
 
 impl Path {
     /// Wraps a `String`-like entity into a new `Path`.
     pub fn new<S>(s:S) -> Path where S:Into<String> {
-        Path(s.into())
+        Path(Rc::new(s.into()))
     }
 }
+
+impl CloneRef for Path {}
 
 
 
