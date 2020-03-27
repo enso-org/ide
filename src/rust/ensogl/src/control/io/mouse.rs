@@ -147,11 +147,10 @@ pub struct MouseFrpCallbackHandles {
 }
 
 /// Bind FRP graph to MouseManager.
-pub fn bind_frp_to_mouse(scene_shape:&Shape, frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
+pub fn bind_frp_to_mouse(frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
-    let on_move = enclose!((frp.position.event => frp, scene_shape) move |e:&event::OnMove| {
-        let height = scene_shape.current().height() as i32;
-        frp.emit(Position::new(e.client_x(),height - e.client_y()));
+    let on_move = enclose!((frp.position.event => frp) move |e:&event::OnMove| {
+        frp.emit(Position::new(e.client_x(),e.client_y()));
     });
     let on_down  = enclose!((frp.on_down.event  => frp) move |_:&event::OnDown | frp.emit(()));
     let on_up    = enclose!((frp.on_up.event    => frp) move |_:&event::OnUp   | frp.emit(()));
