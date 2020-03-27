@@ -1068,6 +1068,23 @@ impl Ast {
         Ast::from(opr)
     }
 
+    pub fn section_left<Arg:Into<Ast>, Opr:Into<Ast>>(arg:Arg, opr:Opr) -> Ast {
+        let off          = 1;
+        let section_left = SectionLeft { arg:arg.into(), off, opr:opr.into() };
+        Ast::from(section_left)
+    }
+
+    pub fn section_right<Arg:Into<Ast>, Opr:Into<Ast>>(opr:Opr, arg:Arg) -> Ast {
+        let off           = 1;
+        let section_right = SectionRight { arg:arg.into(), off, opr:opr.into() };
+        Ast::from(section_right)
+    }
+
+    pub fn section_sides<Opr:Into<Ast>>(opr:Opr) -> Ast {
+        let section_sides = SectionSides { opr:opr.into() };
+        Ast::from(section_sides)
+    }
+
     pub fn prefix<Func:Into<Ast>, Arg:Into<Ast>>(func:Func, arg:Arg) -> Ast {
         let off = 1;
         let opr = Prefix { func:func.into(), off, arg:arg.into() };
