@@ -60,7 +60,11 @@ pub enum Crumb {
     Prefix(PrefixCrumb),
     SectionLeft(SectionLeftCrumb),
     SectionRight(SectionRightCrumb),
-    SectionSides(SectionSidesCrumb)
+    SectionSides(SectionSidesCrumb),
+    Import(ImportCrumb),
+    Mixfix(MixfixCrumb),
+    Group(GroupCrumb),
+    Def(DefCrumb)
 }
 
 
@@ -81,6 +85,41 @@ pub enum BlockCrumb {
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,PartialEq,Hash)]
 pub struct ModuleCrumb {pub line_index:usize}
+
+
+// === Import ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub struct ImportCrumb {pub path_index:usize}
+
+
+// === Mixfix ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub enum MixfixCrumb {
+    Name {index:usize},
+    Args {index:usize}
+}
+
+
+// === Group ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub struct GroupCrumb;
+
+
+// === Def ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub enum DefCrumb {
+    Name,
+    Args {index:usize},
+    Body
+}
 
 
 // === Infix ===
@@ -340,6 +379,27 @@ impl Crumbable for crate::Module<Ast> {
     }
 }
 
+impl Crumbable for crate::Import<Ast> {
+    type Crumb = ImportCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        Ok(self.path.get(crumb.index).ok_or(LineIndexOutOfBounds)?)
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut module = self.clone();
+        let line = module.lines.get_mut(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
+        line.elem.replace(new_ast);
+        Ok(module)
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        let indices = non_empty_line_indices(self.lines.iter());
+        let crumbs  = indices.map(|line_index| ModuleCrumb {line_index});
+        Box::new(crumbs)
+    }
+}
+
 impl Crumbable for crate::Block<Ast> {
     type Crumb = BlockCrumb;
 
@@ -386,6 +446,10 @@ impl Crumbable for Shape<Ast> {
             (Shape::SectionLeft(shape), Crumb::SectionLeft(crumb))   => shape.get(crumb),
             (Shape::SectionRight(shape), Crumb::SectionRight(crumb)) => shape.get(crumb),
             (Shape::SectionSides(shape), Crumb::SectionSides(crumb)) => shape.get(crumb),
+            (Shape::Import(shape), Crumb::Import(crumb))             => shape.get(crumb),
+            (Shape::Mixfix(shape), Crumb::Mixfix(crumb))             => shape.get(crumb),
+            (Shape::Group(shape), Crumb::Group(crumb))               => shape.get(crumb),
+            (Shape::Def(shape), Crumb::Def(crumb))                   => shape.get(crumb),
             _                                           => Err(MismatchedCrumbType.into()),
         }
     }
@@ -396,6 +460,10 @@ impl Crumbable for Shape<Ast> {
             (Shape::Module(shape), Crumb::Module(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
             (Shape::Infix(shape),  Crumb::Infix(crumb))  => Ok(shape.set(crumb,new_ast)?.into()),
             (Shape::Prefix(shape), Crumb::Prefix(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Import(shape), Crumb::Import(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Mixfix(shape), Crumb::Mixfix(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Group(shape), Crumb::Group(crumb))   => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::Def(shape), Crumb::Def(crumb))       => Ok(shape.set(crumb,new_ast)?.into()),
             (Shape::SectionLeft(shape), Crumb::SectionLeft(crumb)) => {
                 Ok(shape.set(crumb,new_ast)?.into())
             },
@@ -416,6 +484,10 @@ impl Crumbable for Shape<Ast> {
             Shape::Infix(shape)       => Box::new(shape.iter_subcrumbs().map(Crumb::Infix)),
             Shape::Prefix(shape)      => Box::new(shape.iter_subcrumbs().map(Crumb::Prefix)),
             Shape::SectionLeft(shape) => Box::new(shape.iter_subcrumbs().map(Crumb::SectionLeft)),
+            Shape::Import(shape)      => Box::new(shape.iter_subcrumbs().map(Crumb::Import)),
+            Shape::Mixfix(shape)      => Box::new(shape.iter_subcrumbs().map(Crumb::Mixfix)),
+            Shape::Group(shape)       => Box::new(shape.iter_subcrumbs().map(Crumb::Group)),
+            Shape::Def(shape)         => Box::new(shape.iter_subcrumbs().map(Crumb::Def)),
             Shape::SectionRight(shape) => {
                 Box::new(shape.iter_subcrumbs().map(Crumb::SectionRight))
             },
