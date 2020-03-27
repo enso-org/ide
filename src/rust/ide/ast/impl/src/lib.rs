@@ -34,7 +34,8 @@ pub mod prelude {
 use crate::prelude::*;
 
 use ast_macros::*;
-use data::text::*;
+use data::text::Index;
+use data::text::Span;
 
 use serde::de::Deserializer;
 use serde::de::Visitor;
@@ -807,7 +808,7 @@ impl TokenConsumer for IdMapBuilder {
                 let begin = self.offset;
                 val.shape().feed_to(self);
                 if let Some(id) = val.id {
-                    let span = Span::from((begin, self.offset));
+                    let span = Span::from_indices(Index::new(begin), Index::new(self.offset));
                     self.id_map.insert(span, id);
                 }
             }
@@ -1220,6 +1221,8 @@ impl<T> From<EscapeUnicode32> for SegmentFmt<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use data::text::Size;
     use serde::de::DeserializeOwned;
 
     use utils::test::ExpectTuple;
@@ -1269,9 +1272,9 @@ mod tests {
 
     #[test]
     fn ast_id_map() {
-        let span = |ix,length| Span::from((ix,length));
+        let span = |ix,length| Span::new(Index::new(ix),Size::new(length));
         let uid  = default();
-        let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
+        let ids  = vec![(span(0,2),uid), (span(3,2),uid), (span(0,5),uid)];
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
         let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
         let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
