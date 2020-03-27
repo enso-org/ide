@@ -189,8 +189,7 @@ pub struct Node {
     // FIXME: Refcells should be as deep as possible. Each callback manager should have internal mut
     // pattern. This way you can register callbacks while running other callbacks.
     callbacks      : Rc<RefCell<OnEditCallbacks>>,
-    simulator : DynInertiaSimulator<f32>,
-    pub selection : enso_frp::Dynamic<()>,
+    pub mouse_down : enso_frp::Dynamic<()>,
 }
 
 impl CloneRef for Node {}
@@ -204,8 +203,8 @@ impl Node {
 
 
         frp! {
-            selection           = source::<()>            ();
-            selected            = selection.toggle        ();
+            mouse_down          = source::<()>            ();
+            selected            = mouse_down.toggle        ();
             selection_animation = source::<f32>           ();
 //            debug = selection.map(|t| {println!("SS: {:?}",t);})
 
@@ -230,7 +229,7 @@ impl Node {
         let display_object2 = display_object.clone_ref();
         let sprite2 = sprite.clone_ref();
 
-        let this = Self {logger,sprite,display_object,data,callbacks,simulator,selection};
+        let this = Self {logger,sprite,display_object,data,callbacks,mouse_down};
 
         let sprite = sprite2;
 
@@ -262,7 +261,7 @@ impl Node {
 
 impl MouseTarget for Node {
     fn mouse_down(&self) -> &frp::Dynamic<()> {
-        &self.selection
+        &self.mouse_down
     }
 }
 
