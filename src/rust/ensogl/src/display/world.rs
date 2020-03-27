@@ -119,18 +119,18 @@ impl World {
         // -----------------------------------------------------------------------------------------
         // FIXME[WD]: Hacky way of switching display_mode. To be fixed and refactored out.
         // FIXME[AO]: Commented out for Sylwia request. Should we keep this debug mode anyway?
-//        let stats_monitor = this.stats_monitor.clone_ref();
-//        let display_mode  = this.display_mode.clone_ref();
-//        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-//            let val = val.unchecked_into::<KeyboardEvent>();
-//            let key = val.key();
-//            if      key == "`" { stats_monitor.toggle() }
-//            else if key == "0" { display_mode.set(0) }
-//            else if key == "1" { display_mode.set(1) }
-//        }));
-//        web::document().add_event_listener_with_callback
-//        ("keydown",c.as_ref().unchecked_ref()).unwrap();
-//        c.forget();
+        let stats_monitor = this.stats_monitor.clone_ref();
+        let display_mode  = this.display_mode.clone_ref();
+        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
+            let val = val.unchecked_into::<KeyboardEvent>();
+            let key = val.key();
+            if      key == "`" { stats_monitor.toggle() }
+            else if key == "0" { display_mode.set(0) }
+            else if key == "1" { display_mode.set(1) }
+        }));
+        web::document().add_event_listener_with_callback
+        ("keydown",c.as_ref().unchecked_ref()).unwrap();
+        c.forget();
         // -----------------------------------------------------------------------------------------
 
         this
