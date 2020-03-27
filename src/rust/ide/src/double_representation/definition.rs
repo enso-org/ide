@@ -256,7 +256,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn list_definition_test() {
-        let mut parser = parser::Parser::new_or_panic();
+        let parser = parser::Parser::new_or_panic();
 
         // TODO [mwu]
         //  Due to a parser bug, extension methods defining operators cannot be currently

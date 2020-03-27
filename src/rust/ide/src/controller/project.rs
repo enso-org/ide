@@ -19,7 +19,8 @@ mod module_state_registry {
     use crate::prelude::*;
 
     use crate::controller::notification::Publisher;
-    use crate::controller::module::State;
+    use crate::controller::module::state;
+    use crate::controller::module::state::State;
     use crate::controller::module::Location;
 
     use flo_stream::MessagePublisher;
@@ -38,7 +39,7 @@ mod module_state_registry {
         Loading(Publisher<LoadedNotification>),
     }
 
-    type StrongEntry = Entry<Rc<State>>;
+    type StrongEntry = Entry<state::Handle>;
     type WeakEntry   = Entry<Weak<State>>;
 
     impl WeakElement for WeakEntry {
@@ -74,7 +75,7 @@ mod module_state_registry {
 
     impl ModuleRegistry {
 
-        pub async fn get_or_load<F>(&self, location:Location, loader:F) -> FallibleResult<Rc<State>>
+        pub async fn get_or_load<F>(&self, location:Location, loader:F) -> FallibleResult<state::Handle>
         where F : Future<Output=FallibleResult<Rc<State>>> {
             match self.get(&location).await? {
                 Some(state) => Ok(state),
@@ -82,7 +83,7 @@ mod module_state_registry {
             }
         }
 
-        async fn get(&self, location:&Location) -> Result<Option<Rc<State>>,LoadingError> {
+        async fn get(&self, location:&Location) -> Result<Option<state::Handle>,LoadingError> {
             loop {
                 let entry = self.cache.borrow_mut().get(&location);
                 match entry {
@@ -97,8 +98,8 @@ mod module_state_registry {
 
         }
 
-        async fn load<F>(&self, loc:Location, loader:F) -> FallibleResult<Rc<State>>
-        where F : Future<Output=FallibleResult<Rc<State>>> {
+        async fn load<F>(&self, loc:Location, loader:F) -> FallibleResult<state::Handle>
+        where F : Future<Output=FallibleResult<state::Handle>> {
             let mut publisher = Publisher::default();
             self.cache.borrow_mut().insert(loc.clone(),Entry::Loading(publisher.clone()));
 
@@ -183,7 +184,7 @@ impl Handle {
     }
 
     fn module_controller_with_state
-    (&self, location:ModuleLocation, state:Rc<controller::module::State>)
+    (&self, location:ModuleLocation, state:controller::module::state::Handle)
     -> controller::module::Handle {
         let fm     = self.file_manager.clone_ref();
         let parser = self.parser.clone_ref();
@@ -191,8 +192,8 @@ impl Handle {
     }
 
     async fn load_module
-    (&self, location:ModuleLocation) -> FallibleResult<Rc<controller::module::State>> {
-        let state  = Rc::<controller::module::State>::default();
+    (&self, location:ModuleLocation) -> FallibleResult<controller::module::state::Handle> {
+        let state  = controller::module::state::Handle::default();
         let module = self.module_controller_with_state(location,state.clone_ref());
         module.load_file().await.map(move |()| state)
     }

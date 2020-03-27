@@ -7,8 +7,8 @@
 use crate::prelude::*;
 
 pub use crate::double_representation::graph::Id;
-use crate::controller::module::NodeMetadata;
-
+use crate::controller::module::state::NodeMetadata;
+use crate::controller::module::state::Handle as ModuleStateHandle;
 
 
 // ==============
@@ -77,7 +77,7 @@ pub enum LocationHint {
 #[derive(Clone,Debug)]
 pub struct Handle {
     /// State of the module which this graph belongs to.
-    module : Rc<controller::module::State>,
+    module : ModuleStateHandle,
     id     : Id,
 }
 
@@ -90,7 +90,7 @@ impl Handle {
     /// Creates a new controller. Does not check if id is valid.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new_unchecked(module:Rc<controller::module::State>, id:Id) -> Handle {
+    pub fn new_unchecked(module:ModuleStateHandle, id:Id) -> Handle {
         Handle {module,id}
     }
 
@@ -98,7 +98,7 @@ impl Handle {
     /// module. Fails if ID cannot be resolved.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new(module:Rc<controller::module::State>, id:Id) -> FallibleResult<Handle> {
+    pub fn new(module:ModuleStateHandle, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,id);
         // Get and discard definition info, we are just making sure it can be obtained.
         let _ = ret.graph_definition_info()?;
@@ -238,8 +238,8 @@ mod tests {
     fn node_operations() {
         TestWithLocalPoolExecutor::set_up().run_test(async {
             let code         = "main = Hello World";
-            let module       = module::State::from_code_or_panic(code,default(),default());
-            let pos          = module::Position {vector:Vector2::new(0.0,0.0)};
+            let module       = module::state::State::from_code_or_panic(code,default(),default());
+            let pos          = module::state::Position {vector:Vector2::new(0.0,0.0)};
             let crumbs       = vec![DefinitionName::new_plain("main")];
             let graph        = graph::Handle::new(module, Id {crumbs}).unwrap();
 
