@@ -17,19 +17,16 @@ use ast;
 use ast::Ast;
 use ast::HasRepr;
 use ast::HasIdMap;
-use ast::known;
 use data::text::*;
 use double_representation as dr;
 use file_manager_client as fmc;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
-use json_rpc::error::RpcError;
 use parser::api::IsParser;
 use parser::Parser;
 
 use serde::Serialize;
 use serde::Deserialize;
-use shapely::shared;
 
 
 
@@ -83,8 +80,94 @@ pub struct Position {
     pub vector:Vector2<f32>
 }
 
+// ====================
+// === Module State ===
+// ====================
 
+#[derive(Debug)]
+pub struct State {
+    /// Reference to current state of module
+    source : RefCell<SourceFile<Metadata>>,
+    /// Publisher of "text changed" notifications
+    text_notifications: RefCell<notification::Publisher<notification::Text>>,
+    /// Publisher of "graph changed" notifications
+    graph_notifications: RefCell<notification::Publisher<notification::Graphs>>,
+}
 
+impl Default for State {
+    fn default() -> Self {
+        let ast = Ast::new(ast::Module{lines:default()},None);
+        Self::new(ast,default())
+    }
+}
+
+impl State {
+
+    pub fn new(ast:Ast, metadata:Metadata) -> Self {
+        State {
+            source              : Rc::new(RefCell::new(SourceFile{ast,metadata})),
+            text_notifications  : default(),
+            graph_notifications : default(),
+        }
+    }
+
+    pub fn update_whole_source(&self, sources:SourceFile<Metadata>) {
+        *self.source.borrow_mut() = sources;
+        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+    }
+
+    pub fn source_as_string(&self) -> FallibleResult<String> {
+        String::try_from(&self.source.borrow()).into()
+    }
+
+    pub fn ast(&self) -> Ast {
+        self.source.borrow().ast.clone_ref()
+    }
+
+    /// Update current ast in module controller and emit notification about overall invalidation.
+    pub fn update_ast(&self, ast:Ast) {
+        self.source.borrow_mut().ast  = ast;
+        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+    }
+
+    /// Obtains definition information for given graph id.
+    pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
+        let module = ast::known::Module::try_new(self.ast.borrow().clone())?;
+        double_representation::graph::traverse_for_definition(module,id)
+    }
+
+    /// Returns metadata for given node, if present.
+    pub fn node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+        let data = self.source.borrow().metadata.ide.node.get(&id).cloned();
+        data.ok_or_else(|| NodeMetadataNotFound(id).into())
+    }
+
+    /// Sets metadata for given node.
+    pub fn set_node_metadata(&self, id:ast::ID, data:NodeMetadata) {
+        self.source.borrow_mut().metadata.ide.node.insert(id,data);
+        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+    }
+
+    /// Removes metadata of given node and returns them.
+    pub fn take_node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+        let data = self.source.borrow_mut().metadata.ide.node.remove(&id);
+        data.ok_or_else(|| NodeMetadataNotFound(id).into())
+    }
+
+    pub fn subscribe_text_notifications(&self) -> Subscriber<notification::Text> {
+        self.text_notifications.borrow_mut().subscribe()
+    }
+
+    pub fn subscribe_graph_notifications(&self) -> Subscriber<notification::Graphs> {
+        self.graph_notifications.borrow_mut().subscribe()
+    }
+
+    fn notify(&self, text_change:notification::Text, graphs_change:notification::Graphs) {
+        let code_notify  = self.text_notifications.borrow_mut().publish(text_change);
+        let graph_notify = self.graph_notifications.borrow_mut().publish(graphs_change);
+        spawn(async move { futures::join!(code_notify,graph_notify); });
+    }
+}
 
 // =======================
 // === Module Location ===
@@ -124,157 +207,96 @@ impl Location {
 // === Module Controller ===
 // =========================
 
-shared! { Handle
-    /// State data of the module controller.
-    #[derive(Debug)]
-    pub struct Controller {
-        /// This module's location.
-        location: Location,
-        /// The current source code of file containing ast and metadata.
-        module: SourceFile<Metadata>,
-        /// The File Manager Client handle.
-        file_manager: fmc::Handle,
-        /// The Parser handle.
-        parser: Parser,
-        /// Publisher of "text changed" notifications
-        text_notifications  : notification::Publisher<notification::Text>,
-        /// Publisher of "graph changed" notifications
-        graph_notifications : notification::Publisher<notification::Graphs>,
-        /// The logger handle.
-        logger: Logger,
-    }
-
-    impl {
-        /// Obtain clone of location.
-        pub fn location(&self) -> Location {
-            self.location.clone()
-        }
-
-        /// Updates AST after code change.
-        pub fn apply_code_change(&mut self,change:&TextChange) -> FallibleResult<()> {
-            let mut code         = self.code();
-            let mut id_map       = self.module.ast.id_map();
-            let replaced_size    = change.replaced.end - change.replaced.start;
-            let replaced_span    = Span::new(change.replaced.start,replaced_size);
-            let replaced_indices = change.replaced.start.value..change.replaced.end.value;
-
-            code.replace_range(replaced_indices,&change.inserted);
-            apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
-            let ast = self.parser.parse(code, id_map)?;
-            self.update_ast(ast);
-            self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast));
-
-            Ok(())
-        }
-
-        /// Read module code.
-        pub fn code(&self) -> String {
-            self.module.ast.repr()
-        }
-
-        /// Obtains definition information for given graph id.
-        pub fn find_definition(&self,id:&dr::graph::Id) -> FallibleResult<DefinitionInfo> {
-            let module = known::Module::try_new(self.module.ast.clone())?;
-            double_representation::graph::traverse_for_definition(module,id)
-        }
-
-        /// Check if current module state is synchronized with given code. If it's not, log error,
-        /// and update module state to match the `code` passed as argument.
-        pub fn check_code_sync(&mut self, code:String) -> FallibleResult<()> {
-            let my_code = self.code();
-            if code != my_code {
-                self.logger.error(|| format!("The module controller ast was not synchronized with \
-                    text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
-                self.module.ast = self.parser.parse(code,default())?;
-            }
-            Ok(())
-        }
-
-        /// Get subscriber receiving notifications about changes in module's text representation.
-        pub fn subscribe_text_notifications(&mut self) -> Subscriber<notification::Text> {
-            self.text_notifications.subscribe()
-        }
-
-        /// Get subscriber receiving notifications about changes in module's graph representation.
-        pub fn subscribe_graph_notifications(&mut self) -> Subscriber<notification::Graphs> {
-            self.graph_notifications.subscribe()
-        }
-
-        /// Returns metadata for given node, if present.
-        pub fn node_metadata(&mut self, id:ast::ID) -> FallibleResult<NodeMetadata> {
-            let data = self.module.metadata.ide.node.get(&id).cloned();
-            data.ok_or_else(|| NodeMetadataNotFound(id).into())
-        }
-
-        /// Sets metadata for given node.
-        pub fn set_node_metadata(&mut self, id:ast::ID, data:NodeMetadata) {
-            self.module.metadata.ide.node.insert(id,data);
-        }
-
-        /// Removes metadata of given node and returns them.
-        pub fn pop_node_metadata(&mut self, id:ast::ID) -> FallibleResult<NodeMetadata> {
-            let data = self.module.metadata.ide.node.remove(&id);
-            data.ok_or_else(|| NodeMetadataNotFound(id).into())
-        }
-    }
+/// A Handle for Module Controller
+///
+/// This struct contains all information and handles to do all module controller operations.
+#[derive(Clone,Debug)]
+pub struct Handle {
+    /// This module's location.
+    pub location: Location,
+    /// The current state of module.
+    pub module: Rc<State>,
+    /// The File Manager Client handle.
+    pub file_manager: fmc::Handle,
+    /// The Parser handle.
+    pub parser: Parser,
+    /// The logger handle.
+    pub logger: Logger,
 }
 
 impl Handle {
     /// Create a module controller for given location.
     ///
     /// It may wait for module content, because the module must initialize its state.
-    pub async fn new(location:Location, file_manager:fmc::Handle, parser:Parser)
-    -> FallibleResult<Self> {
-        let logger              = Logger::new(format!("Module Controller {}", location));
-        let ast                 = Ast::new(ast::Module{lines:default()},None);
-        let module              = SourceFile {ast, metadata:default()};
-        let text_notifications  = default();
-        let graph_notifications = default();
+    pub fn new(location:Location, module:Rc<State>, file_manager:fmc::Handle, parser:Parser)
+    -> Self {
+        let location = Rc::new(location);
+        let logger   = Logger::new(format!("Module Controller {}", location));
 
-
-        let data = Controller {location,module,file_manager,parser,logger,
-            text_notifications,graph_notifications};
-        let handle = Handle::new_from_data(data);
-        handle.load_file().await?;
-        Ok(handle)
+        Handle {location,module,file_manager,parser,logger}
     }
 
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
-        let (logger,path,mut fm,mut parser) = self.with_borrowed(|data| {
-            ( data.logger.clone()
-            , data.location.to_path()
-            , data.file_manager.clone_ref()
-            , data.parser.clone_ref()
-            )
-        });
-        logger.info(|| "Loading module file");
-        let content = fm.read(path).await?;
-        logger.info(|| "Parsing code");
-        let SourceFile{ast,metadata} = parser.parse_with_metadata(content)?;
-        logger.info(|| "Code parsed");
-        logger.trace(|| format!("The parsed ast is {:?}", ast));
-        self.with_borrowed(|data| data.module.metadata = metadata);
-        self.with_borrowed(|data| data.update_ast(ast));
+        self.logger.info(|| "Loading module file");
+        let path    = self.location.to_path();
+        let content = self.file_manager.read(path).await?;
+        self.logger.info(|| "Parsing code");
+        let source = self.parser.parse_with_metadata(content)?;
+        self.logger.info(|| "Code parsed");
+        self.logger.trace(|| format!("The parsed ast is {:?}", source.ast));
+        self.module.update_whole_source(source);
         Ok(())
     }
 
     /// Save the module to file.
-    pub fn save_file(&self) -> impl Future<Output=Result<(),RpcError>> {
-        let (path,mut fm,code) = self.with_borrowed(|data| {
-            let path = data.location.to_path();
-            let fm   = data.file_manager.clone_ref();
-            let code = String::try_from(&data.module);
-            (path,fm,code)
-        });
-        async move { fm.write(path.clone(),code?).await }
+    pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
+        let path    = self.location.to_path();
+        let fm      = self.file_manager.clone_ref();
+        let content = self.module.source_as_string();
+        async move { Ok(fm.write(path,content?).await?) }
+    }
+
+    /// Updates AST after code change.
+    pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
+        let mut code         = self.code();
+        let mut id_map       = self.module.ast().id_map();
+        let replaced_size    = change.replaced.end - change.replaced.start;
+        let replaced_span    = Span::new(change.replaced.start,replaced_size);
+        let replaced_indices = change.replaced.start.value..change.replaced.end.value;
+
+        code.replace_range(replaced_indices,&change.inserted);
+        apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
+        let ast = self.parser.parse(code, id_map)?;
+        self.module.update_ast(ast);
+        self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast()));
+
+        Ok(())
+    }
+
+    /// Read module code.
+    pub fn code(&self) -> String {
+        self.module.ast().repr()
+    }
+
+    /// Check if current module state is synchronized with given code. If it's not, log error,
+    /// and update module state to match the `code` passed as argument.
+    pub fn check_code_sync(&self, code:String) -> FallibleResult<()> {
+        let my_code = self.code();
+        if code != my_code {
+            self.logger.error(|| format!("The module controller ast was not synchronized with \
+                text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
+            let actual_ast = self.parser.parse(code,default())?;
+            self.module.update_ast(actual_ast);
+        }
+        Ok(())
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     /// Reuses already existing controller if possible.
     pub fn get_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
-        controller::graph::Handle::new(self.clone(),id)
+        controller::graph::Handle::new(self.clone_ref(),id)
     }
 
     #[cfg(test)]
@@ -285,28 +307,16 @@ impl Handle {
     , file_manager : fmc::Handle
     , mut parser   : Parser
     ) -> FallibleResult<Self> {
-        let logger = Logger::new("Mocked Module Controller");
-        let ast    = parser.parse(code.to_string(),id_map.clone())?;
-        let module = SourceFile{ast, metadata:Metadata::default()};
-        let text_notifications  = default();
-        let graph_notifications = default();
-        let data   = Controller {location,module,file_manager,parser,logger,
-            text_notifications,graph_notifications};
-        Ok(Handle::new_from_data(data))
+        let location = Rc::new(location);
+        let logger   = Logger::new("Mocked Module Controller");
+        let ast      = parser.parse(code.to_string(),id_map.clone())?;
+        let module   = State::new(ast,default());
+        Ok(Handle {location,module,file_manager,parser,logger})
     }
 }
 
-impl Controller {
-    /// Update current ast in module controller and emit notification about overall invalidation.
-    fn update_ast(&mut self,ast:Ast) {
-        self.module.ast  = ast;
-        let text_change  = notification::Text::Invalidate;
-        let graph_change = notification::Graphs::Invalidate;
-        let code_notify  = self.text_notifications.publish(text_change);
-        let graph_notify = self.graph_notifications.publish(graph_change);
-        spawn(async move { futures::join!(code_notify,graph_notify); });
-    }
-}
+impl CloneRef for Handle {}
+
 
 
 // =============
@@ -353,16 +363,22 @@ mod test {
             let uuid3        = Uuid::new_v4();
             let module       = "2+2";
             let id_map       = ast::IdMap::new(vec!
+<<<<<<< HEAD
                 [ (Span::new(Index::new(0),Size::new(1)),uuid1.clone())
                 , (Span::new(Index::new(2),Size::new(1)),uuid2)
                 , (Span::new(Index::new(0),Size::new(3)),uuid3)
+=======
+                [ (Span::from((0,1)),uuid1.clone())
+                , (Span::from((2,1)),uuid2)
+                , (Span::from((0,3)),uuid3)
+>>>>>>> WIP not compiling
                 ]);
 
             let controller   = Handle::new_mock
             (location,module,id_map,file_manager,parser).unwrap();
 
-            let mut text_notifications  = controller.subscribe_text_notifications();
-            let mut graph_notifications = controller.subscribe_graph_notifications();
+            let mut text_notifications  = controller.module.subscribe_text_notifications();
+            let mut graph_notifications = controller.module.subscribe_graph_notifications();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(1),"2".to_string());
@@ -379,7 +395,7 @@ mod test {
                     off: 0
                 }]
             }, None);
-            assert_eq!(expected_ast, controller.with_borrowed(|data| data.module.ast.clone()));
+            assert_eq!(expected_ast, controller.module.ast());
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );

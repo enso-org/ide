@@ -79,13 +79,9 @@ pub enum LocationHint {
 /// Handle providing graph controller interface.
 #[derive(Clone,Debug)]
 pub struct Handle {
-    /// Controller of the module which this graph belongs to.
-    module    : controller::module::Handle,
+    /// State of the module which this graph belongs to.
+    module    : Rc<controller::module::State>,
     id        : Id,
-    /// Publisher. When creating a controller, it sets up task to emit notifications through this
-    /// publisher to relay changes from the module controller.
-    // TODO: [mwu] Remove in favor of streams mapping over centralized module-scope publisher
-    publisher : Rc<RefCell<controller::notification::Publisher<controller::notification::Graph>>>,
 }
 
 impl Handle {
@@ -103,7 +99,7 @@ impl Handle {
     ///
     /// Requires global executor to spawn the events relay task.
     pub fn new_unchecked(module:controller::module::Handle, id:Id) -> Handle {
-        let graphs_notifications = module.subscribe_graph_notifications();
+        let graphs_notifications = module.module.subscribe_graph_notifications();
         let publisher = default();
         let ret       = Handle {module,id,publisher};
         let weak      = Rc::downgrade(&ret.publisher);
@@ -237,7 +233,7 @@ mod tests {
             let fm       = file_manager_client::Handle::new(MockTransport::new());
             let loc      = controller::module::Location("Main".to_string());
             let parser   = Parser::new_or_panic();
-            let module   = controller::module::Handle::new_mock(loc,code.as_ref(),default(),fm,parser).unwrap();
+            let module   = controller::module::Handle::new_mock(loc, code.as_ref(), default(), fm, parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.get_graph_controller(graph_id).unwrap();
             self.0.run_test(async move {
