@@ -1,13 +1,11 @@
 
 use crate::prelude::*;
 
-use crate::HasSprite;
-
 use ensogl::control::callback::CallbackMut1;
 use ensogl::data::color::Srgba;
 use ensogl::display;
 use ensogl::display::traits::*;
-use ensogl::display::Sprite;
+use ensogl::display::{Sprite, Attribute};
 use ensogl::math::Vector2;
 use ensogl::math::Vector3;
 use logger::Logger;
@@ -23,7 +21,7 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component};
+use ensogl::display::scene::{Scene,Component,MouseTarget};
 
 
 
@@ -126,6 +124,21 @@ pub struct NodeSystem {
     pub selection_buffer : Buffer<f32>
 }
 
+#[derive(Clone,Debug)]
+pub struct NodeDisplay {
+    pub sprite    : Sprite,
+    pub selection : Attribute<f32>,
+}
+
+impl NodeSystem {
+    pub fn new_instance(&self) -> NodeDisplay {
+        let sprite    = self.shape_system.new_instance();
+        let selection = self.selection_buffer.at(sprite.instance_id);
+        NodeDisplay {sprite,selection}
+    }
+}
+
+
 impl CloneRef for NodeSystem {
     fn clone_ref(&self) -> Self {
         let shape_system     = self.shape_system.clone_ref();
@@ -142,13 +155,6 @@ impl NodeSystem {
     }
 }
 
-
-#[derive(Derivative,Clone,Default)]
-#[derivative(Debug)]
-pub struct NodeRegistry {
-    #[derivative(Debug="ignore")]
-    pub map : Rc<RefCell<HashMap<usize,Node>>>
-}
 
 type EditCallback = Box<dyn Fn(&Node) + 'static>;
 
@@ -177,7 +183,7 @@ pub struct NodeData {
 #[derivative(Debug)]
 pub struct Node {
     logger         : Logger,
-    sprite         : Rc<CloneCell<Option<Sprite>>>,
+    sprite         : Rc<CloneCell<Option<NodeDisplay>>>,
     display_object : display::object::Node,
     data           : Rc<RefCell<NodeData>>,
     // FIXME: Refcells should be as deep as possible. Each callback manager should have internal mut
@@ -190,9 +196,9 @@ pub struct Node {
 impl CloneRef for Node {}
 
 impl Node {
-    pub fn new(registry:&NodeRegistry) -> Self {
+    pub fn new() -> Self {
         let logger = Logger::new("node");
-        let sprite : Rc<CloneCell<Option<Sprite>>> = default();
+        let sprite : Rc<CloneCell<Option<NodeDisplay>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
 
@@ -206,17 +212,7 @@ impl Node {
         }
 
         selection_animation.map("animation", enclose!((sprite) move |value| {
-            sprite.get().for_each(|sprite| {
-                let symbol = &sprite.symbol;
-                let id     = sprite.instance_id;
-                let any_buffer = symbol.surface().instance_scope().buffer("selection").unwrap();
-                match any_buffer {
-                    AnyBuffer::VariantIdentityForf32(buffer) => {
-                        buffer.at((*id as usize).into()).set(*value);
-                    }
-                    _ => todo!()
-                }
-            })
+            sprite.get().for_each(|t| t.selection.set(*value))
         }));
 
         let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
@@ -238,19 +234,19 @@ impl Node {
 
         let sprite = sprite2;
 
-        display_object2.set_on_show_with(enclose!((this,registry,sprite) move |scene| {
+        display_object2.set_on_show_with(enclose!((this,sprite) move |scene| {
             let node_system = scene.shapes.get(PhantomData::<Node>).unwrap();
-            let new_sprite  = node_system.shape_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
-            new_sprite.size().set(Vector2::new(200.0,200.0));
-            registry.map.borrow_mut().insert(*new_sprite.instance_id,this.clone());
-            sprite.set(Some(new_sprite));
+            let instance   = node_system.new_instance();
+            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
+            instance.sprite.size().set(Vector2::new(200.0,200.0));
+            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,this.clone());
+            sprite.set(Some(instance));
         }));
 
 
-        display_object2.set_on_hide_with(enclose!((registry,sprite) move |_| {
+        display_object2.set_on_hide_with(enclose!((sprite) move |_| {
             sprite.get().for_each(|sprite| {
-                registry.map.borrow_mut().remove(&*sprite.instance_id);
+                // TODO scene.shapes.remove_mouse_target(...)
             });
             sprite.set(None);
         }));
@@ -264,11 +260,12 @@ impl Node {
     }
 }
 
-//impl Default for Node {
-//    fn default() -> Self {
-//        Node::new()
-//    }
-//}
+impl MouseTarget for Node {
+    fn mouse_down(&self) -> &frp::Dynamic<()> {
+        &self.selection
+    }
+}
+
 
 // === Interface for library users ===
 
@@ -340,11 +337,6 @@ impl Node {
     }
 }
 
-impl HasSprite for Node {
-    fn set_sprite(&self, sprite:&Sprite) {
-        self.sprite.set(Some(sprite.clone()))
-    }
-}
 
 impl<'t> From<&'t Node> for &'t display::object::Node {
     fn from(node:&'t Node) -> Self {

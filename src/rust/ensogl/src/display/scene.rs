@@ -49,6 +49,11 @@ pub trait Component : CloneRef + 'static {
 pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
 
 
+pub trait MouseTarget : Debug + 'static {
+    fn mouse_down(&self) -> &enso_frp::Dynamic<()>;
+}
+
+
 // =====================
 // === ShapeRegistry ===
 // =====================
@@ -58,7 +63,8 @@ use std::any::TypeId;
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
-    shape_system_map : HashMap<TypeId,Box<dyn Any>>
+    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+    mouse_target_map : HashMap<usize,Rc<dyn MouseTarget>>,
 }
 
 impl {
@@ -71,6 +77,19 @@ impl {
         let id     = TypeId::of::<T>();
         let system = Box::new(system) as Box<dyn Any>;
         self.shape_system_map.insert(id,system);
+    }
+
+    pub fn insert_mouse_target<T:MouseTarget>(&mut self, id:usize, target:T) {
+        let target = Rc::new(target);
+        self.mouse_target_map.insert(id,target);
+    }
+
+    pub fn remove_mouse_target(&mut self, id:&usize) {
+        self.mouse_target_map.remove(id);
+    }
+
+    pub fn get_mouse_target(&mut self, id:&usize) -> Option<Rc<dyn MouseTarget>> {
+        self.mouse_target_map.get(&id).map(|t| t.clone_ref())
     }
 }}
 

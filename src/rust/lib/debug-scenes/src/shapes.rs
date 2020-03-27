@@ -18,7 +18,7 @@ use ensogl::display::world::*;
 use ensogl::system::web;
 use graph::node;
 use graph::node::Node;
-use graph::node::NodeRegistry;
+//use graph::node::NodeRegistry;
 use nalgebra::Vector2;
 use shapely::shared;
 use std::any::TypeId;
@@ -184,11 +184,11 @@ fn init(world: &World) {
 
 //    let nodes : Rc<RefCell<HashMap<usize,Node>>> = default();
 
-    let node_registry = NodeRegistry::default();
+//    let node_registry = NodeRegistry::default();
 
-    let node1 = Node::new(&node_registry);
-    let node2 = Node::new(&node_registry);
-    let node3 = Node::new(&node_registry);
+    let node1 = Node::new();//&node_registry);
+    let node2 = Node::new();//&node_registry);
+    let node3 = Node::new();//&node_registry);
 
 
     world.add_child(&pointer);
@@ -250,8 +250,8 @@ fn init(world: &World) {
 
         nodes = source::<NodeSet> ();
         add_node = source::<()> ();
-        new_node = add_node.map2(&mouse.position, enclose!((world,node_registry) move |_,pos| {
-            let node = Node::new(&node_registry);
+        new_node = add_node.map2(&mouse.position, enclose!((world) move |_,pos| {
+            let node = Node::new();
             world.add_child(&node);
             node.mod_position(|t| {
                 t.x += pos.x as f32;
@@ -297,14 +297,12 @@ fn init(world: &World) {
         simulator.set_target_position(*value);
     });
 
-    mouse_down_target.map("mouse_down_target", enclose!((node_registry,scene) move |target| {
+    mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
         match target {
             display::scene::Target::Background => {}
             display::scene::Target::Symbol {symbol_id, instance_id} => {
-                let br   = node_registry.map.borrow();
-                let node = br.get(&(*instance_id as usize));
-                node.for_each(|node| {
-                    node.selection.event.emit(());
+                scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
+                    target.mouse_down().event.emit(());
                 })
             }
         }

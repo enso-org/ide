@@ -52,9 +52,9 @@ use std::any::TypeId;
 // === Library Utilities ===
 // =========================
 
-pub trait HasSprite {
-    fn set_sprite(&self, sprite:&Sprite);
-}
+//pub trait HasSprite {
+//    fn set_sprite(&self, sprite:&Sprite);
+//}
 
 
 // TODO[ao] copied from shapes example, consider where to move it.
