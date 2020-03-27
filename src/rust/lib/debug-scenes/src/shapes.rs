@@ -31,20 +31,62 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
-use ensogl::display::scene::{Scene,Component};
+use ensogl::display::scene;
+use ensogl::display::scene::{Scene,Component,SceneBasedConstructor};
 
 
 #[derive(Clone,Debug)]
 pub struct PointerSystem {
-    pub shape_system : ShapeSystem,
+    pub scene_view            : scene::View,
+    pub shape_system          : ShapeSystem,
+    pub position_buffer       : Buffer<Vector2<f32>>,
+    pub selection_size_buffer : Buffer<Vector2<f32>>,
+}
+
+
+impl SceneBasedConstructor for PointerSystem {
+    fn new(scene:&Scene) -> Self {
+        let shape_system          = ShapeSystem::new(scene,&mouse_pointer());
+        let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
+        let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
+
+        shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+
+        let scene_view = scene.views.new();
+        scene.views.main.remove(&shape_system.symbol);
+        scene_view.add(&shape_system.symbol);
+
+        Self {scene_view,shape_system,position_buffer,selection_size_buffer}
+    }
 }
 
 impl CloneRef for PointerSystem {
     fn clone_ref(&self) -> Self {
-        let shape_system = self.shape_system.clone_ref();
-        Self {shape_system}
+        let scene_view            = self.scene_view.clone_ref();
+        let shape_system          = self.shape_system.clone_ref();
+        let position_buffer       = self.position_buffer.clone_ref();
+        let selection_size_buffer = self.selection_size_buffer.clone_ref();
+        Self {scene_view,shape_system,position_buffer,selection_size_buffer}
     }
 }
+
+
+#[derive(Clone,Debug)]
+pub struct PointerDisplay {
+    pub sprite         : Sprite,
+    pub position       : Attribute<Vector2<f32>>,
+    pub selection_size : Attribute<Vector2<f32>>,
+}
+
+impl PointerSystem {
+    pub fn new_instance(&self) -> PointerDisplay {
+        let sprite         = self.shape_system.new_instance();
+        let position       = self.position_buffer.at(sprite.instance_id);
+        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
+        PointerDisplay {sprite,position,selection_size}
+    }
+}
+
 
 impl Component for Pointer {
     type ComponentSystem = PointerSystem;
@@ -54,7 +96,7 @@ impl Component for Pointer {
 pub struct Pointer {
     logger         : Logger,
     display_object : display::object::Node,
-    sprite         : Rc<CloneCell<Option<Sprite>>>,
+    sprite         : Rc<CloneCell<Option<PointerDisplay>>>,
 }
 
 impl CloneRef for Pointer {}
@@ -62,16 +104,16 @@ impl CloneRef for Pointer {}
 impl Pointer {
     pub fn new(width:f32,height:f32) -> Self {
         let logger = Logger::new("mouse.pointer");
-        let sprite : Rc<CloneCell<Option<Sprite>>> = default();
+        let sprite : Rc<CloneCell<Option<PointerDisplay>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
 
         display_object.set_on_show_with(enclose!((sprite) move |scene| {
             let pointer_system = scene.shapes.get(PhantomData::<Pointer>).unwrap();
-            let new_sprite     = pointer_system.shape_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
-            new_sprite.size().set(Vector2::new(width,height));
-            sprite.set(Some(new_sprite));
+            let instance       = pointer_system.new_instance();
+            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
+            instance.sprite.size().set(Vector2::new(width,height));
+            sprite.set(Some(instance));
         }));
 
         display_object.set_on_hide_with(enclose!((sprite) move |_| {
@@ -136,13 +178,13 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let node_shape_system             = ShapeSystem::new(world,&node::shape());
-    let node_selection_buffer         = node_shape_system.add_input("selection" , 0.0);
+//    let node_shape_system             = ShapeSystem::new(world,&node::shape());
+//    let node_selection_buffer         = node_shape_system.add_input("selection" , 0.0);
 
 
-    let pointer_shape_system          = ShapeSystem::new(world,&mouse_pointer());
-    let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
-    let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
+//    let pointer_shape_system          = ShapeSystem::new(world,&mouse_pointer());
+//    let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
+//    let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
 
 
 
@@ -150,24 +192,30 @@ fn init(world: &World) {
 
     let pointer = Pointer::new(shape.width(), shape.height());
 
-    pointer_shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+//    pointer_shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+//
+//    let node_system = node::NodeSystem {
+//        shape_system : node_shape_system.clone_ref(),
+//        selection_buffer : node_selection_buffer.clone_ref(),
+//    };
 
-    let node_system = node::NodeSystem {
-        shape_system : node_shape_system.clone_ref(),
-        selection_buffer : node_selection_buffer.clone_ref(),
-    };
+//    let pointer_view = scene.views.new();
+//    scene.views.main.remove(&pointer_shape_system.symbol);
+//    pointer_view.add(&pointer_shape_system.symbol);
+//
+//
+//    let pointer_system = PointerSystem {
+//        scene_view : pointer_view.clone_ref(),
+//        shape_system : pointer_shape_system.clone_ref(),
+//        position_buffer : pointer_position_buffer.clone_ref(),
+//        selection_size_buffer : pointer_selection_size_buffer.clone_ref(),
+//    };
 
-    let pointer_system = PointerSystem {
-        shape_system : pointer_shape_system.clone_ref(),
-    };
-
-    scene.shapes.insert(PhantomData::<Node>,node_system);
-    scene.shapes.insert(PhantomData::<Pointer>,pointer_system);
+    scene.shapes.register(PhantomData::<Node>);
+    scene.shapes.register(PhantomData::<Pointer>);
 
 
-    let pointer_view = scene.views.new();
-    scene.views.main.remove(&pointer_shape_system.symbol);
-    pointer_view.add(&pointer_shape_system.symbol);
+
 
 //    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
@@ -187,8 +235,6 @@ fn init(world: &World) {
 //    let node_registry = NodeRegistry::default();
 
     let node1 = Node::new();//&node_registry);
-    let node2 = Node::new();//&node_registry);
-    let node3 = Node::new();//&node_registry);
 
 
     world.add_child(&pointer);
@@ -196,33 +242,13 @@ fn init(world: &World) {
 
 
     world.add_child(&node1);
-//    world.add_child(&node2);
-//    world.add_child(&node3);
 
     node1.mod_position(|t| {
         t.x += 200.0;
         t.y += 200.0;
     });
 
-//    node2.mod_position(|t| {
-//        t.x += 300.0;
-//        t.y += 300.0;
-//    });
-//
-//    node3.mod_position(|t| {
-//        t.x += 400.0;
-//        t.y += 200.0;
-//    });
-
-
-    let nodes = vec![node1,node2,node3];
-
-
-    world.add_child(&node_shape_system);
-    world.add_child(&pointer_shape_system);
-
-
-
+    let nodes = vec![node1];
 
     web::body().set_style_or_panic("cursor","none");
 
@@ -275,15 +301,13 @@ fn init(world: &World) {
 
     mouse.position.map("pointer_position", enclose!((pointer) move |p| {
         pointer.sprite.get().for_each(|sprite| {
-            let pointer_position = pointer_position_buffer.at(sprite.instance_id());
-            pointer_position.set(Vector2::new(p.x as f32,p.y as f32));
+            sprite.position.set(Vector2::new(p.x as f32,p.y as f32));
         })
     }));
 
     selection_size.map("pointer_size", enclose!((pointer) move |p| {
         pointer.sprite.get().for_each(|sprite| {
-            let pointer_size = pointer_selection_size_buffer.at(sprite.instance_id());
-            pointer_size.set(Vector2::new(p.x as f32, p.y as f32));
+            sprite.selection_size.set(Vector2::new(p.x as f32, p.y as f32));
         })
     }));
 
@@ -342,7 +366,6 @@ fn init(world: &World) {
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &nodes;
-        let _keep_alive = &pointer_view;
 //        let _keep_alive = &animator_ref;
 //        let _keep_alive = &simulator;
 

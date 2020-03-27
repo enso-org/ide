@@ -21,7 +21,7 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component,MouseTarget};
+use ensogl::display::scene::{Scene,Component,MouseTarget,SceneBasedConstructor};
 
 
 
@@ -147,8 +147,8 @@ impl CloneRef for NodeSystem {
     }
 }
 
-impl NodeSystem {
-    pub fn new(scene:&Scene) -> Self {
+impl SceneBasedConstructor for NodeSystem {
+    fn new(scene:&Scene) -> Self {
         let shape_system     = ShapeSystem::new(scene,&shape());
         let selection_buffer = shape_system.add_input("selection", 0.0);
         Self {shape_system,selection_buffer}

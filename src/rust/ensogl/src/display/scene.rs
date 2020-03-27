@@ -42,8 +42,13 @@ use enso_frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 
+pub trait SceneBasedConstructor {
+    fn new(scene:&Scene) -> Self;
+}
+
+
 pub trait Component : CloneRef + 'static {
-    type ComponentSystem : CloneRef;
+    type ComponentSystem : SceneBasedConstructor + CloneRef;
 }
 
 pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
@@ -63,6 +68,7 @@ use std::any::TypeId;
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
+    scene            : Option<Scene>,
     shape_system_map : HashMap<TypeId,Box<dyn Any>>,
     mouse_target_map : HashMap<usize,Rc<dyn MouseTarget>>,
 }
@@ -75,6 +81,13 @@ impl {
 
     pub fn insert<T:Component>(&mut self, tp:PhantomData<T>, system:ComponentSystem<T>) {
         let id     = TypeId::of::<T>();
+        let system = Box::new(system) as Box<dyn Any>;
+        self.shape_system_map.insert(id,system);
+    }
+
+    pub fn register<T:Component>(&mut self, tp:PhantomData<T>) {
+        let id     = TypeId::of::<T>();
+        let system = <ComponentSystem<T>>::new(self.scene.as_ref().unwrap());
         let system = Box::new(system) as Box<dyn Any>;
         self.shape_system_map.insert(id,system);
     }
@@ -698,7 +711,7 @@ impl SceneData {
         let views          = Views::mk(&logger,width,height);
         let stats          = stats.clone();
         let mouse          = Mouse::new(&dom.shape(),&variables);
-        let shapes         = default();
+        let shapes         = ShapeRegistry::default();
         let uniforms       = Uniforms::new(&variables);
         let dirty          = Dirty {symbols:symbols_dirty,shape:shape_dirty};
         let renderer       = Renderer::new(&logger,&dom,&context,&variables);
@@ -828,7 +841,9 @@ impl Scene {
     pub fn new<OnMut:Fn()+Clone+'static>
     (parent_dom:&HtmlElement, logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
-        Self {no_mut_access}
+        let this = Self {no_mut_access};
+        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME ugly
+        this
     }
 }
 
