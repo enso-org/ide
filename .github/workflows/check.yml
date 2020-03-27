@@ -137,15 +137,15 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-wasm-registry-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-wasm-registry
+          key: ${{ runner.os }}-wasm-test-registry-${{ hashFiles('src/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-wasm-test-registry
 
       - name: Cache Wasm Test
         uses: actions/cache@v1
         with:
           path: src/rust/target
-          key: ${{ runner.os }}-wasm-build-${{ hashFiles('src/rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-wasm-build
+          key: ${{ runner.os }}-wasm-test-build-${{ hashFiles('src/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-wasm-test-build
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
