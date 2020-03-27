@@ -216,3 +216,9 @@ impl<'t> From<&'t World> for &'t display::object::Node {
         world.scene.display_object()
     }
 }
+
+impl<'t> From<&'t World> for &'t Scene {
+    fn from(world:&'t World) -> Self {
+        &world.scene
+    }
+}

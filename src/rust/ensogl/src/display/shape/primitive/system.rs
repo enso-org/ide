@@ -11,6 +11,7 @@ use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material;
 use crate::display::symbol::material::Material;
 use crate::display::world::World;
+use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 use crate::display::object::traits::*;
 use crate::system::gpu::data::buffer::item::Storable;
@@ -29,10 +30,19 @@ pub struct ShapeSystem {
     material          : Rc<RefCell<Material>>,
 }
 
+impl CloneRef for ShapeSystem {
+    fn clone_ref(&self) -> Self {
+        let sprite_system = self.sprite_system.clone_ref();
+        let material      = self.material.clone_ref();
+        Self {sprite_system,material}
+    }
+}
+
 impl ShapeSystem {
     /// Constructor.
-    pub fn new<S:Shape>(world:&World, shape:&S) -> Self {
-        let sprite_system = SpriteSystem::new(world);
+    pub fn new<'t,S,Sh:Shape>(scene:S, shape:&Sh) -> Self
+    where S : Into<&'t Scene> {
+        let sprite_system = SpriteSystem::new(scene);
         let material      = Rc::new(RefCell::new(Self::surface_material()));
         let this          = Self {sprite_system,material};
         this.set_shape(shape);

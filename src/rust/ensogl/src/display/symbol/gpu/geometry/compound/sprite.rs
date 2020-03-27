@@ -12,6 +12,7 @@ use crate::display;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
 use crate::display::world::World;
+use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 
 
@@ -288,10 +289,23 @@ pub struct SpriteSystem {
     stats      : Stats,
 }
 
+impl CloneRef for SpriteSystem {
+    fn clone_ref(&self) -> Self {
+        let symbol     = self.symbol.clone_ref();
+        let transform  = self.transform.clone_ref();
+        let uv         = self.uv.clone_ref();
+        let size       = self.size.clone_ref();
+        let alignment  = self.alignment.clone_ref();
+        let sprite_map = self.sprite_map.clone_ref();
+        let stats      = self.stats.clone_ref();
+        Self {symbol,transform,uv,size,alignment,sprite_map,stats}
+    }
+}
+
 impl SpriteSystem {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
-        let scene             = world.scene();
+    pub fn new<'t,S>(scene:S) -> Self where S:Into<&'t Scene> {
+        let scene             = scene.into();
         let stats             = scene.stats.clone_ref();
         let symbol            = scene.new_symbol();
         let mesh              = symbol.surface();

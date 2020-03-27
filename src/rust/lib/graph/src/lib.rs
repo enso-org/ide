@@ -163,9 +163,10 @@ fn nodes2() -> AnyShape {
 
 /// Registers Node shape.
 pub fn register_shapes(world:&World) {
-   let node_shape   = nodes2();
-   let shape_system = ShapeSystem::new(world,&node_shape);
-   world.scene().shapes.insert(TypeId::of::<Node>(),shape_system.clone());
+    todo!()
+//   let node_shape   = nodes2();
+//   let shape_system = ShapeSystem::new(world,&node_shape);
+//   world.scene().shapes.insert(TypeId::of::<Node>(),shape_system.clone());
 }
 
 

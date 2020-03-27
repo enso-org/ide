@@ -42,6 +42,13 @@ use enso_frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 
+pub trait Component : CloneRef + 'static {
+    type ComponentSystem : CloneRef;
+}
+
+pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
+
+
 // =====================
 // === ShapeRegistry ===
 // =====================
@@ -51,16 +58,19 @@ use std::any::TypeId;
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
-    shape_system_map : HashMap<TypeId,ShapeSystem>
+    shape_system_map : HashMap<TypeId,Box<dyn Any>>
 }
 
 impl {
-    pub fn get(&self, id:&TypeId) -> Option<ShapeSystem> {
-        self.shape_system_map.get(id).map(|s| s.clone())
+    pub fn get<T:Component>(&self, tp:PhantomData<T>) -> Option<ComponentSystem<T>> {
+        let id = TypeId::of::<T>();
+        self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<ComponentSystem<T>>()).map(|t| t.clone_ref())
     }
 
-    pub fn insert(&mut self, id:TypeId, shape_system:ShapeSystem) {
-        self.shape_system_map.insert(id,shape_system);
+    pub fn insert<T:Component>(&mut self, tp:PhantomData<T>, system:ComponentSystem<T>) {
+        let id     = TypeId::of::<T>();
+        let system = Box::new(system) as Box<dyn Any>;
+        self.shape_system_map.insert(id,system);
     }
 }}
 

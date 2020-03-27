@@ -31,7 +31,24 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
+use ensogl::display::scene::{Scene,Component};
 
+
+#[derive(Clone,Debug)]
+pub struct PointerSystem {
+    pub shape_system : ShapeSystem,
+}
+
+impl CloneRef for PointerSystem {
+    fn clone_ref(&self) -> Self {
+        let shape_system = self.shape_system.clone_ref();
+        Self {shape_system}
+    }
+}
+
+impl Component for Pointer {
+    type ComponentSystem = PointerSystem;
+}
 
 #[derive(Debug,Clone)]
 pub struct Pointer {
@@ -50,9 +67,8 @@ impl Pointer {
         let display_object_weak = display_object.downgrade();
 
         display_object.set_on_show_with(enclose!((sprite) move |scene| {
-            let type_id      = TypeId::of::<Pointer>();
-            let shape_system = scene.shapes.get(&type_id).unwrap();
-            let new_sprite   = shape_system.new_instance();
+            let pointer_system = scene.shapes.get(PhantomData::<Pointer>).unwrap();
+            let new_sprite     = pointer_system.shape_system.new_instance();
             display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
             new_sprite.size().set(Vector2::new(width,height));
             sprite.set(Some(new_sprite));
@@ -136,8 +152,17 @@ fn init(world: &World) {
 
     pointer_shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
 
-    scene.shapes.insert(TypeId::of::<Node>(),node_shape_system.clone());
-    scene.shapes.insert(TypeId::of::<Pointer>(),pointer_shape_system.clone());
+    let node_system = node::NodeSystem {
+        shape_system : node_shape_system.clone_ref(),
+        selection_buffer : node_selection_buffer.clone_ref(),
+    };
+
+    let pointer_system = PointerSystem {
+        shape_system : pointer_shape_system.clone_ref(),
+    };
+
+    scene.shapes.insert(PhantomData::<Node>,node_system);
+    scene.shapes.insert(PhantomData::<Pointer>,pointer_system);
 
 
     let pointer_view = scene.views.new();

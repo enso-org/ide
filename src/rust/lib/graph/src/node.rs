@@ -23,6 +23,7 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::world::World;
+use ensogl::display::scene::{Scene,Component};
 
 
 
@@ -113,14 +114,29 @@ pub fn shape() -> AnyShape {
 }
 
 
+
+
+impl Component for Node {
+    type ComponentSystem = NodeSystem;
+}
+
+#[derive(Clone,Debug)]
 pub struct NodeSystem {
-    shape_system     : ShapeSystem,
-    selection_buffer : Buffer<f32>
+    pub shape_system     : ShapeSystem,
+    pub selection_buffer : Buffer<f32>
+}
+
+impl CloneRef for NodeSystem {
+    fn clone_ref(&self) -> Self {
+        let shape_system     = self.shape_system.clone_ref();
+        let selection_buffer = self.selection_buffer.clone_ref();
+        Self {shape_system,selection_buffer}
+    }
 }
 
 impl NodeSystem {
-    pub fn new(world:&World) -> Self {
-        let shape_system     = ShapeSystem::new(world,&shape());
+    pub fn new(scene:&Scene) -> Self {
+        let shape_system     = ShapeSystem::new(scene,&shape());
         let selection_buffer = shape_system.add_input("selection", 0.0);
         Self {shape_system,selection_buffer}
     }
@@ -223,9 +239,8 @@ impl Node {
         let sprite = sprite2;
 
         display_object2.set_on_show_with(enclose!((this,registry,sprite) move |scene| {
-            let type_id      = TypeId::of::<Node>();
-            let shape_system = scene.shapes.get(&type_id).unwrap();
-            let new_sprite   = shape_system.new_instance();
+            let node_system = scene.shapes.get(PhantomData::<Node>).unwrap();
+            let new_sprite  = node_system.shape_system.new_instance();
             display_object_weak.upgrade().for_each(|t| t.add_child(&new_sprite));
             new_sprite.size().set(Vector2::new(200.0,200.0));
             registry.map.borrow_mut().insert(*new_sprite.instance_id,this.clone());
