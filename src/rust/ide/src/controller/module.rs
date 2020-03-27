@@ -58,6 +58,8 @@ impl Location {
     }
 }
 
+impl CloneRef for Location {}
+
 
 
 // =========================
@@ -206,7 +208,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
-        TestWithLocalPoolExecutor::set_up().run_test(async {
+        TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
             let file_manager = file_manager_client::Handle::new(transport);
             let parser       = Parser::new().unwrap();

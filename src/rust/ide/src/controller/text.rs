@@ -146,7 +146,7 @@ mod test {
     #[wasm_bindgen_test]
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
-        test.run_test(async move {
+        test.run_task(async move {
             let fm         = file_manager_client::Handle::new(MockTransport::new());
             let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();

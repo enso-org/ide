@@ -10,115 +10,6 @@ use json_rpc::Transport;
 use parser::Parser;
 
 
-// ===============================
-// === Module Controller Cache ===
-// ===============================
-
-
-mod module_state_registry {
-    use crate::prelude::*;
-
-    use crate::controller::notification::Publisher;
-    use crate::controller::module::state;
-    use crate::controller::module::state::State;
-    use crate::controller::module::Location;
-
-    use flo_stream::MessagePublisher;
-
-
-
-    #[derive(Clone,Debug,Fail)]
-    #[fail(display="Error while loading module")]
-    struct LoadingError {}
-
-    type LoadedNotification = Result<(), LoadingError>;
-
-    #[derive(Debug,Clone)]
-    enum Entry<Handle> {
-        Loaded(Handle),
-        Loading(Publisher<LoadedNotification>),
-    }
-
-    type StrongEntry = Entry<state::Handle>;
-    type WeakEntry   = Entry<Weak<State>>;
-
-    impl WeakElement for WeakEntry {
-        type Strong = StrongEntry;
-
-        fn new(view: &Self::Strong) -> Self {
-            match view {
-                Entry::Loaded(handle)     => Entry::Loaded(Rc::downgrade(handle)),
-                Entry::Loading(publisher) => Entry::Loading(publisher.clone()),
-            }
-        }
-
-        fn view(&self) -> Option<Self::Strong> {
-            match self {
-                Entry::Loaded(handle)     => handle.upgrade().map(|h| Entry::Loaded(h)),
-                Entry::Loading(publisher) => Some(Entry::Loading(publisher.clone()))
-            }
-        }
-    }
-
-    impl<Handle> Default for Entry<Handle> {
-        fn default() -> Self {
-            Self::Loading(default())
-        }
-    }
-
-    impl<Handle:CloneRef> CloneRef for Entry<Handle> {}
-
-    #[derive(Debug,Default)]
-    pub struct ModuleRegistry {
-        cache : RefCell<WeakValueHashMap<Location, WeakEntry>>
-    }
-
-    impl ModuleRegistry {
-
-        pub async fn get_or_load<F>(&self, location:Location, loader:F) -> FallibleResult<state::Handle>
-        where F : Future<Output=FallibleResult<Rc<State>>> {
-            match self.get(&location).await? {
-                Some(state) => Ok(state),
-                None        => self.load(location,loader).await
-            }
-        }
-
-        async fn get(&self, location:&Location) -> Result<Option<state::Handle>,LoadingError> {
-            loop {
-                let entry = self.cache.borrow_mut().get(&location);
-                match entry {
-                    Some(Entry::Loaded(state)) => { break Ok(Some(state)); },
-                    Some(Entry::Loading(mut publisher)) => {
-                        // Wait for loading to be finished.
-                        publisher.subscribe().next().await.unwrap()?;
-                    },
-                    None => { break Ok(None); }
-                }
-            }
-
-        }
-
-        async fn load<F>(&self, loc:Location, loader:F) -> FallibleResult<state::Handle>
-        where F : Future<Output=FallibleResult<state::Handle>> {
-            let mut publisher = Publisher::default();
-            self.cache.borrow_mut().insert(loc.clone(),Entry::Loading(publisher.clone()));
-
-            let result = loader.await;
-            match &result {
-                Ok(state) => { self.cache.borrow_mut().insert(loc,Entry::Loaded(state.clone_ref())); },
-                Err(_)    => { self.cache.borrow_mut().remove(&loc);                                 },
-            }
-            let message = match &result {
-                Ok(_)  => Ok(()),
-                Err(_) => Err(LoadingError{}),
-            };
-            publisher.publish(message);
-            result
-        }
-    }
-}
-
-
 
 // ==========================
 // === Project Controller ===
@@ -133,7 +24,7 @@ pub struct Handle {
     /// File Manager Client.
     pub file_manager: fmc::Handle,
     /// Cache of module controllers.
-    pub module_cache: Rc<module_state_registry::ModuleRegistry>,
+    pub module_registry: Rc<controller::module::state::registry::Registry>,
     /// Parser handle.
     pub parser: Parser,
 }
@@ -144,9 +35,9 @@ impl Handle {
     /// The remote connections should be already established.
     pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
         Handle {
-            file_manager : fmc::Handle::new(file_manager_transport),
-            module_cache : default(),
-            parser       : Parser::new_or_panic(),
+            file_manager    : fmc::Handle::new(file_manager_transport),
+            module_registry : default(),
+            parser          : Parser::new_or_panic(),
         }
     }
 
@@ -179,7 +70,7 @@ impl Handle {
     pub async fn module_controller
     (&self, location:ModuleLocation) -> FallibleResult<controller::module::Handle> {
         let state_loader = self.load_module(location.clone());
-        let state        = self.module_cache.get_or_load(location.clone(),state_loader).await?;
+        let state        = self.module_registry.get_or_load(location.clone(), state_loader).await?;
         Ok(self.module_controller_with_state(location,state))
     }
 
@@ -243,7 +134,7 @@ mod test {
     #[wasm_bindgen_test]
     fn obtain_plain_text_controller() {
         let transport       = MockTransport::new();
-        TestWithLocalPoolExecutor::set_up().run_test(async move {
+        TestWithLocalPoolExecutor::set_up().run_task(async move {
             let project_ctrl        = controller::project::Handle::new_running(transport);
             let path                = Path::new("TestPath");
             let another_path        = Path::new("TestPath2");

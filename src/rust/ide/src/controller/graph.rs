@@ -219,7 +219,7 @@ mod tests {
             let module   = controller::module::Handle::new_mock(loc, code.as_ref(), default(), fm, parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.get_graph_controller(graph_id).unwrap();
-            self.0.run_test(async move {
+            self.0.run_task(async move {
                 test(module,graph).await
             })
         }
@@ -236,7 +236,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn node_operations() {
-        TestWithLocalPoolExecutor::set_up().run_test(async {
+        TestWithLocalPoolExecutor::set_up().run_task(async {
             let code         = "main = Hello World";
             let module       = module::state::State::from_code_or_panic(code,default(),default());
             let pos          = module::state::Position {vector:Vector2::new(0.0,0.0)};

@@ -1,5 +1,7 @@
 //! This module contains all structures which describes Module state (code, ast, metadata).
 
+pub mod registry;
+
 use crate::prelude::*;
 
 use crate::controller::notification;
@@ -142,7 +144,8 @@ impl State {
     /// Sets metadata for given node.
     pub fn set_node_metadata(&self, id:ast::ID, data:NodeMetadata) {
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+        let graph_change = notification::Graphs::Invalidate;
+        executor::global::spawn(self.graph_notifications.borrow_mut().publish(graph_change));
     }
 
     /// Removes metadata of given node and returns them.
@@ -175,3 +178,5 @@ impl State {
         Rc::new(Self::new(ast,metadata))
     }
 }
+
+//TODO[ao] add tests here!
