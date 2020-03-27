@@ -195,7 +195,10 @@ from_crumb!{Prefix,PrefixCrumb}
 from_crumb!{SectionLeft,SectionLeftCrumb}
 from_crumb!{SectionRight,SectionRightCrumb}
 from_crumb!{SectionSides,SectionSidesCrumb}
-
+from_crumb!{Import,ImportCrumb}
+from_crumb!{Mixfix,MixfixCrumb}
+from_crumb!{Group,GroupCrumb}
+from_crumb!{Def,DefCrumb}
 
 
 // =================
@@ -383,20 +386,107 @@ impl Crumbable for crate::Import<Ast> {
     type Crumb = ImportCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        Ok(self.path.get(crumb.index).ok_or(LineIndexOutOfBounds)?)
+        Ok(self.path.get(crumb.path_index).ok_or(LineIndexOutOfBounds)?)
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
-        let mut module = self.clone();
-        let line = module.lines.get_mut(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
-        line.elem.replace(new_ast);
-        Ok(module)
+        let mut import = self.clone();
+        let path = import.path.get_mut(crumb.path_index).ok_or(LineIndexOutOfBounds)?;
+        *path = new_ast;
+        Ok(import)
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        let indices = non_empty_line_indices(self.lines.iter());
-        let crumbs  = indices.map(|line_index| ModuleCrumb {line_index});
+        let indices = self.path.iter().enumerate().map(|(indices,_)| indices);
+        let crumbs  = indices.map(|path_index| ImportCrumb {path_index});
         Box::new(crumbs)
+    }
+}
+
+impl Crumbable for crate::Mixfix<Ast> {
+    type Crumb = MixfixCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        match crumb {
+            MixfixCrumb::Name {index} => {
+                Ok(self.name.get(*index).ok_or(LineIndexOutOfBounds)?)
+            },
+            MixfixCrumb::Args {index} => {
+                Ok(self.args.get(*index).ok_or(LineIndexOutOfBounds)?)
+            }
+        }
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut mixfix = self.clone();
+        match crumb {
+            MixfixCrumb::Name {index} => {
+                *mixfix.name.get_mut(*index).ok_or(LineIndexOutOfBounds)? = new_ast;
+            },
+            MixfixCrumb::Args {index} => {
+                *mixfix.args.get_mut(*index).ok_or(LineIndexOutOfBounds)? = new_ast;
+            }
+        }
+        Ok(mixfix)
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        let name_iter = self.name.iter().enumerate().map(|(index,_)|{
+            MixfixCrumb::Name{index}
+        });
+        let args_iter = self.args.iter().enumerate().map(|(index,_)| MixfixCrumb::Args{index});
+        Box::new(name_iter.chain(args_iter))
+    }
+}
+
+impl Crumbable for crate::Def<Ast> {
+    type Crumb = DefCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        match crumb {
+            DefCrumb::Name         => Ok(&self.name),
+            DefCrumb::Args {index} => Ok(self.args.get(*index).ok_or(LineIndexOutOfBounds)?),
+            DefCrumb::Body         => Ok(self.body.as_ref().ok_or(LineIndexOutOfBounds)?)
+        }
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut def = self.clone();
+        match crumb {
+            DefCrumb::Name         => def.name = new_ast,
+            DefCrumb::Args {index} => {
+                let arg = def.args.get_mut(*index).ok_or(LineIndexOutOfBounds)?;
+                *arg = new_ast;
+            },
+            DefCrumb::Body         => def.body = Some(new_ast)
+        }
+        Ok(def)
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        const CHILDREN : [DefCrumb; 1] = [DefCrumb::Name];
+        let name_iter = CHILDREN.iter().copied();
+        let args_iter = self.args.iter().enumerate().map(|(index,_)| DefCrumb::Args{index});
+        let body_iter = self.body.iter().map(|_| DefCrumb::Body);
+        Box::new(name_iter.chain(args_iter).chain(body_iter))
+    }
+}
+
+impl Crumbable for crate::Group<Ast> {
+    type Crumb = GroupCrumb;
+
+    fn get(&self, _crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        Ok(self.body.as_ref().ok_or(LineIndexOutOfBounds)?)
+    }
+
+    fn set(&self, _crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut group = self.clone();
+        group.body = Some(new_ast);
+        Ok(group)
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        Box::new(self.body.iter().map(|_| GroupCrumb))
     }
 }
 
@@ -494,7 +584,7 @@ impl Crumbable for Shape<Ast> {
             Shape::SectionSides(shape) => {
                 Box::new(shape.iter_subcrumbs().map(Crumb::SectionSides))
             },
-            _                    => Box::new(std::iter::empty()),
+            _ => Box::new(std::iter::empty()),
         }
     }
 }
@@ -706,6 +796,31 @@ mod tests {
 
         Ok(())
     }
+
+    // #[test]
+    // fn import_crumb() -> FallibleResult<()> {
+    //     let prefix = Ast::prefix(Ast::var("func"), Ast::var("arg"));
+    //     let get   = |prefix_crumb| {
+    //         let crumb = Crumb::Prefix(prefix_crumb);
+    //         prefix.get(&crumb)
+    //     };
+    //     let set   = |prefix_crumb, ast| {
+    //         let crumb = Crumb::Prefix(prefix_crumb);
+    //         prefix.set(&crumb,ast)
+    //     };
+    //     let foo = Ast::var("foo");
+    //     let x   = Ast::var("x");
+    //
+    //     assert_eq!(prefix.repr(), "func arg");
+    //
+    //     assert_eq!(get(PrefixCrumb::Func)?.repr(), "func");
+    //     assert_eq!(get(PrefixCrumb::Arg)?.repr(),  "arg");
+    //
+    //     assert_eq!(set(PrefixCrumb::Func, foo.clone())?.repr(), "foo arg");
+    //     assert_eq!(set(PrefixCrumb::Arg,  x.clone())?.repr(), "func x");
+    //
+    //     Ok(())
+    // }
 
     #[test]
     fn prefix_crumb() -> FallibleResult<()> {
