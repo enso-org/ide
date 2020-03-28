@@ -213,7 +213,7 @@ fn init(world: &World) {
 //        selection_size_buffer : pointer_selection_size_buffer.clone_ref(),
 //    };
 
-    scene.shapes.register(PhantomData::<Node>);
+    scene.shapes.register(PhantomData::<node::Definition>);
     scene.shapes.register(PhantomData::<Pointer>);
 
 
@@ -250,7 +250,7 @@ fn init(world: &World) {
         t.y += 200.0;
     });
 
-    let nodes = vec![node1];
+    let _nodes = vec![node1];
 
     web::body().set_style_or_panic("cursor","none");
 
@@ -367,7 +367,7 @@ fn init(world: &World) {
 //        let _keep_alive = &sprite;
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
-        let _keep_alive = &nodes;
+        let _keep_alive = &_nodes;
 //        let _keep_alive = &animator_ref;
 //        let _keep_alive = &simulator;
 
