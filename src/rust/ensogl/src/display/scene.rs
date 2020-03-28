@@ -729,7 +729,7 @@ impl SceneData {
     /// Bind FRP graph to mouse js events.
     #[deprecated(note="Please use `scene.mouse.frp` instead")]
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
-        mouse::bind_frp_to_mouse(&self.dom.shape(),frp,&self.mouse.mouse_manager)
+        mouse::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
     }
 
     pub fn camera(&self) -> &Camera2d {
