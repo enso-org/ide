@@ -21,7 +21,103 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component,MouseTarget,SceneBasedConstructor};
+use ensogl::display::scene::{Scene,Component,MouseTarget,ComponentSystemTrait};
+
+
+
+//#[derive(Clone,CloneRef,Debug)]
+//#[clone_ref(bound="Params:CloneRef")]
+//pub struct ComponentShapeWrapper<Params> {
+//    pub params : Params,
+//    pub sprite : Sprite,
+//}
+
+
+macro_rules! shape {
+    (
+        ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?)
+        {$($body:tt)*}
+    ) => {
+
+        // =============
+        // === Shape ===
+        // =============
+
+        #[derive(Clone,Debug)]
+        pub struct Shape {
+            pub sprite : Sprite,
+            $(pub $gpu_param : Attribute<$gpu_param_type>),*
+        }
+
+
+        // ==============
+        // === System ===
+        // ==============
+
+        #[derive(Clone,CloneRef,Debug)]
+        pub struct System {
+            pub shape_system : ShapeSystem,
+            $(pub $gpu_param : Buffer<$gpu_param_type>),*
+        }
+
+        impl ComponentSystemTrait for System {
+            type ComponentShape = Shape;
+
+            fn new(scene:&Scene) -> Self {
+                let shape_system = ShapeSystem::new(scene,&Self::shape_def());
+                $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),default::<$gpu_param_type>());)*
+                Self {shape_system,$($gpu_param),*}
+            }
+
+            fn new_instance(&self) -> Self::ComponentShape {
+                let sprite = self.shape_system.new_instance();
+                let id     = sprite.instance_id;
+                $(let $gpu_param = self.$gpu_param.at(id);)*
+                Shape {sprite,$($gpu_param),*}
+            }
+        }
+
+        impl System {
+            pub fn shape_def() -> AnyShape {
+                $($body)*
+            }
+
+
+        }
+    };
+}
+
+macro_rules! component {
+    (
+        $name:ident {
+            $($field:ident : $field_type:ty),* $(,)?
+        }
+
+        Shape ($($shape_field:ident : $shape_field_type:ty),* $(,)?) {
+            $($shape_body:tt)*
+        }
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            pub logger         : Logger,
+            pub display_object : display::object::Node,
+            pub shape          : Rc<RefCell<Option<Shape>>>,
+            $(pub $field : $field_type),*
+        }
+
+        impl Component for $name {
+            type ComponentSystem = System;
+        }
+
+        shape! { ($($shape_field : $shape_field_type),*) { $($shape_body)* } }
+
+        impl<'t> From<&'t $name> for &'t display::object::Node {
+            fn from(t:&'t $name) -> Self {
+                &t.display_object
+            }
+        }
+    };
+}
 
 
 
@@ -82,7 +178,7 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
     out.into()
 }
 
-pub fn shape() -> AnyShape {
+pub fn node_shape() -> AnyShape {
     let node_radius = 32.0;
     let border_size = 16.0;
 
@@ -111,104 +207,92 @@ pub fn shape() -> AnyShape {
     out.into()
 }
 
-//
-//macro_rules! component {
-//    () => {
-//    };
-//}
-//
-//
-//component! {
-//
-//}
 
-impl Component for Node {
-    type ComponentSystem = NodeSystem;
+#[derive(Debug,Clone,CloneRef)]
+pub struct Events {
+    pub mouse_down : frp::Dynamic<()>,
 }
 
-#[derive(Clone,Debug)]
-pub struct NodeSystem {
-    pub shape_system     : ShapeSystem,
-    pub selection_buffer : Buffer<f32>
-}
+component! {
+    Node {
+        label  : frp::Dynamic<String>,
+        events : Events,
+    }
 
-#[derive(Clone,Debug)]
-pub struct NodeDisplay {
-    pub sprite    : Sprite,
-    pub selection : Attribute<f32>,
-}
+    Shape (selection:f32) {
+        let node_radius = 32.0;
+        let border_size = 16.0;
 
-impl NodeSystem {
-    pub fn new_instance(&self) -> NodeDisplay {
-        let sprite    = self.shape_system.new_instance();
-        let selection = self.selection_buffer.at(sprite.instance_id);
-        NodeDisplay {sprite,selection}
+        let node = Circle(node_radius.px());
+        let node = node.fill(Srgb::new(0.97,0.96,0.95));
+        let bg   = Circle((node_radius*2.0).px());
+        let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
+
+        let shadow2 = Circle((node_radius + border_size).px());
+        let shadow2_color = LinearGradient::new()
+            .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+            .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
+        let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+        let shadow2       = shadow2.fill(shadow2_color);
+
+        let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
+        let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
+
+        let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+        let loader_angle2 = &loader_angle / 2.0;
+        let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
+        let loader        = loader.rotate(loader_angle2);
+        let loader        = loader.rotate("Radians(input_time/200.0)");
+        let icon          = icons::history();
+        let out           = loader + selection + shadow2 + node + icon;
+        out.into()
     }
 }
 
 
-impl CloneRef for NodeSystem {
-    fn clone_ref(&self) -> Self {
-        let shape_system     = self.shape_system.clone_ref();
-        let selection_buffer = self.selection_buffer.clone_ref();
-        Self {shape_system,selection_buffer}
+pub struct ComponentWrapper<T> {
+    pub definition     : T,
+    pub logger         : Logger,
+    pub display_object : display::object::Node,
+}
+
+impl<T:Component> ComponentWrapper<T> {
+    pub fn create(definition:T) -> Self {
+        let logger = Logger::new("xxx");
+        let display_object      = display::object::Node::new(&logger);
+        let display_object_weak = display_object.downgrade();
+
+//        display_object.set_on_show_with(enclose!((definition) move |scene| {
+//            let node_system = scene.shapes.get(PhantomData::<T>).unwrap();
+//            let instance   = node_system.new_instance();
+//            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
+//            instance.sprite.size().set(Vector2::new(200.0,200.0));
+//            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,definition);
+////            *shape.borrow_mut() = Some(instance);
+//        }));
+
+//
+//        display_object.set_on_hide_with(enclose!((shape) move |_| {
+//            shape.borrow().as_ref().for_each(|shape| {
+//                // TODO scene.shapes.remove_mouse_target(...)
+//            });
+//            *shape.borrow_mut() = None;
+//        }));
+
+        Self {definition,logger,display_object}
     }
 }
-
-impl SceneBasedConstructor for NodeSystem {
-    fn new(scene:&Scene) -> Self {
-        let shape_system     = ShapeSystem::new(scene,&shape());
-        let selection_buffer = shape_system.add_input("selection", 0.0);
-        Self {shape_system,selection_buffer}
-    }
-}
-
-
-type EditCallback = Box<dyn Fn(&Node) + 'static>;
-
-// FIXME We should use real event registers here instead.
-#[derive(Default)]
-pub struct OnEditCallbacks {
-    pub label_changed    : Option<EditCallback>,
-    pub position_changed : Option<EditCallback>,
-    pub removed          : Option<EditCallback>,
-}
-
-impl Debug for OnEditCallbacks {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.write_str("node::OnEditCallback")
-    }
-}
-
-#[derive(Debug,Default)]
-pub struct NodeData {
-    label : String,
-}
-
-#[derive(Derivative,Clone)]
-#[derivative(Debug)]
-pub struct Node {
-    logger         : Logger,
-    sprite         : Rc<CloneCell<Option<NodeDisplay>>>,
-    display_object : display::object::Node,
-    data           : Rc<RefCell<NodeData>>,
-    // FIXME: Refcells should be as deep as possible. Each callback manager should have internal mut
-    // pattern. This way you can register callbacks while running other callbacks.
-    callbacks      : Rc<RefCell<OnEditCallbacks>>,
-    pub mouse_down : enso_frp::Dynamic<()>,
-}
-
-impl CloneRef for Node {}
 
 impl Node {
     pub fn new() -> Self {
         let logger = Logger::new("node");
-        let sprite : Rc<CloneCell<Option<NodeDisplay>>> = default();
+        let shape : Rc<RefCell<Option<Shape>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
 
 
         frp! {
+            label               = source::<String>        ();
             mouse_down          = source::<()>            ();
             selected            = mouse_down.toggle        ();
             selection_animation = source::<f32>           ();
@@ -216,8 +300,8 @@ impl Node {
 
         }
 
-        selection_animation.map("animation", enclose!((sprite) move |value| {
-            sprite.get().for_each(|t| t.selection.set(*value))
+        selection_animation.map("animation", enclose!((shape) move |value| {
+            shape.borrow().as_ref().for_each(|t| t.selection.set(*value))
         }));
 
         let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
@@ -229,107 +313,42 @@ impl Node {
             simulator.set_target_position(value);
         }));
 
+        let events = Events {mouse_down};
 
-        let data      = default();
-        let callbacks = default();
+
         let display_object2 = display_object.clone_ref();
-        let sprite2 = sprite.clone_ref();
+        let shape2 = shape.clone_ref();
 
-        let this = Self {logger,sprite,display_object,data,callbacks,mouse_down};
+        let this = Self {logger,shape,display_object,label,events};
 
-        let sprite = sprite2;
+        let shape = shape2;
 
-        display_object2.set_on_show_with(enclose!((this,sprite) move |scene| {
+        display_object2.set_on_show_with(enclose!((this,shape) move |scene| {
             let node_system = scene.shapes.get(PhantomData::<Node>).unwrap();
             let instance   = node_system.new_instance();
             display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
             instance.sprite.size().set(Vector2::new(200.0,200.0));
             scene.shapes.insert_mouse_target(*instance.sprite.instance_id,this.clone());
-            sprite.set(Some(instance));
+            *shape.borrow_mut() = Some(instance);
         }));
 
 
-        display_object2.set_on_hide_with(enclose!((sprite) move |_| {
-            sprite.get().for_each(|sprite| {
+        display_object2.set_on_hide_with(enclose!((shape) move |_| {
+            shape.borrow().as_ref().for_each(|shape| {
                 // TODO scene.shapes.remove_mouse_target(...)
             });
-            sprite.set(None);
+            *shape.borrow_mut() = None;
         }));
 
 
         this
     }
 
-    pub fn set_on_edit_callbacks(&self, callbacks: OnEditCallbacks) {
-        *self.callbacks.borrow_mut() = callbacks
-    }
 }
 
 impl MouseTarget for Node {
     fn mouse_down(&self) -> &frp::Dynamic<()> {
-        &self.mouse_down
+        &self.events.mouse_down
     }
 }
 
-
-// === Interface for library users ===
-
-impl Node {
-    // FIXME this is bad. It does not cover all position modifiers like `mod_position`. Should be
-    // done as transform callback instead.
-    pub fn set_position(&self, pos:Vector3<f32>) {
-        self.display_object.set_position(pos);
-    }
-
-    pub fn set_label(&self, new_label:String) {
-        self.data.borrow_mut().label = new_label;
-        //TODO[ao] update sprites
-    }
-
-    pub fn remove_from_graph(&self) {
-        todo!()
-    }
-}
-
-
-// === Interface for GUI events ===
-
-impl Node {
-    // FIXME this is bad. It does not cover all position modifiers like `mod_position`. Should be
-    // done as transform callback instead.
-    pub fn gui_set_position(&self, pos:Vector3<f32>) {
-        self.set_position(pos);
-        self.call_edit_callback(&self.callbacks.borrow().position_changed);
-    }
-
-    pub fn gui_set_label(&self, new_label:String) {
-        self.set_label(new_label);
-        //TODO[ao] update sprites
-        self.call_edit_callback(&self.callbacks.borrow().label_changed);
-    }
-
-    pub fn gui_remove_from_graph(&self) {
-        todo!()
-    }
-
-    fn call_edit_callback(&self, callback:&Option<EditCallback>) {
-        if let Some(callback) = callback {
-            callback(self)
-        }
-    }
-}
-
-// === Getters ===
-
-impl Node {
-    pub fn label(&self) -> String {
-        self.data.borrow().label.clone()
-    }
-}
-
-
-impl<'t> From<&'t Node> for &'t display::object::Node {
-    fn from(node:&'t Node) -> Self {
-        &node.display_object
-    }
-}

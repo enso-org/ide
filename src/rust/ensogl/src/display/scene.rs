@@ -42,13 +42,15 @@ use enso_frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 
-pub trait SceneBasedConstructor {
+pub trait ComponentSystemTrait {
+    type ComponentShape;
     fn new(scene:&Scene) -> Self;
+    fn new_instance(&self) -> Self::ComponentShape;
 }
 
 
 pub trait Component : CloneRef + 'static {
-    type ComponentSystem : SceneBasedConstructor + CloneRef;
+    type ComponentSystem : ComponentSystemTrait + CloneRef;
 }
 
 pub type ComponentSystem<T> = <T as Component>::ComponentSystem;

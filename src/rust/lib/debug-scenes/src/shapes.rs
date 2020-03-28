@@ -32,7 +32,7 @@ use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
-use ensogl::display::scene::{Scene,Component,SceneBasedConstructor};
+use ensogl::display::scene::{Scene,Component,ComponentSystemTrait};
 
 
 #[derive(Clone,Debug)]
@@ -44,7 +44,9 @@ pub struct PointerSystem {
 }
 
 
-impl SceneBasedConstructor for PointerSystem {
+impl ComponentSystemTrait for PointerSystem {
+    type ComponentShape = PointerDisplay;
+
     fn new(scene:&Scene) -> Self {
         let shape_system          = ShapeSystem::new(scene,&mouse_pointer());
         let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
@@ -57,6 +59,13 @@ impl SceneBasedConstructor for PointerSystem {
         scene_view.add(&shape_system.symbol);
 
         Self {scene_view,shape_system,position_buffer,selection_size_buffer}
+    }
+
+    fn new_instance(&self) -> Self::ComponentShape {
+        let sprite         = self.shape_system.new_instance();
+        let position       = self.position_buffer.at(sprite.instance_id);
+        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
+        PointerDisplay {sprite,position,selection_size}
     }
 }
 
@@ -76,15 +85,6 @@ pub struct PointerDisplay {
     pub sprite         : Sprite,
     pub position       : Attribute<Vector2<f32>>,
     pub selection_size : Attribute<Vector2<f32>>,
-}
-
-impl PointerSystem {
-    pub fn new_instance(&self) -> PointerDisplay {
-        let sprite         = self.shape_system.new_instance();
-        let position       = self.position_buffer.at(sprite.instance_id);
-        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
-        PointerDisplay {sprite,position,selection_size}
-    }
 }
 
 
