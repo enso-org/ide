@@ -44,6 +44,8 @@ pub use weak_table::traits::WeakElement;
 pub use weak_table::WeakValueHashMap;
 pub use weak_table;
 
+pub use shapely::CloneRef;
+
 use std::cell::UnsafeCell;
 
 

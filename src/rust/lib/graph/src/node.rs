@@ -111,8 +111,16 @@ pub fn shape() -> AnyShape {
     out.into()
 }
 
-
-
+//
+//macro_rules! component {
+//    () => {
+//    };
+//}
+//
+//
+//component! {
+//
+//}
 
 impl Component for Node {
     type ComponentSystem = NodeSystem;
@@ -162,7 +170,6 @@ type EditCallback = Box<dyn Fn(&Node) + 'static>;
 #[derive(Default)]
 pub struct OnEditCallbacks {
     pub label_changed    : Option<EditCallback>,
-    pub color_changed    : Option<EditCallback>,
     pub position_changed : Option<EditCallback>,
     pub removed          : Option<EditCallback>,
 }
@@ -176,7 +183,6 @@ impl Debug for OnEditCallbacks {
 #[derive(Debug,Default)]
 pub struct NodeData {
     label : String,
-    color : Srgba, // FIXME what is node color?
 }
 
 #[derive(Derivative,Clone)]
@@ -280,11 +286,6 @@ impl Node {
         //TODO[ao] update sprites
     }
 
-    pub fn set_color(&self, new_color:Srgba) {
-        self.data.borrow_mut().color = new_color;
-        //TODO[ao] update sprites
-    }
-
     pub fn remove_from_graph(&self) {
         todo!()
     }
@@ -307,12 +308,6 @@ impl Node {
         self.call_edit_callback(&self.callbacks.borrow().label_changed);
     }
 
-    pub fn gui_set_color(&self, new_color:Srgba) {
-        self.set_color(new_color);
-        //TODO[ao] update sprites
-        self.call_edit_callback(&self.callbacks.borrow().color_changed);
-    }
-
     pub fn gui_remove_from_graph(&self) {
         todo!()
     }
@@ -329,10 +324,6 @@ impl Node {
 impl Node {
     pub fn label(&self) -> String {
         self.data.borrow().label.clone()
-    }
-
-    pub fn color(&self) -> Srgba {
-        self.data.borrow().color.clone()
     }
 }
 

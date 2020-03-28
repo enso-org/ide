@@ -7,6 +7,8 @@ edition = "2018"
 [lib]
 
 [dependencies]
+shapely  = { version = "0.1.0"  , path = "../shapely/impl" }
+
 boolinator   = "2.4.0"
 derivative   = "1.0.3"
 derive_more  = "0.99.2"
@@ -20,6 +22,7 @@ paste        = "0.1"
 shrinkwraprs = "0.3.0"
 smallvec     = "1.0.0"
 weak-table   = "0.2.3"
+
 
 # TODO: should be behind a flag, as the `nalgebra` package is pretty big and this crate would be
 #       also useful for projects which do not require `nalgebra`.

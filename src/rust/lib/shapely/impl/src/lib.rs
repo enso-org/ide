@@ -18,13 +18,13 @@ pub mod shared;
 pub mod singleton;
 pub mod cartesian;
 
-pub use enso_prelude as prelude;
 pub use shapely_macros::*;
 
 pub use generator::EmptyIterator;
 pub use generator::GeneratingIterator;
 
-use crate::prelude::*;
+use shrinkwraprs::Shrinkwrap;
+
 
 
 /// Generates a newtype wrapper for the provided types. It also generates a lot of impls,
