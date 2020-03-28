@@ -42,14 +42,24 @@ use enso_frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 
-pub trait ComponentSystemTrait {
-    type ComponentShape;
-    fn new(scene:&Scene) -> Self;
-    fn new_instance(&self) -> Self::ComponentShape;
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[clone_ref(bound="Params:CloneRef")]
+pub struct ComponentShapeWrapper<Params> {
+    #[shrinkwrap(main_field)]
+    pub params : Params,
+    pub sprite : Sprite,
 }
 
 
-pub trait Component : CloneRef + 'static {
+pub trait ComponentSystemTrait {
+    type ComponentShape;
+    fn new(scene:&Scene) -> Self;
+    fn new_instance(&self) -> ComponentShapeWrapper<Self::ComponentShape>;
+}
+
+pub type ComponentShape<T> = <T as ComponentSystemTrait>::ComponentShape;
+
+pub trait Component : MouseTarget + CloneRef + 'static {
     type ComponentSystem : ComponentSystemTrait + CloneRef;
 }
 
@@ -57,7 +67,7 @@ pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> &enso_frp::Dynamic<()>;
+    fn mouse_down(&self) -> Option<&enso_frp::Dynamic<()>> { None }
 }
 
 
@@ -66,6 +76,7 @@ pub trait MouseTarget : Debug + 'static {
 // =====================
 
 use std::any::TypeId;
+use crate::display::Sprite;
 
 shared! { ShapeRegistry
 #[derive(Debug,Default)]

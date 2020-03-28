@@ -32,7 +32,7 @@ use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
-use ensogl::display::scene::{Scene,Component,ComponentSystemTrait};
+use ensogl::display::scene::{Scene, Component, ComponentSystemTrait, ComponentShapeWrapper, MouseTarget};
 
 
 #[derive(Clone,Debug)]
@@ -61,11 +61,12 @@ impl ComponentSystemTrait for PointerSystem {
         Self {scene_view,shape_system,position_buffer,selection_size_buffer}
     }
 
-    fn new_instance(&self) -> Self::ComponentShape {
+    fn new_instance(&self) -> ComponentShapeWrapper<Self::ComponentShape> {
         let sprite         = self.shape_system.new_instance();
         let position       = self.position_buffer.at(sprite.instance_id);
         let selection_size = self.selection_size_buffer.at(sprite.instance_id);
-        PointerDisplay {sprite,position,selection_size}
+        let params = PointerDisplay {position,selection_size};
+        ComponentShapeWrapper {sprite,params}
     }
 }
 
@@ -82,7 +83,6 @@ impl CloneRef for PointerSystem {
 
 #[derive(Clone,Debug)]
 pub struct PointerDisplay {
-    pub sprite         : Sprite,
     pub position       : Attribute<Vector2<f32>>,
     pub selection_size : Attribute<Vector2<f32>>,
 }
@@ -96,7 +96,7 @@ impl Component for Pointer {
 pub struct Pointer {
     logger         : Logger,
     display_object : display::object::Node,
-    sprite         : Rc<CloneCell<Option<PointerDisplay>>>,
+    sprite         : Rc<CloneCell<Option<ComponentShapeWrapper<PointerDisplay>>>>,
 }
 
 impl CloneRef for Pointer {}
@@ -104,7 +104,7 @@ impl CloneRef for Pointer {}
 impl Pointer {
     pub fn new(width:f32,height:f32) -> Self {
         let logger = Logger::new("mouse.pointer");
-        let sprite : Rc<CloneCell<Option<PointerDisplay>>> = default();
+        let sprite : Rc<CloneCell<Option<ComponentShapeWrapper<PointerDisplay>>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
 
@@ -129,6 +129,8 @@ impl<'t> From<&'t Pointer> for &'t display::object::Node {
         &ptr.display_object
     }
 }
+
+impl MouseTarget for Pointer {}
 
 
 
@@ -326,7 +328,7 @@ fn init(world: &World) {
             display::scene::Target::Background => {}
             display::scene::Target::Symbol {symbol_id, instance_id} => {
                 scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
-                    target.mouse_down().event.emit(());
+                    target.mouse_down().for_each(|t| t.event.emit(()));
                 })
             }
         }
