@@ -39,7 +39,7 @@ macro_rules! shape {
         // =============
 
         #[derive(Clone,Debug)]
-        pub struct Shape {
+        pub struct ShapeDefinition {
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
@@ -55,7 +55,7 @@ macro_rules! shape {
         }
 
         impl ComponentSystemTrait for System {
-            type ComponentShape = Shape;
+            type ComponentShape = ShapeDefinition;
 
             fn new(scene:&Scene) -> Self {
                 let shape_system = ShapeSystem::new(scene,&Self::shape_def());
@@ -67,7 +67,7 @@ macro_rules! shape {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                let params = Shape {$($gpu_param),*};
+                let params = ShapeDefinition {$($gpu_param),*};
                 ComponentShapeWrapper {sprite,params}
 
             }
@@ -198,6 +198,78 @@ pub fn node_shape() -> AnyShape {
 }
 
 
+
+
+#[derive(Debug,Derivative,Shrinkwrap)]
+#[derivative(Clone(bound="Definition:Clone"))]
+pub struct ComponentWrapper<Definition,Shape> {
+    #[shrinkwrap(main_field)]
+    pub definition     : Definition,
+    pub logger         : Logger,
+    pub display_object : display::object::Node,
+    pub shape          : Rc<RefCell<Option<ComponentShapeWrapper<Shape>>>>,
+}
+
+
+pub type ComponentWrapperX<Definition> = ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>>;
+
+impl<Definition,Shape> CloneRef for ComponentWrapper<Definition,Shape>
+where Definition : CloneRef {
+    fn clone_ref(&self) -> Self {
+        let definition     = self.definition.clone_ref();
+        let logger         = self.logger.clone_ref();
+        let display_object = self.display_object.clone_ref();
+        let shape          = self.shape.clone_ref();
+        Self {definition,logger,display_object,shape}
+    }
+}
+
+impl<'t,Definition,Shape>
+From<&'t ComponentWrapper<Definition,Shape>> for &'t display::object::Node {
+    fn from(t:&'t ComponentWrapper<Definition,Shape>) -> Self {
+        &t.display_object
+    }
+}
+
+impl<Definition:Component> ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>> {
+    pub fn create(label:&str,definition:Definition) -> Self {
+        let logger         = Logger::new(label);
+        let display_object = display::object::Node::new(&logger);
+        let shape          = default();
+        Self {shape,definition,logger,display_object} . create_init()
+    }
+
+    fn create_init(self) -> Self {
+        let shape               = &self.shape;
+        let definition          = &self.definition;
+        let display_object_weak = self.display_object.downgrade();
+
+        self.display_object.set_on_show_with(enclose!((shape,definition) move |scene| {
+            let node_system = scene.shapes.get(PhantomData::<Definition>).unwrap();
+            let instance   = node_system.new_instance();
+            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
+            instance.sprite.size().set(Vector2::new(200.0,200.0));
+            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,definition.clone_ref());
+            *shape.borrow_mut() = Some(instance);
+        }));
+
+        self.display_object.set_on_hide_with(enclose!((shape) move |_| {
+            shape.borrow().as_ref().for_each(|shape| {
+                // TODO scene.shapes.remove_mouse_target(...)
+            });
+            *shape.borrow_mut() = None;
+        }));
+
+        self
+    }
+}
+
+
+
+// ============
+// === Node ===
+// ============
+
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
     pub mouse_down : frp::Dynamic<()>,
@@ -239,92 +311,28 @@ component! {
     }
 }
 
-#[derive(Debug,Derivative)]
-#[derivative(Clone(bound="Definition:Clone"))]
-pub struct ComponentWrapper<Definition,Shape> {
-    pub definition     : Definition,
-    pub logger         : Logger,
-    pub display_object : display::object::Node,
-    pub shape          : Rc<RefCell<Option<ComponentShapeWrapper<Shape>>>>,
-}
-
-
-pub type ComponentWrapperX<Definition> = ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>>;
-
-impl<Definition,Shape> CloneRef for ComponentWrapper<Definition,Shape>
-where Definition : CloneRef {
-    fn clone_ref(&self) -> Self {
-        let definition     = self.definition.clone_ref();
-        let logger         = self.logger.clone_ref();
-        let display_object = self.display_object.clone_ref();
-        let shape          = self.shape.clone_ref();
-        Self {definition,logger,display_object,shape}
-    }
-}
-
-impl<'t,Definition,Shape>
-From<&'t ComponentWrapper<Definition,Shape>> for &'t display::object::Node {
-    fn from(t:&'t ComponentWrapper<Definition,Shape>) -> Self {
-        &t.display_object
-    }
-}
-
-impl<Definition:Component> ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>> {
-    pub fn create(definition:Definition) -> Self {
-        let logger = Logger::new("xxx");
-        let display_object      = display::object::Node::new(&logger);
-        let display_object_weak = display_object.downgrade();
-        let shape : Rc<RefCell<Option<ComponentShapeWrapper<ComponentShape<ComponentSystem<Definition>>>>>> = default();
-
-        display_object.set_on_show_with(enclose!((shape,definition) move |scene| {
-            let node_system = scene.shapes.get(PhantomData::<Definition>).unwrap();
-            let instance   = node_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
-            instance.sprite.size().set(Vector2::new(200.0,200.0));
-            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,definition.clone_ref());
-            *shape.borrow_mut() = Some(instance);
-        }));
-
-
-        display_object.set_on_hide_with(enclose!((shape) move |_| {
-            shape.borrow().as_ref().for_each(|shape| {
-                // TODO scene.shapes.remove_mouse_target(...)
-            });
-            *shape.borrow_mut() = None;
-        }));
-
-        Self {shape,definition,logger,display_object}
-    }
-}
-
 impl Node {
     pub fn new() -> Self {
-//        let logger = Logger::new("node");
-//        let shape : Rc<RefCell<Option<ComponentShapeWrapper<Shape>>>> = default();
-//        let display_object      = display::object::Node::new(&logger);
-//        let display_object_weak = display_object.downgrade();
-
-
         frp! {
-            label               = source::<String>        ();
-            mouse_down          = source::<()>            ();
-            selected            = mouse_down.toggle        ();
-            selection_animation = source::<f32>           ();
-//            debug = selection.map(|t| {println!("SS: {:?}",t);})
-
+            label      = source::<String> ();
+            mouse_down = source::<()>     ();
         }
 
-
-
-        let events = Events {mouse_down};
-
-
-
+        let events     = Events {mouse_down};
         let definition = Definition {label,events};
-        let this = Self::create(definition);
+        Self::create("node",definition).init()
+    }
 
+    fn init(self) -> Self {
+        let mouse_down = self.events.mouse_down.clone_ref();
 
-        let shape = &this.shape;
+        frp! {
+            selected            = mouse_down.toggle ();
+            selection_animation = source::<f32>     ();
+            // debug = selection.map(|t| {println!("SS: {:?}",t);})
+        }
+
+        let shape = &self.shape;
         selection_animation.map("animation", enclose!((shape) move |value| {
             shape.borrow().as_ref().for_each(|t| t.selection.set(*value))
         }));
@@ -337,34 +345,7 @@ impl Node {
             let value = if *check { 1.0 } else { 0.0 };
             simulator.set_target_position(value);
         }));
-
-
-
-        this
-
-//        let this = Self {logger,shape,display_object,label,events};
-//
-//        let shape = shape2;
-//
-//        display_object2.set_on_show_with(enclose!((this,shape) move |scene| {
-//            let node_system = scene.shapes.get(PhantomData::<Node>).unwrap();
-//            let instance   = node_system.new_instance();
-//            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
-//            instance.sprite.size().set(Vector2::new(200.0,200.0));
-//            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,this.clone());
-//            *shape.borrow_mut() = Some(instance);
-//        }));
-//
-//
-//        display_object2.set_on_hide_with(enclose!((shape) move |_| {
-//            shape.borrow().as_ref().for_each(|shape| {
-//                // TODO scene.shapes.remove_mouse_target(...)
-//            });
-//            *shape.borrow_mut() = None;
-//        }));
-//
-//
-//        this
+        self
     }
 
 }
@@ -374,4 +355,3 @@ impl MouseTarget for Definition {
         Some(&self.events.mouse_down)
     }
 }
-
