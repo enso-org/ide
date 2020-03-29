@@ -21,67 +21,14 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component,MouseTarget,ShapeSystem,ShapeWrapper,ComponentSystem,ShapeDefinition,Shape};
+use ensogl::display::scene::{Scene,Component,MouseTarget,ComponentSystem};
 
 
 
 
 
 
-macro_rules! shape {
-    (
-        ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?)
-        {$($body:tt)*}
-    ) => {
 
-        // =============
-        // === Shape ===
-        // =============
-
-        #[derive(Clone,Debug)]
-        pub struct ThisShapeDefinition {
-            $(pub $gpu_param : Attribute<$gpu_param_type>),*
-        }
-
-
-        // ==============
-        // === System ===
-        // ==============
-
-        #[derive(Clone,CloneRef,Debug)]
-        pub struct System {
-            pub shape_system : ShapeSystemDefinition,
-            $(pub $gpu_param : Buffer<$gpu_param_type>),*
-        }
-
-        impl ShapeSystem for System {
-            type ShapeDefinition = ThisShapeDefinition;
-
-            fn new(scene:&Scene) -> Self {
-                let shape_system = ShapeSystemDefinition::new(scene,&Self::shape_def());
-                $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),default::<$gpu_param_type>());)*
-                Self {shape_system,$($gpu_param),*}
-            }
-
-            fn new_instance(&self) -> Shape<Self> {
-                let sprite = self.shape_system.new_instance();
-                let id     = sprite.instance_id;
-                $(let $gpu_param = self.$gpu_param.at(id);)*
-                let params = ThisShapeDefinition {$($gpu_param),*};
-                ShapeWrapper {sprite,params}
-
-            }
-        }
-
-        impl System {
-            pub fn shape_def() -> AnyShape {
-                $($body)*
-            }
-
-
-        }
-    };
-}
 
 macro_rules! component {
     (
@@ -104,7 +51,7 @@ macro_rules! component {
             type ComponentSystem = System;
         }
 
-        shape! { ($($shape_field : $shape_field_type),*) { $($shape_body)* } }
+        ensogl::shape! { ($($shape_field : $shape_field_type),*) { $($shape_body)* } }
 
     };
 }

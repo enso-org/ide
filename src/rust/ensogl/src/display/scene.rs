@@ -41,24 +41,9 @@ use enso_frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-#[clone_ref(bound="Params:CloneRef")]
-pub struct ShapeWrapper<Params> {
-    #[shrinkwrap(main_field)]
-    pub params : Params,
-    pub sprite : Sprite,
-}
 
 
-pub trait ShapeSystem {
-    type ShapeDefinition;
-    fn new(scene:&Scene) -> Self;
-    fn new_instance(&self) -> Shape<Self>;
-}
-
-pub type ShapeDefinition<T> = <T as ShapeSystem>::ShapeDefinition;
-
-pub type Shape<T> = ShapeWrapper<ShapeDefinition<T>>;
+use crate::display::shape::ShapeSystem;
 
 pub trait Component : MouseTarget + CloneRef + 'static {
     type ComponentSystem : ShapeSystem + CloneRef;
