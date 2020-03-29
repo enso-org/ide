@@ -64,6 +64,7 @@ pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
 
 
 
+
 #[derive(Debug,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound="Definition:Clone"))]
 pub struct ComponentWrapperTemplate<Definition,Shape> {

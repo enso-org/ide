@@ -156,7 +156,6 @@ macro_rules! shape {
                 $(let $gpu_param = self.$gpu_param.at(id);)*
                 let params = ShapeDefinition {$($gpu_param),*};
                 ShapeWrapper {sprite,params}
-
             }
         }
 
@@ -164,8 +163,6 @@ macro_rules! shape {
             pub fn shape_def() -> AnyShape {
                 $($body)*
             }
-
-
         }
     };
 }

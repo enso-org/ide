@@ -50,13 +50,8 @@ ensogl::component! { Cursor
 impl Cursor {
     pub fn new() -> Self {
         let definition = Definition {};
-        Self::create("node",definition).init()
+        Self::create("node",definition)
     }
-
-    fn init(self) -> Self {
-        self
-    }
-
 }
 
 impl MouseTarget for Definition {}

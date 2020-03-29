@@ -16,8 +16,10 @@ use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
-use graph::node;
-use graph::node::Node;
+use graph::component::node;
+use graph::component::node::Node;
+use graph::component::cursor;
+use graph::component::cursor::Cursor;
 //use graph::node::NodeRegistry;
 use nalgebra::Vector2;
 use shapely::shared;
@@ -36,86 +38,86 @@ use ensogl::display::scene::{Scene, MouseTarget};
 use ensogl::gui::component::Component;
 
 
-#[derive(Clone,CloneRef,Debug)]
-pub struct PointerSystem {
-    pub shape_system          : ShapeSystemDefinition,
-    pub position_buffer       : Buffer<Vector2<f32>>,
-    pub selection_size_buffer : Buffer<Vector2<f32>>,
-}
-
-
-impl ShapeSystem for PointerSystem {
-    type ShapeDefinition = PointerDisplay;
-
-    fn new(scene:&Scene) -> Self {
-        let shape_system          = ShapeSystemDefinition::new(scene,&mouse_pointer());
-        let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
-        let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
-
-        Self {shape_system,position_buffer,selection_size_buffer}
-    }
-
-    fn new_instance(&self) -> ShapeWrapper<Self::ShapeDefinition> {
-        let sprite         = self.shape_system.new_instance();
-        let position       = self.position_buffer.at(sprite.instance_id);
-        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
-        let params = PointerDisplay {position,selection_size};
-        ShapeWrapper {sprite,params}
-    }
-}
-
-#[derive(Clone,Debug)]
-pub struct PointerDisplay {
-    pub position       : Attribute<Vector2<f32>>,
-    pub selection_size : Attribute<Vector2<f32>>,
-}
-
-
-impl Component for Pointer {
-    type ComponentSystem = PointerSystem;
-}
-
-#[derive(Debug,Clone)]
-pub struct Pointer {
-    logger         : Logger,
-    display_object : display::object::Node,
-    sprite         : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>>,
-}
-
-impl CloneRef for Pointer {}
-
-impl Pointer {
-    pub fn new(width:f32,height:f32) -> Self {
-        let logger = Logger::new("mouse.pointer");
-        let sprite : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>> = default();
-        let display_object      = display::object::Node::new(&logger);
-        let display_object_weak = display_object.downgrade();
-
-        display_object.set_on_show_with(enclose!((sprite) move |scene| {
-            let pointer_system = scene.shapes.get(PhantomData::<Pointer>).unwrap();
-            let instance       = pointer_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
-            instance.sprite.size().set(Vector2::new(width,height));
-            sprite.set(Some(instance));
-        }));
-
-        display_object.set_on_hide_with(enclose!((sprite) move |_| {
-            sprite.set(None);
-        }));
-
-        Self {logger,sprite,display_object}
-    }
-}
-
-impl<'t> From<&'t Pointer> for &'t display::object::Node {
-    fn from(ptr:&'t Pointer) -> Self {
-        &ptr.display_object
-    }
-}
-
-impl MouseTarget for Pointer {}
-
-
+//#[derive(Clone,CloneRef,Debug)]
+//pub struct PointerSystem {
+//    pub shape_system          : ShapeSystemDefinition,
+//    pub position_buffer       : Buffer<Vector2<f32>>,
+//    pub selection_size_buffer : Buffer<Vector2<f32>>,
+//}
+//
+//
+//impl ShapeSystem for PointerSystem {
+//    type ShapeDefinition = PointerDisplay;
+//
+//    fn new(scene:&Scene) -> Self {
+//        let shape_system          = ShapeSystemDefinition::new(scene,&mouse_pointer());
+//        let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
+//        let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
+//
+//        Self {shape_system,position_buffer,selection_size_buffer}
+//    }
+//
+//    fn new_instance(&self) -> ShapeWrapper<Self::ShapeDefinition> {
+//        let sprite         = self.shape_system.new_instance();
+//        let position       = self.position_buffer.at(sprite.instance_id);
+//        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
+//        let params = PointerDisplay {position,selection_size};
+//        ShapeWrapper {sprite,params}
+//    }
+//}
+//
+//#[derive(Clone,Debug)]
+//pub struct PointerDisplay {
+//    pub position       : Attribute<Vector2<f32>>,
+//    pub selection_size : Attribute<Vector2<f32>>,
+//}
+//
+//
+//impl Component for Pointer {
+//    type ComponentSystem = PointerSystem;
+//}
+//
+//#[derive(Debug,Clone)]
+//pub struct Pointer {
+//    logger         : Logger,
+//    display_object : display::object::Node,
+//    sprite         : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>>,
+//}
+//
+//impl CloneRef for Pointer {}
+//
+//impl Pointer {
+//    pub fn new(width:f32,height:f32) -> Self {
+//        let logger = Logger::new("mouse.pointer");
+//        let sprite : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>> = default();
+//        let display_object      = display::object::Node::new(&logger);
+//        let display_object_weak = display_object.downgrade();
+//
+//        display_object.set_on_show_with(enclose!((sprite) move |scene| {
+//            let pointer_system = scene.shapes.get(PhantomData::<Pointer>).unwrap();
+//            let instance       = pointer_system.new_instance();
+//            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
+//            instance.sprite.size().set(Vector2::new(width,height));
+//            sprite.set(Some(instance));
+//        }));
+//
+//        display_object.set_on_hide_with(enclose!((sprite) move |_| {
+//            sprite.set(None);
+//        }));
+//
+//        Self {logger,sprite,display_object}
+//    }
+//}
+//
+//impl<'t> From<&'t Pointer> for &'t display::object::Node {
+//    fn from(ptr:&'t Pointer) -> Self {
+//        &ptr.display_object
+//    }
+//}
+//
+//impl MouseTarget for Pointer {}
+//
+//
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -163,41 +165,9 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-//    let node_shape_system             = ShapeSystemDefinition::new(world,&node::shape());
-//    let node_selection_buffer         = node_shape_system.add_input("selection" , 0.0);
-
-
-//    let pointer_shape_system          = ShapeSystemDefinition::new(world,&mouse_pointer());
-//    let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
-//    let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
-
-
-
-    let shape = scene.dom.shape().current();
-
-    let pointer = Pointer::new(shape.width(), shape.height());
-
-//    pointer_shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-//
-//    let node_system = node::NodeSystem {
-//        shape_system : node_shape_system.clone_ref(),
-//        selection_buffer : node_selection_buffer.clone_ref(),
-//    };
-
-//    let pointer_view = scene.views.new();
-//    scene.views.main.remove(&pointer_shape_system.symbol);
-//    pointer_view.add(&pointer_shape_system.symbol);
-//
-//
-//    let pointer_system = PointerSystem {
-//        scene_view : pointer_view.clone_ref(),
-//        shape_system : pointer_shape_system.clone_ref(),
-//        position_buffer : pointer_position_buffer.clone_ref(),
-//        selection_size_buffer : pointer_selection_size_buffer.clone_ref(),
-//    };
 
     scene.shapes.register(PhantomData::<node::Definition>);
-    let pointer_system_x = scene.shapes.register(PhantomData::<Pointer>);
+    let pointer_system_x = scene.shapes.register(PhantomData::<cursor::Definition>);
 
     pointer_system_x.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
 
@@ -208,27 +178,14 @@ fn init(world: &World) {
 
 
 
-//    shape_scene.shape_system_map.insert(TypeId::of::<Node>(),node_shape_system.clone());
 
-//    let animator_ref : Rc<RefCell<Option<AnimationLoop<FixedFrameRateSampler<Box<dyn Fn(TimeInfo)>>>>>> = default();
-//    let animator = AnimationLoop::new(FixedFrameRateSampler::new(60.0,Box::new(enclose!((animator_ref) move |t:TimeInfo| {
-//        if t.local > 1000.0 {
-//            *animator_ref.borrow_mut() = None;
-//        }
-//        println!("{:?}",t)
-//    })) as Box<dyn Fn(TimeInfo)>));
-//    *animator_ref.borrow_mut() = Some(animator);
-
-
-
-//    let nodes : Rc<RefCell<HashMap<usize,Node>>> = default();
-
-//    let node_registry = NodeRegistry::default();
 
     let node1 = Node::new();//&node_registry);
 
+    let cursor = Cursor::new();
 
-    world.add_child(&pointer);
+
+    world.add_child(&cursor);
 
 
 
@@ -288,17 +245,16 @@ fn init(world: &World) {
 
     }
 
-//    nodes_update.event.display_graphviz();
 
-    mouse.position.map("pointer_position", enclose!((pointer) move |p| {
-        pointer.sprite.get().for_each(|sprite| {
-            sprite.position.set(Vector2::new(p.x as f32,p.y as f32));
+    mouse.position.map("cursor_position", enclose!((cursor) move |p| {
+        cursor.shape.borrow().as_ref().for_each(|shape| {
+            shape.position.set(Vector2::new(p.x as f32,p.y as f32));
         })
     }));
 
-    selection_size.map("pointer_size", enclose!((pointer) move |p| {
-        pointer.sprite.get().for_each(|sprite| {
-            sprite.selection_size.set(Vector2::new(p.x as f32, p.y as f32));
+    selection_size.map("cursor_size", enclose!((cursor) move |p| {
+        cursor.shape.borrow().as_ref().for_each(|shape| {
+            shape.selection_size.set(Vector2::new(p.x as f32, p.y as f32));
         })
     }));
 
