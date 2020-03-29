@@ -12,7 +12,7 @@ use ensogl::display;
 use ensogl::display::Sprite;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystem;
+use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
@@ -32,23 +32,23 @@ use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
-use ensogl::display::scene::{Scene, Component, ComponentSystemTrait, ComponentShapeWrapper, MouseTarget};
+use ensogl::display::scene::{Scene, Component, ShapeSystem, ShapeWrapper, MouseTarget};
 
 
 #[derive(Clone,Debug)]
 pub struct PointerSystem {
     pub scene_view            : scene::View,
-    pub shape_system          : ShapeSystem,
+    pub shape_system          : ShapeSystemDefinition,
     pub position_buffer       : Buffer<Vector2<f32>>,
     pub selection_size_buffer : Buffer<Vector2<f32>>,
 }
 
 
-impl ComponentSystemTrait for PointerSystem {
-    type ComponentShape = PointerDisplay;
+impl ShapeSystem for PointerSystem {
+    type ShapeDefinition = PointerDisplay;
 
     fn new(scene:&Scene) -> Self {
-        let shape_system          = ShapeSystem::new(scene,&mouse_pointer());
+        let shape_system          = ShapeSystemDefinition::new(scene,&mouse_pointer());
         let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
         let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
 
@@ -61,12 +61,12 @@ impl ComponentSystemTrait for PointerSystem {
         Self {scene_view,shape_system,position_buffer,selection_size_buffer}
     }
 
-    fn new_instance(&self) -> ComponentShapeWrapper<Self::ComponentShape> {
+    fn new_instance(&self) -> ShapeWrapper<Self::ShapeDefinition> {
         let sprite         = self.shape_system.new_instance();
         let position       = self.position_buffer.at(sprite.instance_id);
         let selection_size = self.selection_size_buffer.at(sprite.instance_id);
         let params = PointerDisplay {position,selection_size};
-        ComponentShapeWrapper {sprite,params}
+        ShapeWrapper {sprite,params}
     }
 }
 
@@ -96,7 +96,7 @@ impl Component for Pointer {
 pub struct Pointer {
     logger         : Logger,
     display_object : display::object::Node,
-    sprite         : Rc<CloneCell<Option<ComponentShapeWrapper<PointerDisplay>>>>,
+    sprite         : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>>,
 }
 
 impl CloneRef for Pointer {}
@@ -104,7 +104,7 @@ impl CloneRef for Pointer {}
 impl Pointer {
     pub fn new(width:f32,height:f32) -> Self {
         let logger = Logger::new("mouse.pointer");
-        let sprite : Rc<CloneCell<Option<ComponentShapeWrapper<PointerDisplay>>>> = default();
+        let sprite : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>> = default();
         let display_object      = display::object::Node::new(&logger);
         let display_object_weak = display_object.downgrade();
 
@@ -180,11 +180,11 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-//    let node_shape_system             = ShapeSystem::new(world,&node::shape());
+//    let node_shape_system             = ShapeSystemDefinition::new(world,&node::shape());
 //    let node_selection_buffer         = node_shape_system.add_input("selection" , 0.0);
 
 
-//    let pointer_shape_system          = ShapeSystem::new(world,&mouse_pointer());
+//    let pointer_shape_system          = ShapeSystemDefinition::new(world,&mouse_pointer());
 //    let pointer_position_buffer       = pointer_shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
 //    let pointer_selection_size_buffer = pointer_shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
 

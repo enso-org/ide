@@ -19,9 +19,9 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystem;
+use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component,MouseTarget,ComponentSystemTrait,ComponentShapeWrapper,ComponentSystem,ComponentShape};
+use ensogl::display::scene::{Scene,Component,MouseTarget,ShapeSystem,ShapeWrapper,ComponentSystem,ShapeDefinition,Shape};
 
 
 
@@ -39,7 +39,7 @@ macro_rules! shape {
         // =============
 
         #[derive(Clone,Debug)]
-        pub struct ShapeDefinition {
+        pub struct ThisShapeDefinition {
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
@@ -50,25 +50,25 @@ macro_rules! shape {
 
         #[derive(Clone,CloneRef,Debug)]
         pub struct System {
-            pub shape_system : ShapeSystem,
+            pub shape_system : ShapeSystemDefinition,
             $(pub $gpu_param : Buffer<$gpu_param_type>),*
         }
 
-        impl ComponentSystemTrait for System {
-            type ComponentShape = ShapeDefinition;
+        impl ShapeSystem for System {
+            type ShapeDefinition = ThisShapeDefinition;
 
             fn new(scene:&Scene) -> Self {
-                let shape_system = ShapeSystem::new(scene,&Self::shape_def());
+                let shape_system = ShapeSystemDefinition::new(scene,&Self::shape_def());
                 $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),default::<$gpu_param_type>());)*
                 Self {shape_system,$($gpu_param),*}
             }
 
-            fn new_instance(&self) -> ComponentShapeWrapper<Self::ComponentShape> {
+            fn new_instance(&self) -> Shape<Self> {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                let params = ShapeDefinition {$($gpu_param),*};
-                ComponentShapeWrapper {sprite,params}
+                let params = ThisShapeDefinition {$($gpu_param),*};
+                ShapeWrapper {sprite,params}
 
             }
         }
@@ -207,11 +207,11 @@ pub struct ComponentWrapper<Definition,Shape> {
     pub definition     : Definition,
     pub logger         : Logger,
     pub display_object : display::object::Node,
-    pub shape          : Rc<RefCell<Option<ComponentShapeWrapper<Shape>>>>,
+    pub shape          : Rc<RefCell<Option<ShapeWrapper<Shape>>>>,
 }
 
 
-pub type ComponentWrapperX<Definition> = ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>>;
+pub type ComponentWrapperX<Definition> = ComponentWrapper<Definition,ShapeDefinition<ComponentSystem<Definition>>>;
 
 impl<Definition,Shape> CloneRef for ComponentWrapper<Definition,Shape>
 where Definition : CloneRef {
@@ -231,7 +231,7 @@ From<&'t ComponentWrapper<Definition,Shape>> for &'t display::object::Node {
     }
 }
 
-impl<Definition:Component> ComponentWrapper<Definition,ComponentShape<ComponentSystem<Definition>>> {
+impl<Definition:Component> ComponentWrapper<Definition,ShapeDefinition<ComponentSystem<Definition>>> {
     pub fn create(label:&str,definition:Definition) -> Self {
         let logger         = Logger::new(label);
         let display_object = display::object::Node::new(&logger);

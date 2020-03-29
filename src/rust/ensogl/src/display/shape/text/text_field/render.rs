@@ -17,7 +17,7 @@ use crate::display::shape::text::text_field::render::assignment::LineFragment;
 use crate::display::shape::text::text_field::render::selection::SelectionSpritesGenerator;
 use crate::display::shape::text::text_field::TextFieldProperties;
 use crate::display::shape::*;
-use crate::display::shape::primitive::system::ShapeSystem;
+use crate::display::shape::primitive::system::ShapeSystemDefinition;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 use crate::display::world::World;
 
@@ -50,9 +50,9 @@ pub struct TextFieldSprites {
     /// System used for rendering glyphs.
     pub glyph_system: GlyphSystem,
     /// System used for rendering cursors.
-    pub cursor_system: ShapeSystem,
+    pub cursor_system: ShapeSystemDefinition,
     /// System used for rendering selections.
-    pub selection_system: ShapeSystem,
+    pub selection_system: ShapeSystemDefinition,
     /// All drawn glyph lines.
     pub glyph_lines: Vec<GlyphLine>,
     /// All drawn cursors..
@@ -98,7 +98,7 @@ impl TextFieldSprites {
             line_height,display_object,assignment}
     }
 
-    fn create_cursor_system(world:&World,line_height:f32,color:&Vector4<f32>) -> ShapeSystem {
+    fn create_cursor_system(world:&World,line_height:f32,color:&Vector4<f32>) -> ShapeSystemDefinition {
         const WIDTH:f32         = 2.0;
         const COLOR_HIDDEN:&str = "vec4(0.0,0.0,0.0,0.0)";
         let color_glsl:Glsl     = color.into();
@@ -106,15 +106,15 @@ impl TextFieldSprites {
             color_glsl,COLOR_HIDDEN);
         let cursor_definition     = Rect(Vector2::new(WIDTH.px(),line_height.px()));
         let cursor_definition     = cursor_definition.fill(color_function);
-        ShapeSystem::new(world,&cursor_definition)
+        ShapeSystemDefinition::new(world,&cursor_definition)
     }
 
-    fn create_selection_system(world:&World) -> ShapeSystem {
+    fn create_selection_system(world:&World) -> ShapeSystemDefinition {
         const ROUNDING:f32       = 3.0;
         let width                = "input_size.x";
         let height               = "input_size.y";
         let selection_definition = Rect((width,height));
-        ShapeSystem::new(world,&selection_definition)
+        ShapeSystemDefinition::new(world,&selection_definition)
     }
 
     fn create_assignment_structure
@@ -216,7 +216,7 @@ impl TextFieldSprites {
         }
     }
 
-    fn new_cursor_sprites(cursor_system:&ShapeSystem) -> CursorSprites {
+    fn new_cursor_sprites(cursor_system:&ShapeSystemDefinition) -> CursorSprites {
         CursorSprites {
             cursor    : cursor_system.new_instance(),
             selection : Vec::new(),

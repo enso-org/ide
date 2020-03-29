@@ -18,19 +18,19 @@ use crate::system::gpu::data::buffer::item::Storable;
 
 
 // ===================
-// === ShapeSystem ===
+// === ShapeSystemDefinition ===
 // ===================
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Clone,Debug,Shrinkwrap)]
-pub struct ShapeSystem {
+pub struct ShapeSystemDefinition {
     /// The underlying `SpriteSystem`.
     #[shrinkwrap(main_field)]
     pub sprite_system : SpriteSystem,
     material          : Rc<RefCell<Material>>,
 }
 
-impl CloneRef for ShapeSystem {
+impl CloneRef for ShapeSystemDefinition {
     fn clone_ref(&self) -> Self {
         let sprite_system = self.sprite_system.clone_ref();
         let material      = self.material.clone_ref();
@@ -38,7 +38,7 @@ impl CloneRef for ShapeSystem {
     }
 }
 
-impl ShapeSystem {
+impl ShapeSystemDefinition {
     /// Constructor.
     pub fn new<'t,S,Sh:Shape>(scene:S, shape:&Sh) -> Self
     where S : Into<&'t Scene> {
@@ -81,8 +81,8 @@ impl ShapeSystem {
     }
 }
 
-impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
-    fn from(shape_system:&'t ShapeSystem) -> Self {
+impl<'t> From<&'t ShapeSystemDefinition> for &'t display::object::Node {
+    fn from(shape_system:&'t ShapeSystemDefinition) -> Self {
         shape_system.sprite_system.display_object()
     }
 }

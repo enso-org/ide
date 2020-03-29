@@ -40,7 +40,7 @@ use ensogl::traits::*;
 use ensogl::data::color::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystem;
+use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
@@ -165,7 +165,7 @@ fn nodes2() -> AnyShape {
 pub fn register_shapes(world:&World) {
     todo!()
 //   let node_shape   = nodes2();
-//   let shape_system = ShapeSystem::new(world,&node_shape);
+//   let shape_system = ShapeSystemDefinition::new(world,&node_shape);
 //   world.scene().shapes.insert(TypeId::of::<Node>(),shape_system.clone());
 }
 

@@ -1,6 +1,6 @@
 //! Drawing selection utilities.
 
-use crate::display::shape::primitive::system::ShapeSystem;
+use crate::display::shape::primitive::system::ShapeSystemDefinition;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::cursor::Cursor;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
@@ -21,7 +21,7 @@ use std::ops::Range;
 #[allow(missing_docs)]
 pub struct SelectionSpritesGenerator<'a,'b> {
     pub line_height : f32,
-    pub system      : &'a ShapeSystem,
+    pub system      : &'a ShapeSystemDefinition,
     pub content     : &'b mut TextFieldContent,
 }
 

@@ -32,7 +32,6 @@ use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-use crate::display::shape::primitive::system::ShapeSystem;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
@@ -44,23 +43,25 @@ use enso_frp::core::node::class::EventEmitterPoly;
 
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[clone_ref(bound="Params:CloneRef")]
-pub struct ComponentShapeWrapper<Params> {
+pub struct ShapeWrapper<Params> {
     #[shrinkwrap(main_field)]
     pub params : Params,
     pub sprite : Sprite,
 }
 
 
-pub trait ComponentSystemTrait {
-    type ComponentShape;
+pub trait ShapeSystem {
+    type ShapeDefinition;
     fn new(scene:&Scene) -> Self;
-    fn new_instance(&self) -> ComponentShapeWrapper<Self::ComponentShape>;
+    fn new_instance(&self) -> Shape<Self>;
 }
 
-pub type ComponentShape<T> = <T as ComponentSystemTrait>::ComponentShape;
+pub type ShapeDefinition<T> = <T as ShapeSystem>::ShapeDefinition;
+
+pub type Shape<T> = ShapeWrapper<ShapeDefinition<T>>;
 
 pub trait Component : MouseTarget + CloneRef + 'static {
-    type ComponentSystem : ComponentSystemTrait + CloneRef;
+    type ComponentSystem : ShapeSystem + CloneRef;
 }
 
 pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
