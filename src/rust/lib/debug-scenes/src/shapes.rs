@@ -36,9 +36,8 @@ use ensogl::display::scene::{Scene, MouseTarget};
 use ensogl::gui::component::Component;
 
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct PointerSystem {
-    pub scene_view            : scene::View,
     pub shape_system          : ShapeSystemDefinition,
     pub position_buffer       : Buffer<Vector2<f32>>,
     pub selection_size_buffer : Buffer<Vector2<f32>>,
@@ -53,13 +52,7 @@ impl ShapeSystem for PointerSystem {
         let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
         let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
 
-        shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-
-        let scene_view = scene.views.new();
-        scene.views.main.remove(&shape_system.symbol);
-        scene_view.add(&shape_system.symbol);
-
-        Self {scene_view,shape_system,position_buffer,selection_size_buffer}
+        Self {shape_system,position_buffer,selection_size_buffer}
     }
 
     fn new_instance(&self) -> ShapeWrapper<Self::ShapeDefinition> {
@@ -70,17 +63,6 @@ impl ShapeSystem for PointerSystem {
         ShapeWrapper {sprite,params}
     }
 }
-
-impl CloneRef for PointerSystem {
-    fn clone_ref(&self) -> Self {
-        let scene_view            = self.scene_view.clone_ref();
-        let shape_system          = self.shape_system.clone_ref();
-        let position_buffer       = self.position_buffer.clone_ref();
-        let selection_size_buffer = self.selection_size_buffer.clone_ref();
-        Self {scene_view,shape_system,position_buffer,selection_size_buffer}
-    }
-}
-
 
 #[derive(Clone,Debug)]
 pub struct PointerDisplay {
@@ -215,7 +197,13 @@ fn init(world: &World) {
 //    };
 
     scene.shapes.register(PhantomData::<node::Definition>);
-    scene.shapes.register(PhantomData::<Pointer>);
+    let pointer_system_x = scene.shapes.register(PhantomData::<Pointer>);
+
+    pointer_system_x.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+
+    let scene_view = scene.views.new();
+    scene.views.main.remove(&pointer_system_x.shape_system.symbol);
+    scene_view.add(&pointer_system_x.shape_system.symbol);
 
 
 
@@ -369,6 +357,7 @@ fn init(world: &World) {
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &_nodes;
+        let _keep_alive = &scene_view;
 //        let _keep_alive = &animator_ref;
 //        let _keep_alive = &simulator;
 

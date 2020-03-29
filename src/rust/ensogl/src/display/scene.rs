@@ -78,11 +78,12 @@ impl {
         self.shape_system_map.insert(id,system);
     }
 
-    pub fn register<T:Component>(&mut self, tp:PhantomData<T>) {
+    pub fn register<T:Component>(&mut self, tp:PhantomData<T>) -> ComponentSystem<T> {
         let id     = TypeId::of::<T>();
         let system = <ComponentSystem<T>>::new(self.scene.as_ref().unwrap());
-        let system = Box::new(system) as Box<dyn Any>;
-        self.shape_system_map.insert(id,system);
+        let any    = Box::new(system.clone_ref()) as Box<dyn Any>;
+        self.shape_system_map.insert(id,any);
+        system
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, id:usize, target:T) {
