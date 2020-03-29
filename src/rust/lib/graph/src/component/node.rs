@@ -18,45 +18,11 @@ use enso_frp::frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
+use ensogl::display::shape;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,Component,MouseTarget,ComponentSystem};
-
-
-
-
-
-
-
-
-macro_rules! component {
-    (
-        $name:ident {
-            $($field:ident : $field_type:ty),* $(,)?
-        }
-
-        Shape ($($shape_field:ident : $shape_field_type:ty),* $(,)?) {
-            $($shape_body:tt)*
-        }
-    ) => {
-        pub type $name = ComponentWrapperX<Definition>;
-
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct Definition {
-            $(pub $field : $field_type),*
-        }
-
-        impl Component for Definition {
-            type ComponentSystem = System;
-        }
-
-        ensogl::shape! { ($($shape_field : $shape_field_type),*) { $($shape_body)* } }
-
-    };
-}
-
-
+use ensogl::display::scene::{Scene,MouseTarget};
 
 pub mod icons {
     use super::*;
@@ -146,73 +112,6 @@ pub fn node_shape() -> AnyShape {
 
 
 
-
-#[derive(Debug,Derivative,Shrinkwrap)]
-#[derivative(Clone(bound="Definition:Clone"))]
-pub struct ComponentWrapper<Definition,Shape> {
-    #[shrinkwrap(main_field)]
-    pub definition     : Definition,
-    pub logger         : Logger,
-    pub display_object : display::object::Node,
-    pub shape          : Rc<RefCell<Option<ShapeWrapper<Shape>>>>,
-}
-
-
-pub type ComponentWrapperX<Definition> = ComponentWrapper<Definition,ShapeDefinition<ComponentSystem<Definition>>>;
-
-impl<Definition,Shape> CloneRef for ComponentWrapper<Definition,Shape>
-where Definition : CloneRef {
-    fn clone_ref(&self) -> Self {
-        let definition     = self.definition.clone_ref();
-        let logger         = self.logger.clone_ref();
-        let display_object = self.display_object.clone_ref();
-        let shape          = self.shape.clone_ref();
-        Self {definition,logger,display_object,shape}
-    }
-}
-
-impl<'t,Definition,Shape>
-From<&'t ComponentWrapper<Definition,Shape>> for &'t display::object::Node {
-    fn from(t:&'t ComponentWrapper<Definition,Shape>) -> Self {
-        &t.display_object
-    }
-}
-
-impl<Definition:Component> ComponentWrapper<Definition,ShapeDefinition<ComponentSystem<Definition>>> {
-    pub fn create(label:&str,definition:Definition) -> Self {
-        let logger         = Logger::new(label);
-        let display_object = display::object::Node::new(&logger);
-        let shape          = default();
-        Self {shape,definition,logger,display_object} . create_init()
-    }
-
-    fn create_init(self) -> Self {
-        let shape               = &self.shape;
-        let definition          = &self.definition;
-        let display_object_weak = self.display_object.downgrade();
-
-        self.display_object.set_on_show_with(enclose!((shape,definition) move |scene| {
-            let node_system = scene.shapes.get(PhantomData::<Definition>).unwrap();
-            let instance   = node_system.new_instance();
-            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
-            instance.sprite.size().set(Vector2::new(200.0,200.0));
-            scene.shapes.insert_mouse_target(*instance.sprite.instance_id,definition.clone_ref());
-            *shape.borrow_mut() = Some(instance);
-        }));
-
-        self.display_object.set_on_hide_with(enclose!((shape) move |_| {
-            shape.borrow().as_ref().for_each(|shape| {
-                // TODO scene.shapes.remove_mouse_target(...)
-            });
-            *shape.borrow_mut() = None;
-        }));
-
-        self
-    }
-}
-
-
-
 // ============
 // === Node ===
 // ============
@@ -222,8 +121,8 @@ pub struct Events {
     pub mouse_down : frp::Dynamic<()>,
 }
 
-component! {
-    Node {
+ensogl::component! { Node
+    Definition {
         label  : frp::Dynamic<String>,
         events : Events,
     }

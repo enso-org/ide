@@ -32,7 +32,8 @@ use ensogl_system_web::StyleSetter;
 use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
-use ensogl::display::scene::{Scene, Component, MouseTarget};
+use ensogl::display::scene::{Scene, MouseTarget};
+use ensogl::gui::component::Component;
 
 
 #[derive(Clone,Debug)]

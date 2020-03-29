@@ -19,6 +19,10 @@ pub trait GpuDefault {
     }
 }
 
+pub fn gpu_default<T:GpuDefault>() -> T {
+    <T as GpuDefault>::gpu_default()
+}
+
 
 // === Instances ===
 

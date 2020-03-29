@@ -50,6 +50,7 @@ pub mod control;
 pub mod data;
 pub mod debug;
 pub mod display;
+pub mod gui;
 pub mod math;
 pub mod system;
 

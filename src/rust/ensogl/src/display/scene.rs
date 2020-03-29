@@ -42,24 +42,18 @@ use enso_frp::core::node::class::EventEmitterPoly;
 
 
 
-
-use crate::display::shape::ShapeSystem;
-
-pub trait Component : MouseTarget + CloneRef + 'static {
-    type ComponentSystem : ShapeSystem + CloneRef;
-}
-
-pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
-
-
 pub trait MouseTarget : Debug + 'static {
     fn mouse_down(&self) -> Option<&enso_frp::Dynamic<()>> { None }
 }
 
 
-// =====================
-// === ShapeRegistry ===
-// =====================
+use crate::gui::component::Component;
+use crate::gui::component::ComponentSystem;
+use crate::display::shape::ShapeSystem;
+
+// =========================
+// === ComponentRegistry ===
+// =========================
 
 use std::any::TypeId;
 use crate::display::Sprite;

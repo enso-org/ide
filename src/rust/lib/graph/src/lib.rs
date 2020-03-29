@@ -15,7 +15,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-pub mod node;
+pub mod component;
 
 use prelude::*;
 
@@ -29,10 +29,11 @@ use enso_prelude::std_reexports::fmt::{Formatter, Error};
 use nalgebra::Vector2;
 
 pub mod prelude {
-    pub use enso_prelude::*;
+    pub use ensogl::prelude::*;
 }
 
-pub use node::Node;
+pub use component::node;
+pub use component::node::Node;
 
 use ensogl::prelude::*;
 use ensogl::traits::*;

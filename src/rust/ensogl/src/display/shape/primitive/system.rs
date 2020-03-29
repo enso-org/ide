@@ -17,11 +17,13 @@ use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 use crate::display::object::traits::*;
 use crate::system::gpu::data::buffer::item::Storable;
+use crate::system::gpu::data::default::GpuDefault;
 
 
-// ===================
+
+// =============================
 // === ShapeSystemDefinition ===
-// ===================
+// =============================
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Clone,Debug,Shrinkwrap)]
@@ -124,7 +126,7 @@ macro_rules! shape {
         // =============
 
         #[derive(Clone,Debug)]
-        pub struct ThisShapeDefinition {
+        pub struct ShapeDefinition {
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
@@ -134,17 +136,17 @@ macro_rules! shape {
         // ==============
 
         #[derive(Clone,CloneRef,Debug)]
-        pub struct System {
+        pub struct ShapeSystem {
             pub shape_system : $crate::display::shape::ShapeSystemDefinition,
             $(pub $gpu_param : Buffer<$gpu_param_type>),*
         }
 
-        impl ShapeSystem for System {
-            type ShapeDefinition = ThisShapeDefinition;
+        impl $crate::display::shape::ShapeSystem for ShapeSystem {
+            type ShapeDefinition = ShapeDefinition;
 
             fn new(scene:&Scene) -> Self {
                 let shape_system = $crate::display::shape::ShapeSystemDefinition::new(scene,&Self::shape_def());
-                $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),default::<$gpu_param_type>());)*
+                $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),$crate::system::gpu::data::default::gpu_default::<$gpu_param_type>());)*
                 Self {shape_system,$($gpu_param),*}
             }
 
@@ -152,13 +154,13 @@ macro_rules! shape {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                let params = ThisShapeDefinition {$($gpu_param),*};
+                let params = ShapeDefinition {$($gpu_param),*};
                 ShapeWrapper {sprite,params}
 
             }
         }
 
-        impl System {
+        impl ShapeSystem {
             pub fn shape_def() -> AnyShape {
                 $($body)*
             }
