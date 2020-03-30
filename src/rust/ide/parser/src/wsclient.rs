@@ -195,16 +195,8 @@ impl Client {
         println!("Established connection with {}", config.address_string());
         Ok(client)
     }
-}
 
-impl Debug for Client {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Websocket remote parser client>")
-    }
-}
-
-impl api::IsParser for Client {
-    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+    pub fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call::<serde_json::Value>(request)?;
         match response {
@@ -213,7 +205,7 @@ impl api::IsParser for Client {
         }
     }
 
-    fn parse_with_metadata<M:Metadata>
+    pub fn parse_with_metadata<M:Metadata>
     (&mut self, program:String) -> api::Result<SourceFile<M>> {
         let request  = Request::ParseRequestWithMetadata {content:program};
         let response = self.rpc_call(request)?;
@@ -223,6 +215,12 @@ impl api::IsParser for Client {
         }
     }
 
+}
+
+impl Debug for Client {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Websocket remote parser client>")
+    }
 }
 
 

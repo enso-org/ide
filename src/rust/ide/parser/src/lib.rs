@@ -21,8 +21,6 @@ mod wsclient;
 
 use crate::prelude::*;
 
-use crate::api::IsParser;
-
 use ast::Ast;
 use ast::IdMap;
 use std::panic;
@@ -93,7 +91,6 @@ impl Parser {
         ast::known::Module::try_from(ast).map_err(|_| api::Error::NonModuleRoot)
     }
 
-
     /// Program is expected to be single non-empty line module. The line's AST is
     /// returned. Panics otherwise.
     pub fn parse_line(&self, program:impl Str) -> FallibleResult<Ast> {
@@ -113,16 +110,5 @@ impl Parser {
         }
     }
 }
-
-//impl api::IsParser for Parser {
-//    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
-//        self.borrow_mut().parse(program,ids)
-//    }
-//
-//    fn parse_with_metadata<M:api::Metadata>
-//    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
-//        self.borrow_mut().parse_with_metadata(program)
-//    }
-//}
 
 impl CloneRef for Parser {}

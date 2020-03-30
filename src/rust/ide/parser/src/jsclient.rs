@@ -59,10 +59,8 @@ impl Client {
     pub fn new() -> Result<Client> {
         Ok(Client {})
     }
-}
 
-impl IsParser for Client {
-    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+    pub fn parse(&self, program:String, ids:IdMap) -> api::Result<Ast> {
         let ast = || {
             let json_ids = serde_json::to_string(&ids)?;
             let json_ast = parse(program,json_ids)?;
@@ -72,8 +70,8 @@ impl IsParser for Client {
         Ok(ast()?)
     }
 
-    fn parse_with_metadata<M:api::Metadata>
-    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
+    pub fn parse_with_metadata<M:api::Metadata>
+    (&self, program:String) -> api::Result<api::SourceFile<M>> {
         let result = || {
             let json   = &parse_with_metadata(program)?;
             let module = serde_json::from_str(&json)?;

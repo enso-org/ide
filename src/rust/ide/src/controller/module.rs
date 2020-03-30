@@ -71,15 +71,15 @@ impl CloneRef for Location {}
 #[derive(Clone,Debug)]
 pub struct Handle {
     /// This module's location.
-    pub location: Location,
+    pub location : Location,
     /// The current state of module.
-    pub module: state::Handle,
+    pub module : state::Handle,
     /// The File Manager Client handle.
-    pub file_manager: fmc::Handle,
+    pub file_manager : fmc::Handle,
     /// The Parser handle.
-    parser: Parser,
+    parser : Parser,
     /// The logger handle.
-    pub logger: Logger,
+    pub logger : Logger,
 }
 
 impl Handle {
