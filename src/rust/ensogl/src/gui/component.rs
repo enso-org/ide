@@ -54,13 +54,13 @@ macro_rules! component {
 
 
 pub trait Component : MouseTarget + CloneRef + 'static {
-    type ComponentSystem : ShapeSystem + CloneRef;
+//    type ComponentSystem : ShapeSystem + CloneRef;
 
     fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
     fn on_view_drop(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
 }
 
-pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
+//pub type ComponentSystem<T> = <T as Component>::ComponentSystem;
 
 
 

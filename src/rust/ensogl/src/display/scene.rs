@@ -48,7 +48,7 @@ pub trait MouseTarget : Debug + 'static {
 
 
 use crate::gui::component::Component;
-use crate::gui::component::ComponentSystem;
+//use crate::gui::component::ComponentSystem;
 use crate::display::shape::ShapeSystem;
 use crate::display::shape::system::{Shape,ShapeSystemOf};
 
@@ -68,18 +68,18 @@ pub struct ShapeRegistryData {
 }
 
 impl {
-    pub fn get<T:Component>(&self, tp:PhantomData<T>) -> Option<ComponentSystem<T>> {
-        let id = TypeId::of::<T>();
-        self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<ComponentSystem<T>>()).map(|t| t.clone_ref())
-    }
-
-    pub fn register<T:Component>(&mut self, tp:PhantomData<T>) -> ComponentSystem<T> {
-        let id     = TypeId::of::<T>();
-        let system = <ComponentSystem<T>>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref()) as Box<dyn Any>;
-        self.shape_system_map.insert(id,any);
-        system
-    }
+//    pub fn get<T:Component>(&self, tp:PhantomData<T>) -> Option<ComponentSystem<T>> {
+//        let id = TypeId::of::<T>();
+//        self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<ComponentSystem<T>>()).map(|t| t.clone_ref())
+//    }
+//
+//    pub fn register<T:Component>(&mut self, tp:PhantomData<T>) -> ComponentSystem<T> {
+//        let id     = TypeId::of::<T>();
+//        let system = <ComponentSystem<T>>::new(self.scene.as_ref().unwrap());
+//        let any    = Box::new(system.clone_ref()) as Box<dyn Any>;
+//        self.shape_system_map.insert(id,any);
+//        system
+//    }
 
     fn get2<T:ShapeSystem>(&self) -> Option<T> {
         let id = TypeId::of::<T>();

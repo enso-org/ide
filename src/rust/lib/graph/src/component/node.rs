@@ -168,7 +168,6 @@ pub struct Node {
 }
 
 impl Component for Node {
-    type ComponentSystem = shape::ShapeSystem;
     fn on_view_cons(&self, _scene:&Scene, shape_registry:&ShapeRegistry) {
         let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
         self.display_object.add_child(&shape);
