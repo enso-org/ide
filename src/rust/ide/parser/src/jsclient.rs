@@ -5,7 +5,6 @@ use crate::prelude::*;
 use crate::api;
 
 use api::Ast;
-use api::IsParser;
 use ast::IdMap;
 
 use wasm_bindgen::prelude::*;

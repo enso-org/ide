@@ -10,6 +10,7 @@ use crate::controller::notification;
 
 use data::text::TextChange;
 use file_manager_client as fmc;
+use json_rpc::error::RpcError;
 use std::pin::Pin;
 
 
@@ -63,11 +64,11 @@ impl Handle {
     }
 
     /// Read file's content.
-    pub async fn read_content(&self) -> FallibleResult<String> {
+    pub async fn read_content(&self) -> Result<String,RpcError> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => Ok(file_manager.read(path.clone_ref()).await?),
-            Module    {controller}        => Ok(controller.code()?)
+            PlainText {path,file_manager} => file_manager.read(path.clone_ref()).await,
+            Module    {controller}        => Ok(controller.code())
         }
     }
 
@@ -150,12 +151,12 @@ mod test {
             let fm         = fmc::Handle::new(MockTransport::new());
             let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();
-            let module_res = controller::Module::new_mock(loc, "2+2", default(), fm, parser);
+            let module_res = controller::Module::new_mock(loc, "main = 2+2", default(), fm, parser);
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone_ref());
             let mut sub    = controller.subscribe();
 
-            module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
+            module.apply_code_change(&TextChange::insert(Index::new(8),"2".to_string())).unwrap();
             assert_eq!(Some(notification::Text::Invalidate), sub.next().await);
         })
     }

@@ -114,7 +114,7 @@ impl Handle {
 
     /// Updates AST after code change.
     pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
-        let mut code         = self.code()?;
+        let mut code         = self.code();
         let mut id_map       = self.model.ast().ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
@@ -130,14 +130,14 @@ impl Handle {
     }
 
     /// Read module code.
-    pub fn code(&self) -> FallibleResult<String> {
-        self.model.source_as_string()
+    pub fn code(&self) -> String {
+        self.model.ast().repr()
     }
 
     /// Check if current module state is synchronized with given code. If it's not, log error,
     /// and update module state to match the `code` passed as argument.
     pub fn check_code_sync(&self, code:String) -> FallibleResult<()> {
-        let my_code = self.code()?;
+        let my_code = self.code();
         if code != my_code {
             self.logger.error(|| format!("The module controller ast was not synchronized with \
                 text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
@@ -169,7 +169,7 @@ impl Handle {
 
     #[cfg(test)]
     pub fn expect_code(&self, expected_code:impl Str) {
-        let code = self.code().unwrap();
+        let code = self.code();
         assert_eq!(code,expected_code.as_ref());
     }
 }
