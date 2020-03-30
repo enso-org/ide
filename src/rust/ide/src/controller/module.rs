@@ -184,7 +184,7 @@ impl CloneRef for Handle {}
 mod test {
     use super::*;
 
-    use crate::controller::notification;
+    use crate::notification;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use ast;

@@ -3,6 +3,7 @@
 use ensogl::traits::*;
 use crate::prelude::*;
 
+use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
@@ -124,10 +125,10 @@ impl TextEditor {
         }));
     }
 
-    fn handle_controller_notification(&self, notification:controller::notification::Text)
+    fn handle_controller_notification(&self, notification:notification::Text)
     -> impl Future<Output=()> {
         match notification {
-            controller::notification::Text::Invalidate => self.reload_content()
+            notification::Text::Invalidate => self.reload_content()
         }
     }
 

@@ -12,6 +12,7 @@ pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::graph::GraphInfo;
 use crate::double_representation::definition;
 use crate::double_representation::node;
+use crate::notification;
 
 use parser::Parser;
 
@@ -240,8 +241,8 @@ impl Handle {
     }
 
     /// Subscribe to updates about changes in this graph.
-    pub fn subscribe(&self) -> impl Stream<Item=controller::notification::Graph> {
-        use controller::notification::*;
+    pub fn subscribe(&self) -> impl Stream<Item=notification::Graph> {
+        use notification::*;
         let module_sub = self.module.subscribe_graph_notifications();
         module_sub.map(|notification| {
             match notification {
@@ -271,7 +272,7 @@ mod tests {
 
     use crate::double_representation::definition::DefinitionName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::controller::notification;
+    use crate::notification;
 
     use ast::HasRepr;
     use data::text::Index;

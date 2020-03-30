@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::controller::notification::Publisher;
+use crate::notification::Publisher;
 use crate::controller::module::Location;
 
 use flo_stream::Subscriber;

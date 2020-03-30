@@ -6,7 +6,7 @@
 
 use crate::prelude::*;
 
-use crate::controller::notification;
+use crate::notification;
 
 use data::text::TextChange;
 use file_manager_client as fmc;

@@ -18,6 +18,7 @@ pub mod controller;
 pub mod double_representation;
 pub mod executor;
 pub mod model;
+pub mod notification;
 pub mod transport;
 pub mod view;
 

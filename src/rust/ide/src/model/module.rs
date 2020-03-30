@@ -4,7 +4,7 @@ pub mod registry;
 
 use crate::prelude::*;
 
-use crate::controller::notification;
+use crate::notification;
 use crate::double_representation::definition::DefinitionInfo;
 
 use flo_stream::MessagePublisher;
