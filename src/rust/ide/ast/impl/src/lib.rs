@@ -1058,33 +1058,39 @@ impl Ast {
         Ast::new(var,Some(id))
     }
 
+    /// Creates an AST node with `Var` shape.
     pub fn var<Str:ToString>(name:Str) -> Ast {
         let var = Var{name:name.to_string()};
         Ast::from(var)
     }
 
+    /// Creates an AST node with `Opr` shape.
     pub fn opr<Str:ToString>(name:Str) -> Ast {
         let opr = Opr{name:name.to_string() };
         Ast::from(opr)
     }
 
+    /// Creates an AST node with `SectionLeft` shape.
     pub fn section_left<Arg:Into<Ast>, Opr:Into<Ast>>(arg:Arg, opr:Opr) -> Ast {
         let off          = 1;
         let section_left = SectionLeft { arg:arg.into(), off, opr:opr.into() };
         Ast::from(section_left)
     }
 
+    /// Creates an AST node with `SectionRight` shape.
     pub fn section_right<Arg:Into<Ast>, Opr:Into<Ast>>(opr:Opr, arg:Arg) -> Ast {
         let off           = 1;
         let section_right = SectionRight { arg:arg.into(), off, opr:opr.into() };
         Ast::from(section_right)
     }
 
+    /// Creates an AST node with `SectionSides` shape.
     pub fn section_sides<Opr:Into<Ast>>(opr:Opr) -> Ast {
         let section_sides = SectionSides { opr:opr.into() };
         Ast::from(section_sides)
     }
 
+    /// Creates an AST node with `Prefix` shape.
     pub fn prefix<Func:Into<Ast>, Arg:Into<Ast>>(func:Func, arg:Arg) -> Ast {
         let off = 1;
         let opr = Prefix { func:func.into(), off, arg:arg.into() };
@@ -1100,6 +1106,26 @@ impl Ast {
         let rarg  = rarg.into();
         let infix = Infix {larg,loff,opr,roff,rarg};
         Ast::from(infix)
+    }
+
+    /// Creates an AST node with `TextLineFmt` shape.
+    pub fn text_line_fmt(text:Vec<SegmentFmt<Ast>>) -> Ast {
+        let text_line_fmt = TextLineFmt {text};
+        Ast::from(text_line_fmt)
+    }
+
+    /// Creates an AST node with `TextUnclosed` shape.
+    pub fn text_unclosed(line:TextLine<Ast>) -> Ast {
+        let text_unclosed = TextUnclosed {line};
+        Ast::from(text_unclosed)
+    }
+
+    /// Creates an AST node with `TextBlockFmt` shape.
+    pub fn text_block_fmt(text:Vec<TextBlockLine<SegmentFmt<Ast>>>) -> Ast {
+        let spaces = 0;
+        let offset = 0;
+        let text_block_fmt = TextBlockFmt {text,spaces,offset};
+        Ast::from(text_block_fmt)
     }
 
     /// Creates an AST node with `Infix` shape, where both its operands are Vars.

@@ -64,7 +64,10 @@ pub enum Crumb {
     Import(ImportCrumb),
     Mixfix(MixfixCrumb),
     Group(GroupCrumb),
-    Def(DefCrumb)
+    Def(DefCrumb),
+    TextLineFmt(TextLineFmtCrumb),
+    TextBlockFmt(TextBlockFmtCrumb),
+    TextUnclosed(TextUnclosedCrumb)
 }
 
 
@@ -170,6 +173,32 @@ pub enum SectionRightCrumb {
 pub struct SectionSidesCrumb;
 
 
+// === TextLineFmt ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub struct TextLineFmtCrumb {pub segment_index:usize}
+
+
+// === TextBlockFmt ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub struct TextBlockFmtCrumb {
+    pub text_line_index : usize,
+    pub segment_index   : usize
+}
+
+
+// === TextUnclosed ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+pub struct TextUnclosedCrumb {
+    pub text_line_crumb : TextLineFmtCrumb
+}
+
+
 // === Conversion Traits ===
 
 macro_rules! from_crumb {
@@ -199,6 +228,9 @@ from_crumb!{Import,ImportCrumb}
 from_crumb!{Mixfix,MixfixCrumb}
 from_crumb!{Group,GroupCrumb}
 from_crumb!{Def,DefCrumb}
+from_crumb!{TextLineFmt,TextLineFmtCrumb}
+from_crumb!{TextBlockFmt,TextBlockFmtCrumb}
+from_crumb!{TextUnclosed,TextUnclosedCrumb}
 
 
 // =================
@@ -525,6 +557,100 @@ impl Crumbable for crate::Block<Ast> {
     }
 }
 
+impl Crumbable for crate::TextLineFmt<Ast> {
+    type Crumb = TextLineFmtCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        let segment = &self.text[crumb.segment_index];
+        if let crate::SegmentFmt::SegmentExpr(expr) = segment {
+            expr.value.as_ref().map(|ast| ast).ok_or(LineIndexOutOfBounds.into())
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut text = self.clone();
+        let segment  = &mut text.text[crumb.segment_index];
+        if let crate::SegmentFmt::SegmentExpr(expr) = segment {
+            expr.value = Some(new_ast);
+            Ok(text)
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        Box::new(self.text.iter().enumerate().filter_map(|(segment_index,segment)| {
+            if let crate::SegmentFmt::SegmentExpr(_) = segment {
+                Some(TextLineFmtCrumb{segment_index})
+            } else {
+                None
+            }
+        }))
+    }
+}
+
+impl Crumbable for crate::TextUnclosed<Ast> {
+    type Crumb = TextUnclosedCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        if let crate::TextLine::TextLineFmt(text_line) = &self.line {
+            text_line.get(&crumb.text_line_crumb)
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut text = self.clone();
+        if let crate::TextLine::TextLineFmt(text_line) = text.line {
+            text.line = crate::TextLine::TextLineFmt(text_line.set(&crumb.text_line_crumb,new_ast)?);
+            Ok(text)
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        Box::new(std::iter::once(TextUnclosedCrumb {text_line_crumb:TextLineFmtCrumb {segment_index:0}}))
+    }
+}
+
+impl Crumbable for crate::TextBlockFmt<Ast> {
+    type Crumb = TextBlockFmtCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        let line    = &self.text[crumb.text_line_index];
+        let segment = &line.text[crumb.segment_index];
+        if let crate::SegmentFmt::SegmentExpr(expr) = segment {
+            expr.value.as_ref().map(|ast| ast).ok_or(LineIndexOutOfBounds.into())
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut text = self.clone();
+        let line     = &mut text.text[crumb.text_line_index];
+        let segment  = &mut line.text[crumb.segment_index];
+        if let crate::SegmentFmt::SegmentExpr(expr) = segment {
+            expr.value = Some(new_ast);
+            Ok(text)
+        } else {
+            Err(LineIndexOutOfBounds.into())
+        }
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        Box::new(self.text.iter().enumerate().map(|_| {
+            let text_line_index = 0;
+            let segment_index   = 0;
+            TextBlockFmtCrumb{text_line_index,segment_index}
+        }))
+    }
+}
+
 impl Crumbable for Shape<Ast> {
     type Crumb = Crumb;
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
@@ -540,6 +666,9 @@ impl Crumbable for Shape<Ast> {
             (Shape::Mixfix(shape), Crumb::Mixfix(crumb))             => shape.get(crumb),
             (Shape::Group(shape), Crumb::Group(crumb))               => shape.get(crumb),
             (Shape::Def(shape), Crumb::Def(crumb))                   => shape.get(crumb),
+            (Shape::TextLineFmt(shape), Crumb::TextLineFmt(crumb))   => shape.get(crumb),
+            (Shape::TextBlockFmt(shape), Crumb::TextBlockFmt(crumb)) => shape.get(crumb),
+            (Shape::TextUnclosed(shape), Crumb::TextUnclosed(crumb)) => shape.get(crumb),
             _                                           => Err(MismatchedCrumbType.into()),
         }
     }
@@ -554,6 +683,15 @@ impl Crumbable for Shape<Ast> {
             (Shape::Mixfix(shape), Crumb::Mixfix(crumb)) => Ok(shape.set(crumb,new_ast)?.into()),
             (Shape::Group(shape), Crumb::Group(crumb))   => Ok(shape.set(crumb,new_ast)?.into()),
             (Shape::Def(shape), Crumb::Def(crumb))       => Ok(shape.set(crumb,new_ast)?.into()),
+            (Shape::TextLineFmt(shape), Crumb::TextLineFmt(crumb)) => {
+                Ok(shape.set(crumb,new_ast)?.into())
+            },
+            (Shape::TextBlockFmt(shape), Crumb::TextBlockFmt(crumb)) => {
+                Ok(shape.set(crumb,new_ast)?.into())
+            },
+            (Shape::TextUnclosed(shape), Crumb::TextUnclosed(crumb)) => {
+                Ok(shape.set(crumb,new_ast)?.into())
+            },
             (Shape::SectionLeft(shape), Crumb::SectionLeft(crumb)) => {
                 Ok(shape.set(crumb,new_ast)?.into())
             },
@@ -765,67 +903,99 @@ pub type ChildAst<'a> = Located<&'a Ast>;
 mod tests {
     use super::*;
 
-    use crate::HasRepr;
+    use crate::{HasRepr, SegmentExpr, SegmentFmt, TextBlockLine, TextLine, TextLineFmt};
 
     use utils::test::ExpectTuple;
 
-    #[test]
-    fn infix_crumb() -> FallibleResult<()> {
-        let infix = Ast::infix_var("foo","+","bar");
-        let get   = |infix_crumb| {
-            let crumb = Crumb::Infix(infix_crumb);
-            infix.get(&crumb)
-        };
-        let set   = |infix_crumb, ast| {
-            let crumb = Crumb::Infix(infix_crumb);
-            infix.set(&crumb,ast)
-        };
-        let baz   = Ast::var("baz");
-        let times = Ast::opr("*");
-
-
-        assert_eq!(infix.repr(), "foo + bar");
-
-        assert_eq!(get(InfixCrumb::LeftOperand)?.repr(),  "foo");
-        assert_eq!(get(InfixCrumb::Operator)?.repr(),     "+");
-        assert_eq!(get(InfixCrumb::RightOperand)?.repr(), "bar");
-
-        assert_eq!(set(InfixCrumb::LeftOperand, baz.clone())?.repr(), "baz + bar");
-        assert_eq!(set(InfixCrumb::Operator, times.clone())?.repr(), "foo * bar");
-        assert_eq!(set(InfixCrumb::RightOperand, baz.clone())?.repr(), "foo + baz");
-
-        Ok(())
-    }
-
-    fn get(ast:&Ast, crumb:ImportCrumb) -> FallibleResult<&Ast> {
-        let crumb = Crumb::Import(crumb);
+    fn get<T,F:FnOnce(T) -> Crumb>(f:F, ast:&Ast, crumb:T) -> FallibleResult<&Ast> {
+        let crumb = f(crumb);
         ast.get(&crumb)
     }
 
+    fn set<T,F:FnOnce(T) -> Crumb>(f:F, ast:&Ast, crumb:T,internal_ast:Ast) -> FallibleResult<Ast> {
+        let crumb = f(crumb);
+        ast.set(&crumb, internal_ast)
+    }
+
     #[test]
-    fn import_crumb() -> FallibleResult<()> {
-        let path   = vec![Ast::var("foo"), Ast::var("bar")];
-        let path   = path.into_iter().map(|segment| segment.into()).collect();
-        let import = crate::Import { path };
-        let import = Ast::new_with_length(import,None,0);
+    fn infix_crumb() -> FallibleResult<()> {
+        let infix  = Ast::infix_var("foo","+","bar");
+        let crumbf = |crumb| Crumb::Infix(crumb);
+        let baz    = Ast::var("baz");
+        let times  = Ast::opr("*");
 
-        let set   = |import_crumb,ast| {
-            let crumb = Crumb::Import(import_crumb);
-            import.set(&crumb,ast)
-        };
+        assert_eq!(infix.repr(), "foo + bar");
 
-        assert_eq!(get(&import,ImportCrumb{path_index:0})?.repr(), "foo");
-        assert_eq!(get(&import,ImportCrumb{path_index:1})?.repr(), "bar");
+        assert_eq!(get(crumbf,&infix,InfixCrumb::LeftOperand)?.repr(),  "foo");
+        assert_eq!(get(crumbf,&infix,InfixCrumb::Operator)?.repr(),     "+");
+        assert_eq!(get(crumbf,&infix,InfixCrumb::RightOperand)?.repr(), "bar");
 
-        let qux  = Ast::var("qux");
-        let barz = Ast::var("barz");
-
-       // let changed = set(ImportCrumb{path_index:0}, qux).unwrap();
-       // assert_eq!(get(&changed,ImportCrumb{path_index:0})?.repr(), "qux");
-//        let changed = set(ImportCrumb{path_index:1}, barz).unwrap();
-//        assert_eq!(get(&changed,ImportCrumb{path_index:1})?.repr(), "barz");
+        assert_eq!(set(crumbf,&infix,InfixCrumb::LeftOperand, baz.clone())?.repr(), "baz + bar");
+        assert_eq!(set(crumbf,&infix,InfixCrumb::Operator, times.clone())?.repr(), "foo * bar");
+        assert_eq!(set(crumbf,&infix,InfixCrumb::RightOperand, baz.clone())?.repr(), "foo + baz");
 
         Ok(())
+    }
+
+    #[test]
+    fn text_line_fmt_crumb() {
+        let expr   = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text   = vec![SegmentFmt::SegmentExpr(expr)];
+        let ast    = Ast::text_line_fmt(text);
+        let crumbf = |crumb| Crumb::TextLineFmt(crumb);
+        let bar    = Ast::var("bar");
+        let crumb  = TextLineFmtCrumb{segment_index:0};
+
+        assert_eq!(ast.repr(), "'`foo`'");
+        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
+        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`'");
+    }
+
+    #[test]
+    fn text_block_fmt_crumb() {
+        let empty_lines = default();
+        let expr        = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text        = vec![SegmentFmt::SegmentExpr(expr)];
+        let line1       = TextBlockLine{empty_lines,text};
+
+        let empty_lines = default();
+        let expr        = SegmentExpr { value : Some(Ast::var("bar")) };
+        let text        = vec![SegmentFmt::SegmentExpr(expr)];
+        let line2       = TextBlockLine{empty_lines,text};
+
+        let lines       = vec![line1,line2];
+        let ast         = Ast::text_block_fmt(lines);
+        let qux         = Ast::var("qux");
+        let baz         = Ast::var("baz");
+
+        let crumbf = |crumb| Crumb::TextBlockFmt(crumb);
+        assert_eq!(ast.repr(), "'''\n`foo`\n`bar`");
+
+        let crumb1 = TextBlockFmtCrumb {text_line_index:0, segment_index:0};
+        let crumb2 = TextBlockFmtCrumb {text_line_index:1, segment_index:0};
+
+        assert_eq!(get(crumbf,&ast,crumb1).unwrap().repr(), "foo");
+        assert_eq!(get(crumbf,&ast,crumb2).unwrap().repr(), "bar");
+
+        assert_eq!(set(crumbf,&ast,crumb1,qux).unwrap().repr(),"'''\n`qux`\n`bar`");
+        assert_eq!(set(crumbf,&ast,crumb2,baz).unwrap().repr(),"'''\n`foo`\n`baz`");
+    }
+
+    #[test]
+    fn text_unclosed_crumb() {
+        let expr            = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text            = vec![SegmentFmt::SegmentExpr(expr)];
+        let text_line       = TextLineFmt{text};
+        let line            = TextLine::TextLineFmt(text_line);
+        let ast             = Ast::text_unclosed(line);
+        let crumbf          = |crumb| Crumb::TextUnclosed(crumb);
+        let bar             = Ast::var("bar");
+        let text_line_crumb = TextLineFmtCrumb{segment_index:0};
+        let crumb           = TextUnclosedCrumb{text_line_crumb};
+
+        assert_eq!(ast.repr(), "'`foo`");
+        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
+        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`");
     }
 
     #[test]
