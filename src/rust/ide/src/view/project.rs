@@ -46,7 +46,7 @@ shared! { ProjectView
         world             : World,
         layout            : ViewLayout,
         resize_callback   : Option<CallbackHandle>,
-        controller        : controller::project::Handle,
+        controller        : controller::Project,
         keyboard          : Keyboard,
         keyboard_bindings : KeyboardFrpBindings,
         keyboard_actions  : KeyboardActions
@@ -62,7 +62,7 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub async fn new(logger:&Logger, controller:controller::project::Handle)
+    pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
         let path                 = Path::new(INITIAL_FILE_PATH);
         // This touch is to ensure, that our hardcoded module exists (so we don't require

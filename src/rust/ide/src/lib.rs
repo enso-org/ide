@@ -17,6 +17,7 @@
 pub mod controller;
 pub mod double_representation;
 pub mod executor;
+pub mod model;
 pub mod transport;
 pub mod view;
 
@@ -31,6 +32,7 @@ pub mod prelude {
     pub use crate::controller;
     pub use crate::double_representation;
     pub use crate::executor;
+    pub use crate::model;
 
     pub use futures::Future;
     pub use futures::FutureExt;
@@ -117,7 +119,7 @@ pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,Con
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
     let fm_transport = connect_to_file_manager(config).await?;
-    let controller   = controller::project::Handle::new_running(fm_transport);
+    let controller   = controller::Project::new_running(fm_transport);
     let project_view = ProjectView::new(logger,controller).await?;
     Ok(project_view)
 }

@@ -3,8 +3,6 @@
 use crate::prelude::*;
 
 use crate::controller::notification::Publisher;
-use crate::controller::module::state;
-use crate::controller::module::state::State;
 use crate::controller::module::Location;
 
 use flo_stream::Subscriber;
@@ -40,8 +38,8 @@ enum Entry<Handle> {
 
 /// Notification that module state was loaded.
 type LoadedNotification = Result<(), LoadingError>;
-type StrongEntry = Entry<state::Handle>;
-type WeakEntry   = Entry<Weak<State>>;
+type StrongEntry = Entry<Rc  <model::Module>>;
+type WeakEntry   = Entry<Weak<model::Module>>;
 
 impl WeakElement for WeakEntry {
     type Strong = StrongEntry;
@@ -90,7 +88,7 @@ impl<Handle:Debug> Debug for Entry<Handle> {
 /// internal mutability pattern.
 #[derive(Debug,Default)]
 pub struct Registry {
-    registry: RefCell<WeakValueHashMap<Location, WeakEntry>>
+    registry: RefCell<WeakValueHashMap<Location,WeakEntry>>
 }
 
 impl Registry {
@@ -102,15 +100,16 @@ impl Registry {
     /// loading to finish. If it's not present nor loaded, this function will load the module by
     /// awaiting `loader` parameter. There is guarantee, that loader will be not polled in any other
     /// case.
-    pub async fn get_or_load<F>(&self, location:Location, loader:F) -> FallibleResult<state::Handle>
-    where F : Future<Output=FallibleResult<state::Handle>> {
+    pub async fn get_or_load<F>
+    (&self, location:Location, loader:F) -> FallibleResult<Rc<model::Module>>
+    where F : Future<Output=FallibleResult<Rc<model::Module>>> {
         match self.get(&location).await? {
             Some(state) => Ok(state),
             None        => Ok(self.load(location,loader).await?)
         }
     }
 
-    async fn get(&self, location:&Location) -> Result<Option<state::Handle>,LoadingError> {
+    async fn get(&self, location:&Location) -> Result<Option<Rc<model::Module>>,LoadingError> {
         loop {
             let entry = self.registry.borrow_mut().get(&location);
             match entry {
@@ -125,8 +124,8 @@ impl Registry {
 
     }
 
-    async fn load<F,E>(&self, loc:Location, loader:F) -> Result<state::Handle,E>
-    where F : Future<Output=Result<state::Handle,E>> {
+    async fn load<F,E>(&self, loc:Location, loader:F) -> Result<Rc<model::Module>,E>
+    where F : Future<Output=Result<Rc<model::Module>,E>> {
         let mut publisher = Publisher::default();
         self.registry.borrow_mut().insert(loc.clone(), Entry::Loading(publisher.subscribe()));
 
@@ -164,7 +163,7 @@ mod test {
         test.run_task(async move {
             let line     = ast::Ast::infix_var("a", "+", "b");
             let ast      = ast::Ast::one_line_module(line);
-            let state    = state::Handle::new(State::new(ast.try_into().unwrap(),default()));
+            let state    = Rc::new(model::Module::new(ast.try_into().unwrap(),default()));
             let registry = Rc::new(Registry::default());
             let expected = state.clone_ref();
             let location = Location::new("test");
@@ -183,7 +182,7 @@ mod test {
     fn getting_module_during_load() {
         let line      = ast::Ast::infix_var("a", "+", "b");
         let ast       = ast::Ast::one_line_module(line);
-        let state1    = state::Handle::new(State::new(ast.try_into().unwrap(),default()));
+        let state1    = Rc::new(model::Module::new(ast.try_into().unwrap(),default()));
         let state2    = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();

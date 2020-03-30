@@ -81,8 +81,6 @@ impl Position {
 
 /// A type describing content of the module: the ast and metadata.
 pub type Content = SourceFile<Metadata>;
-/// A shared handle for module's state.
-pub type Handle = Rc<State>;
 
 /// A structure describing the module state.
 ///
@@ -90,23 +88,23 @@ pub type Handle = Rc<State>;
 /// controllers. Each change in module will emit notification for each module representation
 /// (text and graphs).
 #[derive(Debug)]
-pub struct State {
+pub struct Module {
     content             : RefCell<Content>,
     text_notifications  : RefCell<notification::Publisher<notification::Text>>,
     graph_notifications : RefCell<notification::Publisher<notification::Graphs>>,
 }
 
-impl Default for State {
+impl Default for Module {
     fn default() -> Self {
         let ast = ast::known::Module::new(ast::Module{lines:default()},None);
         Self::new(ast,default())
     }
 }
 
-impl State {
+impl Module {
     /// Create state with given content.
     pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
-        State {
+        Module {
             content: RefCell::new(SourceFile{ast,metadata}),
             text_notifications  : default(),
             graph_notifications : default(),
@@ -179,7 +177,8 @@ impl State {
 
     /// Create module state from given code, id_map and metadata.
     #[cfg(test)]
-    pub fn from_code_or_panic<S:ToString>(code:S, id_map:ast::IdMap, metadata:Metadata) -> Handle {
+    pub fn from_code_or_panic<S:ToString>
+    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Rc<Self> {
         let parser = parser::Parser::new_or_panic();
         let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
         Rc::new(Self::new(ast,metadata))

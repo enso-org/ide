@@ -33,7 +33,7 @@ pub struct TextEditorData {
     padding    : TemporaryPadding,
     position   : Vector2<f32>,
     size       : Vector2<f32>,
-    controller : controller::text::Handle,
+    controller : controller::Text,
     logger     : Logger
 }
 
@@ -65,7 +65,7 @@ impl TextEditor {
     pub fn new
     ( logger           : &Logger
     , world            : &World
-    , controller       : controller::text::Handle
+    , controller       : controller::Text
     , keyboard_actions : &mut KeyboardActions) -> Self {
         let logger     = logger.sub("TextEditor");
         let scene      = world.scene();

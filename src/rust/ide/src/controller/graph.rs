@@ -7,8 +7,7 @@
 use crate::prelude::*;
 
 pub use crate::double_representation::graph::Id;
-use crate::controller::module::state::NodeMetadata;
-use crate::controller::module::state::Handle as ModuleStateHandle;
+use crate::model::module::NodeMetadata;
 pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::graph::GraphInfo;
 use crate::double_representation::definition;
@@ -91,8 +90,8 @@ impl NewNodeInfo {
 /// Handle providing graph controller interface.
 #[derive(Clone,Debug)]
 pub struct Handle {
-    /// State of the module which this graph belongs to.
-    module : ModuleStateHandle,
+    /// Model of the module which this graph belongs to.
+    module : Rc<model::Module>,
     parser : Parser,
     id     : Id,
     logger : Logger,
@@ -107,7 +106,7 @@ impl Handle {
     /// Creates a new controller. Does not check if id is valid.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new_unchecked(module:ModuleStateHandle, parser:Parser, id:Id) -> Handle {
+    pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
         let logger    = Logger::new(format!("Graph Controller {}", id));
         Handle {module,parser,id,logger}
     }
@@ -115,7 +114,7 @@ impl Handle {
     /// module. Fails if ID cannot be resolved.
     ///
     /// Requires global executor to spawn the events relay task.
-    pub fn new(module:ModuleStateHandle, parser:Parser, id:Id) -> FallibleResult<Handle> {
+    pub fn new(module:Rc<model::Module>, parser:Parser, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,parser,id);
         // Get and discard definition info, we are just making sure it can be obtained.
         let _ = ret.graph_definition_info()?;
@@ -272,8 +271,6 @@ mod tests {
 
     use crate::double_representation::definition::DefinitionName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::controller::module;
-    use crate::controller::graph;
     use crate::controller::notification;
 
     use ast::HasRepr;
@@ -292,13 +289,15 @@ mod tests {
             Self(nested)
         }
 
-        pub fn run_graph_for_main<Test,Fut>(&mut self, code:impl Str, function_name:impl Str, test:Test)
-        where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+        pub fn run_graph_for_main<Test,Fut>
+        (&mut self, code:impl Str, function_name:impl Str, test:Test)
+        where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
+            let code     = code.as_ref();
             let fm       = file_manager_client::Handle::new(MockTransport::new());
             let loc      = controller::module::Location::new("Main");
             let parser   = Parser::new_or_panic();
-            let module   = controller::module::Handle::new_mock(loc, code.as_ref(), default(), fm, parser).unwrap();
+            let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.get_graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
@@ -307,12 +306,13 @@ mod tests {
         }
 
         pub fn run_graph_for<Test,Fut>(&mut self, code:impl Str, graph_id:Id, test:Test)
-            where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+            where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
+            let code     = code.as_ref();
             let fm       = file_manager_client::Handle::new(MockTransport::new());
             let loc      = controller::module::Location::new("Main");
             let parser   = Parser::new_or_panic();
-            let module   = controller::module::Handle::new_mock(loc,code.as_ref(),default(),fm,parser).unwrap();
+            let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
             let graph    = module.get_graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
                 test(module,graph).await
@@ -320,7 +320,7 @@ mod tests {
         }
 
         pub fn run_inline_graph<Test,Fut>(&mut self, definition_body:impl Str, test:Test)
-        where Test : FnOnce(module::Handle,Handle) -> Fut + 'static,
+        where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             assert_eq!(definition_body.as_ref().contains('\n'), false);
             let code = format!("main = {}", definition_body.as_ref());
@@ -333,12 +333,12 @@ mod tests {
     fn node_operations() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let code         = "main = Hello World";
-            let module       = module::state::State::from_code_or_panic(code,default(),default());
+            let module       = model::Module::from_code_or_panic(code,default(),default());
             let parser       = Parser::new().unwrap();
-            let pos          = module::state::Position {vector:Vector2::new(0.0,0.0)};
+            let pos          = model::module::Position {vector:Vector2::new(0.0,0.0)};
             let crumbs       = vec![DefinitionName::new_plain("main")];
             let id           = Id {crumbs};
-            let graph        = graph::Handle::new(module,parser,id).unwrap();
+            let graph        = Handle::new(module,parser,id).unwrap();
 
             let uid          = graph.all_node_infos().unwrap()[0].id();
 
@@ -461,7 +461,7 @@ main =
 
             // === Add node ===
             let id       = ast::Id::new_v4();
-            let position = Some(controller::module::state::Position::new(10.0,20.0));
+            let position = Some(model::module::Position::new(10.0,20.0));
             let metadata = NodeMetadata {position};
             let info     = NewNodeInfo {
                 expression    : "a+b".into(),

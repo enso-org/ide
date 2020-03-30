@@ -5,6 +5,7 @@
 //! user.
 
 use crate::prelude::*;
+
 use crate::controller::notification;
 
 use data::text::TextChange;
@@ -23,7 +24,7 @@ use std::pin::Pin;
 #[derive(Clone,Debug)]
 enum FileHandle {
     PlainText {path:fmc::Path, file_manager:fmc::Handle},
-    Module    {controller:controller::module::Handle },
+    Module    {controller:controller::Module },
 }
 
 impl CloneRef for FileHandle {}
@@ -47,7 +48,7 @@ impl Handle {
     }
 
     /// Create controller managing Luna module file.
-    pub fn new_for_module(controller:controller::module::Handle) -> Self {
+    pub fn new_for_module(controller:controller::Module) -> Self {
         Self {
             file : FileHandle::Module {controller}
         }
@@ -105,7 +106,7 @@ impl Handle {
         match &self.file {
             FileHandle::PlainText{..}       => StreamExt::boxed(futures::stream::empty()),
             FileHandle::Module {controller} => {
-                let subscriber = controller.module.subscribe_text_notifications();
+                let subscriber = controller.model.subscribe_text_notifications();
                 StreamExt::boxed(subscriber)
             }
         }
@@ -146,10 +147,10 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let fm         = file_manager_client::Handle::new(MockTransport::new());
+            let fm         = fmc::Handle::new(MockTransport::new());
             let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();
-            let module_res = controller::module::Handle::new_mock(loc, "2+2", default(), fm, parser);
+            let module_res = controller::Module::new_mock(loc, "2+2", default(), fm, parser);
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone_ref());
             let mut sub    = controller.subscribe();

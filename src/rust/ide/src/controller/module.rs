@@ -5,8 +5,6 @@
 //! for registering text and graph changes. If for example text represntation will be changed, there
 //! will be notifications for both text change and graph change.
 
-pub mod state;
-
 use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
@@ -17,6 +15,7 @@ use data::text::*;
 use double_representation as dr;
 use file_manager_client as fmc;
 use parser::Parser;
+
 
 
 // =======================
@@ -72,7 +71,7 @@ pub struct Handle {
     /// This module's location.
     pub location : Location,
     /// The current state of module.
-    pub module : state::Handle,
+    pub model: Rc<model::Module>,
     /// The File Manager Client handle.
     pub file_manager : fmc::Handle,
     /// The Parser handle.
@@ -85,10 +84,11 @@ impl Handle {
     /// Create a module controller for given location.
     ///
     /// It may wait for module content, because the module must initialize its state.
-    pub fn new(location:Location, module:state::Handle, file_manager:fmc::Handle, parser:Parser)
+    pub fn new
+    (location:Location, model:Rc<model::Module>, file_manager:fmc::Handle, parser:Parser)
     -> Self {
         let logger   = Logger::new(format!("Module Controller {}", location));
-        Handle {location,module,file_manager,parser,logger}
+        Handle {location,model,file_manager,parser,logger}
     }
 
     /// Load or reload module content from file.
@@ -100,7 +100,7 @@ impl Handle {
         let parsed = self.parser.parse_with_metadata(content)?;
         self.logger.info(|| "Code parsed");
         self.logger.trace(|| format!("The parsed ast is {:?}", parsed.ast));
-        self.module.update_whole(parsed);
+        self.model.update_whole(parsed);
         Ok(())
     }
 
@@ -108,14 +108,14 @@ impl Handle {
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let path    = self.location.to_path();
         let fm      = self.file_manager.clone_ref();
-        let content = self.module.source_as_string();
+        let content = self.model.source_as_string();
         async move { Ok(fm.write(path,content?).await?) }
     }
 
     /// Updates AST after code change.
     pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
         let mut code         = self.code()?;
-        let mut id_map       = self.module.ast().ast().id_map();
+        let mut id_map       = self.model.ast().ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
         let replaced_indices = change.replaced.start.value..change.replaced.end.value;
@@ -123,15 +123,15 @@ impl Handle {
         code.replace_range(replaced_indices,&change.inserted);
         apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
         let ast = self.parser.parse(code, id_map)?.try_into()?;
-        self.module.update_ast(ast);
-        self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast()));
+        self.logger.trace(|| format!("Applied change; Ast is now {:?}", ast));
+        self.model.update_ast(ast);
 
         Ok(())
     }
 
     /// Read module code.
     pub fn code(&self) -> FallibleResult<String> {
-        self.module.source_as_string()
+        self.model.source_as_string()
     }
 
     /// Check if current module state is synchronized with given code. If it's not, log error,
@@ -142,16 +142,15 @@ impl Handle {
             self.logger.error(|| format!("The module controller ast was not synchronized with \
                 text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
             let actual_ast = self.parser.parse(code,default())?.try_into()?;
-            self.module.update_ast(actual_ast);
+            self.model.update_ast(actual_ast);
         }
         Ok(())
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     /// Reuses already existing controller if possible.
-    pub fn get_graph_controller(&self, id:dr::graph::Id)
-    -> FallibleResult<controller::graph::Handle> {
-        controller::graph::Handle::new(self.module.clone_ref(),self.parser.clone_ref(),id)
+    pub fn get_graph_controller(&self, id:dr::graph::Id) -> FallibleResult<controller::Graph> {
+        controller::Graph::new(self.model.clone_ref(), self.parser.clone_ref(), id)
     }
 
     #[cfg(test)]
@@ -162,10 +161,10 @@ impl Handle {
     , file_manager : fmc::Handle
     , parser       : Parser
     ) -> FallibleResult<Self> {
-        let logger   = Logger::new("Mocked Module Controller");
-        let ast      = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
-        let module   = state::Handle::new(state::State::new(ast,default()));
-        Ok(Handle {location,module,file_manager,parser,logger})
+        let logger = Logger::new("Mocked Module Controller");
+        let ast    = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
+        let model  = Rc::new(model::Module::new(ast, default()));
+        Ok(Handle {location,model,file_manager,parser,logger})
     }
 
     #[cfg(test)]
@@ -212,7 +211,7 @@ mod test {
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
-            let file_manager = file_manager_client::Handle::new(transport);
+            let file_manager = fmc::Handle::new(transport);
             let parser       = Parser::new().unwrap();
             let location     = Location::new("Test");
 
@@ -229,8 +228,8 @@ mod test {
             let controller   = Handle::new_mock
             (location,module,id_map,file_manager,parser).unwrap();
 
-            let mut text_notifications  = controller.module.subscribe_text_notifications();
-            let mut graph_notifications = controller.module.subscribe_graph_notifications();
+            let mut text_notifications  = controller.model.subscribe_text_notifications();
+            let mut graph_notifications = controller.model.subscribe_graph_notifications();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(1),"2".to_string());
@@ -247,7 +246,7 @@ mod test {
                     off: 0
                 }]
             }, None);
-            assert_eq!(expected_ast, controller.module.ast().into());
+            assert_eq!(expected_ast, controller.model.ast().into());
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
