@@ -797,30 +797,36 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn import_crumb() -> FallibleResult<()> {
-    //     let prefix = Ast::prefix(Ast::var("func"), Ast::var("arg"));
-    //     let get   = |prefix_crumb| {
-    //         let crumb = Crumb::Prefix(prefix_crumb);
-    //         prefix.get(&crumb)
-    //     };
-    //     let set   = |prefix_crumb, ast| {
-    //         let crumb = Crumb::Prefix(prefix_crumb);
-    //         prefix.set(&crumb,ast)
-    //     };
-    //     let foo = Ast::var("foo");
-    //     let x   = Ast::var("x");
-    //
-    //     assert_eq!(prefix.repr(), "func arg");
-    //
-    //     assert_eq!(get(PrefixCrumb::Func)?.repr(), "func");
-    //     assert_eq!(get(PrefixCrumb::Arg)?.repr(),  "arg");
-    //
-    //     assert_eq!(set(PrefixCrumb::Func, foo.clone())?.repr(), "foo arg");
-    //     assert_eq!(set(PrefixCrumb::Arg,  x.clone())?.repr(), "func x");
-    //
-    //     Ok(())
-    // }
+    fn get(ast:&Ast, crumb:ImportCrumb) -> FallibleResult<&Ast> {
+        let crumb = Crumb::Import(crumb);
+        ast.get(&crumb)
+    }
+
+    #[test]
+    fn import_crumb() -> FallibleResult<()> {
+        let path   = vec![Ast::var("foo"), Ast::var("bar")];
+        let path   = path.into_iter().map(|segment| segment.into()).collect();
+        let import = crate::Import { path };
+        let import = Ast::new_with_length(import,None,0);
+
+        let set   = |import_crumb,ast| {
+            let crumb = Crumb::Import(import_crumb);
+            import.set(&crumb,ast)
+        };
+
+        assert_eq!(get(&import,ImportCrumb{path_index:0})?.repr(), "foo");
+        assert_eq!(get(&import,ImportCrumb{path_index:1})?.repr(), "bar");
+
+        let qux  = Ast::var("qux");
+        let barz = Ast::var("barz");
+
+       // let changed = set(ImportCrumb{path_index:0}, qux).unwrap();
+       // assert_eq!(get(&changed,ImportCrumb{path_index:0})?.repr(), "qux");
+//        let changed = set(ImportCrumb{path_index:1}, barz).unwrap();
+//        assert_eq!(get(&changed,ImportCrumb{path_index:1})?.repr(), "barz");
+
+        Ok(())
+    }
 
     #[test]
     fn prefix_crumb() -> FallibleResult<()> {
