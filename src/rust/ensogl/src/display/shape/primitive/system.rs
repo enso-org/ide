@@ -93,25 +93,32 @@ impl<'t> From<&'t ShapeSystemDefinition> for &'t display::object::Node {
 
 
 
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-#[clone_ref(bound="Params:CloneRef")]
-pub struct ShapeWrapper<Params> {
-    #[shrinkwrap(main_field)]
-    pub params : Params,
-    pub sprite : Sprite,
-}
+//#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+//#[clone_ref(bound="Params:CloneRef")]
+//pub struct ShapeWrapper<Params> {
+//    #[shrinkwrap(main_field)]
+//    pub params : Params,
+//    pub sprite : Sprite,
+//}
 
 
-pub trait ShapeSystem {
-    type ShapeDefinition;
+pub trait ShapeSystem : 'static + CloneRef {
+    type ShapeDefinition : Shape<System=Self>;
     fn new(scene:&Scene) -> Self;
-    fn new_instance(&self) -> Shape<Self>;
+    fn new_instance(&self) -> Self::ShapeDefinition;
 }
 
 pub type ShapeDefinition<T> = <T as ShapeSystem>::ShapeDefinition;
 
-pub type Shape<T> = ShapeWrapper<ShapeDefinition<T>>;
+//pub type Shape2<T> = ShapeWrapper<ShapeDefinition<T>>;
 
+
+pub trait Shape : Sized {
+    type System : ShapeSystem<ShapeDefinition=Self>;
+    fn sprite(&self) -> &Sprite;
+}
+
+pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 
 #[macro_export]
@@ -127,9 +134,22 @@ macro_rules! shape {
 
         #[derive(Clone,Debug)]
         pub struct ShapeDefinition {
+            pub sprite : Sprite,
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
+        impl $crate::display::shape::system::Shape for ShapeDefinition {
+            type System = ShapeSystem;
+            fn sprite(&self) -> &Sprite {
+                &self.sprite
+            }
+        }
+
+        impl<'t> From<&'t ShapeDefinition> for &'t display::object::Node {
+            fn from(t:&'t ShapeDefinition) -> Self {
+                &t.sprite.display_object()
+            }
+        }
 
         // ==============
         // === System ===
@@ -150,12 +170,11 @@ macro_rules! shape {
                 Self {shape_system,$($gpu_param),*}
             }
 
-            fn new_instance(&self) -> $crate::display::shape::primitive::system::Shape<Self> {
+            fn new_instance(&self) -> Self::ShapeDefinition {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                let params = ShapeDefinition {$($gpu_param),*};
-                ShapeWrapper {sprite,params}
+                ShapeDefinition {sprite, $($gpu_param),*}
             }
         }
 

@@ -18,11 +18,12 @@ use enso_frp::frp;
 use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
-use ensogl::display::shape;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,MouseTarget};
+use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
+use ensogl::gui::component::Component;
+
 
 pub mod icons {
     use super::*;
@@ -121,39 +122,59 @@ pub struct Events {
     pub mouse_down : frp::Dynamic<()>,
 }
 
-ensogl::component! { Node
-    Definition {
-        label  : frp::Dynamic<String>,
-        events : Events,
+pub mod shape {
+    use super::*;
+
+    ensogl::shape! {
+        (selection:f32) {
+            let node_radius = 32.0;
+            let border_size = 16.0;
+
+            let node = Circle(node_radius.px());
+            let node = node.fill(Srgb::new(0.97,0.96,0.95));
+            let bg   = Circle((node_radius*2.0).px());
+            let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
+
+            let shadow2 = Circle((node_radius + border_size).px());
+            let shadow2_color = LinearGradient::new()
+                .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
+            let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+            let shadow2       = shadow2.fill(shadow2_color);
+
+            let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
+            let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
+
+            let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+            let loader_angle2 = &loader_angle / 2.0;
+            let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
+            let loader        = loader.rotate(loader_angle2);
+            let loader        = loader.rotate("Radians(input_time/200.0)");
+            let icon          = icons::history();
+            let out           = loader + selection + shadow2 + node + icon;
+            out.into()
+        }
     }
+}
 
-    Shape (selection:f32) {
-        let node_radius = 32.0;
-        let border_size = 16.0;
+//ensogl::component! { Node
+#[derive(Clone,CloneRef,Debug)]
+pub struct Node {
+    pub logger         : Logger,
+    pub display_object : display::object::Node,
+    pub label          : frp::Dynamic<String>,
+    pub events         : Events,
+    pub shape          : Rc<RefCell<Option<shape::ShapeDefinition>>>,
+}
 
-        let node = Circle(node_radius.px());
-        let node = node.fill(Srgb::new(0.97,0.96,0.95));
-        let bg   = Circle((node_radius*2.0).px());
-        let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
-
-        let shadow2 = Circle((node_radius + border_size).px());
-        let shadow2_color = LinearGradient::new()
-            .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-            .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-        let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
-        let shadow2       = shadow2.fill(shadow2_color);
-
-        let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
-        let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
-
-        let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
-        let loader_angle2 = &loader_angle / 2.0;
-        let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
-        let loader        = loader.rotate(loader_angle2);
-        let loader        = loader.rotate("Radians(input_time/200.0)");
-        let icon          = icons::history();
-        let out           = loader + selection + shadow2 + node + icon;
-        out.into()
+impl Component for Node {
+    type ComponentSystem = shape::ShapeSystem;
+    fn on_view_cons(&self, _scene:&Scene, shape_registry:&ShapeRegistry) {
+        let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
+        self.display_object.add_child(&shape);
+        shape.sprite.size().set(Vector2::new(200.0,200.0));
+        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.clone_ref());
+        *self.shape.borrow_mut() = Some(shape);
     }
 }
 
@@ -164,12 +185,30 @@ impl Node {
             mouse_down = source::<()>     ();
         }
 
-        let events     = Events {mouse_down};
-        let definition = Definition {label,events};
-        Self::create("node",definition).init()
+        let logger         = Logger::new("node");
+        let display_object = display::object::Node::new(&logger);
+        let events         = Events {mouse_down};
+        let shape          = default();
+        Self {logger,display_object,label,events,shape} . init()
     }
 
     fn init(self) -> Self {
+        let this = self.clone_ref();
+        self.display_object.set_on_show_with(move |scene| {
+            let shape_registry : &ShapeRegistry = &scene.shapes;
+            this.on_view_cons(scene,shape_registry);
+        });
+
+        let shape = self.shape.clone_ref();
+        self.display_object.set_on_hide_with(move |_| {
+            shape.borrow().as_ref().for_each(|shape| {
+                // TODO scene.shapes.remove_mouse_target(...)
+            });
+            *shape.borrow_mut() = None;
+        });
+
+
+
         let mouse_down = self.events.mouse_down.clone_ref();
 
         frp! {
@@ -196,8 +235,14 @@ impl Node {
 
 }
 
-impl MouseTarget for Definition {
+impl MouseTarget for Node {
     fn mouse_down(&self) -> Option<&frp::Dynamic<()>> {
         Some(&self.events.mouse_down)
+    }
+}
+
+impl<'t> From<&'t Node> for &'t display::object::Node {
+    fn from(t:&'t Node) -> Self {
+        &t.display_object
     }
 }

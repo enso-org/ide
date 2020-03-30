@@ -50,6 +50,7 @@ pub trait MouseTarget : Debug + 'static {
 use crate::gui::component::Component;
 use crate::gui::component::ComponentSystem;
 use crate::display::shape::ShapeSystem;
+use crate::display::shape::system::{Shape,ShapeSystemOf};
 
 // =========================
 // === ComponentRegistry ===
@@ -79,6 +80,34 @@ impl {
         self.shape_system_map.insert(id,any);
         system
     }
+
+    fn get2<T:ShapeSystem>(&self) -> Option<T> {
+        let id = TypeId::of::<T>();
+        self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<T>()).map(|t| t.clone_ref())
+    }
+
+    fn register2<T:ShapeSystem>(&mut self) -> T {
+        let id     = TypeId::of::<T>();
+        let system = <T as ShapeSystem>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref()) as Box<dyn Any>;
+        self.shape_system_map.insert(id,any);
+        system
+    }
+
+    fn get_or_register<T:ShapeSystem>(&mut self) -> T {
+        self.get2().unwrap_or_else(|| self.register2())
+    }
+
+    pub fn shape_system<T:Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
+        self.get_or_register::<ShapeSystemOf<T>>()
+    }
+
+    pub fn new_instance<T:Shape>(&mut self) -> T {
+        let system = self.get_or_register::<ShapeSystemOf<T>>();
+        system.new_instance()
+    }
+
+
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, id:usize, target:T) {
         let target = Rc::new(target);

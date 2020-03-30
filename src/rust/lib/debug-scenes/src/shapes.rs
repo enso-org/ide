@@ -166,14 +166,14 @@ fn init(world: &World) {
 
 
 
-    scene.shapes.register(PhantomData::<node::Definition>);
-    let pointer_system_x = scene.shapes.register(PhantomData::<cursor::Definition>);
+//    scene.shapes.register(PhantomData::<node::Definition>);
+//    let pointer_system_x = scene.shapes.register(PhantomData::<cursor::Definition>);
 
-    pointer_system_x.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-
-    let scene_view = scene.views.new();
-    scene.views.main.remove(&pointer_system_x.shape_system.symbol);
-    scene_view.add(&pointer_system_x.shape_system.symbol);
+//    pointer_system_x.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+//
+//    let scene_view = scene.views.new();
+//    scene.views.main.remove(&pointer_system_x.shape_system.symbol);
+//    scene_view.add(&pointer_system_x.shape_system.symbol);
 
 
 
@@ -313,7 +313,7 @@ fn init(world: &World) {
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &_nodes;
-        let _keep_alive = &scene_view;
+//        let _keep_alive = &scene_view;
 //        let _keep_alive = &animator_ref;
 //        let _keep_alive = &simulator;
 
