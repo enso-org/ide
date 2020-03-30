@@ -9,7 +9,6 @@ use crate::controller::notification;
 
 use data::text::TextChange;
 use file_manager_client as fmc;
-use json_rpc::error::RpcError;
 use std::pin::Pin;
 
 
@@ -63,11 +62,11 @@ impl Handle {
     }
 
     /// Read file's content.
-    pub async fn read_content(&self) -> Result<String,RpcError> {
+    pub async fn read_content(&self) -> FallibleResult<String> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => file_manager.read(path.clone_ref()).await,
-            Module    {controller}        => Ok(controller.code())
+            PlainText {path,file_manager} => Ok(file_manager.read(path.clone_ref()).await?),
+            Module    {controller}        => Ok(controller.code()?)
         }
     }
 

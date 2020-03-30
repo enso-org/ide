@@ -15,6 +15,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod api;
+pub mod test_utils;
 mod jsclient;
 mod wsclient;
 
@@ -25,6 +26,7 @@ use crate::api::IsParser;
 use ast::Ast;
 use ast::IdMap;
 use std::panic;
+use utils::fail::FallibleResult;
 
 pub use enso_prelude as prelude;
 
@@ -86,9 +88,29 @@ impl Parser {
     }
 
     /// Parse program into module.
-    pub fn parse_module(&self, program:String, ids:IdMap) -> api::Result<ast::known::Module> {
-        let ast = self.parse(program,ids)?;
+    pub fn parse_module(&self, program:impl Str, ids:IdMap) -> api::Result<ast::known::Module> {
+        let ast = self.parse(program.into(),ids)?;
         ast::known::Module::try_from(ast).map_err(|_| api::Error::NonModuleRoot)
+    }
+
+
+    /// Program is expected to be single non-empty line module. The line's AST is
+    /// returned. Panics otherwise.
+    pub fn parse_line(&self, program:impl Str) -> FallibleResult<Ast> {
+        let module = self.parse_module(program,default())?;
+
+        let mut lines = module.lines.clone().into_iter().filter_map(|line| {
+            line.elem
+        });
+        if let Some(first_non_empty_line) = lines.next() {
+            if lines.next().is_some() {
+                Err(api::TooManyLinesProduced.into())
+            } else {
+                Ok(first_non_empty_line)
+            }
+        } else {
+            Err(api::NoLinesProduced.into())
+        }
     }
 }
 

@@ -12,13 +12,12 @@ use crate::prelude::*;
 use crate::double_representation::text::apply_code_change_to_id_map;
 
 use ast;
-use ast::HasRepr;
 use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
 use file_manager_client as fmc;
+use parser::api::SourceFile;
 use parser::Parser;
-
 
 
 // =======================
@@ -99,10 +98,11 @@ impl Handle {
         let path    = self.location.to_path();
         let content = self.file_manager.read(path).await?;
         self.logger.info(|| "Parsing code");
-        let source = self.parser.parse_with_metadata(content)?;
+        let SourceFile{ast,metadata} = self.parser.parse_with_metadata(content)?;
+        let module_ast               = ast::known::Module::try_new(ast)?;
         self.logger.info(|| "Code parsed");
-        self.logger.trace(|| format!("The parsed ast is {:?}", source.ast));
-        self.module.update_whole(source);
+        self.logger.trace(|| format!("The parsed ast is {:?}", module_ast));
+        self.module.update_whole(module_ast,metadata);
         Ok(())
     }
 
@@ -116,15 +116,15 @@ impl Handle {
 
     /// Updates AST after code change.
     pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
-        let mut code         = self.code();
-        let mut id_map       = self.module.ast().id_map();
+        let mut code         = self.code()?;
+        let mut id_map       = self.module.ast()?.ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
         let replaced_indices = change.replaced.start.value..change.replaced.end.value;
 
         code.replace_range(replaced_indices,&change.inserted);
         apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
-        let ast = self.parser.parse(code, id_map)?;
+        let ast = self.parser.parse(code, id_map)?.try_into()?;
         self.module.update_ast(ast);
         self.logger.trace(|| format!("Applied change; Ast is now {:?}", self.module.ast()));
 
@@ -132,18 +132,18 @@ impl Handle {
     }
 
     /// Read module code.
-    pub fn code(&self) -> String {
-        self.module.ast().repr()
+    pub fn code(&self) -> FallibleResult<String> {
+        self.module.source_as_string()
     }
 
     /// Check if current module state is synchronized with given code. If it's not, log error,
     /// and update module state to match the `code` passed as argument.
     pub fn check_code_sync(&self, code:String) -> FallibleResult<()> {
-        let my_code = self.code();
+        let my_code = self.code()?;
         if code != my_code {
             self.logger.error(|| format!("The module controller ast was not synchronized with \
                 text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
-            let actual_ast = self.parser.parse(code,default())?;
+            let actual_ast = self.parser.parse(code,default())?.try_into()?;
             self.module.update_ast(actual_ast);
         }
         Ok(())
@@ -153,7 +153,7 @@ impl Handle {
     /// Reuses already existing controller if possible.
     pub fn get_graph_controller(&self, id:dr::graph::Id)
     -> FallibleResult<controller::graph::Handle> {
-        controller::graph::Handle::new(self.module.clone_ref(),id)
+        controller::graph::Handle::new(self.module.clone_ref(),self.parser.clone_ref(),id)
     }
 
     #[cfg(test)]
@@ -169,11 +169,15 @@ impl Handle {
         let module   = state::Handle::new(state::State::new(ast,default()));
         Ok(Handle {location,module,file_manager,parser,logger})
     }
+
+    #[cfg(test)]
+    pub fn expect_code(&self, expected_code:impl Str) {
+        let code = self.code().unwrap();
+        assert_eq!(code,expected_code.as_ref());
+    }
 }
 
 impl CloneRef for Handle {}
-
-
 
 // =============
 // === Tests ===
@@ -245,7 +249,7 @@ mod test {
                     off: 0
                 }]
             }, None);
-            assert_eq!(expected_ast, controller.module.ast());
+            assert_eq!(expected_ast, controller.module.ast().unwrap().into());
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );

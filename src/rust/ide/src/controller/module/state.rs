@@ -16,14 +16,14 @@ use serde::Deserialize;
 
 
 
-/// ============
-/// == Errors ==
-/// ============
+// ============
+// == Errors ==
+// ============
 
 /// Failure for missing node metadata.
 #[derive(Debug,Clone,Copy,Fail)]
 #[fail(display="Node with ID {} was not found in metadata.", _0)]
-pub struct NodeMetadataNotFound(pub ast::ID);
+pub struct NodeMetadataNotFound(pub ast::Id);
 
 
 
@@ -49,7 +49,7 @@ impl parser::api::Metadata for Metadata {}
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]
 pub struct IdeMetadata {
     /// Metadata that belongs to nodes.
-    node : HashMap<ast::ID,NodeMetadata>
+    node : HashMap<ast::Id,NodeMetadata>
 }
 
 /// Metadata of specific node.
@@ -64,6 +64,14 @@ pub struct NodeMetadata {
 pub struct Position {
     /// Vector storing coordinates of the visual position.
     pub vector:Vector2<f32>
+}
+
+impl Position {
+    /// Creates a new position with given coordinates.
+    pub fn new(x:f32, y:f32) -> Position {
+        let vector = Vector2::new(x,y);
+        Position {vector}
+    }
 }
 
 
@@ -107,8 +115,9 @@ impl State {
     }
 
     /// Update whole content of the module.
-    pub fn update_whole(&self, content:Content) {
-        *self.content.borrow_mut() = content;
+    pub fn update_whole(&self, ast:ast::known::Module, metadata:Metadata) {
+        let ast = ast.into();
+        *self.content.borrow_mut() = SourceFile{ast,metadata};
         self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
     }
 
@@ -118,13 +127,13 @@ impl State {
     }
 
     /// Get module's ast.
-    pub fn ast(&self) -> Ast {
-        self.content.borrow().ast.clone_ref()
+    pub fn ast(&self) -> FallibleResult<ast::known::Module> {
+        Ok(self.content.borrow().ast.clone_ref().try_into()?)
     }
 
     /// Update ast in module controller.
-    pub fn update_ast(&self, ast:Ast) {
-        self.content.borrow_mut().ast  = ast;
+    pub fn update_ast(&self, ast:ast::known::Module) {
+        self.content.borrow_mut().ast  = ast.into();
         self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
     }
 
@@ -132,24 +141,24 @@ impl State {
     pub fn find_definition
     (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
         let module = ast::known::Module::try_new(self.content.borrow().ast.clone())?;
-        double_representation::graph::traverse_for_definition(module,id)
+        double_representation::definition::traverse_for_definition(&module,id)
     }
 
     /// Returns metadata for given node, if present.
-    pub fn node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+    pub fn node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
         let data = self.content.borrow().metadata.ide.node.get(&id).cloned();
         data.ok_or_else(|| NodeMetadataNotFound(id).into())
     }
 
     /// Sets metadata for given node.
-    pub fn set_node_metadata(&self, id:ast::ID, data:NodeMetadata) {
+    pub fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
         let graph_change = notification::Graphs::Invalidate;
         executor::global::spawn(self.graph_notifications.borrow_mut().publish(graph_change));
     }
 
     /// Removes metadata of given node and returns them.
-    pub fn take_node_metadata(&self, id:ast::ID) -> FallibleResult<NodeMetadata> {
+    pub fn take_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
         let data = self.content.borrow_mut().metadata.ide.node.remove(&id);
         data.ok_or_else(|| NodeMetadataNotFound(id).into())
     }
