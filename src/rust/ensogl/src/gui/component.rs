@@ -53,11 +53,25 @@ macro_rules! component {
 
 
 
-pub trait Component : MouseTarget + CloneRef + 'static {
-//    type ComponentSystem : ShapeSystem + CloneRef;
-
+pub trait Component : display::Object + MouseTarget + CloneRef + 'static {
     fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
     fn on_view_drop(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
+
+    fn component_init(self) -> Self {
+        let this = self.clone_ref();
+        self.display_object().set_on_show_with(move |scene| {
+            let shape_registry: &ShapeRegistry = &scene.shapes;
+            this.on_view_cons(scene,shape_registry);
+        });
+
+        let this = self.clone_ref();
+        self.display_object().set_on_hide_with(move |scene| {
+            let shape_registry: &ShapeRegistry = &scene.shapes;
+            this.on_view_drop(scene,shape_registry);
+        });
+
+        self
+    }
 }
 
 //pub type ComponentSystem<T> = <T as Component>::ComponentSystem;

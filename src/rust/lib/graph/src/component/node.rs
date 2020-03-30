@@ -82,45 +82,11 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
     out.into()
 }
 
-pub fn node_shape() -> AnyShape {
-    let node_radius = 32.0;
-    let border_size = 16.0;
-
-    let node = Circle(node_radius.px());
-    let node = node.fill(Srgb::new(0.97,0.96,0.95));
-    let bg   = Circle((node_radius*2.0).px());
-    let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
-
-    let shadow2 = Circle((node_radius + border_size).px());
-    let shadow2_color = LinearGradient::new()
-        .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-        .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-    let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
-    let shadow2       = shadow2.fill(shadow2_color);
-
-    let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
-    let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
-
-    let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
-    let loader_angle2 = &loader_angle / 2.0;
-    let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
-    let loader        = loader.rotate(loader_angle2);
-    let loader        = loader.rotate("Radians(input_time/200.0)");
-    let icon          = icons::history();
-    let out           = loader + selection + shadow2 + node + icon;
-    out.into()
-}
-
 
 
 // ============
 // === Node ===
 // ============
-
-#[derive(Debug,Clone,CloneRef)]
-pub struct Events {
-    pub mouse_down : frp::Dynamic<()>,
-}
 
 pub mod shape {
     use super::*;
@@ -135,29 +101,32 @@ pub mod shape {
             let bg   = Circle((node_radius*2.0).px());
             let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
-            let shadow2 = Circle((node_radius + border_size).px());
-            let shadow2_color = LinearGradient::new()
+            let shadow       = Circle((node_radius + border_size).px());
+            let shadow_color = LinearGradient::new()
                 .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
                 .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-            let shadow2_color = SdfSampler::new(shadow2_color).max_distance(border_size).slope(Slope::Exponent(4.0));
-            let shadow2       = shadow2.fill(shadow2_color);
+            let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+            let shadow       = shadow.fill(shadow_color);
 
             let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
             let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
             let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
-            let loader_angle2 = &loader_angle / 2.0;
-            let loader        = ring_angle((node_radius).px(), (border_size).px(), loader_angle);
-            let loader        = loader.rotate(loader_angle2);
+            let loader        = ring_angle((node_radius).px(), (border_size).px(), &loader_angle);
+            let loader        = loader.rotate(loader_angle / 2.0);
             let loader        = loader.rotate("Radians(input_time/200.0)");
             let icon          = icons::history();
-            let out           = loader + selection + shadow2 + node + icon;
+            let out           = loader + selection + shadow + node + icon;
             out.into()
         }
     }
 }
 
-//ensogl::component! { Node
+#[derive(Clone,CloneRef,Debug)]
+pub struct Events {
+    pub mouse_down : frp::Dynamic<()>,
+}
+
 #[derive(Clone,CloneRef,Debug)]
 pub struct Node {
     pub logger         : Logger,
@@ -188,32 +157,15 @@ impl Node {
         let display_object = display::object::Node::new(&logger);
         let events         = Events {mouse_down};
         let shape          = default();
-        Self {logger,display_object,label,events,shape} . init()
+        Self {logger,display_object,label,events,shape} . component_init() . init()
     }
 
     fn init(self) -> Self {
-        let this = self.clone_ref();
-        self.display_object.set_on_show_with(move |scene| {
-            let shape_registry : &ShapeRegistry = &scene.shapes;
-            this.on_view_cons(scene,shape_registry);
-        });
-
-        let shape = self.shape.clone_ref();
-        self.display_object.set_on_hide_with(move |_| {
-            shape.borrow().as_ref().for_each(|shape| {
-                // TODO scene.shapes.remove_mouse_target(...)
-            });
-            *shape.borrow_mut() = None;
-        });
-
-
-
-        let mouse_down = self.events.mouse_down.clone_ref();
+        let mouse_down = &self.events.mouse_down;
 
         frp! {
             selected            = mouse_down.toggle ();
             selection_animation = source::<f32>     ();
-            // debug = selection.map(|t| {println!("SS: {:?}",t);})
         }
 
         let shape = &self.shape;

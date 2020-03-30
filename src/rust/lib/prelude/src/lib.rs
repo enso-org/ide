@@ -99,15 +99,9 @@ pub trait CloneRef: Sized + Clone {
     }
 }
 
-impl CloneRef for () {
-    fn clone_ref(&self) -> Self {}
-}
-
-impl<T:?Sized> CloneRef for Rc<T> {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
-}
+impl CloneRef for () {}
+impl<T:?Sized> CloneRef for Rc<T> {}
+impl<T:?Sized> CloneRef for Weak<T> {}
 
 impl CloneRef for web_sys::HtmlDivElement {}
 impl CloneRef for web_sys::HtmlElement {}

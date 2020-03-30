@@ -32,6 +32,7 @@ use crate::system::web::NodeInserter;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
 use crate::system::web;
+use crate::control::callback::CallbackMut1Fn;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
@@ -414,18 +415,10 @@ impl CloneRef for Uniforms {
 pub type ShapeDirty          = dirty::SharedBool<Box<dyn Fn()>>;
 pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Dirty {
     symbols : SymbolRegistryDirty,
     shape   : ShapeDirty,
-}
-
-impl CloneRef for Dirty {
-    fn clone_ref(&self) -> Self {
-        let symbols = self.symbols.clone_ref();
-        let shape   = self.shape.clone_ref();
-        Self {symbols,shape}
-    }
 }
 
 
@@ -434,18 +427,10 @@ impl CloneRef for Dirty {
 // === Callbacks ===
 // =================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Callbacks {
     on_zoom   : CallbackHandle,
     on_resize : CallbackHandle,
-}
-
-impl CloneRef for Callbacks {
-    fn clone_ref(&self) -> Self {
-        let on_zoom   = self.on_zoom.clone_ref();
-        let on_resize = self.on_resize.clone_ref();
-        Self {on_zoom,on_resize}
-    }
 }
 
 
@@ -454,7 +439,7 @@ impl CloneRef for Callbacks {
 // === Renderer ===
 // ================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Renderer {
     logger    : Logger,
     dom       : Dom,
@@ -510,18 +495,6 @@ impl Renderer {
     }
 }
 
-impl CloneRef for Renderer {
-    fn clone_ref(&self) -> Self {
-        let logger    = self.logger.clone_ref();
-        let dom       = self.dom.clone_ref();
-        let context   = self.context.clone_ref();
-        let variables = self.variables.clone_ref();
-        let pipeline  = self.pipeline.clone_ref();
-        let composer  = self.composer.clone_ref();
-        Self {logger,dom,context,variables,pipeline,composer}
-    }
-}
-
 
 
 // ============
@@ -530,12 +503,12 @@ impl CloneRef for Renderer {
 
 // === Definition ===
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct View {
     data : Rc<ViewData>
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct WeakView {
     data : Weak<ViewData>
 }
@@ -546,9 +519,6 @@ pub struct ViewData {
     pub camera  : Camera2d,
     symbols : RefCell<Vec<SymbolId>>,
 }
-
-impl CloneRef for View {}
-impl CloneRef for WeakView {}
 
 impl AsRef<ViewData> for View {
     fn as_ref(&self) -> &ViewData {
@@ -747,6 +717,14 @@ impl SceneData {
     #[deprecated(note="Please use `scene.mouse.frp` instead")]
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
         mouse::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
+    }
+
+    pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> CallbackHandle {
+        self.dom.root.on_resize(callback)
+    }
+
+    pub fn shape(&self) -> web::dom::ShapeData {
+        self.dom.root.shape().current()
     }
 
     pub fn camera(&self) -> &Camera2d {

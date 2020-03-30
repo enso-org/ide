@@ -25,6 +25,8 @@ use ensogl::gui::component::Component;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::display::layout::alignment;
+use ensogl::system::web;
+use ensogl::control::callback::CallbackHandle;
 
 
 
@@ -52,65 +54,25 @@ pub mod shape {
 }
 
 
-//impl Display for Option<Cursor> {
-//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//        unimplemented!()
-//    }
-//}
-
-//pub struct ComponentWrapper {
-//    pub definition     : Definition,
-//    pub logger         : Logger,
-//    pub display_object : display::object::Node,
-//}
-//
-//
-//pub struct Cursor {
-//    data : ComponentWrapper(CursorDefinition)
-//}
-//
-//#[derive(Clone,CloneRef,Debug,Default)]
-//pub struct CursorDefinition {
-//    pub shape      : Rc<RefCell<Option<shape::ShapeDefinition>>>,
-//    pub scene_view : Rc<RefCell<Option<scene::View>>>,
-//}
-//
-//impl Component for Cursor {
-//    fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {
-//        let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
-//        self.display_object.add_child(&shape);
-//        shape.sprite.size().set(Vector2::new(200.0,200.0));
-//        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.clone_ref());
-//        *self.shape.borrow_mut() = Some(shape);
-//
-//        let shape_system = shape_registry.shape_system(PhantomData::<shape::ShapeDefinition>);
-//
-//        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-//
-//        let scene_view = scene.views.new();
-//        scene.views.main.remove(&shape_system.shape_system.symbol);
-//        scene_view.add(&shape_system.shape_system.symbol);
-//        *self.scene_view.borrow_mut() = Some(scene_view);
-//    }
-//}
-
-
-
-
 #[derive(Clone,CloneRef,Debug)]
 pub struct Cursor {
     pub logger         : Logger,
     pub display_object : display::object::Node,
     pub shape          : Rc<RefCell<Option<shape::ShapeDefinition>>>,
     pub scene_view     : Rc<RefCell<Option<scene::View>>>,
+    pub resize_handle  : Rc<RefCell<Option<CallbackHandle>>>,
 }
 
 impl Component for Cursor {
     fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {
-        let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
+        let shape       = shape_registry.new_instance::<shape::ShapeDefinition>();
+        let scene_shape = scene.shape();
         self.display_object.add_child(&shape);
-        shape.sprite.size().set(Vector2::new(200.0,200.0));
-        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.clone_ref());
+        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+        let handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
+            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+        }));
+        *self.resize_handle.borrow_mut() = Some(handle);
         *self.shape.borrow_mut() = Some(shape);
 
         let shape_system = shape_registry.shape_system(PhantomData::<shape::ShapeDefinition>);
@@ -130,25 +92,8 @@ impl Cursor {
         let display_object = display::object::Node::new(&logger);
         let shape          = default();
         let scene_view     = default();
-        Cursor {logger,display_object,shape,scene_view} . init()
-    }
-
-    fn init(self) -> Self {
-        let this = self.clone_ref();
-        self.display_object.set_on_show_with(move |scene| {
-            let shape_registry : &ShapeRegistry = &scene.shapes;
-            this.on_view_cons(scene,shape_registry);
-        });
-
-        let shape = self.shape.clone_ref();
-        self.display_object.set_on_hide_with(move |_| {
-            shape.borrow().as_ref().for_each(|shape| {
-                // TODO scene.shapes.remove_mouse_target(...)
-            });
-            *shape.borrow_mut() = None;
-        });
-
-        self
+        let resize_handle  = default();
+        Cursor {logger,display_object,shape,scene_view,resize_handle} . component_init()
     }
 }
 
