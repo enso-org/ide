@@ -22,6 +22,8 @@ use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
 use ensogl::gui::component::Component;
+use ensogl::gui::component::StrongRef;
+use ensogl::gui::component::WeakRef;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::display::layout::alignment;
@@ -54,8 +56,18 @@ pub mod shape {
 }
 
 
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Cursor {
+    data : Rc<CursorData>
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct WeakCursor {
+    data : Weak<CursorData>
+}
+
+#[derive(Debug)]
+pub struct CursorData {
     pub logger         : Logger,
     pub display_object : display::object::Node,
     pub shape          : Rc<RefCell<Option<shape::ShapeDefinition>>>,
@@ -93,7 +105,23 @@ impl Cursor {
         let shape          = default();
         let scene_view     = default();
         let resize_handle  = default();
-        Cursor {logger,display_object,shape,scene_view,resize_handle} . component_init()
+        let data           = CursorData {logger,display_object,shape,scene_view,resize_handle};
+        let data           = Rc::new(data);
+        Cursor {data} . component_init()
+    }
+}
+
+impl StrongRef for Cursor {
+    type WeakRef = WeakCursor;
+    fn downgrade(&self) -> WeakCursor {
+        WeakCursor {data:Rc::downgrade(&self.data)}
+    }
+}
+
+impl WeakRef for WeakCursor {
+    type StrongRef = Cursor;
+    fn upgrade(&self) -> Option<Cursor> {
+        self.data.upgrade().map(|data| Cursor{data})
     }
 }
 

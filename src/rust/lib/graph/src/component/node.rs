@@ -23,6 +23,8 @@ use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::gui::component::Component;
+use ensogl::gui::component::StrongRef;
+use ensogl::gui::component::WeakRef;
 
 
 pub mod icons {
@@ -125,6 +127,8 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Events {
     pub mouse_down : frp::Dynamic<()>,
+    pub select     : frp::Dynamic<()>,
+    pub deselect   : frp::Dynamic<()>,
 }
 
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
@@ -151,7 +155,7 @@ impl Component for Node {
         let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
         self.display_object.add_child(&shape);
         shape.sprite.size().set(Vector2::new(200.0,200.0));
-        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.clone_ref());
+        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.downgrade());
         *self.shape.borrow_mut() = Some(shape);
     }
 }
@@ -161,58 +165,78 @@ impl Node {
         frp! {
             label      = source::<String> ();
             mouse_down = source::<()>     ();
+            select     = source::<()>     ();
+            deselect   = source::<()>     ();
         }
 
         let logger         = Logger::new("node");
         let display_object = display::object::Node::new(&logger);
-        let events         = Events {mouse_down};
+        let events         = Events {mouse_down,select,deselect};
         let shape          = default();
         let data           = Rc::new(NodeData {logger,display_object,label,events,shape});
         Self {data} . component_init() . init()
     }
 
-    pub fn downgrade(&self) -> WeakNode {
-        WeakNode {data:Rc::downgrade(&self.data)}
-    }
-
     fn init(self) -> Self {
-        let mouse_down = &self.events.mouse_down;
-
         frp! {
-            selected            = mouse_down.toggle ();
-            selection_animation = source::<f32>     ();
+            selection_animation = source::<f32> ();
         }
 
-        let shape = self.shape.clone_ref();
+        let shape = Rc::downgrade(&self.shape);
         selection_animation.map("animation", move |value| {
-            shape.borrow().as_ref().for_each(|t| t.selection.set(*value))
+            shape.upgrade().for_each(|s| s.borrow().as_ref().for_each(|t| t.selection.set(*value)))
         });
 
         let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
             selection_animation.event.emit(t);
         }));
 
-        let simulator = simulator.clone_ref();
-        selected.map("selection", move |check| {
-            let value = if *check { 1.0 } else { 0.0 };
-            simulator.set_target_position(value);
+        let simulator_ref = simulator.clone_ref();
+        self.events.select.map("select", move |_| {
+            simulator_ref.set_target_position(1.0);
+        });
+
+        let simulator_ref = simulator.clone_ref();
+        self.events.deselect.map("deselect", move |_| {
+            simulator_ref.set_target_position(0.0);
         });
 
         self
     }
 }
 
-impl WeakNode {
-    pub fn upgrade(&self) -> Option<Node> {
+impl StrongRef for Node {
+    type WeakRef = WeakNode;
+    fn downgrade(&self) -> WeakNode {
+        WeakNode {data:Rc::downgrade(&self.data)}
+    }
+}
+
+impl WeakRef for WeakNode {
+    type StrongRef = Node;
+    fn upgrade(&self) -> Option<Node> {
         self.data.upgrade().map(|data| Node{data})
     }
 }
 
-impl MouseTarget for Node {
-    fn mouse_down(&self) -> Option<&frp::Dynamic<()>> {
-        Some(&self.events.mouse_down)
+impl Drop for NodeData {
+    fn drop(&mut self) {
+        println!("DROP NODE DATA");
     }
 }
+
+impl MouseTarget for Node {
+    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
+        Some(self.events.mouse_down.clone_ref())
+    }
+}
+
+impl MouseTarget for WeakNode {
+    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
+        self.upgrade().map(|t| t.events.mouse_down.clone_ref())
+    }
+}
+
 
 impl<'t> From<&'t Node> for &'t display::object::Node {
     fn from(t:&'t Node) -> Self {

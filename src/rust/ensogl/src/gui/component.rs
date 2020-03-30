@@ -50,24 +50,35 @@ macro_rules! component {
 }
 
 
+pub trait StrongRef : CloneRef {
+    type WeakRef : WeakRef<StrongRef=Self>;
+    fn downgrade(&self) -> Self::WeakRef;
+}
+
+pub trait WeakRef : CloneRef {
+    type StrongRef : StrongRef<WeakRef=Self>;
+    fn upgrade(&self) -> Option<Self::StrongRef>;
+}
 
 
 
-pub trait Component : display::Object + MouseTarget + CloneRef + 'static {
+
+
+pub trait Component : display::Object + MouseTarget + StrongRef + 'static {
     fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
     fn on_view_drop(&self, scene:&Scene, shape_registry:&ShapeRegistry) {}
 
     fn component_init(self) -> Self {
-        let this = self.clone_ref();
+        let weak_self = self.downgrade();
         self.display_object().set_on_show_with(move |scene| {
             let shape_registry: &ShapeRegistry = &scene.shapes;
-            this.on_view_cons(scene,shape_registry);
+            weak_self.upgrade().for_each(|s| s.on_view_cons(scene,shape_registry));
         });
 
-        let this = self.clone_ref();
+        let weak_self = self.downgrade();
         self.display_object().set_on_hide_with(move |scene| {
             let shape_registry: &ShapeRegistry = &scene.shapes;
-            this.on_view_drop(scene,shape_registry);
+            weak_self.upgrade().for_each(|s| s.on_view_drop(scene,shape_registry));
         });
 
         self

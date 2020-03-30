@@ -44,7 +44,7 @@ use enso_frp::core::node::class::EventEmitterPoly;
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> Option<&enso_frp::Dynamic<()>> { None }
+    fn mouse_down(&self) -> Option<enso_frp::Dynamic<()>> { None }
 }
 
 
