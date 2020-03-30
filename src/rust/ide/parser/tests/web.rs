@@ -42,7 +42,7 @@ fn web_test() {
     assert_eq!(parse("x   y"),  line(Some(Ast::new(app_x_y, Some(uuid)))));
 
     let deserialize_metadata = || {
-        let ast  = Ast::new(line(None), None);
+        let ast  = ast::known::Module::new(ast::Module{lines:default()},None);
         let file = SourceFile {ast, metadata: serde_json::json!({})};
         let code = String::try_from(&file).unwrap();
         assert_eq!(parser.parse_with_metadata(code).unwrap(), file);

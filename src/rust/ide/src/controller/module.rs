@@ -16,7 +16,6 @@ use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
 use file_manager_client as fmc;
-use parser::api::SourceFile;
 use parser::Parser;
 
 
@@ -98,11 +97,10 @@ impl Handle {
         let path    = self.location.to_path();
         let content = self.file_manager.read(path).await?;
         self.logger.info(|| "Parsing code");
-        let SourceFile{ast,metadata} = self.parser.parse_with_metadata(content)?;
-        let module_ast               = ast::known::Module::try_new(ast)?;
+        let parsed = self.parser.parse_with_metadata(content)?;
         self.logger.info(|| "Code parsed");
-        self.logger.trace(|| format!("The parsed ast is {:?}", module_ast));
-        self.module.update_whole(module_ast,metadata);
+        self.logger.trace(|| format!("The parsed ast is {:?}", parsed.ast));
+        self.module.update_whole(parsed);
         Ok(())
     }
 
@@ -117,7 +115,7 @@ impl Handle {
     /// Updates AST after code change.
     pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
         let mut code         = self.code()?;
-        let mut id_map       = self.module.ast()?.ast().id_map();
+        let mut id_map       = self.module.ast().ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
         let replaced_indices = change.replaced.start.value..change.replaced.end.value;
@@ -165,7 +163,7 @@ impl Handle {
     , parser       : Parser
     ) -> FallibleResult<Self> {
         let logger   = Logger::new("Mocked Module Controller");
-        let ast      = parser.parse(code.to_string(),id_map.clone())?;
+        let ast      = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
         let module   = state::Handle::new(state::State::new(ast,default()));
         Ok(Handle {location,module,file_manager,parser,logger})
     }
@@ -249,7 +247,7 @@ mod test {
                     off: 0
                 }]
             }, None);
-            assert_eq!(expected_ast, controller.module.ast().unwrap().into());
+            assert_eq!(expected_ast, controller.module.ast().into());
 
             // Check emitted notifications
             assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );

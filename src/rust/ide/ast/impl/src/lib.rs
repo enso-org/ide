@@ -1104,6 +1104,12 @@ impl Ast {
         let infix = Infix::from_vars(larg,opr,rarg);
         Ast::from(infix)
     }
+
+    /// Creates AST node with `Module` shape with one line.
+    pub fn one_line_module(line_ast:Ast) -> Ast {
+        let lines = vec![BlockLine { elem: Some(line_ast), off: 0 }];
+        Ast::new(Module {lines}, None)
+    }
 }
 
 

@@ -162,8 +162,9 @@ mod test {
     fn getting_module() {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let ast      = ast::Ast::infix_var("a", "+", "b");
-            let state    = state::Handle::new(State::new(ast, default()));
+            let line     = ast::Ast::infix_var("a", "+", "b");
+            let ast      = ast::Ast::one_line_module(line);
+            let state    = state::Handle::new(State::new(ast.try_into().unwrap(),default()));
             let registry = Rc::new(Registry::default());
             let expected = state.clone_ref();
             let location = Location::new("test");
@@ -180,8 +181,9 @@ mod test {
 
     #[test]
     fn getting_module_during_load() {
-        let ast       = ast::Ast::infix_var("a", "+", "b");
-        let state1    = state::Handle::new(State::new(ast, default()));
+        let line      = ast::Ast::infix_var("a", "+", "b");
+        let ast       = ast::Ast::one_line_module(line);
+        let state1    = state::Handle::new(State::new(ast.try_into().unwrap(),default()));
         let state2    = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();

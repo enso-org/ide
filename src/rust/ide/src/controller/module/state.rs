@@ -7,7 +7,6 @@ use crate::prelude::*;
 use crate::controller::notification;
 use crate::double_representation::definition::DefinitionInfo;
 
-use ast::Ast;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
@@ -99,14 +98,14 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        let ast = Ast::new(ast::Module{lines:default()},None);
+        let ast = ast::known::Module::new(ast::Module{lines:default()},None);
         Self::new(ast,default())
     }
 }
 
 impl State {
     /// Create state with given content.
-    pub fn new(ast:Ast, metadata:Metadata) -> Self {
+    pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
         State {
             content: RefCell::new(SourceFile{ast,metadata}),
             text_notifications  : default(),
@@ -115,9 +114,8 @@ impl State {
     }
 
     /// Update whole content of the module.
-    pub fn update_whole(&self, ast:ast::known::Module, metadata:Metadata) {
-        let ast = ast.into();
-        *self.content.borrow_mut() = SourceFile{ast,metadata};
+    pub fn update_whole(&self, content:Content) {
+        *self.content.borrow_mut() = content;
         self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
     }
 
@@ -127,8 +125,8 @@ impl State {
     }
 
     /// Get module's ast.
-    pub fn ast(&self) -> FallibleResult<ast::known::Module> {
-        Ok(self.content.borrow().ast.clone_ref().try_into()?)
+    pub fn ast(&self) -> ast::known::Module {
+        self.content.borrow().ast.clone_ref()
     }
 
     /// Update ast in module controller.
@@ -140,8 +138,8 @@ impl State {
     /// Obtains definition information for given graph id.
     pub fn find_definition
     (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
-        let module = ast::known::Module::try_new(self.content.borrow().ast.clone())?;
-        double_representation::definition::traverse_for_definition(&module,id)
+        let ast = self.content.borrow().ast.clone_ref();
+        double_representation::definition::traverse_for_definition(&ast,id)
     }
 
     /// Returns metadata for given node, if present.
@@ -181,9 +179,9 @@ impl State {
 
     /// Create module state from given code, id_map and metadata.
     #[cfg(test)]
-    pub fn from_code_or_panic<S:ToString>(code:S,id_map:ast::IdMap,metadata:Metadata) -> Handle {
+    pub fn from_code_or_panic<S:ToString>(code:S, id_map:ast::IdMap, metadata:Metadata) -> Handle {
         let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse(code.to_string(),id_map).unwrap();
+        let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
         Rc::new(Self::new(ast,metadata))
     }
 }

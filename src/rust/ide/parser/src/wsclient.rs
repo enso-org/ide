@@ -200,7 +200,7 @@ impl Client {
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call::<serde_json::Value>(request)?;
         match response {
-            Response::Success {module} => Ok(module.ast),
+            Response::Success {module} => Ok(module.ast.into()),
             Response::Error {message}  => Err(ParsingError(message)),
         }
     }

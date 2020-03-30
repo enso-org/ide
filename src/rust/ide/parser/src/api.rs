@@ -26,7 +26,7 @@ impl Metadata for serde_json::Value {}
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq)]
 pub struct SourceFile<Metadata> {
     /// Ast representation.
-    pub ast: Ast,
+    pub ast: ast::known::Module,
     /// Raw metadata in json.
     pub metadata: Metadata
 }
