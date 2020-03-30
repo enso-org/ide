@@ -55,7 +55,7 @@ impl WeakElement for WeakEntry {
 
     fn view(&self) -> Option<Self::Strong> {
         match self {
-            Entry::Loaded(handle) => handle.upgrade().map(|h| Entry::Loaded(h)),
+            Entry::Loaded(handle) => handle.upgrade().map(Entry::Loaded),
             Entry::Loading(sub)   => Some(Entry::Loading(sub.resubscribe()))
         }
     }
