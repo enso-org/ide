@@ -72,13 +72,19 @@ impl<Out:Value> RefinedDynamic<Recursive<EventData<Out>>> {
 
 /// The `Dynamic` type is an `Event` with an associated `Behavior`. You can assume that the
 /// behavior just always holds the last event value.
-#[derive(Debug,Derivative)]
+#[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct Dynamic<Out:Value> {
     /// The `Event` component.
     pub event : Event<Out>,
     /// The `Behavior` component.
     pub behavior : Behavior<Out>,
+}
+
+impl<Out:Value> Debug for Dynamic<Out> {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Dynamic")
+    }
 }
 
 

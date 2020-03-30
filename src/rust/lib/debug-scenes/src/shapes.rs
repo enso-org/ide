@@ -18,9 +18,9 @@ use ensogl::display::world::*;
 use ensogl::system::web;
 use graph::component::node;
 use graph::component::node::Node;
+use graph::component::node::WeakNode;
 use graph::component::cursor;
 use graph::component::cursor::Cursor;
-//use graph::node::NodeRegistry;
 use nalgebra::Vector2;
 use shapely::shared;
 use std::any::TypeId;
@@ -38,87 +38,6 @@ use ensogl::display::scene::{Scene, MouseTarget};
 use ensogl::gui::component::Component;
 
 
-//#[derive(Clone,CloneRef,Debug)]
-//pub struct PointerSystem {
-//    pub shape_system          : ShapeSystemDefinition,
-//    pub position_buffer       : Buffer<Vector2<f32>>,
-//    pub selection_size_buffer : Buffer<Vector2<f32>>,
-//}
-//
-//
-//impl ShapeSystem for PointerSystem {
-//    type ShapeDefinition = PointerDisplay;
-//
-//    fn new(scene:&Scene) -> Self {
-//        let shape_system          = ShapeSystemDefinition::new(scene,&mouse_pointer());
-//        let position_buffer       = shape_system.add_input("position" , Vector2::<f32>::new(0.0,0.0));
-//        let selection_size_buffer = shape_system.add_input("selection_size" , Vector2::<f32>::new(0.0,0.0));
-//
-//        Self {shape_system,position_buffer,selection_size_buffer}
-//    }
-//
-//    fn new_instance(&self) -> ShapeWrapper<Self::ShapeDefinition> {
-//        let sprite         = self.shape_system.new_instance();
-//        let position       = self.position_buffer.at(sprite.instance_id);
-//        let selection_size = self.selection_size_buffer.at(sprite.instance_id);
-//        let params = PointerDisplay {position,selection_size};
-//        ShapeWrapper {sprite,params}
-//    }
-//}
-//
-//#[derive(Clone,Debug)]
-//pub struct PointerDisplay {
-//    pub position       : Attribute<Vector2<f32>>,
-//    pub selection_size : Attribute<Vector2<f32>>,
-//}
-//
-//
-//impl Component for Pointer {
-//    type ComponentSystem = PointerSystem;
-//}
-//
-//#[derive(Debug,Clone)]
-//pub struct Pointer {
-//    logger         : Logger,
-//    display_object : display::object::Node,
-//    sprite         : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>>,
-//}
-//
-//impl CloneRef for Pointer {}
-//
-//impl Pointer {
-//    pub fn new(width:f32,height:f32) -> Self {
-//        let logger = Logger::new("mouse.pointer");
-//        let sprite : Rc<CloneCell<Option<ShapeWrapper<PointerDisplay>>>> = default();
-//        let display_object      = display::object::Node::new(&logger);
-//        let display_object_weak = display_object.downgrade();
-//
-//        display_object.set_on_show_with(enclose!((sprite) move |scene| {
-//            let pointer_system = scene.shapes.get(PhantomData::<Pointer>).unwrap();
-//            let instance       = pointer_system.new_instance();
-//            display_object_weak.upgrade().for_each(|t| t.add_child(&instance.sprite));
-//            instance.sprite.size().set(Vector2::new(width,height));
-//            sprite.set(Some(instance));
-//        }));
-//
-//        display_object.set_on_hide_with(enclose!((sprite) move |_| {
-//            sprite.set(None);
-//        }));
-//
-//        Self {logger,sprite,display_object}
-//    }
-//}
-//
-//impl<'t> From<&'t Pointer> for &'t display::object::Node {
-//    fn from(ptr:&'t Pointer) -> Self {
-//        &ptr.display_object
-//    }
-//}
-//
-//impl MouseTarget for Pointer {}
-//
-//
-
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn run_example_shapes() {
@@ -127,8 +46,6 @@ pub fn run_example_shapes() {
     web::set_stack_trace_limit();
     init(&World::new(&web::get_html_element_by_id("root").unwrap()));
 }
-
-
 
 fn mouse_pointer() -> AnyShape {
     let radius  = 10.px();
@@ -150,11 +67,23 @@ use ensogl::control::event_loop::TimeInfo;
 use ensogl::control::event_loop::FixedFrameRateSampler;
 use ensogl::animation::physics::inertia::DynInertiaSimulator;
 use ensogl::data::OptVec;
+use ensogl::display::object::Id;
 use im_rc as im;
 
-#[derive(Debug,Default,Clone)]
+
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
-    vec : Rc<RefCell<OptVec<Node>>>
+    data : Rc<RefCell<HashMap<Id,WeakNode>>>
+}
+
+impl NodeSet {
+    pub fn insert(&self, node:&Node) {
+        self.data.borrow_mut().insert(node.id(),node.downgrade());
+    }
+
+    pub fn get(&self, id:Id) -> Option<Node> {
+        self.data.borrow().get(&id).and_then(|t| t.upgrade())
+    }
 }
 
 
@@ -165,30 +94,10 @@ fn init(world: &World) {
     let navigator = Navigator::new(&scene,&camera);
 
 
-
-//    scene.shapes.register(PhantomData::<node::Definition>);
-//    let pointer_system_x = scene.shapes.register(PhantomData::<cursor::Definition>);
-
-//    pointer_system_x.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-//
-//    let scene_view = scene.views.new();
-//    scene.views.main.remove(&pointer_system_x.shape_system.symbol);
-//    scene_view.add(&pointer_system_x.shape_system.symbol);
-
-
-
-
-
-
     let node1 = Node::new();//&node_registry);
-
     let cursor = Cursor::new();
 
-
     world.add_child(&cursor);
-
-
-
     world.add_child(&node1);
 
     node1.mod_position(|t| {
@@ -202,6 +111,8 @@ fn init(world: &World) {
 
     let mouse = &scene.mouse.frp;
 
+    let node_set = NodeSet::default();
+
     frp! {
         mouse_down_position    = mouse.position.sample        (&mouse.on_down);
         selection_zero         = source::<Position>           ();
@@ -212,20 +123,18 @@ fn init(world: &World) {
 
 
         mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
-//        final_position_ref     = recursive::<Position>       ();
-//        pos_diff_on_down       = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f});
-//        final_position         = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f});
-//        debug                  = final_position.sample       (&mouse.position);
 
-//        debug = mouse_down_target.map(|t| {println!("{:?}",t);})
 
-        node1_selection         = source::<f32>           ();
-        node1_selection_a       = source::<f32>           ();
+        node_mouse_down = source::<Option<Node>> ();
 
-        nodes = source::<NodeSet> ();
         add_node = source::<()> ();
-        new_node = add_node.map2(&mouse.position, enclose!((world) move |_,pos| {
+        new_node = add_node.map2(&mouse.position, enclose!((node_set,node_mouse_down,world) move |_,pos| {
             let node = Node::new();
+            node_set.insert(&node);
+            let ttt = node.events.mouse_down.map("foo",enclose!((node_mouse_down,node) move |_| {
+                node_mouse_down.event.emit(Some(node.clone_ref()))
+            }));
+
             world.add_child(&node);
             node.mod_position(|t| {
                 t.x += pos.x as f32;
@@ -234,16 +143,21 @@ fn init(world: &World) {
             Some(node)
         }));
 
-        nodes_update = nodes.map2(&new_node, |node_set,new_node| {
-            new_node.for_each_ref(|node| {
-                node_set.vec.borrow_mut().insert(node.clone_ref());
-            })
-        });
+//        nodes_update = nodes.map2(&new_node, |node_set,new_node| {
+//            new_node.for_each_ref(|node| {
+//                node_set.vec.borrow_mut().insert(node.clone_ref());
+//            })
+//        });
 
-        debug = node1_selection_a.map(|t| {println!("{:?}",t);})
+
+        foo = node_mouse_down.map(|opt_node| {
+
+        })
 
 
     }
+
+
 
 
     mouse.position.map("cursor_position", enclose!((cursor) move |p| {
@@ -259,14 +173,7 @@ fn init(world: &World) {
     }));
 
 
-    let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
-        node1_selection_a.event.emit(t);
-    }));
 
-
-    node1_selection.map("node1_selection", move |value| {
-        simulator.set_target_position(*value);
-    });
 
     mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
         match target {
@@ -300,26 +207,12 @@ fn init(world: &World) {
     let mut time:i32 = 0;
     let mut was_rendered = false;
     let mut loader_hidden = false;
-    let mut i = 200;
 
     let world_clone = world.clone_ref();
     world.on_frame(move |_| {
-        i -= 1;
-        if i == 0 {
-//            nodes[1].unset_parent();
-//            node_shape_system.set_shape(&node_shape2);
-        }
-//        let _keep_alive = &sprite;
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &_nodes;
-//        let _keep_alive = &scene_view;
-//        let _keep_alive = &animator_ref;
-//        let _keep_alive = &simulator;
-
-//        let _keep_alive = &sprite_2;
-//        let _keep_alive = &out;
-        on_frame(&mut time,&mut iter);
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
@@ -330,14 +223,6 @@ fn init(world: &World) {
         }
         was_rendered = true;
     }).forget();
-}
-
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::many_single_char_names)]
-pub fn on_frame
-( _time        : &mut i32
-, iter         : &mut i32) {
-    *iter += 1;
 }
 
 

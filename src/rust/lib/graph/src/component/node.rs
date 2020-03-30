@@ -127,8 +127,18 @@ pub struct Events {
     pub mouse_down : frp::Dynamic<()>,
 }
 
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Node {
+    data : Rc<NodeData>,
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct WeakNode {
+    data : Weak<NodeData>
+}
+
+#[derive(Debug)]
+pub struct NodeData {
     pub logger         : Logger,
     pub display_object : display::object::Node,
     pub label          : frp::Dynamic<String>,
@@ -157,7 +167,12 @@ impl Node {
         let display_object = display::object::Node::new(&logger);
         let events         = Events {mouse_down};
         let shape          = default();
-        Self {logger,display_object,label,events,shape} . component_init() . init()
+        let data           = Rc::new(NodeData {logger,display_object,label,events,shape});
+        Self {data} . component_init() . init()
+    }
+
+    pub fn downgrade(&self) -> WeakNode {
+        WeakNode {data:Rc::downgrade(&self.data)}
     }
 
     fn init(self) -> Self {
@@ -168,22 +183,29 @@ impl Node {
             selection_animation = source::<f32>     ();
         }
 
-        let shape = &self.shape;
-        selection_animation.map("animation", enclose!((shape) move |value| {
+        let shape = self.shape.clone_ref();
+        selection_animation.map("animation", move |value| {
             shape.borrow().as_ref().for_each(|t| t.selection.set(*value))
-        }));
+        });
 
         let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
             selection_animation.event.emit(t);
         }));
 
-        selected.map("selection", enclose!((simulator) move |check| {
+        let simulator = simulator.clone_ref();
+        selected.map("selection", move |check| {
             let value = if *check { 1.0 } else { 0.0 };
             simulator.set_target_position(value);
-        }));
+        });
+
         self
     }
+}
 
+impl WeakNode {
+    pub fn upgrade(&self) -> Option<Node> {
+        self.data.upgrade().map(|data| Node{data})
+    }
 }
 
 impl MouseTarget for Node {

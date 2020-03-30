@@ -509,10 +509,18 @@ impl Drop for NodeData {
 
 
 
+// ==========
+// === Id ===
+// ==========
+
+#[derive(Clone,Copy,Debug,Display,Eq,From,Hash,Into,PartialEq)]
+pub struct Id(usize);
+
+
+
 // ============
 // === Node ===
 // ============
-
 
 #[derive(Clone,Shrinkwrap)]
 pub struct Node {
@@ -544,6 +552,10 @@ impl Node {
 impl Node {
     pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
         f(&self.rc.logger)
+    }
+
+    pub fn _id(&self) -> Id {
+        Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -661,6 +673,10 @@ impl<T:Object> ObjectOps for T {}
 pub trait ObjectOps : Object {
     fn add_child<T:Object>(&self, child:&T) {
         self.display_object()._add_child(child.display_object());
+    }
+
+    fn id(&self) -> Id {
+        self.display_object()._id()
     }
 
     fn unset_parent(&self) {
