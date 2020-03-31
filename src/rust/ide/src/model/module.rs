@@ -105,7 +105,7 @@ impl Module {
     /// Create state with given content.
     pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
         Module {
-            content: RefCell::new(SourceFile{ast,metadata}),
+            content             : RefCell::new(SourceFile{ast,metadata}),
             text_notifications  : default(),
             graph_notifications : default(),
         }
@@ -158,6 +158,19 @@ impl Module {
         let data   = lookup.ok_or_else(|| NodeMetadataNotFound(id))?;
         self.notify_graph(notification::Graphs::Invalidate);
         Ok(data)
+    }
+
+    /// Modify metadata of given node.
+    ///
+    /// If ID doesn't have metadata, empty (default) metadata is inserted. Inside callback you
+    /// should use only the data passed as argument; don't use functions of this controller for
+    /// getting and setting metadata for the same node.
+    pub fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
+        let lookup   = self.content.borrow_mut().metadata.ide.node.remove(&id);
+        let mut data = lookup.unwrap_or_default();
+        fun(&mut data);
+        self.content.borrow_mut().metadata.ide.node.insert(id, data);
+        self.notify_graph(notification::Graphs::Invalidate);
     }
 
     /// Subscribe for notifications about text representation changes.
@@ -227,6 +240,8 @@ mod test {
             assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
             module.remove_node_metadata(id.clone()).unwrap();
             assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            module.with_node_metadata(id.clone(),|md| *md = node_metadata.clone());
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
 
             // Whole update
             let mut metadata = Metadata::default();
@@ -234,6 +249,31 @@ mod test {
             module.update_whole(SourceFile{ast:new_module_ast, metadata});
             assert_eq!(Some(notification::Text::Invalidate),   text_subscription.next().await);
             assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+
+            // No more notifications emitted
+            std::mem::drop(module);
+            assert_eq!(None, text_subscription.next());
+            assert_eq!(None, graph_subscription.next());
         });
+    }
+
+    #[test]
+    fn handling_metadata() {
+        let module = Module::default();
+
+        let id            = Uuid::new_v4();
+        let initial_md    = module.node_metadata(id.clone());
+        assert!(initial_md.is_err());
+
+        let md_to_set = NodeMetadata {position:Some(Position::new(1.0, 2.0))};
+        module.set_node_metadata(id.clone(),md_to_set.clone());
+        assert_eq!(md_to_set.position, module.node_metadata(id.clone()).unwrap().position);
+
+        let new_pos = Position::new(4.0, 5.0);
+        module.with_node_metadata(id.clone(), |md| {
+            assert_eq!(md_to_set.position, md.position);
+            md.position = Some(new_pos);
+        });
+        assert_eq!(new_pos, module.node_metadata(id).unwrap().position);
     }
 }

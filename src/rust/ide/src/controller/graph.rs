@@ -150,7 +150,7 @@ impl Handle {
     /// rather then repeatedly call this method.
     pub fn node(&self, id:ast::Id) -> FallibleResult<Node> {
         let info     = self.node_info(id)?;
-        let metadata = self.node_metadata(id).ok();
+        let metadata = self.module.node_metadata(id).ok();
         Ok(Node {info,metadata})
     }
 
@@ -159,7 +159,7 @@ impl Handle {
         let node_infos = self.all_node_infos()?;
         let mut nodes  = Vec::new();
         for info in node_infos {
-            let metadata = self.node_metadata(info.id()).ok();
+            let metadata = self.module.node_metadata(info.id()).ok();
             nodes.push(Node {info,metadata})
         }
         Ok(nodes)
@@ -206,9 +206,7 @@ impl Handle {
         })?;
 
         if let Some(initial_metadata) = node.metadata {
-            self.with_node_metadata(node_info.id(),|metadata| {
-                *metadata = initial_metadata;
-            })
+            self.module.set_node_metadata(node_info.id(),initial_metadata);
         }
 
         Ok(node_info.id())
@@ -249,19 +247,6 @@ impl Handle {
                 Graphs::Invalidate => Graph::Invalidate
             }
         })
-    }
-
-    /// Retrieves metadata for the given node.
-    pub fn node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
-        self.module.node_metadata(id)
-    }
-
-    /// Modify metadata of given node.
-    /// If ID doesn't have metadata, empty (default) metadata is inserted.
-    pub fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
-        let mut data = self.module.remove_node_metadata(id).unwrap_or_default();
-        fun(&mut data);
-        self.module.set_node_metadata(id, data);
     }
 }
 
