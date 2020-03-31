@@ -7,13 +7,13 @@ pub use enso_prelude as prelude;
 
 use crate::prelude::*;
 
+use proc_macro2::TokenStream;
+use proc_macro2::TokenTree;
 use quote::quote;
 use syn;
 use syn::visit::Visit;
-use proc_macro2::TokenStream;
-use proc_macro2::TokenTree;
-
-
+use syn::WhereClause;
+use syn::WherePredicate;
 
 // =========================
 // === Token Stream Utils ===
@@ -240,6 +240,41 @@ pub fn variant_depends_on
 
 
 
+// ====================
+// === GenericParam ===
+// ====================
+
+/// Retrieves identifier from GenericParam. For example, from `T:Display` it returns `T`.
+/// For `'a: 'b + 'c` it gives `'a`.
+///
+/// This is useful e.g. when from generics information attached to a declaration of type we want to
+/// generate simplified
+pub fn generic_param_ident(param:&syn::GenericParam) -> TokenStream {
+    use quote::ToTokens;
+    match param {
+        syn::GenericParam::Type(type_param) =>
+            type_param.ident.to_token_stream(),
+        syn::GenericParam::Lifetime(lifetime) =>
+            lifetime.lifetime.to_token_stream(),
+        syn::GenericParam::Const(const_param) =>
+            const_param.ident.to_token_stream(),
+    }
+}
+
+
+
+// ===================
+// === WhereClause ===
+// ===================
+
+/// Creates a new where clause from provided sequence of where predicates.
+pub fn new_where_clause(predicates:impl IntoIterator<Item=WherePredicate>) -> WhereClause {
+    let predicates = syn::punctuated::Punctuated::from_iter(predicates);
+    WhereClause {where_token:default(),predicates}
+}
+
+
+
 // =============
 // === Tests ===
 // =============
@@ -334,5 +369,17 @@ mod tests {
         check(vec!["A", "B"], "Either<A,B>");
         assert_eq!(super::last_type_arg(&parse("i32")), None);
         assert_eq!(repr(&super::last_type_arg(&parse("Foo<C>"))), "C");
+    }
+
+    #[test]
+    fn generic_param_ident_test() {
+        fn check(param:&str, expected_ident:&str) {
+            let param = parse::<syn::GenericParam>(param);
+            let ident = generic_param_ident(&param);
+            assert_eq!(repr(&ident), expected_ident);
+        }
+        check("T:Clone", "T");
+        check("'a: 'b + 'c + 'd", "'a");
+        check("const LENGTH: usize", "LENGTH");
     }
 }
