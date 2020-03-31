@@ -7,11 +7,11 @@
 use crate::prelude::*;
 
 pub use crate::double_representation::graph::Id;
-use crate::model::module::NodeMetadata;
-pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::graph::GraphInfo;
+pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::definition;
 use crate::double_representation::node;
+use crate::model::module::NodeMetadata;
 use crate::notification;
 
 use parser::Parser;
@@ -224,7 +224,7 @@ impl Handle {
         })?;
 
         // It's fine if there were no metadata.
-        let _ = self.module.take_node_metadata(id);
+        let _ = self.module.remove_node_metadata(id);
         Ok(())
     }
 
@@ -259,7 +259,7 @@ impl Handle {
     /// Modify metadata of given node.
     /// If ID doesn't have metadata, empty (default) metadata is inserted.
     pub fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
-        let mut data = self.module.take_node_metadata(id).unwrap_or_default();
+        let mut data = self.module.remove_node_metadata(id).unwrap_or_default();
         fun(&mut data);
         self.module.set_node_metadata(id, data);
     }
@@ -309,12 +309,12 @@ mod tests {
         pub fn run_graph_for<Test,Fut>(&mut self, code:impl Str, graph_id:Id, test:Test)
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
-            let code     = code.as_ref();
-            let fm       = file_manager_client::Handle::new(MockTransport::new());
-            let loc      = controller::module::Location::new("Main");
-            let parser   = Parser::new_or_panic();
-            let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
-            let graph    = module.get_graph_controller(graph_id).unwrap();
+            let code   = code.as_ref();
+            let fm     = file_manager_client::Handle::new(MockTransport::new());
+            let loc    = controller::module::Location::new("Main");
+            let parser = Parser::new_or_panic();
+            let module = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
+            let graph  = module.get_graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
                 test(module,graph).await
             })
@@ -333,15 +333,14 @@ mod tests {
     #[wasm_bindgen_test]
     fn node_operations() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
-            let code         = "main = Hello World";
-            let module       = model::Module::from_code_or_panic(code,default(),default());
-            let parser       = Parser::new().unwrap();
-            let pos          = model::module::Position {vector:Vector2::new(0.0,0.0)};
-            let crumbs       = vec![DefinitionName::new_plain("main")];
-            let id           = Id {crumbs};
-            let graph        = Handle::new(module,parser,id).unwrap();
-
-            let uid          = graph.all_node_infos().unwrap()[0].id();
+            let code   = "main = Hello World";
+            let module = model::Module::from_code_or_panic(code,default(),default());
+            let parser = Parser::new().unwrap();
+            let pos    = model::module::Position {vector:Vector2::new(0.0,0.0)};
+            let crumbs = vec![DefinitionName::new_plain("main")];
+            let id     = Id {crumbs};
+            let graph  = Handle::new(module,parser,id).unwrap();
+            let uid    = graph.all_node_infos().unwrap()[0].id();
 
             graph.with_node_metadata(uid, |data| data.position = Some(pos));
 

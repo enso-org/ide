@@ -79,7 +79,7 @@ pub fn flatten_prefix_test() {
     }
 
     let parser = parser::Parser::new_or_panic();
-    let case = |code:&str, expected_pieces:Vec<&str>| {
+    let case   = |code:&str, expected_pieces:Vec<&str>| {
         let ast = parser.parse(code.into(),default()).unwrap();
         let ast = ast::test_utils::expect_single_line(&ast);
         let flattened = prefix::Chain::new_non_strict(&ast);
@@ -105,7 +105,7 @@ pub fn flatten_infix_test() {
     }
 
     let parser = parser::Parser::new_or_panic();
-    let case = |code:&str, target:&str, expected_pieces:Vec<&str>| {
+    let case   = |code:&str, target:&str, expected_pieces:Vec<&str>| {
         let ast = parser.parse(code.into(),default()).unwrap();
         let ast = ast::test_utils::expect_single_line(&ast);
         let flattened = opr::Chain::try_new(&ast).unwrap();

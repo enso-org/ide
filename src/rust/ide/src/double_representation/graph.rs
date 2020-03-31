@@ -249,10 +249,10 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn add_node_to_graph_with_single_line() {
-        let program    = "main = print \"hello\"";
-        let parser     = parser::Parser::new_or_panic();
-        let mut graph  = main_graph(&parser, program);
-        let nodes      = graph.nodes();
+        let program   = "main = print \"hello\"";
+        let parser    = parser::Parser::new_or_panic();
+        let mut graph = main_graph(&parser, program);
+        let nodes     = graph.nodes();
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].expression().repr(), "print \"hello\"");
 

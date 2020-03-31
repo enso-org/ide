@@ -75,18 +75,18 @@ impl Position {
 
 
 
-// ====================
-// === Module State ===
-// ====================
+// ==============
+// === Module ===
+// ==============
 
 /// A type describing content of the module: the ast and metadata.
 pub type Content = SourceFile<Metadata>;
 
-/// A structure describing the module state.
+/// A structure describing the module.
 ///
 /// It implements internal mutability pattern, so the state may be shared between different
 /// controllers. Each change in module will emit notification for each module representation
-/// (text and graphs).
+/// (text and graph).
 #[derive(Debug)]
 pub struct Module {
     content             : RefCell<Content>,
@@ -149,14 +149,15 @@ impl Module {
     /// Sets metadata for given node.
     pub fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        let graph_change = notification::Graphs::Invalidate;
-        executor::global::spawn(self.graph_notifications.borrow_mut().publish(graph_change));
+        self.notify_graph(notification::Graphs::Invalidate);
     }
 
     /// Removes metadata of given node and returns them.
-    pub fn take_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
-        let data = self.content.borrow_mut().metadata.ide.node.remove(&id);
-        data.ok_or_else(|| NodeMetadataNotFound(id).into())
+    pub fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
+        let lookup = self.content.borrow_mut().metadata.ide.node.remove(&id);
+        let data   = lookup.ok_or_else(|| NodeMetadataNotFound(id))?;
+        self.notify_graph(notification::Graphs::Invalidate);
+        Ok(data)
     }
 
     /// Subscribe for notifications about text representation changes.
@@ -169,10 +170,15 @@ impl Module {
         self.graph_notifications.borrow_mut().subscribe()
     }
 
-    fn notify(&self, text_change:notification::Text, graphs_change:notification::Graphs) {
+    fn notify(&self, text_change:notification::Text, graph_change:notification::Graphs) {
         let code_notify  = self.text_notifications.borrow_mut().publish(text_change);
-        let graph_notify = self.graph_notifications.borrow_mut().publish(graphs_change);
+        let graph_notify = self.graph_notifications.borrow_mut().publish(graph_change);
         executor::global::spawn(async move { futures::join!(code_notify,graph_notify); });
+    }
+
+    fn notify_graph(&self, graph_change:notification::Graphs) {
+        let graph_notify = self.graph_notifications.borrow_mut().publish(graph_change);
+        executor::global::spawn(graph_notify);
     }
 
     /// Create module state from given code, id_map and metadata.
@@ -185,4 +191,49 @@ impl Module {
     }
 }
 
-//TODO[ao] add tests here!
+
+
+// ============
+// === Test ===
+// ============
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use uuid::Uuid;
+
+    #[test]
+    fn notifying() {
+        let mut test               = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async {
+            let module                 = Module::default();
+            let mut text_subscription  = module.subscribe_text_notifications();
+            let mut graph_subscription = module.subscribe_graph_notifications();
+
+            // Ast update
+            let new_line       = Ast::infix_var("a","+","b");
+            let new_module_ast = Ast::one_line_module(new_line);
+            let new_module_ast = ast::known::Module::try_new(new_module_ast).unwrap();
+            module.update_ast(new_module_ast.clone_ref());
+            assert_eq!(Some(notification::Text::Invalidate),   text_subscription.next().await);
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+
+            // Metadata update
+            let id            = Uuid::new_v4();
+            let node_metadata = NodeMetadata {position:Some(Position::new(1.0, 2.0))};
+            module.set_node_metadata(id.clone(),node_metadata.clone());
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            module.remove_node_metadata(id.clone()).unwrap();
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+
+            // Whole update
+            let mut metadata = Metadata::default();
+            metadata.ide.node.insert(id,node_metadata);
+            module.update_whole(SourceFile{ast:new_module_ast, metadata});
+            assert_eq!(Some(notification::Text::Invalidate),   text_subscription.next().await);
+            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+        });
+    }
+}

@@ -24,13 +24,13 @@ use parser::Parser;
 
 /// Structure uniquely identifying module location in the project.
 /// Mappable to filesystem path.
-#[derive(Clone,Debug,Display,Eq,Hash,PartialEq)]
+#[derive(Clone,CloneRef,Debug,Display,Eq,Hash,PartialEq)]
 pub struct Location(pub Rc<String>);
 
 impl Location {
     /// Create new location from string.
-    pub fn new<S:ToString>(string:S) -> Self {
-        Location(Rc::new(string.to_string()))
+    pub fn new(string:impl Str) -> Self {
+        Location(Rc::new(string.into()))
     }
 
     /// Get the module location from filesystem path. Returns None if path does not lead to
@@ -55,8 +55,6 @@ impl Location {
     }
 }
 
-impl CloneRef for Location {}
-
 
 
 // =========================
@@ -66,7 +64,7 @@ impl CloneRef for Location {}
 /// A Handle for Module Controller
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     /// This module's location.
     pub location : Location,
@@ -87,7 +85,7 @@ impl Handle {
     pub fn new
     (location:Location, model:Rc<model::Module>, file_manager:fmc::Handle, parser:Parser)
     -> Self {
-        let logger   = Logger::new(format!("Module Controller {}", location));
+        let logger = Logger::new(format!("Module Controller {}", location));
         Handle {location,model,file_manager,parser,logger}
     }
 
@@ -113,9 +111,12 @@ impl Handle {
     }
 
     /// Updates AST after code change.
+    ///
+    /// May return Error when new code causes parsing errors, or when parsed code does not produce
+    /// Module ast.
     pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
         let mut code         = self.code();
-        let mut id_map       = self.model.ast().ast().id_map();
+        let mut id_map       = self.model.ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
         let replaced_indices = change.replaced.start.value..change.replaced.end.value;
@@ -155,7 +156,7 @@ impl Handle {
 
     #[cfg(test)]
     pub fn new_mock
-    ( location       : Location
+    ( location     : Location
     , code         : &str
     , id_map       : ast::IdMap
     , file_manager : fmc::Handle
@@ -174,7 +175,7 @@ impl Handle {
     }
 }
 
-impl CloneRef for Handle {}
+
 
 // =============
 // === Tests ===

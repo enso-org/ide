@@ -17,6 +17,7 @@ use json_rpc::Handler;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
+use shapely::CloneRef;
 use shapely::shared;
 use std::future::Future;
 use uuid::Uuid;
@@ -37,19 +38,17 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // ============
 
 /// Path to a file.
-#[derive(Clone,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
+#[derive(Clone,CloneRef,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
 #[derive(Serialize, Deserialize)]
 #[derive(Shrinkwrap)]
 pub struct Path(pub Rc<String>);
 
 impl Path {
     /// Wraps a `String`-like entity into a new `Path`.
-    pub fn new<S>(s:S) -> Path where S:Into<String> {
+    pub fn new(s:impl Str) -> Path {
         Path(Rc::new(s.into()))
     }
 }
-
-impl CloneRef for Path {}
 
 
 

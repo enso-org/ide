@@ -22,19 +22,18 @@ use std::pin::Pin;
 ///
 /// This makes distinction between module and plain text files. The module files are handled by
 /// Module Controller, the plain text files are handled directly by File Manager Client.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 enum FileHandle {
     PlainText {path:fmc::Path, file_manager:fmc::Handle},
     Module    {controller:controller::Module },
 }
 
-impl CloneRef for FileHandle {}
 
 
 /// A Text Controller Handle.
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     file: FileHandle,
 }
@@ -114,7 +113,6 @@ impl Handle {
     }
 }
 
-impl CloneRef for Handle {}
 
 
 // === Test Utilities ===
@@ -125,13 +123,16 @@ impl Handle {
     pub fn file_manager(&self) -> fmc::Handle {
         match &self.file {
             FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
-            FileHandle::Module {..} =>
-                panic!("Cannot get FileManagerHandle from module file"),
+            FileHandle::Module {controller}         => controller.file_manager.clone_ref()
         }
     }
 }
 
 
+
+// ============
+// === Test ===
+// ============
 
 #[cfg(test)]
 mod test {
@@ -151,7 +152,7 @@ mod test {
             let fm         = fmc::Handle::new(MockTransport::new());
             let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();
-            let module_res = controller::Module::new_mock(loc, "main = 2+2", default(), fm, parser);
+            let module_res = controller::Module::new_mock(loc,"main = 2+2",default(),fm,parser);
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone_ref());
             let mut sub    = controller.subscribe();
