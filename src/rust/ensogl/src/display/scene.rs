@@ -8,7 +8,6 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::prelude::*;
 use crate::display::traits::*;
 
-use crate::closure;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
@@ -29,10 +28,10 @@ use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
 use crate::display::scene::dom::DomScene;
 use crate::system::web::NodeInserter;
-use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web::StyleSetter;
 use crate::system::web;
 use crate::control::callback::CallbackMut1Fn;
+use std::any::TypeId;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
@@ -48,15 +47,14 @@ pub trait MouseTarget : Debug + 'static {
 }
 
 
-use crate::display::shape::ShapeSystem;
+use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::{Shape,ShapeSystemOf};
+
+
 
 // =========================
 // === ComponentRegistry ===
 // =========================
-
-use std::any::TypeId;
-use crate::display::Sprite;
 
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
@@ -67,20 +65,20 @@ pub struct ShapeRegistryData {
 }
 
 impl {
-    fn get2<T:ShapeSystem>(&self) -> Option<T> {
+    fn get2<T:ShapeSystemInstance>(&self) -> Option<T> {
         let id = TypeId::of::<T>();
         self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
-    fn register2<T:ShapeSystem>(&mut self) -> T {
+    fn register2<T:ShapeSystemInstance>(&mut self) -> T {
         let id     = TypeId::of::<T>();
-        let system = <T as ShapeSystem>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref()) as Box<dyn Any>;
+        let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref());
         self.shape_system_map.insert(id,any);
         system
     }
 
-    fn get_or_register<T:ShapeSystem>(&mut self) -> T {
+    fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
         self.get2().unwrap_or_else(|| self.register2())
     }
 
@@ -697,7 +695,8 @@ impl SceneData {
     }
 
     /// Bind FRP graph to mouse js events.
-    #[deprecated(note="Please use `scene.mouse.frp` instead")]
+    // TODO: Do we want to deprecate it?
+    // #[deprecated(note="Please use `scene.mouse.frp` instead")]
     pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
         mouse::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
     }
@@ -730,7 +729,7 @@ impl SceneData {
             self.mouse.target.set(target);
             match target {
                 Target::Background => {}
-                Target::Symbol {symbol_id, instance_id} => {
+                Target::Symbol {symbol_id,..} => {
                     let symbol = self.symbols.index(symbol_id as usize);
                     symbol.dispatch_event(&DynEvent::new(()));
                     // println!("{:?}",target);

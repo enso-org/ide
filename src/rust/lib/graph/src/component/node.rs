@@ -19,7 +19,6 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::gui::component::animation;
@@ -95,7 +94,7 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
 pub mod shape {
     use super::*;
 
-    ensogl::shape! {
+    ensogl::define_shape_system! {
         (selection:f32, creation:f32) {
             let border_size_f = 16.0;
             let node_radius   = 32.0.px() * "input_creation";
@@ -146,7 +145,7 @@ pub struct WeakNode {
 #[derive(Debug)]
 pub struct NodeView {}
 impl View for NodeView {
-    type Shape = shape::Definition;
+    type Shape = shape::Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         shape.sprite.size().set(Vector2::new(200.0,200.0));
         Self {}

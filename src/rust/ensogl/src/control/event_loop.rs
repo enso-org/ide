@@ -62,16 +62,17 @@ impl EventLoopData {
 
 impl EventLoop {
     pub fn new() -> Self {
-        let data       = Rc::new(RefCell::new(EventLoopData::new()));
-        let weak       = Rc::downgrade(&data);
-        let frame_loop = RawAnimationLoop::new(Box::new(move |time| {
-            weak.upgrade().for_each(|data| {
-                let mut data_mut = data.borrow_mut();
-                (&mut data_mut.on_loop_started)();
-                data_mut.callbacks.run_all(&time);
-                (&mut data_mut.on_loop_finished)();
-            })
-        }) as Box<dyn FnMut(f64)>);
+        let data = Rc::new(RefCell::new(EventLoopData::new()));
+        let weak = Rc::downgrade(&data);
+        let frame_loop :RawAnimationLoop<Box<dyn FnMut(f64)>> =
+            RawAnimationLoop::new(Box::new(move |time| {
+                weak.upgrade().for_each(|data| {
+                    let mut data_mut = data.borrow_mut();
+                    (&mut data_mut.on_loop_started)();
+                    data_mut.callbacks.run_all(&time);
+                    (&mut data_mut.on_loop_finished)();
+                })
+            }));
         Self {frame_loop,data}
     }
 

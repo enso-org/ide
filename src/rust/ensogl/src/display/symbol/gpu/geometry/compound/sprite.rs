@@ -11,7 +11,6 @@ use crate::display::layout::types::*;
 use crate::display;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
-use crate::display::world::World;
 use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 

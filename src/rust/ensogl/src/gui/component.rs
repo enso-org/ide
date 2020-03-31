@@ -2,8 +2,6 @@
 use crate::prelude::*;
 
 use crate::display;
-use crate::display::shape;
-use crate::display::shape::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::ShapeRegistry;
 use crate::display::object::traits::*;

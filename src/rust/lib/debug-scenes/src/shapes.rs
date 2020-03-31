@@ -12,7 +12,6 @@ use ensogl::display;
 use ensogl::display::Sprite;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;

@@ -18,7 +18,6 @@ use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::*;
 use crate::display::scene::Scene;
-use crate::display::symbol::Symbol;
 use crate::display;
 use crate::display::traits::*;
 use crate::system::web;
@@ -125,19 +124,11 @@ impl World {
         &self.focus_manager
     }
 
-    pub fn add_child<T:display::Object>(&self, child:&T) {
-        self.scene().display_object().add_child(child)
-    }
-
     pub fn on_frame<F:FnMut(&f64)+'static>
     (&self, mut callback:F) -> CallbackHandle {
         let func = move |time_ms:&f64| callback(time_ms);
         self.event_loop.add_callback(func)
     }
-
-//    pub fn display_object(&self) -> display::object::Node {
-//        self.scene().display_object()
-//    }
 
     /// Create new uninitialized world instance. You should rather not need to
     /// call this function directly.

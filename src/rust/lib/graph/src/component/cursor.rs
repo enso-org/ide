@@ -19,7 +19,6 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
 use ensogl::gui::component::View;
 use ensogl::gui::component::ViewManager;
@@ -41,7 +40,7 @@ use ensogl::gui::component::animation;
 pub mod shape {
     use super::*;
 
-    ensogl::shape! {
+    ensogl::define_shape_system! {
         (position:Vector2<f32>, selection_size:Vector2<f32>, press:f32) {
             let radius = 8.px() - 2.px() * "input_press";
             let side   = &radius * 2.0;
@@ -64,7 +63,7 @@ pub struct CursorView {
 }
 
 impl View for CursorView {
-    type Shape = shape::Definition;
+    type Shape = shape::Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         let scene_shape = scene.shape();
         shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
@@ -73,7 +72,7 @@ impl View for CursorView {
             shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
         }));
 
-        let shape_system = shape_registry.shape_system(PhantomData::<shape::Definition>);
+        let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
 
         let scene_view = scene.views.new();

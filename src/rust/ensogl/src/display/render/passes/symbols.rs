@@ -69,7 +69,7 @@ impl SymbolsRenderPass2 {
 }
 
 impl RenderPass for SymbolsRenderPass2 {
-    fn run(&mut self, context:&Context, _:&UniformScope) {
+    fn run(&mut self, _:&Context, _:&UniformScope) {
         let views = &self.views.all()[1..];
         for view in views {
             view.upgrade().for_each(|v| {

@@ -128,6 +128,7 @@ pub struct DirtyFlags {
 }
 
 impl DirtyFlags {
+    #![allow(trivial_casts)]
     pub fn new<L:Into<Logger>>(logger:L) -> Self {
         let logger           = logger.into();
         let parent           = NewParentDirty  :: new(logger.sub("dirty.parent"),());
@@ -386,10 +387,8 @@ impl NodeData {
     pub fn set_parent_bind(&self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
         if let Some(parent) = bind.parent() {
-            let dirty  = parent.dirty.children.clone_ref();
-            let index  = bind.index;
-            let on_mut = move || { dirty.set(index) };
-            let dirty  = parent.dirty.children.clone_ref();
+            let index = bind.index;
+            let dirty = parent.dirty.children.clone_ref();
             self.dirty.set_callback(move || dirty.set(index));
             self.dirty.parent.set();
             self.parent_bind.set(Some(bind));

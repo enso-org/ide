@@ -2,11 +2,7 @@ mod events;
 
 use crate::prelude::*;
 
-use crate::animation::physics::inertia::*;
-use crate::animation::physics::inertia;
-use crate::animation::physics::inertia::Drag;
-use crate::animation::physics::inertia::DynInertiaSimulator;
-use crate::animation::physics::inertia::Spring;
+use crate::animation::physics;
 use crate::control::callback::CallbackHandle;
 use crate::display::camera::Camera2d;
 use crate::display::object::traits::*;
@@ -16,9 +12,6 @@ use crate::system::web;
 use events::NavigatorEvents;
 use events::PanEvent;
 use events::ZoomEvent;
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use nalgebra::zero;
 
 
 
@@ -30,7 +23,7 @@ use nalgebra::zero;
 #[derive(Debug)]
 pub struct Navigator {
     _events         : NavigatorEvents,
-    simulator       : DynInertiaSimulator<Point3>,
+    simulator       : physics::DynInertiaSimulator<Point3>,
     resize_callback : CallbackHandle
 }
 
@@ -46,8 +39,10 @@ impl Navigator {
         Self {simulator,_events,resize_callback}
     }
 
-    fn create_simulator(camera:&Camera2d) -> DynInertiaSimulator<Point3> {
-        let simulator = DynInertiaSimulator::new(Box::new(enclose!((camera) move |p:Point3| camera.set_position(p.into()))));
+    fn create_simulator(camera:&Camera2d) -> physics::DynInertiaSimulator<Point3> {
+        let camera_ref = camera.clone_ref();
+        let update     = Box::new(move |p:Point3| camera_ref.set_position(p.into()));
+        let simulator  = physics::DynInertiaSimulator::new(update);
         simulator.set_position(camera.position().into());
         simulator.set_target_position(camera.position().into());
         simulator
@@ -59,9 +54,8 @@ impl Navigator {
     , min_zoom   : f32
     , max_zoom   : f32
     , zoom_speed : f32
-    ) -> (DynInertiaSimulator<Point3>,CallbackHandle,NavigatorEvents) {
+    ) -> (physics::DynInertiaSimulator<Point3>,CallbackHandle,NavigatorEvents) {
         let simulator        = Self::create_simulator(&camera);
-        let dom_clone        = dom.clone();
         let panning_callback = enclose!((dom,camera,mut simulator) move |pan: PanEvent| {
             let fovy_slope                  = camera.half_fovy_slope();
             let distance                    = camera.position().z;

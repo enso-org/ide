@@ -10,10 +10,6 @@ use crate::system::web::StyleSetter;
 use crate::system::web::NodeInserter;
 use crate::system::gpu::data::JsBufferView;
 
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use nalgebra::Matrix4;
-use shapely::shared;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlDivElement;
 

@@ -2,12 +2,6 @@
 
 use crate::prelude::*;
 
-use nalgebra::Matrix4;
-use nalgebra::Vector3;
-use nalgebra::Vector4;
-
-use crate::data::dirty::traits::*;
-
 
 
 // =================

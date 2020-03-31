@@ -5,8 +5,6 @@
 use crate::prelude::*;
 
 use crate::control::event_loop::*;
-use nalgebra::Vector3;
-use nalgebra::*;
 
 
 

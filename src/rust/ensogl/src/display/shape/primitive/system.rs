@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use super::def::*;
 use super::def;
 
 use crate::display;
@@ -12,37 +11,33 @@ use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::symbol::material;
 use crate::display::symbol::material::Material;
-use crate::display::world::World;
 use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 use crate::display::object::traits::*;
 use crate::system::gpu::data::buffer::item::Storable;
-use crate::system::gpu::data::default::GpuDefault;
 
 
 
-// =============================
-// === ShapeSystemDefinition ===
-// =============================
+// ===================
+// === ShapeSystem ===
+// ===================
 
-/// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
-#[derive(Clone,Debug,Shrinkwrap)]
-pub struct ShapeSystemDefinition {
-    /// The underlying `SpriteSystem`.
+/// Definition of a shape management system.
+///
+/// Please note that you would rather not need to use it
+/// directly, as it would require manual management of buffer handlers. In order to automate the
+/// management, there is `ShapeSystemInstance` and the `define_shape_system` macro.
+///
+/// Under the hood, it is a specialized version of `SpriteSystem`.
+#[allow(missing_docs)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+pub struct ShapeSystem {
     #[shrinkwrap(main_field)]
     pub sprite_system : SpriteSystem,
-    material          : Rc<RefCell<Material>>,
+    pub material      : Rc<RefCell<Material>>,
 }
 
-impl CloneRef for ShapeSystemDefinition {
-    fn clone_ref(&self) -> Self {
-        let sprite_system = self.sprite_system.clone_ref();
-        let material      = self.material.clone_ref();
-        Self {sprite_system,material}
-    }
-}
-
-impl ShapeSystemDefinition {
+impl ShapeSystem {
     /// Constructor.
     pub fn new<'t,S,Sh:def::Shape>(scene:S, shape:&Sh) -> Self
     where S : Into<&'t Scene> {
@@ -85,36 +80,25 @@ impl ShapeSystemDefinition {
     }
 }
 
-impl<'t> From<&'t ShapeSystemDefinition> for &'t display::object::Node {
-    fn from(shape_system:&'t ShapeSystemDefinition) -> Self {
+impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
+    fn from(shape_system:&'t ShapeSystem) -> Self {
         shape_system.sprite_system.display_object()
     }
 }
 
 
 
-//#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-//#[clone_ref(bound="Params:CloneRef")]
-//pub struct ShapeWrapper<Params> {
-//    #[shrinkwrap(main_field)]
-//    pub params : Params,
-//    pub sprite : Sprite,
-//}
 
 
-pub trait ShapeSystem : 'static + CloneRef {
-    type ShapeDefinition : Shape<System=Self>;
+
+pub trait ShapeSystemInstance : 'static + CloneRef {
+    type Shape : Shape<System=Self>;
     fn new(scene:&Scene) -> Self;
-    fn new_instance(&self) -> Self::ShapeDefinition;
+    fn new_instance(&self) -> Self::Shape;
 }
 
-pub type ShapeDefinition<T> = <T as ShapeSystem>::ShapeDefinition;
-
-//pub type Shape2<T> = ShapeWrapper<ShapeDefinition<T>>;
-
-
 pub trait Shape : Debug + Sized {
-    type System : ShapeSystem<ShapeDefinition=Self>;
+    type System : ShapeSystemInstance<Shape=Self>;
     fn sprite(&self) -> &Sprite;
 }
 
@@ -122,7 +106,7 @@ pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 
 #[macro_export]
-macro_rules! shape {
+macro_rules! define_shape_system {
     (
         ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?)
         {$($body:tt)*}
@@ -133,52 +117,53 @@ macro_rules! shape {
         // =============
 
         #[derive(Clone,Debug)]
-        pub struct Definition {
+        pub struct Shape {
             pub sprite : Sprite,
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
-        impl $crate::display::shape::system::Shape for Definition {
-            type System = System;
+        impl $crate::display::shape::system::Shape for Shape {
+            type System = ShapeSystem;
             fn sprite(&self) -> &Sprite {
                 &self.sprite
             }
         }
 
-        impl<'t> From<&'t Definition> for &'t display::object::Node {
-            fn from(t:&'t Definition) -> Self {
+        impl<'t> From<&'t Shape> for &'t display::object::Node {
+            fn from(t:&'t Shape) -> Self {
                 &t.sprite.display_object()
             }
         }
+
 
         // ==============
         // === System ===
         // ==============
 
         #[derive(Clone,CloneRef,Debug)]
-        pub struct System {
-            pub shape_system : $crate::display::shape::ShapeSystemDefinition,
+        pub struct ShapeSystem {
+            pub shape_system : $crate::display::shape::ShapeSystem,
             $(pub $gpu_param : Buffer<$gpu_param_type>),*
         }
 
-        impl $crate::display::shape::ShapeSystem for System {
-            type ShapeDefinition = Definition;
+        impl $crate::display::shape::ShapeSystemInstance for ShapeSystem {
+            type Shape = Shape;
 
             fn new(scene:&Scene) -> Self {
-                let shape_system = $crate::display::shape::ShapeSystemDefinition::new(scene,&Self::shape_def());
+                let shape_system = $crate::display::shape::ShapeSystem::new(scene,&Self::shape_def());
                 $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),$crate::system::gpu::data::default::gpu_default::<$gpu_param_type>());)*
                 Self {shape_system,$($gpu_param),*}
             }
 
-            fn new_instance(&self) -> Self::ShapeDefinition {
+            fn new_instance(&self) -> Self::Shape {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                Definition {sprite, $($gpu_param),*}
+                Shape {sprite, $($gpu_param),*}
             }
         }
 
-        impl System {
+        impl ShapeSystem {
             pub fn shape_def() -> AnyShape {
                 $($body)*
             }

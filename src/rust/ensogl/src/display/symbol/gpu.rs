@@ -23,7 +23,6 @@ use crate::display::symbol::geometry::primitive::mesh;
 use crate::display;
 
 use shader::Shader;
-use shapely::shared;
 use wasm_bindgen::JsValue;
 use web_sys::WebGlProgram;
 use web_sys::WebGlUniformLocation;
@@ -40,7 +39,6 @@ pub mod types {
     pub use geometry::types::*;
 }
 pub use types::*;
-use wasm_bindgen::__rt::std::env::VarError;
 
 
 
