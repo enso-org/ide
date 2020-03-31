@@ -12,7 +12,7 @@ pub use stats::*;
 
 use crate::closure;
 use crate::control::callback::CallbackHandle;
-use crate::control::event_loop::EventLoop;
+use crate::animation;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
@@ -45,7 +45,7 @@ pub struct World {
     scene         : Scene,
     scene_dirty   : SceneDirty,
     logger        : Logger,
-    event_loop    : EventLoop,
+    event_loop    : animation::EventLoop,
     performance   : Performance,
     start_time    : f32,
     time          : Uniform<f32>,
@@ -143,7 +143,7 @@ impl World {
         let scene              = Scene::new(dom,scene_logger,&stats,on_change);
         let time               = scene.variables.add_or_panic("time",0.0);
         let display_mode       = scene.variables.add_or_panic("display_mode",0);
-        let event_loop         = EventLoop::new();
+        let event_loop         = animation::EventLoop::new();
         let update_handle      = default();
         let stats_monitor      = StatsMonitor::new(&stats);
         let performance        = web::performance();

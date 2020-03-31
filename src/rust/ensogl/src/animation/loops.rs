@@ -29,7 +29,7 @@ pub trait EventLoopCallback = CallbackMut1Fn<f64>;
 /// registered forever, but beware that it can easily lead to memory leaks.
 #[derive(Clone,CloneRef,Debug)]
 pub struct EventLoop {
-    frame_loop : RawAnimationLoop<Box<dyn FnMut(f64)>>,
+    frame_loop : RawLoop<Box<dyn FnMut(f64)>>,
     data       : Rc<RefCell<EventLoopData>>,
 }
 
@@ -59,8 +59,8 @@ impl EventLoop {
     pub fn new() -> Self {
         let data = Rc::new(RefCell::new(EventLoopData::new()));
         let weak = Rc::downgrade(&data);
-        let frame_loop :RawAnimationLoop<Box<dyn FnMut(f64)>> =
-            RawAnimationLoop::new(Box::new(move |time| {
+        let frame_loop :RawLoop<Box<dyn FnMut(f64)>> =
+            RawLoop::new(Box::new(move |time| {
                 weak.upgrade().for_each(|data| {
                     let mut data_mut = data.borrow_mut();
                     (&mut data_mut.on_loop_started)();
@@ -91,36 +91,36 @@ impl EventLoop {
 
 
 
-// ========================
-// === RawAnimationLoop ===
-// ========================
+// ===============
+// === RawLoop ===
+// ===============
 
 // === Types ===
 
-/// Callback for `RawAnimationLoop`.
-pub trait RawAnimationLoopCallback = FnMut(f64) + 'static;
+/// Callback for `RawLoop`.
+pub trait RawLoopCallback = FnMut(f64) + 'static;
 
 
 // === Definition ===
 
 /// The most performant animation loop possible. However, if you are looking for a way to define
-/// an animation loop, you are probably looking for the `AnimationLoop` which adds slight complexity
+/// an animation loop, you are probably looking for the `Loop` which adds slight complexity
 /// in order to provide better time information. The complexity is so small that it would not be
 /// noticeable in almost any use case.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct RawAnimationLoop<Callback> {
-    data: Rc<RefCell<RawAnimationLoopData<Callback>>>,
+pub struct RawLoop<Callback> {
+    data: Rc<RefCell<RawLoopData<Callback>>>,
 }
 
-impl<Callback> CloneRef for RawAnimationLoop<Callback> {}
+impl<Callback> CloneRef for RawLoop<Callback> {}
 
-impl<Callback> RawAnimationLoop<Callback>
-where Callback : RawAnimationLoopCallback {
+impl<Callback> RawLoop<Callback>
+where Callback : RawLoopCallback {
     /// Create and start a new animation loop.
     pub fn new(callback:Callback) -> Self {
-        let data      = Rc::new(RefCell::new(RawAnimationLoopData::new(callback)));
+        let data      = Rc::new(RefCell::new(RawLoopData::new(callback)));
         let weak_data = Rc::downgrade(&data);
         let on_frame  = move |time| weak_data.upgrade().for_each(|t| t.borrow_mut().run(time));
         data.borrow_mut().on_frame = Some(Closure::new(on_frame));
@@ -130,17 +130,17 @@ where Callback : RawAnimationLoopCallback {
     }
 }
 
-/// The internal state of the `RawAnimationLoop`.
+/// The internal state of the `RawLoop`.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct RawAnimationLoopData<Callback> {
+pub struct RawLoopData<Callback> {
     #[derivative(Debug="ignore")]
     callback  : Callback,
-    on_frame  : Option<Closure<dyn RawAnimationLoopCallback>>,
+    on_frame  : Option<Closure<dyn RawLoopCallback>>,
     handle_id : i32,
 }
 
-impl<Callback> RawAnimationLoopData<Callback> {
+impl<Callback> RawLoopData<Callback> {
     /// Constructor.
     fn new(callback:Callback) -> Self {
         let on_frame  = default();
@@ -159,7 +159,7 @@ impl<Callback> RawAnimationLoopData<Callback> {
     }
 }
 
-impl<Callback> Drop for RawAnimationLoopData<Callback> {
+impl<Callback> Drop for RawLoopData<Callback> {
     fn drop(&mut self) {
         web::cancel_animation_frame(self.handle_id);
     }
@@ -195,29 +195,29 @@ impl TimeInfo {
 
 
 
-// =====================
-// === AnimationLoop ===
-// =====================
+// ============
+// === Loop ===
+// ============
 
 // === Types ===
 
-pub trait AnimationLoopCallback = FnMut(TimeInfo) + 'static;
+pub trait LoopCallback = FnMut(TimeInfo) + 'static;
 
 
 // === Definition ===
 
 /// An animation loop. Runs the provided `Callback` every animation frame. It uses the
-/// `RawAnimationLoop` under the hood. If you are looking for a more complex version where you can
+/// `RawLoop` under the hood. If you are looking for a more complex version where you can
 /// register new callbacks for every frame, take a look at the ``.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct AnimationLoop<Callback> {
-    animation_loop : RawAnimationLoop<OnFrame<Callback>>,
+pub struct Loop<Callback> {
+    animation_loop : RawLoop<OnFrame<Callback>>,
     time_info      : Rc<Cell<TimeInfo>>,
 }
 
-impl<Callback> CloneRef for AnimationLoop<Callback> {
+impl<Callback> CloneRef for Loop<Callback> {
     fn clone_ref(&self) -> Self {
         let animation_loop = self.animation_loop.clone_ref();
         let time_info      = self.time_info.clone_ref();
@@ -225,18 +225,18 @@ impl<Callback> CloneRef for AnimationLoop<Callback> {
     }
 }
 
-impl<Callback> AnimationLoop<Callback>
-where Callback : AnimationLoopCallback {
+impl<Callback> Loop<Callback>
+where Callback : LoopCallback {
     pub fn new(callback:Callback) -> Self {
         let time_info      = Rc::new(Cell::new(TimeInfo::new()));
-        let animation_loop = RawAnimationLoop::new(on_frame(callback,time_info.clone_ref()));
+        let animation_loop = RawLoop::new(on_frame(callback,time_info.clone_ref()));
         Self {animation_loop,time_info}
     }
 }
 
 pub type OnFrame<Callback> = impl FnMut(f64);
 fn on_frame<Callback>(mut callback:Callback, time_info_ref:Rc<Cell<TimeInfo>>) -> OnFrame<Callback>
-where Callback : AnimationLoopCallback {
+where Callback : LoopCallback {
     move |current_time:f64| {
         let time_info = time_info_ref.get();
         let start     = if time_info.start == 0.0 {current_time} else {time_info.start};
@@ -304,14 +304,14 @@ impl<Callback:FnMut<(TimeInfo,)>> FnMut<(TimeInfo,)> for FixedFrameRateSampler<C
 
 
 
-// ===================================
-// === FixedFrameRateAnimationLoop ===
-// ===================================
+// ==========================
+// === FixedFrameRateLoop ===
+// ==========================
 
-pub type FixedFrameRateAnimationLoop<Callback> = AnimationLoop<FixedFrameRateSampler<Callback>>;
+pub type FixedFrameRateLoop<Callback> = Loop<FixedFrameRateSampler<Callback>>;
 
-impl<Callback> FixedFrameRateAnimationLoop<Callback>
-where Callback:AnimationLoopCallback {
+impl<Callback> FixedFrameRateLoop<Callback>
+where Callback:LoopCallback {
     pub fn new_with_fixed_frame_rate(frame_rate:f64, callback:Callback) -> Self {
         Self::new(FixedFrameRateSampler::new(frame_rate,callback))
     }

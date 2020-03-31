@@ -61,10 +61,6 @@ pub mod prelude {
 
 
 
-use ensogl::control::event_loop::RawAnimationLoop;
-use ensogl::control::event_loop::AnimationLoop;
-use ensogl::control::event_loop::TimeInfo;
-use ensogl::control::event_loop::FixedFrameRateSampler;
 use ensogl::animation::physics;
 use ensogl::data::OptVec;
 use ensogl::display::object::Id;

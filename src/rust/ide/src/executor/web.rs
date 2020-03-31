@@ -4,8 +4,7 @@
 use crate::prelude::*;
 
 use ensogl::control::callback::CallbackHandle;
-use ensogl::control::EventLoop;
-use ensogl::control::EventLoopCallback;
+use ensogl::animation;
 use futures::task::LocalSpawn;
 use futures::task::LocalFutureObj;
 use futures::task::SpawnError;
@@ -13,7 +12,7 @@ use futures::executor::LocalPool;
 use futures::executor::LocalSpawner;
 
 /// Executor. Uses a single-threaded `LocalPool` underneath, relying on ensogl's
-/// `EventLoop` to do as much progress as possible on every animation frame.
+/// `animation::EventLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
 pub struct EventLoopExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
@@ -21,7 +20,7 @@ pub struct EventLoopExecutor {
     /// Executor's spawner handle.
     pub spawner : LocalSpawner,
     /// Event loop that calls us on each frame.
-    event_loop  : Option<EventLoop>,
+    event_loop  : Option<animation::EventLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
     /// Also owns a shared handle to the `executor`.
     cb_handle   : Option<CallbackHandle>,
@@ -43,14 +42,14 @@ impl EventLoopExecutor {
     ///loop will live as long as this executor.
     pub fn new_running() -> EventLoopExecutor {
         let mut executor = EventLoopExecutor::new();
-        executor.start_running(EventLoop::new());
+        executor.start_running(animation::EventLoop::new());
         executor
     }
 
-    /// Returns a callback compatible with `EventLoop` that once called shall
+    /// Returns a callback compatible with `animation::EventLoop` that once called shall
     /// attempt achieving as much progress on this executor's tasks as possible
     /// without stalling.
-    pub fn runner(&self) -> impl EventLoopCallback {
+    pub fn runner(&self) -> impl animation::EventLoopCallback {
         let executor = self.executor.clone();
         move |_:&f64| {
             // Safe, because this is the only place borrowing executor and loop
@@ -66,7 +65,7 @@ impl EventLoopExecutor {
     ///
     /// The executor will keep copy of this loop handle, so caller is not
     /// required to keep it alive.
-    pub fn start_running(&mut self, event_loop:EventLoop) {
+    pub fn start_running(&mut self, event_loop:animation::EventLoop) {
         let cb = self.runner();
 
         self.cb_handle  = Some(event_loop.add_callback(cb));

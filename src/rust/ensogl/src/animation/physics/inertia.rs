@@ -4,7 +4,7 @@
 
 use crate::prelude::*;
 
-use crate::control::event_loop::*;
+use crate::animation;
 
 
 
@@ -320,7 +320,7 @@ pub type DynSimulator<T> = Simulator<T,Box<dyn Fn(T)>>;
 pub struct Simulator<T:Position,Cb> {
     #[shrinkwrap(main_field)]
     simulation     : Simulation<T>,
-    animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationLoop<Step<T,Cb>>>>>,
+    animation_loop : Rc<CloneCell<Option<animation::FixedFrameRateLoop<Step<T,Cb>>>>>,
     frame_rate     : Rc<Cell<f64>>,
     #[derivative(Debug="ignore")]
     callback : Rc<Cb>,
@@ -391,7 +391,7 @@ where Cb : Callback<T> {
         if self.animation_loop.get().is_none() {
             let frame_rate     = self.frame_rate.get();
             let step           = step(&self);
-            let animation_loop = AnimationLoop::new_with_fixed_frame_rate(frame_rate,step);
+            let animation_loop = animation::Loop::new_with_fixed_frame_rate(frame_rate,step);
             self.animation_loop.set(Some(animation_loop));
         }
     }
@@ -403,11 +403,11 @@ where Cb : Callback<T> {
 }
 
 
-pub type Step<T,Cb> = impl Fn(TimeInfo);
+pub type Step<T,Cb> = impl Fn(animation::TimeInfo);
 fn step<T:Position,Cb>(simulator:&Simulator<T,Cb>) -> Step<T,Cb>
 where Cb : Callback<T> {
     let this = simulator.clone_ref();
-    move |time:TimeInfo| {
+    move |time:animation::TimeInfo| {
         let delta_seconds = (time.frame / 1000.0) as f32;
         if this.simulation.active() {
             this.simulation.step(delta_seconds);
