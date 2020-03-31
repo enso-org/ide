@@ -11,7 +11,7 @@ use ensogl::math::Vector3;
 use logger::Logger;
 use std::any::TypeId;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
-use ensogl::animation::physics::inertia::DynInertiaSimulator;
+use ensogl::animation::physics;
 use enso_frp;
 use enso_frp as frp;
 use enso_frp::frp;
@@ -97,7 +97,7 @@ pub mod shape {
     ensogl::define_shape_system! {
         (selection:f32, creation:f32) {
             let border_size_f = 16.0;
-            let node_radius   = 32.0.px() * "input_creation";
+            let node_radius   = 32.0.px() * creation;
             let border_size   = border_size_f.px();
 
             let node = Circle(&node_radius);
@@ -112,15 +112,15 @@ pub mod shape {
             let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
             let shadow       = shadow.fill(shadow_color);
 
-            let selection = Circle(&node_radius - 1.px() + &border_size * "input_selection");
-            let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
+            let selection_ring = Circle(&node_radius - 1.px() + &border_size * selection);
+            let selection_ring = selection_ring.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
             let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
             let loader        = ring_angle(&node_radius, &border_size, &loader_angle);
             let loader        = loader.rotate(loader_angle / 2.0);
             let loader        = loader.rotate("Radians(input_time/200.0)");
             let icon          = icons::history();
-            let out           = loader + selection + shadow + node + icon;
+            let out           = loader + selection_ring + shadow + node + icon;
             out.into()
         }
     }

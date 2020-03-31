@@ -2,9 +2,3 @@
 //! kinematics.
 
 pub mod inertia;
-
-/// Common types.
-pub mod types {
-    pub use super::inertia::DynInertiaSimulator;
-}
-pub use types::*;

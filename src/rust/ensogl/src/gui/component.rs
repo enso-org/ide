@@ -9,7 +9,7 @@ use crate::display::shape::primitive::system::Shape;
 use crate::display::scene::Scene;
 use enso_frp as frp;
 use enso_frp::frp;
-use crate::animation::physics::inertia::DynInertiaSimulator;
+use crate::animation::physics::inertia::DynSimulator;
 use enso_frp::core::node::class::EventEmitterPoly;
 
 //
@@ -143,13 +143,13 @@ impl<T:View> ViewManager<T> {
 }
 
 
-pub fn animation<F>(f:F) -> DynInertiaSimulator<f32>
+pub fn animation<F>(f:F) -> DynSimulator<f32>
     where F : Fn(f32) + 'static {
     frp! {
         target = source::<f32> ();
     }
     target.map("animation", move |value| f(*value));
-    let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
+    let simulator = DynSimulator::<f32>::new(Box::new(move |t| {
         target.event.emit(t);
     }));
     simulator

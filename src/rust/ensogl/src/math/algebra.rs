@@ -59,6 +59,32 @@ gen_zero_nalgebra!([Vector2,Vector3,Vector4,Matrix2,Matrix3,Matrix4,Matrix2x3,Ma
 
 
 
+
+// ============
+// === Dim1 ===
+// ============
+
+pub trait HasComponents {
+    type Component;
+}
+
+/// Describes types that have the first dimension component.
+pub trait Dim1 : HasComponents {
+    fn x(&self) -> Self::Component;
+}
+
+/// Describes types that have the second dimension component.
+pub trait Dim2 : Dim1 {
+    fn y(&self) -> Self::Component;
+}
+
+/// Describes types that have the third dimension component.
+pub trait Dim3 : Dim2 {
+    fn z(&self) -> Self::Component;
+}
+
+
+
 // ===========
 // === Abs ===
 // ===========

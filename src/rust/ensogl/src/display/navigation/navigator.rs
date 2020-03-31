@@ -23,7 +23,7 @@ use events::ZoomEvent;
 #[derive(Debug)]
 pub struct Navigator {
     _events         : NavigatorEvents,
-    simulator       : physics::DynInertiaSimulator<Point3>,
+    simulator       : physics::inertia::DynSimulator<Point3>,
     resize_callback : CallbackHandle
 }
 
@@ -39,10 +39,10 @@ impl Navigator {
         Self {simulator,_events,resize_callback}
     }
 
-    fn create_simulator(camera:&Camera2d) -> physics::DynInertiaSimulator<Point3> {
+    fn create_simulator(camera:&Camera2d) -> physics::inertia::DynSimulator<Point3> {
         let camera_ref = camera.clone_ref();
         let update     = Box::new(move |p:Point3| camera_ref.set_position(p.into()));
-        let simulator  = physics::DynInertiaSimulator::new(update);
+        let simulator  = physics::inertia::DynSimulator::new(update);
         simulator.set_position(camera.position().into());
         simulator.set_target_position(camera.position().into());
         simulator
@@ -54,7 +54,7 @@ impl Navigator {
     , min_zoom   : f32
     , max_zoom   : f32
     , zoom_speed : f32
-    ) -> (physics::DynInertiaSimulator<Point3>,CallbackHandle,NavigatorEvents) {
+    ) -> (physics::inertia::DynSimulator<Point3>,CallbackHandle,NavigatorEvents) {
         let simulator        = Self::create_simulator(&camera);
         let panning_callback = enclose!((dom,camera,mut simulator) move |pan: PanEvent| {
             let fovy_slope                  = camera.half_fovy_slope();

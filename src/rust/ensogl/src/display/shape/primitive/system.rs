@@ -105,6 +105,9 @@ pub trait Shape : Debug + Sized {
 pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 
+/// Defines 'Shape' and 'ShapeSystem' structures. The generated Shape is a newtype for `Sprite`
+/// and the shader attributes. The generated 'ShapeSystem' is a newtype for the `ShapeSystem` and
+/// the required buffer handlers.
 #[macro_export]
 macro_rules! define_shape_system {
     (
@@ -151,7 +154,11 @@ macro_rules! define_shape_system {
 
             fn new(scene:&Scene) -> Self {
                 let shape_system = $crate::display::shape::ShapeSystem::new(scene,&Self::shape_def());
-                $(let $gpu_param = shape_system.add_input(stringify!($gpu_param),$crate::system::gpu::data::default::gpu_default::<$gpu_param_type>());)*
+                $(
+                    let name       = stringify!($gpu_param);
+                    let value      = $crate::system::gpu::data::default::gpu_default::<$gpu_param_type>();
+                    let $gpu_param = shape_system.add_input(name,value);
+                )*
                 Self {shape_system,$($gpu_param),*}
             }
 
@@ -165,6 +172,10 @@ macro_rules! define_shape_system {
 
         impl ShapeSystem {
             pub fn shape_def() -> AnyShape {
+                $(
+                    let $gpu_param  : Var<$gpu_param_type> =
+                        concat!("input_",stringify!($gpu_param)).into();
+                )*
                 $($body)*
             }
         }

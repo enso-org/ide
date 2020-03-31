@@ -8,11 +8,13 @@ use crate::control::event_loop::*;
 
 
 
-// =============
-// === Value ===
-// =============
+// ================
+// === Position ===
+// ================
 
-pub trait Value
+/// The type of the position of the simulation. In particular, the Position could be `f32`
+/// (1-dimensional simulation), or `Vector<f32>` (3-dimensional simulation).
+pub trait Position
     = 'static + Copy + Default + Debug + Magnitude + Normalize
     + Neg<       Output=Self>
     + Sub<Self , Output=Self>
@@ -101,7 +103,7 @@ pub struct SimulationData<T> {
     active          : bool,
 }
 
-impl<T:Value> SimulationData<T> {
+impl<T:Position> SimulationData<T> {
     /// Constructor.
     pub fn new() -> Self {
         default()
@@ -150,7 +152,7 @@ impl<T:Value> SimulationData<T> {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl<T:Value> SimulationData<T> {
+impl<T:Position> SimulationData<T> {
     pub fn position        (&self) -> T          { self.position }
     pub fn target_position (&self) -> T          { self.target_position }
     pub fn velocity        (&self) -> T          { self.velocity }
@@ -165,7 +167,7 @@ impl<T:Value> SimulationData<T> {
 // === Setters ===
 
 #[allow(missing_docs)]
-impl<T:Value> SimulationData<T> {
+impl<T:Position> SimulationData<T> {
     pub fn set_position(&mut self, position:T) {
         self.active = true;
         self.position = position;
@@ -222,14 +224,14 @@ pub struct Simulation<T:Copy> {
     data : Rc<Cell<SimulationData<T>>>
 }
 
-impl<T:Value> CloneRef for Simulation<T> {
+impl<T:Position> CloneRef for Simulation<T> {
     fn clone_ref(&self) -> Self {
         let data = self.data.clone_ref();
         Self {data}
     }
 }
 
-impl<T:Value> Simulation<T> {
+impl<T:Position> Simulation<T> {
     /// Constructor.
     pub fn new() -> Self {
         default()
@@ -247,7 +249,7 @@ impl<T:Value> Simulation<T> {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl<T:Value> Simulation<T> {
+impl<T:Position> Simulation<T> {
     pub fn active(&self) -> bool {
         self.data.get().active()
     }
@@ -265,7 +267,7 @@ impl<T:Value> Simulation<T> {
 // === Setters ===
 
 #[allow(missing_docs)]
-impl<T:Value> Simulation<T> {
+impl<T:Position> Simulation<T> {
     pub fn set_mass(&self, mass:Mass) {
         self.data.update(|mut sim| {sim.set_mass(mass); sim});
     }
@@ -298,16 +300,16 @@ impl<T:Value> Simulation<T> {
 
 
 // ========================
-// === InertiaSimulator ===
+// === Simulator ===
 // ========================
 
-/// Handy alias for `InertiaSimulator` with a boxed closure callback.
-pub type DynInertiaSimulator<T> = InertiaSimulator<T,Box<dyn Fn(T)>>;
+/// Handy alias for `Simulator` with a boxed closure callback.
+pub type DynSimulator<T> = Simulator<T,Box<dyn Fn(T)>>;
 
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct InertiaSimulator<T:Value,Callback> {
+pub struct Simulator<T:Position,Callback> {
     #[shrinkwrap(main_field)]
     simulation     : Simulation<T>,
     animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationLoop<Step<T,Callback>>>>>,
@@ -316,7 +318,7 @@ pub struct InertiaSimulator<T:Value,Callback> {
     callback : Rc<Callback>,
 }
 
-impl<T:Value,Callback> CloneRef for InertiaSimulator<T,Callback> {
+impl<T:Position,Callback> CloneRef for Simulator<T,Callback> {
     fn clone_ref(&self) -> Self {
         let simulation     = self.simulation.clone_ref();
         let animation_loop = self.animation_loop.clone_ref();
@@ -326,7 +328,7 @@ impl<T:Value,Callback> CloneRef for InertiaSimulator<T,Callback> {
     }
 }
 
-impl<T:Value,Callback> InertiaSimulator<T,Callback>
+impl<T:Position,Callback> Simulator<T,Callback>
 where Callback : Fn(T)+'static {
     /// Constructor.
     pub fn new(callback:Callback) -> Self {
@@ -379,7 +381,7 @@ where Callback : Fn(T)+'static {
 }
 
 pub type Step<T,Callback> = impl Fn(TimeInfo);
-fn step<T:Value,Callback>(simulator:&InertiaSimulator<T,Callback>) -> Step<T,Callback>
+fn step<T:Position,Callback>(simulator:&Simulator<T,Callback>) -> Step<T,Callback>
 where Callback : Fn(T)+'static {
     let this = simulator.clone_ref();
     move |time:TimeInfo| {

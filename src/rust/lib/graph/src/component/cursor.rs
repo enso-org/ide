@@ -11,7 +11,7 @@ use ensogl::math::Vector3;
 use logger::Logger;
 use std::any::TypeId;
 use enso_prelude::std_reexports::fmt::{Formatter, Error};
-use ensogl::animation::physics::inertia::DynInertiaSimulator;
+use ensogl::animation::physics;
 use enso_frp;
 use enso_frp as frp;
 use enso_frp::frp;
@@ -42,7 +42,7 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (position:Vector2<f32>, selection_size:Vector2<f32>, press:f32) {
-            let radius = 8.px() - 2.px() * "input_press";
+            let radius = 8.px() - 2.px() * press;
             let side   = &radius * 2.0;
             let width  = Var::<Distance<Pixels>>::from("input_selection_size.x * input_press");
             let height = Var::<Distance<Pixels>>::from("input_selection_size.y * input_press");
