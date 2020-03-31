@@ -2,6 +2,7 @@
 //! controllers, view logic and code that wraps them all together.
 
 #![feature(bool_to_option)]
+#![feature(cell_update)]
 #![feature(drain_filter)]
 #![feature(trait_alias)]
 #![recursion_limit="256"]

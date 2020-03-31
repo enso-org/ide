@@ -60,7 +60,7 @@ impl Handle {
             },
             None => {
                 let fm = self.file_manager.clone_ref();
-                Ok(controller::Text::new_for_plain_text(path, fm))
+                Ok(controller::Text::new_for_plain_text(path,fm))
             }
         }
     }
@@ -141,8 +141,8 @@ mod test {
 
             assert!(project_ctrl.file_manager.identity_equals(&text_ctrl   .file_manager()));
             assert!(project_ctrl.file_manager.identity_equals(&another_ctrl.file_manager()));
-            assert_eq!(path        , text_ctrl   .file_path()  );
-            assert_eq!(another_path, another_ctrl.file_path()  );
+            assert_eq!(path        , *text_ctrl   .file_path().deref()  );
+            assert_eq!(another_path, *another_ctrl.file_path().deref()  );
         });
     }
 
@@ -153,7 +153,7 @@ mod test {
         test.run_test(async move {
             let project_ctrl = controller::Project::new_running(transport);
             let path         = ModuleLocation::new("test").to_path();
-            let text_ctrl    = project_ctrl.text_controller(path.clone_ref()).await.unwrap();
+            let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });

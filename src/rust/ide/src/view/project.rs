@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::view::layout::ViewLayout;
 
+use file_manager_client::Path;
 use ensogl::control::callback::CallbackHandle;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
 use ensogl::display::world::WorldData;
@@ -12,7 +13,6 @@ use ensogl::display::world::World;
 use ensogl::system::web;
 use enso_frp::Keyboard;
 use enso_frp::KeyboardActions;
-use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
 

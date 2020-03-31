@@ -14,6 +14,16 @@ use json_rpc::error::RpcError;
 use std::pin::Pin;
 
 
+
+// ============
+// === Path ===
+// ============
+
+/// Path to a file on disc.
+type Path = Rc<fmc::Path>;
+
+
+
 // =======================
 // === Text Controller ===
 // =======================
@@ -24,11 +34,9 @@ use std::pin::Pin;
 /// Module Controller, the plain text files are handled directly by File Manager Client.
 #[derive(Clone,CloneRef,Debug)]
 enum FileHandle {
-    PlainText {path:fmc::Path, file_manager:fmc::Handle},
+    PlainText {path:Path, file_manager:fmc::Handle},
     Module    {controller:controller::Module },
 }
-
-
 
 /// A Text Controller Handle.
 ///
@@ -42,6 +50,7 @@ impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
     pub fn new_for_plain_text(path:fmc::Path, file_manager:fmc::Handle) -> Self {
+        let path = Rc::new(path);
         Self {
             file : FileHandle::PlainText {path,file_manager}
         }
@@ -55,10 +64,10 @@ impl Handle {
     }
 
     /// Get clone of file path handled by this controller.
-    pub fn file_path(&self) -> fmc::Path {
+    pub fn file_path(&self) -> Path {
         match &self.file {
             FileHandle::PlainText{path,..} => path.clone_ref(),
-            FileHandle::Module{controller} => controller.location.to_path(),
+            FileHandle::Module{controller} => Path::new(controller.location.to_path()),
         }
     }
 
@@ -66,7 +75,7 @@ impl Handle {
     pub async fn read_content(&self) -> Result<String,RpcError> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => file_manager.read(path.clone_ref()).await,
+            PlainText {path,file_manager} => file_manager.read(path.deref().clone()).await,
             Module    {controller}        => Ok(controller.code())
         }
     }
@@ -77,7 +86,7 @@ impl Handle {
         async move {
             match file_handle {
                 FileHandle::PlainText {path,file_manager} => {
-                    file_manager.write(path.clone_ref(),content).await?
+                    file_manager.write(path.deref().clone(),content).await?
                 },
                 FileHandle::Module {controller} => {
                     controller.check_code_sync(content)?;
