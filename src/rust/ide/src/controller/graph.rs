@@ -327,9 +327,9 @@ mod tests {
             let graph  = Handle::new(module,parser,id).unwrap();
             let uid    = graph.all_node_infos().unwrap()[0].id();
 
-            graph.with_node_metadata(uid, |data| data.position = Some(pos));
+            graph.module.with_node_metadata(uid, |data| data.position = Some(pos));
 
-            assert_eq!(graph.node_metadata(uid).unwrap().position, Some(pos));
+            assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
         })
     }
 
@@ -467,7 +467,7 @@ main =
             assert_eq!(node3.info.expression().repr(), "a+b");
             let pos = node3.metadata.unwrap().position;
             assert_eq!(pos, position);
-            assert!(graph.node_metadata(id).is_ok());
+            assert!(graph.module.node_metadata(id).is_ok());
 
 
             // === Edit node ===
@@ -484,7 +484,7 @@ main =
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");
-            assert!(graph.node_metadata(id).is_err());
+            assert!(graph.module.node_metadata(id).is_err());
 
             module.expect_code(PROGRAM);
         })

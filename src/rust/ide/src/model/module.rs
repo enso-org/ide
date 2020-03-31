@@ -129,7 +129,7 @@ impl Module {
 
     /// Update ast in module controller.
     pub fn update_ast(&self, ast:ast::known::Module) {
-        self.content.borrow_mut().ast  = ast.into();
+        self.content.borrow_mut().ast  = ast;
         self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
     }
 
@@ -251,9 +251,9 @@ mod test {
             assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
 
             // No more notifications emitted
-            std::mem::drop(module);
-            assert_eq!(None, text_subscription.next());
-            assert_eq!(None, graph_subscription.next());
+            drop(module);
+            assert_eq!(None, text_subscription.next().await);
+            assert_eq!(None, graph_subscription.next().await);
         });
     }
 
@@ -274,6 +274,6 @@ mod test {
             assert_eq!(md_to_set.position, md.position);
             md.position = Some(new_pos);
         });
-        assert_eq!(new_pos, module.node_metadata(id).unwrap().position);
+        assert_eq!(Some(new_pos), module.node_metadata(id).unwrap().position);
     }
 }
