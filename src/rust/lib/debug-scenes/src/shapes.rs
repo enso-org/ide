@@ -35,7 +35,6 @@ use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene, MouseTarget};
-use ensogl::gui::component::Component;
 use ensogl::gui::component::StrongRef;
 use ensogl::gui::component::WeakRef;
 
@@ -177,8 +176,8 @@ fn init(world: &World) {
         selection_zero         = source::<Position>           ();
         selection_size_down    = mouse.position.map2          (&mouse_down_position,|m,n|{m-n});
         selection_size_if_down = selection_size_down.gate     (&mouse.is_down);
-        selection_size_on_up   = selection_zero.sample        (&mouse.on_up);
-        selection_size         = selection_size_if_down.merge (&selection_size_on_up);
+        selection_size_on_down = selection_zero.sample        (&mouse.on_down);
+        selection_size         = selection_size_if_down.merge (&selection_size_on_down);
 
 
         mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
@@ -192,7 +191,7 @@ fn init(world: &World) {
         foo = add_node.map2(&mouse.position, enclose!((node_set,node_mouse_down,world) move |_,pos| {
             let node = Node::new();
             let weak_node = node.downgrade();
-            let ttt = node.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
+            let ttt = node.view.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
                 node_mouse_down.event.emit(Some(weak_node.clone_ref()))
             }));
 //
@@ -238,20 +237,22 @@ fn init(world: &World) {
 
 
 
+    mouse.on_down.map("cursor_press", enclose!((cursor) move |p| {
+        cursor.events.press.event.emit(());
+    }));
 
+    mouse.on_up.map("cursor_release", enclose!((cursor) move |p| {
+        cursor.events.release.event.emit(());
+    }));
 
 
 
     mouse.position.map("cursor_position", enclose!((cursor) move |p| {
-        cursor.shape.borrow().as_ref().for_each(|shape| {
-            shape.position.set(Vector2::new(p.x as f32,p.y as f32));
-        })
+        cursor.set_position(Vector2::new(p.x as f32,p.y as f32));
     }));
 
     selection_size.map("cursor_size", enclose!((cursor) move |p| {
-        cursor.shape.borrow().as_ref().for_each(|shape| {
-            shape.selection_size.set(Vector2::new(p.x as f32, p.y as f32));
-        })
+        cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
     }));
 
 
@@ -274,11 +275,18 @@ fn init(world: &World) {
 
     let add_node_ref = add_node.clone_ref();
     let remove_selected_nodes_ref = remove_selected_nodes.clone_ref();
+    let world2 = world.clone_ref();
     let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
         let val = val.unchecked_into::<web_sys::KeyboardEvent>();
         let key = val.key();
         if      key == "n"         { add_node_ref.event.emit(()) }
         else if key == "Backspace" { remove_selected_nodes_ref.event.emit(()) }
+        else if key == "p" {
+            selected_nodes.for_each_taken(|node| {
+                world2.scene().remove_child(&node);
+                println!("REMOVE CH");
+            })
+        }
     }));
     web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
     c.forget();

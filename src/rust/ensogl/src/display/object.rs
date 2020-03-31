@@ -577,7 +577,7 @@ impl Node {
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn remove_child<T:Object>(&self, child:&T) {
+    pub fn _remove_child<T:Object>(&self, child:&T) {
         let child = child.display_object();
         if self.has_child(child) {
             child.unset_parent()
@@ -673,6 +673,10 @@ impl<T:Object> ObjectOps for T {}
 pub trait ObjectOps : Object {
     fn add_child<T:Object>(&self, child:&T) {
         self.display_object()._add_child(child.display_object());
+    }
+
+    fn remove_child<T:Object>(&self, child:&T) {
+        self.display_object()._remove_child(child.display_object());
     }
 
     fn id(&self) -> Id {

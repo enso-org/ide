@@ -21,7 +21,8 @@ use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
-use ensogl::gui::component::Component;
+use ensogl::gui::component::View;
+use ensogl::gui::component::ViewManager;
 use ensogl::gui::component::StrongRef;
 use ensogl::gui::component::WeakRef;
 use ensogl::display::scene;
@@ -29,22 +30,23 @@ use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::display::layout::alignment;
 use ensogl::system::web;
 use ensogl::control::callback::CallbackHandle;
+use ensogl::gui::component::animation;
 
 
 
-// ==============
-// === Cursor ===
-// ==============
+// ==================
+// === CursorView ===
+// ==================
 
 pub mod shape {
     use super::*;
 
     ensogl::shape! {
-        (position:Vector2<f32>, selection_size:Vector2<f32>) {
-            let radius = 10.px();
+        (position:Vector2<f32>, selection_size:Vector2<f32>, press:f32) {
+            let radius = 8.px() - 2.px() * "input_press";
             let side   = &radius * 2.0;
-            let width  = Var::<Distance<Pixels>>::from("input_selection_size.x");
-            let height = Var::<Distance<Pixels>>::from("input_selection_size.y");
+            let width  = Var::<Distance<Pixels>>::from("input_selection_size.x * input_press");
+            let height = Var::<Distance<Pixels>>::from("input_selection_size.y * input_press");
             let cursor = Rect((&side + width.abs(),&side + height.abs()))
                 .corners_radius(radius)
                 .translate((-&width/2.0, -&height/2.0))
@@ -55,6 +57,59 @@ pub mod shape {
     }
 }
 
+#[derive(Debug)]
+pub struct CursorView {
+    pub scene_view    : scene::View,
+    pub resize_handle : CallbackHandle,
+}
+
+impl View for CursorView {
+    type Shape = shape::Definition;
+    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
+        let scene_shape = scene.shape();
+        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+
+        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
+            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+        }));
+
+        let shape_system = shape_registry.shape_system(PhantomData::<shape::Definition>);
+        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+
+        let scene_view = scene.views.new();
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene_view.add(&shape_system.shape_system.symbol);
+        Self {scene_view,resize_handle}
+    }
+}
+
+
+
+// ==============
+// === Events ===
+// ==============
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Events {
+    pub press   : frp::Dynamic<()>,
+    pub release : frp::Dynamic<()>,
+}
+
+impl Events {
+    pub fn new(logger:&Logger) -> Self {
+        frp! {
+            press   = source::<()> ();
+            release = source::<()> ();
+        }
+        Self {press,release}
+    }
+}
+
+
+
+// ==============
+// === Cursor ===
+// ==============
 
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Cursor {
@@ -68,46 +123,51 @@ pub struct WeakCursor {
 
 #[derive(Debug)]
 pub struct CursorData {
-    pub logger         : Logger,
-    pub display_object : display::object::Node,
-    pub shape          : Rc<RefCell<Option<shape::ShapeDefinition>>>,
-    pub scene_view     : Rc<RefCell<Option<scene::View>>>,
-    pub resize_handle  : Rc<RefCell<Option<CallbackHandle>>>,
-}
-
-impl Component for Cursor {
-    fn on_view_cons(&self, scene:&Scene, shape_registry:&ShapeRegistry) {
-        let shape       = shape_registry.new_instance::<shape::ShapeDefinition>();
-        let scene_shape = scene.shape();
-        self.display_object.add_child(&shape);
-        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-        let handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
-            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-        }));
-        *self.resize_handle.borrow_mut() = Some(handle);
-        *self.shape.borrow_mut() = Some(shape);
-
-        let shape_system = shape_registry.shape_system(PhantomData::<shape::ShapeDefinition>);
-
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-
-        let scene_view = scene.views.new();
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene_view.add(&shape_system.shape_system.symbol);
-        *self.scene_view.borrow_mut() = Some(scene_view);
-    }
+    pub logger : Logger,
+    pub events : Events,
+    pub view   : ViewManager<CursorView>,
 }
 
 impl Cursor {
     pub fn new() -> Self {
-        let logger         = Logger::new("cursor");
-        let display_object = display::object::Node::new(&logger);
-        let shape          = default();
-        let scene_view     = default();
-        let resize_handle  = default();
-        let data           = CursorData {logger,display_object,shape,scene_view,resize_handle};
-        let data           = Rc::new(data);
-        Cursor {data} . component_init()
+        let logger = Logger::new("cursor");
+        let view   = ViewManager::new(&logger);
+        let events = Events::new(&logger);
+        let data   = CursorData {logger,events,view};
+        let data   = Rc::new(data);
+        Cursor {data} . init()
+    }
+
+    fn init(self) -> Self {
+        // FIXME: This is needed now because frp leaks memory.
+        let weak_view_data = Rc::downgrade(&self.view.data);
+        let press = animation(move |value| {
+            weak_view_data.upgrade().for_each(|view_data| {
+                view_data.borrow().as_ref().for_each(|t| t.shape.press.set(value))
+            })
+        });
+
+        self.events.press.map("press", enclose!((press) move |_| {
+            press.set_target_position(1.0);
+        }));
+
+        self.events.release.map("release", enclose!((press) move |_| {
+            press.set_target_position(0.0);
+        }));
+
+        self
+    }
+
+    pub fn set_position(&self, pos:Vector2<f32>) {
+        self.view.data.borrow().as_ref().for_each(|view| {
+            view.shape.position.set(pos);
+        })
+    }
+
+    pub fn set_selection_size(&self, pos:Vector2<f32>) {
+        self.view.data.borrow().as_ref().for_each(|view| {
+            view.shape.selection_size.set(pos);
+        })
     }
 }
 
@@ -125,10 +185,8 @@ impl WeakRef for WeakCursor {
     }
 }
 
-impl MouseTarget for Cursor {}
-
 impl<'t> From<&'t Cursor> for &'t display::object::Node {
     fn from(t:&'t Cursor) -> Self {
-        &t.display_object
+        &t.view.display_object
     }
 }

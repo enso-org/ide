@@ -22,7 +22,9 @@ use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::system::ShapeSystemDefinition;
 use ensogl::display::world::World;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
-use ensogl::gui::component::Component;
+use ensogl::gui::component::animation;
+use ensogl::gui::component::View;
+use ensogl::gui::component::ViewManager;
 use ensogl::gui::component::StrongRef;
 use ensogl::gui::component::WeakRef;
 
@@ -94,27 +96,28 @@ pub mod shape {
     use super::*;
 
     ensogl::shape! {
-        (selection:f32) {
-            let node_radius = 32.0;
-            let border_size = 16.0;
+        (selection:f32, creation:f32) {
+            let border_size_f = 16.0;
+            let node_radius   = 32.0.px() * "input_creation";
+            let border_size   = border_size_f.px();
 
-            let node = Circle(node_radius.px());
+            let node = Circle(&node_radius);
             let node = node.fill(Srgb::new(0.97,0.96,0.95));
-            let bg   = Circle((node_radius*2.0).px());
+            let bg   = Circle(&node_radius*2.0);
             let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
-            let shadow       = Circle((node_radius + border_size).px());
+            let shadow       = Circle(&node_radius + &border_size);
             let shadow_color = LinearGradient::new()
                 .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
                 .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-            let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size).slope(Slope::Exponent(4.0));
+            let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
             let shadow       = shadow.fill(shadow_color);
 
-            let selection = Circle((node_radius - 1.0).px() + border_size.px() * "input_selection");
+            let selection = Circle(&node_radius - 1.px() + &border_size * "input_selection");
             let selection = selection.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
             let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
-            let loader        = ring_angle((node_radius).px(), (border_size).px(), &loader_angle);
+            let loader        = ring_angle(&node_radius, &border_size, &loader_angle);
             let loader        = loader.rotate(loader_angle / 2.0);
             let loader        = loader.rotate("Radians(input_time/200.0)");
             let icon          = icons::history();
@@ -126,7 +129,6 @@ pub mod shape {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Events {
-    pub mouse_down : frp::Dynamic<()>,
     pub select     : frp::Dynamic<()>,
     pub deselect   : frp::Dynamic<()>,
 }
@@ -142,63 +144,64 @@ pub struct WeakNode {
 }
 
 #[derive(Debug)]
-pub struct NodeData {
-    pub logger         : Logger,
-    pub display_object : display::object::Node,
-    pub label          : frp::Dynamic<String>,
-    pub events         : Events,
-    pub shape          : Rc<RefCell<Option<shape::ShapeDefinition>>>,
+pub struct NodeView {}
+impl View for NodeView {
+    type Shape = shape::Definition;
+    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
+        shape.sprite.size().set(Vector2::new(200.0,200.0));
+        Self {}
+    }
 }
 
-impl Component for Node {
-    fn on_view_cons(&self, _scene:&Scene, shape_registry:&ShapeRegistry) {
-        let shape = shape_registry.new_instance::<shape::ShapeDefinition>();
-        self.display_object.add_child(&shape);
-        shape.sprite.size().set(Vector2::new(200.0,200.0));
-        shape_registry.insert_mouse_target(*shape.sprite.instance_id,self.downgrade());
-        *self.shape.borrow_mut() = Some(shape);
-    }
+#[derive(Debug)]
+pub struct NodeData {
+    pub logger : Logger,
+    pub label  : frp::Dynamic<String>,
+    pub events : Events,
+    pub view   : ViewManager<NodeView>,
 }
 
 impl Node {
     pub fn new() -> Self {
         frp! {
-            label      = source::<String> ();
-            mouse_down = source::<()>     ();
-            select     = source::<()>     ();
-            deselect   = source::<()>     ();
+            label    = source::<String> ();
+            select   = source::<()>     ();
+            deselect = source::<()>     ();
         }
 
-        let logger         = Logger::new("node");
-        let display_object = display::object::Node::new(&logger);
-        let events         = Events {mouse_down,select,deselect};
-        let shape          = default();
-        let data           = Rc::new(NodeData {logger,display_object,label,events,shape});
-        Self {data} . component_init() . init()
+        let logger = Logger::new("node");
+        let view   = ViewManager::new(&logger);
+        let events = Events {select,deselect};
+        let data   = Rc::new(NodeData {logger,label,events,view});
+        Self {data} . init()
     }
 
     fn init(self) -> Self {
-        frp! {
-            selection_animation = source::<f32> ();
-        }
+        // FIXME: This is needed now because frp leaks memory.
+        let weak_view_data = Rc::downgrade(&self.view.data);
+        let creation = animation(move |value| {
+            weak_view_data.upgrade().for_each(|view_data| {
+                view_data.borrow().as_ref().for_each(|t| t.shape.creation.set(value))
+            })
+        });
+        creation.set_target_position(1.0);
 
-        let shape = Rc::downgrade(&self.shape);
-        selection_animation.map("animation", move |value| {
-            shape.upgrade().for_each(|s| s.borrow().as_ref().for_each(|t| t.selection.set(*value)))
+        // FIXME: This is needed now because frp leaks memory.
+        let weak_view_data = Rc::downgrade(&self.view.data);
+        let selection = animation(move |value| {
+            weak_view_data.upgrade().for_each(|view_data| {
+                view_data.borrow().as_ref().for_each(|t| t.shape.selection.set(value))
+            })
         });
 
-        let simulator = DynInertiaSimulator::<f32>::new(Box::new(move |t| {
-            selection_animation.event.emit(t);
-        }));
-
-        let simulator_ref = simulator.clone_ref();
+        let selection_ref = selection.clone_ref();
         self.events.select.map("select", move |_| {
-            simulator_ref.set_target_position(1.0);
+            selection_ref.set_target_position(1.0);
         });
 
-        let simulator_ref = simulator.clone_ref();
+        let selection_ref = selection.clone_ref();
         self.events.deselect.map("deselect", move |_| {
-            simulator_ref.set_target_position(0.0);
+            selection_ref.set_target_position(0.0);
         });
 
         self
@@ -219,27 +222,8 @@ impl WeakRef for WeakNode {
     }
 }
 
-impl Drop for NodeData {
-    fn drop(&mut self) {
-        println!("DROP NODE DATA");
-    }
-}
-
-impl MouseTarget for Node {
-    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
-        Some(self.events.mouse_down.clone_ref())
-    }
-}
-
-impl MouseTarget for WeakNode {
-    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
-        self.upgrade().map(|t| t.events.mouse_down.clone_ref())
-    }
-}
-
-
 impl<'t> From<&'t Node> for &'t display::object::Node {
     fn from(t:&'t Node) -> Self {
-        &t.display_object
+        &t.view.display_object
     }
 }

@@ -113,7 +113,7 @@ pub type ShapeDefinition<T> = <T as ShapeSystem>::ShapeDefinition;
 //pub type Shape2<T> = ShapeWrapper<ShapeDefinition<T>>;
 
 
-pub trait Shape : Sized {
+pub trait Shape : Debug + Sized {
     type System : ShapeSystem<ShapeDefinition=Self>;
     fn sprite(&self) -> &Sprite;
 }
@@ -133,20 +133,20 @@ macro_rules! shape {
         // =============
 
         #[derive(Clone,Debug)]
-        pub struct ShapeDefinition {
+        pub struct Definition {
             pub sprite : Sprite,
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
-        impl $crate::display::shape::system::Shape for ShapeDefinition {
-            type System = ShapeSystem;
+        impl $crate::display::shape::system::Shape for Definition {
+            type System = System;
             fn sprite(&self) -> &Sprite {
                 &self.sprite
             }
         }
 
-        impl<'t> From<&'t ShapeDefinition> for &'t display::object::Node {
-            fn from(t:&'t ShapeDefinition) -> Self {
+        impl<'t> From<&'t Definition> for &'t display::object::Node {
+            fn from(t:&'t Definition) -> Self {
                 &t.sprite.display_object()
             }
         }
@@ -156,13 +156,13 @@ macro_rules! shape {
         // ==============
 
         #[derive(Clone,CloneRef,Debug)]
-        pub struct ShapeSystem {
+        pub struct System {
             pub shape_system : $crate::display::shape::ShapeSystemDefinition,
             $(pub $gpu_param : Buffer<$gpu_param_type>),*
         }
 
-        impl $crate::display::shape::ShapeSystem for ShapeSystem {
-            type ShapeDefinition = ShapeDefinition;
+        impl $crate::display::shape::ShapeSystem for System {
+            type ShapeDefinition = Definition;
 
             fn new(scene:&Scene) -> Self {
                 let shape_system = $crate::display::shape::ShapeSystemDefinition::new(scene,&Self::shape_def());
@@ -174,11 +174,11 @@ macro_rules! shape {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
-                ShapeDefinition {sprite, $($gpu_param),*}
+                Definition {sprite, $($gpu_param),*}
             }
         }
 
-        impl ShapeSystem {
+        impl System {
             pub fn shape_def() -> AnyShape {
                 $($body)*
             }
