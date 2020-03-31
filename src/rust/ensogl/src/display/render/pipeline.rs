@@ -11,9 +11,9 @@ use crate::system::gpu::texture::*;
 // === Render Pipeline ===
 // =======================
 
+shared! { RenderPipeline
 /// The pipeline is a set of subsequent passes which can consume and produce data. Please note that
 /// although passes are run sequentially, their dependency graph (data passing graph) can be DAG.
-shared! { RenderPipeline
 #[derive(Debug,Default)]
 pub struct RenderPipelineData {
     passes: Vec<Box<dyn RenderPass>>

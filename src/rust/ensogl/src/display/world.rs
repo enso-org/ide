@@ -41,39 +41,20 @@ use crate::display::shape::text::text_field;
 /// World is the top-level application structure. It used to manage several instances of
 /// `Scene`, and there is probability that we will get back to this design in the future.
 /// It is responsible for updating the system on every animation frame.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct World {
     scene         : Scene,
     scene_dirty   : SceneDirty,
     logger        : Logger,
     event_loop    : EventLoop,
     performance   : Performance,
-    start_time    : Immutable<f32>,
+    start_time    : f32,
     time          : Uniform<f32>,
     display_mode  : Uniform<i32>,
     update_handle : Rc<RefCell<Option<CallbackHandle>>>,
     stats         : Stats,
     stats_monitor : StatsMonitor,
     focus_manager : text_field::FocusManager,
-}
-
-impl CloneRef for World {
-    fn clone_ref(&self) -> Self {
-        let scene         = self.scene.clone_ref();
-        let scene_dirty   = self.scene_dirty.clone_ref();
-        let logger        = self.logger.clone_ref();
-        let event_loop    = self.event_loop.clone_ref();
-        let performance   = self.performance.clone_ref();
-        let start_time    = self.start_time.clone_ref();
-        let time          = self.time.clone_ref();
-        let display_mode  = self.display_mode.clone_ref();
-        let update_handle = self.update_handle.clone_ref();
-        let stats         = self.stats.clone_ref();
-        let stats_monitor = self.stats_monitor.clone_ref();
-        let focus_manager = self.focus_manager.clone_ref();
-        Self {scene,scene_dirty,logger,event_loop,performance,start_time,time,display_mode
-             ,update_handle,stats,stats_monitor,focus_manager}
-    }
 }
 
 
@@ -105,7 +86,7 @@ impl World {
         let performance = this.performance.clone_ref();
         let start_time  = this.start_time;
         let update      = move |_:&f64| {
-            let relative_time = performance.now() as f32 - *start_time;
+            let relative_time = performance.now() as f32 - start_time;
             time.set(relative_time);
                 // group!(self.logger, "Updating.", {
                 scene_dirty.unset_all();
@@ -175,7 +156,7 @@ impl World {
         let update_handle      = default();
         let stats_monitor      = StatsMonitor::new(&stats);
         let performance        = web::performance();
-        let start_time         = Immutable(performance.now() as f32);
+        let start_time         = performance.now() as f32;
         let focus_manager      = text_field::FocusManager::new_with_js_handlers();
 
         event_loop.set_on_loop_started  (enclose! ((stats_monitor) move || {

@@ -6,7 +6,6 @@ pub mod button;
 pub mod event;
 
 use crate::control::callback::*;
-use crate::system::web::dom::Shape;
 use crate::system::web;
 
 use enso_frp::EventEmitterPoly;
@@ -16,7 +15,6 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-use web_sys::EventTarget;
 
 pub use button::*;
 pub use event::*;
@@ -78,7 +76,7 @@ macro_rules! define_bindings {
         /// Keeps references to JavaScript closures in order to keep them alive.
         #[derive(Debug)]
         pub struct MouseManagerClosures {
-            dom     : EventTarget,
+            dom     : web::EventTarget,
             $($name : MouseEventJsClosure),*
         }
 
@@ -99,7 +97,7 @@ macro_rules! define_bindings {
         #[derive(Clone,Debug,Default)]
         #[allow(missing_docs)]
         pub struct MouseManagerDispatchers {
-            $(pub $name : EventDispatcher<event::$target>),*
+            $(pub $name : EventDispatcher<$target>),*
         }
 
         impl CloneRef for MouseManagerDispatchers {}
@@ -149,13 +147,13 @@ pub struct MouseFrpCallbackHandles {
 /// Bind FRP graph to MouseManager.
 pub fn bind_frp_to_mouse(frp:&enso_frp::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
-    let on_move = enclose!((frp.position.event => frp) move |e:&event::OnMove| {
+    let on_move = enclose!((frp.position.event => frp) move |e:&OnMove| {
         frp.emit(Position::new(e.client_x(),e.client_y()));
     });
-    let on_down  = enclose!((frp.on_down.event  => frp) move |_:&event::OnDown | frp.emit(()));
-    let on_up    = enclose!((frp.on_up.event    => frp) move |_:&event::OnUp   | frp.emit(()));
-    let on_wheel = enclose!((frp.on_wheel.event => frp) move |_:&event::OnWheel| frp.emit(()));
-    let on_leave = enclose!((frp.on_leave.event => frp) move |_:&event::OnLeave| frp.emit(()));
+    let on_down  = enclose!((frp.on_down.event  => frp) move |_:&OnDown | frp.emit(()));
+    let on_up    = enclose!((frp.on_up.event    => frp) move |_:&OnUp   | frp.emit(()));
+    let on_wheel = enclose!((frp.on_wheel.event => frp) move |_:&OnWheel| frp.emit(()));
+    let on_leave = enclose!((frp.on_leave.event => frp) move |_:&OnLeave| frp.emit(()));
     MouseFrpCallbackHandles {
         on_move  : mouse_manager.on_move.add(on_move),
         on_down  : mouse_manager.on_down.add(on_down),

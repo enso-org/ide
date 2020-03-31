@@ -54,11 +54,17 @@ use std::cell::UnsafeCell;
 // === Immutable ===
 // =================
 
-#[derive(Clone,Copy,Default,Shrinkwrap)]
+/// A zero-overhead newtype which provides immutable access to its content. Of course this does not
+/// apply to internal mutability of the wrapped data. A good use case of this structure is when you
+/// want to pass an ownership to a structure, allow access all its public fields, but do not allow
+/// their modification.
+#[derive(Clone,Copy,Default)]
 pub struct Immutable<T> {
     data : T
 }
 
+/// Constructor of the `Immutable` struct.
+#[allow(non_snake_case)]
 pub fn Immutable<T>(data:T) -> Immutable<T> {
     Immutable {data}
 }
@@ -81,6 +87,25 @@ impl<T:Clone> CloneRef for Immutable<T> {
     }
 }
 
+impl<T> AsRef<T> for Immutable<T> {
+    fn as_ref(&self) -> &T {
+        &self.data
+    }
+}
+
+impl<T> std::borrow::Borrow<T> for Immutable<T> {
+    fn borrow(&self) -> &T {
+        &self.data
+    }
+}
+
+impl<T> Deref for Immutable<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
 
 
 // ================
@@ -100,6 +125,11 @@ pub trait CloneRef: Sized + Clone {
 }
 
 impl CloneRef for () {}
+impl CloneRef for f32 {}
+impl CloneRef for f64 {}
+impl CloneRef for i32 {}
+impl CloneRef for i64 {}
+impl CloneRef for usize {}
 impl<T:?Sized> CloneRef for Rc<T> {}
 impl<T:?Sized> CloneRef for Weak<T> {}
 

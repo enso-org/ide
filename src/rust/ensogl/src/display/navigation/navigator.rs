@@ -30,7 +30,7 @@ use nalgebra::zero;
 #[derive(Debug)]
 pub struct Navigator {
     _events         : NavigatorEvents,
-    simulator       : DynInertiaSimulator<Position3>,
+    simulator       : DynInertiaSimulator<Point3>,
     resize_callback : CallbackHandle
 }
 
@@ -46,8 +46,8 @@ impl Navigator {
         Self {simulator,_events,resize_callback}
     }
 
-    fn create_simulator(camera:&Camera2d) -> DynInertiaSimulator<Position3> {
-        let simulator = DynInertiaSimulator::new(Box::new(enclose!((camera) move |p:Position3| camera.set_position(p.into()))));
+    fn create_simulator(camera:&Camera2d) -> DynInertiaSimulator<Point3> {
+        let simulator = DynInertiaSimulator::new(Box::new(enclose!((camera) move |p:Point3| camera.set_position(p.into()))));
         simulator.set_position(camera.position().into());
         simulator.set_target_position(camera.position().into());
         simulator
@@ -59,7 +59,7 @@ impl Navigator {
     , min_zoom   : f32
     , max_zoom   : f32
     , zoom_speed : f32
-    ) -> (DynInertiaSimulator<Position3>,CallbackHandle,NavigatorEvents) {
+    ) -> (DynInertiaSimulator<Point3>,CallbackHandle,NavigatorEvents) {
         let simulator        = Self::create_simulator(&camera);
         let dom_clone        = dom.clone();
         let panning_callback = enclose!((dom,camera,mut simulator) move |pan: PanEvent| {
@@ -70,7 +70,7 @@ impl Navigator {
 
             let dx   = pan.movement.x * movement_scale_for_distance;
             let dy   = pan.movement.y * movement_scale_for_distance;
-            let diff = Position3::new(dx,dy,0.0);
+            let diff = Point3::new(dx,dy,0.0);
             simulator.update_target_position(|p| p + diff);
         });
 
@@ -94,7 +94,7 @@ impl Navigator {
                 let x              = -normalized.x * camera.screen().aspect();
                 let y              = -normalized.y;
                 let z              = half_height / camera.half_fovy_slope();
-                let direction      = Position3::new(x,y,z).normalize();
+                let direction      = Point3::new(x,y,z).normalize();
                 let mut position   = simulator.target_position();
                 let min_zoom       = camera.clipping().near + min_zoom;
                 let zoom_amount    = zoom.amount * position.z;

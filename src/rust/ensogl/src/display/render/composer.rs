@@ -12,8 +12,8 @@ use js_sys::Array;
 // === RenderComposer ===
 // ======================
 
-/// Render composer is a render pipeline bound to a specific context.
 shared! { RenderComposer
+/// Render composer is a render pipeline bound to a specific context.
 #[derive(Debug)]
 pub struct RenderComposerData {
     passes    : Vec<ComposerPass>,

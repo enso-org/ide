@@ -5,7 +5,6 @@ pub mod transform;
 
 use crate::prelude::*;
 
-use crate::closure;
 use crate::control::callback::DynEvent;
 use crate::control::callback::DynEventDispatcher;
 use crate::data::dirty::traits::*;
@@ -14,7 +13,6 @@ use crate::display::scene::Scene;
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
-use shapely::shared;
 use transform::CachedTransform;
 
 

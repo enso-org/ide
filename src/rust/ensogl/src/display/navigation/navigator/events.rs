@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
+use crate::control::io::mouse;
 use crate::control::io::mouse::MouseManager;
-use crate::control::io::mouse::event::*;
 use crate::control::io::mouse::button;
 use crate::control::callback::CallbackHandle;
 use crate::system::web::IgnoreContextMenuHandle;
@@ -9,7 +9,6 @@ use crate::system::web;
 
 use nalgebra::Vector2;
 use nalgebra::zero;
-use web_sys::EventTarget;
 
 
 
@@ -212,7 +211,7 @@ impl NavigatorEvents {
         event_handler
     }
 
-    fn initialize_mouse_events(&mut self, target:&EventTarget) {
+    fn initialize_mouse_events(&mut self, target:&web::EventTarget) {
         self.disable_context_menu(target);
         self.initialize_wheel_zoom();
         self.initialize_mouse_start_event();
@@ -222,7 +221,7 @@ impl NavigatorEvents {
 
     fn initialize_wheel_zoom(&mut self) {
         let data     = Rc::downgrade(&self.data);
-        let listener = self.mouse_manager.on_wheel.add(move |event:&OnWheel| {
+        let listener = self.mouse_manager.on_wheel.add(move |event:&mouse::OnWheel| {
             event.prevent_default();
             if let Some(data) = data.upgrade() {
                 if event.ctrl_key() {
@@ -246,7 +245,7 @@ impl NavigatorEvents {
 
     fn initialize_mouse_start_event(&mut self) {
         let data     = Rc::downgrade(&self.data);
-        let listener = self.mouse_manager.on_down.add(move |event:&OnDown| {
+        let listener = self.mouse_manager.on_down.add(move |event:&mouse::OnDown| {
             if let Some(data) = data.upgrade() {
                 match event.button() {
                     button::MiddleButton => {
@@ -263,13 +262,13 @@ impl NavigatorEvents {
         self.mouse_down = Some(listener);
     }
 
-    fn disable_context_menu(&mut self, target:&EventTarget) {
+    fn disable_context_menu(&mut self, target:&web::EventTarget) {
         self.disable_context_menu = Some(web::ignore_context_menu(target).unwrap());
     }
 
     fn initialize_mouse_end_event(&mut self) {
         let data     = Rc::downgrade(&self.data);
-        let listener = self.mouse_manager.on_up.add(move |_:&OnUp| {
+        let listener = self.mouse_manager.on_up.add(move |_:&mouse::OnUp| {
             if let Some(data) = data.upgrade() {
                 data.set_movement_type(None);
             }
@@ -277,7 +276,7 @@ impl NavigatorEvents {
         self.mouse_up = Some(listener);
 
         let data     = Rc::downgrade(&self.data);
-        let listener = self.mouse_manager.on_leave.add(move |_:&OnLeave| {
+        let listener = self.mouse_manager.on_leave.add(move |_:&mouse::OnLeave| {
             if let Some(data) = data.upgrade() {
                 data.set_movement_type(None);
             }
@@ -287,7 +286,7 @@ impl NavigatorEvents {
 
     fn initialize_mouse_move_event(&mut self) {
         let data     = Rc::downgrade(&self.data);
-        let listener = self.mouse_manager.on_move.add(move |event:&OnMove| {
+        let listener = self.mouse_manager.on_move.add(move |event:&mouse::OnMove| {
             if let Some(data) = data.upgrade() {
                 let position = Vector2::new(event.offset_x() as f32, event.offset_y() as f32);
                 data.set_mouse_position(position);
