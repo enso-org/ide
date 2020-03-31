@@ -14,9 +14,14 @@ use utils::fail::FallibleResult;
 // ==============
 
 #[allow(missing_docs)]
-#[fail(display = "The crumb refers to line by index that is out of bounds.")]
-#[derive(Debug,Fail,Clone,Copy)]
-pub struct LineIndexOutOfBounds;
+#[fail(display = "The crumb refers to a {} which is not present.", _0)]
+#[derive(Debug,Fail,Clone)]
+pub struct NotPresent(String);
+
+#[allow(missing_docs)]
+#[fail(display = "The crumb refers to {} by index that is out of bounds.", _0)]
+#[derive(Debug,Fail,Clone)]
+pub struct IndexOutOfBounds(String);
 
 #[allow(missing_docs)]
 #[derive(Debug,Fail,Clone)]
@@ -396,13 +401,13 @@ impl Crumbable for crate::Module<Ast> {
     type Crumb = ModuleCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let line = self.lines.get(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
+        let line = self.lines.get(crumb.line_index).ok_or(IndexOutOfBounds("line".into()))?;
         line.elem.as_ref().ok_or_else(|| LineDoesNotContainAst::new(self,crumb).into())
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut module = self.clone();
-        let line = module.lines.get_mut(crumb.line_index).ok_or(LineIndexOutOfBounds)?;
+        let line = module.lines.get_mut(crumb.line_index).ok_or(IndexOutOfBounds("line".into()))?;
         line.elem.replace(new_ast);
         Ok(module)
     }
@@ -418,12 +423,12 @@ impl Crumbable for crate::Import<Ast> {
     type Crumb = ImportCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        self.path.get(crumb.index).ok_or_else(|| LineIndexOutOfBounds.into())
+        self.path.get(crumb.index).ok_or_else(|| IndexOutOfBounds("path".into()).into())
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut import = self.clone();
-        let path = import.path.get_mut(crumb.index).ok_or(LineIndexOutOfBounds)?;
+        let path = import.path.get_mut(crumb.index).ok_or(IndexOutOfBounds("path".into()))?;
         *path = new_ast;
         Ok(import)
     }
@@ -441,10 +446,10 @@ impl Crumbable for crate::Mixfix<Ast> {
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         match crumb {
             MixfixCrumb::Name {index} => {
-                self.name.get(*index).ok_or_else(|| LineIndexOutOfBounds.into())
+                self.name.get(*index).ok_or_else(|| IndexOutOfBounds("name".into()).into())
             },
             MixfixCrumb::Args {index} => {
-                self.args.get(*index).ok_or_else(|| LineIndexOutOfBounds.into())
+                self.args.get(*index).ok_or_else(|| IndexOutOfBounds("arg".into()).into())
             }
         }
     }
@@ -453,10 +458,12 @@ impl Crumbable for crate::Mixfix<Ast> {
         let mut mixfix = self.clone();
         match crumb {
             MixfixCrumb::Name {index} => {
-                *mixfix.name.get_mut(*index).ok_or_else(|| LineIndexOutOfBounds)? = new_ast;
+                *mixfix.name.get_mut(*index).ok_or_else(|| {
+                    IndexOutOfBounds("name".into())
+                })? = new_ast;
             },
             MixfixCrumb::Args {index} => {
-                *mixfix.args.get_mut(*index).ok_or(LineIndexOutOfBounds)? = new_ast;
+                *mixfix.args.get_mut(*index).ok_or(IndexOutOfBounds("arg".into()))? = new_ast;
             }
         }
         Ok(mixfix)
@@ -477,8 +484,12 @@ impl Crumbable for crate::Def<Ast> {
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         match crumb {
             DefCrumb::Name         => Ok(&self.name),
-            DefCrumb::Args {index} => self.args.get(*index).ok_or_else(|| LineIndexOutOfBounds.into()),
-            DefCrumb::Body         => self.body.as_ref().ok_or_else(|| LineIndexOutOfBounds.into())
+            DefCrumb::Args {index} => self.args.get(*index).ok_or_else(|| {
+                IndexOutOfBounds("arg".into()).into()
+            }),
+            DefCrumb::Body         => self.body.as_ref().ok_or_else(|| {
+                NotPresent("body".into()).into()
+            })
         }
     }
 
@@ -487,7 +498,7 @@ impl Crumbable for crate::Def<Ast> {
         match crumb {
             DefCrumb::Name         => def.name = new_ast,
             DefCrumb::Args {index} => {
-                let arg = def.args.get_mut(*index).ok_or(LineIndexOutOfBounds)?;
+                let arg = def.args.get_mut(*index).ok_or(IndexOutOfBounds("arg".into()))?;
                 *arg = new_ast;
             },
             DefCrumb::Body         => def.body = Some(new_ast)
@@ -507,7 +518,7 @@ impl Crumbable for crate::Group<Ast> {
     type Crumb = GroupCrumb;
 
     fn get(&self, _crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        Ok(self.body.as_ref().ok_or(LineIndexOutOfBounds)?)
+        Ok(self.body.as_ref().ok_or(NotPresent("body".into()))?)
     }
 
     fn set(&self, _crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
@@ -528,7 +539,7 @@ impl Crumbable for crate::Block<Ast> {
         match crumb {
             BlockCrumb::HeadLine => Ok(&self.first_line.elem),
             BlockCrumb::TailLine {tail_index} => {
-                let line = self.lines.get(*tail_index).ok_or(LineIndexOutOfBounds)?;
+                let line = self.lines.get(*tail_index).ok_or(IndexOutOfBounds("line".into()))?;
                 line.elem.as_ref().ok_or_else(|| LineDoesNotContainAst::new(self,crumb).into())
             }
         }
@@ -539,7 +550,7 @@ impl Crumbable for crate::Block<Ast> {
         match crumb {
             BlockCrumb::HeadLine              => block.first_line.elem = new_ast,
             BlockCrumb::TailLine {tail_index} => {
-                let line = block.lines.get_mut(*tail_index).ok_or(LineIndexOutOfBounds)?;
+                let line = block.lines.get_mut(*tail_index).ok_or(IndexOutOfBounds("line".into()))?;
                 line.elem.replace(new_ast);
             }
         }
@@ -560,22 +571,24 @@ impl Crumbable for crate::TextLineFmt<Ast> {
     type Crumb = TextLineFmtCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let segment = self.text.get(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
+        let segment = self.text.get(crumb.segment_index);
+        let segment = segment.ok_or(IndexOutOfBounds("text segment".into()))?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
-            expr.value.as_ref().map(|ast| ast).ok_or_else(|| LineIndexOutOfBounds.into())
+            expr.value.as_ref().map(|ast| ast).ok_or_else(|| NotPresent("expression".into()).into())
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("segment expression".into()).into())
         }
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut text = self.clone();
-        let segment = text.text.get_mut(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
+        let segment = text.text.get_mut(crumb.segment_index);
+        let segment = segment.ok_or(IndexOutOfBounds("text segment".into()))?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
             expr.value = Some(new_ast);
             Ok(text)
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("segment expression".into()).into())
         }
     }
 
@@ -597,7 +610,7 @@ impl Crumbable for crate::TextUnclosed<Ast> {
         if let crate::TextLine::TextLineFmt(text_line) = &self.line {
             text_line.get(&crumb.text_line_crumb)
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("formatted text line".into()).into())
         }
     }
 
@@ -607,7 +620,7 @@ impl Crumbable for crate::TextUnclosed<Ast> {
             text.line = crate::TextLine::TextLineFmt(text_line.set(&crumb.text_line_crumb,new_ast)?);
             Ok(text)
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("formatted text line".into()).into())
         }
     }
 
@@ -626,24 +639,28 @@ impl Crumbable for crate::TextBlockFmt<Ast> {
     type Crumb = TextBlockFmtCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let line = self.text.get(crumb.text_line_index).ok_or(LineIndexOutOfBounds)?;
-        let segment = line.text.get(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
+        let line = self.text.get(crumb.text_line_index).ok_or(IndexOutOfBounds("line".into()))?;
+        let segment = line.text.get(crumb.segment_index).ok_or(IndexOutOfBounds("segment".into()))?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
-            expr.value.as_ref().map(|ast| ast).ok_or_else(|| LineIndexOutOfBounds.into())
+            expr.value.as_ref().map(|ast| ast).ok_or_else(|| {
+                NotPresent("expression value".into()).into()
+            })
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("expression segment".into()).into())
         }
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut text = self.clone();
-        let line    = text.text.get_mut(crumb.text_line_index).ok_or(LineIndexOutOfBounds)?;
-        let segment = line.text.get_mut(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
+        let line    = text.text.get_mut(crumb.text_line_index);
+        let line    = line.ok_or(IndexOutOfBounds("line".into()))?;
+        let segment = line.text.get_mut(crumb.segment_index);
+        let segment = segment.ok_or(IndexOutOfBounds("segment".into()))?;
         if let SegmentFmt::SegmentExpr(expr) = segment {
             expr.value = Some(new_ast);
             Ok(text)
         } else {
-            Err(LineIndexOutOfBounds.into())
+            Err(NotPresent("expression segment".into()).into())
         }
     }
 
