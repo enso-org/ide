@@ -2,7 +2,6 @@
 //! animation with easing functions.
 
 pub mod physics;
-pub mod animator;
 pub mod easing;
 
 

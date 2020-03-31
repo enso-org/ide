@@ -219,6 +219,8 @@ impl<T:Position> SimulationData<T> {
 // === Simulation ===
 // ==================
 
+/// The main simulation engine. It allows running the simulation by explicitly calling the `step`
+/// function. Refer to `Simulator` for a more aautomated solution.
 #[derive(Clone,Debug,Default)]
 pub struct Simulation<T:Copy> {
     data : Rc<Cell<SimulationData<T>>>
@@ -299,26 +301,32 @@ impl<T:Position> Simulation<T> {
 
 
 
-// ========================
+// =================
 // === Simulator ===
-// ========================
+// =================
+
+/// Simulator callback.
+pub trait Callback<T> = Fn(T)+'static;
 
 /// Handy alias for `Simulator` with a boxed closure callback.
 pub type DynSimulator<T> = Simulator<T,Box<dyn Fn(T)>>;
 
+/// The `Simulation` with an associated animation loop. The simulation is updated every frame in an
+/// efficient way – when the simulation finishes, it automatically unregisters in the animation loop
+/// and registers back only when needed.
 #[derive(Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct Simulator<T:Position,Callback> {
+pub struct Simulator<T:Position,Cb> {
     #[shrinkwrap(main_field)]
     simulation     : Simulation<T>,
-    animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationLoop<Step<T,Callback>>>>>,
+    animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationLoop<Step<T,Cb>>>>>,
     frame_rate     : Rc<Cell<f64>>,
     #[derivative(Debug="ignore")]
-    callback : Rc<Callback>,
+    callback : Rc<Cb>,
 }
 
-impl<T:Position,Callback> CloneRef for Simulator<T,Callback> {
+impl<T:Position,Cb> CloneRef for Simulator<T,Cb> {
     fn clone_ref(&self) -> Self {
         let simulation     = self.simulation.clone_ref();
         let animation_loop = self.animation_loop.clone_ref();
@@ -328,36 +336,24 @@ impl<T:Position,Callback> CloneRef for Simulator<T,Callback> {
     }
 }
 
-impl<T:Position,Callback> Simulator<T,Callback>
-where Callback : Fn(T)+'static {
+impl<T:Position,Cb> Simulator<T,Cb>
+where Cb : Callback<T> {
     /// Constructor.
-    pub fn new(callback:Callback) -> Self {
+    pub fn new(callback:Cb) -> Self {
         let frame_rate     = Rc::new(Cell::new(60.0));
         let callback       = Rc::new(callback);
         let simulation     = Simulation::new();
         let animation_loop = default();
         Self {simulation,animation_loop,frame_rate,callback} . init()
     }
+}
 
-    fn init(self) -> Self {
-        self.start();
-        self
-    }
+// === Setters ===
 
-    fn start(&self) {
-        if self.animation_loop.get().is_none() {
-            let frame_rate     = self.frame_rate.get();
-            let step           = step(&self);
-            let animation_loop = AnimationLoop::new_with_fixed_frame_rate(frame_rate,step);
-            self.animation_loop.set(Some(animation_loop));
-        }
-    }
-
-    fn stop(&self) {
-        self.animation_loop.set(None);
-    }
-
-    pub fn set_callback(&mut self, callback:Callback) {
+#[allow(missing_docs)]
+impl<T:Position,Cb> Simulator<T,Cb>
+where Cb : Callback<T> {
+    pub fn set_callback(&mut self, callback:Cb) {
         let callback = Rc::new(callback);
         self.callback = callback;
         self.stop();
@@ -380,12 +376,39 @@ where Callback : Fn(T)+'static {
     }
 }
 
-pub type Step<T,Callback> = impl Fn(TimeInfo);
-fn step<T:Position,Callback>(simulator:&Simulator<T,Callback>) -> Step<T,Callback>
-where Callback : Fn(T)+'static {
+
+// === Private API ===
+
+impl<T:Position,Cb> Simulator<T,Cb>
+where Cb : Callback<T> {
+    fn init(self) -> Self {
+        self.start();
+        self
+    }
+
+    /// Starts the simulation and attaches it to an animation loop.
+    fn start(&self) {
+        if self.animation_loop.get().is_none() {
+            let frame_rate     = self.frame_rate.get();
+            let step           = step(&self);
+            let animation_loop = AnimationLoop::new_with_fixed_frame_rate(frame_rate,step);
+            self.animation_loop.set(Some(animation_loop));
+        }
+    }
+
+    /// Stops the simulation and detaches it from animation loop.
+    fn stop(&self) {
+        self.animation_loop.set(None);
+    }
+}
+
+
+pub type Step<T,Cb> = impl Fn(TimeInfo);
+fn step<T:Position,Cb>(simulator:&Simulator<T,Cb>) -> Step<T,Cb>
+where Cb : Callback<T> {
     let this = simulator.clone_ref();
     move |time:TimeInfo| {
-        let delta_seconds = (time.frame_time / 1000.0) as f32;
+        let delta_seconds = (time.frame / 1000.0) as f32;
         if this.simulation.active() {
             this.simulation.step(delta_seconds);
             (this.callback)(this.simulation.position());

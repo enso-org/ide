@@ -27,20 +27,13 @@ pub trait EventLoopCallback = CallbackMut1Fn<f64>;
 /// is registered, a `CallbackHandle` is returned. The callback is automatically removed as soon as
 /// its handle is dropped. You can also use the `forget` method on the handle to make the callback
 /// registered forever, but beware that it can easily lead to memory leaks.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct EventLoop {
     frame_loop : RawAnimationLoop<Box<dyn FnMut(f64)>>,
     data       : Rc<RefCell<EventLoopData>>,
 }
 
-impl CloneRef for EventLoop {
-    fn clone_ref(&self) -> Self {
-        let frame_loop  = self.frame_loop.clone_ref();
-        let data        = self.data.clone_ref();
-        Self {frame_loop,data}
-    }
-}
-
+/// Internal representation for `EventLoop`.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct EventLoopData {
@@ -52,6 +45,7 @@ pub struct EventLoopData {
 }
 
 impl EventLoopData {
+    /// Constructor.
     pub fn new() -> Self {
         let callbacks        = default();
         let on_loop_started  = Box::new(||{});
@@ -61,6 +55,7 @@ impl EventLoopData {
 }
 
 impl EventLoop {
+    /// Constructor.
     pub fn new() -> Self {
         let data = Rc::new(RefCell::new(EventLoopData::new()));
         let weak = Rc::downgrade(&data);
@@ -102,11 +97,16 @@ impl EventLoop {
 
 // === Types ===
 
+/// Callback for `RawAnimationLoop`.
 pub trait RawAnimationLoopCallback = FnMut(f64) + 'static;
 
 
 // === Definition ===
 
+/// The most performant animation loop possible. However, if you are looking for a way to define
+/// an animation loop, you are probably looking for the `AnimationLoop` which adds slight complexity
+/// in order to provide better time information. The complexity is so small that it would not be
+/// noticeable in almost any use case.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
@@ -176,25 +176,20 @@ impl<Callback> Drop for RawAnimationLoopData<Callback> {
 /// differ across browsers and browser versions. We have even observed that `performance.now()` can
 /// sometimes provide a bigger value than time provided to `requestAnimationFrame` callback later,
 /// which resulted in a negative frame time.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct TimeInfo {
-    pub start      : f64,
-    pub frame_time : f64,
-    pub local      : f64,
+    /// Start time of the animation loop.
+    pub start : f64,
+    /// The last frame time.
+    pub frame : f64,
+    /// The time which passed since the animation loop was started.
+    pub local : f64,
 }
 
 impl TimeInfo {
+    /// Constructor.
     pub fn new() -> Self {
         default()
-    }
-}
-
-impl Default for TimeInfo {
-    fn default() -> Self {
-        let start      = 0.0;
-        let frame_time = 0.0;
-        let local      = 0.0;
-        Self {start,frame_time,local}
     }
 }
 
@@ -211,6 +206,9 @@ pub trait AnimationLoopCallback = FnMut(TimeInfo) + 'static;
 
 // === Definition ===
 
+/// An animation loop. Runs the provided `Callback` every animation frame. It uses the
+/// `RawAnimationLoop` under the hood. If you are looking for a more complex version where you can
+/// register new callbacks for every frame, take a look at the ``.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
@@ -240,11 +238,11 @@ pub type OnFrame<Callback> = impl FnMut(f64);
 fn on_frame<Callback>(mut callback:Callback, time_info_ref:Rc<Cell<TimeInfo>>) -> OnFrame<Callback>
 where Callback : AnimationLoopCallback {
     move |current_time:f64| {
-        let time_info  = time_info_ref.get();
-        let start      = if time_info.start == 0.0 {current_time} else {time_info.start};
-        let frame_time = current_time - start - time_info.local;
-        let local      = current_time - start;
-        let time_info  = TimeInfo {start,frame_time,local};
+        let time_info = time_info_ref.get();
+        let start     = if time_info.start == 0.0 {current_time} else {time_info.start};
+        let frame     = current_time - start - time_info.local;
+        let local     = current_time - start;
+        let time_info = TimeInfo {start,frame,local};
         time_info_ref.set(time_info);
         callback(time_info);
     }
@@ -286,19 +284,19 @@ impl<Callback:FnOnce<(TimeInfo,)>> FnOnce<(TimeInfo,)> for FixedFrameRateSampler
 
 impl<Callback:FnMut<(TimeInfo,)>> FnMut<(TimeInfo,)> for FixedFrameRateSampler<Callback> {
     extern "rust-call" fn call_mut(&mut self, args:(TimeInfo,)) -> Self::Output {
-        let time_info = args.0;
-        self.time_buffer += time_info.frame_time;
+        let time = args.0;
+        self.time_buffer += time.frame;
         loop {
             if self.time_buffer < 0.0 {
                 break
             } else {
                 self.time_buffer -= self.frame_time;
-                let start      = time_info.start;
-                let frame_time = self.frame_time;
-                let local      = self.local_time;
-                let time_info2 = TimeInfo {start,frame_time,local};
+                let start = time.start;
+                let frame = self.frame_time;
+                let local = self.local_time;
+                let time2 = TimeInfo {start,frame,local};
                 self.local_time += self.frame_time;
-                self.callback.call_mut((time_info2,));
+                self.callback.call_mut((time2,));
             }
         }
     }
