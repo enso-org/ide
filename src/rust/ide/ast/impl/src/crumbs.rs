@@ -418,7 +418,7 @@ impl Crumbable for crate::Import<Ast> {
     type Crumb = ImportCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        Ok(self.path.get(crumb.path_index).ok_or(LineIndexOutOfBounds)?)
+        self.path.get(crumb.path_index).ok_or(LineIndexOutOfBounds.into())
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
@@ -441,10 +441,10 @@ impl Crumbable for crate::Mixfix<Ast> {
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         match crumb {
             MixfixCrumb::Name {index} => {
-                Ok(self.name.get(*index).ok_or(LineIndexOutOfBounds)?)
+                self.name.get(*index).ok_or(LineIndexOutOfBounds.into())
             },
             MixfixCrumb::Args {index} => {
-                Ok(self.args.get(*index).ok_or(LineIndexOutOfBounds)?)
+                self.args.get(*index).ok_or(LineIndexOutOfBounds.into())
             }
         }
     }
@@ -477,8 +477,8 @@ impl Crumbable for crate::Def<Ast> {
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
         match crumb {
             DefCrumb::Name         => Ok(&self.name),
-            DefCrumb::Args {index} => Ok(self.args.get(*index).ok_or(LineIndexOutOfBounds)?),
-            DefCrumb::Body         => Ok(self.body.as_ref().ok_or(LineIndexOutOfBounds)?)
+            DefCrumb::Args {index} => self.args.get(*index).ok_or(LineIndexOutOfBounds.into()),
+            DefCrumb::Body         => self.body.as_ref().ok_or(LineIndexOutOfBounds.into())
         }
     }
 
@@ -561,7 +561,7 @@ impl Crumbable for crate::TextLineFmt<Ast> {
     type Crumb = TextLineFmtCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let segment = &self.text[crumb.segment_index];
+        let segment = self.text.get(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
             expr.value.as_ref().map(|ast| ast).ok_or(LineIndexOutOfBounds.into())
         } else {
@@ -571,7 +571,7 @@ impl Crumbable for crate::TextLineFmt<Ast> {
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut text = self.clone();
-        let segment  = &mut text.text[crumb.segment_index];
+        let segment = text.text.get_mut(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
             expr.value = Some(new_ast);
             Ok(text)
@@ -621,8 +621,8 @@ impl Crumbable for crate::TextBlockFmt<Ast> {
     type Crumb = TextBlockFmtCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let line    = &self.text[crumb.text_line_index];
-        let segment = &line.text[crumb.segment_index];
+        let line = self.text.get(crumb.text_line_index).ok_or(LineIndexOutOfBounds)?;
+        let segment = line.text.get(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
             expr.value.as_ref().map(|ast| ast).ok_or(LineIndexOutOfBounds.into())
         } else {
@@ -632,8 +632,8 @@ impl Crumbable for crate::TextBlockFmt<Ast> {
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut text = self.clone();
-        let line     = &mut text.text[crumb.text_line_index];
-        let segment  = &mut line.text[crumb.segment_index];
+        let line    = text.text.get_mut(crumb.text_line_index).ok_or(LineIndexOutOfBounds)?;
+        let segment = line.text.get_mut(crumb.segment_index).ok_or(LineIndexOutOfBounds)?;
         if let crate::SegmentFmt::SegmentExpr(expr) = segment {
             expr.value = Some(new_ast);
             Ok(text)
@@ -917,6 +917,8 @@ mod tests {
         ast.set(&crumb, internal_ast)
     }
 
+    // === Infix ===
+
     #[test]
     fn infix_crumb() -> FallibleResult<()> {
         let infix  = Ast::infix_var("foo","+","bar");
@@ -938,160 +940,12 @@ mod tests {
     }
 
     #[test]
-    fn text_line_fmt_crumb() {
-        let expr   = SegmentExpr { value : Some(Ast::var("foo")) };
-        let text   = vec![SegmentFmt::SegmentExpr(expr)];
-        let ast    = Ast::text_line_fmt(text);
-        let crumbf = |crumb| Crumb::TextLineFmt(crumb);
-        let bar    = Ast::var("bar");
-        let crumb  = TextLineFmtCrumb{segment_index:0};
-
-        assert_eq!(ast.repr(), "'`foo`'");
-        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
-        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`'");
-    }
-
-    #[test]
-    fn text_block_fmt_crumb() {
-        let empty_lines = default();
-        let expr        = SegmentExpr { value : Some(Ast::var("foo")) };
-        let text        = vec![SegmentFmt::SegmentExpr(expr)];
-        let line1       = TextBlockLine{empty_lines,text};
-
-        let empty_lines = default();
-        let expr        = SegmentExpr { value : Some(Ast::var("bar")) };
-        let text        = vec![SegmentFmt::SegmentExpr(expr)];
-        let line2       = TextBlockLine{empty_lines,text};
-
-        let lines       = vec![line1,line2];
-        let ast         = Ast::text_block_fmt(lines);
-        let qux         = Ast::var("qux");
-        let baz         = Ast::var("baz");
-
-        let crumbf = |crumb| Crumb::TextBlockFmt(crumb);
-        assert_eq!(ast.repr(), "'''\n`foo`\n`bar`");
-
-        let crumb1 = TextBlockFmtCrumb {text_line_index:0, segment_index:0};
-        let crumb2 = TextBlockFmtCrumb {text_line_index:1, segment_index:0};
-
-        assert_eq!(get(crumbf,&ast,crumb1).unwrap().repr(), "foo");
-        assert_eq!(get(crumbf,&ast,crumb2).unwrap().repr(), "bar");
-
-        assert_eq!(set(crumbf,&ast,crumb1,qux).unwrap().repr(),"'''\n`qux`\n`bar`");
-        assert_eq!(set(crumbf,&ast,crumb2,baz).unwrap().repr(),"'''\n`foo`\n`baz`");
-    }
-
-    #[test]
-    fn text_unclosed_crumb() {
-        let expr            = SegmentExpr { value : Some(Ast::var("foo")) };
-        let text            = vec![SegmentFmt::SegmentExpr(expr)];
-        let text_line       = TextLineFmt{text};
-        let line            = TextLine::TextLineFmt(text_line);
-        let ast             = Ast::text_unclosed(line);
-        let crumbf          = |crumb| Crumb::TextUnclosed(crumb);
-        let bar             = Ast::var("bar");
-        let text_line_crumb = TextLineFmtCrumb{segment_index:0};
-        let crumb           = TextUnclosedCrumb{text_line_crumb};
-
-        assert_eq!(ast.repr(), "'`foo`");
-        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
-        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`");
-    }
-
-    #[test]
-    fn prefix_crumb() -> FallibleResult<()> {
-        let prefix = Ast::prefix(Ast::var("func"), Ast::var("arg"));
-        let get   = |prefix_crumb| {
-            let crumb = Crumb::Prefix(prefix_crumb);
-            prefix.get(&crumb)
-        };
-        let set   = |prefix_crumb, ast| {
-            let crumb = Crumb::Prefix(prefix_crumb);
-            prefix.set(&crumb,ast)
-        };
-        let foo = Ast::var("foo");
-        let x   = Ast::var("x");
-
-        assert_eq!(prefix.repr(), "func arg");
-
-        assert_eq!(get(PrefixCrumb::Func)?.repr(), "func");
-        assert_eq!(get(PrefixCrumb::Arg)?.repr(),  "arg");
-
-        assert_eq!(set(PrefixCrumb::Func, foo.clone())?.repr(), "foo arg");
-        assert_eq!(set(PrefixCrumb::Arg,  x.clone())?.repr(), "func x");
-
-        Ok(())
-    }
-
-    #[test]
-    fn section_left_crumb() -> FallibleResult<()> {
-        let app = Ast::section_left(Ast::var("foo"), Ast::var("bar"));
-        let get   = |app_crumb| {
-            let crumb = Crumb::SectionLeft(app_crumb);
-            app.get(&crumb)
-        };
-        let set   = |app_crumb, ast| {
-            let crumb = Crumb::SectionLeft(app_crumb);
-            app.set(&crumb,ast)
-        };
-        let arg = Ast::var("arg");
-        let opr = Ast::var("opr");
-
-        assert_eq!(app.repr(), "foo bar");
-
-        assert_eq!(get(SectionLeftCrumb::Arg)?.repr(), "foo");
-        assert_eq!(get(SectionLeftCrumb::Opr)?.repr(), "bar");
-
-        assert_eq!(set(SectionLeftCrumb::Arg, arg.clone())?.repr(), "arg bar");
-        assert_eq!(set(SectionLeftCrumb::Opr, opr.clone())?.repr(), "foo opr");
-
-        Ok(())
-    }
-
-    #[test]
-    fn section_right_crumb() -> FallibleResult<()> {
-        let app = Ast::section_right(Ast::var("foo"), Ast::var("bar"));
-        let get   = |app_crumb| {
-            let crumb = Crumb::SectionRight(app_crumb);
-            app.get(&crumb)
-        };
-        let set   = |app_crumb, ast| {
-            let crumb = Crumb::SectionRight(app_crumb);
-            app.set(&crumb,ast)
-        };
-        let arg = Ast::var("arg");
-        let opr = Ast::var("opr");
-
-        assert_eq!(app.repr(), "foo bar");
-
-        assert_eq!(get(SectionRightCrumb::Opr)?.repr(), "foo");
-        assert_eq!(get(SectionRightCrumb::Arg)?.repr(), "bar");
-
-        assert_eq!(set(SectionRightCrumb::Opr, opr.clone())?.repr(), "opr bar");
-        assert_eq!(set(SectionRightCrumb::Arg, arg.clone())?.repr(), "foo arg");
-
-        Ok(())
-    }
-
-    #[test]
-    fn section_sides_crumb() -> FallibleResult<()> {
-        let app = Ast::section_sides(Ast::var("foo"));
-        let get   = |app_crumb| {
-            let crumb = Crumb::SectionSides(app_crumb);
-            app.get(&crumb)
-        };
-        let set   = |app_crumb, ast| {
-            let crumb = Crumb::SectionSides(app_crumb);
-            app.set(&crumb,ast)
-        };
-        let opr = Ast::var("opr");
-
-        assert_eq!(app.repr(), "foo");
-
-        assert_eq!(get(SectionSidesCrumb)?.repr(), "foo");
-        assert_eq!(set(SectionSidesCrumb, opr.clone())?.repr(), "opr");
-
-        Ok(())
+    fn iterate_infix() {
+        let sum = crate::Infix::from_vars("foo", "+", "bar");
+        let (larg,opr,rarg) = sum.iter_subcrumbs().expect_tuple();
+        assert_eq!(larg, InfixCrumb::LeftOperand);
+        assert_eq!(opr,  InfixCrumb::Operator);
+        assert_eq!(rarg, InfixCrumb::RightOperand);
     }
 
     #[test]
@@ -1123,14 +977,190 @@ mod tests {
     }
 
 
+
+    // ===========
+    // == Text ===
+    // ===========
+
+
+    // === TextLineFmt ===
+
     #[test]
-    fn iterate_infix() {
-        let sum = crate::Infix::from_vars("foo", "+", "bar");
-        let (larg,opr,rarg) = sum.iter_subcrumbs().expect_tuple();
-        assert_eq!(larg, InfixCrumb::LeftOperand);
-        assert_eq!(opr,  InfixCrumb::Operator);
-        assert_eq!(rarg, InfixCrumb::RightOperand);
+    fn text_line_fmt_crumb() {
+        let expr   = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text   = vec![SegmentFmt::SegmentExpr(expr)];
+        let ast    = Ast::text_line_fmt(text);
+        let crumbf = |crumb| Crumb::TextLineFmt(crumb);
+        let bar    = Ast::var("bar");
+        let crumb  = TextLineFmtCrumb{segment_index:0};
+
+        assert_eq!(ast.repr(), "'`foo`'");
+        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
+        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`'");
     }
+
+    // === TextBlockFmt ===
+
+    #[test]
+    fn text_block_fmt_crumb() {
+        let empty_lines = default();
+        let expr        = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text        = vec![SegmentFmt::SegmentExpr(expr)];
+        let line1       = TextBlockLine{empty_lines,text};
+
+        let empty_lines = default();
+        let expr        = SegmentExpr { value : Some(Ast::var("bar")) };
+        let text        = vec![SegmentFmt::SegmentExpr(expr)];
+        let line2       = TextBlockLine{empty_lines,text};
+
+        let lines       = vec![line1,line2];
+        let ast         = Ast::text_block_fmt(lines);
+        let qux         = Ast::var("qux");
+        let baz         = Ast::var("baz");
+
+        let crumbf = |crumb| Crumb::TextBlockFmt(crumb);
+        assert_eq!(ast.repr(), "'''\n`foo`\n`bar`");
+
+        let crumb1 = TextBlockFmtCrumb {text_line_index:0, segment_index:0};
+        let crumb2 = TextBlockFmtCrumb {text_line_index:1, segment_index:0};
+
+        assert_eq!(get(crumbf,&ast,crumb1).unwrap().repr(), "foo");
+        assert_eq!(get(crumbf,&ast,crumb2).unwrap().repr(), "bar");
+
+        assert_eq!(set(crumbf,&ast,crumb1,qux).unwrap().repr(),"'''\n`qux`\n`bar`");
+        assert_eq!(set(crumbf,&ast,crumb2,baz).unwrap().repr(),"'''\n`foo`\n`baz`");
+    }
+
+
+    // == TextUnclosed ===
+
+    #[test]
+    fn text_unclosed_crumb() {
+        let expr            = SegmentExpr { value : Some(Ast::var("foo")) };
+        let text            = vec![SegmentFmt::SegmentExpr(expr)];
+        let text_line       = TextLineFmt{text};
+        let line            = TextLine::TextLineFmt(text_line);
+        let ast             = Ast::text_unclosed(line);
+        let crumbf          = |crumb| Crumb::TextUnclosed(crumb);
+        let bar             = Ast::var("bar");
+        let text_line_crumb = TextLineFmtCrumb{segment_index:0};
+        let crumb           = TextUnclosedCrumb{text_line_crumb};
+
+        assert_eq!(ast.repr(), "'`foo`");
+        assert_eq!(get(crumbf,&ast,crumb).unwrap().repr(),  "foo");
+        assert_eq!(set(crumbf,&ast,crumb,bar).unwrap().repr(), "'`bar`");
+    }
+
+
+    // === Prefix ===
+
+    #[test]
+    fn prefix_crumb() -> FallibleResult<()> {
+        let prefix = Ast::prefix(Ast::var("func"), Ast::var("arg"));
+        let get   = |prefix_crumb| {
+            let crumb = Crumb::Prefix(prefix_crumb);
+            prefix.get(&crumb)
+        };
+        let set   = |prefix_crumb, ast| {
+            let crumb = Crumb::Prefix(prefix_crumb);
+            prefix.set(&crumb,ast)
+        };
+        let foo = Ast::var("foo");
+        let x   = Ast::var("x");
+
+        assert_eq!(prefix.repr(), "func arg");
+
+        assert_eq!(get(PrefixCrumb::Func)?.repr(), "func");
+        assert_eq!(get(PrefixCrumb::Arg)?.repr(),  "arg");
+
+        assert_eq!(set(PrefixCrumb::Func, foo.clone())?.repr(), "foo arg");
+        assert_eq!(set(PrefixCrumb::Arg,  x.clone())?.repr(), "func x");
+
+        Ok(())
+    }
+
+
+    // === SectionLeft ===
+
+    #[test]
+    fn section_left_crumb() -> FallibleResult<()> {
+        let app = Ast::section_left(Ast::var("foo"), Ast::var("bar"));
+        let get   = |app_crumb| {
+            let crumb = Crumb::SectionLeft(app_crumb);
+            app.get(&crumb)
+        };
+        let set   = |app_crumb, ast| {
+            let crumb = Crumb::SectionLeft(app_crumb);
+            app.set(&crumb,ast)
+        };
+        let arg = Ast::var("arg");
+        let opr = Ast::var("opr");
+
+        assert_eq!(app.repr(), "foo bar");
+
+        assert_eq!(get(SectionLeftCrumb::Arg)?.repr(), "foo");
+        assert_eq!(get(SectionLeftCrumb::Opr)?.repr(), "bar");
+
+        assert_eq!(set(SectionLeftCrumb::Arg, arg.clone())?.repr(), "arg bar");
+        assert_eq!(set(SectionLeftCrumb::Opr, opr.clone())?.repr(), "foo opr");
+
+        Ok(())
+    }
+
+
+    // === SectionRight ===
+
+    #[test]
+    fn section_right_crumb() -> FallibleResult<()> {
+        let app = Ast::section_right(Ast::var("foo"), Ast::var("bar"));
+        let get   = |app_crumb| {
+            let crumb = Crumb::SectionRight(app_crumb);
+            app.get(&crumb)
+        };
+        let set   = |app_crumb, ast| {
+            let crumb = Crumb::SectionRight(app_crumb);
+            app.set(&crumb,ast)
+        };
+        let arg = Ast::var("arg");
+        let opr = Ast::var("opr");
+
+        assert_eq!(app.repr(), "foo bar");
+
+        assert_eq!(get(SectionRightCrumb::Opr)?.repr(), "foo");
+        assert_eq!(get(SectionRightCrumb::Arg)?.repr(), "bar");
+
+        assert_eq!(set(SectionRightCrumb::Opr, opr.clone())?.repr(), "opr bar");
+        assert_eq!(set(SectionRightCrumb::Arg, arg.clone())?.repr(), "foo arg");
+
+        Ok(())
+    }
+
+
+    // === SectionSides ===
+
+    #[test]
+    fn section_sides_crumb() -> FallibleResult<()> {
+        let app = Ast::section_sides(Ast::var("foo"));
+        let get   = |app_crumb| {
+            let crumb = Crumb::SectionSides(app_crumb);
+            app.get(&crumb)
+        };
+        let set   = |app_crumb, ast| {
+            let crumb = Crumb::SectionSides(app_crumb);
+            app.set(&crumb,ast)
+        };
+        let opr = Ast::var("opr");
+
+        assert_eq!(app.repr(), "foo");
+
+        assert_eq!(get(SectionSidesCrumb)?.repr(), "foo");
+        assert_eq!(set(SectionSidesCrumb, opr.clone())?.repr(), "opr");
+
+        Ok(())
+    }
+
+
+    // === Module ===
 
     #[test]
     fn iterate_module() {
@@ -1147,6 +1177,9 @@ mod tests {
         assert_eq!(line0.line_index,0);
         assert_eq!(line2.line_index,2);
     }
+
+
+    // === Block ===
 
     #[test]
     fn iterate_block() {
