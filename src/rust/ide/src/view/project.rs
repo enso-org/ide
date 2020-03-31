@@ -81,7 +81,7 @@ impl ProjectView {
         let module_controller    = controller.get_module_controller(location).await?;
         let graph_controller     = controller::graph::Handle::new_unchecked(module_controller,graph_id);
         let world                = World::new(&web::get_html_element_by_id("root").unwrap());
-        graph::register_shapes(&world);
+        // graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
