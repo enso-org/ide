@@ -22,10 +22,8 @@ use ensogl::display::shape::*;
 use ensogl::display::world::World;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::gui::component::animation;
-use ensogl::gui::component::View;
 use ensogl::gui::component::ViewManager;
-use ensogl::gui::component::StrongRef;
-use ensogl::gui::component::WeakRef;
+use ensogl::gui::component;
 
 
 pub mod icons {
@@ -144,7 +142,7 @@ pub struct WeakNode {
 
 #[derive(Debug)]
 pub struct NodeView {}
-impl View for NodeView {
+impl component::ShapeView for NodeView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         shape.sprite.size().set(Vector2::new(200.0,200.0));

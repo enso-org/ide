@@ -20,10 +20,8 @@ use ensogl::display::{AnyBuffer,Buffer};
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
 use ensogl::display::world::World;
-use ensogl::gui::component::View;
+use ensogl::gui::component;
 use ensogl::gui::component::ViewManager;
-use ensogl::gui::component::StrongRef;
-use ensogl::gui::component::WeakRef;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::display::layout::alignment;
@@ -62,7 +60,7 @@ pub struct CursorView {
     pub resize_handle : callback::Handle,
 }
 
-impl View for CursorView {
+impl component::ShapeView for CursorView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         let scene_shape = scene.shape();

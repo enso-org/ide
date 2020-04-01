@@ -168,6 +168,12 @@ impl<T:Position> SimulationData<T> {
 
 #[allow(missing_docs)]
 impl<T:Position> SimulationData<T> {
+    pub fn set_velocity   (&mut self, velocity:T)            { self.velocity   = velocity; }
+    pub fn set_mass       (&mut self, mass:Mass)             { self.mass       = mass; }
+    pub fn set_spring     (&mut self, spring:Spring)         { self.spring     = spring; }
+    pub fn set_drag       (&mut self, drag:Drag)             { self.drag       = drag; }
+    pub fn set_thresholds (&mut self, thresholds:Thresholds) { self.thresholds = thresholds; }
+
     pub fn set_position(&mut self, position:T) {
         self.active = true;
         self.position = position;
@@ -185,12 +191,6 @@ impl<T:Position> SimulationData<T> {
     pub fn update_target_position<F:FnOnce(T)->T>(&mut self, f:F) {
         self.set_target_position(f(self.target_position()));
     }
-
-    pub fn set_velocity   (&mut self, velocity:T)            { self.velocity = velocity; }
-    pub fn set_mass       (&mut self, mass:Mass)             { self.mass = mass; }
-    pub fn set_spring     (&mut self, spring:Spring)         { self.spring = spring; }
-    pub fn set_drag       (&mut self, drag:Drag)             { self.drag = drag; }
-    pub fn set_thresholds (&mut self, thresholds:Thresholds) { self.thresholds = thresholds; }
 
     pub fn update_velocity<F:FnOnce(T)->T>(&mut self, f:F) {
         self.set_velocity(f(self.velocity()));

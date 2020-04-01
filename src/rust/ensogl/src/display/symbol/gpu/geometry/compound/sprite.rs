@@ -102,6 +102,7 @@ impl Drop for SpriteGuard {
 /// full 3D objects. We may want to fork this implementation in the future to create a specialized
 /// 2d representation as well.
 #[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
 pub struct Sprite {
     pub symbol       : Symbol,
     pub instance_id  : AttributeInstanceIndex,
@@ -159,11 +160,6 @@ impl Sprite {
     pub fn size(&self) -> Attribute<Vector2<f32>> {
         self.bbox.clone_ref()
     }
-
-    /// Id of instance bound to this sprite.
-    pub fn instance_id(&self) -> AttributeInstanceIndex {
-        self.instance_id
-    }
 }
 
 impl<'t> From<&'t Sprite> for &'t display::object::Node {
@@ -182,6 +178,7 @@ impl<'t> From<&'t Sprite> for &'t display::object::Node {
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct SpriteSystem {
     pub symbol : Symbol,
     transform  : Buffer  <Matrix4<f32>>,

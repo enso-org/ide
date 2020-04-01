@@ -1,3 +1,4 @@
+//! Root module for GUI related components.
 
 use crate::prelude::*;
 
@@ -12,58 +13,15 @@ use enso_frp::frp;
 use crate::animation::physics::inertia::DynSimulator;
 use enso_frp::core::node::class::EventEmitterPoly;
 
-//
-//#[macro_export]
-//macro_rules! component {
-//    (
-//        $name:ident
-//
-//        Definition {
-//            $($field:ident : $field_type:ty),* $(,)?
-//        }
-//
-//
-//    ) => {
-//        #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-//        pub struct $name ($crate::gui::component::ComponentWrapper<Definition>);
-//
-//        impl<'t> From<&'t $name> for &'t display::object::Node {
-//            fn from(t:&'t $name) -> Self {
-//                t.0.display_object()
-//            }
-//        }
-//
-//        impl $name {
-//            fn create(label:&str, definition:Definition) -> Self {
-//                let data = $crate::gui::component::ComponentWrapper::create(label,definition);
-//                Self(data)
-//            }
-//        }
-//
-//        #[derive(Debug,Clone,CloneRef)]
-//        pub struct Definition {
-//            $(pub $field : $field_type),*
-//        }
-//    };
-//}
-
-
-pub trait StrongRef : CloneRef {
-    type WeakRef : WeakRef<StrongRef=Self>;
-    fn downgrade(&self) -> Self::WeakRef;
-}
-
-pub trait WeakRef : CloneRef {
-    type StrongRef : StrongRef<WeakRef=Self>;
-    fn upgrade(&self) -> Option<Self::StrongRef>;
-}
 
 
 
 
 
-pub trait View : 'static {
-    type Shape : display::Object + Shape; // FIXME: simplify bounds
+
+
+pub trait ShapeView : 'static {
+    type Shape : Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
 }
 
@@ -74,9 +32,7 @@ pub struct Events {
 
 impl Default for Events {
     fn default() -> Self {
-        frp! {
-            mouse_down = source::<()> ();
-        }
+        frp! { mouse_down = source::<()> (); }
         Self {mouse_down}
     }
 }
@@ -88,19 +44,19 @@ impl MouseTarget for Events {
 }
 
 #[derive(Debug)]
-pub struct ViewManagerData<T:View> {
+pub struct ViewManagerData<T:ShapeView> {
     pub data  : T,
     pub shape : T::Shape,
 }
 
 #[derive(Debug)]
-pub struct ViewManager<T:View> {
+pub struct ViewManager<T:ShapeView> {
     pub display_object : display::object::Node,
     pub events         : Events,
     pub data           : Rc<RefCell<Option<ViewManagerData<T>>>>,
 }
 
-impl<T:View> ViewManager<T> {
+impl<T:ShapeView> ViewManager<T> {
     pub fn new(logger:&Logger) -> Self {
         let display_object = display::object::Node::new(logger);
         let events         = default();

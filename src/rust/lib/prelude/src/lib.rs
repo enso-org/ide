@@ -313,3 +313,40 @@ impl<T> RefcellOptionOps<T> for RefCell<Option<T>> {
         *ptr = Some(val)
     }
 }
+
+
+
+// ================================
+// === Strong / Weak References ===
+// ================================
+
+/// Abstraction for a strong reference like `Rc` or newtypes over it.
+pub trait StrongRef : CloneRef {
+    /// Downgraded reference type.
+    type WeakRef : WeakRef<StrongRef=Self>;
+    /// Creates a new weak reference of this allocation.
+    fn downgrade(&self) -> Self::WeakRef;
+}
+
+/// Abstraction for a weak reference like `Weak` or newtypes over it.
+pub trait WeakRef : CloneRef {
+    /// Upgraded reference type.
+    type StrongRef : StrongRef<WeakRef=Self>;
+    /// Attempts to upgrade the weak referenc to a strong one, delaying dropping of the inner value
+    /// if successful.
+    fn upgrade(&self) -> Option<Self::StrongRef>;
+}
+
+impl<T:?Sized> StrongRef for Rc<T> {
+    type WeakRef = Weak<T>;
+    fn downgrade(&self) -> Self::WeakRef {
+        Rc::downgrade(&self)
+    }
+}
+
+impl<T:?Sized> WeakRef for Weak<T> {
+    type StrongRef = Rc<T>;
+    fn upgrade(&self) -> Option<Self::StrongRef> {
+        Weak::upgrade(self)
+    }
+}

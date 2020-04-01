@@ -103,9 +103,9 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
     fn new_instance(&self) -> Self::Shape;
 }
 
-/// Type for every shape with automatic attribute management. The easiest way to define sych a
+/// Type for every shape with automatic attribute management. The easiest way to define such a
 /// shape is by using the `define_shape_system` macro.
-pub trait Shape : Debug + Sized {
+pub trait Shape : display::Object + Debug + Sized {
     /// The shape system instance this shape belongs to.
     type System : ShapeSystemInstance<Shape=Self>;
     /// Accessor for the underlying sprite object.

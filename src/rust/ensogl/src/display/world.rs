@@ -1,5 +1,5 @@
-/// This module implements `World`, the main object resposnible for handling what you see on the
-/// screen.
+//! This module implements `World`, the main object responsible for handling what you see on the
+//! screen.
 
 pub mod stats;
 
@@ -52,6 +52,7 @@ pub struct Uniforms {
 }
 
 impl Uniforms {
+    /// Constructor.
     pub fn new(scope:&UniformScope) -> Self {
         let time         = scope.add_or_panic("time",0.0);
         let display_mode = scope.add_or_panic("display_mode",0);

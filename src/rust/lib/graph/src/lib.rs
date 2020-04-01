@@ -50,8 +50,8 @@ use enso_frp::core::node::class::EventEmitterPoly;
 use ensogl::display::layout::alignment;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene, MouseTarget};
-use ensogl::gui::component::StrongRef;
-use ensogl::gui::component::WeakRef;
+//use ensogl::gui::component::StrongRef;
+//use ensogl::gui::component::WeakRef;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 

@@ -35,8 +35,6 @@ use ensogl::display::layout::alignment;
 use wasm_bindgen::JsCast;
 use ensogl::display::scene;
 use ensogl::display::scene::{Scene, MouseTarget};
-use ensogl::gui::component::StrongRef;
-use ensogl::gui::component::WeakRef;
 
 
 #[wasm_bindgen]

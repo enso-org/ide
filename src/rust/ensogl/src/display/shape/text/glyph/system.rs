@@ -192,7 +192,7 @@ impl GlyphSystem {
     pub fn new_glyph(&mut self) -> Glyph {
         let context         = self.context.clone();
         let sprite          = self.sprite_system.new_instance();
-        let instance_id     = sprite.instance_id();
+        let instance_id     = sprite.instance_id;
         let color_attr      = self.color.at(instance_id);
         let msdf_index_attr = self.glyph_msdf_index.at(instance_id);
         let font            = self.font.clone_ref();
