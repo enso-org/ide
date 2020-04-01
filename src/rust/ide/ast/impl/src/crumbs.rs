@@ -78,6 +78,16 @@ struct MismatchedCrumbType;
 /// Sequence of `Crumb`s describing traversal path through AST.
 pub type Crumbs = Vec<Crumb>;
 
+/// Crumb identifies location of child AST in an AST node. Allows for a single step AST traversal.
+/// The enum variants are paired with Shape variants. For example, `ModuleCrumb` allows obtaining
+/// (or setting) `Ast` stored within a `Module` shape.
+///
+/// As `Ast` can store any `Shape`, this `Crumb` may store any `Shape`-specific crumb type.
+///
+/// The location format should allow constant time traversal step, so e.g. indices should be used
+/// rather than names or similar.
+///
+/// Crumbs are potentially invalidated by any AST change.
 
 // === InvalidSuffix ===
 
@@ -789,53 +799,49 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
 /// Interface for recursive AST traversal using `Crumb` sequence.
 ///
 /// Intended for `Ast` and `Ast`-like types, like `KnownAst`.
-pub trait TraversableAst {
+pub trait TraversableAst:Sized {
     /// Returns rewritten AST where child AST under location designated by `crumbs` is updated.
     ///
     /// Works recursively.
-    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self>
-    where Self:Sized {
-        let ast         = self.ast_ref();
-        let updated_ast = if let Some(first_crumb) = crumbs.first() {
-            let child = ast.get(first_crumb)?;
-            let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
-            ast.set(first_crumb,updated_child)
-        } else {
-            Ok(new_ast)
-        };
-        Self::from_ast(updated_ast?)
-    }
+    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self>;
 
     /// Recursively traverses AST to retrieve AST node located by given crumbs sequence.
-    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
-        let ast = self.ast_ref();
-        if let Some(first_crumb) = crumbs.first() {
-            let child = ast.get(first_crumb)?;
-            child.get_traversing(&crumbs[1..])
-        } else {
-            Ok(ast)
-        }
-    }
-
-    /// Access this node's AST.
-    fn ast_ref(&self) -> &Ast;
-
-    /// Wrap Ast into Self.
-    fn from_ast(ast:Ast) -> FallibleResult<Self> where Self:Sized;
+    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast>;
 }
 
 impl TraversableAst for Ast {
-    fn ast_ref(&self) -> &Ast { self }
+    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self> {
+        let updated_ast = if let Some(first_crumb) = crumbs.first() {
+            let child = self.get(first_crumb)?;
+            let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
+            self.set(first_crumb,updated_child)?
+        } else {
+            new_ast
+        };
+        Ok(updated_ast)
+    }
 
-    fn from_ast(ast:Ast) -> FallibleResult<Self> { Ok(ast) }
+    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
+        if let Some(first_crumb) = crumbs.first() {
+            let child = self.get(first_crumb)?;
+            child.get_traversing(&crumbs[1..])
+        } else {
+            Ok(self)
+        }
+    }
 }
 
 impl<T,E> TraversableAst for known::KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
       E                      : failure::Fail {
-    fn ast_ref(&self) -> &Ast { self.ast() }
+    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self> {
+        let updated_ast = self.ast().set_traversing(crumbs,new_ast)?;
+        Ok(Self::try_new(updated_ast)?)
+    }
 
-    fn from_ast(ast:Ast) -> FallibleResult<Self> { Ok(ast.try_into()?) }
+    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
+        self.ast().get_traversing(crumbs)
+    }
 }
 
 
@@ -926,6 +932,56 @@ mod tests {
     use crate::TextLineFmt;
 
     use utils::test::ExpectTuple;
+
+    /// Gets item under given crumb and checks if its representation is as expected.
+    fn expect_repr<C:Crumbable>(item:&C, crumb:&C::Crumb, expected_repr:impl Str) {
+        assert_eq!(item.get(crumb).unwrap().repr(), expected_repr.as_ref());
+    }
+
+    #[test]
+    fn module_crumb() {
+        let lines = [
+           Some(Ast::var("foo")),
+           None,
+           Some(Ast::var("bar"))
+        ];
+
+        let module = crate::Module::from_lines(&lines);
+
+
+        // === Getting ===
+        expect_repr(&module,&ModuleCrumb {line_index:0}, "foo");
+        assert!(module.get(&ModuleCrumb {line_index:1}).is_err());
+        expect_repr(&module,&ModuleCrumb {line_index:2}, "bar");
+        assert!(module.get(&ModuleCrumb {line_index:3}).is_err());
+
+        let module2 = module.set(&ModuleCrumb {line_index:0}, Ast::var("foo2")).unwrap();
+        assert_eq!(module2.repr(), "foo2\n\nbar");
+        let module3 = module.set(&ModuleCrumb {line_index:1}, Ast::var("foo2")).unwrap();
+        assert_eq!(module3.repr(), "foo\nfoo2\nbar");
+        let module4 = module.set(&ModuleCrumb {line_index:3}, Ast::var("foo2"));
+        assert!(module4.is_err());
+    }
+
+    #[test]
+    fn block_crumb() {
+        let first_line = Ast::var("first_line");
+        let tail_lines = [Some(Ast::var("tail0")), None, Some(Ast::var("tail2"))];
+        let block      = crate::Block::from_lines(&first_line,&tail_lines);
+
+        expect_repr(&block, &BlockCrumb::HeadLine, "first_line");
+        expect_repr(&block, &BlockCrumb::TailLine {tail_index:0}, "tail0");
+        assert!(block.get(&BlockCrumb::TailLine {tail_index:1}).is_err());
+        expect_repr(&block, &BlockCrumb::TailLine {tail_index:2}, "tail2");
+        assert!(block.get(&BlockCrumb::TailLine {tail_index:3}).is_err());
+
+        let block2 = block.set(&BlockCrumb::HeadLine, Ast::var("first_line2")).unwrap();
+        assert_eq!(block2.repr(), "first_line2\ntail0\n\ntail2");
+        let block3 = block.set(&BlockCrumb::TailLine {tail_index:1}, Ast::var("tail1")).unwrap();
+        assert_eq!(block3.repr(), "first_line\ntail0\ntail1\ntail2");
+        let block4 = block.set(&BlockCrumb::TailLine {tail_index:2}, Ast::var("tail22")).unwrap();
+        assert_eq!(block4.repr(), "first_line\ntail0\n\ntail22");
+    }
 
     fn get<T,F:FnOnce(T) -> Crumb>(f:F, ast:&Ast, crumb:T) -> FallibleResult<&Ast> {
         let crumb = f(crumb);
@@ -1353,5 +1409,28 @@ mod tests {
         let crumb      = Crumb::Module(ModuleCrumb {line_index:0});
         let first_line = sum.get(&crumb);
         first_line.expect_err("Using module crumb on infix should fail");
+    }
+
+    #[test]
+    fn located() {
+        let item = Located::new_root("zero");
+        assert_eq!(item.item, "zero");
+        assert!(item.crumbs.is_empty());
+
+        let item = item.into_descendant(vec![Crumb::Infix(InfixCrumb::LeftOperand)], 1);
+        assert_eq!(item.item, 1);
+        let (crumb0,) = item.crumbs.iter().expect_tuple();
+        assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::LeftOperand));
+
+        let child_item = Located::new_direct_child(InfixCrumb::Operator, "two");
+        let item = item.push_descendant(child_item);
+        assert_eq!(item.item, "two");
+        let (crumb0,crumb1) = item.crumbs.iter().expect_tuple();
+        assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::LeftOperand));
+        assert_eq!(crumb1,&Crumb::Infix(InfixCrumb::Operator));
+
+        let item2 = item.clone().map(|item| item.len() );
+        assert_eq!(item2.item,3);
+        assert_eq!(item.crumbs,item2.crumbs);
     }
 }

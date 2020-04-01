@@ -58,6 +58,16 @@ impl<T> KnownAst<T> {
           E                      : Debug, {
         self.deref()
     }
+
+    /// Updated self in place by applying given function on the stored Shape.
+    pub fn update_shape<E>(&mut self, f:impl FnOnce(&mut T))
+    where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
+          T                      : Clone + Into<Shape<Ast>>,
+          E                      : Debug {
+        let mut shape = self.shape().clone();
+        f(&mut shape);
+        self.ast = self.ast.with_shape(shape)
+    }
 }
 
 impl<T:Into<Shape<Ast>>> KnownAst<T> {

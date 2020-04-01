@@ -60,7 +60,8 @@ impl NodeInfo {
             NodeInfo::Binding{ref mut infix} => {
                 let new_rarg = infix.rarg.with_id(new_id);
                 let set      = infix.set(&ast::crumbs::InfixCrumb::RightOperand.into(),new_rarg);
-                set.expect("Internal error: setting infix operand should always succeed.");
+                *infix = set.expect("Internal error: setting infix operand should always \
+                                     succeed.");
             }
             NodeInfo::Expression{ref mut ast} => {
                 *ast = ast.with_id(new_id);
@@ -80,13 +81,10 @@ impl NodeInfo {
     pub fn set_expression(&mut self, expression:Ast) {
         let id = self.id();
         match self {
-            NodeInfo::Binding{ref mut infix} => {
-                let rarg      = expression;
-                let old_infix = infix.shape().clone();
-                *infix = known::Infix::new(ast::Infix {rarg,..old_infix}, infix.id());
-            }
-            NodeInfo::Expression{ref mut ast}   => { *ast = expression; },
-        }
+            NodeInfo::Binding{ref mut infix}  =>
+                infix.update_shape(|infix| infix.rarg = expression),
+            NodeInfo::Expression{ref mut ast} => *ast = expression,
+        };
         // Id might have been overwritten by the AST we have set. Now we restore it.
         self.set_id(id);
     }
@@ -110,18 +108,13 @@ impl NodeInfo {
 mod tests {
     use super::*;
 
-    use ast::HasRepr;
-    use wasm_bindgen_test::wasm_bindgen_test;
-
-    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
     fn expect_node(ast:Ast, expression_text:&str, id:Id) {
         let node_info = NodeInfo::from_line_ast(&ast).expect("expected a node");
         assert_eq!(node_info.expression().repr(),expression_text);
         assert_eq!(node_info.id(), id);
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn expression_node_test() {
         // expression: `4`
         let id = Id::new_v4();
@@ -129,7 +122,33 @@ mod tests {
         expect_node(ast,"4",id);
     }
 
-    #[wasm_bindgen_test]
+    #[test]
+    fn set_expression_binding() {
+        let ast = Ast::infix(Ast::var("foo"),"=",Ast::number(4).with_new_id());
+        assert_eq!(ast.repr(), "foo = 4");
+
+        let mut node = NodeInfo::from_line_ast(&ast).expect("expected a node");
+        let id       = node.id();
+        node.set_expression(Ast::var("bar"));
+        assert_eq!(node.expression().repr(), "bar");
+        assert_eq!(node.ast().repr(), "foo = bar");
+        assert_eq!(node.id(), id);
+    }
+
+    #[test]
+    fn set_expression_plain() {
+        let ast = Ast::number(4).with_new_id();
+        assert_eq!(ast.repr(), "4");
+
+        let mut node = NodeInfo::from_line_ast(&ast).expect("expected a node");
+        let id       = node.id();
+        node.set_expression(Ast::var("bar"));
+        assert_eq!(node.expression().repr(), "bar");
+        assert_eq!(node.ast().repr(), "bar");
+        assert_eq!(node.id(), id);
+    }
+
+    #[test]
     fn binding_node_test() {
         // expression: `foo = 4`
         let id = Id::new_v4();

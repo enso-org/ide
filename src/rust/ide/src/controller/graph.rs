@@ -86,6 +86,7 @@ impl NewNodeInfo {
 }
 
 
+
 // ==================
 // === Controller ===
 // ==================
@@ -193,14 +194,14 @@ impl Handle {
     /// Updates the AST of the definition of this graph.
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
-        self.module.modify_ast(|ast_so_far| {
-            let definition     = definition::locate(&ast_so_far, &self.id)?;
-            let new_definition = f(definition.item)?;
-            trace!(self.logger, "Applying graph changes onto definition");
-            let new_ast    = new_definition.ast.into();
-            let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
-            Ok(new_module)
-        })
+        let ast_so_far     = self.module.ast()?;
+        let definition     = definition::locate(&ast_so_far, &self.id)?;
+        let new_definition = f(definition.item)?;
+        trace!(self.logger, "Applying graph changes onto definition");
+        let new_ast    = new_definition.ast.into();
+        let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
+        self.module.update_ast(new_module);
+        Ok(())
     }
 
     /// Parses given text as a node expression.

@@ -35,7 +35,8 @@ pub mod prelude {
 use crate::prelude::*;
 
 use ast_macros::*;
-use data::text::*;
+use data::text::Index;
+use data::text::Span;
 
 use serde::de::Deserializer;
 use serde::de::Visitor;
@@ -251,7 +252,12 @@ impl Ast {
         Ast::from_ast_id_len(self.shape().clone(), Some(id), self.len())
     }
 
-    /// Returns this AST node with ID set to given value.
+    /// Returns this AST node with a newly generated unique ID.
+    pub fn with_new_id(&self) -> Ast {
+        self.with_id(Id::new_v4())
+    }
+
+    /// Returns this AST node with shape set to given value.
     pub fn with_shape<S:Into<Shape<Ast>>>(&self, shape:S) -> Ast {
         Ast::new(shape.into(),self.id)
     }
@@ -391,7 +397,12 @@ pub enum Shape<T> {
     SectionSides  {                         opr : T                         },
 
     // === Module ===
+
+    /// Module represent the file's root block: sequence of possibly empty lines with no leading
+    /// indentation.
     Module        { lines       : Vec<BlockLine<Option<T>>>  },
+    /// Block is the sequence of equally indented lines. Lines may contain some child `T` or be
+    /// empty. Block is used for all code blocks except for the root one, which uses `Module`.
     Block         { /// Type of Block, depending on whether it is introduced by an operator.
                     /// Note [mwu] Doesn't really do anything right now, likely to be removed.
                     ty          : BlockType,
@@ -798,7 +809,7 @@ impl TokenConsumer for IdMapBuilder {
                 let begin = self.offset;
                 val.shape().feed_to(self);
                 if let Some(id) = val.id {
-                    let span = Span::from((begin, self.offset));
+                    let span = Span::from_indices(Index::new(begin), Index::new(self.offset));
                     self.id_map.insert(span, id);
                 }
             }
@@ -1264,7 +1275,11 @@ impl<T> From<EscapeUnicode32> for SegmentFmt<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use data::text::Size;
     use serde::de::DeserializeOwned;
+
+    use utils::test::ExpectTuple;
 
     /// Assert that given value round trips JSON serialization.
     fn round_trips<T>(input_val: &T)
@@ -1311,9 +1326,9 @@ mod tests {
 
     #[test]
     fn ast_id_map() {
-        let span = |ix,length| Span::from((ix,length));
+        let span = |ix,length| Span::new(Index::new(ix),Size::new(length));
         let uid  = default();
-        let ids  = vec![(span(0,2),uid), (span(3,5),uid), (span(0,5),uid)];
+        let ids  = vec![(span(0,2),uid), (span(3,2),uid), (span(0,5),uid)];
         let func = Ast::new(Var    {name:"XX".into()}, Some(uid));
         let arg  = Ast::new(Var    {name:"YY".into()}, Some(uid));
         let ast  = Ast::new(Prefix {func,off:1,arg  }, Some(uid));
@@ -1401,5 +1416,35 @@ mod tests {
 
         assert_eq!((&abc).iter().count(), 2); // for App's two children
         assert_eq!(abc.iter_recursive().count(), 5); // for 2 Apps and 3 Vars
+    }
+
+    #[test]
+    fn all_lines_of_block() {
+        let ty          = BlockType::Discontinuous {};
+        let indent      = 4;
+        let empty_lines = vec![5];
+        let first_line  = BlockLine {elem:Ast::var("head"), off:3};
+        let lines       = vec![
+            BlockLine {elem:Some(Ast::var("tail0")), off:2},
+            BlockLine {elem:None, off:1},
+            BlockLine {elem:Some(Ast::var("tail2")), off:3},
+        ];
+        let is_orphan     = false;
+        let block         = Block {ty,indent,empty_lines,first_line,lines,is_orphan};
+        let expected_repr = "\n     \n    head   \n    tail0  \n     \n    tail2   ";
+        assert_eq!(block.repr(), expected_repr);
+
+        let all_lines = block.all_lines();
+        let (empty_line,head_line,tail0,tail1,tail2) = all_lines.iter().expect_tuple();
+        assert!(empty_line.elem.is_none());
+        assert_eq!(empty_line.off,1); // other 4 indents are provided by Block
+        assert_eq!(head_line.elem.as_ref().unwrap().repr(),"head");
+        assert_eq!(head_line.off,3);
+        assert_eq!(tail0.elem.as_ref().unwrap().repr(),"tail0");
+        assert_eq!(tail0.off,2);
+        assert!(tail1.elem.is_none());
+        assert_eq!(tail1.off,1);
+        assert_eq!(tail2.elem.as_ref().unwrap().repr(),"tail2");
+        assert_eq!(tail2.off,3);
     }
 }

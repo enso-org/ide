@@ -113,6 +113,12 @@ impl GraphInfo {
         self.source.set_block_lines(lines)
     }
 
+    /// After removing last node, we want to insert a placeholder value for definition value.
+    /// This defines its AST. Currently it is just `Nothing`.
+    pub fn empty_graph_body() -> Ast {
+        Ast::cons("Nothing").with_new_id()
+    }
+
     /// Removes the node from graph.
     pub fn remove_node(&mut self, node_id:ast::Id) -> FallibleResult<()> {
         let mut lines = self.source.block_lines()?;
@@ -121,7 +127,12 @@ impl GraphInfo {
             let removed_node = node.filter(|node| node.id() == node_id);
             removed_node.is_some()
         });
-        self.source.set_block_lines(lines)
+        if lines.is_empty() {
+            self.source.set_body_ast(Self::empty_graph_body())
+        } else {
+            self.source.set_block_lines(lines)?
+        }
+        Ok(())
     }
 
     /// Sets expression of the given node.
@@ -185,9 +196,10 @@ mod tests {
     use crate::double_representation::definition::traverse_for_definition;
 
     use ast::HasRepr;
-    use parser::api::IsParser;
-    use wasm_bindgen_test::wasm_bindgen_test;
     use ast::test_utils::expect_single_line;
+    use parser::api::IsParser;
+    use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -195,7 +207,7 @@ mod tests {
     fn main_graph(parser:&mut impl IsParser, program:impl Str) -> GraphInfo {
         let module = parser.parse_module(program.into(), default()).unwrap();
         let name   = DefinitionName::new_plain("main");
-        let main   = module.def_iter().find_definition(&name).unwrap();
+        let main   = module.def_iter().find_by_name(&name).unwrap();
         GraphInfo::from_definition(main.item)
     }
 
@@ -263,7 +275,7 @@ mod tests {
         assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn add_node_to_graph_with_multiple_lines() {
         // TODO [dg] Also add test for binding node when it's possible to update its id.
         let program = r#"main =
@@ -360,6 +372,26 @@ main =
         let expected_code = "main =\n    bar = 3 + 17";
         graph.expect_code(expected_code)
     }
+
+    #[wasm_bindgen_test]
+    fn removing_last_node_from_graph() {
+        let mut parser = parser::Parser::new_or_panic();
+        let program = r"
+main =
+    foo = 2 + 2";
+        let mut graph = main_graph(&mut parser, program);
+        println!("aa");
+        let (node,)   = graph.nodes().expect_tuple();
+        assert_eq!(node.expression().repr(), "2 + 2");
+        println!("vv");
+        graph.remove_node(node.id()).unwrap();
+        println!("zz");
+
+        let (node,)   = graph.nodes().expect_tuple();
+        assert_eq!(node.expression().repr(), "Nothing");
+        graph.expect_code("main = Nothing");
+    }
+
 
     #[wasm_bindgen_test]
     fn editing_nodes_expression_in_graph() {
