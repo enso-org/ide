@@ -5,7 +5,7 @@ use crate::prelude::*;
 pub mod button;
 pub mod event;
 
-use crate::control::callback::*;
+use crate::control::callback;
 use crate::system::web;
 
 use enso_frp::EventEmitterPoly;
@@ -32,15 +32,15 @@ pub use event::*;
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
 pub struct EventDispatcher<T> {
-    rc: Rc<RefCell<CallbackRegistry1<T>>>
+    rc: Rc<RefCell<callback::Registry1<T>>>
 }
 
 impl<T> CloneRef for EventDispatcher<T> {}
 
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
-    pub fn add<F:CallbackMut1Fn<T>>(&self, callback:F) -> CallbackHandle {
-        self.rc.borrow_mut().add(callback)
+    pub fn add<F:callback::CallbackMut1Fn<T>>(&self, f:F) -> callback::Handle {
+        self.rc.borrow_mut().add(f)
     }
 
     /// Dispatches event to all callbacks.
@@ -134,14 +134,14 @@ define_bindings! {
     WheelEvent::wheel      => on_wheel (OnWheel),
 }
 
-/// A handles of callbacks emitting events on bound FRP graph. See `CallbackHandle`.
+/// A handles of callbacks emitting events on bound FRP graph. See `callback::Handle`.
 #[derive(Debug)]
 pub struct MouseFrpCallbackHandles {
-    on_move  : CallbackHandle,
-    on_down  : CallbackHandle,
-    on_up    : CallbackHandle,
-    on_leave : CallbackHandle,
-    on_wheel : CallbackHandle
+    on_move  : callback::Handle,
+    on_down  : callback::Handle,
+    on_up    : callback::Handle,
+    on_leave : callback::Handle,
+    on_wheel : callback::Handle
 }
 
 /// Bind FRP graph to MouseManager.

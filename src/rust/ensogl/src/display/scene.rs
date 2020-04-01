@@ -8,7 +8,7 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::prelude::*;
 use crate::display::traits::*;
 
-use crate::control::callback::CallbackHandle;
+use crate::control::callback;
 use crate::control::callback::DynEvent;
 use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::control::io::mouse::MouseManager;
@@ -175,7 +175,7 @@ pub struct Mouse {
     pub button3_pressed : Uniform<bool>,
     pub button4_pressed : Uniform<bool>,
     pub target          : Rc<Cell<Target>>,
-    pub handles         : Rc<Vec<CallbackHandle>>,
+    pub handles         : Rc<Vec<callback::Handle>>,
     pub frp             : enso_frp::Mouse,
 }
 
@@ -410,8 +410,8 @@ pub struct Dirty {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Callbacks {
-    on_zoom   : CallbackHandle,
-    on_resize : CallbackHandle,
+    on_zoom   : callback::Handle,
+    on_resize : callback::Handle,
 }
 
 
@@ -701,7 +701,7 @@ impl SceneData {
         mouse::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
     }
 
-    pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> CallbackHandle {
+    pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> callback::Handle {
         self.dom.root.on_resize(callback)
     }
 

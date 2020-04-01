@@ -22,6 +22,7 @@ paste        = "0.1"
 shrinkwraprs = "0.3.0"
 smallvec     = "1.0.0"
 weak-table   = "0.2.3"
+wasm-bindgen = { version = "=0.2.58" , features = ["nightly"]      }
 
 
 # TODO: should be behind a flag, as the `nalgebra` package is pretty big and this crate would be

@@ -3,7 +3,7 @@
 
 use crate::prelude::*;
 
-use ensogl::control::callback::CallbackHandle;
+use ensogl::control::callback;
 use ensogl::animation;
 use futures::task::LocalSpawn;
 use futures::task::LocalFutureObj;
@@ -23,7 +23,7 @@ pub struct EventLoopExecutor {
     event_loop  : Option<animation::DynamicLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
     /// Also owns a shared handle to the `executor`.
-    cb_handle   : Option<CallbackHandle>,
+    cb_handle   : Option<callback::Handle>,
 }
 
 impl EventLoopExecutor {

@@ -42,29 +42,25 @@ pub type CopyCallbackMut1<T> = Box<dyn CopyCallbackMut1Fn<T>>;
 
 
 
-// ======================
-// === CallbackHandle ===
-// ======================
+// ==============
+// === Handle ===
+// ==============
 
 /// Handle to a callback. When the handle is dropped, the callback is removed.
-#[derive(Clone,Debug,Default)]
-pub struct CallbackHandle {
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct Handle {
     rc: Rc<()>
 }
 
-impl CloneRef for CallbackHandle {}
-
-impl CallbackHandle {
-
-    /// Create a new handle.
+impl Handle {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
     /// Create guard for this handle.
     pub fn guard(&self) -> Guard {
-        let weak = Rc::downgrade(&self.rc);
-        Guard {weak}
+        Guard {weak: Rc::downgrade(&self.rc)}
     }
 
     /// Forget the handle. Warning! You would not be able to stop the callback after performing this
@@ -74,7 +70,12 @@ impl CallbackHandle {
     }
 }
 
-/// CallbackHandle's guard. Used to check if the handle is still valid.
+
+// =============
+// === Guard ===
+// =============
+
+/// Handle's guard. Used to check if the handle is still valid.
 #[derive(Debug)]
 pub struct Guard {
     weak: Weak<()>
@@ -89,25 +90,25 @@ impl Guard {
 
 
 
-// ========================
-// === CallbackRegistry ===
-// ========================
+// ================
+// === Registry ===
+// ================
 
 /// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
 /// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
 /// as well.
 #[derive(Derivative)]
 #[derivative(Debug,Default(bound=""))]
-pub struct CallbackRegistry1<T> {
+pub struct Registry1<T> {
     #[derivative(Debug="ignore")]
     callback_list: Vec<(Guard,CallbackMut1<T>)>
 }
 
-impl<T> CallbackRegistry1<T> {
+impl<T> Registry1<T> {
     /// Adds new callback and returns a new handle for it.
-    pub fn add<F:CallbackMut1Fn<T>>(&mut self, callback:F) -> CallbackHandle {
+    pub fn add<F:CallbackMut1Fn<T>>(&mut self, callback:F) -> Handle {
         let callback = Box::new(callback);
-        let handle   = CallbackHandle::new();
+        let handle   = Handle::new();
         let guard    = handle.guard();
         self.callback_list.push((guard,callback));
         handle
@@ -127,25 +128,25 @@ impl<T> CallbackRegistry1<T> {
 
 
 
-// ============================
-// === CopyCallbackRegistry ===
-// ============================
+// ====================
+// === CopyRegistry ===
+// ====================
 
 /// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
 /// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
 /// as well.
 #[derive(Derivative)]
 #[derivative(Debug,Default(bound=""))]
-pub struct CopyCallbackRegistry1<T> {
+pub struct CopyRegistry1<T> {
     #[derivative(Debug="ignore")]
     callback_list: Vec<(Guard,CopyCallbackMut1<T>)>
 }
 
-impl<T:Copy> CopyCallbackRegistry1<T> {
+impl<T:Copy> CopyRegistry1<T> {
     /// Adds new callback and returns a new handle for it.
-    pub fn add<F:CopyCallbackMut1Fn<T>>(&mut self, callback:F) -> CallbackHandle {
+    pub fn add<F:CopyCallbackMut1Fn<T>>(&mut self, callback:F) -> Handle {
         let callback = Box::new(callback);
-        let handle   = CallbackHandle::new();
+        let handle   = Handle::new();
         let guard    = handle.guard();
         self.callback_list.push((guard,callback));
         handle
@@ -195,12 +196,12 @@ pub struct DynEventDispatcher {
 
 impl DynEventDispatcher {
     /// Registers a new listener for a given type.
-    pub fn add_listener<F:CallbackMut1Fn<T>,T:'static>(&mut self, mut f:F) -> CallbackHandle {
+    pub fn add_listener<F:CallbackMut1Fn<T>,T:'static>(&mut self, mut f:F) -> Handle {
         let callback = Box::new(move |event:&DynEvent| {
             event.any.downcast_ref::<T>().iter().for_each(|t| { f(t) })
         });
         let type_id   = (&PhantomData::<T>).type_id();
-        let handle    = CallbackHandle::new();
+        let handle    = Handle::new();
         let guard     = handle.guard();
         let listeners = self.listener_map.entry(type_id).or_insert_with(default);
         listeners.push((guard,callback));

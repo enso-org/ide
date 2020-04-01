@@ -3,12 +3,7 @@
 
 use crate::prelude::*;
 
-use crate::control::callback::CallbackMut;
-use crate::control::callback::CallbackMutFn;
-use crate::control::callback::CopyCallbackMut1Fn;
-use crate::control::callback::CallbackHandle;
-use crate::control::callback::CallbackRegistry1;
-use crate::control::callback::CopyCallbackRegistry1;
+use crate::control::callback;
 use crate::system::web;
 
 use wasm_bindgen::prelude::Closure;
@@ -249,10 +244,10 @@ where Callback:LoopCallback {
 // ===================
 
 /// A callback to register in DynamicLoop, taking time_ms:f32 as its input.
-pub trait DynamicLoopCallback = CopyCallbackMut1Fn<TimeInfo>;
+pub trait DynamicLoopCallback = callback::CopyCallbackMut1Fn<TimeInfo>;
 
 /// Animation loop which allows registering and unregistering callbacks dynamically. After a
-/// callback is registered, a `CallbackHandle` is returned. The callback is automatically removed
+/// callback is registered, a `callback::Handle` is returned. The callback is automatically removed
 /// as soon as its handle is dropped. You can also use the `forget` method on the handle to make the
 /// callback registered forever, but beware that it can easily lead to memory leaks.
 ///
@@ -267,9 +262,9 @@ pub struct DynamicLoop {
 /// Internal representation for `DynamicLoop`.
 #[derive(Debug,Default)]
 pub struct DynamicLoopData {
-    on_frame        : CopyCallbackRegistry1<TimeInfo>,
-    on_before_frame : CopyCallbackRegistry1<TimeInfo>,
-    on_after_frame  : CopyCallbackRegistry1<TimeInfo>,
+    on_frame        : callback::CopyRegistry1<TimeInfo>,
+    on_before_frame : callback::CopyRegistry1<TimeInfo>,
+    on_after_frame  : callback::CopyRegistry1<TimeInfo>,
 }
 
 impl DynamicLoop {
@@ -290,17 +285,17 @@ impl DynamicLoop {
     }
 
     /// Add new callback which will be run on every animation frame.
-    pub fn on_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+    pub fn on_frame<F:DynamicLoopCallback>(&self, callback:F) -> callback::Handle {
         self.data.borrow_mut().on_frame.add(Box::new(callback))
     }
 
     /// Add new callback which will be run on before all callbacks registered with `on_frame`.
-    pub fn on_before_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+    pub fn on_before_frame<F:DynamicLoopCallback>(&self, callback:F) -> callback::Handle {
         self.data.borrow_mut().on_before_frame.add(Box::new(callback))
     }
 
     /// Add new callback which will be run on after all callbacks registered with `on_frame`.
-    pub fn on_after_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+    pub fn on_after_frame<F:DynamicLoopCallback>(&self, callback:F) -> callback::Handle {
         self.data.borrow_mut().on_after_frame.add(Box::new(callback))
     }
 }

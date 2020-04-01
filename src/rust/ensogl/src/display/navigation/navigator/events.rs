@@ -3,7 +3,7 @@ use crate::prelude::*;
 use crate::control::io::mouse;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse::button;
-use crate::control::callback::CallbackHandle;
+use crate::control::callback;
 use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web;
 
@@ -169,17 +169,17 @@ pub struct NavigatorEvents {
     data                 : Rc<NavigatorEventsData>,
     mouse_manager        : MouseManager,
     #[derivative(Debug="ignore")]
-    mouse_down           : Option<CallbackHandle>,
+    mouse_down           : Option<callback::Handle>,
     #[derivative(Debug="ignore")]
-    mouse_up             : Option<CallbackHandle>,
+    mouse_up             : Option<callback::Handle>,
     #[derivative(Debug="ignore")]
-    mouse_move           : Option<CallbackHandle>,
+    mouse_move           : Option<callback::Handle>,
     #[derivative(Debug="ignore")]
-    mouse_leave          : Option<CallbackHandle>,
+    mouse_leave          : Option<callback::Handle>,
     #[derivative(Debug="ignore")]
     disable_context_menu : Option<IgnoreContextMenuHandle>,
     #[derivative(Debug="ignore")]
-    wheel_zoom           : Option<CallbackHandle>
+    wheel_zoom           : Option<callback::Handle>
 }
 
 impl NavigatorEvents {

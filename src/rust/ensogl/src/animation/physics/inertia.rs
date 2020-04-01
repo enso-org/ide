@@ -408,7 +408,7 @@ fn step<T:Position,Cb>(simulator:&Simulator<T,Cb>) -> Step<T,Cb>
 where Cb : Callback<T> {
     let this = simulator.clone_ref();
     move |time:animation::TimeInfo| {
-        let delta_seconds = (time.frame / 1000.0) as f32;
+        let delta_seconds = time.frame / 1000.0;
         if this.simulation.active() {
             this.simulation.step(delta_seconds);
             (this.callback)(this.simulation.position());

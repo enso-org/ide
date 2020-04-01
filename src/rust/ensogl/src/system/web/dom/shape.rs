@@ -2,9 +2,7 @@
 //! change tracking which does not cause a reflow.
 //! Learn more: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
 
-use crate::control::callback::CallbackHandle;
-use crate::control::callback::CallbackMut1Fn;
-use crate::control::callback::CallbackRegistry1;
+use crate::control::callback;
 use crate::prelude::*;
 use crate::system::web::resize_observer::ResizeObserver;
 use crate::system::web;
@@ -128,7 +126,7 @@ pub struct WithKnownShape<T=web_sys::HtmlElement> {
     dom       : T,
     shape     : Shape,
     observer  : Rc<ResizeObserver>,
-    on_resize : Rc<RefCell<CallbackRegistry1<ShapeData>>>,
+    on_resize : Rc<RefCell<callback::Registry1<ShapeData>>>,
 }
 
 impl<T:CloneRef> CloneRef for WithKnownShape<T> {}
@@ -140,7 +138,7 @@ impl<T> WithKnownShape<T> {
         let dom          = dom.clone();
         let html_element = dom.clone().into();
         let shape        = Shape::from_element_with_reflow(&html_element);
-        let on_resize    = Rc::new(RefCell::new(CallbackRegistry1::default()));
+        let on_resize    = Rc::new(RefCell::new(callback::Registry1::default()));
         let callback     = Closure::new(enclose!((shape,on_resize) move |width, height| {
             shape.set(width as f32,height as f32);
             on_resize.borrow_mut().run_all(&shape.current())
@@ -150,7 +148,7 @@ impl<T> WithKnownShape<T> {
     }
 
     /// Attach a new callback which will fire whenever the object will be resized.
-    pub fn on_resize<F:CallbackMut1Fn<ShapeData>>(&self, callback:F) -> CallbackHandle {
+    pub fn on_resize<F:callback::CallbackMut1Fn<ShapeData>>(&self, callback:F) -> callback::Handle {
         self.on_resize.borrow_mut().add(callback)
     }
 

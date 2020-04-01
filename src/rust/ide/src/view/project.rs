@@ -6,7 +6,7 @@ use crate::prelude::*;
 use crate::double_representation::definition::DefinitionName;
 use crate::view::layout::ViewLayout;
 
-use ensogl::control::callback::CallbackHandle;
+use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
 use ensogl::display::world::World;
 use ensogl::system::web;
@@ -50,7 +50,7 @@ shared! { ProjectView
     pub struct ProjectViewData {
         world             : World,
         layout            : ViewLayout,
-        resize_callback   : Option<CallbackHandle>,
+        resize_callback   : Option<callback::Handle>,
         controller        : controller::project::Handle,
         keyboard          : Keyboard,
         keyboard_bindings : KeyboardFrpBindings,

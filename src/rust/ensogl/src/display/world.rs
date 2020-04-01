@@ -3,31 +3,26 @@
 
 pub mod stats;
 
+pub use crate::display::symbol::types::*;
+
 use crate::prelude::*;
 
-pub use crate::data::container::*;
-pub use crate::display::symbol::types::*;
-pub use crate::display::scene::SymbolId;
-pub use stats::*;
-
-use crate::closure;
-use crate::control::callback::CallbackHandle;
 use crate::animation;
+use crate::control::callback;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::render::*;
+use crate::display::render::passes::SymbolsRenderPass;
 use crate::display::scene::Scene;
-use crate::display;
+use crate::display::shape::text::text_field;
 use crate::display::traits::*;
+use crate::display;
 use crate::system::web;
+
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-use web_sys::KeyboardEvent;
-use web_sys::Performance;
-use crate::display::render::passes::SymbolsRenderPass;
-use crate::display::shape::text::text_field;
 
 
 
@@ -38,9 +33,9 @@ use crate::display::shape::text::text_field;
 /// Callback handles managed by world.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handles {
-    on_before_frame : CallbackHandle,
-    on_frame        : CallbackHandle,
-    on_after_frame  : CallbackHandle,
+    on_before_frame : callback::Handle,
+    on_frame        : callback::Handle,
+    on_after_frame  : callback::Handle,
 }
 
 
@@ -82,7 +77,7 @@ pub struct World {
     uniforms      : Uniforms,
     handles       : Handles,
     stats         : Stats,
-    stats_monitor : StatsMonitor,
+    stats_monitor : stats::Monitor,
     focus_manager : text_field::FocusManager, // FIXME: Remove it
 }
 
@@ -97,7 +92,7 @@ impl World {
         let scene           = Scene::new(dom,&logger,&stats,on_change);
         let uniforms        = Uniforms::new(&scene.variables);
         let main_loop       = animation::DynamicLoop::new();
-        let stats_monitor   = StatsMonitor::new(&stats);
+        let stats_monitor   = stats::Monitor::new(&stats);
         let focus_manager   = text_field::FocusManager::new_with_js_handlers();
 
         let monitor         = stats_monitor.clone_ref();
@@ -114,7 +109,8 @@ impl World {
         );
 
         let handles = Handles {on_before_frame,on_frame,on_after_frame};
-        Self {scene,scene_dirty,logger,main_loop,uniforms,handles,stats,stats_monitor,focus_manager} . init()
+        Self {scene,scene_dirty,logger,main_loop,uniforms,handles,stats,stats_monitor
+             ,focus_manager} . init()
     }
 
     fn init(self) -> Self {
@@ -130,7 +126,7 @@ impl World {
         let stats_monitor = self.stats_monitor.clone_ref();
         let display_mode  = self.uniforms.display_mode.clone_ref();
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-            let val = val.unchecked_into::<KeyboardEvent>();
+            let val = val.unchecked_into::<web_sys::KeyboardEvent>();
             let key = val.key();
             if      key == "`" { stats_monitor.toggle() }
             else if key == "0" { display_mode.set(0) }
@@ -171,7 +167,7 @@ impl World {
 
     /// Register a callback which should be run on each animation frame.
     pub fn on_frame<F:FnMut(animation::TimeInfo)+'static>
-    (&self, mut callback:F) -> CallbackHandle {
+    (&self, mut callback:F) -> callback::Handle {
         self.main_loop.on_frame(move |time| callback(time))
     }
 }

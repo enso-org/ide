@@ -3,7 +3,7 @@ use crate::prelude::*;
 use super::BenchContainer;
 use crate::system::web;
 use ensogl::animation;
-use ensogl::control::callback::CallbackHandle;
+use ensogl::control::callback;
 
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -25,7 +25,7 @@ pub struct BencherProperties {
     iterations     : usize,
     total_time     : f64,
     event_loop     : animation::DynamicLoop,
-    callback_guard : Option<CallbackHandle>
+    callback_guard : Option<callback::Handle>
 }
 
 impl BencherProperties {

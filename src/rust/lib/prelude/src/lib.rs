@@ -133,6 +133,7 @@ impl CloneRef for usize {}
 impl<T:?Sized> CloneRef for Rc<T> {}
 impl<T:?Sized> CloneRef for Weak<T> {}
 
+impl CloneRef for wasm_bindgen::JsValue {}
 impl CloneRef for web_sys::HtmlDivElement {}
 impl CloneRef for web_sys::HtmlElement {}
 impl CloneRef for web_sys::Performance {}

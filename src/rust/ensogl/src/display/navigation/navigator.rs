@@ -3,7 +3,7 @@ mod events;
 use crate::prelude::*;
 
 use crate::animation::physics;
-use crate::control::callback::CallbackHandle;
+use crate::control::callback;
 use crate::display::camera::Camera2d;
 use crate::display::object::traits::*;
 use crate::display::Scene;
@@ -24,7 +24,7 @@ use events::ZoomEvent;
 pub struct Navigator {
     _events         : NavigatorEvents,
     simulator       : physics::inertia::DynSimulator<Point3>,
-    resize_callback : CallbackHandle
+    resize_callback : callback::Handle
 }
 
 impl Navigator {
@@ -54,7 +54,7 @@ impl Navigator {
     , min_zoom   : f32
     , max_zoom   : f32
     , zoom_speed : f32
-    ) -> (physics::inertia::DynSimulator<Point3>,CallbackHandle,NavigatorEvents) {
+    ) -> (physics::inertia::DynSimulator<Point3>,callback::Handle,NavigatorEvents) {
         let simulator        = Self::create_simulator(&camera);
         let panning_callback = enclose!((dom,camera,mut simulator) move |pan: PanEvent| {
             let fovy_slope                  = camera.half_fovy_slope();

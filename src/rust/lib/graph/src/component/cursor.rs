@@ -28,7 +28,7 @@ use ensogl::display::scene;
 use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
 use ensogl::display::layout::alignment;
 use ensogl::system::web;
-use ensogl::control::callback::CallbackHandle;
+use ensogl::control::callback;
 use ensogl::gui::component::animation;
 
 
@@ -59,7 +59,7 @@ pub mod shape {
 #[derive(Debug)]
 pub struct CursorView {
     pub scene_view    : scene::View,
-    pub resize_handle : CallbackHandle,
+    pub resize_handle : callback::Handle,
 }
 
 impl View for CursorView {
