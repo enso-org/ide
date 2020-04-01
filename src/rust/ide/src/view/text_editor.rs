@@ -1,8 +1,8 @@
 //! This module contains TextEditor, an UiComponent to edit Enso Modules or Text Files.
 
-use ensogl::traits::*;
 use crate::prelude::*;
 
+use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
@@ -33,7 +33,7 @@ pub struct TextEditorData {
     padding    : TemporaryPadding,
     position   : Vector2<f32>,
     size       : Vector2<f32>,
-    controller : controller::text::Handle,
+    controller : controller::Text,
     logger     : Logger
 }
 
@@ -65,13 +65,13 @@ impl TextEditor {
     pub fn new
     ( logger           : &Logger
     , world            : &World
-    , controller       : controller::text::Handle
-    , keyboard_actions : &mut KeyboardActions
-    , fonts            : &mut FontRegistry) -> Self {
+    , controller       : controller::Text
+    , keyboard_actions : &mut KeyboardActions) -> Self {
         let logger     = logger.sub("TextEditor");
         let scene      = world.scene();
         let camera     = scene.camera();
         let screen     = camera.screen();
+        let mut fonts  = FontRegistry::new();
         let font       = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let padding    = default();
         let position   = zero();
@@ -81,7 +81,7 @@ impl TextEditor {
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(&world,properties);
-        world.add_child(&text_field.display_object());
+        // world.add_child(&text_field); // FIXME !!!
 
         let data = TextEditorData {controller,text_field,padding,position,size,logger};
         Self::new_from_data(data).initialize(keyboard_actions)
@@ -124,10 +124,10 @@ impl TextEditor {
         }));
     }
 
-    fn handle_controller_notification(&self, notification:controller::notification::Text)
+    fn handle_controller_notification(&self, notification:notification::Text)
     -> impl Future<Output=()> {
         match notification {
-            controller::notification::Text::Invalidate => self.reload_content()
+            notification::Text::Invalidate => self.reload_content()
         }
     }
 
