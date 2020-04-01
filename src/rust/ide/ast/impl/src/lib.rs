@@ -3,6 +3,7 @@
 #![feature(generators, generator_trait)]
 #![feature(trivial_bounds)]
 #![feature(type_alias_impl_trait)]
+#![feature(matches_macro)]
 
 #[warn(missing_docs)]
 pub mod assoc;
@@ -1071,22 +1072,25 @@ impl Ast {
     }
 
     /// Creates an AST node with `SectionLeft` shape.
-    pub fn section_left<Arg:Into<Ast>, Opr:Into<Ast>>(arg:Arg, opr:Opr) -> Ast {
+    pub fn section_left<Arg:Into<Ast>, Opr:ToString>(arg:Arg, opr:Opr) -> Ast {
         let off          = 1;
-        let section_left = SectionLeft { arg:arg.into(), off, opr:opr.into() };
+        let opr          = Ast::opr(opr);
+        let section_left = SectionLeft { arg:arg.into(), off, opr };
         Ast::from(section_left)
     }
 
     /// Creates an AST node with `SectionRight` shape.
-    pub fn section_right<Arg:Into<Ast>, Opr:Into<Ast>>(opr:Opr, arg:Arg) -> Ast {
+    pub fn section_right<Arg:Into<Ast>, Opr:ToString>(opr:Opr, arg:Arg) -> Ast {
         let off           = 1;
-        let section_right = SectionRight { arg:arg.into(), off, opr:opr.into() };
+        let opr           = Ast::opr(opr);
+        let section_right = SectionRight { arg:arg.into(), off, opr };
         Ast::from(section_right)
     }
 
     /// Creates an AST node with `SectionSides` shape.
-    pub fn section_sides<Opr:Into<Ast>>(opr:Opr) -> Ast {
-        let section_sides = SectionSides { opr:opr.into() };
+    pub fn section_sides<Opr:ToString>(opr:Opr) -> Ast {
+        let opr           = Ast::opr(opr);
+        let section_sides = SectionSides { opr };
         Ast::from(section_sides)
     }
 
@@ -1095,6 +1099,14 @@ impl Ast {
         let off = 1;
         let opr = Prefix { func:func.into(), off, arg:arg.into() };
         Ast::from(opr)
+    }
+
+    /// Creates an AST node with `InvalidSuffix` shape.
+    pub fn invalid_suffix(elem:impl Into<Ast>, suffix:impl Str) -> Ast {
+        let elem           = elem.into();
+        let suffix         = suffix.into();
+        let invalid_suffix = InvalidSuffix {elem,suffix};
+        Ast::from(invalid_suffix)
     }
 
     /// Creates an AST node with `Infix` shape.
@@ -1121,9 +1133,8 @@ impl Ast {
     }
 
     /// Creates an AST node with `TextBlockFmt` shape.
-    pub fn text_block_fmt(text:Vec<TextBlockLine<SegmentFmt<Ast>>>) -> Ast {
+    pub fn text_block_fmt(text:Vec<TextBlockLine<SegmentFmt<Ast>>>, offset:usize) -> Ast {
         let spaces = 0;
-        let offset = 0;
         let text_block_fmt = TextBlockFmt {text,spaces,offset};
         Ast::from(text_block_fmt)
     }
