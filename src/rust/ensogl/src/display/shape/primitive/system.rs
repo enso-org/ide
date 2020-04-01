@@ -24,9 +24,9 @@ use crate::system::gpu::data::buffer::item::Storable;
 
 /// Definition of a shape management system.
 ///
-/// Please note that you would rather not need to use it
-/// directly, as it would require manual management of buffer handlers. In order to automate the
-/// management, there is `ShapeSystemInstance` and the `define_shape_system` macro.
+/// Please note that you would rather not need to use it directly, as it would require manual
+/// management of buffer handlers. In order to automate the management, there is
+/// `ShapeSystemInstance` and the `define_shape_system` macro.
 ///
 /// Under the hood, it is a specialized version of `SpriteSystem`.
 #[allow(missing_docs)]
@@ -67,6 +67,7 @@ impl ShapeSystem {
         self.reload_material();
     }
 
+    /// Define a new shader input.
     pub fn add_input<T:material::Input + Storable>(&self, name:&str, t:T) -> Buffer<T>
     where AnyBuffer: From<Buffer<T>> {
         self.material.borrow_mut().add_input(name,t);
@@ -75,6 +76,7 @@ impl ShapeSystem {
         buffer
     }
 
+    /// Regenerate the shader with the current material.
     fn reload_material(&self) {
         self.sprite_system.set_material(&*self.material.borrow());
     }
@@ -90,18 +92,27 @@ impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
 
 
 
-
+/// Type for every `ShapeSystem` with automatic buffer management. The easiest way to define sych a
+/// shape system instance is by using the `define_shape_system` macro.
 pub trait ShapeSystemInstance : 'static + CloneRef {
+    /// The shape type of this shape system definition.
     type Shape : Shape<System=Self>;
+    /// Constructor.
     fn new(scene:&Scene) -> Self;
+    /// New shape constructor.
     fn new_instance(&self) -> Self::Shape;
 }
 
+/// Type for every shape with automatic attribute management. The easiest way to define sych a
+/// shape is by using the `define_shape_system` macro.
 pub trait Shape : Debug + Sized {
+    /// The shape system instance this shape belongs to.
     type System : ShapeSystemInstance<Shape=Self>;
+    /// Accessor for the underlying sprite object.
     fn sprite(&self) -> &Sprite;
 }
 
+/// Accessor for the `Shape::System` associated type.
 pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 
@@ -119,7 +130,9 @@ macro_rules! define_shape_system {
         // === Shape ===
         // =============
 
+        /// Shape definition.
         #[derive(Clone,Debug)]
+        #[allow(missing_docs)]
         pub struct Shape {
             pub sprite : Sprite,
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
@@ -143,7 +156,9 @@ macro_rules! define_shape_system {
         // === System ===
         // ==============
 
+        /// Shape system definition.
         #[derive(Clone,CloneRef,Debug)]
+        #[allow(missing_docs)]
         pub struct ShapeSystem {
             pub shape_system : $crate::display::shape::ShapeSystem,
             $(pub $gpu_param : Buffer<$gpu_param_type>),*
@@ -171,6 +186,7 @@ macro_rules! define_shape_system {
         }
 
         impl ShapeSystem {
+            /// The canvas shape definition.
             pub fn shape_def() -> AnyShape {
                 $(
                     let $gpu_param  : Var<$gpu_param_type> =

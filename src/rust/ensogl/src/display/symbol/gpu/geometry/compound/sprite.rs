@@ -21,26 +21,12 @@ use crate::system::gpu::types::*;
 // ===================
 
 /// Wrapper for `Stats` which counts the number of sprites.
-#[derive(Clone,Debug,Shrinkwrap)]
-pub struct SpriteStats {
-    rc : Rc<SpriteStatsData>
-}
-
-/// Internal representation for `SpriteStats`.
 #[derive(Debug,Shrinkwrap)]
-pub struct SpriteStatsData {
+pub struct SpriteStats {
     stats : Stats
 }
 
 impl SpriteStats {
-    /// Constructor.
-    pub fn new(stats:&Stats) -> Self {
-        let rc = Rc::new(SpriteStatsData::new(stats));
-        Self {rc}
-    }
-}
-
-impl SpriteStatsData {
     /// Constructor.
     pub fn new(stats:&Stats) -> Self {
         stats.inc_sprite_count();
@@ -49,7 +35,7 @@ impl SpriteStatsData {
     }
 }
 
-impl Drop for SpriteStatsData {
+impl Drop for SpriteStats {
     fn drop(&mut self) {
         self.stats.dec_sprite_count();
     }
@@ -61,6 +47,9 @@ impl Drop for SpriteStatsData {
 // === SpriteGuard ===
 // ===================
 
+/// Lifetime guard for `Sprite`. After sprite is dropped, it is removed from the sprite system.
+/// Note that the removal does not involve many changes to buffers. What really happens is setting
+/// the sprite dimensions to zero and marking it index as a free for future reuse.
 #[derive(Debug)]
 pub struct SpriteGuard {
     instance_id    : AttributeInstanceIndex,
@@ -112,105 +101,40 @@ impl Drop for SpriteGuard {
 /// freely rotated only by their local z-axis. This implementation, however, implements sprites as
 /// full 3D objects. We may want to fork this implementation in the future to create a specialized
 /// 2d representation as well.
-#[derive(Clone,Debug)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Sprite {
-    data : Rc<SpriteData>
-}
-
-#[derive(Clone,Debug)]
-pub struct WeakSprite {
-    data : Weak<SpriteData>
-}
-
-impl CloneRef for Sprite {}
-impl CloneRef for WeakSprite {}
-
-impl AsRef<SpriteData> for Sprite {
-    fn as_ref(&self) -> &SpriteData {
-        &self.data
-    }
-}
-
-impl std::borrow::Borrow<SpriteData> for Sprite {
-    fn borrow(&self) -> &SpriteData {
-        &self.data
-    }
-}
-
-impl Deref for Sprite {
-    type Target = SpriteData;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl Sprite {
-    pub fn downgrade(&self) -> WeakSprite {
-        let data = Rc::downgrade(&self.data);
-        WeakSprite {data}
-    }
-}
-
-impl WeakSprite {
-    pub fn upgrade(&self) -> Option<Sprite> {
-        self.data.upgrade().map(|data| Sprite {data})
-    }
-}
-
-impl Sprite {
-    /// Constructor.
-    pub fn new
-    ( symbol      : &Symbol
-    , instance_id : AttributeInstanceIndex
-    , transform   : Attribute<Matrix4<f32>>
-    , bbox        : Attribute<Vector2<f32>>
-    , stats       : &Stats
-    ) -> Self {
-        let data = SpriteData::new(symbol,instance_id,transform,bbox,stats);
-        let data = Rc::new(data);
-        Self {data}
-    }
-}
-
-#[derive(Debug)]
-pub struct SpriteData {
-    pub symbol           : Symbol,
-    pub instance_id      : AttributeInstanceIndex,
+    pub symbol       : Symbol,
+    pub instance_id  : AttributeInstanceIndex,
     display_object   : display::object::Node,
     transform        : Attribute<Matrix4<f32>>,
     bbox             : Attribute<Vector2<f32>>,
-    stats            : SpriteStats,
-    size_when_hidden : Cell<Vector2<f32>>,
-//    buffers          : Rc<RefCell<HashMap<String,AnyBuffer>>>,
-    guard            : SpriteGuard,
+    stats            : Rc<SpriteStats>,
+    size_when_hidden : Rc<Cell<Vector2<f32>>>,
+    guard            : Rc<SpriteGuard>,
 }
 
-impl SpriteData {
+impl Sprite {
     /// Constructor.
     pub fn new
     ( symbol      : &Symbol
     , instance_id : AttributeInstanceIndex
     , transform   : Attribute<Matrix4<f32>>
     , bbox        : Attribute<Vector2<f32>>
-//    , buffers     : &Rc<RefCell<HashMap<String,AnyBuffer>>>
     , stats       : &Stats
     ) -> Self {
         let symbol           = symbol.clone_ref();
         let logger           = Logger::new(iformat!("Sprite{instance_id}"));
         let display_object   = display::object::Node::new(logger);
-//        let buffers          = buffers.clone_ref();
-        let stats            = SpriteStats::new(stats);
-        let size_when_hidden = Cell::new(Vector2::new(0.0,0.0));
-        let guard            = SpriteGuard::new(instance_id,&symbol,&bbox,&display_object);
+        let stats            = Rc::new(SpriteStats::new(stats));
+        let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
+        let guard            = Rc::new(SpriteGuard::new(instance_id,&symbol,&bbox,&display_object));
 
-        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard}; // buffers
-        this.init_display_object();
-        this
+        Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden,guard}.init()
     }
 
     /// Init display object bindings. In particular defines the behavior of the show and hide
     /// callbacks.
-    fn init_display_object(&self) {
+    fn init(self) -> Self {
         let bbox             = &self.bbox;
         let transform        = &self.transform;
         let size_when_hidden = &self.size_when_hidden;
@@ -227,21 +151,8 @@ impl SpriteData {
         self.display_object.set_on_show(enclose!((bbox,size_when_hidden) move || {
             bbox.set(size_when_hidden.get());
         }));
-    }
 
-    /// Modifies the position of the sprite.
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object.mod_position(f);
-    }
-
-    /// Sets the position of the sprite.
-    pub fn set_position(&self, value:Vector3<f32>) {
-        self.display_object.set_position(value)
-    }
-
-    /// Position of the sprite.
-    pub fn position(&self) -> Vector3<f32> {
-        self.display_object.position()
+        self
     }
 
     /// Size accessor.
@@ -252,12 +163,6 @@ impl SpriteData {
     /// Id of instance bound to this sprite.
     pub fn instance_id(&self) -> AttributeInstanceIndex {
         self.instance_id
-    }
-}
-
-impl<'t> From<&'t SpriteData> for &'t display::object::Node {
-    fn from(sprite:&'t SpriteData) -> Self {
-        &sprite.display_object
     }
 }
 
@@ -276,29 +181,14 @@ impl<'t> From<&'t Sprite> for &'t display::object::Node {
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct SpriteSystem {
     pub symbol : Symbol,
     transform  : Buffer  <Matrix4<f32>>,
     uv         : Buffer  <Vector2<f32>>,
     size       : Buffer  <Vector2<f32>>,
     alignment  : Uniform <Vector2<f32>>,
-    sprite_map : Rc<RefCell<HashMap<usize,WeakSprite>>>,
-//    buffers   : Rc<RefCell<HashMap<String,AnyBuffer>>>,
     stats      : Stats,
-}
-
-impl CloneRef for SpriteSystem {
-    fn clone_ref(&self) -> Self {
-        let symbol     = self.symbol.clone_ref();
-        let transform  = self.transform.clone_ref();
-        let uv         = self.uv.clone_ref();
-        let size       = self.size.clone_ref();
-        let alignment  = self.alignment.clone_ref();
-        let sprite_map = self.sprite_map.clone_ref();
-        let stats      = self.stats.clone_ref();
-        Self {symbol,transform,uv,size,alignment,sprite_map,stats}
-    }
 }
 
 impl SpriteSystem {
@@ -317,12 +207,10 @@ impl SpriteSystem {
         let vertical          = VerticalAlignment::Center;
         let initial_alignment = Self::uv_offset(horizontal,vertical);
         let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
-        let sprite_map        = default();
-//        let buffers           = default();
 
         stats.inc_sprite_system_count();
 
-        let this = Self {symbol,transform,uv,size,alignment,stats,sprite_map}; // buffers
+        let this = Self {symbol,transform,uv,size,alignment,stats};
         this.init_attributes();
         this.init_shader();
         this
@@ -335,14 +223,9 @@ impl SpriteSystem {
         let size         = self.size.at(instance_id);
         let default_size = Vector2::new(1.0,1.0);
         size.set(default_size);
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats); // &self.buffers
-        self.add_child(&sprite); // FIXME
-        self.sprite_map.borrow_mut().insert(instance_id.into(),sprite.downgrade());
+        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
+        self.add_child(&sprite);
         sprite
-    }
-
-    pub fn get(&self, id:usize) -> Option<Sprite> {
-        self.sprite_map.borrow().get(&id).and_then(|s| s.upgrade())
     }
 
     /// Hide the symbol. Hidden symbols will not be rendered.

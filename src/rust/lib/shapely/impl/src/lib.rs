@@ -57,7 +57,7 @@ use shrinkwraprs::Shrinkwrap;
 macro_rules! newtype_copy {
     ($( $(#$meta:tt)* $name:ident($type:ty); )*) => {$(
         $(#$meta)*
-        #[derive(Copy,Clone,Debug,Default,Display,From,Into)]
+        #[derive(Copy,Clone,CloneRef,Debug,Default,Display,From,Into)]
         pub struct $name($type);
 
         impl Deref for $name {

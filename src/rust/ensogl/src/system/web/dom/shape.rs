@@ -139,8 +139,8 @@ impl<T> WithKnownShape<T> {
         let html_element = dom.clone().into();
         let shape        = Shape::from_element_with_reflow(&html_element);
         let on_resize    = Rc::new(RefCell::new(callback::Registry1::default()));
-        let callback     = Closure::new(enclose!((shape,on_resize) move |width, height| {
-            shape.set(width as f32,height as f32);
+        let callback     = Closure::new(enclose!((shape,on_resize) move |width,height| {
+            shape.set(width,height);
             on_resize.borrow_mut().run_all(&shape.current())
         }));
         let observer = Rc::new(ResizeObserver::new(dom.as_ref(),callback));

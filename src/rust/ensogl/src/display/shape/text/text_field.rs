@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // TODO: Fixme
+
 //! A module defining TextField. TextField is a ensogl component displaying editable block of text.
 
 pub mod content;

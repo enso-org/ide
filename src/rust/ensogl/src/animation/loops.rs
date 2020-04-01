@@ -187,6 +187,7 @@ pub struct FixedFrameRateSampler<Callback> {
 }
 
 impl<Callback> FixedFrameRateSampler<Callback> {
+    /// Constructor.
     pub fn new(frame_rate:f32, callback:Callback) -> Self {
         let frame_time  = 1000.0 / frame_rate;
         let local_time  = default();
@@ -228,10 +229,12 @@ impl<Callback:FnMut<(TimeInfo,)>> FnMut<(TimeInfo,)> for FixedFrameRateSampler<C
 // === FixedFrameRateLoop ===
 // ==========================
 
+/// Loop with a `FixedFrameRateSampler` attached.
 pub type FixedFrameRateLoop<Callback> = Loop<FixedFrameRateSampler<Callback>>;
 
 impl<Callback> FixedFrameRateLoop<Callback>
 where Callback:LoopCallback {
+    /// Constructor.
     pub fn new_with_fixed_frame_rate(frame_rate:f32, callback:Callback) -> Self {
         Self::new(FixedFrameRateSampler::new(frame_rate,callback))
     }

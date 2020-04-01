@@ -27,12 +27,20 @@ macro_rules! define_events {
                 Self {raw,shape}
             }
 
+            /// The Y coordinate of the mouse pointer relative to the position of the padding edge
+            /// of the target node.
             pub fn offset_y(&self) -> i32 {
                 self.shape.height() as i32 - self.raw.offset_y()
             }
 
+            /// The Y coordinate of the mouse pointer in local (DOM content) coordinates.
             pub fn client_y(&self) -> i32 {
                 self.shape.height() as i32 - self.raw.client_y()
+            }
+
+            /// The Y coordinate of the mouse pointer in global (screen) coordinates.
+            pub fn screen_y(&self) -> i32 {
+                self.shape.height() as i32 - self.raw.screen_y()
             }
 
             /// Translation of the button property to Rust `Button` enum.
