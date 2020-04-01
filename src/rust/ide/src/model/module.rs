@@ -219,7 +219,7 @@ mod test {
 
     #[test]
     fn notifying() {
-        let mut test               = TestWithLocalPoolExecutor::set_up();
+        let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async {
             let module                 = Module::default();
             let mut text_subscription  = module.subscribe_text_notifications();
@@ -259,12 +259,12 @@ mod test {
 
     #[test]
     fn handling_metadata() {
-        let mut test               = TestWithLocalPoolExecutor::set_up();
+        let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async {
             let module = Module::default();
 
-            let id            = Uuid::new_v4();
-            let initial_md    = module.node_metadata(id.clone());
+            let id         = Uuid::new_v4();
+            let initial_md = module.node_metadata(id.clone());
             assert!(initial_md.is_err());
 
             let md_to_set = NodeMetadata {position:Some(Position::new(1.0, 2.0))};
