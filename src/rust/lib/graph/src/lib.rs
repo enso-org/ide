@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! NOTE
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
@@ -10,7 +12,6 @@
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
 #![feature(weak_into_raw)]
-#![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
 #![warn(unused_import_braces)]
@@ -20,51 +21,33 @@
 #![warn(missing_debug_implementations)]
 
 
+#[warn(missing_docs)]
 pub mod component;
 
-use ensogl::prelude::*;
-use ensogl::traits::*;
-
-use ensogl::data::color::*;
-use ensogl::display;
-use ensogl::display::Sprite;
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::shape::*;
-use ensogl::display::shape::Var;
-use ensogl::display::world::*;
-use ensogl::system::web;
-use crate::component::node;
-use crate::component::node::Node;
-use crate::component::node::WeakNode;
-use crate::component::cursor;
-use crate::component::cursor::Cursor;
-use nalgebra::Vector2;
-use shapely::shared;
-use std::any::TypeId;
-use ensogl::control::io::mouse::MouseManager;
-use enso_frp as frp;
-use enso_frp::{frp, Position};
-use enso_frp::Mouse;
-use ensogl::control::io::mouse;
-use enso_frp::core::node::class::EventEmitterPoly;
-use ensogl::display::layout::alignment;
-use ensogl::display::scene;
-use ensogl::display::scene::{Scene, MouseTarget};
-//use ensogl::gui::component::StrongRef;
-//use ensogl::gui::component::WeakRef;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-
+/// Common types and functions usable in all modules of this crate.
 pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
+use ensogl::prelude::*;
+use ensogl::traits::*;
 
-
-use ensogl::animation::physics;
-use ensogl::data::OptVec;
+use ensogl::display;
+use ensogl::display::world::*;
+use ensogl::system::web;
+use crate::component::node::Node;
+use crate::component::node::WeakNode;
+use crate::component::cursor::Cursor;
+use nalgebra::Vector2;
+use enso_frp as frp;
+use enso_frp::{frp, Position};
+use enso_frp::core::node::class::EventEmitterPoly;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use ensogl::display::object::Id;
 use ensogl::system::web::StyleSetter;
+
+
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -144,7 +127,7 @@ impl WeakNodeSelectionSet {
 }
 
 
-
+#[derive(Debug)]
 pub struct Events {
     pub add_node              : frp::Dynamic<()>,
     pub remove_selected_nodes : frp::Dynamic<()>,
@@ -160,19 +143,15 @@ impl Events {
     }
 }
 
+#[derive(Debug)]
 pub struct GraphEditor {
     pub events         : Events,
     pub selected_nodes : WeakNodeSelectionSet,
 }
 
 impl GraphEditor {
-
     pub fn new(world: &World) -> Self {
         let scene  = world.scene();
-        let camera = scene.camera();
-        let screen = camera.screen();
-
-
         let cursor = Cursor::new();
         web::body().set_style_or_panic("cursor","none");
 
@@ -205,10 +184,10 @@ impl GraphEditor {
 
             node_mouse_down = source::<Option<WeakNode>> ();
 
-            foo = events.add_node.map2(&mouse.position, enclose!((node_set,node_mouse_down,world) move |_,pos| {
+            _foo = events.add_node.map2(&mouse.position, enclose!((node_set,node_mouse_down,world) move |_,pos| {
                 let node = Node::new();
                 let weak_node = node.downgrade();
-                let ttt = node.view.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
+                node.view.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
                     node_mouse_down.event.emit(Some(weak_node.clone_ref()))
                 }));
 
@@ -222,16 +201,15 @@ impl GraphEditor {
 
             }));
 
-            bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
+            _bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
                 selected_nodes2.for_each_taken(|node| {
                     node_set.remove(&node);
                 })
             }));
 
-            baz = node_mouse_down.map(move |opt_node| {
+            _baz = node_mouse_down.map(move |opt_node| {
                 opt_node.for_each_ref(|weak_node| {
                     weak_node.upgrade().map(|node| {
-                        let is_selected = selected_nodes2.contains(&node);
                         selected_nodes2.deselect_all();
                         node.events.select.event.emit(());
                         selected_nodes2.insert(&node);
@@ -241,11 +219,11 @@ impl GraphEditor {
         }
 
 
-        mouse.on_down.map("cursor_press", enclose!((cursor) move |p| {
+        mouse.on_down.map("cursor_press", enclose!((cursor) move |_| {
             cursor.events.press.event.emit(());
         }));
 
-        mouse.on_up.map("cursor_release", enclose!((cursor) move |p| {
+        mouse.on_up.map("cursor_release", enclose!((cursor) move |_| {
             cursor.events.release.event.emit(());
         }));
 
@@ -263,7 +241,7 @@ impl GraphEditor {
                 display::scene::Target::Background => {
                     selected_nodes2.deselect_all();
                 }
-                display::scene::Target::Symbol {symbol_id, instance_id} => {
+                display::scene::Target::Symbol {symbol_id:_, instance_id} => {
                     scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
                         target.mouse_down().for_each(|t| t.event.emit(()));
                     })

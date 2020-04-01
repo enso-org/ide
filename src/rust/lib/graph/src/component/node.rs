@@ -1,34 +1,28 @@
+//! Definition of the Node component.
 
 use crate::prelude::*;
 
-use ensogl::control::callback::CallbackMut1;
 use ensogl::data::color::Srgba;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::display::{Sprite, Attribute};
-use ensogl::math::Vector2;
-use ensogl::math::Vector3;
-use logger::Logger;
-use std::any::TypeId;
-use enso_prelude::std_reexports::fmt::{Formatter, Error};
-use ensogl::animation::physics;
 use enso_frp;
 use enso_frp as frp;
 use enso_frp::frp;
-use enso_frp::core::node::class::EventEmitterPoly;
-use ensogl::display::{AnyBuffer,Buffer};
+use ensogl::display::Buffer;
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
-use ensogl::display::world::World;
-use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
+use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::gui::component::animation;
-use ensogl::gui::component::ViewManager;
 use ensogl::gui::component;
 
 
+
+/// Icons definitions.
 pub mod icons {
     use super::*;
 
+    /// History icon.
     pub fn history() -> AnyShape {
         let radius_diff    = 0.5.px();
         let corners_radius = 2.0.px();
@@ -60,6 +54,7 @@ pub mod icons {
     }
 }
 
+/// Ring angle shape definition.
 pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
     where R : Into<Var<Distance<Pixels>>>,
           W : Into<Var<Distance<Pixels>>>,
@@ -89,6 +84,7 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
 // === Node ===
 // ============
 
+/// Canvas node shape definition.
 pub mod shape {
     use super::*;
 
@@ -100,8 +96,6 @@ pub mod shape {
 
             let node = Circle(&node_radius);
             let node = node.fill(Srgb::new(0.97,0.96,0.95));
-            let bg   = Circle(&node_radius*2.0);
-            let bg   = bg.fill(Srgb::new(0.91,0.91,0.90));
 
             let shadow       = Circle(&node_radius + &border_size);
             let shadow_color = LinearGradient::new()
@@ -124,41 +118,60 @@ pub mod shape {
     }
 }
 
+
+
+// ==============
+// === Events ===
+// ==============
+
+/// Node events.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Events {
     pub select     : frp::Dynamic<()>,
     pub deselect   : frp::Dynamic<()>,
 }
 
+
+// ============
+// === Node ===
+// ============
+
+/// Node definition.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Node {
     data : Rc<NodeData>,
 }
 
+/// Weak version of `Node`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakNode {
     data : Weak<NodeData>
 }
 
-#[derive(Debug)]
+/// Shape view for Node.
+#[derive(Debug,Clone,Copy)]
 pub struct NodeView {}
-impl component::ShapeView for NodeView {
+impl component::ShapeViewDefinition for NodeView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
+    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
         shape.sprite.size().set(Vector2::new(200.0,200.0));
         Self {}
     }
 }
 
+/// Internal data of `Node`
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct NodeData {
     pub logger : Logger,
     pub label  : frp::Dynamic<String>,
     pub events : Events,
-    pub view   : ViewManager<NodeView>,
+    pub view   : component::ShapeView<NodeView>,
 }
 
 impl Node {
+    /// Constructor.
     pub fn new() -> Self {
         frp! {
             label    = source::<String> ();
@@ -167,7 +180,7 @@ impl Node {
         }
 
         let logger = Logger::new("node");
-        let view   = ViewManager::new(&logger);
+        let view   = component::ShapeView::new(&logger);
         let events = Events {select,deselect};
         let data   = Rc::new(NodeData {logger,label,events,view});
         Self {data} . init()

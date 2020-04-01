@@ -50,7 +50,7 @@ fn init(world:&World) {
     let mut hidden = false;
 
     let world2 = world.clone_ref();
-    world.on_frame(move |time| {
+    world.on_frame(move |_| {
         on_frame(&world2,&camera,&mut iter, &mut hidden,&sprite1,&mut sprites,&sprite_system)
     }).forget();
 }

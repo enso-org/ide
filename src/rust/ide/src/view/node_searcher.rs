@@ -1,3 +1,6 @@
+#![allow(missing_docs)] // FIXME
+#![allow(unused_must_use)] // FIXME
+
 use crate::prelude::*;
 
 use ensogl::display;

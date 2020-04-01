@@ -1,4 +1,4 @@
-////! EasingAnimator examples.
+//! EasingAnimator examples.
 //
 //use crate::prelude::*;
 //

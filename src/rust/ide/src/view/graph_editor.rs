@@ -1,19 +1,20 @@
+#![allow(missing_docs)] //FIXME
+
 use crate::prelude::*;
 
-use crate::controller::module::Position;
-use crate::executor::global::spawn;
-use crate::view::temporary_panel::TemporaryPadding;
+//use crate::executor::global::spawn;
+//use crate::view::temporary_panel::TemporaryPadding;
 
 use ensogl::display;
-use ensogl::display::object::ObjectOps;
-use ensogl::display::Sprite;
+//use ensogl::display::object::ObjectOps;
+//use ensogl::display::Sprite;
 use ensogl::display::world::World;
-use std::any::TypeId;
-use nalgebra::zero;
-use ast::HasRepr;
+//use std::any::TypeId;
+//use nalgebra::zero;
+//use ast::HasRepr;
 //use graph::Graph;
-use utils::channel::process_stream_with_handle;
-use js_sys::Atomics::sub;
+//use utils::channel::process_stream_with_handle;
+//use js_sys::Atomics::sub;
 
 
 // ====================
@@ -30,7 +31,7 @@ pub struct GraphEditor {
 }
 
 impl GraphEditor {
-    pub fn new(logger:&Logger, world:&World, controller:controller::graph::Handle) -> Self {
+    pub fn new(logger:&Logger, _world:&World, controller:controller::graph::Handle) -> Self {
         let logger         = logger.sub("GraphEditor");
         let display_object = display::object::Node::new(&logger);
 //        let graph          = graph::Graph::new(world);

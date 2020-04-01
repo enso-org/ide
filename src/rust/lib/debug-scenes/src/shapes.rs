@@ -5,36 +5,12 @@
 //! be of poor quality. Expect drastic changes.
 
 use ensogl::prelude::*;
-use ensogl::traits::*;
 
-use ensogl::data::color::*;
-use ensogl::display;
-use ensogl::display::Sprite;
 use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::shape::*;
-use ensogl::display::shape::Var;
 use ensogl::display::world::*;
 use ensogl::system::web;
 use graph::GraphEditor;
-use graph::component::node;
-use graph::component::node::Node;
-use graph::component::node::WeakNode;
-use graph::component::cursor;
-use graph::component::cursor::Cursor;
-use nalgebra::Vector2;
-use shapely::shared;
-use std::any::TypeId;
 use wasm_bindgen::prelude::*;
-use ensogl::control::io::mouse::MouseManager;
-use enso_frp::{frp, Position};
-use enso_frp::Mouse;
-use ensogl::control::io::mouse;
-use enso_frp::core::node::class::EventEmitterPoly;
-use ensogl_system_web::StyleSetter;
-use ensogl::display::layout::alignment;
-use wasm_bindgen::JsCast;
-use ensogl::display::scene;
-use ensogl::display::scene::{Scene, MouseTarget};
 
 
 #[wasm_bindgen]
@@ -52,10 +28,10 @@ fn init(world: &World) {
     let camera = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
 
-    let graph_editor = GraphEditor::new(world);
+    let _graph_editor = GraphEditor::new(world);
 
-    let mut iter:i32 = 0;
-    let mut time:i32 = 0;
+    let mut _iter:i32 = 0;
+    let mut _time:i32 = 0;
     let mut was_rendered = false;
     let mut loader_hidden = false;
 

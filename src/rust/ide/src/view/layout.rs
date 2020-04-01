@@ -11,7 +11,6 @@ use ensogl::display;
 use ensogl::display::ObjectOps;
 use ensogl::display::world::World;
 use enso_frp::io::KeyboardActions;
-use enso_frp::io::KeyMask;
 use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
@@ -19,6 +18,7 @@ use std::cell::RefCell;
 use crate::view::graph_editor::GraphEditor;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use crate::view::node_searcher::NodeSearcher;
+
 
 
 // ==================

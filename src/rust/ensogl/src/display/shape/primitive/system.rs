@@ -191,6 +191,8 @@ macro_rules! define_shape_system {
                 $(
                     let $gpu_param  : Var<$gpu_param_type> =
                         concat!("input_",stringify!($gpu_param)).into();
+                    // Silencing warnings about not used shader input variables.
+                    let _unused = &$gpu_param;
                 )*
                 $($body)*
             }

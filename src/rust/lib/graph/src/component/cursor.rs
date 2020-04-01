@@ -1,29 +1,19 @@
+//! Definition of the Cursor (known as well as mouse pointer) component.
 
 use crate::prelude::*;
 
-use ensogl::control::callback::CallbackMut1;
 use ensogl::data::color::Srgba;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::display::{Sprite, Attribute};
-use ensogl::math::Vector2;
-use ensogl::math::Vector3;
-use logger::Logger;
-use std::any::TypeId;
-use enso_prelude::std_reexports::fmt::{Formatter, Error};
-use ensogl::animation::physics;
 use enso_frp;
 use enso_frp as frp;
 use enso_frp::frp;
-use enso_frp::core::node::class::EventEmitterPoly;
-use ensogl::display::{AnyBuffer,Buffer};
-use ensogl::data::color::*;
+use ensogl::display::Buffer;
 use ensogl::display::shape::*;
-use ensogl::display::world::World;
 use ensogl::gui::component;
-use ensogl::gui::component::ViewManager;
 use ensogl::display::scene;
-use ensogl::display::scene::{Scene,MouseTarget,ShapeRegistry};
+use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::display::layout::alignment;
 use ensogl::system::web;
 use ensogl::control::callback;
@@ -35,6 +25,7 @@ use ensogl::gui::component::animation;
 // === CursorView ===
 // ==================
 
+/// Canvas shape definition.
 pub mod shape {
     use super::*;
 
@@ -54,13 +45,15 @@ pub mod shape {
     }
 }
 
+/// Shape view for Cursor.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct CursorView {
     pub scene_view    : scene::View,
     pub resize_handle : callback::Handle,
 }
 
-impl component::ShapeView for CursorView {
+impl component::ShapeViewDefinition for CursorView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         let scene_shape = scene.shape();
@@ -86,14 +79,16 @@ impl component::ShapeView for CursorView {
 // === Events ===
 // ==============
 
+/// Cursor events.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Events {
     pub press   : frp::Dynamic<()>,
     pub release : frp::Dynamic<()>,
 }
 
-impl Events {
-    pub fn new(logger:&Logger) -> Self {
+impl Default for Events {
+    fn default() -> Self {
         frp! {
             press   = source::<()> ();
             release = source::<()> ();
@@ -108,28 +103,33 @@ impl Events {
 // === Cursor ===
 // ==============
 
+/// Cursor (mouse pointer) definition.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Cursor {
     data : Rc<CursorData>
 }
 
+/// Weak version of `Cursor`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakCursor {
     data : Weak<CursorData>
 }
 
+/// Internal data for `Cursor`.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct CursorData {
     pub logger : Logger,
     pub events : Events,
-    pub view   : ViewManager<CursorView>,
+    pub view   : component::ShapeView<CursorView>,
 }
 
 impl Cursor {
+    /// Constructor.
     pub fn new() -> Self {
         let logger = Logger::new("cursor");
-        let view   = ViewManager::new(&logger);
-        let events = Events::new(&logger);
+        let view   = component::ShapeView::new(&logger);
+        let events = Events::default();
         let data   = CursorData {logger,events,view};
         let data   = Rc::new(data);
         Cursor {data} . init()
@@ -155,12 +155,14 @@ impl Cursor {
         self
     }
 
+    /// Position setter.
     pub fn set_position(&self, pos:Vector2<f32>) {
         self.view.data.borrow().as_ref().for_each(|view| {
             view.shape.position.set(pos);
         })
     }
 
+    /// Selection size setter.
     pub fn set_selection_size(&self, pos:Vector2<f32>) {
         self.view.data.borrow().as_ref().for_each(|view| {
             view.shape.selection_size.set(pos);
