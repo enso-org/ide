@@ -227,28 +227,24 @@ pub enum DefCrumb {
 // === Conversion Traits ===
 
 macro_rules! from_crumb {
-    ($id:ident) => {
-        paste::item! {
-            impl From<[<$id Crumb>]> for Crumb {
-                fn from(crumb:[<$id Crumb>]) -> Self {
-                    Crumb::$id(crumb)
-                }
+    ($id:ident,$crumb_id:ident) => {
+        impl From<$crumb_id> for Crumb {
+            fn from(crumb:$crumb_id) -> Self {
+                Crumb::$id(crumb)
             }
         }
 
-        paste::item! {
-            impl From<&[<$id Crumb>]> for Crumb {
-                fn from(crumb:&[<$id Crumb>]) -> Self {
-                    Crumb::$id(crumb.clone())
-                }
+        impl From<&$crumb_id> for Crumb {
+            fn from(crumb:&$crumb_id) -> Self {
+                Crumb::$id(crumb.clone())
             }
         }
     }
 }
 
 macro_rules! impl_crumbs {
-    ($($id:ident),*) => {
-        $(from_crumb!{$id})*
+    ($(($id:ident,$crumb_id:ident)),*) => {
+        $(from_crumb!{$id,$crumb_id})*
 
         impl Crumbable for Shape<Ast> {
             type Crumb = Crumb;
@@ -274,33 +270,31 @@ macro_rules! impl_crumbs {
             }
         }
 
-        paste::item!{
-            /// Crumb identifies location of child AST in an AST node. Allows for a single step AST traversal.
-            #[derive(Clone,Copy,Debug,PartialEq,Hash)]
-            #[allow(missing_docs)]
-            pub enum Crumb {
-                $($id([<$id Crumb>]),)*
-            }
+        /// Crumb identifies location of child AST in an AST node. Allows for a single step AST traversal.
+        #[derive(Clone,Copy,Debug,PartialEq,Hash)]
+        #[allow(missing_docs)]
+        pub enum Crumb {
+            $($id($crumb_id),)*
         }
     }
 }
 
 impl_crumbs!{
-    InvalidSuffix,
-    TextLineFmt,
-    TextBlockFmt,
-    TextUnclosed,
-    Prefix,
-    Infix,
-    SectionLeft,
-    SectionRight,
-    SectionSides,
-    Module,
-    Block,
-    Import,
-    Mixfix,
-    Group,
-    Def
+    (InvalidSuffix,InvalidSuffixCrumb),
+    (TextLineFmt  ,TextLineFmtCrumb),
+    (TextBlockFmt ,TextBlockFmtCrumb),
+    (TextUnclosed ,TextUnclosedCrumb),
+    (Prefix       ,PrefixCrumb),
+    (Infix        ,InfixCrumb),
+    (SectionLeft  ,SectionLeftCrumb),
+    (SectionRight ,SectionRightCrumb),
+    (SectionSides ,SectionSidesCrumb),
+    (Module       ,ModuleCrumb),
+    (Block        ,BlockCrumb),
+    (Import       ,ImportCrumb),
+    (Mixfix       ,MixfixCrumb),
+    (Group        ,GroupCrumb),
+    (Def          ,DefCrumb)
 }
 
 
@@ -927,6 +921,7 @@ mod tests {
     use crate::HasRepr;
     use crate::SegmentExpr;
     use crate::SegmentFmt;
+    use crate::SegmentPlain;
     use crate::TextBlockLine;
     use crate::TextLine;
     use crate::TextLineFmt;
@@ -1107,15 +1102,20 @@ mod tests {
 
     #[test]
     fn iterate_text_line_fmt() {
-        let expr1  = SegmentExpr { value : Some(Ast::var("foo")) };
-        let expr2  = SegmentExpr { value : Some(Ast::var("bar")) };
-        let text   = vec![SegmentFmt::SegmentExpr(expr1),SegmentFmt::SegmentExpr(expr2)];
-        let ast    = Ast::text_line_fmt(text);
+        let expr1 = SegmentExpr { value : Some(Ast::var("foo")) };
+        let expr2 = SegmentPlain { value : "qux".into() };
+        let expr3 = SegmentExpr { value : Some(Ast::var("bar")) };
+        let text  = vec![
+            SegmentFmt::SegmentExpr(expr1),
+            SegmentFmt::SegmentPlain(expr2),
+            SegmentFmt::SegmentExpr(expr3)
+        ];
+        let ast   = Ast::text_line_fmt(text);
 
         let (segment1,segment2) = ast.iter_subcrumbs().expect_tuple();
 
         assert_eq!(segment1, Crumb::TextLineFmt(TextLineFmtCrumb{segment_index:0}));
-        assert_eq!(segment2, Crumb::TextLineFmt(TextLineFmtCrumb{segment_index:1}));
+        assert_eq!(segment2, Crumb::TextLineFmt(TextLineFmtCrumb{segment_index:2}));
     }
 
     // === TextBlockFmt ===
@@ -1158,15 +1158,21 @@ mod tests {
         let line1       = TextBlockLine{empty_lines,text};
 
         let empty_lines = default();
-        let expr        = SegmentExpr { value : Some(Ast::var("bar")) };
-        let text        = vec![SegmentFmt::SegmentExpr(expr)];
+        let expr        = SegmentPlain { value : "qux".into() };
+        let text        = vec![SegmentFmt::SegmentPlain(expr)];
         let line2       = TextBlockLine{empty_lines,text};
 
-        let lines       = vec![line1,line2];
+        let empty_lines = default();
+        let expr1       = SegmentPlain { value : "qux".into() };
+        let expr2       = SegmentExpr { value : Some(Ast::var("bar")) };
+        let text        = vec![SegmentFmt::SegmentPlain(expr1),SegmentFmt::SegmentExpr(expr2)];
+        let line3       = TextBlockLine{empty_lines,text};
+
+        let lines       = vec![line1,line2,line3];
         let ast         = Ast::text_block_fmt(lines,0);
 
         let crumb1 = TextBlockFmtCrumb {text_line_index:0, segment_index:0};
-        let crumb2 = TextBlockFmtCrumb {text_line_index:1, segment_index:0};
+        let crumb2 = TextBlockFmtCrumb {text_line_index:2, segment_index:1};
 
         let (line1,line2) = ast.iter_subcrumbs().expect_tuple();
 
@@ -1257,7 +1263,7 @@ mod tests {
 
     #[test]
     fn section_left_crumb() -> FallibleResult<()> {
-        let app = Ast::section_left(Ast::var("foo"), Ast::var("bar"));
+        let app = Ast::section_left(Ast::var("foo"), "bar");
         let get   = |app_crumb| {
             let crumb = Crumb::SectionLeft(app_crumb);
             app.get(&crumb)
@@ -1282,7 +1288,7 @@ mod tests {
 
     #[test]
     fn iterate_section_left() -> FallibleResult<()> {
-        let app = Ast::section_left(Ast::var("foo"), Ast::var("bar"));
+        let app = Ast::section_left(Ast::var("foo"), "bar");
 
         let (arg,opr) = app.iter_subcrumbs().expect_tuple();
         assert_eq!(arg, Crumb::SectionLeft(SectionLeftCrumb::Arg));
@@ -1296,7 +1302,7 @@ mod tests {
 
     #[test]
     fn section_right_crumb() -> FallibleResult<()> {
-        let app = Ast::section_right(Ast::var("foo"), Ast::var("bar"));
+        let app = Ast::section_right("foo", Ast::var("bar"));
         let get   = |app_crumb| {
             let crumb = Crumb::SectionRight(app_crumb);
             app.get(&crumb)
@@ -1321,7 +1327,7 @@ mod tests {
 
     #[test]
     fn iterate_section_right() -> FallibleResult<()> {
-        let app = Ast::section_right(Ast::var("foo"), Ast::var("bar"));
+        let app = Ast::section_right("foo", Ast::var("bar"));
 
         let (opr,arg) = app.iter_subcrumbs().expect_tuple();
         assert_eq!(arg, Crumb::SectionRight(SectionRightCrumb::Arg));
@@ -1335,7 +1341,7 @@ mod tests {
 
     #[test]
     fn section_sides_crumb() -> FallibleResult<()> {
-        let app = Ast::section_sides(Ast::var("foo"));
+        let app = Ast::section_sides("foo");
         let get   = |app_crumb| {
             let crumb = Crumb::SectionSides(app_crumb);
             app.get(&crumb)
@@ -1356,7 +1362,7 @@ mod tests {
 
     #[test]
     fn iterate_section_sides() -> FallibleResult<()> {
-        let app = Ast::section_sides(Ast::var("foo"));
+        let app = Ast::section_sides("foo");
 
         let mut iter = app.iter_subcrumbs();
 
