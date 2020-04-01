@@ -12,7 +12,7 @@ use futures::executor::LocalPool;
 use futures::executor::LocalSpawner;
 
 /// Executor. Uses a single-threaded `LocalPool` underneath, relying on ensogl's
-/// `animation::EventLoop` to do as much progress as possible on every animation frame.
+/// `animation::DynamicLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
 pub struct EventLoopExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
@@ -20,7 +20,7 @@ pub struct EventLoopExecutor {
     /// Executor's spawner handle.
     pub spawner : LocalSpawner,
     /// Event loop that calls us on each frame.
-    event_loop  : Option<animation::EventLoop>,
+    event_loop  : Option<animation::DynamicLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
     /// Also owns a shared handle to the `executor`.
     cb_handle   : Option<CallbackHandle>,
@@ -42,16 +42,16 @@ impl EventLoopExecutor {
     ///loop will live as long as this executor.
     pub fn new_running() -> EventLoopExecutor {
         let mut executor = EventLoopExecutor::new();
-        executor.start_running(animation::EventLoop::new());
+        executor.start_running(animation::DynamicLoop::new());
         executor
     }
 
-    /// Returns a callback compatible with `animation::EventLoop` that once called shall
+    /// Returns a callback compatible with `animation::DynamicLoop` that once called shall
     /// attempt achieving as much progress on this executor's tasks as possible
     /// without stalling.
-    pub fn runner(&self) -> impl animation::EventLoopCallback {
+    pub fn runner(&self) -> impl animation::DynamicLoopCallback {
         let executor = self.executor.clone();
-        move |_:&f64| {
+        move |_| {
             // Safe, because this is the only place borrowing executor and loop
             // callback shall never be re-entrant.
             let mut executor = executor.borrow_mut();
@@ -65,10 +65,10 @@ impl EventLoopExecutor {
     ///
     /// The executor will keep copy of this loop handle, so caller is not
     /// required to keep it alive.
-    pub fn start_running(&mut self, event_loop:animation::EventLoop) {
+    pub fn start_running(&mut self, event_loop:animation::DynamicLoop) {
         let cb = self.runner();
 
-        self.cb_handle  = Some(event_loop.add_callback(cb));
+        self.cb_handle  = Some(event_loop.on_frame(cb));
         self.event_loop = Some(event_loop);
     }
 

@@ -11,6 +11,7 @@ use ensogl::prelude::*;
 use ensogl::system::web::forward_panic_hook_to_console;
 use ensogl::system::web::set_stdout;
 use ensogl::system::web;
+use ensogl::animation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
@@ -44,9 +45,9 @@ fn init(world:&World) {
     }
 
     let mut iter:i32 = 0;
-    world.on_frame(move |time_ms| {
+    world.on_frame(move |time| {
         let _keep_alive = &navigator;
-        on_frame(&camera,*time_ms,&mut iter,&sprite1,&mut sprites,&sprite_system)
+        on_frame(&camera,time,&mut iter,&sprite1,&mut sprites,&sprite_system)
     }).forget();
 }
 
@@ -54,7 +55,7 @@ fn init(world:&World) {
 #[allow(clippy::many_single_char_names)]
 pub fn on_frame
 ( camera        : &Camera2d
-, time          : f64
+, time          : animation::TimeInfo
 , iter          : &mut i32
 , sprite1       : &Sprite
 , sprites       : &mut Vec<Sprite>
@@ -89,7 +90,7 @@ pub fn on_frame
     let half_height = screen.height / 2.0;
 
     if !frozen {
-        let t = time as f32 / 1000.0;
+        let t = time.local as f32 / 1000.0;
         let length = sprites.len() as f32;
         for (i, sprite) in sprites.iter_mut().enumerate() {
             let i = i as f32;

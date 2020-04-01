@@ -1,93 +1,45 @@
-//! This module contains implementation of `EventLoop`, a loop manager which runs a
-//! `EventLoopCallback` once per frame.
+//! This module contains implementation of `DynamicLoop`, a loop manager which runs a
+//! `DynamicLoopCallback` once per frame.
 
 use crate::prelude::*;
 
 use crate::control::callback::CallbackMut;
 use crate::control::callback::CallbackMutFn;
-use crate::control::callback::CallbackMut1Fn;
+use crate::control::callback::CopyCallbackMut1Fn;
 use crate::control::callback::CallbackHandle;
 use crate::control::callback::CallbackRegistry1;
+use crate::control::callback::CopyCallbackRegistry1;
 use crate::system::web;
 
 use wasm_bindgen::prelude::Closure;
 
 
 
-// =========================
-// === EventLoopCallback ===
-// =========================
+// ================
+// === TimeInfo ===
+// ================
 
-/// A callback to register in EventLoop, taking time_ms:f64 as its input.
-pub trait EventLoopCallback = CallbackMut1Fn<f64>;
-
-/// Event loop system.
-///
-/// It allows registering callbacks which will be fired on every animation frame. After a callback
-/// is registered, a `CallbackHandle` is returned. The callback is automatically removed as soon as
-/// its handle is dropped. You can also use the `forget` method on the handle to make the callback
-/// registered forever, but beware that it can easily lead to memory leaks.
-#[derive(Clone,CloneRef,Debug)]
-pub struct EventLoop {
-    frame_loop : RawLoop<Box<dyn FnMut(f64)>>,
-    data       : Rc<RefCell<EventLoopData>>,
+/// Note: the `start` field will be computed on first run. We cannot compute it upfront, as other
+/// time functions, like `performance.now()` can output nor precise results. The exact results
+/// differ across browsers and browser versions. We have even observed that `performance.now()` can
+/// sometimes provide a bigger value than time provided to `requestAnimationFrame` callback later,
+/// which resulted in a negative frame time.
+#[derive(Clone,Copy,Debug,Default)]
+pub struct TimeInfo {
+    /// Start time of the animation loop.
+    pub start : f32,
+    /// The last frame time.
+    pub frame : f32,
+    /// The time which passed since the animation loop was started.
+    pub local : f32,
 }
 
-/// Internal representation for `EventLoop`.
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct EventLoopData {
-    callbacks        : CallbackRegistry1<f64>,
-    #[derivative(Debug="ignore")]
-    on_loop_started  : CallbackMut,
-    #[derivative(Debug="ignore")]
-    on_loop_finished : CallbackMut,
-}
-
-impl EventLoopData {
+impl TimeInfo {
     /// Constructor.
     pub fn new() -> Self {
-        let callbacks        = default();
-        let on_loop_started  = Box::new(||{});
-        let on_loop_finished = Box::new(||{});
-        Self {callbacks,on_loop_started,on_loop_finished}
+        default()
     }
 }
-
-impl EventLoop {
-    /// Constructor.
-    pub fn new() -> Self {
-        let data = Rc::new(RefCell::new(EventLoopData::new()));
-        let weak = Rc::downgrade(&data);
-        let frame_loop :RawLoop<Box<dyn FnMut(f64)>> =
-            RawLoop::new(Box::new(move |time| {
-                weak.upgrade().for_each(|data| {
-                    let mut data_mut = data.borrow_mut();
-                    (&mut data_mut.on_loop_started)();
-                    data_mut.callbacks.run_all(&time);
-                    (&mut data_mut.on_loop_finished)();
-                })
-            }));
-        Self {frame_loop,data}
-    }
-
-    /// Add new callback. Returns `CallbackHandle` which when dropped, removes
-    /// the callback as well.
-    pub fn add_callback<F:EventLoopCallback>(&self, callback:F) -> CallbackHandle {
-        self.data.borrow_mut().callbacks.add(Box::new(callback))
-    }
-
-    /// Sets a callback which is called when the loop started.
-    pub fn set_on_loop_started<F:CallbackMutFn>(&self, f:F) {
-        self.data.borrow_mut().on_loop_started = Box::new(f);
-    }
-
-    /// Sets a callback which is called when the loop finished.
-    pub fn set_on_loop_finished<F:CallbackMutFn>(&self, f:F) {
-        self.data.borrow_mut().on_loop_finished = Box::new(f);
-    }
-}
-
 
 
 
@@ -98,7 +50,7 @@ impl EventLoop {
 // === Types ===
 
 /// Callback for `RawLoop`.
-pub trait RawLoopCallback = FnMut(f64) + 'static;
+pub trait RawLoopCallback = FnMut(f32) + 'static;
 
 
 // === Definition ===
@@ -136,7 +88,7 @@ where Callback : RawLoopCallback {
 pub struct RawLoopData<Callback> {
     #[derivative(Debug="ignore")]
     callback  : Callback,
-    on_frame  : Option<Closure<dyn RawLoopCallback>>,
+    on_frame  : Option<Closure<dyn FnMut(f64)>>,
     handle_id : i32,
 }
 
@@ -150,10 +102,10 @@ impl<Callback> RawLoopData<Callback> {
 
     /// Run the animation frame.
     fn run(&mut self, current_time_ms:f64)
-    where Callback:FnMut(f64) {
+    where Callback:FnMut(f32) {
         let callback   = &mut self.callback;
         self.handle_id = self.on_frame.as_ref().map_or(default(), |on_frame| {
-            callback(current_time_ms);
+            callback(current_time_ms as f32);
             web::request_animation_frame(on_frame)
         })
     }
@@ -162,34 +114,6 @@ impl<Callback> RawLoopData<Callback> {
 impl<Callback> Drop for RawLoopData<Callback> {
     fn drop(&mut self) {
         web::cancel_animation_frame(self.handle_id);
-    }
-}
-
-
-
-// ================
-// === TimeInfo ===
-// ================
-
-/// Note: the `start` field will be computed on first run. We cannot compute it upfront, as other
-/// time functions, like `performance.now()` can output nor precise results. The exact results
-/// differ across browsers and browser versions. We have even observed that `performance.now()` can
-/// sometimes provide a bigger value than time provided to `requestAnimationFrame` callback later,
-/// which resulted in a negative frame time.
-#[derive(Clone,Copy,Debug,Default)]
-pub struct TimeInfo {
-    /// Start time of the animation loop.
-    pub start : f64,
-    /// The last frame time.
-    pub frame : f64,
-    /// The time which passed since the animation loop was started.
-    pub local : f64,
-}
-
-impl TimeInfo {
-    /// Constructor.
-    pub fn new() -> Self {
-        default()
     }
 }
 
@@ -227,6 +151,7 @@ impl<Callback> CloneRef for Loop<Callback> {
 
 impl<Callback> Loop<Callback>
 where Callback : LoopCallback {
+    /// Constructor.
     pub fn new(callback:Callback) -> Self {
         let time_info      = Rc::new(Cell::new(TimeInfo::new()));
         let animation_loop = RawLoop::new(on_frame(callback,time_info.clone_ref()));
@@ -234,10 +159,10 @@ where Callback : LoopCallback {
     }
 }
 
-pub type OnFrame<Callback> = impl FnMut(f64);
+pub type OnFrame<Callback> = impl FnMut(f32);
 fn on_frame<Callback>(mut callback:Callback, time_info_ref:Rc<Cell<TimeInfo>>) -> OnFrame<Callback>
 where Callback : LoopCallback {
-    move |current_time:f64| {
+    move |current_time:f32| {
         let time_info = time_info_ref.get();
         let start     = if time_info.start == 0.0 {current_time} else {time_info.start};
         let frame     = current_time - start - time_info.local;
@@ -259,15 +184,15 @@ where Callback : LoopCallback {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct FixedFrameRateSampler<Callback> {
-    frame_time  : f64,
-    local_time  : f64,
-    time_buffer : f64,
+    frame_time  : f32,
+    local_time  : f32,
+    time_buffer : f32,
     #[derivative(Debug="ignore")]
     callback    : Callback,
 }
 
 impl<Callback> FixedFrameRateSampler<Callback> {
-    pub fn new(frame_rate:f64, callback:Callback) -> Self {
+    pub fn new(frame_rate:f32, callback:Callback) -> Self {
         let frame_time  = 1000.0 / frame_rate;
         let local_time  = default();
         let time_buffer = default();
@@ -312,7 +237,70 @@ pub type FixedFrameRateLoop<Callback> = Loop<FixedFrameRateSampler<Callback>>;
 
 impl<Callback> FixedFrameRateLoop<Callback>
 where Callback:LoopCallback {
-    pub fn new_with_fixed_frame_rate(frame_rate:f64, callback:Callback) -> Self {
+    pub fn new_with_fixed_frame_rate(frame_rate:f32, callback:Callback) -> Self {
         Self::new(FixedFrameRateSampler::new(frame_rate,callback))
+    }
+}
+
+
+
+// ===================
+// === DynamicLoop ===
+// ===================
+
+/// A callback to register in DynamicLoop, taking time_ms:f32 as its input.
+pub trait DynamicLoopCallback = CopyCallbackMut1Fn<TimeInfo>;
+
+/// Animation loop which allows registering and unregistering callbacks dynamically. After a
+/// callback is registered, a `CallbackHandle` is returned. The callback is automatically removed
+/// as soon as its handle is dropped. You can also use the `forget` method on the handle to make the
+/// callback registered forever, but beware that it can easily lead to memory leaks.
+///
+/// Please refer to `Loop` if you don't need the ability to add / remove callbacks dynamically and
+/// you want better performance.
+#[derive(Clone,CloneRef,Debug)]
+pub struct DynamicLoop {
+    raw_loop : Loop<Box<dyn FnMut(TimeInfo)>>,
+    data     : Rc<RefCell<DynamicLoopData>>,
+}
+
+/// Internal representation for `DynamicLoop`.
+#[derive(Debug,Default)]
+pub struct DynamicLoopData {
+    on_frame        : CopyCallbackRegistry1<TimeInfo>,
+    on_before_frame : CopyCallbackRegistry1<TimeInfo>,
+    on_after_frame  : CopyCallbackRegistry1<TimeInfo>,
+}
+
+impl DynamicLoop {
+    /// Constructor.
+    pub fn new() -> Self {
+        let data = Rc::new(RefCell::new(DynamicLoopData::default()));
+        let weak = Rc::downgrade(&data);
+        let raw_loop : Loop<Box<dyn FnMut(TimeInfo)>> =
+            Loop::new(Box::new(move |time| {
+                weak.upgrade().for_each(|data| {
+                    let mut data_mut = data.borrow_mut();
+                    data_mut.on_before_frame.run_all(time);
+                    data_mut.on_frame.run_all(time);
+                    data_mut.on_after_frame.run_all(time);
+                })
+            }));
+        Self {raw_loop,data}
+    }
+
+    /// Add new callback which will be run on every animation frame.
+    pub fn on_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+        self.data.borrow_mut().on_frame.add(Box::new(callback))
+    }
+
+    /// Add new callback which will be run on before all callbacks registered with `on_frame`.
+    pub fn on_before_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+        self.data.borrow_mut().on_before_frame.add(Box::new(callback))
+    }
+
+    /// Add new callback which will be run on after all callbacks registered with `on_frame`.
+    pub fn on_after_frame<F:DynamicLoopCallback>(&self, callback:F) -> CallbackHandle {
+        self.data.borrow_mut().on_after_frame.add(Box::new(callback))
     }
 }

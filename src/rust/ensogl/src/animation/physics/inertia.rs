@@ -321,7 +321,7 @@ pub struct Simulator<T:Position,Cb> {
     #[shrinkwrap(main_field)]
     simulation     : Simulation<T>,
     animation_loop : Rc<CloneCell<Option<animation::FixedFrameRateLoop<Step<T,Cb>>>>>,
-    frame_rate     : Rc<Cell<f64>>,
+    frame_rate     : Rc<Cell<f32>>,
     #[derivative(Debug="ignore")]
     callback : Rc<Cb>,
 }
