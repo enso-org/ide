@@ -27,12 +27,12 @@ impl<T> IndexedAccess for Vec<T> {
     type Item = T;
 
     fn get_or_err(&self, index:usize, name:impl Str) -> Result<&Self::Item, IndexOutOfBounds> {
-        self.get(index).ok_or(IndexOutOfBounds(name.into()))
+        self.get(index).ok_or_else(|| IndexOutOfBounds(name.into()))
     }
 
     fn get_mut_or_err
     (&mut self, index:usize, name:impl Str) -> Result<&mut Self::Item, IndexOutOfBounds> {
-        self.get_mut(index).ok_or(IndexOutOfBounds(name.into()))
+        self.get_mut(index).ok_or_else(|| IndexOutOfBounds(name.into()))
     }
 }
 
@@ -698,7 +698,7 @@ impl Crumbable for crate::Group<Ast> {
     type Crumb = GroupCrumb;
 
     fn get(&self, _crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        Ok(self.body.as_ref().ok_or(NotPresent("body".into()))?)
+        Ok(self.body.as_ref().ok_or_else(|| NotPresent("body".into()))?)
     }
 
     fn set(&self, _crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
