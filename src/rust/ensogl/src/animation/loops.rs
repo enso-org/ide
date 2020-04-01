@@ -270,9 +270,8 @@ pub struct DynamicLoopData {
     on_after_frame  : callback::CopyRegistry1<TimeInfo>,
 }
 
-impl DynamicLoop {
-    /// Constructor.
-    pub fn new() -> Self {
+impl Default for DynamicLoop {
+    fn default() -> Self {
         let data = Rc::new(RefCell::new(DynamicLoopData::default()));
         let weak = Rc::downgrade(&data);
         let raw_loop : Loop<Box<dyn FnMut(TimeInfo)>> =
@@ -285,6 +284,13 @@ impl DynamicLoop {
                 })
             }));
         Self {raw_loop,data}
+    }
+}
+
+impl DynamicLoop {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
     }
 
     /// Add new callback which will be run on every animation frame.

@@ -170,6 +170,12 @@ impl Cursor {
     }
 }
 
+impl Default for Cursor {
+    fn default() -> Self {
+        Cursor::new()
+    }
+}
+
 impl StrongRef for Cursor {
     type WeakRef = WeakCursor;
     fn downgrade(&self) -> WeakCursor {

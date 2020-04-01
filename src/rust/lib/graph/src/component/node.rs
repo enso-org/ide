@@ -218,6 +218,12 @@ impl Node {
     }
 }
 
+impl Default for Node {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StrongRef for Node {
     type WeakRef = WeakNode;
     fn downgrade(&self) -> WeakNode {

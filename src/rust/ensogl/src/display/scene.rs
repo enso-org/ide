@@ -597,6 +597,8 @@ impl Views {
         Self {logger,main,all,width,height}
     }
 
+    /// Creates a new view for this scene.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(&self) -> View {
         let view = View::new(&self.logger,self.width,self.height);
         self.all.borrow_mut().push(view.downgrade());

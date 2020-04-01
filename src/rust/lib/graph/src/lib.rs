@@ -133,8 +133,8 @@ pub struct Events {
     pub remove_selected_nodes : frp::Dynamic<()>,
 }
 
-impl Events {
-    pub fn new() -> Self {
+impl Default for Events {
+    fn default() -> Self {
         frp! {
             add_node              = source::<()> ();
             remove_selected_nodes = source::<()> ();
@@ -159,7 +159,7 @@ impl GraphEditor {
         world.add_child(&cursor);
 
 
-        let events = Events::new();
+        let events = Events::default();
     //    web::body().set_style_or_panic("cursor","none");
 
         let mouse = &scene.mouse.frp;
@@ -241,7 +241,7 @@ impl GraphEditor {
                 display::scene::Target::Background => {
                     selected_nodes2.deselect_all();
                 }
-                display::scene::Target::Symbol {symbol_id:_, instance_id} => {
+                display::scene::Target::Symbol {instance_id,..} => {
                     scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
                         target.mouse_down().for_each(|t| t.event.emit(()));
                     })

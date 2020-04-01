@@ -64,6 +64,7 @@ impl ParentBind {
 /// want to switch to a real callback registry in the future if there will be suitable use cases for
 /// it.
 #[derive(Default)]
+#[allow(clippy::type_complexity)]
 pub struct Callbacks {
     pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeData)>>>,
     pub on_show      : RefCell<Option<Box<dyn Fn()>>>,
@@ -223,18 +224,18 @@ impl NodeData {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self) {
         let origin0 = Matrix4::identity();
-        self.update_origin(&None,origin0,false)
+        self.update_origin(None,origin0,false)
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update_with(&self, scene:&Scene) {
         let origin0 = Matrix4::identity();
-        self.update_origin(&Some(scene),origin0,false)
+        self.update_origin(Some(scene),origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_origin(&self, scene:&Option<&Scene>, parent_origin:Matrix4<f32>, force:bool) {
+    fn update_origin(&self, scene:Option<&Scene>, parent_origin:Matrix4<f32>, force:bool) {
         self.update_visibility(scene);
         let parent_changed = self.dirty.parent.check();
         let use_origin     = force || parent_changed;
@@ -275,15 +276,14 @@ impl NodeData {
     }
 
     /// Internal
-    fn update_visibility(&self, scene:&Option<&Scene>) {
+    fn update_visibility(&self, scene:Option<&Scene>) {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.dirty.removed_children.take().into_iter().for_each(|child| {
                     if child.is_orphan() {
                         child.hide();
-                        match scene {
-                            Some(s) => child.hide_with(s),
-                            _ => {}
+                        if let Some(s) = scene {
+                            child.hide_with(s)
                         }
                     }
                 });
@@ -293,9 +293,8 @@ impl NodeData {
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
             self.show();
-            match scene {
-                Some(s) => self.show_with(s),
-                _ => {}
+            if let Some(s) = scene {
+                self.show_with(s)
             }
         }
     }
@@ -314,13 +313,11 @@ impl NodeData {
     }
 
     pub fn hide_with(&self, scene:&Scene) {
-//        if self.visible {
             self.logger.info("Hiding.");
             self.callbacks.on_hide_with(scene);
             self.children.borrow().iter().for_each(|child| {
                 child.upgrade().for_each(|t| t.hide_with(scene));
             });
-//        }
     }
 
     /// Show this node and all of its children. This function is called automatically when updating

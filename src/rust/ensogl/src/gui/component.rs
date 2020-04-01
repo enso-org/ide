@@ -131,8 +131,7 @@ pub fn animation<F>(f:F) -> DynSimulator<f32>
     where F : Fn(f32) + 'static {
     frp! { target = source::<f32> (); }
     target.map("animation", move |value| f(*value));
-    let simulator = DynSimulator::<f32>::new(Box::new(move |t| {
+    DynSimulator::<f32>::new(Box::new(move |t| {
         target.event.emit(t);
-    }));
-    simulator
+    }))
 }

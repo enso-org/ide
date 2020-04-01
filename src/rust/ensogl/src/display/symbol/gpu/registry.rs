@@ -88,6 +88,7 @@ impl SymbolRegistry {
     }
 
     /// Creates a new `Symbol` instance.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(&self) -> Symbol {
         let ix = self.new_get_id();
         self.index(ix)

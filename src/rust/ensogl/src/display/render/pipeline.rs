@@ -33,6 +33,7 @@ impl {
 
 impl RenderPipeline {
     /// Add a new pass to the pipeline.
+    #[allow(clippy::should_implement_trait)]
     pub fn add<Pass:RenderPass>(self, pass:Pass) -> Self {
         let pass = Box::new(pass);
         self.rc.borrow_mut().passes.push(pass);
