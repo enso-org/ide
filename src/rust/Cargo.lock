@@ -1318,6 +1318,7 @@ name = "logger"
 version = "0.1.0"
 dependencies = [
  "enso-prelude 0.1.0",
+ "shapely 0.1.0",
  "wasm-bindgen 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
  "web-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2327,6 +2328,7 @@ name = "shapely"
 version = "0.1.0"
 dependencies = [
  "derivative 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-prelude 0.1.0",
  "paste 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "shapely-macros 0.1.0",
  "shrinkwraprs 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

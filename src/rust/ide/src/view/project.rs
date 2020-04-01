@@ -8,6 +8,7 @@ use crate::view::layout::ViewLayout;
 
 use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::world::World;
 use ensogl::system::web;
 use enso_frp::Keyboard;
@@ -15,7 +16,6 @@ use enso_frp::KeyboardActions;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
 
 
 // =================
@@ -51,7 +51,7 @@ shared! { ProjectView
         world             : World,
         layout            : ViewLayout,
         resize_callback   : Option<callback::Handle>,
-        controller        : controller::project::Handle,
+        controller        : controller::Project,
         keyboard          : Keyboard,
         keyboard_bindings : KeyboardFrpBindings,
         keyboard_actions  : KeyboardActions
@@ -67,19 +67,19 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub async fn new(logger:&Logger, controller:controller::project::Handle)
+    pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
         let path                 = Path::new(INITIAL_FILE_PATH);
         // This touch is to ensure, that our hardcoded module exists (so we don't require
         // additional user/tester action to run IDE. It will be removed once we will support opening
         // any module file.
-        controller.file_manager().touch(path.clone()).await?;
+        controller.file_manager.touch(path.clone()).await?;
         let location             = controller::module::Location::from_path(&path).unwrap();
-        let text_controller      = controller.get_text_controller(path).await?;
+        let text_controller      = controller.text_controller(path).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
-        let module_controller    = controller.get_module_controller(location).await?;
-        let graph_controller     = controller::graph::Handle::new_unchecked(module_controller,graph_id);
+        let module_controller    = controller.module_controller(location).await?;
+        let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
         let world                = World::new(&web::get_html_element_by_id("root").unwrap());
         // graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
