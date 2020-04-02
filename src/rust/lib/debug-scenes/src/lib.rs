@@ -18,7 +18,6 @@
 #![warn(unused_qualifications)]
 #[allow(clippy::option_map_unit_fn)]
 
-pub mod benchmarks;
 pub mod dom_symbols;
 pub mod easing_animator;
 pub mod glyph_system;

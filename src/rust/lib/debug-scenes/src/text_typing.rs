@@ -41,6 +41,7 @@ pub fn run_example_text_typing() {
         world.on_frame(move |_| {
             animate_text_component(&mut text_field,&mut chars,start_scrolling)
         }).forget();
+        world.keep_alive_forever();
     });
 }
 

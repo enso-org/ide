@@ -49,5 +49,6 @@ pub fn run_example_text_field() {
         world.add_child(&text_field.display_object());
 
         world.on_frame(move |_| { let _keep_alive = &text_field; }).forget();
+        world.keep_alive_forever();
     });
 }

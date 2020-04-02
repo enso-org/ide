@@ -495,12 +495,6 @@ impl Debug for Node {
     }
 }
 
-impl Drop for NodeData {
-    fn drop(&mut self) {
-        println!("DROP!");
-    }
-}
-
 
 
 // ==========

@@ -22,14 +22,12 @@ use wasm_bindgen::prelude::*;
 pub fn run_example_sprite_system() {
     forward_panic_hook_to_console();
     set_stdout();
-    init(&World::new(&web::get_html_element_by_id("root").unwrap()));
-}
 
-fn init(world:&World) {
+    let world         = World::new(&web::get_html_element_by_id("root").unwrap());
     let scene         = world.scene();
     let camera        = scene.camera().clone_ref();
     let navigator     = Navigator::new(&scene,&camera);
-    let sprite_system = SpriteSystem::new(world);
+    let sprite_system = SpriteSystem::new(&world);
 
     let sprite1       = sprite_system.new_instance();
     sprite1.size().set(Vector2::new(10.0, 10.0));
@@ -43,6 +41,8 @@ fn init(world:&World) {
         let sprite = sprite_system.new_instance();
         sprites.push(sprite);
     }
+
+    world.keep_alive_forever();
 
     let mut iter:i32 = 0;
     world.on_frame(move |time| {

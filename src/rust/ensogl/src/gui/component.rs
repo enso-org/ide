@@ -20,7 +20,7 @@ use enso_frp::core::node::class::EventEmitterPoly;
 // =======================
 
 /// FRP event endpoints exposed by each shape view. In particular these are all mouse events
-/// which are triggered by mouse interactions after the shape view is placed on the stage.
+/// which are triggered by mouse interactions after the shape view is placed on the scene.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
@@ -45,9 +45,9 @@ impl MouseTarget for ShapeViewEvents {
 // === ShapeView ===
 // =================
 
-/// Automatically managed view of a shape. The view is initially empty and is filled with a
-/// reference to an existing `Shape` as soon as it is placed on the stage and the stage is updated.
-/// As soon as it is removed from the stage, the shape is freed.
+/// Automatically managed view of a `Shape`. The view is initially empty and is filled with a
+/// reference to an existing `Shape` as soon as it is placed on the scene and the scene is updated.
+/// As soon as it is removed from the scene, the shape is freed.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ShapeView<T:ShapeViewDefinition> {
@@ -57,7 +57,7 @@ pub struct ShapeView<T:ShapeViewDefinition> {
 }
 
 /// A structure containing data which is constructed or dropped when the `ShapeView` is added or
-/// removed from the stage.
+/// removed from the scene.
 #[derive(Debug)]
 pub struct ShapeViewData<T:ShapeViewDefinition> {
     /// A data associated with the shape. In simple cases, this data could be just a marker struct.

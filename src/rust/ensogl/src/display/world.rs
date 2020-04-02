@@ -171,6 +171,12 @@ impl World {
     (&self, mut callback:F) -> callback::Handle {
         self.main_loop.on_frame(move |time| callback(time))
     }
+
+    /// Keeps the world alive even when all references are dropped. Use only if you want to keep one
+    /// instance of the world forever.
+    pub fn  keep_alive_forever(&self) {
+        mem::forget(self.clone_ref())
+    }
 }
 
 impl<'t> From<&'t World> for &'t display::object::Node {
