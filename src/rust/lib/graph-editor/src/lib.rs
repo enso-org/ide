@@ -79,6 +79,10 @@ impl NodeSet {
     pub fn get(&self, id:Id) -> Option<Node> {
         self.data.borrow().get(&id).map(|t| t.clone_ref())
     }
+
+    pub fn clear(&self) {
+        self.data.borrow_mut().clear();
+    }
 }
 
 
@@ -129,17 +133,21 @@ impl WeakNodeSelectionSet {
 
 #[derive(Debug)]
 pub struct Events {
-    pub add_node              : frp::Dynamic<()>,
+    pub add_node_under_cursor : frp::Dynamic<()>,
+    pub add_node_at           : frp::Dynamic<Position>,
     pub remove_selected_nodes : frp::Dynamic<()>,
+    pub clear_graph           : frp::Dynamic<()>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp! {
-            add_node              = source::<()> ();
-            remove_selected_nodes = source::<()> ();
+            add_node_under_cursor = source::<()>       ();
+            add_node_at           = source::<Position> ();
+            remove_selected_nodes = source::<()>       ();
+            clear_graph           = source::<()>       ();
         }
-        Self {add_node,remove_selected_nodes}
+        Self {add_node_under_cursor,add_node_at,remove_selected_nodes,clear_graph}
     }
 }
 
@@ -147,6 +155,7 @@ impl Default for Events {
 pub struct GraphEditor {
     pub events         : Events,
     pub selected_nodes : WeakNodeSelectionSet,
+    pub display_object : display::object::Node,
 }
 
 impl GraphEditor {
@@ -154,10 +163,9 @@ impl GraphEditor {
         let scene  = world.scene();
         let cursor = Cursor::new();
         web::body().set_style_or_panic("cursor","none");
-
-
         world.add_child(&cursor);
 
+        let display_object = display::object::Node::new(Logger::new("GraphEditor"));
 
         let events = Events::default();
     //    web::body().set_style_or_panic("cursor","none");
@@ -178,20 +186,22 @@ impl GraphEditor {
             selection_size_on_down = selection_zero.sample        (&mouse.on_down);
             selection_size         = selection_size_if_down.merge (&selection_size_on_down);
 
-
             mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
-
 
             node_mouse_down = source::<Option<WeakNode>> ();
 
-            _foo = events.add_node.map2(&mouse.position, enclose!((node_set,node_mouse_down,world) move |_,pos| {
+            add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { pos.clone() });
+
+            add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
+
+            _node_added = add_node_unified.map(enclose!((node_set,node_mouse_down,display_object) move |pos| {
                 let node = Node::new();
                 let weak_node = node.downgrade();
                 node.view.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
                     node_mouse_down.event.emit(Some(weak_node.clone_ref()))
                 }));
 
-                world.add_child(&node);
+                display_object.add_child(&node);
                 node.mod_position(|t| {
                     t.x += pos.x as f32;
                     t.y += pos.y as f32;
@@ -199,6 +209,10 @@ impl GraphEditor {
 
                 node_set.insert(node);
 
+            }));
+
+            _graph_cleared = events.clear_graph.map(enclose!((node_set) move |()| {
+                node_set.clear();
             }));
 
             _bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
@@ -249,7 +263,7 @@ impl GraphEditor {
             }
         }));
 
-        let add_node_ref = events.add_node.clone_ref();
+        let add_node_ref = events.add_node_under_cursor.clone_ref();
         let remove_selected_nodes_ref = events.remove_selected_nodes.clone_ref();
         let selected_nodes2 = selected_nodes.clone_ref();
         let world2 = world.clone_ref();
@@ -270,6 +284,12 @@ impl GraphEditor {
         c.forget();
 
 
-        Self {events,selected_nodes}
+        Self {events,selected_nodes,display_object}
+    }
+}
+
+impl<'a> From<&'a GraphEditor> for &'a display::object::Node {
+    fn from(graph_editor: &'a GraphEditor) -> Self {
+        &graph_editor.display_object
     }
 }

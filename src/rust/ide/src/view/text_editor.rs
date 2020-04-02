@@ -6,6 +6,7 @@ use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
+use ensogl::display;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
@@ -54,9 +55,9 @@ impl {
         });
     }
 
-    /// Selects next word occurrence.
-    pub fn select_next_word_occurrence(&mut self) {
-        self.text_field.select_next_word_occurrence();
+    /// Get the editor's display object.
+    pub fn display_object(&self) -> display::object::Node {
+        self.text_field.display_object()
     }
 }}
 

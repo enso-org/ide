@@ -15,7 +15,7 @@ use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::view::graph_editor::GraphEditor;
+use crate::view::node_editor::NodeEditor;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use crate::view::node_searcher::NodeSearcher;
 
@@ -26,11 +26,11 @@ use crate::view::node_searcher::NodeSearcher;
 
 shared! { ViewLayout
 
-/// Initial implementation of ViewLayout with a TextEditor and GraphEditor.
+/// Initial implementation of ViewLayout with a TextEditor and NodeEditor.
 #[derive(Debug)]
 pub struct ViewLayoutData {
     text_editor   : TextEditor,
-    graph_editor  : GraphEditor,
+    node_editor   : NodeEditor,
     node_searcher : NodeSearcher,
     size          : Vector2<f32>,
     logger        : Logger
@@ -68,14 +68,14 @@ impl ViewLayoutData {
         };
         self.text_editor.set_padding(padding);
         self.text_editor.set_size(size);
-        self.text_editor.set_position(position);
+        TemporaryPanel::set_position(&mut self.text_editor,position);
     }
 
     fn update_graph_editor(&mut self) {
         let screen_size = self.size;
         let position    = Vector3::new(50.0, screen_size.y * 3.0 / 4.0, 0.0);
 
-        let graph_object:&display::object::Node = (&self.graph_editor).into();
+        let graph_object:&display::object::Node = (&self.node_editor).into();
         graph_object.set_position(position);
     }
 
@@ -98,14 +98,15 @@ impl ViewLayout {
     , graph_controller : controller::graph::Handle
     , fonts            : &mut FontRegistry
     ) -> Self {
-        let logger       = logger.sub("ViewLayout");
-        let text_editor  = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
-        let graph_editor = GraphEditor::new(&logger,world,graph_controller.clone());
+        let logger        = logger.sub("ViewLayout");
+        let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
+        let node_editor   = NodeEditor::new(&logger, world, graph_controller.clone());
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller,fonts);
-        world.add_child(&graph_editor);
+        world.add_child(&text_editor.display_object());
+        world.add_child(&node_editor);
         world.add_child(&node_searcher);
         let size         = zero();
-        let data         = ViewLayoutData {text_editor,graph_editor,node_searcher,size,logger};
+        let data         = ViewLayoutData {text_editor,node_editor,node_searcher,size,logger};
         let rc           = Rc::new(RefCell::new(data));
         Self {rc}.init(world,kb_actions)
     }

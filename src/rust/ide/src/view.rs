@@ -1,6 +1,6 @@
 //! A module containing view components.
 
-pub mod graph_editor;
+pub mod node_editor;
 pub mod layout;
 pub mod node_searcher;
 pub mod project;
