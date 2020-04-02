@@ -870,7 +870,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "graph"
+name = "graph-editor"
 version = "0.1.0"
 dependencies = [
  "enso-frp 0.1.0",
@@ -892,7 +892,7 @@ dependencies = [
  "ensogl 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",
  "ensogl-system-web 0.1.0",
- "graph 0.1.0",
+ "graph-editor 0.1.0",
  "ide 0.1.0",
  "im-rc 14.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1108,7 +1108,7 @@ dependencies = [
  "file-manager-client 0.1.0",
  "flo_stream 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "graph 0.1.0",
+ "graph-editor 0.1.0",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "json-rpc 0.1.0",
  "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",

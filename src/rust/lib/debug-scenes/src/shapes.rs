@@ -9,7 +9,7 @@ use ensogl::prelude::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::world::*;
 use ensogl::system::web;
-use graph::GraphEditor;
+use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 
 
