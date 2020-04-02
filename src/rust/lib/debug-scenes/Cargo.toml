@@ -14,7 +14,7 @@ ensogl-core-msdf-sys = { version = "0.1.0"  , path = "../../ensogl/msdf-sys" }
 ensogl-system-web    = { version = "0.1.0"  , path = "../system/web"         }
 enso-frp             = { version = "0.1.0"  , path = "../frp"                }
 ide                  = { version = "0.1.0"  , path = "../../ide"             }
-graph                = { version = "0.1.0"  , path = "../graph"              }
+graph-editor         = { version = "0.1.0"  , path = "../graph-editor"       }
 
 enso-prelude         = { version = "0.1.0"  , path = "../prelude"     }
 wasm-bindgen         = { version = "=0.2.58" , features = ["nightly"] }

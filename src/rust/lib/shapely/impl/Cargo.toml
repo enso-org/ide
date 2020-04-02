@@ -15,3 +15,5 @@ paste        = "0.1"
 derivative   = "1.0.3"
 shrinkwraprs = "0.3.0"
 
+[dev-dependencies]
+enso-prelude = { version = "0.1.0" , path ="../../prelude" }
