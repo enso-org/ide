@@ -20,7 +20,7 @@ pub mod module;
 pub mod project;
 pub mod text;
 
-pub use self::graph::Handle   as Graph;
-pub use module::Handle  as Module;
-pub use project::Handle as Project;
-pub use text::Handle    as Text;
+pub use self::graph::Handle as Graph;
+pub use module::Handle      as Module;
+pub use project::Handle     as Project;
+pub use text::Handle        as Text;
