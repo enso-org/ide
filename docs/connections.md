@@ -59,7 +59,7 @@ Symbols introduced into a scope is not visible outside the scope's subtree.
 
 Scopes are introduced by:
 * module/file (the root scope);
-* code blocks following operators;
+* code blocks (i.e. the block that follows the line with an trailing operator);
 * module-level definitions: for both signature (if present) and assignment-binding;
 * `->` operator for its right-hand side.
 
@@ -100,9 +100,9 @@ Each position in code is either in a pattern context or not. By default code is
 in non-pattern context. Pattern context is introduced locally by certain
 language constructs:  `=`, `:` and `->` operators (i.e. definition bindings, signature type ascription and lambdas).
 
-Each usage of a variable name (identifier starting with a lower case letter)
-actually binds this identifier with whatever it is being matched to. The bound
-identifier is visible and usable within the target scope.
+Indide pattern context each usage of a variable name (identifier starting with a
+lower case letter) actually binds this identifier with whatever it is being
+matched to. The bound identifier is visible and usable within the target scope.
 
 // TODO are operator identifiers bindable? Likely they require special rules.
 
@@ -143,6 +143,55 @@ Example:
 If not for this second rule, the `a` would be visible only in place of
 expression `b`. However, now it is visible in the outer lambda body and can be
 accessed.
+
+## Examples
+Unless otherwise stated, it should be assumed that given examples are lines
+occurring within a definition's body code block.
+
+
+```
+a -> a -> b
+```
+
+Here the first `a` and second `a` are separate identifiers, the latter shadowing
+the first one. If one wanted to express that both arguments are of the same
+type, `a -> A -> b` would have been used. `b` refers to an identifier from
+graph's scope.
+
+---
+
+
+```
+a -> b = c
+```
+
+If such line occurs on the top-level, `a` and `b` are introduced into the
+definition scope. Otherwisee, they are introduced into the parent scope.
+
+Does this introduce the `a` into the module's scope? 
+
+(rules say "only if inline `=` does not introduce a new scope <=> on the top level)
+
+---
+
+```
+a = Int
+foo = 5:a
+```
+
+Does `a` in `5:a` refers to the previous line's `a` or is separate?
+
+Marcin: na pewno nie shadowują, mogą się unifikowac lub kolidowac jako
+redefinicja
+
+
+
+Co jeżeli 
+```
+a = Int
+foo = Int : a
+```
+
 
 
 # IDE Connection Discovery
@@ -194,46 +243,6 @@ similarly describes position in node's expression where the identifier is used.
 ---
 
 # TO BE REWRITTEN
-
-
-```
-a -> a -> b
-```
-
-Here the first `a` and second `a` are separate identifiers, the latter shadowing
-the first one. If one wanted to express that both arguments are of the same
-type, `a -> A -> b` should have been used.
-
----
-
-
-
-```
-a -> b = c
-```
-Does this introduce the `a` into the module's scope? 
-
-(rules say "only if inline `=` does not introduce a new scope)
-
----
-
-```
-a = Int
-foo = 5:a
-```
-
-Does `a` in `5:a` refers to the previous line's `a` or is separate?
-
-Marcin: na pewno nie shadowują, mogą się unifikowac lub kolidowac jako
-redefinicja
-
-
-
-Co jeżeli 
-```
-a = Int
-foo = Int : a
-```
 
 
 
