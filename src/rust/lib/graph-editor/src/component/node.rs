@@ -212,6 +212,7 @@ impl Node {
         let events = Events {network,select,deselect};
         let mut ports: Vec<Port> = Vec::default();
 
+        // TODO remove dummy functionality
         let node_radius = 60.0 ;
         let port_height = 30.0;
 
@@ -239,9 +240,7 @@ impl Node {
         let port_2 = port::Port::new(port_spec);
         ports.push(port_2.clone());
 
-
         let data   = Rc::new(NodeData {logger,label,events,view,ports});
-
 
         let node = Self {data} . init();
         node.add_child(&port_1);

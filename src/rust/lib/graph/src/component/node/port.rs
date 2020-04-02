@@ -53,11 +53,26 @@ pub struct Specification{
     pub color       : Srgb<f32>,
 }
 
+
+#[derive(Clone,Debug)]
+pub struct SpecificationVar{
+    /// Height of the port.
+    pub height      : Var<Distance<Pixels>>,
+    /// Width of the port in degrees.
+    pub width       : Var<Angle<Radians>>,
+    /// Radius of the inner circle that the port is constructed around.
+    pub inner_radius: Var<Distance<Pixels>>,
+    /// Location of the port along the inner circle.
+    pub location    : Var<Angle<Radians>>,
+}
+
+
+
 // ==================
 // === Port Shape ===
 // ==================
 
-mod shape{
+mod shape_in{
     use super::*;
     use ensogl::display::shape::*;
     use ensogl::display::shape::primitive::def::modifier::immutable::*;
@@ -71,103 +86,151 @@ mod shape{
     use ensogl::math::topology::unit::Pixels;
     use nalgebra as na;
 
-    /// Construct a port according to the given `PortSpecification`.
-    #[allow(clippy::new_ret_no_self)]
-    pub fn make_shape(spec:Specification) -> AnyShape {
-        match spec.direction{
-            // TODO consider unifying shape creation
-            Direction::In => new_port_inwards(spec),
-            Direction::Out => new_port_outwards(spec),
+
+    /// Construct an inwards facing port.
+    fn new_port_inwards(spec:SpecificationVar) -> AnyShape {
+        // TODO cut down on clone usage
+
+        let outer_radius     : Var<f32> = (spec.inner_radius + spec.height.clone()).into();
+        let segment_width_rad: Var<f32> = spec.width.clone().into();
+        let segment_radius   : Var<f32> = outer_radius.clone().into();
+        let segment : CircleSegment<Var<f32>> = CircleSegment::new(segment_radius,segment_width_rad);
+
+        // Create the triangle (pointing up)
+        let tri_height: Var<f32> =  spec.height.clone().into();
+        let tri_width  = segment.chord_length() * ((&outer_radius + segment.sagitta()) / &outer_radius);
+
+        let triangle = Triangle(&tri_width, &tri_height);
+        let triangle = triangle.rotate(180.0.deg().radians());
+        let tri_offset: Var<Distance<Pixels>> = tri_height.clone().into();
+        let triangle = triangle.translate_y(tri_offset);
+        // TODO consider replace with a `Plane().cut_angle`
+        // But avoid visual artifacts at the other end of the circle.
+        // let section = Plane().cut_angle(&spec.width);
+        // let section = section.rotate(180.0.deg().radians());
+        // let section = section.translate_y(tri_offset);
+
+        let circle_radius: Var<Distance<Pixels>> = outer_radius.clone().into();
+        let circle_outer    = Circle((circle_radius));
+
+        let circle_offset_y: Var<Distance<Pixels>> = (&tri_height - &outer_radius).into();
+        let circle_outer    = circle_outer.translate_y((circle_offset_y));
+
+        let triangle_rounded = Intersection(triangle,circle_outer);
+        let triangle_rounded = triangle_rounded.fill(Srgb::new(0.26, 0.69, 0.99));
+
+        triangle_rounded.into()
+    }
+
+    /// Canvas node shape definition.
+    ensogl::define_shape_system! {
+        () {
+        // TODO take spec or spec values as `Var<_>` parameters
+
+        let port_spec_val = SpecificationVar{
+            height       : Var::from(15.px()),
+            width        : Var::from(Angle::<Degrees>::from(25.0).rad()),
+            inner_radius : Var::from(48.px()),
+            location     : Var::from(Angle::<Degrees>::from(45.0).rad()),
+        };
+
+          new_port_inwards(port_spec_val)
         }
     }
 
+}
+
+
+mod shape_out{
+    use super::*;
+    use ensogl::display::shape::*;
+    use ensogl::display::shape::primitive::def::modifier::immutable::*;
+    use ensogl::display::shape::primitive::def::primitive::*;
+    use ensogl::prelude::*;
+    use ensogl::display::shape::primitive::def::class::ShapeOps;
+    use ensogl::math::geometry::circle::circle_segment::CircleSegment;
+    use ensogl::math::topology::unit::AngleOps;
+    use ensogl::math::topology::unit::Distance;
+    use ensogl::math::topology::unit::PixelDistance;
+    use ensogl::math::topology::unit::Pixels;
+    use nalgebra as na;
+
     /// Construct an outwards facing port.
-    fn new_port_outwards(spec:Specification) -> AnyShape {
-        debug_assert_eq!(spec.direction, Direction::Out);
+    fn new_port_outwards(spec:SpecificationVar) -> AnyShape {
+        // TODO cut down on clone usage
 
-        let inner_radius = spec.inner_radius;
-        let segment = CircleSegment::new(inner_radius,spec.width.radians());
+        let inner_radius : Var<f32> = spec.inner_radius.into();
+        let height       : Var<f32> = spec.height.clone().into();
 
-        // Create the triangle (pointing up)
-        let tri_base   = segment.sagitta();
-        let tri_height = spec.height + segment.sagitta();
-        let tri_width  = segment.chord_length();
+        let segment_width_rad: Var<f32>       = spec.width.clone().into();
+        let segment_radius   : Var<f32>       = inner_radius.clone().into();
+        let segment : CircleSegment<Var<f32>> = CircleSegment::new(segment_radius,segment_width_rad);
 
-        let triangle = Triangle(tri_width,tri_height);
+        let tri_base             = segment.sagitta();
+        let tri_height: Var<f32> =  &height + &tri_base;
+        let tri_width            = segment.chord_length();
 
-        let circle_inner = Circle(spec.inner_radius.px());
-        let circle_offset: na::Vector2<Distance<Pixels>> =  na::Vector2::new(Distance::new(0.0),Distance::new(segment.sagitta()-spec.inner_radius));
-        let circle_inner = Translate(circle_inner,circle_offset);
+        // TODO consider replace triangle with a `Plane().cut_angle`
+        // But avoid visual artifacts at the other end of the circle.
+        // let section = Plane().cut_angle(&spec.width);
+        // let section = section.rotate(180.0.deg().radians());
+        // let section = section.translate_y(tri_offset);
 
-        let triangle_rounded = Difference(triangle,circle_inner.clone()).fill(spec.color);
-        let tri_offset: Vector2<Distance<Pixels>> =  Vector2::new(Distance::new(0.0),Distance::new(-tri_base));
-        let triangle_rounded = Translate(triangle_rounded,tri_offset);
+        let triangle = Triangle(&tri_width, &tri_height);
+
+        let circle_radius: Var<Distance<Pixels>> = inner_radius.clone().into();
+        let circle_inner    = Circle((circle_radius));
+
+        let circle_offset_y: Var<Distance<Pixels>> = (&tri_base-&inner_radius).into();
+        let circle_inner    = circle_inner.translate_y((circle_offset_y));
+
+        let triangle_rounded = Difference(triangle,circle_inner);
+        let triangle_rounded = triangle_rounded.fill(Srgb::new(0.26, 0.69, 0.99));
+
+        let tri_offset: Var<Distance<Pixels>> = (-&tri_base).into();
+        let triangle_rounded = triangle_rounded.translate_y(tri_offset);
 
         triangle_rounded.into()
     }
-
-    /// Construct an inwards facing port.
-    fn new_port_inwards(spec:Specification) -> AnyShape {
-        debug_assert_eq!(spec.direction, Direction::In);
-
-        let outer_radius = spec.inner_radius + spec.height;
-        let segment = CircleSegment::new(outer_radius,spec.width.radians());
-
-        // Create the triangle (pointing up)
-        let tri_height =  spec.height;
-        let tri_width  = segment.chord_length() * ((outer_radius + segment.sagitta()) / outer_radius);
-
-        // Point the triangle down
-        let triangle = Triangle(tri_width, tri_height);
-        let triangle = Rotation(triangle, 180.0.deg().radians());
-
-        // Move the triangle to its base position and rotate it to its final destination.
-        let offfset: Vector2<Distance<Pixels>> =  Vector2::new(Distance::new(0.0),Distance::new(tri_height));
-        let triangle = Translate(triangle,offfset);
-
-        let circle_outer = Circle(outer_radius.px());
-        let circle_offset: Vector2<Distance<Pixels>> =  Vector2::new(Distance::new(0.0),Distance::new(tri_height-outer_radius));
-        let circle_outer = Translate(circle_outer,circle_offset);
-        let triangle_rounded = Intersection(triangle,circle_outer.clone()).fill(spec.color);
-
-        triangle_rounded.into()
-
-    }
-
 
     /// Canvas node shape definition.
-
-        ensogl::define_shape_system! {
+    ensogl::define_shape_system! {
         () {
         // TODO take spec or spec values as `Var<_>` parameters
-        let node_radius = 60.0 ;
-        let port_height = 30.0;
 
-        let port_spec = Specification{
-            height: port_height,
-            width: Angle::from(25.0),
-            inner_radius: node_radius,
-            direction: Direction::Out,
-            location: 90.0_f32.deg(),
-            color: Srgb::new(0.26, 0.69, 0.99),
+        let port_spec_val = SpecificationVar{
+            height       : Var::from(15.px()),
+            width        : Var::from(Angle::<Degrees>::from(25.0).rad()),
+            inner_radius : Var::from(48.px()),
+            location     : Var::from(Angle::<Degrees>::from(45.0).rad()),
         };
 
-          make_shape(port_spec)
+          new_port_outwards(port_spec_val)
         }
     }
 }
-
 
 
 // =================
 // === Port Node ===
 // =================
 
-/// Shape view for Port.
+/// Shape view for Input Port.
 #[derive(Debug,Clone,Copy)]
-pub struct PortView {}
-impl component::ShapeViewDefinition for PortView {
-    type Shape = shape::Shape;
+pub struct InputPortView {}
+impl component::ShapeViewDefinition for InputPortView {
+    type Shape = shape_in::Shape;
+    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
+        shape.sprite.size().set(Vector2::new(200.0,200.0));
+        Self {}
+    }
+}
+
+/// Shape view for Output Port.
+#[derive(Debug,Clone,Copy)]
+pub struct OutputPortView {}
+impl component::ShapeViewDefinition for OutputPortView {
+    type Shape = shape_out::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
         shape.sprite.size().set(Vector2::new(200.0,200.0));
         Self {}
@@ -175,17 +238,18 @@ impl component::ShapeViewDefinition for PortView {
 }
 
 
-/// Weak version of `Port`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct WeakPort {
-    data : Weak<PortData>
-}
+// /// Weak version of `Port`.
+// #[derive(Clone,CloneRef,Debug)]
+// pub struct WeakPort {
+//     data : Weak<PortData>
+// }
 
 #[derive(Debug)]
 /// Internal data of `Port`
 pub struct PortData {
-    pub view     : component::ShapeView<PortView>,
+    pub view     : component::ShapeView<InputPortView>,
 }
+
 
 /// Port definition.
 #[derive(Clone,Debug,Shrinkwrap)]
@@ -194,6 +258,7 @@ pub struct Port {
     #[shrinkwrap(main_field)]
     data         : Rc<PortData>,
 }
+
 
 impl Port {
 
@@ -208,6 +273,8 @@ impl Port {
     }
 
     fn init(mut self) -> Self{
+        // TODO remove
+        println!("PORT UPDATE!");
         self.update();
         self
     }
@@ -255,7 +322,7 @@ impl Drop for PortData{
 //         WeakPort {data:Rc::downgrade(&self.data)}
 //     }
 // }
-
+//
 // impl WeakRef for WeakPort {
 //     type StrongRef = Port;
 //     fn upgrade(&self) -> Option<Port> {

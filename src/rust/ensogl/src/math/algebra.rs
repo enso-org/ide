@@ -174,7 +174,6 @@ impl Normalize for f32 {
 
 /// Types from which a cosine can be calculated.
 pub trait Sqrt {
-    /// Normalized value.
     fn sqrt(&self) -> Self;
 }
 
@@ -183,7 +182,7 @@ pub trait Sqrt {
 
 impl Sqrt for f32 {
     fn sqrt(&self) -> f32 {
-        self.sqrt()
+        f32::sqrt(*self)
     }
 }
 
@@ -194,7 +193,6 @@ impl Sqrt for f32 {
 
 /// Types from which a cosine can be calculated.
 pub trait Cos {
-    /// Normalized value.
     fn cos(&self) -> Self;
 }
 
@@ -203,7 +201,7 @@ pub trait Cos {
 
 impl Cos for f32 {
     fn cos(&self) -> f32 {
-        self.cos()
+        f32::cos(*self)
     }
 }
 
@@ -215,7 +213,6 @@ impl Cos for f32 {
 
 /// Types from which a sine can be calculated
 pub trait Sin {
-    /// Normalized value.
     fn sin(&self) -> Self;
 }
 
@@ -223,9 +220,7 @@ pub trait Sin {
 // === Impls ===
 
 impl Sin for f32 {
-    fn sin(&self) -> f32 {
-        self.sin()
-    }
+    fn sin(&self) -> f32 { f32::sin(*self) }
 }
 
 

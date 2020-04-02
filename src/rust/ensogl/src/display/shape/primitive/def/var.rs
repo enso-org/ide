@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::data::color;
-use crate::math::topology::unit::Unit;
+use crate::math::topology::unit::{Unit, Radians, Degrees, Distance, Angle, Pixels};
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 
@@ -419,7 +419,7 @@ define_shape_data_string_operator! { Div div (/) }
 // ===============================
 
 impl<T> Sin for Var<T>
-    where T: Sin {
+    where T: Sin + Debug{
     fn sin(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.sin()),
@@ -435,6 +435,68 @@ impl<T> Cos for Var<T>
         match self {
             Self::Static  (t) => Var::Static(t.cos()),
             Self::Dynamic (t) => Var::Dynamic(format!("cos({})",t).into())
+        }
+    }
+}
+
+
+
+// ============================
+// === Conversion functions ===
+// ============================
+/// TODO this needs to be revisited with a more generic solution
+
+impl Into<Var<f32>> for Var<Angle<Radians>> {
+    fn into(self) -> Var<f32> {
+        match self{
+            Self::Static  (t) => Var::Static(t.value),
+            Self::Dynamic (t) => Var::Dynamic(t),
+        }
+    }
+}
+
+impl Into<Var<Angle<Radians>>> for Var<f32> {
+    fn into(self) -> Var<Angle<Radians>> {
+        match self{
+            Self::Static  (t) => Var::Static(Angle::from(t)),
+            Self::Dynamic (t) => Var::Dynamic(t),
+        }
+    }
+}
+
+
+impl Into<Var<f32>> for Var<Angle<Degrees>> {
+    fn into(self) -> Var<f32> {
+        match self{
+            Self::Static  (t) => Var::Static(t.value),
+            Self::Dynamic (t) => Var::Dynamic(t),
+        }
+    }
+}
+
+impl Into<Var<Angle<Degrees>>> for Var<f32> {
+    fn into(self) -> Var<Angle<Degrees>> {
+        match self{
+            Self::Static  (t) => Var::Static(Angle::from(t)),
+            Self::Dynamic (t) => Var::Dynamic(t),
+        }
+    }
+}
+
+impl Into<Var<f32>> for Var<Distance<Pixels>> {
+    fn into(self) -> Var<f32> {
+        match self{
+            Self::Static  (t) => Var::Static(t.value),
+            Self::Dynamic (t) => Var::Dynamic(t),
+        }
+    }
+}
+
+impl Into<Var<Distance<Pixels>>> for Var<f32> {
+    fn into(self) -> Var<Distance<Pixels>> {
+        match self{
+            Self::Static  (t) => Var::Static(Distance::from(t)),
+            Self::Dynamic (t) => Var::Dynamic(t),
         }
     }
 }
