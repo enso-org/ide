@@ -411,3 +411,30 @@ define_shape_data_string_operator! { Add add (+) }
 define_shape_data_string_operator! { Sub sub (-) }
 define_shape_data_string_operator! { Mul mul (*) }
 define_shape_data_string_operator! { Div div (/) }
+
+
+
+// ===============================
+// === Trigonometric functions ===
+// ===============================
+
+impl<T> Sin for Var<T>
+    where T: Sin {
+    fn sin(&self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.sin()),
+            Self::Dynamic (t) => Var::Dynamic(format!("sin({})",t).into())
+        }
+    }
+}
+
+
+impl<T> Cos for Var<T>
+    where T: Cos {
+    fn cos(&self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.cos()),
+            Self::Dynamic (t) => Var::Dynamic(format!("cos({})",t).into())
+        }
+    }
+}

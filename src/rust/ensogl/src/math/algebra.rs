@@ -168,6 +168,67 @@ impl Normalize for f32 {
 }
 
 
+// =================
+// === Square root ===
+// =================
+
+/// Types from which a cosine can be calculated.
+pub trait Sqrt {
+    /// Normalized value.
+    fn sqrt(&self) -> Self;
+}
+
+
+// === Impls ===
+
+impl Sqrt for f32 {
+    fn sqrt(&self) -> f32 {
+        self.sqrt()
+    }
+}
+
+
+// =================
+// === Cosine ===
+// =================
+
+/// Types from which a cosine can be calculated.
+pub trait Cos {
+    /// Normalized value.
+    fn cos(&self) -> Self;
+}
+
+
+// === Impls ===
+
+impl Cos for f32 {
+    fn cos(&self) -> f32 {
+        self.cos()
+    }
+}
+
+
+
+// =================
+// === Sine ===
+// =================
+
+/// Types from which a sine can be calculated
+pub trait Sin {
+    /// Normalized value.
+    fn sin(&self) -> Self;
+}
+
+
+// === Impls ===
+
+impl Sin for f32 {
+    fn sin(&self) -> f32 {
+        self.sin()
+    }
+}
+
+
 
 // =============
 // === Point ===
