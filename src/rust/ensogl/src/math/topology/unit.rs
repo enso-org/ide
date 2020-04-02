@@ -270,6 +270,24 @@ impl AngleOps for i32 {
     }
 }
 
+impl AngleOps for Angle<Degrees> {
+    fn degrees(&self) -> Angle<Degrees> {
+        self.clone()
+    }
+
+    fn radians(&self) -> Angle<Radians> {
+        Angle::new(self.value.to_radians())
+    }
+}
+
+impl AngleOps for Angle<Radians> {
+    fn degrees(&self) -> Angle<Degrees> { Angle::new(self.value.to_degrees()) }
+
+    fn radians(&self) -> Angle<Radians> {
+        self.clone()
+    }
+}
+
 impls! { From< Angle<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
 impls! { From<&Angle<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
 impls! { From< Angle<Degrees>> for Glsl { |t| { iformat!("radians(Degrees({t.value.glsl()}))").into() } }}

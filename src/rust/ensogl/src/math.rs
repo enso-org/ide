@@ -2,6 +2,7 @@
 
 pub mod algebra;
 pub mod topology;
+pub mod geometry;
 
 pub use algebra::*;
 

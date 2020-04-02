@@ -1,7 +1,9 @@
 //! Definition of the Node component.
+pub mod port;
 
 use crate::prelude::*;
 
+use ensogl::math::topology::unit::AngleOps;
 use ensogl::data::color::Srgba;
 use ensogl::display;
 use ensogl::display::traits::*;
@@ -14,7 +16,7 @@ use ensogl::display::shape::*;
 use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-
+use crate::component::node::port::Port;
 
 /// Icons definitions.
 pub mod icons {
@@ -193,6 +195,7 @@ pub struct NodeData {
     pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
+    pub ports  : Vec<Port>
 }
 
 impl Node {
@@ -207,8 +210,43 @@ impl Node {
         let logger = Logger::new("node");
         let view   = component::ShapeView::new(&logger);
         let events = Events {network,select,deselect};
-        let data   = Rc::new(NodeData {logger,label,events,view});
-        Self {data} . init()
+        let mut ports: Vec<Port> = Vec::default();
+
+        let node_radius = 60.0 ;
+        let port_height = 30.0;
+
+        let port_spec = port::Specification{
+            height: port_height,
+            width: Angle::from(25.0),
+            inner_radius: node_radius,
+            direction: port::Direction::Out,
+            location: 90.0_f32.deg(),
+            color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
+        };
+
+        let port_1 = port::Port::new(port_spec);
+        ports.push(port_1.clone());
+
+        let port_spec = port::Specification{
+            height: port_height,
+            width: Angle::from(25.0),
+            inner_radius: node_radius,
+            direction: port::Direction::In,
+            location: 270.0_f32.deg(),
+            color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
+        };
+
+        let port_2 = port::Port::new(port_spec);
+        ports.push(port_2.clone());
+
+
+        let data   = Rc::new(NodeData {logger,label,events,view,ports});
+
+
+        let node = Self {data} . init();
+        node.add_child(&port_1);
+        node.add_child(&port_2);
+        node
     }
 
     fn init(self) -> Self {
@@ -244,6 +282,7 @@ impl Node {
                 selection_ref.set_target_position(0.0);
             });
         }
+
 
         self
     }
