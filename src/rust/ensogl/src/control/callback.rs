@@ -132,9 +132,8 @@ impl<T> Registry1<T> {
 // === CopyRegistry ===
 // ====================
 
-/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
-/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
-/// as well.
+/// Specialized version of `Registry` for arguments implementing `Copy`. Passing copy-able elements
+/// as values is more performant than by reference.
 #[derive(Derivative)]
 #[derivative(Debug,Default(bound=""))]
 pub struct CopyRegistry1<T> {

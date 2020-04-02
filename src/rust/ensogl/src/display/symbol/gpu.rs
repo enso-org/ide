@@ -181,7 +181,7 @@ impl Drop for VertexArrayObjectData {
 // ===================
 
 /// Wrapper for `Stats` which counts the number of symbols.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct SymbolStats {
     rc : Rc<SymbolStatsData>
 }
@@ -245,7 +245,7 @@ pub struct Bindings {
 // === Definition ===
 
 /// Symbol is a surface with attached `Shader`.
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Symbol {
     display_object    : display::object::Node,
     pub id            : i32,
@@ -262,8 +262,6 @@ pub struct Symbol {
     stats             : SymbolStats,
     is_hidden         : Rc<Cell<bool>>,
 }
-
-impl CloneRef for Symbol {}
 
 impl Symbol {
     /// Create new instance with the provided on-dirty callback.

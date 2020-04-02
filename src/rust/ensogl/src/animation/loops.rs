@@ -54,14 +54,12 @@ pub trait RawLoopCallback = FnMut(f32) + 'static;
 /// an animation loop, you are probably looking for the `Loop` which adds slight complexity
 /// in order to provide better time information. The complexity is so small that it would not be
 /// noticeable in almost any use case.
-#[derive(Derivative)]
+#[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct RawLoop<Callback> {
     data: Rc<RefCell<RawLoopData<Callback>>>,
 }
-
-impl<Callback> CloneRef for RawLoop<Callback> {}
 
 impl<Callback> RawLoop<Callback>
 where Callback : RawLoopCallback {
@@ -128,20 +126,12 @@ pub trait LoopCallback = FnMut(TimeInfo) + 'static;
 /// An animation loop. Runs the provided `Callback` every animation frame. It uses the
 /// `RawLoop` under the hood. If you are looking for a more complex version where you can
 /// register new callbacks for every frame, take a look at the ``.
-#[derive(Derivative)]
+#[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct Loop<Callback> {
     animation_loop : RawLoop<OnFrame<Callback>>,
     time_info      : Rc<Cell<TimeInfo>>,
-}
-
-impl<Callback> CloneRef for Loop<Callback> {
-    fn clone_ref(&self) -> Self {
-        let animation_loop = self.animation_loop.clone_ref();
-        let time_info      = self.time_info.clone_ref();
-        Self {animation_loop,time_info}
-    }
 }
 
 impl<Callback> Loop<Callback>

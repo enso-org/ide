@@ -130,7 +130,7 @@ impl DomSceneData {
 /// To make use of its functionalities, the API user can create a `Css3dSystem` by using
 /// the `DomScene::new_system` method which creates and manages instances of
 /// `DomSymbol`s.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct DomScene {
     data : Rc<DomSceneData>,
 }
@@ -195,8 +195,6 @@ impl DomScene {
         }
     }
 }
-
-impl CloneRef for DomScene {}
 
 
 

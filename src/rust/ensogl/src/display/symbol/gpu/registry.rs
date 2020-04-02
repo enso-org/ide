@@ -32,7 +32,7 @@ pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
 // === Definition ===
 
 /// Registry for all the created symbols.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct SymbolRegistry {
     symbols         : Rc<RefCell<OptVec<Symbol>>>,
     symbol_dirty    : SymbolDirty,
@@ -41,19 +41,6 @@ pub struct SymbolRegistry {
     variables       : UniformScope,
     context         : Context,
     stats           : Stats,
-}
-
-impl CloneRef for SymbolRegistry {
-    fn clone_ref(&self) -> Self {
-        let symbols         = self.symbols.clone_ref();
-        let symbol_dirty    = self.symbol_dirty.clone_ref();
-        let logger          = self.logger.clone_ref();
-        let view_projection = self.view_projection.clone_ref();
-        let variables       = self.variables.clone_ref();
-        let context         = self.context.clone_ref();
-        let stats           = self.stats.clone_ref();
-        Self {symbols,symbol_dirty,logger,view_projection,variables,context,stats}
-    }
 }
 
 impl SymbolRegistry {

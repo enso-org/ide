@@ -510,12 +510,10 @@ pub struct Id(usize);
 // === Node ===
 // ============
 
-#[derive(Clone,Shrinkwrap)]
+#[derive(Clone,CloneRef,Shrinkwrap)]
 pub struct Node {
     pub rc : Rc<NodeData>
 }
-
-impl CloneRef for Node {}
 
 impl Node {
     pub fn clone2(&self) -> Self {

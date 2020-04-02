@@ -158,7 +158,7 @@ impl<T:Value,F,Cb> AnimatorData<T,F,Cb>
         let weight = (self.tween_fn)(sample);
         let value  = self.start_value.get() * (1.0-weight) + self.end_value.get() * weight;
         (self.callback)(value);
-        if sample == 1.0 {
+        if (sample - 1.0) < std::f32::EPSILON {
             self.active.set(false);
         }
     }

@@ -130,6 +130,7 @@ impl CloneRef for f64 {}
 impl CloneRef for i32 {}
 impl CloneRef for i64 {}
 impl CloneRef for usize {}
+impl<T> CloneRef for PhantomData<T> {}
 impl<T:?Sized> CloneRef for Rc<T> {}
 impl<T:?Sized> CloneRef for Weak<T> {}
 
@@ -138,8 +139,8 @@ impl CloneRef for web_sys::HtmlDivElement {}
 impl CloneRef for web_sys::HtmlElement {}
 impl CloneRef for web_sys::Performance {}
 impl CloneRef for web_sys::WebGl2RenderingContext {}
-
-
+impl CloneRef for web_sys::HtmlCanvasElement {}
+impl CloneRef for web_sys::EventTarget {}
 
 /// Provides method `to`, which is just like `into` but allows fo superfish syntax.
 pub trait ToImpl: Sized {
@@ -148,7 +149,6 @@ pub trait ToImpl: Sized {
     }
 }
 impl<T> ToImpl for T {}
-
 
 // TODO
 // This impl should be hidden behind a flag. Not everybody using prelude want to import nalgebra.

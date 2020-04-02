@@ -40,7 +40,7 @@ use crate::system::web::text_input::KeyboardBinding;
 // === Focus Manager ===
 // =====================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct FocusManager {
     binding    : Rc<RefCell<KeyboardBinding>>,
     focused_on : Rc<CloneCell<Option<WeakTextField>>>,
@@ -67,8 +67,6 @@ impl FocusManager {
 
     }
 }
-
-impl CloneRef for FocusManager {}
 
 
 

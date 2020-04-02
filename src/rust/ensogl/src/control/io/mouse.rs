@@ -28,14 +28,12 @@ pub use event::*;
 // TODO: Consider merging this implementation with crate::control::callback::* ones.
 
 /// Shared event dispatcher.
-#[derive(Debug,Derivative)]
+#[derive(Debug,CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
 pub struct EventDispatcher<T> {
     rc: Rc<RefCell<callback::Registry1<T>>>
 }
-
-impl<T> CloneRef for EventDispatcher<T> {}
 
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
@@ -57,15 +55,13 @@ impl<T> EventDispatcher<T> {
 
 /// An utility which registers JavaScript handlers for mouse events and translates them to Rust
 /// handlers. It is a top level mouse registry hub.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct MouseManager {
     #[shrinkwrap(main_field)]
     dispatchers : MouseManagerDispatchers,
     closures    : Rc<MouseManagerClosures>,
     dom         : web::dom::WithKnownShape<web::EventTarget>
 }
-
-impl CloneRef for MouseManager {}
 
 /// A JavaScript callback closure for any mouse event.
 pub type MouseEventJsClosure = Closure<dyn Fn(JsValue)>;
@@ -94,13 +90,11 @@ macro_rules! define_bindings {
         }
 
         /// Set of dispatchers for various mouse events.
-        #[derive(Clone,Debug,Default)]
+        #[derive(Clone,CloneRef,Debug,Default)]
         #[allow(missing_docs)]
         pub struct MouseManagerDispatchers {
             $(pub $name : EventDispatcher<$target>),*
         }
-
-        impl CloneRef for MouseManagerDispatchers {}
 
         impl MouseManager {
             /// Constructor.

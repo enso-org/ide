@@ -164,7 +164,7 @@ fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
     Closure::wrap(Box::new(f))
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Mouse {
     pub mouse_manager   : MouseManager,
     pub position        : Uniform<Vector2<i32>>,
@@ -177,24 +177,6 @@ pub struct Mouse {
     pub target          : Rc<Cell<Target>>,
     pub handles         : Rc<Vec<callback::Handle>>,
     pub frp             : enso_frp::Mouse,
-}
-
-impl CloneRef for Mouse {
-    fn clone_ref(&self) -> Self {
-        let mouse_manager   = self.mouse_manager.clone_ref();
-        let position        = self.position.clone_ref();
-        let hover_ids       = self.hover_ids.clone_ref();
-        let button0_pressed = self.button0_pressed.clone_ref();
-        let button1_pressed = self.button1_pressed.clone_ref();
-        let button2_pressed = self.button2_pressed.clone_ref();
-        let button3_pressed = self.button3_pressed.clone_ref();
-        let button4_pressed = self.button4_pressed.clone_ref();
-        let target          = self.target.clone_ref();
-        let handles         = self.handles.clone_ref();
-        let frp             = self.frp.clone_ref();
-        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
-             ,button3_pressed,button4_pressed,target,handles,frp}
-    }
 }
 
 impl Mouse {
@@ -285,15 +267,13 @@ impl Mouse {
 // ===========
 
 /// DOM element manager
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Dom {
     /// Root DOM element of the scene.
     pub root : web::dom::WithKnownShape<web::HtmlDivElement>,
     /// Layers of the scene.
     pub layers : Layers,
 }
-
-impl CloneRef for Dom {}
 
 impl Dom {
     /// Constructor.
@@ -326,7 +306,7 @@ impl Dom {
 /// DOM Layers of the scene. It contains a 2 CSS 3D layers and a canvas layer in the middle. The
 /// CSS layers are used to manage DOM elements and to simulate depth-sorting of DOM and canvas
 /// elements.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
     /// Front DOM scene layer.
     pub front : DomScene,
@@ -362,7 +342,7 @@ impl Layers {
 // ================
 
 /// Uniforms owned by the scene.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Uniforms {
     /// Pixel ratio of the screen used to display the scene.
     pub pixel_ratio : Uniform<f32>,
@@ -375,14 +355,6 @@ impl Uniforms {
     pub fn new(scope:&UniformScope) -> Self {
         let pixel_ratio = scope.add_or_panic("pixel_ratio" , 1.0);
         let zoom        = scope.add_or_panic("zoom"        , 1.0);
-        Self {pixel_ratio,zoom}
-    }
-}
-
-impl CloneRef for Uniforms {
-    fn clone_ref(&self) -> Self {
-        let pixel_ratio = self.pixel_ratio.clone_ref();
-        let zoom        = self.zoom.clone_ref();
         Self {pixel_ratio,zoom}
     }
 }
@@ -569,24 +541,13 @@ impl ViewData {
 // === Views ===
 // =============
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Views {
     logger   : Logger,
     pub main : View,
     all      : Rc<RefCell<Vec<WeakView>>>,
     width    : f32,
     height   : f32,
-}
-
-impl CloneRef for Views {
-    fn clone_ref(&self) -> Self {
-        let logger = self.logger.clone_ref();
-        let main   = self.main.clone_ref();
-        let all    = self.all.clone_ref();
-        let width  = self.width;  // FIXME
-        let height = self.height; // FIXME
-        Self {logger,main,all,width,height}
-    }
 }
 
 impl Views {
@@ -616,7 +577,7 @@ impl Views {
 // === SceneData ===
 // =================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct SceneData {
     pub display_object : display::object::Node,
     pub dom            : Dom,
@@ -632,27 +593,6 @@ pub struct SceneData {
     pub callbacks      : Callbacks,
     pub renderer       : Renderer,
     pub views          : Views,
-}
-
-impl CloneRef for SceneData {
-    fn clone_ref(&self) -> Self {
-        let display_object = self.display_object.clone_ref();
-        let dom            = self.dom.clone_ref();
-        let context        = self.context.clone_ref();
-        let symbols        = self.symbols.clone_ref();
-        let dirty          = self.dirty.clone_ref();
-        let views          = self.views.clone_ref();
-        let logger         = self.logger.clone_ref();
-        let variables      = self.variables.clone_ref();
-        let renderer       = self.renderer.clone_ref();
-        let stats          = self.stats.clone_ref();
-        let uniforms       = self.uniforms.clone_ref();
-        let mouse          = self.mouse.clone_ref();
-        let callbacks      = self.callbacks.clone_ref();
-        let shapes         = self.shapes.clone_ref();
-        Self {display_object,dom,context,symbols,dirty,views,logger,variables,renderer,stats
-             ,uniforms,callbacks,mouse,shapes}
-    }
 }
 
 impl SceneData {
@@ -804,16 +744,9 @@ impl<'t> From<&'t SceneData> for &'t display::object::Node {
 // === Scene ===
 // =============
 
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Scene {
     no_mut_access : SceneData
-}
-
-impl CloneRef for Scene {
-    fn clone_ref(&self) -> Self {
-        let no_mut_access = self.no_mut_access.clone_ref();
-        Self {no_mut_access}
-    }
 }
 
 impl Scene {
