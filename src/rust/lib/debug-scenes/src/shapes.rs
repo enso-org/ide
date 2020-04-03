@@ -4,6 +4,8 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
+use ensogl::prelude::*;
+
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::world::*;
 use ensogl::system::web;
@@ -35,8 +37,9 @@ fn init(world: &World) {
     let mut was_rendered = false;
     let mut loader_hidden = false;
 
-    world.keep_alive_forever();
+    let world_clone = world.clone_ref();
     world.on_frame(move |_| {
+        let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {

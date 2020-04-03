@@ -10,7 +10,6 @@ use crate::display::traits::*;
 
 use crate::control::callback;
 use crate::control::callback::DynEvent;
-use crate::control::io::mouse::MouseFrpCallbackHandles;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
 use crate::data::dirty::traits::*;
@@ -635,13 +634,6 @@ impl SceneData {
         uniforms.zoom.set(dom.shape().pixel_ratio());
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables
              ,stats,uniforms,mouse,callbacks,shapes}
-    }
-
-    /// Bind FRP graph to mouse js events.
-    // TODO: Do we want to deprecate it?
-    // #[deprecated(note="Please use `scene.mouse.frp` instead")]
-    pub fn bind_frp_to_mouse_events(&self, frp:&enso_frp::Mouse) -> MouseFrpCallbackHandles {
-        mouse::bind_frp_to_mouse(frp,&self.mouse.mouse_manager)
     }
 
     pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> callback::Handle {
