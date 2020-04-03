@@ -178,6 +178,44 @@ impl GraphEditor {
 
         let selected_nodes2 = selected_nodes.clone_ref();
 
+
+        frp! {
+            on_node_press            = source::<Option<WeakNode>> ();
+            on_node_press_bool       = on_node_press.map(|_| true);
+            on_mouse_up_bool         = mouse.on_up.map(|_| false);
+            node_is_pressed          = on_node_press_bool.merge(&on_mouse_up_bool);
+            node_was_pressed         = node_is_pressed.previous();
+            on_release               = mouse.on_up.gate(&node_was_pressed);
+            mouse_pos_on_node_press  = mouse.position.sample(&on_node_press);
+            mouse_pos_on_release     = mouse.position.sample(&on_release);
+            node_should_select       = mouse_pos_on_release.map2(&mouse_pos_on_node_press,|p1,p2| p1==p2);
+            on_node_release          = on_node_press.sample(&on_release);
+            node_select              = on_node_release.gate(&node_should_select);
+       }
+
+       frp! {
+
+            on_bg_press              = source::<()> ();
+            on_bg_press_bool         = on_bg_press.map(|_| true);
+            bg_is_pressed            = on_bg_press_bool.merge(&on_mouse_up_bool);
+            bg_was_pressed           = bg_is_pressed.previous();
+            on_release               = mouse.on_up.gate(&bg_was_pressed);
+            mouse_pos_on_bg_press    = mouse.position.sample(&on_bg_press);
+            mouse_pos_on_release     = mouse.position.sample(&on_release);
+            bg_should_select         = mouse_pos_on_release.map2(&mouse_pos_on_bg_press,|p1,p2| p1==p2);
+            on_bg_release            = on_bg_press.sample(&on_release);
+            bg_select                = on_bg_release.gate(&bg_should_select);
+
+            bg_selection = bg_select.map(move |_| {
+                selected_nodes2.deselect_all();
+            });
+            debug = bg_select.map(|t| println!(">> {:?}",t));
+        }
+
+//        node_should_select.event.display_graphviz();
+
+        let selected_nodes2 = selected_nodes.clone_ref();
+
         frp! {
             mouse_down_position    = mouse.position.sample        (&mouse.on_down);
             selection_zero         = source::<Position>           ();
@@ -188,17 +226,16 @@ impl GraphEditor {
 
             mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
 
-            node_mouse_down = source::<Option<WeakNode>> ();
 
             add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { *pos });
 
             add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
 
-            _node_added = add_node_unified.map(enclose!((node_set,node_mouse_down,display_object) move |pos| {
+            _node_added = add_node_unified.map(enclose!((node_set,on_node_press,display_object) move |pos| {
                 let node = Node::new();
                 let weak_node = node.downgrade();
-                node.view.events.mouse_down.map("foo",enclose!((node_mouse_down) move |_| {
-                    node_mouse_down.event.emit(Some(weak_node.clone_ref()))
+                node.view.events.mouse_down.map("foo",enclose!((on_node_press) move |_| {
+                    on_node_press.event.emit(Some(weak_node.clone_ref()))
                 }));
 
                 display_object.add_child(&node);
@@ -221,7 +258,7 @@ impl GraphEditor {
                 })
             }));
 
-            _baz = node_mouse_down.map(move |opt_node| {
+            _baz = node_select.map(move |opt_node| {
                 opt_node.for_each_ref(|weak_node| {
                     weak_node.upgrade().map(|node| {
                         selected_nodes2.deselect_all();
@@ -250,10 +287,12 @@ impl GraphEditor {
         }));
 
         let selected_nodes2 = selected_nodes.clone_ref();
+        let on_bg_press2    = on_bg_press.clone_ref();
         mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
             match target {
                 display::scene::Target::Background => {
-                    selected_nodes2.deselect_all();
+                    on_bg_press2.event.emit(());
+//                    selected_nodes2.deselect_all();
                 }
                 display::scene::Target::Symbol {instance_id,..} => {
                     scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
@@ -262,6 +301,30 @@ impl GraphEditor {
                 }
             }
         }));
+
+
+//        frp! { mouse_down_position    = mouse.position.sample (&mouse.on_down)    }
+//        frp! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
+//
+//        let final_position_ref_event  = frp::Recursive::<frp::EventData<Position>>::new_named("final_position_ref");
+//        let final_position_ref        = frp::Dynamic::from(&final_position_ref_event);
+//
+//        frp! { pos_diff_on_down = mouse_down_position.map2    (&final_position_ref,|m,f|{m-f}) }
+//        frp! { final_position   = mouse_position_if_down.map2 (&pos_diff_on_down  ,|m,f|{m-f}) }
+//
+//        final_position_ref_event.initialize(&final_position);
+//
+//        final_position_ref.event.set_display_id(final_position.event.display_id());
+//        final_position_ref.behavior.set_display_id(final_position.event.display_id());
+//
+//        frp! {
+//            foo = final_position.map(|p| {
+//                println!("POS: {:?}",p);
+//            })
+//        }
+
+
+
 
         let add_node_ref = events.add_node_under_cursor.clone_ref();
         let remove_selected_nodes_ref = events.remove_selected_nodes.clone_ref();

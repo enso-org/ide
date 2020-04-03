@@ -140,9 +140,8 @@ impl<Out:Value> Dynamic<Out> {
     }
 
     /// Remembers the value and emits the last one.
-    pub fn previous<Label,T>(&self, label:Label) -> Self
-        where Label : Into<CowString>,
-              T     : Value {
+    pub fn previous<Label>(&self, label:Label) -> Self
+        where Label : Into<CowString> {
         (&Previous::new_named(label,&self.event)).into()
     }
 
