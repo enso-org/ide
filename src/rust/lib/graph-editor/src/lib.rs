@@ -190,7 +190,7 @@ impl GraphEditor {
 
             node_mouse_down = source::<Option<WeakNode>> ();
 
-            add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { pos.clone() });
+            add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { *pos });
 
             add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
 

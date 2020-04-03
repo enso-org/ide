@@ -133,12 +133,6 @@ impl DomSymbol {
     }
 }
 
-//impl From<&DomSymbol> for display::object::Node {
-//    fn from(obj:&DomSymbol) -> Self {
-//        obj.display_object.clone_ref()
-//    }
-//}
-
 impl<'t> From<&'t DomSymbol> for &'t display::object::Node {
     fn from(obj:&'t DomSymbol) -> Self {
         &obj.display_object

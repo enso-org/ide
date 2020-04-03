@@ -361,7 +361,7 @@ impl NodeData {
 // === Private API ===
 
 impl NodeData {
-    pub fn register_child<T:Object>(&self, child:&T) -> usize {
+    fn register_child<T:Object>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child.downgrade());
         self.dirty.children.set(index);
@@ -369,19 +369,19 @@ impl NodeData {
     }
 
     /// Removes and returns the parent bind. Please note that the parent is not updated.
-    pub fn take_parent_bind(&self) -> Option<ParentBind> {
+    fn take_parent_bind(&self) -> Option<ParentBind> {
         self.parent_bind.take()
     }
 
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
-    pub fn raw_unset_parent(&self) {
+    fn raw_unset_parent(&self) {
         self.logger.info("Removing parent bind.");
         self.dirty.unset_callback();
         self.dirty.parent.set();
     }
 
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
-    pub fn set_parent_bind(&self, bind:ParentBind) {
+    fn set_parent_bind(&self, bind:ParentBind) {
         self.logger.info("Adding new parent bind.");
         if let Some(parent) = bind.parent() {
             let index = bind.index;
@@ -474,10 +474,14 @@ impl NodeData {
         self.callbacks.on_hide.set(Box::new(f))
     }
 
+    /// Sets a callback which will be called with a reference to scene when the object will be
+    /// shown (attached to visible display object graph).
     pub fn set_on_show_with<F:Fn(&Scene)+'static>(&self, f:F) {
         self.callbacks.on_show_with.set(Box::new(f))
     }
 
+    /// Sets a callback which will be called with a reference to scene when the object will be
+    /// hidden (detached from display object graph).
     pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&self, f:F) {
         self.callbacks.on_hide_with.set(Box::new(f))
     }
@@ -606,10 +610,6 @@ impl Node {
 
 // === Instances ===
 
-//impl From<&Node> for Node {
-//    fn from(t:&Node) -> Self { t.clone_ref() }
-//}
-
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
@@ -655,6 +655,9 @@ impl<T> Object for T where for<'t> &'t T:Into<&'t Node> {
 // === ObjectOps ===
 // =================
 
+// FIXME
+// We are using names with underscores in order to fix this bug
+// https://github.com/rust-lang/rust/issues/70727
 impl<T:Object> ObjectOps for T {}
 pub trait ObjectOps : Object {
     fn add_child<T:Object>(&self, child:&T) {

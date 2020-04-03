@@ -16,12 +16,12 @@ use nalgebra::Matrix4;
 
 
 
+// =============
 // === Types ===
+// =============
 
 pub type SymbolId    = usize;
 pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
-
-
 
 
 
@@ -111,8 +111,5 @@ impl SymbolRegistry {
         for id in ids {
             symbols[*id].render();
         }
-//        for symbol in &*self.symbols.borrow() {
-//            symbol.render()
-//        }
     }
 }

@@ -4,6 +4,8 @@
 
 #![allow(dead_code)]
 
+#![deny(unconditional_recursion)]
+
 #![feature(associated_type_defaults)]
 #![feature(cell_update)]
 #![feature(drain_filter)]

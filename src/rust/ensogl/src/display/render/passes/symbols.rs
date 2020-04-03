@@ -52,6 +52,12 @@ impl RenderPass for SymbolsRenderPass {
 // === SymbolsRenderPass2 ===
 // ==========================
 
+// FIXME
+// This is a hack. We are using `SymbolsRenderPass` to render the first scene view, and
+// `SymbolsRenderPass2` to render the rest of views. It is not used for the needs of first rendering
+// scene symbols, then reading pixel under cursor, and then rendering cursor. It should be unified
+// and refactored to a better solution instead.
+
 /// Pass for rendering all symbols. The results are stored in a `'color'` variable.
 #[derive(Clone,Debug)]
 pub struct SymbolsRenderPass2 {

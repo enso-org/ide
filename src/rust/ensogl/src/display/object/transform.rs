@@ -182,14 +182,12 @@ impl CachedTransform {
         let origin_changed = new_origin.is_some();
         let changed        = self.dirty || origin_changed;
         if changed {
-//            group!(self.logger, "Update.", {
-                if self.dirty {
-                    self.transform_matrix = self.transform.matrix();
-                    self.dirty = false;
-                }
-                new_origin.into_iter().for_each(|t| self.origin = t);
-                self.matrix = self.origin * self.transform_matrix;
-//            })
+            if self.dirty {
+                self.transform_matrix = self.transform.matrix();
+                self.dirty = false;
+            }
+            new_origin.into_iter().for_each(|t| self.origin = t);
+            self.matrix = self.origin * self.transform_matrix;
         }
         changed
     }

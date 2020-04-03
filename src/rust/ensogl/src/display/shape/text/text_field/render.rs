@@ -27,6 +27,7 @@ use crate::math::topology::unit::PixelDistance;
 use crate::display::Glsl;
 
 
+
 // =======================
 // === RenderedContent ===
 // =======================
@@ -136,15 +137,6 @@ impl TextFieldSprites {
         GlyphLinesAssignment::new(displayed_lines,max_glyphs_in_line,x_margin)
     }
 }
-
-
-// === DisplayObject ===
-
-//impl From<&TextFieldSprites> for display::object::Node {
-//    fn from(rendered_content:&TextFieldSprites) -> Self {
-//        rendered_content.display_object.clone_ref()
-//    }
-//}
 
 
 // === Update ===

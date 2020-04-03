@@ -32,7 +32,7 @@ use wasm_bindgen::prelude::Closure;
 
 /// Callback handles managed by world.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Handles {
+pub struct CallbackHandles {
     on_before_frame : callback::Handle,
     on_frame        : callback::Handle,
     on_after_frame  : callback::Handle,
@@ -71,15 +71,15 @@ impl Uniforms {
 /// It is responsible for updating the system on every animation frame.
 #[derive(Clone,CloneRef,Debug)]
 pub struct World {
-    logger        : Logger,
-    scene         : Scene,
-    scene_dirty   : dirty::SharedBool,
-    main_loop     : animation::DynamicLoop,
-    uniforms      : Uniforms,
-    handles       : Handles,
-    stats         : Stats,
-    stats_monitor : stats::Monitor,
-    focus_manager : text_field::FocusManager, // FIXME: Remove it
+    logger           : Logger,
+    scene            : Scene,
+    scene_dirty      : dirty::SharedBool,
+    main_loop        : animation::DynamicLoop,
+    uniforms         : Uniforms,
+    stats            : Stats,
+    stats_monitor    : stats::Monitor,
+    focus_manager    : text_field::FocusManager, // FIXME: Remove it
+    callback_handles : CallbackHandles,
 }
 
 impl World {
@@ -109,8 +109,8 @@ impl World {
             })
         );
 
-        let handles = Handles {on_before_frame,on_frame,on_after_frame};
-        Self {scene,scene_dirty,logger,main_loop,uniforms,handles,stats,stats_monitor
+        let callback_handles = CallbackHandles {on_before_frame,on_frame,on_after_frame};
+        Self {scene,scene_dirty,logger,main_loop,uniforms,callback_handles,stats,stats_monitor
              ,focus_manager} . init()
     }
 

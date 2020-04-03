@@ -48,6 +48,9 @@ impl ShapeSystem {
         this
     }
 
+    // TODO
+    // We should handle these attributes in a nicer way. Currently, they are hardcoded here and we
+    // use magic to access them in shader builders.
     /// Defines a default material of this system.
     fn surface_material() -> Material {
         let mut material = Material::new();
@@ -87,10 +90,6 @@ impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
         shape_system.sprite_system.display_object()
     }
 }
-
-
-
-
 
 /// Type for every `ShapeSystem` with automatic buffer management. The easiest way to define sych a
 /// shape system instance is by using the `define_shape_system` macro.

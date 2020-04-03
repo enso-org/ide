@@ -65,12 +65,12 @@ pub struct ShapeRegistryData {
 }
 
 impl {
-    fn get2<T:ShapeSystemInstance>(&self) -> Option<T> {
+    fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
         let id = TypeId::of::<T>();
         self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
-    fn register2<T:ShapeSystemInstance>(&mut self) -> T {
+    fn register<T:ShapeSystemInstance>(&mut self) -> T {
         let id     = TypeId::of::<T>();
         let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
         let any    = Box::new(system.clone_ref());
@@ -79,7 +79,7 @@ impl {
     }
 
     fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
-        self.get2().unwrap_or_else(|| self.register2())
+        self.get().unwrap_or_else(|| self.register())
     }
 
     pub fn shape_system<T:Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
@@ -111,6 +111,7 @@ impl {
 // === Target ===
 // ==============
 
+/// Mouse target. Contains a path to an object pointed by mouse.
 #[derive(Debug,Clone,Copy,Eq,PartialEq)]
 pub enum Target {
     Background,
@@ -688,7 +689,6 @@ impl SceneData {
             for view in &*self.views.all.borrow() {
                 view.upgrade().for_each(|v| v.camera.set_screen(screen.width(), screen.height()))
             }
-//            self.camera.set_screen(screen.width(), screen.height());
             self.renderer.reload_composer();
             self.dirty.shape.unset_all();
         }

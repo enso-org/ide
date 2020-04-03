@@ -40,7 +40,6 @@ impl {
         this
     }
 
-    #[allow(clippy::borrowed_box)]
     fn add(&mut self, pass:Box<dyn RenderPass>) {
         let pass = ComposerPass::new(&self.context,&self.variables,pass,self.width,self.height);
         self.passes.push(pass);
