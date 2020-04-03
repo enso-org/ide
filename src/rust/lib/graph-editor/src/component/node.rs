@@ -16,7 +16,7 @@ use ensogl::display::shape::*;
 use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use crate::component::node::port::Port;
+use crate::component::node::port::{Port, InputPort, OutputPort};
 
 /// Icons definitions.
 pub mod icons {
@@ -195,7 +195,10 @@ pub struct NodeData {
     pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
-    pub ports  : Vec<Port>
+
+    pub ports_input   : Vec<InputPort>,
+    pub ports_output  : Vec<OutputPort>,
+
 }
 
 impl Node {
@@ -212,7 +215,10 @@ impl Node {
         let events = Events {network,select,deselect};
         let mut ports: Vec<Port> = Vec::default();
 
-        // TODO remove dummy functionality
+        // TODO[mm] remove dummy functionality
+        let mut ports_input  : Vec<InputPort> = Vec::default();
+        let mut ports_output : Vec<OutputPort> = Vec::default();
+
         let node_radius = 60.0 ;
         let port_height = 30.0;
 
@@ -220,27 +226,25 @@ impl Node {
             height: port_height,
             width: Angle::from(25.0),
             inner_radius: node_radius,
-            direction: port::Direction::Out,
             location: 90.0_f32.deg(),
             color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
         };
 
-        let port_1 = port::Port::new(port_spec);
-        ports.push(port_1.clone());
+        let port_1 = port::InputPort::new(port_spec);
+        ports_input.push(port_1.clone());
 
         let port_spec = port::Specification{
             height: port_height,
             width: Angle::from(25.0),
             inner_radius: node_radius,
-            direction: port::Direction::In,
             location: 270.0_f32.deg(),
             color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
         };
 
-        let port_2 = port::Port::new(port_spec);
-        ports.push(port_2.clone());
+        let port_2 = port::OutputPort::new(port_spec);
+        ports_output.push(port_2.clone());
 
-        let data   = Rc::new(NodeData {logger,label,events,view,ports});
+        let data   = Rc::new(NodeData {logger,label,events,view,ports_input,ports_output});
 
         let node = Self {data} . init();
         node.add_child(&port_1);
