@@ -238,7 +238,7 @@ impl component::ShapeViewDefinition for OutputPortView {
         shape.width.set(DEFAULT_WIDTH);
         shape.inner_radius.set(DEFAULT_RADIUS);
         shape.height.set(DEFAULT_HEIGHT);
-
+        // TODO[mm] minimse port size
         shape.sprite.size().set(Vector2::new(200.0,200.0));
         Self {}
     }
@@ -249,16 +249,15 @@ impl component::ShapeViewDefinition for OutputPortView {
 /// an InputPort or OutputPort.
 #[derive(Debug,Clone)]
 pub struct Port<T:ShapeViewDefinition> {
-    spec         : Specification,
+        spec     : Specification,
     pub view     : Rc<component::ShapeView<T>>
 }
-
 
 impl<T:ShapeViewDefinition> Port<T> {
 
     pub fn new(spec:Specification) -> Self{
         let logger = Logger::new("node");
-        let view = Rc::new(component::ShapeView::<T>::new(&logger));
+        let view   = Rc::new(component::ShapeView::<T>::new(&logger));
         Self{spec,view}.init()
     }
 
@@ -270,7 +269,7 @@ impl<T:ShapeViewDefinition> Port<T> {
     /// Modifies the port specification.
     pub fn mod_specification<F:FnOnce(&mut Specification)>(&mut self, f:F) {
         f(&mut self.spec);
-      self.update()
+        self.update()
     }
 
     /// Update the view with our current Specification.
@@ -303,8 +302,8 @@ impl<T:ShapeViewDefinition> Port<T> {
         //     t.shape.height.set(self.spec.height);
         // }
     }
-
 }
+
 /// A port facing towards the center of its inner circle.
 pub type InputPort = Port<InputPortView>;
 

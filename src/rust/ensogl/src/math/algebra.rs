@@ -168,31 +168,37 @@ impl Normalize for f32 {
 }
 
 
-// =================
+// ===================
 // === Square root ===
-// =================
+// ===================
 
 /// Types from which a cosine can be calculated.
 pub trait Sqrt {
-    fn sqrt(&self) -> Self;
+    type Output;
+
+    fn sqrt(&self) -> Self::Output;
 }
 
 
 // === Impls ===
 
 impl Sqrt for f32 {
+    type Output = f32;
+
     fn sqrt(&self) -> f32 {
         f32::sqrt(*self)
     }
 }
 
 
-// =================
+// ===============
 // === Cosine ===
-// =================
+// ===============
 
 /// Types from which a cosine can be calculated.
 pub trait Cos {
+    type Output;
+
     fn cos(&self) -> Self;
 }
 
@@ -200,6 +206,8 @@ pub trait Cos {
 // === Impls ===
 
 impl Cos for f32 {
+    type Output = f32;
+
     fn cos(&self) -> f32 {
         f32::cos(*self)
     }
@@ -207,20 +215,26 @@ impl Cos for f32 {
 
 
 
-// =================
+// ============
 // === Sine ===
-// =================
+// ============
 
 /// Types from which a sine can be calculated
 pub trait Sin {
-    fn sin(&self) -> Self;
+    type Output;
+
+    fn sin(&self) -> Self::Output;
 }
 
 
 // === Impls ===
 
 impl Sin for f32 {
-    fn sin(&self) -> f32 { f32::sin(*self) }
+    type Output = f32;
+
+    fn sin(&self) -> f32 {
+        f32::sin(*self)
+    }
 }
 
 
@@ -277,3 +291,12 @@ impl Into<Vector3<f32>> for Point3 {
         self.matrix
     }
 }
+
+
+
+// ===============================
+// === Algebraic Structures ===
+// ===============================
+// TODO evaluate for correctness and usefulness.
+
+pub trait Field<T> = Add<T,Output=T> + Sub<T,Output=T> + Mul<T,Output=T> + Div<T,Output=T>;

@@ -1,6 +1,8 @@
 //! Provides functionality related to circle segments.
+
+use crate::math::{Cos, Sin, Field};
+
 use std::ops::*;
-use crate::math::{Cos, Sin};
 use core::fmt::Debug;
 
 
@@ -12,43 +14,48 @@ use core::fmt::Debug;
 /// For details and background on the formulas used, see
 /// https://en.wikipedia.org/wiki/Circular_segment
 #[derive(Clone,Debug,PartialEq)]
-pub struct CircleSegment<S> {
-    radius: S,
-    angle : S,
+pub struct CircleSegment<T> {
+    radius : T,
+    angle  : T,
 }
 
-impl<S> CircleSegment<S>
-where S: Add<S,Output=S> + Mul<S,Output=S> + Sub<S,Output=S> + Sin + Cos + From<f32> + Clone + Debug{
+impl<T> CircleSegment<T>
+where T: Field<T>
+         + Sin<Output=T>
+         + Cos<Output=T>
+         + From<f32>
+         + Clone
+         + Debug {
 
     /// Constructor.
     /// Angle is required to be in radians.
-    pub fn new(radius:S, angle:S) -> Self {
-        CircleSegment{radius, angle}
+    pub fn new(radius: T, angle: T) -> Self {
+        CircleSegment{radius,angle}
     }
 
     /// The length of the direct line between the segment end points.
-    pub fn chord_length(&self) -> S {
+    pub fn chord_length(&self) -> T {
         let radius = self.radius.clone();
         let theta  = self.angle.clone();
-        S::from(2.0_f32) * radius * (theta * S::from(0.5_f32)).sin()
+        T::from(2.0_f32) * radius * (theta * T::from(0.5_f32)).sin()
     }
 
     /// The arc length of the circle segment.
-    pub fn arc_length(&self) -> S {
+    pub fn arc_length(&self) -> T {
         let radius = self.radius.clone();
         let theta  = self.angle.clone();
         radius * theta
     }
 
     /// The sagitta (height) of the segment.
-    pub fn sagitta(&self) -> S {
+    pub fn sagitta(&self) -> T {
         let radius = self.radius.clone();
         let theta  = self.angle.clone();
-        radius * (S::from(1.0_f32) - (theta * S::from(0.5_f32)).cos())
+        radius * (T::from(1.0_f32) - (theta * T::from(0.5_f32)).cos())
     }
 
     /// The apothem (height) of the triangular portion.
-    pub fn apothem(self) -> S {
+    pub fn apothem(self) -> T {
         self.radius.clone() - self.sagitta()
     }
 

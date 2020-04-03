@@ -419,7 +419,10 @@ define_shape_data_string_operator! { Div div (/) }
 // ===============================
 
 impl<T> Sin for Var<T>
-    where T: Sin + Debug {
+    where T: Sin<Output=T> {
+
+    type Output = Var<T>;
+
     fn sin(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.sin()),
@@ -430,7 +433,10 @@ impl<T> Sin for Var<T>
 
 
 impl<T> Cos for Var<T>
-    where T: Cos {
+    where T: Cos<Output=T> {
+
+    type Output = Var<T>;
+
     fn cos(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.cos()),
