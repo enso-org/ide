@@ -10,9 +10,8 @@ use core::fmt::Debug;
 // === CircleSegment ===
 // =====================
 
-/// Implements computations related to circle segments.
-/// For details and background on the formulas used, see
-/// https://en.wikipedia.org/wiki/Circular_segment
+/// Implements computations related to circle segments. For details and background on the formulas
+/// used, see https://en.wikipedia.org/wiki/Circular_segment
 #[derive(Clone,Debug,PartialEq)]
 pub struct CircleSegment<T> {
     radius : T,
@@ -65,6 +64,7 @@ where T: Field<T>
 #[cfg(test)]
 mod tests {
     use super::*;
+    // TODO more testing
 
     #[test]
     fn check_chord_Length() {

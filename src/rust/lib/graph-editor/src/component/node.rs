@@ -16,7 +16,7 @@ use ensogl::display::shape::*;
 use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use crate::component::node::port::{Port, InputPort, OutputPort};
+use crate::component::node::port::{Port, InputPort, OutputPort, PortManager};
 
 /// Icons definitions.
 pub mod icons {
@@ -196,9 +196,7 @@ pub struct NodeData {
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
 
-    pub ports_input   : Vec<InputPort>,
-    pub ports_output  : Vec<OutputPort>,
-
+    pub port_manager : PortManager,
 }
 
 impl Node {
@@ -213,42 +211,11 @@ impl Node {
         let logger = Logger::new("node");
         let view   = component::ShapeView::new(&logger);
         let events = Events {network,select,deselect};
-        let mut ports: Vec<Port> = Vec::default();
+        let port_manager = PortManager::default() ;
 
-        // TODO[mm] remove dummy functionality
-        let mut ports_input  : Vec<InputPort> = Vec::default();
-        let mut ports_output : Vec<OutputPort> = Vec::default();
-
-        let node_radius = 60.0 ;
-        let port_height = 30.0;
-
-        let port_spec = port::Specification{
-            height: port_height,
-            width: Angle::from(25.0),
-            inner_radius: node_radius,
-            location: 90.0_f32.deg(),
-            color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
-        };
-
-        let port_1 = port::InputPort::new(port_spec);
-        ports_input.push(port_1.clone());
-
-        let port_spec = port::Specification{
-            height: port_height,
-            width: Angle::from(25.0),
-            inner_radius: node_radius,
-            location: 270.0_f32.deg(),
-            color: Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
-        };
-
-        let port_2 = port::OutputPort::new(port_spec);
-        ports_output.push(port_2.clone());
-
-        let data   = Rc::new(NodeData {logger,label,events,view,ports_input,ports_output});
+        let data   = Rc::new(NodeData {logger,label,events,view,port_manager});
 
         let node = Self {data} . init();
-        node.add_child(&port_1);
-        node.add_child(&port_2);
         node
     }
 
@@ -286,6 +253,9 @@ impl Node {
             });
         }
 
+        self.data.port_manager.set_parent(self.downgrade());
+        self.data.port_manager.create_input_port();
+        self.data.port_manager.create_output_port();
 
         self
     }
