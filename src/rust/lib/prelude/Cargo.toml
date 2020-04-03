@@ -53,6 +53,7 @@ features = [
   'WebGlShader',
   'WebGlSync',
   'WebGlTexture',
+  'WebGl2RenderingContext',
   'WebGlUniformLocation',
   'WebGlUniformLocation',
   'WebGlVertexArrayObject',
@@ -61,6 +62,7 @@ features = [
   'EventTarget',
   'Event',
   'MouseEvent',
+  'Performance',
   'WheelEvent',
   'DomRect',
   'AddEventListenerOptions'
