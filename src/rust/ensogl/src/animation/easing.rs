@@ -125,15 +125,13 @@ pub trait Callback<T> = Fn(T) + 'static;
 
 /// Easing animator. Allows animating any value which implements `Value` according to one of the
 /// easings functions.
-#[derive(Derivative)]
+#[derive(CloneRef,Derivative)]
 #[derivative(Debug(bound="T:Debug"))]
 #[derivative(Clone(bound=""))]
 pub struct Animator<T:Value,F,Cb> {
     data           : Rc<AnimatorData<T,F,Cb>>,
     animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,Cb>>>>,
 }
-
-impl<T:Value,F,Cb> CloneRef for Animator<T,F,Cb> {}
 
 /// Internal data of `Animator`.
 #[derive(Derivative)]

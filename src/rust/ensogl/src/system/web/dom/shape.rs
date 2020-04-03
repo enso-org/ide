@@ -120,7 +120,8 @@ impl Into<Vector2<f32>> for &Shape {
 
 /// A wrapper for `HtmlElement` or anything which derefs to it. It tracks the element size without
 /// causing browser reflow.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[clone_ref(bound="T:CloneRef")]
 pub struct WithKnownShape<T=web_sys::HtmlElement> {
     #[shrinkwrap(main_field)]
     dom       : T,
@@ -128,8 +129,6 @@ pub struct WithKnownShape<T=web_sys::HtmlElement> {
     observer  : Rc<ResizeObserver>,
     on_resize : Rc<RefCell<callback::Registry1<ShapeData>>>,
 }
-
-impl<T:CloneRef> CloneRef for WithKnownShape<T> {}
 
 impl<T> WithKnownShape<T> {
     /// Constructor.

@@ -197,6 +197,7 @@ macro_rules! shared_struct {
         }
     ) => {
         $(#[$($meta)*])*
+        #[derive(CloneRef)]
         pub struct $name <$($params)*> { rc: Rc<RefCell<$name_mut<$($params)*>>> }
 
         $(#[$($meta)*])*
@@ -209,8 +210,6 @@ macro_rules! shared_struct {
                 Self {rc}
             }
         }
-
-        impl<$($params)*> CloneRef for $name <$($params)*> {}
 
         paste::item! {
             $(#[$($meta)*])*

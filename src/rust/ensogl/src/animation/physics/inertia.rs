@@ -221,16 +221,9 @@ impl<T:Position> SimulationData<T> {
 
 /// The main simulation engine. It allows running the simulation by explicitly calling the `step`
 /// function. Refer to `Simulator` for a more aautomated solution.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct Simulation<T:Copy> {
     data : Rc<Cell<SimulationData<T>>>
-}
-
-impl<T:Position> CloneRef for Simulation<T> {
-    fn clone_ref(&self) -> Self {
-        let data = self.data.clone_ref();
-        Self {data}
-    }
 }
 
 impl<T:Position> Simulation<T> {
@@ -314,7 +307,7 @@ pub type DynSimulator<T> = Simulator<T,Box<dyn Fn(T)>>;
 /// The `Simulation` with an associated animation loop. The simulation is updated every frame in an
 /// efficient way – when the simulation finishes, it automatically unregisters in the animation loop
 /// and registers back only when needed.
-#[derive(Derivative,Shrinkwrap)]
+#[derive(CloneRef,Derivative,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct Simulator<T:Position,Cb> {
@@ -323,17 +316,7 @@ pub struct Simulator<T:Position,Cb> {
     animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationStep<T,Cb>>>>,
     frame_rate     : Rc<Cell<f32>>,
     #[derivative(Debug="ignore")]
-    callback : Rc<Cb>,
-}
-
-impl<T:Position,Cb> CloneRef for Simulator<T,Cb> {
-    fn clone_ref(&self) -> Self {
-        let simulation     = self.simulation.clone_ref();
-        let animation_loop = self.animation_loop.clone_ref();
-        let frame_rate     = self.frame_rate.clone_ref();
-        let callback       = self.callback.clone_ref();
-        Self {simulation,animation_loop,frame_rate,callback}
-    }
+    callback       : Rc<Cb>,
 }
 
 impl<T:Position,Cb> Simulator<T,Cb>
