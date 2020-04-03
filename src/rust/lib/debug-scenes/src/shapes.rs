@@ -9,6 +9,7 @@ use ensogl::display::world::*;
 use ensogl::system::web;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
+use ensogl::display::object::ObjectOps;
 
 
 #[wasm_bindgen]
@@ -26,7 +27,8 @@ fn init(world: &World) {
     let camera = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
 
-    let _graph_editor = GraphEditor::new(world);
+    let graph_editor = GraphEditor::new(world);
+    world.add_child(&graph_editor);
 
     let mut _iter:i32 = 0;
     let mut _time:i32 = 0;
