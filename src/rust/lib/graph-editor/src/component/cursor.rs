@@ -2,22 +2,22 @@
 
 use crate::prelude::*;
 
-use ensogl::data::color::Srgba;
-use ensogl::display;
-use ensogl::display::traits::*;
-use ensogl::display::{Sprite, Attribute};
-use enso_frp;
 use enso_frp as frp;
 use enso_frp::frp;
-use ensogl::display::Buffer;
-use ensogl::display::shape::*;
-use ensogl::gui::component;
-use ensogl::display::scene;
-use ensogl::display::scene::{Scene,ShapeRegistry};
-use ensogl::display::layout::alignment;
-use ensogl::system::web;
+use enso_frp;
 use ensogl::control::callback;
+use ensogl::data::color::Srgba;
+use ensogl::display::Buffer;
+use ensogl::display::layout::alignment;
+use ensogl::display::scene::{Scene,ShapeRegistry};
+use ensogl::display::scene;
+use ensogl::display::shape::*;
+use ensogl::display::traits::*;
+use ensogl::display::{Sprite, Attribute};
+use ensogl::display;
 use ensogl::gui::component::animation;
+use ensogl::gui::component;
+use ensogl::system::web;
 
 
 

@@ -2,16 +2,17 @@
 
 use crate::prelude::*;
 
-use crate::display;
-use crate::display::scene::MouseTarget;
-use crate::display::scene::ShapeRegistry;
-use crate::display::object::traits::*;
-use crate::display::shape::primitive::system::Shape;
-use crate::display::scene::Scene;
-use enso_frp as frp;
-use enso_frp::frp;
 use crate::animation::physics::inertia::DynSimulator;
+use crate::display::object::traits::*;
+use crate::display::scene::MouseTarget;
+use crate::display::scene::Scene;
+use crate::display::scene::ShapeRegistry;
+use crate::display::shape::primitive::system::Shape;
+use crate::display;
+
+use enso_frp as frp;
 use enso_frp::core::node::class::EventEmitterPoly;
+use enso_frp::frp;
 
 
 
@@ -79,23 +80,32 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
     }
 
     fn init(self) -> Self {
+        self.init_on_show();
+        self.init_on_hide();
+        self
+    }
+
+    fn init_on_show(&self) {
         let weak_data   = Rc::downgrade(&self.data);
         let weak_parent = self.display_object.downgrade();
         let events      = self.events.clone_ref();
         self.display_object.set_on_show_with(move |scene| {
             let shape_registry: &ShapeRegistry = &scene.shapes;
             let events = events.clone_ref();
-            weak_data.upgrade().for_each(|ddd| {
+            weak_data.upgrade().for_each(|self_data| {
                 weak_parent.upgrade().for_each(|parent| {
                     let shape = shape_registry.new_instance::<T::Shape>();
                     parent.add_child(&shape);
                     shape_registry.insert_mouse_target(*shape.sprite().instance_id,events);
-                    let data = T::new(&shape,scene,shape_registry); // FIXME naming
+                    let data = T::new(&shape,scene,shape_registry);
                     let data = ShapeViewData {data,shape};
-                    *ddd.borrow_mut() = Some(data); // FIXME naming
+                    *self_data.borrow_mut() = Some(data);
                 })
             });
         });
+    }
+
+    fn init_on_hide(&self) {
         let weak_data = Rc::downgrade(&self.data);
         self.display_object.set_on_hide_with(move |scene| {
             let shape_registry: &ShapeRegistry = &scene.shapes;
@@ -106,7 +116,6 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
                 *data.borrow_mut() = None;
             });
         });
-        self
     }
 }
 

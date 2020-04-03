@@ -342,16 +342,6 @@ macro_rules! define_any_buffer {
     }
 
     $(
-//        impl TryFrom<AnyBuffer> for Buffer<$base<$param>> {
-//            type Error = BadVariant;
-//            fn try_from(t:AnyBuffer) -> Result <Buffer<$base<$param>>,Self::Error> {
-//                match t {
-//                    AnyBuffer::[<Variant $base For $param>](a) => Ok(a),
-//                    _ => Err(BadVariant)
-//                }
-//            }
-//        }
-
         impl<'t> TryFrom<&'t AnyBuffer> for &'t Buffer<$base<$param>> {
             type Error = BadVariant;
             fn try_from(t:&'t AnyBuffer) -> Result <&'t Buffer<$base<$param>>,Self::Error> {

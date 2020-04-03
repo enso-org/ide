@@ -123,15 +123,16 @@ impl World {
     fn init_hotkeys(&self) {
         // -----------------------------------------------------------------------------------------
         // FIXME[WD]: Hacky way of switching display_mode. To be fixed and refactored out.
-        // FIXME[AO]: Commented out for Sylwia request. Should we keep this debug mode anyway?
         let stats_monitor = self.stats_monitor.clone_ref();
         let display_mode  = self.uniforms.display_mode.clone_ref();
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-            let val = val.unchecked_into::<web_sys::KeyboardEvent>();
-            let key = val.key();
-            if      key == "`" { stats_monitor.toggle() }
-            else if key == "0" { display_mode.set(0) }
-            else if key == "1" { display_mode.set(1) }
+            let event = val.unchecked_into::<web_sys::KeyboardEvent>();
+            if event.alt_key() && event.ctrl_key() {
+                let key   = event.code();
+                if      key == "Backquote" { stats_monitor.toggle() }
+                else if key == "Digit0"    { display_mode.set(0) }
+                else if key == "Digit1"    { display_mode.set(1) }
+            }
         }));
         web::document().add_event_listener_with_callback
         ("keydown",c.as_ref().unchecked_ref()).unwrap();

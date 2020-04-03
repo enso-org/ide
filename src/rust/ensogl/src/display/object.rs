@@ -23,8 +23,8 @@ use transform::CachedTransform;
 
 /// Common traits.
 pub mod traits {
-    pub use super::Object;
-    pub use super::ObjectOps;
+    pub use super::Object    as TRAIT_Object;
+    pub use super::ObjectOps as TRAIT_ObjectOps;
 }
 
 
