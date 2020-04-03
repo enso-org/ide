@@ -133,11 +133,16 @@ impl Cursor {
 /// Home, End, Ctrl+Home, etc.)
 #[derive(Copy,Clone,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
-pub enum Step {Left,LeftWord,Right,RightWord,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd}
+pub enum Step
+{Left,LeftWord,Right,RightWord,PageUp,Up,PageDown,Down,LineBegin,LineEnd,DocBegin,DocEnd}
 
 /// A struct for cursor navigation process.
 #[derive(Debug)]
 pub struct CursorNavigation<'a> {
+    /// A snapshot of TextField's scroll position.
+    pub scroll_position: Vector2<f32>,
+    /// A snapshot of TextField's size.
+    pub text_field_size: Vector2<f32>,
     /// A reference to text content. This is required to obtain the x positions of chars for proper
     /// moving cursors up and down.
     pub content: &'a mut TextFieldContent,
@@ -147,9 +152,12 @@ pub struct CursorNavigation<'a> {
 
 impl<'a> CursorNavigation<'a> {
     /// Creates a new CursorNavigation with defaults.
-    pub fn default(content:&'a mut TextFieldContent) -> Self {
+    pub fn default
+    ( content         : &'a mut TextFieldContent
+    , text_field_size : Vector2<f32>
+    , scroll_position : Vector2<f32>) -> Self {
         let selecting     = default();
-        Self {content,selecting}
+        Self {content,selecting,text_field_size,scroll_position}
     }
 
     /// Jump cursor directly to given position.
@@ -220,16 +228,18 @@ impl<'a> CursorNavigation<'a> {
 
     /// Get cursor position one line above the given position, such the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    pub fn line_up_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
-        let prev_line = position.line.checked_sub(1);
-        prev_line.map(|line| self.near_same_x_in_another_line(position,line))
+    pub fn line_up_position(&mut self, position:&TextLocation, lines:usize) -> TextLocation {
+        let prev_line = position.line.checked_sub(lines);
+        let prev_line = prev_line.map(|line| self.near_same_x_in_another_line(position,line));
+        prev_line.unwrap_or_else(|| TextLocation::at_document_begin())
     }
 
     /// Get cursor position one line behind the given position, such the new x coordinate of
     /// displayed cursor on the screen will be nearest the current value.
-    pub fn line_down_position(&mut self, position:&TextLocation) -> Option<TextLocation> {
-        let next_line = Some(position.line + 1).filter(|l| *l < self.content.lines().len());
-        next_line.map(|line| self.near_same_x_in_another_line(position,line))
+    pub fn line_down_position(&mut self, position:&TextLocation, lines:usize) -> TextLocation {
+        let next_line = Some(position.line + lines).filter(|l| *l < self.content.lines().len());
+        let next_line = next_line.map(|line| self.near_same_x_in_another_line(position,line));
+        next_line.unwrap_or_else(|| self.content_end_position())
     }
 
     /// Returns the next column if it exists. If it doesn't exist it attempts to return the
@@ -277,6 +287,10 @@ impl<'a> CursorNavigation<'a> {
         Self::next_valid_text_location(line, previous_line, previous_column, line_end)
     }
 
+    fn get_lines_from_height(&self) -> usize {
+        (self.text_field_size.y / self.content.line_height) as usize
+    }
+
     /// New position of cursor at `position` after applying `step`.
     fn new_position(&mut self, position: TextLocation, step:Step) -> TextLocation {
         match step {
@@ -284,8 +298,10 @@ impl<'a> CursorNavigation<'a> {
             Step::RightWord => self.next_word_position(&position).unwrap_or(position),
             Step::Left      => self.prev_char_position(&position).unwrap_or(position),
             Step::Right     => self.next_char_position(&position).unwrap_or(position),
-            Step::Up        => self.line_up_position(&position).unwrap_or(position),
-            Step::Down      => self.line_down_position(&position).unwrap_or(position),
+            Step::PageUp    => self.line_up_position(&position,self.get_lines_from_height()),
+            Step::PageDown  => self.line_down_position(&position,self.get_lines_from_height()),
+            Step::Up        => self.line_up_position(&position,1),
+            Step::Down      => self.line_down_position(&position,1),
             Step::LineBegin => TextLocation::at_line_begin(position.line),
             Step::LineEnd   => self.line_end_position(position.line),
             Step::DocBegin  => TextLocation::at_document_begin(),
@@ -462,7 +478,7 @@ impl Cursors {
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
-    pub fn navigate_all_cursors(&mut self, navigation:&mut CursorNavigation, step:Step) {
+    pub fn navigate_all_cursors(&mut self, navigation:&mut CursorNavigation, step:Step) -> f32 {
         self.navigate_cursors(navigation,step,|_| true)
     }
 
@@ -470,12 +486,19 @@ impl Cursors {
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
-    pub fn navigate_cursors<Predicate>
-    (&mut self, navigation:&mut CursorNavigation, step:Step, mut predicate:Predicate)
-    where Predicate : FnMut(&Cursor) -> bool {
+    pub fn navigate_cursors<P>
+    (&mut self, navigation:&mut CursorNavigation, step:Step, mut predicate:P) -> f32
+    where P : FnMut(&Cursor) -> bool {
         let filtered = self.cursors.iter_mut().filter(|c| predicate(c));
         filtered.for_each(|cursor| navigation.move_cursor(cursor, step));
+        let new_position = self.last_cursor().position;
         self.merge_overlapping_cursors();
+
+        let scroll      = navigation.scroll_position.y;
+        let line_height = navigation.content.line_height;
+        let height      = ((navigation.text_field_size.y - line_height) / line_height).floor() * line_height;
+        let position    = new_position.line as f32 * navigation.content.line_height - scroll;
+        -position.min(position.max(height) - height)
     }
 
     /// Jump the last cursor to the nearest location from given point of the screen.
