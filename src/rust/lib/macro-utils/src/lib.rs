@@ -4,12 +4,14 @@
 #![warn(missing_docs)]
 #![feature(trait_alias)]
 
-use quote::quote;
-use syn;
-use syn::visit::Visit;
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
+use quote::quote;
 use std::iter::FromIterator;
+use syn::visit::Visit;
+use syn::WhereClause;
+use syn::WherePredicate;
+use syn;
 
 
 
@@ -242,6 +244,18 @@ pub fn type_depends_on(ty:&syn::Type, target_param:&syn::GenericParam) -> bool {
 pub fn variant_depends_on
 (var:&syn::Variant, target_param:&syn::GenericParam) -> bool {
     var.fields.iter().any(|field| type_depends_on(&field.ty, target_param))
+}
+
+
+
+// ===================
+// === WhereClause ===
+// ===================
+
+/// Creates a new where clause from provided sequence of where predicates.
+pub fn new_where_clause(predicates:impl IntoIterator<Item=WherePredicate>) -> WhereClause {
+    let predicates = syn::punctuated::Punctuated::from_iter(predicates);
+    WhereClause {where_token:Default::default(),predicates}
 }
 
 
