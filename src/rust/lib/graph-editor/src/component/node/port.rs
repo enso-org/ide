@@ -37,7 +37,7 @@ use ensogl::gui::component::ShapeViewDefinition;
 /// most measurements are in degrees, which are measured around
 /// a inner circle, that is defined by the `inner_radius`.
 #[derive(Clone,Copy,Debug)]
-pub struct Specification{
+pub struct Specification {
     /// Height of the port.
     pub height      : f32,
     /// Width of the port in degrees.
@@ -55,7 +55,7 @@ pub struct Specification{
 #[derive(Clone,Debug)]
 /// Internal helper struct to aggregate parameters.
 /// TODO[mm] consider removing.
-struct SpecificationVar{
+struct SpecificationVar {
     /// Height of the port.
     pub height      : Var<Distance<Pixels>>,
     /// Width of the port in degrees.
