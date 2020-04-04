@@ -28,20 +28,6 @@ use enso_prelude::*;
 
 
 
-//outputs : Rc<RefCell<Vec<dyn >>>
-
-
-//pub struct WeakNodeTemplate<T:?Sized> {
-//    graph   : Graph,
-//    data    : Weak<T>,
-//    outputs : Rc<RefCell<Vec<dyn Any>>>,
-//}
-
-
-
-
-
-
 // =============
 // === Graph ===
 // =============
@@ -78,9 +64,11 @@ impl Graph {
         WeakGraph {data:Rc::downgrade(&self.data)}
     }
 
-    pub fn register<T:NodeDefinition>(&self, node:Node<T>) {
+    pub fn register<T:NodeDefinition>(&self, node:Node<T>) -> WeakNode<T> {
+        let weak = node.downgrade();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
+        weak
     }
 }
 
@@ -110,10 +98,6 @@ pub trait HasOutput {
 
 pub type Output<T> = <T as HasOutput>::Output;
 
-//pub trait HasEventInput {
-//    type EventInput : Value;
-//}
-
 
 
 // ====================
@@ -121,7 +105,10 @@ pub type Output<T> = <T as HasOutput>::Output;
 // ====================
 
 
-pub trait Input = 'static + ValueProvider + EventEmitter + CloneRef;
+pub trait AnyStream = 'static + LastValueProvider + EventEmitter + CloneRef;
+
+pub trait StreamNode : LastValueProvider + EventEmitter {}
+impl<T> StreamNode for T where T : LastValueProvider + EventEmitter {}
 
 pub trait EventEmitter : HasOutput {
     fn emit(&self, value:&Self::Output);
@@ -132,8 +119,8 @@ pub trait EventConsumer<T> {
     fn on_event(&self, value:&T);
 }
 
-pub trait ValueProvider : HasOutput {
-    fn value(&self) -> Self::Output;
+pub trait LastValueProvider : HasOutput {
+    fn last_value(&self) -> Self::Output;
 }
 
 
@@ -143,19 +130,9 @@ pub trait ValueProvider : HasOutput {
 // === Node ===
 // ============
 
+// === Types ===
+
 pub trait NodeDefinition = 'static + ?Sized + HasOutput;
-
-pub struct NodeData<Def:NodeDefinition> {
-    targets    : RefCell<Vec<Weak<dyn EventConsumer<Output<Def>>>>>,
-    last_value : RefCell<Output<Def>>,
-    definition : Def,
-}
-
-#[derive(CloneRef,Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct WeakNode<T:NodeDefinition> {
-    data : Weak<NodeData<T>>,
-}
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
@@ -165,47 +142,45 @@ pub struct Node<T:NodeDefinition> {
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct WeakAnyNode<Out> {
-    data : Weak<dyn EventEmitter<Output=Out>>,
+pub struct WeakNode<T:NodeDefinition> {
+    data : Weak<NodeData<T>>,
 }
 
-impl<Def:NodeDefinition> From<WeakNode<Def>> for WeakAnyNode<Def::Output> {
-    fn from(node:WeakNode<Def>) -> Self {
-        WeakAnyNode {data:node.data}
-    }
+pub struct NodeData<Def:NodeDefinition> {
+    targets    : RefCell<Vec<Weak<dyn EventConsumer<Output<Def>>>>>,
+    last_value : RefCell<Output<Def>>,
+    definition : Def,
 }
 
-impl<Def:NodeDefinition> Node<Def> {
-    pub fn construct(definition:Def) -> Self {
-        let targets    = default();
-        let last_value = default();
-        let data    = Rc::new(NodeData {targets,last_value,definition});
-        Self {data}
-    }
 
-    pub fn downgrade(&self) -> WeakNode<Def> {
-        let data = Rc::downgrade(&self.data);
-        WeakNode {data}
-    }
-}
-
-impl<T:NodeDefinition> WeakNode<T> {
-    pub fn upgrade(&self) -> Option<Node<T>> {
-        self.data.upgrade().map(|data| Node{data})
-    }
-}
+// === Output ===
 
 impl<Def:NodeDefinition> HasOutput for Node     <Def> { type Output = Output<Def>; }
 impl<Def:NodeDefinition> HasOutput for WeakNode <Def> { type Output = Output<Def>; }
 impl<Def:NodeDefinition> HasOutput for NodeData <Def> { type Output = Output<Def>; }
 
-impl<Def:NodeDefinition> EventEmitter for WeakNode<Def> {
-    fn emit(&self, value:&Output<Def>) {
-        self.data.upgrade().for_each(|data| data.emit(value))
+
+// === Node Impls ===
+
+impl<Def:NodeDefinition> Node<Def> {
+    pub fn construct(definition:Def) -> Self {
+        let targets    = default();
+        let last_value = default();
+        let data       = Rc::new(NodeData {targets,last_value,definition});
+        Self {data}
     }
 
-    fn register_target(&self,tgt:Weak<dyn EventConsumer<Output<Self>>>) {
-        self.data.upgrade().for_each(|data| data.register_target(tgt))
+    pub fn construct_and_connect<Source:AnyStream>(source:&Source, definition:Def) -> Self
+    where NodeData<Def> : EventConsumer<Output<Source>> {
+        let this = Self::construct(definition);
+        let weak = this.downgrade();
+        source.register_target(weak.data);
+        this
+    }
+
+    pub fn downgrade(&self) -> WeakNode<Def> {
+        let data = Rc::downgrade(&self.data);
+        WeakNode {data}
     }
 }
 
@@ -219,17 +194,39 @@ impl<Def:NodeDefinition> EventEmitter for Node<Def>  {
     }
 }
 
-impl<Def:NodeDefinition> ValueProvider for Node<Def> {
-    fn value(&self) -> Self::Output {
-        self.data.value()
+impl<Def:NodeDefinition> LastValueProvider for Node<Def> {
+    fn last_value(&self) -> Self::Output {
+        self.data.last_value()
     }
 }
 
-impl<Def:NodeDefinition> ValueProvider for WeakNode<Def> {
-    fn value(&self) -> Self::Output {
-        self.data.upgrade().map(|data| data.value()).unwrap_or_default()
+
+// === WeakNode Impls ===
+
+impl<T:NodeDefinition> WeakNode<T> {
+    pub fn upgrade(&self) -> Option<Node<T>> {
+        self.data.upgrade().map(|data| Node{data})
     }
 }
+
+impl<Def:NodeDefinition> EventEmitter for WeakNode<Def> {
+    fn emit(&self, value:&Output<Def>) {
+        self.data.upgrade().for_each(|data| data.emit(value))
+    }
+
+    fn register_target(&self,tgt:Weak<dyn EventConsumer<Output<Self>>>) {
+        self.data.upgrade().for_each(|data| data.register_target(tgt))
+    }
+}
+
+impl<Def:NodeDefinition> LastValueProvider for WeakNode<Def> {
+    fn last_value(&self) -> Self::Output {
+        self.data.upgrade().map(|data| data.last_value()).unwrap_or_default()
+    }
+}
+
+
+// === NodeData Impls ===
 
 impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
     fn emit(&self, value:&Self::Output) {
@@ -250,28 +247,65 @@ impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
     }
 }
 
-impl<Def:NodeDefinition> ValueProvider for NodeData<Def> {
-    fn value(&self) -> Self::Output {
+impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
+    fn last_value(&self) -> Self::Output {
         self.last_value.borrow().clone()
     }
 }
+
+
+
+// ==============
+// === Stream ===
+// ==============
+
+#[derive(CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct Stream<Out> {
+    data : Weak<dyn StreamNode<Output=Out>>,
+}
+
+impl<Def:NodeDefinition> From<WeakNode<Def>> for Stream<Def::Output> {
+    fn from(node:WeakNode<Def>) -> Self {
+        Stream {data:node.data}
+    }
+}
+
+impl<Out:Value> HasOutput for Stream<Out> {
+    type Output = Out;
+}
+
+impl<Out:Value> EventEmitter for Stream<Out> {
+    fn emit(&self, value:&Self::Output) {
+        self.data.upgrade().for_each(|t| t.emit(value))
+    }
+
+    fn register_target(&self,tgt:Weak<dyn EventConsumer<Output<Self>>>) {
+        self.data.upgrade().for_each(|t| t.register_target(tgt))
+    }
+}
+
+impl<Out:Value> LastValueProvider for Stream<Out> {
+    fn last_value(&self) -> Self::Output {
+        self.data.upgrade().map(|t| t.last_value()).unwrap_or_default()
+    }
+}
+
 
 
 // ==============
 // === Source ===
 // ==============
 
-pub type Source     <T=()> = Node     <SourceData<T>>;
-pub type WeakSource <T=()> = WeakNode <SourceData<T>>;
-pub struct SourceData<T=()> {
-    phantom : PhantomData<T>
+pub type   Source     <Out=()> = Node     <SourceData<Out>>;
+pub type   WeakSource <Out=()> = WeakNode <SourceData<Out>>;
+pub struct SourceData <Out=()> { phantom : PhantomData<Out> }
+
+impl<Out:Value> HasOutput for SourceData<Out> {
+    type Output = Out;
 }
 
-impl<T:Value> HasOutput for SourceData<T> {
-    type Output = T;
-}
-
-impl<T:Value> Source<T> {
+impl<Out:Value> Source<Out> {
     pub fn new() -> Self {
         let phantom    = default();
         let definition = SourceData {phantom};
@@ -294,13 +328,10 @@ impl HasOutput for ToggleData {
 }
 
 impl Toggle {
-    pub fn new<Src:Input>(src:&Src) -> Self {
+    pub fn new<Src:AnyStream>(src:&Src) -> Self {
         let value      = default();
         let definition = ToggleData {value};
-        let this       = Self::construct(definition);
-        let weak       = this.downgrade();
-        src.register_target(weak.data);
-        this
+        Self::construct_and_connect(src,definition)
     }
 }
 
@@ -312,6 +343,69 @@ impl<T> EventConsumer<T> for NodeData<ToggleData> {
     }
 }
 
+
+
+// =============
+// === Merge ===
+// =============
+
+pub type   Merge     <T> = Node     <MergeData<T>>;
+pub type   WeakMerge <T> = WeakNode <MergeData<T>>;
+pub struct MergeData <T> { phantom : PhantomData<T> }
+
+impl<T:Value> HasOutput for MergeData<T> {
+    type Output = T;
+}
+
+impl<T:Value> Merge<T> {
+    pub fn new<Src1,Src2>(src1:&Src1, src2:&Src2) -> Self
+        where Src1 : AnyStream<Output=T>,
+              Src2 : AnyStream<Output=T> {
+        let phantom    = default();
+        let definition = MergeData {phantom};
+        let this       = Self::construct(definition);
+        let weak       = this.downgrade();
+        src1.register_target(weak.data.clone_ref());
+        src1.register_target(weak.data);
+        this
+    }
+}
+
+impl<T:Value> EventConsumer<T> for NodeData<MergeData<T>> {
+    fn on_event(&self, event:&T) {
+        self.emit(event);
+    }
+}
+
+
+
+// ================
+// === Previous ===
+// ================
+
+pub type   Previous     <T> = Node     <PreviousData<T>>;
+pub type   WeakPrevious <T> = WeakNode <PreviousData<T>>;
+pub struct PreviousData <T> { previous : RefCell<T> }
+
+impl<T:Value> HasOutput for PreviousData<T> {
+    type Output = T;
+}
+
+impl<T:Value> Previous<T> {
+    pub fn new<Src>(src:&Src) -> Self
+    where Src : AnyStream<Output=T> {
+        let previous   = default();
+        let definition = PreviousData {previous};
+        Self::construct_and_connect(src,definition)
+    }
+}
+
+impl<T:Value> EventConsumer<T> for NodeData<PreviousData<T>> {
+    fn on_event(&self, event:&T) {
+        let previous = mem::replace(&mut *self.definition.previous.borrow_mut(),event.clone());
+        self.emit(&previous);
+    }
+}
 
 
 
@@ -327,23 +421,53 @@ impl<Source:HasOutput> HasOutput for SampleData<Source> {
     type Output = Output<Source>;
 }
 
-impl<Source:Input> Sample<Source> {
-    pub fn new<E:Input>(event:&E,behavior:&Source) -> Self {
+impl<Source:AnyStream> Sample<Source> {
+    pub fn new<E:AnyStream>(event:&E,behavior:&Source) -> Self {
         let behavior   = behavior.clone_ref();
         let definition = SampleData {behavior};
-        let this       = Self::construct(definition);
-        let weak       = this.downgrade();
-        event.register_target(weak.data);
-        this
+        Self::construct_and_connect(event,definition)
     }
 }
 
-impl<T,Source:Input> EventConsumer<T> for NodeData<SampleData<Source>> {
+impl<T,Source:AnyStream> EventConsumer<T> for NodeData<SampleData<Source>> {
     fn on_event(&self, _:&T) {
-        self.emit(&self.definition.behavior.value());
+        self.emit(&self.definition.behavior.last_value());
     }
 }
 
+
+
+// ============
+// === Gate ===
+// ============
+
+pub type   Gate     <T,B> = Node     <GateData<T,B>>;
+pub type   WeakGate <T,B> = WeakNode <GateData<T,B>>;
+pub struct GateData <T,B> { behavior : B, phantom : PhantomData<T> }
+
+impl<T:Value,B> HasOutput for GateData<T,B> {
+    type Output = T;
+}
+
+impl<T,B> Gate<T,B>
+where T:Value, B:AnyStream<Output=bool> {
+    pub fn new<Event>(event:&Event,behavior:&B) -> Self
+    where Event : AnyStream<Output=T> {
+        let behavior   = behavior.clone_ref();
+        let phantom    = default();
+        let definition = GateData {behavior,phantom};
+        Self::construct_and_connect(event,definition)
+    }
+}
+
+impl<T,B> EventConsumer<T> for NodeData<GateData<T,B>>
+where T:Value, B:AnyStream<Output=bool> {
+    fn on_event(&self, event:&T) {
+        if self.definition.behavior.last_value() {
+            self.emit(event)
+        }
+    }
+}
 
 
 
@@ -359,24 +483,21 @@ pub struct MapData<S,F> {
 }
 
 impl<S,F,Out> HasOutput for MapData<S,F>
-where S : Input, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
+where S : AnyStream, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
     type Output = Out;
 }
 
 impl<S,F,Out> Map<S,F>
-where S : Input, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
+where S : AnyStream, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
     pub fn new(src:&S,function:F) -> Self {
         let source     = src.clone_ref();
         let definition = MapData {source,function};
-        let this       = Self::construct(definition);
-        let weak       = this.downgrade();
-        src.register_target(weak.data);
-        this
+        Self::construct_and_connect(src,definition)
     }
 }
 
 impl<S,F,Out> EventConsumer<Output<S>> for NodeData<MapData<S,F>>
-where S : Input, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
+where S : AnyStream, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
     fn on_event(&self, value:&Output<S>) {
         let out = (self.definition.function)(value);
         self.emit(&out);
@@ -392,33 +513,25 @@ where S : Input, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
 
 impl Graph {
     pub fn source<T:Value>(&self) -> WeakSource<T> {
-        let node = Source::<T>::new();
-        let weak = node.downgrade();
-        self.register(node);
-        weak
+        self.register(Source::<T>::new())
     }
 
-    pub fn sample<Event:Input,Behavior:Input>(&self, event:&Event, behavior:&Behavior) -> WeakSample<Behavior> {
-        let node = Sample::new(event,behavior);
-        let weak = node.downgrade();
-        self.register(node);
-        weak
+    pub fn gate<T,E,B>(&self, event:&E, behavior:&B) -> WeakGate<T,B>
+    where T:Value, E:AnyStream<Output=T>, B:AnyStream<Output=bool> {
+        self.register(Gate::new(event,behavior))
     }
 
+    pub fn sample<E:AnyStream,B:AnyStream>(&self, event:&E, behavior:&B) -> WeakSample<B> {
+        self.register(Sample::new(event,behavior))
+    }
 
-    pub fn toggle<Src:Input>(&self, source:&Src) -> WeakToggle {
-        let node = Toggle::new(source);
-        let weak = node.downgrade();
-        self.register(node);
-        weak
+    pub fn toggle<Src:AnyStream>(&self, source:&Src) -> WeakToggle {
+        self.register(Toggle::new(source))
     }
 
     pub fn map<S,F,Out>(&self, source:&S, function:F) -> WeakMap<S,F>
-    where S : Input, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
-        let node = Map::<S,F>::new(source,function);
-        let weak = node.downgrade();
-        self.register(node);
-        weak
+    where S : AnyStream, F : 'static + Fn(&Output<S>) -> Out, Out : Value {
+        self.register(Map::<S,F>::new(source,function))
     }
 }
 
@@ -432,7 +545,8 @@ pub fn test() {
     let tg     = frp.toggle(&source);
     let fff    = frp.map(&tg,|t| { println!("{:?}",t) });
     let bb     = frp.sample(&source2,&tg);
-    let fff2   = frp.map(&bb,|t| { println!(">> {:?}",t) });
+    let bb2 : Stream<bool> = bb.into();
+    let fff2   = frp.map(&bb2,|t| { println!(">> {:?}",t) });
 
     source.emit(&5.0);
     source2.emit(&());
