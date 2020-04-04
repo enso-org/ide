@@ -4,14 +4,8 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
-use ensogl::prelude::*;
-
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::world::*;
 use ensogl::system::web;
-use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
-use ensogl::display::object::ObjectOps;
 
 use enso_frp2;
 

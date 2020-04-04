@@ -206,10 +206,10 @@ impl GraphEditor {
             on_bg_release            = on_bg_press.sample(&on_release);
             bg_select                = on_bg_release.gate(&bg_should_select);
 
-            bg_selection = bg_select.map(move |_| {
+            _bg_selection = bg_select.map(move |_| {
                 selected_nodes2.deselect_all();
             });
-            debug = bg_select.map(|t| println!(">> {:?}",t));
+            _debug = bg_select.map(|t| println!(">> {:?}",t));
         }
 
 //        node_should_select.event.display_graphviz();
@@ -286,7 +286,6 @@ impl GraphEditor {
             cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
         }));
 
-        let selected_nodes2 = selected_nodes.clone_ref();
         let on_bg_press2    = on_bg_press.clone_ref();
         mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
             match target {
