@@ -36,36 +36,7 @@ use enso_prelude::*;
 //}
 
 
-// ============
-// === Node ===
-// ============
 
-pub struct WeakNode<T:?Sized> {
-    graph : WeakGraph,
-    data  : Weak<T>,
-}
-
-pub struct StrongNode<T:?Sized> {
-    graph : WeakGraph,
-    data  : Rc<T>,
-}
-
-impl<T> StrongNode<T> {
-    pub fn downgrade(&self) -> WeakNode<T> {
-        let graph = self.graph.clone_ref();
-        let data  = Rc::downgrade(&self.data);
-        WeakNode {graph,data}
-    }
-}
-
-impl<T> WeakNode<T> {
-    pub fn upgrade(&self) -> Option<StrongNode<T>> {
-        self.data.upgrade().map(|data| {
-            let graph = self.graph.clone_ref();
-            StrongNode{graph,data}
-        })
-    }
-}
 
 
 
@@ -105,7 +76,7 @@ impl Graph {
         WeakGraph {data:Rc::downgrade(&self.data)}
     }
 
-    pub fn register<T:'static>(&self, node:StrongNode<T>) {
+    pub fn register<T:'static>(&self, node:Node<T>) {
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
     }
@@ -149,15 +120,53 @@ pub trait HasEventInput {
 
 
 pub trait EventEmitter : HasOutput {
-    fn emit(value:&Self::Output);
+    fn emit(&self, value:&Self::Output);
 }
 
 pub trait EventConsumer : HasEventInput {
-    fn on_event(value:&Self::EventInput);
+    fn on_event(&self, value:&Self::EventInput);
 }
 
 
 
+
+// ============
+// === Node ===
+// ============
+
+pub trait NodeDefinition = ?Sized+HasOutput;
+
+pub struct NodeData<Def:?Sized+HasOutput> {
+    targets    : Vec<WeakNode<dyn EventConsumer<EventInput=Output<Def>>>>,
+    definition : Def,
+}
+
+pub struct WeakNode<T:?Sized+HasOutput> {
+    data : Weak<NodeData<T>>,
+}
+
+pub struct Node<T:?Sized> {
+    data : Rc<NodeData<T>>,
+}
+
+impl<T> Node<T> {
+    pub fn construct(definition:T) -> Self {
+        let targets = default();
+        let data    = Rc::new(NodeData {definition,targets});
+        Self {data}
+    }
+
+    pub fn downgrade(&self) -> WeakNode<T> {
+        let data = Rc::downgrade(&self.data);
+        WeakNode {data}
+    }
+}
+
+impl<T> WeakNode<T> {
+    pub fn upgrade(&self) -> Option<Node<T>> {
+        self.data.upgrade().map(|data| Node{data})
+    }
+}
 
 
 
@@ -165,23 +174,29 @@ pub trait EventConsumer : HasEventInput {
 // === Source ===
 // ==============
 
-pub type Source<T=()> = WeakNode<SourceData<T>>;
+pub type Source     <T=()> = Node     <SourceData<T>>;
+pub type WeakSource <T=()> = WeakNode <SourceData<T>>;
 pub struct SourceData<T=()> {
     phantom : PhantomData<T>
 }
 
 impl<T:'static> Source<T> {
-    pub fn new(g:&Graph) -> Self {
-        let phantom = PhantomData;
-        let data    = Rc::new(SourceData {phantom});
-        let graph   = g.downgrade();
-        let strong  = StrongNode {graph,data};
-        let weak    = strong.downgrade();
-        g.register(strong);
-        weak
+    pub fn new() -> Self {
+        let phantom    = PhantomData;
+        let definition = SourceData {phantom};
+        Self::construct(definition)
     }
 }
 
+
+impl Graph {
+    pub fn source<T:'static>(&self) -> WeakSource<T> {
+        let node = Source::<T>::new();
+        let weak = node.downgrade();
+        self.register(node);
+        weak
+    }
+}
 
 
 // ==============
@@ -197,7 +212,7 @@ pub struct LambdaData<F> {
 //    pub fn new(graph:&Graph) -> Self {
 //        let phantom = PhantomData;
 //        let data    = Rc::new(LambdaData {phantom});
-//        let strong  = StrongNode {data};
+//        let strong  = Node {data};
 //        let weak    = strong.downgrade();
 //        graph.register(strong);
 //        weak
@@ -211,5 +226,5 @@ pub struct LambdaData<F> {
 pub fn test() {
     println!("hello");
     let graph  = Graph::new();
-    let source = Source::<()>::new(&graph);
+    let source = graph.source::<()>();
 }
