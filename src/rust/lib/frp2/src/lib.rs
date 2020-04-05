@@ -195,8 +195,8 @@ impl<Def:NodeDefinition+Debug> Debug for WeakNode<Def> {
 
 // === NodeData Impls ===
 
-impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
-    default fn emit(&self, value:&Self::Output) {
+impl<Def:NodeDefinition> NodeData<Def> {
+    fn default_emit(&self, value:&Output<Self>) {
         *self.last_value.borrow_mut() = value.clone();
         let mut dirty = false;
         self.targets.borrow().iter().for_each(|weak| match weak.data.upgrade() {
@@ -206,6 +206,12 @@ impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
         if dirty {
             self.targets.borrow_mut().retain(|weak| weak.data.upgrade().is_none());
         }
+    }
+}
+
+impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
+    default fn emit(&self, value:&Output<Self>) {
+        self.default_emit(value);
     }
 
     default fn register_target(&self,tgt:StreamInput<Output<Self>>) {
@@ -325,8 +331,8 @@ impl<Out:Value> Never<Out> {
 
 impl<Out> EventEmitter for NodeData<NeverData<Out>>
 where NeverData<Out> : NodeDefinition {
-    default fn emit(&self, _value:&Self::Output) {}
-    default fn register_target(&self, _tgt:StreamInput<Output<Self>>) {}
+    fn emit(&self, _value:&Output<Self>) {}
+    fn register_target(&self, _tgt:StreamInput<Output<Self>>) {}
 }
 
 
@@ -594,11 +600,13 @@ where T:Value, B:AnyStream<Output=bool> {
 macro_rules! docs_for_merge { ($($tt:tt)*) => { #[doc="
 Merges multiple input streams into a single output stream. All input streams have to share the same
 output data type. Please note that `Merge` can be used to create recursive FRP networks by creating
-an empty merge and using the `add` method to attach new streams to it.
+an empty merge and using the `add` method to attach new streams to it. When a recursive network is
+created, `Merge` breaks the cycle. After passing the first event, no more events will be passed
+till the end of the current FRP network resolution.
 "]$($tt)* }}
 
-docs_for_merge! { #[derive(Clone,Copy,Debug)]
-pub struct MergeData <Out> { phantom : PhantomData<Out> }}
+docs_for_merge! { #[derive(Clone,Debug)]
+pub struct MergeData <Out> { phantom:PhantomData<Out>, during_call:Cell<bool> }}
 pub type   Merge     <Out> = Node     <MergeData<Out>>;
 pub type   WeakMerge <Out> = WeakNode <MergeData<Out>>;
 
@@ -609,11 +617,13 @@ impl<Out:Value> HasOutput for MergeData<Out> {
 impl<Out:Value> Merge<Out> {
     /// Constructor.
     pub fn new() -> Self {
-        let phantom = default();
-        let def     = MergeData {phantom};
+        let phantom     = default();
+        let during_call = default();
+        let def     = MergeData {phantom,during_call};
         Self::construct(def)
     }
 
+    /// Takes ownership of self and returns it with a new stream attached.
     pub fn with<S>(self, stream:&S) -> Self
         where S:AnyStream<Output=Out> {
         stream.register_target(self.downgrade().into());
@@ -666,6 +676,17 @@ impl<S1,Out> Add<&S1> for &WeakMerge<Out>
 impl<Out:Value> EventConsumer<Out> for NodeData<MergeData<Out>> {
     fn on_event(&self, event:&Out) {
         self.emit(event);
+    }
+}
+
+impl<Out> EventEmitter for NodeData<MergeData<Out>>
+where MergeData<Out> : NodeDefinition {
+    fn emit(&self, value:&Output<Self>) {
+        if !self.definition.during_call.get() {
+            self.definition.during_call.set(true);
+            self.default_emit(value);
+            self.definition.during_call.set(false);
+        }
     }
 }
 
@@ -959,7 +980,6 @@ impl<S1,S2,S3,F> Debug for Map3Data<S1,S2,S3,F> {
 
 
 
-
 // ============
 // === Map4 ===
 // ============
@@ -1175,17 +1195,11 @@ impl<S1,S2,S3,S4,F> Debug for Apply4Data<S1,S2,S3,S4,F> {
 
 
 
-
 // =============
 // === Graph ===
 // =============
 
 // === Definition ===
-
-#[derive(Debug)]
-pub struct GraphData {
-    nodes : RefCell<Vec<Box<dyn Any>>>
-}
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Graph {
@@ -1195,6 +1209,11 @@ pub struct Graph {
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakGraph {
     data : Weak<GraphData>
+}
+
+#[derive(Debug)]
+pub struct GraphData {
+    nodes : RefCell<Vec<Box<dyn Any>>>
 }
 
 
@@ -1409,6 +1428,12 @@ pub fn test() {
     let bb2 : Stream<bool> = bb.into();
     let fff2   = frp.map(&bb2,|t| { println!(">> {:?}",t) });
 
+    let m = frp.merge::<usize>();
+    let c = frp.count(&m);
+    let t = frp.trace("t",&c);
+
+    m.add(&c);
+
     println!("{:?}",tg);
 
     source.emit(&5.0);
@@ -1416,4 +1441,8 @@ pub fn test() {
     source.emit(&5.0);
     source2.emit(&());
     source.emit(&5.0);
+
+    m.emit(&0);
+    m.emit(&0);
+    m.emit(&0);
 }
