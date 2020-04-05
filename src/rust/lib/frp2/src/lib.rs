@@ -111,7 +111,7 @@ pub struct WeakNode<T:NodeDefinition> {
 pub struct NodeData<Def:NodeDefinition> {
     label      : Label,
     targets    : RefCell<Vec<StreamInput<Output<Def>>>>,
-    last_value : RefCell<Output<Def>>,
+    last_value : Rc<RefCell<Output<Def>>>,
     definition : Def,
 }
 
@@ -139,6 +139,15 @@ impl<Def:NodeDefinition> Node<Def> {
         let weak = this.downgrade();
         stream.register_target(weak.into());
         this
+    }
+
+    pub fn construct2(label:Label, definition:Def) -> Stream<Output<Def>> {
+        Self::construct(label,definition).into()
+    }
+
+    pub fn construct_and_connect2<S>(label:Label, stream:&S, definition:Def) -> Stream<Output<Def>>
+    where S:AnyStream, NodeData<Def>:EventConsumer<Output<S>> {
+        Self::construct_and_connect(label,stream,definition).into()
     }
 
     pub fn downgrade(&self) -> WeakNode<Def> {
@@ -240,12 +249,29 @@ impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct Stream<Out=()> {
-    data : Weak<dyn StreamNode<Output=Out>>,
+    data       : Weak<dyn EventEmitter<Output=Out>>,
+    last_value : Weak<RefCell<Out>>,
+
 }
 
 impl<Def:NodeDefinition> From<WeakNode<Def>> for Stream<Def::Output> {
     fn from(node:WeakNode<Def>) -> Self {
-        Stream {data:node.data}
+        match node.upgrade() {
+            None => panic!("!!!"),
+            Some(node) => {
+                let last_value = Rc::downgrade(&node.data.last_value);
+                let data       = Rc::downgrade(&node.data);
+                Stream {data,last_value}
+            }
+        }
+    }
+}
+
+impl<Def:NodeDefinition> From<Node<Def>> for Stream<Def::Output> {
+    fn from(node:Node<Def>) -> Self {
+        let last_value = Rc::downgrade(&node.data.last_value);
+        let data       = Rc::downgrade(&node.data);
+        Stream {data,last_value}
     }
 }
 
@@ -265,7 +291,7 @@ impl<Out:Value> EventEmitter for Stream<Out> {
 
 impl<Out:Value> LastValueProvider for Stream<Out> {
     fn last_value(&self) -> Self::Output {
-        self.data.upgrade().map(|t| t.last_value()).unwrap_or_default()
+        self.last_value.upgrade().map(|t| t.borrow().clone()).unwrap_or_default()
     }
 }
 
