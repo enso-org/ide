@@ -251,6 +251,15 @@ impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
 }
 
 
+#[derive(Debug,Clone,Copy,Eq,From,Hash,Into,PartialEq)]
+pub struct Id {
+    raw : usize
+}
+
+pub trait HasId {
+    fn id(&self) -> Id;
+}
+
 
 // ============
 // === Flow ===
@@ -298,11 +307,18 @@ impl<Out> Debug for Flow<Out> {
     }
 }
 
+impl<Out> HasId for Flow<Out> {
+    fn id(&self) -> Id {
+        let raw = Rc::downgrade(&self.value).as_raw() as *const() as usize;
+        raw.into()
+    }
+}
 
 
-// ===================
+
+// =================
 // === FlowInput ===
-// ===================
+// =================
 
 #[derive(Clone)]
 pub struct FlowInput<Input> {
@@ -1291,8 +1307,39 @@ pub struct WeakNetwork {
 
 #[derive(Debug)]
 pub struct NetworkData {
-    nodes : RefCell<Vec<Box<dyn Any>>>
+    nodes : RefCell<Vec<Box<dyn Any>>>,
+    links : RefCell<HashMap<Id,Link>>,
 }
+
+#[derive(Debug,Clone)]
+pub struct Link {
+    pub source : Id,
+    pub tp     : LinkType,
+}
+
+impl Link {
+    pub fn event<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Event;
+        Self {source,tp}
+    }
+
+    pub fn behavior<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Behavior;
+        Self {source,tp}
+    }
+
+    pub fn mixed<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Mixed;
+        Self {source,tp}
+    }
+}
+
+#[derive(Debug,Clone,Copy)]
+pub enum LinkType {Event,Behavior,Mixed}
+
 
 
 // === API ===
@@ -1301,7 +1348,8 @@ impl NetworkData {
     /// Constructor.
     pub fn new() -> Self {
         let nodes = default();
-        Self {nodes}
+        let links = default();
+        Self {nodes,links}
     }
 }
 
@@ -1329,6 +1377,19 @@ impl Network {
         self.data.nodes.borrow_mut().push(node);
         flow
     }
+
+    pub fn register2<Def:NodeDefinition>(&self, node:Node<Def>, links:Vec<Link>) -> Flow<Output<Def>> {
+        let flow : Flow<Output<Def>> = node.clone_ref().into();
+        let node = Box::new(node);
+        self.data.nodes.borrow_mut().push(node);
+        let target = flow.id();
+        links.into_iter().for_each(|link| self.register_link(target,link));
+        flow
+    }
+
+    pub fn register_link(&self, target:Id, link:Link) {
+        self.data.links.borrow_mut().insert(target,link);
+    }
 }
 
 impl WeakNetwork {
@@ -1337,30 +1398,31 @@ impl WeakNetwork {
     }
 }
 
+
 impl Network {
     docs_for_never! {
     pub fn never<T:Value>(&self, label:Label) -> Flow<T> {
-        self.register(Never::new(label,))
+        self.register(Never::new(label))
     }}
 
     docs_for_source! {
     pub fn source<T:Value>(&self, label:Label) -> Flow<T> {
-        self.register(Source::new(label,))
+        self.register(Source::new(label))
     }}
 
     docs_for_source! {
     pub fn source_(&self, label:Label) -> Flow<()> {
-        self.register(Source::new(label,))
+        self.register(Source::new(label))
     }}
 
     docs_for_trace! {
-    pub fn trace<M:Into<String>,T:Value>
-    (&self, label:Label, message:M, flow:&Flow<T>) -> Flow<T> {
+    pub fn trace<M,S,T>(&self, label:Label, message:M, flow:&S) -> Flow<T>
+    where M:Into<String>, S:AnyFlow<Output=T>, T:Value {
         self.register(Trace::new(label,message,flow))
     }}
 
     docs_for_toggle! {
-    pub fn toggle<T:Value>(&self, label:Label, flow:&Flow<T>) -> Flow<bool> {
+    pub fn toggle<S:AnyFlow>(&self, label:Label, flow:&S) -> Flow<bool> {
         self.register(Toggle::new(label,flow))
     }}
 
@@ -1370,58 +1432,67 @@ impl Network {
     }}
 
     docs_for_constant! {
-    pub fn constant<S:Value,T:Value> (&self, label:Label, flow:&Flow<S>, value:T) -> Flow<T> {
+    pub fn constant<S,T> (&self, label:Label, flow:&S, value:T) -> Flow<T>
+    where S:AnyFlow, T:Value {
         self.register(Constant::new(label,flow,value))
     }}
 
     docs_for_previous! {
-    pub fn previous<T:Value> (&self, label:Label, flow:&Flow<T>) -> Flow<T> {
+    pub fn previous<S,T> (&self, label:Label, flow:&S) -> Flow<T>
+    where S:AnyFlow<Output=T>, T:Value {
         self.register(Previous::new(label,flow))
     }}
 
     docs_for_sample! {
-    pub fn sample<S:Value,T:Value>
-    (&self, label:Label, event:&Flow<S>, behavior:&Flow<T>) -> Flow<T> {
+    pub fn sample<E:AnyFlow,B:AnyFlow>
+    (&self, label:Label, event:&E, behavior:&B) -> Flow<Output<B>> {
         self.register(Sample::new(label,event,behavior))
     }}
 
     docs_for_gate! {
-    pub fn gate<T:Value>(&self, label:Label, event:&Flow<T>, check:&Flow<bool>) -> Flow<T> {
-        self.register(Gate::new(label,event,check))
+    pub fn gate<T,E,B>(&self, label:Label, event:&E, behavior:&B) -> Flow<Output<E>>
+    where T:Value, E:AnyFlow<Output=T>, B:AnyFlow<Output=bool> {
+        self.register(Gate::new(label,event,behavior))
     }}
 
 
     // === Merge ===
 
     docs_for_merge! {
-    pub fn merge_<Out:Value>(&self, label:Label) -> WeakMerge<Out> {
+    /// Please note that this function does output a more specific type than just `Flow<T>`. It is
+    /// left on purpose so you could use the `add` method to build recursive data-flow networks.
+    pub fn merge_<T:Value>(&self, label:Label) -> WeakMerge<T> {
         self.register_raw(Merge::new(label,))
     }}
 
     docs_for_merge! {
-    pub fn merge<T:Value>(&self, label:Label, f1:&Flow<T>, f2:&Flow<T>) -> Flow<T> {
+    pub fn merge<F1,F2,T:Value>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<T>
+    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T> {
         self.register(Merge::new2(label,f1,f2))
     }}
 
     docs_for_merge! {
-    pub fn merge1<T:Value>(&self, label:Label, f1:&Flow<T>) -> Flow<T> {
+    pub fn merge1<F1,T:Value>(&self, label:Label, f1:&F1) -> Flow<T>
+    where F1:AnyFlow<Output=T> {
         self.register(Merge::new1(label,f1))
     }}
 
     docs_for_merge! {
-    pub fn merge2<T:Value>(&self, label:Label, f1:&Flow<T>, f2:&Flow<T>) -> Flow<T> {
+    pub fn merge2<F1,F2,T:Value>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<T>
+    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T> {
         self.register(Merge::new2(label,f1,f2))
     }}
 
     docs_for_merge! {
-    pub fn merge3<T:Value>
-    (&self, label:Label, f1:&Flow<T>, f2:&Flow<T>, f3:&Flow<T>) -> Flow<T> {
+    pub fn merge3<F1,F2,F3,T:Value>(&self, label:Label, f1:&F1, f2:&F2, f3:&F3) -> Flow<T>
+    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T>, F3:AnyFlow<Output=T> {
         self.register(Merge::new3(label,f1,f2,f3))
     }}
 
     docs_for_merge! {
-    pub fn merge4<T:Value>
-    (&self, label:Label, f1:&Flow<T>, f2:&Flow<T>, f3:&Flow<T>, f4:&Flow<T>) -> Flow<T> {
+    pub fn merge4<F1,F2,F3,F4,T:Value>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Flow<T>
+    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T>, F3:AnyFlow<Output=T>, F4:AnyFlow<Output=T> {
         self.register(Merge::new4(label,f1,f2,f3,f4))
     }}
 
@@ -1429,27 +1500,29 @@ impl Network {
     // === Zip ===
 
     docs_for_zip2! {
-    pub fn zip<T1:Value,T2:Value>
-    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>) -> Flow<(T1,T2)> {
+    pub fn zip<F1,F2>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<(Output<F1>,Output<F2>)>
+    where F1:AnyFlow, F2:AnyFlow {
         self.register(Zip2::new(label,f1,f2))
     }}
 
     docs_for_zip2! {
-    pub fn zip2<T1:Value,T2:Value>
-    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>) -> Flow<(T1,T2)> {
+    pub fn zip2<F1,F2>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<(Output<F1>,Output<F2>)>
+    where F1:AnyFlow, F2:AnyFlow {
         self.register(Zip2::new(label,f1,f2))
     }}
 
     docs_for_zip3! {
-    pub fn zip3<T1:Value,T2:Value,T3:Value>
-    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>, f3:&Flow<T3>) -> Flow<(T1,T2,T3)> {
+    pub fn zip3<F1,F2,F3>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3) -> Flow<(Output<F1>,Output<F2>,Output<F3>)>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
         self.register(Zip3::new(label,f1,f2,f3))
     }}
 
     docs_for_zip4! {
-    pub fn zip4<T1:Value,T2:Value,T3:Value,T4:Value>
-    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>, f3:&Flow<T3>, f4:&Flow<T4>
-    ) -> Flow<(T1,T2,T3,T4)> {
+    pub fn zip4<F1,F2,F3,F4>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4)
+    -> Flow<(Output<F1>,Output<F2>,Output<F3>,Output<F4>)>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
         self.register(Zip4::new(label,f1,f2,f3,f4))
     }}
 
@@ -1457,26 +1530,30 @@ impl Network {
     // === Map ===
 
     docs_for_map! {
-    pub fn map<S:Value, T:Value, F:'static+Fn(&S)->T>
-    (&self, label:Label, source:&Flow<S>, f:F) -> Flow<T> {
+    pub fn map<S,F,T>(&self, label:Label, source:&S, f:F) -> Flow<T>
+    where S:AnyFlow, T:Value, F:'static+Fn(&Output<S>)->T {
         self.register(Map::new(label,source,f))
     }}
 
     docs_for_map! {
-    pub fn map2<F1:Value, F2:Value, T:Value, F:'static+Fn(&F1,&F2)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f:F) -> Flow<T> {
+    pub fn map2<F1,F2,F,T>(&self, label:Label, f1:&F1, f2:&F2, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, T:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->T {
         self.register(Map2::new(label,f1,f2,f))
     }}
 
     docs_for_map! {
-    pub fn map3<F1:Value, F2:Value, F3:Value, T:Value, F:'static+Fn(&F1,&F2,&F3)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f:F) -> Flow<T> {
+    pub fn map3<F1,F2,F3,F,T>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, T:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->T {
         self.register(Map3::new(label,f1,f2,f3,f))
     }}
 
     docs_for_map! {
-    pub fn map4<F1:Value, F2:Value, F3:Value, F4:Value, T:Value, F:'static+Fn(&F1,&F2,&F3,&F4)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f4:&Flow<F4>, f:F) -> Flow<T> {
+    pub fn map4<F1,F2,F3,F4,F,T>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, T:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->T {
         self.register(Map4::new(label,f1,f2,f3,f4,f))
     }}
 
@@ -1484,24 +1561,27 @@ impl Network {
     // === Apply ===
 
     docs_for_apply! {
-    pub fn apply2<F1:Value, F2:Value, T:Value, F:'static+Fn(&F1,&F2)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f:F) -> Flow<T> {
+    pub fn apply2<F1,F2,F,T>(&self, label:Label, f1:&F1, f2:&F2, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, T:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->T {
         self.register(Apply2::new(label,f1,f2,f))
     }}
 
     docs_for_apply! {
-    pub fn apply3<F1:Value, F2:Value, F3:Value, T:Value, F:'static+Fn(&F1,&F2,&F3)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f:F) -> Flow<T> {
+    pub fn apply3<F1,F2,F3,F,T>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, T:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->T {
         self.register(Apply3::new(label,f1,f2,f3,f))
     }}
 
     docs_for_apply! {
-    pub fn apply4<F1:Value, F2:Value, F3:Value, F4:Value, T:Value, F:'static+Fn(&F1,&F2,&F3,&F4)->T>
-    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f4:&Flow<F4>, f:F) -> Flow<T> {
+    pub fn apply4<F1,F2,F3,F4,F,T>
+    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, f:F) -> Flow<T>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, T:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->T {
         self.register(Apply4::new(label,f1,f2,f3,f4,f))
     }}
 }
-
 
 ///////////////////////////////////
 
