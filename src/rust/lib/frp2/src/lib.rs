@@ -24,8 +24,13 @@
 
 #![allow(missing_docs)]
 
-use enso_prelude::*;
 
+pub mod io;
+pub mod macros;
+
+
+pub use enso_prelude as prelude;
+use prelude::*;
 
 
 
@@ -234,7 +239,7 @@ impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Stream<Out> {
+pub struct Stream<Out=()> {
     data : Weak<dyn StreamNode<Output=Out>>,
 }
 
@@ -484,6 +489,40 @@ impl<T> EventConsumer<T> for NodeData<CountData> {
 
 
 // ================
+// === Constant ===
+// ================
+
+macro_rules! docs_for_constant { ($($tt:tt)*) => { #[doc="
+Replaces the incoming event with the predefined value.
+"]$($tt)* }}
+
+docs_for_constant! { #[derive(Clone,Debug)]
+pub struct ConstantData <Out=()> { value:Out }}
+pub type   Constant     <Out=()> = Node     <ConstantData<Out>>;
+pub type   WeakConstant <Out=()> = WeakNode <ConstantData<Out>>;
+
+impl<Out:Value> HasOutput for ConstantData<Out> {
+    type Output = Out;
+}
+
+impl<Out:Value> Constant<Out> {
+    /// Constructor.
+    pub fn new<S>(label:Label, stream:&S, value:Out) -> Self
+    where S:AnyStream {
+        let def = ConstantData {value};
+        Self::construct_and_connect(label,stream,def)
+    }
+}
+
+impl<Out:Value,T> EventConsumer<T> for NodeData<ConstantData<Out>> {
+    fn on_event(&self, _:&T) {
+        self.emit(&self.definition.value);
+    }
+}
+
+
+
+// ================
 // === Previous ===
 // ================
 
@@ -503,7 +542,7 @@ impl<Out:Value> HasOutput for PreviousData<Out> {
 impl<Out:Value> Previous<Out> {
     /// Constructor.
     pub fn new<S>(label:Label, stream:&S) -> Self
-    where S : AnyStream<Output=Out> {
+        where S : AnyStream<Output=Out> {
         let previous = default();
         let def      = PreviousData {previous};
         Self::construct_and_connect(label,stream,def)
@@ -631,6 +670,12 @@ impl<Out:Value> Merge<Out> {
         self
     }
 
+    /// Constructor for 1 input stream.
+    pub fn new1<S1>(label:Label, s1:&S1) -> Self
+        where S1:AnyStream<Output=Out> {
+        Self::new(label).with(s1)
+    }
+
     /// Constructor for 2 input streams.
     pub fn new2<S1,S2>(label:Label, s1:&S1, s2:&S2) -> Self
         where S1:AnyStream<Output=Out>,
@@ -653,6 +698,15 @@ impl<Out:Value> Merge<Out> {
               S3:AnyStream<Output=Out>,
               S4:AnyStream<Output=Out> {
         Self::new(label).with(s1).with(s2).with(s3).with(s4)
+    }
+}
+
+impl<Out:Value> WeakMerge<Out> {
+    /// Takes ownership of self and returns it with a new stream attached.
+    pub fn with<S>(self, stream:&S) -> Self
+    where S:AnyStream<Output=Out> {
+        stream.register_target(self.clone_ref().into());
+        self
     }
 }
 
@@ -1196,31 +1250,31 @@ impl<S1,S2,S3,S4,F> Debug for Apply4Data<S1,S2,S3,S4,F> {
 
 
 
-// =============
-// === Graph ===
-// =============
+// ===============
+// === Network ===
+// ===============
 
 // === Definition ===
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct Graph {
-    data : Rc<GraphData>
+pub struct Network {
+    data : Rc<NetworkData>
 }
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct WeakGraph {
-    data : Weak<GraphData>
+pub struct WeakNetwork {
+    data : Weak<NetworkData>
 }
 
 #[derive(Debug)]
-pub struct GraphData {
+pub struct NetworkData {
     nodes : RefCell<Vec<Box<dyn Any>>>
 }
 
 
 // === API ===
 
-impl GraphData {
+impl NetworkData {
     /// Constructor.
     pub fn new() -> Self {
         let nodes = default();
@@ -1228,15 +1282,15 @@ impl GraphData {
     }
 }
 
-impl Graph {
+impl Network {
     /// Constructor.
     pub fn new() -> Self {
-        let data = Rc::new(GraphData::new());
+        let data = Rc::new(NetworkData::new());
         Self {data}
     }
 
-    pub fn downgrade(&self) -> WeakGraph {
-        WeakGraph {data:Rc::downgrade(&self.data)}
+    pub fn downgrade(&self) -> WeakNetwork {
+        WeakNetwork {data:Rc::downgrade(&self.data)}
     }
 
     pub fn register<T:NodeDefinition>(&self, node:Node<T>) -> WeakNode<T> {
@@ -1247,13 +1301,13 @@ impl Graph {
     }
 }
 
-impl WeakGraph {
-    pub fn upgrade(&self) -> Option<Graph> {
-        self.data.upgrade().map(|data| Graph {data})
+impl WeakNetwork {
+    pub fn upgrade(&self) -> Option<Network> {
+        self.data.upgrade().map(|data| Network {data})
     }
 }
 
-impl Graph {
+impl Network {
     docs_for_never! {
     pub fn never<T:Value>(&self, label:Label) -> WeakNever<T> {
         self.register(Never::new(label,))
@@ -1285,6 +1339,12 @@ impl Graph {
         self.register(Count::new(label,stream))
     }}
 
+    docs_for_constant! {
+    pub fn constant<S,Out> (&self, label:Label, stream:&S, value:Out) -> WeakConstant<Out>
+    where S:AnyStream, Out:Value {
+        self.register(Constant::new(label,stream,value))
+    }}
+
     docs_for_previous! {
     pub fn previous<S,Out> (&self, label:Label, stream:&S) -> WeakPrevious<Out>
     where S:AnyStream<Output=Out>, Out:Value {
@@ -1292,7 +1352,8 @@ impl Graph {
     }}
 
     docs_for_sample! {
-    pub fn sample<E:AnyStream,B:AnyStream>(&self, label:Label, event:&E, behavior:&B) -> WeakSample<B> {
+    pub fn sample<E:AnyStream,B:AnyStream>
+    (&self, label:Label, event:&E, behavior:&B) -> WeakSample<B> {
         self.register(Sample::new(label,event,behavior))
     }}
 
@@ -1306,24 +1367,37 @@ impl Graph {
     // === Merge ===
 
     docs_for_merge! {
-    pub fn merge<Out:Value>(&self, label:Label) -> WeakMerge<Out> {
+    pub fn merge_<Out:Value>(&self, label:Label) -> WeakMerge<Out> {
         self.register(Merge::new(label,))
     }}
 
     docs_for_merge! {
-    pub fn merge2<S1,S2,Out:Value>(&self, label:Label, s1:&S2, s2:&S2) -> WeakMerge<Out>
+    pub fn merge<S1,S2,Out:Value>(&self, label:Label, s1:&S1, s2:&S2) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>, S2:AnyStream<Output=Out> {
         self.register(Merge::new2(label,s1,s2))
     }}
 
     docs_for_merge! {
-    pub fn merge3<S1,S2,S3,Out:Value>(&self, label:Label, s1:&S2, s2:&S2, s3:&S3) -> WeakMerge<Out>
+    pub fn merge1<S1,Out:Value>(&self, label:Label, s1:&S1) -> WeakMerge<Out>
+    where S1:AnyStream<Output=Out> {
+        self.register(Merge::new1(label,s1))
+    }}
+
+    docs_for_merge! {
+    pub fn merge2<S1,S2,Out:Value>(&self, label:Label, s1:&S1, s2:&S2) -> WeakMerge<Out>
+    where S1:AnyStream<Output=Out>, S2:AnyStream<Output=Out> {
+        self.register(Merge::new2(label,s1,s2))
+    }}
+
+    docs_for_merge! {
+    pub fn merge3<S1,S2,S3,Out:Value>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>, S2:AnyStream<Output=Out>, S3:AnyStream<Output=Out> {
         self.register(Merge::new3(label,s1,s2,s3))
     }}
 
     docs_for_merge! {
-    pub fn merge4<S1,S2,S3,S4,Out:Value>(&self, label:Label, s1:&S2, s2:&S2, s3:&S3, s4:&S4) -> WeakMerge<Out>
+    pub fn merge4<S1,S2,S3,S4,Out:Value>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>,
           S2:AnyStream<Output=Out>,
           S3:AnyStream<Output=Out>,
@@ -1335,28 +1409,28 @@ impl Graph {
     // === Zip ===
 
     docs_for_zip2! {
-    pub fn zip<S1,S2>(&self, label:Label, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
+    pub fn zip<S1,S2>(&self, label:Label, s1:&S1, s2:&S2) -> WeakZip2<S1,S2>
     where S1:AnyStream, S2:AnyStream {
-        self.register(Zip2::new(label,stream1,stream2))
+        self.register(Zip2::new(label,s1,s2))
     }}
 
     docs_for_zip2! {
-    pub fn zip2<S1,S2>(&self, label:Label, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
+    pub fn zip2<S1,S2>(&self, label:Label, s1:&S1, s2:&S2) -> WeakZip2<S1,S2>
     where S1:AnyStream, S2:AnyStream {
-        self.register(Zip2::new(label,stream1,stream2))
+        self.register(Zip2::new(label,s1,s2))
     }}
 
     docs_for_zip3! {
-    pub fn zip3<S1,S2,S3>(&self, label:Label, stream1:&S1, stream2:&S2, stream3:&S3) -> WeakZip3<S1,S2,S3>
+    pub fn zip3<S1,S2,S3>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3) -> WeakZip3<S1,S2,S3>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream {
-        self.register(Zip3::new(label,stream1,stream2,stream3))
+        self.register(Zip3::new(label,s1,s2,s3))
     }}
 
     docs_for_zip4! {
     pub fn zip4<S1,S2,S3,S4>
-    (&self, label:Label, stream1:&S1, stream2:&S2, stream3:&S3, stream4:&S4) -> WeakZip4<S1,S2,S3,S4>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> WeakZip4<S1,S2,S3,S4>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream {
-        self.register(Zip4::new(label,stream1,stream2,stream3,stream4))
+        self.register(Zip4::new(label,s1,s2,s3,s4))
     }}
 
 
@@ -1375,7 +1449,8 @@ impl Graph {
     }}
 
     docs_for_map! {
-    pub fn map3<S1,S2,S3,F,Out>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakMap3<S1,S2,S3,F>
+    pub fn map3<S1,S2,S3,F,Out>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakMap3<S1,S2,S3,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
         self.register(Map3::new(label,s1,s2,s3,f))
@@ -1399,7 +1474,8 @@ impl Graph {
     }}
 
     docs_for_apply! {
-    pub fn apply3<S1,S2,S3,F,Out>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakApply3<S1,S2,S3,F>
+    pub fn apply3<S1,S2,S3,F,Out>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakApply3<S1,S2,S3,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
         self.register(Apply3::new(label,s1,s2,s3,f))
@@ -1417,21 +1493,26 @@ impl Graph {
 
 ///////////////////////////////////
 
+
+
 #[allow(unused_variables)]
 pub fn test() {
     println!("hello");
-    let frp  = Graph::new();
-    let source  = frp.source::<f32>("label");
-    let source2 = frp.source::<()>("label");
-    let tg     = frp.toggle("label",&source);
-    let fff    = frp.map("label",&tg,|t| { println!("{:?}",t) });
-    let bb     = frp.sample("label",&source2,&tg);
-    let bb2 : Stream<bool> = bb.into();
-    let fff2   = frp.map("label",&bb2,|t| { println!(">> {:?}",t) });
 
-    let m = frp.merge::<usize>("label");
-    let c = frp.count("label",&m);
-    let t = frp.trace("label","t",&c);
+    new_network! { network
+        def source  = source::<f32>();
+        def source2 = source::<()>();
+        def tg      = toggle(&source);
+        def fff     = map(&tg,|t| { println!("{:?}",t) });
+        def bb      = sample(&source2,&tg);
+
+        let bb2 : Stream<bool> = bb.into();
+
+        def fff2   = map(&bb2,|t| { println!(">> {:?}",t) });
+        def m      = merge_::<usize>();
+        def c      = count(&m);
+        def t      = trace("t",&c);
+    }
 
     m.add(&c);
 
