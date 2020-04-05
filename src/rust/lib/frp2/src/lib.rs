@@ -31,7 +31,7 @@ use enso_prelude::*;
 
 
 
-
+type Label = &'static str;
 
 
 // =============
@@ -104,6 +104,7 @@ pub struct WeakNode<T:NodeDefinition> {
 
 #[derive(Debug)]
 pub struct NodeData<Def:NodeDefinition> {
+    label      : Label,
     targets    : RefCell<Vec<StreamInput<Output<Def>>>>,
     last_value : RefCell<Output<Def>>,
     definition : Def,
@@ -120,18 +121,18 @@ impl<Def:NodeDefinition> HasOutput for NodeData <Def> { type Output = Output<Def
 // === Node Impls ===
 
 impl<Def:NodeDefinition> Node<Def> {
-    pub fn construct(definition:Def) -> Self {
+    pub fn construct(label:Label, definition:Def) -> Self {
         let targets    = default();
         let last_value = default();
-        let data       = Rc::new(NodeData {targets,last_value,definition});
+        let data       = Rc::new(NodeData {label,targets,last_value,definition});
         Self {data}
     }
 
-    pub fn construct_and_connect<Source:AnyStream>(source:&Source, definition:Def) -> Self
-    where NodeData<Def> : EventConsumer<Output<Source>> {
-        let this = Self::construct(definition);
+    pub fn construct_and_connect<S>(label:Label, stream:&S, definition:Def) -> Self
+    where S:AnyStream, NodeData<Def>:EventConsumer<Output<S>> {
+        let this = Self::construct(label,definition);
         let weak = this.downgrade();
-        source.register_target(weak.into());
+        stream.register_target(weak.into());
         this
     }
 
@@ -322,10 +323,10 @@ impl<Out:Value> HasOutput for NeverData<Out> {
 
 impl<Out:Value> Never<Out> {
     /// Constructor.
-    pub fn new() -> Self {
+    pub fn new(label:Label) -> Self {
         let phantom    = default();
         let definition = NeverData {phantom};
-        Self::construct(definition)
+        Self::construct(label,definition)
     }
 }
 
@@ -358,10 +359,10 @@ impl<Out:Value> HasOutput for SourceData<Out> {
 
 impl<Out:Value> Source<Out> {
     /// Constructor.
-    pub fn new() -> Self {
+    pub fn new(label:Label) -> Self {
         let phantom    = default();
         let definition = SourceData {phantom};
-        Self::construct(definition)
+        Self::construct(label,definition)
     }
 }
 
@@ -387,12 +388,12 @@ impl<Out:Value> HasOutput for TraceData<Out> {
 
 impl<Out:Value> Trace<Out> {
     /// Constructor.
-    pub fn new<M,S>(message:M, stream:&S) -> Self
+    pub fn new<M,S>(label:Label, message:M, stream:&S) -> Self
     where M:Into<String>, S:AnyStream<Output=Out> {
         let phantom = default();
         let message = message.into();
         let def     = TraceData {phantom,message};
-        Self::construct_and_connect(stream,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
@@ -424,15 +425,15 @@ impl HasOutput for ToggleData {
 
 impl Toggle {
     /// Constructor.
-    pub fn new<S:AnyStream>(stream:&S) -> Self {
-        Self::new_with(stream,default())
+    pub fn new<S:AnyStream>(label:Label, stream:&S) -> Self {
+        Self::new_with(label,stream,default())
     }
 
     /// Constructor with explicit start value.
-    pub fn new_with<S:AnyStream>(stream:&S, init:bool) -> Self {
+    pub fn new_with<S:AnyStream>(label:Label, stream:&S, init:bool) -> Self {
         let value = Cell::new(init);
         let def   = ToggleData {value};
-        Self::construct_and_connect(stream,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
@@ -465,11 +466,11 @@ impl HasOutput for CountData {
 
 impl Count {
     /// Constructor.
-    pub fn new<S>(stream:&S) -> Self
+    pub fn new<S>(label:Label, stream:&S) -> Self
     where S:AnyStream {
         let value = default();
         let def   = CountData {value};
-        Self::construct_and_connect(stream,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
@@ -501,11 +502,11 @@ impl<Out:Value> HasOutput for PreviousData<Out> {
 
 impl<Out:Value> Previous<Out> {
     /// Constructor.
-    pub fn new<S>(stream:&S) -> Self
+    pub fn new<S>(label:Label, stream:&S) -> Self
     where S : AnyStream<Output=Out> {
         let previous = default();
         let def      = PreviousData {previous};
-        Self::construct_and_connect(stream,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
@@ -538,10 +539,10 @@ impl<Behavior:HasOutput> HasOutput for SampleData<Behavior> {
 
 impl<Behavior:AnyStream> Sample<Behavior> {
     /// Constructor.
-    pub fn new<Event:AnyStream>(event:&Event, behavior:&Behavior) -> Self {
+    pub fn new<Event:AnyStream>(label:Label, event:&Event, behavior:&Behavior) -> Self {
         let behavior   = behavior.clone_ref();
         let definition = SampleData {behavior};
-        Self::construct_and_connect(event,definition)
+        Self::construct_and_connect(label,event,definition)
     }
 }
 
@@ -573,12 +574,12 @@ impl<T:Value,B> HasOutput for GateData<T,B> {
 impl<T,B> Gate<T,B>
 where T:Value, B:AnyStream<Output=bool> {
     /// Constructor.
-    pub fn new<Event>(event:&Event,behavior:&B) -> Self
-    where Event : AnyStream<Output=T> {
+    pub fn new<E>(label:Label, event:&E, behavior:&B) -> Self
+    where E:AnyStream<Output=T> {
         let behavior   = behavior.clone_ref();
         let phantom    = default();
         let definition = GateData {behavior,phantom};
-        Self::construct_and_connect(event,definition)
+        Self::construct_and_connect(label,event,definition)
     }
 }
 
@@ -616,11 +617,11 @@ impl<Out:Value> HasOutput for MergeData<Out> {
 
 impl<Out:Value> Merge<Out> {
     /// Constructor.
-    pub fn new() -> Self {
+    pub fn new(label:Label) -> Self {
         let phantom     = default();
         let during_call = default();
         let def     = MergeData {phantom,during_call};
-        Self::construct(def)
+        Self::construct(label,def)
     }
 
     /// Takes ownership of self and returns it with a new stream attached.
@@ -631,27 +632,27 @@ impl<Out:Value> Merge<Out> {
     }
 
     /// Constructor for 2 input streams.
-    pub fn new2<S1,S2>(s1:&S1, s2:&S2) -> Self
+    pub fn new2<S1,S2>(label:Label, s1:&S1, s2:&S2) -> Self
         where S1:AnyStream<Output=Out>,
               S2:AnyStream<Output=Out> {
-        Self::new().with(s1).with(s2)
+        Self::new(label).with(s1).with(s2)
     }
 
     /// Constructor for 3 input streams.
-    pub fn new3<S1,S2,S3>(s1:&S1, s2:&S2, s3:&S3) -> Self
+    pub fn new3<S1,S2,S3>(label:Label, s1:&S1, s2:&S2, s3:&S3) -> Self
         where S1:AnyStream<Output=Out>,
               S2:AnyStream<Output=Out>,
               S3:AnyStream<Output=Out> {
-        Self::new().with(s1).with(s2).with(s3)
+        Self::new(label).with(s1).with(s2).with(s3)
     }
 
     /// Constructor for 4 input streams.
-    pub fn new4<S1,S2,S3,S4>(s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self
+    pub fn new4<S1,S2,S3,S4>(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self
         where S1:AnyStream<Output=Out>,
               S2:AnyStream<Output=Out>,
               S3:AnyStream<Output=Out>,
               S4:AnyStream<Output=Out> {
-        Self::new().with(s1).with(s2).with(s3).with(s4)
+        Self::new(label).with(s1).with(s2).with(s3).with(s4)
     }
 }
 
@@ -714,11 +715,11 @@ impl<S1,S2> HasOutput for Zip2Data<S1,S2>
 impl<S1,S2> Zip2<S1,S2>
     where S1:AnyStream, S2:AnyStream {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let def     = Zip2Data {stream1,stream2};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.into());
@@ -759,12 +760,12 @@ impl<S1,S2,S3> HasOutput for Zip3Data<S1,S2,S3>
 impl<S1,S2,S3> Zip3<S1,S2,S3>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let def     = Zip3Data {stream1,stream2,stream3};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.clone_ref().into());
@@ -807,13 +808,13 @@ impl<S1,S2,S3,S4> HasOutput for Zip4Data<S1,S2,S3,S4>
 impl<S1,S2,S3,S4> Zip4<S1,S2,S3,S4>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let stream4 = s4.clone_ref();
         let def     = Zip4Data {stream1,stream2,stream3,stream4};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.clone_ref().into());
@@ -860,10 +861,10 @@ where S:AnyStream, Out:Value, F:'static+Fn(&Output<S>)->Out {
 impl<S,F,Out> Map<S,F>
 where S:AnyStream, Out:Value, F:'static+Fn(&Output<S>)->Out {
     /// Constructor.
-    pub fn new(s:&S, function:F) -> Self {
+    pub fn new(label:Label, s:&S, function:F) -> Self {
         let stream     = s.clone_ref();
         let definition = MapData {stream,function};
-        Self::construct_and_connect(s,definition)
+        Self::construct_and_connect(label,s,definition)
     }
 }
 
@@ -901,11 +902,11 @@ where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2
 impl<S1,S2,F,Out> Map2<S1,S2,F>
 where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let def     = Map2Data {stream1,stream2,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.into());
         this
@@ -949,12 +950,12 @@ impl<S1,S2,S3,F,Out> Map3<S1,S2,S3,F>
 where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
       F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let def     = Map3Data {stream1,stream2,stream3,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.into());
         this
@@ -1000,13 +1001,13 @@ impl<S1,S2,S3,S4,F,Out> Map4<S1,S2,S3,S4,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let stream4 = s4.clone_ref();
         let def     = Map4Data {stream1,stream2,stream3,stream4,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.into());
         this
@@ -1056,11 +1057,11 @@ where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2
 impl<S1,S2,F,Out> Apply2<S1,S2,F>
 where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let def     = Apply2Data {stream1,stream2,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.into());
@@ -1105,12 +1106,12 @@ impl<S1,S2,S3,F,Out> Apply3<S1,S2,S3,F>
 where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
       F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let def     = Apply3Data {stream1,stream2,stream3,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.clone_ref().into());
@@ -1158,13 +1159,13 @@ impl<S1,S2,S3,S4,F,Out> Apply4<S1,S2,S3,S4,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
     /// Constructor.
-    pub fn new(s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
+    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
         let stream1 = s1.clone_ref();
         let stream2 = s2.clone_ref();
         let stream3 = s3.clone_ref();
         let stream4 = s4.clone_ref();
         let def     = Apply4Data {stream1,stream2,stream3,stream4,function};
-        let this    = Self::construct(def);
+        let this    = Self::construct(label,def);
         let weak    = this.downgrade();
         s1.register_target(weak.clone_ref().into());
         s2.register_target(weak.clone_ref().into());
@@ -1254,162 +1255,162 @@ impl WeakGraph {
 
 impl Graph {
     docs_for_never! {
-    pub fn never<T:Value>(&self) -> WeakNever<T> {
-        self.register(Never::new())
+    pub fn never<T:Value>(&self, label:Label) -> WeakNever<T> {
+        self.register(Never::new(label,))
     }}
 
     docs_for_source! {
-    pub fn source<T:Value>(&self) -> WeakSource<T> {
-        self.register(Source::new())
+    pub fn source<T:Value>(&self, label:Label) -> WeakSource<T> {
+        self.register(Source::new(label,))
     }}
 
     docs_for_source! {
-    pub fn source_(&self) -> WeakSource<()> {
-        self.register(Source::new())
+    pub fn source_(&self, label:Label) -> WeakSource<()> {
+        self.register(Source::new(label,))
     }}
 
     docs_for_trace! {
-    pub fn trace<M,S,Out>(&self, message:M, stream:&S) -> WeakTrace<Out>
+    pub fn trace<M,S,Out>(&self, label:Label, message:M, stream:&S) -> WeakTrace<Out>
     where M:Into<String>, S:AnyStream<Output=Out>, Out:Value {
-        self.register(Trace::new(message,stream))
+        self.register(Trace::new(label,message,stream))
     }}
 
     docs_for_toggle! {
-    pub fn toggle<S:AnyStream>(&self, stream:&S) -> WeakToggle {
-        self.register(Toggle::new(stream))
+    pub fn toggle<S:AnyStream>(&self, label:Label, stream:&S) -> WeakToggle {
+        self.register(Toggle::new(label,stream))
     }}
 
     docs_for_count! {
-    pub fn count<S:AnyStream>(&self, stream:&S) -> WeakCount {
-        self.register(Count::new(stream))
+    pub fn count<S:AnyStream>(&self, label:Label, stream:&S) -> WeakCount {
+        self.register(Count::new(label,stream))
     }}
 
     docs_for_previous! {
-    pub fn previous<S,Out> (&self, stream:&S) -> WeakPrevious<Out>
+    pub fn previous<S,Out> (&self, label:Label, stream:&S) -> WeakPrevious<Out>
     where S:AnyStream<Output=Out>, Out:Value {
-        self.register(Previous::new(stream))
+        self.register(Previous::new(label,stream))
     }}
 
     docs_for_sample! {
-    pub fn sample<E:AnyStream,B:AnyStream>(&self, event:&E, behavior:&B) -> WeakSample<B> {
-        self.register(Sample::new(event,behavior))
+    pub fn sample<E:AnyStream,B:AnyStream>(&self, label:Label, event:&E, behavior:&B) -> WeakSample<B> {
+        self.register(Sample::new(label,event,behavior))
     }}
 
     docs_for_gate! {
-    pub fn gate<T,E,B>(&self, event:&E, behavior:&B) -> WeakGate<T,B>
+    pub fn gate<T,E,B>(&self, label:Label, event:&E, behavior:&B) -> WeakGate<T,B>
     where T:Value, E:AnyStream<Output=T>, B:AnyStream<Output=bool> {
-        self.register(Gate::new(event,behavior))
+        self.register(Gate::new(label,event,behavior))
     }}
 
 
     // === Merge ===
 
     docs_for_merge! {
-    pub fn merge<Out:Value>(&self) -> WeakMerge<Out> {
-        self.register(Merge::new())
+    pub fn merge<Out:Value>(&self, label:Label) -> WeakMerge<Out> {
+        self.register(Merge::new(label,))
     }}
 
     docs_for_merge! {
-    pub fn merge2<S1,S2,Out:Value>(&self, s1:&S2, s2:&S2) -> WeakMerge<Out>
+    pub fn merge2<S1,S2,Out:Value>(&self, label:Label, s1:&S2, s2:&S2) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>, S2:AnyStream<Output=Out> {
-        self.register(Merge::new2(s1,s2))
+        self.register(Merge::new2(label,s1,s2))
     }}
 
     docs_for_merge! {
-    pub fn merge3<S1,S2,S3,Out:Value>(&self, s1:&S2, s2:&S2, s3:&S3) -> WeakMerge<Out>
+    pub fn merge3<S1,S2,S3,Out:Value>(&self, label:Label, s1:&S2, s2:&S2, s3:&S3) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>, S2:AnyStream<Output=Out>, S3:AnyStream<Output=Out> {
-        self.register(Merge::new3(s1,s2,s3))
+        self.register(Merge::new3(label,s1,s2,s3))
     }}
 
     docs_for_merge! {
-    pub fn merge4<S1,S2,S3,S4,Out:Value>(&self, s1:&S2, s2:&S2, s3:&S3, s4:&S4) -> WeakMerge<Out>
+    pub fn merge4<S1,S2,S3,S4,Out:Value>(&self, label:Label, s1:&S2, s2:&S2, s3:&S3, s4:&S4) -> WeakMerge<Out>
     where S1:AnyStream<Output=Out>,
           S2:AnyStream<Output=Out>,
           S3:AnyStream<Output=Out>,
           S4:AnyStream<Output=Out> {
-        self.register(Merge::new4(s1,s2,s3,s4))
+        self.register(Merge::new4(label,s1,s2,s3,s4))
     }}
 
 
     // === Zip ===
 
     docs_for_zip2! {
-    pub fn zip<S1,S2>(&self, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
+    pub fn zip<S1,S2>(&self, label:Label, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
     where S1:AnyStream, S2:AnyStream {
-        self.register(Zip2::new(stream1,stream2))
+        self.register(Zip2::new(label,stream1,stream2))
     }}
 
     docs_for_zip2! {
-    pub fn zip2<S1,S2>(&self, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
+    pub fn zip2<S1,S2>(&self, label:Label, stream1:&S1, stream2:&S2) -> WeakZip2<S1,S2>
     where S1:AnyStream, S2:AnyStream {
-        self.register(Zip2::new(stream1,stream2))
+        self.register(Zip2::new(label,stream1,stream2))
     }}
 
     docs_for_zip3! {
-    pub fn zip3<S1,S2,S3>(&self, stream1:&S1, stream2:&S2, stream3:&S3) -> WeakZip3<S1,S2,S3>
+    pub fn zip3<S1,S2,S3>(&self, label:Label, stream1:&S1, stream2:&S2, stream3:&S3) -> WeakZip3<S1,S2,S3>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream {
-        self.register(Zip3::new(stream1,stream2,stream3))
+        self.register(Zip3::new(label,stream1,stream2,stream3))
     }}
 
     docs_for_zip4! {
     pub fn zip4<S1,S2,S3,S4>
-    (&self, stream1:&S1, stream2:&S2, stream3:&S3, stream4:&S4) -> WeakZip4<S1,S2,S3,S4>
+    (&self, label:Label, stream1:&S1, stream2:&S2, stream3:&S3, stream4:&S4) -> WeakZip4<S1,S2,S3,S4>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream {
-        self.register(Zip4::new(stream1,stream2,stream3,stream4))
+        self.register(Zip4::new(label,stream1,stream2,stream3,stream4))
     }}
 
 
     // === Map ===
 
     docs_for_map! {
-    pub fn map<S,F,Out>(&self, source:&S, f:F) -> WeakMap<S,F>
+    pub fn map<S,F,Out>(&self, label:Label, source:&S, f:F) -> WeakMap<S,F>
     where S:AnyStream, Out:Value, F:'static+Fn(&Output<S>)->Out {
-        self.register(Map::new(source,f))
+        self.register(Map::new(label,source,f))
     }}
 
     docs_for_map! {
-    pub fn map2<S1,S2,F,Out>(&self, s1:&S1, s2:&S2, f:F) -> WeakMap2<S1,S2,F>
+    pub fn map2<S1,S2,F,Out>(&self, label:Label, s1:&S1, s2:&S2, f:F) -> WeakMap2<S1,S2,F>
     where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
-        self.register(Map2::new(s1,s2,f))
+        self.register(Map2::new(label,s1,s2,f))
     }}
 
     docs_for_map! {
-    pub fn map3<S1,S2,S3,F,Out>(&self, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakMap3<S1,S2,S3,F>
+    pub fn map3<S1,S2,S3,F,Out>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakMap3<S1,S2,S3,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
-        self.register(Map3::new(s1,s2,s3,f))
+        self.register(Map3::new(label,s1,s2,s3,f))
     }}
 
     docs_for_map! {
     pub fn map4<S1,S2,S3,S4,F,Out>
-    (&self, s1:&S1, s2:&S2, s3:&S3, s4:&S4, f:F) -> WeakMap4<S1,S2,S3,S4,F>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, f:F) -> WeakMap4<S1,S2,S3,S4,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
-        self.register(Map4::new(s1,s2,s3,s4,f))
+        self.register(Map4::new(label,s1,s2,s3,s4,f))
     }}
 
 
     // === Apply ===
 
     docs_for_apply! {
-    pub fn apply2<S1,S2,F,Out>(&self, s1:&S1, s2:&S2, f:F) -> WeakApply2<S1,S2,F>
+    pub fn apply2<S1,S2,F,Out>(&self, label:Label, s1:&S1, s2:&S2, f:F) -> WeakApply2<S1,S2,F>
     where S1:AnyStream, S2:AnyStream, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
-        self.register(Apply2::new(s1,s2,f))
+        self.register(Apply2::new(label,s1,s2,f))
     }}
 
     docs_for_apply! {
-    pub fn apply3<S1,S2,S3,F,Out>(&self, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakApply3<S1,S2,S3,F>
+    pub fn apply3<S1,S2,S3,F,Out>(&self, label:Label, s1:&S1, s2:&S2, s3:&S3, f:F) -> WeakApply3<S1,S2,S3,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
-        self.register(Apply3::new(s1,s2,s3,f))
+        self.register(Apply3::new(label,s1,s2,s3,f))
     }}
 
     docs_for_apply! {
     pub fn apply4<S1,S2,S3,S4,F,Out>
-    (&self, s1:&S1, s2:&S2, s3:&S3, s4:&S4, f:F) -> WeakApply4<S1,S2,S3,S4,F>
+    (&self, label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, f:F) -> WeakApply4<S1,S2,S3,S4,F>
     where S1:AnyStream, S2:AnyStream, S3:AnyStream, S4:AnyStream, Out:Value,
           F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
-        self.register(Apply4::new(s1,s2,s3,s4,f))
+        self.register(Apply4::new(label,s1,s2,s3,s4,f))
     }}
 }
 
@@ -1420,17 +1421,17 @@ impl Graph {
 pub fn test() {
     println!("hello");
     let frp  = Graph::new();
-    let source  = frp.source::<f32>();
-    let source2 = frp.source::<()>();
-    let tg     = frp.toggle(&source);
-    let fff    = frp.map(&tg,|t| { println!("{:?}",t) });
-    let bb     = frp.sample(&source2,&tg);
+    let source  = frp.source::<f32>("label");
+    let source2 = frp.source::<()>("label");
+    let tg     = frp.toggle("label",&source);
+    let fff    = frp.map("label",&tg,|t| { println!("{:?}",t) });
+    let bb     = frp.sample("label",&source2,&tg);
     let bb2 : Stream<bool> = bb.into();
-    let fff2   = frp.map(&bb2,|t| { println!(">> {:?}",t) });
+    let fff2   = frp.map("label",&bb2,|t| { println!(">> {:?}",t) });
 
-    let m = frp.merge::<usize>();
-    let c = frp.count(&m);
-    let t = frp.trace("t",&c);
+    let m = frp.merge::<usize>("label");
+    let c = frp.count("label",&m);
+    let t = frp.trace("label","t",&c);
 
     m.add(&c);
 
