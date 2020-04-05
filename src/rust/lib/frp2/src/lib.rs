@@ -694,33 +694,33 @@ impl<Out:Value> Merge<Out> {
     }
 
     /// Constructor for 1 input flow.
-    pub fn new1<S1>(label:Label, s1:&S1) -> Self
-        where S1:AnyFlow<Output=Out> {
-        Self::new(label).with(s1)
+    pub fn new1<F1>(label:Label, f1:&F1) -> Self
+        where F1:AnyFlow<Output=Out> {
+        Self::new(label).with(f1)
     }
 
     /// Constructor for 2 input flows.
-    pub fn new2<S1,S2>(label:Label, s1:&S1, s2:&S2) -> Self
-        where S1:AnyFlow<Output=Out>,
-              S2:AnyFlow<Output=Out> {
-        Self::new(label).with(s1).with(s2)
+    pub fn new2<F1,F2>(label:Label, f1:&F1, f2:&F2) -> Self
+        where F1:AnyFlow<Output=Out>,
+              F2:AnyFlow<Output=Out> {
+        Self::new(label).with(f1).with(f2)
     }
 
     /// Constructor for 3 input flows.
-    pub fn new3<S1,S2,S3>(label:Label, s1:&S1, s2:&S2, s3:&S3) -> Self
-        where S1:AnyFlow<Output=Out>,
-              S2:AnyFlow<Output=Out>,
-              S3:AnyFlow<Output=Out> {
-        Self::new(label).with(s1).with(s2).with(s3)
+    pub fn new3<F1,F2,F3>(label:Label, f1:&F1, f2:&F2, f3:&F3) -> Self
+        where F1:AnyFlow<Output=Out>,
+              F2:AnyFlow<Output=Out>,
+              F3:AnyFlow<Output=Out> {
+        Self::new(label).with(f1).with(f2).with(f3)
     }
 
     /// Constructor for 4 input flows.
-    pub fn new4<S1,S2,S3,S4>(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self
-        where S1:AnyFlow<Output=Out>,
-              S2:AnyFlow<Output=Out>,
-              S3:AnyFlow<Output=Out>,
-              S4:AnyFlow<Output=Out> {
-        Self::new(label).with(s1).with(s2).with(s3).with(s4)
+    pub fn new4<F1,F2,F3,F4>(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Self
+        where F1:AnyFlow<Output=Out>,
+              F2:AnyFlow<Output=Out>,
+              F3:AnyFlow<Output=Out>,
+              F4:AnyFlow<Output=Out> {
+        Self::new(label).with(f1).with(f2).with(f3).with(f4)
     }
 }
 
@@ -733,19 +733,19 @@ impl<Out:Value> WeakMerge<Out> {
     }
 }
 
-impl<S1,Out> Add<&S1> for &Merge<Out>
-    where S1:AnyFlow<Output=Out>, Out:Value {
+impl<F1,Out> Add<&F1> for &Merge<Out>
+    where F1:AnyFlow<Output=Out>, Out:Value {
     type Output = Self;
-    fn add(self, flow:&S1) -> Self::Output {
+    fn add(self, flow:&F1) -> Self::Output {
         flow.register_target(self.downgrade().into());
         self
     }
 }
 
-impl<S1,Out> Add<&S1> for &WeakMerge<Out>
-    where S1:AnyFlow<Output=Out>, Out:Value {
+impl<F1,Out> Add<&F1> for &WeakMerge<Out>
+    where F1:AnyFlow<Output=Out>, Out:Value {
     type Output = Self;
-    fn add(self, flow:&S1) -> Self::Output {
+    fn add(self, flow:&F1) -> Self::Output {
         flow.register_target(self.into());
         self
     }
@@ -780,32 +780,32 @@ flows, all flows are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip2! { #[derive(Clone,Copy,Debug)]
-pub struct Zip2Data <S1,S2> { flow1:S1, flow2:S2 }}
-pub type   Zip2     <S1,S2> = Node     <Zip2Data<S1,S2>>;
-pub type   WeakZip2 <S1,S2> = WeakNode <Zip2Data<S1,S2>>;
+pub struct Zip2Data <F1,F2> { flow1:F1, flow2:F2 }}
+pub type   Zip2     <F1,F2> = Node     <Zip2Data<F1,F2>>;
+pub type   WeakZip2 <F1,F2> = WeakNode <Zip2Data<F1,F2>>;
 
-impl<S1,S2> HasOutput for Zip2Data<S1,S2>
-    where S1:AnyFlow, S2:AnyFlow {
-    type Output = (Output<S1>,Output<S2>);
+impl<F1,F2> HasOutput for Zip2Data<F1,F2>
+    where F1:AnyFlow, F2:AnyFlow {
+    type Output = (Output<F1>,Output<F2>);
 }
 
-impl<S1,S2> Zip2<S1,S2>
-    where S1:AnyFlow, S2:AnyFlow {
+impl<F1,F2> Zip2<F1,F2>
+    where F1:AnyFlow, F2:AnyFlow {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
         let def   = Zip2Data {flow1,flow2};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,Out> EventConsumer<Out> for NodeData<Zip2Data<S1,S2>>
-    where S1:AnyFlow, S2:AnyFlow {
+impl<F1,F2,Out> EventConsumer<Out> for NodeData<Zip2Data<F1,F2>>
+    where F1:AnyFlow, F2:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -825,34 +825,34 @@ the flows, all flows are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip3! { #[derive(Clone,Copy,Debug)]
-pub struct Zip3Data <S1,S2,S3> { flow1:S1, flow2:S2, flow3:S3 }}
-pub type   Zip3     <S1,S2,S3> = Node     <Zip3Data<S1,S2,S3>>;
-pub type   WeakZip3 <S1,S2,S3> = WeakNode <Zip3Data<S1,S2,S3>>;
+pub struct Zip3Data <F1,F2,F3> { flow1:F1, flow2:F2, flow3:F3 }}
+pub type   Zip3     <F1,F2,F3> = Node     <Zip3Data<F1,F2,F3>>;
+pub type   WeakZip3 <F1,F2,F3> = WeakNode <Zip3Data<F1,F2,F3>>;
 
-impl<S1,S2,S3> HasOutput for Zip3Data<S1,S2,S3>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow {
-    type Output = (Output<S1>,Output<S2>,Output<S3>);
+impl<F1,F2,F3> HasOutput for Zip3Data<F1,F2,F3>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+    type Output = (Output<F1>,Output<F2>,Output<F3>);
 }
 
-impl<S1,S2,S3> Zip3<S1,S2,S3>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow {
+impl<F1,F2,F3> Zip3<F1,F2,F3>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
         let def   = Zip3Data {flow1,flow2,flow3};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.clone_ref().into());
-        s3.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.clone_ref().into());
+        f3.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,Out> EventConsumer<Out> for NodeData<Zip3Data<S1,S2,S3>>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow {
+impl<F1,F2,F3,Out> EventConsumer<Out> for NodeData<Zip3Data<F1,F2,F3>>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -873,36 +873,36 @@ flows, all flows are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip4! { #[derive(Clone,Copy,Debug)]
-pub struct Zip4Data <S1,S2,S3,S4> { flow1:S1, flow2:S2, flow3:S3, flow4:S4 }}
-pub type   Zip4     <S1,S2,S3,S4> = Node     <Zip4Data<S1,S2,S3,S4>>;
-pub type   WeakZip4 <S1,S2,S3,S4> = WeakNode <Zip4Data<S1,S2,S3,S4>>;
+pub struct Zip4Data <F1,F2,F3,F4> { flow1:F1, flow2:F2, flow3:F3, flow4:F4 }}
+pub type   Zip4     <F1,F2,F3,F4> = Node     <Zip4Data<F1,F2,F3,F4>>;
+pub type   WeakZip4 <F1,F2,F3,F4> = WeakNode <Zip4Data<F1,F2,F3,F4>>;
 
-impl<S1,S2,S3,S4> HasOutput for Zip4Data<S1,S2,S3,S4>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow {
-    type Output = (Output<S1>,Output<S2>,Output<S3>,Output<S4>);
+impl<F1,F2,F3,F4> HasOutput for Zip4Data<F1,F2,F3,F4>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+    type Output = (Output<F1>,Output<F2>,Output<F3>,Output<F4>);
 }
 
-impl<S1,S2,S3,S4> Zip4<S1,S2,S3,S4>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow {
+impl<F1,F2,F3,F4> Zip4<F1,F2,F3,F4>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
-        let flow4 = s4.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
+        let flow4 = f4.clone_ref();
         let def   = Zip4Data {flow1,flow2,flow3,flow4};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.clone_ref().into());
-        s3.register_target(weak.clone_ref().into());
-        s4.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.clone_ref().into());
+        f3.register_target(weak.clone_ref().into());
+        f4.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,S4,Out> EventConsumer<Out> for NodeData<Zip4Data<S1,S2,S3,S4>>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow {
+impl<F1,F2,F3,F4,Out> EventConsumer<Out> for NodeData<Zip4Data<F1,F2,F3,F4>>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -967,39 +967,39 @@ impl<S,F> Debug for MapData<S,F> {
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map2Data <S1,S2,F> { flow1:S1, flow2:S2, function:F }}
-pub type   Map2     <S1,S2,F> = Node     <Map2Data<S1,S2,F>>;
-pub type   WeakMap2 <S1,S2,F> = WeakNode <Map2Data<S1,S2,F>>;
+pub struct Map2Data <F1,F2,F> { flow1:F1, flow2:F2, function:F }}
+pub type   Map2     <F1,F2,F> = Node     <Map2Data<F1,F2,F>>;
+pub type   WeakMap2 <F1,F2,F> = WeakNode <Map2Data<F1,F2,F>>;
 
-impl<S1,S2,F,Out> HasOutput for Map2Data<S1,S2,F>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
+impl<F1,F2,F,Out> HasOutput for Map2Data<F1,F2,F>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,F,Out> Map2<S1,S2,F>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
+impl<F1,F2,F,Out> Map2<F1,F2,F>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
         let def   = Map2Data {flow1,flow2,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.into());
+        f1.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,F,Out> EventConsumer<Output<S1>> for NodeData<Map2Data<S1,S2,F>>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
-    fn on_event(&self, value1:&Output<S1>) {
+impl<F1,F2,F,Out> EventConsumer<Output<F1>> for NodeData<Map2Data<F1,F2,F>>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+    fn on_event(&self, value1:&Output<F1>) {
         let value2 = self.definition.flow2.value();
         let out    = (self.definition.function)(&value1,&value2);
         self.emit(out);
     }
 }
 
-impl<S1,S2,F> Debug for Map2Data<S1,S2,F> {
+impl<F1,F2,F> Debug for Map2Data<F1,F2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map2Data")
     }
@@ -1013,36 +1013,36 @@ impl<S1,S2,F> Debug for Map2Data<S1,S2,F> {
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map3Data <S1,S2,S3,F> { flow1:S1, flow2:S2, flow3:S3, function:F }}
-pub type   Map3     <S1,S2,S3,F> = Node     <Map3Data<S1,S2,S3,F>>;
-pub type   WeakMap3 <S1,S2,S3,F> = WeakNode <Map3Data<S1,S2,S3,F>>;
+pub struct Map3Data <F1,F2,F3,F> { flow1:F1, flow2:F2, flow3:F3, function:F }}
+pub type   Map3     <F1,F2,F3,F> = Node     <Map3Data<F1,F2,F3,F>>;
+pub type   WeakMap3 <F1,F2,F3,F> = WeakNode <Map3Data<F1,F2,F3,F>>;
 
-impl<S1,S2,S3,F,Out> HasOutput for Map3Data<S1,S2,S3,F>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
+impl<F1,F2,F3,F,Out> HasOutput for Map3Data<F1,F2,F3,F>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,S3,F,Out> Map3<S1,S2,S3,F>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
+impl<F1,F2,F3,F,Out> Map3<F1,F2,F3,F>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
         let def   = Map3Data {flow1,flow2,flow3,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.into());
+        f1.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,F,Out> EventConsumer<Output<S1>> for NodeData<Map3Data<S1,S2,S3,F>>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
-    fn on_event(&self, value1:&Output<S1>) {
+impl<F1,F2,F3,F,Out> EventConsumer<Output<F1>> for NodeData<Map3Data<F1,F2,F3,F>>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+    fn on_event(&self, value1:&Output<F1>) {
         let value2 = self.definition.flow2.value();
         let value3 = self.definition.flow3.value();
         let out    = (self.definition.function)(&value1,&value2,&value3);
@@ -1050,7 +1050,7 @@ where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
     }
 }
 
-impl<S1,S2,S3,F> Debug for Map3Data<S1,S2,S3,F> {
+impl<F1,F2,F3,F> Debug for Map3Data<F1,F2,F3,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map3Data")
     }
@@ -1064,37 +1064,37 @@ impl<S1,S2,S3,F> Debug for Map3Data<S1,S2,S3,F> {
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map4Data <S1,S2,S3,S4,F> { flow1:S1, flow2:S2, flow3:S3, flow4:S4, function:F }}
-pub type   Map4     <S1,S2,S3,S4,F> = Node     <Map4Data<S1,S2,S3,S4,F>>;
-pub type   WeakMap4 <S1,S2,S3,S4,F> = WeakNode <Map4Data<S1,S2,S3,S4,F>>;
+pub struct Map4Data <F1,F2,F3,F4,F> { flow1:F1, flow2:F2, flow3:F3, flow4:F4, function:F }}
+pub type   Map4     <F1,F2,F3,F4,F> = Node     <Map4Data<F1,F2,F3,F4,F>>;
+pub type   WeakMap4 <F1,F2,F3,F4,F> = WeakNode <Map4Data<F1,F2,F3,F4,F>>;
 
-impl<S1,S2,S3,S4,F,Out> HasOutput for Map4Data<S1,S2,S3,S4,F>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
+impl<F1,F2,F3,F4,F,Out> HasOutput for Map4Data<F1,F2,F3,F4,F>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,S3,S4,F,Out> Map4<S1,S2,S3,S4,F>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
+impl<F1,F2,F3,F4,F,Out> Map4<F1,F2,F3,F4,F>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
-        let flow4 = s4.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
+        let flow4 = f4.clone_ref();
         let def   = Map4Data {flow1,flow2,flow3,flow4,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.into());
+        f1.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,S4,F,Out> EventConsumer<Output<S1>> for NodeData<Map4Data<S1,S2,S3,S4,F>>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
-    fn on_event(&self, value1:&Output<S1>) {
+impl<F1,F2,F3,F4,F,Out> EventConsumer<Output<F1>> for NodeData<Map4Data<F1,F2,F3,F4,F>>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+    fn on_event(&self, value1:&Output<F1>) {
         let value2 = self.definition.flow2.value();
         let value3 = self.definition.flow3.value();
         let value4 = self.definition.flow4.value();
@@ -1103,7 +1103,7 @@ impl<S1,S2,S3,S4,F,Out> EventConsumer<Output<S1>> for NodeData<Map4Data<S1,S2,S3
     }
 }
 
-impl<S1,S2,S3,S4,F> Debug for Map4Data<S1,S2,S3,S4,F> {
+impl<F1,F2,F3,F4,F> Debug for Map4Data<F1,F2,F3,F4,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map4Data")
     }
@@ -1122,32 +1122,32 @@ instead.
 "]$($tt)* }}
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply2Data <S1,S2,F> { flow1:S1, flow2:S2, function:F }}
-pub type   Apply2     <S1,S2,F> = Node     <Apply2Data<S1,S2,F>>;
-pub type   WeakApply2 <S1,S2,F> = WeakNode <Apply2Data<S1,S2,F>>;
+pub struct Apply2Data <F1,F2,F> { flow1:F1, flow2:F2, function:F }}
+pub type   Apply2     <F1,F2,F> = Node     <Apply2Data<F1,F2,F>>;
+pub type   WeakApply2 <F1,F2,F> = WeakNode <Apply2Data<F1,F2,F>>;
 
-impl<S1,S2,F,Out> HasOutput for Apply2Data<S1,S2,F>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
+impl<F1,F2,F,Out> HasOutput for Apply2Data<F1,F2,F>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,F,Out> Apply2<S1,S2,F>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
+impl<F1,F2,F,Out> Apply2<F1,F2,F>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
         let def   = Apply2Data {flow1,flow2,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,F,Out,T> EventConsumer<T> for NodeData<Apply2Data<S1,S2,F>>
-where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->Out {
+impl<F1,F2,F,Out,T> EventConsumer<T> for NodeData<Apply2Data<F1,F2,F>>
+where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -1156,7 +1156,7 @@ where S1:AnyFlow, S2:AnyFlow, Out:Value, F:'static+Fn(&Output<S1>,&Output<S2>)->
     }
 }
 
-impl<S1,S2,F> Debug for Apply2Data<S1,S2,F> {
+impl<F1,F2,F> Debug for Apply2Data<F1,F2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply2Data")
     }
@@ -1169,37 +1169,37 @@ impl<S1,S2,F> Debug for Apply2Data<S1,S2,F> {
 // ==============
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply3Data <S1,S2,S3,F> { flow1:S1, flow2:S2, flow3:S3, function:F }}
-pub type   Apply3     <S1,S2,S3,F> = Node     <Apply3Data<S1,S2,S3,F>>;
-pub type   WeakApply3 <S1,S2,S3,F> = WeakNode <Apply3Data<S1,S2,S3,F>>;
+pub struct Apply3Data <F1,F2,F3,F> { flow1:F1, flow2:F2, flow3:F3, function:F }}
+pub type   Apply3     <F1,F2,F3,F> = Node     <Apply3Data<F1,F2,F3,F>>;
+pub type   WeakApply3 <F1,F2,F3,F> = WeakNode <Apply3Data<F1,F2,F3,F>>;
 
-impl<S1,S2,S3,F,Out> HasOutput for Apply3Data<S1,S2,S3,F>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
+impl<F1,F2,F3,F,Out> HasOutput for Apply3Data<F1,F2,F3,F>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,S3,F,Out> Apply3<S1,S2,S3,F>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
+impl<F1,F2,F3,F,Out> Apply3<F1,F2,F3,F>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
         let def   = Apply3Data {flow1,flow2,flow3,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.clone_ref().into());
-        s3.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.clone_ref().into());
+        f3.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,F,Out,T> EventConsumer<T> for NodeData<Apply3Data<S1,S2,S3,F>>
-where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>)->Out {
+impl<F1,F2,F3,F,Out,T> EventConsumer<T> for NodeData<Apply3Data<F1,F2,F3,F>>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
+      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -1209,7 +1209,7 @@ where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, Out:Value,
     }
 }
 
-impl<S1,S2,S3,F> Debug for Apply3Data<S1,S2,S3,F> {
+impl<F1,F2,F3,F> Debug for Apply3Data<F1,F2,F3,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply3Data")
     }
@@ -1222,39 +1222,39 @@ impl<S1,S2,S3,F> Debug for Apply3Data<S1,S2,S3,F> {
 // ==============
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply4Data <S1,S2,S3,S4,F> {flow1:S1, flow2:S2, flow3:S3, flow4:S4, function:F}}
-pub type   Apply4     <S1,S2,S3,S4,F> = Node     <Apply4Data<S1,S2,S3,S4,F>>;
-pub type   WeakApply4 <S1,S2,S3,S4,F> = WeakNode <Apply4Data<S1,S2,S3,S4,F>>;
+pub struct Apply4Data <F1,F2,F3,F4,F> {flow1:F1, flow2:F2, flow3:F3, flow4:F4, function:F}}
+pub type   Apply4     <F1,F2,F3,F4,F> = Node     <Apply4Data<F1,F2,F3,F4,F>>;
+pub type   WeakApply4 <F1,F2,F3,F4,F> = WeakNode <Apply4Data<F1,F2,F3,F4,F>>;
 
-impl<S1,S2,S3,S4,F,Out> HasOutput for Apply4Data<S1,S2,S3,S4,F>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
+impl<F1,F2,F3,F4,F,Out> HasOutput for Apply4Data<F1,F2,F3,F4,F>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     type Output = Out;
 }
 
-impl<S1,S2,S3,S4,F,Out> Apply4<S1,S2,S3,S4,F>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
+impl<F1,F2,F3,F4,F,Out> Apply4<F1,F2,F3,F4,F>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s1:&S1, s2:&S2, s3:&S3, s4:&S4, function:F) -> Self {
-        let flow1 = s1.clone_ref();
-        let flow2 = s2.clone_ref();
-        let flow3 = s3.clone_ref();
-        let flow4 = s4.clone_ref();
+    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, function:F) -> Self {
+        let flow1 = f1.clone_ref();
+        let flow2 = f2.clone_ref();
+        let flow3 = f3.clone_ref();
+        let flow4 = f4.clone_ref();
         let def   = Apply4Data {flow1,flow2,flow3,flow4,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        s1.register_target(weak.clone_ref().into());
-        s2.register_target(weak.clone_ref().into());
-        s3.register_target(weak.clone_ref().into());
-        s4.register_target(weak.into());
+        f1.register_target(weak.clone_ref().into());
+        f2.register_target(weak.clone_ref().into());
+        f3.register_target(weak.clone_ref().into());
+        f4.register_target(weak.into());
         this
     }
 }
 
-impl<S1,S2,S3,S4,F,Out,T> EventConsumer<T> for NodeData<Apply4Data<S1,S2,S3,S4,F>>
-    where S1:AnyFlow, S2:AnyFlow, S3:AnyFlow, S4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<S1>,&Output<S2>,&Output<S3>,&Output<S4>)->Out {
+impl<F1,F2,F3,F4,F,Out,T> EventConsumer<T> for NodeData<Apply4Data<F1,F2,F3,F4,F>>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
+          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.flow1.value();
         let value2 = self.definition.flow2.value();
@@ -1265,7 +1265,7 @@ impl<S1,S2,S3,S4,F,Out,T> EventConsumer<T> for NodeData<Apply4Data<S1,S2,S3,S4,F
     }
 }
 
-impl<S1,S2,S3,S4,F> Debug for Apply4Data<S1,S2,S3,S4,F> {
+impl<F1,F2,F3,F4,F> Debug for Apply4Data<F1,F2,F3,F4,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply4Data")
     }
@@ -1399,30 +1399,30 @@ impl Network {
     }}
 
     docs_for_merge! {
-    pub fn merge<T:Value>(&self, label:Label, s1:&Flow<T>, s2:&Flow<T>) -> Flow<T> {
-        self.register(Merge::new2(label,s1,s2))
+    pub fn merge<T:Value>(&self, label:Label, f1:&Flow<T>, f2:&Flow<T>) -> Flow<T> {
+        self.register(Merge::new2(label,f1,f2))
     }}
 
     docs_for_merge! {
-    pub fn merge1<T:Value>(&self, label:Label, s1:&Flow<T>) -> Flow<T> {
-        self.register(Merge::new1(label,s1))
+    pub fn merge1<T:Value>(&self, label:Label, f1:&Flow<T>) -> Flow<T> {
+        self.register(Merge::new1(label,f1))
     }}
 
     docs_for_merge! {
-    pub fn merge2<T:Value>(&self, label:Label, s1:&Flow<T>, s2:&Flow<T>) -> Flow<T> {
-        self.register(Merge::new2(label,s1,s2))
+    pub fn merge2<T:Value>(&self, label:Label, f1:&Flow<T>, f2:&Flow<T>) -> Flow<T> {
+        self.register(Merge::new2(label,f1,f2))
     }}
 
     docs_for_merge! {
     pub fn merge3<T:Value>
-    (&self, label:Label, s1:&Flow<T>, s2:&Flow<T>, s3:&Flow<T>) -> Flow<T> {
-        self.register(Merge::new3(label,s1,s2,s3))
+    (&self, label:Label, f1:&Flow<T>, f2:&Flow<T>, f3:&Flow<T>) -> Flow<T> {
+        self.register(Merge::new3(label,f1,f2,f3))
     }}
 
     docs_for_merge! {
     pub fn merge4<T:Value>
-    (&self, label:Label, s1:&Flow<T>, s2:&Flow<T>, s3:&Flow<T>, s4:&Flow<T>) -> Flow<T> {
-        self.register(Merge::new4(label,s1,s2,s3,s4))
+    (&self, label:Label, f1:&Flow<T>, f2:&Flow<T>, f3:&Flow<T>, f4:&Flow<T>) -> Flow<T> {
+        self.register(Merge::new4(label,f1,f2,f3,f4))
     }}
 
 
@@ -1430,27 +1430,27 @@ impl Network {
 
     docs_for_zip2! {
     pub fn zip<T1:Value,T2:Value>
-    (&self, label:Label, s1:&Flow<T1>, s2:&Flow<T2>) -> Flow<(T1,T2)> {
-        self.register(Zip2::new(label,s1,s2))
+    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>) -> Flow<(T1,T2)> {
+        self.register(Zip2::new(label,f1,f2))
     }}
 
     docs_for_zip2! {
     pub fn zip2<T1:Value,T2:Value>
-    (&self, label:Label, s1:&Flow<T1>, s2:&Flow<T2>) -> Flow<(T1,T2)> {
-        self.register(Zip2::new(label,s1,s2))
+    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>) -> Flow<(T1,T2)> {
+        self.register(Zip2::new(label,f1,f2))
     }}
 
     docs_for_zip3! {
     pub fn zip3<T1:Value,T2:Value,T3:Value>
-    (&self, label:Label, s1:&Flow<T1>, s2:&Flow<T2>, s3:&Flow<T3>) -> Flow<(T1,T2,T3)> {
-        self.register(Zip3::new(label,s1,s2,s3))
+    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>, f3:&Flow<T3>) -> Flow<(T1,T2,T3)> {
+        self.register(Zip3::new(label,f1,f2,f3))
     }}
 
     docs_for_zip4! {
     pub fn zip4<T1:Value,T2:Value,T3:Value,T4:Value>
-    (&self, label:Label, s1:&Flow<T1>, s2:&Flow<T2>, s3:&Flow<T3>, s4:&Flow<T4>
+    (&self, label:Label, f1:&Flow<T1>, f2:&Flow<T2>, f3:&Flow<T3>, f4:&Flow<T4>
     ) -> Flow<(T1,T2,T3,T4)> {
-        self.register(Zip4::new(label,s1,s2,s3,s4))
+        self.register(Zip4::new(label,f1,f2,f3,f4))
     }}
 
 
@@ -1463,42 +1463,42 @@ impl Network {
     }}
 
     docs_for_map! {
-    pub fn map2<S1:Value, S2:Value, T:Value, F:'static+Fn(&S1,&S2)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, f:F) -> Flow<T> {
-        self.register(Map2::new(label,s1,s2,f))
+    pub fn map2<F1:Value, F2:Value, T:Value, F:'static+Fn(&F1,&F2)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f:F) -> Flow<T> {
+        self.register(Map2::new(label,f1,f2,f))
     }}
 
     docs_for_map! {
-    pub fn map3<S1:Value, S2:Value, S3:Value, T:Value, F:'static+Fn(&S1,&S2,&S3)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, s3:&Flow<S3>, f:F) -> Flow<T> {
-        self.register(Map3::new(label,s1,s2,s3,f))
+    pub fn map3<F1:Value, F2:Value, F3:Value, T:Value, F:'static+Fn(&F1,&F2,&F3)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f:F) -> Flow<T> {
+        self.register(Map3::new(label,f1,f2,f3,f))
     }}
 
     docs_for_map! {
-    pub fn map4<S1:Value, S2:Value, S3:Value, S4:Value, T:Value, F:'static+Fn(&S1,&S2,&S3,&S4)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, s3:&Flow<S3>, s4:&Flow<S4>, f:F) -> Flow<T> {
-        self.register(Map4::new(label,s1,s2,s3,s4,f))
+    pub fn map4<F1:Value, F2:Value, F3:Value, F4:Value, T:Value, F:'static+Fn(&F1,&F2,&F3,&F4)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f4:&Flow<F4>, f:F) -> Flow<T> {
+        self.register(Map4::new(label,f1,f2,f3,f4,f))
     }}
 
 
     // === Apply ===
 
     docs_for_apply! {
-    pub fn apply2<S1:Value, S2:Value, T:Value, F:'static+Fn(&S1,&S2)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, f:F) -> Flow<T> {
-        self.register(Apply2::new(label,s1,s2,f))
+    pub fn apply2<F1:Value, F2:Value, T:Value, F:'static+Fn(&F1,&F2)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f:F) -> Flow<T> {
+        self.register(Apply2::new(label,f1,f2,f))
     }}
 
     docs_for_apply! {
-    pub fn apply3<S1:Value, S2:Value, S3:Value, T:Value, F:'static+Fn(&S1,&S2,&S3)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, s3:&Flow<S3>, f:F) -> Flow<T> {
-        self.register(Apply3::new(label,s1,s2,s3,f))
+    pub fn apply3<F1:Value, F2:Value, F3:Value, T:Value, F:'static+Fn(&F1,&F2,&F3)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f:F) -> Flow<T> {
+        self.register(Apply3::new(label,f1,f2,f3,f))
     }}
 
     docs_for_apply! {
-    pub fn apply4<S1:Value, S2:Value, S3:Value, S4:Value, T:Value, F:'static+Fn(&S1,&S2,&S3,&S4)->T>
-    (&self, label:Label, s1:&Flow<S1>, s2:&Flow<S2>, s3:&Flow<S3>, s4:&Flow<S4>, f:F) -> Flow<T> {
-        self.register(Apply4::new(label,s1,s2,s3,s4,f))
+    pub fn apply4<F1:Value, F2:Value, F3:Value, F4:Value, T:Value, F:'static+Fn(&F1,&F2,&F3,&F4)->T>
+    (&self, label:Label, f1:&Flow<F1>, f2:&Flow<F2>, f3:&Flow<F3>, f4:&Flow<F4>, f:F) -> Flow<T> {
+        self.register(Apply4::new(label,f1,f2,f3,f4,f))
     }}
 }
 
