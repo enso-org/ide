@@ -36,7 +36,7 @@ use std::f32::consts::PI;
 ///
 /// Ports are constructed around an inner circle, and thus
 /// most measurements are in degrees, which are measured around
-/// a inner circle, that is defined by the `inner_radius`.
+/// a inner circle that is defined by the `inner_radius`.
 #[derive(Clone,Copy,Debug)]
 pub struct Specification {
     /// Height of the port.
