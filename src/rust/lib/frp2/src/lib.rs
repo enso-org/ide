@@ -32,12 +32,55 @@ pub mod macros;
 
 pub use enso_prelude as prelude;
 use prelude::*;
+use ensogl_system_web as web;
+
+
+
+
+
+#[derive(Debug,Clone,CloneRef,Copy,Eq,From,Hash,Into,PartialEq)]
+pub struct Id {
+    raw : usize
+}
+
+pub trait HasId {
+    fn id(&self) -> Id;
+}
+
+pub trait HasTypeLabel {
+    fn type_label(&self) -> String;
+}
+
+
+// =============
+// === Debug ===
+// =============
+
+pub trait InputBehaviors {
+    fn input_behaviors(&self) -> Vec<Link>;
+}
+
+
+impl<T> InputBehaviors for T {
+    default fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
+
+
+
 
 
 
 
 
 type Label = &'static str;
+
+pub trait HasLabel {
+    fn label(&self) -> Label;
+}
 
 
 // =============
@@ -65,7 +108,7 @@ pub type Output<T> = <T as HasOutput>::Output;
 // ====================
 
 
-pub trait AnyFlow = 'static + LastValueProvider + EventEmitter + CloneRef;
+pub trait AnyFlow = 'static + LastValueProvider + EventEmitter + CloneRef + HasId;
 
 impl<T:EventEmitter> EventEmitterPoly for T {}
 pub trait EventEmitterPoly : EventEmitter {
@@ -114,6 +157,7 @@ pub struct Node<T:NodeDefinition> {
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct WeakNode<T:NodeDefinition> {
+    id   : Id,
     data : Weak<NodeData<T>>,
 }
 
@@ -161,8 +205,9 @@ impl<Def:NodeDefinition> Node<Def> {
     }
 
     pub fn downgrade(&self) -> WeakNode<Def> {
+        let id   = self.id();
         let data = Rc::downgrade(&self.data);
-        WeakNode {data}
+        WeakNode {id,data}
     }
 }
 
@@ -179,6 +224,44 @@ impl<Def:NodeDefinition> EventEmitter for Node<Def>  {
 impl<Def:NodeDefinition> LastValueProvider for Node<Def> {
     fn value(&self) -> Self::Output {
         self.data.value()
+    }
+}
+
+impl<Def:NodeDefinition> HasId for Node<Def> {
+    fn id(&self) -> Id {
+        let raw = Rc::downgrade(&self.data.value).as_raw() as *const() as usize;
+        raw.into()
+    }
+}
+
+impl<Def:NodeDefinition> InputBehaviors for Node<Def>
+where Def:InputBehaviors {
+    fn input_behaviors(&self) -> Vec<Link> {
+        self.data.input_behaviors()
+    }
+}
+
+impl<Def:NodeDefinition> HasLabel for Node<Def>
+where Def:InputBehaviors {
+    fn label(&self) -> Label {
+        self.data.label
+    }
+}
+
+// FIXME code quality below:
+impl<Def:NodeDefinition> HasTypeLabel for Node<Def>
+where Def:InputBehaviors {
+    fn type_label(&self) -> String {
+        let label = type_name::<Def>().to_string();
+        let label = label.split(|c| c == '<').collect::<Vec<_>>()[0];
+        let mut label = label.split(|c| c == ':').collect::<Vec<_>>();
+        label.reverse();
+        let mut label = label[0];
+        let sfx = "Data";
+        if label.ends_with(sfx) {
+            label = &label[0..label.len()-sfx.len()];
+        }
+        label.into()
     }
 }
 
@@ -217,6 +300,19 @@ impl<Def:NodeDefinition+Debug> Debug for WeakNode<Def> {
     }
 }
 
+impl<Def:NodeDefinition> HasId for WeakNode<Def> {
+    fn id(&self) -> Id {
+        self.id
+    }
+}
+
+impl<Def:NodeDefinition> InputBehaviors for WeakNode<Def>
+    where Def:InputBehaviors {
+    fn input_behaviors(&self) -> Vec<Link> {
+        self.data.upgrade().map(|t| t.input_behaviors()).unwrap_or_default()
+    }
+}
+
 
 // === NodeData Impls ===
 
@@ -251,14 +347,16 @@ impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
 }
 
 
-#[derive(Debug,Clone,Copy,Eq,From,Hash,Into,PartialEq)]
-pub struct Id {
-    raw : usize
+impl<Def:NodeDefinition> InputBehaviors for NodeData<Def>
+where Def:InputBehaviors {
+    fn input_behaviors(&self) -> Vec<Link> {
+        self.definition.input_behaviors()
+    }
 }
 
-pub trait HasId {
-    fn id(&self) -> Id;
-}
+
+
+
 
 
 // ============
@@ -270,7 +368,6 @@ pub trait HasId {
 pub struct Flow<Out=()> {
     data  : Weak<dyn EventEmitter<Output=Out>>,
     value : Rc<RefCell<Out>>,
-
 }
 
 impl<Def:NodeDefinition> From<Node<Def>> for Flow<Def::Output> {
@@ -630,6 +727,13 @@ impl<T,Behavior:AnyFlow> EventConsumer<T> for NodeData<SampleData<Behavior>> {
     }
 }
 
+impl<B> InputBehaviors for SampleData<B>
+    where B:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.behavior)]
+    }
+}
+
 
 
 // ============
@@ -670,6 +774,13 @@ where T:Value, B:AnyFlow<Output=bool> {
     }
 }
 
+impl<T,B> InputBehaviors for GateData<T,B>
+where B:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.behavior)]
+    }
+}
+
 
 
 // =============
@@ -698,7 +809,7 @@ impl<Out:Value> Merge<Out> {
     pub fn new(label:Label) -> Self {
         let phantom     = default();
         let during_call = default();
-        let def     = MergeData {phantom,during_call};
+        let def         = MergeData {phantom,during_call};
         Self::construct(label,def)
     }
 
@@ -829,6 +940,13 @@ impl<F1,F2,Out> EventConsumer<Out> for NodeData<Zip2Data<F1,F2>>
     }
 }
 
+impl<F1,F2> InputBehaviors for Zip2Data<F1,F2>
+    where F1:AnyFlow, F2:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::mixed(&self.flow1), Link::mixed(&self.flow2)]
+    }
+}
+
 
 
 // ============
@@ -874,6 +992,13 @@ impl<F1,F2,F3,Out> EventConsumer<Out> for NodeData<Zip3Data<F1,F2,F3>>
         let value2 = self.definition.flow2.value();
         let value3 = self.definition.flow3.value();
         self.emit((value1,value2,value3));
+    }
+}
+
+impl<F1,F2,F3> InputBehaviors for Zip3Data<F1,F2,F3>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::mixed(&self.flow1), Link::mixed(&self.flow2), Link::mixed(&self.flow3)]
     }
 }
 
@@ -928,6 +1053,17 @@ impl<F1,F2,F3,F4,Out> EventConsumer<Out> for NodeData<Zip4Data<F1,F2,F3,F4>>
     }
 }
 
+impl<F1,F2,F3,F4> InputBehaviors for Zip4Data<F1,F2,F3,F4>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![ Link::mixed(&self.flow1)
+            , Link::mixed(&self.flow2)
+            , Link::mixed(&self.flow3)
+            , Link::mixed(&self.flow4)
+            ]
+    }
+}
+
 
 
 // ===========
@@ -942,34 +1078,34 @@ use the `apply` function family instead.
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct MapData <S,F> { flow:S, function:F }}
-pub type   Map     <S,F> = Node     <MapData<S,F>>;
-pub type   WeakMap <S,F> = WeakNode <MapData<S,F>>;
+pub struct MapData <F1,F> { flow:F1, function:F }}
+pub type   Map     <F1,F> = Node     <MapData<F1,F>>;
+pub type   WeakMap <F1,F> = WeakNode <MapData<F1,F>>;
 
-impl<S,F,Out> HasOutput for MapData<S,F>
-where S:AnyFlow, Out:Value, F:'static+Fn(&Output<S>)->Out {
+impl<F1,F,Out> HasOutput for MapData<F1,F>
+where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
     type Output = Out;
 }
 
-impl<S,F,Out> Map<S,F>
-where S:AnyFlow, Out:Value, F:'static+Fn(&Output<S>)->Out {
+impl<F1,F,Out> Map<F1,F>
+where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
     /// Constructor.
-    pub fn new(label:Label, s:&S, function:F) -> Self {
-        let flow     = s.clone_ref();
+    pub fn new(label:Label, f1:&F1, function:F) -> Self {
+        let flow       = f1.clone_ref();
         let definition = MapData {flow,function};
-        Self::construct_and_connect(label,s,definition)
+        Self::construct_and_connect(label,f1,definition)
     }
 }
 
-impl<S,F,Out> EventConsumer<Output<S>> for NodeData<MapData<S,F>>
-where S:AnyFlow, Out:Value, F:'static+Fn(&Output<S>)->Out {
-    fn on_event(&self, value:&Output<S>) {
+impl<F1,F,Out> EventConsumer<Output<F1>> for NodeData<MapData<F1,F>>
+where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
+    fn on_event(&self, value:&Output<F1>) {
         let out = (self.definition.function)(value);
         self.emit(out);
     }
 }
 
-impl<S,F> Debug for MapData<S,F> {
+impl<F1,F> Debug for MapData<F1,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"MapData")
     }
@@ -1018,6 +1154,13 @@ where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->
 impl<F1,F2,F> Debug for Map2Data<F1,F2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map2Data")
+    }
+}
+
+impl<F1,F2,F> InputBehaviors for Map2Data<F1,F2,F>
+    where F1:AnyFlow, F2:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.flow2)]
     }
 }
 
@@ -1072,6 +1215,13 @@ impl<F1,F2,F3,F> Debug for Map3Data<F1,F2,F3,F> {
     }
 }
 
+impl<F1,F2,F3,F> InputBehaviors for Map3Data<F1,F2,F3,F>
+    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.flow2), Link::behavior(&self.flow3)]
+    }
+}
+
 
 
 // ============
@@ -1116,6 +1266,13 @@ impl<F1,F2,F3,F4,F,Out> EventConsumer<Output<F1>> for NodeData<Map4Data<F1,F2,F3
         let value4 = self.definition.flow4.value();
         let out    = (self.definition.function)(&value1,&value2,&value3,&value4);
         self.emit(out);
+    }
+}
+
+impl<F1,F2,F3,F4,F> InputBehaviors for Map4Data<F1,F2,F3,F4,F>
+where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.flow2), Link::behavior(&self.flow3), Link::behavior(&self.flow4)]
     }
 }
 
@@ -1305,9 +1462,14 @@ pub struct WeakNetwork {
     data : Weak<NetworkData>
 }
 
-#[derive(Debug)]
+pub trait Anyyy : HasId + HasLabel + HasTypeLabel {}
+impl<T> Anyyy for T where T : HasId + HasLabel + HasTypeLabel {}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct NetworkData {
-    nodes : RefCell<Vec<Box<dyn Any>>>,
+    #[derivative(Debug="ignore")]
+    nodes : RefCell<Vec<Box<dyn Anyyy>>>,
     links : RefCell<HashMap<Id,Link>>,
 }
 
@@ -1378,17 +1540,28 @@ impl Network {
         flow
     }
 
-    pub fn register2<Def:NodeDefinition>(&self, node:Node<Def>, links:Vec<Link>) -> Flow<Output<Def>> {
-        let flow : Flow<Output<Def>> = node.clone_ref().into();
-        let node = Box::new(node);
-        self.data.nodes.borrow_mut().push(node);
-        let target = flow.id();
-        links.into_iter().for_each(|link| self.register_link(target,link));
-        flow
-    }
+    // TODO to nie dziala. mozna zrobic merge a potem metodami dokladac rzeczy. To musi byc wbudowane w nody
+    // TODO moznaby zrobic referencje do obecnego grafu w nodach ...
+//    pub fn register2<Def:NodeDefinition>(&self, node:Node<Def>, links:Vec<Link>) -> Flow<Output<Def>> {
+//        let flow : Flow<Output<Def>> = node.clone_ref().into();
+//        let node = Box::new(node);
+//        self.data.nodes.borrow_mut().push(node);
+//        let target = flow.id();
+//        links.into_iter().for_each(|link| self.register_link(target,link));
+//        flow
+//    }
 
     pub fn register_link(&self, target:Id, link:Link) {
         self.data.links.borrow_mut().insert(target,link);
+    }
+
+    pub fn draw(&self) {
+        let mut viz = debug::Graphviz::default();
+        self.data.nodes.borrow().iter().for_each(|node| {
+            viz.add_node(node.id().into(),node.type_label(),node.label());
+            println!(">>> {:?}",node.id())
+        });
+        debug::display_graphviz(viz);
     }
 }
 
@@ -1462,7 +1635,7 @@ impl Network {
     /// Please note that this function does output a more specific type than just `Flow<T>`. It is
     /// left on purpose so you could use the `add` method to build recursive data-flow networks.
     pub fn merge_<T:Value>(&self, label:Label) -> WeakMerge<T> {
-        self.register_raw(Merge::new(label,))
+        self.register_raw(Merge::new(label))
     }}
 
     docs_for_merge! {
@@ -1619,6 +1792,8 @@ pub fn test() {
     m.emit(&0);
     m.emit(&0);
     m.emit(&0);
+
+    network.draw();
 }
 
 
