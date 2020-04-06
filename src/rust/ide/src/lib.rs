@@ -43,6 +43,7 @@ pub mod prelude {
     pub use futures::task::LocalSpawnExt;
 
     pub use utils::fail::FallibleResult;
+    pub use utils::option::OptionExt;
     pub use utils::vec::VecExt;
 }
 

@@ -935,6 +935,42 @@ where T:HasLength {
 }
 
 
+
+
+#[derive(Debug,Clone)]
+struct Traverser<F> {
+    index    : usize,
+    callback : F,
+}
+
+impl<F> Traverser<F> {
+    pub fn new(callback:F) -> Traverser<F> {
+        let offset = 0;
+        Traverser { index: offset,callback}
+    }
+}
+
+impl<F> TokenConsumer for Traverser<F>
+where F:FnMut(Index,&Ast) {
+    fn feed(&mut self, token:Token) {
+        match token {
+            Token::Off(val) => self.index += val,
+            Token::Chr( _ ) => self.index += 1,
+            Token::Str(val) => self.index += val.len(),
+            Token::Ast(val) => {
+                (self.callback)(Index::new(self.index), val);
+                val.shape().feed_to(self);
+            }
+        }
+    }
+}
+
+pub fn traverse_with_index(ast:impl HasTokens, f:impl FnMut(Index, &Ast)) {
+    let mut traverser = Traverser::new(f);
+    ast.feed_to(&mut traverser);
+}
+
+
 // === WithLength ===
 
 /// Stores a value of type `T` and information about its length.

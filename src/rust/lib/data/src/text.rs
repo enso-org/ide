@@ -20,7 +20,7 @@ use serde::Deserialize;
 
 /// Strongly typed index into container.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Index { pub value:usize }
 
 impl Index {
@@ -35,7 +35,7 @@ impl Index {
 
 /// Strongly typed size of container.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Size { pub value:usize }
 
 impl Size {
@@ -76,7 +76,7 @@ impl SubAssign for Size {
 
 /// Strongly typed span into container with index and size.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Span { pub index:Index, pub size:Size }
 
 impl Span {
