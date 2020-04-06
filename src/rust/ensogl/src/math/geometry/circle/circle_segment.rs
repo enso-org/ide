@@ -26,9 +26,8 @@ where T: Field<T>
          + Clone
          + Debug {
 
-    /// Constructor.
-    /// Angle is required to be in radians.
-    pub fn new(radius: T, angle: T) -> Self {
+    /// Constructor. Angle is required to be in radians.
+    pub fn new(radius:T, angle:T) -> Self {
         CircleSegment{radius,angle}
     }
 
