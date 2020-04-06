@@ -1,15 +1,18 @@
 
 use crate::prelude::*;
 
-use data::text::Index;
-use data::text::Size;
 use data::text::Span;
 
+use regex::Captures;
 use regex::Match;
 use regex::Regex;
 use regex::Replacer;
-use regex::Captures;
-use std::ops::Range;
+
+
+
+// ============
+// === Case ===
+// ============
 
 /// Test case for testing identifier resolution for nodes.
 #[derive(Clone,Debug,Default)]
@@ -23,11 +26,13 @@ pub struct Case {
 }
 
 impl Case {
+    /// Constructs a test case using a markdown. Input should be text representation of the node's
+    /// AST in which all identifiers introduced into the graph's scope are marked like `«foo»`, and
+    /// all identifiers used from graph's scope are marked like `»sum«`.
     pub fn from_markdown(marked_code:impl Str) -> Case {
-        // https://regex101.com/r/pboF8O/
+        // Regexp that matches either «sth» or »sth« into a group names `introduced` or `used`,
+        // respectively. See: https://regex101.com/r/pboF8O/2 for detailed explanation.
         let regexp = Regex::new(r"«(?P<introduced>[^»]*)»|»(?P<used>[^«]*)«").unwrap();
-
-
         let mut replacer = MarkdownReplacer::default();
         let code         = regexp.replace_all(marked_code.as_ref(), replacer.by_ref()).into();
         Case {
@@ -44,22 +49,29 @@ impl Case {
     }
 }
 
+
+
+// ========================
+// === MarkdownReplacer ===
+// ========================
+
+enum Kind { Introduced, Used }
+
 #[derive(Debug,Default)]
 struct MarkdownReplacer {
-    markdown_consumed : usize,
-    introduced        : Vec<Span>,
-    used              : Vec<Span>,
+    markdown_bytes_consumed : usize,
+    introduced              : Vec<Span>,
+    used                    : Vec<Span>,
 }
 impl MarkdownReplacer {
     fn to_output_index(&self, i:usize) -> usize {
-        assert!(self.markdown_consumed <= i);
-        i - self.markdown_consumed
+        assert!(self.markdown_bytes_consumed <= i);
+        i - self.markdown_bytes_consumed
     }
     fn consume_marker(&mut self) {
-        self.markdown_consumed += '«'.len_utf8();
+        self.markdown_bytes_consumed += '«'.len_utf8();
     }
     fn consume_marked(&mut self, capture:&Match) -> Span {
-        println!("Consuming marked: {:?}\nState: {:?}", capture,self);
         self.consume_marker();
         let start = self.to_output_index(capture.start());
         let end   = self.to_output_index(capture.end());
@@ -67,18 +79,24 @@ impl MarkdownReplacer {
         (start .. end).into()
     }
 }
+
 impl Replacer for MarkdownReplacer {
     fn replace_append(&mut self, captures: &Captures, dst: &mut String) {
-        println!("Replacing match: {:?}", captures);
-        if let Some(introduced) = captures.name("introduced") {
-            let span = self.consume_marked(&introduced);
-            self.introduced.push(span)
+        let (kind,matched) = if let Some(introduced) = captures.name("introduced") {
+            (Kind::Introduced,introduced)
         } else if let Some(used) = captures.name("used") {
-            let span = self.consume_marked(&used);
-            self.used.push(span)
+            (Kind::Used,used)
         } else {
             panic!("Unexpected capture: expected named `introduced` or `used`.")
-        }
+        };
+
+        let span    = self.consume_marked(&matched);
+        let out_vec = match kind {
+            Kind::Introduced => &mut self.introduced,
+            Kind::Used       => &mut self.used,
+        };
+        out_vec.push(span);
+        dst.push_str(matched.as_str());
     }
 }
 
@@ -88,12 +106,16 @@ impl Replacer for MarkdownReplacer {
 mod tests {
     use super::*;
 
-
     # [test]
-    fn aaaa() {
+    fn parsing_markdown_to_test_case() {
         let code = "«sum» = »a« + »b«";
         let case = Case::from_markdown(code);
-        println!("{:?}",case);
+        assert_eq!(case.code, "sum = a + b");
+        assert_eq!(case.introduced.len(), 1);
+        assert_eq!(case.introduced[0], 0..3); // sum
 
+        assert_eq!(case.used.len(), 2);
+        assert_eq!(case.used[0], 6..7); // a
+        assert_eq!(case.used[1], 10..11); // b
     }
 }

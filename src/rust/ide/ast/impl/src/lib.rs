@@ -938,19 +938,19 @@ where T:HasLength {
 
 
 #[derive(Debug,Clone)]
-struct Traverser<F> {
+struct TraverserWithIndex<F> {
     index    : usize,
     callback : F,
 }
 
-impl<F> Traverser<F> {
-    pub fn new(callback:F) -> Traverser<F> {
+impl<F> TraverserWithIndex<F> {
+    pub fn new(callback:F) -> TraverserWithIndex<F> {
         let offset = 0;
-        Traverser { index: offset,callback}
+        TraverserWithIndex { index: offset,callback}
     }
 }
 
-impl<F> TokenConsumer for Traverser<F>
+impl<F> TokenConsumer for TraverserWithIndex<F>
 where F:FnMut(Index,&Ast) {
     fn feed(&mut self, token:Token) {
         match token {
@@ -965,11 +965,16 @@ where F:FnMut(Index,&Ast) {
     }
 }
 
-pub fn traverse_with_index(ast:impl HasTokens, f:impl FnMut(Index, &Ast)) {
-    let mut traverser = Traverser::new(f);
+pub fn traverse_with_index(ast:&impl HasTokens, f:impl FnMut(Index, &Ast)) {
+    let mut traverser = TraverserWithIndex::new(f);
     ast.feed_to(&mut traverser);
 }
 
+pub fn traverse_with_span(ast:&impl HasTokens, mut f:impl FnMut(Span, &Ast)) {
+    traverse_with_index(ast, move |index, ast| {
+        f(Span::new(index, data::text::Size::new(ast.len())),ast)
+    })
+}
 
 // === WithLength ===
 
