@@ -1,37 +1,29 @@
-//! This module defines the shapes required for drawing node ports.
+//! This module defines the shapes and logic required for drawing node ports.
 
-use crate::prelude::*;
-use ensogl::prelude::*;
+use crate::component::node::WeakNode;
 
-use core::f32::consts::PI;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
-use ensogl::display::object::Node;
 use ensogl::display::object::Object;
+use ensogl::display::object::Node;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
-use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
-use ensogl::display::shape::primitive::def::modifier::immutable::*;
-use ensogl::display::shape::primitive::def::primitive::*;
-use ensogl::display::shape::primitive::system::ShapeSystem;
 use ensogl::display::symbol::geometry::Sprite;
-use ensogl::display::world::World;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::circle_segment::CircleSegment;
 use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Distance;
-use ensogl::math::topology::unit::PixelDistance;
 use ensogl::math::topology::unit::Pixels;
-use ensogl::math::topology::unit::{Angle, Degrees};
+use ensogl::math::topology::unit::{Angle,Degrees};
 use ensogl::prelude::*;
 use nalgebra as na;
-use crate::component::node::WeakNode;
+
 
 
 // ===========================
@@ -86,7 +78,7 @@ mod shape_in{
     fn new_port_inwards(spec:SpecificationVar) -> AnyShape {
         let outer_radius     : Var<f32> = (spec.inner_radius + spec.height.clone()).into();
         let segment_width_rad: Var<f32> = spec.width.clone().into();
-        let segment_radius   : Var<f32> = outer_radius.clone().into();
+        let segment_radius   : Var<f32> = outer_radius.clone();
         let segment : CircleSegment<Var<f32>> = CircleSegment::new(segment_radius,segment_width_rad);
 
         // Create the triangle (pointing up)
@@ -104,23 +96,21 @@ mod shape_in{
         // let section = section.translate_y(tri_offset);
 
         let circle_radius: Var<Distance<Pixels>> = outer_radius.clone().into();
-        let circle_outer    = Circle((circle_radius));
+        let circle_outer    = Circle(circle_radius);
 
         let circle_offset_y: Var<Distance<Pixels>> = (&tri_height - &outer_radius).into();
-        let circle_outer    = circle_outer.translate_y((circle_offset_y));
+        let circle_outer    = circle_outer.translate_y(circle_offset_y);
 
         let triangle_rounded = Intersection(triangle,circle_outer);
         let triangle_rounded = triangle_rounded.fill(Srgb::new(0.26, 0.69, 0.99));
 
         // Center triangle
-        // FIXME this messes with the positioning of the triangle relative to the inner radius.
         let center_offset: Var<Distance<Pixels>> = ((&tri_height + segment.sagitta()) * Var::from(0.5)).into();
         let triangle_rounded = triangle_rounded.translate_y(-center_offset);
 
         triangle_rounded.into()
     }
 
-    /// Inwards facing port shape definition.
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32) {
             // TODO[mm] take spec or spec values as `Var<_>` parameters
@@ -143,7 +133,7 @@ mod shape_out{
         let height       : Var<f32> = spec.height.clone().into();
 
         let segment_width_rad: Var<f32>       = spec.width.clone().into();
-        let segment_radius   : Var<f32>       = inner_radius.clone().into();
+        let segment_radius   : Var<f32>       = inner_radius.clone();
         let segment : CircleSegment<Var<f32>> = CircleSegment::new(segment_radius,segment_width_rad);
 
         let tri_base             = segment.sagitta();
@@ -171,14 +161,12 @@ mod shape_out{
         let triangle_rounded = triangle_rounded.translate_y(tri_offset);
 
         // Center triangle
-        // FIXME this messes with the positioning of the triangle relative to the inner radius.
-        let center_offset: Var<Distance<Pixels>> = ((&tri_height) * Var::from(0.5)).into();
+        let center_offset: Var<Distance<Pixels>> = (&tri_height * Var::from(0.5)).into();
         let triangle_rounded = triangle_rounded.translate_y(-center_offset);
 
         triangle_rounded.into()
     }
 
-    /// Outwards facing port shape definition.
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32) {
             // TODO[mm] take spec or spec values as `Var<_>` parameters
@@ -198,24 +186,18 @@ mod shape_out{
 // =================
 
 // TODO[mm] remove and use values derived from node instead
-const DEFAULT_WIDTH  : f32 = 25.0 * (PI / 180.0);
-const DEFAULT_RADIUS : f32 = 75.0;
 const DEFAULT_HEIGHT : f32 = 30.0;
 
 
-/// TODO consider unifying the ShapeViews.
+// TODO consider unifying the ShapeViews.
 /// Shape view for Input Port.
 #[derive(Debug,Clone,Copy)]
 pub struct InputPortView {}
-impl component::ShapeViewDefinition for InputPortView {
+impl ShapeViewDefinition for InputPortView {
     type Shape = shape_in::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.width.set(DEFAULT_WIDTH);
-        shape.inner_radius.set(DEFAULT_RADIUS);
-        shape.height.set(DEFAULT_HEIGHT);
-
         // FIXME This is an approximation and needs to be computed exactly to avoid clipping in edge cases.
-        let bbox = Vector2::new(1.5 * shape.height.get(),1.5 * shape.height.get());
+        let bbox = Vector2::new(1.5 * DEFAULT_HEIGHT,1.5 * DEFAULT_HEIGHT);
         shape.sprite.size().set(bbox);
         Self {}
     }
@@ -224,13 +206,9 @@ impl component::ShapeViewDefinition for InputPortView {
 /// Shape view for Output Port.
 #[derive(Debug,Clone,Copy)]
 pub struct OutputPortView {}
-impl component::ShapeViewDefinition for OutputPortView {
+impl ShapeViewDefinition for OutputPortView {
     type Shape = shape_out::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.width.set(DEFAULT_WIDTH);
-        shape.inner_radius.set(DEFAULT_RADIUS);
-        shape.height.set(DEFAULT_HEIGHT);
-
         // FIXME This is an approximation and needs to be computed exactly to avoid clipping in edge cases.
         let bbox = Vector2::new(1.5 * DEFAULT_HEIGHT,1.5 * DEFAULT_HEIGHT);
         shape.sprite.size().set(bbox);
@@ -241,6 +219,7 @@ impl component::ShapeViewDefinition for OutputPortView {
 /// Port definition. Can be parametrised to be either
 /// an InputPort or OutputPort.
 #[derive(Debug,Clone)]
+#[allow(missing_docs)]
 pub struct Port<T:ShapeViewDefinition> {
         spec     : Specification,
     pub view     : Rc<component::ShapeView<T>>
@@ -248,14 +227,14 @@ pub struct Port<T:ShapeViewDefinition> {
 
 impl<T:ShapeViewDefinition> Port<T> {
 
-    pub fn new(spec:Specification) -> Self{
+    /// Constructor.
+    pub fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::<T>::new(&logger));
         Self{spec,view}.init()
     }
 
     fn init(mut self) -> Self {
-        println!("INIT");
         self.update();
         self
     }
@@ -275,10 +254,10 @@ impl<T:ShapeViewDefinition> Port<T> {
     /// Update the position of the sprite according to the Port specification.
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
-    fn update_sprite(&mut self){
+    fn update_sprite(&mut self) {
         let translation_vector = na::Vector3::new(0.0,self.spec.inner_radius,0.0);
         let rotation_vector = -na::Vector3::new(0.0,0.0,self.spec.location.rad().value);
-        let rotation = na::Rotation3::new(rotation_vector.clone());
+        let rotation = na::Rotation3::new(rotation_vector);
         let translation = rotation * translation_vector;
 
         let node = &self.view.display_object;
@@ -295,13 +274,13 @@ pub type InputPort = Port<InputPortView>;
 pub type OutputPort = Port<OutputPortView>;
 
 
-impl<'t, T:ShapeViewDefinition> From<&'t Port<T>> for &'t display::object::Node {
+impl<'t, T:ShapeViewDefinition> From<&'t Port<T>> for &'t Node {
     fn from(t:&'t Port<T>) -> Self {
         &t.view.display_object
     }
 }
 
-impl<T:ShapeViewDefinition> Drop for Port<T>{
+impl<T:ShapeViewDefinition> Drop for Port<T> {
     fn drop(&mut self) {
         println!("DROP")
     }
@@ -331,21 +310,21 @@ impl PortManager{
         self.parent.set(parent);
     }
 
-    fn add_child_to_parent<T:Object>(&self, child:&T){
-        self.parent.borrow().as_ref().map(|weak_node| {
-            weak_node.upgrade().map(|node| {
+    fn add_child_to_parent<T:Object>(&self, child:&T) {
+        if let Some(weak_node) = self.parent.borrow().as_ref() {
+            if let Some(node) = weak_node.upgrade() {
                 node.add_child(child);
-            });
-        });
+            }
+        }
     }
 
     /// Create a new InpuTtPort.
     pub fn create_input_port(&self) {
-        /// TODO layouting for multiple nodes
+        // TODO layouting for multiple nodes
         let node_radius = 68.0 ;
         let port_height = 30.0;
 
-        let port_spec = Specification{
+        let port_spec = Specification {
             height       : port_height,
             width        : Angle::from(25.0),
             inner_radius : node_radius,
@@ -361,11 +340,11 @@ impl PortManager{
 
     /// Create a new OutputPort.
     pub fn create_output_port(&self) {
-        /// TODO layouting for multiple nodes
+        // TODO layouting for multiple nodes
         let node_radius = 68.0 ;
         let port_height = 30.0;
 
-        let port_spec = Specification{
+        let port_spec = Specification {
             height       : port_height,
             width        : Angle::from(25.0),
             inner_radius : node_radius,
@@ -382,7 +361,7 @@ impl PortManager{
     /// Update the shapes of all ports.
     fn update_ports(& self) {
         for port in self.input_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.view.data.borrow().as_ref(){
+            if let Some(t) = port.view.data.borrow().as_ref() {
                     t.shape.width.set(port.spec.width.value.to_radians());
                     t.shape.inner_radius.set(port.spec.inner_radius);
                     t.shape.height.set(port.spec.height);
@@ -390,7 +369,7 @@ impl PortManager{
             port.update()
         }
         for port in self.output_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.view.data.borrow().as_ref(){
+            if let Some(t) = port.view.data.borrow().as_ref() {
                 t.shape.width.set(port.spec.width.value.to_radians());
                 t.shape.inner_radius.set(port.spec.inner_radius);
                 t.shape.height.set(port.spec.height);

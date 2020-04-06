@@ -272,7 +272,7 @@ impl AngleOps for i32 {
 
 impl AngleOps for Angle<Degrees> {
     fn degrees(&self) -> Angle<Degrees> {
-        self.clone()
+        *self
     }
 
     fn radians(&self) -> Angle<Radians> {
@@ -281,10 +281,12 @@ impl AngleOps for Angle<Degrees> {
 }
 
 impl AngleOps for Angle<Radians> {
-    fn degrees(&self) -> Angle<Degrees> { Angle::new(self.value.to_degrees()) }
+    fn degrees(&self) -> Angle<Degrees> {
+        Angle::new(self.value.to_degrees())
+    }
 
     fn radians(&self) -> Angle<Radians> {
-        self.clone()
+        *self
     }
 }
 

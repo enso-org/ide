@@ -1,8 +1,8 @@
 //! Root module for math-related utilities.
 
 pub mod algebra;
-pub mod topology;
 pub mod geometry;
+pub mod topology;
 
 pub use algebra::*;
 

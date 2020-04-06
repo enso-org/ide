@@ -1,22 +1,24 @@
 //! Definition of the Node component.
+
 pub mod port;
 
 use crate::prelude::*;
 
-use ensogl::math::topology::unit::AngleOps;
-use ensogl::data::color::Srgba;
-use ensogl::display;
-use ensogl::display::traits::*;
-use ensogl::display::{Sprite, Attribute};
+use crate::component::node::port::PortManager;
+
 use enso_frp;
 use enso_frp as frp;
 use ensogl::display::Buffer;
 use ensogl::data::color::*;
-use ensogl::display::shape::*;
+use ensogl::data::color::Srgba;
+use ensogl::display::Buffer;
 use ensogl::display::scene::{Scene,ShapeRegistry};
+use ensogl::display::shape::*;
+use ensogl::display::traits::*;
+use ensogl::display::{Sprite, Attribute};
+use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use crate::component::node::port::{Port, InputPort, OutputPort, PortManager};
 
 /// Icons definitions.
 pub mod icons {
@@ -207,16 +209,13 @@ impl Node {
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
         }
-        let network = node_network;
-        let logger = Logger::new("node");
-        let view   = component::ShapeView::new(&logger);
-        let events = Events {network,select,deselect};
+        let network      = node_network;
+        let logger       = Logger::new("node");
+        let view         = component::ShapeView::new(&logger);
+        let events       = Events {network,select,deselect};
         let port_manager = PortManager::default() ;
-
-        let data   = Rc::new(NodeData {logger,label,events,view,port_manager});
-
-        let node = Self {data} . init();
-        node
+        let data         = Rc::new(NodeData {logger,label,events,view,port_manager});
+        Self {data} . init()
     }
 
     fn init(self) -> Self {
@@ -253,6 +252,7 @@ impl Node {
             });
         }
 
+        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
         self.data.port_manager.set_parent(self.downgrade());
         self.data.port_manager.create_input_port();
         self.data.port_manager.create_output_port();

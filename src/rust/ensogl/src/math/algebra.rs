@@ -172,10 +172,12 @@ impl Normalize for f32 {
 // === Square root ===
 // ===================
 
-/// Types from which a cosine can be calculated.
+/// Types from which a square root can be calculated.
 pub trait Sqrt {
+    /// The output type of the computation.
     type Output;
 
+    /// Compute the square root of the given number.
     fn sqrt(&self) -> Self::Output;
 }
 
@@ -197,8 +199,10 @@ impl Sqrt for f32 {
 
 /// Types from which a cosine can be calculated.
 pub trait Cos {
+    /// The output type of the computation.
     type Output;
 
+    /// Compute the cosine of the given number.
     fn cos(&self) -> Self;
 }
 
@@ -221,8 +225,10 @@ impl Cos for f32 {
 
 /// Types from which a sine can be calculated
 pub trait Sin {
+    /// The output type of the computation.
     type Output;
 
+    /// Compute the sine of the given number.
     fn sin(&self) -> Self::Output;
 }
 
@@ -294,9 +300,11 @@ impl Into<Vector3<f32>> for Point3 {
 
 
 
-// ===============================
+// ============================
 // === Algebraic Structures ===
-// ===============================
+// ============================
 // TODO evaluate for correctness and usefulness.
 
+/// Trait that describes a set of numbers that define addition, subtraction, multiplication,
+/// and division.
 pub trait Field<T> = Add<T,Output=T> + Sub<T,Output=T> + Mul<T,Output=T> + Div<T,Output=T>;
