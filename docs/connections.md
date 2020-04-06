@@ -202,7 +202,7 @@ Example:
 «foo» = 5 # error, symbol defined twice in the same scope
 ```
 
-The excpetion to this rule are function overloads, described in a separate
+The exception to this rule are function overloads, described in a separate
 section later.
 
 ### Non-trivial cases overview
@@ -216,7 +216,7 @@ is described in a greater detail below, here are just a few quick examples.
 «foo» a b = a + b
 ```
 
-Only the "base" name (of the prefix application chain) is introuced. Arguments
+Only the "base" name (of the prefix application chain) is introduced. Arguments
 are visible in the body scope. Therefore, `a` and `b` in the body scope refer to
 the function arguments and not to variables from the parent scope.
 
@@ -316,7 +316,7 @@ assignment is `variable_name = value`.
 
 ### Extensions methods
 If the application target uses accessor operator `.`, e.g. `Int.add`, the last
-segment of target is the introduced indentifier and the previous segments are
+segment of target is the introduced identifier and the previous segments are
 used to type the implicit `this` parameter. 
 
 For example:
@@ -354,7 +354,7 @@ the same, an error will be raised.
 
 ### Root scope assignments
 
-Any binding in the rootscope gets an implicit `this` parameter that describes a
+Any binding in the root scope gets an implicit `this` parameter that describes a
 module. Example:
 ```
 main = print "Hello"
@@ -369,8 +369,8 @@ appeared in any non-root code block.
 argument (lambdas are always unary) and the right-hand side is its body.
 Right-hand side, i.e. the lambda body, introduces its own scope.
 
-The `->`'s pattern introduces identifiers only into the scope of the right-hand
-side — if the lambda is not introduced in what is already a pattern context.
+If the lambda is *not* introduced in what is already a pattern context, the `->`'s pattern introduces identifiers into the scope of the right-hand
+side.
 
 Example:
 ```
@@ -467,7 +467,7 @@ The `type` in this expression is pattern context and can be used to constrain
 the type variables. It is legal to assign constraints on an identifier using `:`
 multiple times in any of the scopes where identifier is visible.
 
-Signatures are just type ascriptions that happen to preceed the assignments.
+Signatures are just type ascriptions that happen to precede the assignments.
 They have no special rules currently defined. This area needs further design
 work.
 
@@ -518,7 +518,7 @@ IDE can assume that all extension methods will be introduced using the
 `Type.name` syntax sugar.
 
 // TODO what if non-first argument is named `this` ? Is the magic happening only
-for this particuar name? Is it sensitive for its position in the arguments list?
+for this particular name? Is it sensitive for its position in the arguments list?
 // TODO What happens if the `this`-taking function in defined in the root scope
 where already `this` is implicitly provided? What about taking `this` in a
 method defined using the sugared syntax? (e.g. `Int.print this:Int = ...`)
@@ -546,7 +546,7 @@ similarly describes position in node's expression body where the identifier is u
 Later, higher layers will GUI shall merge this information with the "span tree"
 describing the structure of the node's pattern and body. The low level
 "double-representation" deals only with AST and is not concerned with view-level
-datastructures like expresion span-stree.
+data structures like expression span-tree.
 
 
 ## Discovery rules
