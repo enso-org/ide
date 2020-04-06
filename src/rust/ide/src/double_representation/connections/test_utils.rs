@@ -5,91 +5,80 @@ use data::text::Index;
 use data::text::Size;
 use data::text::Span;
 
-#[derive(Clone,Debug,PartialEq,Eq)]
-struct Markable {
-    opener : char,
-    closer : char,
-}
+use regex::Match;
+use regex::Regex;
+use regex::Replacer;
+use regex::Captures;
+use std::ops::Range;
 
-const INTRODUCED : Markable     = Markable {opener:'«',  closer:'»'};
-const USED       : Markable     = Markable {opener:'»',  closer:'«'};
-
+/// Test case for testing identifier resolution for nodes.
 #[derive(Clone,Debug,Default)]
 pub struct Case {
-    pub introduced : Vec<Span>,
-    pub used       : Vec<Span>,
+    /// The code: the text of the block line that is considered to be a node of a graph.
     pub code       : String,
-}
-
-#[derive(Clone,Debug,Default)]
-struct MarkdownParser {
-    result  : Case,
-    current : Option<OngoingMatch>,
-    index   : usize,
-}
-
-impl MarkdownParser {
-    fn new() -> MarkdownParser {
-        default()
-    }
-
-    fn is_in(&self, markable:Markable) -> bool {
-        self.current.contains_if(|current_match| current_match.markable == markable)
-    }
-
-    fn open(&mut self, markable:Markable) {
-        self.current = Some(OngoingMatch::new(self.index, markable))
-    }
-
-    fn close(&mut self) {
-        if let Some(current_match) = self.current.take() {
-            let span = Span::from_indices(Index::new(current_match.begin), Index::new(self.index));
-            match current_match.markable {
-                INTRODUCED => self.result.introduced.push(span),
-                USED       => self.result.used.push(span),
-                _          => {}
-            }
-        }
-    }
-
-    fn parse(&mut self, input:impl Str) {
-        for c in input.as_ref().chars() {
-            let unopened = self.current.is_none();
-            if      unopened && c == INTRODUCED.opener { self.open(INTRODUCED) }
-            else if unopened && c == USED.opener       { self.open(USED)       }
-            else if self.is_in(INTRODUCED) && c == INTRODUCED.closer { self.close() }
-            else if self.is_in(USED)       && c == USED.closer       { self.close() }
-            else {
-                self.result.code.push(c);
-                self.index += 1;
-            }
-        }
-    }
+    /// List of spans in the code where the identifiers are introduced into the graph's scope.
+    pub introduced : Vec<Span>,
+    /// List of spans in the code where the identifiers from the graph's scope are used.
+    pub used       : Vec<Span>,
 }
 
 impl Case {
-    pub fn parse(code:impl Str) -> Case {
-        let mut parser = MarkdownParser::new();
-        parser.parse(code);
-        parser.result
+    pub fn from_markdown(marked_code:impl Str) -> Case {
+        // https://regex101.com/r/pboF8O/
+        let regexp = Regex::new(r"«(?P<introduced>[^»]*)»|»(?P<used>[^«]*)«").unwrap();
+
+
+        let mut replacer = MarkdownReplacer::default();
+        let code         = regexp.replace_all(marked_code.as_ref(), replacer.by_ref()).into();
+        Case {
+            code,
+            introduced : replacer.introduced,
+            used       : replacer.used,
+        }
     }
 
-    fn used_names(&self) -> Vec<String> {
+    pub fn used_names(&self) -> Vec<String> {
         self.used.iter().map(|span| {
             self.code[span.index.value .. span.end().value].into()
         }).collect()
     }
 }
 
-#[derive(Clone,Debug)]
-struct OngoingMatch {
-    begin    : usize,
-    markable : Markable,
+#[derive(Debug,Default)]
+struct MarkdownReplacer {
+    markdown_consumed : usize,
+    introduced        : Vec<Span>,
+    used              : Vec<Span>,
 }
-
-impl OngoingMatch {
-    pub fn new(begin:usize, markable:Markable) -> OngoingMatch {
-        OngoingMatch {begin,markable}
+impl MarkdownReplacer {
+    fn to_output_index(&self, i:usize) -> usize {
+        assert!(self.markdown_consumed <= i);
+        i - self.markdown_consumed
+    }
+    fn consume_marker(&mut self) {
+        self.markdown_consumed += '«'.len_utf8();
+    }
+    fn consume_marked(&mut self, capture:&Match) -> Span {
+        println!("Consuming marked: {:?}\nState: {:?}", capture,self);
+        self.consume_marker();
+        let start = self.to_output_index(capture.start());
+        let end   = self.to_output_index(capture.end());
+        self.consume_marker();
+        (start .. end).into()
+    }
+}
+impl Replacer for MarkdownReplacer {
+    fn replace_append(&mut self, captures: &Captures, dst: &mut String) {
+        println!("Replacing match: {:?}", captures);
+        if let Some(introduced) = captures.name("introduced") {
+            let span = self.consume_marked(&introduced);
+            self.introduced.push(span)
+        } else if let Some(used) = captures.name("used") {
+            let span = self.consume_marked(&used);
+            self.used.push(span)
+        } else {
+            panic!("Unexpected capture: expected named `introduced` or `used`.")
+        }
     }
 }
 
@@ -99,58 +88,12 @@ impl OngoingMatch {
 mod tests {
     use super::*;
 
-    use regex::Match;
-    use regex::Regex;
-    use regex::Replacer;
-    use regex::Captures;
-    use std::ops::Range;
-
-    #[derive(Default)]
-    struct MarkdownReplacer {
-        markdown_consumed : usize,
-        introduced        : Vec<Range<usize>>,
-        used              : Vec<Range<usize>>,
-    }
-    impl MarkdownReplacer {
-        fn to_output_index(&self, i:usize) -> usize {
-            assert!(self.markdown_consumed < i);
-            i - self.markdown_consumed
-        }
-        fn consume_marker(&mut self) {
-            self.markdown_consumed += '«'.len_utf8();
-        }
-        fn consume_marked(&mut self, capture:&Match) -> Range<usize> {
-            self.consume_marker();
-            let start = self.to_output_index(capture.start());
-            let end   = self.to_output_index(capture.end());
-            self.consume_marker();
-            start .. end
-        }
-    }
-    impl Replacer for MarkdownReplacer {
-        fn replace_append(&mut self, caps: &Captures, dst: &mut String) {
-            if let Some(introduced) = caps.name("introduced") {
-                let span = self.consume_marked(&introduced);
-                self.introduced.push(span)
-            } else if let Some(used) = caps.name("used") {
-                let span = self.consume_marked(&used);
-                self.used.push(span)
-            } else {
-                panic!("Unexpected capture: expected named `introduced` or `used`.")
-            }
-        }
-    }
 
     # [test]
     fn aaaa() {
-        // https://regex101.com/r/pboF8O/
-        let regexp = r"«(?P<introduced>[^»]*)»|»(?P<used>[^«]*)«";
-
-        let aa = Regex::new(regexp).unwrap();
         let code = "«sum» = »a« + »b«";
-
-        let out = aa.replace_all(code, MarkdownReplacer::default());
-        println!("{}",out);
+        let case = Case::from_markdown(code);
+        println!("{:?}",case);
 
     }
 }

@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::double_representation::node::NodeInfo;
 use ast::crumbs::{Crumbs, PrefixCrumb};
 
+#[cfg(test)]
 pub mod test_utils;
 
 #[derive(Clone,Debug)]
@@ -71,7 +72,7 @@ mod tests {
     #[test]
     fn fgfdg() {
         let code = "«sum» = »a« + »b«";
-        let res  = Case::parse(code);
+        let res  = Case::from_markdown(code);
         let ast  = parser::Parser::new_or_panic().parse(res.code,default()).unwrap();
         ast::traverse_with_index(ast, |index,ast| {
             println!("At {} AST is {}\n\n", index.value, ast.repr());

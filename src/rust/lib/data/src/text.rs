@@ -119,6 +119,18 @@ impl Span {
     }
 }
 
+impl From<Range<usize>> for Span {
+    fn from(range:Range<usize>) -> Self {
+        Span::from_indices(Index::new(range.start), Index::new(range.end))
+    }
+}
+
+impl From<&Range<usize>> for Span {
+    fn from(range:&Range<usize>) -> Self {
+        Span::from_indices(Index::new(range.start), Index::new(range.end))
+    }
+}
+
 
 // === Operators for Index and Size ===
 
