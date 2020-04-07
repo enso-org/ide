@@ -100,28 +100,30 @@ use ensogl_system_web as web;
 
 
 
-#[derive(Debug,Clone,CloneRef,Copy,Eq,From,Hash,Into,PartialEq)]
-pub struct Id {
-    raw : usize
+
+
+
+
+
+// =================
+// === TypeLabel ===
+// =================
+
+/// Label of the output type of this FRP node. Used mainly for debugging purposes.
+pub trait HasOutputTypeLabel {
+    /// Output type label of this object.
+    fn output_type_label(&self) -> String;
 }
 
-pub trait HasId {
-    fn id(&self) -> Id;
-}
-
-pub trait HasTypeLabel {
-    fn type_label(&self) -> String;
-}
 
 
-// =============
-// === Debug ===
-// =============
+// ======================
+// === InputBehaviors ===
+// ======================
 
 pub trait InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link>;
 }
-
 
 impl<T> InputBehaviors for T {
     default fn input_behaviors(&self) -> Vec<Link> {
@@ -133,23 +135,45 @@ impl<T> InputBehaviors for T {
 
 
 
+// ==========
+// === Id ===
+// ==========
+
+/// Identifier of FRP node. Used mainly for debug purposes.
+#[derive(Debug,Clone,CloneRef,Copy,Eq,From,Hash,Into,PartialEq)]
+pub struct Id {
+    raw : usize
+}
+
+/// Implementors of this trait has to be assigned with an unique Id. All FRP nodes implement it.
+#[allow(missing_docs)]
+pub trait HasId {
+    fn id(&self) -> Id;
+}
 
 
 
+// =============
+// === Label ===
+// =============
 
-
+/// FRP node label. USed mainly for debugging purposes.
 type Label = &'static str;
 
+/// Implementors of this trait has to be assigned with a label. Each FRP node implements it.
+#[allow(missing_docs)]
 pub trait HasLabel {
     fn label(&self) -> Label;
 }
 
 
-// =============
-// === Value ===
-// =============
 
-pub trait Value = 'static + Clone + Debug + Default;
+// ============
+// === Data ===
+// ============
+
+/// Data that flows trough the FRP network.
+pub trait Data = 'static + Clone + Debug + Default;
 
 
 
@@ -157,10 +181,13 @@ pub trait Value = 'static + Clone + Debug + Default;
 // === HasOutput ===
 // =================
 
+/// Implementors of this trait has to know their output type.
+#[allow(missing_docs)]
 pub trait HasOutput {
-    type Output : Value;
+    type Output : Data;
 }
 
+/// Accessor of the accosiated `Output` type.
 pub type Output<T> = <T as HasOutput>::Output;
 
 
@@ -169,8 +196,15 @@ pub type Output<T> = <T as HasOutput>::Output;
 // === EventEmitter ===
 // ====================
 
+/// Any type which can be used as FRP stream output.
+pub trait StreamOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
 
-pub trait AnyStream = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
+/// Implementors of this trait have to know how to emit events to subsequent nodes and how to
+/// register new event receivers.
+pub trait EventEmitter : HasOutput {
+    fn emit_event      (&self , value:&Self::Output);
+    fn register_target (&self , target:StreamInput<Output<Self>>);
+}
 
 impl<T:EventEmitter> EventEmitterPoly for T {}
 pub trait EventEmitterPoly : EventEmitter {
@@ -184,27 +218,71 @@ pub trait EventEmitterPoly : EventEmitter {
 }
 
 
-pub trait EventEmitter : HasOutput {
-    fn emit_event      (&self , value:&Self::Output);
-    fn register_target (&self , target:StreamInput<Output<Self>>);
-}
 
+// ======================
+// === Event Consumer ===
+// ======================
+
+/// Implementors of this trait have to know how to consume incoming events.
 pub trait EventConsumer<T> {
+    /// Callback for a new incoming event.
     fn on_event(&self, value:&T);
 }
 
+/// Implementors of this trait have to know how to consume incoming events. However, it is allowed
+/// for them not to consume an event if they were already dropped.
 pub trait WeakEventConsumer<T> {
-    /// Consumes the event and return true if existed. Returns false if it was already dropped.
+    /// Callback for a new incoming event. Returns true if the event was consumed or false if it was
+    /// not. Not consuming an event means that the event receiver was already dropped.
     fn on_event_if_exists(&self, value:&T) -> bool;
 }
 
 
+
+// =====================
+// === ValueProvider ===
+// =====================
+
+/// Implementors of this trait have to be able to return their current output value.
 pub trait ValueProvider : HasOutput {
+    /// The current output value of the FRP node.
     fn value(&self) -> Self::Output;
 }
 
-pub trait EventConsumerDebug<T> : EventConsumer<T> + Debug {}
-impl<X,T> EventConsumerDebug<T> for X where X : EventConsumer<T> + Debug {}
+
+
+
+// ===================
+// === StreamInput ===
+// ===================
+
+/// A generalization of any stream input which consumes events of the provided type. This is the
+/// slowest bit of the whole FRP network as it uses an trait object, however, we can refactor it
+/// in the future to an enum-based trait if needed.
+#[derive(Clone)]
+pub struct StreamInput<Input> {
+    data : Rc<dyn WeakEventConsumer<Input>>
+}
+
+impl<Def,Input> From<WeakStreamNode<Def>> for StreamInput<Input>
+where Def:NodeDefinition, StreamNode<Def>:EventConsumer<Input> {
+    fn from(node:WeakStreamNode<Def>) -> Self {
+        Self {data:Rc::new(node)}
+    }
+}
+
+impl<Def,Input> From<&WeakStreamNode<Def>> for StreamInput<Input>
+where Def:NodeDefinition, StreamNode<Def>:EventConsumer<Input> {
+    fn from(node:&WeakStreamNode<Def>) -> Self {
+        Self {data:Rc::new(node.clone_ref())}
+    }
+}
+
+impl<Input> Debug for StreamInput<Input> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"StreamInput")
+    }
+}
 
 
 
@@ -212,12 +290,14 @@ impl<X,T> EventConsumerDebug<T> for X where X : EventConsumer<T> + Debug {}
 // === StreamNodeData ===
 // ======================
 
+/// Internal structure of every stream FRP node.
 #[derive(Debug)]
 pub struct StreamNodeData<Out=()> {
     label       : Label,
     targets     : RefCell<Vec<StreamInput<Out>>>,
     value_cache : RefCell<Out>,
     during_call : Cell<bool>,
+    use_caching : Cell<bool>,
 }
 
 impl<Out:Default> StreamNodeData<Out> {
@@ -225,15 +305,16 @@ impl<Out:Default> StreamNodeData<Out> {
         let targets     = default();
         let value_cache = default();
         let during_call = default();
-        Self {label,targets,value_cache,during_call}
+        let use_caching = Cell::new(true);
+        Self {label,targets,value_cache,during_call,use_caching}
     }
 }
 
-impl<Out:Value> HasOutput for StreamNodeData<Out> {
+impl<Out:Data> HasOutput for StreamNodeData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> EventEmitter for StreamNodeData<Out> {
+impl<Out:Data> EventEmitter for StreamNodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if !self.during_call.get() {
             self.during_call.set(true);
@@ -248,7 +329,7 @@ impl<Out:Value> EventEmitter for StreamNodeData<Out> {
     }
 }
 
-impl<Out:Value> ValueProvider for StreamNodeData<Out> {
+impl<Out:Data> ValueProvider for StreamNodeData<Out> {
     fn value(&self) -> Out {
         self.value_cache.borrow().clone()
     }
@@ -270,10 +351,10 @@ pub struct StreamNode<Def:NodeDefinition> {
     definition : Rc<Def>,
 }
 
-#[derive(CloneRef,Derivative)]
+#[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct WeakStreamNode<Def:NodeDefinition> {
-    data       : Weak<StreamNodeData<Output<Def>>>,
+    stream     : Stream<Output<Def>>,
     definition : Rc<Def>,
 }
 
@@ -301,7 +382,7 @@ impl<Def:NodeDefinition> StreamNode<Def> {
     }
 
     pub fn construct_and_connect<S>(label:Label, stream:&S, definition:Def) -> Self
-    where S:AnyStream, Self:EventConsumer<Output<S>> {
+    where S:StreamOutput, Self:EventConsumer<Output<S>> {
         let this = Self::construct(label,definition);
         let weak = this.downgrade();
         stream.register_target(weak.into());
@@ -309,9 +390,9 @@ impl<Def:NodeDefinition> StreamNode<Def> {
     }
 
     pub fn downgrade(&self) -> WeakStreamNode<Def> {
-        let data       = Rc::downgrade(&self.data);
+        let stream     = Stream {data:Rc::downgrade(&self.data)};
         let definition = self.definition.clone_ref();
-        WeakStreamNode {data,definition}
+        WeakStreamNode {stream,definition}
     }
 }
 
@@ -353,9 +434,9 @@ where Def:InputBehaviors {
 }
 
 // FIXME code quality below:
-impl<Def:NodeDefinition> HasTypeLabel for StreamNode<Def>
+impl<Def:NodeDefinition> HasOutputTypeLabel for StreamNode<Def>
 where Def:InputBehaviors {
-    fn type_label(&self) -> String {
+    fn output_type_label(&self) -> String {
         let label = type_name::<Def>().to_string();
         let label = label.split(|c| c == '<').collect::<Vec<_>>()[0];
         let mut label = label.split(|c| c == ':').collect::<Vec<_>>();
@@ -374,7 +455,7 @@ where Def:InputBehaviors {
 
 impl<T:NodeDefinition> WeakStreamNode<T> {
     pub fn upgrade(&self) -> Option<StreamNode<T>> {
-        self.data.upgrade().map(|data| {
+        self.stream.data.upgrade().map(|data| {
             let definition = self.definition.clone_ref();
             StreamNode{data,definition}
         })
@@ -383,41 +464,30 @@ impl<T:NodeDefinition> WeakStreamNode<T> {
 
 impl<Def:NodeDefinition> EventEmitter for WeakStreamNode<Def> {
     fn emit_event(&self, value:&Output<Def>) {
-        self.data.upgrade().for_each(|data| data.emit_event(value))
+        self.stream.emit_event(value)
     }
 
     fn register_target(&self,tgt:StreamInput<Output<Self>>) {
-        self.data.upgrade().for_each(|data| data.register_target(tgt))
+        self.stream.register_target(tgt)
     }
 }
 
 impl<Def:NodeDefinition> ValueProvider for WeakStreamNode<Def> {
     fn value(&self) -> Self::Output {
-        self.data.upgrade().map(|data| data.value()).unwrap_or_default()
-    }
-}
-
-impl<Def:NodeDefinition+Debug> Debug for WeakStreamNode<Def> {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.data.upgrade() {
-            None    => write!(f,"WeakStreamNode(Dropped)"),
-            Some(t) => write!(f,"WeakStreamNode({:?})",t),
-        }
-
+        self.stream.value()
     }
 }
 
 impl<Def:NodeDefinition> HasId for WeakStreamNode<Def> {
     fn id(&self) -> Id {
-        let raw = self.data.as_raw() as *const() as usize;
-        raw.into()
+        self.stream.id()
     }
 }
 
 impl<Def:NodeDefinition> InputBehaviors for WeakStreamNode<Def>
     where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
-        self.data.upgrade().map(|t| t.input_behaviors()).unwrap_or_default()
+        self.stream.input_behaviors()
     }
 }
 
@@ -441,11 +511,11 @@ impl<Def:NodeDefinition> From<StreamNode<Def>> for Stream<Def::Output> {
     }
 }
 
-impl<Out:Value> HasOutput for Stream<Out> {
+impl<Out:Data> HasOutput for Stream<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> EventEmitter for Stream<Out> {
+impl<Out:Data> EventEmitter for Stream<Out> {
     fn emit_event(&self, value:&Self::Output) {
         self.data.upgrade().for_each(|t| t.emit_event(value))
     }
@@ -455,56 +525,32 @@ impl<Out:Value> EventEmitter for Stream<Out> {
     }
 }
 
-impl<Out:Value> ValueProvider for Stream<Out> {
+impl<Out:Data> ValueProvider for Stream<Out> {
     fn value(&self) -> Self::Output {
         self.data.upgrade().map(|t| t.value()).unwrap_or_default()
     }
 }
 
 impl<Out> Debug for Stream<Out> {
-    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"Stream")
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.data.upgrade() {
+            None    => write!(f,"Stream(Dropped)"),
+            Some(_) => write!(f,"Stream"),
+        }
+
     }
 }
 
 impl<Out> HasId for Stream<Out> {
     fn id(&self) -> Id {
-        0.into() // FIXME
-//        let raw = Rc::downgrade(&self.value).as_raw() as *const() as usize;
-//        raw.into()
+        let raw = self.data.as_raw() as *const() as usize;
+        raw.into()
     }
 }
 
 
 
-// =================
-// === StreamInput ===
-// =================
 
-#[derive(Clone)]
-pub struct StreamInput<Input> {
-    data : Rc<dyn WeakEventConsumer<Input>>
-}
-
-impl<Def:NodeDefinition,Input> From<WeakStreamNode<Def>> for StreamInput<Input>
-where StreamNode<Def> : EventConsumer<Input> {
-    fn from(node:WeakStreamNode<Def>) -> Self {
-        Self {data:Rc::new(node)}
-    }
-}
-
-impl<Def:NodeDefinition,Input> From<&WeakStreamNode<Def>> for StreamInput<Input>
-    where StreamNode<Def> : EventConsumer<Input> {
-    fn from(node:&WeakStreamNode<Def>) -> Self {
-        Self {data:Rc::new(node.clone_ref())}
-    }
-}
-
-impl<Input> Debug for StreamInput<Input> {
-    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"StreamInput")
-    }
-}
 
 
 
@@ -522,11 +568,11 @@ pub struct NeverData <Out=()> { phantom:PhantomData<Out> }}
 pub type   Never     <Out=()> = StreamNode     <NeverData<Out>>;
 pub type   WeakNever <Out=()> = WeakStreamNode <NeverData<Out>>;
 
-impl<Out:Value> HasOutput for NeverData<Out> {
+impl<Out:Data> HasOutput for NeverData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Never<Out> {
+impl<Out:Data> Never<Out> {
     /// Constructor.
     pub fn new(label:Label) -> Self {
         let phantom    = default();
@@ -559,11 +605,11 @@ pub struct SourceData <Out=()> { phantom:PhantomData<Out> }}
 pub type   Source     <Out=()> = StreamNode     <SourceData<Out>>;
 pub type   WeakSource <Out=()> = WeakStreamNode <SourceData<Out>>;
 
-impl<Out:Value> HasOutput for SourceData<Out> {
+impl<Out:Data> HasOutput for SourceData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Source<Out> {
+impl<Out:Data> Source<Out> {
     /// Constructor.
     pub fn new(label:Label) -> Self {
         let phantom    = default();
@@ -588,14 +634,14 @@ pub struct TraceData <Out> { phantom:PhantomData<Out>, message:String }
 pub type   Trace     <Out> = StreamNode     <TraceData<Out>>;
 pub type   WeakTrace <Out> = WeakStreamNode <TraceData<Out>>;
 
-impl<Out:Value> HasOutput for TraceData<Out> {
+impl<Out:Data> HasOutput for TraceData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Trace<Out> {
+impl<Out:Data> Trace<Out> {
     /// Constructor.
     pub fn new<M,S>(label:Label, message:M, stream:&S) -> Self
-    where M:Into<String>, S:AnyStream<Output=Out> {
+    where M:Into<String>, S:StreamOutput<Output=Out> {
         let phantom = default();
         let message = message.into();
         let def     = TraceData {phantom,message};
@@ -603,7 +649,7 @@ impl<Out:Value> Trace<Out> {
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for StreamNode<TraceData<Out>> {
+impl<Out:Data> EventConsumer<Out> for Trace<Out> {
     fn on_event(&self, event:&Out) {
         println!("[FRP] {}: {:?}", self.definition.message, event);
         self.emit(event);
@@ -631,19 +677,19 @@ impl HasOutput for ToggleData {
 
 impl Toggle {
     /// Constructor.
-    pub fn new<S:AnyStream>(label:Label, stream:&S) -> Self {
+    pub fn new<S:StreamOutput>(label:Label, stream:&S) -> Self {
         Self::new_with(label,stream,default())
     }
 
     /// Constructor with explicit start value.
-    pub fn new_with<S:AnyStream>(label:Label, stream:&S, init:bool) -> Self {
+    pub fn new_with<S:StreamOutput>(label:Label, stream:&S, init:bool) -> Self {
         let value = Cell::new(init);
         let def   = ToggleData {value};
         Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<T> EventConsumer<T> for StreamNode<ToggleData> {
+impl<T> EventConsumer<T> for Toggle {
     fn on_event(&self, _:&T) {
         let value = !self.definition.value.get();
         self.definition.value.set(value);
@@ -673,20 +719,21 @@ impl HasOutput for CountData {
 impl Count {
     /// Constructor.
     pub fn new<S>(label:Label, stream:&S) -> Self
-    where S:AnyStream {
+    where S:StreamOutput {
         let value = default();
         let def   = CountData {value};
         Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<T> EventConsumer<T> for StreamNode<CountData> {
+impl<T> EventConsumer<T> for Count {
     fn on_event(&self, _:&T) {
         let value = self.definition.value.get() + 1;
         self.definition.value.set(value);
         self.emit(value);
     }
 }
+
 
 
 // ================
@@ -702,20 +749,20 @@ pub struct ConstantData <Out=()> { value:Out }}
 pub type   Constant     <Out=()> = StreamNode     <ConstantData<Out>>;
 pub type   WeakConstant <Out=()> = WeakStreamNode <ConstantData<Out>>;
 
-impl<Out:Value> HasOutput for ConstantData<Out> {
+impl<Out:Data> HasOutput for ConstantData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Constant<Out> {
+impl<Out:Data> Constant<Out> {
     /// Constructor.
     pub fn new<S>(label:Label, stream:&S, value:Out) -> Self
-    where S:AnyStream {
+    where S:StreamOutput {
         let def = ConstantData {value};
         Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<Out:Value,T> EventConsumer<T> for StreamNode<ConstantData<Out>> {
+impl<Out:Data,T> EventConsumer<T> for Constant<Out> {
     fn on_event(&self, _:&T) {
         self.emit(&self.definition.value);
     }
@@ -736,21 +783,21 @@ pub struct PreviousData <Out=()> { previous:RefCell<Out> }}
 pub type   Previous     <Out=()> = StreamNode     <PreviousData<Out>>;
 pub type   WeakPrevious <Out=()> = WeakStreamNode <PreviousData<Out>>;
 
-impl<Out:Value> HasOutput for PreviousData<Out> {
+impl<Out:Data> HasOutput for PreviousData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Previous<Out> {
+impl<Out:Data> Previous<Out> {
     /// Constructor.
     pub fn new<S>(label:Label, stream:&S) -> Self
-        where S:AnyStream<Output=Out> {
+        where S:StreamOutput<Output=Out> {
         let previous = default();
         let def      = PreviousData {previous};
         Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for StreamNode<PreviousData<Out>> {
+impl<Out:Data> EventConsumer<Out> for Previous<Out> {
     fn on_event(&self, event:&Out) {
         let previous = mem::replace(&mut *self.definition.previous.borrow_mut(),event.clone());
         self.emit(previous);
@@ -769,31 +816,31 @@ is dropped and a new event with the behavior's value is emitted.
 "]$($tt)* }}
 
 docs_for_sample! { #[derive(Clone,Debug)]
-pub struct SampleData <Behavior> { behavior:Behavior }}
-pub type   Sample     <Behavior> = StreamNode     <SampleData<Behavior>>;
-pub type   WeakSample <Behavior> = WeakStreamNode <SampleData<Behavior>>;
+pub struct SampleData <T1> { behavior:T1 }}
+pub type   Sample     <T1> = StreamNode     <SampleData<T1>>;
+pub type   WeakSample <T1> = WeakStreamNode <SampleData<T1>>;
 
-impl<Behavior:HasOutput> HasOutput for SampleData<Behavior> {
-    type Output = Output<Behavior>;
+impl<T1:HasOutput> HasOutput for SampleData<T1> {
+    type Output = Output<T1>;
 }
 
-impl<Behavior:AnyStream> Sample<Behavior> {
+impl<T1:StreamOutput> Sample<T1> {
     /// Constructor.
-    pub fn new<Event:AnyStream>(label:Label, event:&Event, behavior:&Behavior) -> Self {
+    pub fn new<Event:StreamOutput>(label:Label, event:&Event, behavior:&T1) -> Self {
         let behavior   = behavior.clone_ref();
         let definition = SampleData {behavior};
         Self::construct_and_connect(label,event,definition)
     }
 }
 
-impl<T,Behavior:AnyStream> EventConsumer<T> for StreamNode<SampleData<Behavior>> {
+impl<T,T1:StreamOutput> EventConsumer<T> for Sample<T1> {
     fn on_event(&self, _:&T) {
         self.emit(self.definition.behavior.value());
     }
 }
 
 impl<B> InputBehaviors for SampleData<B>
-    where B:AnyStream {
+where B:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
     }
@@ -814,15 +861,15 @@ pub struct GateData <T,B> { behavior:B, phantom:PhantomData<T> }}
 pub type   Gate     <T,B> = StreamNode     <GateData<T,B>>;
 pub type   WeakGate <T,B> = WeakStreamNode <GateData<T,B>>;
 
-impl<T:Value,B> HasOutput for GateData<T,B> {
+impl<T:Data,B> HasOutput for GateData<T,B> {
     type Output = T;
 }
 
 impl<T,B> Gate<T,B>
-where T:Value, B:AnyStream<Output=bool> {
+where T:Data, B:StreamOutput<Output=bool> {
     /// Constructor.
     pub fn new<E>(label:Label, event:&E, behavior:&B) -> Self
-    where E:AnyStream<Output=T> {
+    where E:StreamOutput<Output=T> {
         let behavior   = behavior.clone_ref();
         let phantom    = default();
         let definition = GateData {behavior,phantom};
@@ -831,7 +878,7 @@ where T:Value, B:AnyStream<Output=bool> {
 }
 
 impl<T,B> EventConsumer<T> for StreamNode<GateData<T,B>>
-where T:Value, B:AnyStream<Output=bool> {
+where T:Data, B:StreamOutput<Output=bool> {
     fn on_event(&self, event:&T) {
         if self.definition.behavior.value() {
             self.emit(event)
@@ -840,7 +887,7 @@ where T:Value, B:AnyStream<Output=bool> {
 }
 
 impl<T,B> InputBehaviors for GateData<T,B>
-where B:AnyStream {
+where B:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
     }
@@ -865,11 +912,11 @@ pub struct MergeData <Out> { phantom:PhantomData<Out>, during_call:Cell<bool> }}
 pub type   Merge     <Out> = StreamNode     <MergeData<Out>>;
 pub type   WeakMerge <Out> = WeakStreamNode <MergeData<Out>>;
 
-impl<Out:Value> HasOutput for MergeData<Out> {
+impl<Out:Data> HasOutput for MergeData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> Merge<Out> {
+impl<Out:Data> Merge<Out> {
     /// Constructor.
     pub fn new(label:Label) -> Self {
         let phantom     = default();
@@ -880,53 +927,53 @@ impl<Out:Value> Merge<Out> {
 
     /// Takes ownership of self and returns it with a new stream attached.
     pub fn with<S>(self, stream:&S) -> Self
-        where S:AnyStream<Output=Out> {
+        where S:StreamOutput<Output=Out> {
         stream.register_target(self.downgrade().into());
         self
     }
 
     /// Constructor for 1 input stream.
     pub fn new1<T1>(label:Label, t1:&T1) -> Self
-        where T1:AnyStream<Output=Out> {
+        where T1:StreamOutput<Output=Out> {
         Self::new(label).with(t1)
     }
 
     /// Constructor for 2 input streams.
     pub fn new2<T1,T2>(label:Label, t1:&T1, t2:&T2) -> Self
-        where T1:AnyStream<Output=Out>,
-              T2:AnyStream<Output=Out> {
+        where T1:StreamOutput<Output=Out>,
+              T2:StreamOutput<Output=Out> {
         Self::new(label).with(t1).with(t2)
     }
 
     /// Constructor for 3 input streams.
     pub fn new3<T1,T2,T3>(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self
-        where T1:AnyStream<Output=Out>,
-              T2:AnyStream<Output=Out>,
-              T3:AnyStream<Output=Out> {
+        where T1:StreamOutput<Output=Out>,
+              T2:StreamOutput<Output=Out>,
+              T3:StreamOutput<Output=Out> {
         Self::new(label).with(t1).with(t2).with(t3)
     }
 
     /// Constructor for 4 input streams.
     pub fn new4<T1,T2,T3,T4>(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self
-        where T1:AnyStream<Output=Out>,
-              T2:AnyStream<Output=Out>,
-              T3:AnyStream<Output=Out>,
-              T4:AnyStream<Output=Out> {
+        where T1:StreamOutput<Output=Out>,
+              T2:StreamOutput<Output=Out>,
+              T3:StreamOutput<Output=Out>,
+              T4:StreamOutput<Output=Out> {
         Self::new(label).with(t1).with(t2).with(t3).with(t4)
     }
 }
 
-impl<Out:Value> WeakMerge<Out> {
+impl<Out:Data> WeakMerge<Out> {
     /// Takes ownership of self and returns it with a new stream attached.
     pub fn with<S>(self, stream:&S) -> Self
-    where S:AnyStream<Output=Out> {
+    where S:StreamOutput<Output=Out> {
         stream.register_target(self.clone_ref().into());
         self
     }
 }
 
 impl<T1,Out> Add<&T1> for &Merge<Out>
-    where T1:AnyStream<Output=Out>, Out:Value {
+    where T1:StreamOutput<Output=Out>, Out:Data {
     type Output = Self;
     fn add(self, stream:&T1) -> Self::Output {
         stream.register_target(self.downgrade().into());
@@ -935,7 +982,7 @@ impl<T1,Out> Add<&T1> for &Merge<Out>
 }
 
 impl<T1,Out> Add<&T1> for &WeakMerge<Out>
-    where T1:AnyStream<Output=Out>, Out:Value {
+    where T1:StreamOutput<Output=Out>, Out:Data {
     type Output = Self;
     fn add(self, stream:&T1) -> Self::Output {
         stream.register_target(self.into());
@@ -943,7 +990,7 @@ impl<T1,Out> Add<&T1> for &WeakMerge<Out>
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for StreamNode<MergeData<Out>> {
+impl<Out:Data> EventConsumer<Out> for StreamNode<MergeData<Out>> {
     fn on_event(&self, event:&Out) {
         self.emit(event);
     }
@@ -966,12 +1013,12 @@ pub type   Zip2     <T1,T2> = StreamNode     <Zip2Data<T1,T2>>;
 pub type   WeakZip2 <T1,T2> = WeakStreamNode <Zip2Data<T1,T2>>;
 
 impl<T1,T2> HasOutput for Zip2Data<T1,T2>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
     type Output = (Output<T1>,Output<T2>);
 }
 
 impl<T1,T2> Zip2<T1,T2>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2) -> Self {
         let stream1 = t1.clone_ref();
@@ -986,7 +1033,7 @@ impl<T1,T2> Zip2<T1,T2>
 }
 
 impl<T1,T2,Out> EventConsumer<Out> for StreamNode<Zip2Data<T1,T2>>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.stream1.value();
         let value2 = self.definition.stream2.value();
@@ -995,7 +1042,7 @@ impl<T1,T2,Out> EventConsumer<Out> for StreamNode<Zip2Data<T1,T2>>
 }
 
 impl<T1,T2> InputBehaviors for Zip2Data<T1,T2>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::mixed(&self.stream1), Link::mixed(&self.stream2)]
     }
@@ -1018,12 +1065,12 @@ pub type   Zip3     <T1,T2,T3> = StreamNode     <Zip3Data<T1,T2,T3>>;
 pub type   WeakZip3 <T1,T2,T3> = WeakStreamNode <Zip3Data<T1,T2,T3>>;
 
 impl<T1,T2,T3> HasOutput for Zip3Data<T1,T2,T3>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
     type Output = (Output<T1>,Output<T2>,Output<T3>);
 }
 
 impl<T1,T2,T3> Zip3<T1,T2,T3>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self {
         let stream1 = t1.clone_ref();
@@ -1040,7 +1087,7 @@ impl<T1,T2,T3> Zip3<T1,T2,T3>
 }
 
 impl<T1,T2,T3,Out> EventConsumer<Out> for StreamNode<Zip3Data<T1,T2,T3>>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.stream1.value();
         let value2 = self.definition.stream2.value();
@@ -1050,7 +1097,7 @@ impl<T1,T2,T3,Out> EventConsumer<Out> for StreamNode<Zip3Data<T1,T2,T3>>
 }
 
 impl<T1,T2,T3> InputBehaviors for Zip3Data<T1,T2,T3>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::mixed(&self.stream1), Link::mixed(&self.stream2), Link::mixed(&self.stream3)]
     }
@@ -1073,12 +1120,12 @@ pub type   Zip4     <T1,T2,T3,T4> = StreamNode     <Zip4Data<T1,T2,T3,T4>>;
 pub type   WeakZip4 <T1,T2,T3,T4> = WeakStreamNode <Zip4Data<T1,T2,T3,T4>>;
 
 impl<T1,T2,T3,T4> HasOutput for Zip4Data<T1,T2,T3,T4>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
     type Output = (Output<T1>,Output<T2>,Output<T3>,Output<T4>);
 }
 
 impl<T1,T2,T3,T4> Zip4<T1,T2,T3,T4>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self {
         let stream1 = t1.clone_ref();
@@ -1097,7 +1144,7 @@ impl<T1,T2,T3,T4> Zip4<T1,T2,T3,T4>
 }
 
 impl<T1,T2,T3,T4,Out> EventConsumer<Out> for StreamNode<Zip4Data<T1,T2,T3,T4>>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.stream1.value();
         let value2 = self.definition.stream2.value();
@@ -1108,7 +1155,7 @@ impl<T1,T2,T3,T4,Out> EventConsumer<Out> for StreamNode<Zip4Data<T1,T2,T3,T4>>
 }
 
 impl<T1,T2,T3,T4> InputBehaviors for Zip4Data<T1,T2,T3,T4>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![ Link::mixed(&self.stream1)
             , Link::mixed(&self.stream2)
@@ -1137,12 +1184,12 @@ pub type   Map     <T1,F> = StreamNode     <MapData<T1,F>>;
 pub type   WeakMap <T1,F> = WeakStreamNode <MapData<T1,F>>;
 
 impl<T1,F,Out> HasOutput for MapData<T1,F>
-where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
+where T1:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
     type Output = Out;
 }
 
 impl<T1,F,Out> Map<T1,F>
-where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
+where T1:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, function:F) -> Self {
         let stream       = t1.clone_ref();
@@ -1152,7 +1199,7 @@ where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
 }
 
 impl<T1,F,Out> EventConsumer<Output<T1>> for StreamNode<MapData<T1,F>>
-where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
+where T1:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
     fn on_event(&self, value:&Output<T1>) {
         let out = (self.definition.function)(value);
         self.emit(out);
@@ -1178,12 +1225,12 @@ pub type   Map2     <T1,T2,F> = StreamNode     <Map2Data<T1,T2,F>>;
 pub type   WeakMap2 <T1,T2,F> = WeakStreamNode <Map2Data<T1,T2,F>>;
 
 impl<T1,T2,F,Out> HasOutput for Map2Data<T1,T2,F>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,F,Out> Map2<T1,T2,F>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
         let stream1 = t1.clone_ref();
@@ -1197,7 +1244,7 @@ where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2
 }
 
 impl<T1,T2,F,Out> EventConsumer<Output<T1>> for StreamNode<Map2Data<T1,T2,F>>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     fn on_event(&self, value1:&Output<T1>) {
         let value2 = self.definition.stream2.value();
         let out    = (self.definition.function)(&value1,&value2);
@@ -1212,7 +1259,7 @@ impl<T1,T2,F> Debug for Map2Data<T1,T2,F> {
 }
 
 impl<T1,T2,F> InputBehaviors for Map2Data<T1,T2,F>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.stream2)]
     }
@@ -1231,13 +1278,13 @@ pub type   Map3     <T1,T2,T3,F> = StreamNode     <Map3Data<T1,T2,T3,F>>;
 pub type   WeakMap3 <T1,T2,T3,F> = WeakStreamNode <Map3Data<T1,T2,T3,F>>;
 
 impl<T1,T2,T3,F,Out> HasOutput for Map3Data<T1,T2,T3,F>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,T3,F,Out> Map3<T1,T2,T3,F>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
@@ -1253,7 +1300,7 @@ where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
 }
 
 impl<T1,T2,T3,F,Out> EventConsumer<Output<T1>> for StreamNode<Map3Data<T1,T2,T3,F>>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     fn on_event(&self, value1:&Output<T1>) {
         let value2 = self.definition.stream2.value();
@@ -1270,7 +1317,7 @@ impl<T1,T2,T3,F> Debug for Map3Data<T1,T2,T3,F> {
 }
 
 impl<T1,T2,T3,F> InputBehaviors for Map3Data<T1,T2,T3,F>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.stream2), Link::behavior(&self.stream3)]
     }
@@ -1289,13 +1336,13 @@ pub type   Map4     <T1,T2,T3,T4,F> = StreamNode     <Map4Data<T1,T2,T3,T4,F>>;
 pub type   WeakMap4 <T1,T2,T3,T4,F> = WeakStreamNode <Map4Data<T1,T2,T3,T4,F>>;
 
 impl<T1,T2,T3,T4,F,Out> HasOutput for Map4Data<T1,T2,T3,T4,F>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,T3,T4,F,Out> Map4<T1,T2,T3,T4,F>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
@@ -1312,7 +1359,7 @@ impl<T1,T2,T3,T4,F,Out> Map4<T1,T2,T3,T4,F>
 }
 
 impl<T1,T2,T3,T4,F,Out> EventConsumer<Output<T1>> for StreamNode<Map4Data<T1,T2,T3,T4,F>>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     fn on_event(&self, value1:&Output<T1>) {
         let value2 = self.definition.stream2.value();
@@ -1324,7 +1371,7 @@ impl<T1,T2,T3,T4,F,Out> EventConsumer<Output<T1>> for StreamNode<Map4Data<T1,T2,
 }
 
 impl<T1,T2,T3,T4,F> InputBehaviors for Map4Data<T1,T2,T3,T4,F>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.stream2), Link::behavior(&self.stream3), Link::behavior(&self.stream4)]
     }
@@ -1354,12 +1401,12 @@ pub type   Apply2     <T1,T2,F> = StreamNode     <Apply2Data<T1,T2,F>>;
 pub type   WeakApply2 <T1,T2,F> = WeakStreamNode <Apply2Data<T1,T2,F>>;
 
 impl<T1,T2,F,Out> HasOutput for Apply2Data<T1,T2,F>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,F,Out> Apply2<T1,T2,F>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
         let stream1 = t1.clone_ref();
@@ -1374,7 +1421,7 @@ where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2
 }
 
 impl<T1,T2,F,Out,T> EventConsumer<T> for StreamNode<Apply2Data<T1,T2,F>>
-where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+where T1:StreamOutput, T2:StreamOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.stream1.value();
         let value2 = self.definition.stream2.value();
@@ -1401,13 +1448,13 @@ pub type   Apply3     <T1,T2,T3,F> = StreamNode     <Apply3Data<T1,T2,T3,F>>;
 pub type   WeakApply3 <T1,T2,T3,F> = WeakStreamNode <Apply3Data<T1,T2,T3,F>>;
 
 impl<T1,T2,T3,F,Out> HasOutput for Apply3Data<T1,T2,T3,F>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,T3,F,Out> Apply3<T1,T2,T3,F>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
@@ -1425,7 +1472,7 @@ where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
 }
 
 impl<T1,T2,T3,F,Out,T> EventConsumer<T> for StreamNode<Apply3Data<T1,T2,T3,F>>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.stream1.value();
@@ -1454,13 +1501,13 @@ pub type   Apply4     <T1,T2,T3,T4,F> = StreamNode     <Apply4Data<T1,T2,T3,T4,F
 pub type   WeakApply4 <T1,T2,T3,T4,F> = WeakStreamNode <Apply4Data<T1,T2,T3,T4,F>>;
 
 impl<T1,T2,T3,T4,F,Out> HasOutput for Apply4Data<T1,T2,T3,T4,F>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     type Output = Out;
 }
 
 impl<T1,T2,T3,T4,F,Out> Apply4<T1,T2,T3,T4,F>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
@@ -1480,7 +1527,7 @@ impl<T1,T2,T3,T4,F,Out> Apply4<T1,T2,T3,T4,F>
 }
 
 impl<T1,T2,T3,T4,F,Out,T> EventConsumer<T> for StreamNode<Apply4Data<T1,T2,T3,T4,F>>
-where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.stream1.value();
@@ -1516,8 +1563,8 @@ pub struct WeakNetwork {
     data : Weak<NetworkData>
 }
 
-pub trait Anyyy : HasId + HasLabel + HasTypeLabel {}
-impl<T> Anyyy for T where T : HasId + HasLabel + HasTypeLabel {}
+pub trait Anyyy : HasId + HasLabel + HasOutputTypeLabel {}
+impl<T> Anyyy for T where T : HasId + HasLabel + HasOutputTypeLabel {}
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -1612,7 +1659,7 @@ impl Network {
     pub fn draw(&self) {
         let mut viz = debug::Graphviz::default();
         self.data.nodes.borrow().iter().for_each(|node| {
-            viz.add_node(node.id().into(),node.type_label(),node.label());
+            viz.add_node(node.id().into(),node.output_type_label(),node.label());
             println!(">>> {:?}",node.id())
         });
         debug::display_graphviz(viz);
@@ -1628,12 +1675,12 @@ impl WeakNetwork {
 
 impl Network {
     docs_for_never! {
-    pub fn never<T:Value>(&self, label:Label) -> Stream<T> {
+    pub fn never<T:Data>(&self, label:Label) -> Stream<T> {
         self.register(Never::new(label))
     }}
 
     docs_for_source! {
-    pub fn source<T:Value>(&self, label:Label) -> Stream<T> {
+    pub fn source<T:Data>(&self, label:Label) -> Stream<T> {
         self.register(Source::new(label))
     }}
 
@@ -1644,41 +1691,41 @@ impl Network {
 
     docs_for_trace! {
     pub fn trace<M,S,T>(&self, label:Label, message:M, stream:&S) -> Stream<T>
-    where M:Into<String>, S:AnyStream<Output=T>, T:Value {
+    where M:Into<String>, S:StreamOutput<Output=T>, T:Data {
         self.register(Trace::new(label,message,stream))
     }}
 
     docs_for_toggle! {
-    pub fn toggle<S:AnyStream>(&self, label:Label, stream:&S) -> Stream<bool> {
+    pub fn toggle<S:StreamOutput>(&self, label:Label, stream:&S) -> Stream<bool> {
         self.register(Toggle::new(label,stream))
     }}
 
     docs_for_count! {
-    pub fn count<S:AnyStream>(&self, label:Label, stream:&S) -> Stream<usize> {
+    pub fn count<S:StreamOutput>(&self, label:Label, stream:&S) -> Stream<usize> {
         self.register(Count::new(label,stream))
     }}
 
     docs_for_constant! {
     pub fn constant<S,T> (&self, label:Label, stream:&S, value:T) -> Stream<T>
-    where S:AnyStream, T:Value {
+    where S:StreamOutput, T:Data {
         self.register(Constant::new(label,stream,value))
     }}
 
     docs_for_previous! {
     pub fn previous<S,T> (&self, label:Label, stream:&S) -> Stream<T>
-    where S:AnyStream<Output=T>, T:Value {
+    where S:StreamOutput<Output=T>, T:Data {
         self.register(Previous::new(label,stream))
     }}
 
     docs_for_sample! {
-    pub fn sample<E:AnyStream,B:AnyStream>
+    pub fn sample<E:StreamOutput,B:StreamOutput>
     (&self, label:Label, event:&E, behavior:&B) -> Stream<Output<B>> {
         self.register(Sample::new(label,event,behavior))
     }}
 
     docs_for_gate! {
     pub fn gate<T,E,B>(&self, label:Label, event:&E, behavior:&B) -> Stream<Output<E>>
-    where T:Value, E:AnyStream<Output=T>, B:AnyStream<Output=bool> {
+    where T:Data, E:StreamOutput<Output=T>, B:StreamOutput<Output=bool> {
         self.register(Gate::new(label,event,behavior))
     }}
 
@@ -1688,38 +1735,38 @@ impl Network {
     docs_for_merge! {
     /// Please note that this function does output a more specific type than just `Stream<T>`. It is
     /// left on purpose so you could use the `add` method to build recursive data-stream networks.
-    pub fn merge_<T:Value>(&self, label:Label) -> WeakMerge<T> {
+    pub fn merge_<T:Data>(&self, label:Label) -> WeakMerge<T> {
         self.register_raw(Merge::new(label))
     }}
 
     docs_for_merge! {
-    pub fn merge<T1,T2,T:Value>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
-    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T> {
+    pub fn merge<T1,T2,T:Data>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
+    where T1:StreamOutput<Output=T>, T2:StreamOutput<Output=T> {
         self.register(Merge::new2(label,t1,t2))
     }}
 
     docs_for_merge! {
-    pub fn merge1<T1,T:Value>(&self, label:Label, t1:&T1) -> Stream<T>
-    where T1:AnyStream<Output=T> {
+    pub fn merge1<T1,T:Data>(&self, label:Label, t1:&T1) -> Stream<T>
+    where T1:StreamOutput<Output=T> {
         self.register(Merge::new1(label,t1))
     }}
 
     docs_for_merge! {
-    pub fn merge2<T1,T2,T:Value>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
-    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T> {
+    pub fn merge2<T1,T2,T:Data>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
+    where T1:StreamOutput<Output=T>, T2:StreamOutput<Output=T> {
         self.register(Merge::new2(label,t1,t2))
     }}
 
     docs_for_merge! {
-    pub fn merge3<T1,T2,T3,T:Value>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<T>
-    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T>, T3:AnyStream<Output=T> {
+    pub fn merge3<T1,T2,T3,T:Data>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<T>
+    where T1:StreamOutput<Output=T>, T2:StreamOutput<Output=T>, T3:StreamOutput<Output=T> {
         self.register(Merge::new3(label,t1,t2,t3))
     }}
 
     docs_for_merge! {
-    pub fn merge4<T1,T2,T3,T4,T:Value>
+    pub fn merge4<T1,T2,T3,T4,T:Data>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Stream<T>
-    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T>, T3:AnyStream<Output=T>, T4:AnyStream<Output=T> {
+    where T1:StreamOutput<Output=T>, T2:StreamOutput<Output=T>, T3:StreamOutput<Output=T>, T4:StreamOutput<Output=T> {
         self.register(Merge::new4(label,t1,t2,t3,t4))
     }}
 
@@ -1728,20 +1775,20 @@ impl Network {
 
     docs_for_zip2! {
     pub fn zip<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<(Output<T1>,Output<T2>)>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
         self.register(Zip2::new(label,t1,t2))
     }}
 
     docs_for_zip2! {
     pub fn zip2<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<(Output<T1>,Output<T2>)>
-    where T1:AnyStream, T2:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput {
         self.register(Zip2::new(label,t1,t2))
     }}
 
     docs_for_zip3! {
     pub fn zip3<T1,T2,T3>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<(Output<T1>,Output<T2>,Output<T3>)>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput {
         self.register(Zip3::new(label,t1,t2,t3))
     }}
 
@@ -1749,7 +1796,7 @@ impl Network {
     pub fn zip4<T1,T2,T3,T4>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4)
     -> Stream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>)>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput {
         self.register(Zip4::new(label,t1,t2,t3,t4))
     }}
 
@@ -1758,20 +1805,20 @@ impl Network {
 
     docs_for_map! {
     pub fn map<S,F,T>(&self, label:Label, source:&S, f:F) -> Stream<T>
-    where S:AnyStream, T:Value, F:'static+Fn(&Output<S>)->T {
+    where S:StreamOutput, T:Data, F:'static+Fn(&Output<S>)->T {
         self.register(Map::new(label,source,f))
     }}
 
     docs_for_map! {
     pub fn map2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
+    where T1:StreamOutput, T2:StreamOutput, T:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
         self.register(Map2::new(label,t1,t2,f))
     }}
 
     docs_for_map! {
     pub fn map3<T1,T2,T3,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
         self.register(Map3::new(label,t1,t2,t3,f))
     }}
@@ -1779,7 +1826,7 @@ impl Network {
     docs_for_map! {
     pub fn map4<T1,T2,T3,T4,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, T:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
         self.register(Map4::new(label,t1,t2,t3,t4,f))
     }}
@@ -1789,14 +1836,14 @@ impl Network {
 
     docs_for_apply! {
     pub fn apply2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
+    where T1:StreamOutput, T2:StreamOutput, T:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
         self.register(Apply2::new(label,t1,t2,f))
     }}
 
     docs_for_apply! {
     pub fn apply3<T1,T2,T3,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
         self.register(Apply3::new(label,t1,t2,t3,f))
     }}
@@ -1804,7 +1851,7 @@ impl Network {
     docs_for_apply! {
     pub fn apply4<T1,T2,T3,T4,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
-    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, T:Value,
+    where T1:StreamOutput, T2:StreamOutput, T3:StreamOutput, T4:StreamOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
         self.register(Apply4::new(label,t1,t2,t3,t4,f))
     }}
@@ -1887,6 +1934,6 @@ mod tests {
         assert_eq!(count.value(),2);
         mem::drop(network2);
         source.ping();
-        assert_eq!(count.value(),2);
+        assert_eq!(count.value(),0);
     }
 }
