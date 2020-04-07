@@ -4,6 +4,68 @@
 //!
 //! Please read this document as the initial introduction to FRP concepts:
 //! https://github.com/hansroland/reflex-dom-inbits/blob/master/tutorial.md
+//!
+//! The architecture of the FRP engine is pretty complex and it is hard to understand all the
+//! dependencies by reading the code only. In order to make it easier, the following diagram was
+//! prepared. It visualizes a simple FRP network of `source -> count -> map(|t| t.to_string())`:
+//!
+//! - Node colors indicate to which network the nodes belong (nodes of that color will be dropped as
+//!   soon as the network gets dropped). Nodes with double color will be dropped as soon as an event
+//!   will be emitted to nodes from a dropped network.
+//! - Black solid edges without arrows are just fields inside structure.
+//! - Black solid edges with arrows are `Rc` pointers.
+//! - Black dashed edges with arrows are `Weak` pointers.
+//! - Red solid edges with arrows are trait object interfaces.
+//!
+//! ```dot
+//! digraph G {
+//!     layout=neato
+//!     node [shape=box style=rounded]
+//!     Network1[pos="-3,-1!",color=blue]
+//!     Network2[pos="-3,-5.5!",color=crimson]
+//!     Network1 -> node_1
+//!     Network2 -> node_2
+//!     Network2 -> node_3
+//!
+//!     node_1[label="Source<()>", pos="-0.5,-1!", color=blue]
+//!     SourceData[pos="-0.5,0!",color=blue]
+//!     node_1 -> SourceData
+//!     node_data_1[label="NodeData<()>",pos="1.5,-1!",color=blue]
+//!     node_1 -> node_data_1
+//!     flow_1[label="Flow<()>", pos="3.5,-1!"]
+//!     flow_1 -> node_data_1 [style=dashed]
+//!
+//!     FlowInput_1[label="FlowInput<()>", pos="1.5,-2!",color=blue]
+//!     FlowInput_1_[pos="1.5,-2!",label="",color=crimson, width=1.49, height=0.6]
+//!     node_data_1 -> FlowInput_1 [arrowhead=none]
+//!     WeakCount_[pos="1.5,-3!",label="",color=crimson, width=1.25, height=0.6]
+//!     WeakCount[pos="1.5,-3!",color=blue]
+//!     FlowInput_1 -> WeakCount [color=red]
+//!     node_2[label="Count",pos="-0.5,-4!",color=crimson]
+//!     CountData[pos="-0.5,-3!",color=crimson]
+//!     node_2 -> CountData
+//!     node_data_2[label="NodeData<usize>",pos="1.5,-4!",color=crimson]
+//!     node_2 -> node_data_2
+//!     WeakCount -> node_data_2 [style=dashed]
+//!     WeakCount -> CountData
+//!     flow_2[label="Flow<usize>",pos="3.5,-4!"]
+//!     flow_2 -> node_data_2 [style=dashed]
+//!
+//!     FlowInput_2[label="FlowInput<usize>", pos="1.5,-5!",color=crimson]
+//!     node_data_2 -> FlowInput_2
+//!     WeakMap[pos="1.5,-6!",color=crimson]
+//!     FlowInput_2 -> WeakMap [color=red]
+//!     node_3[label="Map<Count,[f]>",pos="-0.5,-7!",color=crimson]
+//!     MapData[pos="-0.5,-6!",color=crimson]
+//!     node_3 -> MapData
+//!     node_data_3[label="NodeData<String>",pos="1.5,-7!",color=crimson]
+//!     node_3 -> node_data_3
+//!     WeakMap -> node_data_3 [style=dashed] [weight=10]
+//!     WeakMap -> MapData
+//!     flow_3[label="Flow<String>", pos="3.5,-7!"]
+//!     flow_3 -> node_data_3 [style=dashed]
+//! }
+//! ```
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
@@ -124,7 +186,7 @@ pub trait EventEmitterPoly : EventEmitter {
 
 pub trait EventEmitter : HasOutput {
     fn emit_event      (&self , value:&Self::Output);
-    fn register_target (&self , tgt:FlowInput<Output<Self>>);
+    fn register_target (&self , target:FlowInput<Output<Self>>);
 }
 
 pub trait EventConsumer<T> {
