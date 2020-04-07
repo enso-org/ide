@@ -196,22 +196,33 @@ impl ShapeViewDefinition for OutputPortView {
 }
 
 
+
+
 /// Port definition. Can be parametrised to be either
 /// an InputPort or OutputPort.
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct Port<T:ShapeViewDefinition+Clone> {
+    pub data : Rc<PortData<T>>
+}
+
+/// Port data.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct Port<T:ShapeViewDefinition> {
-        spec : Specification,
+pub struct PortData<T:ShapeViewDefinition+Clone> {
+    spec     : RefCell<Specification>,
     pub view : Rc<component::ShapeView<T>>
 }
 
-impl<T:ShapeViewDefinition> Port<T> {
+impl<T:ShapeViewDefinition+Clone> Port<T> {
 
     /// Constructor.
     pub fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::<T>::new(&logger));
-        Self{spec,view}.init()
+        let spec = RefCell::new(spec);
+        let data = PortData{spec,view};
+        Self{data: Rc::new(data)}.init()
     }
 
     fn init(mut self) -> Self {
@@ -221,26 +232,27 @@ impl<T:ShapeViewDefinition> Port<T> {
 
     /// Modifies the port specification.
     pub fn mod_specification<F:FnOnce(&mut Specification)>(&mut self, f:F) {
-        f(&mut self.spec);
+        f(&mut self.data.spec.borrow_mut());
         self.update()
     }
 
     /// Update the view with our current Specification.
     fn update(&mut self) {
         self.update_sprite();
-        self.view.display_object.update();
+        self.data.view.display_object.update();
     }
 
     /// Update the position of the sprite according to the Port specification.
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
     fn update_sprite(&mut self) {
-        let translation_vector = nalgebra::Vector3::new(0.0,self.spec.inner_radius,0.0);
-        let rotation_vector    = -nalgebra::Vector3::new(0.0,0.0,self.spec.location.rad().value);
+        let spec = self.data.spec.borrow();
+        let translation_vector = nalgebra::Vector3::new(0.0,spec.inner_radius,0.0);
+        let rotation_vector    = -nalgebra::Vector3::new(0.0,0.0,spec.location.rad().value);
         let rotation           = nalgebra::Rotation3::new(rotation_vector);
         let translation        = rotation * translation_vector;
 
-        let node = &self.view.display_object;
+        let node = &self.data.view.display_object;
         node.set_position(translation);
         node.set_rotation(rotation_vector);
     }
@@ -254,9 +266,9 @@ pub type InputPort = Port<InputPortView>;
 pub type OutputPort = Port<OutputPortView>;
 
 
-impl<'t, T:ShapeViewDefinition> From<&'t Port<T>> for &'t display::object::Node {
+impl<'t, T:ShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
     fn from(t:&'t Port<T>) -> Self {
-        &t.view.display_object
+        &t.data.view.display_object
     }
 }
 
@@ -332,18 +344,22 @@ impl PortManager{
     /// Update the shapes of all ports with the currently set specification values.
     fn update_port_shapes(& self) {
         for port in self.input_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.view.data.borrow().as_ref() {
-                    t.shape.width.set(port.spec.width.value.to_radians());
-                    t.shape.inner_radius.set(port.spec.inner_radius);
-                    t.shape.height.set(port.spec.height);
+            if let Some(t) = port.data.view.data.borrow().as_ref() {
+                let spec = port.data.spec.borrow();
+                t.shape.width.set(spec.width.value.to_radians());
+                t.shape.inner_radius.set(spec.inner_radius);
+                t.shape.height.set(spec.height);
+                t.shape.is_inwards.set(1.0);
             }
             port.update()
         }
         for port in self.output_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.view.data.borrow().as_ref() {
-                t.shape.width.set(port.spec.width.value.to_radians());
-                t.shape.inner_radius.set(port.spec.inner_radius);
-                t.shape.height.set(port.spec.height);
+            if let Some(t) = port.data.view.data.borrow().as_ref() {
+                let spec = port.data.spec.borrow();
+                t.shape.width.set(spec.width.value.to_radians());
+                t.shape.inner_radius.set(spec.inner_radius);
+                t.shape.height.set(spec.height);
+                t.shape.is_inwards.set(0.0);
             }
             port.update()
         }
