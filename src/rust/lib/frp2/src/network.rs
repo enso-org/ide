@@ -84,30 +84,19 @@ impl Network {
         WeakNetwork {data:Rc::downgrade(&self.data)}
     }
 
-    pub fn register_raw<T:HasOutputStatic>(&self, node:stream::StreamNode<T>) -> stream::WeakStreamNode<T> {
+    pub fn register_raw<T:HasOutputStatic>(&self, node:stream::Node<T>) -> stream::WeakNode<T> {
         let weak = node.downgrade();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
         weak
     }
 
-    pub fn register<Def:HasOutputStatic>(&self, node:stream::StreamNode<Def>) -> Stream<Output<Def>> {
+    pub fn register<Def:HasOutputStatic>(&self, node:stream::Node<Def>) -> Stream<Output<Def>> {
         let stream = node.clone_ref().into();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
         stream
     }
-
-    // TODO to nie dziala. mozna zrobic merge a potem metodami dokladac rzeczy. To musi byc wbudowane w nody
-    // TODO moznaby zrobic referencje do obecnego grafu w nodach ...
-//    pub fn register2<Def:HasOutputStatic>(&self, node:stream::StreamNode<Def>, links:Vec<Link>) -> Stream<Output<Def>> {
-//        let stream : Stream<Output<Def>> = node.clone_ref().into();
-//        let node = Box::new(node);
-//        self.data.nodes.borrow_mut().push(node);
-//        let target = stream.id();
-//        links.into_iter().for_each(|link| self.register_link(target,link));
-//        stream
-//    }
 
     pub fn register_link(&self, target:Id, link:Link) {
         self.data.links.borrow_mut().insert(target,link);

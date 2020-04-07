@@ -36,8 +36,16 @@ macro_rules! extend_network_line {
         let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),$($arg)*) $($ts)*
     };
 
-    ($network:ident def $name:ident $(:$ty:ty)? = $target:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
-        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$target,$($arg)*) $($ts)*
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt,$($arg)*) $($ts)*
+    };
+
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $tgt2:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt.$tgt2,$($arg)*) $($ts)*
+    };
+
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $tgt2:ident . $tgt3:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt.$tgt2.$tgt3,$($arg)*) $($ts)*
     };
 
     ($network:ident $($ts:tt)*) => { $($ts)* }

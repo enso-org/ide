@@ -76,9 +76,6 @@ impl WatchCounter {
 
 
 
-
-
-
 // =================
 // === TypeLabel ===
 // =================
@@ -104,20 +101,6 @@ impl<T> InputBehaviors for T {
         vec![]
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -181,7 +164,6 @@ pub trait ValueProvider : HasOutput {
 
 
 
-
 // ==================
 // === EventInput ===
 // ==================
@@ -194,16 +176,16 @@ pub struct EventInput<Input> {
     data : Rc<dyn WeakEventConsumer<Input>>
 }
 
-impl<Def,Input> From<WeakStreamNode<Def>> for EventInput<Input>
-where Def:HasOutputStatic, StreamNode<Def>:EventConsumer<Input> {
-    fn from(node:WeakStreamNode<Def>) -> Self {
+impl<Def,Input> From<WeakNode<Def>> for EventInput<Input>
+where Def:HasOutputStatic, Node<Def>:EventConsumer<Input> {
+    fn from(node:WeakNode<Def>) -> Self {
         Self {data:Rc::new(node)}
     }
 }
 
-impl<Def,Input> From<&WeakStreamNode<Def>> for EventInput<Input>
-where Def:HasOutputStatic, StreamNode<Def>:EventConsumer<Input> {
-    fn from(node:&WeakStreamNode<Def>) -> Self {
+impl<Def,Input> From<&WeakNode<Def>> for EventInput<Input>
+where Def:HasOutputStatic, Node<Def>:EventConsumer<Input> {
+    fn from(node:&WeakNode<Def>) -> Self {
         Self {data:Rc::new(node.clone_ref())}
     }
 }
@@ -216,10 +198,9 @@ impl<Input> Debug for EventInput<Input> {
 
 
 
-
-// ======================
-// === StreamNodeData ===
-// ======================
+// ================
+// === NodeData ===
+// ================
 
 /// Internal structure of every stream FRP node.
 ///
@@ -232,7 +213,7 @@ impl<Input> Debug for EventInput<Input> {
 /// not need to be cached, and it will not be cloned. This minimizes the amount of clones in FRP
 /// networks drastically.
 #[derive(Debug)]
-pub struct StreamNodeData<Out=()> {
+pub struct NodeData<Out=()> {
     label         : Label,
     targets       : RefCell<Vec<EventInput<Out>>>,
     value_cache   : RefCell<Out>,
@@ -240,7 +221,7 @@ pub struct StreamNodeData<Out=()> {
     watch_counter : WatchCounter,
 }
 
-impl<Out:Default> StreamNodeData<Out> {
+impl<Out:Default> NodeData<Out> {
     /// Constructor.
     pub fn new(label:Label) -> Self {
         let targets       = default();
@@ -255,11 +236,11 @@ impl<Out:Default> StreamNodeData<Out> {
     }
 }
 
-impl<Out:Data> HasOutput for StreamNodeData<Out> {
+impl<Out:Data> HasOutput for NodeData<Out> {
     type Output = Out;
 }
 
-impl<Out:Data> EventEmitter for StreamNodeData<Out> {
+impl<Out:Data> EventEmitter for NodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if !self.during_call.get() {
             self.during_call.set(true);
@@ -280,11 +261,12 @@ impl<Out:Data> EventEmitter for StreamNodeData<Out> {
     }
 }
 
-impl<Out:Data> ValueProvider for StreamNodeData<Out> {
+impl<Out:Data> ValueProvider for NodeData<Out> {
     fn value(&self) -> Out {
         self.value_cache.borrow().clone()
     }
 }
+
 
 
 // ====================
@@ -295,27 +277,27 @@ impl<Out:Data> ValueProvider for StreamNodeData<Out> {
 
 /// Weak reference to FRP stream node with limited functionality and parametrized only by the
 /// output type. This should be the main type used in public FRP APIs.
-/// See the docs of `StreamNodeData` to learn more about its internal design.
+/// See the docs of `NodeData` to learn more about its internal design.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct Stream<Out=()> {
-    data : Weak<StreamNodeData<Out>>,
+    data : Weak<NodeData<Out>>,
 }
 
-/// A strong reference to FRP stream node. See the docs of `StreamNodeData` to learn more about its
+/// A strong reference to FRP stream node. See the docs of `NodeData` to learn more about its
 /// internal design.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct StreamNode<Def:HasOutputStatic> {
-    data       : Rc<StreamNodeData<Output<Def>>>,
+pub struct Node<Def:HasOutputStatic> {
+    data       : Rc<NodeData<Output<Def>>>,
     definition : Rc<Def>,
 }
 
-/// Weak reference to FRP stream node. See the docs of `StreamNodeData` to learn more about its
+/// Weak reference to FRP stream node. See the docs of `NodeData` to learn more about its
 /// internal design.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct WeakStreamNode<Def:HasOutputStatic> {
+pub struct WeakNode<Def:HasOutputStatic> {
     stream     : Stream<Output<Def>>,
     definition : Rc<Def>,
 }
@@ -323,14 +305,14 @@ pub struct WeakStreamNode<Def:HasOutputStatic> {
 
 // === Output ===
 
-impl<Out:Data>            HasOutput for Stream         <Out> { type Output = Out; }
-impl<Def:HasOutputStatic> HasOutput for StreamNode     <Def> { type Output = Output<Def>; }
-impl<Def:HasOutputStatic> HasOutput for WeakStreamNode <Def> { type Output = Output<Def>; }
+impl<Out:Data>            HasOutput for Stream   <Out> { type Output = Out; }
+impl<Def:HasOutputStatic> HasOutput for Node     <Def> { type Output = Output<Def>; }
+impl<Def:HasOutputStatic> HasOutput for WeakNode <Def> { type Output = Output<Def>; }
 
 
 // === Derefs ===
 
-impl<Def> Deref for StreamNode<Def>
+impl<Def> Deref for Node<Def>
 where Def:HasOutputStatic {
     type Target = Def;
     fn deref(&self) -> &Self::Target {
@@ -341,10 +323,10 @@ where Def:HasOutputStatic {
 
 // === Constructors ===
 
-impl<Def:HasOutputStatic> StreamNode<Def> {
+impl<Def:HasOutputStatic> Node<Def> {
     /// Constructor.
     pub fn construct(label:Label, definition:Def) -> Self {
-        let data       = Rc::new(StreamNodeData::new(label));
+        let data       = Rc::new(NodeData::new(label));
         let definition = Rc::new(definition);
         Self {data,definition}
     }
@@ -359,26 +341,26 @@ impl<Def:HasOutputStatic> StreamNode<Def> {
     }
 
     /// Downgrades to the weak version.
-    pub fn downgrade(&self) -> WeakStreamNode<Def> {
+    pub fn downgrade(&self) -> WeakNode<Def> {
         let stream     = Stream {data:Rc::downgrade(&self.data)};
         let definition = self.definition.clone_ref();
-        WeakStreamNode {stream,definition}
+        WeakNode {stream,definition}
     }
 }
 
-impl<T:HasOutputStatic> WeakStreamNode<T> {
+impl<T:HasOutputStatic> WeakNode<T> {
     /// Upgrades to the strong version.
-    pub fn upgrade(&self) -> Option<StreamNode<T>> {
+    pub fn upgrade(&self) -> Option<Node<T>> {
         self.stream.data.upgrade().map(|data| {
             let definition = self.definition.clone_ref();
-            StreamNode{data,definition}
+            Node{data,definition}
         })
     }
 }
 
-impl<Def> From<StreamNode<Def>> for Stream<Def::Output>
+impl<Def> From<Node<Def>> for Stream<Def::Output>
 where Def:HasOutputStatic {
-    fn from(node:StreamNode<Def>) -> Self {
+    fn from(node:Node<Def>) -> Self {
         let data = Rc::downgrade(&node.data);
         Stream {data}
     }
@@ -401,13 +383,13 @@ impl<Out:Data> EventEmitter for Stream<Out> {
     }
 }
 
-impl<Def:HasOutputStatic> EventEmitter for StreamNode<Def>  {
+impl<Def:HasOutputStatic> EventEmitter for Node<Def>  {
     fn emit_event      (&self, value:&Output<Def>)           { self.data.emit_event(value) }
     fn register_target (&self,tgt:EventInput<Output<Self>>) { self.data.register_target(tgt) }
     fn register_watch  (&self) -> WatchHandle                { self.data.register_watch() }
 }
 
-impl<Def:HasOutputStatic> EventEmitter for WeakStreamNode<Def> {
+impl<Def:HasOutputStatic> EventEmitter for WeakNode<Def> {
     fn emit_event      (&self, value:&Output<Def>)           { self.stream.emit_event(value) }
     fn register_target (&self,tgt:EventInput<Output<Self>>) { self.stream.register_target(tgt) }
     fn register_watch  (&self) -> WatchHandle                { self.stream.register_watch() }
@@ -416,8 +398,8 @@ impl<Def:HasOutputStatic> EventEmitter for WeakStreamNode<Def> {
 
 // === WeakEventConsumer ===
 
-impl<Def,T> WeakEventConsumer<T> for WeakStreamNode<Def>
-    where Def:HasOutputStatic, StreamNode<Def>:EventConsumer<T> {
+impl<Def,T> WeakEventConsumer<T> for WeakNode<Def>
+    where Def:HasOutputStatic, Node<Def>:EventConsumer<T> {
     fn on_event_if_exists(&self, value:&T) -> bool {
         self.upgrade().map(|node| {node.on_event(value);}).is_some()
     }
@@ -432,13 +414,13 @@ impl<Out:Data> ValueProvider for Stream<Out> {
     }
 }
 
-impl<Def:HasOutputStatic> ValueProvider for StreamNode<Def> {
+impl<Def:HasOutputStatic> ValueProvider for Node<Def> {
     fn value(&self) -> Self::Output {
         self.data.value_cache.borrow().clone()
     }
 }
 
-impl<Def:HasOutputStatic> ValueProvider for WeakStreamNode<Def> {
+impl<Def:HasOutputStatic> ValueProvider for WeakNode<Def> {
     fn value(&self) -> Self::Output {
         self.stream.value()
     }
@@ -454,13 +436,13 @@ impl<Out> HasId for Stream<Out> {
     }
 }
 
-impl<Def:HasOutputStatic> HasId for StreamNode<Def> {
+impl<Def:HasOutputStatic> HasId for Node<Def> {
     fn id(&self) -> Id {
         self.downgrade().id()
     }
 }
 
-impl<Def:HasOutputStatic> HasId for WeakStreamNode<Def> {
+impl<Def:HasOutputStatic> HasId for WeakNode<Def> {
     fn id(&self) -> Id {
         self.stream.id()
     }
@@ -469,7 +451,7 @@ impl<Def:HasOutputStatic> HasId for WeakStreamNode<Def> {
 
 // === HasLabel ===
 
-impl<Def:HasOutputStatic> HasLabel for StreamNode<Def>
+impl<Def:HasOutputStatic> HasLabel for Node<Def>
     where Def:InputBehaviors {
     fn label(&self) -> Label {
         self.data.label
@@ -477,7 +459,7 @@ impl<Def:HasOutputStatic> HasLabel for StreamNode<Def>
 }
 
 // FIXME code quality below:
-impl<Def> HasOutputTypeLabel for StreamNode<Def>
+impl<Def> HasOutputTypeLabel for Node<Def>
     where Def:HasOutputStatic+InputBehaviors {
     fn output_type_label(&self) -> String {
         let label = type_name::<Def>().to_string();
@@ -496,7 +478,7 @@ impl<Def> HasOutputTypeLabel for StreamNode<Def>
 
 // === InputBehaviors ===
 
-impl<Def:HasOutputStatic> InputBehaviors for StreamNode<Def>
+impl<Def:HasOutputStatic> InputBehaviors for Node<Def>
 where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![] // FIXME
@@ -504,7 +486,7 @@ where Def:InputBehaviors {
     }
 }
 
-impl<Def:HasOutputStatic> InputBehaviors for WeakStreamNode<Def>
+impl<Def:HasOutputStatic> InputBehaviors for WeakNode<Def>
     where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
         self.stream.input_behaviors()
