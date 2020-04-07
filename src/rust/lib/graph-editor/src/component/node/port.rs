@@ -91,7 +91,7 @@ mod shape {
     /// from the center, the angle gets limited by the inner ring and shows a concave "hole" on
     /// that side.
     ///
-    /// Illustrations.
+    /// Illustrations (not to scale).
     /// ---------------
     /// Inwards facing port                           | Outwards facing port
     ///                                               |
@@ -111,8 +111,11 @@ mod shape {
     /// angle with the inner ring.
     ///
     fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,_is_inwards:Var<f32>) -> AnyShape {
-        let outer_radius : Var<f32> = &inner_radius + &height;
-        let segment_width_rad: Var<f32> = width;
+
+        let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
+        let height                       = &height * &zoom_factor;
+        let outer_radius      : Var<f32> = &inner_radius + &height;
+        let segment_width_rad : Var<f32> = &width * &zoom_factor;
 
         // This describes the segment between the angle and the outer ring.
         let segment_outer_radius  = outer_radius.clone();
@@ -234,7 +237,7 @@ impl ShapeViewDefinition for InputPortView {
         shape.update_from_spec(&spec);
         shape.is_inwards.set(1.0);
 
-        let bbox = Vector2::new(1.5_f32 * shape.height.get(), 1.5_f32 * shape.height.get());
+        let bbox = Vector2::new(2.0 * shape.height.get(), 2.0 * shape.height.get());
         shape.sprite.size().set(bbox);
 
         Self {}
@@ -251,7 +254,7 @@ impl ShapeViewDefinition for OutputPortView {
         shape.update_from_spec(&spec);
         shape.is_inwards.set(0.0);
 
-        let bbox = Vector2::new(1.5 * shape.height.get(), 1.5 * shape.height.get());
+        let bbox = Vector2::new(2.0 * shape.height.get(), 2.0 * shape.height.get());
         shape.sprite.size().set(bbox);
 
         Self {}
@@ -357,7 +360,7 @@ impl PortManager{
 
     /// Set the parent node of the created `Ports`.
     ///
-    /// Needs to be set after creation for circular dependecy reasons.
+    /// Needs to be set after creation for circular dependency reasons.
     pub fn set_parent(&self, parent:WeakNode) {
         self.parent_node.set(parent);
     }
