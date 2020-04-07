@@ -139,8 +139,6 @@ pub enum Step
 /// A struct for cursor navigation process.
 #[derive(Debug)]
 pub struct CursorNavigation<'a> {
-    /// A snapshot of TextField's scroll position.
-    pub scroll_position: Vector2<f32>,
     /// A snapshot of TextField's size.
     pub text_field_size: Vector2<f32>,
     /// A reference to text content. This is required to obtain the x positions of chars for proper
@@ -152,12 +150,9 @@ pub struct CursorNavigation<'a> {
 
 impl<'a> CursorNavigation<'a> {
     /// Creates a new CursorNavigation with defaults.
-    pub fn default
-    ( content         : &'a mut TextFieldContent
-    , text_field_size : Vector2<f32>
-    , scroll_position : Vector2<f32>) -> Self {
-        let selecting     = default();
-        Self {content,selecting,text_field_size,scroll_position}
+    pub fn new(content:&'a mut TextFieldContent, text_field_size:Vector2<f32>) -> Self {
+        let selecting = default();
+        Self {content,selecting,text_field_size}
     }
 
     /// Jump cursor directly to given position.
@@ -478,7 +473,7 @@ impl Cursors {
     ///
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
-    pub fn navigate_all_cursors(&mut self, navigation:&mut CursorNavigation, step:Step) -> f32 {
+    pub fn navigate_all_cursors(&mut self, navigation:&mut CursorNavigation, step:Step) {
         self.navigate_cursors(navigation,step,|_| true)
     }
 
@@ -487,18 +482,11 @@ impl Cursors {
     /// If after this operation some of the cursors occupies the same position, or their selected
     /// area overlap, they are irreversibly merged.
     pub fn navigate_cursors<P>
-    (&mut self, navigation:&mut CursorNavigation, step:Step, mut predicate:P) -> f32
+    (&mut self, navigation:&mut CursorNavigation, step:Step, mut predicate:P)
     where P : FnMut(&Cursor) -> bool {
         let filtered = self.cursors.iter_mut().filter(|c| predicate(c));
         filtered.for_each(|cursor| navigation.move_cursor(cursor, step));
-        let new_position = self.last_cursor().position;
         self.merge_overlapping_cursors();
-
-        let scroll      = navigation.scroll_position.y;
-        let line_height = navigation.content.line_height;
-        let height      = ((navigation.text_field_size.y - line_height) / line_height).floor() * line_height;
-        let position    = new_position.line as f32 * navigation.content.line_height - scroll;
-        -position.min(position.max(height) - height)
     }
 
     /// Jump the last cursor to the nearest location from given point of the screen.
@@ -614,7 +602,7 @@ mod test {
         let mut fonts      = FontRegistry::new();
         let properties     = TextFieldProperties::default(&mut fonts);
         let mut content    = TextFieldContent::new(text,&properties);
-        let mut navigation = CursorNavigation::default(&mut content);
+        let mut navigation = CursorNavigation::new(&mut content);
 
         for step in &[/*Left,Right,Up,*/Down,/*LineBegin,LineEnd,DocBegin,DocEnd*/] {
             let mut cursors = Cursors::mock(initial_cursors.clone());
@@ -639,7 +627,7 @@ mod test {
         let mut fonts      = FontRegistry::new();
         let properties     = TextFieldProperties::default(&mut fonts);
         let mut content    = TextFieldContent::new(text,&properties);
-        let mut navigation = CursorNavigation::default(&mut content);
+        let mut navigation = CursorNavigation::new(&mut content);
         let mut cursors = Cursors::mock(initial_cursors.clone());
         cursors.navigate_all_cursors(&mut navigation,LineEnd);
         assert_eq!(new_position, cursors.first_cursor().position);
@@ -658,7 +646,7 @@ mod test {
         let properties     = TextFieldProperties::default(&mut fonts);
         let mut content    = TextFieldContent::new(text,&properties);
         let mut navigation = CursorNavigation
-            {selecting:true, ..CursorNavigation::default(&mut content)};
+            {selecting:true, ..CursorNavigation::new(&mut content)};
         let mut cursors = Cursors::mock(initial_cursors.clone());
         cursors.navigate_all_cursors(&mut navigation,LineEnd);
         assert_eq!(new_loc    , cursors.first_cursor().position);

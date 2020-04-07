@@ -26,46 +26,8 @@ use crate::display::world::World;
 
 use data::text::TextChange;
 use data::text::TextLocation;
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use nalgebra::Vector4;
-
-
-
 // =====================
 // === TextComponent ===
-// =====================
-
-/// A display properties of TextField.
-#[derive(Debug)]
-pub struct TextFieldProperties {
-    /// FontHandle used for rendering text.
-    pub font: FontHandle,
-    /// Text size being a line height in pixels.
-    pub text_size: f32,
-    /// Base color of displayed text.
-    //TODO: base_color should use definitions in core/data/color
-    pub base_color: Vector4<f32>,
-    /// Size of this component.
-    pub size: Vector2<f32>,
-}
-
-impl TextFieldProperties {
-    const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
-
-    /// A default set of properties.
-    pub fn default(fonts:&mut FontRegistry) -> Self {
-        TextFieldProperties {
-            font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
-            text_size : 16.0,
-            base_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
-            size      : Vector2::new(100.0,100.0),
-        }
-    }
-}
-
-// TODO: All measurements in text field should use the `math/topology/unit` units.
-
 shared! { TextField
 
     /// Component rendering text
@@ -104,16 +66,18 @@ shared! { TextField
 
         /// Scroll text by given offset in pixels.
         pub fn scroll(&mut self, offset:Vector2<f32>) {
-            let position_change = -Vector3::new(offset.x,offset.y,0.0);
-            self.rendered.display_object.mod_position(|pos| *pos += position_change);
-            let mut update = self.assignment_update();
-            if offset.x != 0.0 {
-                update.update_after_x_scroll(offset.x);
+            if offset.x != 0.0 || offset.y != 0.0 {
+                let position_change = -Vector3::new(offset.x,offset.y,0.0);
+                self.rendered.display_object.mod_position(|pos| *pos += position_change);
+                let mut update = self.assignment_update();
+                if offset.x != 0.0 {
+                    update.update_after_x_scroll(offset.x);
+                }
+                if offset.y != 0.0 {
+                    update.update_line_assignment();
+                }
+                self.rendered.update_glyphs(&mut self.content);
             }
-            if offset.y != 0.0 {
-                update.update_line_assignment();
-            }
-            self.rendered.update_glyphs(&mut self.content);
         }
 
         /// Get current scroll position.
@@ -150,12 +114,43 @@ shared! { TextField
         pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool) {
             let point_on_text   = self.relative_position(point);
             let size            = self.size();
-            let scroll_position = self.scroll_position();
             let content         = &mut self.content;
-            let navigation      = CursorNavigation::default(content,size,scroll_position);
+            let navigation      = CursorNavigation::new(content,size);
             let mut navigation  = CursorNavigation {selecting, ..navigation};
             self.cursors.jump_cursor(&mut navigation,point_on_text);
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+        }
+
+        /// Processes PageUp and PageDown, scrolling the page accordingly.
+        fn scroll_page(&mut self, step:Step) {
+            let scroll_position = self.scroll_position();
+            let page_height     = self.size().y;
+            let scrolling       = match step {
+                Step::PageUp   =>  page_height,
+                Step::PageDown => -page_height,
+                _              => 0.0
+            };
+
+            let scrolling = scrolling.min(scroll_position.y);
+            let text_height = self.content.line_height * (self.content.lines().len() + 1) as f32;
+            let view_height = self.size().y;
+            let height = (text_height - view_height).max(0.0);
+            let scrolling = scrolling.max(scroll_position.y - height);
+            self.scroll(Vector2::new(0.0,scrolling));
+        }
+
+        /// Adjust the view to make the last cursor visible.
+        fn adjust_view(&mut self) {
+            let line_height         = self.content.line_height;
+            let last_cursor         = self.cursors.last_cursor();
+            let scroll_y            = self.scroll_position().y;
+            let view_size           = self.size();
+            let current_line        = last_cursor.position.line as f32 * line_height;
+            let next_line           = (last_cursor.position.line + 1) as f32 * line_height;
+            let y_scrolling         = (scroll_y - next_line + view_size.y).min(0.0);
+            let y_scrolling         = (scroll_y - current_line).max(y_scrolling);
+            let scrolling           = Vector2::new(0.0,y_scrolling);
+            self.scroll(scrolling);
         }
 
         /// Move all cursors by given step.
@@ -164,12 +159,11 @@ shared! { TextField
                 self.clear_word_occurrences()
             }
             let text_field_size = self.size();
-            let scroll_position = self.scroll_position();
             let content         = &mut self.content;
-            let mut navigation  = CursorNavigation
-            {content,selecting,text_field_size,scroll_position};
-            let scrolling = self.cursors.navigate_all_cursors(&mut navigation,step);
-            self.scroll(Vector2::new(0.0,scrolling));
+            let mut navigation  = CursorNavigation{content,selecting,text_field_size};
+            self.cursors.navigate_all_cursors(&mut navigation,step);
+            self.scroll_page(step);
+            self.adjust_view();
             self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
         }
 
@@ -254,6 +248,44 @@ shared! { TextField
         }
     }
 }
+use nalgebra::Vector2;
+use nalgebra::Vector3;
+
+
+
+use nalgebra::Vector4;
+
+// =====================
+
+/// A display properties of TextField.
+#[derive(Debug)]
+pub struct TextFieldProperties {
+    /// FontHandle used for rendering text.
+    pub font: FontHandle,
+    /// Text size being a line height in pixels.
+    pub text_size: f32,
+    /// Base color of displayed text.
+    //TODO: base_color should use definitions in core/data/color
+    pub base_color: Vector4<f32>,
+    /// Size of this component.
+    pub size: Vector2<f32>,
+}
+
+impl TextFieldProperties {
+    const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
+
+    /// A default set of properties.
+    pub fn default(fonts:&mut FontRegistry) -> Self {
+        TextFieldProperties {
+            font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
+            text_size : 16.0,
+            base_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+            size      : Vector2::new(100.0,100.0),
+        }
+    }
+}
+
+// TODO: All measurements in text field should use the `math/topology/unit` units.
 
 
 // === Constructor ===
@@ -304,6 +336,7 @@ impl TextField {
             // TODO[ao] updates should be done only in one place and only once per frame
             // see https://github.com/luna/ide/issues/178
             this.assignment_update().update_after_text_edit();
+            this.adjust_view();
             this.rendered.update_glyphs(&mut this.content);
             this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);
         });
@@ -320,12 +353,11 @@ impl TextField {
     /// remove all content covered by `step`.
     pub fn do_delete_operation(&self, step:Step) {
         let size            = self.size();
-        let scroll_position = self.scroll_position();
         self.with_borrowed(|this| {
             let content           = &mut this.content;
             let selecting         = true;
             let mut navigation    = CursorNavigation
-                {selecting,..CursorNavigation::default(content,size,scroll_position)};
+                {selecting,..CursorNavigation::new(content,size)};
             let without_selection = |c:&Cursor| !c.has_selection();
             this.cursors.navigate_cursors(&mut navigation,step,without_selection);
         });
