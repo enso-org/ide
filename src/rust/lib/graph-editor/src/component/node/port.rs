@@ -22,7 +22,6 @@ use ensogl::math::topology::unit::Pixels;
 use ensogl::math::topology::unit::{Angle,Degrees};
 use ensogl::prelude::*;
 use nalgebra;
-use std::f32::consts::PI;
 
 
 
@@ -59,6 +58,19 @@ pub struct Specification {
     pub color       : Srgb<f32>,
     /// Indicates whether this port is facing inwards or outwards.
     pub direction   : Direction,
+}
+
+impl Default for Specification {
+    fn default() -> Self {
+        Specification {
+            height       : 20.0,
+            width        : Angle::from(15.0),
+            inner_radius : 70.0,
+            location     : Angle::from(0.0),
+            color        : Srgb::new(0.26, 0.69, 0.99),
+            direction    : Direction::Out,
+        }
+    }
 }
 
 
@@ -100,7 +112,7 @@ mod shape {
     ///
     fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,_is_inwards:Var<f32>) -> AnyShape {
         let outer_radius : Var<f32> = &inner_radius + &height;
-        let segment_width_rad: Var<f32> = width.clone();
+        let segment_width_rad: Var<f32> = width;
 
         // This describes the segment between the angle and the outer ring.
         let segment_outer_radius  = outer_radius.clone();
@@ -191,6 +203,19 @@ mod shape {
             new_port(height,width,inner_radius,is_inwards)
         }
     }
+
+    impl Shape{
+        /// Set the shape parameters derived from the `Specification`.
+        pub fn update_from_spec(&self,spec:&Specification){
+            self.height.set(spec.height);
+            self.inner_radius.set(spec.inner_radius);
+            self.width.set(spec.width.value.to_radians());
+            match &spec.direction{
+                Direction::In  => self.is_inwards.set(1.0),
+                Direction::Out => self.is_inwards.set(0.0),
+            };
+        }
+    }
 }
 
 
@@ -199,24 +224,34 @@ mod shape {
 // === Port ===
 // ============
 
-const DEFAULT_HEIGHT       : f32 = 20.0;
-const DEFAULT_INNER_RADIUS : f32 = 70.0;
-const DEFAULT_WIDTH        : f32 = PI * (15.0 / 180.0f32);
+/// Shape view for Input Port.
+#[derive(Debug,Clone,Copy)]
+pub struct InputPortView {}
+impl ShapeViewDefinition for InputPortView {
+    type Shape = shape::Shape;
+    fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
+        let spec  = Specification::default();
+        shape.update_from_spec(&spec);
+        shape.is_inwards.set(1.0);
+
+        let bbox = Vector2::new(1.5_f32 * shape.height.get(), 1.5_f32 * shape.height.get());
+        shape.sprite.size().set(bbox);
+
+        Self {}
+    }
+}
 
 /// Shape view for Input Port.
 #[derive(Debug,Clone,Copy)]
-pub struct PortView {}
-impl ShapeViewDefinition for PortView {
+pub struct OutputPortView {}
+impl ShapeViewDefinition for OutputPortView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
-        shape.is_inwards.set(1.0);
-        shape.height.set(DEFAULT_HEIGHT);
-        shape.inner_radius.set(DEFAULT_INNER_RADIUS);
-        shape.width.set(DEFAULT_WIDTH);
+        let spec  = Specification::default();
+        shape.update_from_spec(&spec);
+        shape.is_inwards.set(0.0);
 
-        // FIXME This is an approximation and needs to be computed exactly to avoid clipping in
-        // edge cases.
-        let bbox = Vector2::new(1.5 * DEFAULT_HEIGHT, 1.5 * DEFAULT_HEIGHT);
+        let bbox = Vector2::new(1.5 * shape.height.get(), 1.5 * shape.height.get());
         shape.sprite.size().set(bbox);
 
         Self {}
@@ -226,19 +261,25 @@ impl ShapeViewDefinition for PortView {
 /// Port definition.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
-pub struct Port {
-    pub data : Rc<PortData>
+pub struct Port<T:ShapeViewDefinition+Clone> {
+    pub data : Rc<PortData<T>>
 }
+
+/// Type that represents an input port.
+pub type InputPort = Port<InputPortView>;
+
+/// Type that represents an output port.
+pub type OutputPort = Port<OutputPortView>;
 
 /// Internal data of `Port.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct PortData {
+pub struct PortData<T:ShapeViewDefinition+Clone> {
         spec : RefCell<Specification>,
-    pub view : Rc<component::ShapeView<PortView>>
+    pub view : Rc<component::ShapeView<T>>
 }
 
-impl Port {
+impl<T:ShapeViewDefinition<Shape=shape::Shape>+Clone> Port<T> {
 
     /// Constructor.
     pub fn new(spec:Specification) -> Self {
@@ -250,8 +291,7 @@ impl Port {
     }
 
     fn init(self) -> Self {
-        let self_callback_clone = self.clone_ref();
-        self.display_object().set_on_updated(move |_| self_callback_clone.update());
+        self.update();
         self
     }
 
@@ -261,7 +301,7 @@ impl Port {
         self.update()
     }
 
-    /// Update the shape parameters and location with values from our current specification.
+    /// Update the shape parameters and sprite location with values from our current specification.
     fn update(&self) {
         self.update_shape();
         self.update_sprite();
@@ -286,19 +326,13 @@ impl Port {
     fn update_shape(&self){
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             let spec = self.data.spec.borrow();
-            t.shape.width.set(spec.width.value.to_radians());
-            t.shape.inner_radius.set(spec.inner_radius);
-            t.shape.height.set(spec.height);
-            match &spec.direction{
-                Direction::In => t.shape.is_inwards.set(1.0),
-                Direction::Out => t.shape.is_inwards.set(0.0),
-            };
+            t.shape.update_from_spec(&spec);
         }
     }
 }
 
-impl<'t> From<&'t Port> for &'t display::object::Node {
-    fn from(t:&'t Port) -> Self {
+impl<'t,T:ShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
+    fn from(t:&'t Port<T>) -> Self {
         &t.data.view.display_object
     }
 }
@@ -315,8 +349,8 @@ impl<'t> From<&'t Port> for &'t display::object::Node {
 pub struct PortManager {
     /// The node that all ports will be placed around.
     parent_node  : RefCell<Option<WeakNode>>,
-    input_ports  : RefCell<Vec<Port>>,
-    output_ports : RefCell<Vec<Port>>,
+    input_ports  : RefCell<Vec<InputPort>>,
+    output_ports : RefCell<Vec<OutputPort>>,
 }
 
 impl PortManager{
@@ -341,12 +375,9 @@ impl PortManager{
         // TODO layouting for multiple nodes
 
         let port_spec = Specification {
-            height       : DEFAULT_HEIGHT,
-            width        : Angle::<Radians>::from(DEFAULT_WIDTH).degrees(),
-            inner_radius : DEFAULT_INNER_RADIUS,
-            location     : 90.0_f32.deg(),
-            color        : Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
-            direction    : Direction::In,
+            location  : 90.0_f32.deg(),
+            direction : Direction::In,
+            ..Default::default()
         };
 
         let port = Port::new(port_spec);
@@ -360,12 +391,9 @@ impl PortManager{
         // TODO layouting for multiple nodes
 
         let port_spec = Specification {
-            height       : DEFAULT_HEIGHT,
-            width        : Angle::<Radians>::from(DEFAULT_WIDTH).degrees(),
-            inner_radius : DEFAULT_INNER_RADIUS,
-            location     : 270.0_f32.deg(),
-            color        : Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
-            direction    : Direction::Out,
+            location  : 270.0_f32.deg(),
+            direction : Direction::Out,
+            ..Default::default()
         };
 
         let port = Port::new(port_spec);
