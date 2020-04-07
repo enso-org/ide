@@ -108,7 +108,7 @@ pub type Output<T> = <T as HasOutput>::Output;
 // ====================
 
 
-pub trait AnyFlow = 'static + LastValueProvider + EventEmitter + CloneRef + HasId;
+pub trait AnyFlow = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
 
 impl<T:EventEmitter> EventEmitterPoly for T {}
 pub trait EventEmitterPoly : EventEmitter {
@@ -131,13 +131,66 @@ pub trait EventConsumer<T> {
     fn on_event(&self, value:&T);
 }
 
-pub trait LastValueProvider : HasOutput {
+pub trait WeakEventConsumer<T> {
+    /// Consumes the event and return true if existed. Returns false if it was already dropped.
+    fn on_event_if_exists(&self, value:&T) -> bool;
+}
+
+
+pub trait ValueProvider : HasOutput {
     fn value(&self) -> Self::Output;
 }
 
 pub trait EventConsumerDebug<T> : EventConsumer<T> + Debug {}
 impl<X,T> EventConsumerDebug<T> for X where X : EventConsumer<T> + Debug {}
 
+
+
+// ================
+// === NodeData ===
+// ================
+
+#[derive(Debug)]
+pub struct NodeData<Out=()> {
+    label       : Label,
+    targets     : RefCell<Vec<FlowInput<Out>>>,
+    value       : RefCell<Out>,
+    during_call : Cell<bool>,
+}
+
+impl<Out:Default> NodeData<Out> {
+    pub fn new(label:Label) -> Self {
+        let targets     = default();
+        let value       = default();
+        let during_call = default();
+        Self {label,targets,value,during_call}
+    }
+}
+
+impl<Out:Value> HasOutput for NodeData<Out> {
+    type Output = Out;
+}
+
+impl<Out:Value> EventEmitter for NodeData<Out> {
+    fn emit_event(&self, value:&Out) {
+        if !self.during_call.get() {
+            self.during_call.set(true);
+            *self.value.borrow_mut() = value.clone();
+            self.targets.borrow_mut().retain(|target| target.data.on_event_if_exists(value));
+            self.during_call.set(false);
+        }
+    }
+
+    fn register_target(&self,target:FlowInput<Out>) {
+        self.targets.borrow_mut().push(target)
+    }
+}
+
+impl<Out:Value> ValueProvider for NodeData<Out> {
+    fn value(&self) -> Out {
+        self.value.borrow().clone()
+    }
+}
 
 
 // ============
@@ -150,23 +203,22 @@ pub trait NodeDefinition = 'static + ?Sized + HasOutput;
 
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Node<T:NodeDefinition> {
-    data : Rc<NodeData<T>>,
+pub struct Node<Def:NodeDefinition> {
+    data       : Rc<NodeData<Output<Def>>>,
+    definition : Rc<Def>,
 }
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct WeakNode<T:NodeDefinition> {
-    id   : Id,
-    data : Weak<NodeData<T>>,
+pub struct WeakNode<Def:NodeDefinition> {
+    data       : Weak<NodeData<Output<Def>>>,
+    definition : Rc<Def>,
 }
 
-#[derive(Debug)]
-pub struct NodeData<Def:NodeDefinition> {
-    label      : Label,
-    targets    : RefCell<Vec<FlowInput<Output<Def>>>>,
-    value      : Rc<RefCell<Output<Def>>>,
-    definition : Def,
+#[derive(CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct Flow<Out=()> {
+    data : Weak<NodeData<Out>>,
 }
 
 
@@ -174,21 +226,20 @@ pub struct NodeData<Def:NodeDefinition> {
 
 impl<Def:NodeDefinition> HasOutput for Node     <Def> { type Output = Output<Def>; }
 impl<Def:NodeDefinition> HasOutput for WeakNode <Def> { type Output = Output<Def>; }
-impl<Def:NodeDefinition> HasOutput for NodeData <Def> { type Output = Output<Def>; }
+//impl<Def:NodeDefinition> HasOutput for Node <Def> { type Output = Output<Def>; }
 
 
 // === Node Impls ===
 
 impl<Def:NodeDefinition> Node<Def> {
     pub fn construct(label:Label, definition:Def) -> Self {
-        let targets = default();
-        let value   = default();
-        let data    = Rc::new(NodeData {label,targets,value,definition});
-        Self {data}
+        let data       = Rc::new(NodeData::new(label));
+        let definition = Rc::new(definition);
+        Self {data,definition}
     }
 
     pub fn construct_and_connect<S>(label:Label, flow:&S, definition:Def) -> Self
-    where S:AnyFlow, NodeData<Def>:EventConsumer<Output<S>> {
+    where S:AnyFlow, Self:EventConsumer<Output<S>> {
         let this = Self::construct(label,definition);
         let weak = this.downgrade();
         flow.register_target(weak.into());
@@ -200,14 +251,14 @@ impl<Def:NodeDefinition> Node<Def> {
     }
 
     pub fn construct_and_connect2<S>(label:Label, flow:&S, definition:Def) -> Flow<Output<Def>>
-    where S:AnyFlow, NodeData<Def>:EventConsumer<Output<S>> {
+    where S:AnyFlow, Self:EventConsumer<Output<S>> {
         Self::construct_and_connect(label,flow,definition).into()
     }
 
     pub fn downgrade(&self) -> WeakNode<Def> {
-        let id   = self.id();
-        let data = Rc::downgrade(&self.data);
-        WeakNode {id,data}
+        let data       = Rc::downgrade(&self.data);
+        let definition = self.definition.clone_ref();
+        WeakNode {data,definition}
     }
 }
 
@@ -221,23 +272,25 @@ impl<Def:NodeDefinition> EventEmitter for Node<Def>  {
     }
 }
 
-impl<Def:NodeDefinition> LastValueProvider for Node<Def> {
+impl<Def:NodeDefinition> ValueProvider for Node<Def> {
     fn value(&self) -> Self::Output {
-        self.data.value()
+        self.data.value.borrow().clone()
     }
 }
 
 impl<Def:NodeDefinition> HasId for Node<Def> {
     fn id(&self) -> Id {
-        let raw = Rc::downgrade(&self.data.value).as_raw() as *const() as usize;
-        raw.into()
+        0.into() // FIXME
+//        let raw = Rc::downgrade(&self.flow.value).as_raw() as *const() as usize;
+//        raw.into()
     }
 }
 
 impl<Def:NodeDefinition> InputBehaviors for Node<Def>
 where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
-        self.data.input_behaviors()
+        vec![] // FIXME
+//        self.data.input_behaviors()
     }
 }
 
@@ -270,7 +323,10 @@ where Def:InputBehaviors {
 
 impl<T:NodeDefinition> WeakNode<T> {
     pub fn upgrade(&self) -> Option<Node<T>> {
-        self.data.upgrade().map(|data| Node{data})
+        self.data.upgrade().map(|data| {
+            let definition = self.definition.clone_ref();
+            Node{data,definition}
+        })
     }
 }
 
@@ -284,7 +340,7 @@ impl<Def:NodeDefinition> EventEmitter for WeakNode<Def> {
     }
 }
 
-impl<Def:NodeDefinition> LastValueProvider for WeakNode<Def> {
+impl<Def:NodeDefinition> ValueProvider for WeakNode<Def> {
     fn value(&self) -> Self::Output {
         self.data.upgrade().map(|data| data.value()).unwrap_or_default()
     }
@@ -302,7 +358,7 @@ impl<Def:NodeDefinition+Debug> Debug for WeakNode<Def> {
 
 impl<Def:NodeDefinition> HasId for WeakNode<Def> {
     fn id(&self) -> Id {
-        self.id
+        0.into() // FIXME self.id
     }
 }
 
@@ -313,47 +369,19 @@ impl<Def:NodeDefinition> InputBehaviors for WeakNode<Def>
     }
 }
 
+//impl<Def:NodeDefinition,T> EventConsumer<T> for WeakNode<Def>
+//    where Node<Def> : EventConsumer<T> {
+//    fn on_event(&self, value:&T) {
+//        self.upgrade().for_each(|node| node.on_event(value));
+//    }
+//}
 
-// === NodeData Impls ===
-
-impl<Def:NodeDefinition> NodeData<Def> {
-    fn default_emit(&self, value:&Output<Self>) {
-        *self.value.borrow_mut() = value.clone();
-        let mut dirty = false;
-        self.targets.borrow().iter().for_each(|weak| match weak.data.upgrade() {
-            Some(tgt) => tgt.on_event(value),
-            None      => dirty = true
-        });
-        if dirty {
-            self.targets.borrow_mut().retain(|weak| weak.data.upgrade().is_none());
-        }
+impl<Def:NodeDefinition,T> WeakEventConsumer<T> for WeakNode<Def>
+where Node<Def> : EventConsumer<T> {
+    fn on_event_if_exists(&self, value:&T) -> bool {
+        self.upgrade().map(|node| {node.on_event(value);}).is_some()
     }
 }
-
-impl<Def:NodeDefinition> EventEmitter for NodeData<Def> {
-    default fn emit_event(&self, value:&Output<Self>) {
-        self.default_emit(value);
-    }
-
-    default fn register_target(&self,tgt:FlowInput<Output<Self>>) {
-        self.targets.borrow_mut().push(tgt);
-    }
-}
-
-impl<Def:NodeDefinition> LastValueProvider for NodeData<Def> {
-    fn value(&self) -> Self::Output {
-        self.value.borrow().clone()
-    }
-}
-
-
-impl<Def:NodeDefinition> InputBehaviors for NodeData<Def>
-where Def:InputBehaviors {
-    fn input_behaviors(&self) -> Vec<Link> {
-        self.definition.input_behaviors()
-    }
-}
-
 
 
 
@@ -363,18 +391,12 @@ where Def:InputBehaviors {
 // === Flow ===
 // ============
 
-#[derive(CloneRef,Derivative)]
-#[derivative(Clone(bound=""))]
-pub struct Flow<Out=()> {
-    data  : Weak<dyn EventEmitter<Output=Out>>,
-    value : Rc<RefCell<Out>>,
-}
+
 
 impl<Def:NodeDefinition> From<Node<Def>> for Flow<Def::Output> {
     fn from(node:Node<Def>) -> Self {
-        let value = node.data.value.clone_ref();
-        let data  = Rc::downgrade(&node.data);
-        Flow {data,value}
+        let data = Rc::downgrade(&node.data);
+        Flow {data}
     }
 }
 
@@ -392,9 +414,9 @@ impl<Out:Value> EventEmitter for Flow<Out> {
     }
 }
 
-impl<Out:Value> LastValueProvider for Flow<Out> {
+impl<Out:Value> ValueProvider for Flow<Out> {
     fn value(&self) -> Self::Output {
-        self.value.borrow().clone()
+        self.data.upgrade().map(|t| t.value()).unwrap_or_default()
     }
 }
 
@@ -406,8 +428,9 @@ impl<Out> Debug for Flow<Out> {
 
 impl<Out> HasId for Flow<Out> {
     fn id(&self) -> Id {
-        let raw = Rc::downgrade(&self.value).as_raw() as *const() as usize;
-        raw.into()
+        0.into() // FIXME
+//        let raw = Rc::downgrade(&self.value).as_raw() as *const() as usize;
+//        raw.into()
     }
 }
 
@@ -419,20 +442,20 @@ impl<Out> HasId for Flow<Out> {
 
 #[derive(Clone)]
 pub struct FlowInput<Input> {
-    data : Weak<dyn EventConsumer<Input>>
+    data : Rc<dyn WeakEventConsumer<Input>>
 }
 
 impl<Def:NodeDefinition,Input> From<WeakNode<Def>> for FlowInput<Input>
-where NodeData<Def> : EventConsumer<Input> {
+where Node<Def> : EventConsumer<Input> {
     fn from(node:WeakNode<Def>) -> Self {
-        Self {data:node.data}
+        Self {data:Rc::new(node)}
     }
 }
 
 impl<Def:NodeDefinition,Input> From<&WeakNode<Def>> for FlowInput<Input>
-    where NodeData<Def> : EventConsumer<Input> {
+    where Node<Def> : EventConsumer<Input> {
     fn from(node:&WeakNode<Def>) -> Self {
-        Self {data:node.data.clone_ref()}
+        Self {data:Rc::new(node.clone_ref())}
     }
 }
 
@@ -471,11 +494,12 @@ impl<Out:Value> Never<Out> {
     }
 }
 
-impl<Out> EventEmitter for NodeData<NeverData<Out>>
-where NeverData<Out> : NodeDefinition {
-    fn emit_event(&self, _value:&Output<Self>) {}
-    fn register_target(&self, _tgt:FlowInput<Output<Self>>) {}
-}
+// FIXME
+//impl<Out> EventEmitter for Node<NeverData<Out>>
+//where NeverData<Out> : NodeDefinition {
+//    fn emit_event(&self, _value:&Output<Self>) {}
+//    fn register_target(&self, _tgt:FlowInput<Output<Self>>) {}
+//}
 
 
 
@@ -538,7 +562,7 @@ impl<Out:Value> Trace<Out> {
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for NodeData<TraceData<Out>> {
+impl<Out:Value> EventConsumer<Out> for Node<TraceData<Out>> {
     fn on_event(&self, event:&Out) {
         println!("[FRP] {}: {:?}", self.definition.message, event);
         self.emit(event);
@@ -578,7 +602,7 @@ impl Toggle {
     }
 }
 
-impl<T> EventConsumer<T> for NodeData<ToggleData> {
+impl<T> EventConsumer<T> for Node<ToggleData> {
     fn on_event(&self, _:&T) {
         let value = !self.definition.value.get();
         self.definition.value.set(value);
@@ -596,7 +620,7 @@ macro_rules! docs_for_count { ($($tt:tt)*) => { #[doc="
 Count the incoming events.
 "]$($tt)* }}
 
-docs_for_count! { #[derive(Clone,Debug)]
+docs_for_count! { #[derive(Debug)]
 pub struct CountData { value:Cell<usize> }}
 pub type   Count     = Node     <CountData>;
 pub type   WeakCount = WeakNode <CountData>;
@@ -615,7 +639,7 @@ impl Count {
     }
 }
 
-impl<T> EventConsumer<T> for NodeData<CountData> {
+impl<T> EventConsumer<T> for Node<CountData> {
     fn on_event(&self, _:&T) {
         let value = self.definition.value.get() + 1;
         self.definition.value.set(value);
@@ -650,7 +674,7 @@ impl<Out:Value> Constant<Out> {
     }
 }
 
-impl<Out:Value,T> EventConsumer<T> for NodeData<ConstantData<Out>> {
+impl<Out:Value,T> EventConsumer<T> for Node<ConstantData<Out>> {
     fn on_event(&self, _:&T) {
         self.emit(&self.definition.value);
     }
@@ -685,7 +709,7 @@ impl<Out:Value> Previous<Out> {
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for NodeData<PreviousData<Out>> {
+impl<Out:Value> EventConsumer<Out> for Node<PreviousData<Out>> {
     fn on_event(&self, event:&Out) {
         let previous = mem::replace(&mut *self.definition.previous.borrow_mut(),event.clone());
         self.emit(previous);
@@ -721,7 +745,7 @@ impl<Behavior:AnyFlow> Sample<Behavior> {
     }
 }
 
-impl<T,Behavior:AnyFlow> EventConsumer<T> for NodeData<SampleData<Behavior>> {
+impl<T,Behavior:AnyFlow> EventConsumer<T> for Node<SampleData<Behavior>> {
     fn on_event(&self, _:&T) {
         self.emit(self.definition.behavior.value());
     }
@@ -765,7 +789,7 @@ where T:Value, B:AnyFlow<Output=bool> {
     }
 }
 
-impl<T,B> EventConsumer<T> for NodeData<GateData<T,B>>
+impl<T,B> EventConsumer<T> for Node<GateData<T,B>>
 where T:Value, B:AnyFlow<Output=bool> {
     fn on_event(&self, event:&T) {
         if self.definition.behavior.value() {
@@ -878,20 +902,9 @@ impl<F1,Out> Add<&F1> for &WeakMerge<Out>
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for NodeData<MergeData<Out>> {
+impl<Out:Value> EventConsumer<Out> for Node<MergeData<Out>> {
     fn on_event(&self, event:&Out) {
         self.emit(event);
-    }
-}
-
-impl<Out> EventEmitter for NodeData<MergeData<Out>>
-where MergeData<Out> : NodeDefinition {
-    fn emit_event(&self, value:&Output<Self>) {
-        if !self.definition.during_call.get() {
-            self.definition.during_call.set(true);
-            self.default_emit(value);
-            self.definition.during_call.set(false);
-        }
     }
 }
 
@@ -931,7 +944,7 @@ impl<F1,F2> Zip2<F1,F2>
     }
 }
 
-impl<F1,F2,Out> EventConsumer<Out> for NodeData<Zip2Data<F1,F2>>
+impl<F1,F2,Out> EventConsumer<Out> for Node<Zip2Data<F1,F2>>
     where F1:AnyFlow, F2:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
@@ -985,7 +998,7 @@ impl<F1,F2,F3> Zip3<F1,F2,F3>
     }
 }
 
-impl<F1,F2,F3,Out> EventConsumer<Out> for NodeData<Zip3Data<F1,F2,F3>>
+impl<F1,F2,F3,Out> EventConsumer<Out> for Node<Zip3Data<F1,F2,F3>>
     where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
@@ -1042,7 +1055,7 @@ impl<F1,F2,F3,F4> Zip4<F1,F2,F3,F4>
     }
 }
 
-impl<F1,F2,F3,F4,Out> EventConsumer<Out> for NodeData<Zip4Data<F1,F2,F3,F4>>
+impl<F1,F2,F3,F4,Out> EventConsumer<Out> for Node<Zip4Data<F1,F2,F3,F4>>
     where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
     fn on_event(&self, _:&Out) {
         let value1 = self.definition.flow1.value();
@@ -1097,7 +1110,7 @@ where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
     }
 }
 
-impl<F1,F,Out> EventConsumer<Output<F1>> for NodeData<MapData<F1,F>>
+impl<F1,F,Out> EventConsumer<Output<F1>> for Node<MapData<F1,F>>
 where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
     fn on_event(&self, value:&Output<F1>) {
         let out = (self.definition.function)(value);
@@ -1142,7 +1155,7 @@ where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->
     }
 }
 
-impl<F1,F2,F,Out> EventConsumer<Output<F1>> for NodeData<Map2Data<F1,F2,F>>
+impl<F1,F2,F,Out> EventConsumer<Output<F1>> for Node<Map2Data<F1,F2,F>>
 where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     fn on_event(&self, value1:&Output<F1>) {
         let value2 = self.definition.flow2.value();
@@ -1198,7 +1211,7 @@ where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
     }
 }
 
-impl<F1,F2,F3,F,Out> EventConsumer<Output<F1>> for NodeData<Map3Data<F1,F2,F3,F>>
+impl<F1,F2,F3,F,Out> EventConsumer<Output<F1>> for Node<Map3Data<F1,F2,F3,F>>
 where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
       F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     fn on_event(&self, value1:&Output<F1>) {
@@ -1257,7 +1270,7 @@ impl<F1,F2,F3,F4,F,Out> Map4<F1,F2,F3,F4,F>
     }
 }
 
-impl<F1,F2,F3,F4,F,Out> EventConsumer<Output<F1>> for NodeData<Map4Data<F1,F2,F3,F4,F>>
+impl<F1,F2,F3,F4,F,Out> EventConsumer<Output<F1>> for Node<Map4Data<F1,F2,F3,F4,F>>
     where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
           F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     fn on_event(&self, value1:&Output<F1>) {
@@ -1319,7 +1332,7 @@ where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->
     }
 }
 
-impl<F1,F2,F,Out,T> EventConsumer<T> for NodeData<Apply2Data<F1,F2,F>>
+impl<F1,F2,F,Out,T> EventConsumer<T> for Node<Apply2Data<F1,F2,F>>
 where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
     fn on_event(&self, _:&T) {
         let value1 = self.definition.flow1.value();
@@ -1370,7 +1383,7 @@ where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
     }
 }
 
-impl<F1,F2,F3,F,Out,T> EventConsumer<T> for NodeData<Apply3Data<F1,F2,F3,F>>
+impl<F1,F2,F3,F,Out,T> EventConsumer<T> for Node<Apply3Data<F1,F2,F3,F>>
 where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
       F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
     fn on_event(&self, _:&T) {
@@ -1425,7 +1438,7 @@ impl<F1,F2,F3,F4,F,Out> Apply4<F1,F2,F3,F4,F>
     }
 }
 
-impl<F1,F2,F3,F4,F,Out,T> EventConsumer<T> for NodeData<Apply4Data<F1,F2,F3,F4,F>>
+impl<F1,F2,F3,F4,F,Out,T> EventConsumer<T> for Node<Apply4Data<F1,F2,F3,F4,F>>
     where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
           F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
     fn on_event(&self, _:&T) {
@@ -1535,7 +1548,7 @@ impl Network {
 
     pub fn register<Def:NodeDefinition>(&self, node:Node<Def>) -> Flow<Output<Def>> {
         let flow = node.clone_ref().into();
-        let node   = Box::new(node);
+        let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
         flow
     }
@@ -1764,36 +1777,48 @@ impl Network {
 pub fn test() {
     println!("hello");
 
-    new_network! { network
-        def source  = source::<f32>();
-        def source2 = source::<()>();
-        def tg      = toggle(&source);
-        def fff     = map(&tg,|t| { println!("{:?}",t) });
-        def bb      = sample(&source2,&tg);
+//    new_network! { network
+//        def source  = source::<f32>();
+//        def source2 = source::<()>();
+//        def tg      = toggle(&source);
+//        def fff     = map(&tg,|t| { println!("{:?}",t) });
+//        def bb      = sample(&source2,&tg);
+//
+//        let bb2 : Flow<bool> = bb.into();
+//
+//        def fff2   = map(&bb2,|t| { println!(">> {:?}",t) });
+//        def m      = merge_::<usize>();
+//        def c      = count(&m);
+//        def t      = trace("t",&c);
+//    }
+//
+//    m.add(&c);
+//
+//    println!("{:?}",tg);
+//
+//    source.emit(&5.0);
+//    source2.emit(&());
+//    source.emit(&5.0);
+//    source2.emit(&());
+//    source.emit(&5.0);
+//
+//    m.emit(&0);
+//    m.emit(&0);
+//    m.emit(&0);
 
-        let bb2 : Flow<bool> = bb.into();
+//    network.draw();
 
-        def fff2   = map(&bb2,|t| { println!(">> {:?}",t) });
-        def m      = merge_::<usize>();
-        def c      = count(&m);
-        def t      = trace("t",&c);
+    new_network! { network1
+        def source = source();
+        def count  = source.count();
+        def t      = trace("source",&source);
+        def t2     = trace("count",&count);
     }
 
-    m.add(&c);
+    source.emit(());
+    source.emit(());
+    source.emit(());
 
-    println!("{:?}",tg);
-
-    source.emit(&5.0);
-    source2.emit(&());
-    source.emit(&5.0);
-    source2.emit(&());
-    source.emit(&5.0);
-
-    m.emit(&0);
-    m.emit(&0);
-    m.emit(&0);
-
-    network.draw();
 }
 
 
