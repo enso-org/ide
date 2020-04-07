@@ -45,12 +45,12 @@ impl Sub<&Position> for &Position {
 #[allow(missing_docs)]
 pub struct Mouse {
     pub network  : frp::Network,
-    pub on_up    : frp::Flow,
-    pub on_down  : frp::Flow,
-    pub on_wheel : frp::Flow,
-    pub on_leave : frp::Flow,
-    pub is_down  : frp::Flow<bool>,
-    pub position : frp::Flow<Position>,
+    pub on_up    : frp::Stream,
+    pub on_down  : frp::Stream,
+    pub on_wheel : frp::Stream,
+    pub on_leave : frp::Stream,
+    pub is_down  : frp::Stream<bool>,
+    pub position : frp::Stream<Position>,
 }
 
 impl Default for Mouse {

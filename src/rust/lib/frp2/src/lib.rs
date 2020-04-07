@@ -1,6 +1,6 @@
 //! This module implements an Functional Reactive Programming system. It is an advanced event
 //! handling framework which allows describing events and actions by creating declarative event
-//! flow diagrams.
+//! stream diagrams.
 //!
 //! Please read this document as the initial introduction to FRP concepts:
 //! https://github.com/hansroland/reflex-dom-inbits/blob/master/tutorial.md
@@ -9,7 +9,7 @@
 //! dependencies by reading the code only. In order to make it easier, the following diagram was
 //! prepared. It visualizes a simple FRP network of `source -> count -> map(|t| t.to_string())`:
 //!
-//! - Node colors indicate to which network the nodes belong (nodes of that color will be dropped as
+//! - StreamNode colors indicate to which network the nodes belong (nodes of that color will be dropped as
 //!   soon as the network gets dropped). Nodes with double color will be dropped as soon as an event
 //!   will be emitted to nodes from a dropped network.
 //! - Black solid edges without arrows are just fields inside structure.
@@ -30,40 +30,40 @@
 //!     node_1[label="Source<()>", pos="-0.5,-1!", color=blue]
 //!     SourceData[pos="-0.5,0!",color=blue]
 //!     node_1 -> SourceData
-//!     node_data_1[label="NodeData<()>",pos="1.5,-1!",color=blue]
+//!     node_data_1[label="StreamNodeData<()>",pos="1.5,-1!",color=blue]
 //!     node_1 -> node_data_1
-//!     flow_1[label="Flow<()>", pos="3.5,-1!"]
-//!     flow_1 -> node_data_1 [style=dashed]
+//!     stream_1[label="Stream<()>", pos="3.5,-1!"]
+//!     stream_1 -> node_data_1 [style=dashed]
 //!
-//!     FlowInput_1[label="FlowInput<()>", pos="1.5,-2!",color=blue]
-//!     FlowInput_1_[pos="1.5,-2!",label="",color=crimson, width=1.49, height=0.6]
-//!     node_data_1 -> FlowInput_1 [arrowhead=none]
+//!     StreamInput_1[label="StreamInput<()>", pos="1.5,-2!",color=blue]
+//!     StreamInput_1_[pos="1.5,-2!",label="",color=crimson, width=1.49, height=0.6]
+//!     node_data_1 -> StreamInput_1 [arrowhead=none]
 //!     WeakCount_[pos="1.5,-3!",label="",color=crimson, width=1.25, height=0.6]
 //!     WeakCount[pos="1.5,-3!",color=blue]
-//!     FlowInput_1 -> WeakCount [color=red]
+//!     StreamInput_1 -> WeakCount [color=red]
 //!     node_2[label="Count",pos="-0.5,-4!",color=crimson]
 //!     CountData[pos="-0.5,-3!",color=crimson]
 //!     node_2 -> CountData
-//!     node_data_2[label="NodeData<usize>",pos="1.5,-4!",color=crimson]
+//!     node_data_2[label="StreamNodeData<usize>",pos="1.5,-4!",color=crimson]
 //!     node_2 -> node_data_2
 //!     WeakCount -> node_data_2 [style=dashed]
 //!     WeakCount -> CountData
-//!     flow_2[label="Flow<usize>",pos="3.5,-4!"]
-//!     flow_2 -> node_data_2 [style=dashed]
+//!     stream_2[label="Stream<usize>",pos="3.5,-4!"]
+//!     stream_2 -> node_data_2 [style=dashed]
 //!
-//!     FlowInput_2[label="FlowInput<usize>", pos="1.5,-5!",color=crimson]
-//!     node_data_2 -> FlowInput_2
+//!     StreamInput_2[label="StreamInput<usize>", pos="1.5,-5!",color=crimson]
+//!     node_data_2 -> StreamInput_2
 //!     WeakMap[pos="1.5,-6!",color=crimson]
-//!     FlowInput_2 -> WeakMap [color=red]
+//!     StreamInput_2 -> WeakMap [color=red]
 //!     node_3[label="Map<Count,[f]>",pos="-0.5,-7!",color=crimson]
 //!     MapData[pos="-0.5,-6!",color=crimson]
 //!     node_3 -> MapData
-//!     node_data_3[label="NodeData<String>",pos="1.5,-7!",color=crimson]
+//!     node_data_3[label="StreamNodeData<String>",pos="1.5,-7!",color=crimson]
 //!     node_3 -> node_data_3
 //!     WeakMap -> node_data_3 [style=dashed] [weight=10]
 //!     WeakMap -> MapData
-//!     flow_3[label="Flow<String>", pos="3.5,-7!"]
-//!     flow_3 -> node_data_3 [style=dashed]
+//!     stream_3[label="Stream<String>", pos="3.5,-7!"]
+//!     stream_3 -> node_data_3 [style=dashed]
 //! }
 //! ```
 
@@ -170,7 +170,7 @@ pub type Output<T> = <T as HasOutput>::Output;
 // ====================
 
 
-pub trait AnyFlow = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
+pub trait AnyStream = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
 
 impl<T:EventEmitter> EventEmitterPoly for T {}
 pub trait EventEmitterPoly : EventEmitter {
@@ -186,7 +186,7 @@ pub trait EventEmitterPoly : EventEmitter {
 
 pub trait EventEmitter : HasOutput {
     fn emit_event      (&self , value:&Self::Output);
-    fn register_target (&self , target:FlowInput<Output<Self>>);
+    fn register_target (&self , target:StreamInput<Output<Self>>);
 }
 
 pub trait EventConsumer<T> {
@@ -208,56 +208,56 @@ impl<X,T> EventConsumerDebug<T> for X where X : EventConsumer<T> + Debug {}
 
 
 
-// ================
-// === NodeData ===
-// ================
+// ======================
+// === StreamNodeData ===
+// ======================
 
 #[derive(Debug)]
-pub struct NodeData<Out=()> {
+pub struct StreamNodeData<Out=()> {
     label       : Label,
-    targets     : RefCell<Vec<FlowInput<Out>>>,
-    value       : RefCell<Out>,
+    targets     : RefCell<Vec<StreamInput<Out>>>,
+    value_cache : RefCell<Out>,
     during_call : Cell<bool>,
 }
 
-impl<Out:Default> NodeData<Out> {
+impl<Out:Default> StreamNodeData<Out> {
     pub fn new(label:Label) -> Self {
         let targets     = default();
-        let value       = default();
+        let value_cache = default();
         let during_call = default();
-        Self {label,targets,value,during_call}
+        Self {label,targets,value_cache,during_call}
     }
 }
 
-impl<Out:Value> HasOutput for NodeData<Out> {
+impl<Out:Value> HasOutput for StreamNodeData<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> EventEmitter for NodeData<Out> {
+impl<Out:Value> EventEmitter for StreamNodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if !self.during_call.get() {
             self.during_call.set(true);
-            *self.value.borrow_mut() = value.clone();
+            *self.value_cache.borrow_mut() = value.clone();
             self.targets.borrow_mut().retain(|target| target.data.on_event_if_exists(value));
             self.during_call.set(false);
         }
     }
 
-    fn register_target(&self,target:FlowInput<Out>) {
+    fn register_target(&self,target:StreamInput<Out>) {
         self.targets.borrow_mut().push(target)
     }
 }
 
-impl<Out:Value> ValueProvider for NodeData<Out> {
+impl<Out:Value> ValueProvider for StreamNodeData<Out> {
     fn value(&self) -> Out {
-        self.value.borrow().clone()
+        self.value_cache.borrow().clone()
     }
 }
 
 
-// ============
-// === Node ===
-// ============
+// ====================
+// === Event Stream ===
+// ====================
 
 // === Types ===
 
@@ -265,78 +265,79 @@ pub trait NodeDefinition = 'static + ?Sized + HasOutput;
 
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Node<Def:NodeDefinition> {
-    data       : Rc<NodeData<Output<Def>>>,
+pub struct StreamNode<Def:NodeDefinition> {
+    data       : Rc<StreamNodeData<Output<Def>>>,
     definition : Rc<Def>,
 }
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct WeakNode<Def:NodeDefinition> {
-    data       : Weak<NodeData<Output<Def>>>,
+pub struct WeakStreamNode<Def:NodeDefinition> {
+    data       : Weak<StreamNodeData<Output<Def>>>,
     definition : Rc<Def>,
 }
 
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Flow<Out=()> {
-    data : Weak<NodeData<Out>>,
+pub struct Stream<Out=()> {
+    data : Weak<StreamNodeData<Out>>,
 }
+
 
 
 // === Output ===
 
-impl<Def:NodeDefinition> HasOutput for Node     <Def> { type Output = Output<Def>; }
-impl<Def:NodeDefinition> HasOutput for WeakNode <Def> { type Output = Output<Def>; }
+impl<Def:NodeDefinition> HasOutput for StreamNode     <Def> { type Output = Output<Def>; }
+impl<Def:NodeDefinition> HasOutput for WeakStreamNode <Def> { type Output = Output<Def>; }
 
 
-// === Node Impls ===
+// === StreamNode Impls ===
 
-impl<Def:NodeDefinition> Node<Def> {
+impl<Def:NodeDefinition> StreamNode<Def> {
     pub fn construct(label:Label, definition:Def) -> Self {
-        let data       = Rc::new(NodeData::new(label));
+        let data       = Rc::new(StreamNodeData::new(label));
         let definition = Rc::new(definition);
         Self {data,definition}
     }
 
-    pub fn construct_and_connect<S>(label:Label, flow:&S, definition:Def) -> Self
-    where S:AnyFlow, Self:EventConsumer<Output<S>> {
+    pub fn construct_and_connect<S>(label:Label, stream:&S, definition:Def) -> Self
+    where S:AnyStream, Self:EventConsumer<Output<S>> {
         let this = Self::construct(label,definition);
         let weak = this.downgrade();
-        flow.register_target(weak.into());
+        stream.register_target(weak.into());
         this
     }
 
-    pub fn downgrade(&self) -> WeakNode<Def> {
+    pub fn downgrade(&self) -> WeakStreamNode<Def> {
         let data       = Rc::downgrade(&self.data);
         let definition = self.definition.clone_ref();
-        WeakNode {data,definition}
+        WeakStreamNode {data,definition}
     }
 }
 
-impl<Def:NodeDefinition> EventEmitter for Node<Def>  {
+impl<Def:NodeDefinition> EventEmitter for StreamNode<Def>  {
     fn emit_event(&self, value:&Output<Def>) {
         self.data.emit_event(value)
     }
 
-    fn register_target(&self,tgt:FlowInput<Output<Self>>) {
+    fn register_target(&self,tgt:StreamInput<Output<Self>>) {
         self.data.register_target(tgt)
     }
 }
 
-impl<Def:NodeDefinition> ValueProvider for Node<Def> {
+impl<Def:NodeDefinition> ValueProvider for StreamNode<Def> {
     fn value(&self) -> Self::Output {
-        self.data.value.borrow().clone()
+        self.data.value_cache.borrow().clone()
     }
 }
 
-impl<Def:NodeDefinition> HasId for Node<Def> {
+impl<Def:NodeDefinition> HasId for StreamNode<Def> {
     fn id(&self) -> Id {
         self.downgrade().id()
     }
 }
 
-impl<Def:NodeDefinition> InputBehaviors for Node<Def>
+impl<Def:NodeDefinition> InputBehaviors for StreamNode<Def>
 where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![] // FIXME
@@ -344,7 +345,7 @@ where Def:InputBehaviors {
     }
 }
 
-impl<Def:NodeDefinition> HasLabel for Node<Def>
+impl<Def:NodeDefinition> HasLabel for StreamNode<Def>
 where Def:InputBehaviors {
     fn label(&self) -> Label {
         self.data.label
@@ -352,7 +353,7 @@ where Def:InputBehaviors {
 }
 
 // FIXME code quality below:
-impl<Def:NodeDefinition> HasTypeLabel for Node<Def>
+impl<Def:NodeDefinition> HasTypeLabel for StreamNode<Def>
 where Def:InputBehaviors {
     fn type_label(&self) -> String {
         let label = type_name::<Def>().to_string();
@@ -369,59 +370,59 @@ where Def:InputBehaviors {
 }
 
 
-// === WeakNode Impls ===
+// === WeakStreamNode Impls ===
 
-impl<T:NodeDefinition> WeakNode<T> {
-    pub fn upgrade(&self) -> Option<Node<T>> {
+impl<T:NodeDefinition> WeakStreamNode<T> {
+    pub fn upgrade(&self) -> Option<StreamNode<T>> {
         self.data.upgrade().map(|data| {
             let definition = self.definition.clone_ref();
-            Node{data,definition}
+            StreamNode{data,definition}
         })
     }
 }
 
-impl<Def:NodeDefinition> EventEmitter for WeakNode<Def> {
+impl<Def:NodeDefinition> EventEmitter for WeakStreamNode<Def> {
     fn emit_event(&self, value:&Output<Def>) {
         self.data.upgrade().for_each(|data| data.emit_event(value))
     }
 
-    fn register_target(&self,tgt:FlowInput<Output<Self>>) {
+    fn register_target(&self,tgt:StreamInput<Output<Self>>) {
         self.data.upgrade().for_each(|data| data.register_target(tgt))
     }
 }
 
-impl<Def:NodeDefinition> ValueProvider for WeakNode<Def> {
+impl<Def:NodeDefinition> ValueProvider for WeakStreamNode<Def> {
     fn value(&self) -> Self::Output {
         self.data.upgrade().map(|data| data.value()).unwrap_or_default()
     }
 }
 
-impl<Def:NodeDefinition+Debug> Debug for WeakNode<Def> {
+impl<Def:NodeDefinition+Debug> Debug for WeakStreamNode<Def> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         match self.data.upgrade() {
-            None    => write!(f,"WeakNode(Dropped)"),
-            Some(t) => write!(f,"WeakNode({:?})",t),
+            None    => write!(f,"WeakStreamNode(Dropped)"),
+            Some(t) => write!(f,"WeakStreamNode({:?})",t),
         }
 
     }
 }
 
-impl<Def:NodeDefinition> HasId for WeakNode<Def> {
+impl<Def:NodeDefinition> HasId for WeakStreamNode<Def> {
     fn id(&self) -> Id {
         let raw = self.data.as_raw() as *const() as usize;
         raw.into()
     }
 }
 
-impl<Def:NodeDefinition> InputBehaviors for WeakNode<Def>
+impl<Def:NodeDefinition> InputBehaviors for WeakStreamNode<Def>
     where Def:InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link> {
         self.data.upgrade().map(|t| t.input_behaviors()).unwrap_or_default()
     }
 }
 
-impl<Def:NodeDefinition,T> WeakEventConsumer<T> for WeakNode<Def>
-where Node<Def> : EventConsumer<T> {
+impl<Def:NodeDefinition,T> WeakEventConsumer<T> for WeakStreamNode<Def>
+where StreamNode<Def> : EventConsumer<T> {
     fn on_event_if_exists(&self, value:&T) -> bool {
         self.upgrade().map(|node| {node.on_event(value);}).is_some()
     }
@@ -430,43 +431,43 @@ where Node<Def> : EventConsumer<T> {
 
 
 // ============
-// === Flow ===
+// === Stream ===
 // ============
 
-impl<Def:NodeDefinition> From<Node<Def>> for Flow<Def::Output> {
-    fn from(node:Node<Def>) -> Self {
+impl<Def:NodeDefinition> From<StreamNode<Def>> for Stream<Def::Output> {
+    fn from(node:StreamNode<Def>) -> Self {
         let data = Rc::downgrade(&node.data);
-        Flow {data}
+        Stream {data}
     }
 }
 
-impl<Out:Value> HasOutput for Flow<Out> {
+impl<Out:Value> HasOutput for Stream<Out> {
     type Output = Out;
 }
 
-impl<Out:Value> EventEmitter for Flow<Out> {
+impl<Out:Value> EventEmitter for Stream<Out> {
     fn emit_event(&self, value:&Self::Output) {
         self.data.upgrade().for_each(|t| t.emit_event(value))
     }
 
-    fn register_target(&self,tgt:FlowInput<Output<Self>>) {
+    fn register_target(&self,tgt:StreamInput<Output<Self>>) {
         self.data.upgrade().for_each(|t| t.register_target(tgt))
     }
 }
 
-impl<Out:Value> ValueProvider for Flow<Out> {
+impl<Out:Value> ValueProvider for Stream<Out> {
     fn value(&self) -> Self::Output {
         self.data.upgrade().map(|t| t.value()).unwrap_or_default()
     }
 }
 
-impl<Out> Debug for Flow<Out> {
+impl<Out> Debug for Stream<Out> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"Flow")
+        write!(f,"Stream")
     }
 }
 
-impl<Out> HasId for Flow<Out> {
+impl<Out> HasId for Stream<Out> {
     fn id(&self) -> Id {
         0.into() // FIXME
 //        let raw = Rc::downgrade(&self.value).as_raw() as *const() as usize;
@@ -477,31 +478,31 @@ impl<Out> HasId for Flow<Out> {
 
 
 // =================
-// === FlowInput ===
+// === StreamInput ===
 // =================
 
 #[derive(Clone)]
-pub struct FlowInput<Input> {
+pub struct StreamInput<Input> {
     data : Rc<dyn WeakEventConsumer<Input>>
 }
 
-impl<Def:NodeDefinition,Input> From<WeakNode<Def>> for FlowInput<Input>
-where Node<Def> : EventConsumer<Input> {
-    fn from(node:WeakNode<Def>) -> Self {
+impl<Def:NodeDefinition,Input> From<WeakStreamNode<Def>> for StreamInput<Input>
+where StreamNode<Def> : EventConsumer<Input> {
+    fn from(node:WeakStreamNode<Def>) -> Self {
         Self {data:Rc::new(node)}
     }
 }
 
-impl<Def:NodeDefinition,Input> From<&WeakNode<Def>> for FlowInput<Input>
-    where Node<Def> : EventConsumer<Input> {
-    fn from(node:&WeakNode<Def>) -> Self {
+impl<Def:NodeDefinition,Input> From<&WeakStreamNode<Def>> for StreamInput<Input>
+    where StreamNode<Def> : EventConsumer<Input> {
+    fn from(node:&WeakStreamNode<Def>) -> Self {
         Self {data:Rc::new(node.clone_ref())}
     }
 }
 
-impl<Input> Debug for FlowInput<Input> {
+impl<Input> Debug for StreamInput<Input> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"FlowInput")
+        write!(f,"StreamInput")
     }
 }
 
@@ -518,8 +519,8 @@ guarantees that no events would be ever emitted here.
 
 docs_for_never! { #[derive(Clone,Copy,Debug)]
 pub struct NeverData <Out=()> { phantom:PhantomData<Out> }}
-pub type   Never     <Out=()> = Node     <NeverData<Out>>;
-pub type   WeakNever <Out=()> = WeakNode <NeverData<Out>>;
+pub type   Never     <Out=()> = StreamNode     <NeverData<Out>>;
+pub type   WeakNever <Out=()> = WeakStreamNode <NeverData<Out>>;
 
 impl<Out:Value> HasOutput for NeverData<Out> {
     type Output = Out;
@@ -535,10 +536,10 @@ impl<Out:Value> Never<Out> {
 }
 
 // FIXME
-//impl<Out> EventEmitter for Node<NeverData<Out>>
+//impl<Out> EventEmitter for StreamNode<NeverData<Out>>
 //where NeverData<Out> : NodeDefinition {
 //    fn emit_event(&self, _value:&Output<Self>) {}
-//    fn register_target(&self, _tgt:FlowInput<Output<Self>>) {}
+//    fn register_target(&self, _tgt:StreamInput<Output<Self>>) {}
 //}
 
 
@@ -555,8 +556,8 @@ parameter is set to an empty tuple.
 
 docs_for_source! { #[derive(Clone,Copy,Debug)]
 pub struct SourceData <Out=()> { phantom:PhantomData<Out> }}
-pub type   Source     <Out=()> = Node     <SourceData<Out>>;
-pub type   WeakSource <Out=()> = WeakNode <SourceData<Out>>;
+pub type   Source     <Out=()> = StreamNode     <SourceData<Out>>;
+pub type   WeakSource <Out=()> = WeakStreamNode <SourceData<Out>>;
 
 impl<Out:Value> HasOutput for SourceData<Out> {
     type Output = Out;
@@ -584,8 +585,8 @@ Print the incoming events to console and pass them to output.
 /// Print the incoming events to console and pass them to output.
 #[derive(Clone,Debug)]
 pub struct TraceData <Out> { phantom:PhantomData<Out>, message:String }
-pub type   Trace     <Out> = Node     <TraceData<Out>>;
-pub type   WeakTrace <Out> = WeakNode <TraceData<Out>>;
+pub type   Trace     <Out> = StreamNode     <TraceData<Out>>;
+pub type   WeakTrace <Out> = WeakStreamNode <TraceData<Out>>;
 
 impl<Out:Value> HasOutput for TraceData<Out> {
     type Output = Out;
@@ -593,16 +594,16 @@ impl<Out:Value> HasOutput for TraceData<Out> {
 
 impl<Out:Value> Trace<Out> {
     /// Constructor.
-    pub fn new<M,S>(label:Label, message:M, flow:&S) -> Self
-    where M:Into<String>, S:AnyFlow<Output=Out> {
+    pub fn new<M,S>(label:Label, message:M, stream:&S) -> Self
+    where M:Into<String>, S:AnyStream<Output=Out> {
         let phantom = default();
         let message = message.into();
         let def     = TraceData {phantom,message};
-        Self::construct_and_connect(label,flow,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for Node<TraceData<Out>> {
+impl<Out:Value> EventConsumer<Out> for StreamNode<TraceData<Out>> {
     fn on_event(&self, event:&Out) {
         println!("[FRP] {}: {:?}", self.definition.message, event);
         self.emit(event);
@@ -621,8 +622,8 @@ Emits `true`, `false`, `true`, `false`, ... on every incoming event.
 
 docs_for_toggle! { #[derive(Clone,Debug)]
 pub struct ToggleData { value:Cell<bool> }}
-pub type   Toggle     = Node     <ToggleData>;
-pub type   WeakToggle = WeakNode <ToggleData>;
+pub type   Toggle     = StreamNode     <ToggleData>;
+pub type   WeakToggle = WeakStreamNode <ToggleData>;
 
 impl HasOutput for ToggleData {
     type Output = bool;
@@ -630,19 +631,19 @@ impl HasOutput for ToggleData {
 
 impl Toggle {
     /// Constructor.
-    pub fn new<S:AnyFlow>(label:Label, flow:&S) -> Self {
-        Self::new_with(label,flow,default())
+    pub fn new<S:AnyStream>(label:Label, stream:&S) -> Self {
+        Self::new_with(label,stream,default())
     }
 
     /// Constructor with explicit start value.
-    pub fn new_with<S:AnyFlow>(label:Label, flow:&S, init:bool) -> Self {
+    pub fn new_with<S:AnyStream>(label:Label, stream:&S, init:bool) -> Self {
         let value = Cell::new(init);
         let def   = ToggleData {value};
-        Self::construct_and_connect(label,flow,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<T> EventConsumer<T> for Node<ToggleData> {
+impl<T> EventConsumer<T> for StreamNode<ToggleData> {
     fn on_event(&self, _:&T) {
         let value = !self.definition.value.get();
         self.definition.value.set(value);
@@ -662,8 +663,8 @@ Count the incoming events.
 
 docs_for_count! { #[derive(Debug)]
 pub struct CountData { value:Cell<usize> }}
-pub type   Count     = Node     <CountData>;
-pub type   WeakCount = WeakNode <CountData>;
+pub type   Count     = StreamNode     <CountData>;
+pub type   WeakCount = WeakStreamNode <CountData>;
 
 impl HasOutput for CountData {
     type Output = usize;
@@ -671,15 +672,15 @@ impl HasOutput for CountData {
 
 impl Count {
     /// Constructor.
-    pub fn new<S>(label:Label, flow:&S) -> Self
-    where S:AnyFlow {
+    pub fn new<S>(label:Label, stream:&S) -> Self
+    where S:AnyStream {
         let value = default();
         let def   = CountData {value};
-        Self::construct_and_connect(label,flow,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<T> EventConsumer<T> for Node<CountData> {
+impl<T> EventConsumer<T> for StreamNode<CountData> {
     fn on_event(&self, _:&T) {
         let value = self.definition.value.get() + 1;
         self.definition.value.set(value);
@@ -698,8 +699,8 @@ Replaces the incoming event with the predefined value.
 
 docs_for_constant! { #[derive(Clone,Debug)]
 pub struct ConstantData <Out=()> { value:Out }}
-pub type   Constant     <Out=()> = Node     <ConstantData<Out>>;
-pub type   WeakConstant <Out=()> = WeakNode <ConstantData<Out>>;
+pub type   Constant     <Out=()> = StreamNode     <ConstantData<Out>>;
+pub type   WeakConstant <Out=()> = WeakStreamNode <ConstantData<Out>>;
 
 impl<Out:Value> HasOutput for ConstantData<Out> {
     type Output = Out;
@@ -707,14 +708,14 @@ impl<Out:Value> HasOutput for ConstantData<Out> {
 
 impl<Out:Value> Constant<Out> {
     /// Constructor.
-    pub fn new<S>(label:Label, flow:&S, value:Out) -> Self
-    where S:AnyFlow {
+    pub fn new<S>(label:Label, stream:&S, value:Out) -> Self
+    where S:AnyStream {
         let def = ConstantData {value};
-        Self::construct_and_connect(label,flow,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<Out:Value,T> EventConsumer<T> for Node<ConstantData<Out>> {
+impl<Out:Value,T> EventConsumer<T> for StreamNode<ConstantData<Out>> {
     fn on_event(&self, _:&T) {
         self.emit(&self.definition.value);
     }
@@ -727,13 +728,13 @@ impl<Out:Value,T> EventConsumer<T> for Node<ConstantData<Out>> {
 // ================
 
 macro_rules! docs_for_previous { ($($tt:tt)*) => { #[doc="
-Remembers the value of the input flow and outputs the previously received one.
+Remembers the value of the input stream and outputs the previously received one.
 "]$($tt)* }}
 
 docs_for_previous! { #[derive(Clone,Debug)]
 pub struct PreviousData <Out=()> { previous:RefCell<Out> }}
-pub type   Previous     <Out=()> = Node     <PreviousData<Out>>;
-pub type   WeakPrevious <Out=()> = WeakNode <PreviousData<Out>>;
+pub type   Previous     <Out=()> = StreamNode     <PreviousData<Out>>;
+pub type   WeakPrevious <Out=()> = WeakStreamNode <PreviousData<Out>>;
 
 impl<Out:Value> HasOutput for PreviousData<Out> {
     type Output = Out;
@@ -741,15 +742,15 @@ impl<Out:Value> HasOutput for PreviousData<Out> {
 
 impl<Out:Value> Previous<Out> {
     /// Constructor.
-    pub fn new<S>(label:Label, flow:&S) -> Self
-        where S:AnyFlow<Output=Out> {
+    pub fn new<S>(label:Label, stream:&S) -> Self
+        where S:AnyStream<Output=Out> {
         let previous = default();
         let def      = PreviousData {previous};
-        Self::construct_and_connect(label,flow,def)
+        Self::construct_and_connect(label,stream,def)
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for Node<PreviousData<Out>> {
+impl<Out:Value> EventConsumer<Out> for StreamNode<PreviousData<Out>> {
     fn on_event(&self, event:&Out) {
         let previous = mem::replace(&mut *self.definition.previous.borrow_mut(),event.clone());
         self.emit(previous);
@@ -763,36 +764,36 @@ impl<Out:Value> EventConsumer<Out> for Node<PreviousData<Out>> {
 // ==============
 
 macro_rules! docs_for_sample { ($($tt:tt)*) => { #[doc="
-Samples the first flow (behavior) on every incoming event of the second flow. The incoming event
+Samples the first stream (behavior) on every incoming event of the second stream. The incoming event
 is dropped and a new event with the behavior's value is emitted.
 "]$($tt)* }}
 
 docs_for_sample! { #[derive(Clone,Debug)]
 pub struct SampleData <Behavior> { behavior:Behavior }}
-pub type   Sample     <Behavior> = Node     <SampleData<Behavior>>;
-pub type   WeakSample <Behavior> = WeakNode <SampleData<Behavior>>;
+pub type   Sample     <Behavior> = StreamNode     <SampleData<Behavior>>;
+pub type   WeakSample <Behavior> = WeakStreamNode <SampleData<Behavior>>;
 
 impl<Behavior:HasOutput> HasOutput for SampleData<Behavior> {
     type Output = Output<Behavior>;
 }
 
-impl<Behavior:AnyFlow> Sample<Behavior> {
+impl<Behavior:AnyStream> Sample<Behavior> {
     /// Constructor.
-    pub fn new<Event:AnyFlow>(label:Label, event:&Event, behavior:&Behavior) -> Self {
+    pub fn new<Event:AnyStream>(label:Label, event:&Event, behavior:&Behavior) -> Self {
         let behavior   = behavior.clone_ref();
         let definition = SampleData {behavior};
         Self::construct_and_connect(label,event,definition)
     }
 }
 
-impl<T,Behavior:AnyFlow> EventConsumer<T> for Node<SampleData<Behavior>> {
+impl<T,Behavior:AnyStream> EventConsumer<T> for StreamNode<SampleData<Behavior>> {
     fn on_event(&self, _:&T) {
         self.emit(self.definition.behavior.value());
     }
 }
 
 impl<B> InputBehaviors for SampleData<B>
-    where B:AnyFlow {
+    where B:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
     }
@@ -805,23 +806,23 @@ impl<B> InputBehaviors for SampleData<B>
 // ============
 
 macro_rules! docs_for_gate { ($($tt:tt)*) => { #[doc="
-Passes the incoming event of the fisr flow only if the value of the second flow is `true`.
+Passes the incoming event of the fisr stream only if the value of the second stream is `true`.
 "]$($tt)* }}
 
 docs_for_gate! { #[derive(Clone,Debug)]
 pub struct GateData <T,B> { behavior:B, phantom:PhantomData<T> }}
-pub type   Gate     <T,B> = Node     <GateData<T,B>>;
-pub type   WeakGate <T,B> = WeakNode <GateData<T,B>>;
+pub type   Gate     <T,B> = StreamNode     <GateData<T,B>>;
+pub type   WeakGate <T,B> = WeakStreamNode <GateData<T,B>>;
 
 impl<T:Value,B> HasOutput for GateData<T,B> {
     type Output = T;
 }
 
 impl<T,B> Gate<T,B>
-where T:Value, B:AnyFlow<Output=bool> {
+where T:Value, B:AnyStream<Output=bool> {
     /// Constructor.
     pub fn new<E>(label:Label, event:&E, behavior:&B) -> Self
-    where E:AnyFlow<Output=T> {
+    where E:AnyStream<Output=T> {
         let behavior   = behavior.clone_ref();
         let phantom    = default();
         let definition = GateData {behavior,phantom};
@@ -829,8 +830,8 @@ where T:Value, B:AnyFlow<Output=bool> {
     }
 }
 
-impl<T,B> EventConsumer<T> for Node<GateData<T,B>>
-where T:Value, B:AnyFlow<Output=bool> {
+impl<T,B> EventConsumer<T> for StreamNode<GateData<T,B>>
+where T:Value, B:AnyStream<Output=bool> {
     fn on_event(&self, event:&T) {
         if self.definition.behavior.value() {
             self.emit(event)
@@ -839,7 +840,7 @@ where T:Value, B:AnyFlow<Output=bool> {
 }
 
 impl<T,B> InputBehaviors for GateData<T,B>
-where B:AnyFlow {
+where B:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
     }
@@ -852,17 +853,17 @@ where B:AnyFlow {
 // =============
 
 macro_rules! docs_for_merge { ($($tt:tt)*) => { #[doc="
-Merges multiple input flows into a single output flow. All input flows have to share the same
+Merges multiple input streams into a single output stream. All input streams have to share the same
 output data type. Please note that `Merge` can be used to create recursive FRP networks by creating
-an empty merge and using the `add` method to attach new flows to it. When a recursive network is
+an empty merge and using the `add` method to attach new streams to it. When a recursive network is
 created, `Merge` breaks the cycle. After passing the first event, no more events will be passed
 till the end of the current FRP network resolution.
 "]$($tt)* }}
 
 docs_for_merge! { #[derive(Clone,Debug)]
 pub struct MergeData <Out> { phantom:PhantomData<Out>, during_call:Cell<bool> }}
-pub type   Merge     <Out> = Node     <MergeData<Out>>;
-pub type   WeakMerge <Out> = WeakNode <MergeData<Out>>;
+pub type   Merge     <Out> = StreamNode     <MergeData<Out>>;
+pub type   WeakMerge <Out> = WeakStreamNode <MergeData<Out>>;
 
 impl<Out:Value> HasOutput for MergeData<Out> {
     type Output = Out;
@@ -877,72 +878,72 @@ impl<Out:Value> Merge<Out> {
         Self::construct(label,def)
     }
 
-    /// Takes ownership of self and returns it with a new flow attached.
-    pub fn with<S>(self, flow:&S) -> Self
-        where S:AnyFlow<Output=Out> {
-        flow.register_target(self.downgrade().into());
+    /// Takes ownership of self and returns it with a new stream attached.
+    pub fn with<S>(self, stream:&S) -> Self
+        where S:AnyStream<Output=Out> {
+        stream.register_target(self.downgrade().into());
         self
     }
 
-    /// Constructor for 1 input flow.
-    pub fn new1<F1>(label:Label, f1:&F1) -> Self
-        where F1:AnyFlow<Output=Out> {
-        Self::new(label).with(f1)
+    /// Constructor for 1 input stream.
+    pub fn new1<T1>(label:Label, t1:&T1) -> Self
+        where T1:AnyStream<Output=Out> {
+        Self::new(label).with(t1)
     }
 
-    /// Constructor for 2 input flows.
-    pub fn new2<F1,F2>(label:Label, f1:&F1, f2:&F2) -> Self
-        where F1:AnyFlow<Output=Out>,
-              F2:AnyFlow<Output=Out> {
-        Self::new(label).with(f1).with(f2)
+    /// Constructor for 2 input streams.
+    pub fn new2<T1,T2>(label:Label, t1:&T1, t2:&T2) -> Self
+        where T1:AnyStream<Output=Out>,
+              T2:AnyStream<Output=Out> {
+        Self::new(label).with(t1).with(t2)
     }
 
-    /// Constructor for 3 input flows.
-    pub fn new3<F1,F2,F3>(label:Label, f1:&F1, f2:&F2, f3:&F3) -> Self
-        where F1:AnyFlow<Output=Out>,
-              F2:AnyFlow<Output=Out>,
-              F3:AnyFlow<Output=Out> {
-        Self::new(label).with(f1).with(f2).with(f3)
+    /// Constructor for 3 input streams.
+    pub fn new3<T1,T2,T3>(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self
+        where T1:AnyStream<Output=Out>,
+              T2:AnyStream<Output=Out>,
+              T3:AnyStream<Output=Out> {
+        Self::new(label).with(t1).with(t2).with(t3)
     }
 
-    /// Constructor for 4 input flows.
-    pub fn new4<F1,F2,F3,F4>(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Self
-        where F1:AnyFlow<Output=Out>,
-              F2:AnyFlow<Output=Out>,
-              F3:AnyFlow<Output=Out>,
-              F4:AnyFlow<Output=Out> {
-        Self::new(label).with(f1).with(f2).with(f3).with(f4)
+    /// Constructor for 4 input streams.
+    pub fn new4<T1,T2,T3,T4>(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self
+        where T1:AnyStream<Output=Out>,
+              T2:AnyStream<Output=Out>,
+              T3:AnyStream<Output=Out>,
+              T4:AnyStream<Output=Out> {
+        Self::new(label).with(t1).with(t2).with(t3).with(t4)
     }
 }
 
 impl<Out:Value> WeakMerge<Out> {
-    /// Takes ownership of self and returns it with a new flow attached.
-    pub fn with<S>(self, flow:&S) -> Self
-    where S:AnyFlow<Output=Out> {
-        flow.register_target(self.clone_ref().into());
+    /// Takes ownership of self and returns it with a new stream attached.
+    pub fn with<S>(self, stream:&S) -> Self
+    where S:AnyStream<Output=Out> {
+        stream.register_target(self.clone_ref().into());
         self
     }
 }
 
-impl<F1,Out> Add<&F1> for &Merge<Out>
-    where F1:AnyFlow<Output=Out>, Out:Value {
+impl<T1,Out> Add<&T1> for &Merge<Out>
+    where T1:AnyStream<Output=Out>, Out:Value {
     type Output = Self;
-    fn add(self, flow:&F1) -> Self::Output {
-        flow.register_target(self.downgrade().into());
+    fn add(self, stream:&T1) -> Self::Output {
+        stream.register_target(self.downgrade().into());
         self
     }
 }
 
-impl<F1,Out> Add<&F1> for &WeakMerge<Out>
-    where F1:AnyFlow<Output=Out>, Out:Value {
+impl<T1,Out> Add<&T1> for &WeakMerge<Out>
+    where T1:AnyStream<Output=Out>, Out:Value {
     type Output = Self;
-    fn add(self, flow:&F1) -> Self::Output {
-        flow.register_target(self.into());
+    fn add(self, stream:&T1) -> Self::Output {
+        stream.register_target(self.into());
         self
     }
 }
 
-impl<Out:Value> EventConsumer<Out> for Node<MergeData<Out>> {
+impl<Out:Value> EventConsumer<Out> for StreamNode<MergeData<Out>> {
     fn on_event(&self, event:&Out) {
         self.emit(event);
     }
@@ -955,48 +956,48 @@ impl<Out:Value> EventConsumer<Out> for Node<MergeData<Out>> {
 // ============
 
 macro_rules! docs_for_zip2 { ($($tt:tt)*) => { #[doc="
-Merges two input flows into a flow containing values from both of them. On event from any of the
-flows, all flows are sampled and the final event is produced.
+Merges two input streams into a stream containing values from both of them. On event from any of the
+streams, all streams are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip2! { #[derive(Clone,Copy,Debug)]
-pub struct Zip2Data <F1,F2> { flow1:F1, flow2:F2 }}
-pub type   Zip2     <F1,F2> = Node     <Zip2Data<F1,F2>>;
-pub type   WeakZip2 <F1,F2> = WeakNode <Zip2Data<F1,F2>>;
+pub struct Zip2Data <T1,T2> { stream1:T1, stream2:T2 }}
+pub type   Zip2     <T1,T2> = StreamNode     <Zip2Data<T1,T2>>;
+pub type   WeakZip2 <T1,T2> = WeakStreamNode <Zip2Data<T1,T2>>;
 
-impl<F1,F2> HasOutput for Zip2Data<F1,F2>
-    where F1:AnyFlow, F2:AnyFlow {
-    type Output = (Output<F1>,Output<F2>);
+impl<T1,T2> HasOutput for Zip2Data<T1,T2>
+    where T1:AnyStream, T2:AnyStream {
+    type Output = (Output<T1>,Output<T2>);
 }
 
-impl<F1,F2> Zip2<F1,F2>
-    where F1:AnyFlow, F2:AnyFlow {
+impl<T1,T2> Zip2<T1,T2>
+    where T1:AnyStream, T2:AnyStream {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let def   = Zip2Data {flow1,flow2};
+    pub fn new(label:Label, t1:&T1, t2:&T2) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let def   = Zip2Data {stream1,stream2};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,Out> EventConsumer<Out> for Node<Zip2Data<F1,F2>>
-    where F1:AnyFlow, F2:AnyFlow {
+impl<T1,T2,Out> EventConsumer<Out> for StreamNode<Zip2Data<T1,T2>>
+    where T1:AnyStream, T2:AnyStream {
     fn on_event(&self, _:&Out) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
         self.emit((value1,value2));
     }
 }
 
-impl<F1,F2> InputBehaviors for Zip2Data<F1,F2>
-    where F1:AnyFlow, F2:AnyFlow {
+impl<T1,T2> InputBehaviors for Zip2Data<T1,T2>
+    where T1:AnyStream, T2:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![Link::mixed(&self.flow1), Link::mixed(&self.flow2)]
+        vec![Link::mixed(&self.stream1), Link::mixed(&self.stream2)]
     }
 }
 
@@ -1007,51 +1008,51 @@ impl<F1,F2> InputBehaviors for Zip2Data<F1,F2>
 // ============
 
 macro_rules! docs_for_zip3 { ($($tt:tt)*) => { #[doc="
-Merges three input flows into a flow containing values from all of them. On event from any of
-the flows, all flows are sampled and the final event is produced.
+Merges three input streams into a stream containing values from all of them. On event from any of
+the streams, all streams are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip3! { #[derive(Clone,Copy,Debug)]
-pub struct Zip3Data <F1,F2,F3> { flow1:F1, flow2:F2, flow3:F3 }}
-pub type   Zip3     <F1,F2,F3> = Node     <Zip3Data<F1,F2,F3>>;
-pub type   WeakZip3 <F1,F2,F3> = WeakNode <Zip3Data<F1,F2,F3>>;
+pub struct Zip3Data <T1,T2,T3> { stream1:T1, stream2:T2, stream3:T3 }}
+pub type   Zip3     <T1,T2,T3> = StreamNode     <Zip3Data<T1,T2,T3>>;
+pub type   WeakZip3 <T1,T2,T3> = WeakStreamNode <Zip3Data<T1,T2,T3>>;
 
-impl<F1,F2,F3> HasOutput for Zip3Data<F1,F2,F3>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
-    type Output = (Output<F1>,Output<F2>,Output<F3>);
+impl<T1,T2,T3> HasOutput for Zip3Data<T1,T2,T3>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+    type Output = (Output<T1>,Output<T2>,Output<T3>);
 }
 
-impl<F1,F2,F3> Zip3<F1,F2,F3>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+impl<T1,T2,T3> Zip3<T1,T2,T3>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let def   = Zip3Data {flow1,flow2,flow3};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let def   = Zip3Data {stream1,stream2,stream3};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.clone_ref().into());
-        f3.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,Out> EventConsumer<Out> for Node<Zip3Data<F1,F2,F3>>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+impl<T1,T2,T3,Out> EventConsumer<Out> for StreamNode<Zip3Data<T1,T2,T3>>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
     fn on_event(&self, _:&Out) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
         self.emit((value1,value2,value3));
     }
 }
 
-impl<F1,F2,F3> InputBehaviors for Zip3Data<F1,F2,F3>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+impl<T1,T2,T3> InputBehaviors for Zip3Data<T1,T2,T3>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![Link::mixed(&self.flow1), Link::mixed(&self.flow2), Link::mixed(&self.flow3)]
+        vec![Link::mixed(&self.stream1), Link::mixed(&self.stream2), Link::mixed(&self.stream3)]
     }
 }
 
@@ -1062,57 +1063,57 @@ impl<F1,F2,F3> InputBehaviors for Zip3Data<F1,F2,F3>
 // ============
 
 macro_rules! docs_for_zip4 { ($($tt:tt)*) => { #[doc="
-Merges four input flows into a flow containing values from all of them. On event from any of the
-flows, all flows are sampled and the final event is produced.
+Merges four input streams into a stream containing values from all of them. On event from any of the
+streams, all streams are sampled and the final event is produced.
 "]$($tt)* }}
 
 docs_for_zip4! { #[derive(Clone,Copy,Debug)]
-pub struct Zip4Data <F1,F2,F3,F4> { flow1:F1, flow2:F2, flow3:F3, flow4:F4 }}
-pub type   Zip4     <F1,F2,F3,F4> = Node     <Zip4Data<F1,F2,F3,F4>>;
-pub type   WeakZip4 <F1,F2,F3,F4> = WeakNode <Zip4Data<F1,F2,F3,F4>>;
+pub struct Zip4Data <T1,T2,T3,T4> { stream1:T1, stream2:T2, stream3:T3, stream4:T4 }}
+pub type   Zip4     <T1,T2,T3,T4> = StreamNode     <Zip4Data<T1,T2,T3,T4>>;
+pub type   WeakZip4 <T1,T2,T3,T4> = WeakStreamNode <Zip4Data<T1,T2,T3,T4>>;
 
-impl<F1,F2,F3,F4> HasOutput for Zip4Data<F1,F2,F3,F4>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
-    type Output = (Output<F1>,Output<F2>,Output<F3>,Output<F4>);
+impl<T1,T2,T3,T4> HasOutput for Zip4Data<T1,T2,T3,T4>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+    type Output = (Output<T1>,Output<T2>,Output<T3>,Output<T4>);
 }
 
-impl<F1,F2,F3,F4> Zip4<F1,F2,F3,F4>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+impl<T1,T2,T3,T4> Zip4<T1,T2,T3,T4>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let flow4 = f4.clone_ref();
-        let def   = Zip4Data {flow1,flow2,flow3,flow4};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let stream4 = t4.clone_ref();
+        let def   = Zip4Data {stream1,stream2,stream3,stream4};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.clone_ref().into());
-        f3.register_target(weak.clone_ref().into());
-        f4.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.clone_ref().into());
+        t4.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,F4,Out> EventConsumer<Out> for Node<Zip4Data<F1,F2,F3,F4>>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+impl<T1,T2,T3,T4,Out> EventConsumer<Out> for StreamNode<Zip4Data<T1,T2,T3,T4>>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
     fn on_event(&self, _:&Out) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
-        let value4 = self.definition.flow4.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
+        let value4 = self.definition.stream4.value();
         self.emit((value1,value2,value3,value4));
     }
 }
 
-impl<F1,F2,F3,F4> InputBehaviors for Zip4Data<F1,F2,F3,F4>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+impl<T1,T2,T3,T4> InputBehaviors for Zip4Data<T1,T2,T3,T4>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![ Link::mixed(&self.flow1)
-            , Link::mixed(&self.flow2)
-            , Link::mixed(&self.flow3)
-            , Link::mixed(&self.flow4)
+        vec![ Link::mixed(&self.stream1)
+            , Link::mixed(&self.stream2)
+            , Link::mixed(&self.stream3)
+            , Link::mixed(&self.stream4)
             ]
     }
 }
@@ -1124,41 +1125,41 @@ impl<F1,F2,F3,F4> InputBehaviors for Zip4Data<F1,F2,F3,F4>
 // ===========
 
 macro_rules! docs_for_map { ($($tt:tt)*) => { #[doc="
-On every event from the first input flow, sample all other input flows and run the provided
-function on all gathered values. If you want to run the function on event from any input flow,
+On every event from the first input stream, sample all other input streams and run the provided
+function on all gathered values. If you want to run the function on event from any input stream,
 use the `apply` function family instead.
 "]$($tt)* }}
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct MapData <F1,F> { flow:F1, function:F }}
-pub type   Map     <F1,F> = Node     <MapData<F1,F>>;
-pub type   WeakMap <F1,F> = WeakNode <MapData<F1,F>>;
+pub struct MapData <T1,F> { stream:T1, function:F }}
+pub type   Map     <T1,F> = StreamNode     <MapData<T1,F>>;
+pub type   WeakMap <T1,F> = WeakStreamNode <MapData<T1,F>>;
 
-impl<F1,F,Out> HasOutput for MapData<F1,F>
-where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
+impl<T1,F,Out> HasOutput for MapData<T1,F>
+where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
     type Output = Out;
 }
 
-impl<F1,F,Out> Map<F1,F>
-where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
+impl<T1,F,Out> Map<T1,F>
+where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, function:F) -> Self {
-        let flow       = f1.clone_ref();
-        let definition = MapData {flow,function};
-        Self::construct_and_connect(label,f1,definition)
+    pub fn new(label:Label, t1:&T1, function:F) -> Self {
+        let stream       = t1.clone_ref();
+        let definition = MapData {stream,function};
+        Self::construct_and_connect(label,t1,definition)
     }
 }
 
-impl<F1,F,Out> EventConsumer<Output<F1>> for Node<MapData<F1,F>>
-where F1:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>)->Out {
-    fn on_event(&self, value:&Output<F1>) {
+impl<T1,F,Out> EventConsumer<Output<T1>> for StreamNode<MapData<T1,F>>
+where T1:AnyStream, Out:Value, F:'static+Fn(&Output<T1>)->Out {
+    fn on_event(&self, value:&Output<T1>) {
         let out = (self.definition.function)(value);
         self.emit(out);
     }
 }
 
-impl<F1,F> Debug for MapData<F1,F> {
+impl<T1,F> Debug for MapData<T1,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"MapData")
     }
@@ -1172,48 +1173,48 @@ impl<F1,F> Debug for MapData<F1,F> {
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map2Data <F1,F2,F> { flow1:F1, flow2:F2, function:F }}
-pub type   Map2     <F1,F2,F> = Node     <Map2Data<F1,F2,F>>;
-pub type   WeakMap2 <F1,F2,F> = WeakNode <Map2Data<F1,F2,F>>;
+pub struct Map2Data <T1,T2,F> { stream1:T1, stream2:T2, function:F }}
+pub type   Map2     <T1,T2,F> = StreamNode     <Map2Data<T1,T2,F>>;
+pub type   WeakMap2 <T1,T2,F> = WeakStreamNode <Map2Data<T1,T2,F>>;
 
-impl<F1,F2,F,Out> HasOutput for Map2Data<F1,F2,F>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+impl<T1,T2,F,Out> HasOutput for Map2Data<T1,T2,F>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F,Out> Map2<F1,F2,F>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+impl<T1,T2,F,Out> Map2<T1,T2,F>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let def   = Map2Data {flow1,flow2,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let def   = Map2Data {stream1,stream2,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.into());
+        t1.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F,Out> EventConsumer<Output<F1>> for Node<Map2Data<F1,F2,F>>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
-    fn on_event(&self, value1:&Output<F1>) {
-        let value2 = self.definition.flow2.value();
+impl<T1,T2,F,Out> EventConsumer<Output<T1>> for StreamNode<Map2Data<T1,T2,F>>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+    fn on_event(&self, value1:&Output<T1>) {
+        let value2 = self.definition.stream2.value();
         let out    = (self.definition.function)(&value1,&value2);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F> Debug for Map2Data<F1,F2,F> {
+impl<T1,T2,F> Debug for Map2Data<T1,T2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map2Data")
     }
 }
 
-impl<F1,F2,F> InputBehaviors for Map2Data<F1,F2,F>
-    where F1:AnyFlow, F2:AnyFlow {
+impl<T1,T2,F> InputBehaviors for Map2Data<T1,T2,F>
+    where T1:AnyStream, T2:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![Link::behavior(&self.flow2)]
+        vec![Link::behavior(&self.stream2)]
     }
 }
 
@@ -1225,53 +1226,53 @@ impl<F1,F2,F> InputBehaviors for Map2Data<F1,F2,F>
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map3Data <F1,F2,F3,F> { flow1:F1, flow2:F2, flow3:F3, function:F }}
-pub type   Map3     <F1,F2,F3,F> = Node     <Map3Data<F1,F2,F3,F>>;
-pub type   WeakMap3 <F1,F2,F3,F> = WeakNode <Map3Data<F1,F2,F3,F>>;
+pub struct Map3Data <T1,T2,T3,F> { stream1:T1, stream2:T2, stream3:T3, function:F }}
+pub type   Map3     <T1,T2,T3,F> = StreamNode     <Map3Data<T1,T2,T3,F>>;
+pub type   WeakMap3 <T1,T2,T3,F> = WeakStreamNode <Map3Data<T1,T2,T3,F>>;
 
-impl<F1,F2,F3,F,Out> HasOutput for Map3Data<F1,F2,F3,F>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+impl<T1,T2,T3,F,Out> HasOutput for Map3Data<T1,T2,T3,F>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F3,F,Out> Map3<F1,F2,F3,F>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+impl<T1,T2,T3,F,Out> Map3<T1,T2,T3,F>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let def   = Map3Data {flow1,flow2,flow3,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let def   = Map3Data {stream1,stream2,stream3,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.into());
+        t1.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,F,Out> EventConsumer<Output<F1>> for Node<Map3Data<F1,F2,F3,F>>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
-    fn on_event(&self, value1:&Output<F1>) {
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
+impl<T1,T2,T3,F,Out> EventConsumer<Output<T1>> for StreamNode<Map3Data<T1,T2,T3,F>>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
+    fn on_event(&self, value1:&Output<T1>) {
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
         let out    = (self.definition.function)(&value1,&value2,&value3);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F3,F> Debug for Map3Data<F1,F2,F3,F> {
+impl<T1,T2,T3,F> Debug for Map3Data<T1,T2,T3,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map3Data")
     }
 }
 
-impl<F1,F2,F3,F> InputBehaviors for Map3Data<F1,F2,F3,F>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
+impl<T1,T2,T3,F> InputBehaviors for Map3Data<T1,T2,T3,F>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![Link::behavior(&self.flow2), Link::behavior(&self.flow3)]
+        vec![Link::behavior(&self.stream2), Link::behavior(&self.stream3)]
     }
 }
 
@@ -1283,53 +1284,53 @@ impl<F1,F2,F3,F> InputBehaviors for Map3Data<F1,F2,F3,F>
 
 docs_for_map! {
 #[derive(Clone)]
-pub struct Map4Data <F1,F2,F3,F4,F> { flow1:F1, flow2:F2, flow3:F3, flow4:F4, function:F }}
-pub type   Map4     <F1,F2,F3,F4,F> = Node     <Map4Data<F1,F2,F3,F4,F>>;
-pub type   WeakMap4 <F1,F2,F3,F4,F> = WeakNode <Map4Data<F1,F2,F3,F4,F>>;
+pub struct Map4Data <T1,T2,T3,T4,F> { stream1:T1, stream2:T2, stream3:T3, stream4:T4, function:F }}
+pub type   Map4     <T1,T2,T3,T4,F> = StreamNode     <Map4Data<T1,T2,T3,T4,F>>;
+pub type   WeakMap4 <T1,T2,T3,T4,F> = WeakStreamNode <Map4Data<T1,T2,T3,T4,F>>;
 
-impl<F1,F2,F3,F4,F,Out> HasOutput for Map4Data<F1,F2,F3,F4,F>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+impl<T1,T2,T3,T4,F,Out> HasOutput for Map4Data<T1,T2,T3,T4,F>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F3,F4,F,Out> Map4<F1,F2,F3,F4,F>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+impl<T1,T2,T3,T4,F,Out> Map4<T1,T2,T3,T4,F>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let flow4 = f4.clone_ref();
-        let def   = Map4Data {flow1,flow2,flow3,flow4,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let stream4 = t4.clone_ref();
+        let def   = Map4Data {stream1,stream2,stream3,stream4,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.into());
+        t1.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,F4,F,Out> EventConsumer<Output<F1>> for Node<Map4Data<F1,F2,F3,F4,F>>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
-    fn on_event(&self, value1:&Output<F1>) {
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
-        let value4 = self.definition.flow4.value();
+impl<T1,T2,T3,T4,F,Out> EventConsumer<Output<T1>> for StreamNode<Map4Data<T1,T2,T3,T4,F>>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
+    fn on_event(&self, value1:&Output<T1>) {
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
+        let value4 = self.definition.stream4.value();
         let out    = (self.definition.function)(&value1,&value2,&value3,&value4);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F3,F4,F> InputBehaviors for Map4Data<F1,F2,F3,F4,F>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
+impl<T1,T2,T3,T4,F> InputBehaviors for Map4Data<T1,T2,T3,T4,F>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
     fn input_behaviors(&self) -> Vec<Link> {
-        vec![Link::behavior(&self.flow2), Link::behavior(&self.flow3), Link::behavior(&self.flow4)]
+        vec![Link::behavior(&self.stream2), Link::behavior(&self.stream3), Link::behavior(&self.stream4)]
     }
 }
 
-impl<F1,F2,F3,F4,F> Debug for Map4Data<F1,F2,F3,F4,F> {
+impl<T1,T2,T3,T4,F> Debug for Map4Data<T1,T2,T3,T4,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map4Data")
     }
@@ -1342,47 +1343,47 @@ impl<F1,F2,F3,F4,F> Debug for Map4Data<F1,F2,F3,F4,F> {
 // ==============
 
 macro_rules! docs_for_apply { ($($tt:tt)*) => { #[doc="
-On every input event sample all input flows and run the provided function on all gathered values.
+On every input event sample all input streams and run the provided function on all gathered values.
 If you want to run the function only on event on the first input, use the `map` function family
 instead.
 "]$($tt)* }}
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply2Data <F1,F2,F> { flow1:F1, flow2:F2, function:F }}
-pub type   Apply2     <F1,F2,F> = Node     <Apply2Data<F1,F2,F>>;
-pub type   WeakApply2 <F1,F2,F> = WeakNode <Apply2Data<F1,F2,F>>;
+pub struct Apply2Data <T1,T2,F> { stream1:T1, stream2:T2, function:F }}
+pub type   Apply2     <T1,T2,F> = StreamNode     <Apply2Data<T1,T2,F>>;
+pub type   WeakApply2 <T1,T2,F> = WeakStreamNode <Apply2Data<T1,T2,F>>;
 
-impl<F1,F2,F,Out> HasOutput for Apply2Data<F1,F2,F>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+impl<T1,T2,F,Out> HasOutput for Apply2Data<T1,T2,F>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F,Out> Apply2<F1,F2,F>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+impl<T1,T2,F,Out> Apply2<T1,T2,F>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let def   = Apply2Data {flow1,flow2,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let def   = Apply2Data {stream1,stream2,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F,Out,T> EventConsumer<T> for Node<Apply2Data<F1,F2,F>>
-where F1:AnyFlow, F2:AnyFlow, Out:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->Out {
+impl<T1,T2,F,Out,T> EventConsumer<T> for StreamNode<Apply2Data<T1,T2,F>>
+where T1:AnyStream, T2:AnyStream, Out:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     fn on_event(&self, _:&T) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
         let out    = (self.definition.function)(&value1,&value2);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F> Debug for Apply2Data<F1,F2,F> {
+impl<T1,T2,F> Debug for Apply2Data<T1,T2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply2Data")
     }
@@ -1395,47 +1396,47 @@ impl<F1,F2,F> Debug for Apply2Data<F1,F2,F> {
 // ==============
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply3Data <F1,F2,F3,F> { flow1:F1, flow2:F2, flow3:F3, function:F }}
-pub type   Apply3     <F1,F2,F3,F> = Node     <Apply3Data<F1,F2,F3,F>>;
-pub type   WeakApply3 <F1,F2,F3,F> = WeakNode <Apply3Data<F1,F2,F3,F>>;
+pub struct Apply3Data <T1,T2,T3,F> { stream1:T1, stream2:T2, stream3:T3, function:F }}
+pub type   Apply3     <T1,T2,T3,F> = StreamNode     <Apply3Data<T1,T2,T3,F>>;
+pub type   WeakApply3 <T1,T2,T3,F> = WeakStreamNode <Apply3Data<T1,T2,T3,F>>;
 
-impl<F1,F2,F3,F,Out> HasOutput for Apply3Data<F1,F2,F3,F>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+impl<T1,T2,T3,F,Out> HasOutput for Apply3Data<T1,T2,T3,F>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F3,F,Out> Apply3<F1,F2,F3,F>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+impl<T1,T2,T3,F,Out> Apply3<T1,T2,T3,F>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let def   = Apply3Data {flow1,flow2,flow3,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let def   = Apply3Data {stream1,stream2,stream3,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.clone_ref().into());
-        f3.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,F,Out,T> EventConsumer<T> for Node<Apply3Data<F1,F2,F3,F>>
-where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, Out:Value,
-      F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->Out {
+impl<T1,T2,T3,F,Out,T> EventConsumer<T> for StreamNode<Apply3Data<T1,T2,T3,F>>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     fn on_event(&self, _:&T) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
         let out    = (self.definition.function)(&value1,&value2,&value3);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F3,F> Debug for Apply3Data<F1,F2,F3,F> {
+impl<T1,T2,T3,F> Debug for Apply3Data<T1,T2,T3,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply3Data")
     }
@@ -1448,50 +1449,50 @@ impl<F1,F2,F3,F> Debug for Apply3Data<F1,F2,F3,F> {
 // ==============
 
 docs_for_apply! { #[derive(Clone)]
-pub struct Apply4Data <F1,F2,F3,F4,F> {flow1:F1, flow2:F2, flow3:F3, flow4:F4, function:F}}
-pub type   Apply4     <F1,F2,F3,F4,F> = Node     <Apply4Data<F1,F2,F3,F4,F>>;
-pub type   WeakApply4 <F1,F2,F3,F4,F> = WeakNode <Apply4Data<F1,F2,F3,F4,F>>;
+pub struct Apply4Data <T1,T2,T3,T4,F> {stream1:T1, stream2:T2, stream3:T3, stream4:T4, function:F}}
+pub type   Apply4     <T1,T2,T3,T4,F> = StreamNode     <Apply4Data<T1,T2,T3,T4,F>>;
+pub type   WeakApply4 <T1,T2,T3,T4,F> = WeakStreamNode <Apply4Data<T1,T2,T3,T4,F>>;
 
-impl<F1,F2,F3,F4,F,Out> HasOutput for Apply4Data<F1,F2,F3,F4,F>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+impl<T1,T2,T3,T4,F,Out> HasOutput for Apply4Data<T1,T2,T3,T4,F>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     type Output = Out;
 }
 
-impl<F1,F2,F3,F4,F,Out> Apply4<F1,F2,F3,F4,F>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+impl<T1,T2,T3,T4,F,Out> Apply4<T1,T2,T3,T4,F>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
-    pub fn new(label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, function:F) -> Self {
-        let flow1 = f1.clone_ref();
-        let flow2 = f2.clone_ref();
-        let flow3 = f3.clone_ref();
-        let flow4 = f4.clone_ref();
-        let def   = Apply4Data {flow1,flow2,flow3,flow4,function};
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
+        let stream1 = t1.clone_ref();
+        let stream2 = t2.clone_ref();
+        let stream3 = t3.clone_ref();
+        let stream4 = t4.clone_ref();
+        let def   = Apply4Data {stream1,stream2,stream3,stream4,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
-        f1.register_target(weak.clone_ref().into());
-        f2.register_target(weak.clone_ref().into());
-        f3.register_target(weak.clone_ref().into());
-        f4.register_target(weak.into());
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.clone_ref().into());
+        t4.register_target(weak.into());
         this
     }
 }
 
-impl<F1,F2,F3,F4,F,Out,T> EventConsumer<T> for Node<Apply4Data<F1,F2,F3,F4,F>>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, Out:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->Out {
+impl<T1,T2,T3,T4,F,Out,T> EventConsumer<T> for StreamNode<Apply4Data<T1,T2,T3,T4,F>>
+where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, Out:Value,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     fn on_event(&self, _:&T) {
-        let value1 = self.definition.flow1.value();
-        let value2 = self.definition.flow2.value();
-        let value3 = self.definition.flow3.value();
-        let value4 = self.definition.flow4.value();
+        let value1 = self.definition.stream1.value();
+        let value2 = self.definition.stream2.value();
+        let value3 = self.definition.stream3.value();
+        let value4 = self.definition.stream4.value();
         let out    = (self.definition.function)(&value1,&value2,&value3,&value4);
         self.emit(out);
     }
 }
 
-impl<F1,F2,F3,F4,F> Debug for Apply4Data<F1,F2,F3,F4,F> {
+impl<T1,T2,T3,T4,F> Debug for Apply4Data<T1,T2,T3,T4,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Apply4Data")
     }
@@ -1579,29 +1580,29 @@ impl Network {
         WeakNetwork {data:Rc::downgrade(&self.data)}
     }
 
-    pub fn register_raw<T:NodeDefinition>(&self, node:Node<T>) -> WeakNode<T> {
+    pub fn register_raw<T:NodeDefinition>(&self, node:StreamNode<T>) -> WeakStreamNode<T> {
         let weak = node.downgrade();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
         weak
     }
 
-    pub fn register<Def:NodeDefinition>(&self, node:Node<Def>) -> Flow<Output<Def>> {
-        let flow = node.clone_ref().into();
+    pub fn register<Def:NodeDefinition>(&self, node:StreamNode<Def>) -> Stream<Output<Def>> {
+        let stream = node.clone_ref().into();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
-        flow
+        stream
     }
 
     // TODO to nie dziala. mozna zrobic merge a potem metodami dokladac rzeczy. To musi byc wbudowane w nody
     // TODO moznaby zrobic referencje do obecnego grafu w nodach ...
-//    pub fn register2<Def:NodeDefinition>(&self, node:Node<Def>, links:Vec<Link>) -> Flow<Output<Def>> {
-//        let flow : Flow<Output<Def>> = node.clone_ref().into();
+//    pub fn register2<Def:NodeDefinition>(&self, node:StreamNode<Def>, links:Vec<Link>) -> Stream<Output<Def>> {
+//        let stream : Stream<Output<Def>> = node.clone_ref().into();
 //        let node = Box::new(node);
 //        self.data.nodes.borrow_mut().push(node);
-//        let target = flow.id();
+//        let target = stream.id();
 //        links.into_iter().for_each(|link| self.register_link(target,link));
-//        flow
+//        stream
 //    }
 
     pub fn register_link(&self, target:Id, link:Link) {
@@ -1627,57 +1628,57 @@ impl WeakNetwork {
 
 impl Network {
     docs_for_never! {
-    pub fn never<T:Value>(&self, label:Label) -> Flow<T> {
+    pub fn never<T:Value>(&self, label:Label) -> Stream<T> {
         self.register(Never::new(label))
     }}
 
     docs_for_source! {
-    pub fn source<T:Value>(&self, label:Label) -> Flow<T> {
+    pub fn source<T:Value>(&self, label:Label) -> Stream<T> {
         self.register(Source::new(label))
     }}
 
     docs_for_source! {
-    pub fn source_(&self, label:Label) -> Flow<()> {
+    pub fn source_(&self, label:Label) -> Stream<()> {
         self.register(Source::new(label))
     }}
 
     docs_for_trace! {
-    pub fn trace<M,S,T>(&self, label:Label, message:M, flow:&S) -> Flow<T>
-    where M:Into<String>, S:AnyFlow<Output=T>, T:Value {
-        self.register(Trace::new(label,message,flow))
+    pub fn trace<M,S,T>(&self, label:Label, message:M, stream:&S) -> Stream<T>
+    where M:Into<String>, S:AnyStream<Output=T>, T:Value {
+        self.register(Trace::new(label,message,stream))
     }}
 
     docs_for_toggle! {
-    pub fn toggle<S:AnyFlow>(&self, label:Label, flow:&S) -> Flow<bool> {
-        self.register(Toggle::new(label,flow))
+    pub fn toggle<S:AnyStream>(&self, label:Label, stream:&S) -> Stream<bool> {
+        self.register(Toggle::new(label,stream))
     }}
 
     docs_for_count! {
-    pub fn count<S:AnyFlow>(&self, label:Label, flow:&S) -> Flow<usize> {
-        self.register(Count::new(label,flow))
+    pub fn count<S:AnyStream>(&self, label:Label, stream:&S) -> Stream<usize> {
+        self.register(Count::new(label,stream))
     }}
 
     docs_for_constant! {
-    pub fn constant<S,T> (&self, label:Label, flow:&S, value:T) -> Flow<T>
-    where S:AnyFlow, T:Value {
-        self.register(Constant::new(label,flow,value))
+    pub fn constant<S,T> (&self, label:Label, stream:&S, value:T) -> Stream<T>
+    where S:AnyStream, T:Value {
+        self.register(Constant::new(label,stream,value))
     }}
 
     docs_for_previous! {
-    pub fn previous<S,T> (&self, label:Label, flow:&S) -> Flow<T>
-    where S:AnyFlow<Output=T>, T:Value {
-        self.register(Previous::new(label,flow))
+    pub fn previous<S,T> (&self, label:Label, stream:&S) -> Stream<T>
+    where S:AnyStream<Output=T>, T:Value {
+        self.register(Previous::new(label,stream))
     }}
 
     docs_for_sample! {
-    pub fn sample<E:AnyFlow,B:AnyFlow>
-    (&self, label:Label, event:&E, behavior:&B) -> Flow<Output<B>> {
+    pub fn sample<E:AnyStream,B:AnyStream>
+    (&self, label:Label, event:&E, behavior:&B) -> Stream<Output<B>> {
         self.register(Sample::new(label,event,behavior))
     }}
 
     docs_for_gate! {
-    pub fn gate<T,E,B>(&self, label:Label, event:&E, behavior:&B) -> Flow<Output<E>>
-    where T:Value, E:AnyFlow<Output=T>, B:AnyFlow<Output=bool> {
+    pub fn gate<T,E,B>(&self, label:Label, event:&E, behavior:&B) -> Stream<Output<E>>
+    where T:Value, E:AnyStream<Output=T>, B:AnyStream<Output=bool> {
         self.register(Gate::new(label,event,behavior))
     }}
 
@@ -1685,127 +1686,127 @@ impl Network {
     // === Merge ===
 
     docs_for_merge! {
-    /// Please note that this function does output a more specific type than just `Flow<T>`. It is
-    /// left on purpose so you could use the `add` method to build recursive data-flow networks.
+    /// Please note that this function does output a more specific type than just `Stream<T>`. It is
+    /// left on purpose so you could use the `add` method to build recursive data-stream networks.
     pub fn merge_<T:Value>(&self, label:Label) -> WeakMerge<T> {
         self.register_raw(Merge::new(label))
     }}
 
     docs_for_merge! {
-    pub fn merge<F1,F2,T:Value>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<T>
-    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T> {
-        self.register(Merge::new2(label,f1,f2))
+    pub fn merge<T1,T2,T:Value>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
+    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T> {
+        self.register(Merge::new2(label,t1,t2))
     }}
 
     docs_for_merge! {
-    pub fn merge1<F1,T:Value>(&self, label:Label, f1:&F1) -> Flow<T>
-    where F1:AnyFlow<Output=T> {
-        self.register(Merge::new1(label,f1))
+    pub fn merge1<T1,T:Value>(&self, label:Label, t1:&T1) -> Stream<T>
+    where T1:AnyStream<Output=T> {
+        self.register(Merge::new1(label,t1))
     }}
 
     docs_for_merge! {
-    pub fn merge2<F1,F2,T:Value>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<T>
-    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T> {
-        self.register(Merge::new2(label,f1,f2))
+    pub fn merge2<T1,T2,T:Value>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
+    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T> {
+        self.register(Merge::new2(label,t1,t2))
     }}
 
     docs_for_merge! {
-    pub fn merge3<F1,F2,F3,T:Value>(&self, label:Label, f1:&F1, f2:&F2, f3:&F3) -> Flow<T>
-    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T>, F3:AnyFlow<Output=T> {
-        self.register(Merge::new3(label,f1,f2,f3))
+    pub fn merge3<T1,T2,T3,T:Value>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<T>
+    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T>, T3:AnyStream<Output=T> {
+        self.register(Merge::new3(label,t1,t2,t3))
     }}
 
     docs_for_merge! {
-    pub fn merge4<F1,F2,F3,F4,T:Value>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4) -> Flow<T>
-    where F1:AnyFlow<Output=T>, F2:AnyFlow<Output=T>, F3:AnyFlow<Output=T>, F4:AnyFlow<Output=T> {
-        self.register(Merge::new4(label,f1,f2,f3,f4))
+    pub fn merge4<T1,T2,T3,T4,T:Value>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Stream<T>
+    where T1:AnyStream<Output=T>, T2:AnyStream<Output=T>, T3:AnyStream<Output=T>, T4:AnyStream<Output=T> {
+        self.register(Merge::new4(label,t1,t2,t3,t4))
     }}
 
 
     // === Zip ===
 
     docs_for_zip2! {
-    pub fn zip<F1,F2>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<(Output<F1>,Output<F2>)>
-    where F1:AnyFlow, F2:AnyFlow {
-        self.register(Zip2::new(label,f1,f2))
+    pub fn zip<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<(Output<T1>,Output<T2>)>
+    where T1:AnyStream, T2:AnyStream {
+        self.register(Zip2::new(label,t1,t2))
     }}
 
     docs_for_zip2! {
-    pub fn zip2<F1,F2>(&self, label:Label, f1:&F1, f2:&F2) -> Flow<(Output<F1>,Output<F2>)>
-    where F1:AnyFlow, F2:AnyFlow {
-        self.register(Zip2::new(label,f1,f2))
+    pub fn zip2<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<(Output<T1>,Output<T2>)>
+    where T1:AnyStream, T2:AnyStream {
+        self.register(Zip2::new(label,t1,t2))
     }}
 
     docs_for_zip3! {
-    pub fn zip3<F1,F2,F3>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3) -> Flow<(Output<F1>,Output<F2>,Output<F3>)>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow {
-        self.register(Zip3::new(label,f1,f2,f3))
+    pub fn zip3<T1,T2,T3>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<(Output<T1>,Output<T2>,Output<T3>)>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream {
+        self.register(Zip3::new(label,t1,t2,t3))
     }}
 
     docs_for_zip4! {
-    pub fn zip4<F1,F2,F3,F4>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4)
-    -> Flow<(Output<F1>,Output<F2>,Output<F3>,Output<F4>)>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow {
-        self.register(Zip4::new(label,f1,f2,f3,f4))
+    pub fn zip4<T1,T2,T3,T4>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4)
+    -> Stream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>)>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream {
+        self.register(Zip4::new(label,t1,t2,t3,t4))
     }}
 
 
     // === Map ===
 
     docs_for_map! {
-    pub fn map<S,F,T>(&self, label:Label, source:&S, f:F) -> Flow<T>
-    where S:AnyFlow, T:Value, F:'static+Fn(&Output<S>)->T {
+    pub fn map<S,F,T>(&self, label:Label, source:&S, f:F) -> Stream<T>
+    where S:AnyStream, T:Value, F:'static+Fn(&Output<S>)->T {
         self.register(Map::new(label,source,f))
     }}
 
     docs_for_map! {
-    pub fn map2<F1,F2,F,T>(&self, label:Label, f1:&F1, f2:&F2, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, T:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->T {
-        self.register(Map2::new(label,f1,f2,f))
+    pub fn map2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
+        self.register(Map2::new(label,t1,t2,f))
     }}
 
     docs_for_map! {
-    pub fn map3<F1,F2,F3,F,T>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, T:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->T {
-        self.register(Map3::new(label,f1,f2,f3,f))
+    pub fn map3<T1,T2,T3,F,T>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
+        self.register(Map3::new(label,t1,t2,t3,f))
     }}
 
     docs_for_map! {
-    pub fn map4<F1,F2,F3,F4,F,T>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, T:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->T {
-        self.register(Map4::new(label,f1,f2,f3,f4,f))
+    pub fn map4<T1,T2,T3,T4,F,T>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, T:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
+        self.register(Map4::new(label,t1,t2,t3,t4,f))
     }}
 
 
     // === Apply ===
 
     docs_for_apply! {
-    pub fn apply2<F1,F2,F,T>(&self, label:Label, f1:&F1, f2:&F2, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, T:Value, F:'static+Fn(&Output<F1>,&Output<F2>)->T {
-        self.register(Apply2::new(label,f1,f2,f))
+    pub fn apply2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T:Value, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
+        self.register(Apply2::new(label,t1,t2,f))
     }}
 
     docs_for_apply! {
-    pub fn apply3<F1,F2,F3,F,T>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, T:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>)->T {
-        self.register(Apply3::new(label,f1,f2,f3,f))
+    pub fn apply3<T1,T2,T3,F,T>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
+        self.register(Apply3::new(label,t1,t2,t3,f))
     }}
 
     docs_for_apply! {
-    pub fn apply4<F1,F2,F3,F4,F,T>
-    (&self, label:Label, f1:&F1, f2:&F2, f3:&F3, f4:&F4, f:F) -> Flow<T>
-    where F1:AnyFlow, F2:AnyFlow, F3:AnyFlow, F4:AnyFlow, T:Value,
-          F:'static+Fn(&Output<F1>,&Output<F2>,&Output<F3>,&Output<F4>)->T {
-        self.register(Apply4::new(label,f1,f2,f3,f4,f))
+    pub fn apply4<T1,T2,T3,T4,F,T>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
+    where T1:AnyStream, T2:AnyStream, T3:AnyStream, T4:AnyStream, T:Value,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
+        self.register(Apply4::new(label,t1,t2,t3,t4,f))
     }}
 }
 
@@ -1824,7 +1825,7 @@ pub fn test() {
 //        def fff     = map(&tg,|t| { println!("{:?}",t) });
 //        def bb      = sample(&source2,&tg);
 //
-//        let bb2 : Flow<bool> = bb.into();
+//        let bb2 : Stream<bool> = bb.into();
 //
 //        def fff2   = map(&bb2,|t| { println!(">> {:?}",t) });
 //        def m      = merge_::<usize>();
