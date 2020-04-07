@@ -113,31 +113,11 @@ impl<T> InputBehaviors for T {
 
 
 
-// ============
-// === Data ===
-// ============
-
-/// Data that flows trough the FRP network.
-pub trait Data = 'static + Clone + Debug + Default;
 
 
 
-// =================
-// === HasOutput ===
-// =================
-
-/// Implementors of this trait has to know their output type.
-#[allow(missing_docs)]
-pub trait HasOutput {
-    type Output : Data;
-}
-
-/// A static version of `HasOutput`.
-pub trait HasOutputStatic = 'static + HasOutput;
 
 
-/// Accessor of the accosiated `Output` type.
-pub type Output<T> = <T as HasOutput>::Output;
 
 
 
@@ -146,13 +126,13 @@ pub type Output<T> = <T as HasOutput>::Output;
 // ====================
 
 /// Any type which can be used as FRP stream output.
-pub trait StreamOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
+pub trait EventOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
 
 /// Implementors of this trait have to know how to emit events to subsequent nodes and how to
 /// register new event receivers.
 pub trait EventEmitter : HasOutput {
     fn emit_event(&self , value:&Self::Output);
-    fn register_target(&self , target:StreamInput<Output<Self>>);
+    fn register_target(&self , target:EventInput<Output<Self>>);
     fn register_watch(&self) -> WatchHandle;
 }
 
@@ -202,35 +182,35 @@ pub trait ValueProvider : HasOutput {
 
 
 
-// ===================
-// === StreamInput ===
-// ===================
+// ==================
+// === EventInput ===
+// ==================
 
 /// A generalization of any stream input which consumes events of the provided type. This is the
 /// slowest bit of the whole FRP network as it uses an trait object, however, we can refactor it
 /// in the future to an enum-based trait if needed.
 #[derive(Clone)]
-pub struct StreamInput<Input> {
+pub struct EventInput<Input> {
     data : Rc<dyn WeakEventConsumer<Input>>
 }
 
-impl<Def,Input> From<WeakStreamNode<Def>> for StreamInput<Input>
+impl<Def,Input> From<WeakStreamNode<Def>> for EventInput<Input>
 where Def:HasOutputStatic, StreamNode<Def>:EventConsumer<Input> {
     fn from(node:WeakStreamNode<Def>) -> Self {
         Self {data:Rc::new(node)}
     }
 }
 
-impl<Def,Input> From<&WeakStreamNode<Def>> for StreamInput<Input>
+impl<Def,Input> From<&WeakStreamNode<Def>> for EventInput<Input>
 where Def:HasOutputStatic, StreamNode<Def>:EventConsumer<Input> {
     fn from(node:&WeakStreamNode<Def>) -> Self {
         Self {data:Rc::new(node.clone_ref())}
     }
 }
 
-impl<Input> Debug for StreamInput<Input> {
+impl<Input> Debug for EventInput<Input> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"StreamInput")
+        write!(f,"EventInput")
     }
 }
 
@@ -254,7 +234,7 @@ impl<Input> Debug for StreamInput<Input> {
 #[derive(Debug)]
 pub struct StreamNodeData<Out=()> {
     label         : Label,
-    targets       : RefCell<Vec<StreamInput<Out>>>,
+    targets       : RefCell<Vec<EventInput<Out>>>,
     value_cache   : RefCell<Out>,
     during_call   : Cell<bool>,
     watch_counter : WatchCounter,
@@ -291,7 +271,7 @@ impl<Out:Data> EventEmitter for StreamNodeData<Out> {
         }
     }
 
-    fn register_target(&self,target:StreamInput<Out>) {
+    fn register_target(&self,target:EventInput<Out>) {
         self.targets.borrow_mut().push(target)
     }
 
@@ -371,7 +351,7 @@ impl<Def:HasOutputStatic> StreamNode<Def> {
 
     /// Constructor which registers the newly created node as the event target of the argument.
     pub fn construct_and_connect<S>(label:Label, stream:&S, definition:Def) -> Self
-    where S:StreamOutput, Self:EventConsumer<Output<S>> {
+    where S:EventOutput, Self:EventConsumer<Output<S>> {
         let this = Self::construct(label,definition);
         let weak = this.downgrade();
         stream.register_target(weak.into());
@@ -412,7 +392,7 @@ impl<Out:Data> EventEmitter for Stream<Out> {
         self.data.upgrade().for_each(|t| t.emit_event(value))
     }
 
-    fn register_target(&self,target:StreamInput<Output<Self>>) {
+    fn register_target(&self,target:EventInput<Output<Self>>) {
         self.data.upgrade().for_each(|t| t.register_target(target))
     }
 
@@ -423,13 +403,13 @@ impl<Out:Data> EventEmitter for Stream<Out> {
 
 impl<Def:HasOutputStatic> EventEmitter for StreamNode<Def>  {
     fn emit_event      (&self, value:&Output<Def>)           { self.data.emit_event(value) }
-    fn register_target (&self,tgt:StreamInput<Output<Self>>) { self.data.register_target(tgt) }
+    fn register_target (&self,tgt:EventInput<Output<Self>>) { self.data.register_target(tgt) }
     fn register_watch  (&self) -> WatchHandle                { self.data.register_watch() }
 }
 
 impl<Def:HasOutputStatic> EventEmitter for WeakStreamNode<Def> {
     fn emit_event      (&self, value:&Output<Def>)           { self.stream.emit_event(value) }
-    fn register_target (&self,tgt:StreamInput<Output<Self>>) { self.stream.register_target(tgt) }
+    fn register_target (&self,tgt:EventInput<Output<Self>>) { self.stream.register_target(tgt) }
     fn register_watch  (&self) -> WatchHandle                { self.stream.register_watch() }
 }
 

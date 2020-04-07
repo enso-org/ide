@@ -1,5 +1,6 @@
 use crate::prelude::*;
-use crate::stream::*;
+use crate::stream;
+use crate::stream::Stream;
 use crate::node::*;
 use crate::debug;
 
@@ -19,8 +20,8 @@ pub struct WeakNetwork {
     data : Weak<NetworkData>
 }
 
-pub trait Anyyy : HasId + HasLabel + HasOutputTypeLabel {}
-impl<T> Anyyy for T where T : HasId + HasLabel + HasOutputTypeLabel {}
+pub trait Anyyy : HasId + HasLabel + stream::HasOutputTypeLabel {}
+impl<T> Anyyy for T where T : HasId + HasLabel + stream::HasOutputTypeLabel {}
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -83,14 +84,14 @@ impl Network {
         WeakNetwork {data:Rc::downgrade(&self.data)}
     }
 
-    pub fn register_raw<T:HasOutputStatic>(&self, node:StreamNode<T>) -> WeakStreamNode<T> {
+    pub fn register_raw<T:HasOutputStatic>(&self, node:stream::StreamNode<T>) -> stream::WeakStreamNode<T> {
         let weak = node.downgrade();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
         weak
     }
 
-    pub fn register<Def:HasOutputStatic>(&self, node:StreamNode<Def>) -> Stream<Output<Def>> {
+    pub fn register<Def:HasOutputStatic>(&self, node:stream::StreamNode<Def>) -> Stream<Output<Def>> {
         let stream = node.clone_ref().into();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
@@ -99,7 +100,7 @@ impl Network {
 
     // TODO to nie dziala. mozna zrobic merge a potem metodami dokladac rzeczy. To musi byc wbudowane w nody
     // TODO moznaby zrobic referencje do obecnego grafu w nodach ...
-//    pub fn register2<Def:HasOutputStatic>(&self, node:StreamNode<Def>, links:Vec<Link>) -> Stream<Output<Def>> {
+//    pub fn register2<Def:HasOutputStatic>(&self, node:stream::StreamNode<Def>, links:Vec<Link>) -> Stream<Output<Def>> {
 //        let stream : Stream<Output<Def>> = node.clone_ref().into();
 //        let node = Box::new(node);
 //        self.data.nodes.borrow_mut().push(node);

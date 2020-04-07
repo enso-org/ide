@@ -95,12 +95,20 @@ pub mod stream;
 pub use network::*;
 pub use node::*;
 pub use nodes::*;
-pub use stream::*;
 
 pub use enso_prelude as prelude;
 pub use ensogl_system_web as web;
 
 use prelude::*;
+
+pub mod traits {
+    pub use super::stream::ValueProvider;
+    pub use super::stream::EventEmitterPoly;
+}
+use traits::*;
+
+
+pub use stream::Stream;
 
 #[cfg(test)]
 mod tests {

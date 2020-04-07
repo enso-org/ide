@@ -1,5 +1,33 @@
 use crate::prelude::*;
 
+
+// ============
+// === Data ===
+// ============
+
+/// Data that flows trough the FRP network.
+pub trait Data = 'static + Clone + Debug + Default;
+
+
+// =================
+// === HasOutput ===
+// =================
+
+/// Implementors of this trait has to know their output type.
+#[allow(missing_docs)]
+pub trait HasOutput {
+    type Output : Data;
+}
+
+/// A static version of `HasOutput`.
+pub trait HasOutputStatic = 'static + HasOutput;
+
+
+/// Accessor of the accosiated `Output` type.
+pub type Output<T> = <T as HasOutput>::Output;
+
+
+
 // ==========
 // === Id ===
 // ==========
