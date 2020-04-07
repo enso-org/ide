@@ -7,6 +7,7 @@ use crate::display::shape::text::text_field::TextField;
 use crate::display::shape::text::text_field::WeakTextField;
 use crate::system::web::text_input::KeyboardBinding;
 use crate::system::web::text_input::bind_frp_to_js_keyboard_actions;
+use crate::system::web::platform::Platform;
 
 use enso_frp::*;
 
@@ -147,16 +148,16 @@ impl TextFieldKeyboardFrp {
     (actions:&mut KeyboardActions, text_field:WeakTextField) {
         use Key::*;
         let mut setter = TextFieldActionsSetter{actions,text_field};
-        setter.set_navigation_action(&[ArrowLeft],          Step::Left);
-        setter.set_navigation_action(&[ArrowRight],         Step::Right);
-        setter.set_navigation_action(&[ArrowUp],            Step::Up);
-        setter.set_navigation_action(&[ArrowDown],          Step::Down);
-        setter.set_navigation_action(&[Home],               Step::LineBegin);
-        setter.set_navigation_action(&[End],                Step::LineEnd);
-        setter.set_navigation_action(&[Control,Home],       Step::DocBegin);
-        setter.set_navigation_action(&[Control,End],        Step::DocEnd);
-        setter.set_navigation_action(&[Control,ArrowLeft],  Step::LeftWord);
-        setter.set_navigation_action(&[Control,ArrowRight], Step::RightWord);
+        setter.set_navigation_action(&[ArrowLeft],       Step::Left);
+        setter.set_navigation_action(&[ArrowRight],      Step::Right);
+        setter.set_navigation_action(&[ArrowUp],         Step::Up);
+        setter.set_navigation_action(&[ArrowDown],       Step::Down);
+        setter.set_navigation_action(&line_begin_keys(), Step::LineBegin);
+        setter.set_navigation_action(&line_end_keys(),   Step::LineEnd);
+        setter.set_navigation_action(&doc_begin_keys(),  Step::DocBegin);
+        setter.set_navigation_action(&doc_end_keys(),    Step::DocEnd);
+        setter.set_navigation_action(&left_word_keys(),  Step::LeftWord);
+        setter.set_navigation_action(&right_word_keys(), Step::RightWord);
         setter.set_action(&[Alt, Character("j".into())], |t| t.select_next_word_occurrence());
         setter.set_action(&[Enter],                      |t| t.write("\n"));
         setter.set_action(&[Delete],                     |t| t.do_delete_operation(Step::Right));
@@ -164,6 +165,57 @@ impl TextFieldKeyboardFrp {
         setter.set_action(&[Escape],                     |t| t.finish_multicursor_mode());
         setter.set_action(&[PageDown],                   |t| t.page_down());
         setter.set_action(&[PageUp],                     |t| t.page_up());
+    }
+}
+
+
+// === Keys combinations ===
+
+fn line_begin_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Meta,Key::ArrowLeft]
+    } else {
+        vec![Key::Home]
+    }
+}
+
+fn line_end_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Meta,Key::ArrowRight]
+    } else {
+        vec![Key::End]
+    }
+}
+
+fn doc_begin_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Meta,Key::ArrowUp]
+    } else {
+        vec![Key::Control,Key::Home]
+    }
+}
+
+fn doc_end_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Meta,Key::ArrowDown]
+    } else {
+        vec![Key::Control,Key::End]
+    }
+}
+
+fn left_word_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Alt,Key::ArrowLeft]
+    } else {
+        vec![Key::Control,Key::ArrowLeft]
+    }
+}
+
+fn right_word_keys() -> Vec<Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![Key::Alt,Key::ArrowRight]
+    } else {
+        vec![Key::Control,Key::ArrowRight]
     }
 }
 
