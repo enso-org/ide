@@ -30,6 +30,14 @@ use std::f32::consts::PI;
 // === Port Specification ===
 // ===========================
 
+/// Indicates whether a port is inwards facing  or outwards facing.
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug)]
+pub enum Direction{
+    In,
+    Out,
+}
+
 /// Defines the properties of a port shape and can then
 /// be used to build the port shape.
 ///
@@ -49,6 +57,8 @@ pub struct Specification {
     /// Fill colour of the port.
     /// TODO unused in the shape at the moment
     pub color       : Srgb<f32>,
+    /// Indicates whether this port is facing inwards or outwards.
+    pub direction   : Direction,
 }
 
 
@@ -82,20 +92,27 @@ mod shape {
         let segment_width_rad: Var<f32> = spec.width.clone().into();
 
         let segment_outer_radius : Var<f32>        = outer_radius.clone();
-        let segment_outer: CircleSegment<Var<f32>> = CircleSegment::new(segment_outer_radius, segment_width_rad.clone());
+        let segment_outer: CircleSegment<Var<f32>> = CircleSegment::new(
+            segment_outer_radius,
+            segment_width_rad.clone()
+        );
 
         let segment_inner_radius : Var<f32>         = inner_radius.clone();
-        let segment_inner : CircleSegment<Var<f32>> = CircleSegment::new(segment_inner_radius,segment_width_rad);
+        let segment_inner : CircleSegment<Var<f32>> = CircleSegment::new(
+            segment_inner_radius,
+            segment_width_rad
+        );
 
-        // The triangle needs to be high enough for it to have room for the extra shape
+        // The triangle needs to be high enough for it to have room for the extra shape.
         let tri_height : Var<f32> =  Var::<f32>::from(spec.height) + segment_outer.sagitta();
         let tri_width            = segment_outer.chord_length() * ((&outer_radius + segment_outer.sagitta()) / &outer_radius);
 
-        // Position the triangle facing down with its base+extension at the zero mark
+        // Position the triangle facing down with its base+extension at the zero mark.
         let triangle   = Triangle(&tri_width, &tri_height);
         let triangle   = triangle.rotate(180.0.deg().radians());
-        let tri_offset = Var::<Distance<Pixels>>::from(tri_height.clone());
-        let triangle   = triangle.translate_y(tri_offset);
+        // After rotating the triangle down, we need to move it up by its height again.
+        let tri_baseline_offset = Var::<Distance<Pixels>>::from(tri_height.clone());
+        let triangle   = triangle.translate_y(tri_baseline_offset);
 
         // TODO[mm] consider replace with a `Plane().cut_angle`
         // But avoid visual artifacts at the other end of the circle.
@@ -157,8 +174,8 @@ const DEFAULT_WIDTH        : f32 = PI * (15.0 / 180.0f32);
 
 /// Shape view for Input Port.
 #[derive(Debug,Clone,Copy)]
-pub struct InputPortView {}
-impl ShapeViewDefinition for InputPortView {
+pub struct PortView {}
+impl ShapeViewDefinition for PortView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
         shape.is_inwards.set(1.0);
@@ -175,58 +192,35 @@ impl ShapeViewDefinition for InputPortView {
     }
 }
 
-/// Shape view for Output Port.
-#[derive(Debug,Clone,Copy)]
-pub struct OutputPortView {}
-impl ShapeViewDefinition for OutputPortView {
-    type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.is_inwards.set(0.0);
-        shape.height.set(DEFAULT_HEIGHT);
-        shape.inner_radius.set(60.0);
-        shape.width.set(DEFAULT_WIDTH);
-
-        // FIXME This is an approximation and needs to be computed exactly to avoid clipping in
-        // edge cases.
-        let bbox = Vector2::new(1.5 * DEFAULT_HEIGHT,1.5 * DEFAULT_HEIGHT);
-        shape.sprite.size().set(bbox);
-
-        Self {}
-    }
-}
-
-
-
-
-/// Port definition. Can be parametrised to be either
-/// an InputPort or OutputPort.
+/// Port definition.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
-pub struct Port<T:ShapeViewDefinition+Clone> {
-    pub data : Rc<PortData<T>>
+pub struct Port {
+    pub data : Rc<PortData>
 }
 
-/// Port data.
+/// Internal data of `Port.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct PortData<T:ShapeViewDefinition+Clone> {
-    spec     : RefCell<Specification>,
-    pub view : Rc<component::ShapeView<T>>
+pub struct PortData {
+        spec : RefCell<Specification>,
+    pub view : Rc<component::ShapeView<PortView>>
 }
 
-impl<T:ShapeViewDefinition+Clone> Port<T> {
+impl Port {
 
     /// Constructor.
     pub fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
-        let view   = Rc::new(component::ShapeView::<T>::new(&logger));
+        let view   = Rc::new(component::ShapeView::new(&logger));
         let spec = RefCell::new(spec);
         let data = PortData{spec,view};
         Self{data: Rc::new(data)}.init()
     }
 
-    fn init(mut self) -> Self {
-        self.update();
+    fn init(self) -> Self {
+        let self_callback_clone = self.clone_ref();
+        self.display_object().set_on_updated(move |_| self_callback_clone.update());
         self
     }
 
@@ -236,16 +230,16 @@ impl<T:ShapeViewDefinition+Clone> Port<T> {
         self.update()
     }
 
-    /// Update the view with our current Specification.
-    fn update(&mut self) {
+    /// Update the shape parameters and location with values from our current specification.
+    fn update(&self) {
+        self.update_shape();
         self.update_sprite();
-        self.data.view.display_object.update();
     }
 
     /// Update the position of the sprite according to the Port specification.
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
-    fn update_sprite(&mut self) {
+    fn update_sprite(&self) {
         let spec = self.data.spec.borrow();
         let translation_vector = nalgebra::Vector3::new(0.0,spec.inner_radius,0.0);
         let rotation_vector    = -nalgebra::Vector3::new(0.0,0.0,spec.location.rad().value);
@@ -257,17 +251,23 @@ impl<T:ShapeViewDefinition+Clone> Port<T> {
         node.set_rotation(rotation_vector);
     }
 
+    /// Update the shape parameters with values from our `Specification`.
+    fn update_shape(&self){
+        if let Some(t) = self.data.view.data.borrow().as_ref() {
+            let spec = self.data.spec.borrow();
+            t.shape.width.set(spec.width.value.to_radians());
+            t.shape.inner_radius.set(spec.inner_radius);
+            t.shape.height.set(spec.height);
+            match &spec.direction{
+                Direction::In => t.shape.is_inwards.set(1.0),
+                Direction::Out => t.shape.is_inwards.set(0.0),
+            };
+        }
+    }
 }
 
-/// A port facing towards the center of its inner circle.
-pub type InputPort = Port<InputPortView>;
-
-/// A port facing away from the center of its inner circle.
-pub type OutputPort = Port<OutputPortView>;
-
-
-impl<'t, T:ShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
-    fn from(t:&'t Port<T>) -> Self {
+impl<'t> From<&'t Port> for &'t display::object::Node {
+    fn from(t:&'t Port) -> Self {
         &t.data.view.display_object
     }
 }
@@ -284,8 +284,8 @@ impl<'t, T:ShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object:
 pub struct PortManager {
     /// The node that all ports will be placed around.
     parent_node  : RefCell<Option<WeakNode>>,
-    input_ports  : RefCell<Vec<InputPort>>,
-    output_ports : RefCell<Vec<OutputPort>>,
+    input_ports  : RefCell<Vec<Port>>,
+    output_ports : RefCell<Vec<Port>>,
 }
 
 impl PortManager{
@@ -315,9 +315,10 @@ impl PortManager{
             inner_radius : DEFAULT_INNER_RADIUS,
             location     : 90.0_f32.deg(),
             color        : Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
+            direction    : Direction::In,
         };
 
-        let port = InputPort::new(port_spec);
+        let port = Port::new(port_spec);
         self.add_child_to_parent(&port);
         self.input_ports.borrow_mut().push(port);
         self.update_port_shapes();
@@ -333,9 +334,10 @@ impl PortManager{
             inner_radius : DEFAULT_INNER_RADIUS,
             location     : 270.0_f32.deg(),
             color        : Srgb::new(51.0 / 255.0, 102.0 / 255.0, 153.0 / 255.0 ),
+            direction    : Direction::Out,
         };
 
-        let port = OutputPort::new(port_spec);
+        let port = Port::new(port_spec);
         self.add_child_to_parent(&port);
         self.output_ports.borrow_mut().push(port);
         self.update_port_shapes();
@@ -344,23 +346,9 @@ impl PortManager{
     /// Update the shapes of all ports with the currently set specification values.
     fn update_port_shapes(& self) {
         for port in self.input_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.data.view.data.borrow().as_ref() {
-                let spec = port.data.spec.borrow();
-                t.shape.width.set(spec.width.value.to_radians());
-                t.shape.inner_radius.set(spec.inner_radius);
-                t.shape.height.set(spec.height);
-                t.shape.is_inwards.set(1.0);
-            }
             port.update()
         }
         for port in self.output_ports.borrow_mut().iter_mut() {
-            if let Some(t) = port.data.view.data.borrow().as_ref() {
-                let spec = port.data.spec.borrow();
-                t.shape.width.set(spec.width.value.to_radians());
-                t.shape.inner_radius.set(spec.inner_radius);
-                t.shape.height.set(spec.height);
-                t.shape.is_inwards.set(0.0);
-            }
             port.update()
         }
     }
