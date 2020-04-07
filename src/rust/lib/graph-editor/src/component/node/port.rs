@@ -62,19 +62,6 @@ pub struct Specification {
 }
 
 
-#[derive(Clone,Debug)]
-/// Internal helper struct to aggregate parameters.
-/// TODO[mm] consider removing.
-struct SpecificationVar {
-    /// Height of the port.
-    pub height      : Var<Distance<Pixels>>,
-    /// Width of the port in degrees.
-    pub width       : Var<Angle<Radians>>,
-    /// Radius of the inner circle that the port is constructed around.
-    pub inner_radius: Var<Distance<Pixels>>,
-}
-
-
 
 // ====================
 // === Port Shapes ===
@@ -85,79 +72,123 @@ mod shape {
     use super::*;
 
     /// Construct an inwards facing port.
-    fn new_port(spec:SpecificationVar) -> AnyShape {
-        let inner_radius : Var<f32> = spec.inner_radius.clone().into();
-        let outer_radius : Var<f32> = (spec.inner_radius + spec.height.clone()).into();
+    ///
+    /// The port consists of an angle embedded between two rings. The corner of the angle can
+    /// either face towards the center of thr ring of away from it. If it faces towards the center,
+    /// the side facing the outer ring, have a bulging shape on that side. If the angle faces away
+    /// from the center, the angle gets limited by the inner ring and shows a concave "hole" on
+    /// that side.
+    ///
+    /// Illustrations.
+    /// ---------------
+    /// Inwards facing port                           | Outwards facing port
+    ///                                               |
+    ///                                               |
+    ///       *-------------------- inner radius      |          *  ---------------- outer radius
+    ///     *    *                |                   |        *   *               |
+    ///   *        *              |  height           |      *       *             |
+    ///  *          *             |                   |     *    *    * ------------ inner radius
+    ///   *        *              |                   |    * *       * *      |
+    ///      *  *------------------ outer radius      |    *            *     - this is some extra
+    ///                                                                        space that depends
+    ///  \----------|                                      \------------|       on the radius
+    ///     width                                              width
+    ///
+    /// The shape description sets up both shapes and then applies only one of the variants:
+    /// either it limits of the inward facing angle with the outer ring or it cuts of the
+    /// angle with the inner ring.
+    ///
+    fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,_is_inwards:Var<f32>) -> AnyShape {
+        let outer_radius : Var<f32> = &inner_radius + &height;
+        let segment_width_rad: Var<f32> = width.clone();
 
-        let segment_width_rad: Var<f32> = spec.width.clone().into();
-
-        let segment_outer_radius : Var<f32>        = outer_radius.clone();
-        let segment_outer: CircleSegment<Var<f32>> = CircleSegment::new(
-            segment_outer_radius,
-            segment_width_rad.clone()
+        // This describes the segment between the angle and the outer ring.
+        let segment_outer_radius  = outer_radius.clone();
+        let segment_outer        = CircleSegment::new(
+            segment_outer_radius,segment_width_rad.clone()
         );
 
-        let segment_inner_radius : Var<f32>         = inner_radius.clone();
-        let segment_inner : CircleSegment<Var<f32>> = CircleSegment::new(
-            segment_inner_radius,
-            segment_width_rad
-        );
+        // This describes the segment between the angle and the inner ring.
+        let segment_inner_radius = inner_radius.clone();
+        let segment_inner = CircleSegment::new(segment_inner_radius,segment_width_rad);
 
         // The triangle needs to be high enough for it to have room for the extra shape.
-        let tri_height : Var<f32> =  Var::<f32>::from(spec.height) + segment_outer.sagitta();
-        let tri_width            = segment_outer.chord_length() * ((&outer_radius + segment_outer.sagitta()) / &outer_radius);
+        let shape_height = height + segment_outer.sagitta();
+        let shape_width = segment_outer.chord_length() * ((&outer_radius + segment_outer.sagitta()) / &outer_radius);
 
         // Position the triangle facing down with its base+extension at the zero mark.
-        let triangle   = Triangle(&tri_width, &tri_height);
-        let triangle   = triangle.rotate(180.0.deg().radians());
-        // After rotating the triangle down, we need to move it up by its height again.
-        let tri_baseline_offset = Var::<Distance<Pixels>>::from(tri_height.clone());
-        let triangle   = triangle.translate_y(tri_baseline_offset);
+        let base_shape = Triangle(&shape_width, &shape_height);
+        let base_shape   = base_shape.rotate(180.0.deg().radians());
+
+        // After rotating the shape down, we need to move it up by its height again.
+        let base_shape_offset = Var::<Distance<Pixels>>::from(shape_height.clone());
+        let base_shape        = base_shape.translate_y(base_shape_offset);
 
         // TODO[mm] consider replace with a `Plane().cut_angle`
-        // But avoid visual artifacts at the other end of the circle.
-        // let section = Plane().cut_angle(&spec.width);
+        // Set up the angle and rotate it so it points downwards like a "V".
+        // FIXME this should be an angle that is computed dynamically
+        // let section = Plane().cut_angle(Var::from(45_f32.to_radians()));
         // let section = section.rotate(180.0.deg().radians());
-        // let section = section.translate_y(tri_offset);
+        // After rotating it needs to be aligned so it's tip is at (0,0) again.
+        // let section = section.translate_y(tri_baseline_offset);
 
-        let circle_outer_radius_scale = Var::<f32>::from(" (1.0 + (input_is_inwards * 999999.9)) ");
-        let circle_outer_radius       = Var::<Distance<Pixels>>::from(circle_outer_radius_scale * &outer_radius);
+        // `circle_outer_radius_scale` toggles whether the circle will have any effect on the
+        // shape. This circle will be used with an `Union`, thus a large enough radius will
+        // negate its effect.
+        let circle_outer_radius_scale = Var::<f32>::from("1.0 + (input_is_inwards * 999999.9)");
+        let circle_outer_radius       = circle_outer_radius_scale * &outer_radius;
+        let circle_outer_radius       = Var::<Distance<Pixels>>::from(circle_outer_radius);
         let circle_outer              = Circle(circle_outer_radius);
 
-        let circle_inner_radius_scale = Var::<f32>::from(" (input_is_inwards * 1.0) ");
-        let circle_inner_radius       = Var::<Distance<Pixels>>::from(circle_inner_radius_scale * &inner_radius);
+        // `circle_inner_radius_scale` toggles whether the circle will have any effect on the
+        // shape. This circle will be used with an `Difference`, thus a zero radius will negate
+        // its effect.
+        let circle_inner_radius_scale = Var::<f32>::from("input_is_inwards * 1.0");
+        let circle_inner_radius       = circle_inner_radius_scale * &inner_radius;
+        let circle_inner_radius       = Var::<Distance<Pixels>>::from(circle_inner_radius);
         let circle_inner              = Circle(circle_inner_radius);
 
-        let circle_outer_offset_y = Var::<Distance<Pixels>>::from(&tri_height - segment_outer.sagitta() - &outer_radius);
+        // We don't want to move around the angle so we position the two circles relative to the
+        // angle.
+
+        let circle_outer_offset_y = Var::<Distance<Pixels>>::from(
+            &shape_height
+             - segment_outer.sagitta()
+             - &outer_radius
+        );
         let circle_outer          = circle_outer.translate_y(circle_outer_offset_y);
 
-        let circle_inner_offset_y = Var::<Distance<Pixels>>::from(&tri_height - segment_outer.sagitta() - segment_inner.sagitta() + &inner_radius);
+        let circle_inner_offset_y = Var::<Distance<Pixels>>::from(
+            &shape_height
+             - segment_outer.sagitta()
+             - segment_inner.sagitta()
+             + &inner_radius
+        );
         let circle_inner          = circle_inner.translate_y(circle_inner_offset_y);
 
-        let triangle_rounded = triangle;
-        let triangle_rounded = Intersection(triangle_rounded,circle_outer);
-        let triangle_rounded = Difference(triangle_rounded,circle_inner);
-        let triangle_rounded = triangle_rounded.fill(Srgb::new(0.26, 0.69, 0.99));
+        // Now we shape the angle by applying the circles.Note that only one of them will have an
+        // effect, based on the radius that we modified set through `input_is_inwards`.
+        let sculpted_shape = base_shape;
+        let sculpted_shape = Intersection(sculpted_shape,circle_outer);
+        let sculpted_shape = Difference(sculpted_shape,circle_inner);
+        let sculpted_shape = sculpted_shape.fill(Srgb::new(0.26, 0.69, 0.99));
 
-        let center_offset    = Var::<Distance<Pixels>> ::from(&tri_height * Var::from(0.5));
-        let triangle_rounded = triangle_rounded.translate_y(-center_offset);
+        // The angle should be centered on (0,0) to make it easier to rotate and minimise the
+        // required canvas.
+        let center_offset    = Var::<Distance<Pixels>>::from(&shape_height * Var::from(0.5));
+        let sculpted_shape   = sculpted_shape.translate_y(-center_offset);
 
-        let rot_angle         = Var::<Angle<Radians>>::from(" Radians(input_is_inwards * 3.1415926538) ");
-        let triangle_rounded = triangle_rounded.rotate(rot_angle);
+        // This is a conditional rotation that allows the port to either point inwards or outwards.
+        let rotation_angle = Var::<Angle<Radians>>::from("Radians(input_is_inwards * 3.1415926538)");
+        let sculpted_shape = sculpted_shape.rotate(rotation_angle);
 
-        triangle_rounded.into()
+        sculpted_shape.into()
     }
 
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32,is_inwards:f32) {
             /// NOTE: `is_inwards` should only be 0.0 or 1.0.
-            // FIMXE find a better abstraction for the GLSL flag
-            let port_spec_val = SpecificationVar {
-                    height       : height.into(),
-                    width        : width.into(),
-                    inner_radius : inner_radius.into(),
-            };
-            new_port(port_spec_val)
+            new_port(height,width,inner_radius,is_inwards)
         }
     }
 }
