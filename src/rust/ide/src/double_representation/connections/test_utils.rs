@@ -30,9 +30,13 @@ impl Case {
     /// AST in which all identifiers introduced into the graph's scope are marked like `«foo»`, and
     /// all identifiers used from graph's scope are marked like `»sum«`.
     pub fn from_markdown(marked_code:impl Str) -> Case {
+
         // Regexp that matches either «sth» or »sth« into a group names `introduced` or `used`,
         // respectively. See: https://regex101.com/r/pboF8O/2 for detailed explanation.
-        let regexp = Regex::new(r"«(?P<introduced>[^»]*)»|»(?P<used>[^«]*)«").unwrap();
+        let regex        = format!(r"«(?P<{}>[^»]*)»|»(?P<{}>[^«]*)«",INTRODUCED,USED);
+        // As this is test utils, we don't try nicely handling failure nor reusing the compiled
+        // regexp between calls to save some cycles.
+        let regex        = Regex::new(&regex).unwrap();
         let mut replacer = MarkdownReplacer::default();
         let code         = regexp.replace_all(marked_code.as_ref(), replacer.by_ref()).into();
         Case {
@@ -55,7 +59,16 @@ impl Case {
 // === MarkdownReplacer ===
 // ========================
 
+/// We want to recognize two kinds of marked identifiers: ones introduced into the graph's scope and
+/// ones used from the graph's scope.
+#[derive(Clone,Copy,Debug,Display)]
 enum Kind { Introduced, Used }
+
+/// Name of the pattern group matching introduced identifier.
+const INTRODUCED:&str="introduced";
+
+/// Name of the pattern group matching used identifier.
+const USED:&str="used";
 
 #[derive(Debug,Default)]
 struct MarkdownReplacer {
@@ -106,7 +119,7 @@ impl Replacer for MarkdownReplacer {
 mod tests {
     use super::*;
 
-    # [test]
+    #[test]
     fn parsing_markdown_to_test_case() {
         let code = "«sum» = »a« + »b«";
         let case = Case::from_markdown(code);
@@ -115,7 +128,7 @@ mod tests {
         assert_eq!(case.introduced[0], 0..3); // sum
 
         assert_eq!(case.used.len(), 2);
-        assert_eq!(case.used[0], 6..7); // a
+        assert_eq!(case.used[0], 6..7);   // a
         assert_eq!(case.used[1], 10..11); // b
     }
 }
