@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::math::algebra::{Cos,Sin};
 use crate::data::color;
 use crate::math::topology::unit::{Unit,Radians,Degrees,Distance,Angle,Pixels};
 use crate::system::gpu::shader::glsl::Glsl;

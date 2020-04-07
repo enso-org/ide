@@ -1,6 +1,6 @@
 //! Provides functionality related to circle segments.
 
-use crate::math::{Cos,Sin,Field};
+use crate::math::algebra::{Cos,Sin,Field};
 
 use core::fmt::Debug;
 
