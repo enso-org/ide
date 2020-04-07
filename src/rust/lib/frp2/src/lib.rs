@@ -288,7 +288,6 @@ pub struct Flow<Out=()> {
 
 impl<Def:NodeDefinition> HasOutput for Node     <Def> { type Output = Output<Def>; }
 impl<Def:NodeDefinition> HasOutput for WeakNode <Def> { type Output = Output<Def>; }
-//impl<Def:NodeDefinition> HasOutput for Node <Def> { type Output = Output<Def>; }
 
 
 // === Node Impls ===
@@ -306,15 +305,6 @@ impl<Def:NodeDefinition> Node<Def> {
         let weak = this.downgrade();
         flow.register_target(weak.into());
         this
-    }
-
-    pub fn construct2(label:Label, definition:Def) -> Flow<Output<Def>> {
-        Self::construct(label,definition).into()
-    }
-
-    pub fn construct_and_connect2<S>(label:Label, flow:&S, definition:Def) -> Flow<Output<Def>>
-    where S:AnyFlow, Self:EventConsumer<Output<S>> {
-        Self::construct_and_connect(label,flow,definition).into()
     }
 
     pub fn downgrade(&self) -> WeakNode<Def> {
@@ -342,9 +332,7 @@ impl<Def:NodeDefinition> ValueProvider for Node<Def> {
 
 impl<Def:NodeDefinition> HasId for Node<Def> {
     fn id(&self) -> Id {
-        0.into() // FIXME
-//        let raw = Rc::downgrade(&self.flow.value).as_raw() as *const() as usize;
-//        raw.into()
+        self.downgrade().id()
     }
 }
 
@@ -420,7 +408,8 @@ impl<Def:NodeDefinition+Debug> Debug for WeakNode<Def> {
 
 impl<Def:NodeDefinition> HasId for WeakNode<Def> {
     fn id(&self) -> Id {
-        0.into() // FIXME self.id
+        let raw = self.data.as_raw() as *const() as usize;
+        raw.into()
     }
 }
 
@@ -431,13 +420,6 @@ impl<Def:NodeDefinition> InputBehaviors for WeakNode<Def>
     }
 }
 
-//impl<Def:NodeDefinition,T> EventConsumer<T> for WeakNode<Def>
-//    where Node<Def> : EventConsumer<T> {
-//    fn on_event(&self, value:&T) {
-//        self.upgrade().for_each(|node| node.on_event(value));
-//    }
-//}
-
 impl<Def:NodeDefinition,T> WeakEventConsumer<T> for WeakNode<Def>
 where Node<Def> : EventConsumer<T> {
     fn on_event_if_exists(&self, value:&T) -> bool {
@@ -447,13 +429,9 @@ where Node<Def> : EventConsumer<T> {
 
 
 
-
-
 // ============
 // === Flow ===
 // ============
-
-
 
 impl<Def:NodeDefinition> From<Node<Def>> for Flow<Def::Output> {
     fn from(node:Node<Def>) -> Self {
