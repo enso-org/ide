@@ -1,6 +1,7 @@
 use std::ops::Range;
+use std::collections::HashMap;
 
-pub(crate) const MISSING: i64 = -1;
+pub const MISSING:usize = usize::max_value();
 
 #[derive(Clone,Debug,Default)]
 pub struct State {
@@ -17,16 +18,8 @@ pub struct Desc {
 #[derive(Clone,Debug,Default)]
 pub struct LinkRegistry {
     pub epsilon : Vec<usize>,
-    pub ranged  : TreeRangeMap<usize, usize>, // TODO use different structure
+    pub targets : HashMap<Range<i64>,usize>,
 }
 
-impl LinkRegistry {
-    pub(crate) fn add(&mut self, target:usize) {
-        self.epsilon += target
-    }
-    pub(crate) fn add_range(&mut self, target:usize, range:Range<i64>) {
-        if range.start <= range.end {
-          self.ranged.put(range, target)
-        }
-    }
-}
+#[derive(Clone,Debug,Default)]
+pub struct TreeRangeMapStub();

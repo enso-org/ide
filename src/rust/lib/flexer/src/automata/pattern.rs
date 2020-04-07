@@ -11,21 +11,22 @@ pub enum Pattern {
     Range(Range<i64>),
     Or(Vec<Pattern>),
     And(Vec<Pattern>),
-    Many(Pattern)
+    Many(Box<Pattern>)
 }
 
 use Pattern::*;
 use crate::parser;
+use itertools::Itertools;
 
 impl BitOr<Pattern> for Pattern {
     type Output = Pattern;
 
     fn bitor(self, rhs: Pattern) -> Self::Output {
-        match (self,rhs) {
-            (Or(&mut or), Or(    or2)) => {or.extend(or2) ; self},
-            (Or(&mut or), _          ) => {or.push(rhs)   ; self},
-            (_          , Or(&mut or)) => {or.push(self)  ; rhs },
-            (_          , _          ) => Or(vec![self,rhs]),
+        match (self, rhs) {
+            (Or(mut lhs), Or(    rhs)) => {lhs.extend(rhs) ; Or(lhs)},
+            (Or(mut lhs), rhs        ) => {lhs.push(rhs)   ; Or(lhs)},
+            (lhs        , Or(mut rhs)) => {rhs.push(lhs)   ; Or(rhs)},
+            (lhs        , rhs        ) => Or(vec![lhs,rhs]),
         }
     }
 }
@@ -33,11 +34,11 @@ impl BitAnd<Pattern> for Pattern {
     type Output = Pattern;
 
         fn bitand(self, rhs: Pattern) -> Self::Output {
-        match (self,rhs) {
-            (And(&mut or), And(    or2)) => {or.extend(or2) ; self},
-            (And(&mut or), _           ) => {or.push(rhs)   ; self},
-            (_           , And(&mut or)) => {or.push(self)  ; rhs },
-            (_           , _           ) => And(vec![self,rhs]),
+        match (self, rhs) {
+            (And(mut lhs), And(    rhs)) => {lhs.extend(rhs) ; And(lhs)},
+            (And(mut lhs), rhs         ) => {lhs.push(rhs)   ; And(lhs)},
+            (lhs         , And(mut rhs)) => {rhs.push(lhs)   ; And(rhs)},
+            (lhs         , rhs         ) => And(vec![lhs,rhs]),
         }
     }
 }
@@ -47,8 +48,8 @@ impl Pattern {
     pub fn never()         -> Self { Pattern::Range(0..-1)      }
     pub fn always()        -> Self { Pattern::Range(MIN..MAX)   }
     pub fn any_char()      -> Self { Pattern::Range(0..MAX)     }
-    pub fn many(self)      -> Self { Many(self)                 }
-    pub fn many1(self)     -> Self { self & self.many()         }
+    pub fn many(self)      -> Self { Many(Box::new(self))       }
+    pub fn many1(self)     -> Self { self.clone() & self.many() }
     pub fn opt(self)       -> Self { self | Self::always()      }
     pub fn code(code: i64) -> Self { Pattern::Range(code..code) }
 
@@ -72,26 +73,26 @@ impl Pattern {
     pub fn none(chars:String) -> Self {
         let char_iter  = chars.chars().map(|c| i64::from(c as u32));
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(MAX));
-        let mut codes  = char_iter2.collect::<Vec<i64>>()[..];
+        let mut codes  = char_iter2.collect_vec();
 
         codes.sort();
-        codes.windows(2).fold(Self::never(), |a,(s,e)| {
+        codes.iter().tuple_windows().fold(Self::never(), |a,(s,e)| {
             if e < s {a} else {
-                a | Pattern::Range(s..e)
+                a | Pattern::Range(*s..*e)
             }
         })
     }
 
     pub fn not(char:char) -> Self {
-        Self::none_of(char.toString)
+        Self::none(char.to_string())
     }
 
     pub fn repeat(pat:Pattern, num:usize) -> Self {
-        (0..num).fold(Self::always(), |p,_| p & pat)
+        (0..num).fold(Self::always(), |p,_| p & pat.clone())
     }
 
     pub fn repeat_between(pat:Pattern, min:usize, max:usize) -> Self {
-        (min..max).fold(Self::never(), |p,n| p | Self::repeat(pat,n))
+        (min..max).fold(Self::never(), |p,n| p | Self::repeat(pat.clone(),n))
     }
 
 }

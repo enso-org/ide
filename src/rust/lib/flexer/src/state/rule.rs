@@ -15,6 +15,6 @@ pub struct Builder<Finalizer> {
 impl<F:FnMut(Rule)> Builder<F> {
     fn run(&mut self, program:String){
         let rule = Rule {pattern:self.pattern.clone(), tree:program};
-        self.finalizer(rule);
+        (self.finalizer)(rule);
     }
 }

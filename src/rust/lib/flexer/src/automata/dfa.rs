@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[derive(Clone,Debug)]
 pub struct DFA {
-  vocabulary             : Dict,
-  links                  : Vec<Vec<i64>>,
-  end_state_priority_map : HashMap<i64,state::Desc>
+  pub vocabulary             : Dict,
+  pub links                  : Vec<Vec<usize>>,
+  pub end_state_priority_map : HashMap<usize,state::Desc>
 }
