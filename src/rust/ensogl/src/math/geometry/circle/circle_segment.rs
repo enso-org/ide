@@ -61,7 +61,6 @@ where T: FloatLike<T> {
 mod tests {
     use super::*;
     use assert_approx_eq::*;
-    // TODO more testing
 
     #[test]
     fn check_arc_length() {
