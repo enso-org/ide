@@ -6,7 +6,6 @@ use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
-use ensogl::display::object::Node;
 use ensogl::display::object::Object;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
@@ -22,7 +21,7 @@ use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
 use ensogl::math::topology::unit::{Angle,Degrees};
 use ensogl::prelude::*;
-use nalgebra as na;
+use nalgebra;
 use std::f32::consts::PI;
 
 
@@ -72,7 +71,7 @@ struct SpecificationVar {
 // ====================
 
 
-mod shape_unified{
+mod shape {
     use super::*;
 
     /// Construct an inwards facing port.
@@ -148,9 +147,9 @@ mod shape_unified{
 
 
 
-// =================
-// === Port Node ===
-// =================
+// ============
+// === Port ===
+// ============
 
 const DEFAULT_HEIGHT       : f32 = 20.0;
 const DEFAULT_INNER_RADIUS : f32 = 70.0;
@@ -160,7 +159,7 @@ const DEFAULT_WIDTH        : f32 = PI * (15.0 / 180.0f32);
 #[derive(Debug,Clone,Copy)]
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
-    type Shape = shape_unified::Shape;
+    type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
         shape.is_inwards.set(1.0);
         shape.height.set(DEFAULT_HEIGHT);
@@ -180,7 +179,7 @@ impl ShapeViewDefinition for InputPortView {
 #[derive(Debug,Clone,Copy)]
 pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
-    type Shape = shape_unified::Shape;
+    type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
         shape.is_inwards.set(0.0);
         shape.height.set(DEFAULT_HEIGHT);
@@ -202,8 +201,8 @@ impl ShapeViewDefinition for OutputPortView {
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct Port<T:ShapeViewDefinition> {
-        spec     : Specification,
-    pub view     : Rc<component::ShapeView<T>>
+        spec : Specification,
+    pub view : Rc<component::ShapeView<T>>
 }
 
 impl<T:ShapeViewDefinition> Port<T> {
@@ -236,10 +235,10 @@ impl<T:ShapeViewDefinition> Port<T> {
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
     fn update_sprite(&mut self) {
-        let translation_vector = na::Vector3::new(0.0,self.spec.inner_radius,0.0);
-        let rotation_vector = -na::Vector3::new(0.0,0.0,self.spec.location.rad().value);
-        let rotation = na::Rotation3::new(rotation_vector);
-        let translation = rotation * translation_vector;
+        let translation_vector = nalgebra::Vector3::new(0.0,self.spec.inner_radius,0.0);
+        let rotation_vector    = -nalgebra::Vector3::new(0.0,0.0,self.spec.location.rad().value);
+        let rotation           = nalgebra::Rotation3::new(rotation_vector);
+        let translation        = rotation * translation_vector;
 
         let node = &self.view.display_object;
         node.set_position(translation);
@@ -255,15 +254,9 @@ pub type InputPort = Port<InputPortView>;
 pub type OutputPort = Port<OutputPortView>;
 
 
-impl<'t, T:ShapeViewDefinition> From<&'t Port<T>> for &'t Node {
+impl<'t, T:ShapeViewDefinition> From<&'t Port<T>> for &'t display::object::Node {
     fn from(t:&'t Port<T>) -> Self {
         &t.view.display_object
-    }
-}
-
-impl<T:ShapeViewDefinition> Drop for Port<T> {
-    fn drop(&mut self) {
-        println!("DROP")
     }
 }
 
@@ -277,7 +270,8 @@ impl<T:ShapeViewDefinition> Drop for Port<T> {
 /// TODO implement the layouting
 #[derive(Debug,Default)]
 pub struct PortManager {
-    parent       : RefCell<Option<WeakNode>>,
+    /// The node that all ports will be placed around.
+    parent_node  : RefCell<Option<WeakNode>>,
     input_ports  : RefCell<Vec<InputPort>>,
     output_ports : RefCell<Vec<OutputPort>>,
 }
@@ -288,11 +282,11 @@ impl PortManager{
     ///
     /// Needs to be set after creation for circular dependecy reasons.
     pub fn set_parent(&self, parent:WeakNode) {
-        self.parent.set(parent);
+        self.parent_node.set(parent);
     }
 
     fn add_child_to_parent<T:Object>(&self, child:&T) {
-        if let Some(weak_node) = self.parent.borrow().as_ref() {
+        if let Some(weak_node) = self.parent_node.borrow().as_ref() {
             if let Some(node) = weak_node.upgrade() {
                 node.add_child(child);
             }
@@ -314,7 +308,7 @@ impl PortManager{
         let port = InputPort::new(port_spec);
         self.add_child_to_parent(&port);
         self.input_ports.borrow_mut().push(port);
-        self.update_ports();
+        self.update_port_shapes();
     }
 
     /// Create a new OutputPort.
@@ -332,11 +326,11 @@ impl PortManager{
         let port = OutputPort::new(port_spec);
         self.add_child_to_parent(&port);
         self.output_ports.borrow_mut().push(port);
-        self.update_ports();
+        self.update_port_shapes();
     }
 
-    /// Update the shapes of all ports.
-    fn update_ports(& self) {
+    /// Update the shapes of all ports with the currently set specification values.
+    fn update_port_shapes(& self) {
         for port in self.input_ports.borrow_mut().iter_mut() {
             if let Some(t) = port.view.data.borrow().as_ref() {
                     t.shape.width.set(port.spec.width.value.to_radians());

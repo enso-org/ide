@@ -197,8 +197,7 @@ pub struct NodeData {
     pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
-
-    pub port_manager : PortManager,
+    pub ports  : PortManager,
 }
 
 impl Node {
@@ -253,9 +252,9 @@ impl Node {
         }
 
         // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-        self.data.port_manager.set_parent(self.downgrade());
-        self.data.port_manager.create_input_port();
-        self.data.port_manager.create_output_port();
+        self.data.ports.set_parent(self.downgrade());
+        self.data.ports.create_input_port();
+        self.data.ports.create_output_port();
 
         self
     }

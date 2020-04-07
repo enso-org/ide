@@ -18,13 +18,10 @@ pub struct CircleSegment<T> {
     angle  : T,
 }
 
+pub trait FloatLike<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + From<f32> + Clone + Debug;
+
 impl<T> CircleSegment<T>
-where T: Field<T>
-         + Sin<Output=T>
-         + Cos<Output=T>
-         + From<f32>
-         + Clone
-         + Debug {
+where T: FloatLike<T> {
 
     /// Constructor. Angle is required to be in radians.
     pub fn new(radius:T, angle:T) -> Self {

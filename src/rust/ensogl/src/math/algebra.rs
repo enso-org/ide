@@ -169,14 +169,13 @@ impl Normalize for f32 {
 
 
 // ===================
-// === Square root ===
+// === Square Root ===
 // ===================
 
 /// Types from which a square root can be calculated.
 pub trait Sqrt {
     /// The output type of the computation.
     type Output;
-
     /// Compute the square root of the given number.
     fn sqrt(&self) -> Self::Output;
 }
@@ -186,22 +185,20 @@ pub trait Sqrt {
 
 impl Sqrt for f32 {
     type Output = f32;
-
     fn sqrt(&self) -> f32 {
         f32::sqrt(*self)
     }
 }
 
 
-// ===============
+// ==============
 // === Cosine ===
-// ===============
+// ==============
 
 /// Types from which a cosine can be calculated.
 pub trait Cos {
     /// The output type of the computation.
     type Output;
-
     /// Compute the cosine of the given number.
     fn cos(&self) -> Self;
 }
@@ -211,7 +208,6 @@ pub trait Cos {
 
 impl Cos for f32 {
     type Output = f32;
-
     fn cos(&self) -> f32 {
         f32::cos(*self)
     }
@@ -227,7 +223,6 @@ impl Cos for f32 {
 pub trait Sin {
     /// The output type of the computation.
     type Output;
-
     /// Compute the sine of the given number.
     fn sin(&self) -> Self::Output;
 }
@@ -237,7 +232,6 @@ pub trait Sin {
 
 impl Sin for f32 {
     type Output = f32;
-
     fn sin(&self) -> f32 {
         f32::sin(*self)
     }

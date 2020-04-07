@@ -415,14 +415,12 @@ define_shape_data_string_operator! { Div div (/) }
 
 
 // ===============================
-// === Trigonometric functions ===
+// === Trigonometric Functions ===
 // ===============================
 
 impl<T> Sin for Var<T>
-    where T: Sin<Output=T> {
-
+where T: Sin<Output=T> {
     type Output = Var<T>;
-
     fn sin(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.sin()),
@@ -433,10 +431,8 @@ impl<T> Sin for Var<T>
 
 
 impl<T> Cos for Var<T>
-    where T: Cos<Output=T> {
-
+where T: Cos<Output=T> {
     type Output = Var<T>;
-
     fn cos(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.cos()),
@@ -448,12 +444,12 @@ impl<T> Cos for Var<T>
 
 
 // ============================
-// === Conversion functions ===
+// === Conversion Functions ===
 // ============================
 // TODO this needs to be revisited with a more generic solution
 
 impl From<Var<Angle<Radians>>> for Var<f32> {
-    fn from(other: Var<Angle<Radians>>) -> Self {
+    fn from(other:Var<Angle<Radians>>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(t.value),
             Var::Dynamic (t) => Var::Dynamic(t),
@@ -462,7 +458,7 @@ impl From<Var<Angle<Radians>>> for Var<f32> {
 }
 
 impl From<Var<f32>> for Var<Angle<Radians>> {
-    fn from(other: Var<f32>) -> Self {
+    fn from(other:Var<f32>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(Angle::from(t)),
             Var::Dynamic (t) => Var::Dynamic(t),
@@ -471,7 +467,7 @@ impl From<Var<f32>> for Var<Angle<Radians>> {
 }
 
 impl From<Var<f32>> for Var<Angle<Degrees>> {
-    fn from(other: Var<f32>) -> Self {
+    fn from(other:Var<f32>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(Angle::from(t)),
             Var::Dynamic (t) => Var::Dynamic(t),
@@ -480,7 +476,7 @@ impl From<Var<f32>> for Var<Angle<Degrees>> {
 }
 
 impl From<Var<Angle<Degrees>>> for Var<f32> {
-    fn from(other: Var<Angle<Degrees>>) -> Self {
+    fn from(other:Var<Angle<Degrees>>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(t.value),
             Var::Dynamic (t) => Var::Dynamic(t),
@@ -489,7 +485,7 @@ impl From<Var<Angle<Degrees>>> for Var<f32> {
 }
 
 impl From<Var<Distance<Pixels>>> for Var<f32> {
-    fn from(other: Var<Distance<Pixels>>) -> Self {
+    fn from(other:Var<Distance<Pixels>>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(t.value),
             Var::Dynamic (t) => Var::Dynamic(t),
@@ -498,7 +494,7 @@ impl From<Var<Distance<Pixels>>> for Var<f32> {
 }
 
 impl From<Var<f32>> for Var<Distance<Pixels>> {
-    fn from(other: Var<f32>) -> Self {
+    fn from(other:Var<f32>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(Distance::from(t)),
             Var::Dynamic (t) => Var::Dynamic(t),
