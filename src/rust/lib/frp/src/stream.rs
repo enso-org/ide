@@ -2,7 +2,6 @@
 use crate::prelude::*;
 use crate::network::*;
 use crate::node::*;
-use crate::debug;
 
 
 
@@ -231,7 +230,7 @@ impl<Out:Default> NodeData<Out> {
         Self {label,targets,value_cache,during_call,watch_counter}
     }
 
-    fn use_caching(&self) -> bool {
+    fn _use_caching(&self) -> bool {
         !self.watch_counter.is_zero()
     }
 }
@@ -264,6 +263,9 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
 
 impl<Out:Data> ValueProvider for NodeData<Out> {
     fn value(&self) -> Out {
+//        if !self.use_caching() {
+//            panic!("Trying to read not cached value.")
+//        }
         self.value_cache.borrow().clone()
     }
 }

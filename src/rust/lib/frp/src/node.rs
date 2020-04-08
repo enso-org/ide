@@ -1,3 +1,5 @@
+//! FRP data definition.
+
 use crate::prelude::*;
 
 

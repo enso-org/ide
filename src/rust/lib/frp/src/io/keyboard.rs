@@ -1,8 +1,7 @@
-//! Keboard FRP bindings.
+//! FRP keyboard bindings.
 
 use crate::prelude::*;
 
-use crate::*;
 use rust_dense_bitset::BitSet;
 use rust_dense_bitset::DenseBitSetExtended;
 use std::collections::hash_map::Entry;

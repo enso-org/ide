@@ -5,7 +5,6 @@ use crate::stream::Stream;
 use crate::stream::Watched;
 use crate::stream::EventOutput;
 use crate::stream;
-use crate::debug;
 use crate::network::*;
 use crate::node::*;
 use crate::traits::*;
@@ -608,34 +607,35 @@ use the `apply` function family instead.
 "]$($tt)* }}
 
 docs_for_map! {
-pub struct MapData <T1,F> { stream:Watched<T1>, function:F }}
-pub type   Map     <T1,F> = stream::Node     <MapData<T1,F>>;
-pub type   WeakMap <T1,F> = stream::WeakNode <MapData<T1,F>>;
+pub struct MapData <V1,F> { phantom:PhantomData<V1>, function:F }}
+pub type   Map     <V1,F> = stream::Node     <MapData<V1,F>>;
+pub type   WeakMap <V1,F> = stream::WeakNode <MapData<V1,F>>;
 
-impl<T1,F,Out> HasOutput for MapData<T1,F>
-where T1:EventOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
+impl<V1,F,Out> HasOutput for MapData<V1,F>
+where Out:Data, F:'static+Fn(&V1)->Out {
     type Output = Out;
 }
 
-impl<T1,F,Out> Map<T1,F>
-where T1:EventOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
+impl<V1,F,Out> Map<V1,F>
+where V1:Data, Out:Data, F:'static+Fn(&V1)->Out {
     /// Constructor.
-    pub fn new(label:Label, t1:&T1, function:F) -> Self {
-        let stream     = watch_stream(t1);
-        let definition = MapData {stream,function};
+    pub fn new<T1>(label:Label, t1:&T1, function:F) -> Self
+    where T1:EventOutput<Output=V1> {
+        let phantom    = default();
+        let definition = MapData {phantom,function};
         Self::construct_and_connect(label,t1,definition)
     }
 }
 
-impl<T1,F,Out> stream::EventConsumer<Output<T1>> for Map<T1,F>
-where T1:EventOutput, Out:Data, F:'static+Fn(&Output<T1>)->Out {
-    fn on_event(&self, value:&Output<T1>) {
+impl<V1,F,Out> stream::EventConsumer<V1> for Map<V1,F>
+where V1:Data, Out:Data, F:'static+Fn(&V1)->Out {
+    fn on_event(&self, value:&V1) {
         let out = (self.function)(value);
         self.emit(out);
     }
 }
 
-impl<T1,F> Debug for MapData<T1,F> {
+impl<V1,F> Debug for MapData<V1,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"MapData")
     }
@@ -648,46 +648,47 @@ impl<T1,F> Debug for MapData<T1,F> {
 // ============
 
 docs_for_map! {
-pub struct Map2Data <T1,T2,F> { source1:Watched<T1>, source2:Watched<T2>, function:F }}
-pub type   Map2     <T1,T2,F> = stream::Node     <Map2Data<T1,T2,F>>;
-pub type   WeakMap2 <T1,T2,F> = stream::WeakNode <Map2Data<T1,T2,F>>;
+pub struct Map2Data <V1,T2,F> { phantom:PhantomData<V1>, source2:Watched<T2>, function:F }}
+pub type   Map2     <V1,T2,F> = stream::Node     <Map2Data<V1,T2,F>>;
+pub type   WeakMap2 <V1,T2,F> = stream::WeakNode <Map2Data<V1,T2,F>>;
 
-impl<T1,T2,F,Out> HasOutput for Map2Data<T1,T2,F>
-where T1:EventOutput, T2:EventOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+impl<V1,T2,F,Out> HasOutput for Map2Data<V1,T2,F>
+where V1:Data, T2:EventOutput, Out:Data, F:'static+Fn(&V1,&Output<T2>)->Out {
     type Output = Out;
 }
 
-impl<T1,T2,F,Out> Map2<T1,T2,F>
-where T1:EventOutput, T2:EventOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
+impl<V1,T2,F,Out> Map2<V1,T2,F>
+where V1:Data, T2:EventOutput, Out:Data, F:'static+Fn(&V1,&Output<T2>)->Out {
     /// Constructor.
-    pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
-        let source1 = watch_stream(t1);
+    pub fn new<T1>(label:Label, t1:&T1, t2:&T2, function:F) -> Self
+    where T1:EventOutput<Output=V1> {
+        let phantom = default();
         let source2 = watch_stream(t2);
-        let def   = Map2Data {source1,source2,function};
-        let this  = Self::construct(label,def);
-        let weak  = this.downgrade();
+        let def     = Map2Data {phantom,source2,function};
+        let this    = Self::construct(label,def);
+        let weak    = this.downgrade();
         t1.register_target(weak.into());
         this
     }
 }
 
-impl<T1,T2,F,Out> stream::EventConsumer<Output<T1>> for Map2<T1,T2,F>
-where T1:EventOutput, T2:EventOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
-    fn on_event(&self, value1:&Output<T1>) {
+impl<V1,T2,F,Out> stream::EventConsumer<V1> for Map2<V1,T2,F>
+where V1:Data, T2:EventOutput, Out:Data, F:'static+Fn(&V1,&Output<T2>)->Out {
+    fn on_event(&self, value1:&V1) {
         let value2 = self.source2.value();
         let out    = (self.function)(&value1,&value2);
         self.emit(out);
     }
 }
 
-impl<T1,T2,F> Debug for Map2Data<T1,T2,F> {
+impl<V1,T2,F> Debug for Map2Data<V1,T2,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map2Data")
     }
 }
 
-impl<T1,T2,F> stream::InputBehaviors for Map2Data<T1,T2,F>
-    where T1:EventOutput, T2:EventOutput {
+impl<V1,T2,F> stream::InputBehaviors for Map2Data<V1,T2,F>
+where V1:Data, T2:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.source2)]
     }
@@ -700,26 +701,27 @@ impl<T1,T2,F> stream::InputBehaviors for Map2Data<T1,T2,F>
 // ============
 
 docs_for_map! {
-pub struct Map3Data <T1,T2,T3,F>
-    { source1:Watched<T1>, source2:Watched<T2>, source3:Watched<T3>, function:F }}
-pub type   Map3     <T1,T2,T3,F> = stream::Node     <Map3Data<T1,T2,T3,F>>;
-pub type   WeakMap3 <T1,T2,T3,F> = stream::WeakNode <Map3Data<T1,T2,T3,F>>;
+pub struct Map3Data <V1,T2,T3,F>
+    { phantom:PhantomData<V1>, source2:Watched<T2>, source3:Watched<T3>, function:F }}
+pub type   Map3     <V1,T2,T3,F> = stream::Node     <Map3Data<V1,T2,T3,F>>;
+pub type   WeakMap3 <V1,T2,T3,F> = stream::WeakNode <Map3Data<V1,T2,T3,F>>;
 
-impl<T1,T2,T3,F,Out> HasOutput for Map3Data<T1,T2,T3,F>
-where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
-      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
+impl<V1,T2,T3,F,Out> HasOutput for Map3Data<V1,T2,T3,F>
+where V1:Data, T2:EventOutput, T3:EventOutput, Out:Data,
+      F:'static+Fn(&V1,&Output<T2>,&Output<T3>)->Out {
     type Output = Out;
 }
 
-impl<T1,T2,T3,F,Out> Map3<T1,T2,T3,F>
-where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
-      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
+impl<V1,T2,T3,F,Out> Map3<V1,T2,T3,F>
+where V1:Data, T2:EventOutput, T3:EventOutput, Out:Data,
+      F:'static+Fn(&V1,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
-    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
-        let source1 = watch_stream(t1);
+    pub fn new<T1>(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self
+    where T1:EventOutput<Output=V1> {
+        let phantom = default();
         let source2 = watch_stream(t2);
         let source3 = watch_stream(t3);
-        let def   = Map3Data {source1,source2,source3,function};
+        let def   = Map3Data {phantom,source2,source3,function};
         let this  = Self::construct(label,def);
         let weak  = this.downgrade();
         t1.register_target(weak.into());
@@ -727,10 +729,10 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
     }
 }
 
-impl<T1,T2,T3,F,Out> stream::EventConsumer<Output<T1>> for Map3<T1,T2,T3,F>
-where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
-      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
-    fn on_event(&self, value1:&Output<T1>) {
+impl<V1,T2,T3,F,Out> stream::EventConsumer<V1> for Map3<V1,T2,T3,F>
+where V1:Data, T2:EventOutput, T3:EventOutput, Out:Data,
+      F:'static+Fn(&V1,&Output<T2>,&Output<T3>)->Out {
+    fn on_event(&self, value1:&V1) {
         let value2 = self.source2.value();
         let value3 = self.source3.value();
         let out    = (self.function)(&value1,&value2,&value3);
@@ -738,14 +740,14 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
     }
 }
 
-impl<T1,T2,T3,F> Debug for Map3Data<T1,T2,T3,F> {
+impl<V1,T2,T3,F> Debug for Map3Data<V1,T2,T3,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map3Data")
     }
 }
 
-impl<T1,T2,T3,F> stream::InputBehaviors for Map3Data<T1,T2,T3,F>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+impl<V1,T2,T3,F> stream::InputBehaviors for Map3Data<V1,T2,T3,F>
+    where V1:Data, T2:EventOutput, T3:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.source2), Link::behavior(&self.source3)]
     }
@@ -758,39 +760,40 @@ impl<T1,T2,T3,F> stream::InputBehaviors for Map3Data<T1,T2,T3,F>
 // ============
 
 docs_for_map! {
-pub struct Map4Data <T1,T2,T3,T4,F>
-    { source1:Watched<T1>, source2:Watched<T2>, source3:Watched<T3>, source4:Watched<T4>
+pub struct Map4Data <V1,T2,T3,T4,F>
+    { phantom:PhantomData<V1>, source2:Watched<T2>, source3:Watched<T3>, source4:Watched<T4>
     , function:F }}
-pub type   Map4     <T1,T2,T3,T4,F> = stream::Node     <Map4Data<T1,T2,T3,T4,F>>;
-pub type   WeakMap4 <T1,T2,T3,T4,F> = stream::WeakNode <Map4Data<T1,T2,T3,T4,F>>;
+pub type   Map4     <V1,T2,T3,T4,F> = stream::Node     <Map4Data<V1,T2,T3,T4,F>>;
+pub type   WeakMap4 <V1,T2,T3,T4,F> = stream::WeakNode <Map4Data<V1,T2,T3,T4,F>>;
 
-impl<T1,T2,T3,T4,F,Out> HasOutput for Map4Data<T1,T2,T3,T4,F>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
-          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
+impl<V1,T2,T3,T4,F,Out> HasOutput for Map4Data<V1,T2,T3,T4,F>
+    where V1:Data, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
+          F:'static+Fn(&V1,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     type Output = Out;
 }
 
-impl<T1,T2,T3,T4,F,Out> Map4<T1,T2,T3,T4,F>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
-          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
+impl<V1,T2,T3,T4,F,Out> Map4<V1,T2,T3,T4,F>
+    where V1:Data, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
+          F:'static+Fn(&V1,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
-    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
-        let source1 = watch_stream(t1);
+    pub fn new<T1>(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self
+    where T1:EventOutput<Output=V1> {
+        let phantom = default();
         let source2 = watch_stream(t2);
         let source3 = watch_stream(t3);
         let source4 = watch_stream(t4);
-        let def   = Map4Data {source1,source2,source3,source4,function};
-        let this  = Self::construct(label,def);
-        let weak  = this.downgrade();
+        let def     = Map4Data {phantom,source2,source3,source4,function};
+        let this    = Self::construct(label,def);
+        let weak    = this.downgrade();
         t1.register_target(weak.into());
         this
     }
 }
 
-impl<T1,T2,T3,T4,F,Out> stream::EventConsumer<Output<T1>> for Map4<T1,T2,T3,T4,F>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
-          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
-    fn on_event(&self, value1:&Output<T1>) {
+impl<V1,T2,T3,T4,F,Out> stream::EventConsumer<V1> for Map4<V1,T2,T3,T4,F>
+    where V1:Data, T2:EventOutput, T3:EventOutput, T4:EventOutput, Out:Data,
+          F:'static+Fn(&V1,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
+    fn on_event(&self, value1:&V1) {
         let value2 = self.source2.value();
         let value3 = self.source3.value();
         let value4 = self.source4.value();
@@ -799,8 +802,8 @@ impl<T1,T2,T3,T4,F,Out> stream::EventConsumer<Output<T1>> for Map4<T1,T2,T3,T4,F
     }
 }
 
-impl<T1,T2,T3,T4,F> stream::InputBehaviors for Map4Data<T1,T2,T3,T4,F>
-where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+impl<V1,T2,T3,T4,F> stream::InputBehaviors for Map4Data<V1,T2,T3,T4,F>
+where V1:Data, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![ Link::behavior(&self.source2)
             , Link::behavior(&self.source3)
@@ -809,7 +812,7 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     }
 }
 
-impl<T1,T2,T3,T4,F> Debug for Map4Data<T1,T2,T3,T4,F> {
+impl<V1,T2,T3,T4,F> Debug for Map4Data<V1,T2,T3,T4,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"Map4Data")
     }
@@ -843,9 +846,9 @@ where T1:EventOutput, T2:EventOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output
     pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
         let source1 = watch_stream(t1);
         let source2 = watch_stream(t2);
-        let def   = Apply2Data {source1,source2,function};
-        let this  = Self::construct(label,def);
-        let weak  = this.downgrade();
+        let def     = Apply2Data {source1,source2,function};
+        let this    = Self::construct(label,def);
+        let weak    = this.downgrade();
         t1.register_target(weak.clone_ref().into());
         t2.register_target(weak.into());
         this
@@ -894,9 +897,9 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
         let source1 = watch_stream(t1);
         let source2 = watch_stream(t2);
         let source3 = watch_stream(t3);
-        let def   = Apply3Data {source1,source2,source3,function};
-        let this  = Self::construct(label,def);
-        let weak  = this.downgrade();
+        let def     = Apply3Data {source1,source2,source3,function};
+        let this    = Self::construct(label,def);
+        let weak    = this.downgrade();
         t1.register_target(weak.clone_ref().into());
         t2.register_target(weak.clone_ref().into());
         t3.register_target(weak.into());
@@ -998,9 +1001,9 @@ impl Network {
     }}
 
     docs_for_trace! {
-    pub fn trace<M,S,T>(&self, label:Label, message:M, stream:&S) -> Stream<T>
-    where M:Into<String>, S:EventOutput<Output=T>, T:Data {
-        self.register(Trace::new(label,message,stream))
+    pub fn trace<S,T>(&self, label:Label, stream:&S) -> Stream<T>
+    where S:EventOutput<Output=T>, T:Data {
+        self.register(Trace::new(label,label,stream)) // FIXME double label
     }}
 
     docs_for_toggle! {

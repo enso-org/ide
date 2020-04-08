@@ -49,6 +49,8 @@ use ensogl::display::object::Id;
 use ensogl::system::web::StyleSetter;
 
 
+use ensogl::control::io::mouse;
+
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -184,7 +186,7 @@ impl GraphEditor {
         let network = &events.network;
 
 
-        frp::new_network! { network
+        frp::extend_network! { network
             def on_node_press            = source::<Option<WeakNode>> ();
             def on_node_press_bool       = on_node_press.map(|_| true);
             def on_mouse_up_bool         = mouse.on_up.map(|_| false);

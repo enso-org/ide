@@ -41,6 +41,7 @@ fn init(world: &World) {
     world.on_frame(move |_| {
         let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
+        let _keep_alive = &graph_editor;
         if was_rendered && !loader_hidden {
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
