@@ -18,7 +18,9 @@ if (input_display_mode == 0) {
     Rgb col = distance_meter(shape.sdf.distance, 200.0 * input_zoom * input_pixel_ratio, 200.0/input_zoom * input_pixel_ratio);
     output_color = rgba(col).raw;
 }else if (input_display_mode == 2) {
-    float r = float(((int(output_id.r) * 79) % 360) / 360);
-    float g = float(((int(output_id.r) * 43) % 360) / 360);
-    output_color = vec4(r, g, 0.0, float(alpha_no_aa));
+    float r = float(((int(input_symbol_id) * 79) % 360)) / 360.0;
+    float g = float(((int(input_instance_id) * 43) % 360)) / 360.0;
+    float b = float(((int(input_instance_id) * 97) % 360)) / 360.0;
+    output_color = vec4(r, g, b, 1.0);
+    output_color.rgb *= float(alpha_no_aa);
 }
