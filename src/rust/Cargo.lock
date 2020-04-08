@@ -498,17 +498,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enso-frp2"
-version = "0.1.0"
-dependencies = [
- "enso-prelude 0.1.0",
- "ensogl-system-web 0.1.0",
- "keyboard-types 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rust-dense-bitset 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "enso-prelude"
 version = "0.1.0"
 dependencies = [
@@ -899,7 +888,6 @@ name = "gui"
 version = "0.1.0"
 dependencies = [
  "enso-frp 0.1.0",
- "enso-frp2 0.1.0",
  "enso-prelude 0.1.0",
  "ensogl 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",

@@ -5,9 +5,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::system::web;
 
-use enso_frp::EventEmitterPoly;
-use enso_frp::Key;
-use enso_frp::Keyboard;
+use enso_frp::traits::*;
+use enso_frp::io::keyboard::Key;
+use enso_frp::io::Keyboard;
 use js_sys::Function;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
@@ -80,14 +80,14 @@ impl KeyboardFrpBindings {
         let key_down = KeyboardListener::new_key_down(logger,enclose!((keyboard.on_pressed => frp)
             move |event:KeyboardEvent| {
                 if let Ok(key) = event.key().parse::<Key>() {
-                    frp.event.emit(key);
+                    frp.emit(key);
                 }
             }
         ));
         let key_up = KeyboardListener::new_key_up(logger,enclose!((keyboard.on_released => frp)
             move |event:KeyboardEvent| {
                 if let Ok(key) = event.key().parse::<Key>() {
-                    frp.event.emit(key);
+                    frp.emit(key);
                 }
             }
         ));

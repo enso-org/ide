@@ -1026,8 +1026,8 @@ impl Network {
     }}
 
     docs_for_sample! {
-    pub fn sample<E:EventOutput,B:EventOutput>
-    (&self, label:Label, event:&E, behavior:&B) -> Stream<Output<B>> {
+    pub fn sample<E:EventOutput,B:EventOutput> // FIXME arg order mixed
+    (&self, label:Label, behavior:&B, event:&E) -> Stream<Output<B>> {
         self.register(Sample::new(label,event,behavior))
     }}
 

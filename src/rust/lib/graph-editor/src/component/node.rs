@@ -8,7 +8,6 @@ use ensogl::display::traits::*;
 use ensogl::display::{Sprite, Attribute};
 use enso_frp;
 use enso_frp as frp;
-use enso_frp::frp;
 use ensogl::display::Buffer;
 use ensogl::data::color::*;
 use ensogl::display::shape::*;
@@ -128,8 +127,9 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub select     : frp::Dynamic<()>,
-    pub deselect   : frp::Dynamic<()>,
+    pub network    : frp::Network,
+    pub select     : frp::Stream,
+    pub deselect   : frp::Stream,
 }
 
 
@@ -165,7 +165,7 @@ impl component::ShapeViewDefinition for NodeView {
 #[allow(missing_docs)]
 pub struct NodeData {
     pub logger : Logger,
-    pub label  : frp::Dynamic<String>,
+    pub label  : frp::Stream<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
 }
@@ -173,23 +173,26 @@ pub struct NodeData {
 impl Node {
     /// Constructor.
     pub fn new() -> Self {
-        frp! {
-            label    = source::<String> ();
-            select   = source::<()>     ();
-            deselect = source::<()>     ();
+        frp::new_network! { node_network
+            def label    = source::<String> ();
+            def select   = source::<()>     ();
+            def deselect = source::<()>     ();
         }
-
+        let network = node_network;
         let logger = Logger::new("node");
         let view   = component::ShapeView::new(&logger);
-        let events = Events {select,deselect};
+        let events = Events {network,select,deselect};
         let data   = Rc::new(NodeData {logger,label,events,view});
         Self {data} . init()
     }
 
     fn init(self) -> Self {
+        let network = &self.data.events.network;
+
+
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
-        let creation = animation(move |value| {
+        let creation = animation(network, move |value| {
             weak_view_data.upgrade().for_each(|view_data| {
                 view_data.borrow().as_ref().for_each(|t| t.shape.creation.set(value))
             })
@@ -198,21 +201,24 @@ impl Node {
 
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
-        let selection = animation(move |value| {
+        let selection = animation(network, move |value| {
             weak_view_data.upgrade().for_each(|view_data| {
                 view_data.borrow().as_ref().for_each(|t| t.shape.selection.set(value))
             })
         });
 
-        let selection_ref = selection.clone_ref();
-        self.events.select.map("select", move |_| {
-            selection_ref.set_target_position(1.0);
-        });
 
-        let selection_ref = selection.clone_ref();
-        self.events.deselect.map("deselect", move |_| {
-            selection_ref.set_target_position(0.0);
-        });
+        frp::extend_network! { network
+            let selection_ref = selection.clone_ref();
+            def f_select = self.events.select.map(move |_| {
+                selection_ref.set_target_position(1.0);
+            });
+
+            let selection_ref = selection.clone_ref();
+            def f_deselect = self.events.deselect.map(move |_| {
+                selection_ref.set_target_position(0.0);
+            });
+        }
 
         self
     }

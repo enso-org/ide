@@ -11,8 +11,7 @@ use crate::display::shape::primitive::system::Shape;
 use crate::display;
 
 use enso_frp as frp;
-use enso_frp::core::node::class::EventEmitterPoly;
-use enso_frp::frp;
+use enso_frp::traits::*;
 
 
 
@@ -25,18 +24,22 @@ use enso_frp::frp;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
-    pub mouse_down : frp::Dynamic<()>,
+    pub network    : frp::Network,
+    pub mouse_down : frp::Stream,
 }
 
 impl Default for ShapeViewEvents {
     fn default() -> Self {
-        frp! { mouse_down = source::<()> (); }
-        Self {mouse_down}
+        frp::new_network! { shape_view
+            def mouse_down = source_();
+        }
+        let network = shape_view;
+        Self {network,mouse_down}
     }
 }
 
 impl MouseTarget for ShapeViewEvents {
-    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
+    fn mouse_down(&self) -> Option<frp::Stream> {
         Some(self.mouse_down.clone_ref())
     }
 }
@@ -136,11 +139,11 @@ pub trait ShapeViewDefinition : 'static {
 
 // TODO: This should grow and then should be refactored somewhere else.
 /// Define a new animation FRP network.
-pub fn animation<F>(f:F) -> DynSimulator<f32>
-    where F : Fn(f32) + 'static {
-    frp! { target = source::<f32> (); }
-    target.map("animation", move |value| f(*value));
-    DynSimulator::<f32>::new(Box::new(move |t| {
-        target.event.emit(t);
-    }))
+pub fn animation<F>(network:&frp::Network, f:F) -> DynSimulator<f32>
+where F : Fn(f32) + 'static {
+    frp::extend_network! { network
+        def target = source::<f32> ();
+        def eval   = target.map(move |value| f(*value));
+    }
+    DynSimulator::<f32>::new(Box::new(move |t| target.emit(t)))
 }

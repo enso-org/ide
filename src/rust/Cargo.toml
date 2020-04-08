@@ -20,7 +20,6 @@ members = [
     "lib/graph-editor",
     "lib/eval-tt",
     "lib/frp",
-    "lib/frp2",
     "lib/logger",
     "lib/macro-utils",
     "lib/optics",

@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate as frp;
+use crate::nodes::*;
+use crate::frp_def;
 
 
 
@@ -42,31 +43,32 @@ impl Sub<&Position> for &Position {
 
 /// Mouse FRP bindings.
 #[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
 pub struct Mouse {
-    pub network  : frp::Network,
-    pub on_up    : frp::Stream,
-    pub on_down  : frp::Stream,
-    pub on_wheel : frp::Stream,
-    pub on_leave : frp::Stream,
-    pub is_down  : frp::Stream<bool>,
-    pub position : frp::Stream<Position>,
+    /// The mouse up event.
+    pub on_up : Dynamic<()>,
+    /// The mouse down event.
+    pub on_down : Dynamic<()>,
+    /// The mouse wheel event.
+    pub on_wheel : Dynamic<()>,
+    /// The mouse leave event.
+    pub on_leave : Dynamic<()>,
+    /// Mouse button press status.
+    pub is_down : Dynamic<bool>,
+    /// Current mouse position.
+    pub position : Dynamic<Position>,
 }
 
 impl Default for Mouse {
     fn default() -> Self {
-        frp::new_network! { mouse
-            def on_up     = source_();
-            def on_down   = source_();
-            def on_wheel  = source_();
-            def on_leave  = source_();
-            def position  = source();
-            def down_bool = on_down.constant(true);
-            def up_bool   = on_up.constant(false);
-            def is_down   = down_bool.merge(&up_bool);
-        };
-        let network   = mouse;
-        Self {network,on_up,on_down,on_leave,on_wheel,is_down,position}
+        frp_def! { mouse.on_up     = source() }
+        frp_def! { mouse.on_down   = source() }
+        frp_def! { mouse.on_wheel  = source() }
+        frp_def! { mouse.on_leave  = source() }
+        frp_def! { mouse.position  = source() }
+        frp_def! { mouse.down_bool = on_down.constant(true) }
+        frp_def! { mouse.up_bool   = on_up.constant(false) }
+        frp_def! { mouse.is_down   = down_bool.merge(&up_bool) }
+        Self {on_up,on_down,on_leave,on_wheel,is_down,position}
     }
 }
 

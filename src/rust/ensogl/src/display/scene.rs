@@ -36,13 +36,13 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
-use enso_frp;
-use enso_frp::core::node::class::EventEmitterPoly;
+use enso_frp as frp;
+use enso_frp::traits::*;
 
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> Option<enso_frp::Dynamic<()>> { None }
+    fn mouse_down(&self) -> Option<enso_frp::Stream> { None }
 }
 
 
@@ -176,7 +176,7 @@ pub struct Mouse {
     pub button4_pressed : Uniform<bool>,
     pub target          : Rc<Cell<Target>>,
     pub handles         : Rc<Vec<callback::Handle>>,
-    pub frp             : enso_frp::Mouse,
+    pub frp             : enso_frp::io::Mouse,
 }
 
 impl Mouse {
@@ -237,20 +237,20 @@ impl Mouse {
 
         let handles = Rc::new(vec![on_move_handle,on_down_handle,on_up_handle]);
 
-        let frp = enso_frp::Mouse::new();
+        let frp = frp::io::Mouse::new();
 
-        let event = frp.position.event.clone_ref();
+        let event = frp.position.clone_ref();
         mouse_manager.on_move.add(move |e:&mouse::OnMove| {
             let position = enso_frp::Position::new(e.client_x(),e.client_y());
             event.emit(position);
         }).forget();
 
-        let event = frp.on_down.event.clone_ref();
+        let event = frp.on_down.clone_ref();
         mouse_manager.on_down.add(move |_:&mouse::OnDown| {
             event.emit(());
         }).forget();
 
-        let event = frp.on_up.event.clone_ref();
+        let event = frp.on_up.clone_ref();
         mouse_manager.on_up.add(move |_:&mouse::OnUp| {
             event.emit(());
         }).forget();

@@ -1,69 +1,61 @@
-//! This module defines common macros for FRP netwrok definition.
 
 
 
-/// Utility for easy definition of the FRP network. In order to keep the network easy to debug and
-/// reason about, each node constructor consumes a label. Providing labels manually is time
-/// consuming and error prone. This utility infers the name from the assignment shape and provides
-/// it automatically to the FRP node constructor.
 #[macro_export]
-macro_rules! frp {
-    ($($ts:tt)*) => { $crate::split_on_terminator! { [[$crate::frp_lines]] [] [] $($ts)* } };
-}
-
-/// Utility for easy definition of the FRP network definition. Read docs of `frp` macro to learn
-/// more.
-#[macro_export]
-macro_rules! frp_def {
-    ($var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $crate::Dynamic $(::<$ty>)? :: $fn
-        ( stringify!{$var}, $($args)* );
-    };
-
-    ($scope:ident . $var:ident = $fn:ident $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $crate::Dynamic $(::<$ty>)? :: $fn
-        ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
-    };
-
-    ($var:ident = $fn:ident $(.$fn2:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $fn $(.$fn2)* $(::<$ty>)?
-        ( concat! {stringify!{$var}}, $($args)* );
-    };
-
-    ($scope:ident . $var:ident = $fn1:ident . $fn2:ident $(.$fn3:ident)* $(::<$ty:ty>)? ($($args:tt)*)) => {
-        let $var = $fn1 . $fn2 $(.$fn3)* $(::<$ty>)?
-        ( concat! {stringify!{$scope},".",stringify!{$var}}, $($args)* );
+macro_rules! new_network {
+    ($network:ident $($ts:tt)*) => {
+        let $network = $crate::Network::new();
+        $crate::extend_network! { $network $($ts)* }
     };
 }
 
-/// Internal helper for the `frp` macro.
 #[macro_export]
-macro_rules! frp_lines {
-    ([ $([$($line:tt)*])* ]) => {
-        $( $crate::frp_def! { $($line)* } )*
+macro_rules! extend_network {
+    ($network:ident $($ts:tt)*) => {
+        $crate::divide_on_terminator! { [[$crate::extend_network_lines] [$network]] $($ts)* }
     };
 }
 
-/// Splits the token stream on terminators.
+
 #[macro_export]
-macro_rules! split_on_terminator {
-    ([[$($f:tt)*] $args:tt] $out:tt []) => {
-        $($f)*! { $args $out }
+macro_rules! extend_network_lines {
+    ([$network:ident] [ $([$($line:tt)*])* ]) => {$(
+        $crate::extend_network_line! { $network $($line)* }
+    )*}
+}
+
+#[macro_export]
+macro_rules! divide_on_terminator {
+    ($f:tt $($ts:tt)*) => { $crate::_divide_on_terminator! { $f [] [] $($ts)* } };
+}
+
+
+#[macro_export]
+macro_rules! extend_network_line {
+    ($network:ident def $name:ident $(:$ty:ty)? = $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),$($arg)*) $($ts)*
     };
 
-    ([[$($f:tt)*]] $out:tt []) => {
-        $($f)*! { $out }
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt,$($arg)*) $($ts)*
     };
 
-    ($f:tt [$($out:tt)*] $current:tt ; $($ts:tt)*) => {
-        $crate::split_on_terminator! { $f [$($out)* $current] [] $($ts)* }
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $tgt2:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt.$tgt2,$($arg)*) $($ts)*
     };
 
-    ($f:tt $out:tt [$($current:tt)*] $t:tt $($ts:tt)*) => {
-        $crate::split_on_terminator! { $f $out [$($current)* $t] $($ts)* }
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt:ident . $tgt2:ident . $tgt3:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => {
+        let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($name),&$tgt.$tgt2.$tgt3,$($arg)*) $($ts)*
     };
 
-    ([[$($f:tt)*] $($args:tt)?] [$($out:tt)*] $current:tt) => {
-        $crate::split_on_terminator! { [[$($f)*] $($args)?] [$($out)* $current] [] }
-    };
+    ($network:ident $($ts:tt)*) => { $($ts)* }
+}
+
+
+#[macro_export]
+macro_rules! _divide_on_terminator {
+    ([[$($f:tt)*] $args:tt] $lines:tt       [])                           => { $($f)*! {$args $lines} };
+    ([[$($f:tt)*] $args:tt] [$($lines:tt)*] $line:tt)                     => { $crate::_divide_on_terminator! {[[$($f)*] $args] [$($lines)* $line]        []} };
+    ($f:tt               [$($lines:tt)*] [$($line:tt)*] ;     $($ts:tt)*) => { $crate::_divide_on_terminator! {$f         [$($lines)* [$($line)*;]] []             $($ts)*} };
+    ($f:tt               $lines:tt       [$($line:tt)*] $t:tt $($ts:tt)*) => { $crate::_divide_on_terminator! {$f         $lines                    [$($line)* $t] $($ts)*} };
 }

@@ -20,6 +20,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+#![recursion_limit="256"]
 
 #[warn(missing_docs)]
 pub mod component;
@@ -40,8 +41,8 @@ use crate::component::node::WeakNode;
 use crate::component::cursor::Cursor;
 use nalgebra::Vector2;
 use enso_frp as frp;
-use enso_frp::{frp, Position};
-use enso_frp::core::node::class::EventEmitterPoly;
+use enso_frp::Position;
+use enso_frp::traits::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use ensogl::display::object::Id;
@@ -126,28 +127,30 @@ pub struct WeakNodeSelectionSet {
 
 impl WeakNodeSelectionSet {
     pub fn deselect_all(&self) {
-        self.for_each_taken(|node| node.events.deselect.event.emit(()));
+        self.for_each_taken(|node| node.events.deselect.emit(()));
     }
 }
 
 
 #[derive(Debug)]
 pub struct Events {
-    pub add_node_under_cursor : frp::Dynamic<()>,
-    pub add_node_at           : frp::Dynamic<Position>,
-    pub remove_selected_nodes : frp::Dynamic<()>,
-    pub clear_graph           : frp::Dynamic<()>,
+    pub network               : frp::Network,
+    pub add_node_under_cursor : frp::Stream,
+    pub add_node_at           : frp::Stream<Position>,
+    pub remove_selected_nodes : frp::Stream,
+    pub clear_graph           : frp::Stream,
 }
 
 impl Default for Events {
     fn default() -> Self {
-        frp! {
-            add_node_under_cursor = source::<()>       ();
-            add_node_at           = source::<Position> ();
-            remove_selected_nodes = source::<()>       ();
-            clear_graph           = source::<()>       ();
+        frp::new_network! { graph_editor_events
+            def add_node_under_cursor = source::<()>       ();
+            def add_node_at           = source::<Position> ();
+            def remove_selected_nodes = source::<()>       ();
+            def clear_graph           = source::<()>       ();
         }
-        Self {add_node_under_cursor,add_node_at,remove_selected_nodes,clear_graph}
+        let network = graph_editor_events;
+        Self {network,add_node_under_cursor,add_node_at,remove_selected_nodes,clear_graph}
     }
 }
 
@@ -178,65 +181,68 @@ impl GraphEditor {
 
         let selected_nodes2 = selected_nodes.clone_ref();
 
+        let network = &events.network;
 
-        frp! {
-            on_node_press            = source::<Option<WeakNode>> ();
-            on_node_press_bool       = on_node_press.map(|_| true);
-            on_mouse_up_bool         = mouse.on_up.map(|_| false);
-            node_is_pressed          = on_node_press_bool.merge(&on_mouse_up_bool);
-            node_was_pressed         = node_is_pressed.previous();
-            on_release               = mouse.on_up.gate(&node_was_pressed);
-            mouse_pos_on_node_press  = mouse.position.sample(&on_node_press);
-            mouse_pos_on_release     = mouse.position.sample(&on_release);
-            node_should_select       = mouse_pos_on_release.map2(&mouse_pos_on_node_press,|p1,p2| p1==p2);
-            on_node_release          = on_node_press.sample(&on_release);
-            node_select              = on_node_release.gate(&node_should_select);
+
+        frp::new_network! { network
+            def on_node_press            = source::<Option<WeakNode>> ();
+            def on_node_press_bool       = on_node_press.map(|_| true);
+            def on_mouse_up_bool         = mouse.on_up.map(|_| false);
+            def node_is_pressed          = on_node_press_bool.merge(&on_mouse_up_bool);
+            def node_was_pressed         = node_is_pressed.previous();
+            def on_release               = mouse.on_up.gate(&node_was_pressed);
+            def mouse_pos_on_node_press  = mouse.position.sample(&on_node_press);
+            def mouse_pos_on_release     = mouse.position.sample(&on_release);
+            def node_should_select       = mouse_pos_on_release.map2(&mouse_pos_on_node_press,|p1,p2| p1==p2);
+            def on_node_release          = on_node_press.sample(&on_release);
+            def node_select              = on_node_release.gate(&node_should_select);
        }
 
-       frp! {
+       frp::extend_network! { network
 
-            on_bg_press              = source::<()> ();
-            on_bg_press_bool         = on_bg_press.map(|_| true);
-            bg_is_pressed            = on_bg_press_bool.merge(&on_mouse_up_bool);
-            bg_was_pressed           = bg_is_pressed.previous();
-            on_release               = mouse.on_up.gate(&bg_was_pressed);
-            mouse_pos_on_bg_press    = mouse.position.sample(&on_bg_press);
-            mouse_pos_on_release     = mouse.position.sample(&on_release);
-            bg_should_select         = mouse_pos_on_release.map2(&mouse_pos_on_bg_press,|p1,p2| p1==p2);
-            on_bg_release            = on_bg_press.sample(&on_release);
-            bg_select                = on_bg_release.gate(&bg_should_select);
+            def on_bg_press              = source::<()> ();
+            def on_bg_press_bool         = on_bg_press.map(|_| true);
+            def bg_is_pressed            = on_bg_press_bool.merge(&on_mouse_up_bool);
+            def bg_was_pressed           = bg_is_pressed.previous();
+            def on_release               = mouse.on_up.gate(&bg_was_pressed);
+            def mouse_pos_on_bg_press    = mouse.position.sample(&on_bg_press);
+            def mouse_pos_on_release     = mouse.position.sample(&on_release);
+            def bg_should_select         = mouse_pos_on_release.map2(&mouse_pos_on_bg_press,|p1,p2| p1==p2);
+            def on_bg_release            = on_bg_press.sample(&on_release);
+            def bg_select                = on_bg_release.gate(&bg_should_select);
 
-            _bg_selection = bg_select.map(move |_| {
+            def _bg_selection = bg_select.map(move |_| {
                 selected_nodes2.deselect_all();
             });
-            _debug = bg_select.map(|t| println!(">> {:?}",t));
+            def _debug = bg_select.map(|t| println!(">> {:?}",t));
         }
 
 //        node_should_select.event.display_graphviz();
 
         let selected_nodes2 = selected_nodes.clone_ref();
 
-        frp! {
-            mouse_down_position    = mouse.position.sample        (&mouse.on_down);
-            selection_zero         = source::<Position>           ();
-            selection_size_down    = mouse.position.map2          (&mouse_down_position,|m,n|{m-n});
-            selection_size_if_down = selection_size_down.gate     (&mouse.is_down);
-            selection_size_on_down = selection_zero.sample        (&mouse.on_down);
-            selection_size         = selection_size_if_down.merge (&selection_size_on_down);
+        frp::extend_network! { network
+            def mouse_down_position    = mouse.position.sample        (&mouse.on_down);
+            def selection_zero         = source::<Position>           ();
+            def selection_size_down    = mouse.position.map2          (&mouse_down_position,|m,n|{m-n});
+            def selection_size_if_down = selection_size_down.gate     (&mouse.is_down);
+            def selection_size_on_down = selection_zero.sample        (&mouse.on_down);
+            def selection_size         = selection_size_if_down.merge (&selection_size_on_down);
 
-            mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
+            def mouse_down_target      = mouse.on_down.map            (enclose!((scene) move |_| scene.mouse.target.get()));
 
 
-            add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { *pos });
+            def add_node_with_cursor_pos = events.add_node_under_cursor.map2(&mouse.position, |_,pos| { *pos });
 
-            add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
+            def add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
 
-            _node_added = add_node_unified.map(enclose!((node_set,on_node_press,display_object) move |pos| {
+            def _node_added = add_node_unified.map(enclose!((node_set,on_node_press,display_object) move |pos| {
                 let node = Node::new();
                 let weak_node = node.downgrade();
-                node.view.events.mouse_down.map("foo",enclose!((on_node_press) move |_| {
-                    on_node_press.event.emit(Some(weak_node.clone_ref()))
-                }));
+                // FIXME: commented
+//                node.view.events.mouse_down.map("foo",enclose!((on_node_press) move |_| {
+//                    on_node_press.emit(Some(weak_node.clone_ref()))
+//                }));
 
                 display_object.add_child(&node);
                 node.mod_position(|t| {
@@ -248,21 +254,21 @@ impl GraphEditor {
 
             }));
 
-            _graph_cleared = events.clear_graph.map(enclose!((node_set) move |()| {
+            def _graph_cleared = events.clear_graph.map(enclose!((node_set) move |()| {
                 node_set.clear();
             }));
 
-            _bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
+            def _bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
                 selected_nodes2.for_each_taken(|node| {
                     node_set.remove(&node);
                 })
             }));
 
-            _baz = node_select.map(move |opt_node| {
+            def _baz = node_select.map(move |opt_node| {
                 opt_node.for_each_ref(|weak_node| {
                     weak_node.upgrade().map(|node| {
                         selected_nodes2.deselect_all();
-                        node.events.select.event.emit(());
+                        node.events.select.emit(());
                         selected_nodes2.insert(&node);
                     })
                 })
@@ -270,37 +276,40 @@ impl GraphEditor {
         }
 
 
-        mouse.on_down.map("cursor_press", enclose!((cursor) move |_| {
-            cursor.events.press.event.emit(());
-        }));
+        frp::extend_network! { network
 
-        mouse.on_up.map("cursor_release", enclose!((cursor) move |_| {
-            cursor.events.release.event.emit(());
-        }));
+            def cursor_press = mouse.on_down.map(enclose!((cursor) move |_| {
+                cursor.events.press.emit(());
+            }));
 
-        mouse.position.map("cursor_position", enclose!((cursor) move |p| {
-            cursor.set_position(Vector2::new(p.x as f32,p.y as f32));
-        }));
+            def cursor_release = mouse.on_up.map(enclose!((cursor) move |_| {
+                cursor.events.release.emit(());
+            }));
 
-        selection_size.map("cursor_size", enclose!((cursor) move |p| {
-            cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
-        }));
+            def cursor_position = mouse.position.map(enclose!((cursor) move |p| {
+                cursor.set_position(Vector2::new(p.x as f32,p.y as f32));
+            }));
 
-        let on_bg_press2    = on_bg_press.clone_ref();
-        mouse_down_target.map("mouse_down_target", enclose!((scene) move |target| {
-            match target {
-                display::scene::Target::Background => {
-                    on_bg_press2.event.emit(());
-//                    selected_nodes2.deselect_all();
+            def cursor_size = selection_size.map(enclose!((cursor) move |p| {
+                cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
+            }));
+
+            let on_bg_press2    = on_bg_press.clone_ref();
+            def mouse_down_target = mouse_down_target.map(enclose!((scene) move |target| {
+                match target {
+                    display::scene::Target::Background => {
+                        on_bg_press2.emit(());
+    //                    selected_nodes2.deselect_all();
+                    }
+                    display::scene::Target::Symbol {instance_id,..} => {
+                        scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
+                            target.mouse_down().for_each(|t| t.emit(()));
+                        })
+                    }
                 }
-                display::scene::Target::Symbol {instance_id,..} => {
-                    scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
-                        target.mouse_down().for_each(|t| t.event.emit(()));
-                    })
-                }
-            }
-        }));
+            }));
 
+        }
 
 //        frp! { mouse_down_position    = mouse.position.sample (&mouse.on_down)    }
 //        frp! { mouse_position_if_down = mouse.position.gate   (&mouse.is_down) }
@@ -332,9 +341,9 @@ impl GraphEditor {
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             let val = val.unchecked_into::<web_sys::KeyboardEvent>();
             let key = val.key();
-            if      key == "n"         { add_node_ref.event.emit(()) }
+            if      key == "n"         { add_node_ref.emit(()) }
             else if key == "Backspace" {
-                remove_selected_nodes_ref.event.emit(())
+                remove_selected_nodes_ref.emit(())
             }
             else if key == "p" {
                 selected_nodes2.for_each_taken(|node| {

@@ -7,7 +7,7 @@
 use ensogl::system::web;
 use wasm_bindgen::prelude::*;
 
-use enso_frp2;
+//use enso_frp2;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -15,7 +15,7 @@ pub fn run_example_frp() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    enso_frp2::test();
+//    enso_frp2::test();
 }
 
 

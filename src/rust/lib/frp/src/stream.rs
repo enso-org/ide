@@ -244,9 +244,10 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if !self.during_call.get() {
             self.during_call.set(true);
-            if self.use_caching() {
+            // FIXME
+//            if self.use_caching() {
                 *self.value_cache.borrow_mut() = value.clone();
-            }
+//            }
             self.targets.borrow_mut().retain(|target| target.data.on_event_if_exists(value));
             self.during_call.set(false);
         }

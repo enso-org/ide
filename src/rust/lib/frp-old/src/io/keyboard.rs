@@ -1,12 +1,11 @@
 //! Keboard FRP bindings.
-
 use crate::prelude::*;
 
 use crate::*;
 use rust_dense_bitset::BitSet;
 use rust_dense_bitset::DenseBitSetExtended;
 use std::collections::hash_map::Entry;
-use crate as frp;
+use crate::core::fmt::{Formatter, Error};
 
 
 
@@ -23,10 +22,10 @@ pub use keyboard_types::Key;
 // === KeyMask ===
 // ===============
 
-/// The maximum possible key code used as size of `KeyMask` bitset.
+/// The assumed maximum key code, used as size of KeyMask bitset.
 const MAX_KEY_CODE : usize = 255;
 
-/// The key bitmask (each bit represents one key). Used for matching key combinations.
+/// The key bitmask - each bit represents one key. Used for matching key combinations.
 #[derive(BitXor,Clone,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct KeyMask(pub DenseBitSetExtended);
@@ -101,7 +100,6 @@ impl KeyMask {
 }
 
 
-
 // ================
 // === KeyState ===
 // ================
@@ -115,17 +113,10 @@ enum KeyMaskChange {
 }
 
 impl KeyMaskChange {
-    fn on_pressed  (key:&Key) -> Self {
-        Self::Set(key.clone())
-    }
+    fn on_pressed(key:&Key) -> Self { Self::Set(key.clone()) }
+    fn on_defocus()         -> Self { Self::Clear            }
 
-    /// When we're losing focus we should clear keymask, because we are not sure what keys were
-    /// released during being unfocused.
-    fn on_defocus() -> Self {
-        Self::Clear
-    }
-
-    fn on_released (key:&Key) -> Self {
+    fn on_released(key:&Key) -> Self {
         match key {
             // The very special case: pressing CMD on MacOS makes all the keyup events for letters
             // lost. Therefore for CMD releasing we must clear keymask.
@@ -153,39 +144,41 @@ impl Default for KeyMaskChange {
 }
 
 
-
 // ================
 // === Keyboard ===
 // ================
 
-/// Keyboard FRP bindings.
+/// A FRP graph for basic keyboard events.
 #[derive(Debug)]
-#[allow(missing_docs)]
 pub struct Keyboard {
-    pub network     : frp::Network,
-    pub on_pressed  : frp::Stream<Key>,
-    pub on_released : frp::Stream<Key>,
-    pub on_defocus  : frp::Stream,
-    pub key_mask    : frp::Stream<KeyMask>,
+    /// The key pressed event.
+    pub on_pressed: Dynamic<Key>,
+    /// The key released event.
+    pub on_released: Dynamic<Key>,
+    /// The "losing focus" event. When we're losing focus we should clear keymask, because we are
+    /// not sure what keys were released during being unfocused.
+    pub on_defocus: Dynamic<()>,
+    /// The structure holding mask of all of the currently pressed keys.
+    pub key_mask: Dynamic<KeyMask>,
 }
 
 impl Default for Keyboard {
     fn default() -> Self {
-        frp::new_network! { keyboard
-            def on_pressed        = source();
-            def on_released       = source();
-            def on_defocus        = source();
-            def change_set        = on_pressed.map(KeyMaskChange::on_pressed);
-            def change_unset      = on_released.map(KeyMaskChange::on_released);
-            def change_clear      = on_defocus.map(|()| KeyMaskChange::on_defocus());
-            def change_set_unset  = change_set.merge(&change_unset);
-            def change            = change_set_unset.merge(&change_clear);
-            def previous_key_mask = merge_::<KeyMask>();
-            def key_mask          = change.map2(&previous_key_mask,KeyMaskChange::updated_mask);
+        frp! {
+            keyboard.on_pressed        = source();
+            keyboard.on_released       = source();
+            keyboard.on_defocus        = source();
+            keyboard.change_set        = on_pressed .map(KeyMaskChange::on_pressed);
+            keyboard.change_unset      = on_released.map(KeyMaskChange::on_released);
+            keyboard.change_clear      = on_defocus .map(|()| KeyMaskChange::on_defocus());
+            keyboard.change_set_unset  = change_set.merge(&change_unset);
+            keyboard.change            = change_set_unset.merge(&change_clear);
+            keyboard.previous_key_mask = recursive::<KeyMask>();
+            keyboard.key_mask          = change.map2(&previous_key_mask,KeyMaskChange::updated_mask);
         }
-        previous_key_mask.add(&key_mask);
-        let network = keyboard;
-        Keyboard {network,on_pressed,on_released,on_defocus,key_mask}
+        previous_key_mask.initialize(&key_mask);
+
+        Keyboard { on_pressed,on_released,on_defocus,key_mask}
     }
 }
 
@@ -205,8 +198,7 @@ pub type ActionMap = HashMap<KeyMask,Box<dyn Action>>;
 /// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
 pub struct KeyboardActions {
     action_map : Rc<RefCell<ActionMap>>,
-    _network   : frp::Network,
-    _action    : frp::Stream,
+    _action    : Dynamic<()>,
 }
 
 impl KeyboardActions {
@@ -214,12 +206,10 @@ impl KeyboardActions {
     /// passed `Keyboard` structure.
     pub fn new(keyboard:&Keyboard) -> Self {
         let action_map = Rc::new(RefCell::new(HashMap::new()));
-        frp::new_network! { keyboard_actions
-            def action = keyboard.key_mask.map(Self::perform_action_lambda(action_map.clone()));
+        frp! {
+            keyboard.action = keyboard.key_mask.map(Self::perform_action_lambda(action_map.clone()));
         }
-        let _network = keyboard_actions;
-        let _action  = action;
-        KeyboardActions{action_map,_network,_action}
+        KeyboardActions{action_map, _action:action}
     }
 
     fn perform_action_lambda(action_map:Rc<RefCell<ActionMap>>) -> impl Fn(&KeyMask) {
@@ -246,7 +236,7 @@ impl KeyboardActions {
 }
 
 impl Debug for KeyboardActions {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "<KeyboardActions>")
     }
 }
@@ -260,21 +250,21 @@ mod test {
     fn key_mask() {
         let keyboard                  = Keyboard::default();
         let expected_key_mask:KeyMask = default();
-        assert_eq!(expected_key_mask, keyboard.key_mask.value());
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
         let key1 = Key::Character("x".to_string());
         let key2 = Key::Control;
 
-        keyboard.on_pressed.emit(key1.clone());
+        keyboard.on_pressed.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
-        assert_eq!(expected_key_mask, keyboard.key_mask.value());
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.on_pressed.emit(key2.clone());
+        keyboard.on_pressed.event.emit(key2.clone());
         let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
-        assert_eq!(expected_key_mask, keyboard.key_mask.value());
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
 
-        keyboard.on_released.emit(key1.clone());
+        keyboard.on_released.event.emit(key1.clone());
         let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
-        assert_eq!(expected_key_mask, keyboard.key_mask.value());
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
     }
 
     #[test]
@@ -291,26 +281,26 @@ mod test {
         let mut actions = KeyboardActions::new(&keyboard);
         actions.set_action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true });
         actions.set_action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true });
-        keyboard.on_pressed.emit(Character("Z".to_string()));
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.on_pressed.emit(Control);
+        keyboard.on_pressed.event.emit(Control);
         assert!( *undone.borrow());
         assert!(!*redone.borrow());
         *undone.borrow_mut() = false;
-        keyboard.on_released.emit(Character("z".to_string()));
+        keyboard.on_released.event.emit(Character("z".to_string()));
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
-        keyboard.on_pressed.emit(Character("y".to_string()));
+        keyboard.on_pressed.event.emit(Character("y".to_string()));
         assert!(!*undone.borrow());
         assert!( *redone.borrow());
         *redone.borrow_mut() = false;
-        keyboard.on_released.emit(Character("y".to_string()));
-        keyboard.on_released.emit(Control);
+        keyboard.on_released.event.emit(Character("y".to_string()));
+        keyboard.on_released.event.emit(Control);
 
         actions.unset_action(&undo_keys);
-        keyboard.on_pressed.emit(Character("Z".to_string()));
-        keyboard.on_pressed.emit(Control);
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
+        keyboard.on_pressed.event.emit(Control);
         assert!(!*undone.borrow());
         assert!(!*redone.borrow());
     }

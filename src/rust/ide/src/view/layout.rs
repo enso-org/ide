@@ -10,7 +10,7 @@ use crate::view::text_editor::TextEditor;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
-use enso_frp::io::KeyboardActions;
+use enso_frp::io::keyboard::KeyboardActions;
 use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
