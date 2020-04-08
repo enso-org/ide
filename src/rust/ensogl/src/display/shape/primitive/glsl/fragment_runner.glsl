@@ -21,6 +21,6 @@ if (input_display_mode == 0) {
     float r = float(((int(input_symbol_id) * 79) % 360)) / 360.0;
     float g = float(((int(input_instance_id) * 43) % 360)) / 360.0;
     float b = float(((int(input_instance_id) * 97) % 360)) / 360.0;
-    output_color = vec4(r, g, b, 1.0);
+    output_color = vec4(r, g, b, float(alpha_no_aa));
     output_color.rgb *= float(alpha_no_aa);
 }
