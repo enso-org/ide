@@ -88,10 +88,10 @@ mod shape {
     /// Construct an inwards facing port.
     ///
     /// The port consists of an angle embedded between two rings. The corner of the angle can
-    /// either face towards the center of thr ring of away from it. If it faces towards the center,
-    /// the side facing the outer ring, have a bulging shape on that side. If the angle faces away
-    /// from the center, the angle gets limited by the inner ring and shows a concave "hole" on
-    /// that side.
+    /// either face towards the center of thr ring of away from it. If it faces towards the
+    /// center, the side facing the outer ring, have a bulging shape on that side. If the angle
+    /// faces away from the center, the angle gets limited by the inner ring and shows a convex
+    /// "hole" on that side.
     ///
     /// Illustrations (not to scale).
     /// ---------------
@@ -102,8 +102,8 @@ mod shape {
     ///     *    *                |                   |        *   *               |
     ///   *        *              |  height           |      *       *             |
     ///  *          *             |                   |     *    *    * ------------ inner radius
-    ///   *        *              |                   |    * *       * *      |
-    ///      *  *------------------ outer radius      |    *            *     - this is some extra
+    ///   *        *              |                   |    * *       * *     |
+    ///      *  *------------------ outer radius      |    *            *    -this is some extra
     ///                                                                        space that depends
     ///  \----------|                                      \------------|       on the radius
     ///     width                                              width
@@ -112,7 +112,9 @@ mod shape {
     /// either it limits of the inward facing angle with the outer ring or it cuts of the
     /// angle with the inner ring.
     ///
-    fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>) -> AnyShape {
+    fn new_port
+    (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>)
+    -> AnyShape {
 
         let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
         let height                       = &height * &zoom_factor;
@@ -188,7 +190,8 @@ mod shape {
         let center_offset    = Var::<Distance<Pixels>>::from(&shape_height * Var::from(0.5));
         let sculpted_shape   = sculpted_shape.translate_y(-center_offset);
 
-        // This is a conditional rotation that allows the port to either point inwards or outwards.
+        // This is a conditional rotation that allows the port to either point inwards
+        // or outwards.
         let pi             = Var::from(PI);
         let rotation_angle = is_inwards * pi;
         let rotation_angle = Var::<Angle<Radians>>::from(rotation_angle);

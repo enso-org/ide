@@ -5,10 +5,12 @@ use crate::math::algebra::Field;
 
 use core::f32::consts::PI;
 
-/// Represents a triangle through its angles and side lengths.
+/// Represents a triangle through its angles and side lengths. This struct is only meant to be a
+/// return type within this module and should not otherwise be instantiated.
+///
 ///
 /// Triangle Schematic
-///----------------------
+/// ----------------------
 ///
 ///                           C
 ///                          / \
@@ -40,7 +42,13 @@ pub struct Triangle<S> {
     dummy: (),
 }
 
-pub trait FloatLike<S> = Field<S> + Sin<Output=S> + Acos<Output=S> + Cos<Output=S> + Clone + Sqrt<Output=S> + From<f32>;
+pub trait FloatLike<S> = Field<S>
+                       + Sin<Output=S>
+                       + Cos<Output=S>
+                       + Acos<Output=S>
+                       + Sqrt<Output=S>
+                       + Clone
+                       + From<f32>;
 
 impl<S> Triangle<S>
 where S:FloatLike<S> {
@@ -73,7 +81,6 @@ where S:FloatLike<S> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

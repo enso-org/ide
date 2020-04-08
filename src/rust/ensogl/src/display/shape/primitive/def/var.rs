@@ -431,7 +431,7 @@ where T: Sin<Output=T> {
 }
 
 impl<T> Asin for Var<T>
-    where T: Asin<Output=T> {
+where T: Asin<Output=T> {
     type Output = Var<T>;
     fn asin(&self) -> Self {
         match self {
