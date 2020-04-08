@@ -118,11 +118,11 @@ introduced by type signatures belongs to the `main`'s scope, and is shared by
 both nested definitions.
 
 ## Patterns
-Patterns are scopes in the code where variables can be used to introduce new
-identifiers into some scope. Constructors names are used to pattern match
+Pattern contexts are spans in the code where variables can be used to introduce
+new identifiers into some scope. Constructors names are used to pattern match
 against and potentially destructure more complex values.
 
-The following scopes are treated as patterns:
+The following spans are pattern contexts:
 * left-hand side of assignment operator, e.g. `main` in  `main = println
   "Hello"`;
 * right-hand side of a colon operator, e.g. `a` in `foo:a`;
@@ -188,7 +188,7 @@ Example:
 «foo» = 2
 bar =
     «foo» = 5     # shadowing
-    a = »foo« + 5 # refers to `foo` from line above
+    «a» = »foo« + 5 # refers to `foo` from line above
 # here `foo` is `2` again
 ```
 
@@ -420,7 +420,7 @@ case.
 
 
 ## Type ascription
-The type ascription operator `:` introduces pattern scope for its right hand
+The type ascription operator `:` introduces pattern context for its right hand
 side. The basic form is `value:type`. It says that `value` be of the given
 `type`, i.e. that all its possible values belong to the set of atoms represented
 by type.
