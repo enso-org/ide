@@ -10,6 +10,8 @@ pub mod assoc;
 #[warn(missing_docs)]
 pub mod crumbs;
 #[warn(missing_docs)]
+pub mod identifier;
+#[warn(missing_docs)]
 pub mod internal;
 #[warn(missing_docs)]
 pub mod known;

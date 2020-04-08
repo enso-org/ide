@@ -871,7 +871,9 @@ pub struct Located<T> {
 
 impl<T> Located<T> {
     /// Creates a new located item.
-    pub fn new(crumbs:Crumbs, item:T) -> Located<T> {
+    pub fn new<Cs>(crumbs:Cs, item:T) -> Located<T>
+    where Cs : IntoIterator<Item:Into<Crumb>>, {
+        let crumbs = crumbs.into_iter().map(|crumb| crumb.into()).collect();
         Located {crumbs,item}
     }
 

@@ -4,6 +4,7 @@
 #![feature(bool_to_option)]
 #![feature(cell_update)]
 #![feature(drain_filter)]
+#![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]

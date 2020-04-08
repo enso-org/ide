@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use ast::crumbs::ChildAst;
 use ast::crumbs::Crumbable;
-use ast::HasRepr;
-use ast::Shape;
+//use ast::HasRepr;
+//use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
@@ -127,28 +127,6 @@ pub enum ScopeKind {
 
 
 
-// ==================
-// === Identifier ===
-// ==================
-
-/// Checks if given Ast node can be used to represent identifier being part of definition name.
-pub fn is_identifier(ast:&Ast) -> bool {
-    match ast.shape() {
-        Shape::Var          {..} => true,
-        Shape::Cons         {..} => true,
-        Shape::SectionSides {..} => true,
-        Shape::Opr          {..} => true,
-        _                        => false,
-    }
-}
-
-/// Retrieves the identifier's name, if the Ast node is an identifier. Otherwise, returns None.
-pub fn identifier_name(ast:&Ast) -> Option<String> {
-    is_identifier(ast).then(ast.repr())
-}
-
-
-
 // ======================
 // === DefinitionName ===
 // ======================
@@ -178,16 +156,16 @@ impl DefinitionName {
         let accessor_chain = opr::Chain::try_new_of(ast,opr::predefined::ACCESS);
         let (extended_target,name) = match accessor_chain {
             Some(accessor_chain) => {
-                let mut args = vec![identifier_name(&accessor_chain.target?)?];
+                let mut args = vec![ast::identifier::name(&accessor_chain.target?)?.clone()];
                 for arg in accessor_chain.args.iter() {
                     let arg_ast = arg.operand.as_ref()?;
-                    args.push(identifier_name(arg_ast)?)
+                    args.push(ast::identifier::name(arg_ast)?.clone())
                 }
                 let name = args.pop()?;
                 (args,name)
             }
             None => {
-                (Vec::new(), identifier_name(ast)?)
+                (Vec::new(), ast::identifier::name(ast)?.clone())
             }
         };
         Some(DefinitionName {extended_target,name})
