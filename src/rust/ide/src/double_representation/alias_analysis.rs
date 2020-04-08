@@ -1,7 +1,9 @@
+//! Module with alias analysis — allows telling what identifiers are used and introduced by each
+//! node in the graph.
+
 use crate::prelude::*;
 
 use crate::double_representation::node::NodeInfo;
-use ast::crumbs::{Crumbs, InfixCrumb};
 
 #[cfg(test)]
 pub mod test_utils;
@@ -36,7 +38,7 @@ impl NormalizedName {
     }
 }
 
-/// Test if Ast is identifier that might reference the same name (case insensitive match).
+/// Tests if Ast is identifier that might reference the same name (case insensitive match).
 impl PartialEq<Ast> for NormalizedName {
     fn eq(&self, other:&Ast) -> bool {
         NormalizedName::try_from_ast(other).contains_if(|other_name| {
@@ -66,10 +68,17 @@ pub struct IdentifierUsage {
 // === Analysis ===
 // ================
 
-/// Hardcoded expected result for `sum = a + b`.
-fn analyze_identifier_usage_mock(_:&NodeInfo) -> IdentifierUsage {
-    use InfixCrumb::LeftOperand;
-    use InfixCrumb::RightOperand;
+/// Describes identifiers that nodes introduces into the graph and identifiers from graph's scope
+/// that node uses. This logic serves as a base for connection discovery.
+pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
+    analyse_identifier_usage_mock(node)
+}
+
+/// Hardcoded proper result for `sum = a + b`.
+/// TODO [mwu] remove when real implementation is present
+fn analyse_identifier_usage_mock(_:&NodeInfo) -> IdentifierUsage {
+    use ast::crumbs::InfixCrumb::LeftOperand;
+    use ast::crumbs::InfixCrumb::RightOperand;
     let sum        = NormalizedName::new("sum");
     let a          = NormalizedName::new("a");
     let b          = NormalizedName::new("b");
@@ -92,47 +101,57 @@ mod tests {
     use super::*;
     use super::test_utils::*;
 
-    use data::text::Span;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
 
+    wasm_bindgen_test_configure!(run_in_browser);
 
-    fn validate_identifiers(node:&NodeInfo, expected:&Vec<Span>, actual:&Vec<LocatedIdentifier>) {
-        let mut checker = IdentifierValidator::new(node, expected);
+    /// Checks if actual observed sequence of located identifiers matches the expected one.
+    /// Expected identifiers are described as code spans in the node's text representation.
+    fn validate_identifiers
+    (node:&NodeInfo, expected:Vec<Range<usize>>, actual:&Vec<LocatedIdentifier>) {
+        let mut checker = IdentifierValidator::new(node,expected);
         checker.validate_identifiers(actual);
     }
 
-    fn run_case(parser:&parser::Parser, case:&Case) {
-        let ast   = parser.parse_line(&case.code).unwrap();
-        let node  = NodeInfo::from_line_ast(&ast).unwrap();
-        let usage = analyze_identifier_usage_mock(&node);
-        let IdentifierUsage {introduced,used} = usage;
-        validate_identifiers(&node, &case.introduced, &introduced);
-        validate_identifiers(&node, &case.used, &used);
+    /// Runs the test for the given test case description.
+    fn run_case(parser:&parser::Parser, case:Case) {
+        let ast    = parser.parse_line(&case.code).unwrap();
+        let node   = NodeInfo::from_line_ast(&ast).unwrap();
+        let result = analyse_identifier_usage(&node);
+        validate_identifiers(&node, case.expected_introduced, &result.introduced);
+        validate_identifiers(&node, case.expected_used, &result.used);
     }
 
+    /// Runs the test for the test case expressed using markdown notation. See `Case` for details.
     fn run_markdown_case(parser:&parser::Parser, marked_code:impl Str) {
         println!("Running test case for {}", marked_code.as_ref());
         let case = Case::from_markdown(marked_code);
-        run_case(parser,&case)
+        run_case(parser,case)
     }
 
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_alias_analysis() {
-        let test_cases = vec![
-            "«sum» = »a« + »b«",
-            "«foo» = »bar«",
-            "«foo» a b = a + b",
-            "Foo «a» «b» = »bar«",
-            "a.«hello» = »print« 'Hello'",
-            "«log_name» object = »print« object.»name«",
-            "«log_name» = object -> »print« object.»name«",
-            "«log_name» = object -> »print« $ »name« object",
-            "«^» a n = a * a ^ (n - 1)",
-        ];
+        let parser = parser::Parser::new_or_panic();
+
+//        let test_cases = vec![
+//            "«sum» = »a« + »b«",
+//            "«foo» = »bar«",
+//            "«foo» a b = a + b",
+//            "Foo «a» «b» = »bar«",
+//            "a.«hello» = »print« 'Hello'",
+//            "«log_name» object = »print« object.»name«",
+//            "«log_name» = object -> »print« object.»name«",
+//            "«log_name» = object -> »print« $ »name« object",
+//            "«^» a n = a * a ^ (n - 1)",
+//        ];
+//        for case in test_cases {
+//            run_markdown_case(&parser,case)
+//        }
 
 
-        let code = "«sum» = »a« + »b«";
-        let parser  = parser::Parser::new_or_panic();
+        let code   = "«sum» = »a« + »b«";
         run_markdown_case(&parser, code);
     }
 }

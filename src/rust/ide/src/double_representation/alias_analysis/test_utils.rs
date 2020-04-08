@@ -5,7 +5,6 @@ use crate::double_representation::alias_analysis::NormalizedName;
 use crate::double_representation::alias_analysis::LocatedIdentifier;
 use crate::double_representation::node::NodeInfo;
 
-use data::text::Span;
 use regex::Captures;
 use regex::Match;
 use regex::Regex;
@@ -18,14 +17,16 @@ use regex::Replacer;
 // ============
 
 /// Test case for testing identifier resolution for nodes.
+/// Can be expressed using markdown notation, see `from_markdown` method.
 #[derive(Clone,Debug,Default)]
 pub struct Case {
     /// The code: the text of the block line that is considered to be a node of a graph.
-    pub code       : String,
+    /// Any markers are already removed.
+    pub code:String,
     /// List of spans in the code where the identifiers are introduced into the graph's scope.
-    pub introduced : Vec<Span>,
+    pub expected_introduced:Vec<Range<usize>>,
     /// List of spans in the code where the identifiers from the graph's scope are used.
-    pub used       : Vec<Span>,
+    pub expected_used:Vec<Range<usize>>,
 }
 
 impl Case {
@@ -43,21 +44,9 @@ impl Case {
         let code         = regex.replace_all(marked_code.as_ref(), replacer.by_ref()).into();
         Case {
             code,
-            introduced : replacer.introduced,
-            used       : replacer.used,
+            expected_introduced : replacer.introduced,
+            expected_used       : replacer.used,
         }
-    }
-
-    /// Lists names of the used or introduced identifiers
-    pub fn names(&self, kind:Kind) -> Vec<String> {
-        let spans = match kind {
-            Kind::Introduced => &self.introduced,
-            Kind::Used       => &self.used,
-        };
-
-        spans.iter().map(|span| {
-            self.code[span.range()].into()
-        }).collect()
     }
 }
 
@@ -70,7 +59,7 @@ impl Case {
 /// We want to recognize two kinds of marked identifiers: ones introduced into the graph's scope and
 /// ones used from the graph's scope.
 #[derive(Clone,Copy,Debug,Display)]
-pub enum Kind { Introduced, Used }
+pub enum Kind {Introduced,Used}
 
 /// Name of the pattern group matching introduced identifier.
 const INTRODUCED:&str="introduced";
@@ -86,10 +75,10 @@ const USED:&str="used";
 #[derive(Debug,Default)]
 struct MarkdownReplacer {
     markdown_bytes_consumed : usize,
-    /// Indices in the unmarked code.
-    introduced              : Vec<Span>,
-    /// Indices in the unmarked code.
-    used                    : Vec<Span>,
+    /// Spans in the unmarked code.
+    introduced              : Vec<Range<usize>>,
+    /// Spans in the unmarked code.
+    used                    : Vec<Range<usize>>,
 }
 
 impl MarkdownReplacer {
@@ -102,12 +91,12 @@ impl MarkdownReplacer {
         self.markdown_bytes_consumed += '«'.len_utf8();
     }
     /// Consumes opening and closing marker. Returns span of marked item in unmarked text indices.
-    fn consume_marked(&mut self, capture:&Match) -> Span {
+    fn consume_marked(&mut self, capture:&Match) -> Range<usize> {
         self.consume_marker();
         let start = self.marked_to_unmarked_index(capture.start());
         let end   = self.marked_to_unmarked_index(capture.end());
         self.consume_marker();
-        (start .. end).into()
+        start .. end
     }
 }
 
@@ -134,37 +123,39 @@ impl Replacer for MarkdownReplacer {
 
 
 
-// =========================
-// === IdentifierChecker ===
-// =========================
+// ===========================
+// === IdentifierValidator ===
+// ===========================
 
 #[derive(Clone,Copy,Debug,Display,PartialEq)]
-enum IsValidated { No, Yes }
+enum HasBeenValidated {No,Yes}
 
 /// Helper test structure that requires that each given identifier is validated at least once.
 /// Otherwise, it shall panic when dropped.
 #[derive(Clone,Debug)]
-pub struct IdentifierValidator(HashMap<NormalizedName, IsValidated>);
+pub struct IdentifierValidator {
+    validations:HashMap<NormalizedName,HasBeenValidated>
+}
 
 impl IdentifierValidator {
     /// Creates a new checker, with identifier set obtained from given node's representation
     /// spans.
-    pub fn new(node:&NodeInfo,spans:&Vec<Span>) -> IdentifierValidator {
-        let ast     = node.ast();
-        let repr    = ast.repr();
-        let mut map = HashMap::default();
+    pub fn new(node:&NodeInfo,spans:Vec<Range<usize>>) -> IdentifierValidator {
+        let ast  = node.ast();
+        let repr = ast.repr();
+        let mut validations = HashMap::default();
         for span in spans {
-            let name = NormalizedName::new(&repr[span.range()]);
-            map.insert(name, IsValidated::No);
+            let name = NormalizedName::new(&repr[span]);
+            validations.insert(name, HasBeenValidated::No);
         }
-        IdentifierValidator(map)
+        IdentifierValidator {validations}
     }
 
     /// Marks given identifier as checked.
     pub fn validate_identifier(&mut self, name:&NormalizedName) {
-        println!("Used: {}", name.name);
-        let used = self.0.get_mut(&name).expect(&iformat!("unexpected identifier {name}"));
-        *used = IsValidated::Yes;
+        let err  = || iformat!("unexpected identifier `{name}` validated");
+        let used = self.validations.get_mut(&name).expect(&err());
+        *used = HasBeenValidated::Yes;
     }
 
     /// Marks given sequence of identifiers as checked.
@@ -179,9 +170,8 @@ impl IdentifierValidator {
 /// Panics if there are remaining identifiers that were not checked.
 impl Drop for IdentifierValidator {
     fn drop(&mut self) {
-        println!("dropping usage map: {:?}", self);
-        for elem in &self.0 {
-            assert_eq!(elem.1, &IsValidated::Yes, "identifier `{}` was not validated)", elem.0)
+        for elem in &self.validations {
+            assert_eq!(elem.1, &HasBeenValidated::Yes, "identifier `{}` was not validated)", elem.0)
         }
     }
 }
@@ -201,14 +191,14 @@ mod tests {
         let code = "«sum» = »a« + »b«";
         let case = Case::from_markdown(code);
         assert_eq!(case.code, "sum = a + b");
-        assert_eq!(case.introduced.len(), 1);
-        assert_eq!(case.introduced[0], 0..3); // sum
-        assert_eq!(&code[case.introduced[0].range()], "sum");
+        assert_eq!(case.expected_introduced.len(), 1);
+        assert_eq!(case.expected_introduced[0], 0..3);
+        assert_eq!(&case.code[case.expected_introduced[0].clone()], "sum");
 
-        assert_eq!(case.used.len(), 2);
-        assert_eq!(case.used[0], 6..7);
-        assert_eq!(&code[case.used[0].range()], "a");
-        assert_eq!(case.used[1], 10..11);
-        assert_eq!(&code[case.used[1].range()], "b");
+        assert_eq!(case.expected_used.len(), 2);
+        assert_eq!(case.expected_used[0], 6..7); // these are utf-8 byte indices
+        assert_eq!(&case.code[case.expected_used[0].clone()], "a");
+        assert_eq!(case.expected_used[1], 10..11);
+        assert_eq!(&case.code[case.expected_used[1].clone()], "b");
     }
 }
