@@ -240,6 +240,54 @@ impl Sin for f32 {
 
 
 // =============
+// === Asine ===
+// ==============
+
+/// Types from which a asin can be calculated
+pub trait Asin {
+    /// The output type of the computation.
+    type Output;
+    /// Compute the asin of the given number.
+    fn asin(&self) -> Self::Output;
+}
+
+
+// === Impls ===
+
+impl Asin for f32 {
+    type Output = f32;
+    fn asin(&self) -> f32 {
+        f32::asin(*self)
+    }
+}
+
+
+
+// ===============
+// === Acosine ===
+// ===============
+
+/// Types from which a asin can be calculated
+pub trait Acos {
+    /// The output type of the computation.
+    type Output;
+    /// Compute the asin of the given number.
+    fn acos(&self) -> Self::Output;
+}
+
+
+// === Impls ===
+
+impl Acos for f32 {
+    type Output = f32;
+    fn acos(&self) -> f32 {
+        f32::acos(*self)
+    }
+}
+
+
+
+// =============
 // === Point ===
 // =============
 

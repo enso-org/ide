@@ -2,6 +2,7 @@
 
 use crate::component::node::WeakNode;
 
+use core::f32::consts::PI;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
@@ -16,6 +17,7 @@ use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::circle_segment::CircleSegment;
+use ensogl::math::geometry::triangle;
 use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
@@ -110,7 +112,7 @@ mod shape {
     /// either it limits of the inward facing angle with the outer ring or it cuts of the
     /// angle with the inner ring.
     ///
-    fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,_is_inwards:Var<f32>) -> AnyShape {
+    fn new_port(height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>) -> AnyShape {
 
         let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
         let height                       = &height * &zoom_factor;
@@ -119,7 +121,7 @@ mod shape {
 
         // This describes the segment between the angle and the outer ring.
         let segment_outer_radius  = outer_radius.clone();
-        let segment_outer        = CircleSegment::new(
+        let segment_outer         = CircleSegment::new(
             segment_outer_radius,segment_width_rad.clone()
         );
 
@@ -127,30 +129,23 @@ mod shape {
         let segment_inner_radius = inner_radius.clone();
         let segment_inner = CircleSegment::new(segment_inner_radius,segment_width_rad);
 
-        // The triangle needs to be high enough for it to have room for the extra shape.
-        let shape_height = height + segment_outer.sagitta();
-        let shape_width = segment_outer.chord_length() * ((&outer_radius + segment_outer.sagitta()) / &outer_radius);
+        // And derive the shape outline parameters from it.
+        let shape_height = height.clone() + segment_outer.sagitta();
+        let shape_width  = segment_outer.chord_length();
 
-        // Position the triangle facing down with its base+extension at the zero mark.
-        let base_shape = Triangle(&shape_width, &shape_height);
-        let base_shape   = base_shape.rotate(180.0.deg().radians());
+        // The angle used as a base shape needs to be computed based on our desired width along
+        // the inner circle and the desired height. From width and height, which have a 90 degree
+        // angle between them, we can compute the angle of the shape.
+        let angle_inner = Var::from(90_f32.to_radians());
+        let triangle    = triangle::Triangle::from_sides_and_angle(height,shape_width,angle_inner);
 
-        // After rotating the shape down, we need to move it up by its height again.
-        let base_shape_offset = Var::<Distance<Pixels>>::from(shape_height.clone());
-        let base_shape        = base_shape.translate_y(base_shape_offset);
-
-        // TODO[mm] consider replace with a `Plane().cut_angle`
-        // Set up the angle and rotate it so it points downwards like a "V".
-        // FIXME this should be an angle that is computed dynamically
-        // let section = Plane().cut_angle(Var::from(45_f32.to_radians()));
-        // let section = section.rotate(180.0.deg().radians());
-        // After rotating it needs to be aligned so it's tip is at (0,0) again.
-        // let section = section.translate_y(tri_baseline_offset);
+        let corner_angle = Var::<Angle<Radians>>::from(triangle.angle_beta_rad);
+        let base_shape   = Plane().cut_angle(corner_angle);
 
         // `circle_outer_radius_scale` toggles whether the circle will have any effect on the
         // shape. This circle will be used with an `Union`, thus a large enough radius will
         // negate its effect.
-        let circle_outer_radius_scale = Var::<f32>::from("1.0 + (input_is_inwards * 999999.9)");
+        let circle_outer_radius_scale = Var::from(1.0) + (&is_inwards * Var::from(999_999.9));
         let circle_outer_radius       = circle_outer_radius_scale * &outer_radius;
         let circle_outer_radius       = Var::<Distance<Pixels>>::from(circle_outer_radius);
         let circle_outer              = Circle(circle_outer_radius);
@@ -158,7 +153,7 @@ mod shape {
         // `circle_inner_radius_scale` toggles whether the circle will have any effect on the
         // shape. This circle will be used with an `Difference`, thus a zero radius will negate
         // its effect.
-        let circle_inner_radius_scale = Var::<f32>::from("input_is_inwards * 1.0");
+        let circle_inner_radius_scale = &is_inwards * Var::<f32>::from(1.0);
         let circle_inner_radius       = circle_inner_radius_scale * &inner_radius;
         let circle_inner_radius       = Var::<Distance<Pixels>>::from(circle_inner_radius);
         let circle_inner              = Circle(circle_inner_radius);
@@ -182,7 +177,7 @@ mod shape {
         let circle_inner          = circle_inner.translate_y(circle_inner_offset_y);
 
         // Now we shape the angle by applying the circles.Note that only one of them will have an
-        // effect, based on the radius that we modified set through `input_is_inwards`.
+        // effect, based on the radius that we modified set through `is_inwards`.
         let sculpted_shape = base_shape;
         let sculpted_shape = Intersection(sculpted_shape,circle_outer);
         let sculpted_shape = Difference(sculpted_shape,circle_inner);
@@ -194,7 +189,9 @@ mod shape {
         let sculpted_shape   = sculpted_shape.translate_y(-center_offset);
 
         // This is a conditional rotation that allows the port to either point inwards or outwards.
-        let rotation_angle = Var::<Angle<Radians>>::from("Radians(input_is_inwards * 3.1415926538)");
+        let pi             = Var::from(PI);
+        let rotation_angle = is_inwards * pi;
+        let rotation_angle = Var::<Angle<Radians>>::from(rotation_angle);
         let sculpted_shape = sculpted_shape.rotate(rotation_angle);
 
         sculpted_shape.into()

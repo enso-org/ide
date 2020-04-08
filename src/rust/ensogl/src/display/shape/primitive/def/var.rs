@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::math::algebra::{Cos,Sin};
+use crate::math::algebra::{Acos,Asin,Cos,Sin,Sqrt};
 use crate::data::color;
 use crate::math::topology::unit::{Unit,Radians,Degrees,Distance,Angle,Pixels};
 use crate::system::gpu::shader::glsl::Glsl;
@@ -430,6 +430,17 @@ where T: Sin<Output=T> {
     }
 }
 
+impl<T> Asin for Var<T>
+    where T: Asin<Output=T> {
+    type Output = Var<T>;
+    fn asin(&self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.asin()),
+            Self::Dynamic (t) => Var::Dynamic(format!("asin({})",t).into())
+        }
+    }
+}
+
 
 impl<T> Cos for Var<T>
 where T: Cos<Output=T> {
@@ -438,6 +449,36 @@ where T: Cos<Output=T> {
         match self {
             Self::Static  (t) => Var::Static(t.cos()),
             Self::Dynamic (t) => Var::Dynamic(format!("cos({})",t).into())
+        }
+    }
+}
+
+impl<T> Acos for Var<T>
+    where T: Acos<Output=T> {
+    type Output = Var<T>;
+    fn acos(&self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.acos()),
+            Self::Dynamic (t) => Var::Dynamic(format!("acos({})",t).into())
+        }
+    }
+}
+
+
+
+// ===================
+// === Square Root ===
+// ===================
+
+impl<T> Sqrt for Var<T>
+where T: Sqrt<Output=T> {
+
+    type Output = Var<T>;
+
+    fn sqrt(&self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.sqrt()),
+            Self::Dynamic (t) => Var::Dynamic(format!("sqrt({})",t).into())
         }
     }
 }
@@ -453,7 +494,7 @@ impl From<Var<Angle<Radians>>> for Var<f32> {
     fn from(other:Var<Angle<Radians>>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(t.value),
-            Var::Dynamic (t) => Var::Dynamic(t),
+            Var::Dynamic (t) => Var::Dynamic(format!("value({})",t.glsl()).into()),
         }
     }
 }
@@ -462,7 +503,7 @@ impl From<Var<f32>> for Var<Angle<Radians>> {
     fn from(other:Var<f32>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(Angle::from(t)),
-            Var::Dynamic (t) => Var::Dynamic(t),
+            Var::Dynamic (t) => Var::Dynamic(format!("Radians({})",t.glsl()).into()),
         }
     }
 }
@@ -471,7 +512,7 @@ impl From<Var<f32>> for Var<Angle<Degrees>> {
     fn from(other:Var<f32>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(Angle::from(t)),
-            Var::Dynamic (t) => Var::Dynamic(t),
+            Var::Dynamic (t) => Var::Dynamic(format!("radians(Degrees({}))",t.glsl()).into()),
         }
     }
 }
@@ -480,7 +521,7 @@ impl From<Var<Angle<Degrees>>> for Var<f32> {
     fn from(other:Var<Angle<Degrees>>) -> Self {
         match other {
             Var::Static  (t) => Var::Static(t.value),
-            Var::Dynamic (t) => Var::Dynamic(t),
+            Var::Dynamic (t) => Var::Dynamic(format!("value({})",t.glsl()).into()),
         }
     }
 }
