@@ -57,21 +57,6 @@ pub trait EventEmitter : HasOutput {
     fn register_watch(&self) -> watch::Handle;
 }
 
-///// A nice interface for emitting events. It is a wrapper for `EventEmitter`. We cannot use a
-///// single trait here as `EventEmitter` needs to be converted to a trait object.
-//pub trait EventEmitterPoly : EventEmitter {
-//    /// Alias for `emit(())`.
-//    fn ping(&self) where Self : HasOutput<Output=()> {
-//        self.emit_event(&())
-//    }
-//
-//    /// Polymorphic version of `emit_event`.
-//    fn emit<T:ToRef<Output<Self>>>(&self, value:T) {
-//        self.emit_event(value.to_ref())
-//    }
-//}
-//impl<T:EventEmitter> EventEmitterPoly for T {}
-
 
 
 // ======================

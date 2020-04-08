@@ -182,7 +182,7 @@ impl Default for Keyboard {
             def previous_key_mask = gather::<KeyMask>();
             def key_mask          = change.map2(&previous_key_mask,KeyMaskChange::updated_mask);
         }
-        previous_key_mask.add(&key_mask);
+        previous_key_mask.attach(&key_mask);
         let network = keyboard;
         Keyboard {network,on_pressed,on_released,on_defocus,key_mask}
     }
