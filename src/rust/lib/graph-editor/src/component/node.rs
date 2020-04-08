@@ -128,8 +128,8 @@ pub mod shape {
 #[allow(missing_docs)]
 pub struct Events {
     pub network    : frp::Network,
-    pub select     : frp::Stream,
-    pub deselect   : frp::Stream,
+    pub select     : frp::Source,
+    pub deselect   : frp::Source,
 }
 
 
@@ -165,7 +165,7 @@ impl component::ShapeViewDefinition for NodeView {
 #[allow(missing_docs)]
 pub struct NodeData {
     pub logger : Logger,
-    pub label  : frp::Stream<String>,
+    pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
 }

@@ -1,77 +1,11 @@
+//! FRP event stream implementation.
 
 use crate::prelude::*;
 use crate::network::*;
 use crate::node::*;
+use crate::data::watch;
 
 
-
-
-
-#[derive(Debug,Shrinkwrap)]
-pub struct Watched<T> {
-    #[shrinkwrap(main_field)]
-    target : T,
-    handle : WatchHandle
-}
-
-impl<T> Watched<T> {
-    pub fn new(target:T, handle:WatchHandle) -> Self {
-        Self {target,handle}
-    }
-}
-
-impl<T:HasId> HasId for Watched<T> {
-    fn id(&self) -> Id {
-        self.target.id()
-    }
-}
-
-
-#[derive(Debug)]
-pub struct WatchHandle {
-    counter : WatchCounter
-}
-
-impl WatchHandle {
-    pub fn new(counter:&WatchCounter) -> Self {
-        let counter = counter.clone_ref();
-        counter.increase();
-        Self {counter}
-    }
-}
-
-impl Drop for WatchHandle {
-    fn drop(&mut self) {
-        self.counter.decrease()
-    }
-}
-
-#[derive(Debug,Clone,CloneRef,Default)]
-pub struct WatchCounter {
-    count: Rc<Cell<usize>>
-}
-
-impl WatchCounter {
-    pub fn new() -> Self {
-        default()
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.count.get() == 0
-    }
-
-    pub fn new_watch(&self) -> WatchHandle {
-        WatchHandle::new(self)
-    }
-
-    fn increase(&self) {
-        self.count.set(self.count.get() + 1);
-    }
-
-    fn decrease(&self) {
-        self.count.set(self.count.get() - 1);
-    }
-}
 
 
 
@@ -91,6 +25,8 @@ pub trait HasOutputTypeLabel {
 // === InputBehaviors ===
 // ======================
 
+/// Returns all behaviors of this node. For visualization purposes only.
+#[allow(missing_docs)]
 pub trait InputBehaviors {
     fn input_behaviors(&self) -> Vec<Link>;
 }
@@ -113,21 +49,28 @@ pub trait EventOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasI
 /// Implementors of this trait have to know how to emit events to subsequent nodes and how to
 /// register new event receivers.
 pub trait EventEmitter : HasOutput {
+    /// Emit a new event.
     fn emit_event(&self , value:&Self::Output);
+    /// Register new event target. All emited events will be send to every registered target.
     fn register_target(&self , target:EventInput<Output<Self>>);
-    fn register_watch(&self) -> WatchHandle;
+    /// Register that someone is watching value of this node.
+    fn register_watch(&self) -> watch::Handle;
 }
 
-impl<T:EventEmitter> EventEmitterPoly for T {}
-pub trait EventEmitterPoly : EventEmitter {
-    fn ping(&self) where Self : HasOutput<Output=()> {
-        self.emit_event(&())
-    }
-
-    fn emit<T:ToRef<Output<Self>>>(&self, value:T) {
-        self.emit_event(value.to_ref())
-    }
-}
+///// A nice interface for emitting events. It is a wrapper for `EventEmitter`. We cannot use a
+///// single trait here as `EventEmitter` needs to be converted to a trait object.
+//pub trait EventEmitterPoly : EventEmitter {
+//    /// Alias for `emit(())`.
+//    fn ping(&self) where Self : HasOutput<Output=()> {
+//        self.emit_event(&())
+//    }
+//
+//    /// Polymorphic version of `emit_event`.
+//    fn emit<T:ToRef<Output<Self>>>(&self, value:T) {
+//        self.emit_event(value.to_ref())
+//    }
+//}
+//impl<T:EventEmitter> EventEmitterPoly for T {}
 
 
 
@@ -217,7 +160,7 @@ pub struct NodeData<Out=()> {
     targets       : RefCell<Vec<EventInput<Out>>>,
     value_cache   : RefCell<Out>,
     during_call   : Cell<bool>,
-    watch_counter : WatchCounter,
+    watch_counter : watch::Counter,
 }
 
 impl<Out:Default> NodeData<Out> {
@@ -256,7 +199,7 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
         self.targets.borrow_mut().push(target)
     }
 
-    fn register_watch(&self) -> WatchHandle {
+    fn register_watch(&self) -> watch::Handle {
         self.watch_counter.new_watch()
     }
 }
@@ -381,7 +324,7 @@ impl<Out:Data> EventEmitter for Stream<Out> {
         self.data.upgrade().for_each(|t| t.register_target(target))
     }
 
-    fn register_watch(&self) -> WatchHandle {
+    fn register_watch(&self) -> watch::Handle {
         self.data.upgrade().map(|t| t.register_watch()).unwrap() // FIXME
     }
 }
@@ -389,13 +332,13 @@ impl<Out:Data> EventEmitter for Stream<Out> {
 impl<Def:HasOutputStatic> EventEmitter for Node<Def>  {
     fn emit_event      (&self, value:&Output<Def>)           { self.data.emit_event(value) }
     fn register_target (&self,tgt:EventInput<Output<Self>>) { self.data.register_target(tgt) }
-    fn register_watch  (&self) -> WatchHandle                { self.data.register_watch() }
+    fn register_watch  (&self) -> watch::Handle                { self.data.register_watch() }
 }
 
 impl<Def:HasOutputStatic> EventEmitter for WeakNode<Def> {
     fn emit_event      (&self, value:&Output<Def>)           { self.stream.emit_event(value) }
     fn register_target (&self,tgt:EventInput<Output<Self>>) { self.stream.register_target(tgt) }
-    fn register_watch  (&self) -> WatchHandle                { self.stream.register_watch() }
+    fn register_watch  (&self) -> watch::Handle                { self.stream.register_watch() }
 }
 
 

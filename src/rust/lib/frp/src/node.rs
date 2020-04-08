@@ -1,6 +1,8 @@
 //! FRP data definition.
 
 use crate::prelude::*;
+use crate::data::watch;
+
 
 
 // ============
@@ -46,6 +48,11 @@ pub trait HasId {
     fn id(&self) -> Id;
 }
 
+impl<T:HasId> HasId for watch::Ref<T> {
+    fn id(&self) -> Id {
+        self.target.id()
+    }
+}
 
 
 // =============

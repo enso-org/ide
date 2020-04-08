@@ -5,7 +5,6 @@
 use crate::prelude::*;
 
 use enso_frp::*;
-use enso_frp::traits::*;
 use enso_frp::io::keyboard;
 use enso_frp::io::keyboard::Keyboard;
 use std::fmt::Debug;

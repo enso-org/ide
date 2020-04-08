@@ -8,7 +8,6 @@ pub mod event;
 use crate::control::callback;
 use crate::system::web;
 
-use enso_frp::traits::*;
 use enso_frp::Position;
 use std::cell::RefCell;
 use std::rc::Rc;

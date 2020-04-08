@@ -5,7 +5,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::system::web;
 
-use enso_frp::traits::*;
 use enso_frp::io::keyboard::Key;
 use enso_frp::io::Keyboard;
 use js_sys::Function;

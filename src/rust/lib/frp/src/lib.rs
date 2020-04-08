@@ -85,6 +85,7 @@
 
 
 pub mod debug;
+pub mod data;
 pub mod io;
 pub mod macros;
 pub mod network;
@@ -101,11 +102,6 @@ pub use io::mouse::Position;
 
 pub use enso_prelude as prelude;
 pub use ensogl_system_web as web;
-
-pub mod traits {
-    pub use super::stream::ValueProvider;
-    pub use super::stream::EventEmitterPoly;
-}
 
 
 pub use stream::Stream;

@@ -37,12 +37,11 @@ use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
 use enso_frp as frp;
-use enso_frp::traits::*;
 
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> Option<enso_frp::Stream> { None }
+    fn mouse_down(&self) -> Option<enso_frp::Source> { None }
 }
 
 

@@ -162,9 +162,9 @@ impl Default for KeyMaskChange {
 #[allow(missing_docs)]
 pub struct Keyboard {
     pub network     : frp::Network,
-    pub on_pressed  : frp::Stream<Key>,
-    pub on_released : frp::Stream<Key>,
-    pub on_defocus  : frp::Stream,
+    pub on_pressed  : frp::Source<Key>,
+    pub on_released : frp::Source<Key>,
+    pub on_defocus  : frp::Source,
     pub key_mask    : frp::Stream<KeyMask>,
 }
 
@@ -179,7 +179,7 @@ impl Default for Keyboard {
             def change_clear      = on_defocus.map(|()| KeyMaskChange::on_defocus());
             def change_set_unset  = change_set.merge(&change_unset);
             def change            = change_set_unset.merge(&change_clear);
-            def previous_key_mask = merge_::<KeyMask>();
+            def previous_key_mask = gather::<KeyMask>();
             def key_mask          = change.map2(&previous_key_mask,KeyMaskChange::updated_mask);
         }
         previous_key_mask.add(&key_mask);

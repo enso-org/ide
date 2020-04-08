@@ -45,12 +45,12 @@ impl Sub<&Position> for &Position {
 #[allow(missing_docs)]
 pub struct Mouse {
     pub network  : frp::Network,
-    pub on_up    : frp::Stream,
-    pub on_down  : frp::Stream,
-    pub on_wheel : frp::Stream,
-    pub on_leave : frp::Stream,
+    pub on_up    : frp::Source,
+    pub on_down  : frp::Source,
+    pub on_wheel : frp::Source,
+    pub on_leave : frp::Source,
     pub is_down  : frp::Stream<bool>,
-    pub position : frp::Stream<Position>,
+    pub position : frp::Source<Position>,
 }
 
 impl Default for Mouse {
@@ -65,7 +65,7 @@ impl Default for Mouse {
             def up_bool   = on_up.constant(false);
             def is_down   = down_bool.merge(&up_bool);
         };
-        let network   = mouse;
+        let network = mouse;
         Self {network,on_up,on_down,on_leave,on_wheel,is_down,position}
     }
 }

@@ -82,8 +82,8 @@ impl component::ShapeViewDefinition for CursorView {
 #[allow(missing_docs)]
 pub struct Events {
     pub network : frp::Network,
-    pub press   : frp::Stream,
-    pub release : frp::Stream,
+    pub press   : frp::Source,
+    pub release : frp::Source,
 }
 
 impl Default for Events {

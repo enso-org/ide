@@ -9,7 +9,6 @@ use crate::system::web::text_input::KeyboardBinding;
 use crate::system::web::text_input::bind_frp_to_js_keyboard_actions;
 
 use enso_frp as frp;
-use enso_frp::traits::*;
 use enso_frp::io::Keyboard;
 use enso_frp::io::keyboard;
 
@@ -37,17 +36,17 @@ pub struct TextFieldKeyboardFrp {
     pub actions: keyboard::KeyboardActions,
     pub network: frp::Network,
     /// Event sent once cut operation was requested.
-    pub on_cut: frp::Stream,
+    pub on_cut: frp::Source,
     /// Event sent once copy operation was requested.
-    pub on_copy: frp::Stream,
+    pub on_copy: frp::Source,
     /// Event sent once paste operation was requested.
-    pub on_paste: frp::Stream<String>,
+    pub on_paste: frp::Source<String>,
     /// A lambda node performing cut operation. Returns the string which should be copied to
     /// clipboard.
-    pub do_cut: frp::Stream<String>,
+    pub do_cut_sampler: frp::Sampler<String>,
     /// A lambda node performing copy operation. Returns the string which should be copied to
     /// clipboard.
-    pub do_copy: frp::Stream<String>,
+    pub do_copy_sampler: frp::Sampler<String>,
     /// A lambda node performing paste operation.
     pub do_paste: frp::Stream,
     /// A lambda node performing character input operation.
@@ -64,18 +63,21 @@ impl TextFieldKeyboardFrp {
         let paste       = Self::paste_lambda(text_field.clone_ref());
         let insert_char = Self::char_typed_lambda(text_field.clone_ref());
         frp::new_network! { text_field_network // FIXME name
-            def on_cut        = source();
-            def on_copy       = source();
-            def on_paste      = source();
-            def do_copy       = on_copy .map(move |()| copy());
-            def do_cut        = on_cut  .map(move |()| cut());
-            def do_paste      = on_paste.map(paste);
-            def do_char_input = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
+            def on_cut          = source();
+            def on_copy         = source();
+            def on_paste        = source();
+            def do_copy         = on_copy .map(move |()| copy());
+            def do_cut          = on_cut  .map(move |()| cut());
+            def do_cut_sampler  = do_cut.sampler();
+            def do_copy_sampler = do_copy.sampler();
+            def do_paste        = on_paste.map(paste);
+            def do_char_input   = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
         }
         Self::initialize_actions_map(&mut actions,text_field);
         let network = text_field_network;
-        TextFieldKeyboardFrp {keyboard,actions,network,on_cut,on_copy,on_paste,do_cut,do_copy,
-            do_paste,do_char_input}
+        TextFieldKeyboardFrp
+            {keyboard,actions,network,on_cut,on_copy,on_paste,do_cut_sampler,do_copy_sampler
+            ,do_paste,do_char_input}
     }
 
     /// Bind this FRP graph to js events.
@@ -85,17 +87,17 @@ impl TextFieldKeyboardFrp {
     pub fn bind_frp_to_js_text_input_actions(&self, binding:&mut KeyboardBinding) {
         bind_frp_to_js_keyboard_actions(&self.keyboard,binding);
         let copy_handler = enclose!(
-            ( self.on_cut  => on_cut
-            , self.on_copy => on_copy
-            , self.do_cut  => do_cut
-            , self.do_copy => do_copy
+            ( self.on_cut          => on_cut
+            , self.on_copy         => on_copy
+            , self.do_cut_sampler  => do_cut_sampler
+            , self.do_copy_sampler => do_copy_sampler
             ) move |is_cut| {
                 if is_cut {
                     on_cut.emit(());
-                    do_cut.value()
+                    do_cut_sampler.value()
                 } else {
                     on_copy.emit(());
-                    do_copy.value()
+                    do_copy_sampler.value()
                 }
             }
         );

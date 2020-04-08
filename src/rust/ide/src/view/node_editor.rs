@@ -6,7 +6,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::display::world::World;
 use enso_frp as frp;
-use enso_frp::traits::*;
 
 use graph_editor::GraphEditor;
 use crate::notification;

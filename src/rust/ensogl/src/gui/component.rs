@@ -11,7 +11,6 @@ use crate::display::shape::primitive::system::Shape;
 use crate::display;
 
 use enso_frp as frp;
-use enso_frp::traits::*;
 
 
 
@@ -25,7 +24,7 @@ use enso_frp::traits::*;
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
     pub network    : frp::Network,
-    pub mouse_down : frp::Stream,
+    pub mouse_down : frp::Source,
 }
 
 impl Default for ShapeViewEvents {
@@ -39,7 +38,7 @@ impl Default for ShapeViewEvents {
 }
 
 impl MouseTarget for ShapeViewEvents {
-    fn mouse_down(&self) -> Option<frp::Stream> {
+    fn mouse_down(&self) -> Option<frp::Source> {
         Some(self.mouse_down.clone_ref())
     }
 }

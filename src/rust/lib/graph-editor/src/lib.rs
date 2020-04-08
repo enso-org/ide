@@ -42,7 +42,6 @@ use crate::component::cursor::Cursor;
 use nalgebra::Vector2;
 use enso_frp as frp;
 use enso_frp::Position;
-use enso_frp::traits::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use ensogl::display::object::Id;
@@ -137,10 +136,10 @@ impl WeakNodeSelectionSet {
 #[derive(Debug)]
 pub struct Events {
     pub network               : frp::Network,
-    pub add_node_under_cursor : frp::Stream,
-    pub add_node_at           : frp::Stream<Position>,
-    pub remove_selected_nodes : frp::Stream,
-    pub clear_graph           : frp::Stream,
+    pub add_node_under_cursor : frp::Source,
+    pub add_node_at           : frp::Source<Position>,
+    pub remove_selected_nodes : frp::Source,
+    pub clear_graph           : frp::Source,
 }
 
 impl Default for Events {
