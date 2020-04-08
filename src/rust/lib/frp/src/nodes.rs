@@ -9,7 +9,6 @@ use crate::prelude::*;
 use crate::data::watch;
 use crate::network::*;
 use crate::node::*;
-use crate::stream::EventEmitter;
 use crate::stream::EventOutput;
 use crate::stream::Stream;
 use crate::stream;

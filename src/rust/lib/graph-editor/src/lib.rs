@@ -48,9 +48,6 @@ use ensogl::display::object::Id;
 use ensogl::system::web::StyleSetter;
 
 
-use ensogl::control::io::mouse;
-
-
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
@@ -237,9 +234,9 @@ impl GraphEditor {
 
             def add_node_unified = events.add_node_at.merge(&add_node_with_cursor_pos);
 
-            def _node_added = add_node_unified.map(enclose!((node_set,on_node_press,display_object) move |pos| {
+            def _node_added = add_node_unified.map(enclose!((node_set,display_object) move |pos| { // on_node_press
                 let node = Node::new();
-                let weak_node = node.downgrade();
+                let _weak_node = node.downgrade();
                 // FIXME: commented
 //                node.view.events.mouse_down.map("foo",enclose!((on_node_press) move |_| {
 //                    on_node_press.emit(Some(weak_node.clone_ref()))
@@ -273,30 +270,30 @@ impl GraphEditor {
                         selected_nodes2.insert(&node);
                     })
                 })
-            })
+            });
         }
 
 
         frp::extend_network! { network
 
-            def cursor_press = mouse.on_down.map(enclose!((cursor) move |_| {
+            def _cursor_press = mouse.on_down.map(enclose!((cursor) move |_| {
                 cursor.events.press.emit(());
             }));
 
-            def cursor_release = mouse.on_up.map(enclose!((cursor) move |_| {
+            def _cursor_release = mouse.on_up.map(enclose!((cursor) move |_| {
                 cursor.events.release.emit(());
             }));
 
-            def cursor_position = mouse.position.map(enclose!((cursor) move |p| {
+            def _cursor_position = mouse.position.map(enclose!((cursor) move |p| {
                 cursor.set_position(Vector2::new(p.x as f32,p.y as f32));
             }));
 
-            def cursor_size = selection_size.map(enclose!((cursor) move |p| {
+            def _cursor_size = selection_size.map(enclose!((cursor) move |p| {
                 cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
             }));
 
             let on_bg_press2    = on_bg_press.clone_ref();
-            def mouse_down_target = mouse_down_target.map(enclose!((scene) move |target| {
+            def _mouse_down_target = mouse_down_target.map(enclose!((scene) move |target| {
                 match target {
                     display::scene::Target::Background => {
                         on_bg_press2.emit(());

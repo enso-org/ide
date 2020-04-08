@@ -149,11 +149,11 @@ impl Cursor {
 
         frp::extend_network! { network
 
-            def t_press = self.events.press.map(enclose!((press) move |_| {
+            def _t_press = self.events.press.map(enclose!((press) move |_| {
                 press.set_target_position(1.0);
             }));
 
-            def t_release = self.events.release.map(enclose!((press) move |_| {
+            def _t_release = self.events.release.map(enclose!((press) move |_| {
                 press.set_target_position(0.0);
             }));
 

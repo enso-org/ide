@@ -40,7 +40,7 @@ pub struct NetworkData {
 }
 
 /// Link between nodes. It is used for visualization purposes only.
-#[derive(Debug,Clone)]
+#[derive(Debug,Copy,Clone)]
 #[allow(missing_docs)]
 pub struct Link {
     pub source : Id,

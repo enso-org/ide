@@ -142,7 +142,7 @@ pub fn animation<F>(network:&frp::Network, f:F) -> DynSimulator<f32>
 where F : Fn(f32) + 'static {
     frp::extend_network! { network
         def target = source::<f32> ();
-        def eval   = target.map(move |value| f(*value));
+        def _eval  = target.map(move |value| f(*value));
     }
     DynSimulator::<f32>::new(Box::new(move |t| target.emit(t)))
 }

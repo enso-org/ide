@@ -51,10 +51,10 @@ macro_rules! divide_on_terminator {
 /// Internal helpers for `extend_network` macro.
 #[macro_export]
 macro_rules! extend_network_line {
-    ($network:ident def $name:ident $(:$ty:ty)? =                                           $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($network,.,$name),$($arg)*)                    $($ts)* };
-    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident                             . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($network,.,$name),&$tgt1,$($arg)*)             $($ts)* };
-    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident               . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($network,.,$name),&$tgt1.$tgt2,$($arg)*)       $($ts)* };
-    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!($network,.,$name),&$tgt1.$tgt2.$tgt3,$($arg)*) $($ts)* };
+    ($network:ident def $name:ident $(:$ty:ty)? =                                           $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!{$network,.,$name},$($arg)*)                    $($ts)* };
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident                             . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!{$network,.,$name},&$tgt1,$($arg)*)             $($ts)* };
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident               . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!{$network,.,$name},&$tgt1.$tgt2,$($arg)*)       $($ts)* };
+    ($network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(stringify!{$network,.,$name},&$tgt1.$tgt2.$tgt3,$($arg)*) $($ts)* };
     ($network:ident $($ts:tt)*) => { $($ts)* }
 }
 
@@ -62,7 +62,7 @@ macro_rules! extend_network_line {
 #[macro_export]
 macro_rules! _divide_on_terminator {
     ([[$($f:tt)*] $args:tt] $lines:tt       [])                              => { $($f)*! {$args $lines} };
-    ([[$($f:tt)*] $args:tt] [$($lines:tt)*] $line:tt)                        => { $crate::_divide_on_terminator! {[[$($f)*] $args] [$($lines)* $line]        []} };
+    ([[$($f:tt)*] $args:tt] [$($lines:tt)*] $line:tt)                        => { MISSING_SEMICOLON };
     ($f:tt                  [$($lines:tt)*] [$($line:tt)*] ;     $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               [$($lines)* [$($line)*;]] []             $($ts)*} };
     ($f:tt                  $lines:tt       [$($line:tt)*] $t:tt $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               $lines                    [$($line)* $t] $($ts)*} };
 }

@@ -158,7 +158,7 @@ impl<Out:Default> NodeData<Out> {
         Self {label,targets,value_cache,during_call,watch_counter}
     }
 
-    fn _use_caching(&self) -> bool {
+    fn use_caching(&self) -> bool {
         !self.watch_counter.is_zero()
     }
 }
@@ -171,10 +171,9 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if !self.during_call.get() {
             self.during_call.set(true);
-            // FIXME
-//            if self.use_caching() {
+            if self.use_caching() {
                 *self.value_cache.borrow_mut() = value.clone();
-//            }
+            }
             self.targets.borrow_mut().retain(|target| target.data.on_event_if_exists(value));
             self.during_call.set(false);
         }
@@ -191,9 +190,9 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
 
 impl<Out:Data> ValueProvider for NodeData<Out> {
     fn value(&self) -> Out {
-//        if !self.use_caching() {
-//            panic!("Trying to read not cached value.")
-//        }
+        if !self.use_caching() {
+            panic!("Trying to read not cached value.")
+        }
         self.value_cache.borrow().clone()
     }
 }
