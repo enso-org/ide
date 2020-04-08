@@ -10,12 +10,18 @@ use crate::known;
 use utils::vec::VecExt;
 
 #[derive(Clone,Debug)]
+pub struct ChainElement {
+    pub offset : usize,
+    pub arg    : Ast,
+}
+
+#[derive(Clone,Debug)]
 /// Result of flattening a sequence of prefix applications.
 pub struct Chain {
     /// The function (initial application target)
     pub func : Ast,
     /// Subsequent arguments applied over the function.
-    pub args : Vec<Ast>
+    pub args : Vec<ChainElement>
 }
 
 impl Chain {
@@ -23,19 +29,19 @@ impl Chain {
     /// App(App(a,b),c) into flat list where first element is the function and
     /// then arguments are placed: `{func:a, args:[b,c]}`.
     pub fn new(ast:&known::Prefix) -> Chain {
-        fn run(ast:&known::Prefix, mut acc: &mut Vec<Ast>) {
-            match known::Prefix::try_from(&ast.func) {
-                Ok(lhs_app) => run(&lhs_app, &mut acc),
-                _           => acc.push(ast.func.clone()),
-            }
-            acc.push(ast.arg.clone())
+        fn run(ast:&known::Prefix, acc:&mut Vec<ChainElement>) -> Ast {
+            let func = match known::Prefix::try_from(&ast.func) {
+                Ok(lhs_app) => run(&lhs_app,acc),
+                _           =>  ast.func.clone(),
+            };
+            let offset = ast.off;
+            let arg    = ast.arg.clone();
+            acc.push(ChainElement {offset,arg});
+            func
         }
 
-        let mut parts = Vec::new();
-        run(ast,&mut parts);
-
-        let func = parts.remove(0);
-        let args = parts; // remaining parts are args
+        let mut args = Vec::new();
+        let func     = run(ast,&mut args);
         Chain {func,args}
     }
 
@@ -52,10 +58,12 @@ impl Chain {
             Self::new(prefix)
         } else if let Ok(ref section) = known::SectionRight::try_from(ast) {
             // Case like `+ a b`
-            let func = section.opr.clone();
-            let right_chain = Chain::new_non_strict(&section.arg);
-            let mut args = vec![right_chain.func];
-            args.extend(right_chain.args);
+            let func   = section.opr.clone();
+            let right  = Self::new_non_strict(&section.arg);
+            let offset = section.off;
+            let arg    = right.func;
+            let head   = std::iter::once(ChainElement {offset,arg});
+            let args   = head.chain(right.args.into_iter()).collect();
             Chain {func,args}
         } else {
             // Case like `a`

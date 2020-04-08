@@ -280,7 +280,7 @@ impl DefinitionInfo {
         // If this is an operator, we have SectionRight with (if any prefix in arguments).
         let lhs  = prefix::Chain::new_non_strict(&infix.larg);
         let name = DefinitionName::from_ast(&lhs.func)?;
-        let args = lhs.args;
+        let args = lhs.args.into_iter().map(|a| a.arg).collect_vec();
         let ret  = DefinitionInfo {ast:infix,name,args,context_indent};
 
         // Note [Scope Differences]
