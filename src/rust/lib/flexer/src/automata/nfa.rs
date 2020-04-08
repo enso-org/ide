@@ -1,12 +1,12 @@
 use crate::automata::dict::Dict;
 use crate::automata::state::State;
 use crate::automata::dfa::DFA;
-use crate::automata::state;
+use crate::automata::{state, dfa};
 
 use std::ops::Range;
 use std::collections::{HashMap, BTreeSet};
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct NFA {
     pub states     : Vec<State>,
     pub vocabulary : Dict,
@@ -14,8 +14,8 @@ pub struct NFA {
 
 #[derive(Clone,Debug,Default)]
 struct EpsMatrix {
-    pub links    : BTreeSet<usize>,
-    pub computed : bool,
+    pub links       : BTreeSet<usize>,
+    pub is_computed : bool,
 }
 
 impl NFA {
@@ -24,13 +24,13 @@ impl NFA {
         self.states.len() - 1
     }
 
-    pub fn link_range(&mut self, source:usize, target:usize, range:&Range<i64>) {
+    pub fn set_link_range(&mut self, source:usize, target:usize, range:&Range<i64>) {
         self.vocabulary.insert(range.clone());
-        self.states[source].links.targets.insert(range.clone(), target);
+        self.states[source].link_target.insert(range.clone(), target);
     }
 
-    pub fn link(&mut self, source:usize, target:usize) {
-        self.states[source].links.epsilon.push(target);
+    pub fn set_link(&mut self, source:usize, target:usize) {
+        self.states[source].link_epsilon.push(target);
     }
 
 
@@ -49,11 +49,11 @@ impl NFA {
                 let mut circular = false;
                 unitialized[i]   = false;
                 state_to_mat[i]  = EpsMatrix::default();
-                for &tgt in &nfa.states[i].links.epsilon {
+                for &tgt in &nfa.states[i].link_epsilon {
                     go(nfa,state_to_mat,unitialized,eps_group_ix_map,tgt);
                     eps_links.insert(tgt);
                     eps_links.extend(state_to_mat[tgt].links.iter());
-                    if !state_to_mat[tgt].computed {
+                    if !state_to_mat[tgt].is_computed {
                         circular = true
                     }
                 }
@@ -61,7 +61,7 @@ impl NFA {
                     if !eps_group_ix_map.contains_key(&eps_links) {
                         eps_group_ix_map.insert(eps_links.clone(), eps_group_ix_map.len());
                     }
-                    state_to_mat[i].computed = true
+                    state_to_mat[i].is_computed = true
                 }
                 state_to_mat[i].links = eps_links;
             }
@@ -83,7 +83,7 @@ impl NFA {
         let mut matrix = vec![vec![0; self.states.len()]; self.vocabulary.len()];
         for (state_ix, source) in self.states.iter().enumerate() {
             for (voc_ix, range) in self.vocabulary.ranges().enumerate() {
-                let target = match source.links.targets.get(&range) {
+                let target = match source.link_target.get(&range) {
                     Some(&target) => target,
                     None          => state::MISSING,
                 };
@@ -109,7 +109,7 @@ impl NFA {
         id
     }
 
-    pub fn into_dfa(self) -> DFA {
+    pub fn to_dfa(&self) -> DFA {
         let     eps_mat     = self.eps_matrix();
         let     nfa_mat     = self.nfa_matrix();
         let mut dfa_rows    = 0;
@@ -146,7 +146,7 @@ impl NFA {
             }
         }
 
-        let mut end_state_priority_map = HashMap::<usize,state::Desc>::new();
+        let mut priorities = dfa::EndStatePriorityMap::default();
         for (dfa_ix, epss) in dfa_eps_ixs.iter().enumerate() {
             let priority = |key:&&usize| {
                 let priority = nfa_end_state_priority_map.get(*key);
@@ -156,11 +156,20 @@ impl NFA {
                 if let Some(&priority) = nfa_end_state_priority_map.get(&eps) {
                     let rule  = self.states[eps].rule.as_ref().cloned().unwrap_or_default();
                     let state = state::Desc{rule,priority};
-                    end_state_priority_map.insert(dfa_ix, state);
+                    priorities.val.insert(dfa_ix, state);
                 }
             }
         }
 
-        DFA {vocabulary:self.vocabulary,links:dfa_mat,end_state_priority_map}
+        DFA {vocabulary:self.vocabulary.clone(),links:dfa_mat,priorities}
     }
+}
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    // use super::*;
 }
