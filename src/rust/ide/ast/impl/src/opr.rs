@@ -6,6 +6,7 @@ use crate::Ast;
 use crate::assoc::Assoc;
 use crate::known;
 use crate::Shape;
+use crate::crumbs::{Crumb, Located, InfixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
 
 /// Identifiers of operators with special meaning for IDE.
 pub mod predefined {
@@ -34,11 +35,23 @@ pub fn is_assignment(ast:&Ast) -> bool {
 }
 
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
-pub type Operand = Option<Ast>;
+pub type Operand = Option<Located<Ast>>;
 
 /// Infix operator standing between (optional) operands.
-pub type Operator = known::Opr;
+pub type Operator = Located<known::Opr>;
 
+fn make_operand(parent:&Located<Ast>, crumb:impl Into<Crumb>, child:&Ast) -> Operand {
+    Some(parent.child(crumb,child.clone()))
+}
+
+fn make_operator(parent:&Located<Ast>, crumb:impl Into<Crumb>, opr:&Ast) -> Option<Operator> {
+    let opr = known::Opr::try_from(opr).ok()?;
+    Some(parent.child(crumb,opr))
+}
+
+fn assoc(ast:&known::Opr) -> Assoc {
+    Assoc::of(&ast.name)
+}
 
 
 // ========================
@@ -57,28 +70,32 @@ pub struct GeneralizedInfix {
 }
 
 impl GeneralizedInfix {
+    pub fn try_new_root(ast:&Ast) -> Option<GeneralizedInfix> {
+        GeneralizedInfix::try_new(&Located::new_root(ast.clone()))
+    }
+
     /// Tries interpret given AST node as GeneralizedInfix. Returns None, if Ast is not any kind of
     /// application on infix operator.
-    pub fn try_new(ast:&Ast) -> Option<GeneralizedInfix> {
+    pub fn try_new(ast:&Located<Ast>) -> Option<GeneralizedInfix> {
         match ast.shape() {
             Shape::Infix(infix) => Some(GeneralizedInfix{
-                left  : Some(infix.larg.clone()),
-                opr   : known::Opr::try_from(&infix.opr).ok()?,
-                right : Some(infix.rarg.clone()),
+                left  : make_operand (ast,InfixCrumb::LeftOperand, &infix.larg),
+                opr   : make_operator(ast,InfixCrumb::Operator,    &infix.opr)?,
+                right : make_operand (ast,InfixCrumb::RightOperand,&infix.rarg),
             }),
             Shape::SectionLeft(left) => Some(GeneralizedInfix{
-                left  : Some(left.arg.clone()),
-                opr   : known::Opr::try_from(&left.opr).ok()?,
+                left  : make_operand (ast,SectionLeftCrumb::Arg,&left.arg),
+                opr   : make_operator(ast,SectionLeftCrumb::Opr,&left.opr)?,
                 right : None,
             }),
             Shape::SectionRight(right) => Some(GeneralizedInfix{
                 left  : None,
-                opr   : known::Opr::try_from(&right.opr).ok()?,
-                right : Some(right.arg.clone()),
+                opr   : make_operator(ast,SectionRightCrumb::Opr,&right.opr)?,
+                right : make_operand (ast,SectionRightCrumb::Arg,&right.arg),
             }),
             Shape::SectionSides(sides) => Some(GeneralizedInfix{
                 left  : None,
-                opr   : known::Opr::try_from(&sides.opr).ok()?,
+                opr   : make_operator(ast,SectionSidesCrumb,&sides.opr)?,
                 right : None,
             }),
             _ => None,
@@ -127,7 +144,7 @@ impl GeneralizedInfix {
         let mut target_subtree_flat = match target_subtree_infix {
             Some(target_infix) if target_infix.name() == self.name() =>
                 target_infix.flatten(),
-            _ => Chain { target, args:Vec::new() },
+            _ => Chain { target, args:Vec::new(), operator:self.opr.item.clone() },
         };
 
         target_subtree_flat.args.push(rest);
@@ -149,19 +166,30 @@ pub struct Chain {
     pub target : Operand,
     /// Subsequent operands applied to the `target`.
     pub args   : Vec<ChainElement>,
+    /// Operator.
+    pub operator : known::Opr,
 }
 
 impl Chain {
     /// If this is infix, it flattens whole chain and returns result.
     /// Otherwise, returns None.
     pub fn try_new(ast:&Ast) -> Option<Chain> {
-        GeneralizedInfix::try_new(ast).map(|infix| infix.flatten())
+        GeneralizedInfix::try_new_root(&ast).map(|infix| infix.flatten())
     }
 
     /// Flattens infix chain if this is infix application of given operator.
     pub fn try_new_of(ast:&Ast, operator:&str) -> Option<Chain> {
-        let infix = GeneralizedInfix::try_new(ast)?;
+        let infix = GeneralizedInfix::try_new_root(&ast)?;
         (infix.name() == operator).as_some_from(|| infix.flatten())
+    }
+
+    /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
+    /// arguments.
+    pub fn enumerate_operands<'a>(&'a self) -> impl Iterator<Item=&'a Located<Ast>> + 'a {
+        let this = std::iter::once(&self.target);
+        let args = self.args.iter().map(|elem| &elem.operand);
+        let operands = this.chain(args).flatten();
+        operands
     }
 }
 
@@ -174,4 +202,36 @@ pub struct ChainElement {
     /// Depending on operator's associativity it is either right (for left-associative operators)
     /// or on the left side of operator.
     pub operand  : Operand,
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn infix_chain_tests() {
+        let a = Ast::var("a");
+        let b = Ast::var("b");
+        let c = Ast::var("c");
+        let a_plus_b = Ast::infix(a.clone(),"+",b.clone());
+        let a_plus_b_plus_c = Ast::infix(a_plus_b.clone(),"+",c.clone());
+
+
+        let chain = Chain::try_new(&a_plus_b_plus_c).unwrap();
+
+        let expect_ast_at_crumb_for = |operand:&Operand, expected_ast:&Ast| {
+            let crumbs = &operand.as_ref().unwrap().crumbs;
+            let ast    = a_plus_b_plus_c.get_traversing(crumbs).unwrap();
+            assert_eq!(ast, expected_ast, "expected `{}` at crumbs `{:?}` for `{}`",
+                       expected_ast.repr(), crumbs, a_plus_b_plus_c.repr());
+        };
+
+        assert_eq!(chain.target.as_ref().unwrap().item, a);
+        assert_eq!(chain.args[0].operand.as_ref().unwrap().item, b);
+        assert_eq!(chain.args[1].operand.as_ref().unwrap().item, c);
+        expect_ast_at_crumb_for(&chain.target, &a);
+        expect_ast_at_crumb_for(&chain.args[0].operand, &b);
+        expect_ast_at_crumb_for(&chain.args[1].operand, &c);
+    }
 }

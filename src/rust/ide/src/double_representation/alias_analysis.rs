@@ -5,8 +5,10 @@ use crate::prelude::*;
 
 use crate::double_representation::node::NodeInfo;
 
-use ast::crumbs::InfixCrumb;
+use ast::crumbs::{InfixCrumb, Located};
 use ast::crumbs::Crumb;
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::alias_analysis::Context::Graph;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -68,7 +70,7 @@ pub struct IdentifierUsage {
 // === Analysis ===
 // ================
 
-#[derive(Clone,Copy,Debug,Display)]
+#[derive(Clone,Copy,Debug,Display,PartialEq)]
 enum Context {Graph,AssignmentPattern}
 
 #[derive(Clone,Debug)]
@@ -96,26 +98,68 @@ impl AliasAnalyzer {
         self.usage.introduced.push(identifier)
     }
 
+    fn in_context(&mut self, context:Context) -> bool {
+        self.context.last().contains(&&context)
+    }
+
+    fn in_assignment_pattern(&mut self) -> bool {
+        self.in_context(Context::AssignmentPattern)
+    }
+
     fn process_ast(&mut self, ast:&Ast) {
-        if let Some(name) = NormalizedName::try_from_ast(ast) {
-            match self.context.last() {
-                Some(Context::AssignmentPattern) => self.introduce_identifier(name),
-                Some(Context::Graph)             => self.use_identifier(name),
-                _                                => todo!()
+        println!("Processing `{}` in context {}",ast.repr(),self.context.last().unwrap());
+
+        // Special case for pattern matching.
+        if self.in_assignment_pattern() {
+            // We are in the assignment's pattern. three options:
+            // 1) This is a destructuring pattern match with prefix syntax, like `Point x y`.
+            // 3) As above but with operator and infix syntax, like `head,tail`.
+            // 2) This is a nullary symbol binding, like `foo`.
+            // (the possibility of definition has been already excluded)
+            if let Some(prefix_chain) = ast::prefix::Chain::try_new(ast) {
+                println!("Pattern of infix chain of {}",ast.repr());
+                // Arguments introduce names, we ignore function name.
+                for Located{crumbs,item} in prefix_chain.enumerate_args() {
+                    println!("Argument: crumb {:?} contents {}", crumbs,item.repr());
+                    self.in_location_nested(crumbs, |this| this.process_ast(&item))
+                }
+            } else if let Some(infix_chain) = ast::opr::Chain::try_new(ast) {
+                for operand in infix_chain.enumerate_operands() {
+                    self.in_location_of(operand, |this| this.process_ast(&operand.item))
+                }
+            } else if let Some(name) = NormalizedName::try_from_ast(ast) {
+                self.introduce_identifier(name)
             }
-        } else {
-            for (crumb,ast) in ast.enumerate() {
-                self.in_location(crumb, |this| this.process_ast(ast))
+        } else if self.in_context(Graph) {
+            if let Some(name) = NormalizedName::try_from_ast(ast) {
+                self.use_identifier(name)
+            } else {
+                for (crumb,ast) in ast.enumerate() {
+                    self.in_location(crumb, |this| this.process_ast(ast))
+                }
             }
         }
     }
 
     fn in_location<F,R>(&mut self, crumb:impl Into<Crumb>, f:F) -> R
     where F:FnOnce(&mut Self) -> R {
-        self.location.push(crumb.into());
+        self.in_location_nested(std::iter::once(crumb),f)
+    }
+
+    fn in_location_nested<F,R>(&mut self, crumbs:impl IntoIterator<Item:Into<Crumb>>, f:F) -> R
+    where F:FnOnce(&mut Self) -> R {
+        let size_before = self.location.len();
+        self.location.extend(crumbs.into_iter().map(|crumb| crumb.into()));
         let ret = f(self);
-        self.location.pop();
+        while self.location.len() > size_before {
+            self.location.pop();
+        }
         ret
+    }
+
+    fn in_location_of<T,F,R>(&mut self, located_item:&Located<T>, f:F) -> R
+    where F:FnOnce(&mut Self) -> R {
+        self.in_location_nested(located_item.crumbs.iter().cloned(), f)
     }
 
     fn enter_assignment_pattern(&mut self, ast:&Ast) {
@@ -176,10 +220,10 @@ mod tests {
     use super::*;
     use super::test_utils::*;
 
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use wasm_bindgen_test::wasm_bindgen_test_configure;
-
-    wasm_bindgen_test_configure!(run_in_browser);
+//    use wasm_bindgen_test::wasm_bindgen_test;
+//    use wasm_bindgen_test::wasm_bindgen_test_configure;
+//
+//    wasm_bindgen_test_configure!(run_in_browser);
 
     /// Checks if actual observed sequence of located identifiers matches the expected one.
     /// Expected identifiers are described as code spans in the node's text representation.
@@ -211,18 +255,21 @@ mod tests {
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
 
+        // Removed cases
+//            "«foo» a b = a »+« b",  // this we don't care, because this is not a node
+//            "«log_name» object = »print« object.»name«",
+//            "«^» a n = a * a ^ (n - 1)",
+
         let test_cases = vec![
             "»foo«",
             "«five» = 5",
             "«foo» = »bar«",
             "«sum» = »a« »+« »b«",
-//            "«foo» a b = a + b",
-//            "Foo «a» «b» = »bar«",
+            "Point «x» «u» = »point«",
+            "«x» »,« «y» = »pair«"
 //            "a.«hello» = »print« 'Hello'",
-//            "«log_name» object = »print« object.»name«",
 //            "«log_name» = object -> »print« object.»name«",
 //            "«log_name» = object -> »print« $ »name« object",
-//            "«^» a n = a * a ^ (n - 1)",
         ];
         for case in test_cases {
             run_markdown_case(&parser,case)

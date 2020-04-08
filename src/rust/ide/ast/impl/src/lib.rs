@@ -5,6 +5,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(matches_macro)]
 
+pub mod app;
 #[warn(missing_docs)]
 pub mod assoc;
 #[warn(missing_docs)]

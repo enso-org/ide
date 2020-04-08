@@ -3,11 +3,10 @@
 
 use crate::prelude::*;
 
-use crate::known;
+use crate::{known, HasTokens, TokenConsumer};
 use crate::Shape;
 
 use utils::fail::FallibleResult;
-
 
 
 // ==============
@@ -901,9 +900,27 @@ impl<T> Located<T> {
         ret
     }
 
+    pub fn descendant<Cs,U>(&self, crumbs:Cs, child:U) -> Located<U>
+    where Cs : IntoIterator<Item:Into<Crumb>>,{
+        let crumbs_so_far = self.crumbs.iter().copied();
+        let crumbs_to_add = crumbs.into_iter().map(|crumb| crumb.into());
+        let crumbs = crumbs_so_far.chain(crumbs_to_add);
+        Located::new(crumbs, child)
+    }
+
+    pub fn child<U>(&self, crumb:impl Into<Crumb>, child:U) -> Located<U> {
+        self.descendant(std::iter::once(crumb),child)
+    }
+
     /// Maps into child, concatenating this crumbs and child crumbs.
     pub fn push_descendant<U>(self, child:Located<U>) -> Located<U> {
         self.into_descendant(child.crumbs,child.item)
+    }
+}
+
+impl<T:HasTokens> HasTokens for Located<T> {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+        self.item.feed_to(consumer)
     }
 }
 
