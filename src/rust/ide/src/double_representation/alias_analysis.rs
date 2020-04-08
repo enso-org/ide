@@ -135,6 +135,7 @@ mod tests {
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
 
+        // TODO [mwu] Uncomment and make them pass. And add more.
 //        let test_cases = vec![
 //            "«sum» = »a« + »b«",
 //            "«foo» = »bar«",

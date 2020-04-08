@@ -120,7 +120,9 @@ impl Span {
 
     /// Converts span to `Range<usize>`.
     pub fn range(self) -> Range<usize> {
-        self.index.value .. self.index.value + self.size.value
+        let start = self.index.value;
+        let end   = self.end().value;
+        start .. end
     }
 }
 
@@ -133,6 +135,18 @@ impl From<Range<usize>> for Span {
 impl From<&Range<usize>> for Span {
     fn from(range:&Range<usize>) -> Self {
         Span::from_indices(Index::new(range.start), Index::new(range.end))
+    }
+}
+
+impl Into<Range<usize>> for Span {
+    fn into(self) -> Range<usize> {
+        self.range()
+    }
+}
+
+impl Into<Range<usize>> for &Span {
+    fn into(self) -> Range<usize> {
+        self.range()
     }
 }
 

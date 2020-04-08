@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use ast::crumbs::ChildAst;
 use ast::crumbs::Crumbable;
-//use ast::HasRepr;
-//use ast::Shape;
 use ast::known;
 use ast::prefix;
 use ast::opr;
