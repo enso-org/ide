@@ -20,16 +20,13 @@ pub type LocatedIdentifier = ast::crumbs::Located<NormalizedName>;
 /// The identifier name normalized to a lower-case (as the comparisons are case-insensitive).
 /// Implements case-insensitive compare with AST.
 #[derive(Clone,Debug,Display,Hash,PartialEq,Eq)]
-pub struct NormalizedName {
-    /// Lower case identifier name.
-    pub name:String
-}
+pub struct NormalizedName(String);
 
 impl NormalizedName {
     /// Wraps given string into the normalized name.
     pub fn new(name:impl Str) -> NormalizedName {
         let name = name.as_ref().to_lowercase();
-        NormalizedName {name}
+        NormalizedName(name)
     }
 
     /// If the given AST is an identifier, returns its normalized name.
