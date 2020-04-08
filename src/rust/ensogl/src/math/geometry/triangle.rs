@@ -54,18 +54,24 @@ impl<S> Triangle<S>
 where S:FloatLike<S> {
     /// Compute a triangle from two sides and the included angle (SAS).
     /// See https://en.wikipedia.org/wiki/Solution_of_triangles#Two_sides_and_the_included_angle_given_(SAS)
-    pub fn from_sides_and_angle(side_length_a:S, side_length_b:S, angle_gamma_rad:S) -> Triangle<S> {
+    pub fn from_sides_and_angle
+    (side_length_a:S, side_length_b:S, angle_gamma_rad:S)
+    -> Triangle<S> {
         let a_squared = side_length_a.clone() * side_length_a.clone();
         let b_squared = side_length_b.clone() * side_length_b.clone();
 
         let two = S::from(2.0_f32);
 
-        let c_squared     = a_squared.clone() + b_squared.clone()
-                            - (two.clone() * side_length_a.clone() * side_length_b.clone() * angle_gamma_rad.cos());
+        let c_squared_minuend    = a_squared.clone() + b_squared.clone();
+        let c_squared_subtrahend = two.clone() * side_length_a.clone() * side_length_b.clone() * angle_gamma_rad.cos();
+        let c_squared            =  c_squared_minuend - c_squared_subtrahend;
+
         let side_length_c = c_squared.sqrt();
 
-        let angle_alpha_rad_cos = (b_squared + c_squared - a_squared)
-                                  / (two * side_length_b.clone() * side_length_c.clone());
+        let angle_alpha_rad_cos_numerator   = b_squared + c_squared - a_squared;
+        let angle_alpha_rad_cos_denominator = two * side_length_b.clone() * side_length_c.clone();
+
+        let angle_alpha_rad_cos =  angle_alpha_rad_cos_numerator  / angle_alpha_rad_cos_denominator;
         let angle_alpha_rad     = angle_alpha_rad_cos.acos();
 
         let angle_beta_rad = S::from(PI) - angle_alpha_rad.clone() - angle_gamma_rad.clone();
