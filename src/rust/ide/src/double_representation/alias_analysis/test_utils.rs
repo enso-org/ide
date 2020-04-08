@@ -11,7 +11,6 @@ use regex::Regex;
 use regex::Replacer;
 
 
-
 // ============
 // === Case ===
 // ============
@@ -133,11 +132,12 @@ enum HasBeenValidated {No,Yes}
 /// Helper test structure that requires that each given identifier is validated at least once.
 /// Otherwise, it shall panic when dropped.
 #[derive(Clone,Debug)]
-pub struct IdentifierValidator {
-    validations:HashMap<NormalizedName,HasBeenValidated>
+pub struct IdentifierValidator<'a> {
+    node       :&'a NodeInfo,
+    validations:HashMap<NormalizedName,HasBeenValidated>,
 }
 
-impl IdentifierValidator {
+impl<'a> IdentifierValidator<'a> {
     /// Creates a new checker, with identifier set obtained from given node's representation
     /// spans.
     pub fn new(node:&NodeInfo,spans:Vec<Range<usize>>) -> IdentifierValidator {
@@ -148,7 +148,7 @@ impl IdentifierValidator {
             let name = NormalizedName::new(&repr[span]);
             validations.insert(name, HasBeenValidated::No);
         }
-        IdentifierValidator {validations}
+        IdentifierValidator {node,validations}
     }
 
     /// Marks given identifier as checked.
@@ -159,19 +159,30 @@ impl IdentifierValidator {
     }
 
     /// Marks given sequence of identifiers as checked.
-    pub fn validate_identifiers<'a>
+    pub fn validate_identifiers
     (&mut self, identifiers:impl IntoIterator<Item=&'a LocatedIdentifier>) {
         for identifier in identifiers {
-            self.validate_identifier(&identifier.item)
+            self.validate_identifier(&identifier.item);
+
+            let crumbs = &identifier.crumbs;
+            let ast    = self.node.ast().get_traversing(&crumbs).expect("failed to retrieve ast from crumb");
+            let name_err = || iformat!("Failed to use AST {ast.repr()} as an identifier name");
+            let name   = NormalizedName::try_from_ast(ast).expect(&name_err());
+            assert_eq!(name,identifier.item)
         }
     }
 }
 
 /// Panics if there are remaining identifiers that were not checked.
-impl Drop for IdentifierValidator {
+impl<'a> Drop for IdentifierValidator<'a> {
     fn drop(&mut self) {
-        for elem in &self.validations {
-            assert_eq!(elem.1, &HasBeenValidated::Yes, "identifier `{}` was not validated)", elem.0)
+        if !std::thread::panicking() {
+            for elem in &self.validations {
+                assert_eq!(elem.1, &HasBeenValidated::Yes,
+                           "identifier `{}` was not validated)", elem.0)
+            }
+        } else {
+            println!("Skipping identifier validation, because thread is already in panic.");
         }
     }
 }
