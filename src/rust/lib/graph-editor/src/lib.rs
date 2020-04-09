@@ -104,6 +104,10 @@ impl WeakNodeSet {
         self.take().into_iter().for_each(|(_,node)| { node.upgrade().for_each(|n| f(n)) })
     }
 
+    pub fn for_each<F:Fn(Node)>(&self,f:F) {
+        self.data.borrow().iter().for_each(|(_,node)| { node.upgrade().for_each(|n| f(n)) })
+    }
+
     pub fn insert(&self, node:&Node) {
         self.data.borrow_mut().insert(node.id(),node.downgrade());
     }
@@ -131,27 +135,28 @@ impl WeakNodeSelectionSet {
 
 #[derive(Debug)]
 pub struct NodesEvents {
-    pub select : frp::Stream<Option<WeakNode>>
+    pub select             : frp::Stream<Option<WeakNode>>,
+    pub translate_selected : frp::Source<Position>,
 }
 
 
 #[derive(Debug)]
 pub struct Events {
-    pub network               : frp::Network,
-    pub add_node_under_cursor : frp::Source,
-    pub add_node_at           : frp::Source<Position>,
-    pub remove_selected_nodes : frp::Source,
-    pub clear_graph           : frp::Source,
-    pub nodes                 : NodesEvents,
+    pub network                  : frp::Network,
+    pub add_node_under_cursor    : frp::Source,
+    pub add_node_at              : frp::Source<Position>,
+    pub remove_selected_nodes    : frp::Source,
+    pub clear_graph              : frp::Source,
+    pub nodes                    : NodesEvents,
 }
 
 impl Events {
     pub fn new(network:frp::Network, nodes:NodesEvents) -> Self {
         frp::extend_network! { network
-            def add_node_under_cursor = source::<()>       ();
-            def add_node_at           = source::<Position> ();
-            def remove_selected_nodes = source::<()>       ();
-            def clear_graph           = source::<()>       ();
+            def add_node_under_cursor    = source::<()>       ();
+            def add_node_at              = source::<Position> ();
+            def remove_selected_nodes    = source::<()>       ();
+            def clear_graph              = source::<()>       ();
         }
         Self {network,add_node_under_cursor,add_node_at,remove_selected_nodes,clear_graph,nodes}
     }
@@ -217,7 +222,11 @@ impl GraphEditor {
         let on_bg_press = bg_frp.press.clone_ref(); // FIXME
         let bg_select   = bg_frp.select.clone_ref(); // FIXME
 
-        let nodes_events = NodesEvents {select:node_select.clone_ref()};
+        frp::extend_network! { network
+            def translate_selected_nodes = source::<Position>();
+        }
+
+        let nodes_events = NodesEvents {select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
 
 
 
@@ -242,6 +251,7 @@ impl GraphEditor {
             });
         }
 
+        let translate_selected_nodes2 = translate_selected_nodes.clone_ref();
         frp::extend_network! { network
             let target      = nodes_frp.press.clone_ref(); // FIXME
             let is_pressed  = nodes_frp.is_pressed.clone_ref(); // FIXME
@@ -255,22 +265,39 @@ impl GraphEditor {
                         })
                     })
                 })
-
             });
-            trace translation;
+
+
+            let selected_nodes2 = selected_nodes.clone_ref();
+
+            def _move_node = translate_selected_nodes.map(move |t| {
+                selected_nodes2.for_each(|node| {
+                    node.mod_position(|p| {
+                            p.x += t.x;
+                            p.y += t.y;
+                        })
+                })
+            });
 
         }
+
 
 //        node_should_select.event.display_graphviz();
 
         let selected_nodes2 = selected_nodes.clone_ref();
 
         frp::extend_network! { network
+            let is_bg_pressed  = bg_frp.is_pressed.clone_ref(); // FIXME
+
+            trace is_bg_pressed;
+
             def mouse_down_position    = mouse.position.sample        (&mouse.press);
             def selection_zero         = source::<Position>           ();
             def selection_size_down    = mouse.position.map2          (&mouse_down_position,|m,n|{m-n});
-            def selection_size_if_down = selection_size_down.gate     (&mouse.down);
+            def selection_size_if_down = selection_size_down.gate     (&is_bg_pressed);
             def selection_size_on_down = selection_zero.sample        (&mouse.press);
+
+
             def selection_size         = selection_size_if_down.merge (&selection_size_on_down);
 
             def mouse_down_target      = mouse.press.map            (enclose!((scene) move |_| scene.mouse.target.get()));

@@ -202,3 +202,6 @@ impl<'t> From<&'t Cursor> for &'t display::object::Node {
         &t.view.display_object
     }
 }
+
+
+//add remove move i notyfikacja ze myszka lub klawiatura
