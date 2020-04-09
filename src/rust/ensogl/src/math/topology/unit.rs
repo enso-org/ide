@@ -290,10 +290,10 @@ impl AngleOps for Angle<Radians> {
     }
 }
 
-impls! { From< Angle<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
-impls! { From<&Angle<Radians>> for Glsl { |t| { iformat!("Radians({t.value.glsl()})").into() } }}
-impls! { From< Angle<Degrees>> for Glsl { |t| { iformat!("radians(Degrees({t.value.glsl()}))").into() } }}
-impls! { From<&Angle<Degrees>> for Glsl { |t| { iformat!("radians(Degrees({t.value.glsl()}))").into() } }}
+impls! { From< Angle<Radians>> for Glsl { |t| { glsl::f32_to_rad(&t.value.glsl()) } }}
+impls! { From<&Angle<Radians>> for Glsl { |t| { glsl::f32_to_rad(&t.value.glsl()) } }}
+impls! { From< Angle<Degrees>> for Glsl { |t| { glsl::deg_to_f32(&glsl::f32_to_deg(&t.value.glsl())) } }}
+impls! { From<&Angle<Degrees>> for Glsl { |t| { glsl::deg_to_f32(&glsl::f32_to_deg(&t.value.glsl())) } }}
 impls! { From<PhantomData<Angle<Radians>>> for glsl::PrimType {
     |_|  { "Radians".into() }
 }}
