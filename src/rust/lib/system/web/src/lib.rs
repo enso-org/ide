@@ -484,8 +484,15 @@ pub mod traits {
     pub use super::NodeRemover;
 }
 
+/// Sleeps for the specified amount of time.
+///
+/// This function might sleep for slightly longer than the specified duration but never less.
+///
+/// This function is an async version of std::thread::sleep.
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(duration:Duration) {
+    use wasm_bindgen_futures::JsFuture;
+
     let performance = performance();
     let call_time   = performance.now();
     let future : JsFuture = js_sys::Promise::new(&mut |resolve:Function,_| {
@@ -516,11 +523,11 @@ mod tests {
         type Instant = f64;
 
         pub fn now() -> Instant {
-            performance().now()
+            super::performance().now()
         }
 
         pub fn elapsed(instant: Instant) -> f64 {
-            performance().now() - instant
+            super::performance().now() - instant
         }
     }
 
