@@ -11,14 +11,18 @@ use enso_frp as frp;
 use ensogl::display::Buffer;
 use ensogl::data::color::*;
 use ensogl::data::color::Srgba;
+use ensogl::display::Attribute;
 use ensogl::display::Buffer;
-use ensogl::display::scene::{Scene,ShapeRegistry};
+use ensogl::display::Sprite;
+use ensogl::display::scene::Scene;
+use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
-use ensogl::display::{Sprite, Attribute};
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
+use ensogl::math::topology::unit::AngleOps;
+
 
 /// Icons definitions.
 pub mod icons {
@@ -252,8 +256,10 @@ impl Node {
         }
 
         // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-        self.data.ports.input.create(&self);
-        self.data.ports.output.create(&self);
+        let input_port = self.data.ports.input.create(&self);
+        input_port.set_position(90.0_f32.degrees());
+        let output_port = self.data.ports.output.create(&self);
+        output_port.set_position(270.0_f32.degrees());
 
         self
     }

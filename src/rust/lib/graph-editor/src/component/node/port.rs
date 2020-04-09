@@ -429,10 +429,11 @@ type OutputPortBuffer = PortBuffer<OutputPortView>;
 
 impl<T:PortShapeViewDefinition> PortBuffer<T> {
     /// create a new port in this buffer and sets it as a child node of the given parent.
-    pub fn create(&self, parent:&Node) {
+    pub fn create(&self, parent:&Node) -> Port<T> {
         let port = Port::default();
         parent.add_child(&port);
-        self.ports.borrow_mut().push(port);
+        self.ports.borrow_mut().push(port.clone());
+        port
     }
 }
 
