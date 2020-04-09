@@ -6,9 +6,9 @@ use core::fmt::Debug;
 
 
 
-// =====================
+// ===============
 // === Segment ===
-// =====================
+// ===============
 
 /// Implements computations related to circle segments. For details and background on the formulas
 /// used, see https://en.wikipedia.org/wiki/Circular_segment
@@ -56,6 +56,11 @@ where T: FloatLike<T> {
 
 }
 
+
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
