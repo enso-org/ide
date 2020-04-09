@@ -263,7 +263,7 @@ impl ShapeViewDefinition for OutputPortView {
 }
 
 /// Helper trait that describes a `ShapeViewDefinition` with a port shape.
-pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape> + Clone;
+pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape>;
 
 /// Port definition.
 ///
@@ -279,10 +279,18 @@ pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape> + Cl
 /// let input_port  = InputPort::default();
 /// let output_port = OutputPort::default();
 /// ```
-#[derive(Debug,Clone,CloneRef)]
+#[derive(Debug,CloneRef)]
 #[allow(missing_docs)]
-pub struct Port<T:PortShapeViewDefinition+Clone> {
+pub struct Port<T:PortShapeViewDefinition> {
     pub data : Rc<PortData<T>>
+}
+
+impl<T:PortShapeViewDefinition> Clone for Port<T>{
+    fn clone(&self) -> Self {
+        Self{
+            data: Rc::clone(&self.data)
+        }
+    }
 }
 
 /// Type that represents an input port.
@@ -299,7 +307,7 @@ pub struct PortData<T:PortShapeViewDefinition> {
     pub view : Rc<component::ShapeView<T>>
 }
 
-impl<T: PortShapeViewDefinition + Clone> Port<T> {
+impl<T: PortShapeViewDefinition> Port<T> {
 
     /// Internal constructor based on a given specification.
     fn new(spec:Specification) -> Self {
@@ -394,7 +402,7 @@ impl<T: PortShapeViewDefinition> From<Specification> for  Port<T>{
     }
 }
 
-impl<'t,T:PortShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
+impl<'t,T:PortShapeViewDefinition> From<&'t Port<T>> for &'t display::object::Node {
     fn from(t:&'t Port<T>) -> Self {
         &t.data.view.display_object
     }
@@ -409,7 +417,7 @@ impl<'t,T:PortShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::obje
 /// Data structure that creates and stores port shapes.
 #[derive(Debug,Default)]
 #[allow(missing_docs)]
-pub struct PortBuffer<T:PortShapeViewDefinition+Clone> {
+pub struct PortBuffer<T:PortShapeViewDefinition> {
     ports: RefCell<Vec<Port<T>>>,
 }
 
@@ -418,7 +426,7 @@ type InputPortBuffer = PortBuffer<InputPortView>;
 /// Helper type that represents a `PortBuffer` for `OutputPorts`.
 type OutputPortBuffer = PortBuffer<OutputPortView>;
 
-impl<T:PortShapeViewDefinition+Clone> PortBuffer<T> {
+impl<T:PortShapeViewDefinition> PortBuffer<T> {
     /// create a new port in this buffer and sets it as a child node of the given parent.
     pub fn create(&self, parent:&Node) {
         let port = Port::default();
