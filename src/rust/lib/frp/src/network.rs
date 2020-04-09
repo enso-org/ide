@@ -23,7 +23,7 @@ impl Subnetwork {
         default()
     }
 
-    pub fn destroy(&self) {
+    fn destroy(&self) {
         *self.data.borrow_mut() = None
     }
 }
@@ -82,6 +82,12 @@ impl NetworkData {
     /// Constructor.
     pub fn new() -> Self {
         default()
+    }
+}
+
+impl Drop for NetworkData {
+    fn drop(&mut self) {
+        self.subnetworks.borrow().iter().for_each(|subnetwork| subnetwork.destroy())
     }
 }
 
