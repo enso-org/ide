@@ -893,7 +893,6 @@ dependencies = [
  "ensogl-core-msdf-sys 0.1.0",
  "ensogl-system-web 0.1.0",
  "graph-editor 0.1.0",
- "ide 0.1.0",
  "im-rc 14.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",

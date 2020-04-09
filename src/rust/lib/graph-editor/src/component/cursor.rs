@@ -202,6 +202,3 @@ impl display::Object for Cursor {
         &self.view.display_object
     }
 }
-
-
-//add remove move i notyfikacja ze myszka lub klawiatura

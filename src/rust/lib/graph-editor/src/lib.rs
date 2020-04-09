@@ -136,6 +136,7 @@ impl WeakNodeSelectionSet {
 #[derive(Debug)]
 pub struct NodesEvents {
     pub press              : frp::Source<Option<WeakNode>>,
+    pub release            : frp::Stream<Option<WeakNode>>,
     pub select             : frp::Stream<Option<WeakNode>>,
     pub translate_selected : frp::Source<Position>,
 }
@@ -173,6 +174,7 @@ pub struct GraphEditor {
 
 pub struct SelectionNetwork<T:frp::Data> {
     pub press      : frp::Source<T>,
+    pub release    : frp::Stream<T>,
     pub is_pressed : frp::Stream<bool>,
     pub mouse_pos_on_press : frp::Stream<Position>,
     pub select     : frp::Stream<T>
@@ -193,7 +195,7 @@ impl<T:frp::Data> SelectionNetwork<T> {
             def release        = press.sample(&mouse_release);
             def select         = release.gate(&should_select);
         }
-        Self {press,is_pressed,mouse_pos_on_press,select}
+        Self {press,release,is_pressed,mouse_pos_on_press,select}
     }
 
     fn check(end:&Position, start:&Position, diff:&f32) -> bool {
@@ -219,6 +221,12 @@ impl GraphEditor {
         weak_node
     }
 
+    pub fn remove_node(&self, node:WeakNode) {
+        if let Some(node) = node.upgrade() {
+            self.node_set.remove(&node);
+        }
+    }
+
     pub fn new(world: &World) -> Self {
         let scene  = world.scene();
         let cursor = Cursor::new();
@@ -236,6 +244,7 @@ impl GraphEditor {
 
 
         let on_node_press = nodes_frp.press.clone_ref(); // FIXME
+        let on_node_release = nodes_frp.release.clone_ref();
         let node_select = nodes_frp.select.clone_ref(); // FIXME
 
         let on_bg_press = bg_frp.press.clone_ref(); // FIXME
@@ -245,7 +254,7 @@ impl GraphEditor {
             def translate_selected_nodes = source::<Position>();
         }
 
-        let nodes_events = NodesEvents {press:on_node_press.clone(), select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
+        let nodes_events = NodesEvents {press:on_node_press.clone(), release:on_node_release.clone(), select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
 
 
 
@@ -400,28 +409,6 @@ impl GraphEditor {
             }));
 
         }
-
-
-        let add_node_ref = events.add_node_under_cursor.clone_ref();
-        let remove_selected_nodes_ref = events.remove_selected_nodes.clone_ref();
-        let selected_nodes2 = selected_nodes.clone_ref();
-        let world2 = world.clone_ref();
-        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-            let val = val.unchecked_into::<web_sys::KeyboardEvent>();
-            let key = val.key();
-            if      key == "n"         { add_node_ref.emit(()) }
-            else if key == "Backspace" {
-                remove_selected_nodes_ref.emit(())
-            }
-            else if key == "p" {
-                selected_nodes2.for_each_taken(|node| {
-                    world2.scene().remove_child(&node);
-                })
-            }
-        }));
-        web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
-        c.forget();
-
 
         Self {frp:events,selected_nodes,display_object,node_set}
     }
