@@ -80,7 +80,8 @@ impl GraphEditorIntegration {
         let logger     = Logger::new("Node Editor");
         let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});
         Self::setup_controller_event_handling(&this);
-        Self::setup_keyboard_callbacks(&this);
+        Self::setup_keyboard_event_handling(&this);
+        Self::setup_mouse_event_handling(&this);
         this
     }
 
@@ -96,7 +97,7 @@ impl GraphEditorIntegration {
         executor::global::spawn(handler);
     }
 
-    fn setup_keyboard_callbacks(this:&Rc<Self>) {
+    fn setup_keyboard_event_handling(this:&Rc<Self>) {
         /// TODO [ao] replace with actual keybindings management.
         let weak = Rc::downgrade(this);
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
@@ -118,6 +119,23 @@ impl GraphEditorIntegration {
         }));
         web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
         c.forget();
+    }
+
+    fn setup_mouse_event_handling(this:&Rc<Self>) {
+        let weak = Rc::downgrade(this);
+        this.editor.frp.network.map("module_update", &this.editor.frp.nodes.release, move |node| {
+            let node = node.as_ref().and_then(|n| n.upgrade());
+            let this = weak.upgrade();
+            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
+                let id = this.node_to_id.borrow().get(&node.id()).cloned();
+                if let Some(id) = id {
+                    this.controller.module.with_node_metadata(id, |md| {
+                        let pos = node.position();
+                        md.position = Some(model::module::Position::new(pos.x, pos.y));
+                    })
+                }
+            }
+        });
     }
 }
 

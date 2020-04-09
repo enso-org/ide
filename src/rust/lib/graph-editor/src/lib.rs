@@ -136,6 +136,7 @@ impl WeakNodeSelectionSet {
 #[derive(Debug)]
 pub struct NodesEvents {
     pub press              : frp::Source<Option<WeakNode>>,
+    pub release            : frp::Stream<Option<WeakNode>>,
     pub select             : frp::Stream<Option<WeakNode>>,
     pub translate_selected : frp::Source<Position>,
 }
@@ -173,6 +174,7 @@ pub struct GraphEditor {
 
 pub struct SelectionNetwork<T:frp::Data> {
     pub press      : frp::Source<T>,
+    pub release    : frp::Stream<T>,
     pub is_pressed : frp::Stream<bool>,
     pub mouse_pos_on_press : frp::Stream<Position>,
     pub select     : frp::Stream<T>
@@ -193,7 +195,7 @@ impl<T:frp::Data> SelectionNetwork<T> {
             def release        = press.sample(&mouse_release);
             def select         = release.gate(&should_select);
         }
-        Self {press,is_pressed,mouse_pos_on_press,select}
+        Self {press,release,is_pressed,mouse_pos_on_press,select}
     }
 
     fn check(end:&Position, start:&Position, diff:&f32) -> bool {
@@ -242,6 +244,7 @@ impl GraphEditor {
 
 
         let on_node_press = nodes_frp.press.clone_ref(); // FIXME
+        let on_node_release = nodes_frp.release.clone_ref();
         let node_select = nodes_frp.select.clone_ref(); // FIXME
 
         let on_bg_press = bg_frp.press.clone_ref(); // FIXME
@@ -251,7 +254,7 @@ impl GraphEditor {
             def translate_selected_nodes = source::<Position>();
         }
 
-        let nodes_events = NodesEvents {press:on_node_press.clone(), select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
+        let nodes_events = NodesEvents {press:on_node_press.clone(), release:on_node_release.clone(), select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
 
 
 
