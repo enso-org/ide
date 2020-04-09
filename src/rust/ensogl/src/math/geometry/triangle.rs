@@ -15,70 +15,103 @@ use core::f32::consts::PI;
 ///                        C
 ///                       / \
 ///                     /    \
-///                   / gamma \
-///                 /          \
-///             b /             \ a
+///                   /       \
+///                 /  angle_c \
+///    side_ca    /             \  side_bc
 ///             /                \
 ///           /                   \
 ///         /                      \
 ///       /                         \
-///     /  alpha                beta-\
+///     /  angle_a           angle_b \
 ///   /------------------------------- B
-///  A                 c
+///  A                 side_ab
 /// ```
-/// Where a, b and c are the length of the respective side.
+/// Where side_ab, side_bc and side_ca are the length of the respective side.
 /// Where alpha, beta and gamma are the respective angle.
 ///
+/// Example
+/// -------
+/// ```
+/// # use ensogl::math::geometry::triangle::Triangle;
+/// # use assert_approx_eq::*;
+/// let result = Triangle::from_sides_and_angle(1.0, 1.0 , 60.0_f32.to_radians());
+///
+/// assert_approx_eq!(result.side_bc(), 1.0);
+/// assert_approx_eq!(result.angle_a(), 60.0_f32.to_radians());
+/// assert_approx_eq!(result.angle_c(), 60.0_f32.to_radians());
+/// ```
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Triangle<S> {
-    pub side_length_a   : S,
-    pub side_length_b   : S,
-    pub side_length_c   : S,
-    pub angle_alpha_rad : S,
-    pub angle_beta_rad  : S,
-    pub angle_gamma_rad : S,
-    // Prevent instantiation as something other than a result type from this module.
-    dummy: (),
+pub struct Triangle<T> {
+    side_bc: T,
+    side_ca: T,
+    side_ab: T,
+    angle_a: T,
+    angle_b: T,
+    angle_c: T,
 }
 
-pub trait FloatLike<S> = Field<S>
-                       + Sin<Output=S>
-                       + Cos<Output=S>
-                       + Acos<Output=S>
-                       + Sqrt<Output=S>
-                       + Clone
-                       + From<f32>;
+#[allow(missing_docs)]
+impl<T> Triangle<T>{
+    pub fn side_bc(&self) -> &T{
+        &self.side_bc
+    }
 
-impl<S> Triangle<S>
-where S:FloatLike<S> {
+    pub fn side_ca(&self) -> &T{
+        &self.side_ca
+    }
+
+    pub fn side_ab(&self) -> &T{
+        &self.side_ab
+    }
+
+    pub fn angle_a(&self) -> &T{
+        &self.angle_a
+    }
+
+    pub fn angle_b(&self) -> &T{
+        &self.angle_b
+    }
+
+    pub fn angle_c(&self) -> &T{
+        &self.angle_c
+    }
+}
+
+pub trait TriangleInput<T> = Field<T>
+                           + Sin<Output=T>
+                           + Cos<Output=T>
+                           + Acos<Output=T>
+                           + Sqrt<Output=T>
+                           + Clone
+                           + From<f32>;
+
+impl<T> Triangle<T>
+where T:TriangleInput<T> {
     /// Compute a triangle from two sides and the included angle (SAS).
     /// See https://en.wikipedia.org/wiki/Solution_of_triangles#Two_sides_and_the_included_angle_given_(SAS)
     pub fn from_sides_and_angle
-    (side_length_a:S, side_length_b:S, angle_gamma_rad:S)
-    -> Triangle<S> {
-        let a_squared = side_length_a.clone() * side_length_a.clone();
-        let b_squared = side_length_b.clone() * side_length_b.clone();
+    (side_bc:T, side_ca:T, angle_c:T) -> Triangle<T> {
+        let side_bc_squared = side_bc.clone() * side_bc.clone();
+        let side_ca_squared = side_ca.clone() * side_ca.clone();
 
-        let two = S::from(2.0_f32);
+        let two = T::from(2.0_f32);
 
-        let c_squared_minuend    = a_squared.clone() + b_squared.clone();
-        let c_squared_subtrahend = two.clone() * side_length_a.clone() * side_length_b.clone() * angle_gamma_rad.cos();
-        let c_squared            =  c_squared_minuend - c_squared_subtrahend;
+        let side_ab_squared_minuend    = side_bc_squared.clone() + side_ca_squared.clone();
+        let side_ab_squared_subtrahend = two.clone() * side_bc.clone() * side_ca.clone() * angle_c.cos();
+        let side_ab_squared            = side_ab_squared_minuend - side_ab_squared_subtrahend;
 
-        let side_length_c = c_squared.sqrt();
+        let side_ab = side_ab_squared.sqrt();
 
-        let angle_alpha_rad_cos_numerator   = b_squared + c_squared - a_squared;
-        let angle_alpha_rad_cos_denominator = two * side_length_b.clone() * side_length_c.clone();
+        let angle_a_cos_numerator   = side_ca_squared + side_ab_squared - side_bc_squared;
+        let angle_a_cos_denominator = two * side_ca.clone() * side_ab.clone();
 
-        let angle_alpha_rad_cos =  angle_alpha_rad_cos_numerator  / angle_alpha_rad_cos_denominator;
-        let angle_alpha_rad     = angle_alpha_rad_cos.acos();
+        let angle_a_cos =  angle_a_cos_numerator / angle_a_cos_denominator;
+        let angle_a     = angle_a_cos.acos();
 
-        let angle_beta_rad = S::from(PI) - angle_alpha_rad.clone() - angle_gamma_rad.clone();
+        let angle_b = T::from(PI) - angle_a.clone() - angle_c.clone();
 
-        Triangle
-            {side_length_a,side_length_b,side_length_c,angle_alpha_rad,angle_beta_rad
-            ,angle_gamma_rad,dummy: ()}
+        Triangle{side_bc,side_ca,side_ab,angle_a,angle_b,angle_c}
     }
 }
 
@@ -97,32 +130,32 @@ mod tests {
     fn test_from_sides_and_angle() {
         let result = Triangle::from_sides_and_angle(1.0, 1.0 , 60.0_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_a, 1.0);
-        assert_approx_eq!(result.side_length_b, 1.0);
-        assert_approx_eq!(result.angle_gamma_rad, 60_f32.to_radians());
+        assert_approx_eq!(result.side_bc(), 1.0);
+        assert_approx_eq!(result.side_ca(), 1.0);
+        assert_approx_eq!(result.angle_c(), 60_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_c, 1.0);
-        assert_approx_eq!(result.angle_beta_rad, 60.0_f32.to_radians());
-        assert_approx_eq!(result.angle_alpha_rad, 60.0_f32.to_radians());
+        assert_approx_eq!(result.side_ab(), 1.0);
+        assert_approx_eq!(result.angle_b(), 60.0_f32.to_radians());
+        assert_approx_eq!(result.angle_a(), 60.0_f32.to_radians());
 
         let result = Triangle::from_sides_and_angle(1.0, 1.0 , 90.0_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_a, 1.0);
-        assert_approx_eq!(result.side_length_b, 1.0);
-        assert_approx_eq!(result.angle_gamma_rad, 90_f32.to_radians());
+        assert_approx_eq!(result.side_bc(), 1.0);
+        assert_approx_eq!(result.side_ca(), 1.0);
+        assert_approx_eq!(result.angle_c(), 90_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_c, 1.4142135);
-        assert_approx_eq!(result.angle_beta_rad, 45.0_f32.to_radians());
-        assert_approx_eq!(result.angle_alpha_rad, 45.0_f32.to_radians());
+        assert_approx_eq!(result.side_ab(), 1.4142135);
+        assert_approx_eq!(result.angle_b(), 45.0_f32.to_radians());
+        assert_approx_eq!(result.angle_a(), 45.0_f32.to_radians());
 
         let result = Triangle::from_sides_and_angle(1.0, 4.0 , 128.0_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_a, 1.0);
-        assert_approx_eq!(result.side_length_b, 4.0);
-        assert_approx_eq!(result.angle_gamma_rad, 128_f32.to_radians());
+        assert_approx_eq!(result.side_bc(), 1.0);
+        assert_approx_eq!(result.side_ca(), 4.0);
+        assert_approx_eq!(result.angle_c(), 128_f32.to_radians());
 
-        assert_approx_eq!(result.side_length_c, 4.682445);
-        assert_approx_eq!(result.angle_beta_rad, 0.7384765);
-        assert_approx_eq!(result.angle_alpha_rad, 0.16909483);
+        assert_approx_eq!(result.side_ab(), 4.682445);
+        assert_approx_eq!(result.angle_b(), 0.7384765);
+        assert_approx_eq!(result.angle_a(), 0.16909483);
     }
 }

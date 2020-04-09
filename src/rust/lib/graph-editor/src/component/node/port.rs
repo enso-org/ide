@@ -142,7 +142,7 @@ mod shape {
         let angle_inner = Var::from(90_f32.to_radians());
         let triangle    = triangle::Triangle::from_sides_and_angle(height,shape_width,angle_inner);
 
-        let corner_angle = Var::<Angle<Radians>>::from(triangle.angle_beta_rad);
+        let corner_angle = Var::<Angle<Radians>>::from(triangle.angle_b().clone());
         let base_shape   = Plane().cut_angle(corner_angle);
 
         // `circle_outer_radius_scale` toggles whether the circle will have any effect on the
