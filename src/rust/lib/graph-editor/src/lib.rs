@@ -219,6 +219,12 @@ impl GraphEditor {
         weak_node
     }
 
+    pub fn remove_node(&self, node:WeakNode) {
+        if let Some(node) = node.upgrade() {
+            self.node_set.remove(&node);
+        }
+    }
+
     pub fn new(world: &World) -> Self {
         let scene  = world.scene();
         let cursor = Cursor::new();
@@ -405,22 +411,7 @@ impl GraphEditor {
         let add_node_ref = events.add_node_under_cursor.clone_ref();
         let remove_selected_nodes_ref = events.remove_selected_nodes.clone_ref();
         let selected_nodes2 = selected_nodes.clone_ref();
-        let world2 = world.clone_ref();
-        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-            let val = val.unchecked_into::<web_sys::KeyboardEvent>();
-            let key = val.key();
-            if      key == "n"         { add_node_ref.emit(()) }
-            else if key == "Backspace" {
-                remove_selected_nodes_ref.emit(())
-            }
-            else if key == "p" {
-                selected_nodes2.for_each_taken(|node| {
-                    world2.scene().remove_child(&node);
-                })
-            }
-        }));
-        web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
-        c.forget();
+
 
 
         Self {frp:events,selected_nodes,display_object,node_set}

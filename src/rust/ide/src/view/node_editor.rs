@@ -4,8 +4,9 @@ use crate::prelude::*;
 
 use crate::notification;
 
-use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl::display::object::Id;
+use ensogl::display::traits::*;
 use ensogl::display::world::World;
 use graph_editor::GraphEditor;
 use graph_editor::component::node::Node;
@@ -13,53 +14,93 @@ use graph_editor::component::node::WeakNode;
 use utils::channel::process_stream_with_handle;
 use enso_frp::stream::EventEmitter;
 use enso_frp::Position;
+use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 
 
 // ====================
 // === Node Editor ===
 // ====================
 
-struct GraphEditorIntegration<NodeMovedCb,NodeRemovedCb> {
-    editor       : GraphEditor,
-    id_to_node   : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
-    node_to_id   : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
-    node_moved   : NodeMovedCb,
-    node_removed : NodeRemovedCb,
+#[derive(Debug)]
+struct GraphEditorIntegration {
+    pub editor     : GraphEditor,
+    pub controller : controller::Graph,
+    id_to_node     : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
+    node_to_id     : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
+
 }
 
-impl<Cb1,Cb2> GraphEditorIntegration<Cb1,Cb2> {
+impl GraphEditorIntegration {
     fn retain_ids(&self, ids:&HashSet<ast::Id>) {
         for (id,node) in self.id_to_node.borrow().iter() {
             if !ids.contains(id) {
-                todo!()
+                self.editor.remove_node(node.downgrade())
             }
         }
     }
 
-    fn add_node(&self, id:ast::Id, position:&Position) {
-        self.editor.frp.add_node_at.emit_event(&position);
-        let node = default(); // FIXME;
-        self.id_to_node.borrow_mut().insert(id,node);
-        self.node_to_id.borrow_mut().insert(node,id);
+    fn invalidate_graph(&self) -> FallibleResult<()> {
+        let nodes = self.controller.nodes()?;
+        let ids   = nodes.iter().map(|node| node.info.id() ).collect();
+        Logger::new("DEBUG").error(|| format!("INVALIDATE {:?}", ids));
+        self.retain_ids(&ids);
+        for (i,node_info) in nodes.iter().enumerate() {
+            let id          = node_info.info.id();
+            let position    = node_info.metadata.and_then(|md| md.position);
+            let default_pos = || Vector3::new(i as f32 * 100.0,0.0,0.0);
+            match self.id_to_node.borrow_mut().entry(id) {
+                Occupied(entry) => if let Some(pos) = position {
+                    entry.get().set_position(Self::pos_to_vec3(pos));
+                },
+                Vacant(entry)   => {
+                    let node = self.editor.add_node().upgrade().unwrap();
+                    node.set_position(position.map_or_else(default_pos,Self::pos_to_vec3));
+                    entry.insert(node.clone_ref());
+                    self.node_to_id.borrow_mut().insert(node,id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn pos_to_vec3(pos:model::module::Position) -> Vector3<f32> {
+        Vector3::new(pos.vector.x,pos.vector.y,0.0)
     }
 }
 
-impl <NodeMovedCb,NodeRemovedCb> GraphEditorIntegration<NodeMovedCb,NodeRemovedCb>
-where NodeMovedCb   : Fn(ast::Id,Position),
-      NodeRemovedCb : Fn(ast::Id) {
+impl GraphEditorIntegration {
 
-    fn new(world:&World, node_moved:NodeMovedCb, node_removed:NodeRemovedCb) -> Self {
+    fn new(world:&World, controller:controller::Graph) -> Rc<Self> {
         let editor     = graph_editor::GraphEditor::new(world);
         let id_to_node = default();
         let node_to_id = default();
-        GraphEditorIntegration {editor,id_to_node,node_to_id,node_moved,node_removed}
+        let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id});
+        Self::setup_controller_event_handling(&this);
+        this
+    }
+
+    fn setup_controller_event_handling(this:&Rc<Self>) {
+        let stream  = this.controller.subscribe();
+        let weak    = Rc::downgrade(this);
+        let handler = process_stream_with_handle(stream,weak,move |notification,this| {
+            match notification {
+                notification::Graph::Invalidate => this.invalidate_graph(),
+            };
+            futures::future::ready(())
+        });
+        executor::global::spawn(handler);
+    }
+
+    fn setup_callbacks(this:Rc<Self>) -> Rc<Self> {
+        todo!("Coming soon");
+        this
     }
 }
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
     display_object : display::object::Node,
-    graph          : Rc<GraphEditor>,
+    graph          : Rc<GraphEditorIntegration>,
     controller     : controller::graph::Handle,
     logger         : Logger,
 }
@@ -68,39 +109,9 @@ impl NodeEditor {
     pub fn new(logger:&Logger, world:&World, controller:controller::graph::Handle) -> Self {
         let logger         = logger.sub("GraphEditor");
         let display_object = display::object::Node::new(&logger);
-        let graph          = Rc::new(graph_editor::GraphEditor::new(world));
-        display_object.add_child(graph.deref());
-        let editor         = NodeEditor {display_object,graph,controller,logger};
-        editor.initialize()
-    }
-
-    fn initialize(self) -> Self {
-        Self::update_graph(self.graph.deref(),&self.controller);
-        self.setup_controller_notifications();
-        self
-    }
-
-    fn setup_controller_notifications(&self) {
-        let subscribe  = self.controller.subscribe();
-        let weak_graph = Rc::downgrade(&self.graph);
-        let controller = self.controller.clone();
-        executor::global::spawn(process_stream_with_handle(subscribe,weak_graph, move |notification,graph| {
-            match notification {
-                notification::Graph::Invalidate => {
-                    Self::update_graph(graph.deref(),&controller)
-                }
-            }
-            futures::future::ready(())
-        }));
-    }
-
-    fn update_graph(graph:&GraphEditor, controller:&controller::Graph) {
-        graph.frp.clear_graph.emit(());
-        if let Ok(nodes_info) = controller.nodes() {
-            let nodes_with_index = nodes_info.iter().enumerate();
-            let nodes_positions  = nodes_with_index.map(|(i,n)| n.metadata.and_then(|m| m.position).map(|p| enso_frp::Position::new(p.vector.x, p.vector.y)).unwrap_or_else(|| enso_frp::Position::new(i as f32 * 100.0,0.0)));
-            for pos in nodes_positions { graph.frp.add_node_at.emit(pos) }
-        }
+        let graph          = GraphEditorIntegration::new(world,controller.clone_ref());
+        display_object.add_child(&graph.editor);
+        NodeEditor {display_object,graph,controller,logger}
     }
 }
 
