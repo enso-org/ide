@@ -1,5 +1,7 @@
 //! This module defines the shapes and logic required for drawing node ports.
 
+use crate::prelude::*;
+
 use crate::component::node::WeakNode;
 
 use core::f32::consts::PI;
@@ -16,14 +18,12 @@ use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
-use ensogl::math::geometry::circle::circle_segment::CircleSegment;
+use ensogl::math::geometry::circle::segment::Segment;
 use ensogl::math::geometry::triangle;
 use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
 use ensogl::math::topology::unit::{Angle,Degrees};
-use ensogl::prelude::*;
-use nalgebra;
 
 
 
@@ -93,8 +93,8 @@ mod shape {
     /// faces away from the center, the angle gets limited by the inner ring and shows a convex
     /// "hole" on that side.
     ///
-    /// Illustrations (not to scale).
-    /// ---------------
+    /// Illustrations (not to scale)
+    /// ------------------------------
     /// Inwards facing port                           | Outwards facing port
     ///                                               |
     ///                                               |
@@ -123,13 +123,13 @@ mod shape {
 
         // This describes the segment between the angle and the outer ring.
         let segment_outer_radius  = outer_radius.clone();
-        let segment_outer         = CircleSegment::new(
+        let segment_outer         = Segment::new(
             segment_outer_radius,segment_width_rad.clone()
         );
 
         // This describes the segment between the angle and the inner ring.
         let segment_inner_radius = inner_radius.clone();
-        let segment_inner = CircleSegment::new(segment_inner_radius,segment_width_rad);
+        let segment_inner = Segment::new(segment_inner_radius, segment_width_rad);
 
         // And derive the shape outline parameters from it.
         let shape_height = height.clone() + segment_outer.sagitta();
@@ -277,7 +277,7 @@ pub type OutputPort = Port<OutputPortView>;
 /// Internal data of `Port.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct PortData<T:ShapeViewDefinition+Clone> {
+pub struct PortData<T:ShapeViewDefinition> {
         spec : RefCell<Specification>,
     pub view : Rc<component::ShapeView<T>>
 }
@@ -288,9 +288,9 @@ impl<T:ShapeViewDefinition<Shape=shape::Shape>+Clone> Port<T> {
     pub fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
-        let spec = RefCell::new(spec);
-        let data = PortData{spec,view};
-        Self{data: Rc::new(data)}.init()
+        let spec   = RefCell::new(spec);
+        let data   = Rc::new(PortData{spec,view});
+        Self {data} . init()
     }
 
     fn init(self) -> Self {
@@ -315,14 +315,14 @@ impl<T:ShapeViewDefinition<Shape=shape::Shape>+Clone> Port<T> {
     /// are tied together, so the Port always point in the right direction.
     fn update_sprite(&self) {
         let spec = self.data.spec.borrow();
-        let translation_vector = nalgebra::Vector3::new(0.0,spec.inner_radius,0.0);
-        let rotation_vector    = -nalgebra::Vector3::new(0.0,0.0,spec.location.rad().value);
+        let translation_vector = Vector3::new(0.0,spec.inner_radius,0.0);
+        let rotation_vector    = -Vector3::new(0.0,0.0,spec.location.rad().value);
         let rotation           = nalgebra::Rotation3::new(rotation_vector);
         let translation        = rotation * translation_vector;
 
-        let node = &self.data.view.display_object;
-        node.set_position(translation);
-        node.set_rotation(rotation_vector);
+        // let node = &self.data.view.display_object;
+        self.set_position(translation);
+        self.set_rotation(rotation_vector);
     }
 
     /// Update the shape parameters with values from our `Specification`.
@@ -406,7 +406,7 @@ impl PortManager{
     }
 
     /// Update the shapes of all ports with the currently set specification values.
-    fn update_port_shapes(& self) {
+    fn update_port_shapes(&self) {
         for port in self.input_ports.borrow_mut().iter_mut() {
             port.update()
         }

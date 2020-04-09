@@ -472,9 +472,7 @@ impl<T> Acos for Var<T>
 
 impl<T> Sqrt for Var<T>
 where T: Sqrt<Output=T> {
-
     type Output = Var<T>;
-
     fn sqrt(&self) -> Self {
         match self {
             Self::Static  (t) => Var::Static(t.sqrt()),

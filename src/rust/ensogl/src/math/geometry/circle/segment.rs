@@ -7,25 +7,25 @@ use core::fmt::Debug;
 
 
 // =====================
-// === CircleSegment ===
+// === Segment ===
 // =====================
 
 /// Implements computations related to circle segments. For details and background on the formulas
 /// used, see https://en.wikipedia.org/wiki/Circular_segment
 #[derive(Clone,Debug,PartialEq)]
-pub struct CircleSegment<T> {
+pub struct Segment<T> {
     radius : T,
     angle  : T,
 }
 
 pub trait FloatLike<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + From<f32> + Clone + Debug;
 
-impl<T> CircleSegment<T>
+impl<T> Segment<T>
 where T: FloatLike<T> {
 
     /// Constructor. Angle is required to be in radians.
     pub fn new(radius:T, angle:T) -> Self {
-        CircleSegment{radius,angle}
+        Segment {radius,angle}
     }
 
     /// The length of the direct line between the segment end points.
@@ -64,109 +64,109 @@ mod tests {
 
     #[test]
     fn check_arc_length() {
-        let segment = CircleSegment::new(1.0, 0_f32.to_radians());
+        let segment = Segment::new(1.0, 0_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 0.0);
 
-        let segment = CircleSegment::new(1.0, 15_f32.to_radians());
+        let segment = Segment::new(1.0, 15_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 0.2617994);
 
-        let segment = CircleSegment::new(1.0, 45_f32.to_radians());
+        let segment = Segment::new(1.0, 45_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 0.7853982);
 
-        let segment = CircleSegment::new(1.0, 65_f32.to_radians());
+        let segment = Segment::new(1.0, 65_f32.to_radians());
           assert_approx_eq!(segment.arc_length(), 1.1344640);
 
-        let segment = CircleSegment::new(1.0, 75_f32.to_radians());
+        let segment = Segment::new(1.0, 75_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 1.3089969);
 
-        let segment = CircleSegment::new(1.0, 180_f32.to_radians());
+        let segment = Segment::new(1.0, 180_f32.to_radians());
          assert_approx_eq!(segment.arc_length(), 3.1415927);
 
-        let segment = CircleSegment::new(1.0, 359_f32.to_radians());
+        let segment = Segment::new(1.0, 359_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 6.2657320);
 
-        let segment = CircleSegment::new(1.0, 360_f32.to_radians());
+        let segment = Segment::new(1.0, 360_f32.to_radians());
         assert_approx_eq!(segment.arc_length(), 6.2831853);
     }
 
     #[test]
     fn check_chord_length() {
-        let segment = CircleSegment::new(1.0, 0_f32.to_radians());
+        let segment = Segment::new(1.0, 0_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 0.0);
 
-        let segment = CircleSegment::new(1.0, 15_f32.to_radians());
+        let segment = Segment::new(1.0, 15_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 0.2610524);
 
-        let segment = CircleSegment::new(1.0, 45_f32.to_radians());
+        let segment = Segment::new(1.0, 45_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 0.7653669);
 
-        let segment = CircleSegment::new(1.0, 65_f32.to_radians());
+        let segment = Segment::new(1.0, 65_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 1.0745992);
 
-        let segment = CircleSegment::new(1.0, 75_f32.to_radians());
+        let segment = Segment::new(1.0, 75_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 1.2175229);
 
-        let segment = CircleSegment::new(1.0, 180_f32.to_radians());
+        let segment = Segment::new(1.0, 180_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 2.0);
 
-        let segment = CircleSegment::new(1.0, 359_f32.to_radians());
+        let segment = Segment::new(1.0, 359_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 0.0174531);
 
-        let segment = CircleSegment::new(1.0, 360_f32.to_radians());
+        let segment = Segment::new(1.0, 360_f32.to_radians());
         assert_approx_eq!(segment.chord_length(), 0.0);
     }
 
     #[test]
     fn check_sagitta() {
-        let segment = CircleSegment::new(1.0, 0_f32.to_radians());
+        let segment = Segment::new(1.0, 0_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 0.0);
 
-        let segment = CircleSegment::new(1.0, 15_f32.to_radians());
+        let segment = Segment::new(1.0, 15_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 0.0085551);
 
-        let segment = CircleSegment::new(1.0, 45_f32.to_radians());
+        let segment = Segment::new(1.0, 45_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 0.0761205);
 
-        let segment = CircleSegment::new(1.0, 65_f32.to_radians());
+        let segment = Segment::new(1.0, 65_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 0.1566086);
 
-        let segment = CircleSegment::new(1.0, 75_f32.to_radians());
+        let segment = Segment::new(1.0, 75_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 0.2066467);
 
-        let segment = CircleSegment::new(1.0, 180_f32.to_radians());
+        let segment = Segment::new(1.0, 180_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 1.0);
 
-        let segment = CircleSegment::new(1.0, 359_f32.to_radians());
+        let segment = Segment::new(1.0, 359_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 1.9999619);
 
-        let segment = CircleSegment::new(1.0, 360_f32.to_radians());
+        let segment = Segment::new(1.0, 360_f32.to_radians());
         assert_approx_eq!(segment.sagitta(), 2.0);
     }
 
     #[test]
     fn check_apothem() {
-        let segment = CircleSegment::new(1.0, 0_f32.to_radians());
+        let segment = Segment::new(1.0, 0_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 0.0);
 
-        let segment = CircleSegment::new(1.0, 15_f32.to_radians());
+        let segment = Segment::new(1.0, 15_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 0.0085551);
 
-        let segment = CircleSegment::new(1.0, 45_f32.to_radians());
+        let segment = Segment::new(1.0, 45_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 0.0761205);
 
-        let segment = CircleSegment::new(1.0, 65_f32.to_radians());
+        let segment = Segment::new(1.0, 65_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 0.1566086);
 
-        let segment = CircleSegment::new(1.0, 75_f32.to_radians());
+        let segment = Segment::new(1.0, 75_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 0.2066467);
 
-        let segment = CircleSegment::new(1.0, 180_f32.to_radians());
+        let segment = Segment::new(1.0, 180_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 1.0);
 
-        let segment = CircleSegment::new(1.0, 359_f32.to_radians());
+        let segment = Segment::new(1.0, 359_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 1.9999619);
 
-        let segment = CircleSegment::new(1.0, 360_f32.to_radians());
+        let segment = Segment::new(1.0, 360_f32.to_radians());
         assert_approx_eq!(segment.apothem(), 1.0 - 2.0);
     }
 }

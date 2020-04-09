@@ -76,15 +76,9 @@ where S:FloatLike<S> {
 
         let angle_beta_rad = S::from(PI) - angle_alpha_rad.clone() - angle_gamma_rad.clone();
 
-        Triangle{
-            side_length_a,
-            side_length_b,
-            side_length_c,
-            angle_alpha_rad,
-            angle_beta_rad,
-            angle_gamma_rad,
-            dummy: ()
-        }
+        Triangle
+            {side_length_a,side_length_b,side_length_c,angle_alpha_rad,angle_beta_rad
+            ,angle_gamma_rad,dummy: ()}
     }
 }
 
