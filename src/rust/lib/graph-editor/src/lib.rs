@@ -135,6 +135,7 @@ impl WeakNodeSelectionSet {
 
 #[derive(Debug)]
 pub struct NodesEvents {
+    pub press              : frp::Source<Option<WeakNode>>,
     pub select             : frp::Stream<Option<WeakNode>>,
     pub translate_selected : frp::Source<Position>,
 }
@@ -167,6 +168,7 @@ pub struct GraphEditor {
     pub frp            : Events,
     pub selected_nodes : WeakNodeSelectionSet,
     pub display_object : display::object::Node,
+    pub node_set       : NodeSet,
 }
 
 pub struct SelectionNetwork<T:frp::Data> {
@@ -200,6 +202,23 @@ impl<T:frp::Data> SelectionNetwork<T> {
 }
 
 impl GraphEditor {
+
+    pub fn add_node(&self) -> WeakNode {
+        let node      = Node::new();
+        let weak_node = node.downgrade();
+        let network   = &self.frp.network;
+        let on_node_press = self.frp.nodes.press.clone_ref();
+        frp::new_subnetwork! { [network,node.view.events.network]
+            def foo_ = node.view.events.mouse_down.map(move |_|
+                on_node_press.emit(Some(weak_node.clone_ref()))
+            );
+        }
+        self.display_object.add_child(&node);
+        let weak_node = node.downgrade();
+        self.node_set.insert(node);
+        weak_node
+    }
+
     pub fn new(world: &World) -> Self {
         let scene  = world.scene();
         let cursor = Cursor::new();
@@ -226,7 +245,7 @@ impl GraphEditor {
             def translate_selected_nodes = source::<Position>();
         }
 
-        let nodes_events = NodesEvents {select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
+        let nodes_events = NodesEvents {press:on_node_press.clone(), select:node_select.clone_ref(),translate_selected:translate_selected_nodes.clone_ref()};
 
 
 
@@ -310,18 +329,11 @@ impl GraphEditor {
             def _node_added = add_node_unified.map(enclose!((network,node_set,on_node_press,display_object) move |pos| { // on_node_press
                 let node = Node::new();
                 let weak_node = node.downgrade();
-                // FIXME: commented
                 frp::new_subnetwork! { [network,node.view.events.network]
                     def foo_ = node.view.events.mouse_down.map(enclose!((on_node_press) move |_| {
                         on_node_press.emit(Some(weak_node.clone_ref()))
                     }));
                 }
-//
-//                let subnet = frp::Subnetwork::from(net);
-//                network.register_subnetwork(&subnet);
-//                node.view.events.network.register_subnetwork(&subnet);
-
-
                 display_object.add_child(&node);
                 node.mod_position(|t| {
                     t.x += pos.x as f32;
@@ -336,7 +348,7 @@ impl GraphEditor {
                 node_set.clear();
             }));
 
-            def _bar = events.remove_selected_nodes.map(enclose!((selected_nodes2) move |_| {
+            def _bar = events.remove_selected_nodes.map(enclose!((node_set,selected_nodes2) move |_| {
                 selected_nodes2.for_each_taken(|node| {
                     node_set.remove(&node);
                 })
@@ -411,7 +423,7 @@ impl GraphEditor {
         c.forget();
 
 
-        Self {frp:events,selected_nodes,display_object}
+        Self {frp:events,selected_nodes,display_object,node_set}
     }
 }
 
