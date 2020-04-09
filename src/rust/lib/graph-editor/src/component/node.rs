@@ -149,6 +149,18 @@ pub struct WeakNode {
     data : Weak<NodeData>
 }
 
+impl WeakElement for WeakNode {
+    type Strong = Node;
+
+    fn new(view: &Self::Strong) -> Self {
+        view.downgrade()
+    }
+
+    fn view(&self) -> Option<Self::Strong> {
+        self.upgrade()
+    }
+}
+
 /// Shape view for Node.
 #[derive(Debug,Clone,Copy)]
 pub struct NodeView {}

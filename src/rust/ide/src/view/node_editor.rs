@@ -2,21 +2,61 @@
 
 use crate::prelude::*;
 
+use crate::notification;
+
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::display::world::World;
-
 use graph_editor::GraphEditor;
-use crate::notification;
+use graph_editor::component::node::Node;
+use graph_editor::component::node::WeakNode;
 use utils::channel::process_stream_with_handle;
-
+use enso_frp::stream::EventEmitter;
+use enso_frp::Position;
 
 
 // ====================
-// === Graph Editor ===
+// === Node Editor ===
 // ====================
 
-#[derive(Clone,Debug)]
+struct GraphEditorIntegration<NodeMovedCb,NodeRemovedCb> {
+    editor       : GraphEditor,
+    id_to_node   : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
+    node_to_id   : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
+    node_moved   : NodeMovedCb,
+    node_removed : NodeRemovedCb,
+}
+
+impl<Cb1,Cb2> GraphEditorIntegration<Cb1,Cb2> {
+    fn retain_ids(&self, ids:&HashSet<ast::Id>) {
+        for (id,node) in self.id_to_node.borrow().iter() {
+            if !ids.contains(id) {
+                todo!()
+            }
+        }
+    }
+
+    fn add_node(&self, id:ast::Id, position:&Position) {
+        self.editor.frp.add_node_at.emit_event(&position);
+        let node = default(); // FIXME;
+        self.id_to_node.borrow_mut().insert(id,node);
+        self.node_to_id.borrow_mut().insert(node,id);
+    }
+}
+
+impl <NodeMovedCb,NodeRemovedCb> GraphEditorIntegration<NodeMovedCb,NodeRemovedCb>
+where NodeMovedCb   : Fn(ast::Id,Position),
+      NodeRemovedCb : Fn(ast::Id) {
+
+    fn new(world:&World, node_moved:NodeMovedCb, node_removed:NodeRemovedCb) -> Self {
+        let editor     = graph_editor::GraphEditor::new(world);
+        let id_to_node = default();
+        let node_to_id = default();
+        GraphEditorIntegration {editor,id_to_node,node_to_id,node_moved,node_removed}
+    }
+}
+
+#[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
     display_object : display::object::Node,
     graph          : Rc<GraphEditor>,
