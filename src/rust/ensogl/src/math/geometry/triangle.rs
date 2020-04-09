@@ -98,7 +98,10 @@ where T:TriangleInput<T> {
         let two = T::from(2.0_f32);
 
         let side_ab_squared_minuend    = side_bc_squared.clone() + side_ca_squared.clone();
-        let side_ab_squared_subtrahend = two.clone() * side_bc.clone() * side_ca.clone() * angle_c.cos();
+
+        let side_ab_squared_subtrahend =
+            two.clone() * side_bc.clone() * side_ca.clone() * angle_c.cos();
+
         let side_ab_squared            = side_ab_squared_minuend - side_ab_squared_subtrahend;
 
         let side_ab = side_ab_squared.sqrt();
