@@ -95,7 +95,8 @@ mod shape {
     ///
     /// Illustrations (not to scale)
     /// ------------------------------
-    /// Inwards facing port                           | Outwards facing port
+    /// ```text
+    ///  Inwards facing port                           | Outwards facing port
     ///                                               |
     ///                                               |
     ///       *-------------------- inner radius      |          *  ---------------- outer radius
@@ -107,7 +108,7 @@ mod shape {
     ///                                                                        space that depends
     ///  \----------|                                      \------------|       on the radius
     ///     width                                              width
-    ///
+    /// ```
     /// The shape description sets up both shapes and then applies only one of the variants:
     /// either it limits of the inward facing angle with the outer ring or it cuts of the
     /// angle with the inner ring.

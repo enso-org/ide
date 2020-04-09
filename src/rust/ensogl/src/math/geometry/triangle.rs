@@ -10,22 +10,22 @@ use core::f32::consts::PI;
 ///
 ///
 /// Triangle Schematic
-/// ----------------------
-///
-///                           C
-///                          / \
-///                        /    -\
-///                      -/ gamma --\
-///                   --/            --\
-///               b -/                  --\ a
-///              --/                       --\
-///            -/                             --\
-///          -/                                  --\
-///       --/                                       --\
-///     -/  alpha                                   beta-\
-///   -/--------------------------------------------------- B
-///  A                              c
-///
+/// -------------------
+/// ```text
+///                        C
+///                       / \
+///                     /    \
+///                   / gamma \
+///                 /          \
+///             b /             \ a
+///             /                \
+///           /                   \
+///         /                      \
+///       /                         \
+///     /  alpha                beta-\
+///   /------------------------------- B
+///  A                 c
+/// ```
 /// Where a, b and c are the length of the respective side.
 /// Where alpha, beta and gamma are the respective angle.
 ///
