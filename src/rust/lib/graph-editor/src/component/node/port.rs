@@ -319,8 +319,8 @@ impl<T: PortShapeViewDefinition> Port<T> {
     }
 
     fn init(self) -> Self {
-        self.update_shape();
-        self.update_sprite();
+        self.init_shape();
+        self.update_sprite_position();
         self
     }
 
@@ -329,7 +329,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
     /// Note this shadows the `set_position` function of `ObjectOps`.
     pub fn set_position(&self, position:Angle<Degrees>) {
         self.data.spec.borrow_mut().position = position;
-        self.update_sprite();
+        self.update_sprite_position();
     }
 
     /// Modifies the port's position.
@@ -337,7 +337,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
     /// Note this shadows the `set_position` function of `ObjectOps`.
     pub fn mod_position<F:FnOnce(&mut Angle<Degrees>)>(&self, f:F){
         f(&mut self.data.spec.borrow_mut().position);
-        self.update_sprite();
+        self.update_sprite_position();
     }
 
     /// Sets the ports inner radius.
@@ -346,7 +346,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.inner_radius.set(inner_radius);
         }
-        self.update_sprite()
+        self.update_sprite_position()
     }
 
     /// Sets the ports height.
@@ -369,7 +369,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
     /// Needs to be called whenever the `position` or `inner_radius` is modified.
-    fn update_sprite(&self) {
+    fn update_sprite_position(&self) {
         let spec               = self.data.spec.borrow();
         let translation_vector = Vector3::new(0.0,spec.inner_radius,0.0);
         let rotation_vector    = -Vector3::new(0.0,0.0,spec.position.rad().value);
@@ -382,7 +382,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
 
     /// Update the shape parameters with values from our `Specification`.
     /// Should only be used upon initialisation.
-    fn update_shape(&self){
+    fn init_shape(&self){
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             let spec = self.data.spec.borrow();
             t.shape.update_from_spec(&spec);
