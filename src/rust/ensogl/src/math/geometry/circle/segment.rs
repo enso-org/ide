@@ -18,10 +18,11 @@ pub struct Segment<T> {
     angle  : T,
 }
 
-pub trait FloatLike<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + From<f32> + Clone + Debug;
+/// Helper trait to define the traits required in the Segment computations.
+pub trait SegmentInput<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + From<f32> + Clone + Debug;
 
 impl<T> Segment<T>
-where T: FloatLike<T> {
+where T: SegmentInput<T> {
 
     /// Constructor. Angle is required to be in radians.
     pub fn new(radius:T, angle:T) -> Self {
