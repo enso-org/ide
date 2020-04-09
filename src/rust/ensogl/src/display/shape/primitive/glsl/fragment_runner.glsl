@@ -19,8 +19,8 @@ if (input_display_mode == 0) {
     output_color = rgba(col).raw;
 } else if (input_display_mode == 2) {
     float object_hue  = float((input_instance_id * 7) % 100) / 100.0;
-    Srgb object_color = srgb(hsv(object_hue, 0.5, 0.5));
-    output_color.rgb  = object_colorn.raw.rgb;
+    Srgb object_color = srgb(hsv(object_hue, 1.0, 0.5));
+    output_color.rgb  = object_color.raw.rgb;
     output_color.a    = float(alpha_no_aa);
     output_color.rgb *= float(alpha_no_aa);
 }
