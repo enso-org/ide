@@ -10,15 +10,17 @@ graph. The covered topics are mostly identifiers, scopes and their interactions.
 
 ## Identifier
 Identifier is a name that denotes a value, i.e. that is bound to a value. The
-compiler also keeps track of its type, i.e. the set of possible values. Syntactically we recognize:
-* variable names, being names that do not contain upper-cased characters, like `foo2`
-  or `make_new`;
+compiler also keeps track of its type, i.e. the set of possible values. 
+Syntactically we recognize:
+* variable names, being names that do not contain upper-cased characters, like
+  `foo2` or `make_new`;
 * constructor names, which are like variables but with first character and every
   character directly following underscore upper-cased (e.g. `Foo2` or
   `Make_New`);
 * operator names, being built solely from operator symbols (e.g. `+` or `<$>`).
   Specifically, an operator name may contain only characters from the following
-  set: `!$%&*+-/<>?^~|:\,.()[]{}=`. Not every sequence of these characters is a valid operator name, as they can collide with other language constructs.
+  set: `!$%&*+-/<>?^~|:\,.()[]{}=`. Not every sequence of these characters is a
+  valid operator name, as they can collide with other language constructs.
   
 Any other names that do not match requirements above, like `HTTP`, `foO` or
 `Make_new` are not allowed and their behavior will not be specified.
@@ -42,7 +44,8 @@ argument matching) or when adding type constraints (using type ascriptions).
 
 ## Scope
 Scope is the span in the code which shares the identifiers set of visible,
-available identifiers. Scopes are a span-tree structure, covering the whole program code.
+available identifiers. Scopes are a span-tree structure, covering the whole 
+program code.
 
 Nested scope is allowed to:
 * access identifiers from the outer scope;
@@ -51,14 +54,17 @@ Nested scope is allowed to:
 
 The same identifier may be bound multiple times in the same scope (overloading).
 It is allowed only for method overloads that differ in the type of the `this`
-parameter. This limitation may be relaxed in the future, if proper motivating use-cases are found.
+parameter. This limitation may be relaxed in the future, if proper motivating  
+use-cases are found.
 
 The identifier is always accessible scope-wide, both before and after the line
 introducing it. Some monadic contexts (like IO) can introduce order-dependent
 behavior, however. This is not something that IDE is (or can be) concerned about
 when figuring out connections.
 
-Identifier is bound by using a variable name in the pattern context. Exact behavior depends on the language construction that was to introduce the identifier.
+Identifier is bound by using a variable name in the pattern context. Exact 
+behavior depends on the language construction that was to introduce the 
+identifier.
 
 Identifier introduced into a scope is visible only in the scope's subtree
 (lexical scoping). 
@@ -66,13 +72,23 @@ Identifier introduced into a scope is visible only in the scope's subtree
 Scopes, in the core language, are introduced by:
 * module (file), i.e. the root scope;
 * code blocks, i.e. indented blocks that follow a trailing operator;
-* arrow (lambda) `->` operator for its right-hand side.
+* arrow `->` operator for its both operands.
+
+Arrow operator creates a scope both when used to define lambda-expressions and
+when used as one of `case … of` arms.
 
 Some other constructs seemingly introduce scope (like function definitions) but
-this is because they are desugared into some construct that introduces scope (like lambdas).
+this is because they are desugared into some construct that introduces scope
+(like lambdas):
+* any assignment in the root scope (desugared to a mathod on a moduke);
+* any function, i.e. non-nullary assignment: a new scope for each parameter
+  (desugared to lambda);
+* any method, including extension methods (as above).
 
 TODO: Consider if there are any special rules for signatures on definitions, or
-is this just type ascription lying next to a definition.
+is this just type ascription lying next to a definition. Is there (and should
+there be?) a mechanism that makes identifiers defined in the function body
+visible in its signature?
 
 ### Examples
 Example:
@@ -86,9 +102,11 @@ The sample code is a module with a single top-level definition.
 
 Here we have four scopes, each one nested in the previous one:
 * root scope (consisting of unindented lines), where `main` is visible;
-* definition and code block (all lines equally indented after
-  `main =`) scopes, where both `main` and `succ` are visible
-* lambda body scope (right-hand side after `a ->`), where all `main`,
+* `main` definition's scope, where `main` is visible (and an implicit `here`
+  parameter that we'll ignore for now);
+* `main` definition code block's (all lines equally indented after
+  `main =`) scope, where both `main` and `succ` are visible
+* lambda body scope (expression `a -> a+1`), where all `main`,
   `succ` and `a` are visible.
 
 Example:
@@ -97,8 +115,8 @@ test = a -> b ->
     sum = a + b
 ```
 
-Here we have root scope, then scopes of lambdas (after `a ->`
-and after `b ->`) and finally scope for code block.
+Here we have root scope, definition scope of `test`, then scopes of botg lambdas
+ (`a -> …` and `b -> …`) and finally scope of the code block.
 
 
 Example:
@@ -112,15 +130,20 @@ main =
     bar = 3
 ```
 
-While `main` as root-level has its own scope (as a definition in root it is
-treated as method and desugared to lambda), `foo` and `bar` do not. `a`
+While `main` as root-level has its own scope, `foo` and `bar` do not. `a`
 introduced by type signatures belongs to the `main`'s scope, and is shared by
 both nested definitions.
 
 ## Patterns
 Pattern contexts are spans in the code where variables can be used to introduce
-new identifiers into some scope. Constructors names are used to pattern match
-against and potentially destructure more complex values.
+new identifiers into the containing scope.
+
+Within a pattern context:
+* variable names are matched against corresponding parts of the expression and
+  are introduced into the scope;
+* constructor names require that the matched value is of a given constructor and
+  allows matching fields recursively;
+* any literals (numbers, strings) behave as constructors.
 
 The following spans are pattern contexts:
 * left-hand side of assignment operator, e.g. `main` in  `main = println
@@ -128,9 +151,15 @@ The following spans are pattern contexts:
 * right-hand side of a colon operator, e.g. `a` in `foo:a`;
 * left-hand side of an arrow operator, e.g. `a` in `a -> a + 1`.
 
+In the core language actually both non-trivial lambdas and assignments are
+desugared to the trivial lambdas, monadic bindings and `case … of` expressions.
+
 Details will follow with description of these operators.
 
-// TODO What about `case … of` ? Are there any other pattern-introducing constructs?
+Other language constructs also introduces pattern contexts, like `case
+expression of`, where each variant's arm is of form `pattern -> body`.
+
+// TODO Any other core/language (or builtin) pattern-introducing constructs?
 
 # Introducing identifiers
 Common notation used in the examples uses French quotation marks as following:
@@ -145,8 +174,11 @@ quickly convey expected results in the code sample content, and not repeat
 
 
 ## Assignment
-The assignment operator `=` is deeply magical. Its basic form is `name =
-body`. It introduces `name` into the parent scope, by binding it with a value `body`.
+The assignment operator `=` is deeply magical. Its left-hand side introduces a
+pattern that is matched against the value of its right side.
+
+Assignment can appear as the root expression in the block's line, be it a root
+module's block or a nested code block.
 
 Example:
 ```
@@ -156,13 +188,14 @@ Example:
 The name `five` introduced into the parent scope is bound to a value of
 expression `5`.
 
-Assignment operator is also used to define functions, extension methods and
+Assignment operator is used to define functions, extension methods and
 perform pattern matching. For different cases appropriate desugaring is
 applied. See sections below for details for particular details.
 
 Roughly speaking, if a name is a variable name, it is introduced and its
 arguments (if present) are visible only in the definition body. If the name is
-constructor name though, it will pattern-match on variables in its arguments positions.
+constructor name though, it will pattern-match on variables in its arguments 
+positions.
 
 If macros are used in the definition, it is assumed that if it appears in a
 pattern context, variable names it matched shall be bound — or otherwise just
@@ -172,11 +205,23 @@ macro was in place.
 
 In any place where variable name is used in a pattern, it can be substituted by
 an underscore `_` to disregard the value without introducing any identifier.
+Any line with expression `foo` can be replaced with `_ = foo`, unless its value
+was used.
+
+The assignment expression does not yield the value it assigned.
 
 A single line can contain at most one assignment. The following code is not
 valid: 
 ```
-foo = bar = baz # invalid!
+# invalid!
+foo = bar = baz 
+```
+
+Also, assignment can appear only as the root expression in the line. The
+following is not valid:
+```
+# invalid!
+(foo = bar) + 2
 ```
 
 
@@ -187,8 +232,8 @@ Example:
 ```
 «foo» = 2
 bar =
-    «foo» = 5     # shadowing
-    «a» = »foo« + 5 # refers to `foo` from line above
+    foo = 5     # shadowing
+    a = foo + 5 # refers to `foo` from line above
 # here `foo` is `2` again
 ```
 
@@ -239,20 +284,6 @@ Introduces name `hello` being an extension method defined on `a`. In this
 position `a` will denote practically "any type" but is visible only in the
 definition body (as it appears as the type of implicit `this` parameter).
 
---- 
-TODO:
-Example:
-```
-foo = a ->
-    a = 5
-```
-TODO: Does the `a = 5` is shadowing `a` from lambda argument? Or is this
-multiple definition error? If the block introduces scope, it should shadow. If
-however lambda body is THE scope where argument is introduced and is same as
-lambda code block, it should be an error. 
-Or should it get some special rule?
-
----
 
 ### Function definitions
 If the assignment's left-hand side is a prefix application chain, where the
@@ -291,28 +322,27 @@ function is a constructor name, it will be desugared into a pattern match.
 Example:
 ```
 »Some« «value» = »get_opt«
+tail…
 ```
 
 will be desugared into:
 
 ```
-«value» = case »get_opt« of
-  »Some« b -> b
-  _      -> error 
+»get_opt« >>= case of
+    »Some« «value» -> tail…
+    _              -> error 
 ```
 
 Therefore, only `value` will be introduced into the parent scope. `Some` and
 `get_opt` must be defined, the former being an atom with at least single field.
+"At least", because language allows omitting ignored trailing fields of the
+constructor. i.e. matching `Some` is the same as matching `Some _`.
 
 Using operators in the infix position will also attempt to pattern match its
 operands. For example:
 ```
 «x»,«y» = »get_position«
 ```
-
-TODO Describe what it gets desugared to when there is more than one variable
-name introduced? Now it is inconsistent, if we say that only canonical form of
-assignment is `variable_name = value`.
 
 ### Extensions methods
 If the application target uses accessor operator `.`, e.g. `Int.add`, the last
@@ -328,7 +358,8 @@ translated to:
 «bar» this:»Foo« = 5
 ```
 
-Which is then desugared into a lambda. The introduced name is only `bar`.
+Which is then desugared into a lambda. Only the `bar` identifier is introduced
+to the graph's scope.
 
 If there are any prefix application arguments following the accessor-style
 target, they will be treated as arguments following implicit `this`.
@@ -352,9 +383,12 @@ In this case `a` and `b` for each `foo` definition will be inferred by the
 compiler. If they end up being different types, overloads are valid. If they are
 the same, an error will be raised.
 
+Argument named `this` may appear only as the first argument. It is not allowed
+to explicitly use it when using the extension method syntax.
+
 ### Root scope assignments
 
-Any binding in the root scope gets an implicit `this` parameter that describes a
+Any binding in the root scope gets an implicit `here` parameter that describes a
 module. Example:
 ```
 main = print "Hello"
@@ -369,8 +403,8 @@ appeared in any non-root code block.
 argument (lambdas are always unary) and the right-hand side is its body.
 Right-hand side, i.e. the lambda body, introduces its own scope.
 
-If the lambda is *not* introduced in what is already a pattern context, the `->`'s pattern introduces identifiers into the scope of the right-hand
-side.
+If the lambda is *not* introduced in what is already a pattern context, the
+`->`'s pattern introduces identifiers into the scope of the right-hand side.
 
 Example:
 ```
@@ -395,12 +429,31 @@ expression `b`. However, now it is visible in the outer lambda body and can be
 accessed. The only externally provided identifier must be `default` method.
 
 --- 
-Lambdas may not appear in the assignment's pattern (i.e. values cannot be
-pattern-matched into lambda).
+
+Example:
+```
+foo = a ->
+    a = 5
+```
+
+Here we have lambda taking parameter `a` and shadowing in its body. Because
+lambda's block is a scope of its own, the argument can be shadowed.
+
+--- 
+
+Lambdas may not appear in the pattern position — so they cannot appear on the
+left-hand side of an arrow or assignment operator.
 
 So the following is not valid:
 ```
+# invalid
 a -> b = foo
+```
+
+Nor is this:
+```
+# invalid
+(a -> b) -> a.default
 ```
 
 ---
@@ -420,6 +473,9 @@ case.
 
 
 ## Type ascription
+NOTE: The type ascription operator is not supported in the first release
+timeline and its exact specification is still work in progress.
+
 The type ascription operator `:` introduces pattern context for its right hand
 side. The basic form is `value:type`. It says that `value` be of the given
 `type`, i.e. that all its possible values belong to the set of atoms represented
@@ -493,6 +549,104 @@ TODO:
 
 TODO: `b:A` — does this add constraint to `a` or just `b` ? 
 
+# Advanced desugaring
+This section provides more examples of desugaring for various code constructs.
+This should give a better understanding of why the rules are as presented.
+
+Note that the desugaring translated below is very low-level.
+
+All assignments and code blocks are removed.
+
+
+## Out of order variable usage in block
+If within a block an identifier is used in the line before it is assigned, the
+`fix` function appropriate for the block's monadic context will be introduced.
+
+For example:
+
+```
+test a =
+    f y
+    y = g a
+```
+
+Here `y` is used in the line before it is evaluated. This code after all
+desugaring can be treated as following:
+
+```
+test = a ->
+    fix
+        (y' ->
+            f y'
+            g a
+        )
+```
+
+## Code blocks
+Code blocks are desugared into chains of monadic binds.
+
+```
+foo = 
+  a = expr1
+  expr2
+```
+
+Is equivalent to:
+```
+foo = 
+  expr1 >>= (a -> expr2)
+```
+
+Where `>>=` is the monadic bind operator (as in Haskell).
+
+---
+
+If the first line in block is not assignment, it is treated as if it was
+assigning into the underscore pattern.
+
+```
+test =
+    expr1
+    expr2
+```
+
+Is same as:
+
+```
+test =
+    _ = expr1
+    expr2
+```
+
+And can be desugared to: 
+
+```
+test =
+    expr1 >>= (_ -> expr2)
+```
+
+Which can be also written as 
+```
+test =
+    expr1 >> expr2
+```
+
+---
+
+
+If the trailing block line is assignment, it will be bound into `Nothing`:
+```
+foo =
+    pat1 = expr1
+```
+Translates into:
+
+```
+foo = 
+    expr1 >>= (pat1 -> Nothing)
+```
+
+
 # Current engine limitations
 Note: "current" means "in the scope of the first alpha release of enso",
 not "at the moment of writing this document". 
@@ -512,13 +666,14 @@ and
 a.foo = print "hello"
 ```
 
-are equivalent, engine currently supports only the latter.
+are equivalent, engine currently supports only the latter. IDE can assume that
+ all extension methods will be introduced using the `Type.name` syntax sugar.
 
-IDE can assume that all extension methods will be introduced using the
-`Type.name` syntax sugar.
+Also, engine currently requires that all methods are defined in the module's
+root scope.
 
-// TODO what if non-first argument is named `this` ? Is the magic happening only
-for this particular name? Is it sensitive for its position in the arguments list?
+// TODO interaction between implicit `this` and implicit `here`.
+
 // TODO What happens if the `this`-taking function in defined in the root scope
 where already `this` is implicitly provided? What about taking `this` in a
 method defined using the sugared syntax? (e.g. `Int.print this:Int = ...`)
@@ -570,9 +725,9 @@ Some simplifications are currently assumed:
   possible. (we will often visualize programs that are in progress of editing).
 * For the first release IDE can disregard the type ascription operator (`:`). 
 
-// TODO: Specify what is exactly the graph's scope? Is this a lambda body scope
-or the scope introduced by the block following the lambda? Likely both of these
-should be somehow coalesced, to avoid issues with definitions with inline bodies.
+
+Graph's scope is either scope of the code block (if there is one) or of the 
+lambda.
 
 // TODO: Actually, can we display graphs for argument-less blocks being node
 bodies? Scoping could get quite strange then.
@@ -594,4 +749,5 @@ the order of topologically sorted nodes from the graph. (when possible)
 
 In future this behavior should be depend on definition's monadic context
 provided by the language server.
+
 
