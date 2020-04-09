@@ -69,7 +69,7 @@ impl Default for Specification {
             height       : 20.0,
             width        : Angle::from(15.0),
             inner_radius : 70.0,
-            position: Angle::from(0.0),
+            position     : Angle::from(0.0),
             color        : Srgb::new(0.26, 0.69, 0.99),
             direction    : Direction::Out,
         }
@@ -115,8 +115,7 @@ mod shape {
     /// angle with the inner ring.
     ///
     fn new_port
-    (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>)
-    -> AnyShape {
+    (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>) -> AnyShape {
 
         let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
         let height                       = &height * &zoom_factor;
@@ -204,7 +203,7 @@ mod shape {
 
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32,is_inwards:f32) {
-            /// NOTE: `is_inwards` should only be 0.0 or 1.0.
+            // NOTE: `is_inwards` should only be 0.0 or 1.0.
             new_port(height,width,inner_radius,is_inwards)
         }
     }
@@ -229,7 +228,7 @@ mod shape {
 // === Port ===
 // ============
 
-/// Shape view for Input Port.
+/// Shape view for input port.
 #[derive(Debug,Default,Clone,Copy)]
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
@@ -246,7 +245,7 @@ impl ShapeViewDefinition for InputPortView {
     }
 }
 
-/// Shape view for Input Port.
+/// Shape view for output port.
 #[derive(Debug,Default,Clone,Copy)]
 pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
@@ -288,9 +287,8 @@ pub struct Port<T:PortShapeViewDefinition> {
 
 impl<T:PortShapeViewDefinition> Clone for Port<T>{
     fn clone(&self) -> Self {
-        Self{
-            data: Rc::clone(&self.data)
-        }
+        let data = Rc::clone(&self.data);
+        Self {data}
     }
 }
 
@@ -308,7 +306,7 @@ pub struct PortData<T:PortShapeViewDefinition> {
     pub view : Rc<component::ShapeView<T>>
 }
 
-impl<T: PortShapeViewDefinition> Port<T> {
+impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Internal constructor based on a given specification.
     fn new(spec:Specification) -> Self {
@@ -336,7 +334,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
     /// Modifies the port's position.
     ///
     /// Note this shadows the `set_position` function of `ObjectOps`.
-    pub fn mod_position<F:FnOnce(&mut Angle<Degrees>)>(&self, f:F){
+    pub fn mod_position<F:FnOnce(&mut Angle<Degrees>)>(&self, f:F) {
         f(&mut self.data.spec.borrow_mut().position);
         self.update_sprite_position();
     }
@@ -383,7 +381,7 @@ impl<T: PortShapeViewDefinition> Port<T> {
 
     /// Update the shape parameters with values from our `Specification`.
     /// Should only be used upon initialisation.
-    fn init_shape(&self){
+    fn init_shape(&self) {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             let spec = self.data.spec.borrow();
             t.shape.update_from_spec(&spec);
@@ -391,13 +389,13 @@ impl<T: PortShapeViewDefinition> Port<T> {
     }
 }
 
-impl<T: PortShapeViewDefinition> Default for Port<T>{
+impl<T:PortShapeViewDefinition> Default for Port<T> {
     fn default() -> Self {
         Self::new(Specification::default())
     }
 }
 
-impl<T: PortShapeViewDefinition> From<Specification> for  Port<T>{
+impl<T:PortShapeViewDefinition> From<Specification> for Port<T> {
     fn from(spec: Specification) -> Self {
         Self::new(spec)
     }

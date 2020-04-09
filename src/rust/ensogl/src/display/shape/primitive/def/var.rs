@@ -463,7 +463,7 @@ where T: Cos<Output=T> {
 }
 
 impl<T> Acos for Var<T>
-    where T: Acos<Output=T> {
+where T: Acos<Output=T> {
     type Output = Var<T>;
     fn acos(&self) -> Self {
         match self {
