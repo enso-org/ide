@@ -55,11 +55,11 @@ impl NodeEditor {
     }
 
     fn update_graph(graph:&GraphEditor, controller:&controller::Graph) {
-        graph.events.clear_graph.emit(());
+        graph.frp.clear_graph.emit(());
         if let Ok(nodes_info) = controller.nodes() {
             let nodes_with_index = nodes_info.iter().enumerate();
-            let nodes_positions  = nodes_with_index.map(|(i,n)| n.metadata.and_then(|m| m.position).map(|p| enso_frp::Position::new(p.vector.x as i32, p.vector.y as i32)).unwrap_or_else(|| enso_frp::Position::new(i as i32 * 100,0)));
-            for pos in nodes_positions { graph.events.add_node_at.emit(pos) }
+            let nodes_positions  = nodes_with_index.map(|(i,n)| n.metadata.and_then(|m| m.position).map(|p| enso_frp::Position::new(p.vector.x, p.vector.y)).unwrap_or_else(|| enso_frp::Position::new(i as f32 * 100.0,0.0)));
+            for pos in nodes_positions { graph.frp.add_node_at.emit(pos) }
         }
     }
 }

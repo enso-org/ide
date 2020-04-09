@@ -12,10 +12,42 @@ use crate::debug;
 
 // === Definition ===
 
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Subnetwork {
+    data : Rc<RefCell<Option<Network>>>
+}
+
+impl Subnetwork {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn destroy(&self) {
+        *self.data.borrow_mut() = None
+    }
+}
+
+impl Default for Subnetwork {
+    fn default() -> Self {
+        let data = Rc::new(RefCell::new(Some(default())));
+        Self {data}
+    }
+}
+
+impl From<Network> for Subnetwork {
+    fn from(net:Network) -> Self {
+        let data = Rc::new(RefCell::new(Some(net)));
+        Self {data}
+    }
+}
+
+
+
 /// Network manages lifetime of set of FRP nodes. FRP networks are designed to be static. You can
 /// add new elements while constructing it, but you are not allowed to remove the elements.
 /// Moreover, you should not grow the FRP network after it is constructed.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Default,)]
 pub struct Network {
     data : Rc<NetworkData>
 }
@@ -32,48 +64,15 @@ impl<T> Item for T where T : HasId + HasLabel + stream::HasOutputTypeLabel {}
 
 /// Internal data of `Network`.
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Debug,Default)]
 pub struct NetworkData {
     #[derivative(Debug="ignore")]
-    nodes : RefCell<Vec<Box<dyn Item>>>,
-    links : RefCell<HashMap<Id,Link>>,
+    nodes       : RefCell<Vec<Box<dyn Item>>>,
+    links       : RefCell<HashMap<Id,Link>>,
+    subnetworks : RefCell<Vec<Subnetwork>>,
 }
 
-/// Link between nodes. It is used for visualization purposes only.
-#[derive(Debug,Copy,Clone)]
-#[allow(missing_docs)]
-pub struct Link {
-    pub source : Id,
-    pub tp     : LinkType,
-}
 
-impl Link {
-    /// Event link constructor.
-    pub fn event<T:HasId>(t:&T) -> Link {
-        let source = t.id();
-        let tp     = LinkType::Event;
-        Self {source,tp}
-    }
-
-    /// Behavior link constructor.
-    pub fn behavior<T:HasId>(t:&T) -> Link {
-        let source = t.id();
-        let tp     = LinkType::Behavior;
-        Self {source,tp}
-    }
-
-    /// Mixed link constructor.
-    pub fn mixed<T:HasId>(t:&T) -> Link {
-        let source = t.id();
-        let tp     = LinkType::Mixed;
-        Self {source,tp}
-    }
-}
-
-/// Type of the link between FRP nodes.
-#[derive(Debug,Clone,Copy)]
-#[allow(missing_docs)]
-pub enum LinkType {Event,Behavior,Mixed}
 
 
 
@@ -82,9 +81,7 @@ pub enum LinkType {Event,Behavior,Mixed}
 impl NetworkData {
     /// Constructor.
     pub fn new() -> Self {
-        let nodes = default();
-        let links = default();
-        Self {nodes,links}
+        default()
     }
 }
 
@@ -121,6 +118,10 @@ impl Network {
         self.data.links.borrow_mut().insert(target,link);
     }
 
+    pub fn register_subnetwork(&self, sub_network:&Subnetwork) {
+        self.data.subnetworks.borrow_mut().push(sub_network.clone_ref())
+    }
+
     /// Draw the network using GraphViz.
     pub fn draw(&self) {
         let mut viz = debug::Graphviz::default();
@@ -138,3 +139,39 @@ impl WeakNetwork {
     }
 }
 
+
+/// Link between nodes. It is used for visualization purposes only.
+#[derive(Debug,Copy,Clone)]
+#[allow(missing_docs)]
+pub struct Link {
+    pub source : Id,
+    pub tp     : LinkType,
+}
+
+impl Link {
+    /// Event link constructor.
+    pub fn event<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Event;
+        Self {source,tp}
+    }
+
+    /// Behavior link constructor.
+    pub fn behavior<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Behavior;
+        Self {source,tp}
+    }
+
+    /// Mixed link constructor.
+    pub fn mixed<T:HasId>(t:&T) -> Link {
+        let source = t.id();
+        let tp     = LinkType::Mixed;
+        Self {source,tp}
+    }
+}
+
+/// Type of the link between FRP nodes.
+#[derive(Debug,Clone,Copy)]
+#[allow(missing_docs)]
+pub enum LinkType {Event,Behavior,Mixed}

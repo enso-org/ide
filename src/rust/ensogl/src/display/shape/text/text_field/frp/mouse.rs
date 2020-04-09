@@ -46,9 +46,9 @@ impl TextFieldMouseFrp {
         let select_action       = Self::select_lambda(text_field_ptr);
         frp::new_network! { text_field
             def is_inside         = mouse.position.map(is_inside);
-            def click_in          = mouse.on_down.gate(&is_inside);
+            def click_in          = mouse.press.gate(&is_inside);
             def click_in_bool     = click_in.constant(true);
-            def mouse_up_bool     = mouse.on_up.constant(false);
+            def mouse_up_bool     = mouse.release.constant(false);
             def selecting         = click_in_bool.merge(&mouse_up_bool);
             def multicursor       = keyboard.keyboard.key_mask.map(is_multicursor_mode);
             def block_selection   = keyboard.keyboard.key_mask.map(is_block_selection);

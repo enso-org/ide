@@ -141,12 +141,12 @@ pub struct MouseFrpCallbackHandles {
 pub fn bind_frp_to_mouse(frp:&enso_frp::io::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
     let on_move = enclose!((frp.position => frp) move |e:&OnMove| {
-        frp.emit(Position::new(e.client_x(),e.client_y()));
+        frp.emit(Position::new(e.client_x() as f32,e.client_y() as f32));
     });
-    let on_down  = enclose!((frp.on_down  => frp) move |_:&OnDown | frp.emit(()));
-    let on_up    = enclose!((frp.on_up    => frp) move |_:&OnUp   | frp.emit(()));
-    let on_wheel = enclose!((frp.on_wheel => frp) move |_:&OnWheel| frp.emit(()));
-    let on_leave = enclose!((frp.on_leave => frp) move |_:&OnLeave| frp.emit(()));
+    let on_down  = enclose!((frp.press   => frp) move |_:&OnDown | frp.emit(()));
+    let on_up    = enclose!((frp.release => frp) move |_:&OnUp   | frp.emit(()));
+    let on_wheel = enclose!((frp.wheel   => frp) move |_:&OnWheel| frp.emit(()));
+    let on_leave = enclose!((frp.leave   => frp) move |_:&OnLeave| frp.emit(()));
     MouseFrpCallbackHandles {
         on_move  : mouse_manager.on_move.add(on_move),
         on_down  : mouse_manager.on_down.add(on_down),

@@ -240,22 +240,22 @@ impl Mouse {
 
         let event = frp.position.clone_ref();
         mouse_manager.on_move.add(move |e:&mouse::OnMove| {
-            let position = enso_frp::Position::new(e.client_x(),e.client_y());
+            let position = enso_frp::Position::new(e.client_x() as f32,e.client_y() as f32);
             event.emit(position);
         }).forget();
 
-        let event = frp.on_down.clone_ref();
+        let event = frp.press.clone_ref();
         mouse_manager.on_down.add(move |_:&mouse::OnDown| {
             event.emit(());
         }).forget();
 
-        let event = frp.on_up.clone_ref();
+        let event = frp.release.clone_ref();
         mouse_manager.on_up.add(move |_:&mouse::OnUp| {
             event.emit(());
         }).forget();
 
-        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
-             ,button4_pressed,target,handles,frp}
+        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
+             ,button3_pressed,button4_pressed,target,handles,frp}
     }
 }
 

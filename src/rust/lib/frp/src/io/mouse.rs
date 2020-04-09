@@ -11,17 +11,21 @@ use crate as frp;
 // ================
 
 /// A 2-dimensional position. Used for storing the mouse position on the screen.
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+#[derive(Clone,Copy,Debug,Default,PartialEq)]
 #[allow(missing_docs)]
 pub struct Position {
-    pub x:i32,
-    pub y:i32,
+    pub x:f32,
+    pub y:f32,
 }
 
 impl Position {
     /// Constructor.
-    pub fn new(x:i32, y:i32) -> Self {
+    pub fn new(x:f32, y:f32) -> Self {
         Self {x,y}
+    }
+
+    pub fn length(&self) -> f32 {
+        (self.x * self.x + self.y * self.y).sqrt()
     }
 }
 
@@ -44,29 +48,37 @@ impl Sub<&Position> for &Position {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Mouse {
-    pub network  : frp::Network,
-    pub on_up    : frp::Source,
-    pub on_down  : frp::Source,
-    pub on_wheel : frp::Source,
-    pub on_leave : frp::Source,
-    pub is_down  : frp::Stream<bool>,
-    pub position : frp::Source<Position>,
+    pub network       : frp::Network,
+    pub release       : frp::Source,
+    pub press         : frp::Source,
+    pub wheel         : frp::Source,
+    pub leave         : frp::Source,
+    pub down          : frp::Stream<bool>,
+    pub up            : frp::Stream<bool>,
+    pub position      : frp::Source<Position>,
+    pub prev_position : frp::Stream<Position>,
+    pub translation      : frp::Stream<Position>,
+    pub distance      : frp::Stream<f32>,
 }
 
 impl Default for Mouse {
     fn default() -> Self {
         frp::new_network! { mouse
-            def on_up     = source_();
-            def on_down   = source_();
-            def on_wheel  = source_();
-            def on_leave  = source_();
-            def position  = source();
-            def down_bool = on_down.constant(true);
-            def up_bool   = on_up.constant(false);
-            def is_down   = down_bool.merge(&up_bool);
+            def release       = source_();
+            def press         = source_();
+            def wheel         = source_();
+            def leave         = source_();
+            def position      = source();
+            def down_const    = press.constant(true);
+            def up_const      = release.constant(false);
+            def down          = down_const.merge(&up_const);
+            def up            = down.map(|t| !t);
+            def prev_position = position.previous();
+            def translation   = position.map2(&prev_position,|t,s| t - s);
+            def distance      = translation.map(|t:&Position| t.length());
         };
         let network = mouse;
-        Self {network,on_up,on_down,on_leave,on_wheel,is_down,position}
+        Self {network,release,press,leave,wheel,down,up,position,prev_position,translation,distance}
     }
 }
 
