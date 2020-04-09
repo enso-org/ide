@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use data::text::Size;
 use data::text::Span;
-
+use crate::node::DfsMode::OneLevelFlatten;
 
 
 // =============
@@ -18,24 +18,27 @@ pub enum NodeType {
 
 #[derive(Debug)]
 pub struct Node {
-    pub offset    : Size,
-    pub len       : Size,
-    pub node_type : NodeType,
-    pub children  : Vec<Node>,
+    pub offset         : Size,
+    pub len            : Size,
+    pub node_type      : NodeType,
+    pub children       : Vec<Node>,
+    pub can_be_flatten : bool,
 }
 
 impl Node {
     pub fn new_empty(offset:Size) -> Self {
-        let node_type  = NodeType::EmptyChild;
-        let len        = Size::new(0);
-        let children   = Vec::new();
-        Node {node_type, offset,len,children}
+        let node_type      = NodeType::EmptyChild;
+        let len            = Size::new(0);
+        let children       = Vec::new();
+        let can_be_flatten = false;
+        Node {node_type, offset,len,children,can_be_flatten}
     }
 }
 
 
 // === Node Reference ===
 
+#[derive(Clone,Debug)]
 pub struct NodeRef<'a> {
     pub node              : &'a Node,
     pub crumbs            : Vec<usize>,
@@ -43,6 +46,10 @@ pub struct NodeRef<'a> {
 }
 
 impl<'a> NodeRef<'a> {
+    pub fn reborrow(&self) -> Self {
+        self.clone()
+    }
+
     pub fn ast_crumbs(&self) -> Option<ast::Crumbs> {
         match &self.node.node_type {
             NodeType::Root                  => Some(default()),
@@ -52,6 +59,25 @@ impl<'a> NodeRef<'a> {
                 crumbs.extend(from_parent.iter());
                 Some(crumbs)
             },
+        }
+    }
+
+    pub fn child(mut self, index:usize) -> Option<NodeRef<'a>> {
+        self.node.children.get(index).map(|child| {
+            if let NodeType::AstChild(ast) = &self.node.node_type {
+                self.parent_ast_crumbs.extend(ast);
+            }
+            self.crumbs.push(index);
+            self.node = child;
+            self
+        })
+    }
+
+    pub fn traverse_subnode(self, crumbs:impl IntoIterator<Item=usize>) -> Option<NodeRef<'a>> {
+        let mut iter = crumbs.into_iter();
+        match iter.next() {
+            Some(index) => self.child(index).and_then(|child| child.traverse_subnode(iter)),
+            None        => Some(self)
         }
     }
 }
@@ -66,33 +92,26 @@ pub struct RootNode(Node);
 
 impl RootNode {
     pub fn dfs_iter(&self) -> DfsIterator {
-        DfsIterator {
-            next_crumb: Some(vec![]),
-            root: &self
-        }
+        DfsIterator::new(self.as_ref(),DfsMode::All)
     }
 
-    pub fn get_node(&self, crumbs:Vec<usize>) -> Option<NodeRef> {
-        let RootNode(node) = self;
-        let level          = 0;
-        let initial_ast    = Vec::new();
-        Self::get_subnode(node,crumbs,level,initial_ast)
+    pub fn dfs_iter_flatten(&self) -> DfsIterator {
+        DfsIterator::new(self.as_ref(),DfsMode::AllFlatten)
     }
 
-    pub fn get_subnode
-    (node:&Node, crumbs:Vec<usize>, level:usize, mut ast_so_far:ast::Crumbs) -> Option<NodeRef> {
-        let remaining = &crumbs[level..];
-        if remaining.is_empty() {
-            let parent_ast_crumbs = ast_so_far;
-            Some(NodeRef {node,crumbs,parent_ast_crumbs})
-        } else {
-            let child = node.children.get(remaining[0])?;
-            let level = level + 1;
-            if let NodeType::AstChild(ast) = &node.node_type {
-                ast_so_far.extend(ast);
-            }
-            Self::get_subnode(child, crumbs, level, ast_so_far)
-        }
+    pub fn children_iter_flatten(&self) -> DfsIterator {
+        DfsIterator::new(self.as_ref(),DfsMode::OneLevelFlatten)
+    }
+
+    pub fn get_node(&self, crumbs:impl IntoIterator<Item=usize>) -> Option<NodeRef> {
+        self.as_ref().traverse_subnode(crumbs)
+    }
+
+    fn as_ref(&self) -> NodeRef {
+        let RootNode(node)    = self;
+        let crumbs            = default();
+        let parent_ast_crumbs = default();
+        NodeRef {node,crumbs,parent_ast_crumbs}
     }
 }
 
@@ -102,40 +121,78 @@ impl RootNode {
 // === DFS Iterator ===
 // ====================
 
+struct DfsStackItem<'a> {
+    node           : &'a Node,
+    visiting_child : usize,
+}
+
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+enum DfsMode {All,AllFlatten,OneLevelFlatten}
+
+impl DfsMode {
+    fn is_flatten(&self) -> bool {
+        match self {
+            Self::AllFlatten | Self::OneLevelFlatten => true,
+            Self::All                                => false,
+        }
+    }
+}
+
 pub struct DfsIterator<'a> {
-    next_crumb : Option<Vec<usize>>,
-    root       : &'a RootNode,
+    stack     : Vec<DfsStackItem<'a>>,
+    next_node : Option<&'a Node>,
+    root      : NodeRef<'a>,
+    mode      : DfsMode,
 }
 
 impl<'a> Iterator for DfsIterator<'a> {
     type Item = NodeRef<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        std::mem::take(&mut self.next_crumb).map(|mut crumbs| {
-            let current      = crumbs.clone();
-            let current_node = self.root.get_node(current).unwrap();
-            if !current_node.node.children.is_empty() {
-                crumbs.push(0);
-                self.next_crumb = Some(crumbs);
-            } else {
-                while !crumbs.is_empty() {
-                    let last         = crumbs.pop().unwrap();
-                    let parent       = self.root.get_node(std::mem::take(&mut crumbs)).unwrap();
-                    let children_len = parent.node.children.len();
-                    crumbs           = parent.crumbs;
-                    let sibling      = last + 1;
-                    if children_len > sibling {
-                        crumbs.push(sibling);
-                        self.next_crumb = Some(crumbs);
-                        break;
-                    }
-                }
-            }
-            current_node
-        })
+        if self.next_node.is_some() {
+            let crumbs       = self.stack.iter().map(|sf| sf.visiting_child);
+            let return_value = self.root.reborrow().traverse_subnode(crumbs);
+            self.make_dfs_step();
+            while self.should_skip_node() { self.make_dfs_step() }
+            return_value
+        } else {
+            None
+        }
     }
 }
 
+impl<'a> DfsIterator<'a> {
+    fn new(root:NodeRef<'a>, mode:DfsMode) -> Self {
+        let stack = default();
+        let next_node = Some(root.node);
+        Self {stack,next_node,root,mode}
+    }
+
+    fn make_dfs_step(&mut self) {
+        if let Some(current) = std::mem::take(&mut self.next_node) {
+            let descension_allowed = self.mode != OneLevelFlatten || current.can_be_flatten;
+            if !current.children.is_empty() && descension_allowed {
+                self.next_node = Some(current.children.first().unwrap());
+                self.stack.push(DfsStackItem{node:current, visiting_child:0});
+            } else {
+                while self.next_node.is_none() && !self.stack.is_empty() {
+                    let parent = self.stack.last_mut().unwrap();
+                    parent.visiting_child += 1;
+                    self.next_node = parent.node.children.get(parent.visiting_child);
+                    if self.next_node.is_none() {
+                        self.stack.pop();
+                    }
+                }
+            }
+        }
+    }
+
+    fn should_skip_node(&self) -> bool {
+        let flatten_mode   = self.mode.is_flatten();
+        let should_flatten = |n:&Node| n.can_be_flatten && n.children.is_empty();
+        flatten_mode && self.next_node.map_or(false, should_flatten)
+    }
+}
 
 
 // =============
@@ -160,10 +217,11 @@ mod tests {
         child1.children = vec![grand_child1,grand_child2,grand_child3];
         child3.children = vec![grand_child4,grand_child5];
         let root = RootNode(Node {
-            offset   : Size::new(0),
-            len      : Size::new(11),
-            node_type: NodeType::Root,
-            children : vec![child1, child2, child3],
+            offset         : Size::new(0),
+            len            : Size::new(11),
+            node_type      : NodeType::Root,
+            children       : vec![child1, child2, child3],
+            can_be_flatten : false,
         });
 
         let expected_crumbs = vec!
@@ -197,10 +255,11 @@ mod tests {
 
     fn ast_child_node(crumbs:ast::Crumbs, offset:usize, len:usize) -> Node {
         Node {
-            node_type : NodeType::AstChild(crumbs),
-            offset    : Size::new(offset),
-            len       : Size::new(len),
-            children  : default()
+            node_type      : NodeType::AstChild(crumbs),
+            offset         : Size::new(offset),
+            len            : Size::new(len),
+            children       : default(),
+            can_be_flatten : false,
         }
     }
 }

@@ -69,12 +69,13 @@ impl SpanTreeGenerator for ast::known::Infix {
         child_gen.spacing(self.loff);
         let opr = child_gen.next(vec![Operator.into()]).unwrap();
         child_gen.spacing(self.roff);
-        let rarg     = child_gen.next(vec![RightOperand.into()]).unwrap();
-        let empty    = child_gen.next_empty();
-        let len      = child_gen.finish();
+        let rarg  = child_gen.next(vec![RightOperand.into()]).unwrap();
+        let empty = child_gen.next_empty();
+        let len   = child_gen.finish();
 
-        let children = vec![larg,opr,rarg,empty];
-        Node { node_type,offset,len,children }
+        let children      = vec![larg,opr,rarg,empty];
+        let can_be_flatten = false;
+        Node { node_type,offset,len,children,can_be_flatten }
     }
 }
 
@@ -89,8 +90,9 @@ impl SpanTreeGenerator for ast::known::SectionLeft {
         let empty    = child_gen.next_empty();
         let len      = child_gen.finish();
 
-        let children = vec![arg,opr,empty];
-        Node { node_type,offset,len,children }
+        let children       = vec![arg,opr,empty];
+        let can_be_flatten = false;
+        Node { node_type,offset,len,children,can_be_flatten }
     }
 }
 
@@ -105,20 +107,22 @@ impl SpanTreeGenerator for ast::known::SectionRight {
         let arg           = child_gen.next(vec![Arg.into()]).unwrap();
         let len           = child_gen.finish();
 
-        let children = vec![empty,opr,arg];
-        Node { node_type,offset,len,children }
+        let children       = vec![empty,opr,arg];
+        let can_be_flatten = false;
+        Node { node_type,offset,len,children,can_be_flatten }
     }
 }
 
 impl SpanTreeGenerator for ast::known::SectionSides {
     fn generate_node(&self, node_type: NodeType, offset: Size) -> Node {
         let mut child_gen = ChildGenerator::new(self.clone_ref());
-        let lempty         = child_gen.next_empty();
+        let lempty        = child_gen.next_empty();
         let opr           = child_gen.next(vec![ast::crumbs::SectionSidesCrumb.into()]).unwrap();
-        let rempty         = child_gen.next_empty();
+        let rempty        = child_gen.next_empty();
         let len           = child_gen.finish();
 
-        let children = vec![lempty,opr,rempty];
-        Node { node_type,offset,len,children }
+        let children       = vec![lempty,opr,rempty];
+        let can_be_flatten = false;
+        Node { node_type,offset,len,children,can_be_flatten }
     }
 }
