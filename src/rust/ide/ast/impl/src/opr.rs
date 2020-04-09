@@ -215,29 +215,37 @@ pub struct ChainElement {
 mod tests {
     use super::*;
 
+    fn expect_at(root_ast:&Ast, operand:&Operand, expected_ast:&Ast) {
+        assert_eq!(&operand.as_ref().unwrap().item,expected_ast);
+        let crumbs = &operand.as_ref().unwrap().crumbs;
+        let ast    = root_ast.get_traversing(crumbs).unwrap();
+        assert_eq!(ast, expected_ast, "expected `{}` at crumbs `{:?}` for `{}`",
+                   expected_ast.repr(), crumbs, root_ast.repr());
+    }
+
     #[test]
     fn infix_chain_tests() {
-        let a = Ast::var("a");
-        let b = Ast::var("b");
-        let c = Ast::var("c");
-        let a_plus_b = Ast::infix(a.clone(),"+",b.clone());
+        let a               = Ast::var("a");
+        let b               = Ast::var("b");
+        let c               = Ast::var("c");
+        let a_plus_b        = Ast::infix(a.clone(),"+",b.clone());
         let a_plus_b_plus_c = Ast::infix(a_plus_b.clone(),"+",c.clone());
+        let chain           = Chain::try_new(&a_plus_b_plus_c).unwrap();
+        expect_at(&a_plus_b_plus_c,&chain.target,&a);
+        expect_at(&a_plus_b_plus_c,&chain.args[0].operand,&b);
+        expect_at(&a_plus_b_plus_c,&chain.args[1].operand,&c);
+    }
 
-
-        let chain = Chain::try_new(&a_plus_b_plus_c).unwrap();
-
-        let expect_ast_at_crumb_for = |operand:&Operand, expected_ast:&Ast| {
-            let crumbs = &operand.as_ref().unwrap().crumbs;
-            let ast    = a_plus_b_plus_c.get_traversing(crumbs).unwrap();
-            assert_eq!(ast, expected_ast, "expected `{}` at crumbs `{:?}` for `{}`",
-                       expected_ast.repr(), crumbs, a_plus_b_plus_c.repr());
-        };
-
-        assert_eq!(chain.target.as_ref().unwrap().item, a);
-        assert_eq!(chain.args[0].operand.as_ref().unwrap().item, b);
-        assert_eq!(chain.args[1].operand.as_ref().unwrap().item, c);
-        expect_ast_at_crumb_for(&chain.target, &a);
-        expect_ast_at_crumb_for(&chain.args[0].operand, &b);
-        expect_ast_at_crumb_for(&chain.args[1].operand, &c);
+    #[test]
+    fn infix_chain_tests_right() {
+        let a                 = Ast::var("a");
+        let b                 = Ast::var("b");
+        let c                 = Ast::var("c");
+        let b_comma_c         = Ast::infix(b.clone(),",",c.clone());
+        let a_comma_b_comma_c = Ast::infix(a.clone(),",",b_comma_c.clone());
+        let chain             = Chain::try_new(&a_comma_b_comma_c).unwrap();
+        expect_at(&a_comma_b_comma_c,&chain.target,&c);
+        expect_at(&a_comma_b_comma_c,&chain.args[0].operand,&b);
+        expect_at(&a_comma_b_comma_c,&chain.args[1].operand,&a);
     }
 }
