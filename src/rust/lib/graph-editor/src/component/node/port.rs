@@ -20,10 +20,11 @@ use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::segment::Segment;
 use ensogl::math::geometry::triangle;
+use ensogl::math::topology::unit::Angle;
 use ensogl::math::topology::unit::AngleOps;
+use ensogl::math::topology::unit::Degrees;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
-use ensogl::math::topology::unit::{Angle,Degrees};
 
 
 

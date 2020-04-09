@@ -2,9 +2,18 @@
 
 use crate::prelude::*;
 
-use crate::math::algebra::{Acos,Asin,Cos,Sin,Sqrt};
 use crate::data::color;
-use crate::math::topology::unit::{Unit,Radians,Degrees,Distance,Angle,Pixels};
+use crate::math::algebra::Acos;
+use crate::math::algebra::Asin;
+use crate::math::algebra::Cos;
+use crate::math::algebra::Sin;
+use crate::math::algebra::Sqrt;
+use crate::math::topology::unit::Angle;
+use crate::math::topology::unit::Degrees;
+use crate::math::topology::unit::Distance;
+use crate::math::topology::unit::Pixels;
+use crate::math::topology::unit::Radians;
+use crate::math::topology::unit::Unit;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 

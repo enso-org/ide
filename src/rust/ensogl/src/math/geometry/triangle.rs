@@ -1,7 +1,10 @@
 //! This module defines an computations related to triangle geometry.
 
-use crate::math::algebra::{Acos,Sin,Cos,Sqrt};
+use crate::math::algebra::Acos;
+use crate::math::algebra::Cos;
 use crate::math::algebra::Field;
+use crate::math::algebra::Sin;
+use crate::math::algebra::Sqrt;
 
 use core::f32::consts::PI;
 
