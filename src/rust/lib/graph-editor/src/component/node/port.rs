@@ -54,7 +54,7 @@ pub struct Specification {
     /// Radius of the inner circle that the port is constructed around.
     pub inner_radius: f32,
     /// Location of the port along the inner circle.
-    pub location    : Angle<Degrees>,
+    pub position: Angle<Degrees>,
     /// Fill colour of the port.
     /// TODO unused in the shape at the moment
     pub color       : Srgb<f32>,
@@ -68,7 +68,7 @@ impl Default for Specification {
             height       : 20.0,
             width        : Angle::from(15.0),
             inner_radius : 70.0,
-            location     : Angle::from(0.0),
+            position: Angle::from(0.0),
             color        : Srgb::new(0.26, 0.69, 0.99),
             direction    : Direction::Out,
         }
@@ -311,38 +311,69 @@ impl<T: PortShapeViewDefinition + Clone> Port<T> {
     }
 
     fn init(self) -> Self {
-        self.update();
+        self.update_shape();
+        self.update_sprite();
         self
     }
 
-    /// Modifies the port specification.
-    pub fn mod_specification<F:FnOnce(&mut Specification)>(&mut self, f:F) {
-        f(&mut self.data.spec.borrow_mut());
-        self.update()
+    /// Sets the port's position.
+    ///
+    /// Note this shadows the `set_position` function of `ObjectOps`.
+    pub fn set_position(&self, position:Angle<Degrees>) {
+        self.data.spec.borrow_mut().position = position;
+        self.update_sprite();
     }
 
-    /// Update the shape parameters and sprite location with values from our current specification.
-    fn update(&self) {
-        self.update_shape();
+    /// Modifies the port's position.
+    ///
+    /// Note this shadows the `set_position` function of `ObjectOps`.
+    pub fn mod_position<F:FnOnce(&mut Angle<Degrees>)>(&self, f:F){
+        f(&mut self.data.spec.borrow_mut().position);
         self.update_sprite();
+    }
+
+    /// Sets the ports inner radius.
+    pub fn set_inner_radius(&self, inner_radius:f32) {
+        self.data.spec.borrow_mut().inner_radius = inner_radius;
+        if let Some(t) = self.data.view.data.borrow().as_ref() {
+            t.shape.inner_radius.set(inner_radius);
+        }
+        self.update_sprite()
+    }
+
+    /// Sets the ports height.
+    pub fn set_height(&self, height:f32) {
+        self.data.spec.borrow_mut().height = height;
+        if let Some(t) = self.data.view.data.borrow().as_ref() {
+            t.shape.height.set(height);
+        }
+    }
+
+    /// Sets the ports width.
+    pub fn set_width(&self, width:Angle<Degrees>) {
+        self.data.spec.borrow_mut().width = width;
+        if let Some(t) = self.data.view.data.borrow().as_ref() {
+            t.shape.width.set(width.value.to_radians());
+        }
     }
 
     /// Update the position of the sprite according to the Port specification.
     /// The position is given along a circle, thus the position and rotation of the sprite
     /// are tied together, so the Port always point in the right direction.
+    /// Needs to be called whenever the `position` or `inner_radius` is modified.
     fn update_sprite(&self) {
-        let spec = self.data.spec.borrow();
+        let spec               = self.data.spec.borrow();
         let translation_vector = Vector3::new(0.0,spec.inner_radius,0.0);
-        let rotation_vector    = -Vector3::new(0.0,0.0,spec.location.rad().value);
+        let rotation_vector    = -Vector3::new(0.0,0.0,spec.position.rad().value);
         let rotation           = nalgebra::Rotation3::new(rotation_vector);
         let translation        = rotation * translation_vector;
 
-        // let node = &self.data.view.display_object;
-        self.set_position(translation);
-        self.set_rotation(rotation_vector);
+        ObjectOps::set_position(self, translation);
+        ObjectOps::set_rotation(self, rotation_vector);
     }
 
     /// Update the shape parameters with values from our `Specification`.
+    /// Should only be used upon initialisation.
     fn update_shape(&self){
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             let spec = self.data.spec.borrow();
