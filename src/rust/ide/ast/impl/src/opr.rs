@@ -191,6 +191,12 @@ impl Chain {
         let operands = this.chain(args).flatten();
         operands
     }
+
+    /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
+    /// arguments.
+    pub fn enumerate_operators<'a>(&'a self) -> impl Iterator<Item=&'a Located<known::Opr>> + 'a {
+        self.args.iter().map(|elem| &elem.operator)
+    }
 }
 
 /// Element of the infix application chain, i.e. operator and its operand.
