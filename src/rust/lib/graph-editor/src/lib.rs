@@ -407,13 +407,6 @@ impl GraphEditor {
 
         }
 
-
-        let add_node_ref = events.add_node_under_cursor.clone_ref();
-        let remove_selected_nodes_ref = events.remove_selected_nodes.clone_ref();
-        let selected_nodes2 = selected_nodes.clone_ref();
-
-
-
         Self {frp:events,selected_nodes,display_object,node_set}
     }
 }

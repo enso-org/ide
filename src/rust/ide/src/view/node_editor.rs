@@ -8,12 +8,14 @@ use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
+use ensogl::system::web;
 use graph_editor::GraphEditor;
 use graph_editor::component::node::Node;
 use graph_editor::component::node::WeakNode;
 use utils::channel::process_stream_with_handle;
 use enso_frp::stream::EventEmitter;
 use enso_frp::Position;
+use wasm_bindgen::JsCast;
 use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 
 
@@ -27,6 +29,7 @@ struct GraphEditorIntegration {
     pub controller : controller::Graph,
     id_to_node     : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
     node_to_id     : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
+    pub logger     : Logger,
 
 }
 
@@ -74,8 +77,10 @@ impl GraphEditorIntegration {
         let editor     = graph_editor::GraphEditor::new(world);
         let id_to_node = default();
         let node_to_id = default();
-        let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id});
+        let logger     = Logger::new("Node Editor");
+        let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});
         Self::setup_controller_event_handling(&this);
+        Self::setup_keyboard_callbacks(&this);
         this
     }
 
@@ -91,9 +96,28 @@ impl GraphEditorIntegration {
         executor::global::spawn(handler);
     }
 
-    fn setup_callbacks(this:Rc<Self>) -> Rc<Self> {
-        todo!("Coming soon");
-        this
+    fn setup_keyboard_callbacks(this:&Rc<Self>) {
+        /// TODO [ao] replace with actual keybindings management.
+        let weak = Rc::downgrade(this);
+        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
+            if let Some(this) = weak.upgrade() {
+                let val = val.unchecked_into::<web_sys::KeyboardEvent>();
+                let key = val.key();
+                if key == "Backspace" && val.ctrl_key() {
+                    this.editor.selected_nodes.for_each(|node| {
+                        let id = this.node_to_id.borrow().get(&node.id()).cloned();
+                        if let Some(id) = id {
+                            if let Err(err) = this.controller.remove_node(id) {
+                                this.logger.error(|| format!("ERR: {:?}", err));
+                            }
+                        }
+                    });
+                    this.editor.frp.remove_selected_nodes.emit(())
+                }
+            }
+        }));
+        web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
+        c.forget();
     }
 }
 
@@ -102,16 +126,14 @@ pub struct NodeEditor {
     display_object : display::object::Node,
     graph          : Rc<GraphEditorIntegration>,
     controller     : controller::graph::Handle,
-    logger         : Logger,
 }
 
 impl NodeEditor {
     pub fn new(logger:&Logger, world:&World, controller:controller::graph::Handle) -> Self {
-        let logger         = logger.sub("GraphEditor");
-        let display_object = display::object::Node::new(&logger);
         let graph          = GraphEditorIntegration::new(world,controller.clone_ref());
+        let display_object = display::object::Node::new(&graph.logger);
         display_object.add_child(&graph.editor);
-        NodeEditor {display_object,graph,controller,logger}
+        NodeEditor {display_object,graph,controller}
     }
 }
 
