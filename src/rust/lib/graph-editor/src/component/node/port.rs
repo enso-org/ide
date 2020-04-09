@@ -261,10 +261,26 @@ impl ShapeViewDefinition for OutputPortView {
     }
 }
 
+/// Helper trait that describes a `ShapeViewDefinition` with a port shape.
+pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape> + Clone;
+
 /// Port definition.
+///
+/// A port must always be instantiated as an `InputPort` or an `OutputPort`. This determines its
+/// actual shape.
+///
+/// Example
+/// -------
+/// ```
+/// use graph_editor::component::node::port::InputPort;
+/// use graph_editor::component::node::port::OutputPort;
+///
+/// let input_port  = InputPort::default();
+/// let output_port = OutputPort::default();
+/// ```
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
-pub struct Port<T:ShapeViewDefinition+Clone> {
+pub struct Port<T:PortShapeViewDefinition+Clone> {
     pub data : Rc<PortData<T>>
 }
 
@@ -277,15 +293,15 @@ pub type OutputPort = Port<OutputPortView>;
 /// Internal data of `Port.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct PortData<T:ShapeViewDefinition> {
+pub struct PortData<T:PortShapeViewDefinition> {
         spec : RefCell<Specification>,
     pub view : Rc<component::ShapeView<T>>
 }
 
-impl<T:ShapeViewDefinition<Shape=shape::Shape>+Clone> Port<T> {
+impl<T: PortShapeViewDefinition + Clone> Port<T> {
 
-    /// Constructor.
-    pub fn new(spec:Specification) -> Self {
+    /// Internal constructor based on a given specification.
+    fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
         let spec   = RefCell::new(spec);
@@ -334,7 +350,19 @@ impl<T:ShapeViewDefinition<Shape=shape::Shape>+Clone> Port<T> {
     }
 }
 
-impl<'t,T:ShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
+impl<T: PortShapeViewDefinition> Default for Port<T>{
+    fn default() -> Self {
+        Self::new(Specification::default())
+    }
+}
+
+impl<T: PortShapeViewDefinition> From<Specification> for  Port<T>{
+    fn from(spec: Specification) -> Self {
+        Self::new(spec)
+    }
+}
+
+impl<'t,T:PortShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::object::Node {
     fn from(t:&'t Port<T>) -> Self {
         &t.data.view.display_object
     }
