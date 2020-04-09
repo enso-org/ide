@@ -252,9 +252,8 @@ impl Node {
         }
 
         // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-        self.data.ports.set_parent(self.downgrade());
-        self.data.ports.create_input_port();
-        self.data.ports.create_output_port();
+        self.data.ports.input.create(&self);
+        self.data.ports.output.create(&self);
 
         self
     }

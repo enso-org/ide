@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::node::WeakNode;
+use crate::component::node::Node;
 
 use core::f32::consts::PI;
 use ensogl::data::color::*;
@@ -229,7 +229,7 @@ mod shape {
 // ============
 
 /// Shape view for Input Port.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Default,Clone,Copy)]
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
     type Shape = shape::Shape;
@@ -246,7 +246,7 @@ impl ShapeViewDefinition for InputPortView {
 }
 
 /// Shape view for Input Port.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Default,Clone,Copy)]
 pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
     type Shape = shape::Shape;
@@ -371,76 +371,59 @@ impl<'t,T:PortShapeViewDefinition+Clone> From<&'t Port<T>> for &'t display::obje
 
 
 
+// ===================
+// === Port Buffer ===
+// ===================
+
+/// Data structure that creates and stores port shapes.
+#[derive(Debug,Default)]
+#[allow(missing_docs)]
+pub struct PortBuffer<T:PortShapeViewDefinition+Clone> {
+    ports: RefCell<Vec<Port<T>>>,
+}
+
+/// Helper type that represents a `PortBuffer` for `InputPorts`.
+type InputPortBuffer = PortBuffer<InputPortView>;
+/// Helper type that represents a `PortBuffer` for `OutputPorts`.
+type OutputPortBuffer = PortBuffer<OutputPortView>;
+
+impl<T:PortShapeViewDefinition+Clone> PortBuffer<T> {
+    /// create a new port in this buffer and sets it as a child node of the given parent.
+    pub fn create(&self, parent:&Node) {
+        let port = Port::default();
+        parent.add_child(&port);
+        self.ports.borrow_mut().push(port);
+    }
+}
+
+
+
 // ====================
 // === Port Manager ===
 // ====================
 
 /// Handles creation and layouting of ports around a node.
+///
+/// Example
+/// -------
+///  TODO: Get this to run as test on non-wasm targets.
+/// ```no_run
+///
+/// use graph_editor::component::node::Node;
+/// use graph_editor::component::node::port::PortManager;
+///
+/// let parent_node = Node::new();
+/// let ports       = PortManager::default();
+///
+/// ports.input.create(&parent_node);
+/// ports.output.create(&parent_node);
+/// ```
+///
 /// TODO implement the layouting
 #[derive(Debug,Default)]
 pub struct PortManager {
-    /// The node that all ports will be placed around.
-    parent_node  : RefCell<Option<WeakNode>>,
-    input_ports  : RefCell<Vec<InputPort>>,
-    output_ports : RefCell<Vec<OutputPort>>,
-}
-
-impl PortManager{
-
-    /// Set the parent node of the created `Ports`.
-    ///
-    /// Needs to be set after creation for circular dependency reasons.
-    pub fn set_parent(&self, parent:WeakNode) {
-        self.parent_node.set(parent);
-    }
-
-    fn add_child_to_parent<T:Object>(&self, child:&T) {
-        if let Some(weak_node) = self.parent_node.borrow().as_ref() {
-            if let Some(node) = weak_node.upgrade() {
-                node.add_child(child);
-            }
-        }
-    }
-
-    /// Create a new InputPort.
-    pub fn create_input_port(&self) {
-        // TODO layouting for multiple nodes
-
-        let port_spec = Specification {
-            location  : 90.0_f32.deg(),
-            direction : Direction::In,
-            ..Default::default()
-        };
-
-        let port = Port::new(port_spec);
-        self.add_child_to_parent(&port);
-        self.input_ports.borrow_mut().push(port);
-        self.update_port_shapes();
-    }
-
-    /// Create a new OutputPort.
-    pub fn create_output_port(&self) {
-        // TODO layouting for multiple nodes
-
-        let port_spec = Specification {
-            location  : 270.0_f32.deg(),
-            direction : Direction::Out,
-            ..Default::default()
-        };
-
-        let port = Port::new(port_spec);
-        self.add_child_to_parent(&port);
-        self.output_ports.borrow_mut().push(port);
-        self.update_port_shapes();
-    }
-
-    /// Update the shapes of all ports with the currently set specification values.
-    fn update_port_shapes(&self) {
-        for port in self.input_ports.borrow_mut().iter_mut() {
-            port.update()
-        }
-        for port in self.output_ports.borrow_mut().iter_mut() {
-            port.update()
-        }
-    }
+    /// Buffer of input ports.
+    pub input  : InputPortBuffer,
+    /// Buffer of output ports.
+    pub output : OutputPortBuffer,
 }
