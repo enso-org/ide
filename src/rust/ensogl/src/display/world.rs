@@ -180,9 +180,9 @@ impl World {
     }
 }
 
-impl<'t> From<&'t World> for &'t display::object::Node {
-    fn from(world:&'t World) -> Self {
-        world.scene.display_object()
+impl display::Object for World {
+    fn display_object(&self) -> &display::object::Instance {
+        self.scene.display_object()
     }
 }
 

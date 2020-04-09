@@ -72,19 +72,15 @@ impl ViewLayoutData {
     }
 
     fn update_graph_editor(&mut self) {
-        let screen_size = self.size;
-        let position    = Vector3::new(50.0, screen_size.y * 3.0 / 4.0, 0.0);
-
-        let graph_object:&display::object::Node = (&self.node_editor).into();
-        graph_object.set_position(position);
+        let screen_size  = self.size;
+        let position     = Vector3::new(50.0, screen_size.y * 3.0 / 4.0, 0.0);
+        self.node_editor.set_position(position);
     }
 
     fn update_node_searcher(&mut self) {
         let screen_size = self.size;
         let position    = Vector3::new(screen_size.x*2.0/3.0, screen_size.y - 10.0, 0.0);
-
-        let graph_object:&display::object::Node = (&self.node_searcher).into();
-        graph_object.set_position(position);
+        self.node_searcher.set_position(position);
     }
 }
 

@@ -244,8 +244,8 @@ impl WeakRef for WeakNode {
     }
 }
 
-impl<'t> From<&'t Node> for &'t display::object::Node {
-    fn from(t:&'t Node) -> Self {
-        &t.view.display_object
+impl display::Object for Node {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.view.display_object
     }
 }

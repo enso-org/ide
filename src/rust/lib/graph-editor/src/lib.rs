@@ -44,7 +44,7 @@ use enso_frp as frp;
 use enso_frp::Position;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use ensogl::display::object::Id;
+use ensogl::display::object::{Id, Instance};
 use ensogl::system::web::StyleSetter;
 
 
@@ -167,7 +167,7 @@ impl Events {
 pub struct GraphEditor {
     pub frp            : Events,
     pub selected_nodes : WeakNodeSelectionSet,
-    pub display_object : display::object::Node,
+    pub display_object : display::object::Instance,
     pub node_set       : NodeSet,
 }
 
@@ -225,7 +225,7 @@ impl GraphEditor {
         web::body().set_style_or_panic("cursor","none");
         world.add_child(&cursor);
 
-        let display_object = display::object::Node::new(Logger::new("GraphEditor"));
+        let display_object = display::object::Instance::new(Logger::new("GraphEditor"));
 
         let mouse = &scene.mouse.frp;
 
@@ -427,8 +427,8 @@ impl GraphEditor {
     }
 }
 
-impl<'a> From<&'a GraphEditor> for &'a display::object::Node {
-    fn from(graph_editor: &'a GraphEditor) -> Self {
-        &graph_editor.display_object
+impl display::Object for GraphEditor {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }

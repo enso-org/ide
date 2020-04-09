@@ -578,7 +578,7 @@ impl Views {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct SceneData {
-    pub display_object : display::object::Node,
+    pub display_object : display::object::Instance,
     pub dom            : Dom,
     pub context        : Context,
     symbols            : SymbolRegistry,
@@ -604,7 +604,7 @@ impl SceneData {
         parent_dom.append_child(&dom.root).unwrap();
         dom.recompute_shape_with_reflow();
 
-        let display_object = display::object::Node::new(&logger);
+        let display_object = display::object::Instance::new(&logger);
         let context        = web::get_webgl2_context(&dom.layers.canvas);
         let sub_logger     = logger.sub("shape_dirty");
         let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
@@ -723,9 +723,9 @@ impl SceneData {
     }
 }
 
-impl<'t> From<&'t SceneData> for &'t display::object::Node {
-    fn from(scene:&'t SceneData) -> Self {
-        &scene.display_object
+impl display::Object for SceneData {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }
 
@@ -782,8 +782,8 @@ impl Scene {
     }
 }
 
-impl<'t> From<&'t Scene> for &'t display::object::Node {
-    fn from(scene:&'t Scene) -> Self {
-        &scene.display_object
+impl display::Object for Scene {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }

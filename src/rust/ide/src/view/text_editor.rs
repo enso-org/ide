@@ -56,7 +56,7 @@ impl {
     }
 
     /// Get the editor's display object.
-    pub fn display_object(&self) -> display::object::Node {
+    pub fn display_object(&self) -> display::object::Instance {
         self.text_field.display_object()
     }
 }}

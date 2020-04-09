@@ -54,7 +54,7 @@ impl MouseTarget for ShapeViewEvents {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ShapeView<T:ShapeViewDefinition> {
-    pub display_object : display::object::Node,
+    pub display_object : display::object::Instance,
     pub events         : ShapeViewEvents,
     pub data           : Rc<RefCell<Option<ShapeViewData<T>>>>,
 }
@@ -75,7 +75,7 @@ pub struct ShapeViewData<T:ShapeViewDefinition> {
 impl<T:ShapeViewDefinition> ShapeView<T> {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
-        let display_object = display::object::Node::new(logger);
+        let display_object = display::object::Instance::new(logger);
         let events         = default();
         let data           = default();
         Self {display_object,events,data} . init()

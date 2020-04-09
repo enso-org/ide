@@ -197,9 +197,9 @@ impl WeakRef for WeakCursor {
     }
 }
 
-impl<'t> From<&'t Cursor> for &'t display::object::Node {
-    fn from(t:&'t Cursor) -> Self {
-        &t.view.display_object
+impl display::Object for Cursor {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.view.display_object
     }
 }
 

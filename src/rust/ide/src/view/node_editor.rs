@@ -18,7 +18,7 @@ use utils::channel::process_stream_with_handle;
 
 #[derive(Clone,Debug)]
 pub struct NodeEditor {
-    display_object : display::object::Node,
+    display_object : display::object::Instance,
     graph          : Rc<GraphEditor>,
     controller     : controller::graph::Handle,
     logger         : Logger,
@@ -27,7 +27,7 @@ pub struct NodeEditor {
 impl NodeEditor {
     pub fn new(logger:&Logger, world:&World, controller:controller::graph::Handle) -> Self {
         let logger         = logger.sub("GraphEditor");
-        let display_object = display::object::Node::new(&logger);
+        let display_object = display::object::Instance::new(&logger);
         let graph          = Rc::new(graph_editor::GraphEditor::new(world));
         display_object.add_child(graph.deref());
         let editor         = NodeEditor {display_object,graph,controller,logger};
@@ -64,8 +64,8 @@ impl NodeEditor {
     }
 }
 
-impl<'t> From<&'t NodeEditor> for &'t display::object::Node {
-    fn from(graph_editor:&'t NodeEditor) -> Self {
-        &graph_editor.display_object
+impl display::Object for NodeEditor {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }

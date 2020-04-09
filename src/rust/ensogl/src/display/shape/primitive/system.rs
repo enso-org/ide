@@ -85,9 +85,9 @@ impl ShapeSystem {
     }
 }
 
-impl<'t> From<&'t ShapeSystem> for &'t display::object::Node {
-    fn from(shape_system:&'t ShapeSystem) -> Self {
-        shape_system.sprite_system.display_object()
+impl display::Object for ShapeSystem {
+    fn display_object(&self) -> &display::object::Instance {
+        self.sprite_system.display_object()
     }
 }
 
@@ -144,9 +144,9 @@ macro_rules! define_shape_system {
             }
         }
 
-        impl<'t> From<&'t Shape> for &'t display::object::Node {
-            fn from(t:&'t Shape) -> Self {
-                &t.sprite.display_object()
+        impl display::Object for Shape {
+            fn display_object(&self) -> &display::object::Instance {
+                self.sprite.display_object()
             }
         }
 
