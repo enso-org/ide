@@ -80,9 +80,30 @@ struct Scope {
     symbols : IdentifierUsage
 }
 
+impl Scope {
+    fn used_from_parent(self) -> impl Iterator<Item=LocatedIdentifier> {
+        // note: we must drop location, because we care only about name, obviously usage and
+        // introducing will take place elsewhere.s
+        let locally_available: HashSet<NormalizedName> = self.symbols.introduced.into_iter().map(|located_name| located_name.item).collect();
+        let all_used = self.symbols.used.into_iter();
+        all_used.filter(move |name| {
+            let aaa = !locally_available.contains(&name.item);
+            println!("Test: does {:?} belong to {:?}: {}", name, locally_available, aaa);
+            aaa
+        })
+    }
+
+    fn coalesce_child(&mut self, child:Scope) {
+        println!("Coalescing scopes:\n\ttarget: {:?}\n\tchild: {:?}",self,child);
+        let symbols_to_use = child.used_from_parent();
+        self.symbols.used.extend(symbols_to_use);
+        println!("\tResult: {:?}",self);
+    }
+}
+
 #[derive(Clone,Debug)]
 struct AliasAnalyzer {
-    run_focus : Option<NameKind>,
+//    run_focus : Option<NameKind>,
     scopes    : Vec<Scope>,
     context   : Vec<Context>,
     location  : Vec<ast::crumbs::Crumb>,
@@ -91,7 +112,7 @@ struct AliasAnalyzer {
 impl AliasAnalyzer {
     fn new() -> AliasAnalyzer {
         AliasAnalyzer {
-            run_focus : default(),
+//            run_focus : default(),
             scopes    : vec![default()],
             context   : vec![Context::NonPattern],
             location  : default(),
@@ -115,7 +136,11 @@ impl AliasAnalyzer {
 
     fn in_new_scope(&mut self, f:impl FnOnce(&mut AliasAnalyzer)) {
         let scope = Scope::default();
-        self.with_items_added(|this| &mut this.scopes, std::iter::once(scope), f);
+        self.scopes.push(scope);
+        f(self);
+        let scope = self.scopes.pop().unwrap();
+        self.scopes.last_mut().unwrap().coalesce_child(scope);
+//        self.with_items_added(|this| &mut this.scopes, std::iter::once(scope), f);
     }
 
     fn in_new_context(&mut self, context:Context, f:impl FnOnce(&mut AliasAnalyzer)) {
@@ -134,21 +159,15 @@ impl AliasAnalyzer {
     }
 
     fn add_identifier(&mut self, kind:NameKind, identifier:NormalizedName) {
-        let matching_focus = self.run_focus.contains(&kind);
-        let identifier     = LocatedIdentifier::new(self.location.clone(), identifier);
-        let scope_index     = self.scopes.len()-1;
-
-
-        let symbols        = &mut self.current_scope_mut().symbols;
-        if matching_focus {
-            let target = match kind {
-                NameKind::Used => &mut symbols.used,
-                NameKind::Introduced => &mut symbols.introduced,
-            };
-            println!("Name {} is {} in scope @{}",identifier.item.0,kind,scope_index);
-            target.push(identifier)
-        }
-
+        let identifier  = LocatedIdentifier::new(self.location.clone(), identifier);
+        let scope_index = self.scopes.len()-1;
+        let symbols     = &mut self.current_scope_mut().symbols;
+        let target      = match kind {
+            NameKind::Used => &mut symbols.used,
+            NameKind::Introduced => &mut symbols.introduced,
+        };
+        println!("Name {} is {} in scope @{}",identifier.item.0,kind,scope_index);
+        target.push(identifier)
         /*
         if self.run_focus.contains(&kind) == false {
             return
@@ -281,10 +300,10 @@ pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
     println!("\n===============================================================================\n");
     println!("Case: {}",node.ast().repr());
     let mut analyzer = AliasAnalyzer::new();
-    analyzer.run_focus = Some(NameKind::Introduced);
+//    analyzer.run_focus = Some(NameKind::Introduced);
     analyzer.enter_node(node);
-    analyzer.run_focus = Some(NameKind::Used);
-    analyzer.enter_node(node);
+//    analyzer.run_focus = Some(NameKind::Used);
+//    analyzer.enter_node(node);
     analyzer.scopes.last().unwrap().symbols.clone() // TODO mvoe out
 }
 

@@ -91,21 +91,21 @@ pub type Crumbs = Vec<Crumb>;
 // === InvalidSuffix ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct InvalidSuffixCrumb;
 
 
 // === TextLineFmt ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct TextLineFmtCrumb {pub segment_index:usize}
 
 
 // === TextBlockFmt ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct TextBlockFmtCrumb {
     pub text_line_index : usize,
     pub segment_index   : usize
@@ -115,7 +115,7 @@ pub struct TextBlockFmtCrumb {
 // === TextUnclosed ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct TextUnclosedCrumb {
     pub text_line_crumb : TextLineFmtCrumb
 }
@@ -124,7 +124,7 @@ pub struct TextUnclosedCrumb {
 // === Prefix ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum PrefixCrumb {
     Func,
     Arg
@@ -134,7 +134,7 @@ pub enum PrefixCrumb {
 // === Infix ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum InfixCrumb {
     LeftOperand,
     Operator,
@@ -145,7 +145,7 @@ pub enum InfixCrumb {
 // === SectionLeft ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum SectionLeftCrumb {
     Arg,
     Opr
@@ -155,7 +155,7 @@ pub enum SectionLeftCrumb {
 // === SectionRight ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum SectionRightCrumb {
     Opr,
     Arg
@@ -165,21 +165,21 @@ pub enum SectionRightCrumb {
 // === SectionSides ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct SectionSidesCrumb;
 
 
 // === Module ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct ModuleCrumb {pub line_index:usize}
 
 
 // === Block ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum BlockCrumb {
     /// The first non-empty line in block.
     HeadLine,
@@ -191,14 +191,14 @@ pub enum BlockCrumb {
 // === Import ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct ImportCrumb {pub index:usize}
 
 
 // === Mixfix ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum MixfixCrumb {
     Name {index:usize},
     Args {index:usize}
@@ -208,14 +208,14 @@ pub enum MixfixCrumb {
 // === Group ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub struct GroupCrumb;
 
 
 // === Def ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 pub enum DefCrumb {
     Name,
     Args {index:usize},
@@ -270,7 +270,7 @@ macro_rules! impl_crumbs {
         }
 
         /// Crumb identifies location of child AST in an AST node. Allows for a single step AST traversal.
-        #[derive(Clone,Copy,Debug,PartialEq,Hash)]
+        #[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
         #[allow(missing_docs)]
         pub enum Crumb {
             $($id($crumb_id),)*
@@ -859,7 +859,7 @@ pub fn non_empty_line_indices<'a, T:'a>
 // ===============
 
 /// Item which location is identified by `Crumbs`.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap,PartialEq,Eq,Hash)]
 pub struct Located<T> {
     /// Crumbs from containing parent.
     pub crumbs : Crumbs,
