@@ -104,7 +104,7 @@ impl GeneralizedInfix {
 
     /// Associativity of the operator used in this infix expression.
     pub fn assoc(&self) -> Assoc {
-        Assoc::of(&self.name())
+        assoc(&self.opr.item)
     }
 
     /// Identifier name  of the operator used in this infix expression.

@@ -8,7 +8,6 @@ use crate::double_representation::node::NodeInfo;
 use ast::crumbs::{InfixCrumb, Located};
 use ast::crumbs::Crumb;
 use crate::double_representation::definition::DefinitionInfo;
-use crate::double_representation::alias_analysis::Context::Graph;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -71,46 +70,119 @@ pub struct IdentifierUsage {
 // ================
 
 #[derive(Clone,Copy,Debug,Display,PartialEq)]
-enum Context {Graph,AssignmentPattern}
+enum NameKind { Used, Introduced }
+
+#[derive(Clone,Copy,Debug,Display,PartialEq)]
+enum Context { NonPattern, Pattern }
+
+#[derive(Clone,Debug,Default)]
+struct Scope {
+    symbols : IdentifierUsage
+}
+
+//struct WithPushed<'a,T> {
+//    target         : &'a Vec<T>,
+//    original_count : usize
+//}
+//
+//impl<'a,T> WithPushed<'a,T> {
+//    fn new_single()
+//}
+//
+//impl<'a,T> Drop for WithPushed<'a,T> {
+//    fn drop(&mut self) {
+//        self.target.truncate(self.original_count)
+//    }
+//}
 
 #[derive(Clone,Debug)]
 struct AliasAnalyzer {
-    usage    : IdentifierUsage,
+    scopes   : Vec<Scope>,
     context  : Vec<Context>,
-    location : ast::crumbs::Crumbs,
+    location : Vec<ast::crumbs::Crumb>,
 }
 
 impl AliasAnalyzer {
     fn new() -> AliasAnalyzer {
         AliasAnalyzer {
-            usage    : default(),
-            context  : vec![Context::Graph],
+            scopes   : vec![default()],
+            context  : vec![Context::NonPattern],
             location : default(),
         }
     }
 
-    fn use_identifier(&mut self, identifier:NormalizedName) {
-        let identifier = LocatedIdentifier::new(self.location.clone(), identifier);
-        self.usage.used.push(identifier)
+    fn with_items_added<T,Cs,R,F>
+    ( &mut self
+    , vec   : impl Fn(&mut Self) -> &mut Vec<T>
+    , items : Cs
+    , f     : F) -> R
+    where
+      Cs : IntoIterator<Item:Into<T>>,
+      F  : FnOnce(&mut Self) -> R {
+        let original_count = vec(self).len();
+        vec(self).extend(items.into_iter().map(|item| item.into()));
+        let ret = f(self);
+        vec(self).truncate(original_count);
+        ret
     }
-    fn introduce_identifier(&mut self, identifier:NormalizedName) {
+
+    fn in_new_scope(&mut self, f:impl FnOnce(&mut AliasAnalyzer)) {
+        let scope = Scope::default();
+        self.with_items_added(|this| &mut this.scopes, std::iter::once(scope), f);
+    }
+
+    fn in_new_context(&mut self, context:Context, f:impl FnOnce(&mut AliasAnalyzer)) {
+        self.with_items_added(|this| &mut this.context, std::iter::once(context), f);
+    }
+
+    fn in_new_location<Cs,F,R>(&mut self, crumbs:Cs, f:F) -> R
+    where Cs : IntoIterator<Item:Into<Crumb>>,
+           F : FnOnce(&mut AliasAnalyzer) -> R {
+        self.with_items_added(|this| &mut this.location, crumbs, f)
+    }
+
+    fn current_scope_mut(&mut self) -> &mut Scope {
+        // TODO explain why absolutely safe and should totally not break tests
+        self.scopes.last_mut().unwrap()
+    }
+
+    fn add_identifier(&mut self, kind:NameKind, identifier:NormalizedName) {
         let identifier = LocatedIdentifier::new(self.location.clone(), identifier);
-        self.usage.introduced.push(identifier)
+        let symbols    = &mut self.current_scope_mut().symbols;
+        let target     = match kind {
+            NameKind::Used       => &mut symbols.used,
+            NameKind::Introduced => &mut symbols.introduced,
+        };
+        target.push(identifier)
     }
 
     fn in_context(&mut self, context:Context) -> bool {
         self.context.last().contains(&&context)
     }
 
-    fn in_assignment_pattern(&mut self) -> bool {
-        self.in_context(Context::AssignmentPattern)
+    fn is_in_pattern(&mut self) -> bool {
+        self.in_context(Context::Pattern)
+    }
+
+    fn try_adding_name(&mut self, kind:NameKind, ast:&Ast) -> bool {
+        if let Some(name) = NormalizedName::try_from_ast(ast) {
+            self.add_identifier(kind,name);
+            true
+        } else {
+            false
+        }
+    }
+    fn try_adding_located<T>(&mut self, kind:NameKind, located:&Located<T>) -> bool
+    where for<'a> &'a T : Into<&'a Ast> {
+        let ast = (&located.item).into();
+        self.in_location_of(located, |this| this.try_adding_name(kind,ast))
     }
 
     fn process_ast(&mut self, ast:&Ast) {
         println!("Processing `{}` in context {}",ast.repr(),self.context.last().unwrap());
-
-        // Special case for pattern matching.
-        if self.in_assignment_pattern() {
+        if let Some(assignment) = ast::opr::to_assignment(ast) {
+            self.process_assignment(&assignment);
+        } else if self.is_in_pattern() {
             // We are in the assignment's pattern. three options:
             // 1) This is a destructuring pattern match with prefix syntax, like `Point x y`.
             // 3) As above but with operator and infix syntax, like `head,tail`.
@@ -121,18 +193,22 @@ impl AliasAnalyzer {
                 // Arguments introduce names, we ignore function name.
                 for Located{crumbs,item} in prefix_chain.enumerate_args() {
                     println!("Argument: crumb {:?} contents {}", crumbs,item.repr());
-                    self.in_location_nested(crumbs, |this| this.process_ast(&item))
+                    self.in_new_location(crumbs, |this| this.process_ast(&item))
                 }
             } else if let Some(infix_chain) = ast::opr::Chain::try_new(ast) {
                 for operand in infix_chain.enumerate_operands() {
                     self.in_location_of(operand, |this| this.process_ast(&operand.item))
                 }
-            } else if let Some(name) = NormalizedName::try_from_ast(ast) {
-                self.introduce_identifier(name)
+                for operator in infix_chain.enumerate_operators() {
+                    // Operators in infix positions are treated as constructors, i.e. they are used.
+                    self.try_adding_located(NameKind::Used,operator);
+                }
+            } else {
+                self.try_adding_name(NameKind::Introduced,ast);
             }
-        } else if self.in_context(Graph) {
-            if let Some(name) = NormalizedName::try_from_ast(ast) {
-                self.use_identifier(name)
+        } else if self.in_context(Context::NonPattern) {
+            if self.try_adding_name(NameKind::Used,ast) {
+                // Plain identifier: just add and do nothing.
             } else {
                 for (crumb,ast) in ast.enumerate() {
                     self.in_location(crumb, |this| this.process_ast(ast))
@@ -143,45 +219,27 @@ impl AliasAnalyzer {
 
     fn in_location<F,R>(&mut self, crumb:impl Into<Crumb>, f:F) -> R
     where F:FnOnce(&mut Self) -> R {
-        self.in_location_nested(std::iter::once(crumb),f)
-    }
-
-    fn in_location_nested<F,R>(&mut self, crumbs:impl IntoIterator<Item:Into<Crumb>>, f:F) -> R
-    where F:FnOnce(&mut Self) -> R {
-        let size_before = self.location.len();
-        self.location.extend(crumbs.into_iter().map(|crumb| crumb.into()));
-        let ret = f(self);
-        while self.location.len() > size_before {
-            self.location.pop();
-        }
-        ret
+        self.in_new_location(std::iter::once(crumb),f)
     }
 
     fn in_location_of<T,F,R>(&mut self, located_item:&Located<T>, f:F) -> R
     where F:FnOnce(&mut Self) -> R {
-        self.in_location_nested(located_item.crumbs.iter().cloned(), f)
+        self.in_new_location(located_item.crumbs.iter().cloned(), f)
     }
 
-    fn enter_assignment_pattern(&mut self, ast:&Ast) {
-        self.in_location(InfixCrumb::LeftOperand, |this| {
-            this.context.push(Context::AssignmentPattern);
-            this.process_ast(ast);
-            this.context.pop();
-        });
-    }
-
-    fn enter_assignment_body(&mut self, ast:&Ast) {
-        self.in_location(InfixCrumb::RightOperand, |this| this.process_ast(ast));
+    fn process_assignment(&mut self, assignment:&ast::known::Infix) {
+        self.in_location(InfixCrumb::LeftOperand, |this|
+            this.in_new_context(Context::Pattern, |this|
+                this.process_ast(&assignment.larg)
+            )
+        );
+        self.in_location(InfixCrumb::RightOperand, |this|
+            this.process_ast(&assignment.rarg)
+        );
     }
 
     fn enter_node(&mut self, node:&NodeInfo) {
-        let ast = node.ast();
-        if let Some(assignment) = ast::opr::to_assignment(ast) {
-            self.enter_assignment_pattern(&assignment.larg);
-            self.enter_assignment_body(&assignment.rarg);
-        } else {
-            self.process_ast(ast)
-        }
+        self.process_ast(node.ast())
     }
 }
 
@@ -190,7 +248,7 @@ impl AliasAnalyzer {
 pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
     let mut analyzer = AliasAnalyzer::new();
     analyzer.enter_node(node);
-    analyzer.usage
+    analyzer.scopes.last().unwrap().symbols.clone() // TODO mvoe out
 }
 
 ///// Hardcoded proper result for `sum = a + b`.
@@ -228,8 +286,8 @@ mod tests {
     /// Checks if actual observed sequence of located identifiers matches the expected one.
     /// Expected identifiers are described as code spans in the node's text representation.
     fn validate_identifiers
-    (node:&NodeInfo, expected:Vec<Range<usize>>, actual:&Vec<LocatedIdentifier>) {
-        let mut checker = IdentifierValidator::new(node,expected);
+    (name:impl Str, node:&NodeInfo, expected:Vec<Range<usize>>, actual:&Vec<LocatedIdentifier>) {
+        let mut checker = IdentifierValidator::new(name,node,expected);
         checker.validate_identifiers(actual);
     }
 
@@ -239,8 +297,8 @@ mod tests {
         let node   = NodeInfo::from_line_ast(&ast).unwrap();
         let result = analyse_identifier_usage(&node);
         println!("Analysis results: {:?}", result);
-        validate_identifiers(&node, case.expected_introduced, &result.introduced);
-        validate_identifiers(&node, case.expected_used, &result.used);
+        validate_identifiers("introduced",&node, case.expected_introduced, &result.introduced);
+        validate_identifiers("used",      &node, case.expected_used,       &result.used);
     }
 
     /// Runs the test for the test case expressed using markdown notation. See `Case` for details.

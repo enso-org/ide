@@ -133,14 +133,16 @@ enum HasBeenValidated {No,Yes}
 /// Otherwise, it shall panic when dropped.
 #[derive(Clone,Debug)]
 pub struct IdentifierValidator<'a> {
-    node       :&'a NodeInfo,
-    validations:HashMap<NormalizedName,HasBeenValidated>,
+    name        : String,
+    node        : &'a NodeInfo,
+    validations : HashMap<NormalizedName,HasBeenValidated>,
 }
 
 impl<'a> IdentifierValidator<'a> {
     /// Creates a new checker, with identifier set obtained from given node's representation
     /// spans.
-    pub fn new(node:&NodeInfo,spans:Vec<Range<usize>>) -> IdentifierValidator {
+    pub fn new(name:impl Str, node:&NodeInfo,spans:Vec<Range<usize>>) -> IdentifierValidator {
+        let name = name.into();
         let ast  = node.ast();
         let repr = ast.repr();
         let mut validations = HashMap::default();
@@ -148,13 +150,13 @@ impl<'a> IdentifierValidator<'a> {
             let name = NormalizedName::new(&repr[span]);
             validations.insert(name, HasBeenValidated::No);
         }
-        IdentifierValidator {node,validations}
+        IdentifierValidator {name,node,validations}
     }
 
     /// Marks given identifier as checked.
     pub fn validate_identifier(&mut self, name:&NormalizedName) {
-        let err  = || iformat!("unexpected identifier `{name}` validated");
-        let used = self.validations.get_mut(&name).expect(&err());
+        let err  = iformat!("{self.name}: unexpected identifier `{name}` validated");
+        let used = self.validations.get_mut(&name).expect(&err);
         *used = HasBeenValidated::Yes;
     }
 
@@ -179,7 +181,7 @@ impl<'a> Drop for IdentifierValidator<'a> {
         if !std::thread::panicking() {
             for elem in &self.validations {
                 assert_eq!(elem.1, &HasBeenValidated::Yes,
-                           "identifier `{}` was not validated)", elem.0)
+                           "{}: identifier `{}` was not validated)", self.name,elem.0)
             }
         } else {
             println!("Skipping identifier validation, because thread is already in panic.");
