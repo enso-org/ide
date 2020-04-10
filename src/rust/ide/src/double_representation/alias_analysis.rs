@@ -80,34 +80,21 @@ struct Scope {
     symbols : IdentifierUsage
 }
 
-//struct WithPushed<'a,T> {
-//    target         : &'a Vec<T>,
-//    original_count : usize
-//}
-//
-//impl<'a,T> WithPushed<'a,T> {
-//    fn new_single()
-//}
-//
-//impl<'a,T> Drop for WithPushed<'a,T> {
-//    fn drop(&mut self) {
-//        self.target.truncate(self.original_count)
-//    }
-//}
-
 #[derive(Clone,Debug)]
 struct AliasAnalyzer {
-    scopes   : Vec<Scope>,
-    context  : Vec<Context>,
-    location : Vec<ast::crumbs::Crumb>,
+    run_focus : Option<NameKind>,
+    scopes    : Vec<Scope>,
+    context   : Vec<Context>,
+    location  : Vec<ast::crumbs::Crumb>,
 }
 
 impl AliasAnalyzer {
     fn new() -> AliasAnalyzer {
         AliasAnalyzer {
-            scopes   : vec![default()],
-            context  : vec![Context::NonPattern],
-            location : default(),
+            run_focus : default(),
+            scopes    : vec![default()],
+            context   : vec![Context::NonPattern],
+            location  : default(),
         }
     }
 
@@ -147,20 +134,59 @@ impl AliasAnalyzer {
     }
 
     fn add_identifier(&mut self, kind:NameKind, identifier:NormalizedName) {
-        let identifier = LocatedIdentifier::new(self.location.clone(), identifier);
-        let symbols    = &mut self.current_scope_mut().symbols;
-        let target     = match kind {
-            NameKind::Used       => &mut symbols.used,
-            NameKind::Introduced => &mut symbols.introduced,
-        };
-        target.push(identifier)
+        let matching_focus = self.run_focus.contains(&kind);
+        let identifier     = LocatedIdentifier::new(self.location.clone(), identifier);
+        let scope_index     = self.scopes.len()-1;
+
+
+        let symbols        = &mut self.current_scope_mut().symbols;
+        if matching_focus {
+            let target = match kind {
+                NameKind::Used => &mut symbols.used,
+                NameKind::Introduced => &mut symbols.introduced,
+            };
+            println!("Name {} is {} in scope @{}",identifier.item.0,kind,scope_index);
+            target.push(identifier)
+        }
+
+        /*
+        if self.run_focus.contains(&kind) == false {
+            return
+        }
+        let identifier     = LocatedIdentifier::new(self.location.clone(), identifier);
+        let scope_index     = self.scopes.len()-1;
+        assert!(self.scopes.len() > 0);
+
+        match kind {
+            NameKind::Introduced => {
+                println!("Name {} is introduced into scope @{}",identifier.item.0,kind,scope_index);
+                self.current_scope_mut().symbols.introduced.push(identifier);
+            }
+            NameKind::Used => {
+                for scope in self.scopes.iter_mut().rev() {
+                    if scope.intro
+                }
+            }
+        }
+
+
+
+        let symbols        = &mut self.current_scope_mut().symbols;
+            let target = match kind {
+                NameKind::Used => &mut symbols.used,
+                NameKind::Introduced => &mut symbols.introduced,
+            };
+            println!("Name {} is {} in scope @{}",identifier.item.0,kind,scope_index);
+            target.push(identifier)
+        */
     }
 
-    fn in_context(&mut self, context:Context) -> bool {
+
+    fn in_context(&self, context:Context) -> bool {
         self.context.last().contains(&&context)
     }
 
-    fn is_in_pattern(&mut self) -> bool {
+    fn is_in_pattern(&self) -> bool {
         self.in_context(Context::Pattern)
     }
 
@@ -207,7 +233,13 @@ impl AliasAnalyzer {
                 self.try_adding_name(NameKind::Introduced,ast);
             }
         } else if self.in_context(Context::NonPattern) {
-            if self.try_adding_name(NameKind::Used,ast) {
+            if let Ok(block) = ast::known::Block::try_from(ast) {
+                self.in_new_scope(|this| {
+                    for (crumb,ast) in ast.enumerate() {
+                        this.in_location(crumb, |this| this.process_ast(ast))
+                    }
+                })
+            } else if self.try_adding_name(NameKind::Used,ast) {
                 // Plain identifier: just add and do nothing.
             } else {
                 for (crumb,ast) in ast.enumerate() {
@@ -246,7 +278,12 @@ impl AliasAnalyzer {
 /// Describes identifiers that nodes introduces into the graph and identifiers from graph's scope
 /// that node uses. This logic serves as a base for connection discovery.
 pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
+    println!("\n===============================================================================\n");
+    println!("Case: {}",node.ast().repr());
     let mut analyzer = AliasAnalyzer::new();
+    analyzer.run_focus = Some(NameKind::Introduced);
+    analyzer.enter_node(node);
+    analyzer.run_focus = Some(NameKind::Used);
     analyzer.enter_node(node);
     analyzer.scopes.last().unwrap().symbols.clone() // TODO mvoe out
 }
@@ -324,7 +361,15 @@ mod tests {
             "«foo» = »bar«",
             "«sum» = »a« »+« »b«",
             "Point «x» «u» = »point«",
-            "«x» »,« «y» = »pair«"
+            "«x» »,« «y» = »pair«",
+
+            r"«inc» =
+                »foo« »+« 1",
+
+            r"«inc» =
+                foo = 2
+                foo »+« 1",
+
 //            "a.«hello» = »print« 'Hello'",
 //            "«log_name» = object -> »print« object.»name«",
 //            "«log_name» = object -> »print« $ »name« object",
