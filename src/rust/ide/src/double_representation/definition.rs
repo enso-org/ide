@@ -308,7 +308,7 @@ pub type ChildDefinition = ast::crumbs::Located<DefinitionInfo>;
 /// Its crumbs will accumulate both current crumbs and the passed one.
 pub fn resolve_single_name(def:ChildDefinition, id:&Crumb) -> FallibleResult<ChildDefinition> {
     let child = def.item.def_iter().find_by_name(id)?;
-    Ok(def.push_descendant(child))
+    Ok(def.into_descendant(child))
 }
 
 

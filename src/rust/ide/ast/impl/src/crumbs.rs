@@ -9,6 +9,7 @@ use crate::Shape;
 use utils::fail::FallibleResult;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -238,6 +239,14 @@ macro_rules! from_crumb {
                 Crumb::$id(crumb.clone())
             }
         }
+
+        impl IntoIterator for $crumb_id {
+            type Item = Crumb;
+            type IntoIter = std::iter::Once<Self::Item>;
+            fn into_iter(self) -> Self::IntoIter {
+                std::iter::once(Crumb::from(self))
+            }
+        }
     }
 }
 
@@ -277,6 +286,15 @@ macro_rules! impl_crumbs {
         }
     }
 }
+
+impl IntoIterator for Crumb {
+    type Item = Crumb;
+    type IntoIter = std::iter::Once<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::iter::once(self)
+    }
+}
+
 
 impl_crumbs!{
     (InvalidSuffix,InvalidSuffixCrumb),
@@ -893,13 +911,6 @@ impl<T> Located<T> {
         Located::new(self.crumbs, f(self.item))
     }
 
-    /// Replaces the item, while pushing given crumbs on top of already present ones.
-    pub fn into_descendant<U>(self, crumbs:Crumbs, item:U) -> Located<U> {
-        let mut ret = self.map(|_| item);
-        ret.crumbs.extend(crumbs);
-        ret
-    }
-
     pub fn descendant<Cs,U>(&self, crumbs:Cs, child:U) -> Located<U>
     where Cs : IntoIterator<Item:Into<Crumb>>,{
         let crumbs_so_far = self.crumbs.iter().copied();
@@ -908,13 +919,16 @@ impl<T> Located<T> {
         Located::new(crumbs, child)
     }
 
-    pub fn child<U>(&self, crumb:impl Into<Crumb>, child:U) -> Located<U> {
-        self.descendant(std::iter::once(crumb),child)
-    }
+//    pub fn child<U>(&self, crumb:impl Into<Crumb>, child:U) -> Located<U> {
+//        self.descendant(std::iter::once(crumb),child)
+//    }
 
     /// Maps into child, concatenating this crumbs and child crumbs.
-    pub fn push_descendant<U>(self, child:Located<U>) -> Located<U> {
-        self.into_descendant(child.crumbs,child.item)
+    pub fn into_descendant<U>(self, child:Located<U>) -> Located<U> {
+        let Located {crumbs,item} = child;
+        let mut ret = self.map(|_| item);
+        ret.crumbs.extend(crumbs);
+        ret
     }
 }
 
@@ -1442,13 +1456,8 @@ mod tests {
         assert_eq!(item.item, "zero");
         assert!(item.crumbs.is_empty());
 
-        let item = item.into_descendant(vec![Crumb::Infix(InfixCrumb::LeftOperand)], 1);
-        assert_eq!(item.item, 1);
-        let (crumb0,) = item.crumbs.iter().expect_tuple();
-        assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::LeftOperand));
-
         let child_item = Located::new_direct_child(InfixCrumb::Operator, "two");
-        let item = item.push_descendant(child_item);
+        let item = item.into_descendant(child_item);
         assert_eq!(item.item, "two");
         let (crumb0,crumb1) = item.crumbs.iter().expect_tuple();
         assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::LeftOperand));

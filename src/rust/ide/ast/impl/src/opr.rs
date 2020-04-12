@@ -10,22 +10,44 @@ use crate::crumbs::{Crumb, Located, InfixCrumb, SectionLeftCrumb, SectionRightCr
 
 /// Identifiers of operators with special meaning for IDE.
 pub mod predefined {
-    /// Used to create bindings, e.g. `add a b = a + b` or `foo = 5`.
-    pub const ASSIGNMENT : &str = "=";
     /// Used to create type paths (like `Int.+` or `IO.println`).
     pub const ACCESS : &str = ".";
+    /// Used to create bindings, e.g. `add a b = a + b` or `foo = 5`.
+    pub const ASSIGNMENT : &str = "=";
+    /// Used to create lambda expressions, e.g. `a -> b -> a + b`.
+    pub const ARROW : &str = "->";
+}
+
+/// Checks if the given AST has Opr shape with the name matching given string.
+pub fn is_opr_named(ast:&Ast, name:impl Str) -> bool {
+    let opr_opt = known::Opr::try_from(ast).ok();
+    opr_opt.contains_if(|opr| opr.name == name.as_ref())
 }
 
 /// Checks if given Ast is an assignment operator identifier.
 pub fn is_assignment_opr(ast:&Ast) -> bool {
-    let opr_opt = known::Opr::try_from(ast);
-    opr_opt.map(|opr| opr.name == predefined::ASSIGNMENT).unwrap_or(false)
+    is_opr_named(ast,predefined::ASSIGNMENT)
 }
 
-/// If given Ast is an assignment operator, returns it as Some known::Infix.
-pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
+/// Checks if given Ast is an assignment operator identifier.
+pub fn is_arrow_opr(ast:&Ast) -> bool {
+    is_opr_named(ast,predefined::ARROW)
+}
+
+/// If given Ast is a specific infix operator application, returns it.
+pub fn to_specific_infix(ast:&Ast, name:&str) -> Option<known::Infix> {
     let infix = known::Infix::try_from(ast).ok()?;
-    is_assignment_opr(&infix.opr).then(infix)
+    is_opr_named(&infix.opr,name).then(infix)
+}
+
+/// If given Ast is an assignment infix expression, returns it as Some known::Infix.
+pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
+    to_specific_infix(ast,predefined::ASSIGNMENT)
+}
+
+/// If given Ast is an arrow infix expression, returns it as Some known::Infix.
+pub fn to_arrow(ast:&Ast) -> Option<known::Infix> {
+    to_specific_infix(ast,predefined::ARROW)
 }
 
 /// Checks if a given node is an assignment infix expression.
@@ -34,24 +56,33 @@ pub fn is_assignment(ast:&Ast) -> bool {
     infix.map(|infix| is_assignment_opr(&infix.opr)).unwrap_or(false)
 }
 
+
+
+// ===========================
+// === Chain-related types ===
+// ===========================
+
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
 pub type Operand = Option<Located<Ast>>;
 
 /// Infix operator standing between (optional) operands.
 pub type Operator = Located<known::Opr>;
 
-fn make_operand(parent:&Located<Ast>, crumb:impl Into<Crumb>, child:&Ast) -> Operand {
-    Some(parent.child(crumb,child.clone()))
+/// Creates `Operand` from `ast` with position relative to the given `parent` node.
+pub fn make_operand(parent:&Located<Ast>, crumb:impl Into<Crumb>, child:&Ast) -> Operand {
+    Some(parent.descendant(crumb.into(),child.clone()))
 }
 
-fn make_operator(parent:&Located<Ast>, crumb:impl Into<Crumb>, opr:&Ast) -> Option<Operator> {
+/// Creates `Operator` from `ast` with position relative to the given `parent` node.
+pub fn make_operator(parent:&Located<Ast>, crumb:impl Into<Crumb>, opr:&Ast) -> Option<Operator> {
     let opr = known::Opr::try_from(opr).ok()?;
-    Some(parent.child(crumb,opr))
+    Some(parent.descendant(crumb.into(),opr))
 }
 
 fn assoc(ast:&known::Opr) -> Assoc {
     Assoc::of(&ast.name)
 }
+
 
 
 // ========================

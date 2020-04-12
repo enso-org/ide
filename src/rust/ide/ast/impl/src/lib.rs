@@ -32,6 +32,7 @@ pub mod prelude {
 
     pub use crate::Ast;
     pub use crate::traits::*;
+    pub use utils::option::*;
 }
 
 use crate::prelude::*;

@@ -64,13 +64,13 @@ impl Chain {
         }
     }
 
-    pub fn enumerate_args<'a>(&'a self) -> Box<dyn Iterator<Item = Located<Ast>> + 'a> {
+    pub fn enumerate_args<'a>(&'a self) -> Box<dyn Iterator<Item = Located<&'a Ast>> + 'a> {
         if let Some(func_step_count) = self.args.len().checked_sub(1) {
             let func_crumbs = std::iter::repeat(PrefixCrumb::Func).take(func_step_count);
             let mut crumbs = func_crumbs.collect_vec();
             crumbs.push(PrefixCrumb::Arg);
             let ret = self.args.iter().map(move |arg| {
-                let ret = Located::new(&crumbs, arg.clone());
+                let ret = Located::new(&crumbs, arg);
                 crumbs.pop_front();
                 ret
             });
@@ -105,9 +105,9 @@ mod tests {
         assert_eq!(chain.args[1], c);
 
         let (arg1,arg2) = chain.enumerate_args().expect_tuple();
-        assert_eq!(arg1.item, b);
+        assert_eq!(arg1.item, &b);
         assert_eq!(a_b_c.get_traversing(&arg1.crumbs).unwrap(), &b);
-        assert_eq!(arg2.item, c);
+        assert_eq!(arg2.item, &c);
         assert_eq!(a_b_c.get_traversing(&arg2.crumbs).unwrap(), &c);
     }
 }
