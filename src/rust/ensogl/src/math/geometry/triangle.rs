@@ -79,13 +79,8 @@ impl<T> Triangle<T> {
     }
 }
 
-pub trait TriangleInput<T> = Field<T>
-                           + Sin<Output=T>
-                           + Cos<Output=T>
-                           + Acos<Output=T>
-                           + Sqrt<Output=T>
-                           + Clone
-                           + From<f32>;
+pub trait TriangleInput<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + Acos<Output=T>
+                           + Sqrt<Output=T> + Clone + From<f32>;
 
 impl<T> Triangle<T>
 where T:TriangleInput<T> {
