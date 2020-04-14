@@ -384,7 +384,7 @@ pub trait DefinitionProvider {
 pub fn ast_direct_children<'a>
 (ast:&'a impl Crumbable) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
     let iter = ast.enumerate().map(|(crumb,ast)| {
-        ChildAst::new_direct_child(crumb,ast)
+        ChildAst::new(crumb,ast)
     });
     Box::new(iter)
 }

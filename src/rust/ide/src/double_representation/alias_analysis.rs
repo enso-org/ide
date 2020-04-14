@@ -8,15 +8,14 @@ use crate::double_representation::node::NodeInfo;
 use std::borrow::Borrow;
 use ast::crumbs::{InfixCrumb, Located};
 use ast::crumbs::Crumb;
-use crate::double_representation::definition::DefinitionInfo;
 
 #[cfg(test)]
 pub mod test_utils;
 
 /// Identifier with its ast crumb location (relative to the node's ast).
-pub type LocatedIdentifier = ast::crumbs::Located<NormalizedName>;
+pub type LocatedIdentifier = Located<NormalizedName>;
 
-
+trait IsCrumbs = IntoIterator<Item=Crumb>;
 
 // ======================
 // === NormalizedName ===
@@ -109,7 +108,6 @@ impl Scope {
 /// Replaces macro matches on `->` operator with its resolved Ast.
 fn pretend_that_lambda_is_not_a_macro_at_all(ast:&Ast) -> Option<Ast> {
     let match_ast = ast::known::Match::try_from(ast.clone()).ok()?;
-    let lhs       = match_ast.pfx.as_ref()?;
     let segment   = &match_ast.segs.head;
     if ast::opr::is_arrow_opr(&segment.head) {
         println!("Got lambda, replacing with {}!", match_ast.resolved.repr());
@@ -123,13 +121,13 @@ fn pretend_that_lambda_is_not_a_macro_at_all(ast:&Ast) -> Option<Ast> {
 #[derive(Clone,Debug,Default)]
 pub struct AliasAnalyzer {
     /// Root scope for this analyzer.
-    root_scope: Scope,
-    /// Stack of scopes, shadowing the root one.
-    scopes    : Vec<Scope>,
+    root_scope : Scope,
+    /// Stack of scopes that shadow the root one.
+    shadowing_scopes : Vec<Scope>,
     /// Stack of context. Lack of any context information is considered non-pattern context.
-    context   : Vec<Context>,
+    context    : Vec<Context>,
     /// Current location, relative to the input AST root.
-    location  : Vec<ast::crumbs::Crumb>,
+    location   : Vec<Crumb>,
 }
 
 impl AliasAnalyzer {
@@ -154,41 +152,43 @@ impl AliasAnalyzer {
         ret
     }
 
-    fn in_new_scope(&mut self, f:impl FnOnce(&mut AliasAnalyzer)) {
+    /// Pushes a new scope, then runs a given `f` function. Once it finished, scope is removed and
+    /// its unshadowed variable usage propagated onto the current scope.
+    fn in_new_scope(&mut self, f:impl FnOnce(&mut Self)) {
         let scope = Scope::default();
-        self.scopes.push(scope);
+        self.shadowing_scopes.push(scope);
         f(self);
-        let scope = self.scopes.pop().unwrap();
+        let scope = self.shadowing_scopes.pop().unwrap();
         self.current_scope_mut().coalesce_child(scope);
     }
 
-    fn in_context(&mut self, context:Context, f:impl FnOnce(&mut AliasAnalyzer)) {
+    /// Temporarily sets contest and invokes `f` within it.
+    fn in_context(&mut self, context:Context, f:impl FnOnce(&mut Self)) {
         self.with_items_added(|this| &mut this.context, std::iter::once(context), f);
     }
 
-    fn in_new_location<Cs,F,R>(&mut self, crumbs:Cs, f:F) -> R
-    where Cs : IntoIterator<Item:Into<Crumb>>,
-           F : FnOnce(&mut AliasAnalyzer) -> R {
+    /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
+    fn in_location<Cs,F,R>(&mut self, crumbs:Cs, f:F) -> R
+    where Cs : IsCrumbs,
+           F : FnOnce(&mut Self) -> R {
         self.with_items_added(|this| &mut this.location, crumbs, f)
     }
 
-    fn in_location<F,R>(&mut self, crumb:impl Into<Crumb>, f:F) -> R
-        where F:FnOnce(&mut Self) -> R {
-        self.in_new_location(std::iter::once(crumb),f)
-    }
-
+    /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
     fn in_location_of<T,F,R>(&mut self, located_item:&Located<T>, f:F) -> R
         where F:FnOnce(&mut Self) -> R {
-        self.in_new_location(located_item.crumbs.iter().copied(), f)
+        self.in_location(located_item.crumbs.iter().copied(), f)
     }
 
+    /// Obtains a mutable reference to the current scope.
     fn current_scope_mut(&mut self) -> &mut Scope {
-        self.scopes.last_mut().unwrap_or(&mut self.root_scope)
+        self.shadowing_scopes.last_mut().unwrap_or(&mut self.root_scope)
     }
 
-    fn add_identifier(&mut self, kind: OccurrenceKind, identifier:NormalizedName) {
+    /// Records identifier occurrence in the current scope.
+    fn record_identifier(&mut self, kind: OccurrenceKind, identifier:NormalizedName) {
         let identifier  = LocatedIdentifier::new(self.location.clone(), identifier);
-        let scope_index = self.scopes.len();
+        let scope_index = self.shadowing_scopes.len();
         let symbols     = &mut self.current_scope_mut().symbols;
         let target      = match kind {
             OccurrenceKind::Used       => &mut symbols.used,
@@ -198,27 +198,30 @@ impl AliasAnalyzer {
         target.push(identifier)
     }
 
-
+    /// Checks if we are currently in the given context kind.
     fn is_in_context(&self, context:Context) -> bool {
         self.context.last().unwrap_or(&Context::NonPattern) == &context
     }
 
+    /// Checks if we are currently in the pattern context.
     fn is_in_pattern(&self) -> bool {
         self.is_in_context(Context::Pattern)
     }
 
-    fn store_name_occurrence(&mut self, kind: OccurrenceKind, ast:&Ast) -> bool {
+    /// If given AST is an identifier, records its occurrence.
+    fn record_if_identifier(&mut self, kind: OccurrenceKind, ast:&Ast) -> bool {
         if let Some(name) = NormalizedName::try_from_ast(ast) {
-            self.add_identifier(kind,name);
+            self.record_identifier(kind, name);
             true
         } else {
             false
         }
     }
+    
     fn store_if_name<T>(&mut self, kind:OccurrenceKind, located:&Located<T>) -> bool
     where for<'a> &'a T : Into<&'a Ast> {
         let ast = (&located.item).into();
-        self.in_location_of(located, |this| this.store_name_occurrence(kind, ast))
+        self.in_location_of(located, |this| this.record_if_identifier(kind, ast))
     }
 
     fn process_subtree(&mut self, crumb:impl Into<Crumb>, ast:&Ast) {
@@ -264,12 +267,12 @@ impl AliasAnalyzer {
                     self.store_if_name(OccurrenceKind::Used, operator);
                 }
             } else {
-                self.store_name_occurrence(OccurrenceKind::Introduced, &ast);
+                self.record_if_identifier(OccurrenceKind::Introduced, &ast);
             }
         } else if self.is_in_context(Context::NonPattern) {
             if let Ok(_) = ast::known::Block::try_from(&ast) {
                 self.in_new_scope(|this| this.process_subtrees(&ast))
-            } else if self.store_name_occurrence(OccurrenceKind::Used, &ast) {
+            } else if self.record_if_identifier(OccurrenceKind::Used, &ast) {
                 // Plain identifier: we just added as the condition side-effect.
                 // No need to do anything more.
             } else {

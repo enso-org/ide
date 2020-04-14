@@ -39,6 +39,7 @@ impl Chain {
         Chain {func,args}
     }
 
+    /// Like `new` but returns None if given Ast is not of a Prefix shape.
     pub fn try_new(ast:&Ast) -> Option<Chain> {
         known::Prefix::try_from(ast).as_ref().map(Chain::new).ok()
     }
@@ -64,21 +65,18 @@ impl Chain {
         }
     }
 
-    pub fn enumerate_args<'a>(&'a self) -> Box<dyn Iterator<Item = Located<&'a Ast>> + 'a> {
-        if let Some(func_step_count) = self.args.len().checked_sub(1) {
-            let func_crumbs = std::iter::repeat(PrefixCrumb::Func).take(func_step_count);
-            let mut crumbs = func_crumbs.collect_vec();
-            crumbs.push(PrefixCrumb::Arg);
-            let ret = self.args.iter().map(move |arg| {
-                let ret = Located::new(&crumbs, arg);
-                crumbs.pop_front();
-                ret
-            });
-            Box::new(ret)
-        } else {
-            assert!(self.args.is_empty());
-            Box::new(std::iter::empty())
-        }
+    /// Iterates over all arguments, left-to right.
+    pub fn enumerate_args<'a>(&'a self) -> impl Iterator<Item = Located<&'a Ast>> + 'a {
+        // Location is always like [Func,Func,…,Func,Arg].
+        // We iterate beginning from the deeply nested args. So we can just create crumbs
+        // location once and then just pop initial crumb when traversing arguments.
+        let func_crumbs = std::iter::repeat(PrefixCrumb::Func).take(self.args.len());
+        let mut crumbs  = func_crumbs.collect_vec();
+        crumbs.push(PrefixCrumb::Arg);
+        self.args.iter().map(move |arg| {
+            crumbs.pop_front();
+            Located::new(&crumbs, arg)
+        })
     }
 }
 

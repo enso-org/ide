@@ -323,7 +323,7 @@ impl_crumbs!{
 /// Interface for items that allow getting/setting stored Ast located by arbitrary `Crumb`.
 pub trait Crumbable {
     /// Specific `Crumb` type used by `Self` to locate child Asts.
-    type Crumb : Into<Crumb>;
+    type Crumb : Into<Crumb> + IntoIterator<Item=Crumb>;
 
     /// Retrieves `Ast` under the crumb.
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast>;
@@ -900,17 +900,12 @@ impl<T> Located<T> {
         Located {crumbs,item}
     }
 
-    /// Creates a new item in a root location (single crumb location).
-    pub fn new_direct_child(crumb:impl Into<Crumb>, item:T) -> Located<T> {
-        let crumbs = vec![crumb.into()];
-        Located {crumbs,item}
-    }
-
     /// Uses given function to map over the item.
     pub fn map<U>(self, f:impl FnOnce(T) -> U) -> Located<U> {
         Located::new(self.crumbs, f(self.item))
     }
 
+    /// Takes crumbs relative to self and item that will be wrapped.
     pub fn descendant<Cs,U>(&self, crumbs:Cs, child:U) -> Located<U>
     where Cs : IntoIterator<Item:Into<Crumb>>,{
         let crumbs_so_far = self.crumbs.iter().copied();
@@ -918,10 +913,6 @@ impl<T> Located<T> {
         let crumbs = crumbs_so_far.chain(crumbs_to_add);
         Located::new(crumbs, child)
     }
-
-//    pub fn child<U>(&self, crumb:impl Into<Crumb>, child:U) -> Located<U> {
-//        self.descendant(std::iter::once(crumb),child)
-//    }
 
     /// Maps into child, concatenating this crumbs and child crumbs.
     pub fn into_descendant<U>(self, child:Located<U>) -> Located<U> {
@@ -1456,7 +1447,7 @@ mod tests {
         assert_eq!(item.item, "zero");
         assert!(item.crumbs.is_empty());
 
-        let child_item = Located::new_direct_child(InfixCrumb::Operator, "two");
+        let child_item = Located::new(InfixCrumb::Operator, "two");
         let item = item.into_descendant(child_item);
         assert_eq!(item.item, "two");
         let (crumb0,crumb1) = item.crumbs.iter().expect_tuple();

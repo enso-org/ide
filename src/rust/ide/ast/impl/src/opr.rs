@@ -89,7 +89,7 @@ fn assoc(ast:&known::Opr) -> Assoc {
 // === GeneralizedInfix ===
 // ========================
 
-/// An abstraction over `Infix` and all `SectionSth` nodes.
+/// An abstraction over `Infix` and all `SectionSth` nodes. Stores crumb locations for all its ASTs.
 #[derive(Clone,Debug)]
 pub struct GeneralizedInfix {
     /// Left operand, if present.
@@ -101,6 +101,7 @@ pub struct GeneralizedInfix {
 }
 
 impl GeneralizedInfix {
+    /// As `try_new` but assumes that this expression is located at the root crumb location.
     pub fn try_new_root(ast:&Ast) -> Option<GeneralizedInfix> {
         GeneralizedInfix::try_new(&Located::new_root(ast.clone()))
     }
@@ -197,7 +198,8 @@ pub struct Chain {
     pub target : Operand,
     /// Subsequent operands applied to the `target`.
     pub args   : Vec<ChainElement>,
-    /// Operator.
+    /// Operator AST. Generally all operators in the chain should be the same (except for id).
+    /// It is not specified which exactly operator's in the chain this AST belongs to.
     pub operator : known::Opr,
 }
 
