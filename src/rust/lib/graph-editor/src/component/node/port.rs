@@ -282,6 +282,7 @@ pub struct Port<T:PortShapeViewDefinition> {
     pub data : Rc<PortData<T>>
 }
 
+// Manually implement this due to https://github.com/rust-lang/rust/issues/26925
 impl<T:PortShapeViewDefinition> Clone for Port<T>{
     fn clone(&self) -> Self {
         let data = Rc::clone(&self.data);
