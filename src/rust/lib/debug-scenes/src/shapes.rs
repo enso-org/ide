@@ -9,7 +9,7 @@ use ensogl::prelude::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::world::*;
 use ensogl::system::web;
-use graph_editor::app::App;
+use ensogl::app::App;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -29,7 +29,7 @@ pub fn run_example_shapes() {
 
 
 fn init(app:&App) {
-    let world  = &app.world;
+    let world  = &app.view;
     let scene  = world.scene();
     let camera = scene.camera();
     let navigator = Navigator::new(&scene,&camera);

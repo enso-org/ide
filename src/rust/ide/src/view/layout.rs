@@ -15,7 +15,7 @@ use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
-use graph_editor::app::App;
+use ensogl::app::App;
 use crate::view::node_editor::NodeEditor;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use crate::view::node_searcher::NodeSearcher;
@@ -97,7 +97,7 @@ impl ViewLayout {
     , fonts            : &mut FontRegistry
     ) -> Self {
         let logger        = logger.sub("ViewLayout");
-        let world         = &app.world;
+        let world         = &app.view;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
         let node_editor   = NodeEditor::new(&logger,app,graph_controller.clone());
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller,fonts);

@@ -2,63 +2,72 @@
 
 use crate::prelude::*;
 
-use enso_frp as frp;
-use ensogl::display::world::World;
-use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
-use enso_frp::io::keyboard;
-use enso_frp::io::keyboard::Keyboard;
+use crate::control::io::keyboard::listener::KeyboardFrpBindings;
+use crate::display::world::World;
+use crate::frp as frp;
+use crate::frp::io::keyboard::Keyboard;
+use crate::frp::io::keyboard;
 
 
 
+// ===========
+// === App ===
+// ===========
+
+/// A top level structure for an application. It combines a view, keyboard shortcut manager, and is
+/// intended to also manage layout of visible panes.
 #[derive(Debug,Clone,CloneRef)]
 pub struct App {
     pub logger    : Logger,
-    pub world     : World,
-    pub modules   : module::Registry,
+    pub view      : World,
+    pub modules   : view::Registry,
     pub shortcuts : shortcut::Registry
 }
 
 impl App {
+    /// Constructor.
     pub fn new(dom:&web_sys::HtmlElement) -> Self {
         let logger    = Logger::new("App");
-        let world     = World::new(dom);
+        let view      = World::new(dom);
         let modules   = default();
         let shortcuts = shortcut::Registry::new(&logger,&modules);
-        Self {logger,world,modules,shortcuts}
+        Self {logger,view,modules,shortcuts}
     }
 
-    pub fn new_module_instance<M:Module>(&self) -> M {
+    pub fn new_module_instance<M:View>(&self) -> M {
         self.modules.new_module_instance(self)
     }
-
-
 }
 
 
-#[derive(Debug)]
-pub struct ModuleInstance {
-    pub network     : frp::WeakNetwork,
-    pub command_map : HashMap<String,module::Command>,
-    pub status_map  : HashMap<String,module::Status>,
+
+// ==============
+// === View ===
+// ==============
+
+
+
+
+
+pub struct EndpointDefinition<T> {
+    pub label : String,
+    pub frp   : T
 }
 
-impl ModuleInstance {
-    pub fn check_alive(&self) -> bool {
-        self.network.upgrade().is_some()
+impl<T> EndpointDefinition<T> {
+    pub fn new<L,X>(label:L, frp:X) -> Self
+    where L:Into<String>, X:Into<T> {
+        let label = label.into();
+        let frp   = frp.into();
+        Self {label,frp}
     }
 }
 
 
 
+use view::CommandProvider;
+pub use view::View;
 
-use module::CommandProvider;
-pub use module::Module;
-
-pub struct EndpointDefinition<S,T> {
-    pub label   : String,
-    pub caption : String,
-    pub getter  : Box<dyn for<'t> Fn(&'t T) -> &'t S>
-}
 
 pub struct EndpointDocs {
     pub label   : String,
@@ -74,21 +83,6 @@ impl EndpointDocs {
     }
 }
 
-impl<S:CloneRef,T> EndpointDefinition<S,T> {
-    pub fn new<L,C,F>(label:L, caption:C, f:F) -> Self
-        where L:Str, C:Str, F:'static + for<'t> Fn(&'t T) -> &'t S {
-        let label   = label.into();
-        let caption = caption.into();
-        let getter  = Box::new(f);
-        Self {label,caption,getter}
-    }
-
-    pub fn instance(&self, t:&T) -> Endpoint<S> {
-        let caption = self.caption.clone();
-        let frp     = (self.getter)(t).clone_ref();
-        Endpoint {caption,frp}
-    }
-}
 
 #[derive(Debug)]
 pub struct Endpoint<S> {
@@ -97,67 +91,85 @@ pub struct Endpoint<S> {
 }
 
 
-pub mod module {
+pub mod view {
     use super::*;
+
+    pub trait View : NetworkProvider + CommandProvider + StatusProvider {
+        const LABEL : &'static str;
+        fn new(app:&App) -> Self;
+    }
+
+    #[derive(Debug)]
+    pub struct Instance {
+        pub network     : frp::WeakNetwork,
+        pub command_map : HashMap<String,Command>,
+        pub status_map  : HashMap<String,Status>,
+    }
+
+    impl Instance {
+        pub fn check_alive(&self) -> bool {
+            self.network.upgrade().is_some()
+        }
+    }
 
 
     #[derive(Debug,Clone,CloneRef,Default)]
     pub struct Registry {
-        pub map : Rc<RefCell<HashMap<String,Vec<ModuleInstance>>>>,
+        pub map : Rc<RefCell<HashMap<String,Vec<Instance>>>>,
     }
 
     impl Registry {
-        pub fn new_module_instance<M:Module>(&self, app:&App) -> M {
+        pub fn new_module_instance<M:View>(&self, app:&App) -> M {
             let module      = M::new(app);
             let label       = M::LABEL.into();
             let network     = M::network(&module).downgrade();
-            let command_doc_map : HashMap<String,String> = M::commands_docs().into_iter().map(|t| {
+            let command_doc_map : HashMap<String,String> = M::command_api_docs().into_iter().map(|t| {
                 (t.label,t.caption)
             }).collect();
-            let command_map = M::commands(&module).into_iter().map(|t| {
-                let caption = command_doc_map.get(&t.0).unwrap().clone(); // fixme unwrap
-                let frp     = t.1;
+            let command_map = M::command_api(&module).into_iter().map(|t| {
+                let caption = command_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
+                let frp     = t.frp;
                 let endpoint = Endpoint {caption,frp};
-                (t.0,endpoint)
+                (t.label,endpoint)
             }).collect();
 
-
-            let status_map = M::status_api().into_iter().map(|def| {
-                let instance = def.instance(&module);
-                let label    = def.label;
-                (label,instance)
+            let status_doc_map : HashMap<String,String> = M::status_api_docs().into_iter().map(|t| {
+                (t.label,t.caption)
             }).collect();
-            let module_instance = ModuleInstance {network,command_map,status_map};
+            let status_map = M::status_api(&module).into_iter().map(|t| {
+                let caption = status_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
+                let frp     = t.frp;
+                let endpoint = Endpoint {caption,frp};
+                (t.label,endpoint)
+            }).collect();
+
+            let module_instance = Instance {network,command_map,status_map};
             self.map.borrow_mut().entry(label).or_default().push(module_instance);
             module
         }
     }
 
-    pub trait Module : NetworkProvider + CommandProvider + StatusProvider {
-        const LABEL : &'static str;
-        fn new(app:&App) -> Self;
-    }
+
 
     pub trait NetworkProvider {
         fn network(&self) -> &frp::Network;
     }
 
     pub trait CommandProvider : Sized {
-        fn commands_docs() -> Vec<EndpointDocs>;
-        fn commands(&self) -> Vec<(String,frp::Source)>;
-//        fn command_api() -> Vec<CommandDefinition<Self>>;
+        fn command_api_docs() -> Vec<EndpointDocs>;
+        fn command_api(&self) -> Vec<CommandDefinition>;
     }
 
-    pub type Command              = Endpoint<frp::Source>;
-    pub type CommandDefinition<T> = EndpointDefinition<frp::Source,T>;
+    pub type Command           = Endpoint<frp::Source>;
+    pub type Status            = Endpoint<frp::Sampler<bool>>;
+    pub type CommandDefinition = EndpointDefinition<frp::Source>;
+    pub type StatusDefinition  = EndpointDefinition<frp::Sampler<bool>>;
 
 
     pub trait StatusProvider : Sized {
-        fn status_api() -> Vec<StatusDefinition<Self>>;
+        fn status_api_docs() -> Vec<EndpointDocs>;
+        fn status_api(&self) -> Vec<StatusDefinition>;
     }
-
-    pub type Status              = Endpoint<frp::Sampler<bool>>;
-    pub type StatusDefinition<T> = EndpointDefinition<frp::Sampler<bool>,T>;
 
 
 }
@@ -176,19 +188,19 @@ pub mod shortcut {
         keyboard          : Keyboard,
         keyboard_bindings : Rc<KeyboardFrpBindings>,
         network           : frp::Network,
-        modules           : module::Registry,
+        views             : view::Registry,
         rule_map          : Rc<RefCell<HashMap<keyboard::KeyMask,Vec<Rule>>>>
     }
 
     impl Registry {
-        pub fn new(logger:&Logger, modules:&module::Registry) -> Self {
+        pub fn new(logger:&Logger, views:&view::Registry) -> Self {
             let logger            = logger.sub("ShortcutManager");
             let keyboard          = Keyboard::default();
             let keyboard_bindings = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
-            let modules           = modules.clone_ref();
+            let views             = views.clone_ref();
             let rule_map          = default();
             let network           = default();
-            Self {logger,keyboard,keyboard_bindings,network,modules,rule_map} . init()
+            Self {logger,keyboard,keyboard_bindings,network,views,rule_map} . init()
         }
 
         pub fn add(&self, keys:&[keyboard::Key], rule:Rule) {
@@ -203,14 +215,14 @@ pub mod shortcut {
             let network  = &self.network;
             let logger   = self.logger.clone_ref();
             let rule_map = self.rule_map.clone_ref();
-            let modules  = self.modules.clone_ref();
+            let views    = self.views.clone_ref();
             frp::extend_network! { network
                 def _action = self.keyboard.key_mask.map(move |key_mask| {
                     let opt_rules = rule_map.borrow().get(key_mask).cloned();
                     opt_rules.for_each(|rules| {
                         let mut targets = Vec::new();
                         {
-                            let borrowed_modules_map = modules.map.borrow();
+                            let borrowed_modules_map = views.map.borrow();
                             for rule in &rules {
                                 let target = &rule.target;
                                 borrowed_modules_map.get(target).for_each(|mods| {
@@ -236,7 +248,7 @@ pub mod shortcut {
         }
 
 
-        fn check(condition:&Condition, status_map:&HashMap<String,module::Status>) -> bool {
+        fn check(condition:&Condition, status_map:&HashMap<String,view::Status>) -> bool {
             match condition {
                 Condition::Ok => true,
                 Condition::Simple(label) => status_map.get(label).map(|t| t.frp.value()).unwrap_or(false)

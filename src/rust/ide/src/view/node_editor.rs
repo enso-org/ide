@@ -9,7 +9,7 @@ use ensogl::display::object::Id;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
 use ensogl::system::web;
-use graph_editor::app::App;
+use ensogl::app::App;
 use graph_editor::GraphEditor;
 use graph_editor::component::node::Node;
 use graph_editor::component::node::WeakNode;

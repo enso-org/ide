@@ -24,7 +24,6 @@
 
 #![recursion_limit="512"]
 
-pub mod app;
 
 #[warn(missing_docs)]
 pub mod component;
@@ -34,6 +33,7 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
+use ensogl::app;
 use app::App;
 
 use ensogl::prelude::*;
@@ -230,10 +230,38 @@ macro_rules! def_status_endpoints {
             $(pub $field : frp::Sampler<bool>),*
         }
 
-        impl app::module::StatusProvider for $name {
-            fn status_api() -> Vec<app::module::StatusDefinition<Self>> {
-                use app::module::StatusDefinition;
-                vec! [$(StatusDefinition::new(stringify!($field),$($doc)*,|t:&Self| &t.$field)),*]
+        impl app::view::StatusProvider for $name {
+            fn status_api_docs() -> Vec<app::EndpointDocs> {
+                vec! [$(app::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            }
+
+            fn status_api(&self) -> Vec<app::view::StatusDefinition> {
+                vec! [$(app::view::StatusDefinition::new(stringify!($field),&self.$field)),*]
+            }
+        }
+    };
+}
+
+
+macro_rules! def_command_endpoints {
+    ( $name:ident
+        $(
+            #[doc=$($doc:tt)*]
+            $field:ident
+        ),* $(,)?
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            $(pub $field : frp::Source),*
+        }
+
+        impl app::view::CommandProvider for $name {
+            fn command_api_docs() -> Vec<app::EndpointDocs> {
+                vec! [$(app::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            }
+
+            fn command_api(&self) -> Vec<app::view::CommandDefinition> {
+                vec! [$(app::view::CommandDefinition::new(stringify!($field),&self.$field)),*]
             }
         }
     };
@@ -247,52 +275,95 @@ def_status_endpoints! { FrpStatus
     is_empty,
 }
 
-gen_api! { FrpInputs {
-    register_node                : [Node],
-    pub add_node_at              : [Position],
-    pub add_node_at_cursor       : [],
-    pub select_node              : [Option<WeakNode>],
-    pub translate_selected_nodes : [Position],
-    pub remove_selected_nodes    : [],
-    pub remove_all_nodes         : [],
-}}
+def_command_endpoints! { Commands
+    /// Add a new node and place it at the mouse cursor position.
+    add_node_at_cursor,
+    /// Remove all selected nodes from the graph.
+    remove_selected_nodes,
+    /// Remove all nodes from the graph.
+    remove_all_nodes,
+}
 
-impl app::module::NetworkProvider for GraphEditor {
+
+impl Commands {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend_network! { network
+            def add_node_at_cursor    = source();
+            def remove_selected_nodes = source();
+            def remove_all_nodes      = source();
+        }
+        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes}
+    }
+}
+
+#[derive(Debug,Clone,CloneRef,Shrinkwrap)]
+pub struct FrpInputs {
+    #[shrinkwrap(main_field)]
+    commands                     : Commands,
+    register_node                : frp::Source<Node>,
+    pub add_node_at              : frp::Source<Position>,
+    pub select_node              : frp::Source<Option<WeakNode>>,
+    pub translate_selected_nodes : frp::Source<Position>,
+}
+
+impl FrpInputs {
+    pub fn new(network:&frp::Network) -> Self {
+        let commands = Commands::new(network);
+        frp::extend_network! { network
+            def register_node            = source();
+            def add_node_at              = source();
+            def select_node              = source();
+            def translate_selected_nodes = source();
+        }
+        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes}
+    }
+
+    fn register_node<T: AsRef<Node>>(&self, arg: T) {
+        self.register_node.emit(arg.as_ref());
+    }
+    pub fn add_node_at<T: AsRef<Position>>(&self, arg: T) {
+        self.add_node_at.emit(arg.as_ref());
+    }
+    pub fn add_node_at_cursor(&self) {
+        self.add_node_at_cursor.emit(());
+    }
+    pub fn select_node<T: AsRef<Option<WeakNode>>>(&self, arg: T) {
+        self.select_node.emit(arg.as_ref());
+    }
+    pub fn translate_selected_nodes<T: AsRef<Position>>(&self, arg: T) {
+        self.translate_selected_nodes.emit(arg.as_ref());
+    }
+    pub fn remove_selected_nodes(&self) {
+        self.remove_selected_nodes.emit(());
+    }
+    pub fn remove_all_nodes(&self) {
+        self.remove_all_nodes.emit(());
+    }
+}
+
+impl app::view::NetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
         &self.frp.network
     }
 }
 
-impl app::module::CommandProvider for GraphEditor {
-    fn commands_docs() -> Vec<app::EndpointDocs> {
-        vec! [ app::EndpointDocs::new("remove_all_nodes"      , "remove all nodes"      )
-             , app::EndpointDocs::new("remove_selected_nodes" , "remove selected nodes" )
-             , app::EndpointDocs::new("add_node_at_cursor"    , "add node at cursor position")
-        ]
+impl app::view::CommandProvider for GraphEditor {
+    fn command_api_docs() -> Vec<app::EndpointDocs> {
+        Commands::command_api_docs()
     }
 
-    fn commands(&self) -> Vec<(String,frp::Source)> {
-        vec![
-            ("remove_all_nodes".into(),self.frp.inputs.remove_all_nodes.clone_ref()),
-            ("remove_selected_nodes".into(),self.frp.inputs.remove_selected_nodes.clone_ref()),
-            ("add_node_at_cursor".into(),self.frp.inputs.add_node_at_cursor.clone_ref()),
-        ]
+    fn command_api(&self) -> Vec<app::view::CommandDefinition> {
+        self.frp.inputs.commands.command_api()
     }
-
-
-//    fn command_api() -> Vec<app::module::CommandDefinition<Self>> {
-//        vec! [ (app::module::CommandDefinition::new("remove_all_nodes"      , "remove all nodes"      , |t:&Self| &t.frp.inputs.remove_all_nodes))
-//             , (app::module::CommandDefinition::new("remove_selected_nodes" , "remove selected nodes" , |t:&Self| &t.frp.inputs.remove_selected_nodes))
-//             , (app::module::CommandDefinition::new("add_node_at_cursor"    , "add node at cursor position" , |t:&Self| &t.frp.inputs.add_node_at_cursor))
-//        ]
-//    }
 }
 
-impl app::module::StatusProvider for GraphEditor {
-    fn status_api() -> Vec<app::module::StatusDefinition<Self>> {
-        vec! [ (app::module::StatusDefinition::new("is_active" , "checks whether this graph editor instance is active" , |t:&Self| &t.frp.status.is_active))
-             , (app::module::StatusDefinition::new("is_empty"  , "checks whether this graph editor instance is empty"  , |t:&Self| &t.frp.status.is_empty))
-        ]
+impl app::view::StatusProvider for GraphEditor {
+    fn status_api_docs() -> Vec<app::EndpointDocs> {
+        FrpStatus::status_api_docs()
+    }
+
+    fn status_api(&self) -> Vec<app::view::StatusDefinition> {
+        self.frp.status.status_api()
     }
 }
 
@@ -376,15 +447,15 @@ impl GraphEditor {
     }
 }
 
-impl app::Module for GraphEditor {
+impl app::View for GraphEditor {
     const LABEL : &'static str = "GraphEditor";
 
     fn new(app:&App) -> Self {
         let logger = Logger::new("GraphEditor");
-        let scene  = app.world.scene();
+        let scene  = app.view.scene();
         let cursor = Cursor::new();
         web::body().set_style_or_panic("cursor","none");
-        app.world.add_child(&cursor);
+        app.view.add_child(&cursor);
 
 
         let display_object = display::object::Instance::new(logger.clone());
