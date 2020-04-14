@@ -60,6 +60,20 @@ pub struct EndpointDefinition<S,T> {
     pub getter  : Box<dyn for<'t> Fn(&'t T) -> &'t S>
 }
 
+pub struct EndpointDocs {
+    pub label   : String,
+    pub caption : String,
+}
+
+impl EndpointDocs {
+    pub fn new<L,C>(label:L, caption:C) -> Self
+    where L:Into<String>, C:Into<String> {
+        let label   = label.into();
+        let caption = caption.into();
+        Self {label,caption}
+    }
+}
+
 impl<S:CloneRef,T> EndpointDefinition<S,T> {
     pub fn new<L,C,F>(label:L, caption:C, f:F) -> Self
         where L:Str, C:Str, F:'static + for<'t> Fn(&'t T) -> &'t S {
@@ -97,11 +111,16 @@ pub mod module {
             let module      = M::new(app);
             let label       = M::LABEL.into();
             let network     = M::network(&module).downgrade();
-            let command_map = M::command_api().into_iter().map(|def| {
-                let instance = def.instance(&module);
-                let label    = def.label;
-                (label,instance)
+            let command_doc_map : HashMap<String,String> = M::commands_docs().into_iter().map(|t| {
+                (t.label,t.caption)
             }).collect();
+            let command_map = M::commands(&module).into_iter().map(|t| {
+                let caption = command_doc_map.get(&t.0).unwrap().clone(); // fixme unwrap
+                let frp     = t.1;
+                let endpoint = Endpoint {caption,frp};
+                (t.0,endpoint)
+            }).collect();
+
 
             let status_map = M::status_api().into_iter().map(|def| {
                 let instance = def.instance(&module);
@@ -114,7 +133,7 @@ pub mod module {
         }
     }
 
-    pub trait Module : CommandProvider + StatusProvider {
+    pub trait Module : NetworkProvider + CommandProvider + StatusProvider {
         const LABEL : &'static str;
         fn new(app:&App) -> Self;
     }
@@ -123,15 +142,17 @@ pub mod module {
         fn network(&self) -> &frp::Network;
     }
 
-    pub trait CommandProvider : NetworkProvider + Sized {
-        fn command_api() -> Vec<CommandDefinition<Self>>;
+    pub trait CommandProvider : Sized {
+        fn commands_docs() -> Vec<EndpointDocs>;
+        fn commands(&self) -> Vec<(String,frp::Source)>;
+//        fn command_api() -> Vec<CommandDefinition<Self>>;
     }
 
     pub type Command              = Endpoint<frp::Source>;
     pub type CommandDefinition<T> = EndpointDefinition<frp::Source,T>;
 
 
-    pub trait StatusProvider : NetworkProvider + Sized {
+    pub trait StatusProvider : Sized {
         fn status_api() -> Vec<StatusDefinition<Self>>;
     }
 

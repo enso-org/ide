@@ -218,33 +218,44 @@ impl Deref for GraphEditorFrp {
 }
 
 
-#[derive(Debug,Clone,CloneRef)]
-pub struct FrpStatus {
-    pub is_active : frp::Sampler<bool>,
-    pub is_empty  : frp::Sampler<bool>,
+macro_rules! def_status_endpoints {
+    ( $name:ident
+        $(
+            #[doc=$($doc:tt)*]
+            $field:ident
+        ),* $(,)?
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            $(pub $field : frp::Sampler<bool>),*
+        }
+
+        impl app::module::StatusProvider for $name {
+            fn status_api() -> Vec<app::module::StatusDefinition<Self>> {
+                use app::module::StatusDefinition;
+                vec! [$(StatusDefinition::new(stringify!($field),$($doc)*,|t:&Self| &t.$field)),*]
+            }
+        }
+    };
 }
 
-gen_api! { NodesFrpInputs {
-    register               : [Node],
-    pub add_at             : [Position],
-    pub add_at_cursor      : [],
-    pub select             : [Option<WeakNode>],
-    pub translate_selected : [Position],
-    pub remove_selected    : [],
-    pub remove_all         : [],
+
+def_status_endpoints! { FrpStatus
+    /// Checks whether this graph editor instance is active.
+    is_active,
+    /// Checks whether this graph editor instance is empty.
+    is_empty,
+}
+
+gen_api! { FrpInputs {
+    register_node                : [Node],
+    pub add_node_at              : [Position],
+    pub add_node_at_cursor       : [],
+    pub select_node              : [Option<WeakNode>],
+    pub translate_selected_nodes : [Position],
+    pub remove_selected_nodes    : [],
+    pub remove_all_nodes         : [],
 }}
-
-#[derive(Debug,Clone,CloneRef)]
-pub struct FrpInputs {
-    pub nodes : NodesFrpInputs,
-}
-
-impl FrpInputs {
-    pub fn new(network:&frp::Network) -> Self {
-        let nodes = NodesFrpInputs::new(&network);
-        Self {nodes}
-    }
-}
 
 impl app::module::NetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
@@ -253,12 +264,28 @@ impl app::module::NetworkProvider for GraphEditor {
 }
 
 impl app::module::CommandProvider for GraphEditor {
-    fn command_api() -> Vec<app::module::CommandDefinition<Self>> {
-        vec! [ (app::module::CommandDefinition::new("remove_all_nodes"      , "remove all nodes"      , |t:&Self| &t.frp.inputs.nodes.remove_all))
-             , (app::module::CommandDefinition::new("remove_selected_nodes" , "remove selected nodes" , |t:&Self| &t.frp.inputs.nodes.remove_selected))
-             , (app::module::CommandDefinition::new("add_node_at_cursor"    , "add node at cursor position" , |t:&Self| &t.frp.inputs.nodes.add_at_cursor))
+    fn commands_docs() -> Vec<app::EndpointDocs> {
+        vec! [ app::EndpointDocs::new("remove_all_nodes"      , "remove all nodes"      )
+             , app::EndpointDocs::new("remove_selected_nodes" , "remove selected nodes" )
+             , app::EndpointDocs::new("add_node_at_cursor"    , "add node at cursor position")
         ]
     }
+
+    fn commands(&self) -> Vec<(String,frp::Source)> {
+        vec![
+            ("remove_all_nodes".into(),self.frp.inputs.remove_all_nodes.clone_ref()),
+            ("remove_selected_nodes".into(),self.frp.inputs.remove_selected_nodes.clone_ref()),
+            ("add_node_at_cursor".into(),self.frp.inputs.add_node_at_cursor.clone_ref()),
+        ]
+    }
+
+
+//    fn command_api() -> Vec<app::module::CommandDefinition<Self>> {
+//        vec! [ (app::module::CommandDefinition::new("remove_all_nodes"      , "remove all nodes"      , |t:&Self| &t.frp.inputs.remove_all_nodes))
+//             , (app::module::CommandDefinition::new("remove_selected_nodes" , "remove selected nodes" , |t:&Self| &t.frp.inputs.remove_selected_nodes))
+//             , (app::module::CommandDefinition::new("add_node_at_cursor"    , "add node at cursor position" , |t:&Self| &t.frp.inputs.add_node_at_cursor))
+//        ]
+//    }
 }
 
 impl app::module::StatusProvider for GraphEditor {
@@ -337,7 +364,7 @@ impl GraphEditor {
 
     pub fn add_node(&self) -> WeakNode {
         let node = Node::new();
-        self.frp.inputs.nodes.register(&node);
+        self.frp.inputs.register_node(&node);
         let weak_node = node.downgrade();
         weak_node
     }
@@ -416,7 +443,7 @@ impl app::Module for GraphEditor {
         // === Selection ===
 
         def _deselect_all_on_bg_press = touch.bg.selected.map(f_!((nodes) nodes.selected.clear()));
-        def select_unified            = inputs.nodes.select.merge(&touch.nodes.selected);
+        def select_unified            = inputs.select_node.merge(&touch.nodes.selected);
         def _select_pressed           = select_unified.map(f!((nodes)(opt_node) {
             opt_node.for_each_ref(|weak_node| {
                 weak_node.upgrade().map(|node| {
@@ -430,18 +457,18 @@ impl app::Module for GraphEditor {
 
         // === Add Node ===
 
-        def add_node_at_cursor_pos = inputs.nodes.add_at_cursor.map2(&mouse.position,|_,p|{*p});
-        def add_node               = inputs.nodes.add_at.merge(&add_node_at_cursor_pos);
+        def add_node_at_cursor_pos = inputs.add_node_at_cursor.map2(&mouse.position,|_,p|{*p});
+        def add_node               = inputs.add_node_at.merge(&add_node_at_cursor_pos);
         def _add_new_node          = add_node.map(f!((inputs)(pos) {
             let node = Node::new();
-            inputs.nodes.register(&node);
+            inputs.register_node(&node);
             node.mod_position(|t| {
                 t.x += pos.x as f32;
                 t.y += pos.y as f32;
             });
         }));
 
-        def _new_node = inputs.nodes.register.map(f!((network,nodes,touch,display_object)(node) {
+        def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
             let weak_node = node.downgrade();
             frp::new_subnetwork! { [network,node.view.events.network]
                 def foo_ = node.view.events.mouse_down.map(f_!((touch) {
@@ -455,8 +482,8 @@ impl app::Module for GraphEditor {
 
         // === Remove Node ===
 
-        def _remove_all      = inputs.nodes.remove_all.map(f!((nodes)(()) nodes.set.clear()));
-        def _remove_selected = inputs.nodes.remove_selected.map(f!((nodes,nodes)(_) {
+        def _remove_all      = inputs.remove_all_nodes.map(f!((nodes)(()) nodes.set.clear()));
+        def _remove_selected = inputs.remove_selected_nodes.map(f!((nodes,nodes)(_) {
             nodes.selected.for_each_taken(|node| nodes.set.remove(&node))
         }));
 
@@ -468,7 +495,7 @@ impl app::Module for GraphEditor {
             node.mod_position(|p| { p.x += tx.x; p.y += tx.y; })
         });
 
-        def _move_selected_nodes = inputs.nodes.translate_selected.map(f!((nodes)(t) {
+        def _move_selected_nodes = inputs.translate_selected_nodes.map(f!((nodes)(t) {
             nodes.selected.for_each(|node| {
                 node.mod_position(|p| {
                     p.x += t.x;

@@ -44,8 +44,8 @@ fn init(app:&App) {
     let mut was_rendered = false;
     let mut loader_hidden = false;
 
-    let add_node_ref = graph_editor.frp.nodes.add_at_cursor.clone_ref();
-    let remove_selected_nodes_ref = graph_editor.frp.nodes.remove_selected.clone_ref();
+    let add_node_ref = graph_editor.frp.add_node_at_cursor.clone_ref();
+    let remove_selected_nodes_ref = graph_editor.frp.remove_selected_nodes.clone_ref();
     let selected_nodes2 = graph_editor.nodes.selected.clone_ref();
 
     world.on_frame(move |_| {

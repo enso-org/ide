@@ -115,7 +115,7 @@ impl GraphEditorIntegration {
                             }
                         }
                     });
-                    this.editor.frp.nodes.remove_selected.emit(())
+                    this.editor.frp.remove_selected_nodes.emit(())
                 }
             }
         }));
