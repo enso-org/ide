@@ -9,6 +9,7 @@ use ensogl::prelude::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::world::*;
 use ensogl::system::web;
+use graph_editor::app::App;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -21,16 +22,21 @@ pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    init(&World::new(&web::get_html_element_by_id("root").unwrap()));
+    let app = App::new(&web::get_html_element_by_id("root").unwrap());
+    init(&app);
+    mem::forget(app);
 }
 
 
-fn init(world: &World) {
+fn init(app:&App) {
+    let world  = &app.world;
     let scene  = world.scene();
     let camera = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
 
-    let graph_editor = GraphEditor::new(world);
+
+    let graph_editor = app.new_module_instance::<GraphEditor>();
+//    let graph_editor = GraphEditor::new(app);
     world.add_child(&graph_editor);
 
     let mut _iter:i32 = 0;
@@ -38,29 +44,11 @@ fn init(world: &World) {
     let mut was_rendered = false;
     let mut loader_hidden = false;
 
-    let add_node_ref = graph_editor.frp.add_node_under_cursor.clone_ref();
-    let remove_selected_nodes_ref = graph_editor.frp.remove_selected_nodes.clone_ref();
-    let selected_nodes2 = graph_editor.selected_nodes.clone_ref();
-    let world2 = world.clone_ref();
-    let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-        let val = val.unchecked_into::<web_sys::KeyboardEvent>();
-        let key = val.key();
-        if      key == "n"         { add_node_ref.emit(()) }
-        else if key == "Backspace" {
-            remove_selected_nodes_ref.emit(())
-        }
-        else if key == "p" {
-            selected_nodes2.for_each_taken(|node| {
-                world2.scene().remove_child(&node);
-            })
-        }
-    }));
-    web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
-    c.forget();
+    let add_node_ref = graph_editor.frp.nodes.add_at_cursor.clone_ref();
+    let remove_selected_nodes_ref = graph_editor.frp.nodes.remove_selected.clone_ref();
+    let selected_nodes2 = graph_editor.nodes.selected.clone_ref();
 
-    let world_clone = world.clone_ref();
     world.on_frame(move |_| {
-        let _keep_alive = &world_clone;
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
         if was_rendered && !loader_hidden {

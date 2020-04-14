@@ -255,6 +255,25 @@ impl<Out:Data> Source<Out> {
     }
 }
 
+impl<Out:Data> FnOnce<(Out,)> for Source<Out> {
+    type Output = ();
+    extern "rust-call" fn call_once(self, args:(Out,)) {
+        self.emit(args.0)
+    }
+}
+
+impl<Out:Data> FnMut<(Out,)> for Source<Out> {
+    extern "rust-call" fn call_mut(&mut self, args:(Out,)) {
+        self.emit(args.0)
+    }
+}
+
+impl<Out:Data> Fn<(Out,)> for Source<Out> {
+    extern "rust-call" fn call(&self, args:(Out,)) {
+        self.emit(args.0)
+    }
+}
+
 
 
 // ===============

@@ -288,11 +288,32 @@ impl<T:HasOutputStatic> WeakNode<T> {
     }
 }
 
+impl<Def> From<WeakNode<Def>> for Stream<Def::Output>
+where Def:HasOutputStatic {
+    fn from(node:WeakNode<Def>) -> Self {
+        node.stream
+    }
+}
+
+impl<Def> From<&WeakNode<Def>> for Stream<Def::Output>
+    where Def:HasOutputStatic {
+    fn from(node:&WeakNode<Def>) -> Self {
+        node.stream.clone_ref()
+    }
+}
+
 impl<Def> From<Node<Def>> for Stream<Def::Output>
 where Def:HasOutputStatic {
     fn from(node:Node<Def>) -> Self {
         let data = Rc::downgrade(&node.data);
         Stream {data}
+    }
+}
+
+impl<Def> From<&Node<Def>> for Stream<Def::Output>
+where Def:HasOutputStatic {
+    fn from(node:&Node<Def>) -> Self {
+        node.clone_ref().into()
     }
 }
 

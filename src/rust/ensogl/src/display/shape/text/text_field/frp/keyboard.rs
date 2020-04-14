@@ -21,7 +21,7 @@ use enso_frp::io::keyboard;
 /// This structure contains all nodes in FRP graph handling keyboards events of one TextField
 /// component.
 ///
-/// The most of TextField actions are covered by providing actions to KeyboardActions for specific
+/// The most of TextField actions are covered by providing actions to Actions for specific
 /// key masks. However, there are special actions which must be done in a lower level:
 ///  * *clipboard operations* - they are performed by reading text input js events directly from
 ///    text area component. See `system::web::text_input` crate.
@@ -33,7 +33,7 @@ pub struct TextFieldKeyboardFrp {
     pub keyboard: Keyboard,
     /// Keyboard actions. Here we define shortcuts for all actions except letters input, copying
     /// and pasting.
-    pub actions: keyboard::KeyboardActions,
+    pub actions: keyboard::Actions,
     pub network: frp::Network,
     /// Event sent once cut operation was requested.
     pub on_cut: frp::Source,
@@ -57,7 +57,7 @@ impl TextFieldKeyboardFrp {
     /// Create FRP graph operating on given TextField pointer.
     pub fn new(text_field:WeakTextField) -> Self {
         let keyboard    = Keyboard::default();
-        let mut actions = keyboard::KeyboardActions::new(&keyboard);
+        let mut actions = keyboard::Actions::new(&keyboard);
         let cut         = Self::copy_lambda(true,text_field.clone_ref());
         let copy        = Self::copy_lambda(false,text_field.clone_ref());
         let paste       = Self::paste_lambda(text_field.clone_ref());
@@ -137,8 +137,8 @@ impl TextFieldKeyboardFrp {
             text_field.upgrade().for_each(|text_field| {
                 if let keyboard::Key::Character(string) = key {
                     let modifiers = &[keyboard::Key::Control,keyboard::Key::Alt];
-                    let is_modifier  = modifiers.iter().any(|k| mask.has_key(k));
-                    let is_alt_graph = mask.has_key(&keyboard::Key::AltGraph);
+                    let is_modifier  = modifiers.iter().any(|key| mask.contains(key));
+                    let is_alt_graph = mask.contains(&keyboard::Key::AltGraph);
                     // On Windows AltGraph is emitted as both AltGraph and Ctrl. Therefore we don't
                     // care about modifiers when AltGraph is pressed.
                     if  !is_modifier || is_alt_graph {
@@ -150,7 +150,7 @@ impl TextFieldKeyboardFrp {
     }
 
     fn initialize_actions_map
-    (actions:&mut keyboard::KeyboardActions, text_field:WeakTextField) {
+    (actions:&mut keyboard::Actions, text_field:WeakTextField) {
         use keyboard::Key::*;
         let mut setter = TextFieldActionsSetter{actions,text_field};
         setter.set_navigation_action(&[ArrowLeft],          Step::Left);
@@ -180,18 +180,18 @@ impl TextFieldKeyboardFrp {
 /// for its usage.
 struct TextFieldActionsSetter<'a> {
     text_field : WeakTextField,
-    actions    : &'a mut keyboard::KeyboardActions,
+    actions    : &'a mut keyboard::Actions,
 }
 
 impl<'a> TextFieldActionsSetter<'a> {
     fn set_action<F>(&mut self, keys:&[keyboard::Key], action:F)
     where F : Fn(&TextField) + 'static {
         let ptr = self.text_field.clone_ref();
-        self.actions.set_action(keys.into(), move |_| {
+        self.actions.add_action_for_key_mask(keys.into(), move || {
             if let Some(text_field) = ptr.upgrade() {
                 action(&text_field);
             }
-        });
+        }).forget(); // FIXME remove forget
     }
 
     fn set_navigation_action(&mut self, base:&[keyboard::Key], step:Step) {

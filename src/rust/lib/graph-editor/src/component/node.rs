@@ -137,9 +137,15 @@ pub struct Events {
 // ============
 
 /// Node definition.
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
 pub struct Node {
     data : Rc<NodeData>,
+}
+
+impl AsRef<Node> for Node {
+    fn as_ref(&self) -> &Self {
+        self
+    }
 }
 
 /// Weak version of `Node`.
@@ -266,5 +272,11 @@ impl WeakRef for WeakNode {
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
         &self.view.display_object
+    }
+}
+
+impl display::WeakObject for WeakNode {
+    fn try_display_object(&self) -> Option<display::object::Instance> {
+        self.upgrade().map(|ref t| t.display_object().clone_ref())
     }
 }

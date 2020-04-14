@@ -82,7 +82,7 @@
 #![feature(associated_type_defaults)]
 
 #![feature(unboxed_closures)]
-
+#![feature(fn_traits)]
 
 pub mod debug;
 pub mod data;

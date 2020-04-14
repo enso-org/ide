@@ -10,14 +10,16 @@ use crate::view::text_editor::TextEditor;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
-use enso_frp::io::keyboard::KeyboardActions;
+use enso_frp::io::keyboard;
 use nalgebra::zero;
 use nalgebra::Vector2;
 use std::rc::Rc;
 use std::cell::RefCell;
+use graph_editor::app::App;
 use crate::view::node_editor::NodeEditor;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use crate::view::node_searcher::NodeSearcher;
+
 
 
 // ==================
@@ -88,15 +90,16 @@ impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
     ( logger           : &Logger
-    , kb_actions       : &mut KeyboardActions
-    , world            : &World
+    , kb_actions       : &mut keyboard::Actions
+    , app              : &App
     , text_controller  : controller::text::Handle
     , graph_controller : controller::graph::Handle
     , fonts            : &mut FontRegistry
     ) -> Self {
         let logger        = logger.sub("ViewLayout");
+        let world         = &app.world;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
-        let node_editor   = NodeEditor::new(&logger, world, graph_controller.clone());
+        let node_editor   = NodeEditor::new(&logger,app,graph_controller.clone());
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller,fonts);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
@@ -107,12 +110,12 @@ impl ViewLayout {
         Self {rc}.init(world,kb_actions)
     }
 
-    fn init_keyboard(self, _keyboard_actions:&mut KeyboardActions) -> Self {
+    fn init_keyboard(self, _keyboard_actions:&mut keyboard::Actions) -> Self {
         // TODO[ao] add here some useful staff (quitting project for example)
         self
     }
 
-    fn init(self, world:&World, keyboard_actions:&mut KeyboardActions) -> Self {
+    fn init(self, world:&World, keyboard_actions:&mut keyboard::Actions) -> Self {
         let screen = world.scene().camera().screen();
         let size   = Vector2::new(screen.width,screen.height);
         self.set_size(size);
