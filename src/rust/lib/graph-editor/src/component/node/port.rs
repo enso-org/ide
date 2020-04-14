@@ -372,9 +372,8 @@ impl<T:PortShapeViewDefinition> Port<T> {
         let rotation_vector    = -Vector3::new(0.0,0.0,spec.position.rad().value);
         let rotation           = nalgebra::Rotation3::new(rotation_vector);
         let translation        = rotation * translation_vector;
-
-        ObjectOps::set_position(self, translation);
-        ObjectOps::set_rotation(self, rotation_vector);
+        self.data.view.display_object.set_position(translation);
+        self.data.view.display_object.set_rotation(rotation_vector);
     }
 
     /// Update the shape parameters with values from our `Specification`.
@@ -396,12 +395,6 @@ impl<T:PortShapeViewDefinition> Default for Port<T> {
 impl<T:PortShapeViewDefinition> From<Specification> for Port<T> {
     fn from(spec: Specification) -> Self {
         Self::new(spec)
-    }
-}
-
-impl<'t,T:PortShapeViewDefinition> From<&'t Port<T>> for &'t display::object::Node {
-    fn from(t:&'t Port<T>) -> Self {
-        &t.data.view.display_object
     }
 }
 
@@ -427,7 +420,7 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
     /// create a new port in this buffer and sets it as a child node of the given parent.
     pub fn create(&self, parent:&Node) -> Port<T> {
         let port = Port::default();
-        parent.add_child(&port);
+        parent.add_child(&port.data.view.display_object);
         self.ports.borrow_mut().push(port.clone());
         port
     }
