@@ -116,7 +116,6 @@ mod shape {
     ///
     fn new_port
     (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>) -> AnyShape {
-
         let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
         let height                       = &height * &zoom_factor;
         let outer_radius      : Var<f32> = &inner_radius + &height;
