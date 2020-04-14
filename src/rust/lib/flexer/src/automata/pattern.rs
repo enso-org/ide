@@ -4,20 +4,20 @@ use crate::automata::state::StateId;
 
 use core::iter;
 use itertools::Itertools;
-use std::ops::BitOr;
 use std::ops::BitAnd;
-use std::ops::Range;
+use std::ops::BitOr;
+use std::ops::RangeInclusive;
 
 
 
-const MAX:Symbol = Symbol::max_value();
-const MIN:Symbol = Symbol::min_value();
+const MAX:i64 = i64::max_value();
+const MIN:i64 = i64::min_value();
 
 /// Simple regex pattern.
 #[derive(Clone,Debug)]
 pub enum Pattern {
     /// Pattern that triggers on any symbol from given range.
-    Range(Range<Symbol>),
+    Range(RangeInclusive<Symbol>),
     /// Pattern that triggers on any given pattern from sequence.
     Or(Vec<Pattern>),
     /// Pattern that triggers when a sequence of patterns is encountered.
@@ -59,17 +59,17 @@ impl Pattern {
 
     /// Pattern that never triggers.
     pub fn never() -> Self {
-        Pattern::Range(0..-1)
+        Pattern::symbols(0..=-1)
     }
 
     /// Pattern that always triggers.
     pub fn always() -> Self {
-        Pattern::Range(MIN..MAX)
+        Pattern::symbols(i64::min_value()..=i64::max_value())
     }
 
     /// Pattern that triggers on any char.
     pub fn any_char() -> Self {
-        Pattern::Range(0..MAX)
+        Pattern::symbols(0..=i64::from(u32::max_value()))
     }
 
     /// Pattern that triggers on 0..N repetitions of given pattern.
@@ -88,45 +88,55 @@ impl Pattern {
     }
 
     /// Pattern that triggers on given symbol
-    pub fn code(symbol: Symbol) -> Self {
-        Pattern::Range(symbol..symbol)
+    pub fn symbol(symbol:i64) -> Self {
+        Pattern::symbols(symbol..=symbol)
+    }
+
+    /// Pattern that triggers on any of the given symbols.
+    pub fn symbols(symbols:RangeInclusive<i64>) -> Self {
+        let start = Symbol{val:*symbols.start()};
+        let end   = Symbol{val:*symbols.end()};
+        Pattern::Range(start..=end)
     }
 
     /// Pattern that triggers on end of file.
     pub fn eof() -> Self {
-        Self::code(parser::EOF_CODE)
+        Self::symbol(parser::EOF_CODE.val)
     }
 
     /// Pattern that triggers on given character.
-    pub fn char(char: char) -> Self {
-        Self::code((char as u32).into())
+    pub fn char(char:char) -> Self {
+        Self::symbol((char as u32).into())
     }
 
+
     /// Pattern that triggers on any of the given characters.
-    pub fn range(chars: Range<char>) -> Self {
-        Pattern::Range((chars.start as u32).into()..(chars.end as u32).into())
+    pub fn range(chars:RangeInclusive<char>) -> Self {
+        let start = i64::from(*chars.start() as u32);
+        let end   = i64::from(*chars.end()   as u32);
+        Pattern::symbols(start..=end)
     }
 
     /// Pattern that triggers when sequence of characters is encountered.
     pub fn all(chars:String) -> Self {
-        chars.chars().fold(Self::never(), |a,b| a & Self::char(b))
+        chars.chars().fold(Self::never(), |pat,char| pat & Self::char(char))
     }
 
     /// Pattern that triggers on any characters from given sequence.
     pub fn any(chars:String) -> Self {
-        chars.chars().fold(Self::never(), |a,b| a | Self::char(b))
+        chars.chars().fold(Self::never(), |pat,char| pat | Self::char(char))
     }
 
     /// Pattern that doesn't trigger on any given character from given sequence.
     pub fn none(chars:String) -> Self {
-        let char_iter  = chars.chars().map(|c| i64::from(c as u32));
+        let char_iter  = chars.chars().map(|char| i64::from(char as u32));
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(MAX));
         let mut codes  = char_iter2.collect_vec();
 
         codes.sort();
-        codes.iter().tuple_windows().fold(Self::never(), |a,(s,e)| {
-            if e < s {a} else {
-                a | Pattern::Range(*s..*e)
+        codes.iter().tuple_windows().fold(Self::never(), |pat,(start,end)| {
+            if end < start {pat} else {
+                pat | Pattern::symbols(*start..=*end)
             }
         })
     }
@@ -148,13 +158,13 @@ impl Pattern {
 
     /// Transforms pattern to NFA.
     /// The algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
-    pub fn to_nfa(&self, nfa:&mut NFA, last:StateId) -> usize {
+    pub fn to_nfa(&self, nfa:&mut NFA, last:StateId) -> StateId {
         let current = nfa.new_state();
         nfa.connect(last, current);
         match self {
             Pattern::Range(range) => {
                 let state = nfa.new_state();
-                nfa.connect_by(current, state, &range);
+                nfa.connect_by(current, state, range);
                 state
             },
             Pattern::Many(body) => {

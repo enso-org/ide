@@ -1,7 +1,7 @@
 use crate::automata::state::Symbol;
 
 use std::collections::BTreeSet;
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 
 
@@ -14,7 +14,7 @@ pub struct Alphabet {
 
 impl Default for Alphabet {
     fn default() -> Self {
-        Alphabet {symbols:[0].iter().cloned().collect()}
+        Alphabet {symbols:[Symbol{val:0}].iter().cloned().collect()}
     }
 }
 
@@ -22,15 +22,15 @@ impl Alphabet {
     /// Creates alphabet from a slice of symbols.
     pub fn new(iter:&[i64]) -> Self {
         let mut dict = Self::default();
-        for &code in iter {
-            dict.symbols.insert(code);
+        for &val in iter {
+            dict.symbols.insert(Symbol{val});
         }
         dict
     }
 
     /// Inserts a range of symbols into the alphabet.
-    pub fn insert(&mut self, range:Range<Symbol>) {
-        self.symbols.insert(range.start);
-        self.symbols.insert(range.end + 1);
+    pub fn insert(&mut self, range:RangeInclusive<Symbol>) {
+        self.symbols.insert(Symbol{val:range.start().val});
+        self.symbols.insert(Symbol{val:range.end().val + 1});
     }
 }

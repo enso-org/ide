@@ -22,3 +22,11 @@ pub struct DFA {
     /// An (state => Option<EndState>) EndState map.
     pub end_states : Vec<Option<EndState>>,
 }
+
+impl DFA {
+    /// Creates a transition matrix.
+    pub fn links(links: Vec<Vec<usize>>) -> Vec<Vec<StateId>> {
+        let link = |link:Vec<usize>| link.iter().map(|&id| StateId{id}).collect();
+        links.into_iter().map(link).collect()
+    }
+}

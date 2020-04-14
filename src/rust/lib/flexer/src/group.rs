@@ -9,25 +9,25 @@ pub mod rule;
 /// Group of a set of rules.
 struct Group {
     /// ID of group.
-    pub id        : usize,
+    pub id     : usize,
     /// Name of group.
-    pub name      : String,
+    pub name   : String,
     /// Parent of group.
-    pub parent    : Option<Box<Group>>,
+    pub parent : Option<Box<Group>>,
     /// Set of rules. See Rule for more information.
-    pub rules     : Vec<Rule>,
+    pub rules  : Vec<Rule>,
     /// Function that is called on exiting group.
-    pub finish    : Box<dyn FnMut()>,
+    pub finish : Box<dyn FnMut()>,
 }
 
 impl Default for Group {
     fn default() -> Self {
         Group {
-            name      : Default::default(),
-            id        : Default::default(),
-            parent    : Default::default(),
-            rules     : Default::default(),
-            finish    : Box::new(||{}),
+            name   : Default::default(),
+            id     : Default::default(),
+            parent : Default::default(),
+            rules  : Default::default(),
+            finish : Box::new(||{}),
         }
     }
 }
@@ -70,7 +70,7 @@ impl Group {
         let states = self.rules().into_iter().map(build).collect_vec();
         let end    = nfa.new_state();
         for (ix, state) in states.into_iter().enumerate() {
-            nfa.states[state].name = Some(self.rule_name(ix));
+            nfa.states[state.id].name = Some(self.rule_name(ix));
             nfa.connect(state, end);
         }
         nfa
@@ -97,7 +97,7 @@ mod tests {
 
 
 
-    const M:usize = state::MISSING;
+    const I:usize = state::INVALID.id;
 
     #[test]
     fn test_newline() {
@@ -112,7 +112,7 @@ mod tests {
         let expected_nfa = NFA {
             states: vec![
                 State::epsilon_links(&[1]),
-                State::links(&[(10..10, 2)]),
+                State::links(&[(10..=10, 2)]),
                 State::epsilon_links(&[3]).named("group0_rule0"),
                 State::default(),
             ],
@@ -120,7 +120,7 @@ mod tests {
         };
         let expected_dfa = DFA {
             alphabet: Alphabet::new(&[10,11]),
-            links: vec![vec![M,1,M], vec![M,M,M]],
+            links: DFA::links(vec![vec![I,1,I], vec![I,I,I]]),
             end_states: vec![
                 None,
                 Some(EndState{priority:2, name:"group0_rule0".into()}),
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_letter() {
-        let     pattern = Pattern::range('a'..'z');
+        let     pattern = Pattern::range('a'..='z');
         let mut state   = Group::default();
 
         state.add_rule(Rule{pattern, callback:"".into()});
@@ -144,7 +144,7 @@ mod tests {
         let expected_nfa = NFA {
             states: vec![
                 State::epsilon_links(&[1]),
-                State::links(&[(97..122,2)]),
+                State::links(&[(97..=122,2)]),
                 State::epsilon_links(&[3]).named("group0_rule0"),
                 State::default(),
             ],
@@ -152,7 +152,7 @@ mod tests {
         };
         let expected_dfa = DFA {
             alphabet: Alphabet::new(&[97,123]),
-            links: vec![vec![M,1,M], vec![M,M,M]],
+            links: DFA::links(vec![vec![I,1,I], vec![I,I,I]]),
             end_states: vec![
                 None,
                 Some(EndState{priority:2,name:"group0_rule0".into()}),
@@ -165,7 +165,6 @@ mod tests {
 
     #[test]
     fn test_spaces() {
-        println!("[[{}]]", 10 as u8 as char);
         let     pattern = Pattern::char(' ').many1();
         let mut state   = Group::default();
 
@@ -178,11 +177,11 @@ mod tests {
             states: vec![
                 State::epsilon_links(&[1]),
                 State::epsilon_links(&[2]),
-                State::links(&[(32..32,3)]),
+                State::links(&[(32..=32,3)]),
                 State::epsilon_links(&[4]),
                 State::epsilon_links(&[5,8]),
                 State::epsilon_links(&[6]),
-                State::links(&[(32..32,7)]),
+                State::links(&[(32..=32,7)]),
                 State::epsilon_links(&[8]),
                 State::epsilon_links(&[5,9]).named("group0_rule0"),
                 State::default(),
@@ -191,11 +190,11 @@ mod tests {
         };
         let expected_dfa = DFA {
             alphabet: Alphabet::new(&[0, 32, 33]),
-            links: vec![
-                vec![M,1,M],
-                vec![M,2,M],
-                vec![M,2,M],
-            ],
+            links: DFA::links(vec![
+                vec![I,1,I],
+                vec![I,2,I],
+                vec![I,2,I],
+            ]),
             end_states: vec![
                 None,
                 Some(EndState{priority:3,name:"group0_rule0".into()}),
@@ -208,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_letter_and_spaces() {
-        let     letter = Pattern::range('a'..'z');
+        let     letter = Pattern::range('a'..='z');
         let     spaces = Pattern::char(' ').many1();
         let mut state  = Group::default();
 
@@ -221,14 +220,14 @@ mod tests {
         let expected_nfa = NFA {
             states: vec![
                 State::epsilon_links(&[1,3]),
-                State::links(&[(97..122,2)]),
+                State::links(&[(97..=122,2)]),
                 State::epsilon_links(&[11]).named("group0_rule0"),
                 State::epsilon_links(&[4]),
-                State::links(&[(32..32,5)]),
+                State::links(&[(32..=32,5)]),
                 State::epsilon_links(&[6]),
                 State::epsilon_links(&[7,10]),
                 State::epsilon_links(&[8]),
-                State::links(&[(32..32,9)]),
+                State::links(&[(32..=32,9)]),
                 State::epsilon_links(&[10]),
                 State::epsilon_links(&[7,11]).named("group0_rule1"),
                 State::default(),
@@ -237,12 +236,12 @@ mod tests {
         };
         let expected_dfa = DFA {
             alphabet: Alphabet::new(&[32,33,97,123]),
-            links: vec![
-                vec![M,1,M,2,M],
-                vec![M,3,M,M,M],
-                vec![M,M,M,M,M],
-                vec![M,3,M,M,M],
-            ],
+            links: DFA::links(vec![
+                vec![I,1,I,2,I],
+                vec![I,3,I,I,I],
+                vec![I,I,I,I,I],
+                vec![I,3,I,I,I],
+            ]),
             end_states: vec![
                 None,
                 Some(EndState{priority:4,name:"group0_rule1".into()}),
