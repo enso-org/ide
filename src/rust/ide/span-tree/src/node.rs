@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use data::text::Index;
 use data::text::Size;
 use data::text::Span;
 use crate::node::DfsMode::OneLevelFlatten;
@@ -43,6 +44,7 @@ pub struct NodeRef<'a> {
     pub node              : &'a Node,
     pub crumbs            : Vec<usize>,
     pub parent_ast_crumbs : ast::Crumbs,
+    pub span_index        : Index,
 }
 
 impl<'a> NodeRef<'a> {
@@ -68,6 +70,7 @@ impl<'a> NodeRef<'a> {
                 self.parent_ast_crumbs.extend(ast);
             }
             self.crumbs.push(index);
+            self.span_index += child.offset;
             self.node = child;
             self
         })
@@ -91,16 +94,16 @@ pub struct RootNode(Node);
 // pub type Crumbs = Vec<usize>;
 
 impl RootNode {
-    pub fn dfs_iter(&self) -> DfsIterator {
+    pub fn dfs_iter(&self) -> impl Iterator<Item=NodeRef> {
         DfsIterator::new(self.as_ref(),DfsMode::All)
     }
 
-    pub fn dfs_iter_flatten(&self) -> DfsIterator {
+    pub fn dfs_iter_flatten(&self) -> impl Iterator<Item=NodeRef> {
         DfsIterator::new(self.as_ref(),DfsMode::AllFlatten)
     }
 
-    pub fn children_iter_flatten(&self) -> DfsIterator {
-        DfsIterator::new(self.as_ref(),DfsMode::OneLevelFlatten)
+    pub fn children_iter_flatten(&self) -> impl Iterator<Item=NodeRef> {
+        DfsIterator::new(self.as_ref(),DfsMode::OneLevelFlatten).skip(1)
     }
 
     pub fn get_node(&self, crumbs:impl IntoIterator<Item=usize>) -> Option<NodeRef> {
@@ -111,7 +114,8 @@ impl RootNode {
         let RootNode(node)    = self;
         let crumbs            = default();
         let parent_ast_crumbs = default();
-        NodeRef {node,crumbs,parent_ast_crumbs}
+        let span_index        = Index::default() + node.offset;
+        NodeRef {node,crumbs,parent_ast_crumbs,span_index}
     }
 }
 
@@ -170,8 +174,7 @@ impl<'a> DfsIterator<'a> {
 
     fn make_dfs_step(&mut self) {
         if let Some(current) = std::mem::take(&mut self.next_node) {
-            let descension_allowed = self.mode != OneLevelFlatten || current.can_be_flatten;
-            if !current.children.is_empty() && descension_allowed {
+            if !current.children.is_empty() && self.can_descend(current) {
                 self.next_node = Some(current.children.first().unwrap());
                 self.stack.push(DfsStackItem{node:current, visiting_child:0});
             } else {
@@ -189,10 +192,15 @@ impl<'a> DfsIterator<'a> {
 
     fn should_skip_node(&self) -> bool {
         let flatten_mode   = self.mode.is_flatten();
-        let should_flatten = |n:&Node| n.can_be_flatten && n.children.is_empty();
+        let should_flatten = |n:&Node| n.can_be_flatten && !n.children.is_empty();
         flatten_mode && self.next_node.map_or(false, should_flatten)
     }
+
+    fn can_descend(&self, current:&Node) -> bool {
+        self.mode != OneLevelFlatten || self.stack.is_empty() || current.can_be_flatten
+    }
 }
+
 
 
 // =============
@@ -205,14 +213,21 @@ mod tests {
 
     #[test]
     fn dfs_iterator() {
+        // Tree we use for tests (E - Empty child, R - Root):
+        // root:                (R)
+        //                    / |  \
+        // children:        ()  ()  ()
+        //                 /|\     / \
+        // g-children:   ()()(E)  () ()
+
         let grand_child1 = ast_child_node(vec![ast::crumbs::PrefixCrumb::Func.into()], 0, 3);
         let grand_child2 = ast_child_node(vec![ast::crumbs::PrefixCrumb::Arg.into()] , 4, 3);
         let grand_child3 = Node::new_empty(Size::new(7));
         let grand_child4 = ast_child_node(vec![ast::crumbs::PrefixCrumb::Func.into()], 0, 3);
         let grand_child5 = ast_child_node(vec![ast::crumbs::PrefixCrumb::Arg.into()] , 4, 3);
-        let mut child1   = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] , 0, 1);
-        let child2       = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    , 2, 1);
-        let mut child3   = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()], 4, 7);
+        let mut child1   = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] , 0, 7);
+        let child2       = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    , 8, 1);
+        let mut child3   = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()], 10,7);
 
         child1.children = vec![grand_child1,grand_child2,grand_child3];
         child3.children = vec![grand_child4,grand_child5];
@@ -250,7 +265,86 @@ mod tests {
             , Some(vec![RightOperand.into(), Func.into()])
             , Some(vec![RightOperand.into(), Arg.into()])
             ];
-        assert_eq!(expected_ast_crumbs, root.dfs_iter().map(|rch| rch.ast_crumbs()).collect_vec())
+        assert_eq!(expected_ast_crumbs, root.dfs_iter().map(|rch| rch.ast_crumbs()).collect_vec());
+
+        let expected_indices = vec![0,0,0,4,7,8,10,10,14];
+        assert_eq!(expected_indices, root.dfs_iter().map(|rch| rch.span_index.value).collect_vec());
+    }
+
+    #[test]
+    fn flatten_iterating() {
+        // Tree we use for tests (F means node which can be flattened):
+        // root:                (-)
+        //                    / |  \
+        // children:        (F) ()  (F)
+        //                 /|      / | \
+        // g-children:   ()()    () () (F)
+        //                            / | \
+        // gg-children:              ()() ()
+
+        // Level 4. (Grand-grand children)
+        let gg_child1    = ast_child_node(vec![ast::crumbs::PrefixCrumb::Func.into()],0,1);
+        let gg_child2    = ast_child_node(vec![ast::crumbs::PrefixCrumb::Arg.into()] ,2,1);
+        let gg_child3    = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] ,0,1);
+        let gg_child4    = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    ,2,1);
+        let gg_child5    = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()],4,1);
+        // Level 3. (Grand children)
+        let g_child1     = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] ,0,3);
+        let g_child2     = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    ,4,1);
+        let mut g_child3 = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()],6,3);
+        let g_child4     = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] ,0,3);
+        let g_child5     = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    ,4,1);
+        let mut g_child6 = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()],6,3);
+        // Level 2. (children)
+        let mut child1   = ast_child_node(vec![ast::crumbs::InfixCrumb::LeftOperand.into()] ,0 ,10);
+        let child2       = ast_child_node(vec![ast::crumbs::InfixCrumb::Operator.into()]    ,11,1 );
+        let mut child3   = ast_child_node(vec![ast::crumbs::InfixCrumb::RightOperand.into()],13,1);
+
+        g_child3.children       = vec![gg_child1,gg_child2];
+        g_child6.children       = vec![gg_child3,gg_child4,gg_child5];
+        g_child6.can_be_flatten = true;
+        child1.children         = vec![g_child1,g_child2,g_child3];
+        child1.can_be_flatten   = true;
+        child3.children         = vec![g_child4,g_child5,g_child6];
+        child3.can_be_flatten   = true;
+
+
+        // Level 1. (root)
+        let root = RootNode(Node {
+            offset         : Size::new(0),
+            len            : Size::new(11),
+            node_type      : NodeType::Root,
+            children       : vec![child1, child2, child3],
+            can_be_flatten : false,
+        });
+
+        // Dfs flat iterating
+        let expected_crumbs = vec!
+            [ vec![]
+            // Crub [0] should be skipped, because it should be flatten.
+            , vec![0,0]
+            , vec![0,1]
+            , vec![0,2]
+            , vec![0,2,0]
+            , vec![0,2,1]
+            , vec![1]
+            , vec![2,0]
+            , vec![2,1]
+            , vec![2,2]
+            ];
+        assert_eq!(expected_crumbs, root.dfs_iter_flatten().map(|n| n.crumbs).collect_vec());
+
+        // Children flat iterating
+        let expected_crumbs = vec!
+            [ vec![0,0]
+            , vec![0,1]
+            , vec![0,2]
+            , vec![1]
+            , vec![2,0]
+            , vec![2,1]
+            , vec![2,2]
+            ];
+        assert_eq!(expected_crumbs, root.children_iter_flatten().map(|n| n.crumbs).collect_vec());
     }
 
     fn ast_child_node(crumbs:ast::Crumbs, offset:usize, len:usize) -> Node {
