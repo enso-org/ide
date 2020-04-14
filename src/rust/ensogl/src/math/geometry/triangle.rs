@@ -35,7 +35,7 @@ use failure::_core::ops::{Add, Mul, Sub};
 /// ```
 /// # use assert_approx_eq::assert_approx_eq;
 /// # use ensogl::math::geometry::triangle::Triangle;
-/// let result = Triangle::from_sides_and_angle(1.0, 1.0 , 60.0_f32.to_radians());
+/// let result = Triangle::<f32>::from_sides_and_angle(1.0, 1.0 , 60.0_f32.to_radians());
 ///
 /// assert_approx_eq!(result.side_bc(), 1.0);
 /// assert_approx_eq!(result.angle_a(), 60.0_f32.to_radians());
@@ -103,7 +103,7 @@ for <'a> &'a T: Add<&'a T,Output=T> + Mul<&'a T,Output=T> + Sub<&'a T,Output=T>{
         let angle_a_cos_denominator    = two * (&side_ca * &side_ab);
         let angle_a_cos                = angle_a_cos_numerator / angle_a_cos_denominator;
         let angle_a                    = angle_a_cos.acos();
-        let angle_b                    = T::from(PI) - (&angle_a - &angle_c);
+        let angle_b                    = &(&T::from(PI) -&angle_a) - &angle_c;
 
         Triangle{side_bc,side_ca,side_ab,angle_a,angle_b,angle_c}
     }
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_from_sides_and_angle() {
-        let result = Triangle::from_sides_and_angle(1.0,1.0,60.0_f32.to_radians());
+        let result = Triangle::<f32>::from_sides_and_angle(1.0,1.0,60.0_f32.to_radians());
 
         assert_approx_eq!(result.side_bc(),1.0);
         assert_approx_eq!(result.side_ca(),1.0);
@@ -132,7 +132,7 @@ mod tests {
         assert_approx_eq!(result.angle_b(),60.0_f32.to_radians());
         assert_approx_eq!(result.angle_a(),60.0_f32.to_radians());
 
-        let result = Triangle::from_sides_and_angle(1.0,1.0,90.0_f32.to_radians());
+        let result = Triangle::<f32>::from_sides_and_angle(1.0,1.0,90.0_f32.to_radians());
 
         assert_approx_eq!(result.side_bc(),1.0);
         assert_approx_eq!(result.side_ca(),1.0);
@@ -142,7 +142,7 @@ mod tests {
         assert_approx_eq!(result.angle_b(),45.0_f32.to_radians());
         assert_approx_eq!(result.angle_a(),45.0_f32.to_radians());
 
-        let result = Triangle::from_sides_and_angle(1.0,4.0,128.0_f32.to_radians());
+        let result = Triangle::<f32>::from_sides_and_angle(1.0,4.0,128.0_f32.to_radians());
 
         assert_approx_eq!(result.side_bc(),1.0);
         assert_approx_eq!(result.side_ca(),4.0);
