@@ -18,18 +18,14 @@ use core::f32::consts::PI;
 /// -------------------
 /// ```text
 ///                        C
-///                       / \
-///                     /    \
-///                   /       \
-///                 /  angle_c \
-///    side_ca    /             \  side_bc
-///             /                \
-///           /                   \
-///         /                      \
-///       /                         \
-///     /  angle_a           angle_b \
-///   /------------------------------- B
-///  A                 side_ab
+///                      /  \
+///                    /      \
+///                  / angle_c  \
+///     side_ca    /              \  side_bc
+///              /                  \
+///            / angle_a     angle_b \
+///          A ----------------------- B
+///                    side_ab
 /// ```
 /// Where side_ab, side_bc and side_ca are the length of the respective side.
 /// Where alpha, beta and gamma are the respective angle.
