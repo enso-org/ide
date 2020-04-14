@@ -31,7 +31,7 @@ impl App {
     pub fn new(dom:&web_sys::HtmlElement) -> Self {
         let logger    = Logger::new("App");
         let display   = World::new(dom);
-        let views     = view::Registry::create(&display);
+        let views     = view::Registry::create(&logger,&display);
         let shortcuts = shortcut::Registry::new(&logger,&views);
         Self {logger,display,views,shortcuts}
     }

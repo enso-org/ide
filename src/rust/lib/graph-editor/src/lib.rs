@@ -39,24 +39,22 @@ use app::App;
 use ensogl::prelude::*;
 use ensogl::traits::*;
 
-use ensogl::display;
-use ensogl::display::world::*;
-use ensogl::system::web;
+use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
-use crate::component::cursor::Cursor;
-use nalgebra::Vector2;
 use enso_frp as frp;
-use enso_frp::Position;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use ensogl::display::object::{Id, Instance};
-use ensogl::system::web::StyleSetter;
-
-
-use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
-use enso_frp::io::keyboard;
 use enso_frp::io::keyboard::Keyboard;
+use enso_frp::io::keyboard;
+use enso_frp::Position;
+use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
+use ensogl::display::object::{Id, Instance};
+use ensogl::display::world::*;
+use ensogl::display;
+use ensogl::system::web::StyleSetter;
+use ensogl::system::web;
+use nalgebra::Vector2;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 
 
@@ -588,17 +586,9 @@ impl app::View for GraphEditor {
 
         }
 
+        // FIXME This is a temporary solution. Should be replaced by a real thing once layout
+        //       management is implemented.
         is_active_src.emit(true);
-
-//        app.shortcuts.add (
-//            &[keyboard::Key::Character("n".into())],
-//            app::shortcut::Rule::new_(Self::view_name(), "add_node_at_cursor")
-//        );
-//
-//        app.shortcuts.add (
-//            &[keyboard::Key::Backspace],
-//            app::shortcut::Rule::new_(Self::view_name(), "remove_selected_nodes")
-//        );
 
         let status = FrpStatus {is_active,is_empty};
 

@@ -35,6 +35,7 @@ fn init(app:&App) {
     let navigator = Navigator::new(&scene,&camera);
 
 
+    app.views.register::<GraphEditor>();
     let graph_editor = app.views.new::<GraphEditor>();
 //    let graph_editor = GraphEditor::new(app);
     world.add_child(&graph_editor);
