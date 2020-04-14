@@ -163,19 +163,13 @@ mod shape {
         // We don't want to move around the angle so we position the two circles relative to the
         // angle.
 
-        let circle_outer_offset_y = Var::<Distance<Pixels>>::from(
-            &shape_height
-             - segment_outer.sagitta()
-             - &outer_radius
-        );
-        let circle_outer          = circle_outer.translate_y(circle_outer_offset_y);
+        let circle_outer_offset_y  = &shape_height - segment_outer.sagitta() - &outer_radius;
+        let circle_outer_offset_y  = Var::<Distance<Pixels>>::from(circle_outer_offset_y);
+        let circle_outer           = circle_outer.translate_y(circle_outer_offset_y);
 
-        let circle_inner_offset_y = Var::<Distance<Pixels>>::from(
-            &shape_height
-             - segment_outer.sagitta()
-             - segment_inner.sagitta()
-             + &inner_radius
-        );
+        let circle_inner_offset_y = &shape_height - segment_outer.sagitta();
+        let circle_inner_offset_y = circle_inner_offset_y - segment_inner.sagitta() + &inner_radius;
+        let circle_inner_offset_y = Var::<Distance<Pixels>>::from(circle_inner_offset_y);
         let circle_inner          = circle_inner.translate_y(circle_inner_offset_y);
 
         // Now we shape the angle by applying the circles.Note that only one of them will have an
