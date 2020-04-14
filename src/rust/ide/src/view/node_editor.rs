@@ -31,11 +31,11 @@ pub struct GraphEditorIntegration {
     pub editor     : GraphEditor,
     /// A controller handle.
     pub controller : controller::Graph,
-    id_to_node     : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
-    node_to_id     : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
     /// Logger. This structure logs all errors which may occur during update view or controller
     /// state.
-    pub logger     : Logger,
+    pub logger : Logger,
+    id_to_node : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
+    node_to_id : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
 
 }
 
