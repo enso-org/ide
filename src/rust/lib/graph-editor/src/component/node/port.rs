@@ -230,7 +230,7 @@ fn init_shape(shape:&shape::Shape, direction:Direction){
         Direction::Out => shape.is_inwards.set(1.0),
     };
 
-    /// Add some extra space to the shape can grow when resized.
+    // Add some extra space to the shape can grow when resized.
     let padding_factor = 2.0;
     let bbox = Vector2::new(padding_factor * shape.height.get(), padding_factor * shape.height.get());
     shape.sprite.size().set(bbox);
