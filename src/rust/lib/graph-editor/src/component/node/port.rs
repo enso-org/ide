@@ -221,18 +221,28 @@ mod shape {
 // === Port ===
 // ============
 
+/// Initialise the shape with sensible defaults..
+fn init_shape(shape:&shape::Shape, direction:Direction){
+    let spec  = Specification::default();
+    shape.update_from_spec(&spec);
+    match direction{
+        Direction::In  => shape.is_inwards.set(1.0),
+        Direction::Out => shape.is_inwards.set(1.0),
+    };
+
+    /// Add some extra space to the shape can grow when resized.
+    let padding_factor = 2.0;
+    let bbox = Vector2::new(padding_factor * shape.height.get(), padding_factor * shape.height.get());
+    shape.sprite.size().set(bbox);
+}
+
 /// Shape view for input port.
 #[derive(Debug,Default,Clone,Copy)]
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
-        let spec  = Specification::default();
-        shape.update_from_spec(&spec);
-        shape.is_inwards.set(1.0);
-
-        let bbox = Vector2::new(2.0 * shape.height.get(), 2.0 * shape.height.get());
-        shape.sprite.size().set(bbox);
+        init_shape(shape, Direction::In);
 
         Self {}
     }
@@ -244,13 +254,7 @@ pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
-        let spec  = Specification::default();
-        shape.update_from_spec(&spec);
-        shape.is_inwards.set(0.0);
-
-        let bbox = Vector2::new(2.0 * shape.height.get(), 2.0 * shape.height.get());
-        shape.sprite.size().set(bbox);
-
+        init_shape(shape, Direction::Out);
         Self {}
     }
 }
