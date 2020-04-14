@@ -99,16 +99,12 @@ where T:TriangleInput<T> {
                                          * side_ca.clone()
                                          * angle_c.cos();
         let side_ab_squared            = side_ab_squared_minuend - side_ab_squared_subtrahend;
-
-        let side_ab = side_ab_squared.sqrt();
-
-        let angle_a_cos_numerator   = side_ca_squared + side_ab_squared - side_bc_squared;
-        let angle_a_cos_denominator = two * side_ca.clone() * side_ab.clone();
-
-        let angle_a_cos = angle_a_cos_numerator / angle_a_cos_denominator;
-        let angle_a     = angle_a_cos.acos();
-
-        let angle_b = T::from(PI) - angle_a.clone() - angle_c.clone();
+        let side_ab                    = side_ab_squared.sqrt();
+        let angle_a_cos_numerator      = side_ca_squared + side_ab_squared - side_bc_squared;
+        let angle_a_cos_denominator    = two * side_ca.clone() * side_ab.clone();
+        let angle_a_cos                = angle_a_cos_numerator / angle_a_cos_denominator;
+        let angle_a                    = angle_a_cos.acos();
+        let angle_b                    = T::from(PI) - angle_a.clone() - angle_c.clone();
 
         Triangle{side_bc,side_ca,side_ab,angle_a,angle_b,angle_c}
     }
