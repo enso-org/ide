@@ -1,49 +1,72 @@
+use crate::automata::alphabet::Alphabet;
+
 use std::ops::Range;
-use std::collections::HashMap;
+use crate::automata::state;
 
 
 pub const MISSING:usize = usize::max_value();
 
-#[derive(Clone,Debug)]
-pub struct Id {
-    pub val: usize
-}
+pub type Symbol  = i64;
+pub type StateId = usize;
 
-#[derive(Clone,Debug)]
-pub struct Rule {
-    pub val: String
-}
 
+/// NFA state with name and set of transitions (links).
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct State {
-  pub link_epsilon : Vec<usize>,
-  pub link_target  : HashMap<Range<i64>,usize>,
-  pub rule         : Option<String>,
+    /// Set of links that don't require any symbol to trigger.
+    /// I.E. If there is an epsilon link from state A to state B,
+    /// then whenever we are in state A, we can freely move to state B.
+    pub epsilon_links : Vec<StateId>,
+    /// Set of links that require specific symbol to trigger.
+    pub links         : Vec<Link>,
+    /// Name of the state.
+    /// We use it to autogenerate a call to method with same name.
+    pub name          : Option<String>,
 }
 
+/// A link that requires specific range of symbols to trigger.
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Desc {
-    pub priority : usize,
-    pub rule     : String,
+pub struct Link {
+    /// Range of symbols that trigger this link.
+    pub symbols : Range<Symbol>,
+    /// A state this link points to.
+    pub target  : StateId,
 }
-
-// impl<T:Into<String>> From<T> for Rule {
-//     fn from(t: T) -> Self {
-//         Rule{val:t.into()}
-//     }
-// }
 
 impl State {
-    pub fn link_epsilon(iter:&[usize]) -> Self {
-        State { link_epsilon: iter.iter().cloned().collect(), ..Default::default() }
+    /// Creates a state with given epsilon links.
+    pub fn epsilon_links(iter:&[StateId]) -> Self {
+        State { epsilon_links: iter.iter().cloned().collect(), ..Default::default() }
     }
 
-    pub fn link_target(iter:&[(Range<i64>,usize)]) -> Self {
-        State { link_target: iter.iter().cloned().collect(), ..Default::default() }
+    /// Creates a state with given links.
+    pub fn links(iter:&[(Range<Symbol>,StateId)]) -> Self {
+        let link = |(symbols,target)| Link{symbols,target};
+        State { links: iter.iter().cloned().map(link).collect(), ..Default::default() }
     }
 
+    /// Gives state a name.
     pub fn named(mut self, name:&str) -> Self {
-        self.rule = Some(name.to_owned());
+        self.name = Some(name.to_owned());
         self
+    }
+
+    /// Returns target for each symbol in alphabet.
+    pub fn targets(&self, alphabet:&Alphabet) -> Vec<usize> {
+        let mut targets = vec![];
+        let mut index   = 0;
+        let mut links   = self.links.clone();
+        links.sort_by_key(|link| link.symbols.start);
+        for &symbol in &alphabet.symbols {
+            while links.len() > index && links[index].symbols.end < symbol {
+                index += 1;
+            }
+            if links.len() <= index || links[index].symbols.start > symbol {
+                targets.push(state::MISSING);
+            } else {
+                targets.push(links[index].target);
+            }
+        }
+        targets
     }
 }

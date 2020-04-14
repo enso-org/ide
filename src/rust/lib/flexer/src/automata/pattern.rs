@@ -1,22 +1,32 @@
+use crate::parser;
+use crate::automata::state::Symbol;
+use crate::automata::state::StateId;
+
+use core::iter;
+use itertools::Itertools;
 use std::ops::BitOr;
 use std::ops::BitAnd;
 use std::ops::Range;
-use core::iter;
 
-const MAX:i64 = i64::max_value();
-const MIN:i64 = i64::min_value();
 
+
+const MAX:Symbol = Symbol::max_value();
+const MIN:Symbol = Symbol::min_value();
+
+/// Simple regex pattern.
 #[derive(Clone,Debug)]
 pub enum Pattern {
-    Range(Range<i64>),
+    /// Pattern that triggers on any symbol from given range.
+    Range(Range<Symbol>),
+    /// Pattern that triggers on any given pattern from sequence.
     Or(Vec<Pattern>),
+    /// Pattern that triggers when a sequence of patterns is encountered.
     And(Vec<Pattern>),
+    /// Pattern that triggers on 0..N repetitions of given pattern.
     Many(Box<Pattern>)
 }
 
 use Pattern::*;
-use crate::parser;
-use itertools::Itertools;
 
 impl BitOr<Pattern> for Pattern {
     type Output = Pattern;
@@ -43,33 +53,71 @@ impl BitAnd<Pattern> for Pattern {
     }
 }
 
+use crate::automata::nfa::NFA;
+
 impl Pattern {
 
-    pub fn never()         -> Self { Pattern::Range(0..-1)      }
-    pub fn always()        -> Self { Pattern::Range(MIN..MAX)   }
-    pub fn any_char()      -> Self { Pattern::Range(0..MAX)     }
-    pub fn many(self)      -> Self { Many(Box::new(self))       }
-    pub fn many1(self)     -> Self { self.clone() & self.many() }
-    pub fn opt(self)       -> Self { self | Self::always()      }
-    pub fn code(code: i64) -> Self { Pattern::Range(code..code) }
+    /// Pattern that never triggers.
+    pub fn never() -> Self {
+        Pattern::Range(0..-1)
+    }
 
-    pub fn char(char:char) -> Self {
+    /// Pattern that always triggers.
+    pub fn always() -> Self {
+        Pattern::Range(MIN..MAX)
+    }
+
+    /// Pattern that triggers on any char.
+    pub fn any_char() -> Self {
+        Pattern::Range(0..MAX)
+    }
+
+    /// Pattern that triggers on 0..N repetitions of given pattern.
+    pub fn many(self) -> Self {
+        Many(Box::new(self))
+    }
+
+    /// Pattern that triggers on 1..N repetitions of given pattern.
+    pub fn many1(self) -> Self {
+        self.clone() & self.many()
+    }
+
+    /// Pattern that triggers on 0..1 repetitions of given pattern.
+    pub fn opt(self) -> Self {
+        self | Self::always()
+    }
+
+    /// Pattern that triggers on given symbol
+    pub fn code(symbol: Symbol) -> Self {
+        Pattern::Range(symbol..symbol)
+    }
+
+    /// Pattern that triggers on end of file.
+    pub fn eof() -> Self {
+        Self::code(parser::EOF_CODE)
+    }
+
+    /// Pattern that triggers on given character.
+    pub fn char(char: char) -> Self {
         Self::code((char as u32).into())
     }
-    pub fn range(start:char, end:char) -> Self {
-        Pattern::Range((start as u32).into()..(end as u32).into())
+
+    /// Pattern that triggers on any of the given characters.
+    pub fn range(chars: Range<char>) -> Self {
+        Pattern::Range((chars.start as u32).into()..(chars.end as u32).into())
     }
 
-    pub fn eof() -> Self { Self::code(parser::EOF_CODE) }
-
+    /// Pattern that triggers when sequence of characters is encountered.
     pub fn all(chars:String) -> Self {
         chars.chars().fold(Self::never(), |a,b| a & Self::char(b))
     }
 
+    /// Pattern that triggers on any characters from given sequence.
     pub fn any(chars:String) -> Self {
         chars.chars().fold(Self::never(), |a,b| a | Self::char(b))
     }
 
+    /// Pattern that doesn't trigger on any given character from given sequence.
     pub fn none(chars:String) -> Self {
         let char_iter  = chars.chars().map(|c| i64::from(c as u32));
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(MAX));
@@ -83,16 +131,55 @@ impl Pattern {
         })
     }
 
+    /// Pattern that triggers on any character but the one given.
     pub fn not(char:char) -> Self {
         Self::none(char.to_string())
     }
 
+    /// Pattern that triggers on N repetitions of given pattern.
     pub fn repeat(pat:Pattern, num:usize) -> Self {
         (0..num).fold(Self::always(), |p,_| p & pat.clone())
     }
 
+    /// Pattern that triggers on MIN..MAX repetitions of given pattern.
     pub fn repeat_between(pat:Pattern, min:usize, max:usize) -> Self {
         (min..max).fold(Self::never(), |p,n| p | Self::repeat(pat.clone(),n))
     }
 
+    /// Transforms pattern to NFA.
+    /// The algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
+    pub fn to_nfa(&self, nfa:&mut NFA, last:StateId) -> usize {
+        let current = nfa.new_state();
+        nfa.connect(last, current);
+        match self {
+            Pattern::Range(range) => {
+                let state = nfa.new_state();
+                nfa.connect_by(current, state, &range);
+                state
+            },
+            Pattern::Many(body) => {
+                let s1 = nfa.new_state();
+                let s2 = body.to_nfa(nfa, s1);
+                let s3 = nfa.new_state();
+                nfa.connect(current, s1);
+                nfa.connect(current, s3);
+                nfa.connect(s2, s3);
+                nfa.connect(s3, s1);
+                s3
+            },
+            Pattern::And(patterns) => {
+                let build = |s,pat:&Self| pat.to_nfa(nfa, s);
+                patterns.iter().fold(current,build)
+            },
+            Pattern::Or(patterns) => {
+                let build  = |pat:&Self| pat.to_nfa(nfa, current);
+                let states = patterns.iter().map(build).collect_vec();
+                let end    = nfa.new_state();
+                for state in states {
+                    nfa.connect(state, end);
+                }
+                end
+            }
+        }
+    }
 }

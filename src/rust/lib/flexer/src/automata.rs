@@ -1,5 +1,5 @@
 pub mod dfa;
 pub mod nfa;
-pub mod dict;
+pub mod alphabet;
 pub mod pattern;
 pub mod state;

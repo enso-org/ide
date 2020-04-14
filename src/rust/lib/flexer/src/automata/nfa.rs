@@ -1,175 +1,156 @@
-use crate::automata::dict::Dict;
-use crate::automata::state::State;
+use crate::automata::alphabet::Alphabet;
 use crate::automata::dfa::DFA;
-use crate::automata::{state, dfa};
+use crate::automata::dfa::EndState;
+use crate::automata::state::Link;
+use crate::automata::state::Symbol;
+use crate::automata::state::StateId;
+use crate::automata::state::State;
+use crate::automata::state;
 
+use std::collections::HashMap;
+use std::collections::BTreeSet;
 use std::ops::Range;
-use std::collections::{HashMap, BTreeSet};
 
+
+
+type StateSetId = BTreeSet<StateId>;
+
+/// NFA automata with a set of symbols, states and transitions.
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct NFA {
-    pub states     : Vec<State>,
-    pub vocabulary : Dict,
-}
-
-#[derive(Clone,Debug,Default)]
-struct EpsMatrix {
-    pub links       : BTreeSet<usize>,
-    pub is_computed : bool,
+    /// Set of NFA states.
+    pub states   : Vec<State>,
+    /// Set of valid input symbols.
+    pub alphabet : Alphabet,
 }
 
 impl NFA {
-    pub fn add_state(&mut self) -> usize {
+    /// Adds new state to NFA and returns it's Id.
+    pub fn new_state(&mut self) -> StateId {
         self.states.push(State::default());
         self.states.len() - 1
     }
 
-    pub fn set_link_range(&mut self, source:usize, target:usize, range:&Range<i64>) {
-        self.vocabulary.insert(range.clone());
-        self.states[source].link_target.insert(range.clone(), target);
+    /// Creates an epsilon transition between two states.
+    pub fn connect(&mut self, source:StateId, target:StateId) {
+        self.states[source].epsilon_links.push(target);
     }
 
-    pub fn set_link(&mut self, source:usize, target:usize) {
-        self.states[source].link_epsilon.push(target);
+    /// Creates a transition (for a range of symbols) between two states.
+    pub fn connect_by(&mut self, source:StateId, target:StateId, symbols:&Range<Symbol>) {
+        self.alphabet.insert(symbols.clone());
+        self.states[source].links.push(Link{symbols:symbols.clone(), target});
     }
 
 
     //// NFA -> DFA ////
 
-    fn fill_eps_matrix(&self, state_to_mat:&mut Vec<EpsMatrix>, i:usize) {
+    fn fill_eps_matrix(&self, states:&mut Vec<StateSetId>, computed:&mut Vec<bool>, state:StateId) {
         fn go(
-            nfa              : &NFA,
-            state_to_mat     : &mut Vec<EpsMatrix>,
-            unitialized      : &mut Vec<bool>,
-            eps_group_ix_map : &mut HashMap<BTreeSet<usize>, usize>,
-            i                : usize,
+            nfa      : &NFA,
+            states   : &mut Vec<StateSetId>,
+            computed : &mut Vec<bool>,
+            visisted : &mut Vec<bool>,
+            state    : StateId,
         ){
-            let mut eps_links = BTreeSet::<usize>::new();
-            if unitialized[i] {
-                let mut circular = false;
-                unitialized[i]   = false;
-                state_to_mat[i]  = EpsMatrix::default();
-                for &tgt in &nfa.states[i].link_epsilon {
-                    go(nfa,state_to_mat,unitialized,eps_group_ix_map,tgt);
-                    eps_links.insert(tgt);
-                    eps_links.extend(state_to_mat[tgt].links.iter());
-                    if !state_to_mat[tgt].is_computed {
-                        circular = true
-                    }
+            let mut stateset = StateSetId::new();
+            let mut circular = false;
+            visisted[state]  = true;
+            stateset.insert(state);
+            for &tgt in &nfa.states[state].epsilon_links {
+                if !visisted[tgt] {
+                    go(nfa, states, computed, visisted, tgt);
                 }
-                if !circular {
-                    if !eps_group_ix_map.contains_key(&eps_links) {
-                        eps_group_ix_map.insert(eps_links.clone(), eps_group_ix_map.len());
-                    }
-                    state_to_mat[i].is_computed = true
+                stateset.insert(tgt);
+                stateset.extend(states[tgt].iter());
+                if !computed[tgt] {
+                    circular = true
                 }
-                state_to_mat[i].links = eps_links;
             }
+            if !circular {
+                computed[state] = true
+            }
+            states[state] = stateset;
+
         }
-        let mut eps_group_ix_map = HashMap::new();
-        let mut uninitialized    = vec![true;state_to_mat.len()];
-        go(self,state_to_mat,&mut uninitialized,&mut eps_group_ix_map,i);
+        let mut visited = vec![false; states.len()];
+        go(self, states, &mut visited, computed, state);
     }
 
-    fn eps_matrix(&self) -> Vec<BTreeSet<usize>> {
-        let mut arr = vec![EpsMatrix::default(); self.states.len()];
-        for state_ix in 0..self.states.len() {
-            self.fill_eps_matrix(&mut arr, state_ix);
+    fn eps_matrix(&self) -> Vec<StateSetId> {
+        let mut states   = vec![StateSetId::new(); self.states.len()];
+        let mut computed = vec![false; self.states.len()];
+        for state in 0..self.states.len() {
+            self.fill_eps_matrix(&mut states,&mut computed, state);
         }
-        arr.into_iter().map(|m| m.links).collect()
+        states
     }
 
-    fn nfa_matrix(&self) -> Vec<Vec<usize>> {
-        let mut matrix = vec![vec![0; self.states.len()]; self.vocabulary.len()];
+    fn nfa_matrix(&self) -> Vec<Vec<StateId>> {
+        let mut matrix = vec![vec![0; self.alphabet.symbols.len()]; self.states.len()];
         for (state_ix, source) in self.states.iter().enumerate() {
-            for (voc_ix, range) in self.vocabulary.ranges().enumerate() {
-                let target = match source.link_target.get(&range) {
-                    Some(&target) => target,
-                    None          => state::MISSING,
-                };
+            println!("{:?} || {:?}", source.links, self.alphabet.symbols.iter().collect::<Vec<_>>());
+
+            for (voc_ix, target) in source.targets(&self.alphabet).into_iter().enumerate() {
                 matrix[state_ix][voc_ix] = target;
             }
         }
         matrix
     }
-    fn add_dfa_key(
-        eps_set     : BTreeSet<usize>,
-        vocabulary  : &Dict,
-        dfa_eps_map : &mut HashMap<BTreeSet<usize>,usize>,
-        dfa_eps_ixs : &mut Vec<BTreeSet<usize>>,
-        dfa_mat     : &mut Vec<Vec<usize>>,
-        dfa_rows    : &mut usize,
-    ) -> usize
-    {
-        let id = dfa_eps_map.len();
-        dfa_eps_map.insert(eps_set.clone(), id);
-        dfa_eps_ixs.push(eps_set);
-        *dfa_rows += 1;
-        dfa_mat.push(vec![state::MISSING; vocabulary.len()]);
-        id
-    }
 
+    /// Transforms NFA into DFA.
+    /// The algorithm is based on: https://www.youtube.com/watch?v=taClnxU-nao
     pub fn to_dfa(&self) -> DFA {
         let     eps_mat     = self.eps_matrix();
         let     nfa_mat     = self.nfa_matrix();
-        let mut dfa_rows    = 0;
-        let mut dfa_mat     = Vec::<Vec<usize>>::new();
-        let mut dfa_eps_ixs = Vec::<BTreeSet<usize>>::new();
-        let mut dfa_eps_map = HashMap::<BTreeSet<usize>,usize>::new();
+        let mut dfa_mat     = Vec::<Vec<StateId>>::new();
+        let mut dfa_eps_ixs = Vec::<StateSetId>::new();
+        let mut dfa_eps_map = HashMap::<StateSetId,StateId>::new();
 
-        Self::add_dfa_key(eps_mat[0].clone(),&self.vocabulary,&mut dfa_eps_map,&mut dfa_eps_ixs,&mut dfa_mat,&mut dfa_rows);
+
+        println!("{:?}", eps_mat);
+        println!("{:?}", nfa_mat);
+
+        dfa_eps_ixs.push(eps_mat[0].clone());
+        dfa_eps_map.insert(eps_mat[0].clone(),0);
 
         let mut i = 0;
-        while i < dfa_rows {
-            for (voc_ix, _) in self.vocabulary.ranges().enumerate() {
-                let mut eps_set = BTreeSet::<usize>::new();
+        while i < dfa_eps_ixs.len()  {
+            dfa_mat.push(vec![state::MISSING; self.alphabet.symbols.len()]);
+            for voc_ix in 0..self.alphabet.symbols.len() {
+                let mut eps_set = StateSetId::new();
                 for &eps_ix in &dfa_eps_ixs[i] {
                     let tgt = nfa_mat[eps_ix][voc_ix];
                     if tgt != state::MISSING {
                         eps_set.extend(eps_mat[tgt].iter());
                     }
                 }
+                println!("{:?}", eps_set);
                 if !eps_set.is_empty() {
                     dfa_mat[i][voc_ix] = match dfa_eps_map.get(&eps_set) {
-                        None      => Self::add_dfa_key(eps_set,&self.vocabulary,&mut dfa_eps_map,&mut dfa_eps_ixs,&mut dfa_mat,&mut dfa_rows),
                         Some(&id) => id,
+                        None => {
+                            let id = dfa_eps_ixs.len();
+                            dfa_eps_ixs.push(eps_set.clone());
+                            dfa_eps_map.insert(eps_set, id);
+                            id
+                        },
                     };
                 }
             }
             i += 1;
         }
 
-        let mut nfa_end_state_priority_map = HashMap::<usize,usize>::new();
-        for i in 0..nfa_mat.len() {
-            if self.states[i].rule.is_some() {
-                nfa_end_state_priority_map.insert(i, nfa_mat.len() - i);
-            }
-        }
-
-        let mut priorities = dfa::EndStatePriorityMap::default();
+        let mut end_states = vec![None;dfa_eps_ixs.len()];
+        let     priority   = dfa_eps_ixs.len();
         for (dfa_ix, epss) in dfa_eps_ixs.iter().enumerate() {
-            let priority = |key:&&usize| {
-                let priority = nfa_end_state_priority_map.get(*key);
-                priority.cloned().unwrap_or_default()
-            };
-            if let Some(&eps) = epss.iter().max_by_key(priority) {
-                if let Some(&priority) = nfa_end_state_priority_map.get(&eps) {
-                    let rule  = self.states[eps].rule.as_ref().cloned().unwrap_or_default();
-                    let state = state::Desc{rule,priority};
-                    priorities.val.insert(dfa_ix, state);
-                }
+            let has_name = |&&key:&&StateId| self.states[key].name.is_some();
+            if let Some(&eps) = epss.iter().find(has_name) {
+                let rule  = self.states[eps].name.as_ref().cloned().unwrap();
+                end_states[dfa_ix] = Some(EndState{name:rule,priority});
             }
         }
 
-        DFA {vocabulary:self.vocabulary.clone(),links:dfa_mat,priorities}
+        DFA {alphabet:self.alphabet.clone(),links:dfa_mat,end_states}
     }
-}
-
-// =============
-// === Tests ===
-// =============
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
 }
