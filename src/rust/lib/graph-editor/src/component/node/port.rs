@@ -204,10 +204,16 @@ mod shape {
     impl Shape{
         /// Set the shape parameters derived from the `Specification`.
         pub fn update_from_spec(&self,spec:&Specification){
-            self.height.set(spec.height);
-            self.inner_radius.set(spec.inner_radius);
-            self.width.set(spec.width.value.to_radians());
-            match &spec.direction{
+            self.update_parameters(spec.height,spec.inner_radius, spec.width, spec.direction)
+        }
+
+        /// Set the shape parameters.
+        pub fn update_parameters
+        (&self, height:f32, inner_radius:f32, width:Angle<Degrees>, direction:Direction){
+            self.height.set(height);
+            self.inner_radius.set(inner_radius);
+            self.width.set(width.value.to_radians());
+            match direction{
                 Direction::In  => self.is_inwards.set(1.0),
                 Direction::Out => self.is_inwards.set(0.0),
             };
@@ -300,7 +306,17 @@ pub type OutputPort = Port<OutputPortView>;
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct PortData<T:PortShapeViewDefinition> {
-        spec : RefCell<Specification>,
+    /// Height of the port.
+    height       : Cell<f32>,
+    /// Width of the port in degrees.
+    width        : Cell<Angle<Degrees>>,
+    /// Radius of the inner circle that the port is constructed around.
+    inner_radius : Cell<f32>,
+    /// Location of the port along the inner circle.
+    position     : Cell<Angle<Degrees>>,
+    /// Indicates whether this port is facing inwards or outwards.
+    direction    : Cell<Direction>,
+
     pub view : Rc<component::ShapeView<T>>
 }
 
@@ -310,8 +326,15 @@ impl<T:PortShapeViewDefinition> Port<T> {
     fn new(spec:Specification) -> Self {
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
-        let spec   = RefCell::new(spec);
-        let data   = Rc::new(PortData{spec,view});
+
+        let data   = Rc::new(PortData{
+            height       : Cell::new(spec.height),
+            width        : Cell::new(spec.width),
+            inner_radius : Cell::new(spec.inner_radius),
+            position     : Cell::new(spec.position),
+            direction    : Cell::new(spec.direction),
+            view
+        });
         Self {data} . init()
     }
 
@@ -325,21 +348,13 @@ impl<T:PortShapeViewDefinition> Port<T> {
     ///
     /// Note this shadows the `set_position` function of `ObjectOps`.
     pub fn set_position(&self, position:Angle<Degrees>) {
-        self.data.spec.borrow_mut().position = position;
-        self.update_sprite_position();
-    }
-
-    /// Modifies the port's position.
-    ///
-    /// Note this shadows the `set_position` function of `ObjectOps`.
-    pub fn mod_position<F:FnOnce(&mut Angle<Degrees>)>(&self, f:F) {
-        f(&mut self.data.spec.borrow_mut().position);
+        self.data.position.set(position);
         self.update_sprite_position();
     }
 
     /// Sets the ports inner radius.
     pub fn set_inner_radius(&self, inner_radius:f32) {
-        self.data.spec.borrow_mut().inner_radius = inner_radius;
+        self.data.inner_radius.set(inner_radius);
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.inner_radius.set(inner_radius);
         }
@@ -348,7 +363,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Sets the ports height.
     pub fn set_height(&self, height:f32) {
-        self.data.spec.borrow_mut().height = height;
+        self.data.height.set(height);
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.height.set(height);
         }
@@ -356,7 +371,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Sets the ports width.
     pub fn set_width(&self, width:Angle<Degrees>) {
-        self.data.spec.borrow_mut().width = width;
+        self.data.width.set(width);
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.width.set(width.value.to_radians());
         }
@@ -367,9 +382,11 @@ impl<T:PortShapeViewDefinition> Port<T> {
     /// are tied together, so the Port always point in the right direction.
     /// Needs to be called whenever the `position` or `inner_radius` is modified.
     fn update_sprite_position(&self) {
-        let spec               = self.data.spec.borrow();
-        let translation_vector = Vector3::new(0.0,spec.inner_radius,0.0);
-        let rotation_vector    = -Vector3::new(0.0,0.0,spec.position.rad().value);
+        let inner_radius = self.data.inner_radius.get();
+        let position     = self.data.position.get();
+
+        let translation_vector = Vector3::new(0.0,inner_radius,0.0);
+        let rotation_vector    = -Vector3::new(0.0,0.0,position.rad().value);
         let rotation           = nalgebra::Rotation3::new(rotation_vector);
         let translation        = rotation * translation_vector;
         self.data.view.display_object.set_position(translation);
@@ -380,8 +397,12 @@ impl<T:PortShapeViewDefinition> Port<T> {
     /// Should only be used upon initialisation.
     fn init_shape(&self) {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
-            let spec = self.data.spec.borrow();
-            t.shape.update_from_spec(&spec);
+            let height       = self.data.height.get();
+            let inner_radius = self.data.inner_radius.get();
+            let width        = self.data.width.get();
+            let direction    = self.data.direction.get();
+
+            t.shape.update_parameters(height,inner_radius,width,direction);
         }
     }
 }
