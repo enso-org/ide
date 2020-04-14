@@ -97,7 +97,7 @@ impl ViewLayout {
     , fonts            : &mut FontRegistry
     ) -> Self {
         let logger        = logger.sub("ViewLayout");
-        let world         = &app.view;
+        let world         = &app.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
         let node_editor   = NodeEditor::new(&logger,app,graph_controller.clone());
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller,fonts);

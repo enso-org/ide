@@ -29,13 +29,13 @@ pub fn run_example_shapes() {
 
 
 fn init(app:&App) {
-    let world  = &app.view;
+    let world  = &app.display;
     let scene  = world.scene();
     let camera = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
 
 
-    let graph_editor = app.new_module_instance::<GraphEditor>();
+    let graph_editor = app.views.new::<GraphEditor>();
 //    let graph_editor = GraphEditor::new(app);
     world.add_child(&graph_editor);
 

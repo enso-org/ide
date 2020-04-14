@@ -231,8 +231,8 @@ macro_rules! def_status_endpoints {
         }
 
         impl app::view::StatusProvider for $name {
-            fn status_api_docs() -> Vec<app::EndpointDocs> {
-                vec! [$(app::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            fn status_api_docs() -> Vec<app::view::FrpEndpointDocs> {
+                vec! [$(app::view::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
             fn status_api(&self) -> Vec<app::view::StatusDefinition> {
@@ -256,8 +256,8 @@ macro_rules! def_command_endpoints {
         }
 
         impl app::view::CommandProvider for $name {
-            fn command_api_docs() -> Vec<app::EndpointDocs> {
-                vec! [$(app::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            fn command_api_docs() -> Vec<app::view::FrpEndpointDocs> {
+                vec! [$(app::view::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
             fn command_api(&self) -> Vec<app::view::CommandDefinition> {
@@ -341,14 +341,14 @@ impl FrpInputs {
     }
 }
 
-impl app::view::NetworkProvider for GraphEditor {
+impl app::view::FrpNetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
         &self.frp.network
     }
 }
 
 impl app::view::CommandProvider for GraphEditor {
-    fn command_api_docs() -> Vec<app::EndpointDocs> {
+    fn command_api_docs() -> Vec<app::view::FrpEndpointDocs> {
         Commands::command_api_docs()
     }
 
@@ -358,7 +358,7 @@ impl app::view::CommandProvider for GraphEditor {
 }
 
 impl app::view::StatusProvider for GraphEditor {
-    fn status_api_docs() -> Vec<app::EndpointDocs> {
+    fn status_api_docs() -> Vec<app::view::FrpEndpointDocs> {
         FrpStatus::status_api_docs()
     }
 
@@ -448,14 +448,17 @@ impl GraphEditor {
 }
 
 impl app::View for GraphEditor {
-    const LABEL : &'static str = "GraphEditor";
 
-    fn new(app:&App) -> Self {
+    fn view_name() -> &'static str {
+        "GraphEditor"
+    }
+
+    fn new(world:&World) -> Self {
         let logger = Logger::new("GraphEditor");
-        let scene  = app.view.scene();
+        let scene  = world.scene();
         let cursor = Cursor::new();
         web::body().set_style_or_panic("cursor","none");
-        app.view.add_child(&cursor);
+        world.add_child(&cursor);
 
 
         let display_object = display::object::Instance::new(logger.clone());
@@ -587,21 +590,28 @@ impl app::View for GraphEditor {
 
         is_active_src.emit(true);
 
-        app.shortcuts.add (
-            &[keyboard::Key::Character("n".into())],
-            app::shortcut::Rule::new_(Self::LABEL, "add_node_at_cursor")
-        );
-
-        app.shortcuts.add (
-            &[keyboard::Key::Backspace],
-            app::shortcut::Rule::new_(Self::LABEL, "remove_selected_nodes")
-        );
+//        app.shortcuts.add (
+//            &[keyboard::Key::Character("n".into())],
+//            app::shortcut::Rule::new_(Self::view_name(), "add_node_at_cursor")
+//        );
+//
+//        app.shortcuts.add (
+//            &[keyboard::Key::Backspace],
+//            app::shortcut::Rule::new_(Self::view_name(), "remove_selected_nodes")
+//        );
 
         let status = FrpStatus {is_active,is_empty};
 
         let frp = GraphEditorFrp {network,inputs,status};
 
         Self {logger,frp,nodes,display_object}
+    }
+
+    fn default_shortcuts() -> Vec<app::shortcut::Shortcut> {
+        use keyboard::Key;
+        vec! [ Self::self_shortcut_(&[Key::Character("n".into())] , "add_node_at_cursor")
+             , Self::self_shortcut_(&[Key::Backspace]             , "remove_selected_nodes")
+             ]
     }
 }
 

@@ -119,11 +119,12 @@ impl<'a> FromIterator<&'a Key> for KeyMask {
     }
 }
 
-impl From<&[Key]> for KeyMask {
-    fn from(keys: &[Key]) -> Self {
-        <KeyMask as FromIterator<&Key>>::from_iter(keys)
-    }
-}
+impl From<&[Key]>   for KeyMask { fn from(keys:&[Key])   -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;1]> for KeyMask { fn from(keys:&[Key;1]) -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;2]> for KeyMask { fn from(keys:&[Key;2]) -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;3]> for KeyMask { fn from(keys:&[Key;3]) -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;4]> for KeyMask { fn from(keys:&[Key;4]) -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;5]> for KeyMask { fn from(keys:&[Key;5]) -> Self { KeyMask::from_iter(keys) } }
 
 
 // === Private ===

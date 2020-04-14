@@ -83,7 +83,7 @@ impl ProjectView {
         let module_controller    = controller.module_controller(location).await?;
         let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
         let app                  = App::new(&web::get_html_element_by_id("root").unwrap());
-        let world                = &app.view;
+        let world                = &app.display;
         // graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();
@@ -99,7 +99,7 @@ impl ProjectView {
     }
 
     fn init(self) -> Self {
-        let scene = self.with_borrowed(|data| data.app.view.scene().clone_ref());
+        let scene = self.with_borrowed(|data| data.app.display.scene().clone_ref());
         let weak  = self.downgrade();
         let resize_callback = scene.camera().add_screen_update_callback(
             move |size:&Vector2<f32>| {

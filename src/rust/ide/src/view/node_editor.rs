@@ -76,7 +76,7 @@ impl GraphEditorIntegration {
 impl GraphEditorIntegration {
 
     fn new(app:&App, controller:controller::Graph) -> Rc<Self> {
-        let editor     = app.new_module_instance::<graph_editor::GraphEditor>();
+        let editor     = app.views.new::<graph_editor::GraphEditor>();
         let id_to_node = default();
         let node_to_id = default();
         let logger     = Logger::new("Node Editor");
