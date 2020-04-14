@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::Node;
+use crate::NodeRef;
 
 use ast::Ast;
 use enumset::EnumSetType;
@@ -11,27 +11,29 @@ pub enum Action { Insert, Erase, Set }
 
 pub type Actions = EnumSet<Action>;
 
-struct SetChild<'a> {
-    node        : &'a Node,
-    child_index : usize,
-}
-
-impl SetChild<'_> {
-
-}
-
-struct InsertChild<'a> {
-    node     : &'a Node,
-    at_index : usize,
-}
-
-struct EraseChild<'a> {
-    node        : &'a Node,
-    child_index : usize,
-}
-
 trait SpanTreeActions {
-    fn set_child(&self, index:usize) -> Option<SetChild>;
-    fn insert_child(&self, at_index:usize) -> Option<InsertChild>;
-    fn erase_child(&self, index:usize) -> Option<EraseChild>;
+    fn set(&self) -> Option<Box<dyn FnOnce(&Ast,Ast) -> Ast>>;
+    fn insert(&self) -> Option<Box<dyn FnOnce(&Ast,Ast) -> Ast>>;
+    fn erase(&self) -> Option<Box<dyn FnOnce(&Ast) -> Ast>>;
+
+    fn allowed_actions(&self) -> Actions {
+        let set    = self.set()   .map(|_| Action::Set   ).into_iter();
+        let insert = self.insert().map(|_| Action::Insert).into_iter();
+        let erase  = self.erase() .map(|_| Action::Erase ).into_iter();
+        set.chain(insert).chain(erase).collect()
+    }
+}
+
+impl<'a> SpanTreeActions for NodeRef<'a> {
+    fn set(&self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> Ast>> {
+        None
+    }
+
+    fn insert(&self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> Ast>> {
+        None
+    }
+
+    fn erase(&self) -> Option<Box<dyn FnOnce(&Ast) -> Ast>> {
+        None
+    }
 }

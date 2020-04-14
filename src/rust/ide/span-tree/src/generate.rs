@@ -1,26 +1,23 @@
 use crate::prelude::*;
 
-use crate::node;
 use crate::Node;
-use crate::node::NodeType;
+use crate::NodeType;
 
 use ast::{Ast, HasLength};
-use data::text::Index;
 use data::text::Size;
-use data::text::Span;
 use ast::assoc::Assoc;
 
 
 #[derive(Clone,Debug,Eq,PartialEq)]
-enum ChainingContext {
-    None, Prefix, Operator(String),
+enum ChainingContext<'a> {
+    None, Prefix, Operator(&'a str),
 }
 
 pub trait SpanTreeGeneratorTemplate : Sized {
     fn can_be_flatten   (&self, _chaining_ctx:&ChainingContext) -> bool               { false  }
 
     fn generate_children
-    (&self, _gen:&mut ChildGenerator<&Self>, _ctx:&ChainingContext) -> FallibleResult<()> {
+    (&self, _gen:&mut ChildGenerator<Self>, _ctx:&ChainingContext) -> FallibleResult<()> {
         Ok(())
     }
 }
@@ -28,19 +25,19 @@ pub trait SpanTreeGeneratorTemplate : Sized {
 
 pub trait SpanTreeGenerator {
     fn generate_node
-    (&self, node_type:node::NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node;
+    (&self, node_type:NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node;
 }
 
 impl<T> SpanTreeGenerator for T
-where T : SpanTreeGeneratorTemplate + ast::crumbs::Crumbable + HasLength {
+where T : SpanTreeGeneratorTemplate + ast::crumbs::Crumbable + HasLength + CloneRef {
     fn generate_node
-    (&self, node_type:node::NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node {
+    (&self, node_type:NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node {
         let len                 = Size::new(self.len());
         let can_be_flatten      = self.can_be_flatten(chaining_ctx);
-        let mut child_generator = ChildGenerator::new(self);
+        let mut child_generator = ChildGenerator::new(self.clone_ref());
         self.generate_children(&mut child_generator,&chaining_ctx);
         let children = child_generator.children;
-        Node {offset,len,node_type,children,can_be_flatten}
+        Node {offset,len,node_type,children, chained_with_parent: can_be_flatten }
     }
 }
 
@@ -67,7 +64,7 @@ impl<A:ast::crumbs::TraversableAst> ChildGenerator<A> {
     fn generate
     (&mut self, crumbs:ast::Crumbs, chaining_ctx:&ChainingContext) -> FallibleResult<&Node> {
         let child_ast  = self.ast.get_traversing(&crumbs)?;
-        let child_type = node::NodeType::AstChild(crumbs);
+        let child_type = NodeType::AstChild{crumbs_from_parent:crumbs};
         let child      = child_ast.generate_node(child_type,self.current_offset,chaining_ctx);
         self.current_offset += child.len;
         self.children.push(child);
@@ -82,7 +79,7 @@ impl<A:ast::crumbs::TraversableAst> ChildGenerator<A> {
 
 impl SpanTreeGenerator for Ast {
     fn generate_node
-    (&self, node_type:node::NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node {
+    (&self, _node_type:NodeType, _offset:Size, _chaining_ctx:&ChainingContext) -> Node {
         unimplemented!()
     }
 }
@@ -95,24 +92,27 @@ impl SpanTreeGenerator for Ast {
 
 impl SpanTreeGeneratorTemplate for ast::known::Infix {
     fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
+        let opr      = ast::known::Opr::try_from(&self.opr).ok();
+        let opr_name = opr.as_ref().map(|opr| opr.name.as_str());
         match chaining_ctx {
-            ChainingContext::Operator(opr) if self.opr.name() == opr => true,
-            _                                                        => false,
+            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
+            _                                                       => false,
         }
     }
 
     fn generate_children
-    (&self, gen:&mut ChildGenerator<&Self>, ctx:&ChainingContext) -> FallibleResult<()> {
+    (&self, gen:&mut ChildGenerator<Self>, ctx:&ChainingContext) -> FallibleResult<()> {
         let should_have_empty = !self.can_be_flatten(ctx);
-        let assoc             = Assoc::of(self.opr.name());
+        let opr_name          = ast::known::Opr::try_from(&self.opr)?.name;
+        let assoc             = Assoc::of(opr_name.as_str());
 
         let left_ctx = match assoc {
-            Assoc::Left  => ChainingContext::Operator(self.opr.name()),
+            Assoc::Left  => ChainingContext::Operator(opr_name.as_str()),
             Assoc::Right => ChainingContext::None,
         };
         let right_ctx = match assoc {
             Assoc::Left  => ChainingContext::None,
-            Assoc::Right => ChainingContext::Operator(self.opr.name()),
+            Assoc::Right => ChainingContext::Operator(opr_name.as_str()),
         };
 
         if should_have_empty && assoc == ast::assoc::Assoc::Right {
@@ -133,17 +133,20 @@ impl SpanTreeGeneratorTemplate for ast::known::Infix {
 
 impl SpanTreeGeneratorTemplate for ast::known::SectionLeft {
     fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
+        let opr      = ast::known::Opr::try_from(&self.opr).ok();
+        let opr_name = opr.map(|opr| opr.name.as_str());
         match chaining_ctx {
-            ChainingContext::Operator(opr) if self.opr.name() == opr => true,
-            _                                                        => false,
+            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
+            _                                                       => false,
         }
     }
 
     fn generate_children
-    (&self, gen:&mut ChildGenerator<&Self>, _:&ChainingContext) -> FallibleResult<()> {
-        let assoc   = Assoc::of(self.opr.name());
-        let arg_ctx = match assoc {
-            Assoc::Left  => ChainingContext::Operator(self.opr.name()),
+    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
+        let opr_name = ast::known::Opr::try_from(&self.opr)?.name.as_str();
+        let assoc    = Assoc::of(opr_name);
+        let arg_ctx  = match assoc {
+            Assoc::Left  => ChainingContext::Operator(opr_name),
             Assoc::Right => ChainingContext::None
         };
         use ast::crumbs::SectionLeftCrumb::*;
@@ -157,17 +160,20 @@ impl SpanTreeGeneratorTemplate for ast::known::SectionLeft {
 
 impl SpanTreeGeneratorTemplate for ast::known::SectionRight {
     fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
+        let opr      = ast::known::Opr::try_from(&self.opr).ok();
+        let opr_name = opr.map(|opr| opr.name.as_str());
         match chaining_ctx {
-            ChainingContext::Operator(opr) if self.opr.name() == opr => true,
-            _                                                        => false,
+            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
+            _                                                       => false,
         }
     }
 
     fn generate_children
-    (&self, gen:&mut ChildGenerator<&Self>, _:&ChainingContext) -> FallibleResult<()> {
-        let assoc   = Assoc::of(self.opr.name());
-        let arg_ctx = match assoc {
-            Assoc::Right => ChainingContext::Operator(self.opr.name()),
+    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
+        let opr_name = ast::known::Opr::try_from(&self.opr)?.name.as_str();
+        let assoc    = Assoc::of(opr_name);
+        let arg_ctx  = match assoc {
+            Assoc::Right => ChainingContext::Operator(opr_name),
             Assoc::Left  => ChainingContext::None
         };
         use ast::crumbs::SectionLeftCrumb::*;
@@ -181,10 +187,10 @@ impl SpanTreeGeneratorTemplate for ast::known::SectionRight {
 
 impl SpanTreeGeneratorTemplate for ast::known::SectionSides {
     fn generate_children
-    (&self, gen:&mut ChildGenerator<&Self>, _:&ChainingContext) -> FallibleResult<()> {
-        gen.next_empty();
-        gen.next(vec![ast::crumbs::SectionSidesCrumb.into()])?;
-        gen.next_empty();
+    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
+        gen.generate_empty();
+        gen.generate(vec![ast::crumbs::SectionSidesCrumb.into()],&ChainingContext::None)?;
+        gen.generate_empty();
         Ok(())
     }
 }
@@ -202,7 +208,7 @@ impl SpanTreeGeneratorTemplate for ast::known::Prefix {
     }
 
     fn generate_children
-    (&self, gen:&mut ChildGenerator<&Self>, ctx:&ChainingContext) -> FallibleResult<()> {
+    (&self, gen:&mut ChildGenerator<Self>, ctx:&ChainingContext) -> FallibleResult<()> {
         let should_have_empty = !self.can_be_flatten(ctx);
         use ast::crumbs::PrefixCrumb::*;
         gen.generate(vec![Func.into()],&ChainingContext::Prefix)?;

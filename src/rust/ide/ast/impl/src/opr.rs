@@ -96,10 +96,8 @@ fn assoc(ast:&known::Opr) -> Assoc {
 pub struct GeneralizedInfix {
     /// Left operand, if present.
     pub left  : Operand,
-    pub left_offset : usize,
     /// The operator, always present.
-    pub opr : Operator,
-    pub right_offset : usize,
+    pub opr   : Operator,
     /// Right operand, if present.
     pub right : Operand,
 }
@@ -175,10 +173,8 @@ impl GeneralizedInfix {
     pub fn flatten(&self) -> Chain {
         let target = self.target_operand();
         let rest   = ChainElement {
-            left_offset  : self.left_offset,
-            right_offset : self.right_offset,
-            operator     : self.opr.clone(),
-            operand      : self.argument_operand()
+            operator : self.opr.clone(),
+            operand  : self.argument_operand()
         };
 
         let target_subtree_infix = target.clone().and_then(|ast| {
@@ -247,14 +243,10 @@ impl Chain {
 pub struct ChainElement {
     #[allow(missing_docs)]
     pub operator : Operator,
-    /// A spacing on the left side of operator (disregarding associativity)
-    pub left_offset : usize,
-    /// A spacing on the right side of operator (disregarding associativity)
-    pub right_offset : usize,
     /// Operand on the opposite side to `this` argument.
     /// Depending on operator's associativity it is either right (for left-associative operators)
     /// or on the left side of operator.
-    pub operand : Operand,
+    pub operand  : Operand,
 }
 
 
