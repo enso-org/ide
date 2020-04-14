@@ -196,7 +196,7 @@ mod shape {
 
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32,is_inwards:f32) {
-            // NOTE: `is_inwards` should only be 0.0 or 1.0.
+            // FIXME: `is_inwards` should only be 0.0 or 1.0.
             new_port(height,width,inner_radius,is_inwards)
         }
     }
