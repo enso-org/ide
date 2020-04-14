@@ -19,7 +19,7 @@ use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::segment::Segment;
-use ensogl::math::geometry::triangle;
+use ensogl::math::geometry::triangle::Triangle;
 use ensogl::math::topology::unit::Angle;
 use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Degrees;
@@ -139,7 +139,7 @@ mod shape {
         // the inner circle and the desired height. From width and height, which have a 90 degree
         // angle between them, we can compute the angle of the shape.
         let angle_inner = Var::from(90_f32.to_radians());
-        let triangle    = triangle::Triangle::from_sides_and_angle(height,shape_width,angle_inner);
+        let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,shape_width,angle_inner);
 
         let corner_angle = Var::<Angle<Radians>>::from(triangle.angle_b().clone());
         let base_shape   = Plane().cut_angle(corner_angle);

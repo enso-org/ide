@@ -7,7 +7,7 @@ use crate::math::algebra::Sin;
 use crate::math::algebra::Sqrt;
 
 use core::f32::consts::PI;
-
+use failure::_core::ops::{Add, Mul, Sub};
 
 
 /// Represents a triangle through its angles and side lengths. This struct is only meant to be a
@@ -79,32 +79,31 @@ impl<T> Triangle<T> {
     }
 }
 
-pub trait TriangleInput<T> = Field<T> + Sin<Output=T> + Cos<Output=T> + Acos<Output=T>
-                           + Sqrt<Output=T> + Clone + From<f32>;
-
 impl<T> Triangle<T>
-where T:TriangleInput<T> {
+// This uses higher-ranked trait bounds to ensure we can do some of the arithmetic operations
+// also on references. This allows us to both avoid requiring `Copy` (which we don't have in
+// `Var<_>` types and also cloning values that are used in multiple computations.
+// For more information see https://stackoverflow.com/q/34630695/1175813
+where        T: Field<T> + Sin<Output=T> + Cos<Output=T> + Acos<Output=T>
+                + Sqrt<Output=T> + Clone + From<f32>,
+for <'a> &'a T: Add<&'a T,Output=T> + Mul<&'a T,Output=T> + Sub<&'a T,Output=T>{
     /// Compute a triangle from two sides and the included angle (SAS).
     /// See https://en.wikipedia.org/wiki/Solution_of_triangles#Two_sides_and_the_included_angle_given_(SAS)
-    pub fn from_sides_and_angle
-    (side_bc:T, side_ca:T, angle_c:T) -> Triangle<T> {
-        let side_bc_squared = side_bc.clone() * side_bc.clone();
-        let side_ca_squared = side_ca.clone() * side_ca.clone();
+    pub fn from_sides_and_angle(side_bc:T, side_ca:T, angle_c:T) -> Triangle<T> {
+        let side_bc_squared = &side_bc * &side_bc;
+        let side_ca_squared = &side_ca * &side_ca;
 
         let two = T::from(2.0_f32);
 
-        let side_ab_squared_minuend    = side_bc_squared.clone() + side_ca_squared.clone();
-        let side_ab_squared_subtrahend = two.clone()
-                                         * side_bc.clone()
-                                         * side_ca.clone()
-                                         * angle_c.cos();
+        let side_ab_squared_minuend    = &side_bc_squared + &side_ca_squared;
+        let side_ab_squared_subtrahend = (&(&two * &side_bc) * &side_ca) * angle_c.cos();
         let side_ab_squared            = side_ab_squared_minuend - side_ab_squared_subtrahend;
         let side_ab                    = side_ab_squared.sqrt();
         let angle_a_cos_numerator      = side_ca_squared + side_ab_squared - side_bc_squared;
-        let angle_a_cos_denominator    = two * side_ca.clone() * side_ab.clone();
+        let angle_a_cos_denominator    = two * (&side_ca * &side_ab);
         let angle_a_cos                = angle_a_cos_numerator / angle_a_cos_denominator;
         let angle_a                    = angle_a_cos.acos();
-        let angle_b                    = T::from(PI) - angle_a.clone() - angle_c.clone();
+        let angle_b                    = T::from(PI) - (&angle_a - &angle_c);
 
         Triangle{side_bc,side_ca,side_ab,angle_a,angle_b,angle_c}
     }
