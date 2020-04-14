@@ -79,6 +79,7 @@ pub fn make_operator(parent:&Located<Ast>, crumb:impl Into<Crumb>, opr:&Ast) -> 
     Some(parent.descendant(crumb.into(),opr))
 }
 
+/// Describes associativity of the given operator AST.
 fn assoc(ast:&known::Opr) -> Assoc {
     Assoc::of(&ast.name)
 }

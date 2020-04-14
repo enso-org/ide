@@ -33,7 +33,7 @@ impl Case {
     /// AST in which all identifiers introduced into the graph's scope are marked like `«foo»`, and
     /// all identifiers used from graph's scope are marked like `»sum«`.
     pub fn from_markdown(marked_code:impl Str) -> Case {
-        // Regexp that matches either «sth» or »sth« into a group names `introduced` or `used`,
+        // Regexp that matches either «sth» or »sth« into a group named `introduced` or `used`,
         // respectively. See: https://regex101.com/r/pboF8O/2 for detailed explanation.
         let regex        = format!(r"«(?P<{}>[^»]*)»|»(?P<{}>[^«]*)«",INTRODUCED,USED);
         // As this is test utils, we don't try nicely handling failure nor reusing the compiled
@@ -99,7 +99,7 @@ impl MarkdownReplacer {
     }
 }
 
-// Processes every single match for a marged entity.
+// Processes every single match for a marked entity.
 impl Replacer for MarkdownReplacer {
     fn replace_append(&mut self, captures: &Captures, dst: &mut String) {
         let (kind,matched) = if let Some(introduced) = captures.name(INTRODUCED) {

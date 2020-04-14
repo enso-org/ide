@@ -17,6 +17,8 @@ pub type LocatedIdentifier = Located<NormalizedName>;
 
 trait IsCrumbs = IntoIterator<Item=Crumb>;
 
+
+
 // ======================
 // === NormalizedName ===
 // ======================
@@ -137,14 +139,12 @@ impl AliasAnalyzer {
     }
 
     /// Adds items to the target vector, calls the callback `f` then removes the items.
-    fn with_items_added<T,Cs,R,F>
+    fn with_items_added<T,R>
     ( &mut self
     , vec   : impl Fn(&mut Self) -> &mut Vec<T>
-    , items : Cs
-    , f     : F) -> R
-    where
-      Cs : IntoIterator<Item:Into<T>>,
-      F  : FnOnce(&mut Self) -> R {
+    , items : impl IntoIterator<Item:Into<T>>
+    , f     : impl FnOnce(&mut Self) -> R
+    ) -> R {
         let original_count = vec(self).len();
         vec(self).extend(items.into_iter().map(|item| item.into()));
         let ret = f(self);
@@ -185,6 +185,10 @@ impl AliasAnalyzer {
         self.shadowing_scopes.last_mut().unwrap_or(&mut self.root_scope)
     }
 
+    fn current_context(&self) -> Context {
+        self.context.last().copied().unwrap_or(Context::NonPattern)
+    }
+
     /// Records identifier occurrence in the current scope.
     fn record_identifier(&mut self, kind: OccurrenceKind, identifier:NormalizedName) {
         let identifier  = LocatedIdentifier::new(self.location.clone(), identifier);
@@ -198,49 +202,48 @@ impl AliasAnalyzer {
         target.push(identifier)
     }
 
-    /// Checks if we are currently in the given context kind.
-    fn is_in_context(&self, context:Context) -> bool {
-        self.context.last().unwrap_or(&Context::NonPattern) == &context
-    }
-
     /// Checks if we are currently in the pattern context.
     fn is_in_pattern(&self) -> bool {
-        self.is_in_context(Context::Pattern)
+        self.current_context() == Context::Pattern
     }
 
     /// If given AST is an identifier, records its occurrence.
-    fn record_if_identifier(&mut self, kind: OccurrenceKind, ast:&Ast) -> bool {
-        if let Some(name) = NormalizedName::try_from_ast(ast) {
-            self.record_identifier(kind, name);
-            true
-        } else {
-            false
-        }
+    /// Returns boolean saying if the identifier was recorded.
+    fn try_recording_identifier(&mut self, kind: OccurrenceKind, ast:&Ast) -> bool {
+        let name = NormalizedName::try_from_ast(ast);
+        name.map(|name| self.record_identifier(kind, name)).is_some()
     }
-    
+
+    /// If the given located AST-like entity is an identifier, records its occurrence.
     fn store_if_name<T>(&mut self, kind:OccurrenceKind, located:&Located<T>) -> bool
     where for<'a> &'a T : Into<&'a Ast> {
         let ast = (&located.item).into();
-        self.in_location_of(located, |this| this.record_if_identifier(kind, ast))
+        self.in_location_of(located, |this| this.try_recording_identifier(kind, ast))
     }
 
-    fn process_subtree(&mut self, crumb:impl Into<Crumb>, ast:&Ast) {
-        self.in_location(crumb.into(), |this| this.process_ast(ast))
+    /// Processes the given AST, while crumb is temporarily pushed to the current location.
+    fn process_subtree_at(&mut self, crumb:impl Into<Crumb>, subtree:&Ast) {
+        self.in_location(crumb.into(), |this| this.process_ast(subtree))
     }
 
+    /// Processes the given AST, while crumb is temporarily pushed to the current location.
     fn process_located_ast(&mut self, located_ast:&Located<impl Borrow<Ast>>) {
         self.in_location_of(&located_ast, |this| this.process_ast(located_ast.item.borrow()))
     }
 
+    /// Processes all subtrees of the given AST in their respective locations.
     fn process_subtrees(&mut self, ast:&Ast) {
         for (crumb,ast) in ast.enumerate() {
-            self.process_subtree(crumb,ast)
+            self.process_subtree_at(crumb, ast)
         }
     }
 
-    fn process_ast(&mut self, ast:&Ast) {
+    /// Processes the given AST, along with its subtree.
+    ///
+    /// This is the primary function that is recursively being called as the AST is being traversed.
+    pub fn process_ast(&mut self, ast:&Ast) {
         let ast = pretend_that_lambda_is_not_a_macro_at_all(ast).unwrap_or(ast.clone());
-        println!("Processing `{}` in 0context {:?}",ast.repr(),self.context.last());
+        println!("Processing `{}` in context {}",ast.repr(),self.current_context());
         if let Some(assignment) = ast::opr::to_assignment(&ast) {
             self.process_assignment(&assignment);
         } else if let Some(lambda) = ast::opr::to_arrow(&ast) {
@@ -251,14 +254,8 @@ impl AliasAnalyzer {
             // 3) As above but with operator and infix syntax, like `head,tail`.
             // 2) This is a nullary symbol binding, like `foo`.
             // (the possibility of definition has been already excluded)
-            if let Some(prefix_chain) = ast::prefix::Chain::try_new(&ast) {
-                println!("Pattern of infix chain of {}",ast.repr());
-                // Arguments introduce names, we ignore function name.
-                // Arguments will just introduce names in pattern context.
-                for argument in prefix_chain.enumerate_args() {
-                    self.process_located_ast(&argument)
-                }
-            } else if let Some(infix_chain) = ast::opr::Chain::try_new(&ast) {
+            if let Some(infix_chain) = ast::opr::Chain::try_new(&ast) {
+                // Infix always acts as pattern-match in left-side.
                 for operand in infix_chain.enumerate_operands() {
                     self.process_located_ast(operand)
                 }
@@ -266,13 +263,28 @@ impl AliasAnalyzer {
                     // Operators in infix positions are treated as constructors, i.e. they are used.
                     self.store_if_name(OccurrenceKind::Used, operator);
                 }
+            } else if let Some(prefix_chain) = ast::prefix::Chain::try_new(&ast) {
+                // Arguments introduce names, we ignore function name.
+                // Arguments will just introduce names in pattern context.
+                for argument in prefix_chain.enumerate_args() {
+                    self.process_located_ast(&argument)
+                }
             } else {
-                self.record_if_identifier(OccurrenceKind::Introduced, &ast);
+                match ast.shape() {
+                    ast::Shape::Cons(_) => {
+                        self.try_recording_identifier(OccurrenceKind::Used, &ast);
+                    } ast::Shape::Var(_) => {
+                        self.try_recording_identifier(OccurrenceKind::Introduced, &ast);
+                    } _ => {
+                        self.process_subtrees(&ast);
+                    }
+                }
             }
-        } else if self.is_in_context(Context::NonPattern) {
+        } else {
+            // Non-pattern context.
             if let Ok(_) = ast::known::Block::try_from(&ast) {
                 self.in_new_scope(|this| this.process_subtrees(&ast))
-            } else if self.record_if_identifier(OccurrenceKind::Used, &ast) {
+            } else if self.try_recording_identifier(OccurrenceKind::Used, &ast) {
                 // Plain identifier: we just added as the condition side-effect.
                 // No need to do anything more.
             } else {
@@ -281,24 +293,25 @@ impl AliasAnalyzer {
         }
     }
 
+    /// Processes the assignment AST node. Left side is pattern, right side is business as usual.
     fn process_assignment(&mut self, assignment:&ast::known::Infix) {
         self.in_context(Context::Pattern, |this|
-            this.process_subtree(InfixCrumb::LeftOperand, &assignment.larg)
+            this.process_subtree_at(InfixCrumb::LeftOperand, &assignment.larg)
         );
-        self.process_subtree(InfixCrumb::RightOperand, &assignment.rarg);
+        self.process_subtree_at(InfixCrumb::RightOperand, &assignment.rarg);
     }
 
+    /// Processes the assignment AST node. Left side is pattern, right side is business as usual.
+    /// Additionally, the whole lambda is a new scope.
+    // TODO [mwu]
+    //  Depending on the eventual decision, this might need to be rewritten to use macros.
     fn process_lambda(&mut self, lambda:&ast::known::Infix) {
         self.in_new_scope(|this| {
             this.in_context(Context::Pattern, |this|
-                this.process_subtree(InfixCrumb::LeftOperand, &lambda.larg)
+                this.process_subtree_at(InfixCrumb::LeftOperand, &lambda.larg)
             );
-            this.process_subtree(InfixCrumb::RightOperand, &lambda.rarg);
+            this.process_subtree_at(InfixCrumb::RightOperand, &lambda.rarg);
         })
-    }
-
-    fn process_node(&mut self, node:&NodeInfo) {
-        self.process_ast(node.ast())
     }
 }
 
@@ -308,7 +321,7 @@ pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
     println!("\n===============================================================================\n");
     println!("Case: {}",node.ast().repr());
     let mut analyzer = AliasAnalyzer::new();
-    analyzer.process_node(node);
+    analyzer.process_ast(node.ast());
     analyzer.root_scope.symbols
 }
 
@@ -323,10 +336,7 @@ mod tests {
     use super::*;
     use super::test_utils::*;
 
-//    use wasm_bindgen_test::wasm_bindgen_test;
-//    use wasm_bindgen_test::wasm_bindgen_test_configure;
-//
-//    wasm_bindgen_test_configure!(run_in_browser);
+    wasm_bindgen_test_configure!(run_in_browser);
 
     /// Checks if actual observed sequence of located identifiers matches the expected one.
     /// Expected identifiers are described as code spans in the node's text representation.
@@ -347,9 +357,9 @@ mod tests {
     }
 
     /// Runs the test for the test case expressed using markdown notation. See `Case` for details.
-    fn run_markdown_case(parser:&parser::Parser, marked_code:impl Str) {
+    fn run_markdown_case(parser:&parser::Parser, marked_code:impl AsRef<str>) {
         println!("Running test case for {}", marked_code.as_ref());
-        let case = Case::from_markdown(marked_code);
+        let case = Case::from_markdown(marked_code.as_ref());
         run_case(parser,case)
     }
 
@@ -363,11 +373,14 @@ mod tests {
 //            "«log_name» object = »print« object.»name«",
 //            "«^» a n = a * a ^ (n - 1)",
 
-        let test_cases = vec![
-//            "a -> »b«",
+        let test_cases = [
             "»foo«",
             "«five» = 5",
+            "»Five« = 5",
             "«foo» = »bar«",
+            "«foo» = »foo« »+« »bar«",
+            "«foo» = »Bar«",
+            "5 = »Bar«",
             "«sum» = »a« »+« »b«",
             "Point «x» «u» = »point«",
             "«x» »,« «y» = »pair«",
@@ -378,17 +391,9 @@ mod tests {
             r"«inc» =
                 foo = 2
                 foo »+« 1",
-
-//            "a.«hello» = »print« 'Hello'",
-//            "«log_name» = object -> »print« object.»name«",
-//            "«log_name» = object -> »print« $ »name« object",
         ];
-        for case in test_cases {
+        for case in &test_cases {
             run_markdown_case(&parser,case)
         }
-
-
-//        let code   = "«sum» = »a« + »b«";
-//        run_markdown_case(&parser, code);
     }
 }
