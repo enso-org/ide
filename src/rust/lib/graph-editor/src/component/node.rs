@@ -4,7 +4,7 @@ pub mod port;
 
 use crate::prelude::*;
 
-use crate::component::node::port::PortManager;
+use crate::component::node::port::Registry;
 
 use enso_frp;
 use enso_frp as frp;
@@ -201,7 +201,7 @@ pub struct NodeData {
     pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
-    pub ports  : PortManager,
+    pub ports  : Registry,
 }
 
 impl Node {

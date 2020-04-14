@@ -449,10 +449,10 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
 /// ```no_run
 ///
 /// use graph_editor::component::node::Node;
-/// use graph_editor::component::node::port::PortManager;
+/// use graph_editor::component::node::port::Registry;
 ///
 /// let parent_node = Node::new();
-/// let ports       = PortManager::default();
+/// let ports       = Registry::default();
 ///
 /// ports.input.create(&parent_node);
 /// ports.output.create(&parent_node);
@@ -460,7 +460,7 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
 ///
 /// TODO implement the layouting
 #[derive(Debug,Default)]
-pub struct PortManager {
+pub struct Registry {
     /// Buffer of input ports.
     pub input  : InputPortBuffer,
     /// Buffer of output ports.
