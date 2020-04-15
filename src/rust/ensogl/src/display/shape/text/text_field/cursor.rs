@@ -645,8 +645,8 @@ mod test {
         let expected_position = TextLocation {line:6,column:0};
 
         let mut fonts  = FontRegistry::new();
-        let properties = TextFieldProperties::default(&mut fonts);
-        assert_eq!(properties.size, Vector2::new(100.0,100.0));
+        let mut properties = TextFieldProperties::default(&mut fonts);
+        properties.size = Vector2::new(100.0,100.0);
         let content         = &mut TextFieldContent::new(text,&properties);
         let selecting       = false;
         let text_field_size = properties.size;
