@@ -33,7 +33,7 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
-use ensogl::app;
+use ensogl::application;
 use ensogl::prelude::*;
 use ensogl::traits::*;
 
@@ -228,28 +228,28 @@ impl FrpInputs {
     }
 }
 
-impl app::command::FrpNetworkProvider for GraphEditor {
+impl application::command::FrpNetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
         &self.frp.network
     }
 }
 
-impl app::command::CommandApi for GraphEditor {
-    fn command_api_docs() -> Vec<app::command::EndpointDocs> {
+impl application::command::CommandApi for GraphEditor {
+    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
         Commands::command_api_docs()
     }
 
-    fn command_api(&self) -> Vec<app::command::CommandEndpoint> {
+    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
         self.frp.inputs.commands.command_api()
     }
 }
 
-impl app::command::StatusApi for GraphEditor {
-    fn status_api_docs() -> Vec<app::command::EndpointDocs> {
+impl application::command::StatusApi for GraphEditor {
+    fn status_api_docs() -> Vec<application::command::EndpointDocs> {
         FrpStatus::status_api_docs()
     }
 
-    fn status_api(&self) -> Vec<app::command::StatusEndpoint> {
+    fn status_api(&self) -> Vec<application::command::StatusEndpoint> {
         self.frp.status.status_api()
     }
 }
@@ -334,22 +334,22 @@ impl GraphEditor {
     }
 }
 
-impl app::command::Provider for GraphEditor {
+impl application::command::Provider for GraphEditor {
     fn label() -> &'static str {
         "GraphEditor"
     }
 }
 
-impl app::shortcut::DefaultShortcutProvider for GraphEditor {
-    fn default_shortcuts() -> Vec<app::shortcut::Shortcut> {
+impl application::shortcut::DefaultShortcutProvider for GraphEditor {
+    fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut_(&[Key::Character("n".into())] , "add_node_at_cursor")
-             , Self::self_shortcut_(&[Key::Backspace]             , "remove_selected_nodes")
+        vec! [ Self::self_shortcut(&[Key::Character("n".into())] , "add_node_at_cursor")
+             , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
         ]
     }
 }
 
-impl app::View for GraphEditor {
+impl application::View for GraphEditor {
 
     fn new(world:&World) -> Self {
         let logger = Logger::new("GraphEditor");

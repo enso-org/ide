@@ -12,15 +12,15 @@ use crate::display;
 use crate::display::world::World;
 
 
-// ===========
-// === App ===
-// ===========
+// ===================
+// === Application ===
+// ===================
 
 /// A top level structure for an application. It combines a view, keyboard shortcut manager, and is
 /// intended to also manage layout of visible panes.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
-pub struct App {
+pub struct Application {
     pub logger    : Logger,
     pub display   : World,
     pub commands  : command::Registry,
@@ -28,10 +28,10 @@ pub struct App {
     pub views     : view::Registry,
 }
 
-impl App {
+impl Application {
     /// Constructor.
     pub fn new(dom:&web_sys::HtmlElement) -> Self {
-        let logger    = Logger::new("App");
+        let logger    = Logger::new("Application");
         let display   = World::new(dom);
         let commands  = command::Registry::create(&logger);
         let shortcuts = shortcut::Registry::new(&logger, &commands);
@@ -40,7 +40,7 @@ impl App {
     }
 }
 
-impl display::Object for App {
+impl display::Object for Application {
     fn display_object(&self) -> &display::object::Instance {
         self.display.display_object()
     }

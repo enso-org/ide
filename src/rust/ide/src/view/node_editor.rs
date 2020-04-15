@@ -7,7 +7,7 @@ use crate::notification;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::system::web;
-use ensogl::app::App;
+use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use graph_editor::component::node::WeakNode;
 use utils::channel::process_stream_with_handle;
@@ -35,7 +35,7 @@ pub struct GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     /// Constructor. It creates GraphEditor panel and connect it with given controller handle.
-    pub fn new(logger:Logger, app:&App, controller:controller::Graph) -> Rc<Self> {
+    pub fn new(logger:Logger, app:&Application, controller:controller::Graph) -> Rc<Self> {
         let editor     = app.views.new::<GraphEditor>();
         let id_to_node = default();
         let node_to_id = default();
@@ -154,7 +154,7 @@ pub struct NodeEditor {
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new(logger:&Logger, app:&App, controller:controller::graph::Handle) -> Self {
+    pub fn new(logger:&Logger, app:&Application, controller:controller::graph::Handle) -> Self {
         let logger         = logger.sub("NodeEditor");
         let graph          = GraphEditorIntegration::new(logger,app,controller.clone_ref());
         let display_object = display::object::Instance::new(&graph.logger);

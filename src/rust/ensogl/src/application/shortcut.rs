@@ -161,17 +161,17 @@ pub struct Shortcut {
 
 impl Shortcut {
     /// Constructor. Version without condition checker.
-    pub fn new_<M,T,C>(key_mask:M, target:T, command:C) -> Self
+    pub fn new<M,T,C>(key_mask:M, target:T, command:C) -> Self
         where M:Into<keyboard::KeyMask>, T:Into<String>, C:Into<Command> {
-        let rule     = Rule::new_(target,command);
+        let rule     = Rule::new(target,command);
         let key_mask = key_mask.into();
         Self {rule,key_mask}
     }
 
     /// Constructor.
-    pub fn new<M,T,C>(key_mask:M, target:T, command:C, condition:Condition) -> Self
+    pub fn new_when<M,T,C>(key_mask:M, target:T, command:C, condition:Condition) -> Self
     where M:Into<keyboard::KeyMask>, T:Into<String>, C:Into<Command> {
-        let rule     = Rule::new(target,command,condition);
+        let rule     = Rule::new_when(target,command,condition);
         let key_mask = key_mask.into();
         Self {rule,key_mask}
     }
@@ -195,13 +195,13 @@ pub struct Rule {
 
 impl Rule {
     /// Constructor. Version without condition checker.
-    pub fn new_<T,C>(target:T, command:C) -> Self
+    pub fn new<T,C>(target:T, command:C) -> Self
         where T:Into<String>, C:Into<Command> {
-        Self::new(target,command,Condition::Ok)
+        Self::new_when(target,command,Condition::Ok)
     }
 
     /// Constructor.
-    pub fn new<T,C>(target:T, command:C, when:Condition) -> Self
+    pub fn new_when<T,C>(target:T, command:C, when:Condition) -> Self
         where T:Into<String>, C:Into<Command> {
         let target  = target.into();
         let command = command.into();
@@ -258,16 +258,16 @@ pub trait DefaultShortcutProvider : command::Provider {
     }
 
     /// Helper for defining shortcut targeting this object.
-    fn self_shortcut<M,C>(key_mask:M, command:C, condition:Condition) -> Shortcut
+    fn self_shortcut_when<M,C>(key_mask:M, command:C, condition:Condition) -> Shortcut
         where M:Into<keyboard::KeyMask>, C:Into<Command> {
-        Shortcut::new(key_mask,Self::label(),command,condition)
+        Shortcut::new_when(key_mask,Self::label(),command,condition)
     }
 
     /// Helper for defining shortcut targeting this object. Version which does not accept
     /// condition checker.
-    fn self_shortcut_<M,C>(key_mask:M, command:C) -> Shortcut
+    fn self_shortcut<M,C>(key_mask:M, command:C) -> Shortcut
         where M:Into<keyboard::KeyMask>, C:Into<Command> {
-        Shortcut::new_(key_mask,Self::label(),command)
+        Shortcut::new(key_mask,Self::label(),command)
     }
 }
 

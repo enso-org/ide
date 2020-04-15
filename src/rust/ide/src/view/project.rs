@@ -15,7 +15,7 @@ use enso_frp::io::keyboard;
 use file_manager_client::Path;
 use nalgebra::Vector2;
 use shapely::shared;
-use ensogl::app::App;
+use ensogl::application::Application;
 
 
 
@@ -49,7 +49,7 @@ shared! { ProjectView
     /// GraphEditor.
     #[derive(Debug)]
     pub struct ProjectViewData {
-        app               : App,
+        application       : Application,
         layout            : ViewLayout,
         resize_callback   : Option<callback::Handle>,
         controller        : controller::Project,
@@ -81,8 +81,8 @@ impl ProjectView {
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
         let module_controller    = controller.module_controller(location).await?;
         let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
-        let app                  = App::new(&web::get_html_element_by_id("root").unwrap());
-        let _world               = &app.display;
+        let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
+        let _world               = &application.display;
         // graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();
@@ -91,14 +91,14 @@ impl ProjectView {
         let resize_callback      = None;
         let mut fonts            = FontRegistry::new();
         let layout               = ViewLayout::new
-            (&logger,&mut keyboard_actions,&app,text_controller,graph_controller,&mut fonts);
+            (&logger,&mut keyboard_actions,&application,text_controller,graph_controller,&mut fonts);
         let data = ProjectViewData
-            {app,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
+            {application,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
         Ok(Self::new_from_data(data).init())
     }
 
     fn init(self) -> Self {
-        let scene = self.with_borrowed(|data| data.app.display.scene().clone_ref());
+        let scene = self.with_borrowed(|data| data.application.display.scene().clone_ref());
         let weak  = self.downgrade();
         let resize_callback = scene.camera().add_screen_update_callback(
             move |size:&Vector2<f32>| {

@@ -229,44 +229,70 @@ impl Debug for Actions {
 
 
 
-//#[cfg(test)]
-//mod test {
-//    use super::*;
-//    #[test]
-//    fn key_actions() {
-//        use keyboard_types::Key::*;
-//        let undone            = Rc::new(RefCell::new(false));
-//        let undone1           = undone.clone();
-//        let redone            = Rc::new(RefCell::new(false));
-//        let redone1           = redone.clone();
-//        let undo_keys:KeyMask = [Control, Character("z".to_string())].iter().collect();
-//        let redo_keys:KeyMask = [Control, Character("y".to_string())].iter().collect();
-//
-//        let keyboard    = Keyboard::default();
-//        let mut actions = CallbackRegistry::new(&keyboard);
-//        actions.action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true }).forget();
-//        actions.action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true }).forget();
-//        keyboard.on_pressed.emit(Character("Z".to_string()));
-//        assert!(!*undone.borrow());
-//        assert!(!*redone.borrow());
-//        keyboard.on_pressed.emit(Control);
-//        assert!( *undone.borrow());
-//        assert!(!*redone.borrow());
-//        *undone.borrow_mut() = false;
-//        keyboard.on_released.emit(Character("z".to_string()));
-//        assert!(!*undone.borrow());
-//        assert!(!*redone.borrow());
-//        keyboard.on_pressed.emit(Character("y".to_string()));
-//        assert!(!*undone.borrow());
-//        assert!( *redone.borrow());
-//        *redone.borrow_mut() = false;
-//        keyboard.on_released.emit(Character("y".to_string()));
-//        keyboard.on_released.emit(Control);
-//
-//        actions.unset_action(&undo_keys);
-//        keyboard.on_pressed.emit(Character("Z".to_string()));
-//        keyboard.on_pressed.emit(Control);
-//        assert!(!*undone.borrow());
-//        assert!(!*redone.borrow());
-//    }
-//}
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn key_mask() {
+        let keyboard                  = Keyboard::default();
+        let expected_key_mask:KeyMask = default();
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
+        let key1 = Key::Character("x".to_string());
+        let key2 = Key::Control;
+
+        keyboard.on_pressed.event.emit(key1.clone());
+        let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
+
+        keyboard.on_pressed.event.emit(key2.clone());
+        let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
+
+        keyboard.on_released.event.emit(key1.clone());
+        let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
+        assert_eq!(expected_key_mask, keyboard.key_mask.behavior.current_value());
+    }
+
+    #[test]
+    fn key_actions() {
+        use keyboard_types::Key::*;
+        let undone            = Rc::new(RefCell::new(false));
+        let undone1           = undone.clone();
+        let redone            = Rc::new(RefCell::new(false));
+        let redone1           = redone.clone();
+        let undo_keys:KeyMask = [Control, Character("z".to_string())].iter().collect();
+        let redo_keys:KeyMask = [Control, Character("y".to_string())].iter().collect();
+
+        let keyboard    = Keyboard::default();
+        let mut actions = KeyboardActions::new(&keyboard);
+        actions.set_action(undo_keys.clone(), move |_| { *undone1.borrow_mut() = true });
+        actions.set_action(redo_keys.clone(), move |_| { *redone1.borrow_mut() = true });
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
+        assert!(!*undone.borrow());
+        assert!(!*redone.borrow());
+        keyboard.on_pressed.event.emit(Control);
+        assert!( *undone.borrow());
+        assert!(!*redone.borrow());
+        *undone.borrow_mut() = false;
+        keyboard.on_released.event.emit(Character("z".to_string()));
+        assert!(!*undone.borrow());
+        assert!(!*redone.borrow());
+        keyboard.on_pressed.event.emit(Character("y".to_string()));
+        assert!(!*undone.borrow());
+        assert!( *redone.borrow());
+        *redone.borrow_mut() = false;
+        keyboard.on_released.event.emit(Character("y".to_string()));
+        keyboard.on_released.event.emit(Control);
+
+        actions.unset_action(&undo_keys);
+        keyboard.on_pressed.event.emit(Character("Z".to_string()));
+        keyboard.on_pressed.event.emit(Control);
+        assert!(!*undone.borrow());
+        assert!(!*redone.borrow());
+    }
+}

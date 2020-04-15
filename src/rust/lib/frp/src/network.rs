@@ -12,11 +12,6 @@ use crate::debug;
 
 // === Definition ===
 
-
-
-
-
-
 /// Network manages lifetime of set of FRP nodes. FRP networks are designed to be static. You can
 /// add new elements while constructing it, but you are not allowed to remove the elements.
 /// Moreover, you should not grow the FRP network after it is constructed.
@@ -44,8 +39,6 @@ pub struct NetworkData {
     links   : RefCell<HashMap<Id,Link>>,
     bridges : RefCell<Vec<BridgeNetwork>>,
 }
-
-
 
 
 

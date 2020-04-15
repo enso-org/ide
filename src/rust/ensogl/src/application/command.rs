@@ -241,13 +241,13 @@ macro_rules! def_status_api {
             $(pub $field : frp::Sampler<bool>),*
         }
 
-        impl app::command::StatusApi for $name {
-            fn status_api_docs() -> Vec<app::command::EndpointDocs> {
-                vec! [$(app::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+        impl application::command::StatusApi for $name {
+            fn status_api_docs() -> Vec<application::command::EndpointDocs> {
+                vec! [$(application::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
-            fn status_api(&self) -> Vec<app::command::StatusEndpoint> {
-                vec! [$(app::command::StatusEndpoint::new(stringify!($field),&self.$field)),*]
+            fn status_api(&self) -> Vec<application::command::StatusEndpoint> {
+                vec! [$(application::command::StatusEndpoint::new(stringify!($field),&self.$field)),*]
             }
         }
     };
@@ -267,13 +267,13 @@ macro_rules! def_command_api {
             $(pub $field : frp::Source),*
         }
 
-        impl app::command::CommandApi for $name {
-            fn command_api_docs() -> Vec<app::command::EndpointDocs> {
-                vec! [$(app::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+        impl application::command::CommandApi for $name {
+            fn command_api_docs() -> Vec<application::command::EndpointDocs> {
+                vec! [$(application::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
-            fn command_api(&self) -> Vec<app::command::CommandEndpoint> {
-                vec! [$(app::command::CommandEndpoint::new(stringify!($field),&self.$field)),*]
+            fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
+                vec! [$(application::command::CommandEndpoint::new(stringify!($field),&self.$field)),*]
             }
         }
     };

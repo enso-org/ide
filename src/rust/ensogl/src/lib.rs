@@ -48,7 +48,7 @@
 // =================================
 
 pub mod animation;
-pub mod app;
+pub mod application;
 pub mod control;
 pub mod data;
 pub mod debug;

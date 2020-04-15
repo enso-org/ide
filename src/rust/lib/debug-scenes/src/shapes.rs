@@ -8,7 +8,7 @@ use ensogl::prelude::*;
 
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
-use ensogl::app::App;
+use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
@@ -20,13 +20,13 @@ pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    let app = App::new(&web::get_html_element_by_id("root").unwrap());
+    let app = Application::new(&web::get_html_element_by_id("root").unwrap());
     init(&app);
     mem::forget(app);
 }
 
 
-fn init(app:&App) {
+fn init(app:&Application) {
     let world     = &app.display;
     let scene     = world.scene();
     let camera    = scene.camera();
