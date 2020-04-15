@@ -7,5 +7,5 @@ edition = "2018"
 [lib]
 
 [dependencies]
-itertools    = "0.8"
+itertools = "0.8"
 

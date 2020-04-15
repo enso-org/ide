@@ -5,65 +5,63 @@ use std::ops::RangeInclusive;
 
 
 
-/// Invalid state flag.
-pub const INVALID:StateId = StateId{id:usize::max_value()};
+// =======================
+// == State Of Automata ==
+// =======================
 
+/// Flag for invalid state.
+/// When finite automata gets into invalid state
+/// the input sequence of symbols is rejected.
+pub const INVALID:Id = Id {id:usize::max_value()};
+
+/// Newtype wrapper for finite automata input symbol.
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub struct Symbol { pub val: i64 }
-
-#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub struct StateId { pub id: usize }
-
-
-/// NFA state with name and set of transitions (links).
-#[derive(Clone,Debug,Default,PartialEq,Eq)]
-pub struct State {
-    /// Set of links that don't require any symbol to trigger.
-    /// I.E. If there is an epsilon link from state A to state B,
-    /// then whenever we are in state A, we can freely move to state B.
-    pub epsilon_links : Vec<StateId>,
-    /// Set of links that require specific symbol to trigger.
-    pub links         : Vec<Link>,
-    /// Name of the state.
-    /// We use it to autogenerate a call to method with same name.
-    pub name          : Option<String>,
+pub struct Symbol {
+    #[allow(missing_docs)]
+    pub val: i64
 }
 
-/// A link that requires specific range of symbols to trigger.
+/// Newtype wrapper for finite automata state ID.
+#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
+pub struct Id {
+    #[allow(missing_docs)]
+    pub id: usize
+}
+
+/// Named NFA state with a set of transitions (links).
+#[derive(Clone,Debug,Default,PartialEq,Eq)]
+pub struct State {
+    /// Set of transitions that don't require any symbol to trigger.
+    /// I.E. If there is an epsilon link from state A to state B,
+    /// then whenever we are in state A, we can freely move to state B.
+    pub epsilon_links: Vec<Id>,
+    /// Set of transitions that trigger with specific symbol on input.
+    /// When triggered, the automata will transition to the `link.target`.
+    pub links: Vec<Link>,
+    /// Name of the state.
+    /// We use it to autogenerate a call to Rust method with same name.
+    pub name: Option<String>,
+}
+
+/// A transition to new automata state
+/// that requires specific symbol on automata input to trigger.
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Link {
-    /// Range of symbols that trigger this link.
-    pub symbols : RangeInclusive<Symbol>,
-    /// A state this link points to.
-    pub target  : StateId,
+    /// Any symbol from the range will trigger this link.
+    pub symbols: RangeInclusive<Symbol>,
+    /// A state that is visited, after the link is triggered.
+    pub target: Id,
 }
 
 impl State {
-    /// Creates a state with given epsilon links.
-    pub fn epsilon_links(iter:&[usize]) -> Self {
-        let link = |id| StateId{id};
-        let epsilon_links = iter.iter().cloned().map(link).collect();
-        State {epsilon_links, ..Default::default()}
-    }
-
-    /// Creates a state with given links.
-    pub fn links(iter:&[(RangeInclusive<i64>,usize)]) -> Self {
-        let link = |(range,id):(RangeInclusive<i64>,usize)| {
-            let symbols = Symbol{val:*range.start()}..=Symbol{val:*range.end()};
-            Link{symbols,target:StateId{id}}
-        };
-        let links = iter.iter().cloned().map(link).collect();
-        State {links , ..Default::default()}
-    }
-
-    /// Gives state a name.
+    /// Updater for field `name`. Returns updated state.
     pub fn named(mut self, name:&str) -> Self {
         self.name = Some(name.to_owned());
         self
     }
 
-    /// Returns target for each symbol in alphabet.
-    pub fn targets(&self, alphabet:&Alphabet) -> Vec<StateId> {
+    /// Returns transition (next state) for each symbol in alphabet.
+    pub fn targets(&self, alphabet:&Alphabet) -> Vec<Id> {
         let mut targets = vec![];
         let mut index   = 0;
         let mut links   = self.links.clone();
@@ -79,5 +77,26 @@ impl State {
             }
         }
         targets
+    }
+}
+
+impl From<Vec<usize>> for State {
+    /// Creates a state with epsilon links.
+    fn from(vec:Vec<usize>) -> Self {
+        let epsilon_links = vec.iter().cloned().map(|id| Id{id}).collect();
+        State {epsilon_links,..Default::default()}
+    }
+}
+
+impl From<Vec<(RangeInclusive<i64>, usize)>> for State {
+    /// Creates a state with ordinary links.
+    fn from(vec:Vec<(RangeInclusive<i64>, usize)>) -> Self {
+        let link = |(range, id): (RangeInclusive<i64>, usize)| {
+            let start = Symbol{val:*range.start()};
+            let end   = Symbol{val:*range.end()};
+            Link {symbols: start..=end, target: Id{ id }}
+        };
+        let links = vec.iter().cloned().map(link).collect();
+        State {links,..Default::default()}
     }
 }

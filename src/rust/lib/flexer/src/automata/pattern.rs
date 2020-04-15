@@ -1,6 +1,7 @@
 use crate::parser;
+use crate::automata::nfa::NFA;
 use crate::automata::state::Symbol;
-use crate::automata::state::StateId;
+use crate::automata::state::Id;
 
 use core::iter;
 use itertools::Itertools;
@@ -9,9 +10,9 @@ use std::ops::BitOr;
 use std::ops::RangeInclusive;
 
 
-
-const MAX:i64 = i64::max_value();
-const MIN:i64 = i64::min_value();
+// =============
+// == Pattern ==
+// =============
 
 /// Simple regex pattern.
 #[derive(Clone,Debug)]
@@ -30,7 +31,6 @@ use Pattern::*;
 
 impl BitOr<Pattern> for Pattern {
     type Output = Pattern;
-
     fn bitor(self, rhs: Pattern) -> Self::Output {
         match (self, rhs) {
             (Or(mut lhs), Or(    rhs)) => {lhs.extend(rhs) ; Or(lhs)},
@@ -40,10 +40,10 @@ impl BitOr<Pattern> for Pattern {
         }
     }
 }
+
 impl BitAnd<Pattern> for Pattern {
     type Output = Pattern;
-
-        fn bitand(self, rhs: Pattern) -> Self::Output {
+    fn bitand(self, rhs: Pattern) -> Self::Output {
         match (self, rhs) {
             (And(mut lhs), And(    rhs)) => {lhs.extend(rhs) ; And(lhs)},
             (And(mut lhs), rhs         ) => {lhs.push(rhs)   ; And(lhs)},
@@ -52,8 +52,6 @@ impl BitAnd<Pattern> for Pattern {
         }
     }
 }
-
-use crate::automata::nfa::NFA;
 
 impl Pattern {
 
@@ -129,8 +127,9 @@ impl Pattern {
 
     /// Pattern that doesn't trigger on any given character from given sequence.
     pub fn none(chars:String) -> Self {
+        let max        = i64::max_value();
         let char_iter  = chars.chars().map(|char| i64::from(char as u32));
-        let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(MAX));
+        let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(max));
         let mut codes  = char_iter2.collect_vec();
 
         codes.sort();
@@ -158,7 +157,7 @@ impl Pattern {
 
     /// Transforms pattern to NFA.
     /// The algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
-    pub fn to_nfa(&self, nfa:&mut NFA, last:StateId) -> StateId {
+    pub fn to_nfa(&self, nfa:&mut NFA, last: Id) -> Id {
         let current = nfa.new_state();
         nfa.connect(last, current);
         match self {
