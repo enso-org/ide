@@ -345,8 +345,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
     }
 
     /// Sets the port's position.
-    ///
-    /// Note this shadows the `set_position` function of `ObjectOps`.
     pub fn set_position(&self, position:Angle<Degrees>) {
         self.data.position.set(position);
         self.update_sprite_position();
