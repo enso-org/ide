@@ -36,12 +36,14 @@ macro_rules! extend_network {
 }
 
 
+
 // ===================
 // === Private API ===
 // ===================
 
 // === New ===
 
+/// Internal helper for `new_network` macro.
 #[macro_export]
 macro_rules! _new_network {
     ($trace:ident $network:ident $($ts:tt)*) => {
@@ -50,13 +52,14 @@ macro_rules! _new_network {
     };
 }
 
+/// Creates a new `BridgeNetwork` for the provided networks.
 #[macro_export]
-macro_rules! new_subnetwork {
+macro_rules! new_bridge_network {
     ([$($($path:ident).*),*] $($ts:tt)*) => {
-        let _subnetwork_ = $crate::Network::new();
-        $crate::extend_network! { _subnetwork_ $($ts)* }
-        let _subnetwork_ = $crate::Subnetwork::from(_subnetwork_);
-        $($($path).*.register_subnetwork(&_subnetwork_);)*
+        let _birdge_network_ = $crate::Network::new();
+        $crate::extend_network! { _birdge_network_ $($ts)* }
+        let _birdge_network_ = $crate::BridgeNetwork::from(_birdge_network_);
+        $($($path).*.register_bridge_network(&_birdge_network_);)*
     };
 }
 

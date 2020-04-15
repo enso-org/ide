@@ -5,17 +5,12 @@ use crate::prelude::*;
 use crate::notification;
 
 use ensogl::display;
-use ensogl::display::object::Id;
 use ensogl::display::traits::*;
-use ensogl::display::world::World;
 use ensogl::system::web;
 use ensogl::app::App;
 use graph_editor::GraphEditor;
-use graph_editor::component::node::Node;
 use graph_editor::component::node::WeakNode;
 use utils::channel::process_stream_with_handle;
-use enso_frp::stream::EventEmitter;
-use enso_frp::Position;
 use wasm_bindgen::JsCast;
 use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 
@@ -76,7 +71,7 @@ impl GraphEditorIntegration {
 impl GraphEditorIntegration {
 
     fn new(app:&App, controller:controller::Graph) -> Rc<Self> {
-        let editor     = app.views.new::<graph_editor::GraphEditor>();
+        let editor     = app.views.new::<GraphEditor>();
         let id_to_node = default();
         let node_to_id = default();
         let logger     = Logger::new("Node Editor");
@@ -92,7 +87,7 @@ impl GraphEditorIntegration {
         let weak    = Rc::downgrade(this);
         let handler = process_stream_with_handle(stream,weak,move |notification,this| {
             match notification {
-                notification::Graph::Invalidate => this.invalidate_graph(),
+                notification::Graph::Invalidate => this.invalidate_graph().unwrap(), // FIXME unwrap
             };
             futures::future::ready(())
         });
@@ -100,7 +95,7 @@ impl GraphEditorIntegration {
     }
 
     fn setup_keyboard_event_handling(this:&Rc<Self>) {
-        /// TODO [ao] replace with actual keybindings management.
+        // TODO [ao] replace with actual keybindings management.
         let weak = Rc::downgrade(this);
         let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
             if let Some(this) = weak.upgrade() {
@@ -124,21 +119,20 @@ impl GraphEditorIntegration {
     }
 
     fn setup_mouse_event_handling(this:&Rc<Self>) {
-        todo!()
-//        let weak = Rc::downgrade(this);
-//        this.editor.frp.network.map("module_update", &this.editor.frp.nodes.release, move |node| {
-//            let node = node.as_ref().and_then(|n| n.upgrade());
-//            let this = weak.upgrade();
-//            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
-//                let id = this.node_to_id.borrow().get(&node.id()).cloned();
-//                if let Some(id) = id {
-//                    this.controller.module.with_node_metadata(id, |md| {
-//                        let pos = node.position();
-//                        md.position = Some(model::module::Position::new(pos.x, pos.y));
-//                    })
-//                }
-//            }
-//        });
+        let weak = Rc::downgrade(this);
+        this.editor.frp.network.map("module_update", &this.editor.frp.node_release, move |node| {
+            let node = node.as_ref().and_then(|n| n.upgrade());
+            let this = weak.upgrade();
+            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
+                let id = this.node_to_id.borrow().get(&node.id()).cloned();
+                if let Some(id) = id {
+                    this.controller.module.with_node_metadata(id, |md| {
+                        let pos = node.position();
+                        md.position = Some(model::module::Position::new(pos.x, pos.y));
+                    })
+                }
+            }
+        });
     }
 }
 
@@ -150,7 +144,7 @@ pub struct NodeEditor {
 }
 
 impl NodeEditor {
-    pub fn new(logger:&Logger, app:&App, controller:controller::graph::Handle) -> Self {
+    pub fn new(_logger:&Logger, app:&App, controller:controller::graph::Handle) -> Self {
         let graph          = GraphEditorIntegration::new(app,controller.clone_ref());
         let display_object = display::object::Instance::new(&graph.logger);
         display_object.add_child(&graph.editor);

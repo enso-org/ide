@@ -1,31 +1,146 @@
+//! Definition of commands, labeled FPR endpoints useful when implementing actions which can be
+//! altered at runtime, like a keyboard shortcut management.
 
 use crate::prelude::*;
 use crate::frp;
-use crate::frp::io::keyboard;
-use crate::display::world::World;
 
 
 
-pub struct FrpEndpointDefinition<T> {
-    pub label : String,
-    pub frp   : T
+// ================
+// === Provider ===
+// ================
+
+/// A class of components which expose commands. A command is a labeled action represented as a
+/// no argument FRP endpoint (`frp::Source`). Useful when implementing actions which can be altered
+/// at runtime, like a keyboard shortcut management. `Provider` defines a class of elements, like
+/// a class of text editors or class of tree views. A particular instance is represented as
+/// `ProviderInstance`.
+///
+/// Please note that command `Provider`s and command `ProviderInstance`s should be explicitly
+/// registered in the command `Registry` as soon as possible in order to share information about
+/// the available commands. This information may be useful even before the first instance of a
+/// particular provider is created, for example in order to provide user with hints about possible
+/// API endpoints when defining keyboard shortcuts.
+pub trait Provider : FrpNetworkProvider + CommandApi + StatusApi {
+    /// Identifier of the command provider class.
+    fn label() -> &'static str;
 }
 
-impl<T> FrpEndpointDefinition<T> {
-    pub fn new<L,X>(label:L, frp:X) -> Self
-        where L:Into<String>, X:Into<T> {
+/// FRP endpoint for `Command`.
+pub type CommandEndpoint = FrpEndpointDefinition<frp::Source>;
+
+/// FRP endpoint for `Status`.
+pub type StatusEndpoint  = FrpEndpointDefinition<frp::Sampler<bool>>;
+
+/// FRP Network provider. Used to check whether FRP bindings are still alive.
+pub trait FrpNetworkProvider {
+    /// The underlying frp network accessor.
+    fn network(&self) -> &frp::Network;
+}
+
+
+
+// ======================
+// === API Definition ===
+// ======================
+
+/// Command API, a set of labeled command endpoints and labeled command docs. Both functions
+/// should return the same set of labels. Although it could be designed in a safer way, it would
+/// be much more trickier to use. You should not define it by hand. Instead use the provided
+/// `def_command_api` macro.
+#[allow(missing_docs)]
+pub trait CommandApi : Sized {
+    fn command_api_docs() -> Vec<EndpointDocs>;
+    fn command_api(&self) -> Vec<CommandEndpoint>;
+}
+
+/// Status API, a set of labeled status endpoints and labeled status docs. Both functions
+/// should return the same set of labels. Although it could be designed in a safer way, it would
+/// be much more trickier to use. You should not define it by hand. Instead use the provided
+/// `def_status_api` macro.
+#[allow(missing_docs)]
+pub trait StatusApi : Sized {
+    fn status_api_docs() -> Vec<EndpointDocs>;
+    fn status_api(&self) -> Vec<StatusEndpoint>;
+}
+
+
+
+// ========================
+// === ProviderInstance ===
+// ========================
+
+/// Instance of command `Provider`. It contains bindings to all FRP endpoints defined by the
+/// `Provider`. See the docs of `Provider` to learn more.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct ProviderInstance {
+    pub network     : frp::WeakNetwork,
+    pub command_map : HashMap<String,Command>,
+    pub status_map  : HashMap<String,Status>,
+}
+
+impl ProviderInstance {
+    /// Check whether the underlying object is still alive.
+    pub fn check_alive(&self) -> bool {
+        self.network.upgrade().is_some()
+    }
+}
+
+
+
+// =====================
+// === FRP Endpoints ===
+// =====================
+
+/// FRP endpoint and a caption.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FrpEndpoint<Frp> {
+    pub caption : String,
+    pub frp     : Frp,
+}
+
+/// Command is a labeled `frp::Source`.
+pub type Command = FrpEndpoint<frp::Source>;
+
+/// Status is a labeled `frp::Sampler<bool>`. It is useful for implementing keyboard shortcut rules.
+pub type Status = FrpEndpoint<frp::Sampler<bool>>;
+
+
+
+// ================================
+// === FRP Endpoint Definitions ===
+// ================================
+
+/// Labeled FRP endpoint.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FrpEndpointDefinition<Frp> {
+    pub label : String,
+    pub frp   : Frp
+}
+
+/// A pair of label and caption for a particular FRP endpoint.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct EndpointDocs {
+    pub label   : String,
+    pub caption : String,
+}
+
+impl<Frp> FrpEndpointDefinition<Frp> {
+    /// Constructor.
+    pub fn new<L,F>(label:L, frp:F) -> Self
+        where L:Into<String>, F:Into<Frp> {
         let label = label.into();
         let frp   = frp.into();
         Self {label,frp}
     }
 }
 
-pub struct FrpEndpointDocs {
-    pub label   : String,
-    pub caption : String,
-}
-
-impl FrpEndpointDocs {
+impl EndpointDocs {
+    /// Constructor.
     pub fn new<L,C>(label:L, caption:C) -> Self
         where L:Into<String>, C:Into<String> {
         let label   = label.into();
@@ -35,77 +150,43 @@ impl FrpEndpointDocs {
 }
 
 
-#[derive(Debug)]
-pub struct FrpEndpoint<S> {
-    pub caption : String,
-    pub frp     : S,
-}
 
+// ================
+// === Registry ===
+// ================
 
-use super::App; // FIXME
-use super::shortcut; // FIXME
-use super::shortcut::Shortcut; // FIXME
-
-pub trait Provider : FrpNetworkProvider + CommandApiProvider + StatusApiProvider {
-    fn view_name() -> &'static str;
-
-    fn default_shortcuts() -> Vec<shortcut::Shortcut> {
-        default()
-    }
-
-    fn self_shortcut<M,C>(key_mask:M, command:C, condition:shortcut::Condition) -> Shortcut
-    where M:Into<keyboard::KeyMask>, C:Into<shortcut::Command> {
-        Shortcut::new(key_mask,Self::view_name(),command,condition)
-    }
-
-    fn self_shortcut_<M,C>(key_mask:M, command:C) -> Shortcut
-    where M:Into<keyboard::KeyMask>, C:Into<shortcut::Command> {
-        Shortcut::new_(key_mask,Self::view_name(),command)
-    }
-}
-
-#[derive(Debug)]
-pub struct ProviderInstance {
-    pub network     : frp::WeakNetwork,
-    pub command_map : HashMap<String,Command>,
-    pub status_map  : HashMap<String,Status>,
-}
-
-impl ProviderInstance {
-    pub fn check_alive(&self) -> bool {
-        self.network.upgrade().is_some()
-    }
-}
-
-
+/// A command registry. Allows registering command `Providers` and corresponding
+/// `ProviderInstance`s. See docs of `Provider` to learn more.
 #[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
 pub struct Registry {
-    pub logger : Logger,
-    pub map    : Rc<RefCell<HashMap<String,Vec<ProviderInstance>>>>,
+    pub logger    : Logger,
+    pub instances : Rc<RefCell<HashMap<String,Vec<ProviderInstance>>>>,
+    // todo docs
 }
 
 impl Registry {
+    /// Constructor.
     pub fn create(logger:&Logger) -> Self {
-        let logger = logger.sub("views");
-        let map    = default();
-        Self {logger,map}
+        let logger    = logger.sub("views");
+        let instances = default();
+        Self {logger,instances}
     }
 
+    /// Registers the command `Provider`.
     pub fn register<V:Provider>(&self) {
-        let label  = V::view_name();
-        let exists = self.map.borrow().get(label).is_some();
+        let label  = V::label();
+        let exists = self.instances.borrow().get(label).is_some();
         if exists {
             warning!(&self.logger, "The view '{label}' was already registered.")
         } else {
-            self.map.borrow_mut().insert(label.into(),default());
-            for shortcut in V::default_shortcuts() {
-
-            }
+            self.instances.borrow_mut().insert(label.into(),default());
         }
     }
 
+    /// Registers the command `ProviderInstance`.
     pub fn register_instance<T:Provider>(&self, target:&T) {
-        let label   = T::view_name();
+        let label   = T::label();
         let network = T::network(target).downgrade();
         let command_doc_map : HashMap<String,String> = T::command_api_docs().into_iter().map(|t| {
             (t.label,t.caption)
@@ -128,7 +209,7 @@ impl Registry {
         }).collect();
 
         let instance = ProviderInstance {network,command_map,status_map};
-        let was_registered = self.map.borrow().get(label).is_some();
+        let was_registered = self.instances.borrow().get(label).is_some();
         if !was_registered {
             self.register::<T>();
             warning!(&self.logger,
@@ -136,28 +217,64 @@ impl Registry {
                 register available command providers as soon as possible to spread the information \
                 about their API.");
         };
-        self.map.borrow_mut().get_mut(label).unwrap().push(instance);
+        self.instances.borrow_mut().get_mut(label).unwrap().push(instance);
     }
 }
 
 
 
-pub trait FrpNetworkProvider {
-    fn network(&self) -> &frp::Network;
+// ==============
+// === Macros ===
+// ==============
+
+/// Defines new `Status` API. See docs of `StatusApi` to learn more.
+#[macro_export]
+macro_rules! def_status_api {
+    ( $name:ident
+        $(
+            #[doc=$($doc:tt)*]
+            $field:ident
+        ),* $(,)?
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            $(pub $field : frp::Sampler<bool>),*
+        }
+
+        impl app::command::StatusApi for $name {
+            fn status_api_docs() -> Vec<app::command::EndpointDocs> {
+                vec! [$(app::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            }
+
+            fn status_api(&self) -> Vec<app::command::StatusEndpoint> {
+                vec! [$(app::command::StatusEndpoint::new(stringify!($field),&self.$field)),*]
+            }
+        }
+    };
 }
 
-pub trait CommandApiProvider : Sized {
-    fn command_api_docs() -> Vec<FrpEndpointDocs>;
-    fn command_api(&self) -> Vec<CommandDefinition>;
-}
+/// Defines new `Command` API. See docs of `CommandApi` to learn more.
+#[macro_export]
+macro_rules! def_command_api {
+    ( $name:ident
+        $(
+            #[doc=$($doc:tt)*]
+            $field:ident
+        ),* $(,)?
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            $(pub $field : frp::Source),*
+        }
 
-pub type Command           = FrpEndpoint<frp::Source>;
-pub type Status            = FrpEndpoint<frp::Sampler<bool>>;
-pub type CommandDefinition = FrpEndpointDefinition<frp::Source>;
-pub type StatusDefinition  = FrpEndpointDefinition<frp::Sampler<bool>>;
+        impl app::command::CommandApi for $name {
+            fn command_api_docs() -> Vec<app::command::EndpointDocs> {
+                vec! [$(app::command::EndpointDocs::new(stringify!($field),$($doc)*)),*]
+            }
 
-
-pub trait StatusApiProvider : Sized {
-    fn status_api_docs() -> Vec<FrpEndpointDocs>;
-    fn status_api(&self) -> Vec<StatusDefinition>;
+            fn command_api(&self) -> Vec<app::command::CommandEndpoint> {
+                vec! [$(app::command::CommandEndpoint::new(stringify!($field),&self.$field)),*]
+            }
+        }
+    };
 }

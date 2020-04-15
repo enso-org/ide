@@ -13,7 +13,6 @@ use crate::display::symbol::material;
 use crate::display::symbol::material::Material;
 use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
-use crate::display::object::traits::*;
 use crate::system::gpu::data::buffer::item::Storable;
 
 

@@ -10,7 +10,6 @@ use ensogl::display::layout::alignment;
 use ensogl::display::scene::{Scene,ShapeRegistry};
 use ensogl::display::scene;
 use ensogl::display::shape::*;
-use ensogl::display::traits::*;
 use ensogl::display::{Sprite, Attribute};
 use ensogl::display;
 use ensogl::gui::component::animation;

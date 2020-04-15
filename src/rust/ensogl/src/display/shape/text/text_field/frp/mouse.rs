@@ -73,14 +73,14 @@ impl TextFieldMouseFrp {
 impl TextFieldMouseFrp {
     fn is_inside_text_field_lambda(text_field:WeakTextField) -> impl Fn(&Position) -> bool {
         move |position| {
-            let position = Vector2::new(position.x as f32,position.y as f32);
+            let position = Vector2::new(position.x,position.y);
             text_field.upgrade().map_or(false, |tf| tf.is_inside(position))
         }
     }
 
     fn set_cursor_lambda(text_field:WeakTextField) -> impl Fn(&Position,&bool) {
         move |position,multicursor| {
-            let position = Vector2::new(position.x as f32,position.y as f32);
+            let position = Vector2::new(position.x,position.y);
             if let Some(text_field) = text_field.upgrade() {
                 text_field.set_focus();
                 if *multicursor {
@@ -94,7 +94,7 @@ impl TextFieldMouseFrp {
 
     fn select_lambda(text_field:WeakTextField) -> impl Fn(&Position,&bool) {
         move |position,block_selection| {
-            let position = Vector2::new(position.x as f32,position.y as f32);
+            let position = Vector2::new(position.x,position.y);
             if let Some(text_field) = text_field.upgrade() {
                 text_field.set_focus();
                 if *block_selection {

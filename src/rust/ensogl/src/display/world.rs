@@ -16,7 +16,6 @@ use crate::display::render::*;
 use crate::display::render::passes::SymbolsRenderPass;
 use crate::display::scene::Scene;
 use crate::display::shape::text::text_field;
-use crate::display::traits::*;
 use crate::display;
 use crate::system::web;
 

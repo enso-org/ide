@@ -34,8 +34,6 @@ pub mod prelude {
 }
 
 use ensogl::app;
-use app::App;
-
 use ensogl::prelude::*;
 use ensogl::traits::*;
 
@@ -43,18 +41,14 @@ use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
 use enso_frp as frp;
-use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
 use enso_frp::Position;
-use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
-use ensogl::display::object::{Id, Instance};
+use ensogl::display::object::Id;
 use ensogl::display::world::*;
 use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::*;
 
 
 
@@ -73,45 +67,6 @@ macro_rules! f_ {
     };
 }
 
-
-macro_rules! gen_api {
-    (
-        $name:ident {
-            $($field_vis:vis $field_name:ident : [ $($($field_ty:tt)+)? ]),* $(,)?
-        }
-
-    ) => {
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct $name {
-            $($field_vis $field_name : frp::Source $(<$($field_ty)+>)?),*
-        }
-
-        impl $name {
-            pub fn new(network:&frp::Network) -> Self {
-                frp::extend_network! { network
-                    $(def $field_name = source();)*
-                }
-                Self {$($field_name),*}
-            }
-
-            $( gen_api_fn! { $field_vis $field_name ($($($field_ty)+)?) } )*
-        }
-    };
-}
-
-macro_rules! gen_api_fn {
-    ( $vis:vis $name:ident () ) => {
-        $vis fn $name(&self) {
-            self.$name.emit(());
-        }
-    };
-
-    ( $vis:vis $name:ident ($($arg:tt)*) ) => {
-        $vis fn $name<T:AsRef<$($arg)*>>(&self, arg:T) {
-            self.$name.emit(arg.as_ref());
-        }
-    };
-}
 
 
 
@@ -206,6 +161,7 @@ pub struct GraphEditorFrp {
     pub network : frp::Network,
     pub inputs  : FrpInputs,
     pub status  : FrpStatus,
+    pub node_release : frp::Stream<Option<WeakNode>>
 }
 
 impl Deref for GraphEditorFrp {
@@ -216,64 +172,14 @@ impl Deref for GraphEditorFrp {
 }
 
 
-macro_rules! def_status_endpoints {
-    ( $name:ident
-        $(
-            #[doc=$($doc:tt)*]
-            $field:ident
-        ),* $(,)?
-    ) => {
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct $name {
-            $(pub $field : frp::Sampler<bool>),*
-        }
-
-        impl app::command::StatusApiProvider for $name {
-            fn status_api_docs() -> Vec<app::command::FrpEndpointDocs> {
-                vec! [$(app::command::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
-            }
-
-            fn status_api(&self) -> Vec<app::command::StatusDefinition> {
-                vec! [$(app::command::StatusDefinition::new(stringify!($field),&self.$field)),*]
-            }
-        }
-    };
-}
-
-
-macro_rules! def_command_endpoints {
-    ( $name:ident
-        $(
-            #[doc=$($doc:tt)*]
-            $field:ident
-        ),* $(,)?
-    ) => {
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct $name {
-            $(pub $field : frp::Source),*
-        }
-
-        impl app::command::CommandApiProvider for $name {
-            fn command_api_docs() -> Vec<app::command::FrpEndpointDocs> {
-                vec! [$(app::command::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
-            }
-
-            fn command_api(&self) -> Vec<app::command::CommandDefinition> {
-                vec! [$(app::command::CommandDefinition::new(stringify!($field),&self.$field)),*]
-            }
-        }
-    };
-}
-
-
-def_status_endpoints! { FrpStatus
+ensogl::def_status_api! { FrpStatus
     /// Checks whether this graph editor instance is active.
     is_active,
     /// Checks whether this graph editor instance is empty.
     is_empty,
 }
 
-def_command_endpoints! { Commands
+ensogl::def_command_api! { Commands
     /// Add a new node and place it at the mouse cursor position.
     add_node_at_cursor,
     /// Remove all selected nodes from the graph.
@@ -345,22 +251,22 @@ impl app::command::FrpNetworkProvider for GraphEditor {
     }
 }
 
-impl app::command::CommandApiProvider for GraphEditor {
-    fn command_api_docs() -> Vec<app::command::FrpEndpointDocs> {
+impl app::command::CommandApi for GraphEditor {
+    fn command_api_docs() -> Vec<app::command::EndpointDocs> {
         Commands::command_api_docs()
     }
 
-    fn command_api(&self) -> Vec<app::command::CommandDefinition> {
+    fn command_api(&self) -> Vec<app::command::CommandEndpoint> {
         self.frp.inputs.commands.command_api()
     }
 }
 
-impl app::command::StatusApiProvider for GraphEditor {
-    fn status_api_docs() -> Vec<app::command::FrpEndpointDocs> {
+impl app::command::StatusApi for GraphEditor {
+    fn status_api_docs() -> Vec<app::command::EndpointDocs> {
         FrpStatus::status_api_docs()
     }
 
-    fn status_api(&self) -> Vec<app::command::StatusDefinition> {
+    fn status_api(&self) -> Vec<app::command::StatusEndpoint> {
         self.frp.status.status_api()
     }
 }
@@ -416,8 +322,8 @@ impl<T:frp::Data> TouchNetwork<T> {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct TouchState {
-    pub nodes      : TouchNetwork::<Option<WeakNode>>,
-    pub bg : TouchNetwork::<()>,
+    pub nodes : TouchNetwork::<Option<WeakNode>>,
+    pub bg    : TouchNetwork::<()>,
 }
 
 impl TouchState {
@@ -446,10 +352,12 @@ impl GraphEditor {
 }
 
 impl app::command::Provider for GraphEditor {
-    fn view_name() -> &'static str {
+    fn label() -> &'static str {
         "GraphEditor"
     }
+}
 
+impl app::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<app::shortcut::Shortcut> {
         use keyboard::Key;
         vec! [ Self::self_shortcut_(&[Key::Character("n".into())] , "add_node_at_cursor")
@@ -488,7 +396,7 @@ impl app::View for GraphEditor {
         def selection_size         = selection_size_if_down.merge(&selection_size_on_down);
 
         def _cursor_size = selection_size.map(f!((cursor)(p) {
-            cursor.set_selection_size(Vector2::new(p.x as f32,p.y as f32));
+            cursor.set_selection_size(Vector2::new(p.x,p.y));
         }));
 
         def _cursor_press = mouse.press.map(f!((cursor)(_) {
@@ -500,7 +408,7 @@ impl app::View for GraphEditor {
         }));
 
         def _cursor_position = mouse.position.map(f!((cursor)(p) {
-            cursor.set_position(Vector2::new(p.x as f32,p.y as f32));
+            cursor.set_position(Vector2::new(p.x,p.y));
         }));
 
 
@@ -544,15 +452,15 @@ impl app::View for GraphEditor {
             let node = Node::new();
             inputs.register_node(&node);
             node.mod_position(|t| {
-                t.x += pos.x as f32;
-                t.y += pos.y as f32;
+                t.x += pos.x;
+                t.y += pos.y;
             });
         }));
 
         def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
             let weak_node = node.downgrade();
-            frp::new_subnetwork! { [network,node.view.events.network]
-                def foo_ = node.view.events.mouse_down.map(f_!((touch) {
+            frp::new_bridge_network! { [network,node.view.events.network]
+                def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
                     touch.nodes.down.emit(Some(weak_node.clone_ref()))
                 }));
             }
@@ -601,7 +509,8 @@ impl app::View for GraphEditor {
 
         let status = FrpStatus {is_active,is_empty};
 
-        let frp = GraphEditorFrp {network,inputs,status};
+        let node_release = touch.nodes.up;
+        let frp = GraphEditorFrp {network,inputs,status,node_release};
 
         Self {logger,frp,nodes,display_object}
     }

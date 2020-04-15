@@ -13,34 +13,7 @@ use crate::debug;
 // === Definition ===
 
 
-#[derive(Clone,CloneRef,Debug)]
-pub struct Subnetwork {
-    data : Rc<RefCell<Option<Network>>>
-}
 
-impl Subnetwork {
-    pub fn new() -> Self {
-        default()
-    }
-
-    fn destroy(&self) {
-        *self.data.borrow_mut() = None
-    }
-}
-
-impl Default for Subnetwork {
-    fn default() -> Self {
-        let data = Rc::new(RefCell::new(Some(default())));
-        Self {data}
-    }
-}
-
-impl From<Network> for Subnetwork {
-    fn from(net:Network) -> Self {
-        let data = Rc::new(RefCell::new(Some(net)));
-        Self {data}
-    }
-}
 
 
 
@@ -67,9 +40,9 @@ impl<T> Item for T where T : HasId + HasLabel + stream::HasOutputTypeLabel {}
 #[derivative(Debug,Default)]
 pub struct NetworkData {
     #[derivative(Debug="ignore")]
-    nodes       : RefCell<Vec<Box<dyn Item>>>,
-    links       : RefCell<HashMap<Id,Link>>,
-    subnetworks : RefCell<Vec<Subnetwork>>,
+    nodes   : RefCell<Vec<Box<dyn Item>>>,
+    links   : RefCell<HashMap<Id,Link>>,
+    bridges : RefCell<Vec<BridgeNetwork>>,
 }
 
 
@@ -87,7 +60,7 @@ impl NetworkData {
 
 impl Drop for NetworkData {
     fn drop(&mut self) {
-        self.subnetworks.borrow().iter().for_each(|subnetwork| subnetwork.destroy())
+        self.bridges.borrow().iter().for_each(|subnetwork| subnetwork.destroy())
     }
 }
 
@@ -124,8 +97,9 @@ impl Network {
         self.data.links.borrow_mut().insert(target,link);
     }
 
-    pub fn register_subnetwork(&self, sub_network:&Subnetwork) {
-        self.data.subnetworks.borrow_mut().push(sub_network.clone_ref())
+    /// Registers the provided bridge network as child of this network.
+    pub fn register_bridge_network(&self, sub_network:&BridgeNetwork) {
+        self.data.bridges.borrow_mut().push(sub_network.clone_ref())
     }
 
     /// Draw the network using GraphViz.
@@ -145,6 +119,56 @@ impl WeakNetwork {
     }
 }
 
+
+
+// =====================
+// === BridgeNetwork ===
+// =====================
+
+/// Bridge network is an FRP network build between two other FRP networks. However, in contrast to
+/// `Network`, the `BridgeNetwork` is not owned by the user. Instead it is owned by all of its
+/// parent networks. In case any of parent networks is dropped, the bridge is dropped as well, even
+/// if some of the parents ay stay alive. Bridge networks are incredibly usable when connecting
+/// few frp networks together. For example, when connecting an internal FRP network of a button with
+/// a network managing all buttons on a stage, we might want to tag the events from the button with
+/// a reference to the button which emitted the events. Using bridge network allows the memory to be
+/// managed completely automatically. Whenever the button or the button manager gets dropped, all
+/// tagging FRP nodes will be dropped as well.
+#[derive(Clone,CloneRef,Debug)]
+pub struct BridgeNetwork {
+    data : Rc<RefCell<Option<Network>>>
+}
+
+impl BridgeNetwork {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
+
+    fn destroy(&self) {
+        *self.data.borrow_mut() = None
+    }
+}
+
+impl Default for BridgeNetwork {
+    fn default() -> Self {
+        let data = Rc::new(RefCell::new(Some(default())));
+        Self {data}
+    }
+}
+
+impl From<Network> for BridgeNetwork {
+    fn from(net:Network) -> Self {
+        let data = Rc::new(RefCell::new(Some(net)));
+        Self {data}
+    }
+}
+
+
+
+// ============
+// === Link ===
+// ============
 
 /// Link between nodes. It is used for visualization purposes only.
 #[derive(Debug,Copy,Clone)]

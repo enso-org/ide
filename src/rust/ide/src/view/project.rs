@@ -9,7 +9,6 @@ use crate::view::layout::ViewLayout;
 use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
-use ensogl::display::world::World;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
@@ -83,7 +82,7 @@ impl ProjectView {
         let module_controller    = controller.module_controller(location).await?;
         let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
         let app                  = App::new(&web::get_html_element_by_id("root").unwrap());
-        let world                = &app.display;
+        let _world               = &app.display;
         // graph::register_shapes(&world);
         let logger               = logger.sub("ProjectView");
         let keyboard             = Keyboard::default();

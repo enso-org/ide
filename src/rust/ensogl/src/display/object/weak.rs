@@ -1,3 +1,4 @@
+//! Utils for managing weak display objects.
 
 use crate::prelude::*;
 use super::class::*;
@@ -9,7 +10,10 @@ use crate::control::callback::DynEvent;
 // === WeakObject ===
 // ==================
 
+/// Defines objects which could be missing (already dropped).
 pub trait WeakObject {
+    /// Tries to access the instance of the weak display object. Returns `None` if the object was
+    /// already dropped.
     fn try_display_object(&self) -> Option<Instance>;
 }
 
@@ -26,6 +30,7 @@ impl<T:WeakObject> WeakObject for Option<T> {
 // =====================
 
 impl<T:WeakObject> WeakObjectOps for T {}
+#[allow(missing_docs)]
 pub trait WeakObjectOps : WeakObject {
     fn add_child<T:Object>(&self, child:&T) {
         self.try_display_object().for_each(|node| ObjectOps::add_child(&node,child));

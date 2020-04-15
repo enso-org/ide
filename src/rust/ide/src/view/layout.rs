@@ -7,7 +7,6 @@ use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 
-use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
 use enso_frp::io::keyboard;

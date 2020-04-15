@@ -7,12 +7,10 @@
 use ensogl::prelude::*;
 
 use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::world::*;
 use ensogl::system::web;
 use ensogl::app::App;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 use ensogl::display::object::ObjectOps;
 
 
@@ -37,11 +35,7 @@ fn init(app:&App) {
     app.views.register::<GraphEditor>();
     let graph_editor = app.views.new::<GraphEditor>();
     world.add_child(&graph_editor);
-
-    let add_node_ref = graph_editor.frp.add_node_at_cursor.clone_ref();
-    let remove_selected_nodes_ref = graph_editor.frp.remove_selected_nodes.clone_ref();
-    let selected_nodes2 = graph_editor.nodes.selected.clone_ref();
-
+    
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {

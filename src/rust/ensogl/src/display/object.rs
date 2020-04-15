@@ -1,9 +1,12 @@
+//! Display object abstraction and related utilities.
+
 pub mod class;
 pub mod transform;
 pub mod weak;
 
 pub use class::*;
 pub use weak::*;
+
 
 
 // ==============

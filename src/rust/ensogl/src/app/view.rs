@@ -1,14 +1,10 @@
+//! Definition of `View`, a visual component of an application.
 
 use crate::prelude::*;
 
 use crate::display::world::World;
-use crate::frp::io::keyboard;
-use crate::frp;
 use super::command;
 use super::shortcut;
-
-
-
 
 
 
@@ -16,7 +12,9 @@ use super::shortcut;
 // === View ===
 // ============
 
-pub trait View : command::Provider {
+/// A visual component of an application.
+pub trait View : command::Provider + shortcut::DefaultShortcutProvider {
+    /// Constructor.
     fn new(world:&World) -> Self;
 }
 
@@ -26,6 +24,7 @@ pub trait View : command::Provider {
 // === Definition ===
 // ==================
 
+/// View definition. Keeps shortcut handles for each registered view.
 #[derive(Debug)]
 pub struct Definition {
     shortcut_handles : Vec<shortcut::Handle>
@@ -37,7 +36,10 @@ pub struct Definition {
 // === Registry ===
 // ================
 
+/// View registry. Please note that all view definitions should be registered here as soon as
+/// possible in order to enable their default shortcuts and spread the information about their API.
 #[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
 pub struct Registry {
     pub logger            : Logger,
     pub display           : World,
@@ -47,6 +49,7 @@ pub struct Registry {
 }
 
 impl Registry {
+    /// Constructor.
     pub fn create
     ( logger            : &Logger
     , display           : &World
@@ -61,8 +64,9 @@ impl Registry {
         Self {logger,display,command_registry,shortcut_registry,definitions}
     }
 
+    /// View registration.
     pub fn register<V:View>(&self) {
-        let label            = V::view_name().into();
+        let label            = V::label().into();
         let shortcut_handles = V::default_shortcuts().into_iter().map(|shortcut| {
             self.shortcut_registry.add(shortcut)
         }).collect();
@@ -71,8 +75,9 @@ impl Registry {
         self.command_registry.register::<V>();
     }
 
+    /// New view constructor.
     pub fn new<V:View>(&self) -> V {
-        let label          = V::view_name();
+        let label          = V::label();
         let was_registered = self.definitions.borrow().get(label).is_some();
         if !was_registered {
             warning!(&self.logger,

@@ -2,62 +2,10 @@
 
 use crate::prelude::*;
 
-use std::collections::hash_map::Entry;
-use enso_callback as callback;
 use crate as frp;
-
-
-
-pub trait BitField {
-    const BIT_LENGTH:usize;
-    fn get_bit(&self, bit: usize) -> bool;
-    fn set_bit(&mut self, bit:usize, value:bool) -> &mut Self;
-
-}
-
-// No Copy here. It would take 4x more space on x64 platform than reference.
-#[derive(Clone,Default,Deref,Eq,Hash,PartialEq)]
-pub struct BitField256 {
-    pub chunks : [u128;2]
-}
-
-impl BitField256 {
-    pub fn new() -> Self {
-        default()
-    }
-}
-
-impl BitField for BitField256 {
-    const BIT_LENGTH:usize = 256;
-
-    #[inline]
-    fn get_bit(&self, bit: usize) -> bool {
-        assert!(bit < Self::BIT_LENGTH);
-        if bit > 127 { (self.chunks[1] & (1 << (bit - 128))) != 0 }
-        else         { (self.chunks[1] & (1 << bit)) != 0 }
-    }
-
-    #[inline]
-    fn set_bit(&mut self, bit:usize, value:bool) -> &mut Self {
-        assert!(bit < Self::BIT_LENGTH);
-        if value {
-            if bit > 127 { self.chunks[1] |= 1 << (bit - 128) }
-            else         { self.chunks[0] |= 1 << bit }
-        } else {
-            if bit > 127 { self.chunks[1] &= !(1 << (bit - 128)) }
-            else         { self.chunks[0] &= !(1 << bit) }
-        }
-        self
-    }
-}
-
-impl Debug for BitField256 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"BitField256({:0128b}{:0128b})",self.chunks[1],self.chunks[0])
-    }
-}
-
-
+use crate::data::bitfield::BitField256;
+use crate::data::bitfield::BitField;
+use enso_callback as callback;
 
 
 
@@ -74,8 +22,11 @@ pub use keyboard_types::Key;
 // === KeyMask ===
 // ===============
 
+// FIXME: The follwoing implementation uses `key.legacy_keycode` which reports key codes for a very
+//        small amount of keys. We need a better mechanism here.
+
 /// The key bitmask (each bit represents one key). Used for matching key combinations.
-#[derive(Clone,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
+#[derive(Clone,Copy,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct KeyMask(pub BitField256);
 
@@ -98,13 +49,13 @@ impl KeyMask {
     /// Check if key bit is on.
     pub fn contains(&self, key:&Key) -> bool {
         let KeyMask(bit_set) = self;
-        bit_set.get_bit(Self::bit_position_for(key))
+        bit_set.get_bit(key.legacy_keycode() as usize)
     }
 
     /// Set the `key` bit for new state.
     pub fn set(&mut self, key:&Key, state:bool) {
         let KeyMask(ref mut bit_set) = self;
-        bit_set.set_bit(Self::bit_position_for(key),state);
+        bit_set.set_bit(key.legacy_keycode() as usize,state);
     }
 }
 
@@ -112,7 +63,7 @@ impl<'a> FromIterator<&'a Key> for KeyMask {
     fn from_iter<T: IntoIterator<Item=&'a Key>>(iter:T) -> Self {
         let mut key_mask = KeyMask::default();
         for key in iter {
-            let bit = Self::bit_position_for(key);
+            let bit = key.legacy_keycode() as usize;
             key_mask.set_bit(bit,true);
         }
         key_mask
@@ -127,19 +78,6 @@ impl From<&[Key;4]> for KeyMask { fn from(keys:&[Key;4]) -> Self { KeyMask::from
 impl From<&[Key;5]> for KeyMask { fn from(keys:&[Key;5]) -> Self { KeyMask::from_iter(keys) } }
 
 
-// === Private ===
-
-impl KeyMask {
-    fn bit_position_for(key:&Key) -> usize {
-        (match key {
-            // On Chrome, shift+alt gives `Meta` key, therefore we do a unification here.
-            Key::Meta => Key::Alt.legacy_keycode(),
-            other     => other.legacy_keycode(),
-        }) as usize
-    }
-}
-
-
 
 // =====================
 // === KeyMaskChange ===
@@ -151,7 +89,7 @@ impl KeyMask {
 enum KeyMaskChange { Set(Key), Unset(Key), Clear }
 
 impl KeyMaskChange {
-    fn on_pressed  (key:&Key) -> Self {
+    fn on_pressed(key:&Key) -> Self {
         Self::Set(key.clone())
     }
 
@@ -227,9 +165,11 @@ impl Default for Keyboard {
 
 
 
-// =======================
-// === CallbackRegistry ===
-// =======================
+// ===============
+// === Actions ===
+// ===============
+
+// TODO: Remove Actions and all of its usages. Use the new `app::shortcut` tools.
 
 /// An action defined for specific key combinations. For convenience, the key mask is passed as
 /// argument.
@@ -237,58 +177,6 @@ pub trait Action = FnMut() + 'static;
 
 /// A mapping between key combinations and actions.
 pub type ActionMap = HashMap<KeyMask,callback::SharedRegistryMut>;
-
-/// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
-#[derive(Clone,CloneRef,Default)]
-pub struct CallbackRegistry {
-    action_map : Rc<RefCell<ActionMap>>,
-}
-
-impl CallbackRegistry {
-    /// Create structure without any actions defined yet. It will be listening for events from
-    /// passed `Keyboard` structure.
-    pub fn new() -> Self {
-        let action_map = Rc::new(RefCell::new(HashMap::new()));
-        CallbackRegistry{action_map}
-    }
-
-    pub fn run(&self, key_mask:&KeyMask) -> bool {
-        // The action map ref is cloned in order to execute callbacks when not being borrowed.
-        let opt_callbacks = self.action_map.borrow().get(key_mask).map(|t| t.clone_ref());
-        let matched       = opt_callbacks.is_some();
-        if let Some(callbacks) = opt_callbacks {
-            callbacks.run_all();
-            if callbacks.is_empty() {
-                self.action_map.borrow_mut().remove(key_mask);
-            }
-        }
-        matched
-    }
-
-    /// Set action binding for given key mask.
-    pub fn add_action_for_key_mask<F:Action>(&self, key_mask:KeyMask, action:F) -> callback::Handle {
-        self.action_map.borrow_mut().entry(key_mask).or_insert(default()).add(action)
-    }
-
-    /// Set action binding for given set of keys.
-    pub fn add_action<F:Action>(&self, keys:&[Key], action:F) -> callback::Handle {
-        self.add_action_for_key_mask(keys.into(),action)
-    }
-}
-
-impl Debug for CallbackRegistry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<CallbackRegistry>")
-    }
-}
-
-
-
-// ===============
-// === Actions ===
-// ===============
-
-// TODO: Remove Actions or refactor it to use CallbackRegistry
 
 /// A structure bound to Keyboard FRP graph, which allows to define actions for specific keystrokes.
 #[derive(Clone,CloneRef)]
@@ -303,7 +191,7 @@ impl Actions {
     pub fn new(keyboard:&Keyboard) -> Self {
         let action_map = Rc::new(RefCell::new(HashMap::new()));
         frp::new_network! { keyboard_actions
-            def action = keyboard.key_mask.map(Self::perform_action_fn(action_map.clone_ref()));
+            def _action = keyboard.key_mask.map(Self::perform_action_fn(action_map.clone_ref()));
         }
         let network = keyboard_actions;
         Actions{action_map,network}
@@ -344,28 +232,6 @@ impl Debug for Actions {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    // #[test]
-    // fn key_mask() {
-    //     let keyboard                  = Keyboard::default();
-    //     let expected_key_mask:KeyMask = default();
-    //     assert_eq!(expected_key_mask, keyboard.key_mask.value());
-    //     let key1 = Key::Character("x".to_string());
-    //     let key2 = Key::Control;
-    //
-    //     keyboard.on_pressed.emit(key1.clone());
-    //     let expected_key_mask:KeyMask = std::iter::once(&key1).collect();
-    //     assert_eq!(expected_key_mask, keyboard.key_mask.value());
-    //
-    //     keyboard.on_pressed.emit(key2.clone());
-    //     let expected_key_mask:KeyMask = [&key1,&key2].iter().cloned().collect();
-    //     assert_eq!(expected_key_mask, keyboard.key_mask.value());
-    //
-    //     keyboard.on_released.emit(key1.clone());
-    //     let expected_key_mask:KeyMask = std::iter::once(&key2).collect();
-    //     assert_eq!(expected_key_mask, keyboard.key_mask.value());
-    // }
-
     #[test]
     fn key_actions() {
         use keyboard_types::Key::*;
