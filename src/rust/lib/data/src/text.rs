@@ -126,29 +126,13 @@ impl Span {
     }
 }
 
-impl From<Range<usize>> for Span {
-    fn from(range:Range<usize>) -> Self {
-        Span::from_indices(Index::new(range.start), Index::new(range.end))
-    }
-}
+impls! { From + &From <Range<usize>> for Span { |range|
+    Span::from_indices(Index::new(range.start), Index::new(range.end))
+}}
 
-impl From<&Range<usize>> for Span {
-    fn from(range:&Range<usize>) -> Self {
-        Span::from_indices(Index::new(range.start), Index::new(range.end))
-    }
-}
-
-impl Into<Range<usize>> for Span {
-    fn into(self) -> Range<usize> {
-        self.range()
-    }
-}
-
-impl Into<Range<usize>> for &Span {
-    fn into(self) -> Range<usize> {
-        self.range()
-    }
-}
+impls! { Into + &Into <Range<usize>> for Span { |this|
+    this.range()
+}}
 
 impl PartialEq<Range<usize>> for Span {
     fn eq(&self, other:&Range<usize>) -> bool {
