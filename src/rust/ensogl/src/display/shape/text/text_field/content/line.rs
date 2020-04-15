@@ -98,7 +98,7 @@ pub struct LineFullInfo<'a> {
 }
 
 impl<'a> LineFullInfo<'a> {
-    /// Gets line y position.
+    /// Get the y position of the top of the line.
     pub fn y_position(&self) -> f32 {
         self.height * self.line_id as f32
     }

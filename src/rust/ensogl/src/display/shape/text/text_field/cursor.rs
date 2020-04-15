@@ -592,15 +592,19 @@ mod test {
         expected_positions.insert(LineEnd,   vec![(0,10),(1,10),(2,9)]);
         expected_positions.insert(DocBegin,  vec![(0,0)]);
         expected_positions.insert(DocEnd,    vec![(2,9)]);
+        expected_positions.insert(PageUp,    vec![(0,0),(0,9)]);
+        expected_positions.insert(PageDown,  vec![(2,0),(2,9)]);
 
         let mut fonts       = FontRegistry::new();
-        let properties      = TextFieldProperties::default(&mut fonts);
+        let mut properties  = TextFieldProperties::default(&mut fonts);
+        let two_lines_high  = properties.text_size * 2.0;
+        properties.size     = Vector2::new(10.0, two_lines_high);
         let content         = &mut TextFieldContent::new(text,&properties);
         let text_field_size = properties.size;
         let selecting       = false;
         let mut navigation  = CursorNavigation{selecting,content,text_field_size};
 
-        for step in &[/*Left,Right,Up,*/Down,/*LineBegin,LineEnd,DocBegin,DocEnd*/] {
+        for step in &[Left,Right,Up,Down,LineBegin,LineEnd,DocBegin,DocEnd,PageUp,PageDown] {
             let mut cursors = Cursors::mock(initial_cursors.clone());
             cursors.navigate_all_cursors(&mut navigation,*step);
             let expected = expected_positions.get(step).unwrap();
