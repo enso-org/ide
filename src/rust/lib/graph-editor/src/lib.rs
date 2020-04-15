@@ -228,13 +228,13 @@ macro_rules! def_status_endpoints {
             $(pub $field : frp::Sampler<bool>),*
         }
 
-        impl app::view::StatusProvider for $name {
-            fn status_api_docs() -> Vec<app::view::FrpEndpointDocs> {
-                vec! [$(app::view::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
+        impl app::command::StatusApiProvider for $name {
+            fn status_api_docs() -> Vec<app::command::FrpEndpointDocs> {
+                vec! [$(app::command::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
-            fn status_api(&self) -> Vec<app::view::StatusDefinition> {
-                vec! [$(app::view::StatusDefinition::new(stringify!($field),&self.$field)),*]
+            fn status_api(&self) -> Vec<app::command::StatusDefinition> {
+                vec! [$(app::command::StatusDefinition::new(stringify!($field),&self.$field)),*]
             }
         }
     };
@@ -253,13 +253,13 @@ macro_rules! def_command_endpoints {
             $(pub $field : frp::Source),*
         }
 
-        impl app::view::CommandProvider for $name {
-            fn command_api_docs() -> Vec<app::view::FrpEndpointDocs> {
-                vec! [$(app::view::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
+        impl app::command::CommandApiProvider for $name {
+            fn command_api_docs() -> Vec<app::command::FrpEndpointDocs> {
+                vec! [$(app::command::FrpEndpointDocs::new(stringify!($field),$($doc)*)),*]
             }
 
-            fn command_api(&self) -> Vec<app::view::CommandDefinition> {
-                vec! [$(app::view::CommandDefinition::new(stringify!($field),&self.$field)),*]
+            fn command_api(&self) -> Vec<app::command::CommandDefinition> {
+                vec! [$(app::command::CommandDefinition::new(stringify!($field),&self.$field)),*]
             }
         }
     };
@@ -339,28 +339,28 @@ impl FrpInputs {
     }
 }
 
-impl app::view::FrpNetworkProvider for GraphEditor {
+impl app::command::FrpNetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
         &self.frp.network
     }
 }
 
-impl app::view::CommandProvider for GraphEditor {
-    fn command_api_docs() -> Vec<app::view::FrpEndpointDocs> {
+impl app::command::CommandApiProvider for GraphEditor {
+    fn command_api_docs() -> Vec<app::command::FrpEndpointDocs> {
         Commands::command_api_docs()
     }
 
-    fn command_api(&self) -> Vec<app::view::CommandDefinition> {
+    fn command_api(&self) -> Vec<app::command::CommandDefinition> {
         self.frp.inputs.commands.command_api()
     }
 }
 
-impl app::view::StatusProvider for GraphEditor {
-    fn status_api_docs() -> Vec<app::view::FrpEndpointDocs> {
+impl app::command::StatusApiProvider for GraphEditor {
+    fn status_api_docs() -> Vec<app::command::FrpEndpointDocs> {
         FrpStatus::status_api_docs()
     }
 
-    fn status_api(&self) -> Vec<app::view::StatusDefinition> {
+    fn status_api(&self) -> Vec<app::command::StatusDefinition> {
         self.frp.status.status_api()
     }
 }
@@ -445,11 +445,20 @@ impl GraphEditor {
     }
 }
 
-impl app::View for GraphEditor {
-
+impl app::command::Provider for GraphEditor {
     fn view_name() -> &'static str {
         "GraphEditor"
     }
+
+    fn default_shortcuts() -> Vec<app::shortcut::Shortcut> {
+        use keyboard::Key;
+        vec! [ Self::self_shortcut_(&[Key::Character("n".into())] , "add_node_at_cursor")
+             , Self::self_shortcut_(&[Key::Backspace]             , "remove_selected_nodes")
+        ]
+    }
+}
+
+impl app::View for GraphEditor {
 
     fn new(world:&World) -> Self {
         let logger = Logger::new("GraphEditor");
@@ -597,12 +606,7 @@ impl app::View for GraphEditor {
         Self {logger,frp,nodes,display_object}
     }
 
-    fn default_shortcuts() -> Vec<app::shortcut::Shortcut> {
-        use keyboard::Key;
-        vec! [ Self::self_shortcut_(&[Key::Character("n".into())] , "add_node_at_cursor")
-             , Self::self_shortcut_(&[Key::Backspace]             , "remove_selected_nodes")
-             ]
-    }
+
 }
 
 impl display::Object for GraphEditor {
