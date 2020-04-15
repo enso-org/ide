@@ -1,3 +1,8 @@
+//! SpanTree module
+//!
+//!
+
+#![feature(associated_type_bounds)]
 #![feature(trait_alias)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -12,10 +17,12 @@ pub mod action;
 pub mod generate;
 pub mod iter;
 pub mod tree;
+#[cfg(test)]
+pub mod builder;
 
 pub use tree::Node;
 pub use tree::NodeRef;
-pub use tree::NodeType;
+pub use tree::Type;
 pub use tree::SpanTree;
 
 pub mod prelude {

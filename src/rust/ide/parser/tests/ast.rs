@@ -48,17 +48,17 @@ pub fn generalized_infix_test() {
 
     let infix = make_gen_infix("a+b").unwrap();
     assert_eq!(infix.name(),"+");
-    assert_eq!(infix.left.repr(),"a");
-    assert_eq!(infix.right.repr(),"b");
+    assert_eq!(infix.left.as_ref().map(|a| &a.arg).repr(),"a");
+    assert_eq!(infix.right.as_ref().map(|a| &a.arg).repr(),"b");
 
     let right = make_gen_infix("+b").unwrap();
     assert_eq!(right.name(),"+");
-    assert_eq!(right.right.repr(),"b");
+    assert_eq!(right.right.as_ref().map(|a| &a.arg).repr(),"b");
     println!("{:?}", right);
 
     let left = make_gen_infix("a+").unwrap();
     assert_eq!(left.name(),"+");
-    assert_eq!(left.left.repr(),"a");
+    assert_eq!(left.left.map(|a| a.arg).repr(),"a");
 
     let sides = make_gen_infix("+").unwrap();
     assert_eq!(sides.name(),"+");
@@ -74,7 +74,7 @@ pub fn flatten_prefix_test() {
         assert_eq!(flattened.args.len() + 1, pieces.len()); // +1 because `func` piece is separate field
         assert_eq!(&flattened.func.repr(),piece_itr.next().unwrap());
         flattened.args.iter().zip(piece_itr).for_each(|(lhs,rhs)|{
-            assert_eq!(&lhs.arg.repr(),rhs);
+            assert_eq!(&lhs.repr(),rhs);
         })
     }
 
@@ -95,12 +95,12 @@ pub fn flatten_prefix_test() {
 #[wasm_bindgen_test]
 pub fn flatten_infix_test() {
     fn expect_pieces(flattened:&opr::Chain, target:&str, pieces:Vec<&str>) {
-        assert_eq!(&flattened.target.repr(),target);
+        assert_eq!(flattened.target.as_ref().map(|a| &a.arg).repr(),target);
 
         let piece_itr = pieces.iter();
         assert_eq!(flattened.args.len(), pieces.len());
         flattened.args.iter().zip(piece_itr).for_each(|(lhs,rhs)|{
-            assert_eq!(&lhs.operand.repr(),rhs);
+            assert_eq!(lhs.operand.as_ref().map(|a| &a.arg).repr(),*rhs);
         })
     }
 

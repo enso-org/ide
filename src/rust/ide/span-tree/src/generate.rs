@@ -1,227 +1,347 @@
 use crate::prelude::*;
 
+use crate::Type;
 use crate::Node;
-use crate::NodeType;
+use crate::tree;
 
-use ast::{Ast, HasLength};
+use ast::Ast;
+use ast::HasLength;
 use data::text::Size;
 use ast::assoc::Assoc;
+use ast::opr::GeneralizedInfix;
+use ast::crumbs::Located;
 
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-enum ChainingContext<'a> {
+// =============
+// === Trait ===
+// =============
+
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum ChainingContext<'a> {
     None, Prefix, Operator(&'a str),
 }
 
-pub trait SpanTreeGeneratorTemplate : Sized {
-    fn can_be_flatten   (&self, _chaining_ctx:&ChainingContext) -> bool               { false  }
-
-    fn generate_children
-    (&self, _gen:&mut ChildGenerator<Self>, _ctx:&ChainingContext) -> FallibleResult<()> {
-        Ok(())
-    }
-}
-
-
 pub trait SpanTreeGenerator {
-    fn generate_node
-    (&self, node_type:NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node;
-}
+    fn generate_node(&self, ctx:ChainingContext) -> FallibleResult<Node>;
 
-impl<T> SpanTreeGenerator for T
-where T : SpanTreeGeneratorTemplate + ast::crumbs::Crumbable + HasLength + CloneRef {
-    fn generate_node
-    (&self, node_type:NodeType, offset:Size, chaining_ctx:&ChainingContext) -> Node {
-        let len                 = Size::new(self.len());
-        let can_be_flatten      = self.can_be_flatten(chaining_ctx);
-        let mut child_generator = ChildGenerator::new(self.clone_ref());
-        self.generate_children(&mut child_generator,&chaining_ctx);
-        let children = child_generator.children;
-        Node {offset,len,node_type,children, chained_with_parent: can_be_flatten }
+    fn generate_tree(&self) -> FallibleResult<Node> {
+        self.generate_node(ChainingContext::None)
     }
 }
 
-#[derive(Debug)]
-struct ChildGenerator<A> {
-    ast            : A,
+
+// =================
+// === Utilities ===
+// =================
+
+// === Child Generator ===
+
+#[derive(Debug,Default)]
+struct ChildGenerator {
     current_offset : Size,
-    children       : Vec<Node>,
+    children       : Vec<tree::Child>,
 }
 
-impl<A> ChildGenerator<A> {
-    fn new(ast:A) -> Self {
-        let current_offset = default();
-        let children       = default();
-        Self {ast,current_offset,children}
-    }
-
+impl ChildGenerator {
     fn spacing(&mut self, size:usize) {
         self.current_offset += Size::new(size);
     }
-}
 
-impl<A:ast::crumbs::TraversableAst> ChildGenerator<A> {
-    fn generate
-    (&mut self, crumbs:ast::Crumbs, chaining_ctx:&ChainingContext) -> FallibleResult<&Node> {
-        let child_ast  = self.ast.get_traversing(&crumbs)?;
-        let child_type = NodeType::AstChild{crumbs_from_parent:crumbs};
-        let child      = child_ast.generate_node(child_type,self.current_offset,chaining_ctx);
-        self.current_offset += child.len;
+    fn generate_ast_node
+    (&mut self, child_ast:Located<Ast>, ctx:ChainingContext)
+    -> FallibleResult<&tree::Child> {
+        let child = tree::Child {
+            node                : child_ast.item.generate_node(ctx)?,
+            offset              : self.current_offset,
+            chained_with_parent : ast_can_be_chained_with_parent(&child_ast,ctx),
+            ast_crumbs          : child_ast.crumbs
+        };
+        self.current_offset += child.node.len;
         self.children.push(child);
         Ok(self.children.last().unwrap())
     }
 
-    fn generate_empty(&mut self) -> &Node {
-        self.children.push(Node::new_empty(self.current_offset));
+    fn generate_empty_node(&mut self) -> &tree::Child {
+        let child = tree::Child {
+            node                : Node::new_empty(),
+            offset              : self.current_offset,
+            chained_with_parent : false,
+            ast_crumbs          : vec![]
+        };
+        self.children.push(child);
         self.children.last().unwrap()
     }
 }
 
+
+
+/// =============================
+/// === Trait Implementations ===
+/// =============================
+
+
+// === AST ===
+
 impl SpanTreeGenerator for Ast {
-    fn generate_node
-    (&self, _node_type:NodeType, _offset:Size, _chaining_ctx:&ChainingContext) -> Node {
-        unimplemented!()
+    fn generate_node(&self, ctx:ChainingContext) -> FallibleResult<Node> {
+        use ast::known::*;
+
+        if let Some(infix) = GeneralizedInfix::try_new_root(self) {
+            infix.generate_node(ctx)
+        } else {
+            match self.shape() {
+                ast::Shape::Prefix {..} =>
+                    Prefix::try_new(self.clone_ref()).unwrap().generate_node(ctx),
+                _  => Ok(Node {
+                    len       : Size::new(self.len()),
+                    children  : default(),
+                    node_type : crate::Type::Ast,
+                }),
+            }
+        }
     }
 }
 
 
+// === Operators (Sections and Infixes) ===
 
-// =============================================
-// === Operator's AST (Infixes and Sections) ===
-// =============================================
+impl SpanTreeGenerator for GeneralizedInfix {
 
-impl SpanTreeGeneratorTemplate for ast::known::Infix {
-    fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
-        let opr      = ast::known::Opr::try_from(&self.opr).ok();
-        let opr_name = opr.as_ref().map(|opr| opr.name.as_str());
-        match chaining_ctx {
-            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
-            _                                                       => false,
-        }
-    }
+    fn generate_node(&self, ctx:ChainingContext) -> FallibleResult<Node> {
+        let have_empty = !infix_can_be_chained_with_parent(self,ctx);
+        let assoc      = self.assoc();
+        let target_ctx = ChainingContext::Operator(&self.opr.name);
 
-    fn generate_children
-    (&self, gen:&mut ChildGenerator<Self>, ctx:&ChainingContext) -> FallibleResult<()> {
-        let should_have_empty = !self.can_be_flatten(ctx);
-        let opr_name          = ast::known::Opr::try_from(&self.opr)?.name;
-        let assoc             = Assoc::of(opr_name.as_str());
-
-        let left_ctx = match assoc {
-            Assoc::Left  => ChainingContext::Operator(opr_name.as_str()),
-            Assoc::Right => ChainingContext::None,
-        };
-        let right_ctx = match assoc {
-            Assoc::Left  => ChainingContext::None,
-            Assoc::Right => ChainingContext::Operator(opr_name.as_str()),
+        let (left_empty,left_ctx,right_empty,right_ctx) = match assoc {
+            Assoc::Left  => (false     , target_ctx           , have_empty, ChainingContext::None),
+            Assoc::Right => (have_empty, ChainingContext::None, false     , target_ctx),
         };
 
-        if should_have_empty && assoc == ast::assoc::Assoc::Right {
-            gen.generate_empty();
+        let mut gen = ChildGenerator::default();
+        match &self.left {
+            Some(arg) => {
+                if left_empty {
+                    gen.generate_empty_node();
+                }
+                gen.generate_ast_node(arg.arg.clone(),left_ctx)?;
+                gen.spacing(arg.offset);
+            }
+            None => { gen.generate_empty_node(); },
         }
-        use ast::crumbs::InfixCrumb::*;
-        gen.generate(vec![LeftOperand.into()],&left_ctx)?;
-        gen.spacing(self.loff);
-        gen.generate(vec![Operator.into()],&ChainingContext::None)?;
-        gen.spacing(self.roff);
-        gen.generate(vec![RightOperand.into()],&right_ctx)?;
-        if should_have_empty && assoc == ast::assoc::Assoc::Left {
-            gen.generate_empty();
+        gen.generate_ast_node(self.opr.clone().map(|opr| opr.ast().clone_ref()),ChainingContext::None)?;
+        match &self.right {
+            Some(arg) => {
+                gen.spacing(arg.offset);
+                gen.generate_ast_node(arg.arg.clone(),right_ctx)?;
+                if right_empty {
+                    gen.generate_empty_node();
+                }
+            }
+            None => { gen.generate_empty_node(); },
         }
-        Ok(())
+        Ok(Node {
+            node_type : Type::Ast,
+            len       : gen.current_offset,
+            children  : gen.children,
+        })
     }
 }
 
-impl SpanTreeGeneratorTemplate for ast::known::SectionLeft {
-    fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
-        let opr      = ast::known::Opr::try_from(&self.opr).ok();
-        let opr_name = opr.map(|opr| opr.name.as_str());
-        match chaining_ctx {
-            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
-            _                                                       => false,
-        }
-    }
 
-    fn generate_children
-    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
-        let opr_name = ast::known::Opr::try_from(&self.opr)?.name.as_str();
-        let assoc    = Assoc::of(opr_name);
-        let arg_ctx  = match assoc {
-            Assoc::Left  => ChainingContext::Operator(opr_name),
-            Assoc::Right => ChainingContext::None
-        };
-        use ast::crumbs::SectionLeftCrumb::*;
-        gen.generate(vec![Arg.into()],&arg_ctx)?;
-        gen.spacing(self.off);
-        gen.generate(vec![Opr.into()],&ChainingContext::None)?;
-        gen.generate_empty();
-        Ok(())
-    }
-}
 
-impl SpanTreeGeneratorTemplate for ast::known::SectionRight {
-    fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
-        let opr      = ast::known::Opr::try_from(&self.opr).ok();
-        let opr_name = opr.map(|opr| opr.name.as_str());
-        match chaining_ctx {
-            ChainingContext::Operator(opr) if opr_name == Some(opr) => true,
-            _                                                       => false,
-        }
-    }
-
-    fn generate_children
-    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
-        let opr_name = ast::known::Opr::try_from(&self.opr)?.name.as_str();
-        let assoc    = Assoc::of(opr_name);
-        let arg_ctx  = match assoc {
-            Assoc::Right => ChainingContext::Operator(opr_name),
-            Assoc::Left  => ChainingContext::None
-        };
-        use ast::crumbs::SectionLeftCrumb::*;
-        gen.generate_empty();
-        gen.generate(vec![Opr.into()],&ChainingContext::None)?;
-        gen.spacing(self.off);
-        gen.generate(vec![Arg.into()],&arg_ctx)?;
-        Ok(())
-    }
-}
-
-impl SpanTreeGeneratorTemplate for ast::known::SectionSides {
-    fn generate_children
-    (&self, gen:&mut ChildGenerator<Self>, _:&ChainingContext) -> FallibleResult<()> {
-        gen.generate_empty();
-        gen.generate(vec![ast::crumbs::SectionSidesCrumb.into()],&ChainingContext::None)?;
-        gen.generate_empty();
-        Ok(())
-    }
-}
-
-// ===================
 // === Application ===
-// ===================
 
-impl SpanTreeGeneratorTemplate for ast::known::Prefix {
-    fn can_be_flatten(&self, chaining_ctx:&ChainingContext) -> bool {
-        match chaining_ctx {
-            ChainingContext::Prefix => true,
+impl SpanTreeGenerator for ast::known::Prefix {
+
+    fn generate_node(&self, ctx: ChainingContext) -> FallibleResult<Node> {
+        let should_have_empty = !prefix_can_be_chained_with_parent(ctx);
+
+        use ast::crumbs::PrefixCrumb::*;
+        let mut gen = ChildGenerator::default();
+        gen.generate_ast_node(Located::new(vec![Func],self.func.clone_ref()),ChainingContext::Prefix)?;
+        gen.spacing(self.off);
+        gen.generate_ast_node(Located::new(vec![Arg],self.arg.clone_ref()),ChainingContext::None)?;
+        if should_have_empty {
+            gen.generate_empty_node();
+        }
+        Ok(Node {
+            node_type: Type::Ast,
+            len: Size::new(self.len()),
+            children: gen.children,
+        })
+    }
+}
+
+
+
+// ===========================
+// === Chaining Conditions ===
+// ===========================
+
+fn ast_can_be_chained_with_parent(ast:&Ast, ctx:ChainingContext) -> bool {
+    if let Some(infix) = GeneralizedInfix::try_new(&Located::new_root(ast.clone_ref())) {
+        infix_can_be_chained_with_parent(&infix,ctx)
+    } else {
+        match ast.shape() {
+            ast::Shape::Prefix {..} => prefix_can_be_chained_with_parent(ctx),
             _                       => false,
         }
     }
+}
 
-    fn generate_children
-    (&self, gen:&mut ChildGenerator<Self>, ctx:&ChainingContext) -> FallibleResult<()> {
-        let should_have_empty = !self.can_be_flatten(ctx);
-        use ast::crumbs::PrefixCrumb::*;
-        gen.generate(vec![Func.into()],&ChainingContext::Prefix)?;
-        gen.spacing(self.off);
-        gen.generate(vec![Arg.into()],&ChainingContext::None)?;
-        if should_have_empty {
-            gen.generate_empty();
-        }
-        Ok(())
+fn infix_can_be_chained_with_parent(infix:&GeneralizedInfix, ctx:ChainingContext) -> bool {
+    match ctx {
+        ChainingContext::Operator(name) if infix.opr.item.name == *name => true,
+        _                                                               => false,
     }
 }
 
-// ===========
-// == Other ==
-// ===========
+fn prefix_can_be_chained_with_parent(ctx:ChainingContext) -> bool {
+    match ctx {
+        ChainingContext::Prefix => true,
+        _                       => false,
+    }
+}
 
+
+// ============
+// === Test ===
+// ============
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use parser::Parser;
+    use crate::builder::{RootBuilder, Builder};
+    use ast::crumbs::{InfixCrumb, PrefixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
+
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree() {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse_line("2 + foo bar - 3").unwrap();
+        let tree   = ast.generate_tree().unwrap();
+
+        let expected = RootBuilder::new(15)
+            .add_ast_child(0,11,vec![InfixCrumb::LeftOperand])
+                .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
+                .add_ast_leaf(2,1,vec![InfixCrumb::Operator])
+                .add_ast_child(4,7,vec![InfixCrumb::RightOperand])
+                    .add_ast_leaf(0,3,vec![PrefixCrumb::Func])
+                    .add_ast_leaf(4,3,vec![PrefixCrumb::Arg])
+                    .add_empty_child(7)
+                    .done()
+                .add_empty_child(11)
+                .done()
+            .add_ast_leaf(12,1,vec![InfixCrumb::Operator])
+            .add_ast_leaf(14,1,vec![InfixCrumb::RightOperand])
+            .add_empty_child(15)
+            .build();
+
+        assert_eq!(expected,tree)
+    }
+
+    #[wasm_bindgen_test]
+    fn generate_span_tree_with_chains() {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse_line("2 + 3 + foo bar baz + 5").unwrap();
+        let tree   = ast.generate_tree().unwrap();
+
+        let expected = RootBuilder::new(23)
+            .add_ast_child(0,19,vec![InfixCrumb::LeftOperand])
+                .chain_with_parent()
+                .add_ast_child(0,5,vec![InfixCrumb::LeftOperand])
+                    .chain_with_parent()
+                    .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
+                    .add_ast_leaf(2,1,vec![InfixCrumb::Operator])
+                    .add_ast_leaf(4,1,vec![InfixCrumb::RightOperand])
+                    .done()
+                .add_ast_leaf(6,1,vec![InfixCrumb::Operator])
+                .add_ast_child(8,11,vec![InfixCrumb::RightOperand])
+                    .add_ast_child(0,7,vec![PrefixCrumb::Func])
+                        .chain_with_parent()
+                        .add_ast_leaf(0,3,vec![PrefixCrumb::Func])
+                        .add_ast_leaf(4,3,vec![PrefixCrumb::Arg])
+                        .done()
+                    .add_ast_leaf(8,3,vec![PrefixCrumb::Arg])
+                    .add_empty_child(11)
+                    .done()
+                .done()
+            .add_ast_leaf(20,1,vec![InfixCrumb::Operator])
+            .add_ast_leaf(22,1,vec![InfixCrumb::RightOperand])
+            .add_empty_child(23)
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_from_right_assoc_operator() {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse_line("1,2,3").unwrap();
+        let tree   = ast.generate_tree().unwrap();
+
+        let expected = RootBuilder::new(5)
+            .add_empty_child(0)
+            .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
+            .add_ast_leaf(1,1,vec![InfixCrumb::Operator])
+            .add_ast_child(2,3,vec![InfixCrumb::RightOperand])
+                .chain_with_parent()
+                .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
+                .add_ast_leaf(1,1,vec![InfixCrumb::Operator])
+                .add_ast_leaf(2,1,vec![InfixCrumb::RightOperand])
+                .done()
+            .build();
+
+        assert_eq!(expected,tree)
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_from_section() {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse_line("+ * + 2 +").unwrap();
+        let tree   = ast.generate_tree().unwrap();
+
+        let expected = RootBuilder::new(9)
+            .add_ast_child(0,7,vec![SectionLeftCrumb::Arg])
+                .chain_with_parent()
+                .add_ast_child(0,3,vec![InfixCrumb::LeftOperand])
+                    .chain_with_parent()
+                    .add_empty_child(0)
+                    .add_ast_leaf(0,1,vec![SectionRightCrumb::Opr])
+                    .add_ast_child(2,1,vec![SectionRightCrumb::Arg])
+                        .add_empty_child(0)
+                        .add_ast_leaf(0,1,vec![SectionSidesCrumb])
+                        .add_empty_child(1)
+                        .done()
+                    .done()
+                .add_ast_leaf(4,1,vec![InfixCrumb::Operator])
+                .add_ast_leaf(6,1,vec![InfixCrumb::RightOperand])
+                .done()
+            .add_ast_leaf(8,1,vec![SectionLeftCrumb::Opr])
+            .add_empty_child(9)
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_from_right_assoc_section() {
+        let parser = Parser::new_or_panic();
+        let ast    = parser.parse_line(",2").unwrap();
+        let tree   = ast.generate_tree().unwrap();
+
+        let expected = RootBuilder::new(2)
+            .add_empty_child(0)
+            .add_ast_leaf(0,1,vec![SectionRightCrumb::Opr])
+            .add_ast_leaf(1,1,vec![SectionRightCrumb::Arg])
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+}

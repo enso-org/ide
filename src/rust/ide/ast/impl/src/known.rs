@@ -142,6 +142,11 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
     }
 }
 
+impl<T:HasLength> HasLength for KnownAst<T> {
+    fn len(&self) -> usize {
+        self.ast.len()
+    }
+}
 
 
 // ===============
