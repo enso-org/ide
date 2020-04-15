@@ -3,8 +3,10 @@
 
 use crate::prelude::*;
 
-use crate::{known, HasTokens, TokenConsumer};
+use crate::known;
+use crate::HasTokens;
 use crate::Shape;
+use crate::TokenConsumer;
 
 use utils::fail::FallibleResult;
 

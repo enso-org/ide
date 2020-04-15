@@ -3,11 +3,11 @@
 use crate::prelude::*;
 
 use crate::Ast;
-use crate::assoc::Assoc;
-use crate::known;
 use crate::Shape;
+use crate::assoc::Assoc;
 use crate::crumbs::Crumb;
 use crate::crumbs::Located;
+use crate::known;
 
 /// Identifiers of operators with special meaning for IDE.
 pub mod predefined {
