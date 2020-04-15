@@ -282,18 +282,11 @@ pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape>;
 /// let input_port  = InputPort::default();
 /// let output_port = OutputPort::default();
 /// ```
-#[derive(Debug,CloneRef)]
+#[derive(Debug,CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 pub struct Port<T:PortShapeViewDefinition> {
     pub data : Rc<PortData<T>>
-}
-
-// Manually implement this due to https://github.com/rust-lang/rust/issues/26925
-impl<T:PortShapeViewDefinition> Clone for Port<T>{
-    fn clone(&self) -> Self {
-        let data = Rc::clone(&self.data);
-        Self {data}
-    }
 }
 
 /// Type that represents an input port.
