@@ -14,7 +14,7 @@
 /// A simple counter network which prints the current count on every number and prints "hello world"
 /// on creation is presented below.
 ///
-/// ```
+/// ```compile_fail
 /// frp::new_network! { network1
 ///     def source = source();
 ///     def count  = source.count();
