@@ -226,11 +226,11 @@ mod test {
             let uuid1        = Uuid::new_v4();
             let uuid2        = Uuid::new_v4();
             let uuid3        = Uuid::new_v4();
-            let module       = "main =\n    2+2";
+            let module       = "2+2";
             let id_map       = ast::IdMap::new(vec!
-                [ (Span::new(Index::new(7),Size::new(1)),uuid1.clone())
-                , (Span::new(Index::new(9),Size::new(1)),uuid2)
-                , (Span::new(Index::new(7),Size::new(3)),uuid3)
+                [ (Span::new(Index::new(0),Size::new(1)),uuid1.clone())
+                , (Span::new(Index::new(2),Size::new(1)),uuid2)
+                , (Span::new(Index::new(0),Size::new(3)),uuid3)
                 ]);
 
             let controller   = Handle::new_mock
@@ -240,7 +240,7 @@ mod test {
             let mut graph_notifications = controller.model.subscribe_graph_notifications();
 
             // Change code from "2+2" to "22+2"
-            let change = TextChange::insert(Index::new(8),"2".to_string());
+            let change = TextChange::insert(Index::new(1),"2".to_string());
             controller.apply_code_change(&change).unwrap();
             let expected_ast = Ast::new(ast::Module {
                 lines: vec![BlockLine {
