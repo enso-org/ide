@@ -227,7 +227,7 @@ mod shape {
 // === Port ===
 // ============
 
-/// Initialise the shape with sensible defaults..
+/// Initialise the shape with sensible defaults.
 fn init_shape(shape:&shape::Shape, direction:Direction){
     let spec  = Specification::default();
     shape.update_from_spec(&spec);
@@ -249,7 +249,6 @@ impl ShapeViewDefinition for InputPortView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
         init_shape(shape, Direction::In);
-
         Self {}
     }
 }
@@ -425,11 +424,12 @@ pub struct PortBuffer<T:PortShapeViewDefinition> {
 
 /// Helper type that represents a `PortBuffer` for `InputPorts`.
 type InputPortBuffer = PortBuffer<InputPortView>;
+
 /// Helper type that represents a `PortBuffer` for `OutputPorts`.
 type OutputPortBuffer = PortBuffer<OutputPortView>;
 
 impl<T:PortShapeViewDefinition> PortBuffer<T> {
-    /// create a new port in this buffer and sets it as a child node of the given parent.
+    /// Create a new port in this buffer and sets it as a child node of the given parent.
     pub fn create(&self, parent:&Node) -> Port<T> {
         let port = Port::default();
         parent.add_child(&port.data.view.display_object);
