@@ -17,15 +17,11 @@ pub trait VecExt<T> : AsMut<Vec<T>> {
         self.try_remove(0)
     }
 
-    /// Removes the last `n` elements from the vector.
-    ///
-    /// Returns Some if elements were succesfully removed.
-    /// Returns None and leaves self intact, if there were not enough elements.
-    fn remove_last_n(&mut self, n:usize) -> Option<()> {
+    /// Removes the last `n` elements from the vector. Returns true if the elements were removed.
+    fn remove_last_n(&mut self, n:usize) -> bool {
         let vec      = self.as_mut();
-        let new_size = vec.len().checked_sub(n)?;
-        vec.truncate(new_size);
-        Some(())
+        let new_size = vec.len().checked_sub(n);
+        new_size.map(|new_size| vec.truncate(new_size)).is_some()
     }
 }
 
