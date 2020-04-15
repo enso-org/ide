@@ -35,7 +35,7 @@ fn init(app:&App) {
     app.views.register::<GraphEditor>();
     let graph_editor = app.views.new::<GraphEditor>();
     world.add_child(&graph_editor);
-    
+
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {

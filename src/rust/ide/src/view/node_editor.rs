@@ -1,5 +1,3 @@
-#![allow(missing_docs)] // FIXME
-
 use crate::prelude::*;
 
 use crate::notification;
@@ -16,33 +14,43 @@ use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 
 
 
-// ===================
-// === Node Editor ===
-// ===================
+// ==============================
+// === GraphEditorIntegration ===
+// ==============================
 
+/// A structure integration controller and view. All changes made by user in view are reflected
+/// in controller, and all controller notifications update view accordingly.
 #[derive(Debug)]
-struct GraphEditorIntegration {
+pub struct GraphEditorIntegration {
+    /// A graph editor view.
     pub editor     : GraphEditor,
+    /// A controller handle.
     pub controller : controller::Graph,
-    id_to_node     : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
-    node_to_id     : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
-    pub logger     : Logger,
+    /// Logger. This structure logs all errors which may occur during update view or controller
+    /// state.
+    pub logger : Logger,
+    id_to_node : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
+    node_to_id : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
 
 }
 
 impl GraphEditorIntegration {
-    fn retain_ids(&self, ids:&HashSet<ast::Id>) {
-        for (id,node) in self.id_to_node.borrow().iter() {
-            if !ids.contains(id) {
-                self.editor.remove_node(node.downgrade())
-            }
-        }
+    /// Constructor. It creates GraphEditor panel and connect it with given controller handle.
+    pub fn new(logger:Logger, app:&App, controller:controller::Graph) -> Rc<Self> {
+        let editor     = app.new_module_instance::<graph_editor::GraphEditor>();
+        let id_to_node = default();
+        let node_to_id = default();
+        let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});
+        Self::setup_controller_event_handling(&this);
+        Self::setup_keyboard_event_handling(&this);
+        Self::setup_mouse_event_handling(&this);
+        this
     }
 
-    fn invalidate_graph(&self) -> FallibleResult<()> {
+    /// Reloads whole displayed content to be up to date with module state.
+    pub fn invalidate_graph(&self) -> FallibleResult<()> {
         let nodes = self.controller.nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
-        Logger::new("DEBUG").error(|| format!("INVALIDATE {:?}", ids));
         self.retain_ids(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
@@ -61,25 +69,6 @@ impl GraphEditorIntegration {
             }
         }
         Ok(())
-    }
-
-    fn pos_to_vec3(pos:model::module::Position) -> Vector3<f32> {
-        Vector3::new(pos.vector.x,pos.vector.y,0.0)
-    }
-}
-
-impl GraphEditorIntegration {
-
-    fn new(app:&App, controller:controller::Graph) -> Rc<Self> {
-        let editor     = app.views.new::<GraphEditor>();
-        let id_to_node = default();
-        let node_to_id = default();
-        let logger     = Logger::new("Node Editor");
-        let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});
-        Self::setup_controller_event_handling(&this);
-        Self::setup_keyboard_event_handling(&this);
-        Self::setup_mouse_event_handling(&this);
-        this
     }
 
     fn setup_controller_event_handling(this:&Rc<Self>) {
@@ -134,8 +123,29 @@ impl GraphEditorIntegration {
             }
         });
     }
+
+    /// Retain only given ids in displayed graph.
+    fn retain_ids(&self, ids:&HashSet<ast::Id>) {
+        for (id,node) in self.id_to_node.borrow().iter() {
+            if !ids.contains(id) {
+                self.editor.remove_node(node.downgrade())
+            }
+        }
+    }
+
+    fn pos_to_vec3(pos:model::module::Position) -> Vector3<f32> {
+        Vector3::new(pos.vector.x,pos.vector.y,0.0)
+    }
 }
 
+
+
+// ==================
+// === NodeEditor ===
+// ==================
+
+
+/// Node Editor Panel integrated with Graph Controller.
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
     display_object : display::object::Instance,
@@ -144,8 +154,10 @@ pub struct NodeEditor {
 }
 
 impl NodeEditor {
-    pub fn new(_logger:&Logger, app:&App, controller:controller::graph::Handle) -> Self {
-        let graph          = GraphEditorIntegration::new(app,controller.clone_ref());
+    /// Create Node Editor Panel.
+    pub fn new(logger:&Logger, app:&App, controller:controller::graph::Handle) -> Self {
+        let logger         = logger.sub("NodeEditor");
+        let graph          = GraphEditorIntegration::new(logger,app,controller.clone_ref());
         let display_object = display::object::Instance::new(&graph.logger);
         display_object.add_child(&graph.editor);
         NodeEditor {display_object,graph,controller}
