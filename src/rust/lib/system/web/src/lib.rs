@@ -494,17 +494,18 @@ pub mod traits {
 pub async fn sleep(duration:Duration) {
     use wasm_bindgen_futures::JsFuture;
 
-    let performance = performance();
-    let call_time   = performance.now();
+    let performance       = performance();
+    let call_milliseconds = performance.now();
     let future : JsFuture = js_sys::Promise::new(&mut |resolve:Function,_| {
-        let time_elapsed_from_call = ((performance.now() - call_time) * 1000.0) as i32;
+        let milliseconds_from_call = ((performance.now() - call_milliseconds) * 1000.0) as i32;
         let duration               = duration.as_millis() as i32;
-        let duration               = (duration - time_elapsed_from_call).max(0);
+        let duration               = (duration - milliseconds_from_call).max(0);
         let window                 = window();
-        let err                    = "setTimeout failed";
+        let err                    = "Calling setTimeout failed.";
         window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve,duration).expect(err);
     }).into();
-    future.await.expect("setTimeout future failed");
+    // We don't expect any error coming from this Promise.
+    future.await.expect("setTimeout's future failed.");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
