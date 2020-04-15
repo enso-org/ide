@@ -1,15 +1,18 @@
-# Contributing Guide
+# Development & Contributing Guide
 Thank you for your interest in contributing to the Enso IDE! We believe that only through community
 involvement can Enso be the best it can be! There are a whole host of ways to contribute, and every
 single one is appreciated.
 
+<br/>
+
 ## Reporting Issues
-While it's never great to find a bug, they are a reality of software and software development! We
-can't fix or improve on the things that we don't know about, so report as many bugs as you can! If
-you're not sure whether something is a bug, file it anyway!
 
 **If you are concerned that your bug publicly presents a security risk to the users of Enso, please
 contact [security@enso.org](mailto:security@enso.org).**
+
+While it's never great to find a bug, they are a reality of software and software development! We
+can't fix or improve on the things that we don't know about, so report as many bugs as you can! If
+you're not sure whether something is a bug, file it anyway!
 
 Even though GitHub search can be a bit hard to use sometimes, we'd appreciate if you could
 [search](https://github.com/luna/enso/search?q=&type=Issues&utf8=%E2%9C%93) for your issue before
@@ -25,6 +28,8 @@ The reproduction steps are particularly important, as the more easily we can rep
 faster we can fix the bug! It's also helpful to have the version of the IDE, as that will let us
 know if the bug is Operating System or Architecture specific.
 
+<br/>
+
 ## Development Environment
 The project builds on MacOS, Windows, and Linux. Cross-platform targets work well on all of these
 platforms, however, MacOS package will miss the right application icon if built on Linux or Windows
@@ -39,6 +44,7 @@ need the following setup:
   rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
   rustup override set nightly-2019-11-04      # Set it as the default toolchain for this folder.
   rustup component add clippy                 # Install the linter.
+  cargo install wasm-pack --version 0.8.1     # Install the wasm-pack toolkit.
   cargo install cargo-watch                   # To enable ./run watch utility
   ```
 
@@ -52,8 +58,6 @@ need the following setup:
   `nvm install --lts && nvm use --lts`.
 
 <br/>
-<br/>
-<br/>
 
 ## Working with sources
 Please note that you should not use a code auto-formatter in this codebase. Please read the
@@ -63,7 +67,6 @@ guide. Be sure to carefully read the
 and the [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md)
 before contributing to the codebase.
 
-<br/>
 
 ### Development
 As this is a multi-part project with many complex dependencies, it is equipped with a build script
@@ -90,8 +93,6 @@ however, this doc will use the former form in order to stay cross-platform compa
   minimize the output binaries, etc.), run `node ./run build`. To create platform-specific packages
   and installers use `node ./run dist` instead. The final packages will be located at
   `app/dist/native`.
-
-<br/>
 
 ### Testing, Linting, and Validation
 After changing the code it's always a good idea to lint and test the code. We have prepared several
