@@ -1,4 +1,4 @@
-//! Application top-level structure definition. Handles views, keyboard shortcuts and others.
+//! Application top-level structure definition. Handles views, keyboard shortcuts and more.
 
 pub mod command;
 pub mod shortcut;

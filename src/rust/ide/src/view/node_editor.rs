@@ -1,3 +1,5 @@
+//! View of the node editor.
+
 use crate::prelude::*;
 
 use crate::notification;
@@ -21,23 +23,20 @@ use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 /// A structure integration controller and view. All changes made by user in view are reflected
 /// in controller, and all controller notifications update view accordingly.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct GraphEditorIntegration {
-    /// A graph editor view.
+    pub logger     : Logger,
     pub editor     : GraphEditor,
-    /// A controller handle.
     pub controller : controller::Graph,
-    /// Logger. This structure logs all errors which may occur during update view or controller
-    /// state.
-    pub logger : Logger,
-    id_to_node : RefCell<WeakValueHashMap<ast::Id, WeakNode>>,
-    node_to_id : RefCell<WeakKeyHashMap<WeakNode, ast::Id>>,
+    id_to_node     : RefCell<WeakValueHashMap<ast::Id,WeakNode>>,
+    node_to_id     : RefCell<WeakKeyHashMap<WeakNode,ast::Id>>,
 
 }
 
 impl GraphEditorIntegration {
     /// Constructor. It creates GraphEditor panel and connect it with given controller handle.
     pub fn new(logger:Logger, app:&App, controller:controller::Graph) -> Rc<Self> {
-        let editor     = app.new_module_instance::<graph_editor::GraphEditor>();
+        let editor     = app.views.new::<GraphEditor>();
         let id_to_node = default();
         let node_to_id = default();
         let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});

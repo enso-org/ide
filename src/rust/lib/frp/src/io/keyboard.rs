@@ -110,7 +110,7 @@ impl KeyMaskChange {
 
     /// Returns copy of given KeyMask with applied change
     fn updated_mask(&self, mask:&KeyMask) -> KeyMask {
-        let mut mask = mask.clone();
+        let mut mask = *mask;
         match self {
             Self::Set   (ref key) => mask.set(key,true),
             Self::Unset (ref key) => mask.set(key,false),
@@ -212,7 +212,7 @@ impl Actions {
 
     /// Set action binding for given key mask.
     pub fn add_action_for_key_mask<F:Action>(&self, key_mask:KeyMask, action:F) -> callback::Handle {
-        self.action_map.borrow_mut().entry(key_mask).or_insert(default()).add(action)
+        self.action_map.borrow_mut().entry(key_mask).or_insert_with(default).add(action)
     }
 
     /// Set action binding for given set of keys.

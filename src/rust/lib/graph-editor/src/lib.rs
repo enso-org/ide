@@ -52,23 +52,6 @@ use nalgebra::Vector2;
 
 
 
-macro_rules! f {
-    (($($name:ident),*) ($($args:tt)*) $($expr:tt)*) => {
-        {
-            $(let $name = $name.clone_ref();)*
-            move |$($args)*| $($expr)*
-        }
-    };
-}
-
-macro_rules! f_ {
-    (($($name:ident),*) $($expr:tt)*) => {
-        f! { ($($name),*) (_) $($expr)*  }
-    };
-}
-
-
-
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
@@ -315,6 +298,7 @@ impl<T:frp::Data> TouchNetwork<T> {
         Self {down,up,is_down,selected}
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn check(end:&Position, start:&Position, diff:&f32) -> bool {
         (end-start).length() <= diff * 2.0
     }
@@ -340,8 +324,7 @@ impl GraphEditor {
     pub fn add_node(&self) -> WeakNode {
         let node = Node::new();
         self.frp.inputs.register_node(&node);
-        let weak_node = node.downgrade();
-        weak_node
+        node.downgrade()
     }
 
     pub fn remove_node(&self, node:WeakNode) {

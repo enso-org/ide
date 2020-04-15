@@ -213,9 +213,9 @@ impl Registry {
         if !was_registered {
             self.register::<T>();
             warning!(&self.logger,
-                "The command provider '{label}' was created but never registered. You should always \
-                register available command providers as soon as possible to spread the information \
-                about their API.");
+                "The command provider '{label}' was created but never registered. You should \
+                always register available command providers as soon as possible to spread the \
+                information about their API.");
         };
         self.instances.borrow_mut().get_mut(label).unwrap().push(instance);
     }

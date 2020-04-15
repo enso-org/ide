@@ -3,6 +3,7 @@
 //! Please note that the documentation is provided for methods of `Network`, as this is considered
 //! to be the public API. The same documentation applies to node definitions below.
 #![allow(missing_docs)]
+#![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
 
@@ -146,7 +147,7 @@ impl Network {
     /// Specialized version of `zip`.
     pub fn zip4<T1,T2,T3,T4>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4)
-     -> Stream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>)>
+    -> Stream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>)>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
         self.register(OwnedZip4::new(label,t1,t2,t3,t4))
     }

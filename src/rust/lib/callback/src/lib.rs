@@ -144,6 +144,7 @@ impl Registry {
 /// as well.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone,Debug,Default)]
+#[allow(clippy::type_complexity)]
 pub struct SharedRegistryMut {
     #[derivative(Debug="ignore")]
     callback_list: Rc<RefCell<Vec<(Guard,Rc<RefCell<dyn CallbackMutFn>>)>>>

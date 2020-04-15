@@ -25,7 +25,7 @@ impl Position {
     }
 
     /// Length of a vector from the origin to a point of the position.
-    pub fn length(&self) -> f32 {
+    pub fn length(self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
 }

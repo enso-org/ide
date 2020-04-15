@@ -76,6 +76,7 @@ impl Registry {
     }
 
     /// New view constructor.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new<V:View>(&self) -> V {
         let label          = V::label();
         let was_registered = self.definitions.borrow().get(label).is_some();
