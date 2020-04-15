@@ -151,15 +151,13 @@ shared! { TextField
         /// Scroll text by given offset in pixels.
         pub fn scroll(&mut self, offset:Vector2<f32>) {
             let scroll_position = self.scroll_position();
-            let offset_y        = offset.y.min(scroll_position.y);
             let padding_lines   = 2;
             let lines           = self.content.lines().len() + padding_lines;
             let text_height     = self.content.line_height * lines as f32;
             let view_height     = self.size().y;
             let height          = (text_height - view_height).max(0.0);
-            let offset_y        = offset_y.max(scroll_position.y - height);
+            let offset_y        = offset.y.min(scroll_position.y).max(scroll_position.y - height);
             let offset          = Vector2::new(offset.x, offset_y);
-
             if offset.x != 0.0 || offset.y != 0.0 {
                 let position_change = -Vector3::new(offset.x,offset.y,0.0);
                 self.rendered.display_object.mod_position(|pos| *pos += position_change);
