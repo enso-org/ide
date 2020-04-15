@@ -81,6 +81,7 @@ pub struct IdentifierUsage {
 pub enum OccurrenceKind { Used, Introduced }
 
 /// If the current context in the AST processor is a pattern context.
+// TODO [mwu] Refer to the specification once it is merged.
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Display,PartialEq)]
 pub enum Context { NonPattern, Pattern }
