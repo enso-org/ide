@@ -3,19 +3,20 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::ScopeKind;
 use crate::double_representation::node::NodeInfo;
 
-use std::borrow::Borrow;
-use ast::crumbs::{InfixCrumb, Located};
 use ast::crumbs::Crumb;
+use ast::crumbs::InfixCrumb;
+use ast::crumbs::Located;
+use std::borrow::Borrow;
 
 #[cfg(test)]
 pub mod test_utils;
 
-/// Identifier with its ast crumb location (relative to the node's ast).
-pub type LocatedIdentifier = Located<NormalizedName>;
-
-trait IsCrumbs = IntoIterator<Item=Crumb>;
+/// Case-insensitive identifier with its ast crumb location (relative to the node's ast).
+pub type LocatedName = Located<NormalizedName>;
 
 
 
@@ -60,9 +61,9 @@ impl PartialEq<Ast> for NormalizedName {
 #[derive(Clone,Debug,Default)]
 pub struct IdentifierUsage {
     /// Identifiers from the graph's scope that node is using.
-    pub introduced : Vec<LocatedIdentifier>,
+    pub introduced : Vec<LocatedName>,
     /// Identifiers that node introduces into the parent scope.
-    pub used       : Vec<LocatedIdentifier>,
+    pub used       : Vec<LocatedName>,
 }
 
 
@@ -91,7 +92,7 @@ pub struct Scope {
 impl Scope {
     /// Iterates over identifiers that are used in this scope but are not introduced in this scope
     /// i.e. the identifiers that parent scope must provide.
-    pub fn used_from_parent(self) -> impl Iterator<Item=LocatedIdentifier> {
+    pub fn used_from_parent(self) -> impl Iterator<Item=LocatedName> {
         let available = self.symbols.introduced.into_iter().map(|located_name| located_name.item);
         let available : HashSet<NormalizedName> = HashSet::from_iter(available);
         let all_used  = self.symbols.used.into_iter();
@@ -104,18 +105,6 @@ impl Scope {
     fn coalesce_child(&mut self, child:Scope) {
         let symbols_to_use = child.used_from_parent();
         self.symbols.used.extend(symbols_to_use);
-    }
-}
-
-/// Replaces macro matches on `->` operator with its resolved Ast.
-fn pretend_that_lambda_is_not_a_macro_at_all(ast:&Ast) -> Option<Ast> {
-    let match_ast = ast::known::Match::try_from(ast.clone()).ok()?;
-    let segment   = &match_ast.segs.head;
-    if ast::opr::is_arrow_opr(&segment.head) {
-        println!("Got lambda, replacing with {}!", match_ast.resolved.repr());
-        Some(match_ast.resolved.clone())
-    } else {
-        None
     }
 }
 
@@ -169,7 +158,7 @@ impl AliasAnalyzer {
 
     /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
     fn in_location<Cs,F,R>(&mut self, crumbs:Cs, f:F) -> R
-    where Cs : IsCrumbs,
+    where Cs : IntoIterator<Item=Crumb>,
            F : FnOnce(&mut Self) -> R {
         self.with_items_added(|this| &mut this.location, crumbs, f)
     }
@@ -191,7 +180,7 @@ impl AliasAnalyzer {
 
     /// Records identifier occurrence in the current scope.
     fn record_identifier(&mut self, kind: OccurrenceKind, identifier:NormalizedName) {
-        let identifier  = LocatedIdentifier::new(self.location.clone(), identifier);
+        let identifier  = LocatedName::new(self.location.clone(), identifier);
         let scope_index = self.shadowing_scopes.len();
         let symbols     = &mut self.current_scope_mut().symbols;
         let target      = match kind {
@@ -242,19 +231,23 @@ impl AliasAnalyzer {
     ///
     /// This is the primary function that is recursively being called as the AST is being traversed.
     pub fn process_ast(&mut self, ast:&Ast) {
-        let ast = pretend_that_lambda_is_not_a_macro_at_all(ast).unwrap_or(ast.clone());
-        println!("Processing `{}` in context {}",ast.repr(),self.current_context());
-        if let Some(assignment) = ast::opr::to_assignment(&ast) {
+        if let Some(definition) = DefinitionInfo::from_line_ast(&ast,ScopeKind::NonRoot,default()) {
+            // If AST looks like definition, we disregard its arguments and body, as they cannot
+            // form connections in the analyzed graph. However, we need to record the name, because
+            // it may shadow identifier from parent scope.
+            let name = NormalizedName::new(definition.name.name);
+            self.record_identifier(OccurrenceKind::Introduced,name);
+        } else if let Some(assignment) = ast::opr::to_assignment(ast) {
             self.process_assignment(&assignment);
-        } else if let Some(lambda) = ast::opr::to_arrow(&ast) {
+        } else if let Some(lambda) = ast::opr::to_arrow(ast) {
             self.process_lambda(&lambda);
         } else if self.is_in_pattern() {
             // We are in the pattern (be it a lambda's or assignment's left side). Three options:
-            // 1) This is a destructuring pattern match with prefix syntax, like `Point x y`.
-            // 3) As above but with operator and infix syntax, like `head,tail`.
-            // 2) This is a nullary symbol binding, like `foo`.
+            // 1) This is a destructuring pattern match using infix syntax, like `head,tail`.
+            // 2) This is a destructuring pattern match with prefix syntax, like `Point x y`.
+            // 3) This is a single AST node, like `foo` or `Foo`.
             // (the possibility of definition has been already excluded)
-            if let Some(infix_chain) = ast::opr::Chain::try_new(&ast) {
+            if let Some(infix_chain) = ast::opr::Chain::try_new(ast) {
                 // Infix always acts as pattern-match in left-side.
                 for operand in infix_chain.enumerate_operands() {
                     self.process_located_ast(operand)
@@ -263,32 +256,34 @@ impl AliasAnalyzer {
                     // Operators in infix positions are treated as constructors, i.e. they are used.
                     self.store_if_name(OccurrenceKind::Used, operator);
                 }
-            } else if let Some(prefix_chain) = ast::prefix::Chain::try_new(&ast) {
+            } else if let Some(prefix_chain) = ast::prefix::Chain::try_new(ast) {
                 // Arguments introduce names, we ignore function name.
                 // Arguments will just introduce names in pattern context.
                 for argument in prefix_chain.enumerate_args() {
                     self.process_located_ast(&argument)
                 }
             } else {
+                // Single AST node on the assignment LHS. Deal with identifiers, otherwise
+                // recursively process subtrees.
                 match ast.shape() {
                     ast::Shape::Cons(_) => {
-                        self.try_recording_identifier(OccurrenceKind::Used, &ast);
+                        self.try_recording_identifier(OccurrenceKind::Used,ast);
                     } ast::Shape::Var(_) => {
-                        self.try_recording_identifier(OccurrenceKind::Introduced, &ast);
+                        self.try_recording_identifier(OccurrenceKind::Introduced,ast);
                     } _ => {
-                        self.process_subtrees(&ast);
+                        self.process_subtrees(ast);
                     }
                 }
             }
         } else {
             // Non-pattern context.
-            if let Ok(_) = ast::known::Block::try_from(&ast) {
-                self.in_new_scope(|this| this.process_subtrees(&ast))
-            } else if self.try_recording_identifier(OccurrenceKind::Used, &ast) {
+            if ast::known::Block::try_from(ast).is_ok() {
+                self.in_new_scope(|this| this.process_subtrees(ast))
+            } else if self.try_recording_identifier(OccurrenceKind::Used,ast) {
                 // Plain identifier: we just added as the condition side-effect.
                 // No need to do anything more.
             } else {
-                self.process_subtrees(&ast);
+                self.process_subtrees(ast);
             }
         }
     }
@@ -341,7 +336,7 @@ mod tests {
     /// Checks if actual observed sequence of located identifiers matches the expected one.
     /// Expected identifiers are described as code spans in the node's text representation.
     fn validate_identifiers
-    (name:impl Str, node:&NodeInfo, expected:Vec<Range<usize>>, actual:&Vec<LocatedIdentifier>) {
+    (name:impl Str, node:&NodeInfo, expected:Vec<Range<usize>>, actual:&Vec<LocatedName>) {
         let mut checker = IdentifierValidator::new(name,node,expected);
         checker.validate_identifiers(actual);
     }
@@ -367,12 +362,6 @@ mod tests {
     #[test]
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
-
-        // Removed cases
-//            "«foo» a b = a »+« b",  // this we don't care, because this is not a node
-//            "«log_name» object = »print« object.»name«",
-//            "«^» a n = a * a ^ (n - 1)",
-
         let test_cases = [
             "»foo«",
             "«five» = 5",
@@ -390,6 +379,12 @@ mod tests {
 
             r"«inc» =
                 foo = 2
+                foo »+« 1",
+
+            // Below should know that "foo + 1" does not uses "foo" from scope.
+            // That requires at least partial support for definitions.
+            r"«inc» =
+                foo x = 2
                 foo »+« 1",
         ];
         for case in &test_cases {

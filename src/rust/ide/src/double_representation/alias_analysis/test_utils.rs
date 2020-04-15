@@ -2,7 +2,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::alias_analysis::NormalizedName;
-use crate::double_representation::alias_analysis::LocatedIdentifier;
+use crate::double_representation::alias_analysis::LocatedName;
 use crate::double_representation::node::NodeInfo;
 
 use regex::Captures;
@@ -162,7 +162,7 @@ impl<'a> IdentifierValidator<'a> {
 
     /// Marks given sequence of identifiers as checked.
     pub fn validate_identifiers
-    (&mut self, identifiers:impl IntoIterator<Item=&'a LocatedIdentifier>) {
+    (&mut self, identifiers:impl IntoIterator<Item=&'a LocatedName>) {
         for identifier in identifiers {
             self.validate_identifier(&identifier.item);
 

@@ -6,7 +6,8 @@ use crate::Ast;
 use crate::assoc::Assoc;
 use crate::known;
 use crate::Shape;
-use crate::crumbs::{Crumb, Located, InfixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
+use crate::crumbs::Crumb;
+use crate::crumbs::Located;
 
 /// Identifiers of operators with special meaning for IDE.
 pub mod predefined {
@@ -110,6 +111,11 @@ impl GeneralizedInfix {
     /// Tries interpret given AST node as GeneralizedInfix. Returns None, if Ast is not any kind of
     /// application on infix operator.
     pub fn try_new(ast:&Located<Ast>) -> Option<GeneralizedInfix> {
+        use crate::crumbs::InfixCrumb;
+        use crate::crumbs::SectionLeftCrumb;
+        use crate::crumbs::SectionRightCrumb;
+        use crate::crumbs::SectionSidesCrumb;
+
         match ast.shape() {
             Shape::Infix(infix) => Some(GeneralizedInfix{
                 left  : make_operand (ast,InfixCrumb::LeftOperand, &infix.larg),
@@ -222,8 +228,7 @@ impl Chain {
     pub fn enumerate_operands<'a>(&'a self) -> impl Iterator<Item=&'a Located<Ast>> + 'a {
         let this = std::iter::once(&self.target);
         let args = self.args.iter().map(|elem| &elem.operand);
-        let operands = this.chain(args).flatten();
-        operands
+        this.chain(args).flatten()
     }
 
     /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent

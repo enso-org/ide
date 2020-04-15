@@ -163,7 +163,8 @@ impl DefinitionName {
                 (args,name)
             }
             None => {
-                (Vec::new(), ast::identifier::name(ast)?.clone())
+                let var = known::Var::try_from(ast).ok()?;
+                (Vec::new(), var.name.clone())
             }
         };
         Some(DefinitionName {extended_target,name})
@@ -453,6 +454,8 @@ mod tests {
 
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use crate::double_representation::INDENT;
+    use ast::crumbs::InfixCrumb;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -468,6 +471,29 @@ mod tests {
 
     fn indented(line:impl Display) -> String {
         iformat!("    {line}")
+    }
+
+    #[test]
+    fn match_is_not_definition() {
+        let cons = Ast::cons("Foo");
+        let arg  = Ast::number(5);
+        let lhs  = Ast::prefix(cons, arg.clone());
+        let rhs  = Ast::var("bar");
+        let ast  = Ast::infix(lhs, "=", rhs.clone());
+
+        // Not a definition, it is a pattern match/
+        assert_eq!(ast.repr(), "Foo 5 = bar");
+        let def_opt = DefinitionInfo::from_line_ast(&ast,ScopeKind::NonRoot,INDENT);
+        assert!(def_opt.is_none());
+
+        let var = Ast::var("foo");
+        let lhs = Ast::prefix(var, arg);
+        let ast = Ast::infix(lhs, "=", rhs);
+
+        // Now it is a definition.
+        assert_eq!(ast.repr(), "foo 5 = bar");
+        let def_opt = DefinitionInfo::from_line_ast(&ast,ScopeKind::NonRoot,INDENT);
+        assert!(def_opt.is_some());
     }
 
     #[wasm_bindgen_test]
