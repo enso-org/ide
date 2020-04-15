@@ -163,8 +163,15 @@ impl DefinitionName {
                 (args,name)
             }
             None => {
-                let var = known::Var::try_from(ast).ok()?;
-                (Vec::new(), var.name.clone())
+                let name = match ast.shape() {
+                    ast::Shape::Var         (var)   => Some(&var.name),
+                    ast::Shape::Opr         (opr)   => Some(&opr.name),
+                    ast::Shape::SectionSides(sides) => ast::identifier::name(&sides.opr),
+                    // Shape::Cons is intentionally omitted.
+                    // It serves to pattern-match, not as definition name.
+                    _                    => None
+                }?;
+                (Vec::new(), name.clone())
             }
         };
         Some(DefinitionName {extended_target,name})
@@ -496,7 +503,7 @@ mod tests {
         assert!(def_opt.is_some());
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn list_definition_test() {
         let parser = parser::Parser::new_or_panic();
 
