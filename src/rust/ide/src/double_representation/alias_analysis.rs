@@ -72,6 +72,9 @@ pub struct IdentifierUsage {
 // === Analysis ===
 // ================
 
+
+// === Helper Datatypes ===
+
 /// Says whether the identifier occurrence introduces it into scope or uses it from scope.
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Display,PartialEq)]
@@ -107,6 +110,9 @@ impl Scope {
         self.symbols.used.extend(symbols_to_use);
     }
 }
+
+
+// === AliasAnalyzer ===
 
 /// Traverser AST and analyzes identifier usage.
 #[derive(Clone,Debug,Default)]
@@ -174,6 +180,7 @@ impl AliasAnalyzer {
         self.shadowing_scopes.last_mut().unwrap_or(&mut self.root_scope)
     }
 
+    /// Returns the current context kind. (pattern or not)
     fn current_context(&self) -> Context {
         self.context.last().copied().unwrap_or(Context::NonPattern)
     }
@@ -313,8 +320,6 @@ impl AliasAnalyzer {
 /// Describes identifiers that nodes introduces into the graph and identifiers from graph's scope
 /// that node uses. This logic serves as a base for connection discovery.
 pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
-    println!("\n===============================================================================\n");
-    println!("Case: {}",node.ast().repr());
     let mut analyzer = AliasAnalyzer::new();
     analyzer.process_ast(node.ast());
     analyzer.root_scope.symbols
@@ -343,6 +348,8 @@ mod tests {
 
     /// Runs the test for the given test case description.
     fn run_case(parser:&parser::Parser, case:Case) {
+        println!("\n===========================================================================\n");
+        println!("Case: {}",&case.code);
         let ast    = parser.parse_line(&case.code).unwrap();
         let node   = NodeInfo::from_line_ast(&ast).unwrap();
         let result = analyse_identifier_usage(&node);
@@ -358,8 +365,7 @@ mod tests {
         run_case(parser,case)
     }
 
-
-    #[test]
+    #[wasm_bindgen_test]
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
         let test_cases = [

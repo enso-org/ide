@@ -1450,9 +1450,8 @@ mod tests {
         let child_item = Located::new(InfixCrumb::Operator, "two");
         let item = item.into_descendant(child_item);
         assert_eq!(item.item, "two");
-        let (crumb0,crumb1) = item.crumbs.iter().expect_tuple();
-        assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::LeftOperand));
-        assert_eq!(crumb1,&Crumb::Infix(InfixCrumb::Operator));
+        let (crumb0,) = item.crumbs.iter().expect_tuple();
+        assert_eq!(crumb0,&Crumb::Infix(InfixCrumb::Operator));
 
         let item2 = item.clone().map(|item| item.len() );
         assert_eq!(item2.item,3);

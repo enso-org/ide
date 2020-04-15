@@ -452,10 +452,10 @@ impl DefinitionProvider for DefinitionInfo {
 mod tests {
     use super::*;
 
+    use crate::double_representation::INDENT;
+
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use crate::double_representation::INDENT;
-    use ast::crumbs::InfixCrumb;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
