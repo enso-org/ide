@@ -168,10 +168,11 @@ impl<'a> IdentifierValidator<'a> {
         for identifier in identifiers {
             self.validate_identifier(&identifier.item);
 
-            let crumbs = &identifier.crumbs;
-            let ast    = self.node.ast().get_traversing(&crumbs).expect("failed to retrieve ast from crumb");
-            let name_err = || iformat!("Failed to use AST {ast.repr()} as an identifier name");
-            let name   = NormalizedName::try_from_ast(ast).expect(&name_err());
+            let crumbs     = &identifier.crumbs;
+            let ast_result = self.node.ast().get_traversing(&crumbs);
+            let ast        = ast_result.expect("failed to retrieve ast from crumb");
+            let name_err   = || iformat!("Failed to use AST {ast.repr()} as an identifier name");
+            let name       = NormalizedName::try_from_ast(ast).expect(&name_err());
             assert_eq!(name,identifier.item)
         }
     }

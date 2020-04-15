@@ -169,7 +169,7 @@ impl DefinitionName {
                     ast::Shape::SectionSides(sides) => ast::identifier::name(&sides.opr),
                     // Shape::Cons is intentionally omitted.
                     // It serves to pattern-match, not as definition name.
-                    _                    => None
+                    _ => None
                 }?;
                 (Vec::new(), name.clone())
             }
