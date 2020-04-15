@@ -1,5 +1,4 @@
 //! This module defines the shapes and logic required for drawing node ports.
-
 use crate::prelude::*;
 
 use crate::component::node::Node;
@@ -272,16 +271,22 @@ pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape>;
 /// A port must always be instantiated as an `InputPort` or an `OutputPort`. This determines its
 /// actual shape.
 ///
+/// Ports are constructed around an inner circle, and thus most measurements are in degrees,
+/// which are measured around a inner circle that is defined by the `inner_radius`.
+///
 /// Example
 /// -------
 /// ```
-/// use graph_editor::component::node::port::InputPort;
-/// use graph_editor::component::node::port::OutputPort;
+/// # use ensogl::math::topology::unit::Angle;
+/// # use ensogl::math::topology::unit::Degrees;
+/// # use graph_editor::component::node::port::InputPort;
+/// # use graph_editor::component::node::port::OutputPort;
 ///
 /// let input_port  = InputPort::default();
+/// input_port.set_position(Angle::<Degrees>::new(45.0));
 /// let output_port = OutputPort::default();
 /// ```
-#[derive(Debug,CloneRef,Derivative)]
+#[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 pub struct Port<T:PortShapeViewDefinition> {
@@ -315,7 +320,9 @@ pub struct PortData<T:PortShapeViewDefinition> {
 impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Internal constructor based on a given specification.
-    fn new(spec:Specification) -> Self {
+    pub fn new() -> Self {
+        let spec = Specification::default();
+
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
 
@@ -331,12 +338,14 @@ impl<T:PortShapeViewDefinition> Port<T> {
     }
 
     fn init(self) -> Self {
-        self.init_shape();
         self.update_sprite_position();
         self
     }
 
     /// Sets the port's position.
+    ///
+    /// Ports exist around an inner circle, and thus the position is given as an angle on that
+    /// circle. To change the radius of the circle use `set_inner_radius`.
     pub fn set_position(&self, position:Angle<Degrees>) {
         self.data.position.set(position);
         self.update_sprite_position();
@@ -382,30 +391,11 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.set_position(translation);
         self.data.view.display_object.set_rotation(rotation_vector);
     }
-
-    /// Update the shape parameters with values from our `Specification`.
-    /// Should only be used upon initialisation.
-    fn init_shape(&self) {
-        if let Some(t) = self.data.view.data.borrow().as_ref() {
-            let height       = self.data.height.get();
-            let inner_radius = self.data.inner_radius.get();
-            let width        = self.data.width.get();
-            let direction    = self.data.direction.get();
-
-            t.shape.update_parameters(height,inner_radius,width,direction);
-        }
-    }
 }
 
 impl<T:PortShapeViewDefinition> Default for Port<T> {
     fn default() -> Self {
-        Self::new(Specification::default())
-    }
-}
-
-impl<T:PortShapeViewDefinition> From<Specification> for Port<T> {
-    fn from(spec: Specification) -> Self {
-        Self::new(spec)
+        Self::new()
     }
 }
 
@@ -433,7 +423,7 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
     pub fn create(&self, parent:&Node) -> Port<T> {
         let port = Port::default();
         parent.add_child(&port.data.view.display_object);
-        self.ports.borrow_mut().push(port.clone());
+        self.ports.borrow_mut().push(port.clone_ref());
         port
     }
 }
