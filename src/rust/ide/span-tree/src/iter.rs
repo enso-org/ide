@@ -1,3 +1,4 @@
+//! Module providing advanced iterators over SpanTree nodes.
 
 use crate::Node;
 use crate::NodeRef;

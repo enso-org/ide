@@ -1,6 +1,8 @@
+//! An utility builder to be used in tests.
+
 use crate::prelude::*;
 
-use crate::Node;
+use crate::{Node, SpanTree};
 use crate::Type;
 use data::text::Size;
 use crate::tree::Child;
@@ -83,8 +85,10 @@ impl RootBuilder {
         }
     }
 
-    pub fn build(self) -> Node {
-        self.built
+    pub fn build(self) -> SpanTree {
+        SpanTree {
+            root : self.built
+        }
     }
 }
 

@@ -1,6 +1,9 @@
+//! A module containing code related to SpanTree generation.
+
 use crate::prelude::*;
 
 use crate::Type;
+use crate::SpanTree;
 use crate::Node;
 use crate::tree;
 
@@ -12,20 +15,34 @@ use ast::opr::GeneralizedInfix;
 use ast::crumbs::Located;
 
 
+
 // =============
 // === Trait ===
 // =============
 
+/// A generation context, from which we can derive information if currently generated node will
+/// be chained with parent. See crate's doc for information about _chaining_.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum ChainingContext<'a> {
-    None, Prefix, Operator(&'a str),
+    /// No useful information, node should not be chained.
+    None,
+    /// The node is generated as a Function child of Prefix AST node.
+    Prefix,
+    /// The node is generated as a Target child of Infix or Section AST node.
+    Operator(&'a str),
 }
 
+/// A trait for all types from which we can generate referred SpanTree. Meant to be implemented for
+/// all AST-like structures.
 pub trait SpanTreeGenerator {
+    /// Generate node with it's whole subtree.
     fn generate_node(&self, ctx:ChainingContext) -> FallibleResult<Node>;
 
-    fn generate_tree(&self) -> FallibleResult<Node> {
-        self.generate_node(ChainingContext::None)
+    /// Generate tree for this AST treated as root for the whole expression.
+    fn generate_tree(&self) -> FallibleResult<SpanTree> {
+        Ok(SpanTree {
+            root : self.generate_node(ChainingContext::None)?
+        })
     }
 }
 
@@ -36,6 +53,7 @@ pub trait SpanTreeGenerator {
 
 // === Child Generator ===
 
+/// An utility to generate children with increasing offsets.
 #[derive(Debug,Default)]
 struct ChildGenerator {
     current_offset : Size,
@@ -43,6 +61,8 @@ struct ChildGenerator {
 }
 
 impl ChildGenerator {
+    /// Add spacing to current generator state. It will be taken into account for the next generated
+    /// children's offsets
     fn spacing(&mut self, size:usize) {
         self.current_offset += Size::new(size);
     }
@@ -202,6 +222,7 @@ fn prefix_can_be_chained_with_parent(ctx:ChainingContext) -> bool {
         _                       => false,
     }
 }
+
 
 
 // ============

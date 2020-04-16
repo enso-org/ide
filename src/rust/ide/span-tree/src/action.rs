@@ -1,3 +1,7 @@
+//! A module containing all actions provided by SpanTree.
+//!
+//! The actions are in WIP state - they will be implemented along connection operations.
+
 use ast::Ast;
 
 
