@@ -2,17 +2,16 @@
 
 use crate::prelude::*;
 
-use crate::Type;
-use crate::SpanTree;
+use crate::node;
 use crate::Node;
-use crate::tree;
+use crate::SpanTree;
 
 use ast::Ast;
-use ast::HasLength;
-use data::text::Size;
 use ast::assoc::Assoc;
-use ast::opr::GeneralizedInfix;
 use ast::crumbs::Located;
+use ast::HasLength;
+use ast::opr::GeneralizedInfix;
+use data::text::Size;
 
 
 
@@ -57,7 +56,7 @@ pub trait SpanTreeGenerator {
 #[derive(Debug,Default)]
 struct ChildGenerator {
     current_offset : Size,
-    children       : Vec<tree::Child>,
+    children       : Vec<node::Child>,
 }
 
 impl ChildGenerator {
@@ -69,8 +68,8 @@ impl ChildGenerator {
 
     fn generate_ast_node
     (&mut self, child_ast:Located<Ast>, ctx:ChainingContext)
-    -> FallibleResult<&tree::Child> {
-        let child = tree::Child {
+    -> FallibleResult<&node::Child> {
+        let child = node::Child {
             node                : child_ast.item.generate_node(ctx)?,
             offset              : self.current_offset,
             chained_with_parent : ast_can_be_chained_with_parent(&child_ast,ctx),
@@ -81,8 +80,8 @@ impl ChildGenerator {
         Ok(self.children.last().unwrap())
     }
 
-    fn generate_empty_node(&mut self) -> &tree::Child {
-        let child = tree::Child {
+    fn generate_empty_node(&mut self) -> &node::Child {
+        let child = node::Child {
             node                : Node::new_empty(),
             offset              : self.current_offset,
             chained_with_parent : false,
@@ -115,7 +114,7 @@ impl SpanTreeGenerator for Ast {
                 _  => Ok(Node {
                     len       : Size::new(self.len()),
                     children  : default(),
-                    node_type : crate::Type::Ast,
+                    node_type : node::Type::Ast,
                 }),
             }
         }
@@ -160,7 +159,7 @@ impl SpanTreeGenerator for GeneralizedInfix {
             None => { gen.generate_empty_node(); },
         }
         Ok(Node {
-            node_type : Type::Ast,
+            node_type : node::Type::Ast,
             len       : gen.current_offset,
             children  : gen.children,
         })
@@ -185,7 +184,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
             gen.generate_empty_node();
         }
         Ok(Node {
-            node_type: Type::Ast,
+            node_type: node::Type::Ast,
             len: Size::new(self.len()),
             children: gen.children,
         })
@@ -235,7 +234,7 @@ mod test {
 
     use wasm_bindgen_test::wasm_bindgen_test;
     use parser::Parser;
-    use crate::builder::{RootBuilder, Builder};
+    use crate::builder::{TreeBuilder, Builder};
     use ast::crumbs::{InfixCrumb, PrefixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -248,7 +247,7 @@ mod test {
         let ast    = parser.parse_line("2 + foo bar - 3").unwrap();
         let tree   = ast.generate_tree().unwrap();
 
-        let expected = RootBuilder::new(15)
+        let expected = TreeBuilder::new(15)
             .add_ast_child(0,11,vec![InfixCrumb::LeftOperand])
                 .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
                 .add_ast_leaf(2,1,vec![InfixCrumb::Operator])
@@ -273,7 +272,7 @@ mod test {
         let ast    = parser.parse_line("2 + 3 + foo bar baz + 5").unwrap();
         let tree   = ast.generate_tree().unwrap();
 
-        let expected = RootBuilder::new(23)
+        let expected = TreeBuilder::new(23)
             .add_ast_child(0,19,vec![InfixCrumb::LeftOperand])
                 .chain_with_parent()
                 .add_ast_child(0,5,vec![InfixCrumb::LeftOperand])
@@ -307,7 +306,7 @@ mod test {
         let ast    = parser.parse_line("1,2,3").unwrap();
         let tree   = ast.generate_tree().unwrap();
 
-        let expected = RootBuilder::new(5)
+        let expected = TreeBuilder::new(5)
             .add_empty_child(0)
             .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
             .add_ast_leaf(1,1,vec![InfixCrumb::Operator])
@@ -328,7 +327,7 @@ mod test {
         let ast    = parser.parse_line("+ * + 2 +").unwrap();
         let tree   = ast.generate_tree().unwrap();
 
-        let expected = RootBuilder::new(9)
+        let expected = TreeBuilder::new(9)
             .add_ast_child(0,7,vec![SectionLeftCrumb::Arg])
                 .chain_with_parent()
                 .add_ast_child(0,3,vec![InfixCrumb::LeftOperand])
@@ -357,7 +356,7 @@ mod test {
         let ast    = parser.parse_line(",2").unwrap();
         let tree   = ast.generate_tree().unwrap();
 
-        let expected = RootBuilder::new(2)
+        let expected = TreeBuilder::new(2)
             .add_empty_child(0)
             .add_ast_leaf(0,1,vec![SectionRightCrumb::Opr])
             .add_ast_leaf(1,1,vec![SectionRightCrumb::Arg])

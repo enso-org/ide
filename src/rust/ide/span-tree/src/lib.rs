@@ -20,16 +20,42 @@
 pub mod action;
 pub mod generate;
 pub mod iter;
-pub mod tree;
+pub mod node;
 #[cfg(test)]
 pub mod builder;
 
-pub use tree::Node;
-pub use tree::NodeRef;
-pub use tree::Type;
-pub use tree::SpanTree;
+pub use node::Node;
 
+/// Common types that should be visible across the whole crate.
 pub mod prelude {
     pub use enso_prelude::*;
     pub use utils::fail::FallibleResult;
+}
+
+use prelude::*;
+
+// ================
+// === SpanTree ===
+// ================
+
+/// A SpanTree main structure.
+///
+/// This structure is used to have some specific node marked as root node, to avoid confusion
+/// regarding SpanTree crumbs and AST crumbs.
+#[derive(Debug,Eq,PartialEq)]
+pub struct SpanTree {
+    /// A root node of the tree.
+    pub root : Node
+}
+
+impl SpanTree {
+    /// Get the `NodeRef` of root node.
+    pub fn root_ref(&self) -> node::Ref {
+        node::Ref {
+            node       : &self.root,
+            span_begin : default(),
+            crumbs     : default(),
+            ast_crumbs : default()
+        }
+    }
 }

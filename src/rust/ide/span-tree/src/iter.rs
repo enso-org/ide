@@ -1,8 +1,7 @@
 //! Module providing advanced iterators over SpanTree nodes.
 
 use crate::Node;
-use crate::NodeRef;
-use crate::tree;
+use crate::node;
 
 
 
@@ -10,26 +9,35 @@ use crate::tree;
 // === Chain Children Iterator ===
 // ===============================
 
-struct ChainStack<'a> {
+/// A stack frame of DFS searching.
+#[derive(Debug)]
+struct StackFrame<'a> {
     node                : &'a Node,
     child_being_visited : usize,
 }
 
+/// An iterator returned from `chain_children_iter` method of `node::Ref`. See crate's
+/// documentation for more information about _chaining_.
+///
+/// Under the hood this iterator is performing DFS on the tree's fragment; we cut off all nodes
+/// which are not root node or chained node or any child of those; then this iterator returns only
+/// leaves of such subtree.
+#[derive(Debug)]
 pub struct ChainChildrenIterator<'a> {
-    stack     : Vec<ChainStack<'a>>,
-    next_node : Option<&'a tree::Child>,
-    base_node : NodeRef<'a>,
+    stack     : Vec<StackFrame<'a>>,
+    next_node : Option<&'a node::Child>,
+    base_node : node::Ref<'a>,
 }
 
 impl<'a> Iterator for ChainChildrenIterator<'a> {
-    type Item = NodeRef<'a>;
+    type Item = node::Ref<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_node.is_some() {
             let crumbs       = self.stack.iter().map(|sf| sf.child_being_visited);
             let return_value = self.base_node.clone().traverse_subnode(crumbs);
             self.make_dfs_step();
-            self.search_for_not_chained();
+            self.descend_to_subtree_leaf();
             return_value
         } else {
             None
@@ -38,12 +46,14 @@ impl<'a> Iterator for ChainChildrenIterator<'a> {
 }
 
 impl<'a> ChainChildrenIterator<'a> {
-    pub fn new(node: NodeRef<'a>) -> Self {
-        let stack     = vec![ChainStack{node:&node.node, child_being_visited:0}];
+    /// Create iterator iterating over children of chain starting on `node`.
+    pub fn new(node: node::Ref<'a>) -> Self {
+        let stack     = vec![StackFrame {node:&node.node, child_being_visited:0}];
         let next_node = node.node.children.first();
         let base_node = node;
         let mut this = Self {stack,next_node,base_node};
-        this.search_for_not_chained();
+        // Sometimes the first child is the chained node, so we must go deeper in such case.
+        this.descend_to_subtree_leaf();
         this
     }
 
@@ -61,10 +71,11 @@ impl<'a> ChainChildrenIterator<'a> {
         }
     }
 
-    fn search_for_not_chained(&mut self) {
+    /// For _subtree_ definition see docs for `ChainChildrenIterator`.
+    fn descend_to_subtree_leaf(&mut self) {
         if let Some(mut current) = std::mem::take(&mut self.next_node) {
             while current.chained_with_parent && !current.node.children.is_empty() {
-                self.stack.push(ChainStack { node: &current.node, child_being_visited: 0 });
+                self.stack.push(StackFrame { node: &current.node, child_being_visited: 0 });
                 current = &current.node.children.first().unwrap();
             }
             self.next_node = Some(current);
@@ -83,8 +94,8 @@ mod tests {
     use crate::prelude::*;
 
     use crate::builder::Builder;
-    use crate::builder::RootBuilder;
-    use crate::SpanTree;
+    use crate::builder::TreeBuilder;
+
 
 
     #[test]
@@ -101,7 +112,7 @@ mod tests {
         //                   /|       / | \
         // gg-children:     ()()     ()() ()
 
-        let root = RootBuilder::new(14)
+        let tree = TreeBuilder::new(14)
             .add_ast_child(0,10,vec![LeftOperand])
                 .chain_with_parent()
                 .add_ast_leaf(0,3,vec![LeftOperand])
@@ -125,7 +136,6 @@ mod tests {
                 .done()
             .build();
 
-        let tree = SpanTree{root};
         let root = tree.root_ref();
 
         let expected_crumbs = vec!
