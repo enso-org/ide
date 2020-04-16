@@ -49,6 +49,43 @@ impl Drop for TextureBindGuard {
 // === Texture ===
 // ===============
 
+/// Parameters that need to be set when binding a texture.
+#[derive(Copy, Clone, Debug)]
+pub struct Parameters{
+    /// Specifies the value for `Context::TEXTURE_MIN_FILTER`.
+    pub min_filter : i32,
+    /// Specifies the value for `Context::TEXTURE_MAG_FILTER`.
+    pub mag_filter : i32,
+    /// Specifies the value for `Context::TEXTURE_WRAP_S`.
+    pub wrap_s     : i32,
+    /// Specifies the value for `Context::TEXTURE_WRAP_T`.
+    pub wrap_t     : i32,
+}
+
+impl Default for Parameters{
+    fn default() -> Self {
+        Parameters{
+            min_filter : Context::LINEAR as i32,
+            mag_filter : Context::LINEAR as i32,
+            wrap_s     : Context::CLAMP_TO_EDGE as i32,
+            wrap_t     : Context::CLAMP_TO_EDGE as i32,
+        }
+    }
+}
+
+impl Parameters {
+    /// Sets the context parameters in the given context.
+    pub fn set_parameters(&self, context:&Context){
+        let target = Context::TEXTURE_2D;
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t);
+
+    }
+}
+
+
 /// Texture bound to GL context.
 #[derive(Derivative)]
 #[derivative(Clone(bound="StorageOf<Storage,InternalFormat,ItemType>:Clone"))]
@@ -58,6 +95,9 @@ where Storage: StorageRelation<InternalFormat,ItemType> {
     storage    : StorageOf<Storage,InternalFormat,ItemType>,
     gl_texture : WebGlTexture,
     context    : Context,
+
+    /// Texture parameters that need to be set when binding the texture.
+    pub parameters : Parameters
 }
 
 
@@ -161,16 +201,14 @@ where S:StorageRelation<I,T> {
         let storage    = storage.into();
         let context    = context.clone();
         let gl_texture = context.create_texture().unwrap();
-        Self {storage,gl_texture,context}
+        let parameters = Parameters::default();
+        Self {storage,gl_texture,context,parameters}
     }
 
-    /// Sets the texture wrapping parameters.
-    pub fn set_texture_parameters(context:&Context) {
-        let target = Context::TEXTURE_2D;
-        let wrap   = Context::CLAMP_TO_EDGE as i32;
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,Context::LINEAR as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,wrap);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,wrap);
+
+    /// Sets the texture wrapping parameters without requiring self.
+    pub fn set_texture_parameters(&self, context:&Context) {
+        self.parameters.set_parameters(context);
     }
 }
 
@@ -199,7 +237,7 @@ where S : StorageRelation<I,T>,
             result.unwrap();
         }
 
-        Self::set_texture_parameters(&self.context);
+        self.set_texture_parameters(&self.context);
     }
 }
 

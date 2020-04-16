@@ -334,6 +334,7 @@ impl Symbol {
                 return;
             }
             self.with_program(|_|{
+
                 for binding in &self.bindings.borrow().uniforms {
                     binding.upload(&self.context);
                 }
@@ -353,6 +354,7 @@ impl Symbol {
                 let count          = self.surface.point_scope().size()    as i32;
                 let instance_count = self.surface.instance_scope().size() as i32;
 
+                // println!("{:?}", self.context.check_framebuffer_status(Context::FRAMEBUFFER));
                 self.stats.inc_draw_call_count();
                 if instance_count > 0 {
                     self.context.draw_arrays_instanced(mode,first,count,instance_count);
