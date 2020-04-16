@@ -26,11 +26,20 @@ pub mod builder;
 
 pub use node::Node;
 
+pub mod traits {
+    pub use crate::action::SpanTreeActions;
+    pub use crate::generate::SpanTreeGenerator;
+    #[cfg(test)]
+    pub use crate::builder::Builder;
+}
+
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
+    pub use crate::traits::*;
     pub use enso_prelude::*;
     pub use utils::fail::FallibleResult;
 }
+
 
 use prelude::*;
 
