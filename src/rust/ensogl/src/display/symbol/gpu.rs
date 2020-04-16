@@ -339,6 +339,11 @@ impl Symbol {
                 }
 
                 let context              = &self.context;
+
+                context
+                .get_extension("EXT_color_buffer_float")
+                .expect("Could not get WebGL extension EXT_color_buffer_float");
+
                 let textures             = &self.bindings.borrow().textures;
                 let bound_textures_iter  = textures.iter().map(|t| {t.bind_texture_unit(context)});
                 let _textures_keep_alive = bound_textures_iter.collect_vec();

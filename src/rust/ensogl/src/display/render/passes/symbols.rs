@@ -32,15 +32,14 @@ impl SymbolsRenderPass {
 impl RenderPass for SymbolsRenderPass {
     fn outputs(&self) -> Vec<RenderPassOutput> {
         vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8)
-            , RenderPassOutput::new("id",texture::Rgba32ui,texture::item_type::u32)
+            , RenderPassOutput::new("id",texture::Rgba32f,texture::item_type::f32)
             ]
     }
 
     fn run(&mut self, context:&Context, _:&UniformScope) {
         let arr = vec![0.0,0.0,0.0,0.0];
-        let arr2 = vec![0,0,0,0];
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
-        context.clear_bufferuiv_with_u32_array(Context::COLOR,1,&arr2);
+        context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
         self.target.set_camera(&self.views.main.camera);
         self.target.render_by_ids(&self.views.main.symbols());
     }
