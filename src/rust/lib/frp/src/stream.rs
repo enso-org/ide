@@ -301,12 +301,14 @@ impl<T:HasOutputStatic> WeakNode<T> {
 }
 
 impl<Out> OwnedStream<Out> {
+    /// Downgrades to the weak version.
     pub fn downgrade(&self) -> Stream<Out> {
         Stream {data:Rc::downgrade(&self.data)}
     }
 }
 
 impl<Out> Stream<Out> {
+    /// Upgrades to the strong version.
     pub fn upgrade(&self) -> Option<OwnedStream<Out>> {
         self.data.upgrade().map(|data| OwnedStream {data})
     }

@@ -28,6 +28,7 @@ macro_rules! new_network {
     ($($ts:tt)*)           => { $crate::_new_network! { NO_TRACE $($ts)* } };
 }
 
+/// Just like `new_network` but for the dynamic FRP mode.
 #[macro_export]
 macro_rules! new_dynamic_network {
     (TRACE_ALL $($ts:tt)*) => { $crate::_new_dynamic_network! { TRACE    $($ts)* } };

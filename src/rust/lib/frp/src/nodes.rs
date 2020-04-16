@@ -219,6 +219,7 @@ impl Network {
 
 /// This is a phantom structure used by macros to create dynamic FRP graphs. It exposes the same
 /// API as `Network` in order to reuse macro code for both network and dynamic modes.
+#[derive(Clone,Copy,Debug)]
 pub struct DynamicNetwork {}
 
 /// See docs of `Network` to learn about the methods.
@@ -609,8 +610,8 @@ impl<T:EventOutput,Out:Data> stream::EventConsumer<Output<T>> for OwnedConstant<
 
 #[derive(Debug)]
 pub struct PreviousData  <T:EventOutput> { source:T, previous:RefCell<Output<T>> }
-pub type   OwnedPrevious <T:EventOutput> = stream::Node     <PreviousData<T>>;
-pub type   Previous      <T:EventOutput> = stream::WeakNode <PreviousData<T>>;
+pub type   OwnedPrevious <T> = stream::Node     <PreviousData<T>>;
+pub type   Previous      <T> = stream::WeakNode <PreviousData<T>>;
 
 impl<T:EventOutput> HasOutput for PreviousData<T> {
     type Output = Output<T>;
@@ -962,7 +963,7 @@ impl<T1,T2,T3,T4> stream::InputBehaviors for Zip4Data<T1,T2,T3,T4>
 // === Map ===
 // ===========
 
-pub struct MapData  <T,F> { source:T, function:F }
+pub struct MapData  <T,F> { _source:T, function:F }
 pub type   OwnedMap <T,F> = stream::Node     <MapData<T,F>>;
 pub type   Map      <T,F> = stream::WeakNode <MapData<T,F>>;
 
@@ -975,8 +976,8 @@ impl<T,F,Out> OwnedMap<T,F>
 where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Out {
     /// Constructor.
     pub fn new(label:Label, src:&T, function:F) -> Self {
-        let source     = src.clone_ref();
-        let definition = MapData {source,function};
+        let _source    = src.clone_ref();
+        let definition = MapData {_source,function};
         Self::construct_and_connect(label,src,definition)
     }
 }
@@ -1001,7 +1002,7 @@ impl<T,F> Debug for MapData<T,F> {
 // === Map2 ===
 // ============
 
-pub struct Map2Data  <T1,T2,F> { source1:T1, source2:watch::Ref<T2>, function:F }
+pub struct Map2Data  <T1,T2,F> { _source1:T1, source2:watch::Ref<T2>, function:F }
 pub type   OwnedMap2 <T1,T2,F> = stream::Node     <Map2Data<T1,T2,F>>;
 pub type   Map2      <T1,T2,F> = stream::WeakNode <Map2Data<T1,T2,F>>;
 
@@ -1014,11 +1015,11 @@ impl<T1,T2,F,Out> OwnedMap2<T1,T2,F>
 where T1:EventOutput, T2:EventOutput, Out:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, function:F) -> Self {
-        let source1 = t1.clone_ref();
-        let source2 = watch_stream(t2);
-        let def     = Map2Data {source1,source2,function};
-        let this    = Self::construct(label,def);
-        let weak    = this.downgrade();
+        let _source1 = t1.clone_ref();
+        let source2  = watch_stream(t2);
+        let def      = Map2Data {_source1,source2,function};
+        let this     = Self::construct(label,def);
+        let weak     = this.downgrade();
         t1.register_target(weak.into());
         this
     }
@@ -1053,7 +1054,7 @@ where T1:EventOutput, T2:EventOutput {
 // ============
 
 pub struct Map3Data <T1,T2,T3,F>
-    { source1:T1, source2:watch::Ref<T2>, source3:watch::Ref<T3>, function:F }
+    { _source1:T1, source2:watch::Ref<T2>, source3:watch::Ref<T3>, function:F }
 pub type   OwnedMap3 <T1,T2,T3,F> = stream::Node     <Map3Data<T1,T2,T3,F>>;
 pub type   Map3      <T1,T2,T3,F> = stream::WeakNode <Map3Data<T1,T2,T3,F>>;
 
@@ -1068,12 +1069,12 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, Out:Data,
       F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, function:F) -> Self {
-        let source1 = t1.clone_ref();
-        let source2 = watch_stream(t2);
-        let source3 = watch_stream(t3);
-        let def   = Map3Data {source1,source2,source3,function};
-        let this  = Self::construct(label,def);
-        let weak  = this.downgrade();
+        let _source1 = t1.clone_ref();
+        let source2  = watch_stream(t2);
+        let source3  = watch_stream(t3);
+        let def      = Map3Data {_source1,source2,source3,function};
+        let this     = Self::construct(label,def);
+        let weak     = this.downgrade();
         t1.register_target(weak.into());
         this
     }
@@ -1110,7 +1111,7 @@ impl<T1,T2,T3,F> stream::InputBehaviors for Map3Data<T1,T2,T3,F>
 // ============
 
 pub struct Map4Data <T1,T2,T3,T4,F>
-    { source1:T1
+    { _source1:T1
     , source2:watch::Ref<T2>, source3:watch::Ref<T3>, source4:watch::Ref<T4>, function:F }
 pub type   OwnedMap4 <T1,T2,T3,T4,F> = stream::Node     <Map4Data<T1,T2,T3,T4,F>>;
 pub type   Map4      <T1,T2,T3,T4,F> = stream::WeakNode <Map4Data<T1,T2,T3,T4,F>>;
@@ -1126,13 +1127,13 @@ impl<T1,T2,T3,T4,F,Out> OwnedMap4<T1,T2,T3,T4,F>
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->Out {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, function:F) -> Self {
-        let source1 = t1.clone_ref();
-        let source2 = watch_stream(t2);
-        let source3 = watch_stream(t3);
-        let source4 = watch_stream(t4);
-        let def     = Map4Data {source1,source2,source3,source4,function};
-        let this    = Self::construct(label,def);
-        let weak    = this.downgrade();
+        let _source1 = t1.clone_ref();
+        let source2  = watch_stream(t2);
+        let source3  = watch_stream(t3);
+        let source4  = watch_stream(t4);
+        let def      = Map4Data {_source1,source2,source3,source4,function};
+        let this     = Self::construct(label,def);
+        let weak     = this.downgrade();
         t1.register_target(weak.into());
         this
     }
