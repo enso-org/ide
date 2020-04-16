@@ -140,7 +140,7 @@ pub trait ShapeViewDefinition : 'static {
 /// Define a new animation FRP network.
 pub fn animation<F>(network:&frp::Network, f:F) -> DynSimulator<f32>
 where F : Fn(f32) + 'static {
-    frp::extend_network! { network
+    frp::extend! { network
         def target = source::<f32> ();
         def _eval  = target.map(move |value| f(*value));
     }

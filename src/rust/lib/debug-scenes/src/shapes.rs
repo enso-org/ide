@@ -26,6 +26,8 @@ pub fn run_example_shapes() {
 }
 
 
+use ensogl::display::style::test;
+
 fn init(app:&Application) {
     let world     = &app.display;
     let scene     = world.scene();
@@ -54,4 +56,5 @@ fn init(app:&Application) {
         }
         was_rendered = true;
     }).forget();
+    test();
 }
