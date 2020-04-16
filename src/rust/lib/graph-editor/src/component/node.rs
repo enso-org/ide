@@ -8,7 +8,6 @@ use crate::component::node::port::Registry;
 
 use enso_frp;
 use enso_frp as frp;
-use ensogl::display::Buffer;
 use ensogl::data::color::*;
 use ensogl::data::color::Srgba;
 use ensogl::display::Attribute;
@@ -212,12 +211,12 @@ impl Node {
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
         }
-        let network      = node_network;
-        let logger       = Logger::new("node");
-        let view         = component::ShapeView::new(&logger);
-        let events       = Events {network,select,deselect};
-        let port_manager = PortManager::default() ;
-        let data         = Rc::new(NodeData {logger,label,events,view,port_manager});
+        let network = node_network;
+        let logger  = Logger::new("node");
+        let view    = component::ShapeView::new(&logger);
+        let events  = Events {network,select,deselect};
+        let ports   = Registry::default() ;
+        let data    = Rc::new(NodeData {logger,label,events,view,ports});
         Self {data} . init()
     }
 
