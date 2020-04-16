@@ -2,6 +2,7 @@
 //! module.
 
 pub mod alias_analysis;
+pub mod connection;
 pub mod definition;
 pub mod graph;
 pub mod node;

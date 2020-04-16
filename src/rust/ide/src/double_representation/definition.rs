@@ -268,6 +268,10 @@ impl DefinitionInfo {
         })
     }
 
+    pub fn from_root_line(line:&ast::BlockLine<Option<Ast>>) -> Option<DefinitionInfo> {
+        Self::from_line_ast(line.elem.as_ref()?,ScopeKind::Root,0)
+    }
+
     /// Tries to interpret `Line`'s `Ast` as a function definition.
     ///
     /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of
