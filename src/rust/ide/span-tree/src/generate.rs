@@ -177,9 +177,9 @@ impl SpanTreeGenerator for ast::known::Prefix {
 
         use ast::crumbs::PrefixCrumb::*;
         let mut gen = ChildGenerator::default();
-        gen.generate_ast_node(Located::new(vec![Func],self.func.clone_ref()),ChainingContext::Prefix)?;
+        gen.generate_ast_node(Located::new(Func,self.func.clone_ref()),ChainingContext::Prefix)?;
         gen.spacing(self.off);
-        gen.generate_ast_node(Located::new(vec![Arg],self.arg.clone_ref()),ChainingContext::None)?;
+        gen.generate_ast_node(Located::new(Arg,self.arg.clone_ref()),ChainingContext::None)?;
         if should_have_empty {
             gen.generate_empty_node();
         }
