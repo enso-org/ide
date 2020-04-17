@@ -17,7 +17,7 @@ pub trait Builder : Sized {
     fn built_node(&mut self) -> &mut Node;
 
     /// Add new AST-type child to node. Returns the child's builder which may be used to further
-    /// extending this branch of the tree.
+    /// extend this branch of the tree.
     fn add_ast_child<Cbs>(self, offset:usize, len:usize, crumbs:Cbs) -> ChildBuilder<Self>
         where Cbs : IntoIterator<Item:Into<ast::crumbs::Crumb>> {
         let node = Node {
