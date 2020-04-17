@@ -203,7 +203,11 @@ pub fn get_webgl2_context(canvas:&HtmlCanvasElement) -> WebGl2RenderingContext {
     let options = js_sys::Object::new();
     js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
     let context = canvas.get_context_with_context_options("webgl2",&options).unwrap().unwrap();
-    context.dyn_into().unwrap()
+    let context : WebGl2RenderingContext =  context.dyn_into().unwrap();
+    context
+        .get_extension("EXT_color_buffer_float")
+        .expect("Could not get WebGL extension EXT_color_buffer_float");
+    context
 }
 
 pub fn try_request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> Result<i32> {

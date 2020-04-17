@@ -53,22 +53,22 @@ impl Drop for TextureBindGuard {
 #[derive(Copy, Clone, Debug)]
 pub struct Parameters{
     /// Specifies the value for `Context::TEXTURE_MIN_FILTER`.
-    pub min_filter : i32,
+    pub min_filter : u32,
     /// Specifies the value for `Context::TEXTURE_MAG_FILTER`.
-    pub mag_filter : i32,
+    pub mag_filter : u32,
     /// Specifies the value for `Context::TEXTURE_WRAP_S`.
-    pub wrap_s     : i32,
+    pub wrap_s     : u32,
     /// Specifies the value for `Context::TEXTURE_WRAP_T`.
-    pub wrap_t     : i32,
+    pub wrap_t     : u32,
 }
 
 impl Default for Parameters{
     fn default() -> Self {
         Parameters{
-            min_filter : Context::LINEAR as i32,
-            mag_filter : Context::LINEAR as i32,
-            wrap_s     : Context::CLAMP_TO_EDGE as i32,
-            wrap_t     : Context::CLAMP_TO_EDGE as i32,
+            min_filter : Context::LINEAR,
+            mag_filter : Context::LINEAR,
+            wrap_s     : Context::CLAMP_TO_EDGE,
+            wrap_t     : Context::CLAMP_TO_EDGE,
         }
     }
 }
@@ -77,10 +77,10 @@ impl Parameters {
     /// Sets the context parameters in the given context.
     pub fn set_parameters(&self, context:&Context){
         let target = Context::TEXTURE_2D;
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter);
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter as i32);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t as i32);
 
     }
 }

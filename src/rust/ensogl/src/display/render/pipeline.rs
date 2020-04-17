@@ -56,16 +56,18 @@ pub struct RenderPassOutput {
     pub internal_format : AnyInternalFormat,
     /// Item texture type of the pass framebuffer's attachment.
     pub item_type : AnyItemType,
+    /// Texture parameters that will be set when binding the texture.
+    pub parameters: Parameters,
 }
 
 impl RenderPassOutput {
     /// Constructor.
     pub fn new<Name:Str,F:Into<AnyInternalFormat>,T:Into<AnyItemType>>
-    (name:Name, internal_format:F, item_type:T) -> Self {
+    (name:Name, internal_format:F, item_type:T, parameters:Parameters) -> Self {
         let name            = name.into();
         let internal_format = internal_format.into();
         let item_type       = item_type.into();
-        Self {name,internal_format,item_type}
+        Self {name,internal_format,item_type,parameters}
     }
 
     /// Getter.

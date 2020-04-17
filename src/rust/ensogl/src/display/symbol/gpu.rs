@@ -341,10 +341,6 @@ impl Symbol {
 
                 let context              = &self.context;
 
-                context
-                .get_extension("EXT_color_buffer_float")
-                .expect("Could not get WebGL extension EXT_color_buffer_float");
-
                 let textures             = &self.bindings.borrow().textures;
                 let bound_textures_iter  = textures.iter().map(|t| {t.bind_texture_unit(context)});
                 let _textures_keep_alive = bound_textures_iter.collect_vec();
@@ -354,7 +350,11 @@ impl Symbol {
                 let count          = self.surface.point_scope().size()    as i32;
                 let instance_count = self.surface.instance_scope().size() as i32;
 
-                // println!("{:?}", self.context.check_framebuffer_status(Context::FRAMEBUFFER));
+                debug_assert_eq!(
+                    self.context.check_framebuffer_status(Context::FRAMEBUFFER),
+                    Context::FRAMEBUFFER_COMPLETE
+                );
+
                 self.stats.inc_draw_call_count();
                 if instance_count > 0 {
                     self.context.draw_arrays_instanced(mode,first,count,instance_count);

@@ -31,8 +31,14 @@ impl SymbolsRenderPass {
 
 impl RenderPass for SymbolsRenderPass {
     fn outputs(&self) -> Vec<RenderPassOutput> {
-        vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8)
-            , RenderPassOutput::new("id",texture::Rgba32f,texture::item_type::f32)
+        let color_parameters = texture::Parameters::default();
+        let id_parameters = texture::Parameters{
+            min_filter: Context::NEAREST,
+            mag_filter: Context::NEAREST,
+            ..Default::default()
+        };
+        vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8, color_parameters)
+            , RenderPassOutput::new("id",texture::Rgba32f,texture::item_type::f32, id_parameters)
             ]
     }
 
