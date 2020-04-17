@@ -219,50 +219,57 @@ impl Network {
 
 /// This is a phantom structure used by macros to create dynamic FRP graphs. It exposes the same
 /// API as `Network` in order to reuse macro code for both network and dynamic modes.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct DynamicNetwork {}
+
+impl DynamicNetwork {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
+}
 
 /// See docs of `Network` to learn about the methods.
 impl DynamicNetwork {
-    pub fn source<T:Data>(&self, label:Label) -> OwnedSource<T> {
+    pub fn source<T:Data>(self, label:Label) -> OwnedSource<T> {
         OwnedSource::new(label)
     }
 
-    pub fn source_(&self, label:Label) -> OwnedSource {
+    pub fn source_(self, label:Label) -> OwnedSource {
         OwnedSource::new(label)
     }
 
-    pub fn sampler<T,Out>(&self, label:Label, source:&T) -> OwnedSampler<Out>
+    pub fn sampler<T,Out>(self, label:Label, source:&T) -> OwnedSampler<Out>
         where T:EventOutput<Output=Out>, Out:Data {
         OwnedSampler::new(label,source)
     }
 
-    pub fn trace<T:EventOutput>(&self, label:Label, source:&T) -> OwnedStream<Output<T>> {
+    pub fn trace<T:EventOutput>(self, label:Label, source:&T) -> OwnedStream<Output<T>> {
         OwnedTrace::new(label,source).into()
     }
 
-    pub fn toggle<T:EventOutput>(&self, label:Label, source:&T) -> OwnedStream<bool> {
+    pub fn toggle<T:EventOutput>(self, label:Label, source:&T) -> OwnedStream<bool> {
         OwnedToggle::new(label,source).into()
     }
 
-    pub fn count<T:EventOutput>(&self, label:Label, source:&T) -> OwnedCount<T> {
+    pub fn count<T:EventOutput>(self, label:Label, source:&T) -> OwnedCount<T> {
         OwnedCount::new(label,source)
     }
 
-    pub fn constant<X:Data,T:EventOutput> (&self, label:Label, source:&T, value:X) -> OwnedStream<X> {
+    pub fn constant<X:Data,T:EventOutput> (self, label:Label, source:&T, value:X) -> OwnedStream<X> {
         OwnedConstant::new(label,source,value).into()
     }
 
-    pub fn previous<T:EventOutput> (&self, label:Label, source:&T) -> OwnedStream<Output<T>> {
+    pub fn previous<T:EventOutput> (self, label:Label, source:&T) -> OwnedStream<Output<T>> {
         OwnedPrevious::new(label,source).into()
     }
 
     pub fn sample<T1:EventOutput,T2:EventOutput>
-    (&self, label:Label, behavior:&T1, event:&T2) -> OwnedStream<Output<T1>> {
+    (self, label:Label, behavior:&T1, event:&T2) -> OwnedStream<Output<T1>> {
         OwnedSample::new(label,behavior,event).into()
     }
 
-    pub fn gate<T1,T2>(&self, label:Label, event:&T1, behavior:&T2) -> OwnedStream<Output<T1>>
+    pub fn gate<T1,T2>(self, label:Label, event:&T1, behavior:&T2) -> OwnedStream<Output<T1>>
     where T1:EventOutput, T2:EventOutput<Output=bool> {
         OwnedGate::new(label,event,behavior).into()
     }
@@ -270,27 +277,27 @@ impl DynamicNetwork {
 
     // === Merge ===
 
-    pub fn gather<T:Data>(&self, label:Label) -> OwnedMerge<T> {
+    pub fn gather<T:Data>(self, label:Label) -> OwnedMerge<T> {
         OwnedMerge::new(label)
     }
 
-    pub fn merge<T1,T2,T:Data>(&self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<T>
+    pub fn merge<T1,T2,T:Data>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<T>
     where T1:EventOutput<Output=T>, T2:EventOutput<Output=T> {
         OwnedMerge::new2(label,t1,t2).into()
     }
 
-    pub fn merge2<T1,T2,T:Data>(&self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<T>
+    pub fn merge2<T1,T2,T:Data>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<T>
     where T1:EventOutput<Output=T>, T2:EventOutput<Output=T> {
         OwnedMerge::new2(label,t1,t2).into()
     }
 
-    pub fn merge3<T1,T2,T3,T:Data>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> OwnedStream<T>
+    pub fn merge3<T1,T2,T3,T:Data>(self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> OwnedStream<T>
     where T1:EventOutput<Output=T>, T2:EventOutput<Output=T>, T3:EventOutput<Output=T> {
         OwnedMerge::new3(label,t1,t2,t3).into()
     }
 
     pub fn merge4<T1,T2,T3,T4,T:Data>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> OwnedStream<T>
     where T1:EventOutput<Output=T>,
               T2:EventOutput<Output=T>,
               T3:EventOutput<Output=T>,
@@ -301,24 +308,24 @@ impl DynamicNetwork {
 
     // === Zip ===
 
-    pub fn zip<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<(Output<T1>,Output<T2>)>
+    pub fn zip<T1,T2>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<(Output<T1>,Output<T2>)>
     where T1:EventOutput, T2:EventOutput {
         OwnedZip2::new(label,t1,t2).into()
     }
 
-    pub fn zip2<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<(Output<T1>,Output<T2>)>
+    pub fn zip2<T1,T2>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<(Output<T1>,Output<T2>)>
     where T1:EventOutput, T2:EventOutput {
         OwnedZip2::new(label,t1,t2).into()
     }
 
     pub fn zip3<T1,T2,T3>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> OwnedStream<(Output<T1>,Output<T2>,Output<T3>)>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> OwnedStream<(Output<T1>,Output<T2>,Output<T3>)>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput {
         OwnedZip3::new(label,t1,t2,t3).into()
     }
 
     pub fn zip4<T1,T2,T3,T4>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4)
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4)
      -> OwnedStream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>)>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
         OwnedZip4::new(label,t1,t2,t3,t4).into()
@@ -327,25 +334,25 @@ impl DynamicNetwork {
 
     // === Map ===
 
-    pub fn map<T,F,Out>(&self, label:Label, source:&T, f:F) -> OwnedStream<Out>
+    pub fn map<T,F,Out>(self, label:Label, source:&T, f:F) -> OwnedStream<Out>
     where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Out {
         OwnedMap::new(label,source,f).into()
     }
 
-    pub fn map2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> OwnedStream<T>
+    pub fn map2<T1,T2,F,T>(self, label:Label, t1:&T1, t2:&T2, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
         OwnedMap2::new(label,t1,t2,f).into()
     }
 
     pub fn map3<T1,T2,T3,F,T>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
         OwnedMap3::new(label,t1,t2,t3,f).into()
     }
 
     pub fn map4<T1,T2,T3,T4,F,T>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
         OwnedMap4::new(label,t1,t2,t3,t4,f).into()
@@ -354,20 +361,20 @@ impl DynamicNetwork {
 
     // === Apply ===
 
-    pub fn apply2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> OwnedStream<T>
+    pub fn apply2<T1,T2,F,T>(self, label:Label, t1:&T1, t2:&T2, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
         OwnedApply2::new(label,t1,t2,f).into()
     }
 
     pub fn apply3<T1,T2,T3,F,T>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
         OwnedApply3::new(label,t1,t2,t3,f).into()
     }
 
     pub fn apply4<T1,T2,T3,T4,F,T>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
         OwnedApply4::new(label,t1,t2,t3,t4,f).into()
