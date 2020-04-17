@@ -341,11 +341,10 @@ macro_rules! define_get_or_add_gpu_texture_dyn {
                 $((AnyInternalFormat::$internal_format, AnyItemType::$item_type) => {
                     let mut texture = Texture::<GpuOnly,$internal_format,$item_type>
                                 ::new(&context,provider);
-                    if let Some(parameters) = parameters{
+                    if let Some(parameters) = parameters {
                         texture.parameters = parameters;
                     }
                     let uniform = scope.get_or_add(name,texture).unwrap();
-
                     uniform.into()
                 })*
                 _ => panic!("Invalid (internal format, item type) combination.")
