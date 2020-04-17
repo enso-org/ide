@@ -248,7 +248,7 @@ mod test {
         let tree   = ast.generate_tree().unwrap();
 
         let expected = TreeBuilder::new(15)
-            .add_ast_child(0,11,vec![InfixCrumb::LeftOperand])
+            .add_ast_child(0,11,InfixCrumb::LeftOperand)
                 .add_ast_leaf(0,1,vec![InfixCrumb::LeftOperand])
                 .add_ast_leaf(2,1,vec![InfixCrumb::Operator])
                 .add_ast_child(4,7,vec![InfixCrumb::RightOperand])
