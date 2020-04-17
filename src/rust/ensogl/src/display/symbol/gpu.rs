@@ -352,7 +352,8 @@ impl Symbol {
 
                 debug_assert_eq!(
                     self.context.check_framebuffer_status(Context::FRAMEBUFFER),
-                    Context::FRAMEBUFFER_COMPLETE
+                    Context::FRAMEBUFFER_COMPLETE,
+                    "Framebuffer does not have status FRAMEBUFFER_COMPLETE."
                 );
 
                 self.stats.inc_draw_call_count();
