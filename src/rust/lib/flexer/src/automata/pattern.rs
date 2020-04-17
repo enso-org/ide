@@ -110,17 +110,17 @@ impl Pattern {
     }
 
     /// Pattern that triggers when sequence of characters is encountered.
-    pub fn all(chars:String) -> Self {
+    pub fn all(chars:&str) -> Self {
         chars.chars().fold(Self::never(), |pat,char| pat & Self::char(char))
     }
 
     /// Pattern that triggers on any characters from given sequence.
-    pub fn any(chars:String) -> Self {
+    pub fn any(chars:&str) -> Self {
         chars.chars().fold(Self::never(), |pat,char| pat | Self::char(char))
     }
 
     /// Pattern that doesn't trigger on any given character from given sequence.
-    pub fn none(chars:String) -> Self {
+    pub fn none(chars:&str) -> Self {
         let max        = u32::max_value();
         let char_iter  = chars.chars().map(|char| char as u32);
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(max));
@@ -136,7 +136,7 @@ impl Pattern {
 
     /// Pattern that triggers on any character but the one given.
     pub fn not(char:char) -> Self {
-        Self::none(char.to_string())
+        Self::none(&char.to_string())
     }
 
     /// Pattern that triggers on N repetitions of given pattern.

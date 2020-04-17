@@ -93,6 +93,7 @@ impl From<&Group> for NFA {
 pub mod tests {
     extern crate test;
 
+    use crate::automata::dfa::DFA;
     use crate::automata::nfa;
     use crate::automata::nfa::NFA;
     use crate::automata::pattern::Pattern;
@@ -102,81 +103,96 @@ pub mod tests {
     use std::default::Default;
     use test::Bencher;
 
-    fn space_to_nfa() -> NFA {
+    fn newline() -> Group {
         let     pattern = Pattern::char('\n');
-        let mut state   = Group::default();
+        let mut group   = Group::default();
 
-        state.add_rule(Rule{pattern,callback:"".into()});
+        group.add_rule(Rule{pattern,callback:"".into()});
 
-        NFA::from(&state)
+        group
     }
 
-    fn letter_to_nfa() -> NFA {
+    fn letter() -> Group {
         let     pattern = Pattern::range('a'..='z');
-        let mut state   = Group::default();
+        let mut group   = Group::default();
 
-        state.add_rule(Rule{pattern,callback:"".into()});
+        group.add_rule(Rule{pattern,callback:"".into()});
 
-        NFA::from(&state)
+        group
     }
 
-    fn spaces_to_nfa() -> NFA {
+    fn spaces() -> Group {
         let     pattern = Pattern::char(' ').many1();
-        let mut state   = Group::default();
+        let mut group   = Group::default();
 
-        state.add_rule(Rule{pattern,callback:"".into()});
+        group.add_rule(Rule{pattern,callback:"".into()});
 
-        NFA::from(&state)
+        group
     }
 
-    fn letter_and_spaces_to_nfa() -> NFA {
+    fn letter_and_spaces() -> Group {
         let     letter = Pattern::range('a'..='z');
         let     spaces = Pattern::char(' ').many1();
-        let mut state  = Group::default();
+        let mut group  = Group::default();
 
-        state.add_rule(Rule{pattern:letter,callback:"".into()});
-        state.add_rule(Rule{pattern:spaces,callback:"".into()});
+        group.add_rule(Rule{pattern:letter,callback:"".into()});
+        group.add_rule(Rule{pattern:spaces,callback:"".into()});
 
-        NFA::from(&state)
+        group
+    }
+
+    fn hundred_rules() -> Group {
+        let     pattern = Pattern::all("The quick brown fox jumps over the lazy dog!!");
+        let mut group   = Group::default();
+
+        for _ in 0..100 {
+            group.add_rule(Rule{pattern:pattern.clone(),callback:"".into()})
+        }
+        group
     }
 
     #[test]
     fn test_to_nfa_newline() {
-        assert_eq!(space_to_nfa(), nfa::tests::newline());
+        assert_eq!(NFA::from(&newline()), nfa::tests::newline());
     }
 
     #[test]
     fn test_to_nfa_letter() {
-        assert_eq!(letter_to_nfa(), nfa::tests::letter());
+        assert_eq!(NFA::from(&letter()), nfa::tests::letter());
     }
 
     #[test]
     fn test_to_nfa_spaces() {
-        assert_eq!(spaces_to_nfa(), nfa::tests::spaces());
+        assert_eq!(NFA::from(&spaces()), nfa::tests::spaces());
     }
 
     #[test]
     fn test_to_nfa_letter_and_spaces() {
-        assert_eq!(letter_and_spaces_to_nfa(), nfa::tests::letter_and_spaces());
+        assert_eq!(NFA::from(&letter_and_spaces()), nfa::tests::letter_and_spaces());
     }
 
     #[bench]
     fn bench_to_nfa_newline(bencher:&mut Bencher) {
-        bencher.iter(|| space_to_nfa())
+        bencher.iter(|| NFA::from(&newline()))
     }
 
     #[bench]
     fn bench_to_nfa_letter(bencher:&mut Bencher) {
-        bencher.iter(|| letter_to_nfa())
+        bencher.iter(|| NFA::from(&letter()))
     }
 
     #[bench]
     fn bench_to_nfa_spaces(bencher:&mut Bencher) {
-        bencher.iter(|| spaces_to_nfa())
+        bencher.iter(|| NFA::from(&spaces()))
     }
 
     #[bench]
     fn bench_to_nfa_letter_and_spaces(bencher:&mut Bencher) {
-        bencher.iter(|| letter_and_spaces_to_nfa())
+        bencher.iter(|| NFA::from(&letter_and_spaces()))
+    }
+
+    #[bench]
+    fn bench_hundred_rules(bencher:&mut Bencher) {
+        bencher.iter(|| DFA::from(&NFA::from(&hundred_rules())));
     }
 }

@@ -28,6 +28,12 @@ pub struct Id {
     pub id: usize
 }
 
+impl Default for Id {
+    fn default() -> Self {
+        state::INVALID
+    }
+}
+
 /// Named NFA state with a set of transitions (links).
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct State {
