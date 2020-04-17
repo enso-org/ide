@@ -11,7 +11,6 @@ output_id.r *= alpha_no_aa;
 output_id.g *= alpha_no_aa;
 output_id.b *= alpha_no_aa;
 
-
 if (input_display_mode == 0) {
     output_color = srgba(unpremultiply(shape.color)).raw;
     output_color.rgb *= alpha;

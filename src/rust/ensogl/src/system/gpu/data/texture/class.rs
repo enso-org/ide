@@ -73,12 +73,6 @@ impl Default for Parameters{
     }
 }
 
-
-
-// ===============
-// === Texture ===
-// ===============
-
 impl Parameters {
     /// Sets the context parameters in the given context.
     pub fn set_parameters(&self, context:&Context){
@@ -92,15 +86,22 @@ impl Parameters {
 }
 
 
+
+// ===============
+// === Texture ===
+// ===============
+
+
+
 /// Texture bound to GL context.
 #[derive(Derivative)]
 #[derivative(Clone(bound="StorageOf<Storage,InternalFormat,ItemType>:Clone"))]
 #[derivative(Debug(bound="StorageOf<Storage,InternalFormat,ItemType>:Debug"))]
 pub struct Texture<Storage,InternalFormat,ItemType>
 where Storage: StorageRelation<InternalFormat,ItemType> {
-    storage        : StorageOf<Storage,InternalFormat,ItemType>,
-    gl_texture     : WebGlTexture,
-    context        : Context,
+        storage    : StorageOf<Storage,InternalFormat,ItemType>,
+        gl_texture : WebGlTexture,
+        context    : Context,
     /// Texture parameters that need to be set when binding the texture.
     pub parameters : Parameters
 }

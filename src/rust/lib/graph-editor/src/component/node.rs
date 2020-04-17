@@ -255,10 +255,10 @@ impl Node {
         }
 
         // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-        // let input_port = self.data.ports.input.create(&self);
-        // input_port.set_position(90.0_f32.degrees());
-        // let output_port = self.data.ports.output.create(&self);
-        // output_port.set_position(270.0_f32.degrees());
+        let input_port = self.data.ports.input.create(&self);
+        input_port.set_position(90.0_f32.degrees());
+        let output_port = self.data.ports.output.create(&self);
+        output_port.set_position(270.0_f32.degrees());
 
         self
     }
