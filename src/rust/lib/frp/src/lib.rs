@@ -73,62 +73,70 @@
 //!
 //! ```dot
 //! digraph G {
-//!   layout=neato
-//!   node [shape=box style=rounded]
-//!   Network1[pos="-3,-1!",color=blue]
-//!   Network2[pos="-3,-5.5!",color=crimson]
-//!   Network1 -> node_1
-//!   Network2 -> node_2
-//!   Network2 -> node_3
+//!     layout=neato
+//!     node [shape=box style=rounded]
+//!     Network1[pos="-3,-1!",color=blue]
+//!     Network2[pos="-3,-5.5!",color=crimson]
+//!     Network1 -> node_1
+//!     Network2 -> node_2
+//!     Network2 -> node_3
 //!
 //!
 //!
-//!   node_1[label="OwnedSource", pos="-0.5,-1!", color=blue]
-//!   SourceData[pos="-0.5,0!",color=blue]
-//!   node_1 -> SourceData
-//!   node_data_1[label="stream::NodeData",pos="1.8,-1!",color=blue]
-//!   node_1 -> node_data_1
-//!   stream_1[label="Stream<()>", pos="4.0,-1!"]
-//!   stream_1 -> node_data_1 [style=dashed]
-//!   Source[pos="1.8,0!",color=blue]
-//!   Source -> SourceData [style=dashed]
-//!   Source -> node_data_1 [style=dashed]
+//!     node_1[label="OwnedSource", pos="-0.5,-1!", color=blue]
+//!     SourceData[pos="-0.5,0!",color=blue]
+//!     node_1 -> SourceData
+//!     node_data_1[label="stream::NodeData",pos="1.8,-1!",color=blue]
+//!     node_1 -> node_data_1
+//!     stream_1[label="Stream<()>", pos="4.0,-1.3!"]
+//!     owned_stream_1[label="OwnedStream<()>", pos="4.0,-0.7!"]
+//!     stream_1 -> node_data_1 [style=dashed]
+//!     owned_stream_1 -> node_data_1
+//!     Source[pos="1.8,0!",color=blue]
+//!     Source -> SourceData [style=dashed]
+//!     Source -> node_data_1 [style=dashed]
 //!
 //!
-//!   node_data_1 -> Count [color=red]
-//!   Count_[pos="1.8,-3!",label="",color=crimson, width=0.85, height=0.6]
-//!   Count[pos="1.8,-3!",color=blue]
-//!   node_2[label="OwnedCount",pos="-0.5,-4!",color=crimson]
-//!   CountData[pos="-0.5,-3!",color=crimson]
-//!   CountData -> stream_1   [color="#AAAAAA"]
-//!   CountData -> node_1     [color="#AAAAAA"]
-//!   CountData -> Source     [color="#AAAAAA"]
-//!   node_2 -> CountData
-//!   node_data_2[label="stream::NodeData",pos="1.8,-4!",color=crimson]
-//!   node_2 -> node_data_2
-//!   Count -> node_data_2 [style=dashed]
-//!   Count -> CountData [style=dashed]
-//!   stream_2[label="Stream<usize>",pos="4.0,-4!"]
-//!   stream_2 -> node_data_2 [style=dashed]
+//!     node_data_1 -> Count [color=red]
+//!     Count_[pos="1.8,-3!",label="",color=crimson, width=0.85, height=0.6]
+//!     Count[pos="1.8,-3!",color=blue]
+//!     node_2[label="OwnedCount",pos="-0.5,-4!",color=crimson]
+//!     CountData[pos="-0.5,-3!",color=crimson]
+//!     CountData -> stream_1       [color="#AAAAAA"]
+//!     CountData -> owned_stream_1 [color="#AAAAAA"]
+//!     CountData -> node_1         [color="#AAAAAA"]
+//!     CountData -> Source         [color="#AAAAAA"]
+//!     node_2 -> CountData
+//!     node_data_2[label="stream::NodeData",pos="1.8,-4!",color=crimson]
+//!     node_2 -> node_data_2
+//!     Count -> node_data_2 [style=dashed]
+//!     Count -> CountData [style=dashed]
+//!     owned_stream_2[label="OwnedStream<usize>",pos="4.0,-3.7!"]
+//!     stream_2[label="Stream<usize>",pos="4.0,-4.3!"]
+//!     owned_stream_2 -> node_data_2
+//!     stream_2 -> node_data_2 [style=dashed]
 //!
 //!
 //!
-//!   node_data_2 -> Map [color=red]
-//!   Map[pos="1.8,-6!",color=crimson]
-//!   node_3[label="OwnedMap",pos="-0.5,-7!",color=crimson]
-//!   MapData[pos="-0.5,-6!",color=crimson]
-//!   MapData -> stream_2   [color="#AAAAAA"]
-//!   MapData -> node_2     [color="#AAAAAA"]
-//!   MapData -> Count      [color="#AAAAAA"]
-//!   node_3 -> MapData
-//!   node_data_3[label="stream::NodeData",pos="1.8,-7!",color=crimson]
-//!   node_3 -> node_data_3
-//!   Map -> node_data_3 [style=dashed]
-//!   Map -> MapData [style=dashed]
-//!   stream_3[label="Stream<String>", pos="4.0,-7!"]
-//!   stream_3 -> node_data_3 [style=dashed]
+//!     node_data_2 -> Map [color=red]
+//!     Map[pos="1.8,-6!",color=crimson]
+//!     node_3[label="OwnedMap",pos="-0.5,-7!",color=crimson]
+//!     MapData[pos="-0.5,-6!",color=crimson]
+//!     MapData -> owned_stream_2 [color="#AAAAAA"]
+//!     MapData -> stream_2       [color="#AAAAAA"]
+//!     MapData -> node_2         [color="#AAAAAA"]
+//!     MapData -> Count          [color="#AAAAAA"]
+//!     node_3 -> MapData
+//!     node_data_3[label="stream::NodeData",pos="1.8,-7!",color=crimson]
+//!     node_3 -> node_data_3
+//!     Map -> node_data_3 [style=dashed]
+//!     Map -> MapData [style=dashed]
+//!     owned_stream_3[label="OwnedStream<String>", pos="4.0,-6.7!"]
+//!     stream_3[label="Stream<String>", pos="4.0,-7.3!"]
+//!     owned_stream_3 -> node_data_3
+//!     stream_3 -> node_data_3 [style=dashed]
 //! }
-//!```
+//! ```
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
