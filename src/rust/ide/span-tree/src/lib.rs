@@ -1,7 +1,7 @@
 //! SpanTree module
 //!
-//! SpanTree is astructure describing expression with nodes mapped to expression text spans. It can
-//! be be considered a layer over AST, that add an information about chains (you can
+//! SpanTree is a structure describing expression with nodes mapped to expression text spans. It can
+//! be considered a layer over AST, that adds an information about chains (you can
 //! iterate over all elements of infix chain like `1 + 2 + 3` or prefix chain like `foo bar baz`),
 //! and provides interface for AST operations like set node to a new AST or add new element to
 //! operator chain.
