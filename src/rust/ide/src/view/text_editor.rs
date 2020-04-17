@@ -1,19 +1,19 @@
 //! This module contains TextEditor, an UiComponent to edit Enso Modules or Text Files.
 
-use ensogl::traits::*;
 use crate::prelude::*;
 
 use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
+use ensogl::display;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::*;
 use data::text::TextChange;
-use enso_frp::io::KeyboardActions;
-use enso_frp::io::KeyMask;
+use enso_frp::io::keyboard;
+use enso_frp::io::keyboard::KeyMask;
 use nalgebra::Vector2;
 use nalgebra::zero;
 use utils::channel::process_stream_with_handle;
@@ -55,9 +55,9 @@ impl {
         });
     }
 
-    /// Selects next word occurrence.
-    pub fn select_next_word_occurrence(&mut self) {
-        self.text_field.select_next_word_occurrence();
+    /// Get the editor's display object.
+    pub fn display_object(&self) -> display::object::Instance {
+        self.text_field.display_object()
     }
 }}
 
@@ -67,35 +67,36 @@ impl TextEditor {
     ( logger           : &Logger
     , world            : &World
     , controller       : controller::Text
-    , keyboard_actions : &mut KeyboardActions) -> Self {
+    , keyboard_actions : &mut keyboard::Actions
+    , fonts            : &mut FontRegistry
+    ) -> Self {
         let logger     = logger.sub("TextEditor");
         let scene      = world.scene();
         let camera     = scene.camera();
         let screen     = camera.screen();
-        let mut fonts  = FontRegistry::new();
         let font       = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let padding    = default();
         let position   = zero();
-        let size       = Vector2::new(screen.width, screen.height);
+        let size       = Vector2::new(screen.width, screen.height / 2.0);
         let black      = Vector4::new(0.0,0.0,0.0,1.0);
         let base_color = black;
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(&world,properties);
-        world.add_child(&text_field);
+        // world.add_child(&text_field); // FIXME !!!
 
         let data = TextEditorData {controller,text_field,padding,position,size,logger};
         Self::new_from_data(data).initialize(keyboard_actions)
     }
 
-    fn initialize(self, keyboard_actions:&mut KeyboardActions) -> Self {
-        let save_keys   = KeyMask::new_control_character('s');
+    fn initialize(self, keyboard_actions:&mut keyboard::Actions) -> Self {
+        let save_keys   = KeyMask::control_plus('s');
         let text_editor = Rc::downgrade(&self.rc);
-        keyboard_actions.set_action(save_keys,enclose!((text_editor) move |_| {
+        keyboard_actions.add_action_for_key_mask(save_keys,enclose!((text_editor) move || {
             if let Some(text_editor) = text_editor.upgrade() {
                 text_editor.borrow().save();
             }
-        }));
+        })).forget(); // FIXME remove forget
 
         self.setup_notifications();
         executor::global::spawn(self.reload_content());

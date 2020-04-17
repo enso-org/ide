@@ -8,6 +8,9 @@
 ///   - A Rgba struct which contains `vec4 raw` field for each component.
 ///   - A rich set of smart constructors for each of the types.
 ///   - A rich set of simple conversions between them.
+///
+/// All component values are in range 0.0..1.0.
+
 
 #define DEF_COLOR(type_name3,type_name4,name3,name4,t1,t2,t3) \
                                                               \
@@ -106,7 +109,7 @@ type_name3 name3 (type_name4 a) {                             \
 }
 
 
-DEF_COLOR(Srgb , SRgba , srgb , srgba , r , g ,b)
+DEF_COLOR(Srgb , Srgba , srgb , srgba , r , g ,b)
 DEF_COLOR(Rgb  , Rgba  , rgb  , rgba  , r , g ,b)
 DEF_COLOR(HSV  , HSVA  , hsv  , hsva  , h , s ,v)
 DEF_COLOR(Lch  , Lcha  , lch  , lcha  , l , c ,h)
@@ -175,7 +178,7 @@ Rgb rgb(Srgb srgb) {
     return rgb(r,g,b);
 }
 
-DEF_TRANSITIVE_CONVERSIONS(Srgb,SRgba,srgb,srgba,Rgb,Rgba,rgb,rgba)
+DEF_TRANSITIVE_CONVERSIONS(Srgb,Srgba,srgb,srgba,Rgb,Rgba,rgb,rgba)
 
 
 
@@ -214,7 +217,7 @@ Srgb srgb (Lch lch) {
     return srgb(raw);
 }
 
-DEF_TRANSITIVE_CONVERSIONS(Srgb,SRgba,srgb,srgba,Lch,Lcha,lch,lcha)
+DEF_TRANSITIVE_CONVERSIONS(Srgb,Srgba,srgb,srgba,Lch,Lcha,lch,lcha)
 
 
 
@@ -242,7 +245,7 @@ Srgb srgb(HSV hsv) {
     return srgb(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y));
 }
 
-DEF_TRANSITIVE_CONVERSIONS(Srgb,SRgba,srgb,srgba,HSV,HSVA,hsv,hsva)
+DEF_TRANSITIVE_CONVERSIONS(Srgb,Srgba,srgb,srgba,HSV,HSVA,hsv,hsva)
 
 
 

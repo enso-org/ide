@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // TODO: Fixme
+
 //! A module defining TextField. TextField is a ensogl component displaying editable block of text.
 
 pub mod content;
@@ -9,6 +11,7 @@ pub mod word_occurrence;
 use crate::prelude::*;
 
 use crate::display;
+use crate::display::object::traits::*;
 use crate::display::shape::text::text_field::content::location::TextLocationChange;
 use crate::display::shape::text::text_field::content::TextFieldContent;
 use crate::display::shape::text::text_field::cursor::Cursors;
@@ -23,12 +26,47 @@ use crate::display::shape::text::glyph::font::FontRegistry;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::world::World;
+use crate::system::web::text_input::KeyboardBinding;
 
 use data::text::TextChange;
 use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
+
+
+
+// =====================
+// === Focus Manager ===
+// =====================
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct FocusManager {
+    binding    : Rc<RefCell<KeyboardBinding>>,
+    focused_on : Rc<CloneCell<Option<WeakTextField>>>,
+}
+
+impl FocusManager {
+    pub fn new_with_js_handlers() -> Self {
+        FocusManager {
+            binding    : Rc::new(RefCell::new(KeyboardBinding::create())),
+            focused_on : default()
+        }
+    }
+
+    pub fn set_focus_on(&self, text_field:&TextField) {
+        let current = self.focused_on.get().and_then(|ptr| ptr.upgrade());
+        let already_focused = current.as_ref().map_or(false, |ptr| (ptr.identity_equals(text_field)));
+        if !already_focused {
+            current.for_each(|current| current.on_defocus());
+            let tf_ref = text_field.rc.borrow();
+            let frp    = &tf_ref.frp.as_ref().unwrap().keyboard;
+            frp.bind_frp_to_js_text_input_actions(&mut self.binding.borrow_mut());
+            self.focused_on.set(Some(text_field.downgrade()))
+        }
+
+    }
+}
 
 
 
@@ -79,14 +117,22 @@ shared! { TextField
         content          : TextFieldContent,
         cursors          : Cursors,
         rendered         : TextFieldSprites,
-        display_object   : display::object::Node,
+        display_object   : display::object::Instance,
         frp              : Option<TextFieldFrp>,
         word_occurrences : Option<WordOccurrences>,
         #[derivative(Debug="ignore")]
-        text_change_callback : Option<Box<dyn FnMut(&TextChange)>>
+        text_change_callback : Option<Box<dyn FnMut(&TextChange)>>,
+        focus_manager        : FocusManager,
+        // TODO[ao] this should be infered from focus_manager, but it requires much refactoring.
+        focused              : bool,
     }
 
     impl {
+        /// Display object getter.
+        pub fn display_object(&self) -> display::object::Instance {
+            self.display_object.clone()
+        }
+
         /// Set position of this TextField.
         pub fn set_position(&mut self, position:Vector3<f32>) {
             self.display_object.set_position(position);
@@ -102,28 +148,28 @@ shared! { TextField
             self.properties.size
         }
 
-        /// Scroll one page down.
-        pub fn page_down(&mut self) {
-            self.scroll(Vector2::new(0.0, -self.size().y))
-        }
-
-        /// Scroll one page up.
-        pub fn page_up(&mut self) {
-            self.scroll(Vector2::new(0.0, self.size().y))
-        }
-
         /// Scroll text by given offset in pixels.
         pub fn scroll(&mut self, offset:Vector2<f32>) {
-            let position_change = -Vector3::new(offset.x,offset.y,0.0);
-            self.rendered.display_object.mod_position(|pos| *pos += position_change);
-            let mut update = self.assignment_update();
-            if offset.x != 0.0 {
-                update.update_after_x_scroll(offset.x);
+            let scroll_position = self.scroll_position();
+            let padding_lines   = 2;
+            let lines           = self.content.lines().len() + padding_lines;
+            let text_height     = self.content.line_height * lines as f32;
+            let view_height     = self.size().y;
+            let height          = (text_height - view_height).max(0.0);
+            let offset_y        = offset.y.min(scroll_position.y).max(scroll_position.y - height);
+            let offset          = Vector2::new(offset.x, offset_y);
+            if offset.x != 0.0 || offset.y != 0.0 {
+                let position_change = -Vector3::new(offset.x,offset.y,0.0);
+                self.rendered.display_object.mod_position(|pos| *pos += position_change);
+                let mut update = self.assignment_update();
+                if offset.x != 0.0 {
+                    update.update_after_x_scroll(offset.x);
+                }
+                if offset.y != 0.0 {
+                    update.update_line_assignment();
+                }
+                self.rendered.update_glyphs(&mut self.content);
             }
-            if offset.y != 0.0 {
-                update.update_line_assignment();
-            }
-            self.rendered.update_glyphs(&mut self.content);
         }
 
         /// Get current scroll position.
@@ -139,7 +185,7 @@ shared! { TextField
         /// Finish multicursor mode, removing any additional cursors.
         pub fn finish_multicursor_mode(&mut self) {
             self.cursors.finish_multicursor_mode();
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+            self.rendered.update_cursor_sprites(&self.cursors,&mut self.content,self.focused);
             self.clear_word_occurrences();
         }
 
@@ -158,11 +204,38 @@ shared! { TextField
 
         /// Jump active cursor to point on the screen.
         pub fn jump_cursor(&mut self, point:Vector2<f32>, selecting:bool) {
-            let point_on_text  = self.relative_position(point);
-            let content        = &mut self.content;
-            let mut navigation = CursorNavigation {selecting, ..CursorNavigation::default(content)};
+            let point_on_text   = self.relative_position(point);
+            let text_field_size = self.size();
+            let content         = &mut self.content;
+            let mut navigation      = CursorNavigation{selecting,content,text_field_size};
             self.cursors.jump_cursor(&mut navigation,point_on_text);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content,self.focused);
+        }
+
+        /// Processes PageUp and PageDown, scrolling the page accordingly.
+        fn scroll_page(&mut self, step:Step) {
+            let page_height     = self.size().y;
+            let scrolling       = match step {
+                Step::PageUp   =>  page_height,
+                Step::PageDown => -page_height,
+                _              => 0.0
+            };
+
+            self.scroll(Vector2::new(0.0,scrolling));
+        }
+
+        /// Adjust the view to make the last cursor visible.
+        fn adjust_view(&mut self) {
+            let last_cursor      = self.cursors.last_cursor();
+            let scroll_y         = self.scroll_position().y;
+            let view_size        = self.size();
+            let current_line     = last_cursor.current_line(&mut self.content);
+            let current_line_pos = current_line.y_position();
+            let next_line_pos    = current_line_pos + current_line.height;
+            let y_scrolling      = (scroll_y - next_line_pos + view_size.y).min(0.0);
+            let y_scrolling      = (scroll_y - current_line_pos).max(y_scrolling);
+            let scrolling        = Vector2::new(0.0,y_scrolling);
+            self.scroll(scrolling);
         }
 
         /// Move all cursors by given step.
@@ -170,10 +243,13 @@ shared! { TextField
             if !selecting {
                 self.clear_word_occurrences()
             }
-            let content        = &mut self.content;
-            let mut navigation = CursorNavigation {content,selecting};
+            let text_field_size = self.size();
+            let content         = &mut self.content;
+            let mut navigation  = CursorNavigation{content,selecting,text_field_size};
             self.cursors.navigate_all_cursors(&mut navigation,step);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+            self.scroll_page(step);
+            self.adjust_view();
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content,self.focused);
         }
 
         /// Discards all current content and replaces it with new one.
@@ -184,7 +260,12 @@ shared! { TextField
             self.cursors.recalculate_positions(&self.content);
             self.assignment_update().update_after_text_edit();
             self.rendered.update_glyphs(&mut self.content);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content,self.focused);
+        }
+
+        /// Clear content.
+        pub fn clear_content(&mut self) {
+            self.set_content("");
         }
 
         /// Obtains the whole text content as a single String.
@@ -212,7 +293,7 @@ shared! { TextField
         pub fn block_selection(&mut self, position:Vector2<f32>) {
             let point_on_text = self.relative_position(position);
             self.cursors.block_selection(&mut self.content, point_on_text);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content,self.focused);
         }
 
         /// Selects the current word, if the cursor is inside a word, or select a next word if a
@@ -233,7 +314,8 @@ shared! { TextField
 
                     let cursor = self.cursors.last_cursor_mut();
                     cursor.select_range(&word);
-                    self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+                    let focused = self.focused;
+                    self.rendered.update_cursor_sprites(&self.cursors,&mut self.content,focused);
                 }
             }
         }
@@ -255,11 +337,16 @@ shared! { TextField
         (&mut self, callback:Callback) {
             self.text_change_callback = Some(Box::new(callback))
         }
+
+        fn on_defocus(&mut self) {
+            self.focused = false;
+            self.rendered.update_cursor_sprites(&self.cursors,&mut self.content,self.focused);
+        }
     }
 }
 
 
-// === Constructor ===
+// === Public ===
 
 impl TextField {
     /// Create new empty TextField
@@ -276,6 +363,12 @@ impl TextField {
         let frp  = TextFieldFrp::new(world,this.downgrade());
         this.with_borrowed(move |mut data| { data.frp = Some(frp); });
         this
+    }
+
+    pub fn set_focus(&self) {
+        let focus_manager = self.with_borrowed(|data| data.focus_manager.clone_ref());
+        focus_manager.set_focus_on(&self);
+        self.with_borrowed(|data| data.focused = true);
     }
 }
 
@@ -307,8 +400,9 @@ impl TextField {
             // TODO[ao] updates should be done only in one place and only once per frame
             // see https://github.com/luna/ide/issues/178
             this.assignment_update().update_after_text_edit();
+            this.adjust_view();
             this.rendered.update_glyphs(&mut this.content);
-            this.rendered.update_cursor_sprites(&this.cursors, &mut this.content);
+            this.rendered.update_cursor_sprites(&this.cursors, &mut this.content, this.focused);
         });
     }
 
@@ -322,11 +416,11 @@ impl TextField {
     /// For cursors with selection it will just remove the selected text. For the rest, it will
     /// remove all content covered by `step`.
     pub fn do_delete_operation(&self, step:Step) {
+        let text_field_size = self.size();
         self.with_borrowed(|this| {
             let content           = &mut this.content;
             let selecting         = true;
-            let mut navigation    = CursorNavigation
-                {selecting,..CursorNavigation::default(content)};
+            let mut navigation    = CursorNavigation{selecting,content,text_field_size};
             let without_selection = |c:&Cursor| !c.has_selection();
             this.cursors.navigate_cursors(&mut navigation,step,without_selection);
         });
@@ -362,23 +456,25 @@ impl TextField {
 impl TextFieldData {
     fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
         let logger               = Logger::new("TextField");
-        let display_object       = display::object::Node::new(logger);
+        let display_object       = display::object::Instance::new(logger);
         let content              = TextFieldContent::new(initial_content,&properties);
         let cursors              = Cursors::default();
         let rendered             = TextFieldSprites::new(world,&properties);
         let frp                  = None;
         let word_occurrences     = None;
         let text_change_callback = None;
-        display_object.add_child(rendered.display_object.clone_ref());
+        let focus_manager        = world.text_field_focus_manager().clone_ref();
+        let focused              = false;
+        display_object.add_child(&rendered);
 
         Self {properties,content,cursors,rendered,display_object,frp,word_occurrences,
-              text_change_callback}.initialize()
+              text_change_callback,focus_manager,focused}.initialize()
     }
 
     fn initialize(mut self) -> Self {
         self.assignment_update().update_line_assignment();
         self.rendered.update_glyphs(&mut self.content);
-        self.rendered.update_cursor_sprites(&self.cursors, &mut self.content);
+        self.rendered.update_cursor_sprites(&self.cursors,&mut self.content,self.focused);
         self
     }
 
@@ -410,8 +506,8 @@ impl TextFieldData {
 
 // === Display Object ===
 
-impl From<&TextField> for display::object::Node {
-    fn from(text_fields: &TextField) -> Self {
-        text_fields.rc.borrow().display_object.clone_ref()
-    }
-}
+//impl From<&TextField> for display::object::Instance {
+//    fn from(text_fields: &TextField) -> Self {
+//        text_fields.rc.borrow().display_object.clone_ref()
+//    }
+//}
