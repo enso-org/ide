@@ -18,7 +18,7 @@ pub const INVALID:Id = Id {id:usize::max_value()};
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 pub struct Symbol {
     #[allow(missing_docs)]
-    pub val: i64
+    pub val: u32
 }
 
 /// Newtype wrapper for finite automata state ID.
@@ -88,10 +88,10 @@ impl From<Vec<usize>> for State {
     }
 }
 
-impl From<Vec<(RangeInclusive<i64>, usize)>> for State {
+impl From<Vec<(RangeInclusive<u32>, usize)>> for State {
     /// Creates a state with ordinary links.
-    fn from(vec:Vec<(RangeInclusive<i64>, usize)>) -> Self {
-        let link = |(range, id): (RangeInclusive<i64>, usize)| {
+    fn from(vec:Vec<(RangeInclusive<u32>, usize)>) -> Self {
+        let link = |(range, id): (RangeInclusive<u32>, usize)| {
             let start = Symbol{val:*range.start()};
             let end   = Symbol{val:*range.end()};
             Link {symbols: start..=end, target: Id{ id }}

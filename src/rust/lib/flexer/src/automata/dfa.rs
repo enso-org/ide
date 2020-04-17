@@ -51,3 +51,77 @@ impl DFA {
         matrix.into_iter().map(build).collect()
     }
 }
+
+
+// ===========
+// == Tests ==
+// ===========
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use crate::automata::state;
+
+
+    const I:usize = state::INVALID.id;
+
+    /// DFA automata that accepts newline '\n'.
+    pub fn newline() -> DFA {
+        DFA {
+            alphabet: Alphabet::from(vec![10,11]),
+            links: DFA::links(vec![vec![I,1,I],vec![I,I,I]]),
+            callbacks: vec![
+                None,
+                Some(Callback{priority:2,name:"group0_rule0".into()}),
+            ],
+        }
+    }
+
+    /// DFA automata that accepts any letter a..=z.
+    pub fn letter() -> DFA {
+        DFA {
+            alphabet: Alphabet::from(vec![97,123]),
+            links: DFA::links(vec![vec![I,1,I],vec![I,I,I]]),
+            callbacks: vec![
+                None,
+                Some(Callback{priority:2,name:"group0_rule0".into()}),
+            ],
+        }
+    }
+
+    /// DFA automata that accepts any number of spaces ' '.
+    pub fn spaces() -> DFA {
+        DFA {
+            alphabet: Alphabet::from(vec![0,32,33]),
+            links: DFA::links(vec![
+                vec![I,1,I],
+                vec![I,2,I],
+                vec![I,2,I],
+            ]),
+            callbacks: vec![
+                None,
+                Some(Callback{priority:3,name:"group0_rule0".into()}),
+                Some(Callback{priority:3,name:"group0_rule0".into()}),
+            ],
+        }
+    }
+
+    /// DFA automata that accepts one letter a..=z or any many spaces.
+    pub fn letter_and_spaces() -> DFA {
+        DFA {
+            alphabet: Alphabet::from(vec![32,33,97,123]),
+            links: DFA::links(vec![
+                vec![I,1,I,2,I],
+                vec![I,3,I,I,I],
+                vec![I,I,I,I,I],
+                vec![I,3,I,I,I],
+            ]),
+            callbacks: vec![
+                None,
+                Some(Callback{priority:4,name:"group0_rule1".into()}),
+                Some(Callback{priority:4,name:"group0_rule0".into()}),
+                Some(Callback{priority:4,name:"group0_rule1".into()}),
+            ],
+        }
+    }
+}

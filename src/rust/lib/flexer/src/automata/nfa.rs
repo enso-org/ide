@@ -9,7 +9,8 @@ use crate::automata::state;
 use std::collections::HashMap;
 use std::collections::BTreeSet;
 use std::ops::RangeInclusive;
-
+use crate::automata::pattern::Pattern;
+use itertools::Itertools;
 
 
 // ========================================
@@ -60,6 +61,41 @@ impl NFA {
     (&mut self, source:state::Id, target:state::Id, symbols:&RangeInclusive<Symbol>) {
         self.alphabet.insert(symbols.clone());
         self.states[source.id].links.push(Link{symbols:symbols.clone(), target});
+    }
+
+    /// Transforms pattern to NFA.
+    /// The algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
+    pub fn new_pattern(&mut self, source:state::Id, pattern:&Pattern) -> state::Id {
+        let current = self.new_state();
+        self.connect(source,current);
+        match pattern {
+            Pattern::Range(range) => {
+                let state = self.new_state();
+                self.connect_by(current,state,range);
+                state
+            },
+            Pattern::Many(body) => {
+                let s1 = self.new_state();
+                let s2 = self.new_pattern(s1,body);
+                let s3 = self.new_state();
+                self.connect(current,s1);
+                self.connect(current,s3);
+                self.connect(s2,s3);
+                self.connect(s3,s1);
+                s3
+            },
+            Pattern::And(patterns) => {
+                patterns.iter().fold(current,|s,pat| self.new_pattern(s,pat))
+            },
+            Pattern::Or(patterns) => {
+                let states = patterns.iter().map(|pat| self.new_pattern(current,pat)).collect_vec();
+                let end    = self.new_state();
+                for state in states {
+                    self.connect(state,end);
+                }
+                end
+            }
+        }
     }
 
 
@@ -171,5 +207,125 @@ impl From<&NFA> for DFA {
         }
 
         DFA {alphabet:nfa.alphabet.clone(),links:dfa_mat,callbacks}
+    }
+}
+
+// ===========
+// == Tests ==
+// ===========
+
+#[cfg(test)]
+pub mod tests {
+    extern crate test;
+    
+    use crate::automata::dfa;
+    
+    use super::*;   
+    use test::Bencher;
+
+    /// NFA automata that accepts newline '\n'.
+    pub fn newline() -> NFA {
+        NFA {
+            states: vec![
+                State::from(vec![1]),
+                State::from(vec![(10..=10,2)]),
+                State::from(vec![3]).named("group0_rule0"),
+                State::default(),
+            ],
+            alphabet: Alphabet::from(vec![10,11]),
+        }
+    }
+
+    /// NFA automata that accepts any letter a..=z.
+    pub fn letter() -> NFA {
+        NFA {
+            states: vec![
+                State::from(vec![1]),
+                State::from(vec![(97..=122,2)]),
+                State::from(vec![3]).named("group0_rule0"),
+                State::default(),
+            ],
+            alphabet: Alphabet::from(vec![97,123]),
+        }
+    }
+
+    /// NFA automata that accepts any number of spaces ' '.
+    pub fn spaces() -> NFA {
+        NFA {
+            states: vec![
+                State::from(vec![1]),
+                State::from(vec![2]),
+                State::from(vec![(32..=32,3)]),
+                State::from(vec![4]),
+                State::from(vec![5,8]),
+                State::from(vec![6]),
+                State::from(vec![(32..=32,7)]),
+                State::from(vec![8]),
+                State::from(vec![5,9]).named("group0_rule0"),
+                State::default(),
+            ],
+            alphabet: Alphabet::from(vec![0,32,33]),
+        }
+    }
+
+    /// NFA automata that accepts one letter a..=z or many spaces ' '.
+    pub fn letter_and_spaces() -> NFA {
+        NFA {
+            states: vec![
+                State::from(vec![1,3]),
+                State::from(vec![(97..=122,2)]),
+                State::from(vec![11]).named("group0_rule0"),
+                State::from(vec![4]),
+                State::from(vec![(32..=32,5)]),
+                State::from(vec![6]),
+                State::from(vec![7,10]),
+                State::from(vec![8]),
+                State::from(vec![(32..=32,9)]),
+                State::from(vec![10]),
+                State::from(vec![7,11]).named("group0_rule1"),
+                State::default(),
+            ],
+            alphabet: Alphabet::from(vec![32,33,97,123]),
+        }
+    }
+    
+    #[test]
+    fn test_to_dfa_newline() {
+        assert_eq!(DFA::from(&newline()),dfa::tests::newline());
+    }
+
+    #[test]
+    fn test_to_dfa_letter() {
+        assert_eq!(DFA::from(&letter()),dfa::tests::letter());
+    }
+
+    #[test]
+    fn test_to_dfa_spaces() {
+        assert_eq!(DFA::from(&spaces()),dfa::tests::spaces());
+    }
+
+    #[test]
+    fn test_to_dfa_letter_and_spaces() {
+        assert_eq!(DFA::from(&letter_and_spaces()),dfa::tests::letter_and_spaces());
+    }
+
+    #[bench]
+    fn bench_to_dfa_newline(bencher:&mut Bencher) {
+        bencher.iter(|| DFA::from(&newline()))
+    }
+
+    #[bench]
+    fn bench_to_dfa_letter(bencher:&mut Bencher) {
+        bencher.iter(|| DFA::from(&letter()))
+    }
+
+    #[bench]
+    fn bench_to_dfa_spaces(bencher:&mut Bencher) {
+        bencher.iter(|| DFA::from(&spaces()))
+    }
+
+    #[bench]
+    fn bench_to_dfa_letter_and_spaces(bencher:&mut Bencher) {
+        bencher.iter(|| DFA::from(&letter_and_spaces()))
     }
 }

@@ -1,7 +1,5 @@
 use crate::parser;
-use crate::automata::nfa::NFA;
 use crate::automata::state::Symbol;
-use crate::automata::state::Id;
 
 use core::iter;
 use itertools::Itertools;
@@ -57,17 +55,17 @@ impl Pattern {
 
     /// Pattern that never triggers.
     pub fn never() -> Self {
-        Pattern::symbols(0..=-1)
+        Pattern::symbols(1..=0)
     }
 
     /// Pattern that always triggers.
     pub fn always() -> Self {
-        Pattern::symbols(i64::min_value()..=i64::max_value())
+        Pattern::symbols(u32::min_value()..=u32::max_value())
     }
 
     /// Pattern that triggers on any char.
     pub fn any_char() -> Self {
-        Pattern::symbols(0..=i64::from(u32::max_value()))
+        Pattern::symbols(0..=u32::max_value())
     }
 
     /// Pattern that triggers on 0..N repetitions of given pattern.
@@ -80,21 +78,19 @@ impl Pattern {
         self.clone() & self.many()
     }
 
-    /// Pattern that triggers on 0..1 repetitions of given pattern.
+    /// Pattern that triggers on 0..=1 repetitions of given pattern.
     pub fn opt(self) -> Self {
         self | Self::always()
     }
 
     /// Pattern that triggers on given symbol
-    pub fn symbol(symbol:i64) -> Self {
+    pub fn symbol(symbol:u32) -> Self {
         Pattern::symbols(symbol..=symbol)
     }
 
     /// Pattern that triggers on any of the given symbols.
-    pub fn symbols(symbols:RangeInclusive<i64>) -> Self {
-        let start = Symbol{val:*symbols.start()};
-        let end   = Symbol{val:*symbols.end()};
-        Pattern::Range(start..=end)
+    pub fn symbols(symbols:RangeInclusive<u32>) -> Self {
+        Pattern::Range(Symbol{val:*symbols.start()}..=Symbol{val:*symbols.end()})
     }
 
     /// Pattern that triggers on end of file.
@@ -104,15 +100,13 @@ impl Pattern {
 
     /// Pattern that triggers on given character.
     pub fn char(char:char) -> Self {
-        Self::symbol((char as u32).into())
+        Self::symbol(char as u32)
     }
 
 
     /// Pattern that triggers on any of the given characters.
     pub fn range(chars:RangeInclusive<char>) -> Self {
-        let start = i64::from(*chars.start() as u32);
-        let end   = i64::from(*chars.end()   as u32);
-        Pattern::symbols(start..=end)
+        Pattern::symbols((*chars.start() as u32)..=(*chars.end() as u32))
     }
 
     /// Pattern that triggers when sequence of characters is encountered.
@@ -127,8 +121,8 @@ impl Pattern {
 
     /// Pattern that doesn't trigger on any given character from given sequence.
     pub fn none(chars:String) -> Self {
-        let max        = i64::max_value();
-        let char_iter  = chars.chars().map(|char| i64::from(char as u32));
+        let max        = u32::max_value();
+        let char_iter  = chars.chars().map(|char| char as u32);
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(max));
         let mut codes  = char_iter2.collect_vec();
 
@@ -153,42 +147,5 @@ impl Pattern {
     /// Pattern that triggers on MIN..MAX repetitions of given pattern.
     pub fn repeat_between(pat:Pattern, min:usize, max:usize) -> Self {
         (min..max).fold(Self::never(), |p,n| p | Self::repeat(pat.clone(),n))
-    }
-
-    /// Transforms pattern to NFA.
-    /// The algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
-    pub fn to_nfa(&self, nfa:&mut NFA, last: Id) -> Id {
-        let current = nfa.new_state();
-        nfa.connect(last, current);
-        match self {
-            Pattern::Range(range) => {
-                let state = nfa.new_state();
-                nfa.connect_by(current, state, range);
-                state
-            },
-            Pattern::Many(body) => {
-                let s1 = nfa.new_state();
-                let s2 = body.to_nfa(nfa, s1);
-                let s3 = nfa.new_state();
-                nfa.connect(current, s1);
-                nfa.connect(current, s3);
-                nfa.connect(s2, s3);
-                nfa.connect(s3, s1);
-                s3
-            },
-            Pattern::And(patterns) => {
-                let build = |s,pat:&Self| pat.to_nfa(nfa, s);
-                patterns.iter().fold(current,build)
-            },
-            Pattern::Or(patterns) => {
-                let build  = |pat:&Self| pat.to_nfa(nfa, current);
-                let states = patterns.iter().map(build).collect_vec();
-                let end    = nfa.new_state();
-                for state in states {
-                    nfa.connect(state, end);
-                }
-                end
-            }
-        }
     }
 }

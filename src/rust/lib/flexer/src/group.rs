@@ -73,7 +73,7 @@ impl From<&Group> for NFA {
     fn from(group:&Group) -> Self {
         let mut nfa   = NFA::default();
         let start     = nfa.new_state();
-        let build     = |rule:&Rule| rule.pattern.to_nfa(&mut nfa, start);
+        let build     = |rule:&Rule| nfa.new_pattern(start,&rule.pattern);
         let states    = group.rules().into_iter().map(build).collect_vec();
         let end       = nfa.new_state();
         for (ix, state) in states.into_iter().enumerate() {
@@ -90,175 +90,93 @@ impl From<&Group> for NFA {
 // =============
 
 #[cfg(test)]
-mod tests {
-    use crate::automata::alphabet::Alphabet;
-    use crate::automata::dfa::DFA;
-    use crate::automata::dfa::Callback;
+pub mod tests {
+    extern crate test;
+
+    use crate::automata::nfa;
     use crate::automata::nfa::NFA;
     use crate::automata::pattern::Pattern;
-    use crate::automata::state;
-    use crate::automata::state::State;
     use crate::group::Group;
     use crate::group::rule::Rule;
 
     use std::default::Default;
+    use test::Bencher;
 
-
-
-    const I:usize = state::INVALID.id;
-
-    #[test]
-    fn test_newline() {
+    fn space_to_nfa() -> NFA {
         let     pattern = Pattern::char('\n');
         let mut state   = Group::default();
 
-        state.add_rule(Rule{pattern, callback:"".into()});
+        state.add_rule(Rule{pattern,callback:"".into()});
 
-        let nfa = NFA::from(&state);
-        let dfa = DFA::from(&nfa);
-
-        let expected_nfa = NFA {
-            states: vec![
-                State::from(vec![1]),
-                State::from(vec![(10..=10, 2)]),
-                State::from(vec![3]).named("group0_rule0"),
-                State::default(),
-            ],
-            alphabet: Alphabet::from(vec![10,11]),
-        };
-        let expected_dfa = DFA {
-            alphabet: Alphabet::from(vec![10,11]),
-            links: DFA::links(vec![vec![I,1,I], vec![I,I,I]]),
-            callbacks: vec![
-                None,
-                Some(Callback {priority:2, name:"group0_rule0".into()}),
-            ]
-        };
-
-        assert_eq!(nfa,expected_nfa);
-        assert_eq!(dfa,expected_dfa);
+        NFA::from(&state)
     }
 
-    #[test]
-    fn test_letter() {
+    fn letter_to_nfa() -> NFA {
         let     pattern = Pattern::range('a'..='z');
         let mut state   = Group::default();
 
-        state.add_rule(Rule{pattern, callback:"".into()});
+        state.add_rule(Rule{pattern,callback:"".into()});
 
-        let nfa = NFA::from(&state);
-        let dfa = DFA::from(&nfa);
-
-        let expected_nfa = NFA {
-            states: vec![
-                State::from(vec![1]),
-                State::from(vec![(97..=122,2)]),
-                State::from(vec![3]).named("group0_rule0"),
-                State::default(),
-            ],
-            alphabet: Alphabet::from(vec![97,123]),
-        };
-        let expected_dfa = DFA {
-            alphabet: Alphabet::from(vec![97,123]),
-            links: DFA::links(vec![vec![I,1,I], vec![I,I,I]]),
-            callbacks: vec![
-                None,
-                Some(Callback {priority:2,name:"group0_rule0".into()}),
-            ]
-        };
-
-        assert_eq!(nfa,expected_nfa);
-        assert_eq!(dfa,expected_dfa);
+        NFA::from(&state)
     }
 
-    #[test]
-    fn test_spaces() {
+    fn spaces_to_nfa() -> NFA {
         let     pattern = Pattern::char(' ').many1();
         let mut state   = Group::default();
 
-        state.add_rule(Rule{pattern, callback:"".into()});
+        state.add_rule(Rule{pattern,callback:"".into()});
 
-        let nfa = NFA::from(&state);
-        let dfa = DFA::from(&nfa);
-
-        let expected_nfa = NFA {
-            states: vec![
-                State::from(vec![1]),
-                State::from(vec![2]),
-                State::from(vec![(32..=32,3)]),
-                State::from(vec![4]),
-                State::from(vec![5,8]),
-                State::from(vec![6]),
-                State::from(vec![(32..=32,7)]),
-                State::from(vec![8]),
-                State::from(vec![5,9]).named("group0_rule0"),
-                State::default(),
-            ],
-            alphabet: Alphabet::from(vec![0, 32, 33]),
-        };
-        let expected_dfa = DFA {
-            alphabet: Alphabet::from(vec![0, 32, 33]),
-            links: DFA::links(vec![
-                vec![I,1,I],
-                vec![I,2,I],
-                vec![I,2,I],
-            ]),
-            callbacks: vec![
-                None,
-                Some(Callback {priority:3,name:"group0_rule0".into()}),
-                Some(Callback {priority:3,name:"group0_rule0".into()}),
-            ]
-        };
-        assert_eq!(nfa,expected_nfa);
-        assert_eq!(dfa,expected_dfa);
+        NFA::from(&state)
     }
 
-    #[test]
-    fn test_letter_and_spaces() {
+    fn letter_and_spaces_to_nfa() -> NFA {
         let     letter = Pattern::range('a'..='z');
         let     spaces = Pattern::char(' ').many1();
         let mut state  = Group::default();
 
-        state.add_rule(Rule{pattern:letter, callback:"".into()});
-        state.add_rule(Rule{pattern:spaces, callback:"".into()});
+        state.add_rule(Rule{pattern:letter,callback:"".into()});
+        state.add_rule(Rule{pattern:spaces,callback:"".into()});
 
-        let nfa = NFA::from(&state);
-        let dfa = DFA::from(&nfa);
+        NFA::from(&state)
+    }
 
-        let expected_nfa = NFA {
-            states: vec![
-                State::from(vec![1,3]),
-                State::from(vec![(97..=122,2)]),
-                State::from(vec![11]).named("group0_rule0"),
-                State::from(vec![4]),
-                State::from(vec![(32..=32,5)]),
-                State::from(vec![6]),
-                State::from(vec![7,10]),
-                State::from(vec![8]),
-                State::from(vec![(32..=32,9)]),
-                State::from(vec![10]),
-                State::from(vec![7,11]).named("group0_rule1"),
-                State::default(),
-            ],
-            alphabet: Alphabet::from(vec![32,33,97,123]),
-        };
-        let expected_dfa = DFA {
-            alphabet: Alphabet::from(vec![32,33,97,123]),
-            links: DFA::links(vec![
-                vec![I,1,I,2,I],
-                vec![I,3,I,I,I],
-                vec![I,I,I,I,I],
-                vec![I,3,I,I,I],
-            ]),
-            callbacks: vec![
-                None,
-                Some(Callback {priority:4,name:"group0_rule1".into()}),
-                Some(Callback {priority:4,name:"group0_rule0".into()}),
-                Some(Callback {priority:4,name:"group0_rule1".into()}),
-            ]
-        };
+    #[test]
+    fn test_to_nfa_newline() {
+        assert_eq!(space_to_nfa(), nfa::tests::newline());
+    }
 
-        assert_eq!(nfa,expected_nfa);
-        assert_eq!(dfa,expected_dfa);
+    #[test]
+    fn test_to_nfa_letter() {
+        assert_eq!(letter_to_nfa(), nfa::tests::letter());
+    }
+
+    #[test]
+    fn test_to_nfa_spaces() {
+        assert_eq!(spaces_to_nfa(), nfa::tests::spaces());
+    }
+
+    #[test]
+    fn test_to_nfa_letter_and_spaces() {
+        assert_eq!(letter_and_spaces_to_nfa(), nfa::tests::letter_and_spaces());
+    }
+
+    #[bench]
+    fn bench_to_nfa_newline(bencher:&mut Bencher) {
+        bencher.iter(|| space_to_nfa())
+    }
+
+    #[bench]
+    fn bench_to_nfa_letter(bencher:&mut Bencher) {
+        bencher.iter(|| letter_to_nfa())
+    }
+
+    #[bench]
+    fn bench_to_nfa_spaces(bencher:&mut Bencher) {
+        bencher.iter(|| spaces_to_nfa())
+    }
+
+    #[bench]
+    fn bench_to_nfa_letter_and_spaces(bencher:&mut Bencher) {
+        bencher.iter(|| letter_and_spaces_to_nfa())
     }
 }

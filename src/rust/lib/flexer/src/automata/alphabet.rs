@@ -39,8 +39,8 @@ impl Alphabet {
     }
 }
 
-impl From<Vec<i64>> for Alphabet {
-    fn from(vec:Vec<i64>) -> Self {
+impl From<Vec<u32>> for Alphabet {
+    fn from(vec:Vec<u32>) -> Self {
         let mut dict = Self::default();
         for val in vec {
             dict.symbols.insert(Symbol{val});
