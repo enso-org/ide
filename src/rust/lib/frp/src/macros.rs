@@ -82,7 +82,7 @@ macro_rules! new_bridge_network {
 
 // === Extend ===
 
-/// Extends the provided network with new rules. See documentation of `new_network` to learn more.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! _extend {
     ($trace:ident $network:ident $($ts:tt)*) => {
@@ -90,7 +90,7 @@ macro_rules! _extend {
     };
 }
 
-/// Internal helpers for `extend` macro.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! extend_lines {
     ([$trace:ident $network:ident] [ $([$($line:tt)*])* ]) => {$(
@@ -98,7 +98,7 @@ macro_rules! extend_lines {
     )*}
 }
 
-/// Internal helpers for `extend` macro.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! extend_line1 {
     (TRACE $network:ident def $name:ident $($toks:tt)*) => {
@@ -110,7 +110,7 @@ macro_rules! extend_line1 {
     };
 }
 
-/// Internal helpers for `extend` macro.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! extend_line2 {
     ($network:ident def $name:ident $(:$ty:ty)? =                                                                       $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),$($arg)*)                                $($ts)* };
@@ -126,13 +126,13 @@ macro_rules! extend_line2 {
 
 // === Utils ===
 
-/// Internal helpers for `extend` macro.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! divide_on_terminator {
     ($f:tt $($ts:tt)*) => { $crate::_divide_on_terminator! { $f [] [] $($ts)* } };
 }
 
-/// Internal helpers for `extend` macro.
+/// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! _divide_on_terminator {
     ([[$($f:tt)*] $args:tt] $lines:tt       [])                              => { $($f)*! {$args $lines} };
