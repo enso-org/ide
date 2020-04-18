@@ -179,26 +179,25 @@ pub use stream::Stream;
 #[cfg(test)]
 mod network_mode_tests {
     use crate as frp;
-    use crate::*;
 
     #[test]
     fn lifetime_management() {
         frp::new_network! { network1
-             def source = source();
-         }
+            def source = source();
+        }
         frp::new_network! { network2
-             def count   = source.count();
-             def sampler = count.sampler();
-         }
+            def count   = source.count();
+            def sampler = count.sampler();
+        }
         assert_eq!(sampler.value(),0);
         source.emit(());
         assert_eq!(sampler.value(),1);
         source.emit(());
         assert_eq!(sampler.value(),2);
-        std::mem::drop(network1);
+        drop(network1);
         source.emit(());
         assert_eq!(sampler.value(),2);
-        std::mem::drop(network2);
+        drop(network2);
         source.emit(());
         assert_eq!(sampler.value(),0);
     }
@@ -207,27 +206,50 @@ mod network_mode_tests {
 #[cfg(test)]
 mod dynamic_mode_tests {
     use crate as frp;
-    use crate::*;
 
     #[test]
-    fn lifetime_management() {
-        let (source,sampler) = {
-            // Dropping `count`. It's lifetime should be managed by `sampler` now.
-            frp::new_dynamic_network! {
-                def source  = source::<()>();
-                def count   = source.count();
-                def sampler = count.sampler();
-            }
-            (source,sampler)
-        };
+    fn weak_memory_management() {
+        frp::new_dynamic_network! {
+            def source = source::<()>();
+        }
+        let weak_source = source.downgrade();
+        assert!(weak_source.upgrade().is_some());
+        drop(source);
+        assert!(weak_source.upgrade().is_none());
+    }
+
+    #[test]
+    fn lifetime_management_1() {
+        frp::new_dynamic_network! {
+            def source = source::<()>();
+            def count  = source.count();
+        }
+        let weak_source = source.downgrade();
+        assert!(weak_source.upgrade().is_some());
+        drop(source);
+        assert!(weak_source.upgrade().is_some());
+        drop(count);
+        assert!(weak_source.upgrade().is_none());
+    }
+
+    #[test]
+    fn lifetime_management_2() {
+        frp::new_dynamic_network! {
+            def source  = source::<()>();
+            def count   = source.count();
+            def sampler = count.sampler();
+        }
+        // Dropping `count`. It's lifetime should be managed by `sampler` now.
+        drop(count);
         assert_eq!(sampler.value(),0);
         source.emit(());
         assert_eq!(sampler.value(),1);
         source.emit(());
         assert_eq!(sampler.value(),2);
         let weak_source = source.downgrade();
+        drop(source);
         assert!(weak_source.upgrade().is_some());
-        std::mem::drop(sampler);
+        drop(sampler);
         assert!(weak_source.upgrade().is_none());
     }
 }

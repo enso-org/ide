@@ -403,8 +403,8 @@ impl application::View for GraphEditor {
                 display::scene::Target::Background => {
                     touch.bg.down.emit(());
                 }
-                display::scene::Target::Symbol {instance_id,..} => {
-                    scene.shapes.get_mouse_target(&(*instance_id as usize)).for_each(|target| {
+                display::scene::Target::Symbol {symbol_id,instance_id} => {
+                    scene.shapes.get_mouse_target(*symbol_id as i32, *instance_id as usize).for_each(|target| {
                         target.mouse_down().for_each(|t| t.emit(()));
                     })
                 }

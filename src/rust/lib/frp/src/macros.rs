@@ -64,7 +64,7 @@ macro_rules! _new_network {
 macro_rules! _new_dynamic_network {
     ($trace:ident $($ts:tt)*) => {
         let __dynamic__ = $crate::DynamicNetwork::new();
-        $crate::_extend! { $trace $network $($ts)* }
+        $crate::_extend! { $trace __dynamic__ $($ts)* }
     };
 }
 

@@ -98,7 +98,9 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
                 weak_parent.upgrade().for_each(|parent| {
                     let shape = shape_registry.new_instance::<T::Shape>();
                     parent.add_child(&shape);
-                    shape_registry.insert_mouse_target(*shape.sprite().instance_id,events);
+                    let symbol_id   = shape.sprite().symbol_id();
+                    let instance_id = *shape.sprite().instance_id;
+                    shape_registry.insert_mouse_target(symbol_id,instance_id,events);
                     let data = T::new(&shape,scene,shape_registry);
                     let data = ShapeViewData {data,shape};
                     *self_data.borrow_mut() = Some(data);
@@ -113,7 +115,9 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
             let shape_registry: &ShapeRegistry = &scene.shapes;
             weak_data.upgrade().for_each(|data| {
                 data.borrow().for_each_ref(|data| {
-                    shape_registry.remove_mouse_target(&*data.shape.sprite().instance_id);
+                    let symbol_id   = data.shape.sprite().symbol_id();
+                    let instance_id = *data.shape.sprite().instance_id;
+                    shape_registry.remove_mouse_target(symbol_id,instance_id);
                 });
                 *data.borrow_mut() = None;
             });
