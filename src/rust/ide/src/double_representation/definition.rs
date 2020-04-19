@@ -268,6 +268,8 @@ impl DefinitionInfo {
         })
     }
 
+    /// Tries to interpret a root line (i.e. the AST being placed in a line directly in the module
+    /// scope) as a definition.
     pub fn from_root_line(line:&ast::BlockLine<Option<Ast>>) -> Option<DefinitionInfo> {
         Self::from_line_ast(line.elem.as_ref()?,ScopeKind::Root,0)
     }

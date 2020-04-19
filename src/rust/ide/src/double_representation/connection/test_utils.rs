@@ -1,7 +1,5 @@
 use crate::prelude::*;
 
-use crate::double_representation::connection;
-
 use regex::Captures;
 use regex::Match;
 use regex::Regex;
@@ -16,6 +14,7 @@ use regex::Replacer;
 /// Matches constructs like `«id:foo»` or `»0:sum«`.
 /// See TODO for details
 const REGEX:&str = r"«([^:]*):([^»]*)»|»([^:]*):([^«]*)«";
+// Group indices:     ^ 1     ^ 2       ^ 3     ^ 4
 
 /// Index of the group with a source endpoint id.
 const SRC_ID   : usize = 1;
@@ -79,6 +78,35 @@ impl Case {
 #[derive(Clone,Copy,Debug,Display)]
 pub enum Kind {Source,Destination}
 
+#[derive(Clone,Copy,Debug,Default)]
+struct MarkdownProcessor {
+    markdown_bytes_consumed : usize,
+}
+
+impl MarkdownProcessor {
+    fn marked_to_unmarked_index(&self, i:usize) -> usize {
+        assert!(self.markdown_bytes_consumed <= i);
+        i - self.markdown_bytes_consumed
+    }
+    fn marked_to_unmarked_range(&self, range:Range<usize>) -> Range<usize> {
+        Range {
+            start : self.marked_to_unmarked_index(range.start),
+            end   : self.marked_to_unmarked_index(range.end),
+        }
+    }
+
+    fn process_match(&mut self, captures:&Captures, body:&Match, dst:&mut String) -> Range<usize> {
+        let whole_match      = captures.get(0).expect("Capture 0 should always be present.");
+        let bytes_to_body    = body.start() - whole_match.start();
+        let bytes_after_body = whole_match.end() - body.end();
+        self.markdown_bytes_consumed += bytes_to_body;
+        let ret = self.marked_to_unmarked_range(body.range());
+        self.markdown_bytes_consumed += bytes_after_body;
+        dst.push_str(body.as_str());
+        ret
+    }
+}
+
 /// Replacer that is called with each marked token. Does the following:
 /// * removes the markdown, i.e. replaces `»2:foo«` with `foo`;
 /// * counts removed markdown bytes, so it is possible to translate between indices in marked and
@@ -86,40 +114,21 @@ pub enum Kind {Source,Destination}
 /// * stores spans representing identifiers usage for connection source and destination endpoints.
 #[derive(Debug,Default)]
 struct MarkdownReplacer {
-    markdown_bytes_consumed : usize,
+    processor   : MarkdownProcessor,
     source      : HashMap<String,Range<usize>>,
     destination : HashMap<String,Range<usize>>,
-}
-
-impl MarkdownReplacer {
-    fn marked_to_unmarked_index(&self, i:usize) -> usize {
-        assert!(self.markdown_bytes_consumed <= i);
-        i - self.markdown_bytes_consumed
-    }
-
-    fn push(&mut self, kind:Kind, id:impl Str, capture:&Match) {
-        let start   = self.marked_to_unmarked_index(capture.start());
-        let end     = self.marked_to_unmarked_index(capture.end());
-        let mut vec = match kind {
-            Kind::Source      => &mut self.source,
-            Kind::Destination => &mut self.destination,
-        };
-        println!("pushed {}..{}",start,end);
-        vec.insert(id.into(),start..end);
-    }
 }
 
 // Processes every single match for a marked entity.
 impl Replacer for MarkdownReplacer {
     fn replace_append(&mut self, captures: &Captures, dst: &mut String) {
-        let whole_match          = captures.get(0).expect("Capture 0 should always be present.");
-        let Marked {kind,id,body} = Marked::new(captures);
-        let bytes_to_body        = body.start() - whole_match.start();
-        let bytes_after_body     = whole_match.end() - body.end();
-        self.markdown_bytes_consumed += bytes_to_body;
-        self.push(kind,id.as_str(),&body);
-        self.markdown_bytes_consumed += bytes_after_body;
-        dst.push_str(body.as_str());
+        let marked = Marked::new(captures);
+        let range  = self.processor.process_match(captures,&marked.body,dst);
+        let vec    = match marked.kind {
+            Kind::Source      => &mut self.source,
+            Kind::Destination => &mut self.destination,
+        };
+        vec.insert(marked.id.as_str().into(),range);
     }
 }
 
@@ -129,7 +138,7 @@ impl Replacer for MarkdownReplacer {
 // === Marked ===
 // ==============
 
-/// Recognizes and splits into pieces captures like `«id:body»` or `»0:sum«`.
+/// Recognizes and splits into pieces captures like `«id:body»` or `»id:body«`.
 struct Marked<'a> {
     kind : Kind,
     id   : Match<'a>,
@@ -139,15 +148,18 @@ struct Marked<'a> {
 impl<'a> Marked<'a> {
     fn new(captures:&'a Captures) -> Marked<'a> {
         let groups = |ix,ix2| captures.get(ix).into_iter().zip(captures.get(ix2)).next();
-        if let (Some((id,body))) = groups(SRC_ID,SRC_BODY) {
+        if let Some((id,body)) = groups(SRC_ID,SRC_BODY) {
             Marked {kind:Kind::Source,id,body}
-        } else if let (Some((id,body))) = groups(DST_ID,DST_BODY) {
+        } else if let Some((id,body)) = groups(DST_ID,DST_BODY) {
             Marked {kind:Kind::Destination,id,body}
         } else {
             panic!("Internal error: recheck regex behavior for input: {}", &captures[0])
         }
     }
 }
+
+
+
 
 #[test]
 fn aaa() {
@@ -157,3 +169,44 @@ fn aaa() {
     let case = Case::from_markdown(code);
     println!("{:?}",case);
 }
+//
+// #[test]
+// pub fn connection_listing_test() {
+//     let program = r"main =
+//     a = 2
+//     b = 2
+//     c = a + b";
+//
+//     let parser = Parser::new_or_panic();
+//     let case = test_utils::Case::from_markdown(program);
+//     run_case(&parser,case);
+// }
+//
+
+//
+// fn ast_from_endpoint(graph:&GraphInfo, endpoint:&Endpoint) -> Ast {
+//     let node = graph.find_node(endpoint.node).unwrap();
+//     let ast  = node.ast().get_traversing(&endpoint.crumbs).unwrap();
+//     ast.clone()
+// }
+//
+// fn run_case(parser:&Parser, mut case:test_utils::Case) {
+//     let module = parser.parse_module(&case.code,default()).unwrap();
+//     let definition = DefinitionInfo::from_root_line(&module.lines[0]).unwrap();
+//     let graph = GraphInfo::from_definition(definition);
+//     let connections = graph.connections();
+//     for connection in &connections {
+//         let src = ast_from_endpoint(&graph,&connection.source);
+//
+//         let dst = ast_from_endpoint(&graph,&connection.destination);
+//
+//
+//         println!("{} -> {}", src.repr(),dst.repr());
+//
+//     }
+//
+//
+//
+//     println!("{:?}",connections)
+//
+// }
