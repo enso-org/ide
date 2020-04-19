@@ -165,21 +165,40 @@ impl From<f32> for Data {
     }
 }
 
-#[derive(Clone,CloneRef,Debug,Deref)]
-pub struct Style {
-    rc : Rc<StyleData>
+//#[derive(Clone,CloneRef,Debug,Deref)]
+//pub struct Style {
+//    rc : Rc<StyleData>
+//}
+//
+//#[derive(Debug)]
+//pub enum StyleData {
+//    Value(Data)
+//}
+//
+//impl From<Data> for Style {
+//    fn from(t:Data) -> Self {
+//        let rc = Rc::new(StyleData::Value(t));
+//        Self {rc}
+//    }
+//}
+
+#[derive(Debug)]
+pub struct WeakExpr {
+    rc : Weak<ExprData>
 }
 
 #[derive(Debug)]
-pub enum StyleData {
-    Value(Data)
+pub struct ExprData {}
+
+#[derive(Clone,CloneRef,Debug,Default,Deref)]
+pub struct Value {
+    rc : Rc<ValueData>
 }
 
-impl From<Data> for Style {
-    fn from(t:Data) -> Self {
-        let rc = Rc::new(StyleData::Value(t));
-        Self {rc}
-    }
+#[derive(Debug,Default)]
+pub struct ValueData {
+    data    : RefCell<Option<Data>>,
+    targets : RefCell<Vec<WeakExpr>>
 }
 
 
@@ -201,8 +220,9 @@ impl WeakStyleSheet {
 
 #[derive(Debug,Default)]
 pub struct StyleSheetData {
-    value    : Rc<RefCell<Option<Style>>>,
-    bindings : RefCell<Vec<WeakVar>>,
+    value    : Rc<RefCell<Option<Data>>>,
+    matches  : RefCell<Vec<WeakVar>>,
+    bindings : RefCell<HashSet<WeakVar>>,
     children : RefCell<HashMap<String,StyleSheet>>
 }
 
@@ -225,7 +245,7 @@ impl StyleSheet {
     fn register_reader(&self, path:&[&str], var:&WeakVar) -> WeakStyleSheet {
         match path {
             [] => {
-                self.bindings.borrow_mut().push(var.clone_ref());
+                self.matches.borrow_mut().push(var.clone_ref());
                 self.downgrade()
             },
             [head,tail @ ..] => {
@@ -238,14 +258,18 @@ impl StyleSheet {
         }
     }
 
-    pub fn set_style<S:Into<Style>>(&self, path:&[&str], style:S) {
+    pub fn set_style<D:Into<Data>>(&self, path:&[&str], data:D) {
         match path {
             [] => {
                 let new_set = self.value.borrow().is_none();
-                *self.value.borrow_mut() = Some(style.into());
+                *self.value.borrow_mut() = Some(data.into());
                 if new_set {
-                    for weak_var in &*self.bindings.borrow() {
+                    for weak_var in &*self.matches.borrow() {
                         weak_var.upgrade().for_each(|var| var.rebind());
+                    }
+                } else {
+                    for weak_var in &*self.bindings.borrow() {
+                        weak_var.upgrade().for_each(|var| var.on_new_value());
                     }
                 }
             },
@@ -254,7 +278,7 @@ impl StyleSheet {
                     .borrow_mut()
                     .entry((*head).into())
                     .or_default()
-                    .set_style(tail,style)
+                    .set_style(tail,data)
             }
         }
     }
@@ -263,7 +287,18 @@ impl StyleSheet {
         let rc = Rc::downgrade(&self.rc);
         WeakStyleSheet {rc}
     }
+
+    fn add_binding(&self, var:WeakVar) {
+        self.bindings.borrow_mut().insert(var);
+    }
+
+    fn remove_binding(&self, var:&WeakVar) {
+        self.bindings.borrow_mut().remove(var);
+    }
 }
+
+
+
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct WeakVar {
@@ -275,6 +310,20 @@ impl WeakVar {
         self.rc.upgrade().map(|rc| Var {rc})
     }
 }
+
+impl Eq for WeakVar {}
+impl PartialEq for WeakVar {
+    fn eq(&self, other:&Self) -> bool {
+        self.rc.ptr_eq(&other.rc)
+    }
+}
+
+impl Hash for WeakVar {
+    fn hash<H:std::hash::Hasher>(&self, state:&mut H) {
+        (self.rc.as_raw() as *const() as usize).hash(state)
+    }
+}
+
 
 #[derive(Debug,Clone,CloneRef,Default,Deref)]
 pub struct Var {
@@ -290,25 +339,35 @@ impl Var {
 
 #[derive(Debug,Default)]
 pub struct VarData {
-    value  : RefCell<Rc<RefCell<Option<Style>>>>,
-    styles : RefCell<Vec<WeakStyleSheet>>,
+    matches : RefCell<Vec<WeakStyleSheet>>,
+    binding : RefCell<Option<WeakStyleSheet>>,
 }
 
-impl VarData {
-    fn set_styles(&self, styles:Vec<WeakStyleSheet>) {
-        *self.styles.borrow_mut() = styles;
+impl Var {
+    fn set_styles(&self, matches:Vec<WeakStyleSheet>) {
+        *self.matches.borrow_mut() = matches;
         self.rebind();
     }
 
     fn rebind(&self) {
-        for weak_style in &*self.styles.borrow() {
+        for weak_style in &*self.matches.borrow() {
             if let Some(style) = weak_style.upgrade() {
                 if style.value.borrow().is_some() {
-                    *self.value.borrow_mut() = style.value.clone_ref();
+                    if let Some(weak_style_sheet) = &*self.binding.borrow() {
+                        weak_style_sheet.upgrade().for_each(|style_sheet|
+                            style_sheet.remove_binding(&self.downgrade())
+                        )
+                    }
+                    *self.binding.borrow_mut() = Some(weak_style.clone_ref());
+                    style.add_binding(self.downgrade());
                     break
                 }
             }
         }
+    }
+
+    fn on_new_value(&self) {
+        println!("on_new_value !!!");
     }
 }
 
@@ -319,10 +378,11 @@ pub fn test() {
     let style_sheet = StyleSheet::default();
     let var1 = style_sheet.var(&["button","text","size"]);
 
-    println!("{:#?}", var1);
+//    println!("{:#?}", var1);
     println!("------------");
     style_sheet.set_style(&["text","size"],data(2.0));
-    println!("{:#?}", var1);
+    style_sheet.set_style(&["text","size"],data(3.0));
+//    println!("{:#?}", var1);
 //    style_sheet.insert_var("text.size", data(2.0));
 //    style_sheet.insert_expr("text.size2", data(2.0));
     println!("Hello world");

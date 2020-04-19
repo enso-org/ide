@@ -10,6 +10,7 @@ pub mod scene;
 pub mod shape;
 pub mod symbol;
 pub mod style;
+pub mod style2;
 pub mod world;
 
 
