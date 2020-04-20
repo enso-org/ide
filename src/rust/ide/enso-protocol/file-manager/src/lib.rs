@@ -14,6 +14,9 @@ use crate::prelude::*;
 pub use enso_prelude as prelude;
 use enso_protocol_common::UTCDateTime;
 use enso_protocol_common::make_rpc_method;
+use enso_protocol_common::make_rpc_methods;
+use enso_protocol_common::make_param_map;
+use enso_protocol_common::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
@@ -135,68 +138,62 @@ pub enum FileKind {
     Other
 }
 
+make_rpc_methods! {
+/// An interface containing all the available file management operations.
+impl {
+    /// a
+    #[CamelCase=CopyDirectory,camelCase=copyDirectory]
+    fn copy_directory(&self, from:Path, to:Path) -> ();
 
+    /// bla
+    #[CamelCase=CopyFile,camelCase=copyFile]
+    fn copy_file(&self, from:Path, to:Path) -> ();
 
-// ==============
-// === Client ===
-// ==============
+    /// bla
+    #[CamelCase=DeleteFile,camelCase=deleteFile]
+    fn delete_file(&self, path:Path) -> ();
 
-shared! { Handle
+    /// bla
+    #[CamelCase=Exists,camelCase=exists]
+    fn exists(&self, path:Path) -> bool;
 
-    /// File Manager client. Contains numerous asynchronous methods for remote calls
-    /// on File Manager server. Also, allows obtaining events stream by calling
-    /// `events`.
-    #[derive(Debug)]
-    pub struct Client {
-        /// JSON-RPC protocol handler.
-        handler : Handler<Notification>,
-    }
+    /// bla
+    #[CamelCase=List,camelCase=list]
+    fn list(&self, path:Path) -> Vec<Path>;
 
-    impl {
-        /// Create a new File Manager client that will use given transport.
-        pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
-            let handler = Handler::new(transport);
-            Client { handler }
-        }
+    /// bla
+    #[CamelCase=MoveDirectory,camelCase=moveDirectory]
+    fn move_directory(&self, from:Path, to:Path) -> ();
 
-        /// Asynchronous event stream with notification and errors.
-        ///
-        /// On a repeated call, previous stream is closed.
-        pub fn events(&mut self) -> impl Stream<Item = Event> {
-            self.handler.handler_event_stream()
-        }
+    /// bla
+    #[CamelCase=MoveFile,camelCase=moveFile]
+    fn move_file(&self, from:Path, to:Path) -> ();
 
-        /// Returns a future that performs any background, asynchronous work needed
-        /// for this Client to correctly work. Should be continually run while the
-        /// `Client` is used. Will end once `Client` is dropped.
-        pub fn runner(&mut self) -> impl Future<Output = ()> {
-            self.handler.runner()
-        }
-    }
+    /// bla
+    #[CamelCase=Read,camelCase=read]
+    fn read(&self, path:Path) -> String;
 
+    /// bla
+    #[CamelCase=Status,camelCase=status]
+    fn status(&self, path:Path) -> Attributes;
+
+    /// bla
+    #[CamelCase=Touch,camelCase=touch]
+    fn touch(&self, path:Path) -> ();
+
+    /// bla
+    #[CamelCase=Write,camelCase=write]
+    fn write(&self, path:Path, contents:String) -> ();
+
+    /// bla
+    #[CamelCase=CreateWatch,camelCase=createWatch]
+    fn create_watch(&self, path:Path) -> Uuid;
+
+    /// bla
+    #[CamelCase=DeleteWatch,camelCase=deleteWatch]
+    fn delete_watch(&self, watch_id:Uuid) -> ();
 }
-
-
-
-// ===================
-// === RPC Methods ===
-// ===================
-
-
-
-make_rpc_method!(CopyDirectory copy_directory copyDirectory (from:Path, to:Path)         -> ()        );
-make_rpc_method!(CopyFile      copy_file      copyFile      (from:Path, to:Path)         -> ()        );
-make_rpc_method!(DeleteFile    delete_file    deleteFile    (path:Path)                  -> ()        );
-make_rpc_method!(Exists        exists         exists        (path:Path)                  -> bool      );
-make_rpc_method!(List          list           list          (path:Path)                  -> Vec<Path> );
-make_rpc_method!(MoveDirectory move_directory moveDirectory (from:Path, to:Path)         -> ()        );
-make_rpc_method!(MoveFile      move_file      moveFile      (from:Path, to:Path)         -> ()        );
-make_rpc_method!(Read          read           read          (path:Path)                  -> String    );
-make_rpc_method!(Status        status         status        (path:Path)                  -> Attributes);
-make_rpc_method!(Touch         touch          touch         (path:Path)                  -> ()        );
-make_rpc_method!(Write         write          write         (path:Path, contents:String) -> ()        );
-make_rpc_method!(CreateWatch   create_watch   createWatch   (path:Path)                  -> Uuid      );
-make_rpc_method!(DeleteWatch   delete_watch   deleteWatch   (watch_id:Uuid)              -> ()        );
+}
 
 
 
@@ -227,7 +224,7 @@ mod tests {
 
     fn setup_fm() -> Fixture {
         let transport  = MockTransport::new();
-        let mut client = Client::new(transport.clone());
+        let client     = Client::new(transport.clone());
         let executor   = futures::executor::LocalPool::new();
         executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}

@@ -60,25 +60,37 @@ macro_rules! make_rpc_method {
 }
 
 #[macro_export]
+macro_rules! make_param_map {
+    (,$ty:ty) => {
+        $ty
+    };
+    (,$($ty1:ty),+) => {
+        ($($ty1),+)
+    }
+}
+
+#[macro_export]
+macro_rules! make_arg {
+    ($name:ident) => {
+        $name
+    };
+    ($($name:ident),+) => {
+        ($($name),+)
+    }
+}
+
+#[macro_export]
 macro_rules! make_rpc_methods {
     (
-    $(#[doc = $trait_doc:expr])+
-    pub trait Interface {
+    $(#[doc = $impl_doc:expr])+
+    impl {
         $(
         $(#[doc = $doc:expr])+
         #[CamelCase=$CamelCase:ident,camelCase=$camelCase:ident]
-        fn $method:ident(&self, $param_name:ident:$param_ty:ty) -> $result:ty;
+        fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
         )*
     }) => {
-        $(#[doc = $trait_doc])+
-        pub trait Interface {
-            $(
-            $(#[doc = $doc])+
-            fn $method(&self, $param_name:$param_ty) -> Result<$result>;
-            )*
-        }
-
-        $(make_rpc_method!($CamelCase $method $camelCase ($param_name:$param_ty) -> $result);)*
+        $(make_rpc_method!($CamelCase $method $camelCase ($($param_name:$param_ty),+) -> $result);)*
 
         paste::item!{
             shared! { Mock
@@ -86,7 +98,7 @@ macro_rules! make_rpc_methods {
                 pub struct MockData {
                     /// JSON-RPC protocol handler.
                     handler : Handler<Notification>,
-                    $([<$method _result>] : HashMap<$param_ty,Result<$result>>,)*
+                    $([<$method _result>] : HashMap<make_param_map!($(,$param_ty)+),Result<$result>>,)*
                 }
 
                 impl {
@@ -118,21 +130,20 @@ macro_rules! make_rpc_methods {
             impl Mock {
                 $(
                     $(#[doc = $doc])*
-                    async fn $method(&self, $param_name:$param_ty) -> Result<$result> {
-                        self.rc.borrow_mut().[<$method _result>].remove(&$param_name).unwrap()
+                    async fn $method(&self $(,$param_name:$param_ty)+) -> Result<$result> {
+                        self.rc.borrow_mut().[<$method _result>].remove(&make_arg!($($param_name),+)).unwrap()
                     }
 
+                    /// Sets `$method`'s result to be returned when it is called.
                     fn [<set_ $method _result>]
-                    (&mut self, $param_name:$param_ty, result:Result<$result>) {
-                        self.rc.borrow_mut().[<$method _result>].insert($param_name,result);
+                    (&mut self $(,$param_name:$param_ty)+, result:Result<$result>) {
+                        self.rc.borrow_mut().[<$method _result>].insert(make_arg!($($param_name),+),result);
                     }
                 )*
             }
 
             shared! { Client
-                /// Project Manager client. Contains numerous asynchronous methods for remote calls
-                /// on Project Manager server. Also, allows obtaining events stream by calling
-                /// `events`.
+                $(#[doc = $impl_doc])+
                 #[derive(Debug)]
                 pub struct ClientData {
                     /// JSON-RPC protocol handler.

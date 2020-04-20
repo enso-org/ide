@@ -15,6 +15,8 @@ pub use enso_prelude as prelude;
 use enso_protocol_common::UTCDateTime;
 use enso_protocol_common::make_rpc_method;
 use enso_protocol_common::make_rpc_methods;
+use enso_protocol_common::make_param_map;
+use enso_protocol_common::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
@@ -54,11 +56,17 @@ pub enum Notification {}
 // TODO[DG]: Wrap macro_rule with #[derive(JsonRpcInterface)]
 make_rpc_methods! {
 /// An interface containing all the available project management operations.
-pub trait Interface {
+impl {
     /// Requests that the project picker open a specified project. This operation also
     /// includes spawning an instance of the language server open on the specified project.
     #[CamelCase=OpenProject,camelCase=openProject]
     fn open_project(&self, project_id:Uuid) -> IpWithSocket;
+
+    /// Blah
+    #[CamelCase=RenameProject,camelCase=renameProject]
+    fn rename_project(&self, project_id:Uuid
+    ,name:String
+    ) -> ();
 
     /// Requests that the project picker close a specified project. This operation
     /// includes shutting down the language server gracefully so that it can persist state to disk as needed.
