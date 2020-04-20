@@ -837,16 +837,16 @@ pub trait TraversableAst:Sized {
     /// Returns rewritten AST where child AST under location designated by `crumbs` is updated.
     ///
     /// Works recursively.
-    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self>;
+    fn set_traversing(&self, crumbs:impl IntoCrumbs, new_ast:Ast) -> FallibleResult<Self>;
 
     /// Recursively traverses AST to retrieve AST node located by given crumbs sequence.
-    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast>;
+    fn get_traversing(&self, crumbs:impl IntoCrumbs) -> FallibleResult<&Ast>;
 }
 
 impl TraversableAst for Ast {
-    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self> {
-        let updated_ast = if let Some(first_crumb) = crumbs.first() {
-            let child = self.get(first_crumb)?;
+    fn set_traversing(&self, crumbs:impl IntoCrumbs, new_ast:Ast) -> FallibleResult<Self> {
+        let updated_ast = if let Some(first_crumb) = crumbs.into_iter().next() {
+            let child = self.get(&first_crumb)?;
             let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
             self.set(first_crumb,updated_child)?
         } else {
@@ -855,10 +855,11 @@ impl TraversableAst for Ast {
         Ok(updated_ast)
     }
 
-    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
-        if let Some(first_crumb) = crumbs.first() {
+    fn get_traversing(&self, crumbs:impl IntoCrumbs) -> FallibleResult<&Ast> {
+        let mut crumbs = crumbs.into_iter();
+        if let Some(first_crumb) = crumbs.next() {
             let child = self.get(first_crumb)?;
-            child.get_traversing(&crumbs[1..])
+            child.get_traversing(crumbs)
         } else {
             Ok(self)
         }
@@ -868,12 +869,12 @@ impl TraversableAst for Ast {
 impl<T,E> TraversableAst for known::KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T, Error=E>,
       E                      : failure::Fail {
-    fn set_traversing(&self, crumbs:&[Crumb], new_ast:Ast) -> FallibleResult<Self> {
+    fn set_traversing(&self, crumbs:impl IntoCrumbs, new_ast:Ast) -> FallibleResult<Self> {
         let updated_ast = self.ast().set_traversing(crumbs,new_ast)?;
         Ok(Self::try_new(updated_ast)?)
     }
 
-    fn get_traversing<'a>(&'a self, crumbs:&[Crumb]) -> FallibleResult<&'a Ast> {
+    fn get_traversing(&self, crumbs:impl IntoCrumbs) -> FallibleResult<&Ast> {
         self.ast().get_traversing(crumbs)
     }
 }
