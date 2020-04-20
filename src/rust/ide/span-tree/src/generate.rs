@@ -143,7 +143,7 @@ fn ast_node_kind(ctx:&Context) -> node::Kind {
 
 impl SpanTreeGenerator for GeneralizedInfix {
 
-    fn generate_node(&self, ctx: Context) -> FallibleResult<Node> {
+    fn generate_node(&self, ctx:Context) -> FallibleResult<Node> {
         let have_empty  = !infix_can_be_chained_with_parent(self,ctx);
         let assoc       = self.assoc();
         let target_ctx  = Context::OperatorTarget(&self.opr.name);
