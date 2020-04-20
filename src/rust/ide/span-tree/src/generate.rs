@@ -226,7 +226,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
 // === Chaining Conditions ===
 // ===========================
 
-fn ast_can_be_chained_with_parent(ast:&Ast, ctx: Context) -> bool {
+fn ast_can_be_chained_with_parent(ast:&Ast, ctx:Context) -> bool {
     if let Some(infix) = GeneralizedInfix::try_new(&Located::new_root(ast.clone_ref())) {
         infix_can_be_chained_with_parent(&infix,ctx)
     } else {
