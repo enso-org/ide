@@ -7,8 +7,9 @@ use crate::double_representation::alias_analysis::NormalizedName;
 use crate::double_representation::node::Id;
 use crate::double_representation::node::NodeInfo;
 
+use ast::crumbs::Crumb;
 use ast::crumbs::Crumbs;
-
+use crate::double_representation::definition::{DefinitionInfo, ScopeKind};
 
 
 // ================
@@ -33,12 +34,14 @@ impl Endpoint {
     fn new_in_block(block:&ast::Block<Ast>, mut crumbs:Crumbs) -> Option<Endpoint> {
         let line_crumb = crumbs.pop_front()?;
         let line_crumb = match line_crumb {
-            ast::crumbs::Crumb::Block(block_crumb) => Some(block_crumb),
-            _                               => None,
+            Crumb::Block(block_crumb) => Some(block_crumb),
+            _                         => None,
         }?;
-        let line_ast = block.get(&line_crumb).ok()?;
-        let node     = NodeInfo::from_line_ast(&line_ast)?.id();
-        Some(Endpoint {node,crumbs})
+        let line_ast   = block.get(&line_crumb).ok()?;
+        let definition = DefinitionInfo::from_line_ast(&line_ast,ScopeKind::NonRoot,block.indent);
+        let is_non_def = definition.is_none();
+        let node       = is_non_def.and_option_from(|| NodeInfo::from_line_ast(&line_ast))?.id();
+        Some(Endpoint { node, crumbs })
     }
 }
 
@@ -73,8 +76,8 @@ pub fn list_block(block:&ast::Block<Ast>) -> Vec<Connection> {
         Some((name.item,endpoint))
     }).collect::<NameMap>();
     identifiers.used.into_iter().flat_map(|name| {
-        // If name is introduced and used and both of these occurrences can be represented as
-        // endpoints, then we have a connection.
+        // If name is both introduced and used in the graph's scope; and both of these occurrences
+        // can be represented as endpoints, then we have a connection.
         let source      = introduced_names.get(&name).cloned()?;
         let destination = Endpoint::new_in_block(block,name.crumbs)?;
         Some(Connection {source,destination})
@@ -155,7 +158,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     pub fn connection_listing_test_plain() {
         use InfixCrumb::LeftOperand;
         use InfixCrumb::RightOperand;
@@ -199,7 +202,7 @@ f = fun 2";
         assert_eq!(run.connections.len(),4);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     pub fn inline_definition() {
         let run = TestRun::from_main_def("main = a");
         assert!(run.connections.is_empty());

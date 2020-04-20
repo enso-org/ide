@@ -119,7 +119,7 @@ impl GraphInfo {
         self.source.set_block_lines(lines)
     }
 
-    /// Locates a node with a given crumb.
+    /// Locates a node with the given id.
     pub fn find_node(&self,id:ast::Id) -> Option<NodeInfo> {
         self.nodes().iter().find(|node| node.id() == id).cloned()
     }

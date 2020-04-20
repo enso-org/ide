@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::double_representation::alias_analysis::NormalizedName;
 use crate::double_representation::alias_analysis::LocatedName;
 use crate::double_representation::node::NodeInfo;
+use crate::double_representation::test_utils::MarkdownProcessor;
 
 use regex::Captures;
 use regex::Regex;
@@ -74,11 +75,11 @@ const USED:&str="used";
 /// * accumulates spans of introduced and used identifiers.
 #[derive(Debug,Default)]
 struct MarkdownReplacer {
-    processor : double_representation::test_utils::MarkdownProcessor,
+    processor:MarkdownProcessor,
     /// Spans in the unmarked code.
-    introduced              : Vec<Range<usize>>,
+    introduced:Vec<Range<usize>>,
     /// Spans in the unmarked code.
-    used                    : Vec<Range<usize>>,
+    used:Vec<Range<usize>>,
 }
 
 // Processes every single match for a marked entity.
