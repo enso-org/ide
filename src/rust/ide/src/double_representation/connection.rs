@@ -2,31 +2,18 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::alias_analysis::analyse_block;
+use crate::double_representation::alias_analysis::NormalizedName;
 use crate::double_representation::node::Id;
 use crate::double_representation::node::NodeInfo;
 
 use ast::crumbs::Crumbs;
-use crate::double_representation::alias_analysis::AliasAnalyzer;
-use crate::double_representation::alias_analysis::NormalizedName;
 
 
-#[cfg(test)]
-pub mod test_utils;
 
-/// Connection source, i.e. the port generating the data / identifier introducer.
-pub type Source      = Endpoint;
-
-/// Connection destination, i.e. the port receiving data / identifier user.
-pub type Destination = Endpoint;
-
-/// Describes a connection between two endpoints: from `source` to `destination`.
-#[derive(Clone,Debug,PartialEq)]
-pub struct Connection {
-    #[allow(missing_docs)]
-    pub source:Source,
-    #[allow(missing_docs)]
-    pub destination:Destination,
-}
+// ================
+// === Endpoint ===
+// ================
 
 /// A connection endpoint.
 #[derive(Clone,Debug,PartialEq)]
@@ -38,27 +25,60 @@ pub struct Endpoint {
     pub crumbs : Crumbs,
 }
 
+impl Endpoint {
+    /// First crumb identifies line in a given block, i.e. the node. Remaining crumbs identify
+    /// AST within the node's AST.
+    ///
+    /// Returns None if first crumb is not present or does not denote a valid node.
+    fn new_in_block(block:&ast::Block<Ast>, mut crumbs:Crumbs) -> Option<Endpoint> {
+        let line_crumb = crumbs.pop_front()?;
+        let line_crumb = match line_crumb {
+            ast::crumbs::Crumb::Block(block_crumb) => Some(block_crumb),
+            _                               => None,
+        }?;
+        let line_ast = block.get(&line_crumb).ok()?;
+        let node     = NodeInfo::from_line_ast(&line_ast)?.id();
+        Some(Endpoint {node,crumbs})
+    }
+}
+
+/// Connection source, i.e. the port generating the data / identifier introducer.
+pub type Source      = Endpoint;
+
+/// Connection destination, i.e. the port receiving data / identifier user.
+pub type Destination = Endpoint;
+
+
+
+// ==================
+// === Connection ===
+// ==================
+
+/// Describes a connection between two endpoints: from `source` to `destination`.
+#[derive(Clone,Debug,PartialEq)]
+pub struct Connection {
+    #[allow(missing_docs)]
+    pub source:Source,
+    #[allow(missing_docs)]
+    pub destination:Destination,
+}
+
 /// Lists all the connection in the graph for the given code block.
 pub fn list_block(block:&ast::Block<Ast>) -> Vec<Connection> {
-    let mut analyzer = AliasAnalyzer::default();
-    analyzer.process_subtrees(block);
-
-    let introduced_iter = analyzer.root_scope.symbols.introduced.into_iter();
-
-    let introduced : HashMap<NormalizedName,Endpoint> = introduced_iter.map(|name| {
-        let endpoint = block_line_endpoint(block,name.crumbs);
-        (name.item,endpoint)
-    }).collect();
-
-    let mut ret: Vec<Connection> = Vec::new();
-    for name in analyzer.root_scope.symbols.used {
-        if let Some(source) = introduced.get(&name).cloned() {
-            let destination = block_line_endpoint(block,name.crumbs);
-            println!("Connection for name {}", name.item);
-            ret.push(Connection {source,destination})
-        }
-    };
-    ret
+    let identifiers      = analyse_block(block);
+    let introduced_iter  = identifiers.introduced.into_iter();
+    type NameMap         = HashMap<NormalizedName,Endpoint>;
+    let introduced_names = introduced_iter.flat_map(|name| {
+        let endpoint = Endpoint::new_in_block(block,name.crumbs)?;
+        Some((name.item,endpoint))
+    }).collect::<NameMap>();
+    identifiers.used.into_iter().flat_map(|name| {
+        // If name is introduced and used and both of these occurrences can be represented as
+        // endpoints, then we have a connection.
+        let source      = introduced_names.get(&name).cloned()?;
+        let destination = Endpoint::new_in_block(block,name.crumbs)?;
+        Some(Connection {source,destination})
+    }).collect()
 }
 
 /// Lists all the connection in the single-expression definition body.
@@ -68,26 +88,20 @@ pub fn list_expression(_ast:&Ast) -> Vec<Connection> {
     vec![]
 }
 
-/// Lists connections in the given body. For now it only makes sense for block shape.
-pub fn list(definition_body:&ast::known::Infix) -> Vec<Connection> {
-    let body = &definition_body.rarg;
+/// Lists connections in the given definition body. For now it only makes sense for block shape.
+pub fn list(body:&Ast) -> Vec<Connection> {
     match body.shape() {
         ast::Shape::Block(block) => list_block(block),
         _                        => list_expression(body),
     }
 }
 
-fn block_line_endpoint(block:&ast::Block<Ast>, mut crumbs:Crumbs) -> Endpoint {
-    match crumbs.first() {
-        Some(ast::crumbs::Crumb::Block(block_crumb)) => {
-            let line_ast = block.get(block_crumb).unwrap();
-            let node     = NodeInfo::from_line_ast(line_ast).unwrap().id();
-            crumbs.pop_front();
-            Endpoint {node,crumbs}
-        }
-        _ => panic!("not implemented"),
-    }
-}
+
+
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +115,6 @@ mod tests {
     use ast::crumbs::InfixCrumb;
 
     struct TestRun {
-        definition  : DefinitionInfo,
         graph       : GraphInfo,
         connections : Vec<Connection>
     }
@@ -121,7 +134,7 @@ mod tests {
                 repr_of(&lhs).cmp(&repr_of(&rhs))
             });
 
-            TestRun {definition,graph,connections}
+            TestRun {graph,connections}
         }
 
         fn from_main_def(code:impl Str) -> TestRun {

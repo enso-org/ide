@@ -320,9 +320,16 @@ impl AliasAnalyzer {
 
 /// Describes identifiers that nodes introduces into the graph and identifiers from graph's scope
 /// that node uses. This logic serves as a base for connection discovery.
-pub fn analyse_identifier_usage(node:&NodeInfo) -> IdentifierUsage {
+pub fn analyse_node(node:&NodeInfo) -> IdentifierUsage {
     let mut analyzer = AliasAnalyzer::new();
     analyzer.process_ast(node.ast());
+    analyzer.root_scope.symbols
+}
+
+/// Describes variable usage within a given code block.
+pub fn analyse_block(block:&ast::Block<Ast>) -> IdentifierUsage {
+    let mut analyzer = AliasAnalyzer::default();
+    analyzer.process_subtrees(block);
     analyzer.root_scope.symbols
 }
 
@@ -353,7 +360,7 @@ mod tests {
         println!("Case: {}",&case.code);
         let ast    = parser.parse_line(&case.code).unwrap();
         let node   = NodeInfo::from_line_ast(&ast).unwrap();
-        let result = analyse_identifier_usage(&node);
+        let result = analyse_node(&node);
         println!("Analysis results: {:?}", result);
         validate_identifiers("introduced",&node, case.expected_introduced, &result.introduced);
         validate_identifiers("used",      &node, case.expected_used,       &result.used);

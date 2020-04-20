@@ -86,7 +86,7 @@ impl GraphInfo {
 
     /// Gets the list of connections between the nodes in this graph.
     pub fn connections(&self) -> Vec<Connection> {
-        double_representation::connection::list(&self.source.ast)
+        double_representation::connection::list(&self.source.ast.rarg)
     }
 
     fn is_node_by_id(line:&BlockLine<Option<Ast>>, id:ast::Id) -> bool {
