@@ -73,7 +73,7 @@ impl ChildGenerator {
     }
 
     fn generate_ast_node
-    (&mut self, child_ast:Located<Ast>, ctx: Context)
+    (&mut self, child_ast:Located<Ast>, ctx:Context)
     -> FallibleResult<&node::Child> {
         let child = node::Child {
             node                : child_ast.item.generate_node(ctx)?,
