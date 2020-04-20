@@ -110,7 +110,7 @@ impl ComposerPass {
             let args    = (self.width,self.height);
             let texture = uniform::get_or_add_gpu_texture_dyn
                 (&self.context,&self.variables,&name,output.internal_format,output.item_type,args,
-                 Some(output.parameters));
+                 Some(output.texture_parameters));
             self.add_output(texture);
         }
     }
