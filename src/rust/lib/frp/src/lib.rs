@@ -105,3 +105,30 @@ pub use ensogl_system_web as web;
 
 
 pub use stream::Stream;
+
+#[cfg(test)]
+mod tests {
+    use crate as frp;
+    use crate::*;
+
+    // #[test]
+    // fn counter() {
+    //     frp::new_network! { network1
+    //         def source = source();
+    //     }
+    //     frp::new_network! { network2
+    //         def count = source.count();
+    //     }
+    //     assert_eq!(count.value(),0);
+    //     source.ping();
+    //     assert_eq!(count.value(),1);
+    //     source.ping();
+    //     assert_eq!(count.value(),2);
+    //     mem::drop(network1);
+    //     source.ping();
+    //     assert_eq!(count.value(),2);
+    //     mem::drop(network2);
+    //     source.ping();
+    //     assert_eq!(count.value(),0);
+    // }
+}
