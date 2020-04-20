@@ -72,9 +72,9 @@ impl TreeBuilder {
     pub fn new(len:usize) -> Self {
         TreeBuilder {
             built : Node {
-                kind: node::Kind::Root,
-                size: Size::new(len),
-                children  : vec![],
+                kind     : node::Kind::Root,
+                size     : Size::new(len),
+                children : vec![],
             }
         }
     }

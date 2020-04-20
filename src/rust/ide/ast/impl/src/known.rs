@@ -3,7 +3,9 @@
 
 use crate::prelude::*;
 
-use crate::{Ast, HasTokens, TokenConsumer};
+use crate::Ast;
+use crate::HasTokens;
+use crate::TokenConsumer;
 use crate::Shape;
 use crate::with_shape_variants;
 

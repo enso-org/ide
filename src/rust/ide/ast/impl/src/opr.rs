@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::{Ast, Shifted};
+use crate::Ast;
+use crate::Shifted;
 use crate::Shape;
 use crate::assoc::Assoc;
 use crate::crumbs::Crumb;

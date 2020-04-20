@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::iter::{LeafIterator, TreeFragment};
+use crate::iter::LeafIterator;
+use crate::iter::TreeFragment;
 
 use data::text::Index;
 use data::text::Size;
@@ -44,9 +45,9 @@ pub trait Crumbs = IntoIterator<Item=usize>;
 #[derive(Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct Node {
-    pub kind: Kind,
-    pub size: Size,
-    pub children  : Vec<Child>,
+    pub kind     : Kind,
+    pub size     : Size,
+    pub children : Vec<Child>,
 }
 
 impl Node {
@@ -133,9 +134,6 @@ impl<'a> Ref<'a> {
     }
 }
 
-/// TODO info o selfie
-/// TODO info o operacji
-/// TODO iterator po liściach
 
 
 // ============

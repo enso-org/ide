@@ -119,9 +119,9 @@ impl SpanTreeGenerator for Ast {
                     Prefix::try_new(self.clone_ref()).unwrap().generate_node(ctx),
                 // TODO[a] add other shapes, e.g. macros
                 _  => Ok(Node {
-                    size      : Size::new(self.len()),
-                    children  : default(),
-                    kind      : ast_node_kind(&ctx),
+                    size     : Size::new(self.len()),
+                    children : default(),
+                    kind     : ast_node_kind(&ctx),
                 }),
             }
         }
@@ -178,9 +178,9 @@ impl SpanTreeGenerator for GeneralizedInfix {
             None => { gen.generate_empty_node(); },
         }
         Ok(Node {
-            kind      : ast_node_kind(&ctx),
-            size      : gen.current_offset,
-            children  : gen.children,
+            kind     : ast_node_kind(&ctx),
+            size     : gen.current_offset,
+            children : gen.children,
         })
     }
 }
@@ -237,14 +237,14 @@ fn ast_can_be_chained_with_parent(ast:&Ast, ctx:Context) -> bool {
     }
 }
 
-fn infix_can_be_chained_with_parent(infix:&GeneralizedInfix, ctx: Context) -> bool {
+fn infix_can_be_chained_with_parent(infix:&GeneralizedInfix, ctx:Context) -> bool {
     match ctx {
         Context::OperatorTarget(name) if infix.opr.item.name == *name => true,
         _                                                             => false,
     }
 }
 
-fn prefix_can_be_chained_with_parent(ctx: Context) -> bool {
+fn prefix_can_be_chained_with_parent(ctx:Context) -> bool {
     match ctx {
         Context::PrefixFunc => true,
         _                   => false,
@@ -264,14 +264,12 @@ mod test {
     use crate::builder::TreeBuilder;
     use crate::node::Kind::*;
 
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use parser::Parser;
     use ast::crumbs::InfixCrumb;
     use ast::crumbs::PrefixCrumb;
     use ast::crumbs::SectionLeftCrumb;
     use ast::crumbs::SectionRightCrumb;
     use ast::crumbs::SectionSidesCrumb;
-
+    use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     wasm_bindgen_test_configure!(run_in_browser);
