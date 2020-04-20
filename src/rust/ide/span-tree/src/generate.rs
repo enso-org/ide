@@ -41,7 +41,7 @@ pub enum Context<'a> {
 /// all AST-like structures.
 pub trait SpanTreeGenerator {
     /// Generate node with it's whole subtree.
-    fn generate_node(&self, ctx: Context) -> FallibleResult<Node>;
+    fn generate_node(&self, ctx:Context) -> FallibleResult<Node>;
 
     /// Generate tree for this AST treated as root for the whole expression.
     fn generate_tree(&self) -> FallibleResult<SpanTree> {
