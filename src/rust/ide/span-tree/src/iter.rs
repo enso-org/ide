@@ -1,4 +1,5 @@
 //! Module providing advanced iterators over SpanTree nodes.
+use crate::prelude::*;
 
 use crate::Node;
 use crate::node;
@@ -16,20 +17,26 @@ struct StackFrame<'a> {
     child_being_visited : usize,
 }
 
-/// An iterator returned from `chain_children_iter` method of `node::Ref`. See crate's
-/// documentation for more information about _chaining_.
-///
-/// Under the hood this iterator is performing DFS on the tree's fragment; we cut off all nodes
-/// which are not root node or chained node or any child of those; then this iterator returns only
-/// leaves of such subtree.
+/// Defines a subtree of SpanTree we're iterating over.
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum TreeFragment {
+    /// The whole SpanTree
+    AllNodes,
+    /// Only the searching root, chained with root and their children.
+    ChainAndDirectChildren
+}
+
+/// An iterator over the leafs of some specific fragment of SpanTree. See `TreeFragment` for
+/// supported _fragment_ kinds.
 #[derive(Debug)]
-pub struct ChainChildrenIterator<'a> {
+pub struct LeafIterator<'a> {
     stack     : Vec<StackFrame<'a>>,
     next_node : Option<&'a node::Child>,
     base_node : node::Ref<'a>,
+    fragment  : TreeFragment,
 }
 
-impl<'a> Iterator for ChainChildrenIterator<'a> {
+impl<'a> Iterator for LeafIterator<'a> {
     type Item = node::Ref<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -37,7 +44,7 @@ impl<'a> Iterator for ChainChildrenIterator<'a> {
             let crumbs       = self.stack.iter().map(|sf| sf.child_being_visited);
             let return_value = self.base_node.clone().traverse_subnode(crumbs);
             self.make_dfs_step();
-            self.descend_to_subtree_leaf();
+            self.descend_to_leaf();
             return_value
         } else {
             None
@@ -45,15 +52,14 @@ impl<'a> Iterator for ChainChildrenIterator<'a> {
     }
 }
 
-impl<'a> ChainChildrenIterator<'a> {
-    /// Create iterator iterating over children of chain starting on `node`.
-    pub fn new(node: node::Ref<'a>) -> Self {
+impl<'a> LeafIterator<'a> {
+    /// Create iterator iterating over leafs of subtree rooted  on `node`.
+    pub fn new(node: node::Ref<'a>, fragment:TreeFragment) -> Self {
         let stack     = vec![StackFrame {node:&node.node, child_being_visited:0}];
         let next_node = node.node.children.first();
         let base_node = node;
-        let mut this = Self {stack,next_node,base_node};
-        // Sometimes the first child is the chained node, so we must go deeper in such case.
-        this.descend_to_subtree_leaf();
+        let mut this = Self {stack,next_node,base_node,fragment};
+        this.descend_to_leaf();
         this
     }
 
@@ -71,14 +77,20 @@ impl<'a> ChainChildrenIterator<'a> {
         }
     }
 
-    /// For _subtree_ definition see docs for `ChainChildrenIterator`.
-    fn descend_to_subtree_leaf(&mut self) {
+    fn descend_to_leaf(&mut self) {
         if let Some(mut current) = std::mem::take(&mut self.next_node) {
-            while current.chained_with_parent && !current.node.children.is_empty() {
+            while self.can_descend(&current) && !current.node.children.is_empty() {
                 self.stack.push(StackFrame { node: &current.node, child_being_visited: 0 });
                 current = &current.node.children.first().unwrap();
             }
             self.next_node = Some(current);
+        }
+    }
+
+    fn can_descend(&self, current_node:&node::Child) -> bool {
+        match &self.fragment {
+            TreeFragment::AllNodes               => true,
+            TreeFragment::ChainAndDirectChildren => current_node.chained_with_parent,
         }
     }
 }
@@ -91,7 +103,7 @@ impl<'a> ChainChildrenIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
+    use super::*;
 
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
@@ -99,9 +111,10 @@ mod tests {
 
 
     #[test]
-    fn chained_children_iterating() {
+    fn leaf_iterating() {
         use ast::crumbs::InfixCrumb::*;
         use ast::crumbs::PrefixCrumb::*;
+        use node::Kind::*;
 
         // Tree we use for tests (F means node which can be flattened):
         // root:                (-)
@@ -113,31 +126,47 @@ mod tests {
         // gg-children:     ()()     ()() ()
 
         let tree = TreeBuilder::new(14)
-            .add_ast_child(0,10,vec![LeftOperand])
+            .add_child(0,10,Target,vec![LeftOperand])
                 .chain_with_parent()
-                .add_ast_leaf(0,3,vec![LeftOperand])
-                .add_ast_leaf(4,1,vec![Operator])
-                .add_ast_child(6,3,vec![RightOperand])
-                    .add_ast_leaf(0,1,vec![Func])
-                    .add_ast_leaf(2,1,vec![Arg])
+                .add_leaf (0,3,Target   ,vec![LeftOperand])
+                .add_leaf (4,1,Operation,vec![Operator])
+                .add_child(6,3,Parameter,vec![RightOperand])
+                    .add_leaf(0,1,Operation,vec![Func])
+                    .add_leaf(2,1,Target   ,vec![Arg])
                     .done()
                 .done()
-            .add_ast_leaf(11,1,vec![Operator])
-            .add_ast_child(13,1,vec![RightOperand])
+            .add_leaf (11,1,Operation,vec![Operator])
+            .add_child(13,1,Target,vec![RightOperand])
                 .chain_with_parent()
-                .add_ast_leaf(0,3,vec![LeftOperand])
-                .add_ast_leaf(4,1,vec![Operator])
-                .add_ast_child(6,5,vec![RightOperand])
+                .add_leaf (0,3,Target   ,vec![LeftOperand])
+                .add_leaf (4,1,Operation,vec![Operator])
+                .add_child(6,5,Parameter,vec![RightOperand])
                     .chain_with_parent()
-                    .add_ast_leaf(0,1,vec![LeftOperand])
-                    .add_ast_leaf(2,1,vec![Operator])
-                    .add_ast_leaf(4,1,vec![RightOperand])
+                    .add_leaf(0,1,Target   ,vec![LeftOperand])
+                    .add_leaf(2,1,Operation,vec![Operator])
+                    .add_leaf(4,1,Parameter,vec![RightOperand])
                     .done()
                 .done()
             .build();
 
         let root = tree.root_ref();
 
+        // Whole tree iterating:
+        let expected_crumbs = vec!
+        [ vec![0,0]
+        , vec![0,1]
+        , vec![0,2,0]
+        , vec![0,2,1]
+        , vec![1]
+        , vec![2,0]
+        , vec![2,1]
+        , vec![2,2,0]
+        , vec![2,2,1]
+        , vec![2,2,2]
+        ];
+        assert_eq!(expected_crumbs, root.clone().leaf_iter().map(|n| n.crumbs).collect_vec());
+
+        // Chained children iterating:
         let expected_crumbs = vec!
             [ vec![0,0]
             , vec![0,1]

@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::iter::ChainChildrenIterator;
+use crate::iter::{LeafIterator, TreeFragment};
 
 use data::text::Index;
 use data::text::Size;
@@ -15,9 +15,15 @@ use data::text::Size;
 
 /// A type of SpanTree node.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum Type {
-    /// The node which have corresponding AST node.
-    Ast,
+pub enum Kind {
+    /// A root of the expression this tree was generated.
+    Root,
+    /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
+    Target,
+    /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
+    Operation,
+    /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
+    Parameter,
     /// An empty node being a placeholder for adding new child to the parent. The empty node
     /// should not have any further children.
     Empty
@@ -38,18 +44,19 @@ pub trait Crumbs = IntoIterator<Item=usize>;
 #[derive(Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct Node {
-    pub node_type : Type,
-    pub len       : Size,
+    pub kind: Kind,
+    pub size: Size,
     pub children  : Vec<Child>,
 }
 
 impl Node {
     /// Create new empty node.
     pub fn new_empty() -> Self {
-        let node_type           = Type::Empty;
-        let len                 = Size::new(0);
-        let children            = Vec::new();
-        Node {node_type,len,children}
+        Node {
+            kind     : Kind::Empty,
+            size     : Size::new(0),
+            children : Vec::new(),
+        }
     }
 }
 
@@ -99,10 +106,21 @@ impl<'a> Ref<'a> {
         })
     }
 
-    /// Iterate over all children of operator/prefix chain starting from this node. See crate's
+    /// Iterator over all direct children producing `Ref`s.
+    pub fn children_iter(self) -> impl Iterator<Item=Ref<'a>> {
+        let children_count = self.node.children.len();
+        (0..children_count).map(move |i| self.clone().child(i).unwrap())
+    }
+
+    /// Iterator over all leaves of subtree rooted in the `self`.
+    pub fn leaf_iter(self) -> impl Iterator<Item=Ref<'a>> {
+        LeafIterator::new(self, TreeFragment::AllNodes)
+    }
+
+    /// Iterator over all children of operator/prefix chain starting from this node. See crate's
     /// documentation for more information about _chaining_.
     pub fn chain_children_iter(self) -> impl Iterator<Item=Ref<'a>> {
-        ChainChildrenIterator::new(self)
+        LeafIterator::new(self, TreeFragment::ChainAndDirectChildren)
     }
 
     /// Get the sub-node (child, or further descendant) identified by `crumbs`.
@@ -115,6 +133,9 @@ impl<'a> Ref<'a> {
     }
 }
 
+/// TODO info o selfie
+/// TODO info o operacji
+/// TODO iterator po liściach
 
 
 // ============
@@ -125,6 +146,7 @@ impl<'a> Ref<'a> {
 mod test {
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
+    use crate::node::Kind::*;
 
     use ast::crumbs::InfixCrumb;
 
@@ -132,12 +154,12 @@ mod test {
     fn traversing_tree() {
         use InfixCrumb::*;
         let tree = TreeBuilder::new(7)
-            .add_ast_leaf(0,1,vec![LeftOperand])
-            .add_ast_leaf(1,1,vec![Operator])
-            .add_ast_child(2,5,vec![RightOperand])
-                .add_ast_leaf(0,2,vec![LeftOperand])
-                .add_ast_leaf(3,1,vec![Operator])
-                .add_ast_leaf(4,1,vec![RightOperand])
+            .add_leaf (0,1,Target   ,vec![LeftOperand])
+            .add_leaf (1,1,Operation,vec![Operator])
+            .add_child(2,5,Parameter,vec![RightOperand])
+                .add_leaf(0,2,Target   ,vec![LeftOperand])
+                .add_leaf(3,1,Operation,vec![Operator])
+                .add_leaf(4,1,Parameter,vec![RightOperand])
                 .done()
             .build();
 
@@ -155,25 +177,25 @@ mod test {
         assert_eq!(grand_child2.span_begin.value, 5);
 
         // Length
-        assert_eq!(root.node.len.value        , 7);
-        assert_eq!(child1.node.len.value      , 1);
-        assert_eq!(child2.node.len.value      , 5);
-        assert_eq!(grand_child1.node.len.value, 2);
-        assert_eq!(grand_child2.node.len.value, 1);
+        assert_eq!(root.node.size.value, 7);
+        assert_eq!(child1.node.size.value, 1);
+        assert_eq!(child2.node.size.value, 5);
+        assert_eq!(grand_child1.node.size.value, 2);
+        assert_eq!(grand_child2.node.size.value, 1);
 
         // crumbs
         assert_eq!(root.crumbs        , Vec::<usize>::new());
-        assert_eq!(child1.crumbs      , vec![0]            );
-        assert_eq!(child2.crumbs      , vec![2]            );
-        assert_eq!(grand_child1.crumbs, vec![2,0]          );
-        assert_eq!(grand_child2.crumbs, vec![2,1]          );
+        assert_eq!(child1.crumbs      , [0]            );
+        assert_eq!(child2.crumbs      , [2]            );
+        assert_eq!(grand_child1.crumbs, [2,0]          );
+        assert_eq!(grand_child2.crumbs, [2,1]          );
 
         // AST crumbs
-        assert_eq!(root.ast_crumbs        , vec![]                                      );
-        assert_eq!(child1.ast_crumbs      , vec![LeftOperand.into()]                    );
-        assert_eq!(child2.ast_crumbs      , vec![RightOperand.into()]                   );
-        assert_eq!(grand_child1.ast_crumbs, vec![RightOperand.into(),LeftOperand.into()]);
-        assert_eq!(grand_child2.ast_crumbs, vec![RightOperand.into(),Operator.into()]   );
+        assert_eq!(root.ast_crumbs        , []                                      );
+        assert_eq!(child1.ast_crumbs      , [LeftOperand.into()]                    );
+        assert_eq!(child2.ast_crumbs      , [RightOperand.into()]                   );
+        assert_eq!(grand_child1.ast_crumbs, [RightOperand.into(),LeftOperand.into()]);
+        assert_eq!(grand_child2.ast_crumbs, [RightOperand.into(),Operator.into()]   );
 
         // Not existing nodes
 

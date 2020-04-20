@@ -4,7 +4,7 @@ use crate::Node;
 use crate::SpanTree;
 
 use data::text::Size;
-
+use ast::crumbs::IntoCrumbs;
 
 
 // =====================
@@ -14,21 +14,20 @@ use data::text::Size;
 /// A trait with common operations for all builders.
 pub trait Builder : Sized {
     /// Reference to currently built  node.
-    fn built_node(&mut self) -> &mut Node;
+    fn node_being_built(&mut self) -> &mut Node;
 
     /// Add new AST-type child to node. Returns the child's builder which may be used to further
     /// extend this branch of the tree.
-    fn add_ast_child<Cbs>(self, offset:usize, len:usize, crumbs:Cbs) -> ChildBuilder<Self>
-        where Cbs : IntoIterator<Item:Into<ast::crumbs::Crumb>> {
-        let node = Node {
-            node_type : node::Type::Ast,
-            len       : Size::new(len),
+    fn add_child
+    (self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> ChildBuilder<Self> {
+        let node = Node {kind,
+            size: Size::new(len),
             children  : vec![]
         };
         let child = node::Child { node,
             offset              : Size::new(offset),
             chained_with_parent : false,
-            ast_crumbs          : crumbs.into_iter().map(|cb| cb.into()).collect(),
+            ast_crumbs          : crumbs.into_crumbs()
         };
         ChildBuilder {
             built  : child,
@@ -37,9 +36,8 @@ pub trait Builder : Sized {
     }
 
     /// Add a leaf AST-type child to node.
-    fn add_ast_leaf<Cbs>(self, offset:usize, len:usize, crumbs:Cbs) -> Self
-        where Cbs : IntoIterator<Item:Into<ast::crumbs::Crumb>> {
-        self.add_ast_child(offset,len,crumbs).done()
+    fn add_leaf(self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> Self {
+        self.add_child(offset,len,kind,crumbs).done()
     }
 
     /// Add an Empty-type child to node.
@@ -50,7 +48,7 @@ pub trait Builder : Sized {
             chained_with_parent : false,
             ast_crumbs          : vec![]
         };
-        self.built_node().children.push(child);
+        self.node_being_built().children.push(child);
         self
     }
 }
@@ -74,8 +72,8 @@ impl TreeBuilder {
     pub fn new(len:usize) -> Self {
         TreeBuilder {
             built : Node {
-                node_type : node::Type::Ast,
-                len       : Size::new(len),
+                kind: node::Kind::Root,
+                size: Size::new(len),
                 children  : vec![],
             }
         }
@@ -90,7 +88,7 @@ impl TreeBuilder {
 }
 
 impl Builder for TreeBuilder {
-    fn built_node(&mut self) -> &mut Node {
+    fn node_being_built(&mut self) -> &mut Node {
         &mut self.built
     }
 }
@@ -115,13 +113,13 @@ impl<Parent:Builder> ChildBuilder<Parent> {
 
     /// Finish child building and return builder of the node's Parent.
     pub fn done(mut self) -> Parent {
-        self.parent.built_node().children.push(self.built);
+        self.parent.node_being_built().children.push(self.built);
         self.parent
     }
 }
 
 impl<T> Builder for ChildBuilder<T> {
-    fn built_node(&mut self) -> &mut Node {
+    fn node_being_built(&mut self) -> &mut Node {
         &mut self.built.node
     }
 }

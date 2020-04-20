@@ -26,6 +26,8 @@ pub mod builder;
 
 pub use node::Node;
 
+
+/// Module gathering all commonly used traits for massive importing.
 pub mod traits {
     pub use crate::action::SpanTreeActions;
     pub use crate::generate::SpanTreeGenerator;
@@ -58,6 +60,11 @@ pub struct SpanTree {
 }
 
 impl SpanTree {
+    /// Create span tree from something that could generate it (usually AST).
+    pub fn new(generator:&impl SpanTreeGenerator) -> FallibleResult<Self> {
+        generator.generate_tree()
+    }
+
     /// Get the `NodeRef` of root node.
     pub fn root_ref(&self) -> node::Ref {
         node::Ref {

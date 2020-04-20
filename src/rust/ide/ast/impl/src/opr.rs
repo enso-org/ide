@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::Ast;
+use crate::{Ast, Shifted};
 use crate::Shape;
 use crate::assoc::Assoc;
 use crate::crumbs::Crumb;
@@ -65,25 +65,17 @@ pub fn is_assignment(ast:&Ast) -> bool {
 // === Chain-related types ===
 // ===========================
 
-/// An argument and offset between it and operator.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-pub struct ArgWithOffset {
-    pub arg    : Located<Ast>,
-    pub offset : usize,
-}
-
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
-pub type Operand = Option<ArgWithOffset>;
+pub type Operand = Option<Shifted<Located<Ast>>>;
 
 /// Infix operator standing between (optional) operands.
 pub type Operator = Located<known::Opr>;
 
 /// Creates `Operand` from `ast` with position relative to the given `parent` node.
 pub fn make_operand
-(parent:&Located<Ast>, crumb:impl Into<Crumb>, child:&Ast, offset:usize) -> Operand {
-    let arg = parent.descendant(crumb.into(),child.clone());
-    Some(ArgWithOffset{arg,offset})
+(parent:&Located<Ast>, crumb:impl Into<Crumb>, child:&Ast, off:usize) -> Operand {
+    let wrapped = parent.descendant(crumb.into(),child.clone());
+    Some(Shifted{wrapped,off})
 }
 
 /// Creates `Operator` from `ast` with position relative to the given `parent` node.
@@ -190,7 +182,7 @@ impl GeneralizedInfix {
         };
 
         let target_subtree_infix = target.clone().and_then(|ast| {
-            GeneralizedInfix::try_new(&ast.arg)
+            GeneralizedInfix::try_new(&*ast)
         });
         let mut target_subtree_flat = match target_subtree_infix {
             Some(target_infix) if target_infix.name() == self.name() =>
@@ -237,7 +229,7 @@ impl Chain {
 
     /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands<'a>(&'a self) -> impl Iterator<Item=&'a ArgWithOffset> + 'a {
+    pub fn enumerate_operands<'a>(&'a self) -> impl Iterator<Item=&'a Shifted<Located<Ast>>> + 'a {
         let this = std::iter::once(&self.target);
         let args = self.args.iter().map(|elem| &elem.operand);
         this.chain(args).flatten()
@@ -267,8 +259,8 @@ mod tests {
     use super::*;
 
     fn expect_at(root_ast:&Ast, operand:&Operand, expected_ast:&Ast) {
-        assert_eq!(&operand.as_ref().unwrap().arg.item,expected_ast);
-        let crumbs = &operand.as_ref().unwrap().arg.crumbs;
+        assert_eq!(&operand.as_ref().unwrap().item,expected_ast);
+        let crumbs = &operand.as_ref().unwrap().crumbs;
         let ast    = root_ast.get_traversing(crumbs).unwrap();
         assert_eq!(ast, expected_ast, "expected `{}` at crumbs `{:?}` for `{}`",
                    expected_ast.repr(), crumbs, root_ast.repr());

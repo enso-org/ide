@@ -3,7 +3,7 @@
 
 use crate::prelude::*;
 
-use crate::Ast;
+use crate::{Ast, HasTokens, TokenConsumer};
 use crate::Shape;
 use crate::with_shape_variants;
 
@@ -142,9 +142,9 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
     }
 }
 
-impl<T:HasLength> HasLength for KnownAst<T> {
-    fn len(&self) -> usize {
-        self.ast.len()
+impl<T> HasTokens for KnownAst<T> {
+    fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+        self.ast.feed_to(consumer)
     }
 }
 
