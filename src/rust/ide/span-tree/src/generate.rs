@@ -26,7 +26,7 @@ pub enum Context<'a> {
     /// Generated as a root node.
     Root,
     /// Generated as an argument of Infix or Prefix not being a target.
-    Parameter,
+    Argument,
     /// Generated as a Function child of Prefix AST node.
     PrefixFunc,
     /// Generated as a first argument in PrefixChain.
@@ -131,7 +131,7 @@ impl SpanTreeGenerator for Ast {
 fn ast_node_kind(ctx:&Context) -> node::Kind {
     match ctx {
         Context::Root              => node::Kind::Root,
-        Context::Parameter         => node::Kind::Parameter,
+        Context::Argument          => node::Kind::Argument,
         Context::PrefixFunc        => node::Kind::Operation,
         Context::PrefixTarget      => node::Kind::Target,
         Context::Operator(_)       => node::Kind::Operation,
@@ -151,8 +151,8 @@ impl SpanTreeGenerator for GeneralizedInfix {
         let opr_ctx     = Context::Operator(&self.opr.name);
 
         let (left_empty,left_ctx,right_empty,right_ctx) = match assoc {
-            Assoc::Left  => (false, target_ctx, have_empty, Context::Parameter),
-            Assoc::Right => (have_empty, Context::Parameter, false, target_ctx),
+            Assoc::Left  => (false     ,target_ctx       ,have_empty,Context::Argument),
+            Assoc::Right => (have_empty,Context::Argument,false     ,target_ctx),
         };
 
         let mut gen = ChildGenerator::default();
@@ -201,7 +201,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
         // our arg is a Target.
         let arg_ctx = match &func.node.kind {
             node::Kind::Operation => Context::PrefixTarget,
-            _                     => Context::Parameter,
+            _                     => Context::Argument,
         };
         gen.spacing(self.off);
         gen.generate_ast_node(Located::new(Arg,self.arg.clone_ref()),arg_ctx)?;
@@ -270,6 +270,7 @@ mod test {
     use ast::crumbs::SectionRightCrumb;
     use ast::crumbs::SectionSidesCrumb;
     use parser::Parser;
+    use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     wasm_bindgen_test_configure!(run_in_browser);
@@ -284,7 +285,7 @@ mod test {
             .add_child(0,11,Target,vec![InfixCrumb::LeftOperand])
                 .add_leaf (0,1,Target   ,vec![InfixCrumb::LeftOperand])
                 .add_leaf (2,1,Operation,vec![InfixCrumb::Operator])
-                .add_child(4,7,Parameter,vec![InfixCrumb::RightOperand])
+                .add_child(4,7,Argument ,vec![InfixCrumb::RightOperand])
                     .add_leaf(0,3,Operation,vec![PrefixCrumb::Func])
                     .add_leaf(4,3,Target   ,vec![PrefixCrumb::Arg])
                     .add_empty_child(7)
@@ -292,7 +293,7 @@ mod test {
                 .add_empty_child(11)
                 .done()
             .add_leaf(12,1,Operation,vec![InfixCrumb::Operator])
-            .add_leaf(14,1,Parameter,vec![InfixCrumb::RightOperand])
+            .add_leaf(14,1,Argument ,vec![InfixCrumb::RightOperand])
             .add_empty_child(15)
             .build();
 
@@ -312,10 +313,10 @@ mod test {
                     .chain_with_parent()
                     .add_leaf(0,1,Target,   vec![InfixCrumb::LeftOperand])
                     .add_leaf(2,1,Operation,vec![InfixCrumb::Operator])
-                    .add_leaf(4,1,Parameter,vec![InfixCrumb::RightOperand])
+                    .add_leaf(4,1,Argument ,vec![InfixCrumb::RightOperand])
                     .done()
                 .add_leaf (6,1,Operation,vec![InfixCrumb::Operator])
-                .add_child(8,14,Parameter,vec![InfixCrumb::RightOperand])
+                .add_child(8,14,Argument ,vec![InfixCrumb::RightOperand])
                     .add_child(0,11,Target,vec![PrefixCrumb::Func])
                         .chain_with_parent()
                         .add_child(0,7,Target,vec![PrefixCrumb::Func])
@@ -323,14 +324,14 @@ mod test {
                             .add_leaf(0,3,Operation,vec![PrefixCrumb::Func])
                             .add_leaf(4,3,Target   ,vec![PrefixCrumb::Arg])
                             .done()
-                        .add_leaf(8,3,Parameter,vec![PrefixCrumb::Arg])
+                        .add_leaf(8,3,Argument,vec![PrefixCrumb::Arg])
                         .done()
-                    .add_leaf(12,2,Parameter,vec![PrefixCrumb::Arg])
+                    .add_leaf(12,2,Argument,vec![PrefixCrumb::Arg])
                     .add_empty_child(14)
                     .done()
                 .done()
             .add_leaf(23,1,Operation,vec![InfixCrumb::Operator])
-            .add_leaf(25,1,Parameter,vec![InfixCrumb::RightOperand])
+            .add_leaf(25,1,Argument ,vec![InfixCrumb::RightOperand])
             .add_empty_child(26)
             .build();
 
@@ -345,11 +346,11 @@ mod test {
 
         let expected = TreeBuilder::new(5)
             .add_empty_child(0)
-            .add_leaf (0,1,Parameter,vec![InfixCrumb::LeftOperand])
+            .add_leaf (0,1,Argument ,vec![InfixCrumb::LeftOperand])
             .add_leaf (1,1,Operation,vec![InfixCrumb::Operator])
             .add_child(2,3,Target   ,vec![InfixCrumb::RightOperand])
                 .chain_with_parent()
-                .add_leaf(0,1,Parameter,vec![InfixCrumb::LeftOperand])
+                .add_leaf(0,1,Argument ,vec![InfixCrumb::LeftOperand])
                 .add_leaf(1,1,Operation,vec![InfixCrumb::Operator])
                 .add_leaf(2,1,Target   ,vec![InfixCrumb::RightOperand])
                 .done()
@@ -373,14 +374,14 @@ mod test {
                     .chain_with_parent()
                     .add_empty_child(0)
                     .add_leaf (0,1,Operation,vec![SectionRightCrumb::Opr])
-                    .add_child(2,1,Parameter,vec![SectionRightCrumb::Arg])
+                    .add_child(2,1,Argument ,vec![SectionRightCrumb::Arg])
                         .add_empty_child(0)
                         .add_leaf(0,1,Operation,vec![SectionSidesCrumb])
                         .add_empty_child(1)
                         .done()
                     .done()
                 .add_leaf(4,1,Operation,vec![InfixCrumb::Operator])
-                .add_leaf(6,1,Parameter,vec![InfixCrumb::RightOperand])
+                .add_leaf(6,1,Argument ,vec![InfixCrumb::RightOperand])
                 .done()
             .add_leaf(8,1,Operation,vec![SectionLeftCrumb::Opr])
             .add_empty_child(9)

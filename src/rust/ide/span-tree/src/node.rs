@@ -24,7 +24,7 @@ pub enum Kind {
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Parameter,
+    Argument,
     /// An empty node being a placeholder for adding new child to the parent. The empty node
     /// should not have any further children.
     Empty
@@ -154,10 +154,10 @@ mod test {
         let tree = TreeBuilder::new(7)
             .add_leaf (0,1,Target   ,vec![LeftOperand])
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Parameter,vec![RightOperand])
+            .add_child(2,5,Argument ,vec![RightOperand])
                 .add_leaf(0,2,Target   ,vec![LeftOperand])
                 .add_leaf(3,1,Operation,vec![Operator])
-                .add_leaf(4,1,Parameter,vec![RightOperand])
+                .add_leaf(4,1,Argument ,vec![RightOperand])
                 .done()
             .build();
 
