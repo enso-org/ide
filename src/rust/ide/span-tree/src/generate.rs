@@ -190,7 +190,7 @@ impl SpanTreeGenerator for GeneralizedInfix {
 
 impl SpanTreeGenerator for ast::known::Prefix {
 
-    fn generate_node(&self, ctx: Context) -> FallibleResult<Node> {
+    fn generate_node(&self, ctx:Context) -> FallibleResult<Node> {
         let should_have_empty = !prefix_can_be_chained_with_parent(ctx);
         let func_ast          = Located::new(Func,self.func.clone_ref());
 
