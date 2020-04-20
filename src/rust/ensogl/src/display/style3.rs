@@ -5,7 +5,6 @@ use crate::data::OptVec;
 use std::fmt::Write;
 
 
-
 // ============
 // === Data ===
 // ============
@@ -312,6 +311,14 @@ impl Style {
             path.pop();
         }
     }
+
+    pub fn value(&self, var_id:VarId) -> Option<&Data> {
+        self.vars.vec.items.index(*var_id).as_ref().and_then(|var| {
+            var.binding.and_then(|sheet_id| {
+                self.sheets.vec[*sheet_id].value.as_ref()
+            })
+        })
+    }
 }
 
 impl Default for Style {
@@ -331,6 +338,14 @@ pub fn test() {
     css.set_value(&["button".into(),"text".into(),"size".into()], data(2.0));
 
     let var3    = css.var(&["circle".into(),"size".into()]);
+
+    let var4    = css.var(&["graph".into(),"background".into(),"color".into()]);
+    let var5    = css.var(&["cursor".into(),"movement".into(),"speed".into()]);
+    let var6    = css.var(&["animation".into(),"speed".into()]);
+
+
+    println!("{:?}", css.value(var3));
+
 
 //    css.remove_value(&["button".into(),"text".into(),"size".into()]);
 
