@@ -55,11 +55,10 @@ pub type Destination = Endpoint;
 // ==================
 
 /// Describes a connection between two endpoints: from `source` to `destination`.
+#[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq)]
 pub struct Connection {
-    #[allow(missing_docs)]
     pub source:Source,
-    #[allow(missing_docs)]
     pub destination:Destination,
 }
 
