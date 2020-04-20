@@ -82,7 +82,7 @@ TextureReload for Texture<RemoteImage,I,T> {
         let image_ref_opt = image_ref.clone();
         let context       = self.context().clone();
         let gl_texture    = self.gl_texture().clone();
-        let parameters    = self.parameters;
+        let parameters    = *self.parameters();
         let callback: Closure<dyn FnMut()> = Closure::once(move || {
             let _keep_alive     = callback_ref2;
             let image           = image_ref_opt.borrow();

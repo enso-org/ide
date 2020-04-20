@@ -49,39 +49,102 @@ impl Drop for TextureBindGuard {
 // === Parameters ===
 // ==================
 
-/// Parameters that need to be set when binding a texture.
-#[derive(Copy, Clone, Debug)]
+/// Helper struct to specify texture parameters that need to be set when binding a texture.
+///
+/// The essential parameters that need to be set are about how the texture will be samples, i.e.,
+/// how the values of the texture are interpolated at various resolutions, and how out of bounds
+/// samples are handled.
+///
+/// For more background see: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texParameter
+///
+#[derive(Copy,Clone,Debug,Default)]
 pub struct Parameters{
-    /// Specifies the value for `Context::TEXTURE_MIN_FILTER`.
-    pub min_filter : u32,
-    /// Specifies the value for `Context::TEXTURE_MAG_FILTER`.
-    pub mag_filter : u32,
-    /// Specifies the value for `Context::TEXTURE_WRAP_S`.
-    pub wrap_s     : u32,
-    /// Specifies the value for `Context::TEXTURE_WRAP_T`.
-    pub wrap_t     : u32,
+    /// Specifies the setting for the texture magnification filter (`Context::TEXTURE_MIN_FILTER`).
+    pub min_filter : MinFilterValue,
+    /// Specifies the setting for the texture minification filter (`Context::TEXTURE_MAG_FILTER`).
+    pub mag_filter : MagFilterValue,
+    /// Specifies the setting for the wrapping function for texture coordinate s
+    /// (`Context::TEXTURE_WRAP_S`).
+    pub wrap_s     : WrapValue,
+    /// Specifies the setting for the wrapping function for texture coordinate t
+    /// (`Context::TEXTURE_WRAP_T`).
+    pub wrap_t     : WrapValue,
 }
 
-impl Default for Parameters{
-    fn default() -> Self {
-        Parameters{
-            min_filter : Context::LINEAR,
-            mag_filter : Context::LINEAR,
-            wrap_s     : Context::CLAMP_TO_EDGE,
-            wrap_t     : Context::CLAMP_TO_EDGE,
-        }
-    }
-}
+
 
 impl Parameters {
     /// Sets the context parameters in the given context.
     pub fn set_parameters(&self, context:&Context){
         let target = Context::TEXTURE_2D;
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter as i32);
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t as i32);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter.0 as i32);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter.0 as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s.0 as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t.0 as i32);
+    }
+}
 
+
+// === Parameter Types ===
+
+/// Valid Parameters for the `gl.TEXTURE_MAG_FILTER` texture setting.
+/// Specifies how values are interpolated if the texture is rendered at a resolution that is
+/// lower than its native resolution.
+#[derive(Copy, Clone, Debug)]
+pub struct MagFilterValue(u32);
+
+#[allow(missing_docs)]
+impl MagFilterValue {
+    pub const LINEAR  : MagFilterValue = Self(Context::LINEAR);
+    pub const NEAREST : MagFilterValue = Self(Context::NEAREST);
+}
+
+// Note: The parameters implement our own default, not the WebGL one.
+impl Default for MagFilterValue{
+    fn default() -> Self {
+        Self::LINEAR
+    }
+}
+
+/// Valid Parameters for the `gl.TEXTURE_MIN_FILTER` texture setting.
+/// Specifies how values are interpolated if the texture is rendered at a resolution that is
+/// lower than its native resolution.
+#[derive(Copy, Clone, Debug)]
+pub struct MinFilterValue(u32);
+
+#[allow(missing_docs)]
+impl MinFilterValue {
+    pub const LINEAR                 : MinFilterValue = Self(Context::LINEAR);
+    pub const NEAREST                : MinFilterValue = Self(Context::NEAREST);
+    pub const NEAREST_MIPMAP_NEAREST : MinFilterValue = Self(Context::NEAREST_MIPMAP_NEAREST);
+    pub const LINEAR_MIPMAP_NEAREST  : MinFilterValue = Self(Context::LINEAR_MIPMAP_NEAREST);
+    pub const NEAREST_MIPMAP_LINEAR  : MinFilterValue = Self(Context::NEAREST_MIPMAP_LINEAR);
+    pub const LINEAR_MIPMAP_LINEAR   : MinFilterValue = Self(Context::LINEAR_MIPMAP_LINEAR);
+}
+
+// Note: The parameters implement our own default, not the WebGL one.
+impl Default for MinFilterValue{
+    fn default() -> Self {
+        Self::LINEAR
+    }
+}
+
+/// Valid Parameters for the `gl.TEXTURE_WRAP_S` and `gl.TEXTURE_WRAP_T` texture setting.
+/// Specifies what happens if a texture is sampled out of bounds.
+#[derive(Copy, Clone, Debug)]
+pub struct WrapValue(u32);
+
+#[allow(missing_docs)]
+impl WrapValue {
+    pub const REPEAT          : WrapValue = Self(Context::REPEAT);
+    pub const CLAMP_TO_EDGE   : WrapValue = Self(Context::CLAMP_TO_EDGE);
+    pub const MIRRORED_REPEAT : WrapValue = Self(Context::MIRRORED_REPEAT);
+}
+
+// Note: The parameters implement our own default, not the WebGL one.
+impl Default for WrapValue{
+    fn default() -> Self {
+        Self::CLAMP_TO_EDGE
     }
 }
 
@@ -91,19 +154,17 @@ impl Parameters {
 // === Texture ===
 // ===============
 
-
-
 /// Texture bound to GL context.
 #[derive(Derivative)]
 #[derivative(Clone(bound="StorageOf<Storage,InternalFormat,ItemType>:Clone"))]
 #[derivative(Debug(bound="StorageOf<Storage,InternalFormat,ItemType>:Debug"))]
 pub struct Texture<Storage,InternalFormat,ItemType>
 where Storage: StorageRelation<InternalFormat,ItemType> {
-        storage    : StorageOf<Storage,InternalFormat,ItemType>,
-        gl_texture : WebGlTexture,
-        context    : Context,
+    storage    : StorageOf<Storage,InternalFormat,ItemType>,
+    gl_texture : WebGlTexture,
+    context    : Context,
     /// Texture parameters that need to be set when binding the texture.
-    pub parameters : Parameters
+    parameters : Parameters
 }
 
 
@@ -171,6 +232,23 @@ where S:StorageRelation<I,T> {
     pub fn storage(&self) -> &StorageOf<S,I,T> {
         &self.storage
     }
+
+    /// Getter.
+    pub fn parameters(&self) -> &Parameters {
+        &self.parameters
+    }
+}
+
+
+// === Setters ===
+
+impl<S,I,T> Texture<S,I,T>
+    where S:StorageRelation<I,T> {
+
+    /// Setter.
+    pub fn set_parameters(&mut self, parameters: Parameters) {
+        self.parameters = parameters;
+    }
 }
 
 
@@ -207,12 +285,11 @@ where S:StorageRelation<I,T> {
         let storage    = storage.into();
         let context    = context.clone();
         let gl_texture = context.create_texture().unwrap();
-        let parameters = Parameters::default();
+        let parameters = default();
         Self {storage,gl_texture,context,parameters}
     }
 
-
-    /// Sets the texture wrapping parameters without requiring self.
+    /// Sets the texture wrapping parameters.
     pub fn set_texture_parameters(&self, context:&Context) {
         self.parameters.set_parameters(context);
     }
