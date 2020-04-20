@@ -64,8 +64,8 @@ macro_rules! make_param_map {
     (,$ty:ty) => {
         $ty
     };
-    (,$($ty1:ty),+) => {
-        ($($ty1),+)
+    (,$($ty:ty),+) => {
+        ($($ty),+)
     }
 }
 
@@ -130,12 +130,12 @@ macro_rules! make_rpc_methods {
             impl Mock {
                 $(
                     $(#[doc = $doc])*
-                    async fn $method(&self $(,$param_name:$param_ty)+) -> Result<$result> {
+                    pub async fn $method(&self $(,$param_name:$param_ty)+) -> Result<$result> {
                         self.rc.borrow_mut().[<$method _result>].remove(&make_arg!($($param_name),+)).unwrap()
                     }
 
                     /// Sets `$method`'s result to be returned when it is called.
-                    fn [<set_ $method _result>]
+                    pub fn [<set_ $method _result>]
                     (&mut self $(,$param_name:$param_ty)+, result:Result<$result>) {
                         self.rc.borrow_mut().[<$method _result>].insert(make_arg!($($param_name),+),result);
                     }

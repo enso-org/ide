@@ -9,14 +9,13 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-use crate::prelude::*;
+use enso_prelude::*;
 
-pub use enso_prelude as prelude;
-use enso_protocol_common::UTCDateTime;
-use enso_protocol_common::make_rpc_method;
-use enso_protocol_common::make_rpc_methods;
-use enso_protocol_common::make_param_map;
-use enso_protocol_common::make_arg;
+use crate::common::UTCDateTime;
+use crate::make_rpc_method;
+use crate::make_rpc_methods;
+use crate::make_param_map;
+use crate::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
@@ -61,12 +60,6 @@ impl {
     /// includes spawning an instance of the language server open on the specified project.
     #[CamelCase=OpenProject,camelCase=openProject]
     fn open_project(&self, project_id:Uuid) -> IpWithSocket;
-
-    /// Blah
-    #[CamelCase=RenameProject,camelCase=renameProject]
-    fn rename_project(&self, project_id:Uuid
-    ,name:String
-    ) -> ();
 
     /// Requests that the project picker close a specified project. This operation
     /// includes shutting down the language server gracefully so that it can persist state to disk as needed.
@@ -115,9 +108,9 @@ pub struct ProjectMetaData {
 
 #[cfg(test)]
 mod test {
-    use crate::Mock;
-    use crate::IpWithSocket;
-    use crate::ProjectMetaData;
+    use super::Mock;
+    use super::IpWithSocket;
+    use super::ProjectMetaData;
     use uuid::Uuid;
     use json_rpc::error::RpcError;
     use json_rpc::messages::Error;

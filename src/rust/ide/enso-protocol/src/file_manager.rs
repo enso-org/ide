@@ -9,14 +9,13 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-use crate::prelude::*;
+use enso_prelude::*;
 
-pub use enso_prelude as prelude;
-use enso_protocol_common::UTCDateTime;
-use enso_protocol_common::make_rpc_method;
-use enso_protocol_common::make_rpc_methods;
-use enso_protocol_common::make_param_map;
-use enso_protocol_common::make_arg;
+use crate::common::UTCDateTime;
+use crate::make_rpc_method;
+use crate::make_rpc_methods;
+use crate::make_param_map;
+use crate::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
@@ -141,55 +140,55 @@ pub enum FileKind {
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
 impl {
-    /// a
+    /// Copies a specified directory to another location.
     #[CamelCase=CopyDirectory,camelCase=copyDirectory]
     fn copy_directory(&self, from:Path, to:Path) -> ();
 
-    /// bla
+    /// Copies a specified file to another location.
     #[CamelCase=CopyFile,camelCase=copyFile]
     fn copy_file(&self, from:Path, to:Path) -> ();
 
-    /// bla
+    /// Deletes the specified file.
     #[CamelCase=DeleteFile,camelCase=deleteFile]
     fn delete_file(&self, path:Path) -> ();
 
-    /// bla
+    /// Check if file exists.
     #[CamelCase=Exists,camelCase=exists]
     fn exists(&self, path:Path) -> bool;
 
-    /// bla
+    /// List all file-system objects in the specified path.
     #[CamelCase=List,camelCase=list]
     fn list(&self, path:Path) -> Vec<Path>;
 
-    /// bla
+    /// Moves directory to another location.
     #[CamelCase=MoveDirectory,camelCase=moveDirectory]
     fn move_directory(&self, from:Path, to:Path) -> ();
 
-    /// bla
+    /// Moves file to another location.
     #[CamelCase=MoveFile,camelCase=moveFile]
     fn move_file(&self, from:Path, to:Path) -> ();
 
-    /// bla
+    /// Reads file's content as a String.
     #[CamelCase=Read,camelCase=read]
     fn read(&self, path:Path) -> String;
 
-    /// bla
+    /// Gets file's status.
     #[CamelCase=Status,camelCase=status]
     fn status(&self, path:Path) -> Attributes;
 
-    /// bla
+    /// Creates a file in the specified path.
     #[CamelCase=Touch,camelCase=touch]
     fn touch(&self, path:Path) -> ();
 
-    /// bla
+    /// Writes String contents to a file in the specified path.
     #[CamelCase=Write,camelCase=write]
     fn write(&self, path:Path, contents:String) -> ();
 
-    /// bla
+    /// Watches the specified path.
     #[CamelCase=CreateWatch,camelCase=createWatch]
     fn create_watch(&self, path:Path) -> Uuid;
 
-    /// bla
+    /// Delete the specified watcher.
     #[CamelCase=DeleteWatch,camelCase=deleteWatch]
     fn delete_watch(&self, watch_id:Uuid) -> ();
 }
