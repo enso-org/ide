@@ -28,7 +28,7 @@ macro_rules! make_rpc_method {
       $name_ext:ident
       ($($arg:ident : $type:ty),* $(,)?) -> $out:ty   ) => {
     paste::item! {
-        impl Client {
+        impl ClientData {
             /// Remote call to the method on the File Manager Server.
             pub fn $name
             (&mut self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
@@ -37,7 +37,7 @@ macro_rules! make_rpc_method {
             }
         }
 
-        impl Handle {
+        impl Client {
             /// Remote call to the method on the File Manager Server.
             pub fn $name
             (&self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
@@ -57,4 +57,112 @@ macro_rules! make_rpc_method {
             type Returned = $out;
         }
     }}
+}
+
+#[macro_export]
+macro_rules! make_rpc_methods {
+    (
+    $(#[doc = $trait_doc:expr])+
+    pub trait Interface {
+        $(
+        $(#[doc = $doc:expr])+
+        #[CamelCase=$CamelCase:ident,camelCase=$camelCase:ident]
+        fn $method:ident(&self, $param_name:ident:$param_ty:ty) -> $result:ty;
+        )*
+    }) => {
+        $(#[doc = $trait_doc])+
+        pub trait Interface {
+            $(
+            $(#[doc = $doc])+
+            fn $method(&self, $param_name:$param_ty) -> Result<$result>;
+            )*
+        }
+
+        $(make_rpc_method!($CamelCase $method $camelCase ($param_name:$param_ty) -> $result);)*
+
+        paste::item!{
+            shared! { Mock
+                /// Mock data used for tests.
+                pub struct MockData {
+                    /// JSON-RPC protocol handler.
+                    handler : Handler<Notification>,
+                    $([<$method _result>] : HashMap<$param_ty,Result<$result>>,)*
+                }
+
+                impl {
+                    /// Create a new client that will use given transport.
+                    pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
+                        let handler = Handler::new(transport);
+                        Self {
+                            handler,
+                            $([<$method _result>] : HashMap::default(),)*
+                        }
+                    }
+
+                    /// Asynchronous event stream with notification and errors.
+                    ///
+                    /// On a repeated call, previous stream is closed.
+                    pub fn events(&mut self) -> impl Stream<Item = Event> {
+                        self.handler.handler_event_stream()
+                    }
+
+                    /// Returns a future that performs any background, asynchronous work needed
+                    /// for this Client to correctly work. Should be continually run while the
+                    /// `Client` is used. Will end once `Client` is dropped.
+                    pub fn runner(&mut self) -> impl Future<Output = ()> {
+                        self.handler.runner()
+                    }
+                }
+            }
+
+            impl Mock {
+                $(
+                    $(#[doc = $doc])*
+                    async fn $method(&self, $param_name:$param_ty) -> Result<$result> {
+                        self.rc.borrow_mut().[<$method _result>].remove(&$param_name).unwrap()
+                    }
+
+                    fn [<set_ $method _result>]
+                    (&mut self, $param_name:$param_ty, result:Result<$result>) {
+                        self.rc.borrow_mut().[<$method _result>].insert($param_name,result);
+                    }
+                )*
+            }
+
+            shared! { Client
+                /// Project Manager client. Contains numerous asynchronous methods for remote calls
+                /// on Project Manager server. Also, allows obtaining events stream by calling
+                /// `events`.
+                #[derive(Debug)]
+                pub struct ClientData {
+                    /// JSON-RPC protocol handler.
+                    handler : Handler<Notification>,
+                }
+
+                impl {
+                    /// Create a new Project Manager client that will use given transport.
+                    pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
+                        let handler = Handler::new(transport);
+                        Self { handler }
+                    }
+
+                    /// Asynchronous event stream with notification and errors.
+                    ///
+                    /// On a repeated call, previous stream is closed.
+                    pub fn events(&mut self) -> impl Stream<Item = Event> {
+                        self.handler.handler_event_stream()
+                    }
+
+                    /// Returns a future that performs any background, asynchronous work needed
+                    /// for this Client to correctly work. Should be continually run while the
+                    /// `Client` is used. Will end once `Client` is dropped.
+                    pub fn runner(&mut self) -> impl Future<Output = ()> {
+                        self.handler.runner()
+                    }
+                }
+
+            }
+
+        }
+    }
 }

@@ -14,6 +14,7 @@ use crate::prelude::*;
 pub use enso_prelude as prelude;
 use enso_protocol_common::UTCDateTime;
 use enso_protocol_common::make_rpc_method;
+use enso_protocol_common::make_rpc_methods;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
@@ -45,147 +46,43 @@ pub type Event = json_rpc::handler::Event<Notification>;
 pub enum Notification {}
 
 
-// ==============
-// === Client ===
-// ==============
-
-shared! { Handle
-
-    /// Project Manager client. Contains numerous asynchronous methods for remote calls
-    /// on Project Manager server. Also, allows obtaining events stream by calling
-    /// `events`.
-    #[derive(Debug)]
-    pub struct Client {
-        /// JSON-RPC protocol handler.
-        handler : Handler<Notification>,
-    }
-
-    impl {
-        /// Create a new Project Manager client that will use given transport.
-        pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
-            let handler = Handler::new(transport);
-            Client { handler }
-        }
-
-        /// Asynchronous event stream with notification and errors.
-        ///
-        /// On a repeated call, previous stream is closed.
-        pub fn events(&mut self) -> impl Stream<Item = Event> {
-            self.handler.handler_event_stream()
-        }
-
-        /// Returns a future that performs any background, asynchronous work needed
-        /// for this Client to correctly work. Should be continually run while the
-        /// `Client` is used. Will end once `Client` is dropped.
-        pub fn runner(&mut self) -> impl Future<Output = ()> {
-            self.handler.runner()
-        }
-    }
-
-}
-
-
 
 // ===================
 // === RPC Methods ===
 // ===================
 
+// TODO[DG]: Wrap macro_rule with #[derive(JsonRpcInterface)]
+make_rpc_methods! {
 /// An interface containing all the available project management operations.
-pub trait ProjectManagerInterface {
+pub trait Interface {
     /// Requests that the project picker open a specified project. This operation also
     /// includes spawning an instance of the language server open on the specified project.
-    fn open_project(&self, project_id:Uuid) -> TemporaryResult<IpWithSocket>;
+    #[CamelCase=OpenProject,camelCase=openProject]
+    fn open_project(&self, project_id:Uuid) -> IpWithSocket;
 
     /// Requests that the project picker close a specified project. This operation
     /// includes shutting down the language server gracefully so that it can persist state to disk as needed.
-    fn close_project(&self, project_id:Uuid) -> TemporaryResult<()>;
+    #[CamelCase=CloseProject,camelCase=closeProject]
+    fn close_project(&self, project_id:Uuid) -> ();
 
     /// Requests that the project picker lists the user's most recently opened
     /// projects.
-    fn list_recent(&self, number_of_projects:u32) -> TemporaryResult<Vec<ProjectMetaData>>;
+    #[CamelCase=ListRecent,camelCase=listRecent]
+    fn list_recent(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
 
     /// Requests the creation of a new project.
-    fn create_project(&self, name:String) -> TemporaryResult<Uuid>;
+    #[CamelCase=CreateProject,camelCase=createProject]
+    fn create_project(&self, name:String) -> Uuid;
 
     /// Requests the deletion of a project.
-    fn delete_project(&self, project_id:Uuid) -> TemporaryResult<()>;
+    #[CamelCase=DeleteProject,camelCase=deleteProject]
+    fn delete_project(&self, project_id:Uuid) -> ();
 
     /// Requests a list of sample projects that are available to the user.
-    fn list_sample(&self, number_of_projects:u32) -> TemporaryResult<Vec<ProjectMetaData>>;
+    #[CamelCase=ListSample,camelCase=listSample]
+    fn list_sample(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
 }
-
-type TemporaryResult<T> = std::result::Result<T,String>;
-
-#[derive(Default)]
-struct ProjectManagerClientMock {
-    open_project_result   : HashMap<Uuid,TemporaryResult<IpWithSocket>>,
-    close_project_result  : HashMap<Uuid,TemporaryResult<()>>,
-    list_recent_result    : HashMap<u32, TemporaryResult<Vec<ProjectMetaData>>>,
-    create_project_result : HashMap<String, TemporaryResult<Uuid>>,
-    delete_project_result : HashMap<Uuid,TemporaryResult<()>>,
-    list_sample_result    : HashMap<u32, TemporaryResult<Vec<ProjectMetaData>>>
 }
-
-impl ProjectManagerInterface for ProjectManagerClientMock {
-    fn open_project(&self, project_id:Uuid) -> TemporaryResult<IpWithSocket> {
-        self.open_project_result.get(&project_id).unwrap().clone()
-    }
-
-    fn close_project(&self, project_id:Uuid) -> TemporaryResult<()> {
-        self.close_project_result.get(&project_id).unwrap().clone()
-    }
-
-    fn list_recent(&self, number_of_projects:u32) -> TemporaryResult<Vec<ProjectMetaData>> {
-        self.list_recent_result.get(&number_of_projects).unwrap().clone()
-    }
-
-    fn create_project(&self, name:String) -> TemporaryResult<Uuid> {
-        self.create_project_result.get(&name).unwrap().clone()
-    }
-
-    fn delete_project(&self, project_id:Uuid) -> TemporaryResult<()> {
-        self.delete_project_result.get(&project_id).unwrap().clone()
-    }
-
-    fn list_sample(&self, number_of_projects:u32) -> TemporaryResult<Vec<ProjectMetaData>> {
-        self.list_sample_result.get(&number_of_projects).unwrap().clone()
-    }
-}
-
-impl ProjectManagerClientMock {
-    fn set_open_project_result(&mut self, project_id:Uuid, result:TemporaryResult<IpWithSocket>) {
-        self.open_project_result.insert(project_id,result);
-    }
-
-    fn set_close_project_result(&mut self, project_id:Uuid, result:TemporaryResult<()>) {
-        self.close_project_result.insert(project_id,result);
-    }
-
-    fn set_list_recent_result
-    (&mut self, number_of_projects:u32, result:TemporaryResult<Vec<ProjectMetaData>>) {
-        self.list_recent_result.insert(number_of_projects,result);
-    }
-
-    fn set_create_project_result(&mut self, name:String, result:TemporaryResult<Uuid>) {
-        self.create_project_result.insert(name,result);
-    }
-
-    fn set_delete_project_result(&mut self, project_id:Uuid, result:TemporaryResult<()>) {
-        self.delete_project_result.insert(project_id,result);
-    }
-
-    fn set_list_sample_result
-    (&mut self, number_of_projects:u32, result:TemporaryResult<Vec<ProjectMetaData>>) {
-        self.list_sample_result.insert(number_of_projects,result);
-    }
-}
-
-make_rpc_method!(OpenProject   open_project   openProject   (project_id:Uuid) -> IpWithSocket);
-make_rpc_method!(CloseProject  close_project  closeProject  (project_id:Uuid) -> ());
-make_rpc_method!(ListRecent list_recent listRecent (number_of_projects:u32) -> Vec<ProjectMetaData>);
-make_rpc_method!(CreateProject create_project createProject (name:String) -> Uuid);
-make_rpc_method!(DeleteProject delete_project deleteProject (project_id:Uuid) -> ());
-make_rpc_method!(ListSample list_sample listSample (number_of_projects:u32) -> Vec<ProjectMetaData>);
 
 /// IP address with host and port.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
@@ -202,49 +99,91 @@ pub struct ProjectMetaData {
     last_opened : UTCDateTime
 }
 
+
+
+// ============
+// === Test ===
+// ============
+
 #[cfg(test)]
 mod test {
-    use crate::{ProjectManagerClientMock, IpWithSocket, ProjectManagerInterface, ProjectMetaData};
+    use crate::Mock;
+    use crate::IpWithSocket;
+    use crate::ProjectMetaData;
     use uuid::Uuid;
-    use enso_protocol_common::UTCDateTime;
+    use json_rpc::error::RpcError;
+    use json_rpc::messages::Error;
+    use json_rpc::Result;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use std::future::Future;
+    use utils::test::poll_future_output;
+    use futures::task::LocalSpawnExt;
+
+    struct Fixture {
+        client    : Mock,
+        executor  : futures::executor::LocalPool,
+    }
+
+    fn setup() -> Fixture {
+        let client = Mock::new(MockTransport::new());
+        let executor   = futures::executor::LocalPool::new();
+        executor.spawner().spawn_local(client.runner()).expect("Spawn local");
+        Fixture {client,executor}
+    }
+
+    fn error<T>(message:&str) -> Result<T> {
+        let err = Error {
+            code : 1,
+            data : None,
+            message : message.to_string()
+        };
+        Err(RpcError::RemoteError(err))
+    }
+
+    fn result<T,F:Future<Output = Result<T>>>(fixture:&mut Fixture, fut:F) -> Result<T> {
+        fixture.executor.run_until_stalled();
+        let mut fut = Box::pin(fut);
+        poll_future_output(&mut fut).expect("Promise isn't ready")
+    }
 
     #[test]
     fn project_life_cycle() {
-        let mut mock_client         = ProjectManagerClientMock::default();
+        let mut fixture             = setup();
+        let mut mock_client         = fixture.client.clone();
         let expected_uuid           = Uuid::default();
         let host                    = "localhost".to_string();
         let port                    = 30500;
         let expected_ip_with_socket = IpWithSocket {host,port};
         mock_client.set_create_project_result("HelloWorld".into(),Ok(expected_uuid.clone()));
         mock_client.set_open_project_result(expected_uuid.clone(), Ok(expected_ip_with_socket.clone()));
-        mock_client.set_close_project_result(expected_uuid.clone(), Err("Project isn't open.".into()));
-        mock_client.set_delete_project_result(expected_uuid.clone(), Err("Project doesn't exist.".into()));
+        mock_client.set_close_project_result(expected_uuid.clone(), error("Project isn't open."));
+        mock_client.set_delete_project_result(expected_uuid.clone(), error("Project doesn't exist."));
 
         let delete_result = mock_client.delete_project(expected_uuid.clone());
-        assert!(delete_result.is_err(), "Project doesn't exist.");
+        result(&mut fixture, delete_result).expect_err("Project shouldn't exist.");
 
         let uuid = mock_client.create_project("HelloWorld".into());
-        let uuid = uuid.expect("Couldn't create project");
+        let uuid = result(&mut fixture,uuid).expect("Couldn't create project");
         assert_eq!(uuid, expected_uuid);
 
-        let close_result = mock_client.close_project(uuid.clone());
-        assert!(close_result.is_err(), "Project shouldn't be open.");
+        let close_result = result(&mut fixture,mock_client.close_project(uuid.clone()));
+        close_result.expect_err("Project shouldn't be open.");
 
-        let ip_with_socket = mock_client.open_project(uuid.clone());
-        assert_eq!(ip_with_socket, Ok(expected_ip_with_socket));
+        let ip_with_socket = result(&mut fixture,mock_client.open_project(uuid.clone()));
+        let ip_with_socket = ip_with_socket.expect("Couldn't open project");
+        assert_eq!(ip_with_socket, expected_ip_with_socket);
 
         mock_client.set_close_project_result(expected_uuid.clone(), Ok(()));
-        let close_result = mock_client.close_project(uuid);
-        assert_eq!(close_result, Ok(()));
+        result(&mut fixture,mock_client.close_project(uuid)).expect("Couldn't close project.");
 
         mock_client.set_delete_project_result(expected_uuid.clone(), Ok(()));
-        let delete_result = mock_client.delete_project(uuid);
-        assert_eq!(delete_result, Ok(()));
+        result(&mut fixture,mock_client.delete_project(uuid)).expect("Couldn't delete project.");
     }
 
     #[test]
     fn list_projects() {
-        let mut mock_client = ProjectManagerClientMock::default();
+        let mut fixture     = setup();
+        let mut mock_client = fixture.client.clone();
         let project1        = ProjectMetaData {
             name        : "project1".to_string(),
             id          : Uuid::default(),
@@ -270,9 +209,9 @@ mod test {
         mock_client.set_list_recent_result(2,Ok(expected_recent_projects.clone()));
         mock_client.set_list_sample_result(2,Ok(expected_sample_projects.clone()));
 
-        let recent_projects = mock_client.list_recent(2);
-        assert_eq!(recent_projects, Ok(expected_recent_projects));
-        let sample_projects = mock_client.list_sample(2);
-        assert_eq!(sample_projects, Ok(expected_sample_projects));
+        let recent_projects = result(&mut fixture,mock_client.list_recent(2)).expect("Couldn't get recent projects.");
+        assert_eq!(recent_projects, expected_recent_projects);
+        let sample_projects = result(&mut fixture,mock_client.list_sample(2)).expect("Couldn't get sample projects.");
+        assert_eq!(sample_projects, expected_sample_projects);
     }
 }
