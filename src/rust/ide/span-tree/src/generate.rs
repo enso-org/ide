@@ -108,7 +108,7 @@ impl ChildGenerator {
 // === AST ===
 
 impl SpanTreeGenerator for Ast {
-    fn generate_node(&self, ctx: Context) -> FallibleResult<Node> {
+    fn generate_node(&self, ctx:Context) -> FallibleResult<Node> {
         use ast::known::*;
 
         if let Some(infix) = GeneralizedInfix::try_new_root(self) {
