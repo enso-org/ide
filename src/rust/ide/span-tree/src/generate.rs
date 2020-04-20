@@ -270,7 +270,7 @@ mod test {
     use ast::crumbs::SectionRightCrumb;
     use ast::crumbs::SectionSidesCrumb;
     use parser::Parser;
-    
+
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 

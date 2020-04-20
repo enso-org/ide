@@ -262,7 +262,7 @@ mod tests {
     fn expect_at(root_ast:&Ast, operand:&Operand, expected_ast:&Ast) {
         assert_eq!(&operand.as_ref().unwrap().item,expected_ast);
         let crumbs = &operand.as_ref().unwrap().crumbs;
-        let ast    = root_ast.get_traversing(crumbs).unwrap();
+        let ast    = root_ast.get_traversing(crumbs.iter().cloned()).unwrap();
         assert_eq!(ast, expected_ast, "expected `{}` at crumbs `{:?}` for `{}`",
                    expected_ast.repr(), crumbs, root_ast.repr());
     }

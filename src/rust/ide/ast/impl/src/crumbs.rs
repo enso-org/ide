@@ -318,6 +318,11 @@ impl IntoIterator for Crumb {
     }
 }
 
+impl<'a> From<&'a Crumb> for Crumb {
+    fn from(crumb: &'a Crumb) -> Self {
+        crumb.clone()
+    }
+}
 
 impl_crumbs!{
     (InvalidSuffix,InvalidSuffixCrumb),
@@ -845,10 +850,12 @@ pub trait TraversableAst:Sized {
 
 impl TraversableAst for Ast {
     fn set_traversing(&self, crumbs:impl IntoCrumbs, new_ast:Ast) -> FallibleResult<Self> {
-        let updated_ast = if let Some(first_crumb) = crumbs.into_iter().next() {
+        let mut crumbs_iter = crumbs.into_iter();
+        let updated_ast = if let Some(first_crumb) = crumbs_iter.next() {
+            let first_crumb = first_crumb.into();
             let child = self.get(&first_crumb)?;
-            let updated_child = child.set_traversing(&crumbs[1..], new_ast)?;
-            self.set(first_crumb,updated_child)?
+            let updated_child = child.set_traversing(crumbs_iter,new_ast)?;
+            self.set(&first_crumb,updated_child)?
         } else {
             new_ast
         };
@@ -856,10 +863,10 @@ impl TraversableAst for Ast {
     }
 
     fn get_traversing(&self, crumbs:impl IntoCrumbs) -> FallibleResult<&Ast> {
-        let mut crumbs = crumbs.into_iter();
-        if let Some(first_crumb) = crumbs.next() {
-            let child = self.get(first_crumb)?;
-            child.get_traversing(crumbs)
+        let mut crumbs_iter = crumbs.into_iter();
+        if let Some(first_crumb) = crumbs_iter.next() {
+            let child = self.get(&first_crumb.into())?;
+            child.get_traversing(crumbs_iter)
         } else {
             Ok(self)
         }
@@ -1104,11 +1111,11 @@ mod tests {
 
         let set = |crumbs: &[InfixCrumb], ast| {
             let crumbs = crumbs.iter().map(|c| Crumb::Infix(*c)).collect_vec();
-            infix.set_traversing(&crumbs, ast)
+            infix.set_traversing(crumbs, ast)
         };
         let get = |crumbs: &[InfixCrumb]| {
             let crumbs = crumbs.iter().map(|c| Crumb::Infix(*c)).collect_vec();
-            infix.get_traversing(&crumbs)
+            infix.get_traversing(crumbs)
         };
 
         assert_eq!(set(&[RightOperand,LeftOperand], Ast::var("baz"))?.repr(), "main = baz + bar");
