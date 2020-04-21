@@ -578,7 +578,7 @@ pub type MacroPattern = Rc<MacroPatternRaw>;
     Seq     { pat1 : MacroPattern , pat2    : MacroPattern                    },
     Or      { pat1 : MacroPattern , pat2    : MacroPattern                    },
     Many    { pat  : MacroPattern                                             },
-    Except  { not  : MacroPattern, pat      : MacroPattern                    },
+    Except  { not  : MacroPattern , pat     : MacroPattern                    },
 
     // === Meta Patterns ===
     Build   { pat  : MacroPattern                                             },
