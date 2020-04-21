@@ -2,8 +2,6 @@
 
 use super::window;
 
-use enso_prelude::hashmap;
-
 /// This enumeration lists all the supported platforms.
 #[derive(Debug,Clone,Copy,PartialEq)]
 pub enum Platform {
@@ -18,30 +16,20 @@ pub enum Platform {
 impl Platform {
     /// Queries which platform we are on.
     pub fn query() -> Self {
-        let window = window();
+        let window    = window();
         let navigator = window.navigator();
-        let platform  = navigator.platform().unwrap_or_else(|_| "Unknown".into());
-        let agent     = navigator.user_agent().unwrap_or_else(|_| "Unknown".into());
+        let platform  = navigator.platform().unwrap_or_else(|_| "Unknown".into()).to_lowercase();
+        let agent     = navigator.user_agent().unwrap_or_else(|_| "Unknown".into()).to_lowercase();
 
-        let platforms = hashmap!{
-            String::from("Macintosh") => Platform::MacOS,
-            String::from("MacIntel")  => Platform::MacOS,
-            String::from("MacPPC")    => Platform::MacOS,
-            String::from("Mac68K")    => Platform::MacOS,
-            String::from("Win32")     => Platform::Windows,
-            String::from("Win64")     => Platform::Windows,
-            String::from("Windows")   => Platform::Windows,
-            String::from("WinCE")     => Platform::Windows,
-            String::from("iPhone")    => Platform::IOS,
-            String::from("iPad")      => Platform::IOS,
-            String::from("iPod")      => Platform::IOS
-        };
-
-        if let Some(platform) = platforms.get(&platform) {
-            *platform
-        } else if agent.find("Android").is_some() {
+        if platform.find("mac").is_some() {
+            Platform::MacOS
+        } else if platform.find("win").is_some() {
+            Platform::Windows
+        } else if platform.find("ipad").is_some() || platform.find("iphone").is_some() {
+            Platform::IOS
+        } else if platform.find("android").is_some() || agent.find("android").is_some() {
             Platform::Android
-        } else if platform.find("Linux").is_some() {
+        } else if platform.find("linux").is_some() {
             Platform::Linux
         } else {
             Platform::Unknown

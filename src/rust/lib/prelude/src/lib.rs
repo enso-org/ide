@@ -38,8 +38,6 @@ pub use ifmt::*;
 pub use itertools::Itertools;
 pub use lazy_static::lazy_static;
 pub use num::Num;
-pub use maplit::hashmap;
-pub use maplit::hashset;
 pub use paste;
 pub use shrinkwraprs::Shrinkwrap;
 pub use weak_table::traits::WeakElement;
