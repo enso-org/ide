@@ -30,7 +30,7 @@ struct AstSpanTreeMismatch;
 /// === Actions Trait ===
 /// =====================
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 pub enum Action{Set,InsertBefore,Erase}
 
 pub trait Actions {
@@ -187,7 +187,29 @@ impl<'x> Implementation for node::Ref<'x> {
     }
 
     fn erase_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast) -> FallibleResult<Ast> + 'a>> {
-        None
+        let node_type_erasable = match self.node.kind {
+            node::Kind::Parameter | node::Kind::Target => true,
+            _                                          => false
+        };
+        match self.ast_crumbs.last() {
+            _ if !node_type_erasable => None,
+            Some(Crumb::Infix(InfixCrumb::LeftOperand)) => Some(Box::new(move |root| {
+                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
+                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
+                root.set_traversing(parent_crumb,parent.rarg.clone_ref())
+            })),
+            Some(Crumb::Infix(InfixCrumb::RightOperand)) => Some(Box::new(move |root| {
+                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
+                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
+                root.set_traversing(parent_crumb,parent.larg.clone_ref())
+            })),
+            Some(Crumb::Prefix(PrefixCrumb::Arg)) => Some(Box::new(move |root| {
+                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
+                let mut parent = ast::known::Prefix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
+                root.set_traversing(parent_crumb,parent.func.clone_ref())
+            })),
+            _ => None
+        }
     }
 }
 
@@ -201,37 +223,38 @@ impl<'x> Implementation for node::Ref<'x> {
 mod test {
     use super::*;
 
+    use Action::*;
+
     use wasm_bindgen_test::wasm_bindgen_test;
     use parser::Parser;
     use ast::HasRepr;
 
-    struct Case {
-        expr    : &'static str,
-        crumbs  : &'static [usize],
-        action  : Action,
-        expected: &'static str,
-    }
-
-    impl Case {
-        fn run(&self, parser:&Parser) {
-            let ast    = parser.parse_line(self.expr).unwrap();
-            let tree   = ast.generate_tree().unwrap();
-            let node   = tree.root_ref().traverse_subnode(self.crumbs.iter().cloned()).unwrap();
-            let arg    = Ast::new(ast::Var {name:"foo".to_string()},None);
-            let result = match &self.action {
-                Action::Set          => node.set(&ast,arg),
-                Action::InsertBefore => node.insert_before(&ast,arg),
-                Action::Erase        => node.erase(&ast),
-            }.unwrap();
-            let result_repr = result.repr();
-            assert_eq!(result_repr,self.expected);
-        }
-    }
-
     #[wasm_bindgen_test]
-    fn setting_ast_in_span_tree() {
-        use Action::*;
-        let cases = &
+    fn actions_in_span_tree() {
+        struct Case {
+            expr    : &'static str,
+            crumbs  : &'static [usize],
+            action  : Action,
+            expected: &'static str,
+        }
+
+        impl Case {
+            fn run(&self, parser:&Parser) {
+                let ast    = parser.parse_line(self.expr).unwrap();
+                let tree   = ast.generate_tree().unwrap();
+                let node   = tree.root_ref().traverse_subnode(self.crumbs.iter().cloned()).unwrap();
+                let arg    = Ast::new(ast::Var {name:"foo".to_string()},None);
+                let result = match &self.action {
+                    Set          => node.set(&ast,arg),
+                    InsertBefore => node.insert_before(&ast,arg),
+                    Erase        => node.erase(&ast),
+                }.unwrap();
+                let result_repr = result.repr();
+                assert_eq!(result_repr,self.expected);
+            }
+        }
+
+        let cases:&[Case] = &
             // Setting
             [ Case{expr:"a + b"    , crumbs:&[]   , action:Set         , expected:"foo"            }
             , Case{expr:"a + b"    , crumbs:&[0]  , action:Set         , expected:"foo + b"        }
@@ -265,6 +288,69 @@ mod test {
             , Case{expr:"f a b"    , crumbs:&[0,1], action:InsertBefore, expected:"f foo a b"      }
             , Case{expr:"f a b"    , crumbs:&[1]  , action:InsertBefore, expected:"f a foo b"      }
             , Case{expr:"f a b"    , crumbs:&[2]  , action:InsertBefore, expected:"f a b foo"      }
+            // Erasing
+            , Case{expr:"a + b + c", crumbs:&[0,0], action:Erase       , expected:"b + c"          }
+            , Case{expr:"a + b + c", crumbs:&[0,2], action:Erase       , expected:"a + c"          }
+            , Case{expr:"a + b + c", crumbs:&[2]  , action:Erase       , expected:"a + b"          }
+            , Case{expr:"a , b , c", crumbs:&[0]  , action:Erase       , expected:"b , c"          }
+            , Case{expr:"a , b , c", crumbs:&[2,0], action:Erase       , expected:"a , c"          }
+            , Case{expr:"a , b , c", crumbs:&[2,2], action:Erase       , expected:"a , b"          }
+            , Case{expr:"f a b"    , crumbs:&[0,1], action:Erase       , expected:"f b"            }
+            , Case{expr:"f a b"    , crumbs:&[1]  , action:Erase       , expected:"f a"            }
+            ];
+        let parser = Parser::new_or_panic();
+        for case in cases { case.run(&parser); }
+    }
+
+    fn possible_actions_in_span_tree() {
+        struct Case {
+            expr     : &'static str,
+            crumbs   : &'static [usize],
+            expected : &'static [Action],
+        }
+
+        impl Case {
+            fn run(&self, parser:&Parser) {
+                let ast    = parser.parse_line(self.expr).unwrap();
+                let tree   = ast.generate_tree().unwrap();
+                let node   = tree.root_ref().traverse_subnode(self.crumbs.iter().cloned()).unwrap();
+                let expected:HashSet<Action> = self.expected.iter().cloned().collect();
+                for action in &[Set,InsertBefore,Erase] {
+                    assert_eq!(node.is_action_available(*action), expected.contains(action),
+                    "Availability mismatch for action {:?}",action)
+                }
+            }
+        }
+        let cases:&[Case] = &
+            [ Case{expr:"abc"      , crumbs:&[]   , expected: &[Set]                    }
+            , Case{expr:"a + b"    , crumbs:&[]   , expected: &[Set]                    }
+            , Case{expr:"a + b"    , crumbs:&[0]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a + b"    , crumbs:&[1]  , expected: &[]                       }
+            , Case{expr:"a + b"    , crumbs:&[2]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a + b"    , crumbs:&[3]  , expected: &[InsertBefore]           }
+            , Case{expr:"a + b + c", crumbs:&[0]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a + b + c", crumbs:&[0,0], expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a + b + c", crumbs:&[0,1], expected: &[]                       }
+            , Case{expr:"a + b + c", crumbs:&[0,2], expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a , b , c", crumbs:&[0]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a , b , c", crumbs:&[1]  , expected: &[]                       }
+            , Case{expr:"a , b , c", crumbs:&[2]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a , b , c", crumbs:&[2,0], expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a , b , c", crumbs:&[2,1], expected: &[]                       }
+            , Case{expr:"a , b , c", crumbs:&[2,2], expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"a , b , c", crumbs:&[2,3], expected: &[InsertBefore]           }
+            , Case{expr:"f a b"    , crumbs:&[0,0], expected: &[Set]                    }
+            , Case{expr:"f a b"    , crumbs:&[0,1], expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"f a b"    , crumbs:&[1]  , expected: &[Set,InsertBefore,Erase] }
+            , Case{expr:"+ b"      , crumbs:&[0]  , expected: &[Set]                    }
+            , Case{expr:"+ b"      , crumbs:&[1]  , expected: &[]                       }
+            , Case{expr:"+ b"      , crumbs:&[2]  , expected: &[Set,InsertBefore]       }
+            , Case{expr:"a +"      , crumbs:&[0]  , expected: &[Set,InsertBefore]       }
+            , Case{expr:"a +"      , crumbs:&[1]  , expected: &[]                       }
+            , Case{expr:"a +"      , crumbs:&[2]  , expected: &[Set]                    }
+            , Case{expr:"+"        , crumbs:&[0]  , expected: &[Set]                    }
+            , Case{expr:"+"        , crumbs:&[1]  , expected: &[]                       }
+            , Case{expr:"+"        , crumbs:&[2]  , expected: &[Set]                    }
             ];
         let parser = Parser::new_or_panic();
         for case in cases { case.run(&parser); }

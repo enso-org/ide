@@ -78,7 +78,6 @@ pub struct Child {
 }
 
 
-
 // === Node Reference ===
 
 /// A reference to node inside some specific tree.
@@ -196,7 +195,6 @@ mod test {
         assert_eq!(grand_child2.ast_crumbs, [RightOperand.into(),Operator.into()]   );
 
         // Not existing nodes
-
         assert!(root.clone().traverse_subnode(vec![3]).is_none());
         assert!(root.clone().traverse_subnode(vec![1,0]).is_none());
         assert!(root.clone().traverse_subnode(vec![2,1,0]).is_none());
