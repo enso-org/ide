@@ -11,8 +11,6 @@ use crate::display::shape::primitive::system::Shape;
 use crate::display;
 
 use enso_frp as frp;
-use enso_frp::core::node::class::EventEmitterPoly;
-use enso_frp::frp;
 
 
 
@@ -25,18 +23,22 @@ use enso_frp::frp;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
-    pub mouse_down : frp::Dynamic<()>,
+    pub network    : frp::Network,
+    pub mouse_down : frp::Source,
 }
 
 impl Default for ShapeViewEvents {
     fn default() -> Self {
-        frp! { mouse_down = source::<()> (); }
-        Self {mouse_down}
+        frp::new_network! { shape_view
+            def mouse_down = source_();
+        }
+        let network = shape_view;
+        Self {network,mouse_down}
     }
 }
 
 impl MouseTarget for ShapeViewEvents {
-    fn mouse_down(&self) -> Option<frp::Dynamic<()>> {
+    fn mouse_down(&self) -> Option<frp::Source> {
         Some(self.mouse_down.clone_ref())
     }
 }
@@ -52,7 +54,7 @@ impl MouseTarget for ShapeViewEvents {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ShapeView<T:ShapeViewDefinition> {
-    pub display_object : display::object::Node,
+    pub display_object : display::object::Instance,
     pub events         : ShapeViewEvents,
     pub data           : Rc<RefCell<Option<ShapeViewData<T>>>>,
 }
@@ -73,7 +75,7 @@ pub struct ShapeViewData<T:ShapeViewDefinition> {
 impl<T:ShapeViewDefinition> ShapeView<T> {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
-        let display_object = display::object::Node::new(logger);
+        let display_object = display::object::Instance::new(logger);
         let events         = default();
         let data           = default();
         Self {display_object,events,data} . init()
@@ -96,7 +98,9 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
                 weak_parent.upgrade().for_each(|parent| {
                     let shape = shape_registry.new_instance::<T::Shape>();
                     parent.add_child(&shape);
-                    shape_registry.insert_mouse_target(*shape.sprite().instance_id,events);
+                    let symbol_id   = shape.sprite().symbol_id();
+                    let instance_id = *shape.sprite().instance_id;
+                    shape_registry.insert_mouse_target(symbol_id,instance_id,events);
                     let data = T::new(&shape,scene,shape_registry);
                     let data = ShapeViewData {data,shape};
                     *self_data.borrow_mut() = Some(data);
@@ -111,7 +115,9 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
             let shape_registry: &ShapeRegistry = &scene.shapes;
             weak_data.upgrade().for_each(|data| {
                 data.borrow().for_each_ref(|data| {
-                    shape_registry.remove_mouse_target(&*data.shape.sprite().instance_id);
+                    let symbol_id   = data.shape.sprite().symbol_id();
+                    let instance_id = *data.shape.sprite().instance_id;
+                    shape_registry.remove_mouse_target(symbol_id,instance_id);
                 });
                 *data.borrow_mut() = None;
             });
@@ -136,11 +142,11 @@ pub trait ShapeViewDefinition : 'static {
 
 // TODO: This should grow and then should be refactored somewhere else.
 /// Define a new animation FRP network.
-pub fn animation<F>(f:F) -> DynSimulator<f32>
-    where F : Fn(f32) + 'static {
-    frp! { target = source::<f32> (); }
-    target.map("animation", move |value| f(*value));
-    DynSimulator::<f32>::new(Box::new(move |t| {
-        target.event.emit(t);
-    }))
+pub fn animation<F>(network:&frp::Network, f:F) -> DynSimulator<f32>
+where F : Fn(f32) + 'static {
+    frp::extend! { network
+        def target = source::<f32> ();
+        def _eval  = target.map(move |value| f(*value));
+    }
+    DynSimulator::<f32>::new(Box::new(move |t| target.emit(t)))
 }

@@ -36,13 +36,12 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlElement;
 
-use enso_frp;
-use enso_frp::core::node::class::EventEmitterPoly;
+use enso_frp as frp;
 
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> Option<enso_frp::Dynamic<()>> { None }
+    fn mouse_down(&self) -> Option<enso_frp::Source> { None }
 }
 
 
@@ -60,7 +59,7 @@ shared! { ShapeRegistry
 pub struct ShapeRegistryData {
     scene            : Option<Scene>,
     shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map : HashMap<usize,Rc<dyn MouseTarget>>,
+    mouse_target_map : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
 }
 
 impl {
@@ -90,17 +89,17 @@ impl {
         system.new_instance()
     }
 
-    pub fn insert_mouse_target<T:MouseTarget>(&mut self, id:usize, target:T) {
+    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
         let target = Rc::new(target);
-        self.mouse_target_map.insert(id,target);
+        self.mouse_target_map.insert((symbol_id,instance_id),target);
     }
 
-    pub fn remove_mouse_target(&mut self, id:&usize) {
-        self.mouse_target_map.remove(id);
+    pub fn remove_mouse_target(&mut self, symbol_id:i32, instance_id:usize) {
+        self.mouse_target_map.remove(&(symbol_id,instance_id));
     }
 
-    pub fn get_mouse_target(&mut self, id:&usize) -> Option<Rc<dyn MouseTarget>> {
-        self.mouse_target_map.get(&id).map(|t| t.clone_ref())
+    pub fn get_mouse_target(&mut self, symbol_id:i32, instance_id:usize) -> Option<Rc<dyn MouseTarget>> {
+        self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
     }
 }}
 
@@ -176,7 +175,7 @@ pub struct Mouse {
     pub button4_pressed : Uniform<bool>,
     pub target          : Rc<Cell<Target>>,
     pub handles         : Rc<Vec<callback::Handle>>,
-    pub frp             : enso_frp::Mouse,
+    pub frp             : enso_frp::io::Mouse,
 }
 
 impl Mouse {
@@ -237,26 +236,26 @@ impl Mouse {
 
         let handles = Rc::new(vec![on_move_handle,on_down_handle,on_up_handle]);
 
-        let frp = enso_frp::Mouse::new();
+        let frp = frp::io::Mouse::new();
 
-        let event = frp.position.event.clone_ref();
+        let event = frp.position.clone_ref();
         mouse_manager.on_move.add(move |e:&mouse::OnMove| {
-            let position = enso_frp::Position::new(e.client_x(),e.client_y());
+            let position = enso_frp::Position::new(e.client_x() as f32,e.client_y() as f32);
             event.emit(position);
         }).forget();
 
-        let event = frp.on_down.event.clone_ref();
+        let event = frp.press.clone_ref();
         mouse_manager.on_down.add(move |_:&mouse::OnDown| {
             event.emit(());
         }).forget();
 
-        let event = frp.on_up.event.clone_ref();
+        let event = frp.release.clone_ref();
         mouse_manager.on_up.add(move |_:&mouse::OnUp| {
             event.emit(());
         }).forget();
 
-        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed,button3_pressed
-             ,button4_pressed,target,handles,frp}
+        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
+             ,button3_pressed,button4_pressed,target,handles,frp}
     }
 }
 
@@ -579,7 +578,7 @@ impl Views {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct SceneData {
-    pub display_object : display::object::Node,
+    pub display_object : display::object::Instance,
     pub dom            : Dom,
     pub context        : Context,
     symbols            : SymbolRegistry,
@@ -605,7 +604,7 @@ impl SceneData {
         parent_dom.append_child(&dom.root).unwrap();
         dom.recompute_shape_with_reflow();
 
-        let display_object = display::object::Node::new(&logger);
+        let display_object = display::object::Instance::new(&logger);
         let context        = web::get_webgl2_context(&dom.layers.canvas);
         let sub_logger     = logger.sub("shape_dirty");
         let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
@@ -724,9 +723,9 @@ impl SceneData {
     }
 }
 
-impl<'t> From<&'t SceneData> for &'t display::object::Node {
-    fn from(scene:&'t SceneData) -> Self {
-        &scene.display_object
+impl display::Object for SceneData {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }
 
@@ -783,8 +782,8 @@ impl Scene {
     }
 }
 
-impl<'t> From<&'t Scene> for &'t display::object::Node {
-    fn from(scene:&'t Scene) -> Self {
-        &scene.display_object
+impl display::Object for Scene {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }

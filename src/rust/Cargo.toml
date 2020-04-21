@@ -13,6 +13,7 @@ members = [
     "ide/parser",
     "ide/utils",
 
+    "lib/callback",
     "lib/code-builder",
     "lib/data",
     "lib/debug-scenes",
@@ -46,4 +47,4 @@ debug     = false
 [profile.test]
 opt-level = 0
 lto       = false
-debug     = false
+debug     = true
