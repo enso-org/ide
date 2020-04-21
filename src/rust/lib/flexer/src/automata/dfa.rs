@@ -73,20 +73,7 @@ pub mod tests {
     use super::*;
     use crate::automata::state;
 
-
     const I:usize = state::INVALID.id;
-
-    #[test]
-    pub fn foo() {
-        let mut m = Matrix::from(vec![vec![3,1],vec![2,2]]);
-        m.new_row();
-        m.new_row();
-        for i in 0..4 {
-            for j in 0..2 {
-                println!("{:?}",m[(i,j)])
-            }
-        }
-    }
 
     /// DFA automata that accepts newline '\n'.
     pub fn newline() -> DFA {
