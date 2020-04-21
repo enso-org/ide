@@ -8,7 +8,7 @@ use crate::node;
 use ast::Ast;
 use ast::crumbs::*;
 use crate::node::Kind;
-
+use ast::assoc::Assoc;
 
 
 /// ==============
@@ -21,6 +21,9 @@ struct ActionNotAvailable {
     operation : Action
 }
 
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Cannot apply action: ast structure does not match ApanTree.")]
+struct AstSpanTreeMismatch;
 
 
 /// =====================
@@ -83,7 +86,17 @@ trait Implementation {
 impl<'x> Implementation for node::Ref<'x> {
     fn set_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
         match &self.node.kind {
-            Kind::Empty => None,
+            Kind::Missing => Some(Box::new(move |root,new| {
+                let ast = root.get_traversing(self.ast_crumbs.iter().cloned())?.clone_ref();
+                let new_ast = match (ast.shape().clone(),self.crumbs.last()) {
+                    (ast::Shape::SectionSides(ast::SectionSides{opr}        ),Some(0)) => Ast::new(ast::SectionLeft {opr,off:1,arg:new},None),
+                    (ast::Shape::SectionSides(ast::SectionSides{opr}        ),Some(2)) => Ast::new(ast::SectionRight{opr,off:1,arg:new},None),
+                    (ast::Shape::SectionRight(ast::SectionRight{opr,off,arg}),Some(0)) => Ast::new(ast::Infix {larg:new,loff:1  ,opr,roff:off,rarg:arg},None),
+                    (ast::Shape::SectionLeft (ast::SectionLeft {arg,off,opr}),Some(2)) => Ast::new(ast::Infix {larg:arg,loff:off,opr,roff:1  ,rarg:new},None),
+                    _ => return Err(AstSpanTreeMismatch.into()),
+                };
+                root.set_traversing(&self.ast_crumbs, new_ast)
+            })),
             _ => match &self.ast_crumbs.last() {
                 // Operators should be treated in a special way - setting functions in place in
                 // a operator should replace Infix with Prefix with two applications.
@@ -100,21 +113,40 @@ impl<'x> Implementation for node::Ref<'x> {
         }
     }
 
+
+
     fn insert_before_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
+
         match (&self.node.kind,self.ast_crumbs.last()) {
-            (Kind::Empty,_) => Some(Box::new(move |root,new| {
-                let ast = root.get_traversing(self.ast_crumbs.iter().cloned())?.clone_ref();
-                let new_ast = match (ast.shape().clone(),self.crumbs.last()) {
-                    (ast::Shape::SectionSides(ast::SectionSides{opr}),Some(0)) => Ast::new(ast::SectionRight {opr,off:1,arg:new},None),
-                    (ast::Shape::SectionSides(ast::SectionSides{opr}        ),Some(2)) => Ast::new(ast::SectionLeft  {opr,off:1,arg:new},None),
-                    (ast::Shape::SectionLeft (ast::SectionLeft {arg,off,opr}),Some(0)) => Ast::new(ast::Infix {larg:new,loff:1  ,opr,roff:1  ,rarg:ast},None),
-                    (ast::Shape::SectionLeft (ast::SectionLeft {arg,off,opr}),Some(3)) => Ast::new(ast::Infix {larg:arg,loff:off,opr,roff:1  ,rarg:new},None),
-                    (ast::Shape::SectionRight(ast::SectionRight {opr,off,arg}),Some(0)) => Ast::new(ast::Infix {larg:new,loff:1  ,opr,roff:off,rarg:ast},None),
-                    (ast::Shape::SectionRight(ast::SectionRight {opr,off,arg}),Some(3)) => Ast::new(ast::Infix {larg:ast,loff:1  ,opr,roff:1  ,rarg:arg},None),
-                    (ast::Shape::Infix       (ast::Infix{opr,..}     ),Some(0)) => Ast::new(ast::Infix {larg:new,loff:1  ,opr,roff:1  ,rarg:ast},None),
-                    (ast::Shape::Infix       (ast::Infix{opr,..}     ),Some(3)) => Ast::new(ast::Infix {larg:ast,loff:1  ,opr,roff:1  ,rarg:new},None),
-                    (ast::Shape::Prefix      (ast::Prefix{..}         ),Some(2)) => Ast::new(ast::Prefix {func:ast,off:1,arg:new},None),
-                    _ => panic!("Inconsistent SpanTree structure"),
+            (Kind::Append,_) => Some(Box::new(move |root,new| {
+                let ast = root.get_traversing(&self.ast_crumbs)?.clone_ref();
+                let new_ast = match ast.shape().clone() {
+                    ast::Shape::Infix (ast::Infix{..}) => {
+                        let mut infix = ast::known::Infix::try_new(ast.clone_ref())?;
+                        let opr       = ast::known::Opr::try_new(infix.opr.clone_ref())?;
+
+                        match Assoc::of(&opr.name) {
+                            Assoc::Left  => Ast::new(ast::Infix {larg:ast,loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None),
+                            Assoc::Right => {
+                                infix.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:s.rarg.clone_ref(),loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None));
+                                infix.ast().clone_ref()
+                            }
+                        }
+                    },
+                    ast::Shape::SectionRight (ast::SectionRight{..}) => {
+                        let mut section = ast::known::SectionRight::try_new(ast.clone_ref())?;
+                        let opr         = ast::known::Opr::try_new(section.opr.clone_ref())?;
+
+                        match Assoc::of(&opr.name) {
+                            Assoc::Left  => Ast::new(ast::Infix {larg:ast,loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None),
+                            Assoc::Right => {
+                                section.update_shape(|s| s.arg = Ast::new(ast::Infix {larg:s.arg.clone_ref(),loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None));
+                                section.ast().clone_ref()
+                            }
+                        }
+                    },
+                    ast::Shape::Prefix(ast::Prefix{..}   ) => Ast::new(ast::Prefix {func:ast,off:1,arg:new},None),
+                    _ => return Err(AstSpanTreeMismatch.into()),
                 };
                 root.set_traversing(&self.ast_crumbs, new_ast)
             })),
@@ -134,14 +166,15 @@ impl<'x> Implementation for node::Ref<'x> {
             (Kind::Target,Some(Crumb::Infix(InfixCrumb::RightOperand))) => Some(Box::new(move |root,new| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:s.rarg.clone_ref(),loff:1,opr:s.opr.clone_ref(),roff:1,rarg:new}, None));
+                parent.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:new,loff:1,opr:s.opr.clone_ref(),roff:1,rarg:s.rarg.clone_ref()}, None));
                 root.set_traversing(parent_crumb, parent.into())
             })),
             (Kind::Parameter,Some(Crumb::Infix(InfixCrumb::LeftOperand))) => Some(Box::new(move |root,new| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:new,loff:1,opr:s.opr.clone_ref(),roff:1,rarg:s.rarg.clone_ref()}, None));
-                root.set_traversing(parent_crumb, parent.into())
+                let parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
+                let opr    = parent.opr.clone_ref();
+                let new_parent = Ast::new(ast::Infix{larg:new,loff:1,opr,roff:1,rarg:parent.ast().clone_ref()},None);
+                root.set_traversing(parent_crumb,new_parent)
             })),
             (Kind::Parameter,Some(Crumb::Infix(InfixCrumb::RightOperand))) => Some(Box::new(move |root,new| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
@@ -205,22 +238,30 @@ mod test {
             , Case{expr:"a + b"    , crumbs:&[2]  , action:Set         , expected:"a + foo"        }
             , Case{expr:"a + b + c", crumbs:&[0,0], action:Set         , expected:"foo + b + c"    }
             , Case{expr:"a + b + c", crumbs:&[0,2], action:Set         , expected:"a + foo + c"    }
-            , Case{expr:"a , b , c", crumbs:&[1]  , action:Set         , expected:"foo , b , c"    }
-            , Case{expr:"a , b , c", crumbs:&[3,0], action:Set         , expected:"a , foo , c"    }
-            , Case{expr:"a , b , c", crumbs:&[3,2], action:Set         , expected:"a , b , foo"    }
+            , Case{expr:"a , b , c", crumbs:&[0]  , action:Set         , expected:"foo , b , c"    }
+            , Case{expr:"a , b , c", crumbs:&[2,0], action:Set         , expected:"a , foo , c"    }
+            , Case{expr:"a , b , c", crumbs:&[2,2], action:Set         , expected:"a , b , foo"    }
             , Case{expr:"f a b"    , crumbs:&[0,0], action:Set         , expected:"foo a b"        }
             , Case{expr:"f a b"    , crumbs:&[0,1], action:Set         , expected:"f foo b"        }
             , Case{expr:"f a b"    , crumbs:&[1]  , action:Set         , expected:"f a foo"        }
+            , Case{expr:"+ b"      , crumbs:&[0]  , action:Set         , expected:"foo + b"        }
+            , Case{expr:"+ b"      , crumbs:&[2]  , action:Set         , expected:"+ foo"          }
+            , Case{expr:"a +"      , crumbs:&[0]  , action:Set         , expected:"foo +"          }
+            , Case{expr:"a +"      , crumbs:&[2]  , action:Set         , expected:"a + foo"        }
+            , Case{expr:"+"        , crumbs:&[0]  , action:Set         , expected:"foo +"          }
+            , Case{expr:"+"        , crumbs:&[2]  , action:Set         , expected:"+ foo"          }
             // Inserting Before
             , Case{expr:"a + b"    , crumbs:&[0]  , action:InsertBefore, expected:"foo + a + b"    }
             , Case{expr:"a + b"    , crumbs:&[2]  , action:InsertBefore, expected:"a + foo + b"    }
             , Case{expr:"a + b"    , crumbs:&[3]  , action:InsertBefore, expected:"a + b + foo"    }
+            , Case{expr:"+ b"      , crumbs:&[3]  , action:InsertBefore, expected:"+ b + foo"      }
             , Case{expr:"a + b + c", crumbs:&[0,0], action:InsertBefore, expected:"foo + a + b + c"}
             , Case{expr:"a + b + c", crumbs:&[2]  , action:InsertBefore, expected:"a + b + foo + c"}
             , Case{expr:"a , b , c", crumbs:&[0]  , action:InsertBefore, expected:"foo , a , b , c"}
-            , Case{expr:"a , b , c", crumbs:&[1]  , action:InsertBefore, expected:"a , foo , b , c"}
-            , Case{expr:"a , b , c", crumbs:&[3,0], action:InsertBefore, expected:"a , b , foo , c"}
-            , Case{expr:"a , b , c", crumbs:&[3,2], action:InsertBefore, expected:"a , b , c , foo" }
+            , Case{expr:"a , b , c", crumbs:&[2,0], action:InsertBefore, expected:"a , foo , b , c"}
+            , Case{expr:"a , b , c", crumbs:&[2,2], action:InsertBefore, expected:"a , b , foo , c"}
+            , Case{expr:"a , b , c", crumbs:&[2,3], action:InsertBefore, expected:"a , b , c , foo"}
+            , Case{expr:", b"      , crumbs:&[3]  , action:InsertBefore, expected:", b , foo"      }
             , Case{expr:"f a b"    , crumbs:&[0,1], action:InsertBefore, expected:"f foo a b"      }
             , Case{expr:"f a b"    , crumbs:&[1]  , action:InsertBefore, expected:"f a foo b"      }
             , Case{expr:"f a b"    , crumbs:&[2]  , action:InsertBefore, expected:"f a b foo"      }

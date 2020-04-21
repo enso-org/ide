@@ -41,10 +41,10 @@ pub trait Builder : Sized {
     }
 
     /// Add an Empty-type child to node.
-    fn add_empty_child(mut self, offset:usize) -> Self {
-        let node = Node::new_empty();
-        let child = node::Child { node,
-            offset : Size::new(offset),
+    fn add_empty_child(mut self, offset:usize, kind:node::Kind) -> Self {
+        let child = node::Child {
+            node                : Node::new_empty(kind),
+            offset              : Size::new(offset),
             chained_with_parent : false,
             ast_crumbs          : vec![]
         };

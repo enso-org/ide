@@ -25,9 +25,10 @@ pub enum Kind {
     Operation,
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
     Argument,
-    /// An empty node being a placeholder for adding new child to the parent. The empty node
-    /// should not have any further children.
-    Empty
+    /// A node being a placeholder for appending new child to Prefix or Operator chain.
+    Append,
+    /// A node being a placeholder for missing parameters of Section ast nodes.
+    Missing,
 }
 
 /// A type which identifies some node in SpanTree. This is essentially a iterator over child
@@ -51,10 +52,9 @@ pub struct Node {
 }
 
 impl Node {
-    /// Create new empty node.
-    pub fn new_empty() -> Self {
-        Node {
-            kind     : Kind::Empty,
+    /// Create node which covers span of length 0.
+    pub fn new_empty(kind:Kind) -> Self {
+        Node {kind,
             size     : Size::new(0),
             children : Vec::new(),
         }
