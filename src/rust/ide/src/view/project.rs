@@ -13,7 +13,7 @@ use ensogl::display::world::World;
 use ensogl::system::web;
 use enso_frp::Keyboard;
 use enso_frp::KeyboardActions;
-use file_manager_client::Path;
+use enso_protocol::file_manager::Path;
 use nalgebra::Vector2;
 use shapely::shared;
 

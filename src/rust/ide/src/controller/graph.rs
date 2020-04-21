@@ -277,7 +277,7 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let fm       = file_manager_client::Handle::new(MockTransport::new());
+            let fm       = enso_protocol::file_manager::Client::new(MockTransport::new());
             let loc      = controller::module::Location::new("Main");
             let parser   = Parser::new_or_panic();
             let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
@@ -292,7 +292,7 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let fm     = file_manager_client::Handle::new(MockTransport::new());
+            let fm     = enso_protocol::file_manager::Client::new(MockTransport::new());
             let loc    = controller::module::Location::new("Main");
             let parser = Parser::new_or_panic();
             let module = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();

@@ -5,7 +5,7 @@
 
 use crate::prelude::*;
 
-use file_manager_client as fmc;
+use enso_protocol::file_manager as fmc;
 use json_rpc::Transport;
 use parser::Parser;
 
@@ -22,7 +22,7 @@ type ModuleLocation = controller::module::Location;
 #[derive(Debug)]
 pub struct Handle {
     /// File Manager Client.
-    pub file_manager: fmc::Handle,
+    pub file_manager: fmc::Client,
     /// Cache of module controllers.
     pub module_registry: Rc<model::module::registry::Registry>,
     /// Parser handle.
@@ -35,7 +35,7 @@ impl Handle {
     /// The remote connections should be already established.
     pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
         Handle {
-            file_manager    : fmc::Handle::new(file_manager_transport),
+            file_manager    : fmc::Client::new(file_manager_transport),
             module_registry : default(),
             parser          : Parser::new_or_panic(),
         }
@@ -96,7 +96,7 @@ mod test {
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::transport::test_utils::TestWithMockedTransport;
 
-    use file_manager_client::Path;
+    use enso_protocol::file_manager::Path;
     use json_rpc::test_util::transport::mock::MockTransport;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
