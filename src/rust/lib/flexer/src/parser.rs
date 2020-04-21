@@ -1,3 +1,6 @@
+//! The entry point of flexer. It (is going to) contain API for parsing an input string based on
+//! group of regex patterns.
+
 use crate::automata::state::Symbol;
 
 

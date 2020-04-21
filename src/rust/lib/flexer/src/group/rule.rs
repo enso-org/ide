@@ -1,3 +1,5 @@
+//! An API for declaring Rust callbacks for encountered regex patterns.
+//!
 use crate::automata::pattern::Pattern;
 
 
@@ -17,8 +19,8 @@ pub struct Rule {
 }
 
 /// Builder that allows us to add `Rule` to `Group` in a nice way.
-/// It is possible this structure won't be useful in rust,
-/// since borrow checker will likely influence the final API of rule construction.
+/// It is possible this structure won't be useful in rust, since borrow checker will likely influence
+/// the final API of rule construction.
 #[derive(Clone,Debug)]
 pub struct Builder<Callback> {
     /// Pattern that triggers the callback.

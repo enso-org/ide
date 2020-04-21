@@ -1,3 +1,5 @@
+//! This module exports State implementation for Nondeterministic Finite Automata.
+
 use crate::automata::alphabet::Alphabet;
 use crate::automata::state;
 
@@ -10,8 +12,7 @@ use std::ops::RangeInclusive;
 // =======================
 
 /// Flag for invalid state.
-/// When finite automata gets into invalid state
-/// the input sequence of symbols is rejected.
+/// When finite automata gets into invalid state the input sequence of symbols is rejected.
 pub const INVALID:Id = Id {id:usize::max_value()};
 
 /// Newtype wrapper for finite automata input symbol.
@@ -29,6 +30,8 @@ pub struct Id {
 }
 
 impl Default for Id {
+    /// Returns state::INVALID. This is because every finite automata has an invalid state
+    /// and because all transitions in automata transition matrix lead to invalid state by default.
     fn default() -> Self {
         state::INVALID
     }
@@ -38,8 +41,8 @@ impl Default for Id {
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct State {
     /// Set of transitions that don't require any symbol to trigger.
-    /// I.E. If there is an epsilon link from state A to state B,
-    /// then whenever we are in state A, we can freely move to state B.
+    /// I.E. If there is an epsilon link from state A to state B, then whenever we are in state A,
+    /// we can freely move to state B.
     pub epsilon_links: Vec<Id>,
     /// Set of transitions that trigger with specific symbol on input.
     /// When triggered, the automata will transition to the `link.target`.

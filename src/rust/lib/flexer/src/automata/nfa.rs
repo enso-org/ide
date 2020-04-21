@@ -1,11 +1,13 @@
+//! Implementation of Nondeterministic Finite Automata and it's conversion to DFA.
+
 use crate::automata::alphabet::Alphabet;
 use crate::automata::dfa::DFA;
-use crate::automata::dfa::Matrix;
 use crate::automata::dfa::Callback;
 use crate::automata::state::Link;
 use crate::automata::state::Symbol;
 use crate::automata::state::State;
 use crate::automata::state;
+use crate::data::matrix::Matrix;
 
 use std::collections::HashMap;
 use std::collections::BTreeSet;
@@ -26,8 +28,8 @@ type StateSetId = BTreeSet<state::Id>;
 /// NFA automata with a set of symbols, states and transitions.
 /// Nondeterministic Finite Automata is a finite-state machine that accepts or rejects a given
 /// sequence of symbols.
-/// Compared to `DFA`, NFA can transition into multiple new states
-/// without reading any symbol (so called epsilon link / transition),
+/// Compared to `DFA`, NFA can transition into multiple new states without reading any symbol
+/// (so called epsilon link / transition),
 ///   ___              ___         ___              ___              ___
 ///  | 0 | -- 'N' --> | 1 | ----> | 2 | -- 'F' --> | 3 | -- 'A' --> | 4 |
 ///   ‾‾‾              ‾‾‾         ‾‾‾              ‾‾‾              ‾‾‾
@@ -197,9 +199,9 @@ impl From<&NFA> for DFA {
 
         let mut callbacks = vec![None; dfa_eps_ixs.len()];
         let     priority  = dfa_eps_ixs.len();
-        for (dfa_ix, epss) in dfa_eps_ixs.iter().enumerate() {
-            let has_name = |&&key:&&state::Id| nfa.states[key.id].name.is_some();
-            if let Some(&eps) = epss.iter().find(has_name) {
+        for (dfa_ix, epss) in dfa_eps_ixs.into_iter().enumerate() {
+            let has_name = |&key:&state::Id| nfa.states[key.id].name.is_some();
+            if let Some(eps) = epss.into_iter().find(has_name) {
                 let rule  = nfa.states[eps.id].name.as_ref().cloned().unwrap();
                 callbacks[dfa_ix] = Some(Callback {name:rule,priority});
             }

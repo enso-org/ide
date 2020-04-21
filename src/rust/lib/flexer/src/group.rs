@@ -1,3 +1,5 @@
+//! This module exports API for grouping multiple rules (Rust callbacks with regex pattern) together.
+
 use crate::automata::pattern::Pattern;
 use crate::automata::nfa::NFA;
 use crate::group::rule::Rule;
@@ -12,20 +14,16 @@ pub mod rule;
 // == Group ==
 // ===========
 
-/// Struct that group rules together.
-/// It also inherits rules from parent group (if it has one).
+/// Struct that group rules together. It also inherits rules from parent group (if it has one).
 /// Groups are the basic building block of flexer:
 /// Flexer internally keeps a stack of groups, only one of them active at a time.
 /// Each group contains set of regex patterns and callbacks (together called `Rule`).
-/// Whenever a rule.pattern from active group is matched with part of input
-/// the associated rule.callback is executed
-/// which in turn may exit the current groupor enter a new one.
-/// This allows us to nicely model a situation, where certain part of program
-/// (like a string literal) should have very different parsing rules than other
-/// (for example body of function).
+/// Whenever a rule.pattern from active group is matched with part of input the associated
+/// rule.callback is executed, which in turn may exit the current groupor enter a new one.
+/// This allows us to nicely model a situation, where certain part of program (like a string literal)
+/// should have very different parsing rules than other (for example body of function).
 /// Note that the input is first matched with first added rule, then with the second etc.
-/// Therefore, if two rules overlap,
-/// only the callback of the first added rule will be executed.
+/// Therefore, if two rules overlap, only the callback of the first added rule will be executed.
 #[derive(Clone,Debug,Default)]
 pub struct Group {
     /// Unique ID.
@@ -71,11 +69,11 @@ impl From<&Group> for NFA {
     /// Transforms Group to NFA.
     /// Algorithm is based on: https://www.youtube.com/watch?v=RYNN-tb9WxI
     fn from(group:&Group) -> Self {
-        let mut nfa   = NFA::default();
-        let start     = nfa.new_state();
-        let build     = |rule:&Rule| nfa.new_pattern(start,&rule.pattern);
-        let states    = group.rules().into_iter().map(build).collect_vec();
-        let end       = nfa.new_state();
+        let mut nfa = NFA::default();
+        let start   = nfa.new_state();
+        let build   = |rule:&Rule| nfa.new_pattern(start,&rule.pattern);
+        let states  = group.rules().into_iter().map(build).collect_vec();
+        let end     = nfa.new_state();
         for (ix, state) in states.into_iter().enumerate() {
             nfa.states[state.id].name = Some(group.callback_name(ix));
             nfa.connect(state, end);

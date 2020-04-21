@@ -1,42 +1,30 @@
+//! Exports the structure for Deterministic Finite Automata.
+
 use crate::automata::alphabet::Alphabet;
 use crate::automata::state;
+use crate::data::matrix::Matrix;
 
-use std::ops::Index;
-use std::ops::IndexMut;
 
 
 // =====================================
 // === Deterministic Finite Automata ===
 // =====================================
 
-
-/// Efficient 2D matrix.
-#[derive(Clone,Debug,Default,PartialEq,Eq)]
-pub struct Matrix<T> {
-    /// The number of rows in matrix.
-    rows: usize,
-    /// The number of columns in matrix.
-    columns: usize,
-    /// Matrix implemented with vector.
-    matrix: Vec<T>,
-}
-
 /// Function callback for an arbitrary state of finite automata.
-/// It contains name of Rust procedure that is meant to be executed
-/// after encountering a pattern (declared in `group::Rule.pattern`).
+/// It contains name of Rust procedure that is meant to be executed after encountering a pattern
+/// (declared in `group::Rule.pattern`).
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Callback {
-    /// TODO[jv] figure out where it is used and describe it.
+    /// TODO[jv] Write better explanation after implementing rust code generation.
+    /// Priority is used during rust code generation.
     pub priority: usize,
     /// Name of Rust method that will be called when executing this callback.
     pub name: String,
 }
 
 /// DFA automata with a set of symbols, states and transitions.
-/// Deterministic Finite Automata is a finite-state machine
-/// that accepts or rejects a given sequence of symbols,
-/// by running through a state sequence uniquely determined
-/// by the input symbol sequence.
+/// Deterministic Finite Automata is a finite-state machine that accepts or rejects a given sequence
+/// of symbols, by running through a state sequence uniquely determined by the input symbol sequence.
 ///   ___              ___              ___              ___
 ///  | 0 | -- 'D' --> | 1 | -- 'F' --> | 2 | -- 'A' --> | 3 |
 ///   ‾‾‾              ‾‾‾              ‾‾‾              ‾‾‾
@@ -60,49 +48,20 @@ pub struct DFA {
     pub callbacks: Vec<Option<Callback>>,
 }
 
-impl<T:Default> Matrix<T> {
-    /// Constructs a new matrix for given number of rows and columns.
-    pub fn new(rows:usize, columns:usize) -> Self {
-        let mut matrix = Vec::with_capacity(rows*columns);
-        for _ in 0..matrix.capacity() {
-            matrix.push(Default::default())
-        }
-        Self{rows,columns,matrix}
-    }
-
-    /// Adds a new row to matrix, filled with default values.
-    pub fn new_row(&mut self) {
-        for _ in 0..self.columns {
-            self.matrix.push(Default::default());
-        }
-        self.rows += 1;
-    }
-}
-
-impl<T> Index<(usize,usize)> for Matrix<T> {
-    type Output = T;
-    fn index(&self, index:(usize,usize)) -> &T {
-        &self.matrix[index.0*self.columns+index.1]
-    }
-}
-
-impl<T> IndexMut<(usize,usize)> for Matrix<T> {
-    fn index_mut(&mut self, index:(usize,usize)) -> &mut T {
-        &mut self.matrix[index.0*self.columns+index.1]
-    }
-}
-
 impl From<Vec<Vec<usize>>> for Matrix<state::Id> {
     fn from(input:Vec<Vec<usize>>) -> Self {
         let rows        = input.len();
         let columns     = if rows == 0 {0} else {input[0].len()};
-        let mut matrix  = Vec::<state::Id>::new();
-        for row in input {
-            matrix.extend(row.into_iter().map(|id| state::Id{id}))
+        let mut matrix  = Self::new(rows,columns);
+        for row in 0..rows {
+            for column in 0..columns {
+                matrix[(row,column)] = state::Id{id:input[row][column]};
+            }
         }
-        Self {rows,columns,matrix}
+        matrix
     }
 }
+
 
 
 // ===========

@@ -1,3 +1,5 @@
+//! Simple API for constructing regex patterns that are used in parser implementation.
+
 use crate::parser;
 use crate::automata::state::Symbol;
 
@@ -102,7 +104,6 @@ impl Pattern {
     pub fn char(char:char) -> Self {
         Self::symbol(char as u32)
     }
-
 
     /// Pattern that triggers on any of the given characters.
     pub fn range(chars:RangeInclusive<char>) -> Self {
