@@ -1,4 +1,4 @@
-File Manager consists of pair server and client. They communicate by exchaning
+Enso protocol consists of pair server and client. They communicate by exchanging
 messages, following JSON-RPC 2.0.
 
 # Setup
@@ -8,64 +8,18 @@ In future it is expected that some kind of authorization will be required by the
 server. As of now, its details remain unspecified.
 
 # General protocol
-Remote calls made between File Manager client and server follow [JSON-RPC 2.0
+Remote calls made between the client and server follow [JSON-RPC 2.0
 protocol](https://www.jsonrpc.org/specification).
 
 There are two primary cases:
-* RPC calls from client to [server methods](#Methods);
-* [Notifications](#Notifications) sent from server to client.
+* RPC calls from client to server methods;
+* Notifications sent from server to client.
 
 All messages are text with JSON-encoded values.
 
-File Manager accepts only method calls (request objects).
+The server accepts only method calls (request objects).
 
-File Manager responds with call results and may send notifications.
-
-# Methods
-| Method        | Input                        | Result     |
-|---------------|------------------------------|------------|
-| copyDirectory | {from:Path, to:Path}         | ()         |
-| copyFile      | {from:Path, to:Path}         | ()         |
-| deleteFile    | {path:Path}                  | ()         |
-| exists        | {path:Path}                  | Boolean    |
-| list          | {path:Path}                  | [Path]     |
-| moveDirectory | {from:Path, to:Path}         | ()         |
-| moveFile      | {from:Path, to:Path}         | ()         |
-| read          | {path:Path}                  | String     |
-| status        | {path:Path}                  | Attributes |
-| touch         | {path:Path}                  | ()         |
-| write         | {path:Path, contents:String} | ()         |
-| createWatch   | {path:Path}                  | UUID       |
-| deleteWatch   | {watchId:UUID}               | ()         |
-
-Where `()` is a unit value.
-
-# Notifications
-Notifications are emitted by the server.
-
-| Method          | Input                       | Result |
-|-----------------|-----------------------------|--------|
-| filesystemEvent | {path:Path, kind:EventKind} | N/A    |
-
-`filesystemEvent` notification is emitted for paths that are tracked by watch
-(i.e. subtree of a location passed to `createWatch` method).
-
-It should be noted that watch notifications are not reliable and significantly
-os-dependent.  
-
-# Types
-```
-Attributes = struct { 
-    creationTime      : FileTime,
-    lastAccess_time   : FileTime, 
-    lastModified_time : FileTime, 
-    fileKind          : FileKind,
-    byteSize          : u64,
-}
-
-EventKind = enum { Created, Deleted, Modified, Overflow }
-FileKind  = enum { Directory, RegularFile, SymbolicLink, Other }
-```
+The server responds with call results and may send notifications.
 
 # JSON Encoding
 Struct values are serialized as map, e.g. `{ "field_name" : field_value }`.
@@ -86,6 +40,9 @@ format, e.g. `"2020-01-07T21:25:26Z"`.
 `"02723954-fbb0-4641-af53-cec0883f260a"`.
 
 `u64` is an unsigned 64-bit integer value.
+
+# Protocol
+An up-to-date and complete list of possible operations can be found in the [enso protocol specification document](https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md).
 
 ## Examples
 
@@ -132,5 +89,3 @@ Notification requests gets no response.
     "sizeInBytes"      : 125125
 }
 ```
-
-

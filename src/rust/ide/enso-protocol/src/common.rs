@@ -1,4 +1,4 @@
-//! Client library for the JSON-RPC-based File Manager service.
+//! Commons of JSON-RPC-based Enso services.
 
 /// Time in UTC time zone represented as ISO-8601 string.
 pub type UTCDateTime = chrono::DateTime<chrono::FixedOffset>;
@@ -79,6 +79,23 @@ macro_rules! make_arg {
     }
 }
 
+/// This macro reads an impl block and generates asynchronous methods for RPCs. Each method
+/// should be signed with `CamelCase` and `camelCase` attributes. e.g.:
+/// ```rust,compile_fail
+/// make_rpc_method!{
+///     impl {
+///         #[CamelCase=CallMePlease,camelCase=callMePlease]
+///         fn call_me_please(&self, my_number_is:String) -> ();
+///     }
+/// }
+/// ```
+///
+/// This macro generates both `Client`, with the actual `RPC` methods and `Mock`, with mocked
+/// method with return types setup by:
+/// ```rust,compile_fail
+///     fn set_call_me_please_result
+///     (&mut self, my_number_is:String,result:json_rpc::api::Result<()>) { /* impl */ }
+/// ```
 #[macro_export]
 macro_rules! make_rpc_methods {
     (
