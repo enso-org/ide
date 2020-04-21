@@ -363,9 +363,9 @@ impl<'de> Deserialize<'de> for Ast {
 #[ast(flat)]
 #[derive(HasTokens)]
 pub enum Shape<T> {
-    Unrecognized  { str : String   },
-    InvalidQuote  { quote: Builder },
-    InlineBlock   { quote: Builder },
+    Unrecognized  { str   : String  },
+    InvalidQuote  { quote : Builder },
+    InlineBlock   { quote : Builder },
 
     // === Identifiers ===
     Blank         { },
@@ -376,8 +376,8 @@ pub enum Shape<T> {
     InvalidSuffix { elem : T, suffix: String },
 
     // === Number ===
-    Number        { base: Option<String>, int: String },
-    DanglingBase  { base: String                      },
+    Number        { base : Option<String>, int: String },
+    DanglingBase  { base : String                      },
 
     // === Text ===
     TextLineRaw   { text   : Vec<SegmentRaw>                  },
