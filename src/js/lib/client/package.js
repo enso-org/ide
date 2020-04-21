@@ -62,7 +62,8 @@ config.build = {
     ],
     directories: {
         "output": paths.dist.client
-    }
+    },
+    publish: "never"
 }
 
 module.exports = {config}
