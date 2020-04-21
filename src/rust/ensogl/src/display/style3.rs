@@ -106,16 +106,31 @@ pub struct Var {
     id      : VarId,
     matches : Vec<SheetId>,
     binding : Option<SheetId>,
+    usages  : HashSet<SheetId>,
 }
 
 impl Var {
     pub fn new(id:VarId) -> Self {
         let matches = default();
         let binding = default();
-        Self {id,matches,binding}
+        let usages  = default();
+        Self {id,matches,binding,usages}
     }
 }
 
+
+
+// ============
+// === Expr ===
+// ============
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Expr {
+    sources : Vec<VarId>,
+    #[derivative(Debug="ignore")]
+    function : Box<dyn Fn(&[&Data])->Data>
+}
 
 
 // =============
@@ -126,6 +141,7 @@ impl Var {
 pub struct Sheet {
     id       : SheetId,
     value    : Option<Data>,
+    expr     : Option<Expr>,
     matches  : HashSet<VarId>,
     bindings : HashSet<VarId>,
 }
@@ -133,9 +149,10 @@ pub struct Sheet {
 impl Sheet {
     pub fn new(id:SheetId) -> Self {
         let value    = default();
+        let expr     = default();
         let matches  = default();
         let bindings = default();
-        Self {id,value,matches,bindings}
+        Self {id,value,expr,matches,bindings}
     }
 }
 
@@ -170,6 +187,8 @@ impl SheetRegistry {
         self.vec.insert_with_ix(|ix| Sheet::new(ix.into())).into()
     }
 }
+
+
 
 
 #[derive(Debug)]
@@ -266,6 +285,28 @@ impl Style {
         self.set_value_to(path,None)
     }
 
+
+    fn set_expr<F>(&mut self, path:&[String], data:Option<Data>, sources:&[VarId], function:F)
+    where F:'static+Fn(&[&Data])->Data {
+        let sheets     = &mut self.sheets;
+        let sheet_node = self.sheet_map.focus_with(path.iter().rev(),|| sheets.new_instance());
+        let sheet_id   = sheet_node.value;
+        let sheet      = &mut self.sheets.vec[*sheet_id];
+        sheet.value    = data;
+
+
+        for var_id in sources {
+            self.vars.vec[**var_id].usages.insert(sheet_id);
+        }
+        let sources  = sources.iter().cloned().collect();
+        let function = Box::new(function);
+        sheet.expr   = Some(Expr {sources,function});
+
+        for var_id in sheet.matches.clone() {
+            self.rebind_var(var_id)
+        }
+    }
+
     fn visualize(&self) -> String {
         let mut dot = String::new();
         Self::visualize_sheet_map(&mut dot,&self.sheet_map);
@@ -276,7 +317,10 @@ impl Style {
             }
             var.binding.for_each(|sheet_id| {
                 writeln!(dot,"var_{} -> sheet_{} [color=red]",var.id,sheet_id);
-            })
+            });
+            for sheet_id in &var.usages {
+                writeln!(dot,"var_{} -> sheet_{} [color=blue]",var.id,sheet_id);
+            }
         }
 
         for sheet in &self.sheets.vec {
@@ -287,6 +331,12 @@ impl Style {
             for var_id in &sheet.bindings {
                 writeln!(dot,"sheet_{} -> var_{} [color=red]",sheet.id,var_id);
             }
+
+            sheet.expr.for_each_ref(|expr| {
+                for var_id in &expr.sources {
+                    writeln!(dot,"sheet_{} -> var_{} [color=blue]",sheet.id,var_id);
+                }
+            })
         }
         dot
     }
@@ -331,11 +381,13 @@ impl Default for Style {
 
 pub fn test() {
     let mut css = Style::default();
+    let var0    = css.var(&["size".into()]);
     let var1    = css.var(&["text".into(),"size".into()]);
     let var2    = css.var(&["button".into(),"text".into(),"size".into()]);
 
     css.set_value(&["size".into()], data(1.0));
-    css.set_value(&["button".into(),"text".into(),"size".into()], data(2.0));
+
+    css.set_expr(&["button".into(),"text".into(),"size".into()], Some(data(2.0)), &[var0], |t| t[0].clone());
 
     let var3    = css.var(&["circle".into(),"size".into()]);
 
@@ -344,7 +396,7 @@ pub fn test() {
     let var6    = css.var(&["animation".into(),"speed".into()]);
 
 
-    println!("{:?}", css.value(var3));
+//    println!("{:?}", css.value(var3));
 
 
 //    css.remove_value(&["button".into(),"text".into(),"size".into()]);
