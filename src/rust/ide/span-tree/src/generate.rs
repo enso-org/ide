@@ -407,7 +407,7 @@ mod test {
             .add_leaf (0,1,Operation,vec![SectionRightCrumb::Opr])
             .add_child(1,2,Target   ,vec![SectionRightCrumb::Arg])
                 .chain_with_parent()
-                .add_leaf(0,1,Parameter,vec![SectionLeftCrumb::Arg])
+                .add_leaf(0,1,Argument ,vec![SectionLeftCrumb::Arg])
                 .add_leaf(1,1,Operation,vec![SectionLeftCrumb::Opr])
                 .add_empty_child(2,Missing)
                 .done()
