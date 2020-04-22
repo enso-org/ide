@@ -38,7 +38,7 @@ impl RenderPass for SymbolsRenderPass {
             ..Default::default()
         };
         vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8,color_parameters)
-            , RenderPassOutput::new("id",texture::Rgba32f,texture::item_type::f32,id_parameters)
+            , RenderPassOutput::new("id",texture::Rgba,texture::item_type::u8,id_parameters)
             ]
     }
 

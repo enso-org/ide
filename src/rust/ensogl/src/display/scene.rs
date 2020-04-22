@@ -123,20 +123,19 @@ impl Target {
     fn to_internal(&self) -> Vector4<u32> {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
-            Self::Symbol {symbol_id,instance_id} => Vector4::new(*symbol_id,*instance_id,0,1),
+            Self::Symbol {symbol_id,instance_id} => {
+                Vector4::new(*symbol_id,*instance_id / 255,*instance_id % 255,1)
+            },
         }
     }
 
     fn from_internal(v:Vector4<u32>) -> Self {
-        if v.z != 0 {
-            panic!("Wrong internal format for mouse target.")
-        }
         if v.w == 0 {
             Self::Background
         }
-        else if v.w == 1 {
-            let symbol_id   = v.x;
-            let instance_id = v.y;
+        else if v.w == 255 {
+            let symbol_id   = v.x ;
+            let instance_id = v.y * 255 + v.z;
             Self::Symbol {symbol_id,instance_id}
         } else {
             panic!("Wrong internal format alpha for mouse target.")
