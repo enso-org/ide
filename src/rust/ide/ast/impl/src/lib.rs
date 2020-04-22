@@ -420,7 +420,7 @@ pub enum Shape<T> {
                     is_orphan   : bool                       },
 
     // === Macros ===
-    Match         { pfx      : Option<MacroPatternMatch<Shifted<Ast>>>
+    Match         { pfx      : Option<MacroPatternMatch<Shifted<T>>>
                   , segs     : ShiftedVec1<MacroMatchSegment<T>>
                   , resolved : Ast                                     },
     Ambiguous     { segs     : ShiftedVec1<MacroAmbiguousSegment>
@@ -558,7 +558,7 @@ pub struct BlockLine <T> {
 // =============
 
 #[ast] pub struct MacroMatchSegment<T> {
-    pub head : Ast,
+    pub head : T,
     pub body : MacroPatternMatch<Shifted<T>>
 }
 
