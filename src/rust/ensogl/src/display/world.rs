@@ -16,7 +16,6 @@ use crate::display::render::*;
 use crate::display::render::passes::SymbolsRenderPass;
 use crate::display::scene::Scene;
 use crate::display::shape::text::text_field;
-use crate::display::traits::*;
 use crate::display;
 use crate::system::web;
 
@@ -132,6 +131,7 @@ impl World {
                 if      key == "Backquote" { stats_monitor.toggle() }
                 else if key == "Digit0"    { display_mode.set(0) }
                 else if key == "Digit1"    { display_mode.set(1) }
+                else if key == "Digit2"    { display_mode.set(2) }
             }
         }));
         web::document().add_event_listener_with_callback
@@ -180,9 +180,9 @@ impl World {
     }
 }
 
-impl<'t> From<&'t World> for &'t display::object::Node {
-    fn from(world:&'t World) -> Self {
-        world.scene.display_object()
+impl display::Object for World {
+    fn display_object(&self) -> &display::object::Instance {
+        self.scene.display_object()
     }
 }
 

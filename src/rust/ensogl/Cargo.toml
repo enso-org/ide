@@ -13,6 +13,7 @@ statistics = []
 no_unboxed_callbacks = []
 
 [dependencies]
+enso-callback              = { version = "0.1.0"  , path = "../lib/callback"      }
 ensogl-core-embedded-fonts = { version = "0.1.0"  , path = "embedded-fonts"      }
 ensogl-core-msdf-sys       = { version = "0.1.0"  , path = "msdf-sys"            }
 enso-prelude               = { version = "0.1.0"  , path = "../lib/prelude"      }
@@ -83,5 +84,6 @@ features = [
 ]
 
 [dev-dependencies]
+assert_approx_eq  = { version = "1.1.0"                           }
 wasm-bindgen-test = { version = "0.3.8"                           }
 web-test          = { version = "0.1.0", path = "../lib/web-test" }

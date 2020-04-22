@@ -1,21 +1,26 @@
 //! Definition of the Node component.
 
+pub mod port;
+
 use crate::prelude::*;
 
-use ensogl::data::color::Srgba;
-use ensogl::display;
-use ensogl::display::traits::*;
-use ensogl::display::{Sprite, Attribute};
+use crate::component::node::port::Registry;
+
 use enso_frp;
 use enso_frp as frp;
-use enso_frp::frp;
-use ensogl::display::Buffer;
 use ensogl::data::color::*;
+use ensogl::data::color::Srgba;
+use ensogl::display::Attribute;
+use ensogl::display::Buffer;
+use ensogl::display::Sprite;
+use ensogl::display::scene::Scene;
+use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
-use ensogl::display::scene::{Scene,ShapeRegistry};
+use ensogl::display::traits::*;
+use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-
+use ensogl::math::topology::unit::AngleOps;
 
 
 /// Icons definitions.
@@ -128,8 +133,9 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub select     : frp::Dynamic<()>,
-    pub deselect   : frp::Dynamic<()>,
+    pub network    : frp::Network,
+    pub select     : frp::Source,
+    pub deselect   : frp::Source,
 }
 
 
@@ -138,15 +144,41 @@ pub struct Events {
 // ============
 
 /// Node definition.
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
 pub struct Node {
     data : Rc<NodeData>,
+}
+
+impl AsRef<Node> for Node {
+    fn as_ref(&self) -> &Self {
+        self
+    }
 }
 
 /// Weak version of `Node`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakNode {
     data : Weak<NodeData>
+}
+
+impl WeakElement for WeakNode {
+    type Strong = Node;
+
+    fn new(view: &Self::Strong) -> Self {
+        view.downgrade()
+    }
+
+    fn view(&self) -> Option<Self::Strong> {
+        self.upgrade()
+    }
+}
+
+impl WeakKey for WeakNode {
+    type Key = display::object::Id;
+
+    fn with_key<F, R>(view: &Self::Strong, f: F) -> R where F: FnOnce(&Self::Key) -> R {
+        f(&view.id())
+    }
 }
 
 /// Shape view for Node.
@@ -165,31 +197,36 @@ impl component::ShapeViewDefinition for NodeView {
 #[allow(missing_docs)]
 pub struct NodeData {
     pub logger : Logger,
-    pub label  : frp::Dynamic<String>,
+    pub label  : frp::Source<String>,
     pub events : Events,
     pub view   : component::ShapeView<NodeView>,
+    pub ports  : Registry,
 }
 
 impl Node {
     /// Constructor.
     pub fn new() -> Self {
-        frp! {
-            label    = source::<String> ();
-            select   = source::<()>     ();
-            deselect = source::<()>     ();
+        frp::new_network! { node_network
+            def label    = source::<String> ();
+            def select   = source::<()>     ();
+            def deselect = source::<()>     ();
         }
-
-        let logger = Logger::new("node");
-        let view   = component::ShapeView::new(&logger);
-        let events = Events {select,deselect};
-        let data   = Rc::new(NodeData {logger,label,events,view});
+        let network = node_network;
+        let logger  = Logger::new("node");
+        let view    = component::ShapeView::new(&logger);
+        let events  = Events {network,select,deselect};
+        let ports   = Registry::default() ;
+        let data    = Rc::new(NodeData {logger,label,events,view,ports});
         Self {data} . init()
     }
 
     fn init(self) -> Self {
+        let network = &self.data.events.network;
+
+
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
-        let creation = animation(move |value| {
+        let creation = animation(network, move |value| {
             weak_view_data.upgrade().for_each(|view_data| {
                 view_data.borrow().as_ref().for_each(|t| t.shape.creation.set(value))
             })
@@ -198,21 +235,30 @@ impl Node {
 
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
-        let selection = animation(move |value| {
+        let selection = animation(network, move |value| {
             weak_view_data.upgrade().for_each(|view_data| {
                 view_data.borrow().as_ref().for_each(|t| t.shape.selection.set(value))
             })
         });
 
-        let selection_ref = selection.clone_ref();
-        self.events.select.map("select", move |_| {
-            selection_ref.set_target_position(1.0);
-        });
 
-        let selection_ref = selection.clone_ref();
-        self.events.deselect.map("deselect", move |_| {
-            selection_ref.set_target_position(0.0);
-        });
+        frp::extend! { network
+            let selection_ref = selection.clone_ref();
+            def _f_select = self.events.select.map(move |_| {
+                selection_ref.set_target_position(1.0);
+            });
+
+            let selection_ref = selection.clone_ref();
+            def _f_deselect = self.events.deselect.map(move |_| {
+                selection_ref.set_target_position(0.0);
+            });
+        }
+
+        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
+        let input_port = self.data.ports.input.create(&self);
+        input_port.set_position(90.0_f32.degrees());
+        let output_port = self.data.ports.output.create(&self);
+        output_port.set_position(270.0_f32.degrees());
 
         self
     }
@@ -238,8 +284,14 @@ impl WeakRef for WeakNode {
     }
 }
 
-impl<'t> From<&'t Node> for &'t display::object::Node {
-    fn from(t:&'t Node) -> Self {
-        &t.view.display_object
+impl display::Object for Node {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.view.display_object
+    }
+}
+
+impl display::WeakObject for WeakNode {
+    fn try_display_object(&self) -> Option<display::object::Instance> {
+        self.upgrade().map(|ref t| t.display_object().clone_ref())
     }
 }
