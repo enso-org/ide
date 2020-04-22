@@ -14,10 +14,10 @@ use crate::double_representation::node;
 use crate::model::module::NodeMetadata;
 use crate::notification;
 
+use ast::crumbs::InfixCrumb;
 use parser::Parser;
 use span_tree::SpanTree;
-use crate::double_representation::node::NodeInfo;
-use ast::crumbs::InfixCrumb;
+
 
 
 // ==============
@@ -91,6 +91,9 @@ impl NewNodeInfo {
 // === Connections ===
 // ===================
 
+
+// === Endpoint ===
+
 /// Connection endpoint - a port on a node, described using span-tree crumbs.
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
@@ -98,6 +101,9 @@ pub struct Endpoint {
     pub node  : double_representation::node::Id,
     pub crumb : span_tree::Crumbs,
 }
+
+
+// === Connection ===
 
 /// Connection described using span-tree crumbs.
 #[allow(missing_docs)]
@@ -108,9 +114,59 @@ pub struct Connection {
 }
 
 
+// === Connections ===
+
+/// Describes connections in the graph. For convenience also includes information about port
+/// structure of the involved nodes.
+#[derive(Clone,Debug,Default)]
+pub struct Connections {
+    /// Span trees for all nodes that have connections.
+    pub trees       : HashMap<node::Id,NodeTrees>,
+    /// The connections between nodes in the graph.
+    pub connections : Vec<Connection>,
+}
+
+impl Connections {
+    /// Describes a connection for given double representation graph.
+    pub fn new(graph:&GraphInfo) -> Connections {
+        let trees = graph.nodes().iter().flat_map(|node| {
+            Some((node.id(), NodeTrees::new(node)?))
+        }).collect();
+
+        let mut ret = Connections {trees, connections:default()};
+        let connections = graph.connections().into_iter().flat_map(|c|
+            ret.convert_connection(&c)
+        ).collect();
+        ret.connections = connections;
+        ret
+    }
+
+    /// Converts Endpoint from double representation to the span tree crumbs.
+    pub fn convert_endpoint
+    (&self, endpoint:&double_representation::connection::Endpoint) -> Option<Endpoint> {
+        let tree = self.trees.get(&endpoint.node)?;
+        Some(Endpoint{
+            node  : endpoint.node,
+            crumb : tree.convert_crumbs(&endpoint.crumbs)?,
+        })
+    }
+
+    /// Converts Connection from double representation to the span tree crumbs.
+    pub fn convert_connection
+    (&self, connection:&double_representation::connection::Connection) -> Option<Connection> {
+        Some(Connection {
+            source      : self.convert_endpoint(&connection.source)?,
+            destination : self.convert_endpoint(&connection.destination)?,
+        })
+    }
+}
+
+
+// === NodeTrees ===
+
 /// Stores node's span trees: one for inputs (expression) and optionally another one for inputs
 /// (pattern).
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct NodeTrees {
     /// Describes node inputs, i.e. its expression.
     pub inputs : SpanTree,
@@ -118,10 +174,9 @@ pub struct NodeTrees {
     pub outputs : Option<SpanTree>,
 }
 
-
 impl NodeTrees {
     #[allow(missing_docs)]
-    pub fn new(node:&NodeInfo) -> Option<NodeTrees> {
+    pub fn new(node:&node::NodeInfo) -> Option<NodeTrees> {
         let inputs  = SpanTree::new(node.expression()).ok()?;
         let outputs = if let Some(pat) = node.pattern() {
             Some(SpanTree::new(pat).ok()?)
@@ -230,29 +285,10 @@ impl Handle {
     }
 
     /// Returns information about all the connections between graph's nodes.
-    pub fn connections(&self) -> FallibleResult<Vec<Connection>> {
+    pub fn connections(&self) -> FallibleResult<Connections> {
         let definition  = self.graph_definition_info()?;
         let graph       = double_representation::graph::GraphInfo::from_definition(definition);
-        let connections = graph.connections();
-        let trees       = graph.nodes().iter().flat_map(|node| {
-            Some((node.id(), NodeTrees::new(node)?))
-        }).collect::<HashMap<_,_>>();
-
-        let convert_endpoint = |e:double_representation::connection::Endpoint| -> Option<Endpoint> {
-            let tree = trees.get(&e.node)?;
-            Some(Endpoint{
-                node: e.node,
-                crumb : tree.convert_crumbs(&e.crumbs)?,
-            })
-        };
-        let connections = connections.into_iter().flat_map(|c| {
-            Some(Connection {
-                source      : convert_endpoint(c.source)?,
-                destination : convert_endpoint(c.destination)?,
-            })
-        }).collect();
-
-        Ok(connections)
+        Ok(Connections::new(&graph))
     }
 
     /// Updates the AST of the definition of this graph.
@@ -587,11 +623,26 @@ main =
 main =
     x,y = get_pos
     print x
-    print $ foo y";
-        test.run_graph_for_main(PROGRAM, "main", |module, graph| async move {
-            let connections = graph.connections();
-            println!("{:?}",graph.nodes());
-            println!("{:?}",connections);
+    z = print $ foo y";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            let connections = graph.connections().unwrap();
+
+            let (node0,node1,node2) = graph.nodes().unwrap().expect_tuple();
+            assert_eq!(node0.info.expression().repr(), "get_pos");
+            assert_eq!(node1.info.expression().repr(), "print x");
+            assert_eq!(node2.info.expression().repr(), "print $ foo y");
+
+            let c = &connections.connections[0];
+            assert_eq!(c.source.node, node0.info.id());
+            assert_eq!(c.source.crumb, [0]);
+            assert_eq!(c.destination.node, node1.info.id());
+            assert_eq!(c.destination.crumb, [1]);
+
+            let c = &connections.connections[1];
+            assert_eq!(c.source.node, node0.info.id());
+            assert_eq!(c.source.crumb, [2]);
+            assert_eq!(c.destination.node, node2.info.id());
+            assert_eq!(c.destination.crumb, [2,1]);
         })
     }
 }

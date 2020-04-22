@@ -113,7 +113,6 @@ mod tests {
     use crate::double_representation::definition::DefinitionInfo;
     use crate::double_representation::graph::GraphInfo;
     use ast::crumbs;
-    use ast::crumbs::Crumb;
     use ast::crumbs::InfixCrumb;
 
     struct TestRun {

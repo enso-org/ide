@@ -37,6 +37,7 @@ pub mod prelude {
 
 use crate::prelude::*;
 
+pub use crumbs::Crumb;
 pub use crumbs::Crumbs;
 
 use ast_macros::*;

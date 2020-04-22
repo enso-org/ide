@@ -81,7 +81,7 @@ impl NodeInfo {
     pub fn pattern(&self) -> Option<&Ast> {
         match self {
             NodeInfo::Binding   {infix} => Some(&infix.larg),
-            NodeInfo::Expression{ast}   => None,
+            NodeInfo::Expression{..}    => None,
         }
     }
 
