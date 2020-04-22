@@ -107,54 +107,34 @@ macro_rules! make_rpc_methods {
         fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
         )*
     }) => {
+        $(#[doc = $impl_doc])+
+        pub trait Interface {
+            $(
+            $(#[doc = $doc])+
+            fn $method(&self $(,$param_name:$param_ty)+) -> Box<dyn Future<Output=$result>>;
+            )*
+        }
+
         $(make_rpc_method!($CamelCase $method $camelCase ($($param_name:$param_ty),+) -> $result);)*
 
         paste::item!{
-            shared! { Mock
-                /// Mock data used for tests.
-                pub struct MockData {
-                    /// JSON-RPC protocol handler.
-                    handler : Handler<Notification>,
-                    $([<$method _result>] : HashMap<make_param_map!($(,$param_ty)+),Result<$result>>,)*
-                }
-
-                impl {
-                    /// Create a new client that will use given transport.
-                    pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
-                        let handler = Handler::new(transport);
-                        Self {
-                            handler,
-                            $([<$method _result>] : HashMap::default(),)*
-                        }
-                    }
-
-                    /// Asynchronous event stream with notification and errors.
-                    ///
-                    /// On a repeated call, previous stream is closed.
-                    pub fn events(&mut self) -> impl Stream<Item = Event> {
-                        self.handler.handler_event_stream()
-                    }
-
-                    /// Returns a future that performs any background, asynchronous work needed
-                    /// for this Client to correctly work. Should be continually run while the
-                    /// `Client` is used. Will end once `Client` is dropped.
-                    pub fn runner(&mut self) -> impl Future<Output = ()> {
-                        self.handler.runner()
-                    }
-                }
+            /// Mock used for tests.
+            #[derive(Debug,Default)]
+            pub struct Mock {
+                $([<$method _result>] : RefCell<HashMap<make_param_map!($(,$param_ty)+),Result<$result>>>,)*
             }
 
             impl Mock {
                 $(
                     $(#[doc = $doc])*
                     pub async fn $method(&self $(,$param_name:$param_ty)+) -> Result<$result> {
-                        self.rc.borrow_mut().[<$method _result>].remove(&make_arg!($($param_name),+)).unwrap()
+                        self.[<$method _result>].borrow_mut().remove(&make_arg!($($param_name),+)).unwrap()
                     }
 
                     /// Sets `$method`'s result to be returned when it is called.
                     pub fn [<set_ $method _result>]
-                    (&mut self $(,$param_name:$param_ty)+, result:Result<$result>) {
-                        self.rc.borrow_mut().[<$method _result>].insert(make_arg!($($param_name),+),result);
+                    (&self $(,$param_name:$param_ty)+, result:Result<$result>) {
+                        self.[<$method _result>].borrow_mut().insert(make_arg!($($param_name),+),result);
                     }
                 )*
             }

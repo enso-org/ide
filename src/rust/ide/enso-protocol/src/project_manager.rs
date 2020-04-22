@@ -115,22 +115,8 @@ mod test {
     use json_rpc::error::RpcError;
     use json_rpc::messages::Error;
     use json_rpc::Result;
-    use json_rpc::test_util::transport::mock::MockTransport;
     use std::future::Future;
     use utils::test::poll_future_output;
-    use futures::task::LocalSpawnExt;
-
-    struct Fixture {
-        client    : Mock,
-        executor  : futures::executor::LocalPool,
-    }
-
-    fn setup() -> Fixture {
-        let client = Mock::new(MockTransport::new());
-        let executor   = futures::executor::LocalPool::new();
-        executor.spawner().spawn_local(client.runner()).expect("Spawn local");
-        Fixture {client,executor}
-    }
 
     fn error<T>(message:&str) -> Result<T> {
         let err = Error {
@@ -141,16 +127,14 @@ mod test {
         Err(RpcError::RemoteError(err))
     }
 
-    fn result<T,F:Future<Output = Result<T>>>(fixture:&mut Fixture, fut:F) -> Result<T> {
-        fixture.executor.run_until_stalled();
+    fn result<T,F:Future<Output = Result<T>>>(fut:F) -> Result<T> {
         let mut fut = Box::pin(fut);
         poll_future_output(&mut fut).expect("Promise isn't ready")
     }
 
     #[test]
     fn project_life_cycle() {
-        let mut fixture             = setup();
-        let mut mock_client         = fixture.client.clone();
+        let mock_client             = Mock::default();
         let expected_uuid           = Uuid::default();
         let host                    = "localhost".to_string();
         let port                    = 30500;
@@ -161,31 +145,30 @@ mod test {
         mock_client.set_delete_project_result(expected_uuid.clone(), error("Project doesn't exist."));
 
         let delete_result = mock_client.delete_project(expected_uuid.clone());
-        result(&mut fixture, delete_result).expect_err("Project shouldn't exist.");
+        result(delete_result).expect_err("Project shouldn't exist.");
 
         let uuid = mock_client.create_project("HelloWorld".into());
-        let uuid = result(&mut fixture,uuid).expect("Couldn't create project");
+        let uuid = result(uuid).expect("Couldn't create project");
         assert_eq!(uuid, expected_uuid);
 
-        let close_result = result(&mut fixture,mock_client.close_project(uuid.clone()));
+        let close_result = result(mock_client.close_project(uuid.clone()));
         close_result.expect_err("Project shouldn't be open.");
 
-        let ip_with_socket = result(&mut fixture,mock_client.open_project(uuid.clone()));
+        let ip_with_socket = result(mock_client.open_project(uuid.clone()));
         let ip_with_socket = ip_with_socket.expect("Couldn't open project");
         assert_eq!(ip_with_socket, expected_ip_with_socket);
 
         mock_client.set_close_project_result(expected_uuid.clone(), Ok(()));
-        result(&mut fixture,mock_client.close_project(uuid)).expect("Couldn't close project.");
+        result(mock_client.close_project(uuid)).expect("Couldn't close project.");
 
         mock_client.set_delete_project_result(expected_uuid.clone(), Ok(()));
-        result(&mut fixture,mock_client.delete_project(uuid)).expect("Couldn't delete project.");
+        result(mock_client.delete_project(uuid)).expect("Couldn't delete project.");
     }
 
     #[test]
     fn list_projects() {
-        let mut fixture     = setup();
-        let mut mock_client = fixture.client.clone();
-        let project1        = ProjectMetaData {
+        let mock_client = Mock::default();
+        let project1    = ProjectMetaData {
             name        : "project1".to_string(),
             id          : Uuid::default(),
             last_opened : chrono::DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap()
@@ -210,9 +193,9 @@ mod test {
         mock_client.set_list_recent_result(2,Ok(expected_recent_projects.clone()));
         mock_client.set_list_sample_result(2,Ok(expected_sample_projects.clone()));
 
-        let recent_projects = result(&mut fixture,mock_client.list_recent(2)).expect("Couldn't get recent projects.");
+        let recent_projects = result(mock_client.list_recent(2)).expect("Couldn't get recent projects.");
         assert_eq!(recent_projects, expected_recent_projects);
-        let sample_projects = result(&mut fixture,mock_client.list_sample(2)).expect("Couldn't get sample projects.");
+        let sample_projects = result(mock_client.list_sample(2)).expect("Couldn't get sample projects.");
         assert_eq!(sample_projects, expected_sample_projects);
     }
 }
