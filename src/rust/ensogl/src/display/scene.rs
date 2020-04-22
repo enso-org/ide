@@ -124,7 +124,7 @@ impl Target {
     /// Decode the symbol_id and instance_id that was encoded in the `fragment_runner`.
     ///
     /// See the `encode` method for more information on the encoding.
-    fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32, u32){
+    fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32, u32) {
         let value1 = (pack1 << 4) + (pack2 >> 4);
         let value2 = pack3 + ((pack2 & 0x00FF) << 8);
         (value1, value2)
@@ -134,24 +134,21 @@ impl Target {
     /// This is the same encoding that is used in the `fragment_runner`.
     /// This encoding is lossy.
     ///
-    /// Encodes the two values with 12 bit precision into 3 bytes.
-    /// If the values each contain more than 12 bit of information, that
-    /// information is lost.
-    ///
     ///  Input
     ///
-    ///   value1 as bytes                   value2 as bytes
+    ///   value1 as bytes                        value2 as bytes
     ///  ------------------------            ------------------------
     /// | v1a | v1b | v1c | v1d |           | v2a | v2b | v2c | v2d |
     /// -------------------------           -------------------------
-    /// Output
+    ///
+    ///  Output
     ///
     ///   byte1             byte2                byte3
     ///  ------     ----------------------      ------
     /// | v1d |    | v1c[4..8] v2c[4..8] |     | v2d |
     /// ------     -----------------------     ------
     ///
-    fn encode(value1: u32, value2: u32) -> (u8, u8, u8){
+    fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
         let pack1 = (value1 >> 4u32) & 0x00FFu32;
         let pack2 = (value1 & 0x00FFu32) << 4u32;
         let pack2 = pack2 | ((value2 & 0x0F00u32) >> 8u32);
@@ -174,10 +171,10 @@ impl Target {
             Self::Background
         }
         else if v.w == 255 {
-            let decoded     = Self::decode(v.x, v.y, v.z);
+            let decoded     = Self::decode(v.x,v.y,v.z);
             let symbol_id   = decoded.0;
             let instance_id = decoded.1;
-            Self::Symbol { symbol_id, instance_id }
+            Self::Symbol {symbol_id,instance_id}
         } else {
             panic!("Wrong internal format alpha for mouse target.")
         }
@@ -197,19 +194,19 @@ impl Default for Target {
 mod target_tests {
     use super::*;
 
-    fn assert_valid_roundtrip(value1: u32, value2: u32){
-        let pack   = Target::encode(value1, value2);
-        let unpack = Target::decode(pack.0 as u32, pack.1 as u32, pack.2 as u32);
-        assert_eq!(unpack.0, value1);
-        assert_eq!(unpack.1, value2);
+    fn assert_valid_roundtrip(value1:u32, value2:u32) {
+        let pack   = Target::encode(value1,value2);
+        let unpack = Target::decode(pack.0 as u32,pack.1 as u32,pack.2 as u32);
+        assert_eq!(unpack.0,value1);
+        assert_eq!(unpack.1,value2);
     }
 
     #[test]
     fn test_roundtrip_coding() {
-        assert_valid_roundtrip(   0,  0);
-        assert_valid_roundtrip(   0,  5);
-        assert_valid_roundtrip(512,  0);
-        assert_valid_roundtrip(1024, 64);
+        assert_valid_roundtrip(   0,   0);
+        assert_valid_roundtrip(   0,   5);
+        assert_valid_roundtrip( 512,   0);
+        assert_valid_roundtrip(1024,  64);
         assert_valid_roundtrip(1024, 999);
     }
 }
