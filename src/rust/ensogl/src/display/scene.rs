@@ -130,23 +130,26 @@ impl Target {
         (value1, value2)
     }
 
-    /// Encode two u32 bit values into three u8 values.
+    /// Encode two u32 values into three u8 values.
     /// This is the same encoding that is used in the `fragment_runner`.
     /// This encoding is lossy.
     ///
+    /// We use 12 bits from each value and pack them into the 3 output bites like
+    /// described in the following diagram.
+    ///
     ///  Input
     ///
-    ///   value1 as bytes                        value2 as bytes
-    ///  ------------------------            ------------------------
+    ///  value1 as bytes                    value2 as bytes
+    /// -------------------------           -------------------------
     /// | v1a | v1b | v1c | v1d |           | v2a | v2b | v2c | v2d |
     /// -------------------------           -------------------------
     ///
     ///  Output
     ///
-    ///   byte1             byte2                byte3
-    ///  ------     ----------------------      ------
+    ///  byte1             byte2                byte3
+    /// -------    -----------------------     -------
     /// | v1d |    | v1c[4..8] v2c[4..8] |     | v2d |
-    /// ------     -----------------------     ------
+    /// -------    -----------------------     -------
     ///
     fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
         let pack1 = (value1 >> 4u32) & 0x00FFu32;
@@ -160,8 +163,8 @@ impl Target {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
-                let pack = Self::encode(*symbol_id, *instance_id);
-                Vector4::new(pack.0 as u32,pack.1 as u32,pack.2 as u32,1)
+                let pack = Self::encode(*symbol_id,*instance_id);
+                Vector4::new(pack.0.into(),pack.1.into(),pack.2.into(),1)
             },
         }
     }
@@ -196,7 +199,7 @@ mod target_tests {
 
     fn assert_valid_roundtrip(value1:u32, value2:u32) {
         let pack   = Target::encode(value1,value2);
-        let unpack = Target::decode(pack.0 as u32,pack.1 as u32,pack.2 as u32);
+        let unpack = Target::decode(pack.0.into(),pack.1.into(),pack.2.into());
         assert_eq!(unpack.0,value1);
         assert_eq!(unpack.1,value2);
     }

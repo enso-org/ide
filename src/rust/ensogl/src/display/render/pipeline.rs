@@ -67,7 +67,7 @@ impl RenderPassOutput {
         let name            = name.into();
         let internal_format = internal_format.into();
         let item_type       = item_type.into();
-        Self {name,internal_format,item_type, texture_parameters }
+        Self {name,internal_format,item_type,texture_parameters}
     }
 
     /// Getter.

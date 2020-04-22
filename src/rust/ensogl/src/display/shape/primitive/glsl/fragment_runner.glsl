@@ -7,9 +7,9 @@ float alpha      = shape.color.color.raw.a;
 
 
 
-// ==============-------------
+// ===========================
 // === Object ID Rendering ===
-// ==============-------------
+// ===========================
 
 // This encoding needs to correspond to the decoding in the `Target` struct in
 // src\rust\ensogl\src\display\scene.rs
@@ -28,9 +28,9 @@ output_id.b *= alpha_no_aa;
 
 
 
-// ==========-------------
+// =======================
 // === Color Rendering ===
-// ==========-------------
+// =======================
 
 if (input_display_mode == 0) {
     output_color = srgba(unpremultiply(shape.color)).raw;
