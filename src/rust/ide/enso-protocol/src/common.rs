@@ -111,7 +111,7 @@ macro_rules! make_rpc_methods {
         pub trait Interface {
             $(
             $(#[doc = $doc])+
-            fn $method(&self $(,$param_name:$param_ty)+) -> Box<dyn Future<Output=$result>>;
+            fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>>;
             )*
         }
 
@@ -124,13 +124,18 @@ macro_rules! make_rpc_methods {
                 $([<$method _result>] : RefCell<HashMap<make_param_map!($(,$param_ty)+),Result<$result>>>,)*
             }
 
+            impl Interface for Mock {
+                $(
+                    fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
+                        let mut result = self.[<$method _result>].borrow_mut();
+                        let result     = result.remove(&make_arg!($($param_name),+)).unwrap();
+                        Box::pin(async move { result })
+                    }
+                )*
+            }
+
             impl Mock {
                 $(
-                    $(#[doc = $doc])*
-                    pub async fn $method(&self $(,$param_name:$param_ty)+) -> Result<$result> {
-                        self.[<$method _result>].borrow_mut().remove(&make_arg!($($param_name),+)).unwrap()
-                    }
-
                     /// Sets `$method`'s result to be returned when it is called.
                     pub fn [<set_ $method _result>]
                     (&self $(,$param_name:$param_ty)+, result:Result<$result>) {

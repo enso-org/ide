@@ -111,6 +111,7 @@ mod test {
     use super::Mock;
     use super::IpWithSocket;
     use super::ProjectMetaData;
+    use super::Interface;
     use uuid::Uuid;
     use json_rpc::error::RpcError;
     use json_rpc::messages::Error;
@@ -179,7 +180,7 @@ mod test {
             last_opened : chrono::DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap()
         };
         let expected_recent_projects = vec![project1,project2];
-        let sample1                  = ProjectMetaData {
+        let sample1 = ProjectMetaData {
             name        : "sample1".to_string(),
             id          : Uuid::default(),
             last_opened : chrono::DateTime::parse_from_rfc3339("2019-11-23T05:30:12Z").unwrap()
