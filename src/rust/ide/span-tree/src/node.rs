@@ -19,6 +19,7 @@ use data::text::Size;
 pub enum Kind {
     /// A root of the expression this tree was generated.
     Root,
+    Chained,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
     Target,
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
@@ -72,7 +73,7 @@ pub struct Child {
     /// Flag indicating that parent should take this node's children instead of itself when
     /// iterating using `chain_children_iter` method. See this method docs for reference, and
     /// crate's doc for details about _chaining_.
-    pub chained_with_parent : bool,
+    // pub chained_with_parent : bool,
     /// AST crumbs which lead from parent to child associated AST node.
     pub ast_crumbs          : ast::Crumbs,
 }

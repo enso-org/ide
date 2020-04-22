@@ -5,10 +5,12 @@ use crate::prelude::*;
 
 use crate::node;
 
-use ast::Ast;
+use ast::Shape::*;
+use ast::{Ast, Shifted};
 use ast::crumbs::*;
 use crate::node::Kind;
 use ast::assoc::Assoc;
+use ast::opr::{GeneralizedInfix, make_operand, ChainElement, Operand};
 
 
 /// ==============
@@ -90,9 +92,11 @@ impl<T:Implementation> Actions for T {
 
 
 
-/// ==============================
-/// === Actions Implementation ===
-/// ==============================
+// ==============================
+// === Actions Implementation ===
+// ==============================
+
+const DEFAULT_OFFSET : usize = 1;
 
 /// Implementation of actions - this is for keeping in one place checking of actions availability
 /// and the performing the action.
@@ -107,17 +111,7 @@ impl<'x> Implementation for node::Ref<'x> {
     fn set_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
         match &self.node.kind {
             Kind::Append  => None,
-            Kind::Missing => Some(Box::new(move |root,new| {
-                let ast = root.get_traversing(self.ast_crumbs.iter().cloned())?.clone_ref();
-                let new_ast = match (ast.shape().clone(),self.crumbs.last()) {
-                    (ast::Shape::SectionSides(ast::SectionSides{opr}        ),Some(0)) => Ast::new(ast::SectionLeft {opr,off:1,arg:new},None),
-                    (ast::Shape::SectionSides(ast::SectionSides{opr}        ),Some(2)) => Ast::new(ast::SectionRight{opr,off:1,arg:new},None),
-                    (ast::Shape::SectionRight(ast::SectionRight{opr,off,arg}),Some(0)) => Ast::new(ast::Infix {larg:new,loff:1  ,opr,roff:off,rarg:arg},None),
-                    (ast::Shape::SectionLeft (ast::SectionLeft {arg,off,opr}),Some(2)) => Ast::new(ast::Infix {larg:arg,loff:off,opr,roff:1  ,rarg:new},None),
-                    _ => return Err(AstSpanTreeMismatch.into()),
-                };
-                root.set_traversing(&self.ast_crumbs, new_ast)
-            })),
+            Kind::Missing => Some(Box::new(set_on_missing(self))),
             _ => match &self.ast_crumbs.last() {
                 // Operators should be treated in a special way - setting functions in place in
                 // a operator should replace Infix with Prefix with two applications.
@@ -126,7 +120,6 @@ impl<'x> Implementation for node::Ref<'x> {
                 Some(Crumb::SectionLeft(SectionLeftCrumb::Opr))   |
                 Some(Crumb::SectionRight(SectionRightCrumb::Opr)) |
                 Some(Crumb::SectionSides(SectionSidesCrumb))      => None,
-
                 _ => Some(Box::new(move |root, new| {
                     root.set_traversing(self.ast_crumbs.iter().cloned(),new)
                 }))
@@ -134,76 +127,16 @@ impl<'x> Implementation for node::Ref<'x> {
         }
     }
 
-
-
     fn insert_before_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
+        match &self.node.kind {
+            (Kind::Append,_) => Some(Box::new(append(self))),
 
-        match (&self.node.kind,self.ast_crumbs.last()) {
-            (Kind::Append,_) => Some(Box::new(move |root,new| {
-                let ast = root.get_traversing(&self.ast_crumbs)?.clone_ref();
-                let new_ast = match ast.shape().clone() {
-                    ast::Shape::Infix (ast::Infix{..}) => {
-                        let mut infix = ast::known::Infix::try_new(ast.clone_ref())?;
-                        let opr       = ast::known::Opr::try_new(infix.opr.clone_ref())?;
-
-                        match Assoc::of(&opr.name) {
-                            Assoc::Left  => Ast::new(ast::Infix {larg:ast,loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None),
-                            Assoc::Right => {
-                                infix.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:s.rarg.clone_ref(),loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None));
-                                infix.ast().clone_ref()
-                            }
-                        }
-                    },
-                    ast::Shape::SectionRight (ast::SectionRight{..}) => {
-                        let mut section = ast::known::SectionRight::try_new(ast.clone_ref())?;
-                        let opr         = ast::known::Opr::try_new(section.opr.clone_ref())?;
-
-                        match Assoc::of(&opr.name) {
-                            Assoc::Left  => Ast::new(ast::Infix {larg:ast,loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None),
-                            Assoc::Right => {
-                                section.update_shape(|s| s.arg = Ast::new(ast::Infix {larg:s.arg.clone_ref(),loff:1,opr:opr.ast().clone_ref(),roff:1,rarg:new},None));
-                                section.ast().clone_ref()
-                            }
-                        }
-                    },
-                    ast::Shape::Prefix(ast::Prefix{..}   ) => Ast::new(ast::Prefix {func:ast,off:1,arg:new},None),
-                    _ => return Err(AstSpanTreeMismatch.into()),
-                };
-                root.set_traversing(&self.ast_crumbs, new_ast)
-            })),
-            (Kind::Target  ,Some(Crumb::Prefix(PrefixCrumb::Arg))) |
-            (Kind::Argument,Some(Crumb::Prefix(PrefixCrumb::Arg))) => Some(Box::new(move |root,new| {
-                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let mut parent = ast::known::Prefix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.func = Ast::new(ast::Prefix {func:s.func.clone_ref(), off:1, arg:new}, None));
-                root.set_traversing(parent_crumb, parent.into())
-            })),
-            (Kind::Target,Some(Crumb::Infix(InfixCrumb::LeftOperand))) => Some(Box::new(move |root,new| {
-                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.larg = Ast::new(ast::Infix {larg:new,loff:1,opr:s.opr.clone_ref(),roff:1,rarg:s.larg.clone_ref()}, None));
-                root.set_traversing(parent_crumb, parent.into())
-            })),
-            (Kind::Target,Some(Crumb::Infix(InfixCrumb::RightOperand))) => Some(Box::new(move |root,new| {
-                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.rarg = Ast::new(ast::Infix {larg:new,loff:1,opr:s.opr.clone_ref(),roff:1,rarg:s.rarg.clone_ref()}, None));
-                root.set_traversing(parent_crumb, parent.into())
-            })),
-            (Kind::Argument,Some(Crumb::Infix(InfixCrumb::LeftOperand))) => Some(Box::new(move |root,new| {
-                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                let opr    = parent.opr.clone_ref();
-                let new_parent = Ast::new(ast::Infix{larg:new,loff:1,opr,roff:1,rarg:parent.ast().clone_ref()},None);
-                root.set_traversing(parent_crumb,new_parent)
-            })),
-            (Kind::Argument,Some(Crumb::Infix(InfixCrumb::RightOperand))) => Some(Box::new(move |root,new| {
-                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-                let mut parent = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-                parent.update_shape(|s| s.larg = Ast::new(ast::Infix {larg:s.larg.clone_ref(),loff:1,opr:s.opr.clone_ref(),roff:1,rarg:new}, None));
-                root.set_traversing(parent_crumb, parent.into())
-            })),
-            _ => None,
+            Kind::Target | Kind::Argument if self.ast_crumbs.len() > 0 =>
+                &self.ast_crumbs[..self.ast_crumbs.len()-1]
+            _ => return None,
+        };
+        match (self.node.kind,self.ast_crumbs.last()) {
+            Kind::Target
         }
     }
 
@@ -234,6 +167,56 @@ impl<'x> Implementation for node::Ref<'x> {
     }
 }
 
+fn set_on_missing<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> FallibleResult<Ast> + 'a {
+    move |root,new| {
+        // The AST crumbs of missing nodes points to the Section AST node
+        let ast        = root.get_traversing(&node.ast_crumbs)?.clone_ref();
+        let mut infix  = GeneralizedInfix::try_new(&ast).ok_or(AstSpanTreeMismatch)?;
+        let node_index = node.crumbs.last();
+        match node_index {
+            Some(0) => { infix.left  = make_operand(new,DEFAULT_OFFSET); },
+            Some(2) => { infix.right = make_operand(new,DEFAULT_OFFSET); },
+            _       => return Err(AstSpanTreeMismatch.into()),
+        }
+        root.set_traversing(&node.ast_crumbs,infix.into_ast())
+    }
+}
+
+fn append<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> FallibleResult<Ast> + 'a {
+    move |root,new| {
+        let ast  = root.get_traversing(&node.ast_crumbs)?.clone_ref();
+        let item = Shifted{wrapped:new,off:DEFAULT_OFFSET};
+        let new_ast = if let Some(mut chain)  = ast::opr::Chain::try_new(&ast) {
+            match assoc(chain.operator) {
+                Assoc::Left  => { chain.push_operand(item) },
+                Assoc::Right => { chain.push_front_operand(item) },
+            }
+            chain.into_ast()
+        } else if let Some(mut chain) = ast::prefix::Chain::try_new(&ast) {
+            chain.args.push(item);
+            chain.into_ast()
+        };
+        root.set_traversing(&node.ast_crumbs, new_ast)
+    }
+}
+
+fn insert_before_target<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> FallibleResult<Ast> + 'a {
+    move |root,new| {
+        let parent_crumb = &node.ast_crumbs[..node.ast_crumbs.len()];
+        let parent       = root.get_traversing(parent_crumb)?;
+        let item         = Shifted{wrapped:new,off:DEFAULT_OFFSET};
+        let new_ast      = if let Some(mut chain) = ast::opr::Chain::try_new(&parent) {
+            match assoc(chain.operator) {
+                Assoc::Left  => { chain.push_front_operand(item) },
+                Assoc::Right => { chain.insert_operand(1,item)   },
+            }
+            chain.into_ast()
+        } else if let Some(mut chain) = ast::prefix::Chain::try_new(&ast) {
+            chain.args.
+        }
+        root.set_traversing(parent_crumb,new_ast)
+    }
+}
 
 
 // =============
