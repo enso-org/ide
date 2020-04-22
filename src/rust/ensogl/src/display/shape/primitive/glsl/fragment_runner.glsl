@@ -13,12 +13,15 @@ float alpha      = shape.color.color.raw.a;
 
 // This encoding needs to correspond to the decoding in the `Target` struct in
 // src\rust\ensogl\src\display\scene.rs
-uint instance_id_high = uint(input_instance_id) / uint(255);
-uint instance_id_low  = uint(input_instance_id) % uint(255);
+// See there for more explanation.
+uint pack1 = (uint(input_symbol_id) >> 4u) & 0x00FFu;
+uint pack2 = (uint(input_symbol_id) & 0x000Fu) << 4u;
+     pack2 = pack2 + ((uint(input_instance_id) & 0x0F00u) >> 8u);
+uint pack3 = uint(input_instance_id) & 0x00FFu;
 
 float alpha_no_aa = alpha > 0.5 ? 1.0 : 0.0;
 
-output_id = vec4(float(input_symbol_id) / 255.0, float(instance_id_high) / 255.0, float(instance_id_low) / 255.0, alpha_no_aa);
+output_id = vec4(float(pack1) / 255.0, float(pack2) / 255.0, float(pack3) / 255.0, alpha_no_aa);
 output_id.r *= alpha_no_aa;
 output_id.g *= alpha_no_aa;
 output_id.b *= alpha_no_aa;
