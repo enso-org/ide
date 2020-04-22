@@ -9,7 +9,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-use enso_prelude::*;
+use crate::prelude::*;
 
 use crate::common::UTCDateTime;
 use json_rpc::api::Result;
@@ -241,9 +241,9 @@ mod remote_client_tests {
     fn test_request<Fun, Fut, T>
     ( make_request:Fun
       , expected_method:&str
-      , expected_input:Value
-      , result:Value
-      , expected_output:T )
+      , expected_input:&Value
+      , result:&Value
+      , expected_output:&T )
         where Fun : FnOnce(&mut Client) -> Fut,
               Fut : Future<Output = Result<T>>,
               T   : Debug + PartialEq {
@@ -251,24 +251,24 @@ mod remote_client_tests {
         let mut fut     = Box::pin(make_request(&mut fixture.client));
 
         let request = fixture.transport.expect_message::<RequestMessage<Value>>();
-        assert_eq!(request.method, expected_method);
-        assert_eq!(request.params, expected_input);
+        assert_eq!(request.method, *expected_method);
+        assert_eq!(request.params, *expected_input);
 
         let response = Message::new_success(request.id, result);
         fixture.transport.mock_peer_message(response);
         fixture.executor.run_until_stalled();
         let output = poll_future_output(&mut fut).unwrap().unwrap();
-        assert_eq!(output, expected_output);
+        assert_eq!(output, *expected_output);
     }
 
     #[test]
     fn test_requests() {
         let unit_json               = json!(null);
         let project_id              = Uuid::default();
-        let project_id_json         = serde_json::to_value(&project_id).unwrap();
+        let project_id_json         = json!{"00000000-0000-0000-0000-000000000000"};
         let project_id_param_json   = json!({"projectId":project_id});
-        let ip_with_address         = IpWithSocket { host: "localhost".to_string(), port: 27015 };
-        let ip_with_address_json    = serde_json::to_value(&ip_with_address).unwrap();
+        let ip_with_address         = IpWithSocket{host:"localhost".to_string(),port:27015};
+        let ip_with_address_json    = json!({"host":"localhost","port":27015});
         let project_name            = String::from("HelloWorld");
         let project_name_json       = json!({"name":serde_json::to_value(&project_name).unwrap()});
         let number_of_projects      = 2;
@@ -284,45 +284,60 @@ mod remote_client_tests {
             last_opened : chrono::DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap()
         };
         let project_list      = vec![project1,project2];
-        let project_list_json = serde_json::to_value(&project_list).unwrap();
+        let project_list_json = json!([
+            {
+                "id"          : "00000000-0000-0000-0000-000000000000",
+                "last_opened" : "2020-01-07T21:25:26+00:00",
+                "name"        : "project1"
+            },
+            {
+                "id"          : "00000000-0000-0000-0000-000000000000",
+                "last_opened" : "2020-02-02T13:15:20+00:00",
+                "name"        : "project2"
+            }
+        ]);
 
         test_request(
             |client| client.list_recent(number_of_projects),
             "listRecent",
-            number_of_projects_json.clone(),
-            project_list_json.clone(),
-            project_list.clone()
+            &number_of_projects_json,
+            &project_list_json,
+            &project_list
         );
         test_request(
             |client| client.list_sample(number_of_projects),
             "listSample",
-            number_of_projects_json.clone(),
-            project_list_json.clone(),
-            project_list
+            &number_of_projects_json,
+            &project_list_json,
+            &project_list
         );
         test_request(
             |client| client.open_project(project_id.clone()),
             "openProject",
-            project_id_param_json.clone(),
-            ip_with_address_json.clone(),
-            ip_with_address.clone());
+            &project_id_param_json,
+            &ip_with_address_json,
+            &ip_with_address
+        );
         test_request(
             |client| client.close_project(project_id.clone()),
             "closeProject",
-            project_id_param_json.clone(),
-            unit_json.clone(),
-            ());
+            &project_id_param_json,
+            &unit_json,
+            &()
+        );
         test_request(
             |client| client.delete_project(project_id.clone()),
             "deleteProject",
-            project_id_param_json.clone(),
-            unit_json.clone(),
-            ());
+            &project_id_param_json,
+            &unit_json,
+            &()
+        );
         test_request(
             |client| client.create_project(project_name.clone()),
             "createProject",
-            project_name_json.clone(),
-            project_id_json.clone(),
-            project_id);
+            &project_name_json,
+            &project_id_json,
+            &project_id
+        );
     }
 }

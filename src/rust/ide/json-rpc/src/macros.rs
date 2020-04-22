@@ -32,19 +32,19 @@ macro_rules! make_arg {
     }
 }
 
-/// This macro reads a `trait Client` item and generates asynchronous methods for RPCs. Each method
+/// This macro reads a `trait API` item and generates asynchronous methods for RPCs. Each method
 /// should be signed with `MethodInput`, `camelCase`, `result` and `set_result` attributes. e.g.:
 /// ```rust,compile_fail
 /// make_rpc_method!{
-///     trait Client {
+///     trait API {
 ///         #[MethodInput=CallMePleaseInput,camelCase=callMePlease,result=call_me_please_result,set_result=set_call_me_please_result]
 ///         fn call_me_please(&self, my_number_is:String) -> ();
 ///     }
 /// }
 /// ```
 ///
-/// This macro generates an `Interface` trait and creates two structs implementing `Interface`
-/// called `RemoteClient`, with the actual RPC methods, and `MockClicn`, with mocked methods with
+/// This macro generates an `API` trait and creates two structs implementing `API`
+/// called `Client`, with the actual RPC methods, and `MockClient`, with mocked methods with
 /// return types setup by:
 /// ```rust,compile_fail
 ///     fn set_call_me_please_result
@@ -86,7 +86,7 @@ macro_rules! make_rpc_methods {
         }
 
         impl Client {
-                /// Create a new Project Manager client that will use given transport.
+                /// Create a new client that will use given transport.
                 pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
                     let handler = RefCell::new(Handler::new(transport));
                     Self { handler }

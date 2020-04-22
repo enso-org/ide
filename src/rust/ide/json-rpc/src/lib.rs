@@ -15,10 +15,10 @@
 pub mod api;
 pub mod error;
 pub mod handler;
+pub mod macros;
 pub mod messages;
 pub mod test_util;
 pub mod transport;
-pub mod macros;
 
 pub use api::RemoteMethodCall;
 pub use api::Result;
