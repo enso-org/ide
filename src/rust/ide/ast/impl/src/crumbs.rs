@@ -845,7 +845,7 @@ impl Crumbable for crate::Match<Ast> {
                 }
             }
         }
-        Box::new(crumbs.into_iter())
+        Box::new(crumbs.into_iter().rev())
     }
 }
 
@@ -1136,14 +1136,7 @@ pub type ChildAst<'a> = Located<&'a Ast>;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use crate::HasRepr;
-    use crate::SegmentExpr;
-    use crate::SegmentFmt;
-    use crate::SegmentPlain;
-    use crate::TextBlockLine;
-    use crate::TextLine;
-    use crate::TextLineFmt;
+    use crate::*;
 
     use utils::test::ExpectTuple;
 
@@ -1651,5 +1644,56 @@ mod tests {
         let item2 = item.clone().map(|item| item.len() );
         assert_eq!(item2.item,3);
         assert_eq!(item.crumbs,item2.crumbs);
+    }
+
+
+    // === Match ===
+
+    fn match_() -> Match<Ast> {
+        let pat = Rc::new(MacroPatternRaw::Nothing(MacroPatternRawNothing{}));
+        let tok = Rc::new(MacroPatternMatchRaw::Tok(MacroPatternMatchRawTok{
+            pat  : MacroPatternRawTok{spaced:None, ast:Ast::var("")},
+            elem : Shifted{off:0,wrapped:Ast::var("")},
+        }));
+        let body = Rc::new(MacroPatternMatchRaw::Seq(MacroPatternMatchRawSeq{
+            pat  : MacroPatternRawSeq{pat1:pat.clone(),pat2:pat.clone()},
+            elem : (tok.clone(),tok.clone()),
+        }));
+        let segs = ShiftedVec1 {
+            head : MacroMatchSegment{head:Ast::var(""),body:body.clone()},
+            tail : vec![]
+        };
+        Match{pfx:Some(body),segs,resolved:Ast::var("")}
+    }
+
+    #[test]
+    fn iterate_match() {
+        let (crumb1, crumb2) = match_().iter_subcrumbs().expect_tuple();
+        assert_eq!(crumb1, MatchCrumb{crumb:vec![PatternMatchCrumb::Seq{left:true}]});
+        assert_eq!(crumb2, MatchCrumb{crumb:vec![PatternMatchCrumb::Seq{left:false}]});
+    }
+
+    #[test]
+    fn mismatch_match() {
+        let match_     = match_();
+        let incorrect1 = match_.get(&MatchCrumb{crumb:vec![]});
+        let incorrect2 = match_.get(&MatchCrumb{crumb:vec![PatternMatchCrumb::Many{index:0}]});
+
+        incorrect1.expect_err("Using empty  crumb on match should fail");
+        incorrect2.expect_err("Using 'many' crumb on 'seq' should fail");
+    }
+
+    #[test]
+    fn modify_match() {
+        let crumb1 = MatchCrumb{crumb:vec![PatternMatchCrumb::Seq{left:true}]};
+        let crumb2 = MatchCrumb{crumb:vec![PatternMatchCrumb::Seq{left:false}]};
+        let match1 = match_();
+        let match2 = match1.set(&crumb1,Ast::var("X")).unwrap();
+
+        assert_eq!(match1.get(&crumb1).unwrap(),&Ast::var(""));
+        assert_eq!(match1.get(&crumb2).unwrap(),&Ast::var(""));
+        assert_eq!(match2.get(&crumb1).unwrap(),&Ast::var("X"));
+        assert_eq!(match2.get(&crumb2).unwrap(),&Ast::var(""));
+
     }
 }
