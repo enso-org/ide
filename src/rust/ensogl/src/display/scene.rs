@@ -126,7 +126,7 @@ impl Target {
     /// See the `encode` method for more information on the encoding.
     fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32,u32) {
         let value1 = (pack1 << 4) + (pack2 >> 4);
-        let value2 = pack3 + ((pack2 & 0x00FF) << 8);
+        let value2 = pack3 + ((pack2 & 0x000F) << 8);
         (value1, value2)
     }
 
@@ -146,14 +146,14 @@ impl Target {
     ///
     ///  Output
     ///
-    ///  byte1             byte2                byte3
-    /// -------    -----------------------     -------
-    /// | v1d |    | v1c[4..8] v2c[4..8] |     | v2d |
-    /// -------    -----------------------     -------
+    /// byte1                      byte2                      byte3
+    /// -----------------------    -----------------------     -------
+    /// | v2c[4..8] v1d[0..4] |    | v1d[4..8] v2c[4..8] |     | v2d |
+    /// -----------------------    -----------------------     -------
     ///
     fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
         let pack1 = (value1 >> 4u32) & 0x00FFu32;
-        let pack2 = (value1 & 0x00FFu32) << 4u32;
+        let pack2 = (value1 & 0x000Fu32) << 4u32;
         let pack2 = pack2 | ((value2 & 0x0F00u32) >> 8u32);
         let pack3 = value2 & 0x00FFu32;
         (pack1 as u8, pack2 as u8 , pack3 as u8)
@@ -211,6 +211,35 @@ mod target_tests {
         assert_valid_roundtrip( 512,   0);
         assert_valid_roundtrip(1024,  64);
         assert_valid_roundtrip(1024, 999);
+    }
+
+    #[test]
+    fn test_encoding() {
+        let pack   = Target::encode(0,0);
+        assert_eq!(pack.0,0);
+        assert_eq!(pack.1,0);
+        assert_eq!(pack.2,0);
+
+        let pack   = Target::encode(3,7);
+        assert_eq!(pack.0,0);
+        assert_eq!(pack.1,48);
+        assert_eq!(pack.2,7);
+
+        let pack   = Target::encode(3,256);
+        assert_eq!(pack.0,0);
+        assert_eq!(pack.1,49);
+        assert_eq!(pack.2,0);
+
+        let pack   = Target::encode(255,356);
+        assert_eq!(pack.0,15);
+        assert_eq!(pack.1,241);
+        assert_eq!(pack.2,100);
+
+        let pack   = Target::encode(256,356);
+        assert_eq!(pack.0,16);
+        assert_eq!(pack.1,1);
+        assert_eq!(pack.2,100);
+
     }
 }
 
