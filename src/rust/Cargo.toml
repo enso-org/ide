@@ -11,6 +11,7 @@ members = [
     "ide/enso-protocol",
     "ide/json-rpc",
     "ide/parser",
+    "ide/span-tree",
     "ide/utils",
 
     "lib/callback",
@@ -19,6 +20,7 @@ members = [
     "lib/debug-scenes",
     "lib/graph-editor",
     "lib/eval-tt",
+    "lib/flexer",
     "lib/frp",
     "lib/logger",
     "lib/macro-utils",
