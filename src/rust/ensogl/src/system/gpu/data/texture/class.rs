@@ -58,7 +58,7 @@ impl Drop for TextureBindGuard {
 /// For more background see: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texParameter
 ///
 #[derive(Copy,Clone,Debug,Default)]
-pub struct Parameters{
+pub struct Parameters {
     /// Specifies the setting for the texture magnification filter (`Context::TEXTURE_MIN_FILTER`).
     pub min_filter : MinFilterValue,
     /// Specifies the setting for the texture minification filter (`Context::TEXTURE_MAG_FILTER`).
@@ -75,7 +75,7 @@ pub struct Parameters{
 
 impl Parameters {
     /// Sets the context parameters in the given context.
-    pub fn set_parameters(&self, context:&Context){
+    pub fn set_parameters(&self, context:&Context) {
         let target = Context::TEXTURE_2D;
         context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter.0 as i32);
         context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter.0 as i32);
@@ -90,7 +90,7 @@ impl Parameters {
 /// Valid Parameters for the `gl.TEXTURE_MAG_FILTER` texture setting.
 /// Specifies how values are interpolated if the texture is rendered at a resolution that is
 /// lower than its native resolution.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy,Clone,Debug)]
 pub struct MagFilterValue(u32);
 
 #[allow(missing_docs)]
@@ -100,7 +100,7 @@ impl MagFilterValue {
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
-impl Default for MagFilterValue{
+impl Default for MagFilterValue {
     fn default() -> Self {
         Self::LINEAR
     }
@@ -109,7 +109,7 @@ impl Default for MagFilterValue{
 /// Valid Parameters for the `gl.TEXTURE_MIN_FILTER` texture setting.
 /// Specifies how values are interpolated if the texture is rendered at a resolution that is
 /// lower than its native resolution.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy,Clone,Debug)]
 pub struct MinFilterValue(u32);
 
 #[allow(missing_docs)]
@@ -123,7 +123,7 @@ impl MinFilterValue {
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
-impl Default for MinFilterValue{
+impl Default for MinFilterValue {
     fn default() -> Self {
         Self::LINEAR
     }
@@ -131,7 +131,7 @@ impl Default for MinFilterValue{
 
 /// Valid Parameters for the `gl.TEXTURE_WRAP_S` and `gl.TEXTURE_WRAP_T` texture setting.
 /// Specifies what happens if a texture is sampled out of bounds.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy,Clone,Debug)]
 pub struct WrapValue(u32);
 
 #[allow(missing_docs)]
@@ -142,7 +142,7 @@ impl WrapValue {
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
-impl Default for WrapValue{
+impl Default for WrapValue {
     fn default() -> Self {
         Self::CLAMP_TO_EDGE
     }
