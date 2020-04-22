@@ -10,6 +10,7 @@ use crate::notification;
 
 use data::text::TextChange;
 use enso_protocol::file_manager as fmc;
+use fmc::Client;
 use json_rpc::error::RpcError;
 use std::pin::Pin;
 
@@ -34,7 +35,7 @@ type Path = Rc<fmc::Path>;
 /// Module Controller, the plain text files are handled directly by File Manager Client.
 #[derive(Clone,CloneRef,Debug)]
 enum FileHandle {
-    PlainText {path:Path, file_manager:fmc::Client},
+    PlainText {path:Path, file_manager:Rc<fmc::RemoteClient>},
     Module    {controller:controller::Module },
 }
 
@@ -49,7 +50,7 @@ pub struct Handle {
 impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
-    pub fn new_for_plain_text(path:fmc::Path, file_manager:fmc::Client) -> Self {
+    pub fn new_for_plain_text(path:fmc::Path, file_manager:Rc<fmc::RemoteClient>) -> Self {
         let path = Rc::new(path);
         Self {
             file : FileHandle::PlainText {path,file_manager}
@@ -129,7 +130,7 @@ impl Handle {
 #[cfg(test)]
 impl Handle {
     /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> fmc::Client {
+    pub fn file_manager(&self) -> Rc<fmc::RemoteClient> {
         match &self.file {
             FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
             FileHandle::Module {controller}         => controller.file_manager.clone_ref()
@@ -158,7 +159,7 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let fm         = fmc::Client::new(MockTransport::new());
+            let fm         = Rc::new(fmc::RemoteClient::new(MockTransport::new()));
             let loc        = controller::module::Location::new("test");
             let parser     = Parser::new().unwrap();
             let module_res = controller::Module::new_mock(loc,"main = 2+2",default(),fm,parser);

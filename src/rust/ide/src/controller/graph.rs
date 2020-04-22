@@ -277,9 +277,9 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let fm       = enso_protocol::file_manager::Client::new(MockTransport::new());
             let loc      = controller::module::Location::new("Main");
             let parser   = Parser::new_or_panic();
+            let fm  = Rc::new(enso_protocol::file_manager::RemoteClient::new(MockTransport::new()));
             let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.graph_controller(graph_id).unwrap();
@@ -292,9 +292,9 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let fm     = enso_protocol::file_manager::Client::new(MockTransport::new());
             let loc    = controller::module::Location::new("Main");
             let parser = Parser::new_or_panic();
+            let fm  = Rc::new(enso_protocol::file_manager::RemoteClient::new(MockTransport::new()));
             let module = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
             let graph  = module.graph_controller(graph_id).unwrap();
             self.0.run_task(async move {

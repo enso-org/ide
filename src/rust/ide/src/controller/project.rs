@@ -22,7 +22,7 @@ type ModuleLocation = controller::module::Location;
 #[derive(Debug)]
 pub struct Handle {
     /// File Manager Client.
-    pub file_manager: fmc::Client,
+    pub file_manager: Rc<fmc::RemoteClient>,
     /// Cache of module controllers.
     pub module_registry: Rc<model::module::registry::Registry>,
     /// Parser handle.
@@ -35,7 +35,7 @@ impl Handle {
     /// The remote connection should be already established.
     pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
         Handle {
-            file_manager    : fmc::Client::new(file_manager_transport),
+            file_manager    : Rc::new(fmc::RemoteClient::new(file_manager_transport)),
             module_registry : default(),
             parser          : Parser::new_or_panic(),
         }
@@ -59,7 +59,7 @@ impl Handle {
                 Ok(controller::Text::new_for_module(module))
             },
             None => {
-                let fm = self.file_manager.clone_ref();
+                let fm = self.file_manager.clone();
                 Ok(controller::Text::new_for_plain_text(path,fm))
             }
         }
@@ -139,8 +139,8 @@ mod test {
             let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
             let another_ctrl = project_ctrl.text_controller(another_path.clone()).await.unwrap();
 
-            assert!(project_ctrl.file_manager.identity_equals(&text_ctrl   .file_manager()));
-            assert!(project_ctrl.file_manager.identity_equals(&another_ctrl.file_manager()));
+            assert!(Rc::ptr_eq(&project_ctrl.file_manager,&text_ctrl.file_manager()));
+            assert!(Rc::ptr_eq(&project_ctrl.file_manager,&another_ctrl.file_manager()));
             assert_eq!(path        , *text_ctrl   .file_path().deref()  );
             assert_eq!(another_path, *another_ctrl.file_path().deref()  );
         });

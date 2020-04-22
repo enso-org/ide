@@ -12,6 +12,7 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
+use enso_protocol::file_manager::Client;
 use enso_protocol::file_manager::Path;
 use nalgebra::Vector2;
 use shapely::shared;
