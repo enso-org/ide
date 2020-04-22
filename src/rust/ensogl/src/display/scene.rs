@@ -124,7 +124,7 @@ impl Target {
     /// Decode the symbol_id and instance_id that was encoded in the `fragment_runner`.
     ///
     /// See the `encode` method for more information on the encoding.
-    fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32, u32) {
+    fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32,u32) {
         let value1 = (pack1 << 4) + (pack2 >> 4);
         let value2 = pack3 + ((pack2 & 0x00FF) << 8);
         (value1, value2)

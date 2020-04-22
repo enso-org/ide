@@ -71,8 +71,6 @@ pub struct Parameters {
     pub wrap_t     : WrapValue,
 }
 
-
-
 impl Parameters {
     /// Sets the context parameters in the given context.
     pub fn set_parameters(&self, context:&Context) {
