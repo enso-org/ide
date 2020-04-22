@@ -270,21 +270,21 @@ pub enum DefCrumb {
 // === Match ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Debug,PartialEq,Eq,Hash)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub enum MatchCrumb {
     Pfx  {val:Vec<PatternMatchCrumb>        },
     Segs {val:SegmentMatchCrumb, index:usize},
 }
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub enum PatternMatchCrumb {
-    Seq  {left :bool },
+    Seq  {right:bool },
     Many {index:usize},
 }
 
 #[allow(missing_docs)]
-#[derive(Clone,Debug,PartialEq,Eq,Hash)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub enum SegmentMatchCrumb {
     Head,
     Body {val:Vec<PatternMatchCrumb>},
@@ -766,8 +766,8 @@ impl Crumbable for crate::Match<Ast> {
                     crate::Switch::Right(pat) => pattern = &pat.value,
                 }
                 crate::MacroPatternMatchRaw::Seq(pat) => {
-                    if let PatternMatchCrumb::Seq{left} = path.get_or_err(offset, "crumb")? {
-                        pattern = if *left {&pat.elem.0} else {&pat.elem.1};
+                    if let PatternMatchCrumb::Seq{right} = path.get_or_err(offset, "crumb")? {
+                        pattern = if *right {&pat.elem.1} else {&pat.elem.0};
                         offset += 1;
                     } else { return not_present("seq") }
                 },
@@ -843,14 +843,14 @@ impl Crumbable for crate::Match<Ast> {
                         },
                     },
                     crate::MacroPatternMatchRaw::Seq(pat) => {
-                        if let PatternMatchCrumb::Seq{left} = path.get_or_err(offset,"crumb")? {
+                        if let PatternMatchCrumb::Seq{right} = path.get_or_err(offset,"crumb")? {
                             offset += 1;
-                            if *left {
-                                pat.elem.0 = pat.elem.0.clone();
-                                pattern    = Rc::make_mut(&mut pat.elem.0);
-                            } else {
+                            if *right {
                                 pat.elem.1 = pat.elem.1.clone();
                                 pattern    = Rc::make_mut(&mut pat.elem.1);
+                            } else {
+                                pat.elem.0 = pat.elem.0.clone();
+                                pattern    = Rc::make_mut(&mut pat.elem.0);
                             }
                         } else { return not_present("seq") }
                     },
@@ -923,8 +923,8 @@ impl Crumbable for crate::Match<Ast> {
                     crate::MacroPatternMatchRaw::Seq(pat) => {
                         let mut crumb1 = crumb.clone();
                         let mut crumb2 = crumb.clone();
-                        crumb1.push(PatternMatchCrumb::Seq{left:true});
-                        crumb2.push(PatternMatchCrumb::Seq{left:false});
+                        crumb1.push(PatternMatchCrumb::Seq{right:false});
+                        crumb2.push(PatternMatchCrumb::Seq{right:true});
                         patterns.push((crumb2,&pat.elem.1));
                         patterns.push((crumb1,&pat.elem.0));
                     },
@@ -1772,8 +1772,8 @@ mod tests {
 
     #[test]
     fn iterate_match() {
-        let crumb1 = vec![PatternMatchCrumb::Seq{left:true}];
-        let crumb2 = vec![PatternMatchCrumb::Seq{left:false}];
+        let crumb1 = vec![PatternMatchCrumb::Seq{right:false}];
+        let crumb2 = vec![PatternMatchCrumb::Seq{right:true}];
         let (c1, c2, c3, c4, c5) = match_().iter_subcrumbs().expect_tuple();
         assert_eq!(c1, MatchCrumb::Pfx{val:crumb1.clone()});
         assert_eq!(c2, MatchCrumb::Pfx{val:crumb2.clone()});
@@ -1788,8 +1788,8 @@ mod tests {
         let incorrect1 = match_.get(&MatchCrumb::Pfx{val:vec![]});
         let incorrect2 = match_.get(&MatchCrumb::Pfx{val:vec![PatternMatchCrumb::Many{index:0}]});
         let incorrect3 = match_.get(&MatchCrumb::Pfx{val:vec![
-            PatternMatchCrumb::Seq{left:true},
-            PatternMatchCrumb::Seq{left:true},
+            PatternMatchCrumb::Seq{right:false},
+            PatternMatchCrumb::Seq{right:true},
         ]});
         incorrect1.expect_err("Using empty  crumb on match should fail");
         incorrect2.expect_err("Using 'many' crumb on 'seq' should fail");
@@ -1798,8 +1798,8 @@ mod tests {
 
     #[test]
     fn modify_match() {
-        let crumb1 = vec![PatternMatchCrumb::Seq{left:true}];
-        let crumb2 = vec![PatternMatchCrumb::Seq{left:false}];
+        let crumb1 = vec![PatternMatchCrumb::Seq{right:false}];
+        let crumb2 = vec![PatternMatchCrumb::Seq{right:true}];
         let crumb3 = MatchCrumb::Pfx{val:crumb1.clone()};
         let crumb4 = MatchCrumb::Pfx{val:crumb2.clone()};
         let crumb5 = MatchCrumb::Segs{val:SegmentMatchCrumb::Head,index:0};
