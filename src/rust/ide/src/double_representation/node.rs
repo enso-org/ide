@@ -77,6 +77,14 @@ impl NodeInfo {
         }
     }
 
+    /// AST of the node's pattern (assignment's left-hand side).
+    pub fn pattern(&self) -> Option<&Ast> {
+        match self {
+            NodeInfo::Binding   {infix} => Some(&infix.larg),
+            NodeInfo::Expression{ast}   => None,
+        }
+    }
+
     /// Mutable AST of the node's expression. Maintains ID.
     pub fn set_expression(&mut self, expression:Ast) {
         let id = self.id();

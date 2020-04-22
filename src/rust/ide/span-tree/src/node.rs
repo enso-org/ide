@@ -81,6 +81,35 @@ impl Node {
             _              => false,
         }
     }
+
+    /// Function that converts from `Ast` crumbs into `SpanTree` crumbs.
+    ///
+    /// `ast_crumbs` is an iterator that yields the crumbs to convert.
+    /// `crumbs_so_far` is a list of previously converted crumbs which will be prepended to the
+    /// returned result.
+    pub fn convert_crumbs(&self, mut ast_crumbs:impl Iterator<Item=ast::crumbs::Crumb>, mut crumbs_so_far:Vec<usize>) -> Option<Vec<usize>> {
+        if let Some(first_ast_crumb) = ast_crumbs.next() {
+            for (index,child) in self.children.iter().enumerate() {
+                let mut child_ast_crumbs = child.ast_crumbs.iter();
+                // Ignore non-matching children.
+                if child_ast_crumbs.next() == Some(&first_ast_crumb) {
+                    // If first crumb of the child matches, all others must match. Otherwise the
+                    // whole operation is a failure. We need to consume all matching ast crumbs.
+                    while let Some(child_ast_crumb) = child_ast_crumbs.next() {
+                        if Some(child_ast_crumb) != ast_crumbs.next().as_ref() {
+                            return None;
+                        }
+                    }
+                    crumbs_so_far.push(index);
+                    return child.node.convert_crumbs(ast_crumbs,crumbs_so_far);
+                }
+            }
+            // No matching child.
+            None
+        } else {
+            Some(crumbs_so_far)
+        }
+    }
 }
 
 /// A structure which contains `Node` being a child of some parent. It contains some additional

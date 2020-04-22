@@ -26,7 +26,6 @@ pub mod builder;
 
 pub use node::Node;
 
-
 /// Module gathering all commonly used traits for massive importing.
 pub mod traits {
     pub use crate::action::Actions;
@@ -42,8 +41,11 @@ pub mod prelude {
     pub use utils::fail::FallibleResult;
 }
 
-
 use prelude::*;
+
+
+
+pub type Crumbs = Vec<usize>;
 
 // ================
 // === SpanTree ===
@@ -73,5 +75,38 @@ impl SpanTree {
             crumbs     : default(),
             ast_crumbs : default()
         }
+    }
+
+    /// Converts `Ast` crumbs to `SpanTree` crumbs.
+    pub fn convert_crumbs(&self, ast_crumbs:impl ast::crumbs::IntoCrumbs) -> Option<Vec<usize>> {
+        self.root.convert_crumbs(ast::crumbs::iter_crumbs(ast_crumbs),default())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use ast::crumbs;
+
+    #[test]
+    fn ast_crumbs_to_span_tree_crumbs() {
+        let code = "1 + 2 + 3";
+        let ast  = parser::Parser::new_or_panic().parse_line(code).unwrap();
+        let tree = SpanTree::new(&ast).unwrap();
+
+        use ast::crumbs::InfixCrumb::*;
+        use ast::crumbs::PrefixCrumb::*;
+
+        assert_eq!(tree.convert_crumbs(crumbs![]),                         Some(vec![]));
+        assert_eq!(tree.convert_crumbs(crumbs![LeftOperand]),              Some(vec![0]));
+        assert_eq!(tree.convert_crumbs(crumbs![Operator]),                 Some(vec![1]));
+        assert_eq!(tree.convert_crumbs(crumbs![RightOperand]),             Some(vec![2]));
+        assert_eq!(tree.convert_crumbs(crumbs![LeftOperand,LeftOperand]),  Some(vec![0,0]));
+        assert_eq!(tree.convert_crumbs(crumbs![LeftOperand,Operator]),     Some(vec![0,1]));
+        assert_eq!(tree.convert_crumbs(crumbs![LeftOperand,RightOperand]), Some(vec![0,2]));
+
+        assert!(tree.convert_crumbs(crumbs![Arg]).is_none());
+        assert!(tree.convert_crumbs(crumbs![LeftOperand,Arg]).is_none());
+        assert!(tree.convert_crumbs(crumbs![RightOperand,LeftOperand]).is_none());
     }
 }

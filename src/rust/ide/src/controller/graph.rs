@@ -15,6 +15,9 @@ use crate::model::module::NodeMetadata;
 use crate::notification;
 
 use parser::Parser;
+use span_tree::SpanTree;
+use crate::double_representation::node::NodeInfo;
+use ast::crumbs::InfixCrumb;
 
 
 // ==============
@@ -78,6 +81,70 @@ impl NewNodeInfo {
             metadata      : default(),
             id            : default(),
             location_hint : LocationHint::End,
+        }
+    }
+}
+
+
+
+// ===================
+// === Connections ===
+// ===================
+
+/// Connection endpoint - a port on a node, described using span-tree crumbs.
+#[allow(missing_docs)]
+#[derive(Clone,Debug)]
+pub struct Endpoint {
+    pub node  : double_representation::node::Id,
+    pub crumb : span_tree::Crumbs,
+}
+
+/// Connection described using span-tree crumbs.
+#[allow(missing_docs)]
+#[derive(Clone,Debug)]
+pub struct Connection {
+    pub source      : Endpoint,
+    pub destination : Endpoint
+}
+
+
+/// Stores node's span trees: one for inputs (expression) and optionally another one for inputs
+/// (pattern).
+#[derive(Debug)]
+pub struct NodeTrees {
+    /// Describes node inputs, i.e. its expression.
+    pub inputs : SpanTree,
+    /// Describes node outputs, i.e. its pattern. `None` if a node is not an assignment.
+    pub outputs : Option<SpanTree>,
+}
+
+
+impl NodeTrees {
+    #[allow(missing_docs)]
+    pub fn new(node:&NodeInfo) -> Option<NodeTrees> {
+        let inputs  = SpanTree::new(node.expression()).ok()?;
+        let outputs = if let Some(pat) = node.pattern() {
+            Some(SpanTree::new(pat).ok()?)
+        } else {
+            None
+        };
+        Some(NodeTrees {inputs,outputs})
+    }
+
+    /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the span-tree
+    /// crumbs.
+    pub fn convert_crumbs(&self, ast_crumbs:&ast::Crumbs) -> Option<Vec<usize>> {
+        if let Some(outputs) = self.outputs.as_ref() {
+            // Node in assignment form. First crumb decides which span tree to use.
+            let tree = match ast_crumbs.get(0) {
+                Some(ast::crumbs::Crumb::Infix(InfixCrumb::LeftOperand)) => outputs,
+                Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => &self.inputs,
+                _ => return None,
+            };
+            tree.convert_crumbs(&ast_crumbs[1..])
+        } else {
+            // Expression node - there is only inputs span tree.
+            self.inputs.convert_crumbs(ast_crumbs)
         }
     }
 }
@@ -160,6 +227,32 @@ impl Handle {
             nodes.push(Node {info,metadata})
         }
         Ok(nodes)
+    }
+
+    /// Returns information about all the connections between graph's nodes.
+    pub fn connections(&self) -> FallibleResult<Vec<Connection>> {
+        let definition  = self.graph_definition_info()?;
+        let graph       = double_representation::graph::GraphInfo::from_definition(definition);
+        let connections = graph.connections();
+        let trees       = graph.nodes().iter().flat_map(|node| {
+            Some((node.id(), NodeTrees::new(node)?))
+        }).collect::<HashMap<_,_>>();
+
+        let convert_endpoint = |e:double_representation::connection::Endpoint| -> Option<Endpoint> {
+            let tree = trees.get(&e.node)?;
+            Some(Endpoint{
+                node: e.node,
+                crumb : tree.convert_crumbs(&e.crumbs)?,
+            })
+        };
+        let connections = connections.into_iter().flat_map(|c| {
+            Some(Connection {
+                source      : convert_endpoint(c.source)?,
+                destination : convert_endpoint(c.destination)?,
+            })
+        }).collect();
+
+        Ok(connections)
     }
 
     /// Updates the AST of the definition of this graph.
@@ -484,6 +577,21 @@ main =
             assert!(graph.module.node_metadata(id).is_err());
 
             module.expect_code(PROGRAM);
+        })
+    }
+
+    #[test]
+    fn graph_controller_connections_listing() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    x,y = get_pos
+    print x
+    print $ foo y";
+        test.run_graph_for_main(PROGRAM, "main", |module, graph| async move {
+            let connections = graph.connections();
+            println!("{:?}",graph.nodes());
+            println!("{:?}",connections);
         })
     }
 }
