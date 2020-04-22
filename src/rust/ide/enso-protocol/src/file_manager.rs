@@ -140,58 +140,59 @@ make_rpc_methods! {
 /// An interface containing all the available file management operations.
 trait Client {
     /// Copies a specified directory to another location.
-    #[MethodInput=CopyDirectoryInput,camelCase=copyDirectory,result=copy_directory_result,set_result=set_copy_directory_result]
+    #[MethodInput=CopyDirectoryInput,rpc_name="file/copy",result=copy_directory_result,set_result=set_copy_directory_result]
     fn copy_directory(&self, from:Path, to:Path) -> ();
 
     /// Copies a specified file to another location.
-    #[MethodInput=CopyFileInput,camelCase=copyFile,result=copy_file_result,set_result=set_copy_file_result]
+    #[MethodInput=CopyFileInput,rpc_name="file/copy",result=copy_file_result,set_result=set_copy_file_result]
     fn copy_file(&self, from:Path, to:Path) -> ();
 
     /// Deletes the specified file.
-    #[MethodInput=DeleteFileInput,camelCase=deleteFile,result=delete_file_result,
+    #[MethodInput=DeleteFileInput,rpc_name="file/delete",result=delete_file_result,
     set_result=set_delete_file_result]
     fn delete_file(&self, path:Path) -> ();
 
     /// Check if file exists.
-    #[MethodInput=ExistsInput,camelCase=exists,result=exists_result,set_result=set_exists_result]
+    #[MethodInput=ExistsInput,rpc_name="file/exists",result=exists_result,
+    set_result=set_exists_result]
     fn exists(&self, path:Path) -> bool;
 
     /// List all file-system objects in the specified path.
-    #[MethodInput=ListInput,camelCase=list,result=list_result,set_result=set_list_result]
+    #[MethodInput=ListInput,rpc_name="file/list",result=list_result,set_result=set_list_result]
     fn list(&self, path:Path) -> Vec<Path>;
 
     /// Moves directory to another location.
-    #[MethodInput=MoveDirectoryInput,camelCase=moveDirectory,result=move_directory_result,
+    #[MethodInput=MoveDirectoryInput,rpc_name="file/move",result=move_directory_result,
     set_result=set_move_directory_result]
     fn move_directory(&self, from:Path, to:Path) -> ();
 
     /// Moves file to another location.
-    #[MethodInput=MoveFileInput,camelCase=moveFile,result=move_file_result,
+    #[MethodInput=MoveFileInput,rpc_name="file/move",result=move_file_result,
     set_result=set_move_file_result]
     fn move_file(&self, from:Path, to:Path) -> ();
 
     /// Reads file's content as a String.
-    #[MethodInput=ReadInput,camelCase=read,result=read_result,set_result=set_read_result]
+    #[MethodInput=ReadInput,rpc_name="file/read",result=read_result,set_result=set_read_result]
     fn read(&self, path:Path) -> String;
 
     /// Gets file's status.
-    #[MethodInput=StatusInput,camelCase=status,result=status_result,set_result=set_status_result]
+    #[MethodInput=StatusInput,rpc_name="file/status",result=status_result,set_result=set_status_result]
     fn status(&self, path:Path) -> Attributes;
 
     /// Creates a file in the specified path.
-    #[MethodInput=TouchInput,camelCase=touch,result=touch_result,set_result=set_touch_result]
+    #[MethodInput=TouchInput,rpc_name="file/touch",result=touch_result,set_result=set_touch_result]
     fn touch(&self, path:Path) -> ();
 
     /// Writes String contents to a file in the specified path.
-    #[MethodInput=WriteInput,camelCase=write,result=write_result,set_result=set_write_result]
+    #[MethodInput=WriteInput,rpc_name="file/write",result=write_result,set_result=set_write_result]
     fn write(&self, path:Path, contents:String) -> ();
 
     /// Watches the specified path.
-    #[MethodInput=CreateWatchInput,camelCase=createWatch,result=create_watch_result,set_result=set_create_watch_result]
+    #[MethodInput=CreateWatchInput,rpc_name="file/createWatch",result=create_watch_result,set_result=set_create_watch_result]
     fn create_watch(&self, path:Path) -> Uuid;
 
     /// Delete the specified watcher.
-    #[MethodInput=DeleteWatchInput,camelCase=deleteWatch,result=delete_watch_result,
+    #[MethodInput=DeleteWatchInput,rpc_name="file/deleteWatch",result=delete_watch_result,
     set_result=set_delete_watch_result]
     fn delete_watch(&self, watch_id:Uuid) -> ();
 }
@@ -303,25 +304,25 @@ mod tests {
 
         test_request(
             |client| client.copy_directory(main.clone(), target.clone()),
-            "copyDirectory",
+            "file/copy",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.copy_file(main.clone(), target.clone()),
-            "copyFile",
+            "file/copy",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.delete_file(main.clone()),
-            "deleteFile",
+            "file/delete",
             path_main.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.exists(main.clone()),
-            "exists",
+            "file/exists",
             path_main.clone(),
             true_json,
             true);
@@ -330,25 +331,25 @@ mod tests {
         let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
         test_request(
             |client| client.list(main.clone()),
-            "list",
+            "file/list",
             path_main.clone(),
             list_response_json,
             list_response_value);
         test_request(
             |client| client.move_directory(main.clone(), target.clone()),
-            "moveDirectory",
+            "file/move",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.move_file(main.clone(), target.clone()),
-            "moveFile",
+            "file/move",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.read(main.clone()),
-            "read",
+            "file/read",
             path_main.clone(),
             json!("Hello world!"),
             "Hello world!".into());
@@ -372,19 +373,19 @@ mod tests {
         });
         test_request(
             |client| client.status(main.clone()),
-            "status",
+            "file/status",
             path_main.clone(),
             sample_attributes_json,
             expected_attributes);
         test_request(
             |client| client.touch(main.clone()),
-            "touch",
+            "file/touch",
             path_main.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.write(main.clone(), "Hello world!".into()),
-            "write",
+            "file/write",
             json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
             unit_json.clone(),
             ());
@@ -393,7 +394,7 @@ mod tests {
         let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
         test_request(
             |client| client.create_watch(main.clone()),
-            "createWatch",
+            "file/createWatch",
             path_main.clone(),
             uuid_json.clone(),
             uuid_value);
@@ -402,7 +403,7 @@ mod tests {
         });
         test_request(
             |client| client.delete_watch(uuid_value.clone()),
-            "deleteWatch",
+            "file/deleteWatch",
             watch_id.clone(),
             unit_json.clone(),
             ());

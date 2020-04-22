@@ -33,7 +33,7 @@ macro_rules! make_arg {
 }
 
 /// This macro reads a `trait API` item and generates asynchronous methods for RPCs. Each method
-/// should be signed with `MethodInput`, `camelCase`, `result` and `set_result` attributes. e.g.:
+/// should be signed with `MethodInput`, `rpc_name`, `result` and `set_result` attributes. e.g.:
 /// ```rust,compile_fail
 /// make_rpc_method!{
 ///     trait API {
@@ -56,7 +56,7 @@ macro_rules! make_rpc_methods {
     $(#[doc = $impl_doc:expr])+
     trait Client {
         $($(#[doc = $doc:expr])+
-        #[MethodInput=$method_input:ident,camelCase=$camelCase:ident,result=$method_result:ident,
+        #[MethodInput=$method_input:ident,rpc_name=$rpc_name:expr,result=$method_result:ident,
         set_result=$set_result:ident]
         fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
         )*
@@ -123,7 +123,7 @@ macro_rules! make_rpc_methods {
             }
 
             impl json_rpc::RemoteMethodCall for $method_input {
-                const NAME:&'static str = stringify!($camelCase);
+                const NAME:&'static str = $rpc_name;
                 type Returned = $result;
             }
         )*
