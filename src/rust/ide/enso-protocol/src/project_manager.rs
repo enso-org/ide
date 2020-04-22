@@ -106,7 +106,7 @@ pub struct ProjectMetaData {
 
 #[cfg(test)]
 mod mock_client_tests {
-    use super::Client;
+    use super::API;
     use super::MockClient;
     use super::IpWithSocket;
     use super::ProjectMetaData;
@@ -201,9 +201,9 @@ mod mock_client_tests {
 
 
 
-// ==========================
-// === RemoteClient tests ===
-// ==========================
+// ====================
+// === Client tests ===
+// ====================
 
 #[cfg(test)]
 mod remote_client_tests {
@@ -220,13 +220,13 @@ mod remote_client_tests {
 
     struct Fixture {
         transport : MockTransport,
-        client    : RemoteClient,
+        client    : Client,
         executor  : futures::executor::LocalPool,
     }
 
     fn setup_fm() -> Fixture {
         let transport = MockTransport::new();
-        let client    = RemoteClient::new(transport.clone());
+        let client    = Client::new(transport.clone());
         let executor  = futures::executor::LocalPool::new();
         executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}
@@ -244,7 +244,7 @@ mod remote_client_tests {
       , expected_input:Value
       , result:Value
       , expected_output:T )
-        where Fun : FnOnce(&mut RemoteClient) -> Fut,
+        where Fun : FnOnce(&mut Client) -> Fut,
               Fut : Future<Output = Result<T>>,
               T   : Debug + PartialEq {
         let mut fixture = setup_fm();

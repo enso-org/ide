@@ -61,12 +61,12 @@ macro_rules! make_rpc_methods {
         fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
         )*
     }) => {
-        // ==============
-        // === Client ===
-        // ==============
+        // ===========
+        // === API ===
+        // ===========
 
         $(#[doc = $impl_doc])+
-        pub trait Client {
+        pub trait API {
             $($(#[doc = $doc])+
             fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>>;
             )*
@@ -74,18 +74,18 @@ macro_rules! make_rpc_methods {
 
 
 
-        // ====================
-        // === RemoteClient ===
-        // ====================
+        // ==============
+        // === Client ===
+        // ==============
 
         $(#[doc = $impl_doc])+
         #[derive(Debug)]
-        pub struct RemoteClient {
+        pub struct Client {
             /// JSON-RPC protocol handler.
             handler : RefCell<Handler<Notification>>,
         }
 
-        impl RemoteClient {
+        impl Client {
                 /// Create a new Project Manager client that will use given transport.
                 pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
                     let handler = RefCell::new(Handler::new(transport));
@@ -107,7 +107,7 @@ macro_rules! make_rpc_methods {
                 }
         }
 
-        impl Client for RemoteClient {
+        impl API for Client {
             $(fn $method(&self, $($param_name:$param_ty),*) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                 let input = $method_input { $($param_name:$param_name),* };
                 Box::pin(self.handler.borrow().open_request(input))
@@ -140,7 +140,7 @@ macro_rules! make_rpc_methods {
             $($method_result : RefCell<HashMap<make_param_map!($(,$param_ty)+),Result<$result>>>,)*
         }
 
-        impl Client for MockClient {
+        impl API for MockClient {
             $(fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                 let mut result = self.$method_result.borrow_mut();
                 let result     = result.remove(&make_arg!($($param_name),+)).unwrap();

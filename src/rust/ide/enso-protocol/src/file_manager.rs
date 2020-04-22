@@ -219,13 +219,13 @@ mod tests {
 
     struct Fixture {
         transport : MockTransport,
-        client    : RemoteClient,
+        client    : Client,
         executor  : futures::executor::LocalPool,
     }
 
     fn setup_fm() -> Fixture {
         let transport = MockTransport::new();
-        let client    = RemoteClient::new(transport.clone());
+        let client    = Client::new(transport.clone());
         let executor  = futures::executor::LocalPool::new();
         executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}
@@ -271,7 +271,7 @@ mod tests {
     , expected_input:Value
     , result:Value
     , expected_output:T )
-    where Fun : FnOnce(&mut RemoteClient) -> Fut,
+    where Fun : FnOnce(&mut Client) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
         let mut fixture = setup_fm();

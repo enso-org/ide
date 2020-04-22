@@ -22,7 +22,7 @@ type ModuleLocation = controller::module::Location;
 #[derive(Debug)]
 pub struct Handle {
     /// File Manager Client.
-    pub file_manager: Rc<fmc::RemoteClient>,
+    pub file_manager: Rc<fmc::Client>,
     /// Cache of module controllers.
     pub module_registry: Rc<model::module::registry::Registry>,
     /// Parser handle.
@@ -35,7 +35,7 @@ impl Handle {
     /// The remote connection should be already established.
     pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
         Handle {
-            file_manager    : Rc::new(fmc::RemoteClient::new(file_manager_transport)),
+            file_manager    : Rc::new(fmc::Client::new(file_manager_transport)),
             module_registry : default(),
             parser          : Parser::new_or_panic(),
         }

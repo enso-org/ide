@@ -14,7 +14,7 @@ use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
 use enso_protocol::file_manager as fmc;
-use fmc::Client;
+use fmc::API;
 use parser::Parser;
 
 
@@ -72,7 +72,7 @@ pub struct Handle {
     /// The current state of module.
     pub model: Rc<model::Module>,
     /// The File Manager Client handle.
-    pub file_manager : Rc<fmc::RemoteClient>,
+    pub file_manager : Rc<fmc::Client>,
     /// The Parser handle.
     parser : Parser,
     /// The logger handle.
@@ -84,7 +84,7 @@ impl Handle {
     ///
     /// It may wait for module content, because the module must initialize its state.
     pub fn new
-    (location:Location, model:Rc<model::Module>, file_manager:Rc<fmc::RemoteClient>, parser:Parser)
+    (location:Location, model:Rc<model::Module>, file_manager:Rc<fmc::Client>, parser:Parser)
     -> Self {
         let logger = Logger::new(format!("Module Controller {}", location));
         Handle {location,model,file_manager,parser,logger}
@@ -167,7 +167,7 @@ impl Handle {
     ( location     : Location
     , code         : &str
     , id_map       : ast::IdMap
-    , file_manager : Rc<fmc::RemoteClient>
+    , file_manager : Rc<fmc::Client>
     , parser       : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
@@ -220,7 +220,7 @@ mod test {
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
-            let file_manager = Rc::new(fmc::RemoteClient::new(transport));
+            let file_manager = Rc::new(fmc::Client::new(transport));
             let parser       = Parser::new().unwrap();
             let location     = Location::new("Test");
 
