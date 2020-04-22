@@ -12,16 +12,14 @@
 use enso_prelude::*;
 
 use crate::common::UTCDateTime;
-use crate::make_rpc_method;
-use crate::make_rpc_methods;
-use crate::make_param_map;
-use crate::make_arg;
+use json_rpc::make_rpc_methods;
+use json_rpc::make_param_map;
+use json_rpc::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
-use shapely::shared;
 use std::future::Future;
 use uuid::Uuid;
 
@@ -139,57 +137,61 @@ pub enum FileKind {
 
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
-impl {
+trait Client {
     /// Copies a specified directory to another location.
-    #[CamelCase=CopyDirectory,camelCase=copyDirectory]
+    #[MethodInput=CopyDirectoryInput,camelCase=copyDirectory,result=copy_directory_result,set_result=set_copy_directory_result]
     fn copy_directory(&self, from:Path, to:Path) -> ();
 
     /// Copies a specified file to another location.
-    #[CamelCase=CopyFile,camelCase=copyFile]
+    #[MethodInput=CopyFileInput,camelCase=copyFile,result=copy_file_result,set_result=set_copy_file_result]
     fn copy_file(&self, from:Path, to:Path) -> ();
 
     /// Deletes the specified file.
-    #[CamelCase=DeleteFile,camelCase=deleteFile]
+    #[MethodInput=DeleteFileInput,camelCase=deleteFile,result=delete_file_result,
+    set_result=set_delete_file_result]
     fn delete_file(&self, path:Path) -> ();
 
     /// Check if file exists.
-    #[CamelCase=Exists,camelCase=exists]
+    #[MethodInput=ExistsInput,camelCase=exists,result=exists_result,set_result=set_exists_result]
     fn exists(&self, path:Path) -> bool;
 
     /// List all file-system objects in the specified path.
-    #[CamelCase=List,camelCase=list]
+    #[MethodInput=ListInput,camelCase=list,result=list_result,set_result=set_list_result]
     fn list(&self, path:Path) -> Vec<Path>;
 
     /// Moves directory to another location.
-    #[CamelCase=MoveDirectory,camelCase=moveDirectory]
+    #[MethodInput=MoveDirectoryInput,camelCase=moveDirectory,result=move_directory_result,
+    set_result=set_move_directory_result]
     fn move_directory(&self, from:Path, to:Path) -> ();
 
     /// Moves file to another location.
-    #[CamelCase=MoveFile,camelCase=moveFile]
+    #[MethodInput=MoveFileInput,camelCase=moveFile,result=move_file_result,
+    set_result=set_move_file_result]
     fn move_file(&self, from:Path, to:Path) -> ();
 
     /// Reads file's content as a String.
-    #[CamelCase=Read,camelCase=read]
+    #[MethodInput=ReadInput,camelCase=read,result=read_result,set_result=set_read_result]
     fn read(&self, path:Path) -> String;
 
     /// Gets file's status.
-    #[CamelCase=Status,camelCase=status]
+    #[MethodInput=StatusInput,camelCase=status,result=status_result,set_result=set_status_result]
     fn status(&self, path:Path) -> Attributes;
 
     /// Creates a file in the specified path.
-    #[CamelCase=Touch,camelCase=touch]
+    #[MethodInput=TouchInput,camelCase=touch,result=touch_result,set_result=set_touch_result]
     fn touch(&self, path:Path) -> ();
 
     /// Writes String contents to a file in the specified path.
-    #[CamelCase=Write,camelCase=write]
+    #[MethodInput=WriteInput,camelCase=write,result=write_result,set_result=set_write_result]
     fn write(&self, path:Path, contents:String) -> ();
 
     /// Watches the specified path.
-    #[CamelCase=CreateWatch,camelCase=createWatch]
+    #[MethodInput=CreateWatchInput,camelCase=createWatch,result=create_watch_result,set_result=set_create_watch_result]
     fn create_watch(&self, path:Path) -> Uuid;
 
     /// Delete the specified watcher.
-    #[CamelCase=DeleteWatch,camelCase=deleteWatch]
+    #[MethodInput=DeleteWatchInput,camelCase=deleteWatch,result=delete_watch_result,
+    set_result=set_delete_watch_result]
     fn delete_watch(&self, watch_id:Uuid) -> ();
 }
 }
@@ -217,14 +219,14 @@ mod tests {
 
     struct Fixture {
         transport : MockTransport,
-        client    : Client,
+        client    : RemoteClient,
         executor  : futures::executor::LocalPool,
     }
 
     fn setup_fm() -> Fixture {
-        let transport  = MockTransport::new();
-        let client     = Client::new(transport.clone());
-        let executor   = futures::executor::LocalPool::new();
+        let transport = MockTransport::new();
+        let client    = RemoteClient::new(transport.clone());
+        let executor  = futures::executor::LocalPool::new();
         executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}
     }
@@ -269,7 +271,7 @@ mod tests {
     , expected_input:Value
     , result:Value
     , expected_output:T )
-    where Fun : FnOnce(&mut Client) -> Fut,
+    where Fun : FnOnce(&mut RemoteClient) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
         let mut fixture = setup_fm();

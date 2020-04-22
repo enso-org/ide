@@ -12,16 +12,14 @@
 use enso_prelude::*;
 
 use crate::common::UTCDateTime;
-use crate::make_rpc_method;
-use crate::make_rpc_methods;
-use crate::make_param_map;
-use crate::make_arg;
 use json_rpc::api::Result;
 use json_rpc::Handler;
+use json_rpc::make_rpc_methods;
+use json_rpc::make_param_map;
+use json_rpc::make_arg;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
-use shapely::shared;
 use std::future::Future;
 use uuid::Uuid;
 
@@ -52,35 +50,35 @@ pub enum Notification {}
 // === RPC Methods ===
 // ===================
 
-// TODO[DG]: Wrap macro_rule with #[derive(JsonRpcInterface)]
 make_rpc_methods! {
 /// An interface containing all the available project management operations.
-impl {
+trait Client {
     /// Requests that the project picker open a specified project. This operation also
     /// includes spawning an instance of the language server open on the specified project.
-    #[CamelCase=OpenProject,camelCase=openProject]
+    #[MethodInput=OpenProjectInput,camelCase=openProject,result=open_project_result,set_result=set_open_project_result]
     fn open_project(&self, project_id:Uuid) -> IpWithSocket;
 
     /// Requests that the project picker close a specified project. This operation
-    /// includes shutting down the language server gracefully so that it can persist state to disk as needed.
-    #[CamelCase=CloseProject,camelCase=closeProject]
+    /// includes shutting down the language server gracefully so that it can persist state to disk
+    /// as needed.
+    #[MethodInput=CloseProjectInput,camelCase=closeProject,result=close_project_result,set_result=set_close_project_result]
     fn close_project(&self, project_id:Uuid) -> ();
 
     /// Requests that the project picker lists the user's most recently opened
     /// projects.
-    #[CamelCase=ListRecent,camelCase=listRecent]
+    #[MethodInput=ListRecentInput,camelCase=listRecent,result=list_recent_result,set_result=set_list_recent_result]
     fn list_recent(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
 
     /// Requests the creation of a new project.
-    #[CamelCase=CreateProject,camelCase=createProject]
+    #[MethodInput=CreateProjectInput,camelCase=createProject,result=create_project_result,set_result=set_create_project_result]
     fn create_project(&self, name:String) -> Uuid;
 
     /// Requests the deletion of a project.
-    #[CamelCase=DeleteProject,camelCase=deleteProject]
+    #[MethodInput=DeleteProjectInput,camelCase=deleteProject,result=delete_project_result,set_result=set_delete_project_result]
     fn delete_project(&self, project_id:Uuid) -> ();
 
     /// Requests a list of sample projects that are available to the user.
-    #[CamelCase=ListSample,camelCase=listSample]
+    #[MethodInput=ListSampleInput,camelCase=listSample,result=list_sample_result,set_result=set_list_sample_result]
     fn list_sample(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
 }
 }
@@ -108,10 +106,10 @@ pub struct ProjectMetaData {
 
 #[cfg(test)]
 mod test {
-    use super::Mock;
+    use super::Client;
+    use super::MockClient;
     use super::IpWithSocket;
     use super::ProjectMetaData;
-    use super::Interface;
     use uuid::Uuid;
     use json_rpc::error::RpcError;
     use json_rpc::messages::Error;
@@ -135,7 +133,7 @@ mod test {
 
     #[test]
     fn project_life_cycle() {
-        let mock_client             = Mock::default();
+        let mock_client             = MockClient::default();
         let expected_uuid           = Uuid::default();
         let host                    = "localhost".to_string();
         let port                    = 30500;
@@ -168,7 +166,7 @@ mod test {
 
     #[test]
     fn list_projects() {
-        let mock_client = Mock::default();
+        let mock_client = MockClient::default();
         let project1    = ProjectMetaData {
             name        : "project1".to_string(),
             id          : Uuid::default(),
