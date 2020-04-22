@@ -216,7 +216,6 @@ mod remote_client_tests {
     use serde_json::Value;
     use std::future::Future;
     use utils::test::poll_future_output;
-    use utils::test::poll_stream_output;
     use futures::task::LocalSpawnExt;
 
     struct Fixture {
@@ -264,142 +263,66 @@ mod remote_client_tests {
 
     #[test]
     fn test_requests() {
-        // let main                = Path::new("./Main.luna");
-        // let target              = Path::new("./Target.luna");
-        // let path_main           = json!({"path" : "./Main.luna"});
-        // let from_main_to_target = json!({
-        //     "from" : "./Main.luna",
-        //     "to"   : "./Target.luna"
-        // });
-        // let true_json = json!(true);
-        let unit_json            = json!(null);
-        let project_id           = Uuid::default();
-        let project_id_json      = json!({"projectId":project_id});
-        let ip_with_address      = IpWithSocket { host: "localhost".to_string(), port: 27015 };
-        let ip_with_address_json = serde_json::to_value(&ip_with_address).unwrap();
-        let project_name         = String::from("HelloWorld");
-        let project_name_json    = json!({"name":serde_json::to_value(&project_name).unwrap()});
+        let unit_json               = json!(null);
+        let project_id              = Uuid::default();
+        let project_id_json         = serde_json::to_value(&project_id).unwrap();
+        let project_id_param_json   = json!({"projectId":project_id});
+        let ip_with_address         = IpWithSocket { host: "localhost".to_string(), port: 27015 };
+        let ip_with_address_json    = serde_json::to_value(&ip_with_address).unwrap();
+        let project_name            = String::from("HelloWorld");
+        let project_name_json       = json!({"name":serde_json::to_value(&project_name).unwrap()});
+        let number_of_projects      = 2;
+        let number_of_projects_json = json!({"numberOfProjects":number_of_projects});
+        let project1                = ProjectMetaData {
+            name        : "project1".to_string(),
+            id          : Uuid::default(),
+            last_opened : chrono::DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap()
+        };
+        let project2 = ProjectMetaData {
+            name        : "project2".to_string(),
+            id          : Uuid::default(),
+            last_opened : chrono::DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap()
+        };
+        let project_list      = vec![project1,project2];
+        let project_list_json = serde_json::to_value(&project_list).unwrap();
 
-        // fn list_recent(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
-        // fn create_project(&self, name:String) -> Uuid;
-        // fn list_sample(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
-
+        test_request(
+            |client| client.list_recent(number_of_projects),
+            "listRecent",
+            number_of_projects_json.clone(),
+            project_list_json.clone(),
+            project_list.clone()
+        );
+        test_request(
+            |client| client.list_sample(number_of_projects),
+            "listSample",
+            number_of_projects_json.clone(),
+            project_list_json.clone(),
+            project_list
+        );
         test_request(
             |client| client.open_project(project_id.clone()),
             "openProject",
-            project_id_json.clone(),
+            project_id_param_json.clone(),
             ip_with_address_json.clone(),
             ip_with_address.clone());
         test_request(
             |client| client.close_project(project_id.clone()),
             "closeProject",
-            project_id_json.clone(),
+            project_id_param_json.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.delete_project(project_id.clone()),
             "deleteProject",
-            project_id_json.clone(),
+            project_id_param_json.clone(),
             unit_json.clone(),
             ());
-        // test_request(
-        //     |client| client.create_project(project_name.clone()),
-        //     "createProject",
-        //     project_name_json.clone(),
-        //     project_id_json.clone(),
-        //     project_id);
-        // test_request(
-        //     |client| client.delete_file(main.clone()),
-        //     "deleteFile",
-        //     path_main.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.exists(main.clone()),
-        //     "exists",
-        //     path_main.clone(),
-        //     true_json,
-        //     true);
-        //
-        // let list_response_json  = json!([          "Bar.luna",           "Foo.luna" ]);
-        // let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
-        // test_request(
-        //     |client| client.list(main.clone()),
-        //     "list",
-        //     path_main.clone(),
-        //     list_response_json,
-        //     list_response_value);
-        // test_request(
-        //     |client| client.move_directory(main.clone(), target.clone()),
-        //     "moveDirectory",
-        //     from_main_to_target.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.move_file(main.clone(), target.clone()),
-        //     "moveFile",
-        //     from_main_to_target.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.read(main.clone()),
-        //     "read",
-        //     path_main.clone(),
-        //     json!("Hello world!"),
-        //     "Hello world!".into());
-        //
-        // let parse_rfc3339 = |s| {
-        //     chrono::DateTime::parse_from_rfc3339(s).unwrap()
-        // };
-        // let expected_attributes = Attributes {
-        //     creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
-        //     last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
-        //     last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
-        //     file_kind          : RegularFile,
-        //     byte_size          : 125125,
-        // };
-        // let sample_attributes_json = json!({
-        //     "creationTime"      : "2020-01-07T21:25:26Z",
-        //     "lastAccessTime"    : "2020-01-21T22:16:51.123994500+00:00",
-        //     "lastModifiedTime"  : "2020-01-07T21:25:26Z",
-        //     "fileKind"          : "RegularFile",
-        //     "byteSize"          : 125125
-        // });
-        // test_request(
-        //     |client| client.status(main.clone()),
-        //     "status",
-        //     path_main.clone(),
-        //     sample_attributes_json,
-        //     expected_attributes);
-        // test_request(
-        //     |client| client.touch(main.clone()),
-        //     "touch",
-        //     path_main.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.write(main.clone(), "Hello world!".into()),
-        //     "write",
-        //     json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
-        //     unit_json.clone(),
-        //     ());
-        //
-        // let uuid_value = uuid::Uuid::parse_str("02723954-fbb0-4641-af53-cec0883f260a").unwrap();
-        // let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
-        // test_request(
-        //     |client| client.create_watch(main.clone()),
-        //     "createWatch",
-        //     path_main.clone(),
-        //     uuid_json.clone(),
-        //     uuid_value);
-        // let watch_id   = json!({
-        //     "watchId" : "02723954-fbb0-4641-af53-cec0883f260a"
-        // });
-        // test_request(
-        //     |client| client.delete_watch(uuid_value.clone()),
-        //     "deleteWatch",
-        //     watch_id.clone(),
-        //     unit_json.clone(),
-        //     ());
+        test_request(
+            |client| client.create_project(project_name.clone()),
+            "createProject",
+            project_name_json.clone(),
+            project_id_json.clone(),
+            project_id);
     }
 }
