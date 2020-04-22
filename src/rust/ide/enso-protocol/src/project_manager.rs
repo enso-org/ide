@@ -204,209 +204,202 @@ mod mock_client_tests {
 // ==========================
 // === RemoteClient tests ===
 // ==========================
-//
-// #[cfg(test)]
-// mod remote_client_tests {
-//     use super::*;
-//     use super::FileKind::RegularFile;
-//
-//     use json_rpc::messages::Message;
-//     use json_rpc::messages::RequestMessage;
-//     use json_rpc::test_util::transport::mock::MockTransport;
-//     use serde_json::json;
-//     use serde_json::Value;
-//     use std::future::Future;
-//     use utils::test::poll_future_output;
-//     use utils::test::poll_stream_output;
-//     use futures::task::LocalSpawnExt;
-//
-//     struct Fixture {
-//         transport : MockTransport,
-//         client    : RemoteClient,
-//         executor  : futures::executor::LocalPool,
-//     }
-//
-//     fn setup_fm() -> Fixture {
-//         let transport = MockTransport::new();
-//         let client    = RemoteClient::new(transport.clone());
-//         let executor  = futures::executor::LocalPool::new();
-//         executor.spawner().spawn_local(client.runner()).unwrap();
-//         Fixture {transport,client,executor}
-//     }
-//
-//     #[test]
-//     fn test_notification() {
-//         let mut fixture = setup_fm();
-//         let mut events  = Box::pin(fixture.client.events());
-//         assert!(poll_stream_output(&mut events).is_none());
-//
-//         let expected_notification = FilesystemEvent {
-//             path : Path::new("./Main.luna"),
-//             kind : FilesystemEventKind::Modified,
-//         };
-//         let notification_text = r#"{
-//             "jsonrpc": "2.0",
-//             "method": "filesystemEvent",
-//             "params": {"path" : "./Main.luna", "kind" : "Modified"}
-//         }"#;
-//         fixture.transport.mock_peer_message_text(notification_text);
-//         assert!(poll_stream_output(&mut events).is_none());
-//
-//         fixture.executor.run_until_stalled();
-//
-//         let event = poll_stream_output(&mut events);
-//         if let Some(Event::Notification(n)) = event {
-//             assert_eq!(n, Notification::FilesystemEvent(expected_notification));
-//         } else {
-//             panic!("expected notification event");
-//         }
-//     }
-//
-//     /// Tests making a request using file manager:
-//     /// * creates FM client and uses `make_request` to make a request
-//     /// * checks that request is made for `expected_method`
-//     /// * checks that request input is `expected_input`
-//     /// * mocks receiving a response from server with `result`
-//     /// * checks that FM-returned Future yields `expected_output`
-//     fn test_request<Fun, Fut, T>
-//     ( make_request:Fun
-//       , expected_method:&str
-//       , expected_input:Value
-//       , result:Value
-//       , expected_output:T )
-//         where Fun : FnOnce(&mut RemoteClient) -> Fut,
-//               Fut : Future<Output = Result<T>>,
-//               T   : Debug + PartialEq {
-//         let mut fixture = setup_fm();
-//         let mut fut     = Box::pin(make_request(&mut fixture.client));
-//
-//         let request = fixture.transport.expect_message::<RequestMessage<Value>>();
-//         assert_eq!(request.method, expected_method);
-//         assert_eq!(request.params, expected_input);
-//
-//         let response = Message::new_success(request.id, result);
-//         fixture.transport.mock_peer_message(response);
-//         fixture.executor.run_until_stalled();
-//         let output = poll_future_output(&mut fut).unwrap().unwrap();
-//         assert_eq!(output, expected_output);
-//     }
-//
-//     #[test]
-//     fn test_requests() {
-//         let main                = Path::new("./Main.luna");
-//         let target              = Path::new("./Target.luna");
-//         let path_main           = json!({"path" : "./Main.luna"});
-//         let from_main_to_target = json!({
-//             "from" : "./Main.luna",
-//             "to"   : "./Target.luna"
-//         });
-//         let true_json = json!(true);
-//         let unit_json = json!(null);
-//
-//         test_request(
-//             |client| client.copy_directory(main.clone(), target.clone()),
-//             "copyDirectory",
-//             from_main_to_target.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.copy_file(main.clone(), target.clone()),
-//             "copyFile",
-//             from_main_to_target.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.delete_file(main.clone()),
-//             "deleteFile",
-//             path_main.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.exists(main.clone()),
-//             "exists",
-//             path_main.clone(),
-//             true_json,
-//             true);
-//
-//         let list_response_json  = json!([          "Bar.luna",           "Foo.luna" ]);
-//         let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
-//         test_request(
-//             |client| client.list(main.clone()),
-//             "list",
-//             path_main.clone(),
-//             list_response_json,
-//             list_response_value);
-//         test_request(
-//             |client| client.move_directory(main.clone(), target.clone()),
-//             "moveDirectory",
-//             from_main_to_target.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.move_file(main.clone(), target.clone()),
-//             "moveFile",
-//             from_main_to_target.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.read(main.clone()),
-//             "read",
-//             path_main.clone(),
-//             json!("Hello world!"),
-//             "Hello world!".into());
-//
-//         let parse_rfc3339 = |s| {
-//             chrono::DateTime::parse_from_rfc3339(s).unwrap()
-//         };
-//         let expected_attributes = Attributes {
-//             creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
-//             last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
-//             last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
-//             file_kind          : RegularFile,
-//             byte_size          : 125125,
-//         };
-//         let sample_attributes_json = json!({
-//             "creationTime"      : "2020-01-07T21:25:26Z",
-//             "lastAccessTime"    : "2020-01-21T22:16:51.123994500+00:00",
-//             "lastModifiedTime"  : "2020-01-07T21:25:26Z",
-//             "fileKind"          : "RegularFile",
-//             "byteSize"          : 125125
-//         });
-//         test_request(
-//             |client| client.status(main.clone()),
-//             "status",
-//             path_main.clone(),
-//             sample_attributes_json,
-//             expected_attributes);
-//         test_request(
-//             |client| client.touch(main.clone()),
-//             "touch",
-//             path_main.clone(),
-//             unit_json.clone(),
-//             ());
-//         test_request(
-//             |client| client.write(main.clone(), "Hello world!".into()),
-//             "write",
-//             json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
-//             unit_json.clone(),
-//             ());
-//
-//         let uuid_value = uuid::Uuid::parse_str("02723954-fbb0-4641-af53-cec0883f260a").unwrap();
-//         let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
-//         test_request(
-//             |client| client.create_watch(main.clone()),
-//             "createWatch",
-//             path_main.clone(),
-//             uuid_json.clone(),
-//             uuid_value);
-//         let watch_id   = json!({
-//             "watchId" : "02723954-fbb0-4641-af53-cec0883f260a"
-//         });
-//         test_request(
-//             |client| client.delete_watch(uuid_value.clone()),
-//             "deleteWatch",
-//             watch_id.clone(),
-//             unit_json.clone(),
-//             ());
-//     }
-// }
+
+#[cfg(test)]
+mod remote_client_tests {
+    use super::*;
+
+    use json_rpc::messages::Message;
+    use json_rpc::messages::RequestMessage;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use serde_json::json;
+    use serde_json::Value;
+    use std::future::Future;
+    use utils::test::poll_future_output;
+    use utils::test::poll_stream_output;
+    use futures::task::LocalSpawnExt;
+
+    struct Fixture {
+        transport : MockTransport,
+        client    : RemoteClient,
+        executor  : futures::executor::LocalPool,
+    }
+
+    fn setup_fm() -> Fixture {
+        let transport = MockTransport::new();
+        let client    = RemoteClient::new(transport.clone());
+        let executor  = futures::executor::LocalPool::new();
+        executor.spawner().spawn_local(client.runner()).unwrap();
+        Fixture {transport,client,executor}
+    }
+
+    /// Tests making a request using file manager:
+    /// * creates PM client and uses `make_request` to make a request
+    /// * checks that request is made for `expected_method`
+    /// * checks that request input is `expected_input`
+    /// * mocks receiving a response from server with `result`
+    /// * checks that FM-returned Future yields `expected_output`
+    fn test_request<Fun, Fut, T>
+    ( make_request:Fun
+      , expected_method:&str
+      , expected_input:Value
+      , result:Value
+      , expected_output:T )
+        where Fun : FnOnce(&mut RemoteClient) -> Fut,
+              Fut : Future<Output = Result<T>>,
+              T   : Debug + PartialEq {
+        let mut fixture = setup_fm();
+        let mut fut     = Box::pin(make_request(&mut fixture.client));
+
+        let request = fixture.transport.expect_message::<RequestMessage<Value>>();
+        assert_eq!(request.method, expected_method);
+        assert_eq!(request.params, expected_input);
+
+        let response = Message::new_success(request.id, result);
+        fixture.transport.mock_peer_message(response);
+        fixture.executor.run_until_stalled();
+        let output = poll_future_output(&mut fut).unwrap().unwrap();
+        assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    fn test_requests() {
+        // let main                = Path::new("./Main.luna");
+        // let target              = Path::new("./Target.luna");
+        // let path_main           = json!({"path" : "./Main.luna"});
+        // let from_main_to_target = json!({
+        //     "from" : "./Main.luna",
+        //     "to"   : "./Target.luna"
+        // });
+        // let true_json = json!(true);
+        let unit_json            = json!(null);
+        let project_id           = Uuid::default();
+        let project_id_json      = json!({"projectId":project_id});
+        let ip_with_address      = IpWithSocket { host: "localhost".to_string(), port: 27015 };
+        let ip_with_address_json = serde_json::to_value(&ip_with_address).unwrap();
+        let project_name         = String::from("HelloWorld");
+        let project_name_json    = json!({"name":serde_json::to_value(&project_name).unwrap()});
+
+        // fn list_recent(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
+        // fn create_project(&self, name:String) -> Uuid;
+        // fn list_sample(&self, number_of_projects:u32) -> Vec<ProjectMetaData>;
+
+        test_request(
+            |client| client.open_project(project_id.clone()),
+            "openProject",
+            project_id_json.clone(),
+            ip_with_address_json.clone(),
+            ip_with_address.clone());
+        test_request(
+            |client| client.close_project(project_id.clone()),
+            "closeProject",
+            project_id_json.clone(),
+            unit_json.clone(),
+            ());
+        test_request(
+            |client| client.delete_project(project_id.clone()),
+            "deleteProject",
+            project_id_json.clone(),
+            unit_json.clone(),
+            ());
+        // test_request(
+        //     |client| client.create_project(project_name.clone()),
+        //     "createProject",
+        //     project_name_json.clone(),
+        //     project_id_json.clone(),
+        //     project_id);
+        // test_request(
+        //     |client| client.delete_file(main.clone()),
+        //     "deleteFile",
+        //     path_main.clone(),
+        //     unit_json.clone(),
+        //     ());
+        // test_request(
+        //     |client| client.exists(main.clone()),
+        //     "exists",
+        //     path_main.clone(),
+        //     true_json,
+        //     true);
+        //
+        // let list_response_json  = json!([          "Bar.luna",           "Foo.luna" ]);
+        // let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
+        // test_request(
+        //     |client| client.list(main.clone()),
+        //     "list",
+        //     path_main.clone(),
+        //     list_response_json,
+        //     list_response_value);
+        // test_request(
+        //     |client| client.move_directory(main.clone(), target.clone()),
+        //     "moveDirectory",
+        //     from_main_to_target.clone(),
+        //     unit_json.clone(),
+        //     ());
+        // test_request(
+        //     |client| client.move_file(main.clone(), target.clone()),
+        //     "moveFile",
+        //     from_main_to_target.clone(),
+        //     unit_json.clone(),
+        //     ());
+        // test_request(
+        //     |client| client.read(main.clone()),
+        //     "read",
+        //     path_main.clone(),
+        //     json!("Hello world!"),
+        //     "Hello world!".into());
+        //
+        // let parse_rfc3339 = |s| {
+        //     chrono::DateTime::parse_from_rfc3339(s).unwrap()
+        // };
+        // let expected_attributes = Attributes {
+        //     creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
+        //     last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
+        //     last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
+        //     file_kind          : RegularFile,
+        //     byte_size          : 125125,
+        // };
+        // let sample_attributes_json = json!({
+        //     "creationTime"      : "2020-01-07T21:25:26Z",
+        //     "lastAccessTime"    : "2020-01-21T22:16:51.123994500+00:00",
+        //     "lastModifiedTime"  : "2020-01-07T21:25:26Z",
+        //     "fileKind"          : "RegularFile",
+        //     "byteSize"          : 125125
+        // });
+        // test_request(
+        //     |client| client.status(main.clone()),
+        //     "status",
+        //     path_main.clone(),
+        //     sample_attributes_json,
+        //     expected_attributes);
+        // test_request(
+        //     |client| client.touch(main.clone()),
+        //     "touch",
+        //     path_main.clone(),
+        //     unit_json.clone(),
+        //     ());
+        // test_request(
+        //     |client| client.write(main.clone(), "Hello world!".into()),
+        //     "write",
+        //     json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
+        //     unit_json.clone(),
+        //     ());
+        //
+        // let uuid_value = uuid::Uuid::parse_str("02723954-fbb0-4641-af53-cec0883f260a").unwrap();
+        // let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
+        // test_request(
+        //     |client| client.create_watch(main.clone()),
+        //     "createWatch",
+        //     path_main.clone(),
+        //     uuid_json.clone(),
+        //     uuid_value);
+        // let watch_id   = json!({
+        //     "watchId" : "02723954-fbb0-4641-af53-cec0883f260a"
+        // });
+        // test_request(
+        //     |client| client.delete_watch(uuid_value.clone()),
+        //     "deleteWatch",
+        //     watch_id.clone(),
+        //     unit_json.clone(),
+        //     ());
+    }
+}
