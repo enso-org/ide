@@ -23,8 +23,8 @@ let config = {
     scripts: {
         "start": `electron ${paths.dist.content} -- `,
         "build": "webpack ",
-        "dist": "electron-builder",
-        "dist:crossplatform": "electron-builder --mac --win --linux"
+        "dist": "electron-builder --publish never",
+        "dist:crossplatform": "electron-builder --mac --win --linux --publish never"
     }
 }
 
@@ -36,17 +36,14 @@ config.build = {
         icon: `${paths.dist.root}/icons/icon.icns`,
         category: "public.app-category.developer-tools",
         darkModeSupport: true,
-        type: "distribution",
-	publish: "never",
+        type: "distribution"
     },
     win: {
         icon: `${paths.dist.root}/icons/icon.ico`,
-	publish: "never",
     },
     linux: {
         icon: `${paths.dist.root}/icons/png`,
-        category: "Development",
-	publish: "never",
+        category: "Development"
     },
     files: [
         { from: paths.dist.content, to: "." }
