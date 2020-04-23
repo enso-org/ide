@@ -73,12 +73,12 @@ pub struct Parameters {
 
 impl Parameters {
     /// Applies the context parameters in the given context.
-    pub fn apply_parameters(&self, context:&Context) {
+    pub fn apply_parameters(self, context:&Context) {
         let target = Context::TEXTURE_2D;
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter.gl_value as i32);
-        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter.gl_value as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s.gl_value as i32);
-        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t.gl_value as i32);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter as i32);
+        context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_S,self.wrap_s as i32);
+        context.tex_parameteri(target,Context::TEXTURE_WRAP_T,self.wrap_t as i32);
     }
 }
 
@@ -90,20 +90,16 @@ impl Parameters {
 /// Specifies how values are interpolated if the texture is rendered at a resolution that is
 /// lower than its native resolution.
 #[derive(Copy,Clone,Debug)]
-pub struct MagFilter {
-    gl_value: u32
-}
-
 #[allow(missing_docs)]
-impl MagFilter {
-    pub const LINEAR  : MagFilter = Self{gl_value:Context::LINEAR};
-    pub const NEAREST : MagFilter = Self{gl_value:Context::NEAREST};
+pub enum MagFilter {
+    Linear  = Context::LINEAR  as isize,
+    Nearest = Context::NEAREST as isize,
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
 impl Default for MagFilter {
     fn default() -> Self {
-        Self::LINEAR
+        Self::Linear
     }
 }
 
@@ -112,24 +108,25 @@ impl Default for MagFilter {
 /// Specifies how values are interpolated if the texture is rendered at a resolution that is
 /// lower than its native resolution.
 #[derive(Copy,Clone,Debug)]
-pub struct MinFilter {
-    gl_value: u32
+#[allow(missing_docs)]
+pub enum MinFilter {
+    Linear               = Context::LINEAR                 as isize,
+    Nearest              = Context::NEAREST                as isize,
+    NearestMipmapNearest = Context::NEAREST_MIPMAP_NEAREST as isize,
+    LinearMipmapNearest  = Context::LINEAR_MIPMAP_NEAREST  as isize,
+    NearestMipmapLinear  = Context::NEAREST_MIPMAP_LINEAR  as isize,
+    LinearMipmapLinear   = Context::LINEAR_MIPMAP_LINEAR   as isize,
 }
 
 #[allow(missing_docs)]
 impl MinFilter {
-    pub const LINEAR                 : MinFilter = Self{gl_value:Context::LINEAR};
-    pub const NEAREST                : MinFilter = Self{gl_value:Context::NEAREST};
-    pub const NEAREST_MIPMAP_NEAREST : MinFilter = Self{gl_value:Context::NEAREST_MIPMAP_NEAREST};
-    pub const LINEAR_MIPMAP_NEAREST  : MinFilter = Self{gl_value:Context::LINEAR_MIPMAP_NEAREST};
-    pub const NEAREST_MIPMAP_LINEAR  : MinFilter = Self{gl_value:Context::NEAREST_MIPMAP_LINEAR};
-    pub const LINEAR_MIPMAP_LINEAR   : MinFilter = Self{gl_value:Context::LINEAR_MIPMAP_LINEAR};
+
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
 impl Default for MinFilter {
     fn default() -> Self {
-        Self::LINEAR
+        Self::Linear
     }
 }
 
@@ -137,21 +134,17 @@ impl Default for MinFilter {
 ///
 /// Specifies what happens if a texture is sampled out of bounds.
 #[derive(Copy,Clone,Debug)]
-pub struct Wrap {
-    gl_value: u32
-}
-
 #[allow(missing_docs)]
-impl Wrap {
-    pub const REPEAT          : Wrap = Self{gl_value:Context::REPEAT};
-    pub const CLAMP_TO_EDGE   : Wrap = Self{gl_value:Context::CLAMP_TO_EDGE};
-    pub const MIRRORED_REPEAT : Wrap = Self{gl_value:Context::MIRRORED_REPEAT};
+pub enum Wrap {
+    Repeat         = Context::REPEAT          as isize,
+    ClampToEdge    = Context::CLAMP_TO_EDGE   as isize,
+    MirroredRepeat = Context::MIRRORED_REPEAT as isize,
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
 impl Default for Wrap {
     fn default() -> Self {
-        Self::CLAMP_TO_EDGE
+        Self::ClampToEdge
     }
 }
 
