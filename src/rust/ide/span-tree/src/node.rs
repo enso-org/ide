@@ -19,17 +19,17 @@ use data::text::Size;
 pub enum Kind {
     /// A root of the expression this tree was generated.
     Root,
+    /// A node chained with parent node. See crate's docs for more info about chaining.
     Chained,
-    /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    Target,
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
+    /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
+    Target { removable:bool },
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument,
-    /// A node being a placeholder for appending new child to Prefix or Operator chain.
-    Append,
-    /// A node being a placeholder for missing parameters of Section ast nodes.
-    Missing,
+    Argument { removable:bool },
+    /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
+    /// have assigned span of length 0 and should not have any child.
+    Empty,
 }
 
 /// A type which identifies some node in SpanTree. This is essentially a iterator over child
@@ -53,9 +53,10 @@ pub struct Node {
 }
 
 impl Node {
-    /// Create node which covers span of length 0.
-    pub fn new_empty(kind:Kind) -> Self {
-        Node {kind,
+    /// Create Empty node.
+    pub fn new_empty() -> Self {
+        Node {
+            kind     : Kind::Empty,
             size     : Size::new(0),
             children : Vec::new(),
         }

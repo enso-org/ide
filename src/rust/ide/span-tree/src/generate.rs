@@ -12,7 +12,7 @@ use ast::crumbs::Located;
 use ast::HasLength;
 use ast::opr::{GeneralizedInfix, Operand};
 use data::text::Size;
-
+use crate::node::Kind::Chained;
 
 
 // =============
@@ -34,7 +34,7 @@ pub enum Context<'a> {
     /// Generated as Operator child of Infix or Section AST node.
     Operator(&'a str),
     /// Generated as a Target child of Infix or Section AST node.
-    OperatorTarget(&'a str),
+    OperatorTarget(&'a str)
 }
 
 /// A trait for all types from which we can generate referred SpanTree. Meant to be implemented for
@@ -73,26 +73,34 @@ impl ChildGenerator {
     }
 
     fn generate_ast_node
-    (&mut self, child_ast:Located<Ast>, ctx:Context)
-    -> FallibleResult<&node::Child> {
-        let child = node::Child {
-            node                : child_ast.item.generate_node(ctx)?,
-            offset              : self.current_offset,
-            ast_crumbs          : child_ast.crumbs
-        };
-        self.current_offset += child.node.size;
-        self.children.push(child);
-        Ok(self.children.last().unwrap())
+    (&mut self, child_ast:Located<Ast>, ctx:Context) -> FallibleResult<&node::Child> {
+        let node = child_ast.item.generate_node(ctx)?;
+        Ok(self.add_node(child_ast.crumbs,node))
     }
 
-    fn generate_empty_node(&mut self, kind:node::Kind) -> &node::Child {
+    fn add_node(&mut self, ast_crumbs:ast::Crumbs, node:Node) -> &node::Child {
+        let offset = self.current_offset;
+        let child = node::Child {node,ast_crumbs,offset};
+        self.current_offset += child.node.size;
+        self.children.push(child);
+        self.children.last().unwrap()
+    }
+
+    fn generate_empty_node(&mut self) -> &node::Child {
         let child = node::Child {
-            node                : Node::new_empty(kind),
+            node                : Node::new_empty(),
             offset              : self.current_offset,
             ast_crumbs          : vec![]
         };
         self.children.push(child);
         self.children.last().unwrap()
+    }
+
+    fn reverse_children(&mut self) {
+        self.children.reverse();
+        for child in &mut self.children {
+            child.offset = self.current_offset - child.offset - child.node.size;
+        }
     }
 }
 
@@ -138,27 +146,55 @@ fn ast_node_kind(chained:bool, ctx:&Context) -> node::Kind {
     }
 }
 
+
 // === Operators (Sections and Infixes) ===
+
+impl SpanTreeGenerator for ast::opr::Chain {
+    fn generate_node(&self, ctx: Context) -> FallibleResult<Node> {
+        let arg =
+
+        let node = self.args.iter().skip(1).fold(, |node,elem| {
+            let mut gen = ChildGenerator::default();
+            match node {
+                Some(node) => {
+                    gen.add_node(elem.crumb_to_previous().into(),node);
+
+                }
+            }
+        })
+
+        ;;
+    }
+}
 
 impl SpanTreeGenerator for GeneralizedInfix {
 
     fn generate_node(&self, ctx:Context) -> FallibleResult<Node> {
-        let chained     = infix_can_be_chained_with_parent(self,ctx);
-        let have_append = self.right.is_some() && !chained;
-        let assoc       = self.assoc();
-        let target_ctx  = Context::OperatorTarget(&self.opr.name);
-        let located_opr = self.opr.clone().map(|opr| opr.ast().clone_ref());
-        let opr_ctx     = Context::Operator(&self.opr.name);
+        let chained      = infix_can_be_chained_with_parent(self,ctx);
+        let assoc        = self.assoc();
+        let target_ctx   = Context::OperatorTarget(&self.opr.name);
+        let opr_ctx      = Context::Operator(&self.opr.name);
+        let argument_ctx = Context::Argument;
+        let located_opr  = self.opr.clone().map(|opr| opr.ast().clone_ref());
+        let target       = self.target_operand();
 
-        let (left_ctx,right_ctx) = match assoc {
-            Assoc::Left  => (target_ctx       ,Context::Argument),
-            Assoc::Right => (Context::Argument,target_ctx       ),
-        };
+        let have_prepend = target.map_or(false, |ast| !);
+        let have_append  = !chained && self.argument_operand().is_some();
 
         let mut gen = ChildGenerator::default();
-        generate_arg_node(&self.left,Side::Left,&mut gen,left_ctx)?;
+        if let Some(ast) = &self.target_operand() {
+            let target_chained = ast_chained_with_parent(&ast,target_ctx);
+            if !target_chained { gen.generate_empty_node() }
+            gen.generate_ast_node()
+        }
+        gen.generate_ast_node(.clone(),ctx)?;
+        gen.spacing(arg.off);
         gen.generate_ast_node(located_opr,opr_ctx)?;
+        gen.spacing(arg.off);
+        gen.generate_ast_node(arg.wrapped.clone(),ctx)?;
         generate_arg_node(&self.right,Side::Right,&mut gen,right_ctx)?;
+
+
         if have_append { gen.generate_empty_node(node::Kind::Append); }
 
         Ok(Node {
@@ -175,12 +211,10 @@ fn generate_arg_node
 (operand:&Operand, side:Side, gen:&mut ChildGenerator, ctx:Context) -> FallibleResult<()> {
     match (operand,side) {
         (Some(arg),Side::Left) => {
-            gen.generate_ast_node(arg.wrapped.clone(),ctx)?;
-            gen.spacing(arg.off);
+
         }
         (Some(arg),Side::Right) => {
-            gen.spacing(arg.off);
-            gen.generate_ast_node(arg.wrapped.clone(),ctx)?;
+
         }
         (None,_) => {
             gen.generate_empty_node(node::Kind::Missing)?;
@@ -188,6 +222,7 @@ fn generate_arg_node
     }
     Ok(())
 }
+
 
 // === Application ===
 
@@ -201,6 +236,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
         use ast::crumbs::PrefixCrumb::*;
         let mut gen = ChildGenerator::default();
         let func    = gen.generate_ast_node(func_ast,Context::PrefixFunc)?;
+        gen.generate_empty_node();
         // The target is a fist argument in a prefix chain. So in our case the arg is a target only
         // if func is a chained node.
         let arg_ctx = match &func.node.kind {
@@ -210,7 +246,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
         gen.spacing(self.off);
         gen.generate_ast_node(Located::new(Arg,self.arg.clone_ref()),arg_ctx)?;
         if have_append {
-            gen.generate_empty_node(node::Kind::Append);
+            gen.generate_empty_node();
         }
 
         Ok(Node {
@@ -227,7 +263,7 @@ impl SpanTreeGenerator for ast::known::Prefix {
 // === Chaining Conditions ===
 // ===========================
 
-fn ast_can_be_chained_with_parent(ast:&Ast, ctx:Context) -> bool {
+fn ast_chained_with_parent(ast:&Ast, ctx:Context) -> bool {
     if let Some(infix) = GeneralizedInfix::try_new(&Located::new_root(ast.clone_ref())) {
         infix_can_be_chained_with_parent(&infix,ctx)
     } else {
