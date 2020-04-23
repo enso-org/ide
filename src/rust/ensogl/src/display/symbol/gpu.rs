@@ -355,7 +355,7 @@ impl Symbol {
                     debug_assert_eq!(
                         framebuffer_status,
                         Context::FRAMEBUFFER_COMPLETE,
-                        "Framebuffer does not have status FRAMEBUFFER_COMPLETE, but {}.",
+                        "Framebuffer incomplete (status: {}).",
                         framebuffer_status
                         )
                 }
