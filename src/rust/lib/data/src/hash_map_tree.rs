@@ -34,26 +34,28 @@ where K:Eq+Hash {
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
-    /// the branch does not exist, a default instance will be created.
+    /// the branch does not exist, a default instance will be created. Returns mutable reference to
+    /// the target tree node.
     #[inline]
-    pub fn focus<P,I>(&mut self, path:P) -> &mut HashMapTree<K,T>
+    pub fn get_node<P,I>(&mut self, path:P) -> &mut HashMapTree<K,T>
         where P:IntoIterator<Item=I>, T:Default, I:Into<K> {
-        self.focus_with(path,default)
+        self.get_node_with(path,default)
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
-    /// the branch does not exist, uses `cons` to construct it.
+    /// the branch does not exist, uses `cons` to construct it. Returns mutable reference to the
+    /// target tree node.
     #[inline]
-    pub fn focus_with<P,I,F>(&mut self, path:P, f:F) -> &mut HashMapTree<K,T>
+    pub fn get_node_with<P,I,F>(&mut self, path:P, f:F) -> &mut HashMapTree<K,T>
         where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T {
-        self.focus_map_with(path,f,|_|{})
+        self.get_node_traversing_with(path,f,|_|{})
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
     /// the branch does not exist, uses `cons` to construct it. Moreover, for each traversed branch
-    /// the `callback` is evaluated.
+    /// the `callback` is evaluated. Returns mutable reference to the target tree node.
     #[inline]
-    pub fn focus_map_with<P,I,F,M>
+    pub fn get_node_traversing_with<P,I,F,M>
     (&mut self, path:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T>
     where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T, M:FnMut(&mut HashMapTree<K,T>) {
         path.into_iter().fold(self,|map,t| {

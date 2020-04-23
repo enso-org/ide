@@ -13,7 +13,7 @@ use crate::prelude::*;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct Path {
-    pub segments : Vec<String>
+    pub rev_segments : Vec<String>
 }
 
 impl Path {
@@ -33,8 +33,8 @@ impl Path {
     pub fn from_rev_segments<T,Item>(t:T) -> Self
     where T : IntoIterator<Item=Item>,
           Item : Into<String> {
-        let segments = t.into_iter().map(|s|s.into()).collect();
-        Self {segments}
+        let rev_segments = t.into_iter().map(|s|s.into()).collect();
+        Self {rev_segments}
     }
 }
 

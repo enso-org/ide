@@ -52,14 +52,16 @@ impl Var {
 // === Sheet ===
 // =============
 
-/// Data of a style sheet. Style sheets are associated with a style path like 'panel.button.size'
-/// and keep a `Data` value. The value can either be set explicitly, or computed automatically if
-/// the style sheet is defined with en `Expression`.
+/// A node in the style sheet tree. Style sheets are associated with a style path like
+/// 'panel.button.size' and each node keeps a `Data` value. The value can either be set explicitly,
+/// or computed automatically if the style sheet is defined with en `Expression`. Please note that
+/// although `Sheet` contains a single value, it is in fact a node in a tree defined in `Registry`,
+/// so it can be interpreted as a set of hierarchical values instead.
 #[derive(Debug)]
 pub struct Sheet {
     /// Index of the style sheet in the style sheet map.
     pub index : Index<Sheet>,
-    /// Current value of style sheet. Style sheets without value behave like if they do not exist.
+    /// Value of this style sheet node. Style sheets without value behave like if they do not exist.
     pub value : Option<Data>,
     /// Expression used to update the value.
     pub expr : Option<Expression>,
@@ -183,12 +185,12 @@ impl Registry {
         let path         = path.into();
         let vars         = &mut self.vars;
         let sheets       = &mut self.sheets;
-        let var_map_node = self.var_map.focus(&path.segments);
+        let var_map_node = self.var_map.get_node(&path.rev_segments);
         let var_id       = *var_map_node.value_or_set_with(||vars.new_instance());
 
         let mut var_matches = Vec::new();
-        self.sheet_map.focus_map_with(&path.segments,||{sheets.new_instance()}, |node| {
-            var_matches.push(node.value)
+        self.sheet_map.get_node_traversing_with(&path.rev_segments,||{sheets.new_instance()}, |t| {
+            var_matches.push(t.value)
         });
         var_matches.reverse();
 
@@ -205,7 +207,7 @@ impl Registry {
     fn sheet<P:Into<Path>>(&mut self, path:P) -> Index<Sheet> {
         let path   = path.into();
         let sheets = &mut self.sheets;
-        let node   = self.sheet_map.focus_with(&path.segments,|| sheets.new_instance());
+        let node   = self.sheet_map.get_node_with(&path.rev_segments,|| sheets.new_instance());
         node.value
     }
 }
