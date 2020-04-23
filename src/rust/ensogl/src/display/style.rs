@@ -1,3 +1,4 @@
+//! This module defines a cascading style sheet registry and related style management utilities.
 
 use crate::prelude::*;
 use crate::data::HashMapTree;
@@ -10,7 +11,9 @@ use crate::data::OptVec;
 // === Data ===
 // ============
 
+/// Type of values in the style sheet.
 #[derive(Debug,Clone,PartialEq)]
+#[allow(missing_docs)]
 pub enum Data {
     Invalid(String),
     Number(f32)
@@ -34,7 +37,7 @@ impl Mul<&Data> for &Data {
             (Data::Invalid(t),_) => Data::Invalid(t.clone()),
             (_,Data::Invalid(t)) => Data::Invalid(t.clone()),
             (Data::Number(lhs),Data::Number(rhs)) => Data::Number(lhs*rhs),
-            _ => Data::Invalid("Cannot multiply.".into())
+            // _ => Data::Invalid("Cannot multiply.".into())
         }
     }
 }
@@ -46,7 +49,7 @@ impl Add<&Data> for &Data {
             (Data::Invalid(t),_) => Data::Invalid(t.clone()),
             (_,Data::Invalid(t)) => Data::Invalid(t.clone()),
             (Data::Number(lhs),Data::Number(rhs)) => Data::Number(lhs+rhs),
-            _ => Data::Invalid("Cannot multiply.".into())
+            // _ => Data::Invalid("Cannot multiply.".into())
         }
     }
 }
@@ -55,14 +58,14 @@ impl Eq for Data {}
 
 
 
-
-
-
 // ============
 // === Path ===
 // ============
 
+/// Path is a set of strings which describes how the variable or style sheet is nested in the
+/// cascading style sheet map.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub struct Path {
     pub segments : Vec<String>
 }
@@ -75,7 +78,7 @@ impl Path {
     pub fn from_segments<T,I,Item>(t:T) -> Self
         where T : IntoIterator<IntoIter=I,Item=Item>,
               I : Iterator<Item=Item>,
-              I : std::iter::DoubleEndedIterator,
+              I : DoubleEndedIterator,
               Item : Into<String> {
         Self::from_rev_segments(t.into_iter().rev())
     }
@@ -286,11 +289,12 @@ impl Registry {
         let vars         = &mut self.vars;
         let sheets       = &mut self.sheets;
         let var_map_node = self.var_map.focus(&path.segments);
-        let var_id       = *var_map_node.value_or_set_with(|| vars.new_instance());
+        let var_id       = *var_map_node.value_or_set_with(||vars.new_instance());
 
         let mut var_matches = Vec::new();
-        let sheet_map_node  = self.sheet_map.focus_map_with
-            (&path.segments,|| {sheets.new_instance()},|node| var_matches.push(node.value));
+        self.sheet_map.focus_map_with(&path.segments,||{sheets.new_instance()}, |node| {
+            var_matches.push(node.value)
+        });
         var_matches.reverse();
 
         for sheet_id in &var_matches {
@@ -576,8 +580,8 @@ impl Default for Registry {
 // === Tests ===
 // =============
 
+/// Interactive testing utility. To be removed in the future.
 pub fn test() {
-
     let mut style = Registry::new();
 
     let var_size              = style.var("size");
@@ -598,15 +602,12 @@ pub fn test() {
     style.set_expression("button.size",&[var_size],|args| args[0] + &data(10.0));
     style.set_value("button.size",data(3.0));
 
-
     println!("{}",style.to_graphviz());
     println!("{:?}", style.value(var_graph_button_size));
     println!("{:?}", style.value(var_button_size));
     println!("{:?}", style.vars[var_graph_button_size]);
     println!("{:?}", style.sheets[style.vars[var_graph_button_size].binding.unwrap()]);
-
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -124,10 +124,10 @@ async function genIcons() {
     let sizes     = [16,32,64,128,256,512,1024]
     let win_sizes = [16,32,64,128,256]
 
-//    if(fss.existsSync(donePath)) {
-//        console.log(`The ${donePath} file exists. Icons will not be regenerated.`)
-//        return
-//    }
+    if(fss.existsSync(donePath)) {
+        console.log(`The ${donePath} file exists. Icons will not be regenerated.`)
+        return
+    }
 
     console.log("Generating SVG icons.")
     await fs.mkdir(path.resolve(distPath,'svg'), {recursive:true})

@@ -1,16 +1,22 @@
-/// A tree structure build on top of the `HashMap`.
+//! A tree structure build on top of the `HashMap`.
 
 use crate::prelude::*;
+
+
 
 // ===================
 // === HashMapTree ===
 // ===================
 
+/// A tree build on top of the `HashMap`. Each node in the tree can have zero or more branches
+/// accessible by the given key type.
 #[derive(Derivative)]
 #[derivative(Debug   (bound="K:Eq+Hash+Debug , T:Debug"))]
 #[derivative(Default (bound="K:Eq+Hash       , T:Default"))]
 pub struct HashMapTree<K,T> {
-    pub value    : T,
+    /// Value of the current tree node.
+    pub value : T,
+    /// Branches of the current tree node.
     pub branches : HashMap<K,HashMapTree<K,T>>
 }
 
@@ -61,8 +67,19 @@ where K:Eq+Hash {
 
 impl<K,T> HashMapTree<K,Option<T>>
 where K:Eq+Hash {
-    pub fn value_or_set_with<F>(&mut self, mut cons:F) -> &mut T
-    where F:FnMut()->T {
+    /// Gets the current value or creates new default one if missing.
+    pub fn value_or_default(&mut self) -> &mut T where T:Default {
+        self.value_or_set_with(default)
+    }
+
+    /// Gets the current value or creates new one if missing.
+    pub fn value_or_set(&mut self, val:T) -> &mut T {
+        self.value_or_set_with(move || val)
+    }
+
+    /// Gets the current value or creates new one if missing.
+    pub fn value_or_set_with<F>(&mut self, cons:F) -> &mut T
+    where F:FnOnce()->T {
         if self.value.is_none() {
             self.value = Some(cons());
         };

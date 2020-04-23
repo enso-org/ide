@@ -21,8 +21,8 @@ use std::slice;
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct OptVec<T,Index=usize> {
     #[shrinkwrap(main_field)]
-    pub items    : Vec<Option<T>>,
-    pub free_ixs : SmallVec<[Index; 128]>,
+    items    : Vec<Option<T>>,
+    free_ixs : SmallVec<[Index; 128]>,
 }
 
 
