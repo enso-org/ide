@@ -8,4 +8,5 @@ pub mod seq;
 pub mod theme;
 
 pub use data::hash_map_tree::HashMapTree;
+pub use data::index::Index;
 pub use data::opt_vec::OptVec;

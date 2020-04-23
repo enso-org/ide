@@ -38,7 +38,7 @@ where K:Eq+Hash {
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
     /// the branch does not exist, uses `cons` to construct it.
     #[inline]
-    pub fn focus_with<P,I,F>(&mut self, path:P, mut f:F) -> &mut HashMapTree<K,T>
+    pub fn focus_with<P,I,F>(&mut self, path:P, f:F) -> &mut HashMapTree<K,T>
         where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T {
         self.focus_map_with(path,f,|_|{})
     }
