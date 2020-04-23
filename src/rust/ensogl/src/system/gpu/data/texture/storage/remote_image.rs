@@ -95,7 +95,7 @@ TextureReload for Texture<RemoteImage,I,T> {
             context.tex_image_2d_with_u32_and_u32_and_html_image_element
             (target,level,internal_format,format,elem_type,&image).unwrap();
 
-            parameters.set_parameters(&context);
+            parameters.apply_parameters(&context);
         });
         let js_callback = callback.as_ref().unchecked_ref();
         let image       = image_ref.borrow();

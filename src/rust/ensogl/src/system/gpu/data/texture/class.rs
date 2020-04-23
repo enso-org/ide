@@ -72,8 +72,8 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    /// Sets the context parameters in the given context.
-    pub fn set_parameters(&self, context:&Context) {
+    /// Applies the context parameters in the given context.
+    pub fn apply_parameters(&self, context:&Context) {
         let target = Context::TEXTURE_2D;
         context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.min_filter.gl_value as i32);
         context.tex_parameteri(target,Context::TEXTURE_MIN_FILTER,self.mag_filter.gl_value as i32);
@@ -295,9 +295,9 @@ where S:StorageRelation<I,T> {
         Self {storage,gl_texture,context,parameters}
     }
 
-    /// Sets the texture wrapping parameters.
-    pub fn set_texture_parameters(&self, context:&Context) {
-        self.parameters.set_parameters(context);
+    /// Applies this textures' parameters in the given context.
+    pub fn apply_texture_parameters(&self, context:&Context) {
+        self.parameters.apply_parameters(context);
     }
 }
 
@@ -326,7 +326,7 @@ where S : StorageRelation<I,T>,
             result.unwrap();
         }
 
-        self.set_texture_parameters(&self.context);
+        self.apply_texture_parameters(&self.context);
     }
 }
 
