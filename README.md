@@ -2,9 +2,9 @@
   <br/>
   <a href="http://luna-lang.org">
       <img
-          src="https://user-images.githubusercontent.com/1623053/75657359-50c92300-5c66-11ea-9cb8-61da8ee34df1.png"
+          src="https://user-images.githubusercontent.com/1623053/79905826-22bac080-8417-11ea-82b0-ee015904a485.png"
           alt="Enso Studio"
-          width="128"
+          width="136"
       />
   </a>
   <br/>
