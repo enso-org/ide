@@ -11,17 +11,11 @@ float alpha      = shape.color.color.raw.a;
 // === Object ID Rendering ===
 // ===========================
 
-// This encoding needs to correspond to the decoding in the `Target` struct in
-// src\rust\ensogl\src\display\scene.rs
-// See there for more explanation.
-uint pack1 = (uint(input_symbol_id) >> 4u) & 0x00FFu;
-uint pack2 = (uint(input_symbol_id) & 0x000Fu) << 4u;
-     pack2 = pack2 + ((uint(input_instance_id) & 0x0F00u) >> 8u);
-uint pack3 = uint(input_instance_id) & 0x00FFu;
+uvec3 chunks = encode(input_symbol_id,input_instance_id);
 
 float alpha_no_aa = alpha > 0.5 ? 1.0 : 0.0;
 
-output_id = vec4(float(pack1) / 255.0, float(pack2) / 255.0, float(pack3) / 255.0, alpha_no_aa);
+output_id = vec4(as_float_u8(chunks.x),as_float_u8(chunks.y),as_float_u8(chunks.z),alpha_no_aa);
 output_id.r *= alpha_no_aa;
 output_id.g *= alpha_no_aa;
 output_id.b *= alpha_no_aa;
