@@ -110,6 +110,7 @@ impl {
 // ==============
 
 /// Result of a Decoding operation in the Target.
+#[derive(Debug,Clone,Copy,Eq,PartialEq)]
 enum DecodingResult{
     /// Values had to be truncated.
     Truncated(u8,u8,u8),
@@ -226,14 +227,20 @@ impl Default for Target {
 mod target_tests {
     use super::*;
 
-
     /// Asserts that decoding encoded the given values returns the correct initial values again.
     /// That means that `decode(encode(value1,value2)) == (value1,value2)`.
     fn assert_valid_roundtrip(value1:u32, value2:u32) {
         let pack   = Target::encode(value1,value2);
-        let unpack = Target::decode(pack.0.into(),pack.1.into(),pack.2.into());
-        assert_eq!(unpack.0,value1);
-        assert_eq!(unpack.1,value2);
+        match pack {
+            DecodingResult::Truncated(_, _, _) => {
+               panic!("Values got truncated. This is an invalid test case: {}, {}", value1, value1)
+            },
+            DecodingResult::Ok(pack0,pack1,pack2) => {
+                let unpack = Target::decode(pack0.into(),pack1.into(),pack2.into());
+                assert_eq!(unpack.0,value1);
+                assert_eq!(unpack.1,value2);
+            },
+        }
     }
 
     #[test]
@@ -248,30 +255,22 @@ mod target_tests {
     #[test]
     fn test_encoding() {
         let pack   = Target::encode(0,0);
-        assert_eq!(pack.0,0);
-        assert_eq!(pack.1,0);
-        assert_eq!(pack.2,0);
+        assert_eq!(pack,DecodingResult::Ok(0,0,0));
 
         let pack   = Target::encode(3,7);
-        assert_eq!(pack.0,0);
-        assert_eq!(pack.1,48);
-        assert_eq!(pack.2,7);
+        assert_eq!(pack,DecodingResult::Ok(0,48,7));
 
         let pack   = Target::encode(3,256);
-        assert_eq!(pack.0,0);
-        assert_eq!(pack.1,49);
-        assert_eq!(pack.2,0);
+        assert_eq!(pack,DecodingResult::Ok(0,49,0));
 
         let pack   = Target::encode(255,356);
-        assert_eq!(pack.0,15);
-        assert_eq!(pack.1,241);
-        assert_eq!(pack.2,100);
+        assert_eq!(pack,DecodingResult::Ok(15,241,100));
 
         let pack   = Target::encode(256,356);
-        assert_eq!(pack.0,16);
-        assert_eq!(pack.1,1);
-        assert_eq!(pack.2,100);
+        assert_eq!(pack,DecodingResult::Ok(16,1,100));
 
+        let pack   = Target::encode(31256,0);
+        assert_eq!(pack,DecodingResult::Truncated(161,128,0));
     }
 }
 
