@@ -1,121 +1,16 @@
 //! This module defines a cascading style sheet registry and related style management utilities.
 
+pub mod data;
+pub mod path;
+
 use crate::prelude::*;
 use crate::data::HashMapTree;
 use crate::data::Index;
 use crate::data::OptVec;
 
-
-
-// ============
-// === Data ===
-// ============
-
-/// Type of values in the style sheet.
-#[derive(Debug,Clone,PartialEq)]
-#[allow(missing_docs)]
-pub enum Data {
-    Invalid(String),
-    Number(f32)
-}
-
-/// Smart constructor for `Data`.
-pub fn data<T:Into<Data>>(t:T) -> Data {
-    t.into()
-}
-
-impl From<f32> for Data {
-    fn from(t:f32) -> Data {
-        Data::Number(t)
-    }
-}
-
-impl Mul<&Data> for &Data {
-    type Output = Data;
-    fn mul(self, rhs:&Data) -> Self::Output {
-        match(self,rhs) {
-            (Data::Invalid(t),_) => Data::Invalid(t.clone()),
-            (_,Data::Invalid(t)) => Data::Invalid(t.clone()),
-            (Data::Number(lhs),Data::Number(rhs)) => Data::Number(lhs*rhs),
-            // _ => Data::Invalid("Cannot multiply.".into())
-        }
-    }
-}
-
-impl Add<&Data> for &Data {
-    type Output = Data;
-    fn add(self, rhs:&Data) -> Self::Output {
-        match(self,rhs) {
-            (Data::Invalid(t),_) => Data::Invalid(t.clone()),
-            (_,Data::Invalid(t)) => Data::Invalid(t.clone()),
-            (Data::Number(lhs),Data::Number(rhs)) => Data::Number(lhs+rhs),
-            // _ => Data::Invalid("Cannot multiply.".into())
-        }
-    }
-}
-
-impl Eq for Data {}
-
-
-
-// ============
-// === Path ===
-// ============
-
-/// Path is a set of strings which describes how the variable or style sheet is nested in the
-/// cascading style sheet map.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-pub struct Path {
-    pub segments : Vec<String>
-}
-
-impl Path {
-    /// Builds the path from the provided segment iterator. Please note that the internal path
-    /// representation is reversed, as the style sheet dependencies in the style sheet map tree are
-    /// also kept in a reversed order. Please use the `visualize` utility to inspect the internal
-    /// structure and learn more.
-    pub fn from_segments<T,I,Item>(t:T) -> Self
-        where T : IntoIterator<IntoIter=I,Item=Item>,
-              I : Iterator<Item=Item>,
-              I : DoubleEndedIterator,
-              Item : Into<String> {
-        Self::from_rev_segments(t.into_iter().rev())
-    }
-
-    /// Builds the path from reversed segment iterator. See `from_segments` to learn more.
-    pub fn from_rev_segments<T,Item>(t:T) -> Self
-        where T : IntoIterator<Item=Item>,
-              Item : Into<String> {
-        let segments = t.into_iter().map(|s|s.into()).collect();
-        Self {segments}
-    }
-}
-
-impl From<&str> for Path {
-    fn from(t:&str) -> Self {
-        Self::from_rev_segments(t.rsplit("."))
-    }
-}
-
-impl From<&Path> for Path {
-    fn from(t:&Path) -> Self {
-        t.clone()
-    }
-}
-
-macro_rules! gen_var_path_conversions {
-    ($($($num:tt)?),*) => {$(
-        impl<T:?Sized> From<&[&T$(;$num)?]> for Path
-        where for <'t> &'t T : Into<String> {
-            fn from(t:&[&T$(;$num)?]) -> Self {
-                Self::from_segments(t.into_iter().map(|s|*s))
-            }
-        }
-    )*};
-}
-
-gen_var_path_conversions!(1,2,3,4,5,6,7,8,9,10,);
+pub use self::data::Data;
+pub use self::data::data;
+pub use self::path::Path;
 
 
 
