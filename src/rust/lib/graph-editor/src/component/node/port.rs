@@ -2,6 +2,7 @@
 use crate::prelude::*;
 
 use crate::component::node::Node;
+use crate::frp;
 
 use core::f32::consts::PI;
 use ensogl::data::color::*;
@@ -221,6 +222,21 @@ mod shape {
 
 
 
+// ==============
+// === Events ===
+// ==============
+
+/// Port events.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Events {
+    pub network    : frp::Network,
+    pub select     : frp::Source,
+    pub deselect   : frp::Source,
+}
+
+
+
 // ============
 // === Port ===
 // ============
@@ -313,15 +329,24 @@ pub struct PortData<T:PortShapeViewDefinition> {
     /// Indicates whether this port is facing inwards or outwards.
     direction    : Cell<Direction>,
 
-    pub view : Rc<component::ShapeView<T>>
+    pub events : Events,
+    pub view   : Rc<component::ShapeView<T>>,
+    pub label  : frp::Source<String>,
 }
 
 impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Internal constructor based on a given specification.
     pub fn new() -> Self {
-        let spec = Specification::default();
+        frp::new_network! { port_network
+            def label    = source::<String> ();
+            def select   = source::<()>     ();
+            def deselect = source::<()>     ();
+        }
+        let network = port_network;
 
+        let spec = Specification::default();
+        let events = Events {network,select,deselect};
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
 
@@ -331,13 +356,27 @@ impl<T:PortShapeViewDefinition> Port<T> {
             inner_radius : Cell::new(spec.inner_radius),
             position     : Cell::new(spec.position),
             direction    : Cell::new(spec.direction),
-            view
+            view,
+            events,
+            label,
         });
-        Self {data} . init()
+        Self {data} . init() . init_frp()
     }
 
     fn init(self) -> Self {
         self.update_sprite_position();
+        self
+    }
+
+    fn init_frp(self) -> Self{
+        let network = &self.data.events.network;
+
+        frp::extend! { network
+        def _f_select = self.data.events.select.map(move |_| {
+                println!("SELECTED");
+            });
+        }
+
         self
     }
 
@@ -423,6 +462,12 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
         let port = Port::default();
         parent.add_child(&port.data.view.display_object);
         self.ports.borrow_mut().push(port.clone_ref());
+
+        // frp::new_bridge_network! { [port.data.events.network,parent.view.events.network]
+             // def _node_on_down_tagged = port.data.events.mouse_down.map(f_!((touch) {
+             //            touch.nodes.down.emit(Some(weak_node.clone_ref()))
+             //        }));
+        // }
         port
     }
 }
