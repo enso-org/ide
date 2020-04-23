@@ -204,11 +204,6 @@ pub fn get_webgl2_context(canvas:&HtmlCanvasElement) -> WebGl2RenderingContext {
     js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
     let context = canvas.get_context_with_context_options("webgl2",&options).unwrap().unwrap();
     let context : WebGl2RenderingContext =  context.dyn_into().unwrap();
-    // Add this extension so we can use RGB32f textures for rendering object ids in our picking
-    // pipeline.
-    context
-        .get_extension("EXT_color_buffer_float")
-        .expect("Could not get WebGL extension EXT_color_buffer_float");
     context
 }
 
