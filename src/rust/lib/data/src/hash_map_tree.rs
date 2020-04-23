@@ -59,6 +59,17 @@ where K:Eq+Hash {
     }
 }
 
+impl<K,T> HashMapTree<K,Option<T>>
+where K:Eq+Hash {
+    pub fn value_or_set_with<F>(&mut self, mut cons:F) -> &mut T
+    where F:FnMut()->T {
+        if self.value.is_none() {
+            self.value = Some(cons());
+        };
+        self.value.as_mut().unwrap()
+    }
+}
+
 
 // === Impls ===
 
