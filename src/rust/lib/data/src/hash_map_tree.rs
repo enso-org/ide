@@ -98,7 +98,7 @@ impl<'a,K,T> IntoIterator for &'a HashMapTree<K,T> {
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        (&self.branches).into_iter()
+        self.branches.iter()
     }
 }
 
@@ -108,6 +108,6 @@ impl<'a,K,T> IntoIterator for &'a mut HashMapTree<K,T> {
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        (&mut self.branches).into_iter()
+        self.branches.iter_mut()
     }
 }

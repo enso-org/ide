@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let mut v = OptVec::new();
+        let mut v = OptVec::<usize>::new();
         assert!(v.is_empty());
 
         let ix1 = v.insert(1);
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let mut v = OptVec::new();
+        let mut v = OptVec::<usize>::new();
 
         let  ix1 = v.insert(0);
         let _ix2 = v.insert(1);
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_iter_mut() {
-        let mut v = OptVec::new();
+        let mut v = OptVec::<usize>::new();
 
         let  ix1 = v.insert(0);
         let _ix2 = v.insert(1);
