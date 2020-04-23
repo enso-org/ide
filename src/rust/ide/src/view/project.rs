@@ -12,7 +12,7 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
-use enso_protocol::file_manager::API;
+use enso_protocol::file_manager::{API, FileSystemObject, Object};
 use enso_protocol::file_manager::Path;
 use nalgebra::Vector2;
 use shapely::shared;
@@ -71,11 +71,15 @@ impl ProjectView {
     /// Create a new ProjectView.
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
-        let path                 = Path::new(INITIAL_FILE_PATH);
+        let path                 = Path::new(default(), default());
+        let object               = Object{path:path.clone(),name:INITIAL_FILE_PATH.to_string()};
+        let file_system_object   = FileSystemObject::File(object);
         // This touch is to ensure, that our hardcoded module exists (so we don't require
         // additional user/tester action to run IDE. It will be removed once we will support opening
         // any module file.
-        controller.file_manager.touch(path.clone()).await?;
+        println!("Criando arquivo");
+        controller.file_manager.create(file_system_object.clone()).await.ok();
+        println!("Arquivo criado");
         let location             = controller::module::Location::from_path(&path).unwrap();
         let text_controller      = controller.text_controller(path).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);

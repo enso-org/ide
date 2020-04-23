@@ -39,20 +39,31 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // === Path ===
 // ============
 
-/// Path to a file.
-#[derive(Clone,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
-#[derive(Serialize, Deserialize)]
-#[derive(Shrinkwrap)]
-pub struct Path(pub String);
-
 impl Path {
-    /// Wraps a `String`-like entity into a new `Path`.
-    pub fn new(s:impl Str) -> Path {
-        Path(s.into())
+    pub fn new(root_id:Uuid, segments:Vec<String>) -> Self {
+        Self {root_id,segments}
     }
 }
 
+impl Display for Path {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let result = write!(f, "{}", self.root_id);
+        for segment in &self.segments {
+            write!(f, "/{}", segment)?
+        }
+        result
+    }
+}
 
+/// A path is a representation of a path relative to a specified content root.
+#[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Path {
+    /// Path's root id.
+    pub root_id : Uuid,
+    /// Path's segments.
+    pub segments : Vec<String>
+}
 
 // ====================
 // === Notification ===
@@ -136,6 +147,42 @@ pub enum FileKind {
     Other
 }
 
+/// A representation of what kind of type a filesystem object can be.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(tag = "type")]
+pub enum FileSystemObject {
+    /// Represents a directory.
+    Directory(Object),
+    /// Represents a directory which contents have been truncated
+    DirectoryTruncated(Object),
+    /// Represents a file.
+    File(Object),
+    /// Represents unrecognized object. Example is a broken symbolic link.
+    Other(Object),
+    /// Represents a symbolic link that creates a loop.
+    SymlinkLoop(SymlinkLoop)
+}
+
+/// Represents an object.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct Object {
+    /// Name of the object.
+    pub name : String,
+    /// Path to the object.
+    pub path : Path
+}
+
+/// Represents a symbolic link that creates a loop.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct SymlinkLoop {
+    /// Name of the symlink.
+    pub name : String,
+    /// Path to the symlink.
+    pub path : Path,
+    /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
+    pub target : Path
+}
+
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
 trait Client {
@@ -179,9 +226,13 @@ trait Client {
     #[MethodInput=StatusInput,rpc_name="file/status",result=status_result,set_result=set_status_result]
     fn status(&self, path:Path) -> Attributes;
 
-    /// Creates a file in the specified path.
-    #[MethodInput=TouchInput,rpc_name="file/touch",result=touch_result,set_result=set_touch_result]
-    fn touch(&self, path:Path) -> ();
+    /// Adds a content root to the active project.
+    #[MethodInput=AddRootInput,rpc_name="file/addRoot",result=add_root_result,set_result=set_add_root_result]
+    fn add_root(&self, absolute_path:Vec<String>, id:Uuid) -> ();
+
+    /// Creates the specified file system object.
+    #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,set_result=set_create_result]
+    fn create(&self, object:FileSystemObject) -> ();
 
     /// Writes String contents to a file in the specified path.
     #[MethodInput=WriteInput,rpc_name="file/write",result=write_result,set_result=set_write_result]

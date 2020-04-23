@@ -128,9 +128,14 @@ pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,Con
 /// Sets up the project view, including the controller it uses.
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
+    ensogl::system::web::set_stdout();
+    println!("Conectando");
     let fm_transport = connect_to_file_manager(config).await?;
+    println!("Conectou");
     let controller   = controller::Project::new_running(fm_transport);
+    println!("Controlando");
     let project_view = ProjectView::new(logger,controller).await?;
+    println!("Project view criado");
     Ok(project_view)
 }
 

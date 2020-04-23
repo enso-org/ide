@@ -38,7 +38,7 @@ impl Location {
     /// module file.
     pub fn from_path(path:&fmc::Path) -> Option<Self> {
         // TODO [ao] See function `to_path`
-        let fmc::Path(path_str) = path;
+        let path_str = format!("{}", path);
         let suffix = format!(".{}", constants::LANGUAGE_FILE_EXTENSION);
         path_str.ends_with(suffix.as_str()).and_option_from(|| {
             let cut_from = path_str.len() - suffix.len();
@@ -51,8 +51,8 @@ impl Location {
         // TODO [mwu] Extremely provisional. When multiple files support is
         //            added, needs to be fixed, if not earlier.
         let Location(string) = self;
-        let result = format!("./{}.{}", string, constants::LANGUAGE_FILE_EXTENSION);
-        enso_protocol::file_manager::Path::new(result)
+        let segments = vec![string.to_string(),constants::LANGUAGE_FILE_EXTENSION.to_string()];
+        enso_protocol::file_manager::Path::new(default(),segments)
     }
 }
 
