@@ -5,6 +5,7 @@
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 
+pub mod hash_map_tree;
 pub mod opt_vec;
 pub mod text;
 
