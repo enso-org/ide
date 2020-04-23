@@ -23,8 +23,8 @@ let config = {
     scripts: {
         "start": `electron ${paths.dist.content} -- `,
         "build": "webpack ",
-        "dist": "electron-builder",
-        "dist:crossplatform": "electron-builder --mac --win --linux"
+        "dist": "electron-builder --publish never",
+        "dist:crossplatform": "electron-builder --mac --win --linux --publish never"
     }
 }
 
