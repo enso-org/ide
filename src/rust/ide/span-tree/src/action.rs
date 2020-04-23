@@ -129,14 +129,29 @@ impl<'x> Implementation for node::Ref<'x> {
 
     fn insert_before_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
         match &self.node.kind {
-            (Kind::Append,_) => Some(Box::new(append(self))),
+            Kind::Append   |
+            Kind::Target   |
+            Kind::Argument => Some(Box::new(move |root,new| with_changed_parent_ast(root,self,|ast|{
+                let item = Shifted{wrapped:new,off:DEFAULT_OFFSET};
+                let mut position = match &self.node.kind {
+                    Kind::Append   =>
+                    Kind::Target   => 0,
+                    Kind::Argument => 1,
+                }
+                if let Some(mut chain)  = ast::opr::Chain::try_new(&ast) {
+                    match assoc(chain.operator) {
+                        Assoc::Left  => { chain.push_operand(item) },
+                        Assoc::Right => { chain.push_front_operand(item) },
+                    }
+                    Ok(chain.into_ast())
+                } else if let Some(mut chain) = ast::prefix::Chain::try_new(&ast) {
+                    chain.args.push(item);
+                    Ok(chain.into_ast())
+                }
+            })
 
-            Kind::Target | Kind::Argument if self.ast_crumbs.len() > 0 =>
-                &self.ast_crumbs[..self.ast_crumbs.len()-1]
-            _ => return None,
-        };
-        match (self.node.kind,self.ast_crumbs.last()) {
-            Kind::Target
+           )),
+            _              => None,
         }
     }
 
@@ -165,6 +180,16 @@ impl<'x> Implementation for node::Ref<'x> {
             _ => None
         }
     }
+}
+
+fn with_changed_parent_ast<F>(root:&Ast, node:&node::Ref, f:F) -> FallibleResult<Ast>
+where F : FnOnce(&Ast) -> FallibleResult<Ast> {
+    let parent_crumbs = match node.node.kind {
+        Kind::Missing | Kind::Argument => &node.ast_crumbs,
+        _                              => &node.ast_crumbs[..node.ast_crumbs.len()-1]
+    };
+    let parent = root.get_traversing(parent_crumbs)?;
+    root.set_traversing(parent_crumbs,f(parent)?)
 }
 
 fn set_on_missing<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> FallibleResult<Ast> + 'a {
@@ -212,11 +237,32 @@ fn insert_before_target<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> F
             }
             chain.into_ast()
         } else if let Some(mut chain) = ast::prefix::Chain::try_new(&ast) {
-            chain.args.
-        }
+            chain.args.insert(0,item);
+            chain.into_ast();
+        };
         root.set_traversing(parent_crumb,new_ast)
     }
 }
+
+fn insert_before_argument<'a,'b>(node:&'a node::Ref<'b>) -> impl Fn(&Ast,Ast) -> FallibleResult<Ast> + 'a {
+    move |root,new| {
+        let parent_crumb = &node.ast_crumbs[..node.ast_crumbs.len()];
+        let parent       = root.get_traversing(parent_crumb)?;
+        let item         = Shifted{wrapped:new,off:DEFAULT_OFFSET};
+        let new_ast      = if let Some(mut chain) = ast::opr::Chain::try_new(&parent) {
+            match assoc(chain.operator) {
+                Assoc::Left  => { chain.insert_operand(chain.args.len()-1,item) },
+                Assoc::Right => { chain.push_front_operand(item)   },
+            }
+            chain.into_ast()
+        } else if let Some(mut chain) = ast::prefix::Chain::try_new(&ast) {
+            chain.args.insert(0,item);
+            chain.into_ast();
+        };
+        root.set_traversing(parent_crumb,new_ast)
+    }
+}
+
 
 
 // =============
