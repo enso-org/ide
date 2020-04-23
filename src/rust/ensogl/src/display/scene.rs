@@ -121,21 +121,12 @@ pub enum Target {
 
 impl Target {
 
-    /// Decode the symbol_id and instance_id that was encoded in the `fragment_runner`.
-    ///
-    /// See the `encode` method for more information on the encoding.
-    fn decode(pack1:u32, pack2:u32, pack3:u32) -> (u32,u32) {
-        let value1 = (pack1 << 4) + (pack2 >> 4);
-        let value2 = pack3 + ((pack2 & 0x000F) << 8);
-        (value1, value2)
-    }
-
     /// Encode two u32 values into three u8 values.
-    /// This is the same encoding that is used in the `fragment_runner`.
-    /// This encoding is lossy.
     ///
-    /// We use 12 bits from each value and pack them into the 3 output bites like
-    /// described in the following diagram.
+    /// This is the same encoding that is used in the `fragment_runner`. This encoding is lossy.
+    ///
+    /// We use 12 bits from each value and pack them into the 3 output bytes like described in the
+    /// following diagram.
     ///
     ///  Input
     ///
@@ -152,11 +143,20 @@ impl Target {
     /// -----------------------    -----------------------     -------
     ///
     fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
-        let pack1 = (value1 >> 4u32) & 0x00FFu32;
-        let pack2 = (value1 & 0x000Fu32) << 4u32;
-        let pack2 = pack2 | ((value2 & 0x0F00u32) >> 8u32);
-        let pack3 = value2 & 0x00FFu32;
-        (pack1 as u8, pack2 as u8 , pack3 as u8)
+        let chunk1 = (value1 >> 4u32) & 0x00FFu32;
+        let chunk2 = (value1 & 0x000Fu32) << 4u32;
+        let chunk2 = chunk2 | ((value2 & 0x0F00u32) >> 8u32);
+        let chunk3 = value2 & 0x00FFu32;
+        (chunk1 as u8, chunk2 as u8, chunk3 as u8)
+    }
+
+    /// Decode the symbol_id and instance_id that was encoded in the `fragment_runner`.
+    ///
+    /// See the `encode` method for more information on the encoding.
+    fn decode(chunk1:u32, chunk2:u32, chunk3:u32) -> (u32, u32) {
+        let value1 = (chunk1 << 4) + (chunk2 >> 4);
+        let value2 = chunk3 + ((chunk2 & 0x000F) << 8);
+        (value1, value2)
     }
 
     fn to_internal(&self) -> Vector4<u32> {

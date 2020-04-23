@@ -33,9 +33,9 @@ impl RenderPass for SymbolsRenderPass {
     fn outputs(&self) -> Vec<RenderPassOutput> {
         let color_parameters = texture::Parameters::default();
         let id_parameters    = texture::Parameters {
-            min_filter : texture::MinFilterValue::NEAREST,
-            mag_filter : texture::MagFilterValue::NEAREST,
-            ..Default::default()
+            min_filter : texture::MinFilter::NEAREST,
+            mag_filter : texture::MagFilter::NEAREST,
+            ..default()
         };
         vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8,color_parameters)
             , RenderPassOutput::new("id",texture::Rgba,texture::item_type::u8,id_parameters)
