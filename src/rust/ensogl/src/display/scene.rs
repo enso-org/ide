@@ -123,7 +123,8 @@ impl Target {
 
     /// Encode two u32 values into three u8 values.
     ///
-    /// This is the same encoding that is used in the `fragment_runner`. This encoding is lossy.
+    /// This is the same encoding that is used in the `fragment_runner`. This encoding is lossy and
+    /// can only encode values up to 12^2=4096 each
     ///
     /// We use 12 bits from each value and pack them into the 3 output bytes like described in the
     /// following diagram.
