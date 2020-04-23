@@ -128,19 +128,22 @@ impl Target {
     /// We use 12 bits from each value and pack them into the 3 output bytes like described in the
     /// following diagram.
     ///
+    ///
     ///  Input
     ///
-    ///  value1 as bytes                    value2 as bytes
-    /// -------------------------           -------------------------
-    /// | v1a | v1b | v1c | v1d |           | v2a | v2b | v2c | v2d |
-    /// -------------------------           -------------------------
+    ///    value1 (v1) as bytes               value2 (v2) as bytes
+    ///   +-----+-----+-----+-----+           +-----+-----+-----+-----+
+    ///   |     |     |     |     |           |     |     |     |     |
+    ///   +-----+-----+-----+-----+           +-----+-----+-----+-----+
+    /// 32    24    16     8      0         32    24    16     8      0   <- Bit index
     ///
-    ///  Output
     ///
-    /// byte1                      byte2                      byte3
-    /// -----------------------    -----------------------     -------
-    /// | v2c[4..8] v1d[0..4] |    | v1d[4..8] v2c[4..8] |     | v2d |
-    /// -----------------------    -----------------------     -------
+    /// Output
+    ///
+    /// byte1            byte2                     byte3
+    /// +-----------+    +-------------------+     +-----------+
+    /// | v1[12..4] |    | v1[4..0] v2[4..0] |     | v2[12..4] |
+    /// +-----------+    +-------------------+     +-----------+
     ///
     fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
         let chunk1 = (value1 >> 4u32) & 0x00FFu32;
@@ -197,6 +200,9 @@ impl Default for Target {
 mod target_tests {
     use super::*;
 
+
+    /// Asserts that decoding encoded the given values returns the correct initial values again.
+    /// That means that `decode(encode(value1,value2)) == (value1,value2)`.
     fn assert_valid_roundtrip(value1:u32, value2:u32) {
         let pack   = Target::encode(value1,value2);
         let unpack = Target::decode(pack.0.into(),pack.1.into(),pack.2.into());
