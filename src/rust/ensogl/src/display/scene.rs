@@ -109,6 +109,14 @@ impl {
 // === Target ===
 // ==============
 
+/// Result of a Decoding operation in the Target.
+enum DecodingResult{
+    /// Values had to be truncated.
+    Truncated(u8,u8,u8),
+    /// Values have been encoded successfully.
+    Ok(u8,u8,u8)
+}
+
 /// Mouse target. Contains a path to an object pointed by mouse.
 #[derive(Debug,Clone,Copy,Eq,PartialEq)]
 pub enum Target {
@@ -146,12 +154,17 @@ impl Target {
     /// | v1[12..4] |    | v1[4..0] v2[4..0] |     | v2[12..4] |
     /// +-----------+    +-------------------+     +-----------+
     ///
-    fn encode(value1:u32, value2:u32) -> (u8,u8,u8) {
+    fn encode(value1:u32, value2:u32) -> DecodingResult {
         let chunk1 = (value1 >> 4u32) & 0x00FFu32;
         let chunk2 = (value1 & 0x000Fu32) << 4u32;
         let chunk2 = chunk2 | ((value2 & 0x0F00u32) >> 8u32);
         let chunk3 = value2 & 0x00FFu32;
-        (chunk1 as u8, chunk2 as u8, chunk3 as u8)
+
+        if value1 > 2u32.pow(12) ||value2 > 2u32.pow(12) {
+            DecodingResult::Truncated(chunk1 as u8, chunk2 as u8, chunk3 as u8)
+        }else{
+            DecodingResult::Ok(chunk1 as u8, chunk2 as u8, chunk3 as u8)
+        }
     }
 
     /// Decode the symbol_id and instance_id that was encoded in the `fragment_runner`.
@@ -163,12 +176,24 @@ impl Target {
         (value1, value2)
     }
 
-    fn to_internal(&self) -> Vector4<u32> {
+    fn to_internal(&self, logger:Option<&Logger>) -> Vector4<u32> {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
-                let pack = Self::encode(*symbol_id,*instance_id);
-                Vector4::new(pack.0.into(),pack.1.into(),pack.2.into(),1)
+                match Self::encode(*symbol_id,*instance_id) {
+                    DecodingResult::Truncated(pack0,pack1,pack2) => {
+                        if let Some(logger) = logger{
+                            logger.warning(|| {
+                                format!("Target values too big to encode: ({},{}).",
+                                        *symbol_id,*instance_id)
+                            });
+                        }
+                        Vector4::new(pack0.into(),pack1.into(),pack2.into(),1)
+                    },
+                    DecodingResult::Ok(pack0,pack1,pack2) => {
+                        Vector4::new(pack0.into(),pack1.into(),pack2.into(),1)
+                    },
+                }
             },
         }
     }
@@ -274,14 +299,15 @@ pub struct Mouse {
     pub target          : Rc<Cell<Target>>,
     pub handles         : Rc<Vec<callback::Handle>>,
     pub frp             : enso_frp::io::Mouse,
+    pub logger          : Logger
 }
 
 impl Mouse {
-    pub fn new(shape:&web::dom::Shape, variables:&UniformScope) -> Self {
+    pub fn new(shape:&web::dom::Shape, variables:&UniformScope, logger:Logger) -> Self {
 
         let target          = Target::default();
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
-        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal());
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(Some(&logger)));
         let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
         let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
@@ -353,7 +379,7 @@ impl Mouse {
         }).forget();
 
         Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
-             ,button3_pressed,button4_pressed,target,handles,frp}
+             ,button3_pressed,button4_pressed,target,handles,frp,logger}
     }
 }
 
@@ -717,7 +743,8 @@ impl SceneData {
         let symbols_dirty  = dirty_flag;
         let views          = Views::mk(&logger,width,height);
         let stats          = stats.clone();
-        let mouse          = Mouse::new(&dom.shape(),&variables);
+        let mouse_logger   = logger.sub("mouse");
+        let mouse          = Mouse::new(&dom.shape(),&variables,mouse_logger);
         let shapes         = ShapeRegistry::default();
         let uniforms       = Uniforms::new(&variables);
         let dirty          = Dirty {symbols:symbols_dirty,shape:shape_dirty};
