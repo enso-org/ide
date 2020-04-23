@@ -25,15 +25,15 @@ pub use self::path::Path;
 #[derive(Debug)]
 pub struct Var {
     /// Index of the var in the style var map.
-    pub index : Index<Var>,
+    index : Index<Var>,
     /// Set of all `Sheet` indexes which are potential matches of this var. For example, for a var
     /// 'panel.button.size', all of the following sheets will be included here: 'panel.button.size',
     /// 'button.size', and 'size'.
-    pub matches : Vec<Index<Sheet>>,
+    matches : Vec<Index<Sheet>>,
     /// Index of the most specific `Sheet` from `matches` which has a defined value if any.
-    pub binding : Option<Index<Sheet>>,
+    binding : Option<Index<Sheet>>,
     /// List of all `Sheet`s which use this var in their expressions.
-    pub usages : HashSet<Index<Sheet>>,
+    usages : HashSet<Index<Sheet>>,
 }
 
 impl Var {
@@ -60,15 +60,15 @@ impl Var {
 #[derive(Debug)]
 pub struct Sheet {
     /// Index of the style sheet in the style sheet map.
-    pub index : Index<Sheet>,
+    index : Index<Sheet>,
     /// Value of this style sheet node. Style sheets without value behave like if they do not exist.
-    pub value : Option<Data>,
+    value : Option<Data>,
     /// Expression used to update the value.
-    pub expr : Option<Expression>,
+    expr : Option<Expression>,
     /// Indexes of all `Var`s that are potential matches with this style sheet.
-    pub matches : HashSet<Index<Var>>,
+    matches : HashSet<Index<Var>>,
     /// Indexes of all `Var`s that are bound (best matches) with this style sheet.
-    pub bindings : HashSet<Index<Var>>,
+    bindings : HashSet<Index<Var>>,
 }
 
 impl Sheet {
@@ -98,7 +98,7 @@ impl Sheet {
 #[derivative(Debug)]
 pub struct Expression {
     /// Indexes of all vars which are used as sources to the function of this expression.
-    pub sources : Vec<Index<Var>>,
+    sources : Vec<Index<Var>>,
     /// Function used to compute the new value of the style sheet.
     #[derivative(Debug="ignore")]
     function : Box<dyn Fn(&[&Data])->Data>

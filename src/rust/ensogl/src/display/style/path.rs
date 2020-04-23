@@ -23,8 +23,7 @@ impl Path {
     /// structure and learn more.
     pub fn from_segments<T,I,Item>(t:T) -> Self
     where T : IntoIterator<IntoIter=I,Item=Item>,
-          I : Iterator<Item=Item>,
-          I : DoubleEndedIterator,
+          I : DoubleEndedIterator + Iterator<Item=Item>,
           Item : Into<String> {
         Self::from_rev_segments(t.into_iter().rev())
     }
