@@ -39,7 +39,7 @@ impl Path {
 
 impl From<&str> for Path {
     fn from(t:&str) -> Self {
-        Self::from_rev_segments(t.rsplit("."))
+        Self::from_rev_segments(t.rsplit('.'))
     }
 }
 

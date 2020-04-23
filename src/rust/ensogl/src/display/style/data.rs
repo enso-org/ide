@@ -98,6 +98,7 @@ macro_rules! _define_binary_number_operator {
     ([$($t1:tt)*] [$($t2:tt)*] $name:ident :: $fn:ident, $($err:tt)*) => {
         impl $name<$($t2)*> for $($t1)* {
             type Output = Data;
+            #[allow(clippy::redundant_closure_call)]
             fn $fn(self, rhs:$($t2)*) -> Self::Output {
                 match(self,rhs) {
                     (Data::Invalid(t),_) => Data::Invalid(t.clone()),

@@ -128,13 +128,13 @@ trait NewInstance<K> {
 
 impl NewInstance<Index<Var>> for VarVec {
     fn new_instance(&mut self) -> Index<Var> {
-        self.insert_with_ix(|index| Var::new(index))
+        self.insert_with_ix(Var::new)
     }
 }
 
 impl NewInstance<Index<Sheet>> for SheetVec {
     fn new_instance(&mut self) -> Index<Sheet> {
-        self.insert_with_ix(|index| Sheet::new(index))
+        self.insert_with_ix(Sheet::new)
     }
 }
 
@@ -264,7 +264,7 @@ impl Registry {
     where P:Into<Path>, F:'static+Fn(&[&Data])->Data {
         let sheet_id = self.sheet(path);
         let sheet    = &mut self.sheets[sheet_id];
-        let sources  = args.iter().cloned().collect();
+        let sources  = args.to_vec();
         let function = Box::new(function);
         sheet.expr   = Some(Expression {sources,function});
         for var_id in args {
@@ -402,8 +402,8 @@ impl Registry {
     /// display it in a new browser tab.
     pub fn to_graphviz(&self) -> String {
         let mut dot = String::new();
-        Self::to_graphviz_sheet_map(&mut dot,&self.sheet_map);
-        Self::to_graphviz_var_map(&mut dot,&mut vec![],&self.var_map);
+        Self::sheet_map_to_graphviz(&mut dot,&self.sheet_map);
+        Self::var_map_to_graphviz(&mut dot,&mut vec![],&self.var_map);
         let s = &mut dot;
         for var in &self.vars {
             for sheet in &var.matches {Self::var_sheet_link(s,var.index,*sheet,"[style=dashed]")}
@@ -420,23 +420,23 @@ impl Registry {
         format!("digraph G {{\nnode [shape=box style=rounded]\n{}\n}}",dot)
     }
 
-    fn to_graphviz_sheet_map(dot:&mut String, sheet_map:&SheetMap) {
+    fn sheet_map_to_graphviz(dot:&mut String, sheet_map:&SheetMap) {
         let sheet_id = sheet_map.value;
         dot.push_str(&iformat!("sheet_{sheet_id}\n"));
         for (path,child) in sheet_map {
             Self::sheet_sheet_link(dot,sheet_id,child.value,iformat!("[label=\"{path}\"]"));
-            Self::to_graphviz_sheet_map(dot,child);
+            Self::sheet_map_to_graphviz(dot,child);
         }
     }
 
-    fn to_graphviz_var_map(dot:&mut String, path:&mut Vec<String>, var_map:&VarMap) {
+    fn var_map_to_graphviz(dot:&mut String, path:&mut Vec<String>, var_map:&VarMap) {
         var_map.value.for_each(|var_id| {
             let real_path = path.iter().rev().join(".");
             dot.push_str(&iformat!("var_{var_id} [label=\"Var({real_path})\"]\n"));
         });
         for (segment,child) in var_map {
             path.push(segment.into());
-            Self::to_graphviz_var_map(dot,path,child);
+            Self::var_map_to_graphviz(dot,path,child);
             path.pop();
         }
     }
