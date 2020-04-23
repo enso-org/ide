@@ -336,7 +336,7 @@ pub struct PortData<T:PortShapeViewDefinition> {
 
 impl<T:PortShapeViewDefinition> Port<T> {
 
-    /// Internal constructor based on a given specification.
+    /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { port_network
             def label    = source::<String> ();
