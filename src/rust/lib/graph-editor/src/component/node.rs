@@ -1,6 +1,7 @@
 //! Definition of the Node component.
 
 pub mod port;
+pub mod connection;
 
 use crate::prelude::*;
 

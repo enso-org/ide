@@ -166,6 +166,14 @@ impl Cursor {
         })
     }
 
+    /// Position getter.
+    pub fn position(&self) -> Option<Vector2<f32>> {
+        self.view.data.borrow().as_ref().map(|view| {
+            return view.shape.position.get()
+        });
+        None
+    }
+
     /// Selection size setter.
     pub fn set_selection_size(&self, pos:Vector2<f32>) {
         self.view.data.borrow().as_ref().for_each(|view| {
