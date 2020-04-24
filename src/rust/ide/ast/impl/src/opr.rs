@@ -449,4 +449,6 @@ mod tests {
         expect_at(&chain.args[0].operand,&b);
         expect_at(&chain.args[1].operand,&a);
     }
+
+    // TODO[ao] add tests for modifying chain.
 }
