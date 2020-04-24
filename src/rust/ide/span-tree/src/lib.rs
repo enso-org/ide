@@ -18,7 +18,6 @@
 #![warn(missing_debug_implementations)]
 
 pub mod action;
-pub mod action2;
 pub mod generate;
 pub mod iter;
 pub mod node;

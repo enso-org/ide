@@ -10,7 +10,7 @@ use crate::Ast;
 use crate::Shifted;
 use crate::Shape;
 use crate::assoc::Assoc;
-use crate::crumbs::{Crumb, InfixCrumb, SectionLeftCrumb, SectionRightCrumb};
+use crate::crumbs::{Crumb, InfixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
 use crate::crumbs::Located;
 use crate::known;
 use utils::vec::VecExt;
@@ -270,8 +270,9 @@ impl Chain {
         let this_crumbs = self.args.iter().rev().map(ChainElement::crumb_to_previous).collect_vec();
         let this        = self.target.as_ref().map(|opr| Located::new(this_crumbs,opr));
         let args        = self.args.iter().enumerate().map(move |(i,elem)| elem.operand.as_ref().map(|opr| {
-            let to_infix = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
-            let crumbs   = to_infix.chain(elem.crumb_to_operand()).collect_vec();
+            let to_infix   = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
+            let has_target = self.target.is_some() || i > 0;
+            let crumbs     = to_infix.chain(elem.crumb_to_operand(has_target)).collect_vec();
             Located::new(crumbs,opr)
         }));
         std::iter::once(this).chain(args).flatten()
@@ -279,8 +280,9 @@ impl Chain {
 
     pub fn enumerate_operators<'a>(&'a self) -> impl Iterator<Item=Located<&'a known::Opr>> + 'a {
         self.args.iter().enumerate().map(move |(i,elem)| {
-            let to_infix = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
-            let crumbs   = to_infix.chain(elem.crumb_to_operator()).collect_vec();
+            let to_infix   = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
+            let has_target = self.target.is_some() || i > 0;
+            let crumbs     = to_infix.chain(elem.crumb_to_operator(has_target)).collect_vec();
             Located::new(crumbs,&elem.operator)
         })
     }
@@ -304,6 +306,11 @@ impl Chain {
 
     pub fn push_front_operand(&mut self, operand:Shifted<Ast>) {
         self.insert_operand(0,operand)
+    }
+
+    pub fn erase_target(&mut self) {
+        let new_target = self.args.pop_front().unwrap().operand;
+        self.target = new_target
     }
 
     pub fn fold_arg(&mut self) {
@@ -346,28 +353,31 @@ impl ChainElement {
     pub fn crumb_to_previous(&self) -> Crumb {
         let has_operand = self.operand.is_some();
         match assoc(&self.operator) {
-            Assoc::Left if has_operand  => InfixCrumb::LeftOperand.into(),
+            Assoc::Left  if has_operand => InfixCrumb::LeftOperand.into(),
             Assoc::Left                 => SectionLeftCrumb::Arg.into(),
             Assoc::Right if has_operand => InfixCrumb::RightOperand.into(),
             Assoc::Right                => SectionRightCrumb::Arg.into(),
         }
     }
 
-    pub fn crumb_to_operand(&self) -> Crumb {
+    pub fn crumb_to_operand(&self, has_target:bool) -> Crumb {
         match assoc(&self.operator) {
-            Assoc::Left  => InfixCrumb::RightOperand.into(),
-            Assoc::Right => InfixCrumb::LeftOperand.into(),
+            Assoc::Left  if has_target => InfixCrumb::RightOperand.into(),
+            Assoc::Left                => SectionRightCrumb::Arg.into(),
+            Assoc::Right if has_target => InfixCrumb::LeftOperand.into(),
+            Assoc::Right               => SectionLeftCrumb::Arg.into(),
         }
     }
 
-    pub fn crumb_to_operator(&self) -> Crumb {
-        if self.operand.is_some() {
-            InfixCrumb::Operator.into()
-        } else {
-            match assoc(&self.operator) {
-                Assoc::Left  => SectionLeftCrumb::Opr.into(),
-                Assoc::Right => SectionRightCrumb::Opr.into(),
-            }
+    pub fn crumb_to_operator(&self, has_target:bool) -> Crumb {
+        let has_operand = self.operand.is_some();
+        match assoc(&self.operator) {
+            _            if has_target && has_operand => InfixCrumb::Operator.into(),
+            Assoc::Left  if has_target                => SectionLeftCrumb::Opr.into(),
+            Assoc::Left  if has_operand               => SectionRightCrumb::Opr.into(),
+            Assoc::Right if has_target                => SectionRightCrumb::Opr.into(),
+            Assoc::Right if has_operand               => SectionLeftCrumb::Opr.into(),
+            _                                         => SectionSidesCrumb.into(),
         }
     }
 }

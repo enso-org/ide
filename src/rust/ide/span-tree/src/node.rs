@@ -7,7 +7,7 @@ use crate::iter::TreeFragment;
 
 use data::text::Index;
 use data::text::Size;
-
+use crate::action::InsertType;
 
 
 // =============
@@ -24,12 +24,12 @@ pub enum Kind {
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    Target,// { removable:bool },
+    Target {removable:bool},
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument,// { removable:bool },
+    Argument {removable:bool},
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
     /// have assigned span of length 0 and should not have any child.
-    Empty,
+    Empty(InsertType),
 }
 
 /// A type which identifies some node in SpanTree. This is essentially a iterator over child
@@ -54,11 +54,18 @@ pub struct Node {
 
 impl Node {
     /// Create Empty node.
-    pub fn new_empty() -> Self {
+    pub fn new_empty(insert_type:InsertType) -> Self {
         Node {
-            kind     : Kind::Empty,
+            kind     : Kind::Empty(insert_type),
             size     : Size::new(0),
             children : Vec::new(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self.kind {
+            Kind::Empty(_) => true,
+            _              => false,
         }
     }
 }
@@ -96,6 +103,10 @@ pub struct Ref<'a> {
 }
 
 impl<'a> Ref<'a> {
+    /// Get span of current node.
+    pub fn span(&self) -> data::text::Span {
+        data::text::Span::new(self.span_begin,self.node.size)
+    }
 
     /// Get the reference to child with given index. Returns None if index if out of bounds.
     pub fn child(mut self, index:usize) -> Option<Ref<'a>> {
@@ -133,6 +144,18 @@ impl<'a> Ref<'a> {
             None        => Some(self)
         }
     }
+
+    /// Get the node which exaclty matches the given Span:
+    pub fn find_by_span(self, span:&data::text::Span) -> Option<Ref<'a>> {
+        if self.span() == *span {
+            Some(self)
+        } else {
+            let child = self.children_iter().find_map(|ch|
+                ch.span().contains_span(span).and_option_from(|| ch.find_by_span(&span))
+            );
+            child.and_then(|ch| ch.find_by_span(span))
+        }
+    }
 }
 
 
@@ -152,13 +175,14 @@ mod test {
     #[test]
     fn traversing_tree() {
         use InfixCrumb::*;
-        let tree = TreeBuilder::new(7)
-            .add_leaf (0,1,Target   ,vec![LeftOperand])
+        let removable = false;
+        let tree      = TreeBuilder::new(7)
+            .add_leaf (0,1,Target{removable},vec![LeftOperand])
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Argument ,vec![RightOperand])
-                .add_leaf(0,2,Target   ,vec![LeftOperand])
+            .add_child(2,5,Argument{removable},vec![RightOperand])
+                .add_leaf(0,2,Target{removable},vec![LeftOperand])
                 .add_leaf(3,1,Operation,vec![Operator])
-                .add_leaf(4,1,Argument ,vec![RightOperand])
+                .add_leaf(4,1,Argument{removable},vec![RightOperand])
                 .done()
             .build();
 

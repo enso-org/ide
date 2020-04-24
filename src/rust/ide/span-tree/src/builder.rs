@@ -5,6 +5,7 @@ use crate::SpanTree;
 
 use data::text::Size;
 use ast::crumbs::IntoCrumbs;
+use crate::action::InsertType;
 
 
 // =====================
@@ -40,9 +41,9 @@ pub trait Builder : Sized {
     }
 
     /// Add an Empty-type child to node.
-    fn add_empty_child(mut self, offset:usize) -> Self {
+    fn add_empty_child(mut self, offset:usize, insert_type:InsertType) -> Self {
         let child = node::Child {
-            node                : Node::new_empty(),
+            node                : Node::new_empty(insert_type),
             offset              : Size::new(offset),
             ast_crumbs          : vec![]
         };
