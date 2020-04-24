@@ -17,6 +17,10 @@ use crate::notification;
 use ast::crumbs::InfixCrumb;
 use parser::Parser;
 use span_tree::SpanTree;
+use span_tree::action::Implementation;
+use crate::double_representation::node::NodeInfo;
+use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::alias_analysis::{NormalizedName, LocatedName};
 
 
 
@@ -98,8 +102,8 @@ impl NewNodeInfo {
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
 pub struct Endpoint {
-    pub node  : double_representation::node::Id,
-    pub crumb : span_tree::Crumbs,
+    pub node   : double_representation::node::Id,
+    pub crumbs : span_tree::Crumbs,
 }
 
 
@@ -115,6 +119,14 @@ pub struct Connection {
 
 
 // === Connections ===
+
+pub struct Trees {
+    trees: HashMap<node::Id,NodeTrees>
+}
+
+impl Trees {
+
+}
 
 /// Describes connections in the graph. For convenience also includes information about port
 /// structure of the involved nodes.
@@ -147,7 +159,7 @@ impl Connections {
         let tree = self.trees.get(&endpoint.node)?;
         Some(Endpoint{
             node  : endpoint.node,
-            crumb : tree.convert_crumbs(&endpoint.crumbs)?,
+            crumbs: tree.convert_crumbs(&endpoint.crumbs)?,
         })
     }
 
@@ -196,10 +208,10 @@ impl NodeTrees {
                 Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => &self.inputs,
                 _ => return None,
             };
-            tree.convert_crumbs(&ast_crumbs[1..])
+            tree.convert_from_ast_crumbs(&ast_crumbs[1..])
         } else {
             // Expression node - there is only inputs span tree.
-            self.inputs.convert_crumbs(ast_crumbs)
+            self.inputs.convert_from_ast_crumbs(ast_crumbs)
         }
     }
 }
@@ -291,6 +303,130 @@ impl Handle {
         Ok(Connections::new(&graph))
     }
 
+    /// Suggests a name for a variable that shall store the node value.
+    ///
+    /// Analyzes the expression, e.g. result for "a+b" shall be named "sum".
+    /// The caller should make sure that obtained name won't collide with any symbol usage before
+    /// actually introducing it. See `variable_name_for`.
+    pub fn variable_name_base_for(node:&NodeInfo) -> String {
+        let ast = node.expression();
+        if let Some(infix) = ast::opr::GeneralizedInfix::try_new_root(node.ast()) {
+            match infix.name() {
+                "+" => "sum",
+                "*" => "product",
+                "-" => "difference",
+                "/" => "quotient",
+                _   => "operator"
+            }.into()
+        } else if ast::known::Number::try_from(ast).is_ok() {
+            "number".into()
+        } else if let Some(name) = ast::identifier::name(ast) {
+            if name.chars().next().contains_if(|c| c.is_alphabetic()) {
+                name.to_lowercase()
+            } else {
+                "identifier".into()
+            }
+        } else if let Some(prefix) = ast::prefix::Chain::try_new(ast) {
+            if let Some(def) = DefinitionName::from_ast(&prefix.func) {
+                def.name
+            } else {
+                "result".into()
+            }
+        } else {
+            "var".into()
+        }
+    }
+
+    /// Identifiers introduced or referred to in the current graph's scope.
+    ///
+    /// Introducing identifier not included on this list should have no side-effects on the name
+    /// resolution in the code in this graph.
+    pub fn used_names(&self) -> FallibleResult<impl Iterator<Item=LocatedName>> {
+        let def    = self.graph_definition_info()?;
+        let block  = ast::known::Block::try_from(def.body())?;
+        let usage  = double_representation::alias_analysis::analyse_block(&block);
+        let idents = usage.introduced.into_iter().chain(usage.used.into_iter());
+        Ok(idents)
+    }
+
+    /// Suggests a variable name for storing results of the given node. Name will get a number
+    /// appended to avoid conflicts with other identifiers used in the graph.
+    pub fn variable_name_for(&self, node:&NodeInfo) -> ast::known::Var {
+        let obtain_name = || -> FallibleResult<String> {
+            let base_name   = Self::variable_name_base_for(node);
+            let unavailable = self.used_names()?.filter_map(|name| {
+                let is_relevant = name.item.starts_with(base_name.as_str());
+                is_relevant.then(name.item)
+            }).collect::<HashSet<_>>();
+
+            for i in 1.. {
+                let candidate = NormalizedName::new(iformat!("{base_name}{i}"));
+                if !unavailable.contains(&candidate) {
+                    return Ok(candidate.deref().clone())
+                }
+            }
+            panic!("unreachable")
+        };
+
+        let name = obtain_name().unwrap_or_else(|_| {
+            let u = uuid::Uuid::new_v4();
+            let f = u.to_simple().to_string();
+            iformat!("var_{u.to_simple()}")
+        });
+
+
+        ast::known::Var::new(ast::Var {name}, None)
+    }
+
+    /// Converts node to an assignment, where the whole value is bound to a single identifier.
+    /// Modifies the node, discarding any previously set pattern.
+    /// Returns the identifier with the node's expression value.
+    pub fn introduce_name_on(&self, id:node::Id) -> FallibleResult<ast::known::Var> {
+        let mut ret = None;
+        self.update_node(id, |mut node| {
+            let name = self.variable_name_for(&node);
+            node.set_pattern(name.ast().clone());
+            ret = Some(name);
+            node
+        })?;
+        // TODO
+        Ok(ret.unwrap())
+    }
+
+    pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
+        let source_node = self.node_info(connection.source.node)?;
+        let source_ast = if let Some(pat) = source_node.pattern() {
+            pat
+        } else {
+            self.introduce_name_on(connection.source.node)?;
+            return self.connect(connection);
+        };
+        let source_node_outputs = SpanTree::new(source_ast)?;
+        let source_crumbs = &connection.source.crumbs;
+        let source_port = source_node_outputs.root_ref().traverse_subnode(source_crumbs.clone()).expect("failed locate crumb");
+
+        let source_crumbs = &source_port.ast_crumbs; //source_node_outputs.convert_to_ast_crumbs(&connection.source.crumbs).unwrap();
+        let source_identifier = source_ast.get_traversing(source_crumbs)?;
+
+
+        let destination_node = self.node_info(connection.destination.node)?;
+        let destination_ast = destination_node.expression();
+        let destination_node_outputs = SpanTree::new(destination_ast)?;
+        let destination_port = destination_node_outputs.root_ref().traverse_subnode(connection.destination.crumbs.clone()).unwrap();
+        let destination_crumbs = &destination_port.ast_crumbs; // destination_node_outputs.convert_to_ast_crumbs(&connection.destination.crumbs).unwrap();
+        let destination_identifier = destination_ast.get_traversing(destination_crumbs)?;
+
+        let setter  = destination_port.set_impl().unwrap();
+        let replaced_destination = setter(destination_ast,source_identifier.clone()).unwrap();
+        let new_expression = replaced_destination;// destination_ast.set_traversing(destination_crumbs,replaced_destination).unwrap();
+
+
+        println!("Connecting from {} to {}", source_identifier.repr(), destination_identifier.repr());
+        println!("New expression {}: ", new_expression.repr());
+
+        self.set_expression_ast(destination_node.id(),new_expression)
+    }
+
     /// Updates the AST of the definition of this graph.
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
@@ -354,11 +490,34 @@ impl Handle {
 
     /// Sets the given's node expression.
     pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
-        trace!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
+        //trace!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
+        self.set_expression_ast(id,new_expression_ast)
+    }
+
+    /// Sets the given's node expression.
+    pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult<()> {
+        trace!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
-            graph.edit_node(id,new_expression_ast)?;
+            graph.edit_node(id,expression)?;
+            Ok(graph.source)
+        })?;
+        Ok(())
+    }
+
+    /// Updates the given node in the definition.
+    ///
+    /// The function `F` is called with the information with the state of the node so far and
+    pub fn update_node<F>(&self, id:ast::Id, f:F) -> FallibleResult<()>
+    where F : FnOnce(NodeInfo) -> NodeInfo {
+        self.update_definition_ast(|definition| {
+            let mut graph = GraphInfo::from_definition(definition);
+            graph.update_node(id,|node| {
+                let new_node = f(node);
+                trace!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
+                Some(new_node)
+            })?;
             Ok(graph.source)
         })?;
         Ok(())
@@ -393,6 +552,7 @@ mod tests {
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
     use ast::test_utils::expect_shape;
+    use crate::double_representation::graph::LocationHint::End;
 
     struct GraphControllerFixture(TestWithLocalPoolExecutor);
     impl GraphControllerFixture {
@@ -634,15 +794,86 @@ main =
 
             let c = &connections.connections[0];
             assert_eq!(c.source.node, node0.info.id());
-            assert_eq!(c.source.crumb, [0]);
+            assert_eq!(c.source.crumbs, [0]);
             assert_eq!(c.destination.node, node1.info.id());
-            assert_eq!(c.destination.crumb, [1]);
+            assert_eq!(c.destination.crumbs, [1]);
 
             let c = &connections.connections[1];
             assert_eq!(c.source.node, node0.info.id());
-            assert_eq!(c.source.crumb, [2]);
+            assert_eq!(c.source.crumbs, [2]);
             assert_eq!(c.destination.node, node2.info.id());
-            assert_eq!(c.destination.crumb, [2,1]);
+            assert_eq!(c.destination.crumbs, [2,1]);
+        })
+    }
+
+    #[test]
+    fn graph_controller_create_connection() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    x,y = get_pos
+    1+2
+    1,2,3";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            let connections   = graph.connections().unwrap();
+            let (node0,node1,node2) = graph.nodes().unwrap().expect_tuple();
+
+            let tree1 = SpanTree::new(node1.info.expression()).unwrap();
+            println!("{:?}", tree1);
+
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node : node0.info.id(),
+                    crumbs : vec![0],
+                },
+                destination : Endpoint {
+                    node : node1.info.id(),
+                    crumbs : vec![2],
+                }
+            };
+            graph.connect(&connection_to_add);
+
+
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node : node0.info.id(),
+                    crumbs : vec![0],
+                },
+                destination : Endpoint {
+                    node : node2.info.id(),
+                    crumbs : vec![2,0], // `2` in `1,2,3`
+                }
+            };
+            graph.connect(&connection_to_add);
+        })
+    }
+
+
+    #[test]
+    fn graph_controller_create_connection_introducing_var() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    calculate
+    print _
+    calculate1 = calculate2
+    calculate5 a calculate4 = calculate4 + calculate3";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            assert!(graph.connections().unwrap().connections.is_empty());
+            let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node : node0.info.id(),
+                    crumbs : vec![],
+                },
+                destination : Endpoint {
+                    node : node1.info.id(),
+                    crumbs : vec![1], // `_` in `print _`
+                }
+            };
+            graph.connect(&connection_to_add).unwrap();
+
+            println!("=================================\n{}",graph.graph_definition_info().unwrap().ast.repr());
         })
     }
 }

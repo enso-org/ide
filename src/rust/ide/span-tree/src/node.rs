@@ -87,20 +87,45 @@ impl Node {
     /// `ast_crumbs` is a slice with crumbs to be converted.
     /// `crumbs_so_far` is a list of previously converted crumbs which will be prepended to the
     /// returned result.
-    pub fn convert_crumbs
-    (&self, ast_crumbs:&[ast::Crumb], mut crumbs_so_far:Vec<usize>) -> Option<Vec<usize>> {
-        let is_matching = |child:&&Child| {
-            ast_crumbs.get(..child.ast_crumbs.len()).contains(&child.ast_crumbs)
-        };
-
-        if ast_crumbs.is_empty() {
-            Some(crumbs_so_far)
-        } else if let Some((index, child)) = self.children.iter().find_position(is_matching) {
-            crumbs_so_far.push(index);
-            child.node.convert_crumbs(&ast_crumbs[child.ast_crumbs.len()..],crumbs_so_far)
-        } else {
-            None
+    pub fn convert_from_ast_crumbs(&self, mut ast_crumbs:&[ast::Crumb]) -> Option<Vec<usize>> {
+        let mut ret = Vec::new();
+        let mut node = self;
+        'crumbs: while ast_crumbs.len() > 0 {
+            for (index,child) in node.children.iter().enumerate() {
+                let count = child.ast_crumbs.len();
+                if count > 0 && ast_crumbs.get(..count).contains(&child.ast_crumbs) {
+                    ret.push(index);
+                    node = &child.node;
+                    ast_crumbs = &ast_crumbs[count..];
+                    continue 'crumbs;
+                }
+            }
+            return None
         }
+        Some(ret)
+        // let is_matching = |child:&&Child| {
+        //     ast_crumbs.get(..child.ast_crumbs.len()).contains(&child.ast_crumbs)
+        // };
+        //
+        // if ast_crumbs.is_empty() {
+        //     Some(crumbs_so_far)
+        // } else if let Some((index, child)) = self.children.iter().find_position(is_matching) {
+        //     crumbs_so_far.push(index);
+        //     child.node.convert_from_ast_crumbs(&ast_crumbs[child.ast_crumbs.len()..], crumbs_so_far)
+        // } else {
+        //     None
+        // }
+    }
+
+    pub fn convert_to_ast_crumbs(&self, crumbs:&[crate::Crumb]) -> Option<ast::Crumbs> {
+        let mut ret  = ast::Crumbs::new();
+        let mut node = self;
+        for crumb in crumbs {
+            let child = node.children.get(*crumb)?;
+            ret.extend(&child.ast_crumbs);
+            node = &child.node;
+        }
+        Some(ret)
     }
 }
 

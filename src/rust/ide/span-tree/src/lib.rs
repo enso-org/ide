@@ -50,8 +50,11 @@ use prelude::*;
 // === Crumbs ===
 // ==============
 
-/// Crumbs identifying node's location in the span tree. Crumb is the child index.
-pub type Crumbs = Vec<usize>;
+/// Crumb identifies subtree within a node. It is the index of the child node.
+pub type Crumb = usize;
+
+/// Crumbs identifying node's location in the span tree.
+pub type Crumbs = Vec<Crumb>;
 
 
 
@@ -86,8 +89,12 @@ impl SpanTree {
     }
 
     /// Converts `Ast` crumbs to `SpanTree` crumbs.
-    pub fn convert_crumbs(&self, ast_crumbs:&[ast::Crumb]) -> Option<Vec<usize>> {
-        self.root.convert_crumbs(ast_crumbs,default())
+    pub fn convert_from_ast_crumbs(&self, ast_crumbs:&[ast::Crumb]) -> Option<Vec<usize>> {
+        self.root.convert_from_ast_crumbs(ast_crumbs)
+    }
+
+    pub fn convert_to_ast_crumbs(&self, crumbs:&[Crumb]) -> Option<ast::Crumbs> {
+        self.root.convert_to_ast_crumbs(crumbs)
     }
 }
 
@@ -105,16 +112,25 @@ mod test {
         use ast::crumbs::InfixCrumb::*;
         use ast::crumbs::PrefixCrumb::*;
 
-        assert_eq!(tree.convert_crumbs(&crumbs![]),                         Some(vec![]));
-        assert_eq!(tree.convert_crumbs(&crumbs![LeftOperand]),              Some(vec![0]));
-        assert_eq!(tree.convert_crumbs(&crumbs![Operator]),                 Some(vec![1]));
-        assert_eq!(tree.convert_crumbs(&crumbs![RightOperand]),             Some(vec![2]));
-        assert_eq!(tree.convert_crumbs(&crumbs![LeftOperand,LeftOperand]),  Some(vec![0,0]));
-        assert_eq!(tree.convert_crumbs(&crumbs![LeftOperand,Operator]),     Some(vec![0,1]));
-        assert_eq!(tree.convert_crumbs(&crumbs![LeftOperand,RightOperand]), Some(vec![0,2]));
+        let test_conversions = |ast_crumbs:ast::Crumbs, crumbs:Crumbs| {
+            assert_eq!(tree.convert_from_ast_crumbs(&ast_crumbs).as_ref(), Some(&crumbs));
+            assert_eq!(tree.convert_to_ast_crumbs(&crumbs).as_ref(),       Some(&ast_crumbs));
+        };
 
-        assert!(tree.convert_crumbs(&crumbs![Arg]).is_none());
-        assert!(tree.convert_crumbs(&crumbs![LeftOperand,Arg]).is_none());
-        assert!(tree.convert_crumbs(&crumbs![RightOperand,LeftOperand]).is_none());
+        test_conversions(crumbs![],                         vec![]   );
+        test_conversions(crumbs![LeftOperand],              vec![0]  );
+        test_conversions(crumbs![Operator],                 vec![1]  );
+        test_conversions(crumbs![RightOperand],             vec![2]  );
+        test_conversions(crumbs![LeftOperand,LeftOperand],  vec![0,0]);
+        test_conversions(crumbs![LeftOperand,Operator],     vec![0,1]);
+        test_conversions(crumbs![LeftOperand,RightOperand], vec![0,2]);
+
+        assert!(tree.convert_from_ast_crumbs(&crumbs![Arg]).is_none());
+        assert!(tree.convert_from_ast_crumbs(&crumbs![LeftOperand,Arg]).is_none());
+        assert!(tree.convert_from_ast_crumbs(&crumbs![RightOperand,LeftOperand]).is_none());
+
+        assert!(tree.convert_to_ast_crumbs(&vec![4]).is_none());
+        assert!(tree.convert_to_ast_crumbs(&vec![1,5]).is_none());
+        assert!(tree.convert_to_ast_crumbs(&vec![0,0,0]).is_none());
     }
 }
