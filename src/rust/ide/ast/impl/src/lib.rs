@@ -79,7 +79,7 @@ pub type Stream<T> = Vec<T>;
 // ==============
 
 /// Exception raised by macro-generated TryFrom methods that try to "downcast"
-/// enum type to its variant subtype if different constructor was used.
+/// enum type to its vaShariant subtype if different constructor was used.
 #[derive(Display, Debug, Fail)]
 pub struct WrongEnum {pub expected_con:String}
 
@@ -425,7 +425,7 @@ pub enum Shape<T> {
     Match         { pfx      : Option<MacroPatternMatch<Shifted<T>>>
                   , segs     : ShiftedVec1<MacroMatchSegment<T>>
                   , resolved : Ast                                     },
-    Ambiguous     { segs     : ShiftedVec1<MacroAmbiguousSegment>
+    Ambiguous     { segs     : ShiftedVec1<MacroAmbiguousSegment<T>>
                   , paths    : Tree<Ast, Unit>                         },
 
     // === Spaceless AST ===
@@ -447,7 +447,7 @@ macro_rules! with_shape_variants {
               [TextLineRaw] [TextLineFmt Ast] [TextBlockRaw] [TextBlockFmt Ast] [TextUnclosed Ast]
               [Prefix Ast] [Infix Ast] [SectionLeft Ast] [SectionRight Ast] [SectionSides Ast]
               [Module Ast] [Block Ast]
-              [Match Ast] [Ambiguous]
+              [Match Ast] [Ambiguous Ast]
               // Note: Spaceless AST is intentionally omitted here.
             }
     };
@@ -564,9 +564,9 @@ pub struct BlockLine <T> {
     pub body : MacroPatternMatch<Shifted<T>>
 }
 
-#[ast] pub struct MacroAmbiguousSegment {
-    pub head: Ast,
-    pub body: Option<Shifted<Ast>>
+#[ast] pub struct MacroAmbiguousSegment<T> {
+    pub head: T,
+    pub body: Option<Shifted<T>>
 }
 
 pub type MacroPattern = Rc<MacroPatternRaw>;

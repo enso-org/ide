@@ -125,8 +125,8 @@ has_tokens!(BlockLine<T>, self.elem, self.off);
 
 // === Macro Segments ==
 
-has_tokens!(MacroMatchSegment<T> , self.head, self.body);
-has_tokens!(MacroAmbiguousSegment, self.head, self.body);
+has_tokens!(MacroMatchSegment<T>    , self.head, self.body);
+has_tokens!(MacroAmbiguousSegment<T>, self.head, self.body);
 
 
 // === MacroPatternMatch subtypes ===
@@ -333,7 +333,7 @@ impl<T:HasTokens> HasTokens for Match<T> {
 
 // === Ambiguous ===
 
-has_tokens!(Ambiguous, self.segs);
+has_tokens!(Ambiguous<T>, self.segs);
 
 
 

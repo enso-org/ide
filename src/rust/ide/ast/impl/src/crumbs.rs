@@ -311,6 +311,20 @@ pub enum SegmentMatchCrumb {
 }
 
 
+// === Ambiguous ===
+
+#[allow(missing_docs)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
+pub struct AmbiguousCrumb {
+    index : usize,
+    field : AmbiguousSegmentCrumb,
+}
+
+#[allow(missing_docs)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
+pub enum AmbiguousSegmentCrumb { Head, Body }
+
+
 // === Conversion Traits ===
 
 macro_rules! from_crumb {
@@ -396,6 +410,7 @@ impl_crumbs!{
     ( Module        , ModuleCrumb        ),
     ( Block         , BlockCrumb         ),
     ( Match         , MatchCrumb         ),
+    ( Ambiguous     , AmbiguousCrumb     ),
     ( Import        , ImportCrumb        ),
     ( Mixfix        , MixfixCrumb        ),
     ( Group         , GroupCrumb         ),
@@ -967,6 +982,42 @@ impl Crumbable for crate::Match<Ast> {
             }
         }
         Box::new(crumbs.into_iter())
+    }
+}
+
+impl Crumbable for crate::Ambiguous<Ast> {
+    type Crumb = AmbiguousCrumb;
+
+    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+        let seg = self.segs.get_or_err(crumb.index,"seg")?;
+        let ast = match crumb.field {
+            AmbiguousSegmentCrumb::Head =>
+                &seg.head,
+            AmbiguousSegmentCrumb::Body =>
+                &seg.body.as_ref().ok_or_else(|| NotPresent("body".into()))?.wrapped,
+        };
+        Ok(&ast)
+    }
+
+    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+        let mut new_self = self.clone();
+        let mut seg      = new_self.segs.get_mut_or_err(crumb.index,"seg")?;
+        match crumb.field {
+            AmbiguousSegmentCrumb::Head =>
+                seg.head = new_ast,
+            AmbiguousSegmentCrumb::Body =>
+                seg.body.as_mut().ok_or_else(|| NotPresent("body".into()))?.wrapped = new_ast,
+        };
+        Ok(new_self)
+    }
+
+    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+        let head   = |index| AmbiguousCrumb{index,field:AmbiguousSegmentCrumb::Head};
+        let body   = |index| AmbiguousCrumb{index,field:AmbiguousSegmentCrumb::Body};
+        let crumbs = self.segs.iter().enumerate().flat_map(move |(index,seg)|
+            iter::once(head(index)).chain(seg.body.iter().map(move |_| body(index)))
+        );
+        Box::new(crumbs)
     }
 }
 
