@@ -122,7 +122,7 @@ pub struct ShiftedVec1<T> {
 }
 
 impl<T> Shifted<T> {
-    fn new(off:usize, wrapped:T) -> Self {
+    pub fn new(off:usize, wrapped:T) -> Self {
         Shifted{off,wrapped}
     }
 }
