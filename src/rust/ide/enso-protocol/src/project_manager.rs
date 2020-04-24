@@ -52,7 +52,7 @@ pub enum Notification {}
 
 make_rpc_methods! {
 /// An interface containing all the available project management operations.
-trait Client {
+trait API {
     /// Requests that the project picker open a specified project. This operation also
     /// includes spawning an instance of the language server open on the specified project.
     #[MethodInput=OpenProjectInput,rpc_name="project/open",result=open_project_result,set_result=set_open_project_result]

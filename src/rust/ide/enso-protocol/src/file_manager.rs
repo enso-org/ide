@@ -138,7 +138,7 @@ pub enum FileKind {
 
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
-trait Client {
+trait API {
     /// Copies a specified directory to another location.
     #[MethodInput=CopyDirectoryInput,rpc_name="file/copy",result=copy_directory_result,set_result=set_copy_directory_result]
     fn copy_directory(&self, from:Path, to:Path) -> ();

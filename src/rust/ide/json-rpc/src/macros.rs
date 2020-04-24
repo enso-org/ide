@@ -54,7 +54,7 @@ macro_rules! make_arg {
 macro_rules! make_rpc_methods {
     (
     $(#[doc = $impl_doc:expr])+
-    trait Client {
+    trait API {
         $($(#[doc = $doc:expr])+
         #[MethodInput=$method_input:ident,rpc_name=$rpc_name:expr,result=$method_result:ident,
         set_result=$set_result:ident]
