@@ -138,6 +138,7 @@ impl GeneralizedInfix {
         }
     }
 
+    /// Constructor with operands marked as target and argument.
     pub fn new_from_operands(target:Operand, opr:Operator, argument:Operand) -> Self {
         match assoc(&opr) {
             Assoc::Left => GeneralizedInfix {opr,
