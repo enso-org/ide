@@ -157,7 +157,7 @@ has_tokens!(MacroPatternMatchRawInvalid<T>, self.elem);
 
 // === Switch ===
 
-has_tokens!(Switch<T>, self.get().deref());
+has_tokens!(Switch<T>, self.deref());
 
 
 // === Shifted ===

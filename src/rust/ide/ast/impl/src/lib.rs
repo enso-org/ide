@@ -79,7 +79,7 @@ pub type Stream<T> = Vec<T>;
 // ==============
 
 /// Exception raised by macro-generated TryFrom methods that try to "downcast"
-/// enum type to its vaShariant subtype if different constructor was used.
+/// enum type to its variant subtype if different constructor was used.
 #[derive(Display, Debug, Fail)]
 pub struct WrongEnum {pub expected_con:String}
 
@@ -622,11 +622,22 @@ pub enum Switch<T> { Left{value: T}, Right{value: T} }
 // Switch however does not need to be #[ast], when derive(Iterator) supports
 // enum with struct variants, this attribute should be possible to remove.
 
-impl<T> Switch<T> {
-    fn get(&self) -> &T {
+impl<T> Deref for Switch<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
         match self {
             Switch::Left (elem) => &elem.value,
             Switch::Right(elem) => &elem.value,
+        }
+    }
+}
+
+impl<T> DerefMut for Switch<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        match self {
+            Switch::Left (elem) => &mut elem.value,
+            Switch::Right(elem) => &mut elem.value,
         }
     }
 }

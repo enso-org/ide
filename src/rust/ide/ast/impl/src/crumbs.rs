@@ -757,144 +757,205 @@ impl Crumbable for crate::Block<Ast> {
     }
 }
 
+/// Helper function for getting an Ast from MacroPatternMatch based on crumb position.
+fn pattern_get<'a>
+( pat  : &'a MacroPatternMatch<Shifted<Ast>>
+, path : &[PatternMatchCrumb]
+) -> FallibleResult<&'a Ast> {
+    use crate::MacroPatternMatchRaw::*;
+
+    let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
+
+    let mut pattern = pat;
+    for crumb in path {
+        match (pattern.deref(),crumb) {
+            (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
+            (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
+            (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
+            (Build(pat)  , PatternMatchCrumb::Build   ) => return Ok(&pat.elem.wrapped),
+            (Err(pat)    , PatternMatchCrumb::Err     ) => return Ok(&pat.elem.wrapped),
+            (Tok(pat)    , PatternMatchCrumb::Tok     ) => return Ok(&pat.elem.wrapped),
+            (Blank(pat)  , PatternMatchCrumb::Blank   ) => return Ok(&pat.elem.wrapped),
+            (Var(pat)    , PatternMatchCrumb::Var     ) => return Ok(&pat.elem.wrapped),
+            (Cons(pat)   , PatternMatchCrumb::Cons    ) => return Ok(&pat.elem.wrapped),
+            (Opr(pat)    , PatternMatchCrumb::Opr     ) => return Ok(&pat.elem.wrapped),
+            (Mod(pat)    , PatternMatchCrumb::Mod     ) => return Ok(&pat.elem.wrapped),
+            (Num(pat)    , PatternMatchCrumb::Num     ) => return Ok(&pat.elem.wrapped),
+            (Text(pat)   , PatternMatchCrumb::Text    ) => return Ok(&pat.elem.wrapped),
+            (Block(pat)  , PatternMatchCrumb::Block   ) => return Ok(&pat.elem.wrapped),
+            (Macro(pat)  , PatternMatchCrumb::Macro   ) => return Ok(&pat.elem.wrapped),
+            (Invalid(pat), PatternMatchCrumb::Invalid ) => return Ok(&pat.elem.wrapped),
+            (Except(pat) , PatternMatchCrumb::Except  ) => pattern = &pat.elem,
+            (Tag(pat)    , PatternMatchCrumb::Tag     ) => pattern = &pat.elem,
+            (Cls(pat)    , PatternMatchCrumb::Cls     ) => pattern = &pat.elem,
+            (Or(pat)     , PatternMatchCrumb::Or      ) => pattern = &pat.elem,
+            (Seq(pat), PatternMatchCrumb::Seq{right}) =>
+                pattern = if *right {&pat.elem.1} else {&pat.elem.0},
+            (Many(pat), PatternMatchCrumb::Many{index}) =>
+                pattern = pat.elem.get_or_err(*index,"elem")?,
+            _ => return missing("crumb"),
+
+        }
+    }
+    missing("crumb")
+}
+
+/// Helper function that updates Ast in MacroPatternMatch based on crumb position.
+fn pattern_set
+( pat  : &MacroPatternMatch<Shifted<Ast>>
+, path : &[PatternMatchCrumb]
+, ast  : Ast
+) -> FallibleResult<MacroPatternMatch<Shifted<Ast>>> {
+    use crate::MacroPatternMatchRaw::*;
+
+    let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
+
+    let mut result  = pat.clone();
+    let mut pattern = Rc::make_mut(&mut result);
+    for crumb in path {
+        match (pattern,crumb) {
+            (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
+            (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
+            (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
+            (Build(pat)  , PatternMatchCrumb::Build   ) => {pat.elem.wrapped=ast;break},
+            (Err(pat)    , PatternMatchCrumb::Err     ) => {pat.elem.wrapped=ast;break},
+            (Tok(pat)    , PatternMatchCrumb::Tok     ) => {pat.elem.wrapped=ast;break},
+            (Blank(pat)  , PatternMatchCrumb::Blank   ) => {pat.elem.wrapped=ast;break},
+            (Var(pat)    , PatternMatchCrumb::Var     ) => {pat.elem.wrapped=ast;break},
+            (Cons(pat)   , PatternMatchCrumb::Cons    ) => {pat.elem.wrapped=ast;break},
+            (Opr(pat)    , PatternMatchCrumb::Opr     ) => {pat.elem.wrapped=ast;break},
+            (Mod(pat)    , PatternMatchCrumb::Mod     ) => {pat.elem.wrapped=ast;break},
+            (Num(pat)    , PatternMatchCrumb::Num     ) => {pat.elem.wrapped=ast;break},
+            (Text(pat)   , PatternMatchCrumb::Text    ) => {pat.elem.wrapped=ast;break},
+            (Block(pat)  , PatternMatchCrumb::Block   ) => {pat.elem.wrapped=ast;break},
+            (Macro(pat)  , PatternMatchCrumb::Macro   ) => {pat.elem.wrapped=ast;break},
+            (Invalid(pat), PatternMatchCrumb::Invalid ) => {pat.elem.wrapped=ast;break},
+            (Except(pat) , PatternMatchCrumb::Except  ) => {
+                pat.elem = pat.elem.clone();
+                pattern  = Rc::make_mut(&mut pat.elem);
+            },
+            (Tag(pat), PatternMatchCrumb::Tag) => {
+                pat.elem = pat.elem.clone();
+                pattern  = Rc::make_mut(&mut pat.elem);
+            },
+            (Cls(pat), PatternMatchCrumb::Cls) => {
+                pat.elem = pat.elem.clone();
+                pattern  = Rc::make_mut(&mut pat.elem);
+            },
+            (Or(pat), PatternMatchCrumb::Or) => {
+                pat.elem = pat.elem.clone();
+                pattern  = Rc::make_mut(&mut pat.elem);
+            },
+            (Seq(pat), PatternMatchCrumb::Seq{right}) => {
+                if *right {
+                    pat.elem.1 = pat.elem.1.clone();
+                    pattern    = Rc::make_mut(&mut pat.elem.1);
+                } else {
+                    pat.elem.0 = pat.elem.0.clone();
+                    pattern    = Rc::make_mut(&mut pat.elem.0);
+                }
+            },
+            (Many(pat), PatternMatchCrumb::Many{index}) => {
+                let elem = pat.elem.get_mut_or_err(*index,"elem")?;
+                *elem    = elem.clone();
+                pattern  = Rc::make_mut(elem);
+            },
+            _ => return missing("crumb"),
+        }
+    }
+    Ok(result)
+}
+
+/// Helper function that returns subcrumbs for MacroPatternMatch.
+fn pattern_subcrumbs(pat:&MacroPatternMatch<Shifted<Ast>>) -> Vec<Vec<PatternMatchCrumb>> {
+    use crate::MacroPatternMatchRaw::*;
+
+    let mut crumbs   = vec![];
+    let mut patterns = vec![(vec![],pat)];
+    while let Some((mut crumb,pattern)) = patterns.pop() {
+        match pattern.deref() {
+            Begin(_)   => (),
+            End(_)     => (),
+            Nothing(_) => (),
+            Build(_)   => {crumb.push(PatternMatchCrumb::Build)  ; crumbs.push(crumb)},
+            Err(_)     => {crumb.push(PatternMatchCrumb::Err)    ; crumbs.push(crumb)},
+            Tok(_)     => {crumb.push(PatternMatchCrumb::Tok)    ; crumbs.push(crumb)},
+            Blank(_)   => {crumb.push(PatternMatchCrumb::Blank)  ; crumbs.push(crumb)},
+            Var(_)     => {crumb.push(PatternMatchCrumb::Var)    ; crumbs.push(crumb)},
+            Cons(_)    => {crumb.push(PatternMatchCrumb::Cons)   ; crumbs.push(crumb)},
+            Opr(_)     => {crumb.push(PatternMatchCrumb::Opr)    ; crumbs.push(crumb)},
+            Mod(_)     => {crumb.push(PatternMatchCrumb::Mod)    ; crumbs.push(crumb)},
+            Num(_)     => {crumb.push(PatternMatchCrumb::Num)    ; crumbs.push(crumb)},
+            Text(_)    => {crumb.push(PatternMatchCrumb::Text)   ; crumbs.push(crumb)},
+            Block(_)   => {crumb.push(PatternMatchCrumb::Block)  ; crumbs.push(crumb)},
+            Macro(_)   => {crumb.push(PatternMatchCrumb::Macro)  ; crumbs.push(crumb)},
+            Invalid(_) => {crumb.push(PatternMatchCrumb::Invalid); crumbs.push(crumb)},
+            Except(pat) => {
+                crumb.push(PatternMatchCrumb::Except);
+                patterns.push((crumb,&pat.elem))
+            },
+            Tag(pat) => {
+                crumb.push(PatternMatchCrumb::Tag);
+                patterns.push((crumb,&pat.elem))
+            },
+            Cls(pat) => {
+                crumb.push(PatternMatchCrumb::Cls);
+                patterns.push((crumb,&pat.elem))
+            },
+            Or(pat) => {
+                crumb.push(PatternMatchCrumb::Or);
+                patterns.push((crumb,&pat.elem));
+            }
+            Seq(pat) => {
+                let mut crumb1 = crumb.clone();
+                let mut crumb2 = crumb.clone();
+                crumb1.push(PatternMatchCrumb::Seq{right:false});
+                crumb2.push(PatternMatchCrumb::Seq{right:true});
+                patterns.push((crumb2,&pat.elem.1));
+                patterns.push((crumb1,&pat.elem.0));
+            },
+            Many(pat) => {
+                for (index,pat) in pat.elem.iter().enumerate().rev() {
+                    let mut new_crumb = crumb.clone();
+                    new_crumb.push(PatternMatchCrumb::Many{index});
+                    patterns.push((new_crumb,pat));
+                }
+            }
+        }
+    }
+    crumbs
+}
+
 impl Crumbable for crate::Match<Ast> {
     type Crumb = MatchCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        use crate::MacroPatternMatchRaw::*;
 
-        let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
-
-        let (path, mut pattern) = match crumb {
+        match crumb {
             MatchCrumb::Pfx {val} => match &self.pfx {
-                Some(pat) => (val,pat),
-                None      => return missing("prefix"),
+                None      => Err(NotPresent("prefix".into()).into()),
+                Some(pat) => pattern_get(pat,val),
             },
             MatchCrumb::Segs{val,index} => match &val {
-                SegmentMatchCrumb::Body{val} => (val,&self.segs.get_or_err(*index,"elem")?.body),
-                SegmentMatchCrumb::Head      => return Ok(&self.segs.get_or_err(*index,"elem")?.head),
-            }
-        };
-
-        for crumb in path {
-            match (pattern.deref(),crumb) {
-                (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
-                (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
-                (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
-                (Build(pat)  , PatternMatchCrumb::Build   ) => return Ok(&pat.elem.wrapped),
-                (Err(pat)    , PatternMatchCrumb::Err     ) => return Ok(&pat.elem.wrapped),
-                (Tok(pat)    , PatternMatchCrumb::Tok     ) => return Ok(&pat.elem.wrapped),
-                (Blank(pat)  , PatternMatchCrumb::Blank   ) => return Ok(&pat.elem.wrapped),
-                (Var(pat)    , PatternMatchCrumb::Var     ) => return Ok(&pat.elem.wrapped),
-                (Cons(pat)   , PatternMatchCrumb::Cons    ) => return Ok(&pat.elem.wrapped),
-                (Opr(pat)    , PatternMatchCrumb::Opr     ) => return Ok(&pat.elem.wrapped),
-                (Mod(pat)    , PatternMatchCrumb::Mod     ) => return Ok(&pat.elem.wrapped),
-                (Num(pat)    , PatternMatchCrumb::Num     ) => return Ok(&pat.elem.wrapped),
-                (Text(pat)   , PatternMatchCrumb::Text    ) => return Ok(&pat.elem.wrapped),
-                (Block(pat)  , PatternMatchCrumb::Block   ) => return Ok(&pat.elem.wrapped),
-                (Macro(pat)  , PatternMatchCrumb::Macro   ) => return Ok(&pat.elem.wrapped),
-                (Invalid(pat), PatternMatchCrumb::Invalid ) => return Ok(&pat.elem.wrapped),
-                (Except(pat) , PatternMatchCrumb::Except  ) => pattern = &pat.elem,
-                (Tag(pat)    , PatternMatchCrumb::Tag     ) => pattern = &pat.elem,
-                (Cls(pat)    , PatternMatchCrumb::Cls     ) => pattern = &pat.elem,
-                (Or(pat)     , PatternMatchCrumb::Or      ) => match &pat.elem {
-                    crate::Switch::Left (pat) => pattern = &pat.value,
-                    crate::Switch::Right(pat) => pattern = &pat.value,
-                }
-                (Seq(pat), PatternMatchCrumb::Seq{right}) =>
-                    pattern = if *right {&pat.elem.1} else {&pat.elem.0},
-                (Many(pat), PatternMatchCrumb::Many{index}) =>
-                    pattern = pat.elem.get_or_err(*index,"elem")?,
-                _ => return missing("crumb"),
-
+                SegmentMatchCrumb::Head      => Ok(&self.segs.get_or_err(*index,"elem")?.head),
+                SegmentMatchCrumb::Body{val} =>
+                    pattern_get(&self.segs.get_or_err(*index,"elem")?.body, val),
             }
         }
-        missing("elem")
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> where Self: Sized {
-
-        fn set_pattern
-        ( pat  : &MacroPatternMatch<Shifted<Ast>>
-        , path : &[PatternMatchCrumb]
-        , ast  : Ast
-        ) -> FallibleResult<MacroPatternMatch<Shifted<Ast>>> {
-            use crate::MacroPatternMatchRaw::*;
-            let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
-
-            let mut result  = pat.clone();
-            let mut pattern = Rc::make_mut(&mut result);
-            for crumb in path {
-                match (pattern,crumb) {
-                    (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
-                    (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
-                    (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
-                    (Build(pat)  , PatternMatchCrumb::Build   ) => {pat.elem.wrapped=ast;break},
-                    (Err(pat)    , PatternMatchCrumb::Err     ) => {pat.elem.wrapped=ast;break},
-                    (Tok(pat)    , PatternMatchCrumb::Tok     ) => {pat.elem.wrapped=ast;break},
-                    (Blank(pat)  , PatternMatchCrumb::Blank   ) => {pat.elem.wrapped=ast;break},
-                    (Var(pat)    , PatternMatchCrumb::Var     ) => {pat.elem.wrapped=ast;break},
-                    (Cons(pat)   , PatternMatchCrumb::Cons    ) => {pat.elem.wrapped=ast;break},
-                    (Opr(pat)    , PatternMatchCrumb::Opr     ) => {pat.elem.wrapped=ast;break},
-                    (Mod(pat)    , PatternMatchCrumb::Mod     ) => {pat.elem.wrapped=ast;break},
-                    (Num(pat)    , PatternMatchCrumb::Num     ) => {pat.elem.wrapped=ast;break},
-                    (Text(pat)   , PatternMatchCrumb::Text    ) => {pat.elem.wrapped=ast;break},
-                    (Block(pat)  , PatternMatchCrumb::Block   ) => {pat.elem.wrapped=ast;break},
-                    (Macro(pat)  , PatternMatchCrumb::Macro   ) => {pat.elem.wrapped=ast;break},
-                    (Invalid(pat), PatternMatchCrumb::Invalid ) => {pat.elem.wrapped=ast;break},
-                    (Except(pat) , PatternMatchCrumb::Except  ) => {
-                        pat.elem = pat.elem.clone();
-                        pattern  = Rc::make_mut(&mut pat.elem);
-                    },
-                    (Tag(pat), PatternMatchCrumb::Tag) => {
-                        pat.elem = pat.elem.clone();
-                        pattern  = Rc::make_mut(&mut pat.elem);
-                    },
-                    (Cls(pat), PatternMatchCrumb::Cls) => {
-                        pat.elem = pat.elem.clone();
-                        pattern  = Rc::make_mut(&mut pat.elem);
-                    },
-                    (Or(pat), PatternMatchCrumb::Or) => match &mut pat.elem {
-                        crate::Switch::Left (pat) => {
-                            pat.value = pat.value.clone();
-                            pattern   = Rc::make_mut(&mut pat.value);
-                        },
-                        crate::Switch::Right(pat) => {
-                            pat.value = pat.value.clone();
-                            pattern   = Rc::make_mut(&mut pat.value);
-                        },
-                    },
-                    (Seq(pat), PatternMatchCrumb::Seq{right}) => {
-                        if *right {
-                            pat.elem.1 = pat.elem.1.clone();
-                            pattern    = Rc::make_mut(&mut pat.elem.1);
-                        } else {
-                            pat.elem.0 = pat.elem.0.clone();
-                            pattern    = Rc::make_mut(&mut pat.elem.0);
-                        }
-                    },
-                    (Many(pat), PatternMatchCrumb::Many{index}) => {
-                        let elem = pat.elem.get_mut_or_err(*index,"elem")?;
-                        *elem    = elem.clone();
-                        pattern  = Rc::make_mut(elem);
-                    },
-                    _ => return missing("crumb"),
-                }
-            }
-            Ok(result)
-        }
-
         let mut new_self = self.clone();
 
         match crumb {
             MatchCrumb::Pfx {val} => match new_self.pfx {
                 None      => return Err(NotPresent("prefix".into()).into()),
-                Some(pat) => new_self.pfx = Some(set_pattern(&pat,val,new_ast)?),
+                Some(pat) => new_self.pfx = Some(pattern_set(&pat, val, new_ast)?),
             }
 
             MatchCrumb::Segs{index,val:SegmentMatchCrumb::Body{val}} => {
                 let mut seg = new_self.segs.get_mut_or_err(*index,"segment")?;
-                seg.body    = set_pattern(&seg.body,val,new_ast)?
+                seg.body    = pattern_set(&seg.body, val, new_ast)?
             },
             MatchCrumb::Segs{index,val:SegmentMatchCrumb::Head} => {
                 let mut seg = new_self.segs.get_mut_or_err(*index,"segment")?;
@@ -906,78 +967,15 @@ impl Crumbable for crate::Match<Ast> {
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item=Self::Crumb> + 'a> {
-
-        fn iter_pat(pat:&MacroPatternMatch<Shifted<Ast>>) -> Vec<Vec<PatternMatchCrumb>> {
-            use crate::MacroPatternMatchRaw::*;
-
-            let mut crumbs   = vec![];
-            let mut patterns = vec![(vec![],pat)];
-            while let Some((mut crumb,pattern)) = patterns.pop() {
-                match pattern.deref() {
-                    Begin(_)   => (),
-                    End(_)     => (),
-                    Nothing(_) => (),
-                    Build(_)   => {crumb.push(PatternMatchCrumb::Build)  ; crumbs.push(crumb)},
-                    Err(_)     => {crumb.push(PatternMatchCrumb::Err)    ; crumbs.push(crumb)},
-                    Tok(_)     => {crumb.push(PatternMatchCrumb::Tok)    ; crumbs.push(crumb)},
-                    Blank(_)   => {crumb.push(PatternMatchCrumb::Blank)  ; crumbs.push(crumb)},
-                    Var(_)     => {crumb.push(PatternMatchCrumb::Var)    ; crumbs.push(crumb)},
-                    Cons(_)    => {crumb.push(PatternMatchCrumb::Cons)   ; crumbs.push(crumb)},
-                    Opr(_)     => {crumb.push(PatternMatchCrumb::Opr)    ; crumbs.push(crumb)},
-                    Mod(_)     => {crumb.push(PatternMatchCrumb::Mod)    ; crumbs.push(crumb)},
-                    Num(_)     => {crumb.push(PatternMatchCrumb::Num)    ; crumbs.push(crumb)},
-                    Text(_)    => {crumb.push(PatternMatchCrumb::Text)   ; crumbs.push(crumb)},
-                    Block(_)   => {crumb.push(PatternMatchCrumb::Block)  ; crumbs.push(crumb)},
-                    Macro(_)   => {crumb.push(PatternMatchCrumb::Macro)  ; crumbs.push(crumb)},
-                    Invalid(_) => {crumb.push(PatternMatchCrumb::Invalid); crumbs.push(crumb)},
-                    Except(pat) => {
-                        crumb.push(PatternMatchCrumb::Except);
-                        patterns.push((crumb,&pat.elem))
-                    },
-                    Tag(pat) => {
-                        crumb.push(PatternMatchCrumb::Tag);
-                        patterns.push((crumb,&pat.elem))
-                    },
-                    Cls(pat) => {
-                        crumb.push(PatternMatchCrumb::Cls);
-                        patterns.push((crumb,&pat.elem))
-                    },
-                    Or(pat) => {
-                        crumb.push(PatternMatchCrumb::Or);
-                        match &pat.elem {
-                            crate::Switch::Left (pat) => patterns.push((crumb,&pat.value)),
-                            crate::Switch::Right(pat) => patterns.push((crumb,&pat.value)),
-                        }
-                    }
-                    Seq(pat) => {
-                        let mut crumb1 = crumb.clone();
-                        let mut crumb2 = crumb.clone();
-                        crumb1.push(PatternMatchCrumb::Seq{right:false});
-                        crumb2.push(PatternMatchCrumb::Seq{right:true});
-                        patterns.push((crumb2,&pat.elem.1));
-                        patterns.push((crumb1,&pat.elem.0));
-                    },
-                    Many(pat) => {
-                        for (index,pat) in pat.elem.iter().enumerate().rev() {
-                            let mut new_crumb = crumb.clone();
-                            new_crumb.push(PatternMatchCrumb::Many{index});
-                            patterns.push((new_crumb,pat));
-                        }
-                    }
-                }
-            }
-            crumbs
-        }
-
         let mut crumbs   = vec![];
         if let Some(pat) = &self.pfx {
-            for crumb in iter_pat(&pat) {
+            for crumb in pattern_subcrumbs(&pat) {
                 crumbs.push(MatchCrumb::Pfx{val:crumb});
             }
         }
         for (index,seg) in self.segs.iter().enumerate() {
             crumbs.push(MatchCrumb::Segs{index,val:SegmentMatchCrumb::Head});
-            for crumb in iter_pat(&seg.body) {
+            for crumb in pattern_subcrumbs(&seg.body) {
                 crumbs.push(MatchCrumb::Segs{index,val:SegmentMatchCrumb::Body{val:crumb}})
             }
         }
