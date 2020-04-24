@@ -279,6 +279,7 @@ impl Chain {
         std::iter::once(this).chain(args).flatten()
     }
 
+    /// Iterates over all operator's AST in this chain, starting from target side.
     pub fn enumerate_operators<'a>(&'a self) -> impl Iterator<Item=Located<&'a known::Opr>> + 'a {
         self.args.iter().enumerate().map(move |(i,elem)| {
             let to_infix   = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
@@ -288,6 +289,11 @@ impl Chain {
         })
     }
 
+    /// Insert new operand at index. The target's index is 0, the first argument index is 1, and so
+    /// on. So inserting at index 0 will actually set the new operand as a new target, and the old
+    /// target will became the first argument.
+    ///
+    /// Indexing does not skip `None` operands.
     pub fn insert_operand(&mut self, at_index:usize, operand:Shifted<Ast>) {
         let offset      = operand.off;
         let mut operand = Some(operand);
@@ -300,24 +306,33 @@ impl Chain {
         }
     }
 
+    /// Add operand as a new last argument.
     pub fn push_operand(&mut self, operand:Shifted<Ast>) {
         let last_index = self.args.len() + 1;
         self.insert_operand(last_index,operand)
     }
 
+    /// Add operand at the front of the chain, actually making it a new target (see docs for
+    /// `insert_operand`.
     pub fn push_front_operand(&mut self, operand:Shifted<Ast>) {
         self.insert_operand(0,operand)
     }
 
+    /// Erase the current target from chain, and make the current first operand a new target.
+    /// Panics if there is no operand besides target.
     pub fn erase_target(&mut self) {
         let new_target = self.args.pop_front().unwrap().operand;
         self.target = new_target
     }
 
+    /// Replace the target and first argument with a new target being an proper Infix or Section
+    /// ast node. Does nothing if there are no more operands than target.
     pub fn fold_arg(&mut self) {
         if let Some(element) = self.args.pop_front() {
             let target    = std::mem::take(&mut self.target);
-            let new_infix = GeneralizedInfix::new_from_operands(target,element.operator,element.operand);
+            let operator  = element.operator;
+            let operand   = element.operand;
+            let new_infix = GeneralizedInfix::new_from_operands(target,operator,operand);
             let new_shifted = Shifted {
                 wrapped : new_infix.into_ast(),
                 off     : element.offset,
@@ -326,6 +341,8 @@ impl Chain {
         }
     }
 
+    /// Consumes the chain and returns AST node generated from it. The ids of all Infixes and
+    /// Section don't preserve from any AST which was used to generate this chain.
     pub fn into_ast(mut self) -> Ast {
         while !self.args.is_empty() {
             self.fold_arg()
@@ -351,6 +368,8 @@ pub struct ChainElement {
 }
 
 impl ChainElement {
+    /// Return AST crumb to the node being a chain of previous operands. It assumes that such
+    /// node exists.
     pub fn crumb_to_previous(&self) -> Crumb {
         let has_operand = self.operand.is_some();
         match assoc(&self.operator) {
@@ -361,6 +380,7 @@ impl ChainElement {
         }
     }
 
+    /// Return AST crumb to the operand, assuming that this operand exists.
     pub fn crumb_to_operand(&self, has_target:bool) -> Crumb {
         match assoc(&self.operator) {
             Assoc::Left  if has_target => InfixCrumb::RightOperand.into(),
@@ -370,6 +390,7 @@ impl ChainElement {
         }
     }
 
+    /// Return AST crumb to the operator.
     pub fn crumb_to_operator(&self, has_target:bool) -> Crumb {
         let has_operand = self.operand.is_some();
         match assoc(&self.operator) {
@@ -408,7 +429,7 @@ mod tests {
         let c               = Ast::var("c");
         let a_plus_b        = Ast::infix(a.clone(),"+",b.clone());
         let a_plus_b_plus_c = Ast::infix(a_plus_b.clone(),"+",c.clone());
-        let mut chain       = Chain::try_new(&a_plus_b_plus_c).unwrap();
+        let chain           = Chain::try_new(&a_plus_b_plus_c).unwrap();
         expect_at(&chain.target,&a);
         expect_at(&chain.args[0].operand,&b);
         expect_at(&chain.args[1].operand,&c);

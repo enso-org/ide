@@ -79,6 +79,8 @@ impl Chain {
         })
     }
 
+    /// Replace the `func` and first argument with a new `func` being an proper Prefix ast node.
+    /// Does nothing if there are no arguments.
     pub fn fold_arg(&mut self) {
         if let Some(arg) = self.args.pop_front() {
             let new_prefix = Prefix{
@@ -90,6 +92,7 @@ impl Chain {
         }
     }
 
+    /// Convert the chain to proper AST node.
     pub fn into_ast(mut self) -> Ast {
         while !self.args.is_empty() {
             self.fold_arg()

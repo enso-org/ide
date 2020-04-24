@@ -3,19 +3,16 @@
 use crate::prelude::*;
 
 use crate::node;
+use crate::node::InsertType;
 use crate::Node;
 use crate::SpanTree;
 
 use ast::Ast;
 use ast::assoc::Assoc;
-use ast::crumbs::{Located, PrefixCrumb};
+use ast::crumbs::Located;
 use ast::HasLength;
-use ast::opr::{GeneralizedInfix, Operand};
+use ast::opr::GeneralizedInfix;
 use data::text::Size;
-use crate::node::Kind::Chained;
-use ast::crumbs::InfixCrumb::LeftOperand;
-use ast::Shape::Cons;
-use crate::action::InsertType;
 
 
 // =============
@@ -100,8 +97,6 @@ impl ChildGenerator {
 
 impl SpanTreeGenerator for Ast {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
-        use ast::known::*;
-
         if let Some(infix) = GeneralizedInfix::try_new(self) {
             infix.flatten().generate_node(kind)
         } else {
@@ -132,7 +127,7 @@ impl SpanTreeGenerator for ast::opr::Chain {
         };
 
         // In this fold we pass last generated node and offset after it, wrapped in Result.
-        let (node,_) = self.args.iter().enumerate().fold(node_and_offset, |(result),(i,elem)| {
+        let (node,_) = self.args.iter().enumerate().fold(node_and_offset, |result,(i,elem)| {
             // Here we generate children as the operator would be left-associative. Then, if it is
             // actually right associative, we just reverse the generated children and their offsets.
             let (node,off)  = result?;
@@ -218,6 +213,7 @@ mod test {
 
     use crate::builder::TreeBuilder;
     use crate::node::Kind::*;
+    use crate::node::InsertType::*;
 
     use ast::crumbs::InfixCrumb;
     use ast::crumbs::PrefixCrumb;
@@ -225,10 +221,8 @@ mod test {
     use ast::crumbs::SectionRightCrumb;
     use ast::crumbs::SectionSidesCrumb;
     use parser::Parser;
-
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use crate::action::InsertType::{BeforeTarget, AfterTarget, Append};
 
     wasm_bindgen_test_configure!(run_in_browser);
 

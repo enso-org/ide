@@ -4,13 +4,12 @@
 use crate::prelude::*;
 
 use crate::node;
-
-use ast::Shape::*;
-use ast::{Ast, Shifted};
-use ast::crumbs::*;
 use crate::node::Kind;
-use ast::assoc::Assoc;
-use ast::opr::{GeneralizedInfix, make_operand, ChainElement, Operand};
+
+use ast::Ast;
+use ast::Shifted;
+use ast::crumbs::*;
+
 
 
 /// ==============
@@ -96,14 +95,11 @@ pub trait Implementation {
     fn erase_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast)     -> FallibleResult<Ast> + 'a>>;
 }
 
-#[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum InsertType {BeforeTarget,AfterTarget,Append}
-
 impl<'x> Implementation for node::Ref<'x> {
     fn set_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
         match &self.node.kind {
             Kind::Empty(ins_type)  => Some(Box::new(move |root,new| {
-                use InsertType::*;
+                use node::InsertType::*;
                 let ast      = root.get_traversing(&self.ast_crumbs)?;
                 let item     = Shifted {wrapped:new, off:DEFAULT_OFFSET};
                 let new_ast  = if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {

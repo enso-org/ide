@@ -7,14 +7,14 @@ use crate::iter::TreeFragment;
 
 use data::text::Index;
 use data::text::Size;
-use crate::action::InsertType;
 
 
-// =============
-// === Nodes ===
-// =============
 
-/// A type of SpanTree node.
+// ====================
+// === Helper Types ===
+// ====================
+
+/// An enum describing kind of node.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum Kind {
     /// A root of the expression this tree was generated.
@@ -24,13 +24,25 @@ pub enum Kind {
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    Target {removable:bool},
+    Target {
+        /// Indicates if you can erase this node from SpanTree.
+        removable:bool
+    },
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument {removable:bool},
+    Argument {
+        /// Indicates if you can erase this node from SpanTree.
+        removable:bool
+    },
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
     /// have assigned span of length 0 and should not have any child.
     Empty(InsertType),
 }
+
+/// A helpful information about how the new AST should be inserted during Set action. See `action`
+/// module.
+#[allow(missing_docs)]
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum InsertType {BeforeTarget,AfterTarget,Append}
 
 /// A type which identifies some node in SpanTree. This is essentially a iterator over child
 /// indices, so `[4]` means _root's fifth child_, `[4, 2]`means _the third child of root's fifth
@@ -62,6 +74,7 @@ impl Node {
         }
     }
 
+    /// Is this node empty?
     pub fn is_empty(&self) -> bool {
         match self.kind {
             Kind::Empty(_) => true,
