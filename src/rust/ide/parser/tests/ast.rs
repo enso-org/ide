@@ -87,8 +87,8 @@ pub fn flatten_prefix_test() {
     };
 
     case("a", vec!["a"]);
-    case("a b c d", vec!["a","b","c","d"]);
-    case("+ a b c", vec!["+","a","b","c"]);
+    case("a b c d", vec!["a"," b"," c"," d"]);
+    case("+ a b c", vec!["+"," a"," b"," c"]);
     case("a b + c d", vec!["a b + c d"]); // nothing to flatten, this is infix, not prefix
 }
 
