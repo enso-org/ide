@@ -138,7 +138,7 @@ impl Target {
     /// We use 12 bits from each value and pack them into the 3 output bytes like described in the
     /// following diagram.
     ///
-    ///
+    /// ```text
     ///  Input
     ///
     ///    value1 (v1) as bytes               value2 (v2) as bytes
@@ -151,10 +151,12 @@ impl Target {
     /// Output
     ///
     /// byte1            byte2                     byte3
-    /// +-----------+    +-------------------+     +-----------+
-    /// | v1[12..4] |    | v1[4..0] v2[4..0] |     | v2[12..4] |
-    /// +-----------+    +-------------------+     +-----------+
+    /// +-----------+    +----------------------+     +------------+
+    /// | v ]12..4] |    | v1 ]4..0]  v2 ]4..0] |     | v2 ]12..4] |
+    /// +-----------+    +----------------------+     +------------+
     ///
+    /// Ranges use mathematical notation for inclusion/exclusion.
+    /// ```
     fn encode(value1:u32, value2:u32) -> DecodingResult {
         let chunk1 = (value1 >> 4u32) & 0x00FFu32;
         let chunk2 = (value1 & 0x000Fu32) << 4u32;
@@ -177,18 +179,14 @@ impl Target {
         (value1, value2)
     }
 
-    fn to_internal(&self, logger:Option<&Logger>) -> Vector4<u32> {
+    fn to_internal(&self, logger:&Logger) -> Vector4<u32> {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
                 match Self::encode(*symbol_id,*instance_id) {
                     DecodingResult::Truncated(pack0,pack1,pack2) => {
-                        if let Some(logger) = logger{
-                            logger.warning(|| {
-                                format!("Target values too big to encode: ({},{}).",
-                                        *symbol_id,*instance_id)
-                            });
-                        }
+                        warning!(logger,"Target values too big to encode: \
+                                         ({symbol_id},{instance_id}).");
                         Vector4::new(pack0.into(),pack1.into(),pack2.into(),1)
                     },
                     DecodingResult::Ok(pack0,pack1,pack2) => {
@@ -232,7 +230,7 @@ mod target_tests {
     fn assert_valid_roundtrip(value1:u32, value2:u32) {
         let pack   = Target::encode(value1,value2);
         match pack {
-            DecodingResult::Truncated(_, _, _) => {
+            DecodingResult::Truncated {..} => {
                panic!("Values got truncated. This is an invalid test case: {}, {}", value1, value1)
             },
             DecodingResult::Ok(pack0,pack1,pack2) => {
@@ -306,7 +304,7 @@ impl Mouse {
 
         let target          = Target::default();
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
-        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(Some(&logger)));
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(&logger));
         let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
         let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
