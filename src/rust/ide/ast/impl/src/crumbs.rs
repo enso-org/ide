@@ -1888,4 +1888,31 @@ mod tests {
         assert_eq!(match4.get(&crumb7).unwrap(),&Ast::var("Z"));
 
     }
+
+    #[test]
+    fn ambiguous() {
+        let ast   = [Ast::var("A"), Ast::var("B"), Ast::var("C")];
+        let body  = Some(Shifted::new(0,ast[1].clone()));
+        let seg1  = MacroAmbiguousSegment{head:ast[0].clone(),body};
+        let seg2  = MacroAmbiguousSegment{head:ast[2].clone(),body:None};
+        let segs  = ShiftedVec1 {head:seg1,tail:vec![Shifted::new(0,seg2)]};
+        let paths = Tree {value:None,branches:vec![]};
+        let shape = Ambiguous{segs,paths};
+
+        let (c1,c2,c3) = shape.iter_subcrumbs().expect_tuple();
+
+        assert_eq!(c1, AmbiguousCrumb{index:0,field:AmbiguousSegmentCrumb::Head});
+        assert_eq!(c2, AmbiguousCrumb{index:0,field:AmbiguousSegmentCrumb::Body});
+        assert_eq!(c3, AmbiguousCrumb{index:1,field:AmbiguousSegmentCrumb::Head});
+
+        assert_eq!(shape.set(&c1,ast[1].clone()).unwrap().get(&c1).unwrap(),&ast[1]);
+        assert_eq!(shape.set(&c2,ast[2].clone()).unwrap().get(&c2).unwrap(),&ast[2]);
+        assert_eq!(shape.set(&c3,ast[1].clone()).unwrap().get(&c3).unwrap(),&ast[1]);
+
+        assert_eq!(shape.get(&c1).unwrap(),&ast[0]);
+        assert_eq!(shape.get(&c2).unwrap(),&ast[1]);
+        assert_eq!(shape.get(&c3).unwrap(),&ast[2]);
+
+
+    }
 }

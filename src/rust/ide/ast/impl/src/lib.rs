@@ -121,6 +121,11 @@ pub struct ShiftedVec1<T> {
     pub tail: Vec<Shifted<T>>
 }
 
+impl<T> Shifted<T> {
+    fn new(off:usize, wrapped:T) -> Self {
+        Shifted{off,wrapped}
+    }
+}
 
 
 // =============
