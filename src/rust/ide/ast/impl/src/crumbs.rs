@@ -45,14 +45,14 @@ impl<T> IndexedAccess for ShiftedVec1<T> {
 
     fn get_or_err(&self, index:usize, name:impl Str) -> Result<&Self::Item, IndexOutOfBounds> {
         if index == 0 {Ok(&self.head)} else {
-            Ok(&self.tail.get(index).ok_or_else(|| IndexOutOfBounds(name.into()))?.wrapped)
+            Ok(&self.tail.get(index-1).ok_or_else(|| IndexOutOfBounds(name.into()))?.wrapped)
         }
     }
 
     fn get_mut_or_err
     (&mut self, index:usize, name:impl Str) -> Result<&mut Self::Item, IndexOutOfBounds> {
         if index == 0 {Ok(&mut self.head)} else {
-            Ok(&mut self.tail.get_mut(index).ok_or_else(|| IndexOutOfBounds(name.into()))?.wrapped)
+            Ok(&mut self.tail.get_mut(index-1).ok_or_else(|| IndexOutOfBounds(name.into()))?.wrapped)
         }
     }
 }
@@ -279,6 +279,26 @@ pub enum MatchCrumb {
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub enum PatternMatchCrumb {
+    Begin,
+    End,
+    Nothing,
+    Build,
+    Err,
+    Tok,
+    Blank,
+    Var,
+    Cons,
+    Opr,
+    Mod,
+    Num,
+    Text,
+    Block,
+    Macro,
+    Invalid,
+    Except,
+    Tag,
+    Cls,
+    Or,
     Seq  {right:bool },
     Many {index:usize},
 }
@@ -726,68 +746,55 @@ impl Crumbable for crate::Match<Ast> {
     type Crumb = MatchCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        let not_present = |str:&str| Err(NotPresent(str.into()).into());
+        use crate::MacroPatternMatchRaw::*;
+
+        let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
 
         let (path, mut pattern) = match crumb {
             MatchCrumb::Pfx {val} => match &self.pfx {
                 Some(pat) => (val,pat),
-                None      => return not_present("prefix"),
+                None      => return missing("prefix"),
             },
             MatchCrumb::Segs{val,index} => match &val {
                 SegmentMatchCrumb::Body{val} => (val,&self.segs.get_or_err(*index,"elem")?.body),
                 SegmentMatchCrumb::Head      => return Ok(&self.segs.get_or_err(*index,"elem")?.head),
             }
         };
-        let mut offset = 0;
-        let mut result = None;
-        loop {
-            match pattern.deref() {
-                crate::MacroPatternMatchRaw::Begin(_)     => return not_present("elem"),
-                crate::MacroPatternMatchRaw::End(_)       => return not_present("elem"),
-                crate::MacroPatternMatchRaw::Nothing(_)   => return not_present("elem"),
-                crate::MacroPatternMatchRaw::Build(pat)   => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Err(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Tok(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Blank(pat)   => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Var(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Cons(pat)    => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Opr(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Mod(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Num(pat)     => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Text(pat)    => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Block(pat)   => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Macro(pat)   => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Invalid(pat) => {result = Some(&pat.elem.wrapped);break},
-                crate::MacroPatternMatchRaw::Except(pat)  => pattern = &pat.elem,
-                crate::MacroPatternMatchRaw::Tag(pat)     => pattern = &pat.elem,
-                crate::MacroPatternMatchRaw::Cls(pat)     => pattern = &pat.elem,
-                crate::MacroPatternMatchRaw::Or(pat) => match &pat.elem {
+
+        for crumb in path {
+            match (pattern.deref(),crumb) {
+                (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
+                (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
+                (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
+                (Build(pat)  , PatternMatchCrumb::Build   ) => return Ok(&pat.elem.wrapped),
+                (Err(pat)    , PatternMatchCrumb::Err     ) => return Ok(&pat.elem.wrapped),
+                (Tok(pat)    , PatternMatchCrumb::Tok     ) => return Ok(&pat.elem.wrapped),
+                (Blank(pat)  , PatternMatchCrumb::Blank   ) => return Ok(&pat.elem.wrapped),
+                (Var(pat)    , PatternMatchCrumb::Var     ) => return Ok(&pat.elem.wrapped),
+                (Cons(pat)   , PatternMatchCrumb::Cons    ) => return Ok(&pat.elem.wrapped),
+                (Opr(pat)    , PatternMatchCrumb::Opr     ) => return Ok(&pat.elem.wrapped),
+                (Mod(pat)    , PatternMatchCrumb::Mod     ) => return Ok(&pat.elem.wrapped),
+                (Num(pat)    , PatternMatchCrumb::Num     ) => return Ok(&pat.elem.wrapped),
+                (Text(pat)   , PatternMatchCrumb::Text    ) => return Ok(&pat.elem.wrapped),
+                (Block(pat)  , PatternMatchCrumb::Block   ) => return Ok(&pat.elem.wrapped),
+                (Macro(pat)  , PatternMatchCrumb::Macro   ) => return Ok(&pat.elem.wrapped),
+                (Invalid(pat), PatternMatchCrumb::Invalid ) => return Ok(&pat.elem.wrapped),
+                (Except(pat) , PatternMatchCrumb::Except  ) => pattern = &pat.elem,
+                (Tag(pat)    , PatternMatchCrumb::Tag     ) => pattern = &pat.elem,
+                (Cls(pat)    , PatternMatchCrumb::Cls     ) => pattern = &pat.elem,
+                (Or(pat)     , PatternMatchCrumb::Or      ) => match &pat.elem {
                     crate::Switch::Left (pat) => pattern = &pat.value,
                     crate::Switch::Right(pat) => pattern = &pat.value,
                 }
-                crate::MacroPatternMatchRaw::Seq(pat) => {
-                    if let PatternMatchCrumb::Seq{right} = path.get_or_err(offset, "crumb")? {
-                        pattern = if *right {&pat.elem.1} else {&pat.elem.0};
-                        offset += 1;
-                    } else { return not_present("seq") }
-                },
-                crate::MacroPatternMatchRaw::Many(pat) => {
-                    if let PatternMatchCrumb::Many{index} = path.get_or_err(offset, "crumb")? {
-                        pattern = pat.elem.get_or_err(*index,"elem")?;
-                        offset += 1;
-                    } else { return not_present("many") }
-                }
+                (Seq(pat), PatternMatchCrumb::Seq{right}) =>
+                    pattern = if *right {&pat.elem.1} else {&pat.elem.0},
+                (Many(pat), PatternMatchCrumb::Many{index}) =>
+                    pattern = pat.elem.get_or_err(*index,"elem")?,
+                _ => return missing("crumb"),
+
             }
         }
-
-        match result {
-            Some(ast) => if offset == path.len() {
-                Ok(ast)
-            } else {
-                not_present("elem")
-            },
-            None => not_present("elem"),
-        }
+        missing("elem")
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> where Self: Sized {
@@ -797,42 +804,42 @@ impl Crumbable for crate::Match<Ast> {
         , path : &Vec<PatternMatchCrumb>
         , ast  : Ast
         ) -> FallibleResult<MacroPatternMatch<Shifted<Ast>>> {
-            let not_present = |str:&str| Err(NotPresent(str.into()).into());
+            use crate::MacroPatternMatchRaw::*;
+            let missing = |str:&str| Result::Err(NotPresent(str.into()).into());
 
-            let mut offset  = 0;
             let mut result  = pat.clone();
             let mut pattern = Rc::make_mut(&mut result);
-            loop {
-                match pattern {
-                    crate::MacroPatternMatchRaw::Begin(_)     => return not_present("elem"),
-                    crate::MacroPatternMatchRaw::End(_)       => return not_present("elem"),
-                    crate::MacroPatternMatchRaw::Nothing(_)   => return not_present("elem"),
-                    crate::MacroPatternMatchRaw::Build(pat)   => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Err(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Tok(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Blank(pat)   => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Var(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Cons(pat)    => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Opr(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Mod(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Num(pat)     => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Text(pat)    => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Block(pat)   => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Macro(pat)   => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Invalid(pat) => {pat.elem.wrapped=ast;break},
-                    crate::MacroPatternMatchRaw::Except(pat)  => {
+            for crumb in path {
+                match (pattern,crumb) {
+                    (Begin(_)    , PatternMatchCrumb::Begin   ) => return missing("elem"),
+                    (End(_)      , PatternMatchCrumb::End     ) => return missing("elem"),
+                    (Nothing(_)  , PatternMatchCrumb::Nothing ) => return missing("elem"),
+                    (Build(pat)  , PatternMatchCrumb::Build   ) => {pat.elem.wrapped=ast;break},
+                    (Err(pat)    , PatternMatchCrumb::Err     ) => {pat.elem.wrapped=ast;break},
+                    (Tok(pat)    , PatternMatchCrumb::Tok     ) => {pat.elem.wrapped=ast;break},
+                    (Blank(pat)  , PatternMatchCrumb::Blank   ) => {pat.elem.wrapped=ast;break},
+                    (Var(pat)    , PatternMatchCrumb::Var     ) => {pat.elem.wrapped=ast;break},
+                    (Cons(pat)   , PatternMatchCrumb::Cons    ) => {pat.elem.wrapped=ast;break},
+                    (Opr(pat)    , PatternMatchCrumb::Opr     ) => {pat.elem.wrapped=ast;break},
+                    (Mod(pat)    , PatternMatchCrumb::Mod     ) => {pat.elem.wrapped=ast;break},
+                    (Num(pat)    , PatternMatchCrumb::Num     ) => {pat.elem.wrapped=ast;break},
+                    (Text(pat)   , PatternMatchCrumb::Text    ) => {pat.elem.wrapped=ast;break},
+                    (Block(pat)  , PatternMatchCrumb::Block   ) => {pat.elem.wrapped=ast;break},
+                    (Macro(pat)  , PatternMatchCrumb::Macro   ) => {pat.elem.wrapped=ast;break},
+                    (Invalid(pat), PatternMatchCrumb::Invalid ) => {pat.elem.wrapped=ast;break},
+                    (Except(pat) , PatternMatchCrumb::Except  ) => {
                         pat.elem = pat.elem.clone();
                         pattern  = Rc::make_mut(&mut pat.elem);
                     },
-                    crate::MacroPatternMatchRaw::Tag(pat)     => {
+                    (Tag(pat), PatternMatchCrumb::Tag) => {
                         pat.elem = pat.elem.clone();
                         pattern  = Rc::make_mut(&mut pat.elem);
                     },
-                    crate::MacroPatternMatchRaw::Cls(pat)     => {
+                    (Cls(pat), PatternMatchCrumb::Cls) => {
                         pat.elem = pat.elem.clone();
                         pattern  = Rc::make_mut(&mut pat.elem);
                     },
-                    crate::MacroPatternMatchRaw::Or(pat) => match &mut pat.elem {
+                    (Or(pat), PatternMatchCrumb::Or) => match &mut pat.elem {
                         crate::Switch::Left (pat) => {
                             pat.value = pat.value.clone();
                             pattern   = Rc::make_mut(&mut pat.value);
@@ -842,31 +849,24 @@ impl Crumbable for crate::Match<Ast> {
                             pattern   = Rc::make_mut(&mut pat.value);
                         },
                     },
-                    crate::MacroPatternMatchRaw::Seq(pat) => {
-                        if let PatternMatchCrumb::Seq{right} = path.get_or_err(offset,"crumb")? {
-                            offset += 1;
-                            if *right {
-                                pat.elem.1 = pat.elem.1.clone();
-                                pattern    = Rc::make_mut(&mut pat.elem.1);
-                            } else {
-                                pat.elem.0 = pat.elem.0.clone();
-                                pattern    = Rc::make_mut(&mut pat.elem.0);
-                            }
-                        } else { return not_present("seq") }
+                    (Seq(pat), PatternMatchCrumb::Seq{right}) => {
+                        if *right {
+                            pat.elem.1 = pat.elem.1.clone();
+                            pattern    = Rc::make_mut(&mut pat.elem.1);
+                        } else {
+                            pat.elem.0 = pat.elem.0.clone();
+                            pattern    = Rc::make_mut(&mut pat.elem.0);
+                        }
                     },
-                    crate::MacroPatternMatchRaw::Many(pat) => {
-                        if let PatternMatchCrumb::Many{index} = path.get_or_err(offset,"crumb")? {
-                            let elem = pat.elem.get_mut_or_err(*index,"elem")?;
-                            offset += 1;
-                            *elem   = elem.clone();
-                            pattern = Rc::make_mut(elem);
-                        } else { return not_present("many") }
-                    }
+                    (Many(pat), PatternMatchCrumb::Many{index}) => {
+                        let elem = pat.elem.get_mut_or_err(*index,"elem")?;
+                        *elem    = elem.clone();
+                        pattern  = Rc::make_mut(elem);
+                    },
+                    _ => return missing("crumb"),
                 }
             }
-            if offset != path.len() {not_present("elem")} else {
-                Ok(result)
-            }
+            Ok(result)
         }
 
         let mut new_self = self.clone();
@@ -893,34 +893,48 @@ impl Crumbable for crate::Match<Ast> {
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item=Self::Crumb> + 'a> {
 
         fn iter_pat(pat:&MacroPatternMatch<Shifted<Ast>>) -> Vec<Vec<PatternMatchCrumb>> {
+            use crate::MacroPatternMatchRaw::*;
+
             let mut crumbs   = vec![];
             let mut patterns = vec![(vec![],pat)];
-            while let Some((crumb,pattern)) = patterns.pop() {
+            while let Some((mut crumb,pattern)) = patterns.pop() {
                 match pattern.deref() {
-                    crate::MacroPatternMatchRaw::Begin(_)     => (),
-                    crate::MacroPatternMatchRaw::End(_)       => (),
-                    crate::MacroPatternMatchRaw::Nothing(_)   => (),
-                    crate::MacroPatternMatchRaw::Build(_)     => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Err(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Tok(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Blank(_)     => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Var(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Cons(_)      => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Opr(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Mod(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Num(_)       => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Text(_)      => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Block(_)     => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Macro(_)     => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Invalid(_)   => crumbs.push(crumb),
-                    crate::MacroPatternMatchRaw::Except(pat)  => patterns.push((crumb,&pat.elem)),
-                    crate::MacroPatternMatchRaw::Tag(pat)     => patterns.push((crumb,&pat.elem)),
-                    crate::MacroPatternMatchRaw::Cls(pat)     => patterns.push((crumb,&pat.elem)),
-                    crate::MacroPatternMatchRaw::Or(pat) => match &pat.elem {
-                        crate::Switch::Left (pat) => patterns.push((crumb,&pat.value)),
-                        crate::Switch::Right(pat) => patterns.push((crumb,&pat.value)),
+                    Begin(_)   => (),
+                    End(_)     => (),
+                    Nothing(_) => (),
+                    Build(_)   => {crumb.push(PatternMatchCrumb::Build)  ; crumbs.push(crumb)},
+                    Err(_)     => {crumb.push(PatternMatchCrumb::Err)    ; crumbs.push(crumb)},
+                    Tok(_)     => {crumb.push(PatternMatchCrumb::Tok)    ; crumbs.push(crumb)},
+                    Blank(_)   => {crumb.push(PatternMatchCrumb::Blank)  ; crumbs.push(crumb)},
+                    Var(_)     => {crumb.push(PatternMatchCrumb::Var)    ; crumbs.push(crumb)},
+                    Cons(_)    => {crumb.push(PatternMatchCrumb::Cons)   ; crumbs.push(crumb)},
+                    Opr(_)     => {crumb.push(PatternMatchCrumb::Opr)    ; crumbs.push(crumb)},
+                    Mod(_)     => {crumb.push(PatternMatchCrumb::Mod)    ; crumbs.push(crumb)},
+                    Num(_)     => {crumb.push(PatternMatchCrumb::Num)    ; crumbs.push(crumb)},
+                    Text(_)    => {crumb.push(PatternMatchCrumb::Text)   ; crumbs.push(crumb)},
+                    Block(_)   => {crumb.push(PatternMatchCrumb::Block)  ; crumbs.push(crumb)},
+                    Macro(_)   => {crumb.push(PatternMatchCrumb::Macro)  ; crumbs.push(crumb)},
+                    Invalid(_) => {crumb.push(PatternMatchCrumb::Invalid); crumbs.push(crumb)},
+                    Except(pat) => {
+                        crumb.push(PatternMatchCrumb::Except);
+                        patterns.push((crumb,&pat.elem))
+                    },
+                    Tag(pat) => {
+                        crumb.push(PatternMatchCrumb::Tag);
+                        patterns.push((crumb,&pat.elem))
+                    },
+                    Cls(pat) => {
+                        crumb.push(PatternMatchCrumb::Cls);
+                        patterns.push((crumb,&pat.elem))
+                    },
+                    Or(pat) => {
+                        crumb.push(PatternMatchCrumb::Or);
+                        match &pat.elem {
+                            crate::Switch::Left (pat) => patterns.push((crumb,&pat.value)),
+                            crate::Switch::Right(pat) => patterns.push((crumb,&pat.value)),
+                        }
                     }
-                    crate::MacroPatternMatchRaw::Seq(pat) => {
+                    Seq(pat) => {
                         let mut crumb1 = crumb.clone();
                         let mut crumb2 = crumb.clone();
                         crumb1.push(PatternMatchCrumb::Seq{right:false});
@@ -928,7 +942,7 @@ impl Crumbable for crate::Match<Ast> {
                         patterns.push((crumb2,&pat.elem.1));
                         patterns.push((crumb1,&pat.elem.0));
                     },
-                    crate::MacroPatternMatchRaw::Many(pat) => {
+                    Many(pat) => {
                         for (index,pat) in pat.elem.iter().enumerate().rev() {
                             let mut new_crumb = crumb.clone();
                             new_crumb.push(PatternMatchCrumb::Many{index});
@@ -1772,8 +1786,8 @@ mod tests {
 
     #[test]
     fn iterate_match() {
-        let crumb1 = vec![PatternMatchCrumb::Seq{right:false}];
-        let crumb2 = vec![PatternMatchCrumb::Seq{right:true}];
+        let crumb1 = vec![PatternMatchCrumb::Seq{right:false},PatternMatchCrumb::Tok];
+        let crumb2 = vec![PatternMatchCrumb::Seq{right:true},PatternMatchCrumb::Tok];
         let (c1, c2, c3, c4, c5) = match_().iter_subcrumbs().expect_tuple();
         assert_eq!(c1, MatchCrumb::Pfx{val:crumb1.clone()});
         assert_eq!(c2, MatchCrumb::Pfx{val:crumb2.clone()});
@@ -1786,20 +1800,20 @@ mod tests {
     fn mismatch_match() {
         let match_     = match_();
         let incorrect1 = match_.get(&MatchCrumb::Pfx{val:vec![]});
-        let incorrect2 = match_.get(&MatchCrumb::Pfx{val:vec![PatternMatchCrumb::Many{index:0}]});
+        let incorrect2 = match_.get(&MatchCrumb::Pfx{val:vec![PatternMatchCrumb::Seq{right:true}]});
         let incorrect3 = match_.get(&MatchCrumb::Pfx{val:vec![
             PatternMatchCrumb::Seq{right:false},
             PatternMatchCrumb::Seq{right:true},
         ]});
         incorrect1.expect_err("Using empty  crumb on match should fail");
-        incorrect2.expect_err("Using 'many' crumb on 'seq' should fail");
-        incorrect3.expect_err("Using 2'seq' crumb on 'seq' should fail");
+        incorrect2.expect_err("Using 1'seq' crumb on match should fail");
+        incorrect3.expect_err("Using 2'seq' crumb on match should fail");
     }
 
     #[test]
     fn modify_match() {
-        let crumb1 = vec![PatternMatchCrumb::Seq{right:false}];
-        let crumb2 = vec![PatternMatchCrumb::Seq{right:true}];
+        let crumb1 = vec![PatternMatchCrumb::Seq{right:false},PatternMatchCrumb::Tok];
+        let crumb2 = vec![PatternMatchCrumb::Seq{right:true},PatternMatchCrumb::Tok];
         let crumb3 = MatchCrumb::Pfx{val:crumb1.clone()};
         let crumb4 = MatchCrumb::Pfx{val:crumb2.clone()};
         let crumb5 = MatchCrumb::Segs{val:SegmentMatchCrumb::Head,index:0};
