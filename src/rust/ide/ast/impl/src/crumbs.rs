@@ -801,7 +801,7 @@ impl Crumbable for crate::Match<Ast> {
 
         fn set_pattern
         ( pat  : &MacroPatternMatch<Shifted<Ast>>
-        , path : &Vec<PatternMatchCrumb>
+        , path : &[PatternMatchCrumb]
         , ast  : Ast
         ) -> FallibleResult<MacroPatternMatch<Shifted<Ast>>> {
             use crate::MacroPatternMatchRaw::*;
