@@ -92,7 +92,7 @@ pub struct IpWithSocket {
     port : u16
 }
 
-/// This type represents information about a project.
+/// Project information, such as name, its id and last time it was opened.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 pub struct ProjectMetaData {
     name        : String,
