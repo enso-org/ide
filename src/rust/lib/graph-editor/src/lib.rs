@@ -50,8 +50,7 @@ use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-
-
+use crate::component::node::port::{OutputPort, InputPort};
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -170,17 +169,20 @@ ensogl::def_command_api! { Commands
     remove_selected_nodes,
     /// Remove all nodes from the graph.
     remove_all_nodes,
+    /// Add a new connection and place it at the mouse cursor position.
+    add_connection_at_cursor,
 }
 
 
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node_at_cursor    = source();
-            def remove_selected_nodes = source();
-            def remove_all_nodes      = source();
+            def add_node_at_cursor        = source();
+            def remove_selected_nodes     = source();
+            def remove_all_nodes          = source();
+            def add_connection_at_cursor  = source();
         }
-        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes}
+        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,add_connection_at_cursor}
     }
 }
 
@@ -190,6 +192,8 @@ pub struct FrpInputs {
     commands                     : Commands,
     register_node                : frp::Source<Node>,
     register_connection          : frp::Source<Connection>,
+    pub add_connection_at    : frp::Source<Position>,
+    pub end_connection           : frp::Source<InputPort>,
     pub add_node_at              : frp::Source<Position>,
     pub select_node              : frp::Source<Option<WeakNode>>,
     pub translate_selected_nodes : frp::Source<Position>,
@@ -201,15 +205,21 @@ impl FrpInputs {
         frp::extend! { network
             def register_node            = source();
             def register_connection      = source();
+            def add_connection_at        = source();
+            def end_connection           = source();
             def add_node_at              = source();
             def select_node              = source();
             def translate_selected_nodes = source();
         }
-        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes,register_connection}
+        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes,
+              register_connection,add_connection_at,end_connection}
     }
 
     fn register_node<T: AsRef<Node>>(&self, arg: T) {
         self.register_node.emit(arg.as_ref());
+    }
+    fn add_connection_at<T: AsRef<Position>>(&self, arg: T) {
+        self.add_connection_at.emit(arg.as_ref());
     }
     fn register_connection<T: AsRef<Connection>>(&self, arg: T) {
         self.register_connection.emit(arg.as_ref());
@@ -356,6 +366,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
         vec! [ Self::self_shortcut(&[Key::Character("n".into())] , "add_node_at_cursor")
+             , Self::self_shortcut(&[Key::Character("c".into())] , "add_connection_at_cursor")
              , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
         ]
     }
@@ -378,6 +389,7 @@ impl application::View for GraphEditor {
         let nodes          = NodeState::default();
         let touch          = TouchState::new(&network,mouse);
 
+        let active_connection : Rc<RefCell<Option<Connection>>> = Rc::new(RefCell::new(None));
 
         frp::extend! { network
 
@@ -402,8 +414,12 @@ impl application::View for GraphEditor {
             cursor.events.release.emit(());
         }));
 
-        def _cursor_position = mouse.position.map(f!((cursor)(p) {
+        def _cursor_position = mouse.position.map(f!((cursor,active_connection)(p) {
             cursor.set_position(Vector2::new(p.x,p.y));
+            if let Some(connection) = active_connection.borrow().as_ref() {
+                connection.set_end(Vector3::new(p.x,p.y,0.0));
+            }
+
         }));
 
         // === Hover ===
@@ -525,6 +541,29 @@ impl application::View for GraphEditor {
             })
         }));
 
+         // === Add Connection ===
+
+        let acon = active_connection.clone();
+        def add_connection_at_cursor_pos = inputs.add_connection_at_cursor.map2(&mouse.position,|_,p|{*p});
+        def add_connection               = inputs.add_connection_at.merge(&add_connection_at_cursor_pos);
+        def _add_new_connection          = add_connection.map(f!((inputs)(pos) {
+
+            println!("SPAWN");
+            let connection = Connection::new();
+            inputs.register_connection(&connection);
+            let start = Vector3::new(pos.x,pos.y,0.0);
+            let end   = Vector3::new(pos.x,pos.y,0.0);
+            connection.set_start(start);
+            connection.set_end(end);
+            // node.add_child(&connection.data.view.display_object);
+            // mem::forget(connection);
+            acon.set(connection);
+
+        }));
+
+        def _new_connection = inputs.register_connection.map(f!((network,nodes,touch,display_object)(connection) {
+            display_object.add_child(connection);
+        }));
 
         // === Status ===
 

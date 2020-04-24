@@ -285,6 +285,28 @@ impl Acos for f32 {
     }
 }
 
+// ===============
+// === Atan2 ===
+// ===============
+
+/// Types from which atan2 can be calculated
+pub trait Atan2 {
+    /// The output type of the computation.
+    type Output;
+    /// Computes the four quadrant arctangent of self and other..
+    fn atan2(&self, other: Self) -> Self::Output;
+}
+
+
+// === Impls ===
+
+impl Atan2 for f32 {
+    type Output = f32;
+    fn atan2(&self, other:f32) -> f32 {
+        f32::atan2(*self, other)
+    }
+}
+
 
 
 // =============

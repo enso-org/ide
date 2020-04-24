@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::data::color;
 use crate::math::algebra::Acos;
+use crate::math::algebra::Atan2;
 use crate::math::algebra::Asin;
 use crate::math::algebra::Cos;
 use crate::math::algebra::Sin;
@@ -469,6 +470,20 @@ where T: Acos<Output=T> {
         match self {
             Self::Static  (t) => Var::Static(t.acos()),
             Self::Dynamic (t) => Var::Dynamic(format!("acos({})",t).into())
+        }
+    }
+}
+
+impl<T> Atan2 for Var<T>
+    where T: Atan2<Output=T> + RefInto<Glsl> + Copy{
+    type Output = Var<T>;
+    fn atan2(&self, other:Self) -> Self {
+        match (self, &other) {
+            (Var::Static(lhs), Var::Static(rhs)) => Var::Static(lhs.atan2(*rhs)),
+            _ => {
+                    let code = format!("atan({},{})",self.glsl(),other.glsl());
+                    Var::Dynamic(code.into())
+            }
         }
     }
 }

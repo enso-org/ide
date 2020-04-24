@@ -33,14 +33,19 @@ mod shape {
             let width  = &start_x - &end_x;
 
             let line = Line(1.0);
+            let is_reverse : Var<f32> = "((((-sign(input_start_y-input_end_y)))))".into();
+
 
             let angle_inner = Var::<f32>::from(90_f32.to_radians());
             let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,width,angle_inner);
-            let angle       = Var::<Angle<Radians>>::from(triangle.angle_a().clone());
-            let line        = line.rotate(angle);
+            let angle_a       = Var::<Angle<Radians>>::from(is_reverse * triangle.angle_a().clone());
 
-            let y_mid = (start_y + end_y) * 0.5;
-            let line = line.translate_y(Var::<Distance<Pixels>>::from(y_mid));
+            // let angle_b       = Var::<Angle<Radians>>::from(is_reverse * triangle.angle_b().clone());
+            // let angle_c       = Var::<Angle<Radians>>::from(triangle.angle_c().clone());
+            let line        = line.rotate(angle_a);
+            // let line        = line.rotate("(sign(height) + 1.0) * 0.5) * ");
+            // let y_mid = (start_y + end_y) * 0.5;
+            // let line = line.translate_y(Var::<Distance<Pixels>>::from(y_mid));
 
             let line_color   = Srgba::new(0.22,0.83,0.54,1.0);
             let line_colored = line.fill(line_color);
@@ -77,16 +82,16 @@ impl ShapeViewDefinition for ConnectionView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene,shape_registry:&ShapeRegistry) -> Self {
         // FIXME this is only for debuggingg
-        shape.start_x.set(-100.0);
-        shape.start_y.set(-100.0);
-        shape.end_x.set(200.0);
-        shape.end_y.set(200.0);
+        shape.start_x.set(0.0);
+        shape.start_y.set(0.0);
+        shape.end_x.set(0.0);
+        shape.end_y.set(0.0);
 
         let bbox = Vector2::new(200.0, 200.0);
         shape.sprite.size().set(bbox);
 
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Center, alignment::VerticalAlignment::Center);
+        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
 
         Self {}
     }
@@ -145,19 +150,22 @@ impl Connection {
     /// Set the connections origin.
     pub fn set_start(&self, position:Vector3<f32>) {
         self.data.start.set(position);
+        let start_pos = position - self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.start_x.set(position.x);
-            t.shape.start_y.set(position.y);
+            t.shape.start_x.set(start_pos.x);
+            t.shape.start_y.set(start_pos.y);
         }
         self.update_sprite();
     }
 
     /// Set the position where the connections ends.
     pub fn set_end(&self, position:Vector3<f32>) {
+        // println!("POS: {}", position);
         self.data.end.set(position);
+        let end_pos = position - self.data.start.get();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.end_x.set(position.x);
-            t.shape.end_y.set(position.y);
+            t.shape.end_x.set(end_pos.x);
+            t.shape.end_y.set(end_pos.y);
         }
         self.update_sprite();
     }
@@ -167,15 +175,15 @@ impl Connection {
     }
 
     fn extent(&self) -> Vector3<f32> {
-        self.data.end.get() - self.data.start.get()
+        (self.data.end.get() - self.data.start.get())
     }
 
     fn update_sprite(&self) {
-        // let center = self.center();
-        // self.data.view.display_object.set_position(Vector3::new(center.x, center.y, 0.0));
+        let center = self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.sprite.size().set(self.extent().xy());
         }
+        self.data.view.display_object.set_position(Vector3::new(center.x,center.y,0.0));
     }
 }
 

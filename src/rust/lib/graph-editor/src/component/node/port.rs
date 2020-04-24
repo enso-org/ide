@@ -182,7 +182,7 @@ mod shape {
         // The angle should be centered on (0,0) to make it easier to rotate and minimise the
         // required canvas.
         let center_offset    = Var::<Distance<Pixels>>::from(&shape_height * Var::from(0.5));
-        let sculpted_shape   = sculpted_shape.translate_y(-center_offset);
+        let sculpted_shape   = sculpted_shape.translate_y(-&center_offset);
 
         // This is a conditional rotation that allows the port to either point inwards
         // or outwards.
@@ -191,22 +191,25 @@ mod shape {
         let rotation_angle = Var::<Angle<Radians>>::from(rotation_angle);
         let sculpted_shape = sculpted_shape.rotate(rotation_angle);
 
-
         // FIXME needs dynamic sizing.
-        let shadow_radius      : Var<f32> = 20.0.into();
-        let shadow       = Circle(shadow_radius * shadow);
+        // let shadow_falloff : Var<f32> = "clamp(sin(input_time/200.0))".into();
+        let shadow_size: Var<f32> = shadow * 3.0;
+        let shadow       = sculpted_shape.clone();
+        let shadow       = shadow.scale(shadow_size);
         let shadow_color = LinearGradient::new()
-            .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-            .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-        let shadow_color = SdfSampler::new(shadow_color).max_distance(5.0).slope(Slope::Exponent(4.0));
+            .add(0.0,Srgba::new(0.99,0.69,0.26,0.0).into_linear())
+            .add(1.0,Srgba::new(0.99,0.69,0.26,0.54).into_linear());
+        let shadow_color = SdfSampler::new(shadow_color).max_distance(10.0).slope(Slope::Exponent(4.0));
         let shadow       = shadow.fill(shadow_color);
+        let shadow       = shadow.translate_y(&center_offset);
 
-        (sculpted_shape + shadow).into()
+        (shadow + sculpted_shape).into()
     }
 
     ensogl::define_shape_system! {
         (height:f32,width:f32,inner_radius:f32,is_inwards:f32,shadow:f32) {
             // FIXME: `is_inwards` should only be 0.0 or 1.0.
+            // shadow = shadow  * 0.9;
             new_port(height,width,inner_radius,is_inwards,shadow)
         }
     }
@@ -241,11 +244,10 @@ mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network     : frp::Network,
-    pub select      : frp::Source,
-    pub deselect    : frp::Source,
-    pub hover_start : frp::Source,
-    pub hover_end   : frp::Source,
+    pub network          : frp::Network,
+    pub start_connection : frp::Source,
+    pub hover_start      : frp::Source,
+    pub hover_end        : frp::Source,
 }
 
 
@@ -376,15 +378,15 @@ impl<T:PortShapeViewDefinition> Port<T> {
     pub fn new() -> Self {
         frp::new_network! { port_network
             def label       = source::<String> ();
-            def select      = source::<()>     ();
-            def deselect    = source::<()>     ();
+            def start_connection      = source::<()>     ();
+
             def hover_start = source::<()>     ();
             def hover_end = source::<()>     ();
         }
         let network = port_network;
 
         let spec = Specification::default();
-        let events = Events {network,select,deselect,hover_start,hover_end};
+        let events = Events {network,start_connection,hover_start,hover_end};
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
         let connection = RefCell::new(None);
@@ -417,18 +419,8 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 let weak_port_mouse_down = weak_port.clone();
                 def _node_on_down_tagged = self.data.view.events.mouse_down.map(f_!(() {
                     if let Some(port) = weak_port_mouse_down.upgrade(){
-                        port.data.events.hover_start.emit(());
-                        port.set_shadow(0.0);
+                        port.data.events.start_connection.emit(());
                     }
-                    // let connection = Connection::new();
-                    // self.data.view.display_object.add_child(&connection.data.view.display_object);
-                    //
-                    // let start = Vector3::new(-100.0,-100.0,0.0);
-                    // let end = Vector3::new(100.0,100.0,0.0);
-                    // connection.set_start(start);
-                    // connection.set_end(end);
-                    // mem::forget(connection);
-                    // self.data.events.
                 }));
 
                 let weak_port_mouse_over = weak_port.clone();
@@ -452,8 +444,18 @@ impl<T:PortShapeViewDefinition> Port<T> {
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
                  if let Some(port) = weak_port_hover_start.upgrade(){
                     port.set_shadow(1.0);
-                }
 
+                }
+            });
+            let weak_port_hover_end = self.downgrade();
+             def _f_hover_end = self.data.events.hover_end.map(move |_| {
+                 if let Some(port) = weak_port_hover_end.upgrade(){
+                    port.set_shadow(0.0);
+                }
+            });
+
+             let weak_port_start_connection = self.downgrade();
+             def _f_start_connection = self.data.events.start_connection.map(move |_| {
                 let connection = Connection::new();
                 let start      = Vector3::new(0.0,0.0,0.0);
                 let end        = Vector3::new(100.0,100.0,0.0);
@@ -462,12 +464,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 if let Some(port) = weak_port.upgrade(){
                     port.data.view.display_object.add_child(&connection.data.view.display_object);
                     port.data.connection.set(connection);
-                }
-            });
-            let weak_port_hover_end = self.downgrade();
-             def _f_hover_end = self.data.events.hover_end.map(move |_| {
-                 if let Some(port) = weak_port_hover_end.upgrade(){
-                    port.set_shadow(0.0);
                 }
             });
         }
