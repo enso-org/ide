@@ -79,8 +79,8 @@ impl ShapeViewDefinition for ConnectionView {
         // FIXME this is only for debuggingg
         shape.start_x.set(-100.0);
         shape.start_y.set(-100.0);
-        shape.end_x.set(100.0);
-        shape.end_y.set(100.0);
+        shape.end_x.set(200.0);
+        shape.end_y.set(200.0);
 
         let bbox = Vector2::new(200.0, 200.0);
         shape.sprite.size().set(bbox);
@@ -171,8 +171,8 @@ impl Connection {
     }
 
     fn update_sprite(&self) {
-        let center = self.center();
-        self.data.view.display_object.set_position(Vector3::new(center.x, center.y, 0.0));
+        // let center = self.center();
+        // self.data.view.display_object.set_position(Vector3::new(center.x, center.y, 0.0));
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.sprite.size().set(self.extent().xy());
         }
@@ -183,5 +183,17 @@ impl Connection {
 impl Default for Connection {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl display::Object for Connection {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.data.view.display_object
+    }
+}
+
+impl AsRef<Connection> for Connection {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }

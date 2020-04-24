@@ -15,6 +15,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::system::web;
+use ensogl::display::object::class::ObjectOps;
 
 
 

@@ -23,23 +23,34 @@ use enso_frp as frp;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
-    pub network    : frp::Network,
-    pub mouse_down : frp::Source,
+    pub network     : frp::Network,
+    pub mouse_down  : frp::Source,
+    pub mouse_over  : frp::Source,
+    pub mouse_leave : frp::Source,
+
 }
 
 impl Default for ShapeViewEvents {
     fn default() -> Self {
         frp::new_network! { shape_view
-            def mouse_down = source_();
+            def mouse_down  = source_();
+            def mouse_over = source_();
+            def mouse_leave = source_();
         }
         let network = shape_view;
-        Self {network,mouse_down}
+        Self {network,mouse_down,mouse_over,mouse_leave}
     }
 }
 
 impl MouseTarget for ShapeViewEvents {
     fn mouse_down(&self) -> Option<frp::Source> {
         Some(self.mouse_down.clone_ref())
+    }
+    fn mouse_over(&self) -> Option<frp::Source> {
+        Some(self.mouse_over.clone_ref())
+    }
+    fn mouse_leave(&self) -> Option<frp::Source> {
+        Some(self.mouse_leave.clone_ref())
     }
 }
 

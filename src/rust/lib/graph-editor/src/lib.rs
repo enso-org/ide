@@ -37,6 +37,7 @@ use ensogl::application;
 use ensogl::prelude::*;
 use ensogl::traits::*;
 
+use crate::component::node::connection::Connection;
 use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
@@ -188,6 +189,7 @@ pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                     : Commands,
     register_node                : frp::Source<Node>,
+    register_connection          : frp::Source<Connection>,
     pub add_node_at              : frp::Source<Position>,
     pub select_node              : frp::Source<Option<WeakNode>>,
     pub translate_selected_nodes : frp::Source<Position>,
@@ -198,15 +200,19 @@ impl FrpInputs {
         let commands = Commands::new(network);
         frp::extend! { network
             def register_node            = source();
+            def register_connection      = source();
             def add_node_at              = source();
             def select_node              = source();
             def translate_selected_nodes = source();
         }
-        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes}
+        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes,register_connection}
     }
 
     fn register_node<T: AsRef<Node>>(&self, arg: T) {
         self.register_node.emit(arg.as_ref());
+    }
+    fn register_connection<T: AsRef<Connection>>(&self, arg: T) {
+        self.register_connection.emit(arg.as_ref());
     }
     pub fn add_node_at<T: AsRef<Position>>(&self, arg: T) {
         self.add_node_at.emit(arg.as_ref());
@@ -259,6 +265,12 @@ impl application::command::StatusApi for GraphEditor {
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct NodeState {
+    pub set      : NodeSet,
+    pub selected : WeakNodeSelectionSet,
+}
+
+#[derive(Debug,Clone,CloneRef,Default)]
+pub struct ConnectionState {
     pub set      : NodeSet,
     pub selected : WeakNodeSelectionSet,
 }
@@ -394,6 +406,32 @@ impl application::View for GraphEditor {
             cursor.set_position(Vector2::new(p.x,p.y));
         }));
 
+        // === Hover ===
+
+        def mouse_move_target  = mouse.position.map(f_!((scene) scene.mouse.target.get()));
+        def _mouse_move_target = mouse_move_target.map(f!((touch,scene)(target) {
+            match target {
+                display::scene::Target::Background => {}
+                display::scene::Target::Symbol {symbol_id,instance_id} => {
+                    scene.shapes.get_mouse_target(*symbol_id as i32, *instance_id as usize).for_each(|target| {
+                        target.mouse_over().for_each(|t| t.emit(()));
+                    })
+                }
+            }
+        }));
+
+        def mouse_leave_target  = mouse.leave.map(f_!((scene) scene.mouse.target.get()));
+        def _mouse_leave_target = mouse_leave_target.map(f!((touch,scene)(target) {
+            match target {
+                display::scene::Target::Background => {}
+                display::scene::Target::Symbol {symbol_id,instance_id} => {
+                    scene.shapes.get_mouse_target(*symbol_id as i32, *instance_id as usize).for_each(|target| {
+                        target.mouse_leave().for_each(|t| t.emit(()));
+                    })
+                }
+            }
+        }));
+
 
         // === Generic Selection ===
 
@@ -438,6 +476,17 @@ impl application::View for GraphEditor {
                 t.x += pos.x;
                 t.y += pos.y;
             });
+
+            // let connection = Connection::new();
+            // inputs.register_connection(&connection);
+            // let start = Vector3::new(-20.0,-20.0,0.0);
+            // let end   = Vector3::new(150.0,150.0,0.0);
+            // connection.set_start(start);
+            // connection.set_end(end);
+            // node.add_child(&connection.data.view.display_object);
+            // mem::forget(connection);
+
+
         }));
 
         def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
