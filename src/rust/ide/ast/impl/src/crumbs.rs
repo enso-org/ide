@@ -320,7 +320,7 @@ impl IntoIterator for Crumb {
 
 impl<'a> From<&'a Crumb> for Crumb {
     fn from(crumb: &'a Crumb) -> Self {
-        crumb.clone()
+        *crumb
     }
 }
 

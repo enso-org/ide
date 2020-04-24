@@ -52,9 +52,13 @@ pub trait Actions {
 
     /// Set the node's span to new AST. In case of empty nodes it adds new element to prefix and
     /// operator chains.
+    ///
+    /// It returns new ast root with performed action.
     fn set(&self, root:&Ast, to:Ast) -> FallibleResult<Ast>;
 
     /// Erase element pointed by this node from operator or prefix chain.
+    ///
+    /// It returns new ast root with performed action.
     fn erase(&self, root:&Ast) -> FallibleResult<Ast>;
 }
 
@@ -87,16 +91,24 @@ impl<T:Implementation> Actions for T {
 
 const DEFAULT_OFFSET : usize = 1;
 
+/// A concrete function for "set" operations on specific SpanTree node. It takes root and ast-to-set
+/// as arguments and returns new root with action performed.
+pub type SetOperation<'a>   = Box<dyn FnOnce(&Ast,Ast) -> FallibleResult<Ast> + 'a>;
+
+/// A concrete function for "set" operations on specific SpanTree node. It takes root ast
+/// as argument and returns new root with action performed.
+pub type EraseOperation<'a> = Box<dyn FnOnce(&Ast)     -> FallibleResult<Ast> + 'a>;
+
 /// Implementation of actions - this is for keeping in one place checking of actions availability
 /// and the performing the action.
 #[allow(missing_docs)]
 pub trait Implementation {
-    fn set_impl<'a>(&'a self)   -> Option<Box<dyn FnOnce(&Ast,Ast) -> FallibleResult<Ast> + 'a>>;
-    fn erase_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast)     -> FallibleResult<Ast> + 'a>>;
+    fn set_impl(&self)   -> Option<SetOperation>;
+    fn erase_impl(&self) -> Option<EraseOperation>;
 }
 
-impl<'x> Implementation for node::Ref<'x> {
-    fn set_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>> {
+impl<'a> Implementation for node::Ref<'a> {
+    fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
             Kind::Empty(ins_type)  => Some(Box::new(move |root,new| {
                 use node::InsertType::*;
@@ -144,7 +156,7 @@ impl<'x> Implementation for node::Ref<'x> {
     }
 
 
-    fn erase_impl<'a>(&'a self) -> Option<Box<dyn FnOnce(&Ast) -> FallibleResult<Ast> + 'a>> {
+    fn erase_impl(&self) -> Option<EraseOperation> {
 
         match self.node.kind {
             node::Kind::Argument{removable:true} |
@@ -166,25 +178,6 @@ impl<'x> Implementation for node::Ref<'x> {
             })),
             _ => None
         }
-        // match self.ast_crumbs.last() {
-        //     _ if !node_type_erasable => None,
-        //     Some(Crumb::Infix(InfixCrumb::LeftOperand)) => Some(Box::new(move |root| {
-        //         let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-        //         let parent       = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-        //         root.set_traversing(parent_crumb,parent.rarg.clone_ref())
-        //     })),
-        //     Some(Crumb::Infix(InfixCrumb::RightOperand)) => Some(Box::new(move |root| {
-        //         let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-        //         let parent       = ast::known::Infix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-        //         root.set_traversing(parent_crumb,parent.larg.clone_ref())
-        //     })),
-        //     Some(Crumb::Prefix(PrefixCrumb::Arg)) => Some(Box::new(move |root| {
-        //         let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
-        //         let parent       = ast::known::Prefix::try_new(root.get_traversing(parent_crumb)?.clone_ref())?;
-        //         root.set_traversing(parent_crumb,parent.func.clone_ref())
-        //     })),
-        //     _ => None
-        // }
     }
 }
 
