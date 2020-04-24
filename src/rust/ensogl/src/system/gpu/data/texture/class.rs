@@ -118,11 +118,6 @@ pub enum MinFilter {
     LinearMipmapLinear   = Context::LINEAR_MIPMAP_LINEAR   as isize,
 }
 
-#[allow(missing_docs)]
-impl MinFilter {
-
-}
-
 // Note: The parameters implement our own default, not the WebGL one.
 impl Default for MinFilter {
     fn default() -> Self {
