@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(chain.enumerate_operands().count(), expected_asts.len());
         for (elem,expected) in chain.enumerate_operands().zip(expected_asts) {
             assert_eq!(elem.item.wrapped,**expected);
-            let ast = root_ast.get_traversing(elem.crumbs).unwrap();
+            let ast = root_ast.get_traversing(&elem.crumbs).unwrap();
             assert_eq!(ast,*expected);
         }
     }

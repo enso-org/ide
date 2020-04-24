@@ -149,7 +149,7 @@ impl<'a> Implementation for node::Ref<'a> {
                 Some(Crumb::SectionRight(SectionRightCrumb::Opr)) |
                 Some(Crumb::SectionSides(SectionSidesCrumb))      => None,
                 _ => Some(Box::new(move |root, new| {
-                    root.set_traversing(self.ast_crumbs.iter().cloned(),new)
+                    root.set_traversing(&self.ast_crumbs,new)
                 }))
             }
         }

@@ -125,9 +125,9 @@ mod tests {
 
         let (arg1,arg2) = chain.enumerate_args().expect_tuple();
         assert_eq!(arg1.item, &b);
-        assert_eq!(a_b_c.get_traversing(arg1.crumbs).unwrap(), &b);
+        assert_eq!(a_b_c.get_traversing(&arg1.crumbs).unwrap(), &b);
         assert_eq!(arg2.item, &c);
-        assert_eq!(a_b_c.get_traversing(arg2.crumbs).unwrap(), &c);
+        assert_eq!(a_b_c.get_traversing(&arg2.crumbs).unwrap(), &c);
     }
 
     // TODO[ao] add tests for modifying chain.
