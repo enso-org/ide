@@ -81,11 +81,12 @@ impl Chain {
 
     pub fn fold_arg(&mut self) {
         if let Some(arg) = self.args.pop_front() {
-            let new_prefix = Prefix{arg,
-                func : std::mem::take(&mut self.func),
+            let new_prefix = Prefix{
+                arg  : arg.wrapped,
+                func : self.func.clone_ref(),
                 off  : arg.off,
             };
-            self.func = new_prefix;
+            self.func = new_prefix.into();
         }
     }
 
@@ -93,7 +94,7 @@ impl Chain {
         while !self.args.is_empty() {
             self.fold_arg()
         }
-        self.target
+        self.func
     }
 }
 
@@ -116,8 +117,8 @@ mod tests {
 
         let chain = Chain::try_new(&a_b_c).unwrap();
         assert_eq!(chain.func, a);
-        assert_eq!(chain.args[0], b);
-        assert_eq!(chain.args[1], c);
+        assert_eq!(chain.args[0].wrapped, b);
+        assert_eq!(chain.args[1].wrapped, c);
 
         let (arg1,arg2) = chain.enumerate_args().expect_tuple();
         assert_eq!(arg1.item, &b);

@@ -56,7 +56,7 @@ impl<'a> LeafIterator<'a> {
     /// Create iterator iterating over leafs of subtree rooted  on `node`.
     pub fn new(node: node::Ref<'a>, fragment:TreeFragment) -> Self {
         let stack     = vec![StackFrame {node:&node.node, child_being_visited:0}];
-        let next_node = node.node.children.first();
+        let next_node = node.node.children.first().map(|ch| &ch.node);
         let base_node = node;
         let mut this = Self {stack,next_node,base_node,fragment};
         this.descend_to_leaf();

@@ -24,9 +24,9 @@ pub enum Kind {
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    Target { removable:bool },
+    Target,// { removable:bool },
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument { removable:bool },
+    Argument,// { removable:bool },
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
     /// have assigned span of length 0 and should not have any child.
     Empty,

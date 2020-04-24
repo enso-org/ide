@@ -26,7 +26,6 @@ pub trait Builder : Sized {
         };
         let child = node::Child { node,
             offset              : Size::new(offset),
-            chained_with_parent : false,
             ast_crumbs          : crumbs.into_crumbs()
         };
         ChildBuilder {
@@ -41,11 +40,10 @@ pub trait Builder : Sized {
     }
 
     /// Add an Empty-type child to node.
-    fn add_empty_child(mut self, offset:usize, kind:node::Kind) -> Self {
+    fn add_empty_child(mut self, offset:usize) -> Self {
         let child = node::Child {
-            node                : Node::new_empty(kind),
+            node                : Node::new_empty(),
             offset              : Size::new(offset),
-            chained_with_parent : false,
             ast_crumbs          : vec![]
         };
         self.node_being_built().children.push(child);
@@ -104,13 +102,6 @@ pub struct ChildBuilder<Parent> {
 }
 
 impl<Parent:Builder> ChildBuilder<Parent> {
-
-    /// Set the child as being chained with parent.
-    pub fn chain_with_parent(mut self) -> Self {
-        self.built.chained_with_parent = true;
-        self
-    }
-
     /// Finish child building and return builder of the node's Parent.
     pub fn done(mut self) -> Parent {
         self.parent.node_being_built().children.push(self.built);

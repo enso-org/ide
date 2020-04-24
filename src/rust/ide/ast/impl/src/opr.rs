@@ -88,7 +88,7 @@ pub fn make_operator(opr:&Ast) -> Option<Operator> {
 }
 
 /// Describes associativity of the given operator AST.
-fn assoc(ast:&known::Opr) -> Assoc {
+pub fn assoc(ast:&known::Opr) -> Assoc {
     Assoc::of(&ast.name)
 }
 
@@ -286,12 +286,12 @@ impl Chain {
     }
 
     pub fn insert_operand(&mut self, at_index:usize, operand:Shifted<Ast>) {
-        let mut operand = Some(operand);
-        let operator    = chain.operator.clone_ref();
         let offset      = operand.off;
+        let mut operand = Some(operand);
+        let operator    = self.operator.clone_ref();
         if at_index == 0 {
             std::mem::swap(&mut operand, &mut self.target);
-            self.args.push_front(ChainElement{operator,operand,offset})
+            self.args.insert(0,ChainElement{operator,operand,offset})
         } else {
             self.args.insert(at_index-1,ChainElement{operator,operand,offset})
         }
