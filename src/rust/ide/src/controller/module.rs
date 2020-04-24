@@ -13,8 +13,7 @@ use ast;
 use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
-use enso_protocol::file_manager as fmc;
-use fmc::API;
+use file_manager_client as fmc;
 use parser::Parser;
 
 
@@ -47,12 +46,12 @@ impl Location {
     }
 
     /// Obtains path (within a project context) to the file with this module.
-    pub fn to_path(&self) -> enso_protocol::file_manager::Path {
+    pub fn to_path(&self) -> file_manager_client::Path {
         // TODO [mwu] Extremely provisional. When multiple files support is
         //            added, needs to be fixed, if not earlier.
         let Location(string) = self;
         let result = format!("./{}.{}", string, constants::LANGUAGE_FILE_EXTENSION);
-        enso_protocol::file_manager::Path::new(result)
+        file_manager_client::Path::new(result)
     }
 }
 
@@ -72,7 +71,7 @@ pub struct Handle {
     /// The current state of module.
     pub model: Rc<model::Module>,
     /// The File Manager Client handle.
-    pub file_manager : Rc<fmc::Client>,
+    pub file_manager : fmc::Handle,
     /// The Parser handle.
     parser : Parser,
     /// The logger handle.
@@ -84,7 +83,7 @@ impl Handle {
     ///
     /// It may wait for module content, because the module must initialize its state.
     pub fn new
-    (location:Location, model:Rc<model::Module>, file_manager:Rc<fmc::Client>, parser:Parser)
+    (location:Location, model:Rc<model::Module>, file_manager:fmc::Handle, parser:Parser)
     -> Self {
         let logger = Logger::new(format!("Module Controller {}", location));
         Handle {location,model,file_manager,parser,logger}
@@ -108,7 +107,7 @@ impl Handle {
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let path    = self.location.to_path();
-        let fm      = self.file_manager.clone();
+        let fm      = self.file_manager.clone_ref();
         let content = self.model.source_as_string();
         async move { Ok(fm.write(path,content?).await?) }
     }
@@ -167,7 +166,7 @@ impl Handle {
     ( location     : Location
     , code         : &str
     , id_map       : ast::IdMap
-    , file_manager : Rc<fmc::Client>
+    , file_manager : fmc::Handle
     , parser       : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
@@ -200,7 +199,7 @@ mod test {
     use ast::BlockLine;
     use ast::Ast;
     use data::text::Span;
-    use enso_protocol::file_manager::Path;
+    use file_manager_client::Path;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
@@ -220,7 +219,7 @@ mod test {
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
-            let file_manager = Rc::new(fmc::Client::new(transport));
+            let file_manager = fmc::Handle::new(transport);
             let parser       = Parser::new().unwrap();
             let location     = Location::new("Test");
 
