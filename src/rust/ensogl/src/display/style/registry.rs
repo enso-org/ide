@@ -51,9 +51,9 @@ impl Var {
 
 /// A node in the style sheet tree. Style sheets are associated with a style path like
 /// 'panel.button.size' and each node keeps a `Data` value. The value can either be set explicitly,
-/// or computed automatically if the style sheet is defined with en `Expression`. Please note that
-/// although `Sheet` contains a single value, it is in fact a node in a tree defined in `Registry`,
-/// so it can be interpreted as a set of hierarchical values instead.
+/// or computed automatically if the style sheet is defined with a `BoundExpression`. Please note
+/// that although `Sheet` contains a single value, it is in fact a node in a tree defined in
+/// `RegistryData`, so it can be interpreted as a set of hierarchical values instead.
 #[derive(Debug)]
 pub struct Sheet {
     /// Index of the style sheet in the style sheet map.
@@ -61,7 +61,7 @@ pub struct Sheet {
     /// Value of this style sheet node. Style sheets without value behave like if they do not exist.
     value : Option<Data>,
     /// Expression used to update the value.
-    expr : Option<Expression>,
+    expr : Option<BoundExpression>,
     /// Indexes of all `Var`s that are potential matches with this style sheet.
     matches : HashSet<Index<Var>>,
     /// Indexes of all `Var`s that are bound (best matches) with this style sheet.
@@ -86,19 +86,55 @@ impl Sheet {
 }
 
 
+// =======================
+// === BoundExpression ===
+// =======================
+
+/// Expression of a style sheet bound to specific variable indexes.
+#[derive(Derivative)]
+#[derivative(Clone,Debug)]
+pub struct BoundExpression {
+    /// Indexes of all vars which are used as sources to the function of this expression.
+    args : Vec<Index<Var>>,
+    /// Function used to compute the new value of the style sheet.
+    #[derivative(Debug="ignore")]
+    function : Rc<dyn Fn(&[&Data])->Data>
+}
+
+impl BoundExpression {
+    pub fn new(args:Vec<Index<Var>>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
+        Self {args,function}
+    }
+}
+
+
+
 // ==================
 // === Expression ===
 // ==================
 
-/// Expression of a style sheet.
-#[derive(Derivative)]
-#[derivative(Clone,Debug)]
+#[derive(Clone)]
 pub struct Expression {
-    /// Indexes of all vars which are used as sources to the function of this expression.
-    sources : Vec<Index<Var>>,
-    /// Function used to compute the new value of the style sheet.
-    #[derivative(Debug="ignore")]
-    function : Rc<dyn Fn(&[&Data])->Data>
+    pub args     : Vec<Path>,
+    pub function : Rc<dyn Fn(&[&Data])->Data>
+}
+
+impl Expression {
+    pub fn new(args:Vec<Path>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
+        Self {args,function}
+    }
+}
+
+impl Debug for Expression {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Expression")
+    }
+}
+
+impl PartialEq for Expression {
+    fn eq(&self, other:&Self) -> bool {
+        (self.args == other.args) && Rc::ptr_eq(&self.function,&other.function)
+    }
 }
 
 
@@ -107,11 +143,33 @@ pub struct Expression {
 // === Value ===
 // =============
 
-#[derive(Debug)]
-#[allow(missing_docs)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Value {
-    Data(Data),
-    Expression(Expression),
+    Data       (Data),
+    Expression (Expression)
+}
+
+impl From<Expression> for Value {
+    fn from(t:Expression) -> Self {
+        Self::Expression(t)
+    }
+}
+
+impl<T> From<T> for Value
+    where T:Into<Data> {
+    default fn from(t:T) -> Self {
+        Self::Data(t.into())
+    }
+}
+
+impl Semigroup for Value {
+    fn concat_mut(&mut self, other:&Self) {
+        *self = other.clone()
+    }
+
+    fn concat_mut_take(&mut self, other:Self) {
+        *self = other
+    }
 }
 
 
@@ -121,13 +179,15 @@ pub enum Value {
 // =============
 
 pub struct Change {
-    sheet_id : Index<Sheet>,
-    value    : Option<Value>
+    path  : Path,
+    value : Option<Value>
 }
 
 impl Change {
-    pub fn new(sheet_id:Index<Sheet>, value:Option<Value>) -> Self {
-        Self {sheet_id,value}
+    pub fn new<P>(path:P, value:Option<Value>) -> Self
+    where P:Into<Path> {
+        let path = path.into();
+        Self {path,value}
     }
 }
 
@@ -167,9 +227,9 @@ impl NewInstance<Index<Sheet>> for SheetVec {
 
 
 
-// ================
-// === Registry ===
-// ================
+// ====================
+// === RegistryData ===
+// ====================
 
 /// Style sheet registry. Could be named "Cascading Style Sheets" but then the name will be
 /// confusing with CSS used in web development. Defines a set of cascading style sheets. Each
@@ -177,7 +237,7 @@ impl NewInstance<Index<Sheet>> for SheetVec {
 /// also allows creating variables which are automatically bound to the most specific style sheet.
 /// See `Var` and `Sheet` to learn more.
 #[derive(Debug)]
-pub struct Registry {
+pub struct RegistryData {
     /// Set of all variables.
     vars : VarVec,
     /// Set of all style sheets.
@@ -191,7 +251,7 @@ pub struct Registry {
 
 // === Constructors ===
 
-impl Registry {
+impl RegistryData {
     /// Constructor.
     pub fn new() -> Self {
         let vars          = default();
@@ -208,7 +268,7 @@ impl Registry {
     /// example, when creating "panel.button.size" variable, three sheets will be created as well:
     /// "panel.button.size", "button.size", and "size". This way we keep track of all possible
     /// matches and we can create high-performance value binding algorithms.
-    pub fn var<P:Into<Path>>(&mut self, path:P) -> Index<Var> {
+    pub fn unmanaged_var<P:Into<Path>>(&mut self, path:P) -> Index<Var> {
         let path         = path.into();
         let vars         = &mut self.vars;
         let sheets       = &mut self.sheets;
@@ -242,7 +302,7 @@ impl Registry {
 
 // === Getters ===
 
-impl Registry {
+impl RegistryData {
     /// Reads the value of the variable.
     pub fn value(&self, var_id:Index<Var>) -> Option<&Data> {
         self.vars.safe_index(var_id).as_ref().and_then(|var| {
@@ -256,7 +316,7 @@ impl Registry {
 
 // === Setters ===
 
-impl Registry {
+impl RegistryData {
     /// Set a style sheet value. Please note that it will remove expression assigned to the target
     /// style sheet if any. Returns indexes of all affected variables.
     pub fn set_value<P:Into<Path>>(&mut self, path:P, data:Data) -> HashSet::<Index<Var>> {
@@ -266,13 +326,12 @@ impl Registry {
     /// Set a style sheet expression which will be used to automatically compute values whenever any
     /// of the provided dependencies will change. Returns indexes of all affected variables.
     pub fn set_expression<P>
-    (&mut self, path:P, args:&[Index<Var>], function:Rc<dyn Fn(&[&Data])->Data>)
+    (&mut self, path:P, args:&[&str], function:Rc<dyn Fn(&[&Data])->Data>)
     -> HashSet::<Index<Var>>
     where P:Into<Path> {
-        let sheet_id = self.sheet(path);
-        let sources  = args.to_vec();
-        let value    = Value::Expression(Expression {sources,function});
-        let changes  = vec![Change::new(sheet_id,Some(value))];
+        let args     = args.iter().map(|t|(*t).into()).collect_vec();
+        let value    = Value::Expression(Expression {args,function});
+        let changes  = vec![Change::new(path,Some(value))];
         self.change_values(changes)
     }
 
@@ -286,8 +345,7 @@ impl Registry {
     /// target style sheet if any. Returns indexes of all affected variables.
     pub fn set_value_to<P>(&mut self, path:P, data:Option<Data>) -> HashSet::<Index<Var>>
     where P:Into<Path> {
-        let sheet_id = self.sheet(path);
-        self.change_value(Change::new(sheet_id,data.map(Value::Data)))
+        self.change_value(Change::new(path,data.map(Value::Data)))
     }
 
     /// Set or remove a single style sheet value. Returns indexes of all affected variables.
@@ -300,13 +358,13 @@ impl Registry {
     where I:IntoIterator<Item=Change> {
         let mut changed = HashSet::<Index<Var>>::new();
         let sheets_iter = changes.into_iter().map(|change| {
-            let sheet_id = change.sheet_id;
+            let sheet_id = self.sheet(change.path);
             let sheet    = &mut self.sheets[sheet_id];
 
             // Remove expression bindings.
             let opt_expr = mem::take(&mut sheet.expr);
             if let Some(expr) = opt_expr {
-                for var_id in expr.sources {
+                for var_id in expr.args {
                     self.vars[var_id].usages.remove(&sheet_id);
                 }
             }
@@ -329,10 +387,13 @@ impl Registry {
                     match value {
                         Value::Data(data) => sheet.value = Some(data),
                         Value::Expression(expr) => {
-                            for var_id in &expr.sources {
+                            let vars = expr.args.iter().map(|path| self.unmanaged_var(path)).collect_vec();
+                            for var_id in &vars {
                                 self.vars[*var_id].usages.insert(sheet_id);
                             }
-                            sheet.expr = Some(expr);
+                            let bound_expr = BoundExpression::new(vars,expr.function);
+                            let sheet      = &mut self.sheets[sheet_id];
+                            sheet.expr     = Some(bound_expr);
                             self.recompute(sheet_id);
                         }
                     }
@@ -364,7 +425,7 @@ impl Registry {
 
 // === Utils ===
 
-impl Registry {
+impl RegistryData {
     /// Check all potential candidates (sheets) this variable matches to and choose the most
     /// specific one from those which exist (have a value). Returns true if the var was rebound.
     fn rebind_var(&mut self, var_id:Index<Var>) -> bool {
@@ -409,7 +470,7 @@ impl Registry {
         let sheet = &self.sheets[sheet_id];
         let value = sheet.expr.as_ref().and_then(|expr| {
             let mut opt_args : Vec<Option<&Data>> = Vec::new();
-            for var_id in &expr.sources {
+            for var_id in &expr.args {
                 opt_args.push(self.value(*var_id));
             }
             let args : Option<Vec<&Data>> = opt_args.into_iter().collect();
@@ -463,7 +524,7 @@ impl Registry {
 
 // === Debug ===
 
-impl Registry {
+impl RegistryData {
     /// Visualizes the network in the GraphViz Dot language. Use `visualize` to automatically
     /// display it in a new browser tab.
     pub fn to_graphviz(&self) -> String {
@@ -480,7 +541,7 @@ impl Registry {
             for var  in &sheet.matches  {Self::sheet_var_link(s,sheet.index,*var,"[style=dashed]")}
             for var  in &sheet.bindings {Self::sheet_var_link(s,sheet.index,*var,"[color=red]")}
             for expr in &sheet.expr {
-                for var in &expr.sources {Self::sheet_var_link(s,sheet.index,*var,"[color=blue]")}
+                for var in &expr.args {Self::sheet_var_link(s,sheet.index,*var,"[color=blue]")}
             }
         }
         format!("digraph G {{\nnode [shape=box style=rounded]\n{}\n}}",dot)
@@ -530,9 +591,21 @@ impl Registry {
 
 // === Impls ===
 
-impl Default for Registry {
+impl Default for RegistryData {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+
+#[derive(Debug,Default)]
+pub struct Registry {
+    rc : Rc<RefCell<RegistryData>>
+}
+
+impl Registry {
+    pub fn new() -> Self {
+        default()
     }
 }
 
@@ -544,24 +617,24 @@ impl Default for Registry {
 
 /// Interactive testing utility. To be removed in the future.
 pub fn test() {
-    let mut style = Registry::new();
+    let mut style = RegistryData::new();
 
-    let var_size              = style.var("size");
-    let var_button_size       = style.var("button.size");
-    let var_graph_button_size = style.var("graph.button.size");
-    let _var = style.var("scene.background.color");
-    let _var = style.var("application.text.color");
-    let _var = style.var("application.text.size");
-    let _var = style.var("button.text.size");
-    let _var = style.var("node.text.color");
-    let _var = style.var("node.text.size");
-    let _var = style.var("application.background.color");
-    let _var = style.var("node.background.color");
+    let var_size              = style.unmanaged_var("size");
+    let var_button_size       = style.unmanaged_var("button.size");
+    let var_graph_button_size = style.unmanaged_var("graph.button.size");
+    let _var = style.unmanaged_var("scene.background.color");
+    let _var = style.unmanaged_var("application.text.color");
+    let _var = style.unmanaged_var("application.text.size");
+    let _var = style.unmanaged_var("button.text.size");
+    let _var = style.unmanaged_var("node.text.color");
+    let _var = style.unmanaged_var("node.text.size");
+    let _var = style.unmanaged_var("application.background.color");
+    let _var = style.unmanaged_var("node.background.color");
 
     assert!(style.value(var_graph_button_size).is_none());
     style.set_value("size",data(1.0));
-    style.set_expression("graph.button.size",&[var_button_size],Rc::new(|args| args[0] + &data(100.0)));
-    style.set_expression("button.size",&[var_size],Rc::new(|args| args[0] + &data(10.0)));
+    style.set_expression("graph.button.size",&["button.size"],Rc::new(|args| args[0] + &data(100.0)));
+    style.set_expression("button.size",&["size"],Rc::new(|args| args[0] + &data(10.0)));
     style.set_value("button.size",data(3.0));
 
     println!("{}",style.to_graphviz());
@@ -577,8 +650,8 @@ mod tests {
 
     #[test]
     pub fn simple_var_binding_1() {
-        let mut style = Registry::new();
-        let var1      = style.var(&["size"]);
+        let mut style = RegistryData::new();
+        let var1      = style.unmanaged_var(&["size"]);
         assert!(style.value(var1).is_none());
         style.set_value(&["size"],data(1.0));
         assert_eq!(style.value(var1),Some(&data(1.0)));
@@ -586,16 +659,16 @@ mod tests {
 
     #[test]
     pub fn simple_var_binding_2() {
-        let mut style = Registry::new();
+        let mut style = RegistryData::new();
         style.set_value(&["size"],data(1.0));
-        let var1 = style.var(&["size"]);
+        let var1 = style.unmanaged_var(&["size"]);
         assert_eq!(style.value(var1),Some(&data(1.0)));
     }
 
     #[test]
     pub fn hierarchical_var_binding() {
-        let mut style = Registry::new();
-        let var1      = style.var("graph.button.size");
+        let mut style = RegistryData::new();
+        let var1      = style.unmanaged_var("graph.button.size");
         assert!(style.value(var1).is_none());
         style.set_value("size",data(1.0));
         assert_eq!(style.value(var1),Some(&data(1.0)));
@@ -613,11 +686,11 @@ mod tests {
 
     #[test]
     pub fn expr_bindings_1() {
-        let mut style = Registry::new();
+        let mut style = RegistryData::new();
 
-        let var_size              = style.var("size");
-        let var_button_size       = style.var("button.size");
-        let var_graph_button_size = style.var("graph.button.size");
+        let var_size              = style.unmanaged_var("size");
+        let var_button_size       = style.unmanaged_var("button.size");
+        let var_graph_button_size = style.unmanaged_var("graph.button.size");
 
         assert!(style.value(var_graph_button_size).is_none());
         style.set_value("size",data(1.0));
@@ -636,13 +709,22 @@ mod tests {
 
     #[test]
     pub fn expr_circular() {
-        let mut style = Registry::new();
+        let mut style = RegistryData::new();
 
-        let var_a = style.var("a");
-        let var_b = style.var("b");
+        let var_a = style.unmanaged_var("a");
+        let var_b = style.unmanaged_var("b");
 
         style.set_expression("a",&[var_b],Rc::new(|args| args[0].clone()));
         style.set_expression("b",&[var_a],Rc::new(|args| args[0].clone()));
         assert!(style.value(var_a).is_none());
     }
 }
+
+
+
+//todo todo todo
+//
+//1. vary sa tworzone tylko na potrzeby expressionow
+//2. jak expression jest usuwany, vary powinny spawdzac czy sa uzywane pzez inne expresiony i sie usuwac
+//3. po usunieciu vara powinny usuwac sie sheety
+//4. vary powinny miec flage ze sa uzywane przez uzytkownika i jezeli tak, nie usuwac sie dopoki uzytkownik nie przestanie z nich korzystac

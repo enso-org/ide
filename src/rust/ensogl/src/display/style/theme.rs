@@ -7,66 +7,18 @@ use crate::data::color;
 
 use super::data::Data;
 use super::registry::Path;
+use super::registry::Change;
+use super::registry::Value;
+use super::registry::Expression;
 use super::registry as style;
 
 
 
-// ==================
-// === Expression ===
-// ==================
-
-#[derive(Clone)]
-pub struct Expression {
-    pub sources  : Vec<Path>,
-    pub function : Rc<dyn Fn(&[&Data])->Data>
-}
-
-impl Debug for Expression {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Expression")
-    }
-}
-
-impl PartialEq for Expression {
-    fn eq(&self, other:&Self) -> bool {
-        (self.sources == other.sources) && Rc::ptr_eq(&self.function,&other.function)
-    }
-}
 
 
 
-// =============
-// === Entry ===
-// =============
 
-#[derive(Clone,Debug,PartialEq)]
-pub enum Entry {
-    Value      (Data),
-    Expression (Expression)
-}
 
-impl From<Expression> for Entry {
-    fn from(t:Expression) -> Self {
-        Self::Expression(t)
-    }
-}
-
-impl<T> From<T> for Entry
-where T:Into<Data> {
-    default fn from(t:T) -> Self {
-        Self::Value(t.into())
-    }
-}
-
-impl Semigroup for Entry {
-    fn concat_mut(&mut self, other:&Self) {
-        *self = other.clone()
-    }
-
-    fn concat_mut_take(&mut self, other:Self) {
-        *self = other
-    }
-}
 
 
 
@@ -76,7 +28,7 @@ impl Semigroup for Entry {
 
 #[derive(Clone,Debug,Default)]
 pub struct Theme {
-    tree : HashMapTree<String,Option<Entry>>
+    tree : HashMapTree<String,Option<Value>>
 }
 
 impl Theme {
@@ -85,7 +37,7 @@ impl Theme {
     }
 
     pub fn insert<P,E>(&mut self, path:P, entry:E)
-    where P:Into<Path>, E:Into<Entry> {
+    where P:Into<Path>, E:Into<Value> {
         let path  = path.into();
         let entry = entry.into();
         self.tree.set(&path.rev_segments,Some(entry));
@@ -110,7 +62,7 @@ pub struct Manager {
     all      : HashMap<String,Theme>,
     active   : Vec<String>,
     combined : Theme,
-    style    : style::Registry,
+    style    : style::RegistryData,
 }
 
 impl Manager {
@@ -128,29 +80,23 @@ impl Manager {
             }
         };
 
-        let diff = self.combined.tree.zip_clone(&combined.tree);
+        let mut changes = Vec::<Change>::new();
+        let diff        = self.combined.tree.zip_clone(&combined.tree);
         for (segments,values) in &diff {
             let path   = Path::from(segments);
             let first  = values.first().and_then(|t|t.as_ref());
             let second = values.second().and_then(|t|t.as_ref());
-            let mut changed = HashSet::new();
             if !values.same() {
                 match (first,second) {
-                    (Some(_),None)  => changed.extend(self.style.set_value_to(path,None)),
-                    (_,Some(entry)) => {
-                        match entry {
-                            Entry::Value(data) => changed.extend(self.style.set_value_to(path,Some(data.clone()))),
-                            Entry::Expression(expr) => {
-                                let args = expr.sources.iter().map(|t| self.style.var(t)).collect_vec();
-                                changed.extend(self.style.set_expression(path,&args,expr.function.clone()));
-                            }
-                        }
-                    },
-                    _ => {}
+                    (None,None)     => {}
+                    (Some(_),None)  => changes.push(Change::new(path,None)),
+                    (_,Some(value)) => changes.push(Change::new(path,Some(value.clone()))),
                 }
             }
         }
         self.combined = combined;
+
+        self.style.change_values(changes);
     }
 
     pub fn register<T:Into<Theme>>(&mut self, name:impl Str, theme:T) {
