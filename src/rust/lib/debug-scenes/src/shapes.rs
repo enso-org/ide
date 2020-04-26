@@ -57,6 +57,6 @@ fn init(app:&Application) {
         was_rendered = true;
     }).forget();
 
-//    style::test();
-    theme::test();
+    style::test();
+//    theme::test();
 }

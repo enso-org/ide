@@ -244,11 +244,15 @@ impl Registry {
     pub fn set_value_to<P:Into<Path>>(&mut self, path:P, data:Option<Data>) {
         let path = path.into();
         self.remove_expression(&path);
-        let sheet_id = self.sheet(&path);
-        let sheet    = &mut self.sheets[sheet_id];
-        sheet.value  = data;
-        for var_id in sheet.matches.clone() {
-            self.rebind_var(var_id)
+        let sheet_id     = self.sheet(&path);
+        let sheet        = &mut self.sheets[sheet_id];
+        let has_value    = sheet.value.is_some();
+        let needs_rebind = (!has_value && data.is_some()) || (has_value && data.is_none());
+        sheet.value      = data;
+        if needs_rebind {
+            for var_id in sheet.matches.clone() {
+                self.rebind_var(var_id)
+            }
         }
         for sheet_id in self.sheet_topo_sort(sheet_id) {
             self.recompute(sheet_id);
@@ -572,8 +576,8 @@ mod tests {
         let var_a = style.var("a");
         let var_b = style.var("b");
 
-        style.set_expression("a",&[var_b],|args| args[0].clone());
-        style.set_expression("b",&[var_a],|args| args[0].clone());
+        style.set_expression("a",&[var_b],Rc::new(|args| args[0].clone()));
+        style.set_expression("b",&[var_a],Rc::new(|args| args[0].clone()));
         assert!(style.value(var_a).is_none());
     }
 }
