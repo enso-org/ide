@@ -98,7 +98,7 @@ pub struct Expression {
     sources : Vec<Index<Var>>,
     /// Function used to compute the new value of the style sheet.
     #[derivative(Debug="ignore")]
-    function : Box<dyn Fn(&[&Data])->Data>
+    function : Rc<dyn Fn(&[&Data])->Data>
 }
 
 
@@ -257,12 +257,11 @@ impl Registry {
 
     /// Set a style sheet expression which will be used to automatically compute values whenever any
     /// of the provided dependencies will change.
-    pub fn set_expression<P,F>(&mut self, path:P, args:&[Index<Var>], function:F)
-    where P:Into<Path>, F:'static+Fn(&[&Data])->Data {
+    pub fn set_expression<P>(&mut self, path:P, args:&[Index<Var>], function:Rc<dyn Fn(&[&Data])->Data>)
+    where P:Into<Path> {
         let sheet_id = self.sheet(path);
         let sheet    = &mut self.sheets[sheet_id];
         let sources  = args.to_vec();
-        let function = Box::new(function);
         sheet.expr   = Some(Expression {sources,function});
         for var_id in args {
             self.vars[*var_id].usages.insert(sheet_id);
@@ -420,7 +419,7 @@ impl Registry {
     fn sheet_map_to_graphviz(dot:&mut String, sheet_map:&SheetMap) {
         let sheet_id = sheet_map.value;
         dot.push_str(&iformat!("sheet_{sheet_id}\n"));
-        for (path,child) in sheet_map {
+        for (path,child) in &sheet_map.branches {
             Self::sheet_sheet_link(dot,sheet_id,child.value,iformat!("[label=\"{path}\"]"));
             Self::sheet_map_to_graphviz(dot,child);
         }
@@ -431,7 +430,7 @@ impl Registry {
             let real_path = path.iter().rev().join(".");
             dot.push_str(&iformat!("var_{var_id} [label=\"Var({real_path})\"]\n"));
         });
-        for (segment,child) in var_map {
+        for (segment,child) in &var_map.branches {
             path.push(segment.into());
             Self::var_map_to_graphviz(dot,path,child);
             path.pop();
@@ -492,8 +491,8 @@ pub fn test() {
 
     assert!(style.value(var_graph_button_size).is_none());
     style.set_value("size",data(1.0));
-    style.set_expression("graph.button.size",&[var_button_size],|args| args[0] + &data(100.0));
-    style.set_expression("button.size",&[var_size],|args| args[0] + &data(10.0));
+    style.set_expression("graph.button.size",&[var_button_size],Rc::new(|args| args[0] + &data(100.0)));
+    style.set_expression("button.size",&[var_size],Rc::new(|args| args[0] + &data(10.0)));
     style.set_value("button.size",data(3.0));
 
     println!("{}",style.to_graphviz());
@@ -554,9 +553,9 @@ mod tests {
         assert!(style.value(var_graph_button_size).is_none());
         style.set_value("size",data(1.0));
         assert_eq!(style.value(var_graph_button_size),Some(&data(1.0)));
-        style.set_expression("graph.button.size",&[var_button_size],|args| args[0] + &data(10.0));
+        style.set_expression("graph.button.size",&[var_button_size],Rc::new(|args| args[0] + &data(10.0)));
         assert_eq!(style.value(var_graph_button_size),Some(&data(11.0)));
-        style.set_expression("button.size",&[var_size],|args| args[0] + &data(100.0));
+        style.set_expression("button.size",&[var_size],Rc::new(|args| args[0] + &data(100.0)));
         assert_eq!(style.value(var_graph_button_size),Some(&data(111.0)));
         style.set_value("size",data(2.0));
         assert_eq!(style.value(var_graph_button_size),Some(&data(112.0)));

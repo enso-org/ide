@@ -3,5 +3,6 @@
 pub mod data;
 pub mod path;
 pub mod registry;
+pub mod theme;
 
 pub use registry::*;

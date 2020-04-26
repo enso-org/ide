@@ -4,12 +4,15 @@ use crate::prelude::*;
 
 pub use palette::rgb;
 pub use palette::rgb::*;
+pub use palette::Lch;
 pub use palette::encoding;
 pub use palette::Component;
 
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
 
+
+pub type Lcha<Wp=palette::white_point::D65, T=f32> = palette::Lcha<Wp,T>;
 
 
 // ====================

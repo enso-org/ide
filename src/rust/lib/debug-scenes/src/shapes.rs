@@ -14,6 +14,7 @@ use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 
 use ensogl::display::style;
+use ensogl::display::style::theme;
 
 
 #[wasm_bindgen]
@@ -56,5 +57,6 @@ fn init(app:&Application) {
         was_rendered = true;
     }).forget();
 
-    style::test();
+//    style::test();
+    theme::test();
 }
