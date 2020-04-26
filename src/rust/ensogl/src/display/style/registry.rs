@@ -695,9 +695,9 @@ mod tests {
         assert!(style.value(var_graph_button_size).is_none());
         style.set_value("size",data(1.0));
         assert_eq!(style.value(var_graph_button_size),Some(&data(1.0)));
-        style.set_expression("graph.button.size",&[var_button_size],Rc::new(|args| args[0] + &data(10.0)));
+        style.set_expression("graph.button.size",&["button.size"],Rc::new(|args| args[0] + &data(10.0)));
         assert_eq!(style.value(var_graph_button_size),Some(&data(11.0)));
-        style.set_expression("button.size",&[var_size],Rc::new(|args| args[0] + &data(100.0)));
+        style.set_expression("button.size",&["size"],Rc::new(|args| args[0] + &data(100.0)));
         assert_eq!(style.value(var_graph_button_size),Some(&data(111.0)));
         style.set_value("size",data(2.0));
         assert_eq!(style.value(var_graph_button_size),Some(&data(112.0)));
@@ -714,8 +714,8 @@ mod tests {
         let var_a = style.unmanaged_var("a");
         let var_b = style.unmanaged_var("b");
 
-        style.set_expression("a",&[var_b],Rc::new(|args| args[0].clone()));
-        style.set_expression("b",&[var_a],Rc::new(|args| args[0].clone()));
+        style.set_expression("a",&["b"],Rc::new(|args| args[0].clone()));
+        style.set_expression("b",&["a"],Rc::new(|args| args[0].clone()));
         assert!(style.value(var_a).is_none());
     }
 }
