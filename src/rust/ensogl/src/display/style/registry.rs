@@ -92,13 +92,43 @@ impl Sheet {
 
 /// Expression of a style sheet.
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Clone,Debug)]
 pub struct Expression {
     /// Indexes of all vars which are used as sources to the function of this expression.
     sources : Vec<Index<Var>>,
     /// Function used to compute the new value of the style sheet.
     #[derivative(Debug="ignore")]
     function : Rc<dyn Fn(&[&Data])->Data>
+}
+
+
+
+// =============
+// === Value ===
+// =============
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub enum Value {
+    Data(Data),
+    Expression(Expression),
+}
+
+
+
+// =============
+// === Value ===
+// =============
+
+pub struct Change {
+    sheet_id : Index<Sheet>,
+    value    : Option<Value>
+}
+
+impl Change {
+    pub fn new(sheet_id:Index<Sheet>, value:Option<Value>) -> Self {
+        Self {sheet_id,value}
+    }
 }
 
 
@@ -149,13 +179,13 @@ impl NewInstance<Index<Sheet>> for SheetVec {
 #[derive(Debug)]
 pub struct Registry {
     /// Set of all variables.
-    pub vars : VarVec,
+    vars : VarVec,
     /// Set of all style sheets.
-    pub sheets : SheetVec,
+    sheets : SheetVec,
     /// Association of a path like 'button' -> 'size' to a variable.
-    pub var_map : VarMap,
+    var_map : VarMap,
     /// Association of a path like 'button' -> 'size' to a style sheet.
-    pub sheet_map : SheetMap,
+    sheet_map : SheetMap,
 }
 
 
@@ -228,49 +258,106 @@ impl Registry {
 
 impl Registry {
     /// Set a style sheet value. Please note that it will remove expression assigned to the target
-    /// style sheet if any.
-    pub fn set_value<P:Into<Path>>(&mut self, path:P, data:Data) {
+    /// style sheet if any. Returns indexes of all affected variables.
+    pub fn set_value<P:Into<Path>>(&mut self, path:P, data:Data) -> HashSet::<Index<Var>> {
         self.set_value_to(path,Some(data))
     }
 
+    /// Set a style sheet expression which will be used to automatically compute values whenever any
+    /// of the provided dependencies will change. Returns indexes of all affected variables.
+    pub fn set_expression<P>
+    (&mut self, path:P, args:&[Index<Var>], function:Rc<dyn Fn(&[&Data])->Data>)
+    -> HashSet::<Index<Var>>
+    where P:Into<Path> {
+        let sheet_id = self.sheet(path);
+        let sources  = args.to_vec();
+        let value    = Value::Expression(Expression {sources,function});
+        let changes  = vec![Change::new(sheet_id,Some(value))];
+        self.change_values(changes)
+    }
+
     /// Removes a style sheet value. Please note that it will remove expression assigned to the
-    /// target style sheet if any.
-    pub fn remove_value<P:Into<Path>>(&mut self, path:P) {
+    /// target style sheet if any. Returns indexes of all affected variables.
+    pub fn remove_value<P:Into<Path>>(&mut self, path:P) -> HashSet::<Index<Var>> {
         self.set_value_to(path,None)
     }
 
     /// Set or unset a style sheet value. Please note that it will remove expression assigned to the
-    /// target style sheet if any.
-    pub fn set_value_to<P:Into<Path>>(&mut self, path:P, data:Option<Data>) {
-        let path = path.into();
-        self.remove_expression(&path);
-        let sheet_id     = self.sheet(&path);
-        let sheet        = &mut self.sheets[sheet_id];
-        let has_value    = sheet.value.is_some();
-        let needs_rebind = (!has_value && data.is_some()) || (has_value && data.is_none());
-        sheet.value      = data;
-        if needs_rebind {
-            for var_id in sheet.matches.clone() {
-                self.rebind_var(var_id)
-            }
-        }
-        for sheet_id in self.sheet_topo_sort(sheet_id) {
-            self.recompute(sheet_id);
-        }
-    }
-
-    /// Set a style sheet expression which will be used to automatically compute values whenever any
-    /// of the provided dependencies will change.
-    pub fn set_expression<P>(&mut self, path:P, args:&[Index<Var>], function:Rc<dyn Fn(&[&Data])->Data>)
+    /// target style sheet if any. Returns indexes of all affected variables.
+    pub fn set_value_to<P>(&mut self, path:P, data:Option<Data>) -> HashSet::<Index<Var>>
     where P:Into<Path> {
         let sheet_id = self.sheet(path);
-        let sheet    = &mut self.sheets[sheet_id];
-        let sources  = args.to_vec();
-        sheet.expr   = Some(Expression {sources,function});
-        for var_id in args {
-            self.vars[*var_id].usages.insert(sheet_id);
+        self.change_value(Change::new(sheet_id,data.map(Value::Data)))
+    }
+
+    /// Set or remove a single style sheet value. Returns indexes of all affected variables.
+    pub fn change_value(&mut self, change:Change) -> HashSet::<Index<Var>> {
+        self.change_values(iter::once(change))
+    }
+
+    /// Set or remove a several style sheet values. Returns indexes of all affected variables.
+    pub fn change_values<I>(&mut self, changes:I) -> HashSet::<Index<Var>>
+    where I:IntoIterator<Item=Change> {
+        let mut changed = HashSet::<Index<Var>>::new();
+        let sheets_iter = changes.into_iter().map(|change| {
+            let sheet_id = change.sheet_id;
+            let sheet    = &mut self.sheets[sheet_id];
+
+            // Remove expression bindings.
+            let opt_expr = mem::take(&mut sheet.expr);
+            if let Some(expr) = opt_expr {
+                for var_id in expr.sources {
+                    self.vars[var_id].usages.remove(&sheet_id);
+                }
+            }
+
+            // Set new value and rebind variables.
+            match change.value {
+                None => {
+                    let needs_rebind = sheet.value.is_some();
+                    sheet.value      = None;
+                    if needs_rebind {
+                        for var_id in sheet.bindings.clone() {
+                            if self.rebind_var(var_id) {
+                                changed.insert(var_id);
+                            }
+                        }
+                    }
+                },
+                Some(value) => {
+                    let needs_rebind = sheet.value.is_none();
+                    match value {
+                        Value::Data(data) => sheet.value = Some(data),
+                        Value::Expression(expr) => {
+                            for var_id in &expr.sources {
+                                self.vars[*var_id].usages.insert(sheet_id);
+                            }
+                            sheet.expr = Some(expr);
+                            self.recompute(sheet_id);
+                        }
+                    }
+                    if needs_rebind {
+                        let sheet = &self.sheets[sheet_id];
+                        for var_id in sheet.matches.clone() {
+                            if self.rebind_var(var_id) {
+                                changed.insert(var_id);
+                            }
+                        }
+                    }
+                }
+            };
+            sheet_id
+        });
+
+        // Recompute values in the whole graph.
+        let sheets = sheets_iter.collect_vec();
+        for sheet_id in self.sheet_topo_sort(sheets) {
+            let sheet = &self.sheets[sheet_id];
+            changed.extend(&sheet.bindings);
+            self.recompute(sheet_id);
         }
-        self.rebind_and_recompute(sheet_id);
+
+        changed
     }
 }
 
@@ -279,64 +366,41 @@ impl Registry {
 
 impl Registry {
     /// Check all potential candidates (sheets) this variable matches to and choose the most
-    /// specific one from those which exist (have a value).
-    fn rebind_var(&mut self, var_id:Index<Var>) {
-        let mut found = false;
-        let var       = &self.vars[var_id];
+    /// specific one from those which exist (have a value). Returns true if the var was rebound.
+    fn rebind_var(&mut self, var_id:Index<Var>) -> bool {
+        let mut rebound = false;
+        let mut found   = false;
+        let var         = &self.vars[var_id];
         for sheet_id in var.matches.clone() {
             let sheet = &self.sheets[sheet_id];
             if sheet.exists() {
                 if let Some(sheet_id) = var.binding {
                     self.sheets[sheet_id].bindings.remove(&var_id);
                 }
-                let var   = &mut self.vars[var_id];
-                let sheet = &mut self.sheets[sheet_id];
-                var.binding = Some(sheet_id);
+                let var         = &mut self.vars[var_id];
+                let sheet       = &mut self.sheets[sheet_id];
+                let new_binding = Some(sheet_id);
+                rebound         = var.binding != new_binding;
+                var.binding     = new_binding;
                 sheet.bindings.insert(var_id);
                 found = true;
                 break
             }
         }
-        if !found { self.unbind_var(var_id) }
+        if found { rebound } else { self.unbind_var(var_id) }
     }
 
-    /// Removes all binding information from var and related style sheets.
-    fn unbind_var(&mut self, var_id:Index<Var>) {
-        let var = &self.vars[var_id];
-        var.binding.for_each(|sheet_id| {
-            self.sheets[sheet_id].bindings.remove(&var_id);
-        });
+    /// Removes all binding information from var and related style sheets. Returns true if var
+    /// needed rebound.
+    fn unbind_var(&mut self, var_id:Index<Var>) -> bool {
         let var = &mut self.vars[var_id];
-        var.binding = None;
-    }
-
-    /// Internal utility for removing style sheet expression.
-    fn remove_expression<P>(&mut self, path:P)
-        where P:Into<Path> {
-        let sheet_id = self.sheet(path);
-        let sheet    = &mut self.sheets[sheet_id];
-        if sheet.expr.is_some() {
-            sheet.value = None;
-            let opt_expr = mem::take(&mut sheet.expr);
-            if let Some(expr) = opt_expr {
-                for var_id in expr.sources {
-                    self.vars[var_id].usages.remove(&sheet_id);
-                }
+        match var.binding {
+            None => false,
+            Some(sheet_id) => {
+                self.sheets[sheet_id].bindings.remove(&var_id);
+                var.binding = None;
+                true
             }
-            self.rebind_and_recompute(sheet_id);
-        }
-    }
-
-    /// Internal utility which recomputes the provided style sheet, rebinds related variables, and
-    /// recomputes all dependent style sheets.
-    fn rebind_and_recompute(&mut self, sheet_id:Index<Sheet>) {
-        self.recompute(sheet_id);
-        let sheet = &mut self.sheets[sheet_id];
-        for var_id in sheet.matches.clone() {
-            self.rebind_var(var_id)
-        }
-        for sheet_id in self.sheet_topo_sort(sheet_id) {
-            self.recompute(sheet_id);
         }
     }
 
@@ -344,12 +408,12 @@ impl Registry {
     fn recompute(&mut self, sheet_id:Index<Sheet>) {
         let sheet = &self.sheets[sheet_id];
         let value = sheet.expr.as_ref().and_then(|expr| {
-            let mut opt_values : Vec<Option<&Data>> = Vec::new();
+            let mut opt_args : Vec<Option<&Data>> = Vec::new();
             for var_id in &expr.sources {
-                opt_values.push(self.value(*var_id));
+                opt_args.push(self.value(*var_id));
             }
-            let values : Option<Vec<&Data>> = opt_values.into_iter().collect();
-            values.map(|v| (expr.function)(&v) )
+            let args : Option<Vec<&Data>> = opt_args.into_iter().collect();
+            args.map(|v| (expr.function)(&v) )
         });
         let sheet_mut = &mut self.sheets[sheet_id];
         value.for_each(|v| sheet_mut.value = Some(v));
@@ -358,13 +422,15 @@ impl Registry {
     /// Traverses all sheets whose value depend on the value of the provided sheet and sorts them
     /// in a topological order. This is used mainly for efficient implementation of sheet
     /// recomputation mechanism.
-    fn sheet_topo_sort(&self, changed_sheet_id:Index<Sheet>) -> Vec<Index<Sheet>> {
+    fn sheet_topo_sort<T>(&self, changed_sheets:T) -> Vec<Index<Sheet>>
+    where T:Into<Vec<Index<Sheet>>> {
+        let changed_sheets      = changed_sheets.into();
         let mut sheet_ref_count = HashMap::<Index<Sheet>,usize>::new();
-        let mut sorted_sheets   = vec![changed_sheet_id];
-        self.with_all_sheet_deps(changed_sheet_id, |sheet_id| {
+        let mut sorted_sheets   = changed_sheets.clone();
+        self.with_all_sheet_deps(&changed_sheets[..], |sheet_id| {
             *sheet_ref_count.entry(sheet_id).or_default() += 1;
         });
-        self.with_all_sheet_deps(changed_sheet_id, |sheet_id| {
+        self.with_all_sheet_deps(changed_sheets, |sheet_id| {
             let ref_count = sheet_ref_count.entry(sheet_id).or_default();
             *ref_count -= 1;
             if *ref_count == 0 {
@@ -374,11 +440,11 @@ impl Registry {
         sorted_sheets
     }
 
-    /// Runs the provided callback with all sheet indexes whose value depend on the value of the
-    /// provided sheet.
-    fn with_all_sheet_deps<F>(&self, target:Index<Sheet>, mut callback:F)
-    where F:FnMut(Index<Sheet>) {
-        let mut sheets_to_visit = vec![target];
+    /// Runs the provided callback with all sheet indexes whose value depend on the values of the
+    /// provided sheets.
+    fn with_all_sheet_deps<T,F>(&self, targets:T, mut callback:F)
+    where T:Into<Vec<Index<Sheet>>>, F:FnMut(Index<Sheet>) {
+        let mut sheets_to_visit = targets.into();
         while !sheets_to_visit.is_empty() {
             if let Some(current_sheet_id) = sheets_to_visit.pop() {
                 let sheet = &self.sheets[current_sheet_id];
@@ -461,7 +527,6 @@ impl Registry {
         dot.push_str(&format!("{}_{} -> {}_{} {}\n",src_pfx,src,tgt_pfx,tgt,s.into()));
     }
 }
-
 
 // === Impls ===
 

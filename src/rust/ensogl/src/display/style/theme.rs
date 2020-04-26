@@ -1,6 +1,7 @@
 
 use crate::prelude::*;
 
+use crate::data::hash_map_tree::AtLeastOneOfTwo;
 use crate::data::HashMapTree;
 use crate::data::color;
 
@@ -99,6 +100,7 @@ impl Semigroup for Theme {
 
 
 
+
 // ===============
 // === Manager ===
 // ===============
@@ -125,19 +127,26 @@ impl Manager {
                 combined.concat_mut(theme);
             }
         };
+
         let diff = self.combined.tree.zip_clone(&combined.tree);
-        for (path,values) in &diff {
+        for (segments,values) in &diff {
+            let path   = Path::from(segments);
+            let first  = values.first().and_then(|t|t.as_ref());
+            let second = values.second().and_then(|t|t.as_ref());
+            let mut changed = HashSet::new();
             if !values.same() {
-                match values.second() {
-                    Some(None) => {},
-                    None       => self.style.remove_value(path),
-                    Some(Some(entry)) => match entry {
-                        Entry::Value(data) => self.style.set_value(path,data.clone()),
-                        Entry::Expression(expr) => {
-                            let vars = expr.sources.iter().map(|source| self.style.var(source)).collect::<Vec<_>>();
-                            self.style.set_expression(path,&vars,expr.function.clone());
+                match (first,second) {
+                    (Some(_),None)  => changed.extend(self.style.set_value_to(path,None)),
+                    (_,Some(entry)) => {
+                        match entry {
+                            Entry::Value(data) => changed.extend(self.style.set_value_to(path,Some(data.clone()))),
+                            Entry::Expression(expr) => {
+                                let args = expr.sources.iter().map(|t| self.style.var(t)).collect_vec();
+                                changed.extend(self.style.set_expression(path,&args,expr.function.clone()));
+                            }
                         }
-                    }
+                    },
+                    _ => {}
                 }
             }
         }
