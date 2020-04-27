@@ -110,6 +110,8 @@ impl ShapeViewDefinition for ConnectionView {
     }
 }
 
+type ConnectionShapeView = component::ShapeView<ConnectionView>;
+
 /// Connections represent a link between an `InputPort` and an `OutputPort`.
 ///
 /// Ports are shown as a connecting line going from one port to the other. The position snd shape
@@ -141,7 +143,7 @@ pub struct ConnectionData {
 
     pub logger : Logger,
     pub events : Events,
-    pub view   : Rc<component::ShapeView<ConnectionView>>,
+    pub view   : Rc<ConnectionShapeView>,
     pub label  : frp::Source<String>,
 }
 
