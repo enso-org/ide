@@ -262,18 +262,22 @@ impl Node {
         self
     }
 
+    /// Create an input port on this node.
     pub fn add_input_port(&self){
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
         self.data.events.port_created.emit_event(&IOPort::Input{ port: input_port });
     }
 
+    /// Create an output port on this node.
     pub fn add_output_port(&self){
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
         self.data.events.port_created.emit_event(&IOPort::Output{ port: output_port });
     }
 
+    /// Propagate a position update to the ports.
+    /// TODO use frp system
     pub fn on_position_update(&self){
         self.data.ports.on_position_update()
     }
