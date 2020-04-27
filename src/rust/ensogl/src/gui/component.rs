@@ -34,7 +34,7 @@ impl Default for ShapeViewEvents {
     fn default() -> Self {
         frp::new_network! { shape_view
             def mouse_down  = source_();
-            def mouse_over = source_();
+            def mouse_over  = source_();
             def mouse_leave = source_();
         }
         let network = shape_view;

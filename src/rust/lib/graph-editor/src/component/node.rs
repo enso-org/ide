@@ -5,10 +5,12 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::{Registry, IOPort};
+use crate::component::node::port::Registry;
+use crate::component::node::port::IOPort;
 
-use enso_frp;
 use enso_frp as frp;
+use enso_frp::stream::EventEmitter;
+use enso_frp;
 use ensogl::data::color::*;
 use ensogl::data::color::Srgba;
 use ensogl::display::Attribute;
@@ -22,7 +24,6 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
-use enso_frp::stream::EventEmitter;
 
 
 /// Icons definitions.
@@ -265,14 +266,14 @@ impl Node {
     pub fn add_input_port(&self){
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Input{ port: input_port });
+        self.data.events.port_created.emit_event(&IOPort::Input{port:input_port});
     }
 
     /// Create an output port on this node.
     pub fn add_output_port(&self){
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Output{ port: output_port });
+        self.data.events.port_created.emit_event(&IOPort::Output{port:output_port});
     }
 
     /// Propagate a position update to the ports.
