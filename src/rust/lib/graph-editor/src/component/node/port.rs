@@ -545,6 +545,9 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Break the link the ports connection, if there is one.
     pub fn unset_connection(&self){
+        if let Some(connection) = self.data.connection.borrow().as_ref() {
+            connection.clear_ports();
+        }
         self.data.connection.clear()
     }
 
@@ -571,6 +574,7 @@ impl<T:PortShapeViewDefinition> Default for Port<T> {
 impl InputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_start(&self, connection: Connection){
+        self.unset_connection();
         connection.set_end(self);
         self.data.connection.set(connection);
     }
@@ -579,6 +583,7 @@ impl InputPort{
 impl OutputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_end(&self, connection: Connection){
+        self.unset_connection();
         connection.set_start(self);
         self.data.connection.set(connection);
     }
