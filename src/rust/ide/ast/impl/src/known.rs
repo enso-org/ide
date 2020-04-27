@@ -78,7 +78,7 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E> {
     }
 
     /// Create new instance of KnownAst with mapped shape.
-    pub fn map_shape<S,E1>(&self, f:impl FnOnce(T) -> S) -> KnownAst<S>
+    pub fn with_shape<S,E1>(&self, f:impl FnOnce(T) -> S) -> KnownAst<S>
     where for<'t> &'t Shape<Ast> : TryInto<&'t S,Error=E1>,
           T                      : Clone + Into<Shape<Ast>>,
           S                      : Clone + Into<Shape<Ast>>,

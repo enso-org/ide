@@ -10,7 +10,11 @@ use crate::Ast;
 use crate::Shifted;
 use crate::Shape;
 use crate::assoc::Assoc;
-use crate::crumbs::{Crumb, InfixCrumb, SectionLeftCrumb, SectionRightCrumb, SectionSidesCrumb};
+use crate::crumbs::Crumb;
+use crate::crumbs::InfixCrumb;
+use crate::crumbs::SectionLeftCrumb;
+use crate::crumbs::SectionRightCrumb;
+use crate::crumbs::SectionSidesCrumb;
 use crate::crumbs::Located;
 use crate::known;
 use utils::vec::VecExt;
@@ -76,13 +80,13 @@ pub type Operand = Option<Shifted<Ast>>;
 /// Infix operator standing between (optional) operands.
 pub type Operator = known::Opr;
 
-/// Creates `Operand` from `ast` with position relative to the given `parent` node.
+/// Creates `Operand` from `ast` with offset between it and operator.
 pub fn make_operand(ast:Ast, off:usize) -> Operand {
     let wrapped = ast;
     Some(Shifted{wrapped,off})
 }
 
-/// Creates `Operator` from `ast` with position relative to the given `parent` node.
+/// Creates `Operator` from `ast`.
 pub fn make_operator(opr:&Ast) -> Option<Operator> {
     known::Opr::try_from(opr).ok()
 }
@@ -107,6 +111,15 @@ pub struct GeneralizedInfix {
     pub opr   : Operator,
     /// Right operand, if present.
     pub right : Operand,
+}
+
+/// A structure used for GeneralizedInfix construction which marks operands as _target_ and
+/// _argument_. See `target_operand` and `argument_operand` methods.
+pub struct MarkedOperands {
+    /// The self operand, target of the application.
+    pub target  : Operand,
+    /// Operand other than self.
+    pub argument : Operand,
 }
 
 impl GeneralizedInfix {
@@ -139,15 +152,15 @@ impl GeneralizedInfix {
     }
 
     /// Constructor with operands marked as target and argument.
-    pub fn new_from_operands(target:Operand, opr:Operator, argument:Operand) -> Self {
+    pub fn new_from_operands(operands:MarkedOperands, opr:Operator) -> Self {
         match assoc(&opr) {
             Assoc::Left => GeneralizedInfix {opr,
-                left  : target,
-                right : argument,
+                left  : operands.target,
+                right : operands.argument,
             },
             Assoc::Right => GeneralizedInfix {opr,
-                left  : argument,
-                right : target,
+                left  : operands.argument,
+                right : operands.target,
             },
         }
     }
@@ -233,6 +246,13 @@ impl GeneralizedInfix {
     }
 }
 
+impl From<GeneralizedInfix> for Ast {
+    fn from(infix: GeneralizedInfix) -> Self {
+        infix.into_ast()
+    }
+}
+
+
 
 
 // =============
@@ -293,7 +313,8 @@ impl Chain {
     /// on. So inserting at index 0 will actually set the new operand as a new target, and the old
     /// target will became the first argument.
     ///
-    /// Indexing does not skip `None` operands.
+    /// Indexing does not skip `None` operands. Function panics, if get index greater than operands
+    /// count.
     pub fn insert_operand(&mut self, at_index:usize, operand:Shifted<Ast>) {
         let offset      = operand.off;
         let mut operand = Some(operand);
@@ -331,8 +352,9 @@ impl Chain {
         if let Some(element) = self.args.pop_front() {
             let target    = std::mem::take(&mut self.target);
             let operator  = element.operator;
-            let operand   = element.operand;
-            let new_infix = GeneralizedInfix::new_from_operands(target,operator,operand);
+            let argument  = element.operand;
+            let operands  = MarkedOperands{target,argument};
+            let new_infix = GeneralizedInfix::new_from_operands(operands,operator);
             let new_shifted = Shifted {
                 wrapped : new_infix.into_ast(),
                 off     : element.offset,
@@ -343,16 +365,27 @@ impl Chain {
 
     /// Consumes the chain and returns AST node generated from it. The ids of all Infixes and
     /// Section don't preserve from any AST which was used to generate this chain.
+    ///
+    /// Panics if called on chain with `None` target and empty arguments list.
     pub fn into_ast(mut self) -> Ast {
         while !self.args.is_empty() {
             self.fold_arg()
         }
-        // TODO[ao] the only case when target is none is when chain have no target and no arguments.
-        // But perhaps someone could thing that this is a valid chain. To consider returning error
-        // here.
+        // TODO[ao] the only case when target is none is when chain have None target and empty
+        // arguments list. Such Chain cannot be generated from Ast, but someone could think that
+        // this is still a valid chain. To consider returning error here.
         self.target.unwrap().wrapped
     }
 }
+
+impl From<Chain> for Ast {
+    fn from(chain:Chain) -> Self {
+        chain.into_ast()
+    }
+}
+
+
+// === Chain Element ===
 
 /// Element of the infix application chain, i.e. operator and its operand.
 #[derive(Clone,Debug)]

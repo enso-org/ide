@@ -25,12 +25,12 @@ pub enum Kind {
     Operation,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
     Target {
-        /// Indicates if you can erase this node from SpanTree.
+        /// Indicates if this node can be erased from SpanTree.
         removable:bool
     },
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
     Argument {
-        /// Indicates if you can erase this node from SpanTree.
+        /// Indicates if this node can be erased from SpanTree.
         removable:bool
     },
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
@@ -91,10 +91,6 @@ pub struct Child {
     pub node                : Node,
     /// An offset counted from the parent node starting index to the start of this node's span.
     pub offset              : Size,
-    /// Flag indicating that parent should take this node's children instead of itself when
-    /// iterating using `chain_children_iter` method. See this method docs for reference, and
-    /// crate's doc for details about _chaining_.
-    // pub chained_with_parent : bool,
     /// AST crumbs which lead from parent to child associated AST node.
     pub ast_crumbs          : ast::Crumbs,
 }
@@ -158,15 +154,15 @@ impl<'a> Ref<'a> {
         }
     }
 
-    /// Get the node which exactly matches the given Span:
+    /// Get the node which exactly matches the given Span. If there many such node's, it pick first
+    /// found by DFS.
     pub fn find_by_span(self, span:&data::text::Span) -> Option<Ref<'a>> {
         if self.span() == *span {
             Some(self)
         } else {
-            let child = self.children_iter().find_map(|ch|
+            self.children_iter().find_map(|ch|
                 ch.span().contains_span(span).and_option_from(|| ch.find_by_span(&span))
-            );
-            child.and_then(|ch| ch.find_by_span(span))
+            )
         }
     }
 }
