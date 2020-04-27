@@ -63,7 +63,7 @@ impl Query {
 /// A style sheet tree node. Each sheet is associated with a style path like 'panel.button.size' and
 /// contains a `Data` value. The value can either be set explicitly, or computed automatically if
 /// the sheet is assigned with `Expression`. Please note that although `Sheet` technically contains
-/// a single value, it is a node in a style sheet tree defined in `RegistryData`, and it can be
+/// a single value, it is a node in a style sheet tree defined in `CascadingSheetsData`, and it can be
 /// interpreted as a set of hierarchical values instead.
 ///
 /// # Implementation Details
@@ -233,17 +233,81 @@ impl Change {
 #[allow(missing_docs)]
 mod types {
     use super::*;
-    pub type VarVec   = OptVec<Query,Index<Query>>;
+    pub type QueryVec = OptVec<Query,Index<Query>>;
     pub type SheetVec = OptVec<Sheet,Index<Sheet>>;
-    pub type VarMap   = HashMapTree<String,Option<Index<Query>>>;
+    pub type QueryMap = HashMapTree<String,Option<Index<Query>>>;
     pub type SheetMap = HashMapTree<String,Index<Sheet>>;
 }
 use types::*;
 
 
 
+
+
+
+// =======================
+// === CascadingSheets ===
+// =======================
+
+
+
+#[derive(Debug)]
+pub struct RefData {
+    sheets   : CascadingSheets,
+    query_id : Index<Query>
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Var {
+    rc : Rc<RefData>
+}
+
+impl Var {
+    pub fn new<R>(sheets:R, query_id:Index<Query>) -> Self
+        where R:Into<CascadingSheets> {
+        let sheets = sheets.into();
+        let data   = RefData {sheets,query_id};
+        let rc     = Rc::new(data);
+        Self {rc}
+    }
+}
+
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct CascadingSheets {
+    rc : Rc<RefCell<CascadingSheetsData>>
+}
+
+impl CascadingSheets {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn var<P>(&self, path:P) -> Var
+        where P:Into<Path> {
+        let query_id = self.rc.borrow_mut().unmanaged_query(path);
+        Var::new(self,query_id)
+    }
+}
+
+impl From<&CascadingSheets> for CascadingSheets {
+    fn from(t:&CascadingSheets) -> Self {
+        t.clone_ref()
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 // ====================
-// === RegistryData ===
+// === CascadingSheetsData ===
 // ====================
 
 /// Style sheet registry. Could be named "Cascading Style Sheets" but then the name will be
@@ -252,13 +316,13 @@ use types::*;
 /// also allows creating variables which are automatically bound to the most specific style sheet.
 /// See `Query` and `Sheet` to learn more.
 #[derive(Debug)]
-pub struct RegistryData {
+pub struct CascadingSheetsData {
     /// Set of all variables.
-    vars : VarVec,
+    queries : QueryVec,
     /// Set of all style sheets.
     sheets : SheetVec,
     /// Association of a path like 'button' -> 'size' to a variable.
-    var_map : VarMap,
+    query_map : QueryMap,
     /// Association of a path like 'button' -> 'size' to a style sheet.
     sheet_map : SheetMap,
 }
@@ -266,15 +330,15 @@ pub struct RegistryData {
 
 // === Constructors ===
 
-impl RegistryData {
+impl CascadingSheetsData {
     /// Constructor.
     pub fn new() -> Self {
-        let vars          = default();
+        let queries       = default();
         let mut sheets    = OptVec::<Sheet,Index<Sheet>>::new();
-        let var_map       = default();
+        let query_map       = default();
         let root_sheet_id = sheets.insert_with_ix(|ix| Sheet::new(Path::empty(),ix));
         let sheet_map     = SheetMap::from_value(root_sheet_id);
-        Self {vars,sheets,var_map,sheet_map}
+        Self {queries,sheets,query_map,sheet_map}
     }
 
     /// Access variable by the given path or create new one if missing.
@@ -283,31 +347,31 @@ impl RegistryData {
     /// example, when creating "panel.button.size" variable, three sheets will be created as well:
     /// "panel.button.size", "button.size", and "size". This way we keep track of all possible
     /// matches and we can create high-performance value binding algorithms.
-    pub fn unmanaged_var<P:Into<Path>>(&mut self, path:P) -> Index<Query> {
+    pub fn unmanaged_query<P:Into<Path>>(&mut self, path:P) -> Index<Query> {
         let path         = path.into();
-        let vars         = &mut self.vars;
+        let queries         = &mut self.queries;
         let sheets       = &mut self.sheets;
-        let var_map_node = self.var_map.get_node(&path.rev_segments);
+        let query_map_node = self.query_map.get_node(&path.rev_segments);
 
-        let mut var_matches = Vec::new();
+        let mut query_matches = Vec::new();
         self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
             sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
         }, |t| {
-            var_matches.push(t.value)
+            query_matches.push(t.value)
         });
-        var_matches.reverse();
+        query_matches.reverse();
 
-        let var_id       = *var_map_node.value_or_set_with(|| {
-            vars.insert_with_ix(move |ix| Query::new(path,ix))
+        let query_id       = *query_map_node.value_or_set_with(|| {
+            queries.insert_with_ix(move |ix| Query::new(path,ix))
         });
 
-        for sheet_id in &var_matches {
-            self.sheets[*sheet_id].matches.insert(var_id);
+        for sheet_id in &query_matches {
+            self.sheets[*sheet_id].matches.insert(query_id);
         }
 
-        self.vars[var_id].matches = var_matches;
-        self.rebind_var(var_id);
-        var_id
+        self.queries[query_id].matches = query_matches;
+        self.rebind_query(query_id);
+        query_id
     }
 
     /// Access style sheet by the given path or create new one if missing.
@@ -324,11 +388,11 @@ impl RegistryData {
 
 // === Getters ===
 
-impl RegistryData {
+impl CascadingSheetsData {
     /// Reads the value of the variable.
-    pub fn var_value(&self, var_id:Index<Query>) -> Option<&Data> {
-        self.vars.safe_index(var_id).as_ref().and_then(|var| {
-            var.binding.and_then(|sheet_id| {
+    pub fn query_value(&self, query_id:Index<Query>) -> Option<&Data> {
+        self.queries.safe_index(query_id).as_ref().and_then(|query| {
+            query.binding.and_then(|sheet_id| {
                 self.sheets[sheet_id].value.as_ref()
             })
         })
@@ -355,9 +419,9 @@ impl RegistryData {
         self.sheet_map.get_node2(segs).and_then(|t| self.sheets[t.value].value.as_ref())
     }
 
-    /// Returns the amount of vars used.
-    pub fn var_count(&self) -> usize {
-        self.vars.len()
+    /// Returns the amount of queries used.
+    pub fn query_count(&self) -> usize {
+        self.queries.len()
     }
 
     /// Returns the amount of sheets used not including the root sheet.
@@ -370,7 +434,7 @@ impl RegistryData {
 
 // === Setters ===
 
-impl RegistryData {
+impl CascadingSheetsData {
     /// Sets the value by the given path. Returns indexes of all affected variables.
     pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet::<Index<Query>>
     where P:Into<Path>, V:Into<Value> {
@@ -408,9 +472,9 @@ impl RegistryData {
             // Remove expression bindings.
             let opt_expr = mem::take(&mut sheet.expr);
             if let Some(expr) = opt_expr {
-                for var_id in expr.args {
-                    self.vars[var_id].usages.remove(&sheet_id);
-                    self.drop_var_if_unused(var_id);
+                for query_id in expr.args {
+                    self.queries[query_id].usages.remove(&sheet_id);
+                    self.drop_query_if_unused(query_id);
                 }
             }
 
@@ -421,9 +485,9 @@ impl RegistryData {
                     let needs_rebind = sheet.value.is_some();
                     if needs_rebind {
                         sheet.value = None;
-                        for var_id in sheet.bindings.clone() {
-                            if self.rebind_var(var_id) {
-                                changed.insert(var_id);
+                        for query_id in sheet.bindings.clone() {
+                            if self.rebind_query(query_id) {
+                                changed.insert(query_id);
                             }
                         }
                         possible_orphans.push(sheet_id);
@@ -434,11 +498,11 @@ impl RegistryData {
                     match value {
                         Value::Data(data) => sheet.value = Some(data),
                         Value::Expression(expr) => {
-                            let vars = expr.args.iter().map(|path| self.unmanaged_var(path)).collect_vec();
-                            for var_id in &vars {
-                                self.vars[*var_id].usages.insert(sheet_id);
+                            let queries = expr.args.iter().map(|path| self.unmanaged_query(path)).collect_vec();
+                            for query_id in &queries {
+                                self.queries[*query_id].usages.insert(sheet_id);
                             }
-                            let bound_expr = BoundExpression::new(vars,expr.function);
+                            let bound_expr = BoundExpression::new(queries,expr.function);
                             let sheet      = &mut self.sheets[sheet_id];
                             sheet.expr     = Some(bound_expr);
                             self.recompute(sheet_id);
@@ -446,9 +510,9 @@ impl RegistryData {
                     }
                     if needs_rebind {
                         let sheet = &self.sheets[sheet_id];
-                        for var_id in sheet.matches.clone() {
-                            if self.rebind_var(var_id) {
-                                changed.insert(var_id);
+                        for query_id in sheet.matches.clone() {
+                            if self.rebind_query(query_id) {
+                                changed.insert(query_id);
                             }
                         }
                     }
@@ -476,42 +540,42 @@ impl RegistryData {
 
 // === Utils ===
 
-impl RegistryData {
+impl CascadingSheetsData {
     /// Check all potential candidates (sheets) this variable matches to and choose the most
     /// specific one from those which exist (have a value). Returns true if the var was rebound.
-    fn rebind_var(&mut self, var_id:Index<Query>) -> bool {
+    fn rebind_query(&mut self, query_id:Index<Query>) -> bool {
         let mut rebound = false;
         let mut found   = false;
-        let var         = &self.vars[var_id];
-        for sheet_id in var.matches.clone() {
+        let query       = &self.queries[query_id];
+        for sheet_id in query.matches.clone() {
             let sheet = &self.sheets[sheet_id];
             if sheet.exists() {
-                if let Some(sheet_id) = var.binding {
-                    self.sheets[sheet_id].bindings.remove(&var_id);
+                if let Some(sheet_id) = query.binding {
+                    self.sheets[sheet_id].bindings.remove(&query_id);
                 }
-                let var         = &mut self.vars[var_id];
+                let query       = &mut self.queries[query_id];
                 let sheet       = &mut self.sheets[sheet_id];
                 let new_binding = Some(sheet_id);
-                rebound         = var.binding != new_binding;
-                var.binding     = new_binding;
-                sheet.bindings.insert(var_id);
+                rebound         = query.binding != new_binding;
+                query.binding   = new_binding;
+                sheet.bindings.insert(query_id);
                 found = true;
                 break
             }
         }
-        if found { rebound } else { self.unbind_var(var_id) }
+        if found { rebound } else { self.unbind_query(query_id) }
     }
 
-    fn drop_var_if_unused(&mut self, var_id:Index<Query>) {
-        let var_ref = &self.vars[var_id];
-        if var_ref.is_unused() {
-            if let Some(var) = self.vars.remove(var_id) {
-                let node = self.var_map.get_node(&var.path.rev_segments);
+    fn drop_query_if_unused(&mut self, query_id:Index<Query>) {
+        let query_ref = &self.queries[query_id];
+        if query_ref.is_unused() {
+            if let Some(query) = self.queries.remove(query_id) {
+                let node = self.query_map.get_node(&query.path.rev_segments);
                 node.value = None;
-                for sheet_id in var.matches {
+                for sheet_id in query.matches {
                     let sheet = &mut self.sheets[sheet_id];
-                    sheet.matches.remove(&var_id);
-                    sheet.bindings.remove(&var_id);
+                    sheet.matches.remove(&query_id);
+                    sheet.bindings.remove(&query_id);
                     self.drop_sheet_if_unused(sheet_id);
                 }
             }
@@ -540,13 +604,13 @@ impl RegistryData {
 
     /// Removes all binding information from var and related style sheets. Returns true if var
     /// needed rebound.
-    fn unbind_var(&mut self, var_id:Index<Query>) -> bool {
-        let var = &mut self.vars[var_id];
-        match var.binding {
+    fn unbind_query(&mut self, query_id:Index<Query>) -> bool {
+        let query = &mut self.queries[query_id];
+        match query.binding {
             None => false,
             Some(sheet_id) => {
-                self.sheets[sheet_id].bindings.remove(&var_id);
-                var.binding = None;
+                self.sheets[sheet_id].bindings.remove(&query_id);
+                query.binding = None;
                 true
             }
         }
@@ -557,8 +621,8 @@ impl RegistryData {
         let sheet = &self.sheets[sheet_id];
         let value = sheet.expr.as_ref().and_then(|expr| {
             let mut opt_args : Vec<Option<&Data>> = Vec::new();
-            for var_id in &expr.args {
-                opt_args.push(self.var_value(*var_id));
+            for query_id in &expr.args {
+                opt_args.push(self.query_value(*query_id));
             }
             let args : Option<Vec<&Data>> = opt_args.into_iter().collect();
             args.map(|v| (expr.function)(&v) )
@@ -596,9 +660,9 @@ impl RegistryData {
         while !sheets_to_visit.is_empty() {
             if let Some(current_sheet_id) = sheets_to_visit.pop() {
                 let sheet = &self.sheets[current_sheet_id];
-                for var_id in &sheet.bindings {
-                    let var = &self.vars[*var_id];
-                    for sheet_id in &var.usages {
+                for query_id in &sheet.bindings {
+                    let query = &self.queries[*query_id];
+                    for sheet_id in &query.usages {
                         callback(*sheet_id);
                         sheets_to_visit.push(*sheet_id);
                     }
@@ -611,24 +675,24 @@ impl RegistryData {
 
 // === Debug ===
 
-impl RegistryData {
+impl CascadingSheetsData {
     /// Visualizes the network in the GraphViz Dot language. Use `visualize` to automatically
     /// display it in a new browser tab.
     pub fn to_graphviz(&self) -> String {
         let mut dot = String::new();
         self.sheet_map_to_graphviz(&mut dot,&self.sheet_map);
-        self.var_map_to_graphviz(&mut dot,&mut vec![],&self.var_map);
+        self.query_map_to_graphviz(&mut dot,&mut vec![],&self.query_map);
         let s = &mut dot;
-        for var in &self.vars {
-            for sheet in &var.matches {Self::var_sheet_link(s,var.index,*sheet,"[style=dashed]")}
-            for sheet in &var.binding {Self::var_sheet_link(s,var.index,*sheet,"[color=red]")}
-            for sheet in &var.usages  {Self::var_sheet_link(s,var.index,*sheet,"[color=blue]")}
+        for query in &self.queries {
+            for sheet in &query.matches {Self::query_sheet_link(s,query.index,*sheet,"[style=dashed]")}
+            for sheet in &query.binding {Self::query_sheet_link(s,query.index,*sheet,"[color=red]")}
+            for sheet in &query.usages  {Self::query_sheet_link(s,query.index,*sheet,"[color=blue]")}
         }
         for sheet in &self.sheets {
-            for var  in &sheet.matches  {Self::sheet_var_link(s,sheet.index,*var,"[style=dashed]")}
-            for var  in &sheet.bindings {Self::sheet_var_link(s,sheet.index,*var,"[color=red]")}
+            for query  in &sheet.matches  {Self::sheet_query_link(s,sheet.index,*query,"[style=dashed]")}
+            for query  in &sheet.bindings {Self::sheet_query_link(s,sheet.index,*query,"[color=red]")}
             for expr in &sheet.expr {
-                for var in &expr.args {Self::sheet_var_link(s,sheet.index,*var,"[color=blue]")}
+                for query in &expr.args {Self::sheet_query_link(s,sheet.index,*query,"[color=blue]")}
             }
         }
         format!("digraph G {{\nnode [shape=box style=rounded]\n{}\n}}",dot)
@@ -645,28 +709,28 @@ impl RegistryData {
         }
     }
 
-    fn var_map_to_graphviz(&self, dot:&mut String, path:&mut Vec<String>, var_map:&VarMap) {
-        var_map.value.for_each(|var_id| {
-            let var       = &self.vars[var_id];
-            let scope     = if var.external { "External" } else { "Internal" };
+    fn query_map_to_graphviz(&self, dot:&mut String, path:&mut Vec<String>, query_map:&QueryMap) {
+        query_map.value.for_each(|query_id| {
+            let query       = &self.queries[query_id];
+            let scope     = if query.external { "External" } else { "Internal" };
             let real_path = path.iter().rev().join(".");
-            dot.push_str(&iformat!("var_{var_id} [label=\"{scope} Query({real_path})\"]\n"));
+            dot.push_str(&iformat!("query_{query_id} [label=\"{scope} Query({real_path})\"]\n"));
         });
-        for (segment,child) in &var_map.branches {
+        for (segment,child) in &query_map.branches {
             path.push(segment.into());
-            self.var_map_to_graphviz(dot,path,child);
+            self.query_map_to_graphviz(dot,path,child);
             path.pop();
         }
     }
 
-    fn var_sheet_link<S>(dot:&mut String, var_id:Index<Query>, sheet_id:Index<Sheet>, s:S)
+    fn query_sheet_link<S>(dot:&mut String, query_id:Index<Query>, sheet_id:Index<Sheet>, s:S)
     where S:Into<String> {
-        Self::link(dot,"var","sheet",var_id,sheet_id,s)
+        Self::link(dot,"query","sheet",query_id,sheet_id,s)
     }
 
-    fn sheet_var_link<S>(dot:&mut String, sheet_id:Index<Sheet>, var_id:Index<Query>, s:S)
+    fn sheet_query_link<S>(dot:&mut String, sheet_id:Index<Sheet>, query_id:Index<Query>, s:S)
     where S:Into<String> {
-        Self::link(dot,"sheet","var",sheet_id,var_id,s)
+        Self::link(dot,"sheet","query",sheet_id,query_id,s)
     }
 
     fn sheet_sheet_link<S>(dot:&mut String, sheet_id_1:Index<Sheet>, sheet_id_2:Index<Sheet>, s:S)
@@ -682,56 +746,13 @@ impl RegistryData {
 
 // === Impls ===
 
-impl Default for RegistryData {
+impl Default for CascadingSheetsData {
     fn default() -> Self {
         Self::new()
     }
 }
 
 
-#[derive(Debug)]
-pub struct RefData {
-    registry : Registry,
-    var_id   : Index<Query>
-}
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct Var {
-    rc : Rc<RefData>
-}
-
-impl Var {
-    pub fn new<R>(registry:R, var_id:Index<Query>) -> Self
-    where R:Into<Registry> {
-        let registry = registry.into();
-        let data     = RefData {registry,var_id};
-        let rc       = Rc::new(data);
-        Self {rc}
-    }
-}
-
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Registry {
-    rc : Rc<RefCell<RegistryData>>
-}
-
-impl Registry {
-    pub fn new() -> Self {
-        default()
-    }
-
-    pub fn var<P>(&self, path:P) -> Var
-    where P:Into<Path> {
-        let var_id = self.rc.borrow_mut().unmanaged_var(path);
-        Var::new(self,var_id)
-    }
-}
-
-impl From<&Registry> for Registry {
-    fn from(t:&Registry) -> Self {
-        t.clone_ref()
-    }
-}
 
 
 
@@ -741,11 +762,11 @@ impl From<&Registry> for Registry {
 
 /// Interactive testing utility. To be removed in the future.
 pub fn test() {
-    let mut style = RegistryData::new();
+    let mut style = CascadingSheetsData::new();
 
-//    let var_size              = style.unmanaged_var("size");
-//    let var_button_size       = style.unmanaged_var("button.size");
-//    let var_graph_button_size = style.unmanaged_var("graph.button.size");
+//    let var_size              = style.unmanaged_query("size");
+//    let var_button_size       = style.unmanaged_query("button.size");
+//    let var_graph_button_size = style.unmanaged_query("graph.button.size");
 
 //    assert!(style.value(var_graph_button_size).is_none());
 //    style.set("size",data(1.0));
@@ -764,127 +785,127 @@ pub fn test() {
     println!("{}",style.to_graphviz());
 //    println!("{:?}", style.value(var_graph_button_size));
 //    println!("{:?}", style.value(var_button_size));
-//    println!("{:?}", style.vars[var_graph_button_size]);
-//    println!("{:?}", style.sheets[style.vars[var_graph_button_size].binding.unwrap()]);
+//    println!("{:?}", style.queries[var_graph_button_size]);
+//    println!("{:?}", style.sheets[style.queries[var_graph_button_size].binding.unwrap()]);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn assert_var_sheet_count(style:&RegistryData, var_count:usize, sheet_count:usize) {
-        assert_eq!(style.var_count(),var_count);
+    fn assert_query_sheet_count(style:&CascadingSheetsData, query_count:usize, sheet_count:usize) {
+        assert_eq!(style.query_count(),query_count);
         assert_eq!(style.sheet_count(),sheet_count);
     }
 
     #[test]
     pub fn memory_management_for_single_value() {
-        let mut style = RegistryData::new();
+        let mut style = CascadingSheetsData::new();
         style.set("size",data(1.0));
-        assert_var_sheet_count(&style,0,1);
+        assert_query_sheet_count(&style,0,1);
         style.unset("size");
-        assert_var_sheet_count(&style,0,0);
+        assert_query_sheet_count(&style,0,0);
     }
 
     #[test]
     pub fn memory_management_for_multiple_values() {
-        let mut style = RegistryData::new();
+        let mut style = CascadingSheetsData::new();
         style.set("size",data(1.0));
         style.set("button.size",data(2.0));
         style.set("circle.radius",data(3.0));
-        assert_var_sheet_count(&style,0,4);
+        assert_query_sheet_count(&style,0,4);
         style.unset("size");
-        assert_var_sheet_count(&style,0,4);
+        assert_query_sheet_count(&style,0,4);
         style.unset("button.size");
-        assert_var_sheet_count(&style,0,2);
+        assert_query_sheet_count(&style,0,2);
         style.unset("circle.radius");
-        assert_var_sheet_count(&style,0,0);
+        assert_query_sheet_count(&style,0,0);
     }
 
     #[test]
     pub fn memory_management_for_single_expression() {
-        let mut style = RegistryData::new();
+        let mut style = CascadingSheetsData::new();
         style.set("button.size",data(1.0));
-        assert_var_sheet_count(&style,0,2);
+        assert_query_sheet_count(&style,0,2);
         style.set("circle.radius",Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
-        assert_var_sheet_count(&style,1,4);
+        assert_query_sheet_count(&style,1,4);
         assert_eq!(style.value("circle.radius"),Some(&data(11.0)));
         style.unset("button.size");
-        assert_var_sheet_count(&style,1,4);
+        assert_query_sheet_count(&style,1,4);
         assert_eq!(style.value("circle.radius"),Some(&data(11.0))); // Impossible to update.
         style.set("button.size",data(2.0));
-        assert_var_sheet_count(&style,1,4);
+        assert_query_sheet_count(&style,1,4);
         assert_eq!(style.value("circle.radius"),Some(&data(12.0)));
         style.set("circle.radius",data(3.0));
-        assert_var_sheet_count(&style,0,4);
+        assert_query_sheet_count(&style,0,4);
         style.unset("button.size");
-        assert_var_sheet_count(&style,0,2);
+        assert_query_sheet_count(&style,0,2);
         style.unset("circle.radius");
-        assert_var_sheet_count(&style,0,0);
+        assert_query_sheet_count(&style,0,0);
     }
 
     #[test]
-    pub fn simple_var_binding_1() {
-        let mut style = RegistryData::new();
-        let var1      = style.unmanaged_var("size");
-        assert!(style.var_value(var1).is_none());
+    pub fn simple_query_binding_1() {
+        let mut style = CascadingSheetsData::new();
+        let query1      = style.unmanaged_query("size");
+        assert!(style.query_value(query1).is_none());
         style.set("size",data(1.0));
-        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        assert_eq!(style.query_value(query1),Some(&data(1.0)));
     }
 
     #[test]
-    pub fn simple_var_binding_2() {
-        let mut style = RegistryData::new();
+    pub fn simple_query_binding_2() {
+        let mut style = CascadingSheetsData::new();
         style.set("size",data(1.0));
-        let var1 = style.unmanaged_var("size");
-        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        let query1 = style.unmanaged_query("size");
+        assert_eq!(style.query_value(query1),Some(&data(1.0)));
     }
 
     #[test]
-    pub fn hierarchical_var_binding() {
-        let mut style = RegistryData::new();
-        let var1      = style.unmanaged_var("graph.button.size");
-        assert!(style.var_value(var1).is_none());
+    pub fn hierarchical_query_binding() {
+        let mut style = CascadingSheetsData::new();
+        let query1      = style.unmanaged_query("graph.button.size");
+        assert!(style.query_value(query1).is_none());
         style.set("size",data(1.0));
-        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        assert_eq!(style.query_value(query1),Some(&data(1.0)));
         style.set("button.size",data(2.0));
-        assert_eq!(style.var_value(var1),Some(&data(2.0)));
+        assert_eq!(style.query_value(query1),Some(&data(2.0)));
         style.set("graph.button.size",data(3.0));
-        assert_eq!(style.var_value(var1),Some(&data(3.0)));
+        assert_eq!(style.query_value(query1),Some(&data(3.0)));
         style.unset("graph.button.size");
-        assert_eq!(style.var_value(var1),Some(&data(2.0)));
+        assert_eq!(style.query_value(query1),Some(&data(2.0)));
         style.unset("button.size");
-        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        assert_eq!(style.query_value(query1),Some(&data(1.0)));
         style.unset("size");
-        assert_eq!(style.var_value(var1),None);
+        assert_eq!(style.query_value(query1),None);
     }
 
     #[test]
     pub fn expr_bindings_1() {
-        let mut style = RegistryData::new();
+        let mut style = CascadingSheetsData::new();
 
-        let var_size              = style.unmanaged_var("size");
-        let var_button_size       = style.unmanaged_var("button.size");
-        let var_graph_button_size = style.unmanaged_var("graph.button.size");
+        let query_size              = style.unmanaged_query("size");
+        let query_button_size       = style.unmanaged_query("button.size");
+        let query_graph_button_size = style.unmanaged_query("graph.button.size");
 
-        assert!(style.var_value(var_graph_button_size).is_none());
+        assert!(style.query_value(query_graph_button_size).is_none());
         style.set("size",data(1.0));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(1.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(1.0)));
         style.set("graph.button.size",Expression::new(&["button.size"], |args|args[0]+&data(10.0)));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(11.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(11.0)));
         style.set("button.size",Expression::new(&["size"],|args| args[0] + &data(100.0)));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(111.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(111.0)));
         style.set("size",data(2.0));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(112.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(112.0)));
         style.set("button.size",data(3.0));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(13.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(13.0)));
         style.set("button.size",data(4.0));
-        assert_eq!(style.var_value(var_graph_button_size),Some(&data(14.0)));
+        assert_eq!(style.query_value(query_graph_button_size),Some(&data(14.0)));
     }
 
     #[test]
     pub fn expr_circular() {
-        let mut style = RegistryData::new();
+        let mut style = CascadingSheetsData::new();
         style.set("a",Expression::new(&["b"], |args| args[0].clone()));
         style.set("b",Expression::new(&["a"], |args| args[0].clone()));
         assert!(style.value("a").is_none());

@@ -62,7 +62,7 @@ pub struct Manager {
     all      : HashMap<String,Theme>,
     active   : Vec<String>,
     combined : Theme,
-    style    : style::RegistryData,
+    style    : style::CascadingSheetsData,
 }
 
 impl Manager {
