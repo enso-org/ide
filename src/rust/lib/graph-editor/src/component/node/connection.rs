@@ -2,11 +2,14 @@
 use crate::prelude::*;
 
 use crate::frp;
+use crate::component::node::port::{WeakPort, OutputPortView, InputPortView, OutputPort, InputPort};
 
+use enso_prelude::StrongRef;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
+use ensogl::display::layout::alignment;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
@@ -16,7 +19,7 @@ use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::triangle::Triangle;
-use ensogl::display::layout::alignment;
+
 
 
 // =========================
@@ -35,7 +38,6 @@ mod shape {
             let line = Line(1.0);
             let is_reverse : Var<f32> = "((((-sign(input_start_y-input_end_y)))))".into();
 
-
             let angle_inner = Var::<f32>::from(90_f32.to_radians());
             let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,width,angle_inner);
             let angle_a       = Var::<Angle<Radians>>::from(is_reverse * triangle.angle_a().clone());
@@ -47,7 +49,7 @@ mod shape {
             // let y_mid = (start_y + end_y) * 0.5;
             // let line = line.translate_y(Var::<Distance<Pixels>>::from(y_mid));
 
-            let line_color   = Srgba::new(0.22,0.83,0.54,1.0);
+            let line_color   = Srgba::new(1.00, 0.565, 0.0, 1.0);
             let line_colored = line.fill(line_color);
             line_colored.into()
         }
@@ -67,6 +69,7 @@ pub struct Events {
     pub network    : frp::Network,
     pub select     : frp::Source,
     pub deselect   : frp::Source,
+    pub port_move  : frp::Source,
 }
 
 
@@ -109,12 +112,14 @@ pub struct Connection {
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ConnectionData {
+    start_port       : RefCell<Option<WeakPort<OutputPortView>>>,
     /// Start of the connection.
     start       : Cell<Vector3<f32>>,
-    /// Start of the connection.
+    end_port         : RefCell<Option<WeakPort<InputPortView>>>,
+    /// End of the connection.
     end         : Cell<Vector3<f32>>,
     /// Stroke thickness of the connection.
-    stroke_thickness      : Cell<f32>,
+    stroke_thickness : Cell<f32>,
 
     pub logger : Logger,
     pub events : Events,
@@ -127,9 +132,10 @@ impl Connection {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { connection_network
-            def label    = source::<String> ();
-            def select   = source::<()>     ();
-            def deselect = source::<()>     ();
+            def label     = source::<String> ();
+            def select    = source::<()>     ();
+            def deselect  = source::<()>     ();
+            def port_move = source::<()>     ();
         }
         let network      = connection_network;
         let start        = Cell::new(Vector3::zero());
@@ -137,18 +143,40 @@ impl Connection {
         let stroke_thickness = Cell::new(15.0);
         let logger       = Logger::new("connection");
         let view         = Rc::new(component::ShapeView::new(&logger));
-        let events       = Events{network,select,deselect};
-        let data         = ConnectionData{start,end,label,events,view,stroke_thickness,logger};
+        let events       = Events{network,select,deselect,port_move};
+        let start_port   = RefCell::new(None);
+        let end_port   = RefCell::new(None);
+
+        let data         = ConnectionData {start_port,start,end_port,end,label,events,view,stroke_thickness,logger};
         let data         = Rc::new(data);
-        Self {data} . init()
+        Self {data} . init() .init_frp()
     }
 
     fn init(self) -> Self {
         self
     }
 
+    fn init_frp(self) -> Self {
+        let network = &self.data.events.network;
+        frp::extend! { network
+            let weak_connection = self.downgrade();
+            def _f_on_port_move = self.data.events.port_move.map(move |_| {
+               if let Some(connection) = weak_connection.upgrade(){
+                    connection.on_port_position_change()
+                }
+            });
+        }
+        self
+    }
+
     /// Set the connections origin.
-    pub fn set_start(&self, position:Vector3<f32>) {
+    pub fn set_start(&self, port:&OutputPort) {
+        let position = port.position_global();
+        self.data.start_port.set(port.downgrade());
+        self.set_start_position(position);
+    }
+
+    fn set_start_position(&self, position:Vector3<f32>) {
         self.data.start.set(position);
         let start_pos = position - self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -159,8 +187,13 @@ impl Connection {
     }
 
     /// Set the position where the connections ends.
-    pub fn set_end(&self, position:Vector3<f32>) {
-        // println!("POS: {}", position);
+    pub fn set_end(&self, port:&InputPort) {
+        let position = port.position_global();
+        self.data.end_port.set(port.downgrade());
+        self.set_end_position(position);
+    }
+
+    fn set_end_position(&self, position:Vector3<f32>) {
         self.data.end.set(position);
         let end_pos = position - self.data.start.get();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -168,6 +201,33 @@ impl Connection {
             t.shape.end_y.set(end_pos.y);
         }
         self.update_sprite();
+    }
+
+    /// Sets the position of the connection start/end that has no port attached yet.
+    pub fn set_open_ends(&self, position: Vector3<f32>){
+        if self.data.start_port.borrow().is_none(){
+            self.set_start_position(position);
+        }
+        if self.data.end_port.borrow().is_none(){
+            self.set_end_position(position);
+        }
+    }
+
+    /// Indicates whether this connection has both a start and an end port.
+    pub fn fully_connected(&self) -> bool{
+        self.data.start_port.borrow().is_some() && self.data.end_port.borrow().is_some()
+    }
+
+    /// Break the link to both start and end port.
+    pub fn clear_ports(&self){
+        self.data.start_port
+            .borrow_mut()
+            .take()
+            .map(|weak_port| weak_port.upgrade().map(| port| port.unset_connection()));
+        self.data.end_port
+            .borrow_mut()
+            .take()
+            .map(|weak_port| weak_port.upgrade().map(| port| port.unset_connection()));
     }
 
     fn center(&self) -> Vector3<f32> {
@@ -184,6 +244,24 @@ impl Connection {
             t.shape.sprite.size().set(self.extent().xy());
         }
         self.data.view.display_object.set_position(Vector3::new(center.x,center.y,0.0));
+    }
+
+    /// Updates the connection end and start position with the respective port position.
+    pub fn on_port_position_change(&self){
+        self.data.start_port
+            .borrow()
+            .as_ref()
+            .map(|weak_port| weak_port
+                .upgrade()
+                .map(| port| self.set_start_position(port.position_global()))
+            );
+        self.data.end_port
+            .borrow()
+            .as_ref()
+            .map(|weak_port| weak_port
+                .upgrade()
+                .map(| port| self.set_end_position(port.position_global()))
+            );
     }
 }
 
@@ -205,3 +283,26 @@ impl AsRef<Connection> for Connection {
         self
     }
 }
+
+
+
+/// Weak version of `Connection`.
+#[derive(Clone,CloneRef,Debug)]
+pub struct WeakConnection{
+    data : Weak<ConnectionData>
+}
+
+impl StrongRef for Connection{
+    type WeakRef = WeakConnection;
+    fn downgrade(&self) -> WeakConnection{
+        WeakConnection {data:Rc::downgrade(&self.data)}
+    }
+}
+
+impl WeakRef for WeakConnection {
+    type StrongRef = Connection;
+    fn upgrade(&self) -> Option<Connection> {
+        self.data.upgrade().map(|data| Connection{data})
+    }
+}
+

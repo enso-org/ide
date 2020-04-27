@@ -44,6 +44,7 @@ pub trait MouseTarget : Debug + 'static {
     fn mouse_down(&self) -> Option<enso_frp::Source> { None }
     fn mouse_over(&self) -> Option<enso_frp::Source> { None }
     fn mouse_leave(&self) -> Option<enso_frp::Source> { None }
+    fn mouse_move_global(&self) -> Option<enso_frp::Source> { None }
 }
 
 

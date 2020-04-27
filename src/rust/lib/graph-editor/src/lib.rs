@@ -50,7 +50,7 @@ use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-use crate::component::node::port::{OutputPort, InputPort};
+use crate::component::node::port::IOPort;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -191,9 +191,9 @@ pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                     : Commands,
     register_node                : frp::Source<Node>,
+    register_port                : frp::Source<IOPort>,
     register_connection          : frp::Source<Connection>,
-    pub add_connection_at    : frp::Source<Position>,
-    pub end_connection           : frp::Source<InputPort>,
+    pub add_connection_at        : frp::Source<Position>,
     pub add_node_at              : frp::Source<Position>,
     pub select_node              : frp::Source<Option<WeakNode>>,
     pub translate_selected_nodes : frp::Source<Position>,
@@ -204,22 +204,22 @@ impl FrpInputs {
         let commands = Commands::new(network);
         frp::extend! { network
             def register_node            = source();
+            def register_port            = source();
             def register_connection      = source();
             def add_connection_at        = source();
-            def end_connection           = source();
             def add_node_at              = source();
             def select_node              = source();
             def translate_selected_nodes = source();
         }
-        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes,
-              register_connection,add_connection_at,end_connection}
+        Self {commands,register_node,register_port,add_node_at,select_node,translate_selected_nodes,
+              register_connection,add_connection_at}
     }
 
     fn register_node<T: AsRef<Node>>(&self, arg: T) {
         self.register_node.emit(arg.as_ref());
     }
-    fn add_connection_at<T: AsRef<Position>>(&self, arg: T) {
-        self.add_connection_at.emit(arg.as_ref());
+    fn register_port<T: AsRef<IOPort>>(&self, arg: T) {
+        self.register_port.emit(arg.as_ref());
     }
     fn register_connection<T: AsRef<Connection>>(&self, arg: T) {
         self.register_connection.emit(arg.as_ref());
@@ -410,14 +410,21 @@ impl application::View for GraphEditor {
             cursor.events.press.emit(());
         }));
 
-        def _cursor_release = mouse.release.map(f!((cursor)(_) {
+        def _cursor_release = mouse.release.map(f!((cursor,active_connection)(_) {
             cursor.events.release.emit(());
+            // Clean up active connection
+            if let Some(connection) = active_connection.borrow_mut().take()  {
+                if !connection.fully_connected(){
+                    connection.clear_ports();
+                }
+            };
         }));
 
         def _cursor_position = mouse.position.map(f!((cursor,active_connection)(p) {
             cursor.set_position(Vector2::new(p.x,p.y));
+            // TODO move this somewhere else
             if let Some(connection) = active_connection.borrow().as_ref() {
-                connection.set_end(Vector3::new(p.x,p.y,0.0));
+                connection.set_open_ends(Vector3::new(p.x,p.y,0.0));
             }
 
         }));
@@ -425,7 +432,7 @@ impl application::View for GraphEditor {
         // === Hover ===
 
         def mouse_move_target  = mouse.position.map(f_!((scene) scene.mouse.target.get()));
-        def _mouse_move_target = mouse_move_target.map(f!((touch,scene)(target) {
+        def _mouse_move_target = mouse_move_target.map(f!((scene)(target) {
             match target {
                 display::scene::Target::Background => {}
                 display::scene::Target::Symbol {symbol_id,instance_id} => {
@@ -437,7 +444,7 @@ impl application::View for GraphEditor {
         }));
 
         def mouse_leave_target  = mouse.leave.map(f_!((scene) scene.mouse.target.get()));
-        def _mouse_leave_target = mouse_leave_target.map(f!((touch,scene)(target) {
+        def _mouse_leave_target = mouse_leave_target.map(f!((scene)(target) {
             match target {
                 display::scene::Target::Background => {}
                 display::scene::Target::Symbol {symbol_id,instance_id} => {
@@ -492,6 +499,9 @@ impl application::View for GraphEditor {
                 t.x += pos.x;
                 t.y += pos.y;
             });
+            node.add_input_port();
+            node.add_output_port();
+
 
             // let connection = Connection::new();
             // inputs.register_connection(&connection);
@@ -505,13 +515,20 @@ impl application::View for GraphEditor {
 
         }));
 
-        def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
+        def _new_node = inputs.register_node.map(f!((network,inputs,nodes,touch,display_object)(node) {
             let weak_node = node.downgrade();
             frp::new_bridge_network! { [network,node.view.events.network]
                 def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
                     touch.nodes.down.emit(Some(weak_node.clone_ref()))
                 }));
             }
+
+           frp::new_bridge_network! { [network,node.events.network]
+                def _node_on_port_created = node.events.port_created.map(f!((inputs)(port) {
+                   inputs.register_port(&port);
+             }));
+            }
+
             display_object.add_child(node);
             nodes.set.insert(node.clone_ref());
         }));
@@ -529,7 +546,8 @@ impl application::View for GraphEditor {
 
         def mouse_tx_if_node_pressed = mouse.translation.gate(&touch.nodes.is_down);
         def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,|tx,node| {
-            node.mod_position(|p| { p.x += tx.x; p.y += tx.y; })
+            node.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
+            node.as_ref().map(|weak_node| weak_node.upgrade().map(|node| node.on_position_update()));
         });
 
         def _move_selected_nodes = inputs.translate_selected_nodes.map(f!((nodes)(t) {
@@ -537,31 +555,75 @@ impl application::View for GraphEditor {
                 node.mod_position(|p| {
                     p.x += t.x;
                     p.y += t.y;
-                })
+                });
+                node.on_position_update();
             })
         }));
 
-         // === Add Connection ===
-
+        // === Add Port ===
+        // TODO the distinction between input and output is ugly here.
+        // But maybe also required to distinguish between invalid connections.
         let acon = active_connection.clone();
-        def add_connection_at_cursor_pos = inputs.add_connection_at_cursor.map2(&mouse.position,|_,p|{*p});
-        def add_connection               = inputs.add_connection_at.merge(&add_connection_at_cursor_pos);
-        def _add_new_connection          = add_connection.map(f!((inputs)(pos) {
+        def _new_port = inputs.register_port.map(f!((network,inputs,active_connection)(port) {
+            match port {
+                 IOPort::Output { port } => {
+                        let acon = acon.clone();
 
-            println!("SPAWN");
-            let connection = Connection::new();
-            inputs.register_connection(&connection);
-            let start = Vector3::new(pos.x,pos.y,0.0);
-            let end   = Vector3::new(pos.x,pos.y,0.0);
-            connection.set_start(start);
-            connection.set_end(end);
-            // node.add_child(&connection.data.view.display_object);
-            // mem::forget(connection);
-            acon.set(connection);
+                       frp::new_bridge_network! { [network,port.data.events.network]
+                       def _on_connection_start = port.data.events.connection_start.map(f!((inputs,port,acon)(_) {
+                            let connection = Connection::new();
+                            inputs.register_connection(&connection);
+                            port.set_connection_end(connection.clone_ref());
+                            acon.set(connection);
+                       }));
+
+                       def _on_connection_end = port.data.events.connection_end.map(f!((port,active_connection)(_) {
+                           if let Some(connection) = active_connection.borrow().as_ref() {
+                                port.set_connection_end(connection.clone_ref());
+                           }
+                       }));
+                       }
+                 },
+                 IOPort::Input { port }  => {
+                       let acon = acon.clone();
+                       frp::new_bridge_network! { [network,port.data.events.network]
+                       def _on_connection_start = port.data.events.connection_start.map(f!((inputs,port,acon)(_) {
+                            let connection = Connection::new();
+                            inputs.register_connection(&connection);
+                             port.set_connection_start(connection.clone_ref());
+                             acon.set(connection);
+                       }));
+
+                       def _on_connection_end = port.data.events.connection_end.map(f!((port,active_connection)(_) {
+                          if let Some(connection) = active_connection.borrow().as_ref() {
+                            port.set_connection_start(connection.clone_ref());
+                          }
+                       }));
+                       }
+                 },
+           };
 
         }));
+         // === Add Connection ===
 
-        def _new_connection = inputs.register_connection.map(f!((network,nodes,touch,display_object)(connection) {
+        // let acon = active_connection.clone();
+        // def add_connection_at_cursor_pos = inputs.add_connection_at_cursor.map2(&mouse.position,|_,p|{*p});
+        // def add_connection               = inputs.add_connection_at.merge(&add_connection_at_cursor_pos);
+        // def _add_new_connection          = add_connection.map(f!((inputs)(pos) {
+        //
+        //     // println!("SPAWN");
+        //     // let connection = Connection::new();
+        //     // inputs.register_connection(&connection);
+        //     // let start = Vector3::new(pos.x,pos.y,0.0);
+        //     // let end   = Vector3::new(pos.x,pos.y,0.0);
+        //     // connection.set_start_port(start);
+        //     // node.add_child(&connection.data.view.display_object);
+        //     // mem::forget(connection);
+        //     acon.set(connection);
+        //
+        // }));
+
+        def _new_connection = inputs.register_connection.map(f!((display_object)(connection) {
             display_object.add_child(connection);
         }));
 

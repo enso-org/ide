@@ -5,7 +5,7 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::Registry;
+use crate::component::node::port::{Registry, IOPort};
 
 use enso_frp;
 use enso_frp as frp;
@@ -22,6 +22,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
+use enso_frp::stream::EventEmitter;
 
 
 /// Icons definitions.
@@ -137,6 +138,8 @@ pub struct Events {
     pub network    : frp::Network,
     pub select     : frp::Source,
     pub deselect   : frp::Source,
+
+    pub port_created : frp::Source<IOPort>,
 }
 
 
@@ -208,14 +211,15 @@ impl Node {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { node_network
-            def label    = source::<String> ();
-            def select   = source::<()>     ();
-            def deselect = source::<()>     ();
+            def label        = source::<String> ();
+            def select       = source::<()>     ();
+            def deselect     = source::<()>     ();
+            def port_created = source::<IOPort> ();
         }
         let network = node_network;
         let logger  = Logger::new("node");
         let view    = component::ShapeView::new(&logger);
-        let events  = Events {network,select,deselect};
+        let events  = Events {network,select,deselect,port_created};
         let ports   = Registry::default() ;
         let data    = Rc::new(NodeData {logger,label,events,view,ports});
         Self {data} . init()
@@ -255,13 +259,23 @@ impl Node {
             });
         }
 
-        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
+        self
+    }
+
+    pub fn add_input_port(&self){
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
+        self.data.events.port_created.emit_event(&IOPort::Input{ port: input_port });
+    }
+
+    pub fn add_output_port(&self){
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
+        self.data.events.port_created.emit_event(&IOPort::Output{ port: output_port });
+    }
 
-        self
+    pub fn on_position_update(&self){
+        self.data.ports.on_position_update()
     }
 }
 

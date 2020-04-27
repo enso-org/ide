@@ -2,9 +2,9 @@
 use crate::prelude::*;
 
 use crate::component::node::Node;
+use crate::component::node::connection::Connection;
 use crate::frp;
 
-use enso_frp::new_bridge_network;
 use core::f32::consts::PI;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
@@ -25,7 +25,7 @@ use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Degrees;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
-use crate::component::node::connection::Connection;
+
 
 
 // ===========================
@@ -191,7 +191,7 @@ mod shape {
         let rotation_angle = Var::<Angle<Radians>>::from(rotation_angle);
         let sculpted_shape = sculpted_shape.rotate(rotation_angle);
 
-        let glow_size     = Var::<f32>::from(glow * 3.0);
+        let glow_size     = glow * 3.0;
         let glow          = sculpted_shape.clone();
         let glow          = glow.scale(&glow_size);
         let glow_color    = Srgb::new(0.26, 0.69, 0.99);
@@ -245,7 +245,8 @@ mod shape {
 #[allow(missing_docs)]
 pub struct Events {
     pub network          : frp::Network,
-    pub start_connection : frp::Source,
+    pub connection_start : frp::Source,
+    pub connection_end   : frp::Source,
     pub hover_start      : frp::Source,
     pub hover_end        : frp::Source,
 }
@@ -344,11 +345,33 @@ impl<T:PortShapeViewDefinition> WeakRef for WeakPort<T> {
 }
 
 
+
 /// Type that represents an input port.
 pub type InputPort = Port<InputPortView>;
 
 /// Type that represents an output port.
 pub type OutputPort = Port<OutputPortView>;
+
+/// Enum over all possible port types.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub enum IOPort{
+    Input  { port: InputPort  },
+    Output { port: OutputPort },
+}
+
+impl Default for IOPort{
+    fn default() -> Self {
+        IOPort:: Input  { port: default() }
+    }
+}
+
+impl AsRef<IOPort> for IOPort {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 
 /// Internal data of `Port.
 #[derive(Debug,Clone)]
@@ -377,16 +400,17 @@ impl<T:PortShapeViewDefinition> Port<T> {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { port_network
-            def label       = source::<String> ();
-            def start_connection      = source::<()>     ();
+            def label            = source::<String> ();
+            def connection_start = source::<()>     ();
+            def connection_end   = source::<()>     ();
 
             def hover_start = source::<()>     ();
-            def hover_end = source::<()>     ();
+            def hover_end   = source::<()>     ();
         }
         let network = port_network;
 
         let spec = Specification::default();
-        let events = Events {network,start_connection,hover_start,hover_end};
+        let events = Events {network,connection_start,connection_end,hover_start,hover_end};
         let logger = Logger::new("node");
         let view   = Rc::new(component::ShapeView::new(&logger));
         let connection = RefCell::new(None);
@@ -410,16 +434,15 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self
     }
 
-    fn init_frp(self) -> Self{
+    fn init_frp(self) -> Self {
 
         let weak_port = self.downgrade();
         let network = &self.data.view.events.network;
-
         frp::new_bridge_network! { [network,self.data.events.network]
                 let weak_port_mouse_down = weak_port.clone();
                 def _node_on_down_tagged = self.data.view.events.mouse_down.map(f_!(() {
                     if let Some(port) = weak_port_mouse_down.upgrade(){
-                        port.data.events.start_connection.emit(());
+                        port.data.events.connection_start.emit(());
                     }
                 }));
 
@@ -427,10 +450,15 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 def _node_on_over = self.data.view.events.mouse_over.map(f_!(() {
                     if let Some(port) = weak_port_mouse_over.upgrade(){
                         port.data.events.hover_start.emit(());
+
+                        // FIXME this is a workaround for the missing mouse up event
+                        if port.data.connection.borrow().is_none(){
+                            port.data.events.connection_end.emit(());
+                        }
                     }
                 }));
 
-               let weak_port_mouse_leave = weak_port.clone();
+               let weak_port_mouse_leave = weak_port;
                def _node_on_leave = self.data.view.events.mouse_leave.map(f_!(() {
                     if let Some(port) = weak_port_mouse_leave.upgrade(){
                         port.data.events.hover_end.emit(());
@@ -438,7 +466,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 }));
         }
 
-        let weak_port = self.downgrade();
         frp::extend! { network
             let weak_port_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
@@ -454,18 +481,18 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 }
             });
 
-             let weak_port_start_connection = self.downgrade();
-             def _f_start_connection = self.data.events.start_connection.map(move |_| {
-                let connection = Connection::new();
-                let start      = Vector3::new(0.0,0.0,0.0);
-                let end        = Vector3::new(100.0,100.0,0.0);
-                connection.set_start(start);
-                connection.set_end(end);
-                if let Some(port) = weak_port.upgrade(){
-                    port.data.view.display_object.add_child(&connection.data.view.display_object);
-                    port.data.connection.set(connection);
-                }
-            });
+             // let weak_port_start_connection = self.downgrade();
+             // def _f_start_connection = self.data.events.connection_start.map(move |_| {
+                // let connection = Connection::new();
+                // let start      = Vector3::new(0.0,0.0,0.0);
+                // let end        = Vector3::new(100.0,100.0,0.0);
+                // connection.set_start(start);
+                // connection.set_end(end);
+                // if let Some(port) = weak_port.upgrade(){
+                //     port.data.view.display_object.add_child(&connection.data.view.display_object);
+                //     port.data.connection.set(connection);
+                // }
+            // });
         }
 
         self
@@ -478,6 +505,11 @@ impl<T:PortShapeViewDefinition> Port<T> {
     pub fn set_position(&self, position:Angle<Degrees>) {
         self.data.position.set(position);
         self.update_sprite_position();
+    }
+
+    /// Global scene position of this port.
+    pub fn position_global(&self) -> Vector3<f32> {
+        self.data.view.display_object.global_position()
     }
 
     /// Sets the port's position.
@@ -530,6 +562,23 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.set_position(translation);
         self.data.view.display_object.set_rotation(rotation_vector);
     }
+
+    /// Break the link the ports connection, if there is one.
+    pub fn unset_connection(&self){
+        self.data.connection.clear()
+    }
+
+    /// Updates the linked connections position.
+    fn update_connection_position(&self){
+        if let Some(connection) = self.data.connection.borrow().as_ref() {
+          connection.on_port_position_change();
+        }
+    }
+
+    /// Execute state changes required on global position changes.
+    pub fn on_position_update(&self){
+        self.update_connection_position();
+    }
 }
 
 impl<T:PortShapeViewDefinition> Default for Port<T> {
@@ -539,6 +588,21 @@ impl<T:PortShapeViewDefinition> Default for Port<T> {
 }
 
 
+impl InputPort{
+    /// Link a `Connection` with this port.
+    pub fn set_connection_start(&self, connection: Connection){
+        connection.set_end(self);
+        self.data.connection.set(connection);
+    }
+}
+
+impl OutputPort{
+    /// Link a `Connection` with this port.
+    pub fn set_connection_end(&self, connection: Connection){
+        connection.set_start(self);
+        self.data.connection.set(connection);
+    }
+}
 
 // ===================
 // === Port Buffer ===
@@ -563,21 +627,23 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
         let port = Port::default();
         parent.add_child(&port.data.view.display_object);
         self.ports.borrow_mut().push(port.clone_ref());
-
-        // frp::new_bridge_network! { [port.data.events.network,parent.view.events.network]
-             // def _node_on_down_tagged = port.data.events.mouse_down.map(f_!((touch) {
-             //            touch.nodes.down.emit(Some(weak_node.clone_ref()))
-             //        }));
-        // }
         port
     }
+
+    /// Execute state changes required on global position changes.
+    pub fn on_position_update(&self){
+        for port in self.ports.borrow().iter(){
+            port.on_position_update()
+        }
+    }
+
 }
 
 
 
-// ====================
-// === Port Manager ===
-// ====================
+// =====================
+// === Port Registry ===
+// =====================
 
 /// Handles creation and layouting of ports around a node.
 ///
@@ -603,4 +669,12 @@ pub struct Registry {
     pub input  : InputPortBuffer,
     /// Buffer of output ports.
     pub output : OutputPortBuffer,
+}
+
+impl Registry{
+    /// Execute state changes required on global position changes.
+    pub fn on_position_update(&self){
+        self.input.on_position_update();
+        self.output.on_position_update();
+    }
 }

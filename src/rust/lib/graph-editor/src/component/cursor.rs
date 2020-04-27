@@ -5,17 +5,19 @@ use crate::prelude::*;
 use enso_frp as frp;
 use ensogl::control::callback;
 use ensogl::data::color::Srgba;
+use ensogl::display::Attribute;
 use ensogl::display::Buffer;
+use ensogl::display::Sprite;
 use ensogl::display::layout::alignment;
-use ensogl::display::scene::{Scene,ShapeRegistry};
+use ensogl::display::scene::Scene;
+use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::scene;
 use ensogl::display::shape::*;
-use ensogl::display::{Sprite, Attribute};
+
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::system::web;
-use ensogl::display::object::class::ObjectOps;
 
 
 
@@ -170,9 +172,8 @@ impl Cursor {
     /// Position getter.
     pub fn position(&self) -> Option<Vector2<f32>> {
         self.view.data.borrow().as_ref().map(|view| {
-            return view.shape.position.get()
-        });
-        None
+            view.shape.position.get()
+        })
     }
 
     /// Selection size setter.
