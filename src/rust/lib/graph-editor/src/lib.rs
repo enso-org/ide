@@ -366,7 +366,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
         vec! [ Self::self_shortcut(&[Key::Character("n".into())] , "add_node_at_cursor")
-             , Self::self_shortcut(&[Key::Character("c".into())] , "add_connection_at_cursor")
              , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
         ]
     }
@@ -501,17 +500,6 @@ impl application::View for GraphEditor {
             });
             node.add_input_port();
             node.add_output_port();
-
-
-            // let connection = Connection::new();
-            // inputs.register_connection(&connection);
-            // let start = Vector3::new(-20.0,-20.0,0.0);
-            // let end   = Vector3::new(150.0,150.0,0.0);
-            // connection.set_start(start);
-            // connection.set_end(end);
-            // node.add_child(&connection.data.view.display_object);
-            // mem::forget(connection);
-
 
         }));
 
