@@ -136,10 +136,10 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network    : frp::Network,
-    pub select     : frp::Source,
-    pub deselect   : frp::Source,
-
+    pub network      : frp::Network,
+    pub select       : frp::Source,
+    pub deselect     : frp::Source,
+    /// Emitted if a new port was created.
     pub port_created : frp::Source<IOPort>,
 }
 
@@ -229,7 +229,6 @@ impl Node {
     fn init(self) -> Self {
         let network = &self.data.events.network;
 
-
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
         let creation = animation(network, move |value| {
@@ -262,14 +261,14 @@ impl Node {
         self
     }
 
-    /// Create an input port on this node.
+    /// Create an `InputPort` on this node.
     pub fn add_input_port(&self){
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
         self.data.events.port_created.emit_event(&IOPort::Input{port:input_port});
     }
 
-    /// Create an output port on this node.
+    /// Create an `OutputNode` on this node.
     pub fn add_output_port(&self){
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());

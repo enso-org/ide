@@ -344,8 +344,6 @@ impl<T:PortShapeViewDefinition> WeakRef for WeakPort<T> {
     }
 }
 
-
-
 /// Type that represents an input port.
 pub type InputPort = Port<InputPortView>;
 
@@ -371,7 +369,6 @@ impl AsRef<IOPort> for IOPort {
         self
     }
 }
-
 
 /// Internal data of `Port.
 #[derive(Debug,Clone)]
@@ -409,10 +406,10 @@ impl<T:PortShapeViewDefinition> Port<T> {
         }
         let network = port_network;
 
-        let spec = Specification::default();
-        let events = Events {network,connection_start,connection_end,hover_start,hover_end};
-        let logger = Logger::new("node");
-        let view   = Rc::new(component::ShapeView::new(&logger));
+        let spec       = Specification::default();
+        let events     = Events {network,connection_start,connection_end,hover_start,hover_end};
+        let logger     = Logger::new("node");
+        let view       = Rc::new(component::ShapeView::new(&logger));
         let connection = RefCell::new(None);
 
         let data   = Rc::new(PortData{
@@ -435,7 +432,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
     }
 
     fn init_frp(self) -> Self {
-
         let weak_port = self.downgrade();
         let network = &self.data.view.events.network;
         frp::new_bridge_network! { [network,self.data.events.network]
@@ -480,19 +476,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
                     port.set_glow(0.0);
                 }
             });
-
-             // let weak_port_start_connection = self.downgrade();
-             // def _f_start_connection = self.data.events.connection_start.map(move |_| {
-                // let connection = Connection::new();
-                // let start      = Vector3::new(0.0,0.0,0.0);
-                // let end        = Vector3::new(100.0,100.0,0.0);
-                // connection.set_start(start);
-                // connection.set_end(end);
-                // if let Some(port) = weak_port.upgrade(){
-                //     port.data.view.display_object.add_child(&connection.data.view.display_object);
-                //     port.data.connection.set(connection);
-                // }
-            // });
         }
 
         self
@@ -600,6 +583,8 @@ impl OutputPort{
         self.data.connection.set(connection);
     }
 }
+
+
 
 // ===================
 // === Port Buffer ===
