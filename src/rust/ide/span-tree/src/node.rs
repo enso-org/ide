@@ -7,7 +7,7 @@ use crate::iter::TreeFragment;
 
 use data::text::Index;
 use data::text::Size;
-
+use crate::SplitCrumbs;
 
 
 // ====================
@@ -83,11 +83,7 @@ impl Node {
     }
 
     /// Function that converts from `Ast` crumbs into `SpanTree` crumbs.
-    ///
-    /// `ast_crumbs` is a slice with crumbs to be converted.
-    /// `crumbs_so_far` is a list of previously converted crumbs which will be prepended to the
-    /// returned result.
-    pub fn convert_from_ast_crumbs(&self, mut ast_crumbs:&[ast::Crumb]) -> Option<Vec<usize>> {
+    pub fn convert_from_ast_crumbs(&self, mut ast_crumbs:&[ast::Crumb]) -> SplitCrumbs {
         let mut ret = Vec::new();
         let mut node = self;
         'crumbs: while ast_crumbs.len() > 0 {
@@ -100,32 +96,16 @@ impl Node {
                     continue 'crumbs;
                 }
             }
-            return None
+            // No matching child.
+            return SplitCrumbs {
+                head : ret,
+                tail : ast::Crumbs::from(ast_crumbs),
+            }
         }
-        Some(ret)
-        // let is_matching = |child:&&Child| {
-        //     ast_crumbs.get(..child.ast_crumbs.len()).contains(&child.ast_crumbs)
-        // };
-        //
-        // if ast_crumbs.is_empty() {
-        //     Some(crumbs_so_far)
-        // } else if let Some((index, child)) = self.children.iter().find_position(is_matching) {
-        //     crumbs_so_far.push(index);
-        //     child.node.convert_from_ast_crumbs(&ast_crumbs[child.ast_crumbs.len()..], crumbs_so_far)
-        // } else {
-        //     None
-        // }
-    }
-
-    pub fn convert_to_ast_crumbs(&self, crumbs:&[crate::Crumb]) -> Option<ast::Crumbs> {
-        let mut ret  = ast::Crumbs::new();
-        let mut node = self;
-        for crumb in crumbs {
-            let child = node.children.get(*crumb)?;
-            ret.extend(&child.ast_crumbs);
-            node = &child.node;
+        SplitCrumbs {
+            head : ret,
+            tail : default(),
         }
-        Some(ret)
     }
 }
 

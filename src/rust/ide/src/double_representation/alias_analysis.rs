@@ -42,6 +42,7 @@ impl NormalizedName {
         ast::identifier::name(ast).map(NormalizedName::new)
     }
 
+    /// Is the given string a prefix of this name.
     pub fn starts_with(&self, name:impl Str) -> bool {
         let prefix = NormalizedName::new(name);
         self.0.starts_with(prefix.0.as_str())

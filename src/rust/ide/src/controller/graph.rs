@@ -16,7 +16,7 @@ use crate::notification;
 
 use ast::crumbs::InfixCrumb;
 use parser::Parser;
-use span_tree::SpanTree;
+use span_tree::{SpanTree, SplitCrumbs};
 use span_tree::action::Implementation;
 use crate::double_representation::node::NodeInfo;
 use crate::double_representation::definition::DefinitionName;
@@ -103,7 +103,7 @@ impl NewNodeInfo {
 #[derive(Clone,Debug)]
 pub struct Endpoint {
     pub node   : double_representation::node::Id,
-    pub crumbs : span_tree::Crumbs,
+    pub crumbs : span_tree::SplitCrumbs,
 }
 
 
@@ -200,7 +200,7 @@ impl NodeTrees {
 
     /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the span-tree
     /// crumbs.
-    pub fn convert_crumbs(&self, ast_crumbs:&ast::Crumbs) -> Option<Vec<usize>> {
+    pub fn convert_crumbs(&self, ast_crumbs:&ast::Crumbs) -> Option<SplitCrumbs> {
         if let Some(outputs) = self.outputs.as_ref() {
             // Node in assignment form. First crumb decides which span tree to use.
             let tree = match ast_crumbs.get(0) {
@@ -208,10 +208,49 @@ impl NodeTrees {
                 Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => &self.inputs,
                 _ => return None,
             };
-            tree.convert_from_ast_crumbs(&ast_crumbs[1..])
+            Some(tree.convert_from_ast_crumbs(&ast_crumbs[1..]))
         } else {
             // Expression node - there is only inputs span tree.
-            self.inputs.convert_from_ast_crumbs(ast_crumbs)
+            Some(self.inputs.convert_from_ast_crumbs(ast_crumbs))
+        }
+    }
+}
+
+
+
+// =================
+// === Utilities ===
+// =================
+
+pub fn name_for_ast(ast:&Ast) -> String {
+    use ast::*;
+    match ast.shape() {
+        Shape::Var          (ident) => ident.name.clone(),
+        Shape::Cons         (ident) => ident.name.to_lowercase(),
+        Shape::Number       (_)     => "number".into(),
+        Shape::DanglingBase (_)     => "number".into(),
+        Shape::TextLineRaw  (_)     => "text".into(),
+        Shape::TextLineFmt  (_)     => "text".into(),
+        Shape::TextBlockRaw (_)     => "text".into(),
+        Shape::TextBlockFmt (_)     => "text".into(),
+        Shape::TextUnclosed (_)     => "text".into(),
+        Shape::Opr          (opr)   => {
+            match opr.name.as_ref() {
+                "+" => "sum",
+                "*" => "product",
+                "-" => "difference",
+                "/" => "quotient",
+                _   => "operator",
+            }.into()
+        }
+        _ => {
+            if let Some(infix) = ast::opr::GeneralizedInfix::try_new_root(ast) {
+                name_for_ast(infix.opr.item.ast())
+            } else if let Some(prefix) = ast::prefix::Chain::try_new(ast) {
+                name_for_ast(&prefix.func)
+            } else {
+                "var".into()
+            }
         }
     }
 }
@@ -309,32 +348,7 @@ impl Handle {
     /// The caller should make sure that obtained name won't collide with any symbol usage before
     /// actually introducing it. See `variable_name_for`.
     pub fn variable_name_base_for(node:&NodeInfo) -> String {
-        let ast = node.expression();
-        if let Some(infix) = ast::opr::GeneralizedInfix::try_new_root(node.ast()) {
-            match infix.name() {
-                "+" => "sum",
-                "*" => "product",
-                "-" => "difference",
-                "/" => "quotient",
-                _   => "operator"
-            }.into()
-        } else if ast::known::Number::try_from(ast).is_ok() {
-            "number".into()
-        } else if let Some(name) = ast::identifier::name(ast) {
-            if name.chars().next().contains_if(|c| c.is_alphabetic()) {
-                name.to_lowercase()
-            } else {
-                "identifier".into()
-            }
-        } else if let Some(prefix) = ast::prefix::Chain::try_new(ast) {
-            if let Some(def) = DefinitionName::from_ast(&prefix.func) {
-                def.name
-            } else {
-                "result".into()
-            }
-        } else {
-            "var".into()
-        }
+        name_for_ast(node.expression())
     }
 
     /// Identifiers introduced or referred to in the current graph's scope.
@@ -394,6 +408,10 @@ impl Handle {
     }
 
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
+
+        assert!(connection.source.crumbs.tail.is_empty()); // TODO lift this assert and properly support
+        assert!(connection.destination.crumbs.tail.is_empty()); // TODO lift this assert and properly support
+
         let source_node = self.node_info(connection.source.node)?;
         let source_ast = if let Some(pat) = source_node.pattern() {
             pat
@@ -403,7 +421,7 @@ impl Handle {
         };
         let source_node_outputs = SpanTree::new(source_ast)?;
         let source_crumbs = &connection.source.crumbs;
-        let source_port = source_node_outputs.root_ref().traverse_subnode(source_crumbs.clone()).expect("failed locate crumb");
+        let source_port = source_node_outputs.root_ref().traverse_subnode(source_crumbs.head.clone()).expect("failed locate crumb");
 
         let source_crumbs = &source_port.ast_crumbs; //source_node_outputs.convert_to_ast_crumbs(&connection.source.crumbs).unwrap();
         let source_identifier = source_ast.get_traversing(source_crumbs)?;
@@ -412,7 +430,7 @@ impl Handle {
         let destination_node = self.node_info(connection.destination.node)?;
         let destination_ast = destination_node.expression();
         let destination_node_outputs = SpanTree::new(destination_ast)?;
-        let destination_port = destination_node_outputs.root_ref().traverse_subnode(connection.destination.crumbs.clone()).unwrap();
+        let destination_port = destination_node_outputs.root_ref().traverse_subnode(connection.destination.crumbs.head.clone()).unwrap();
         let destination_crumbs = &destination_port.ast_crumbs; // destination_node_outputs.convert_to_ast_crumbs(&connection.destination.crumbs).unwrap();
         let destination_identifier = destination_ast.get_traversing(destination_crumbs)?;
 
@@ -793,16 +811,16 @@ main =
             assert_eq!(node2.info.expression().repr(), "print $ foo y");
 
             let c = &connections.connections[0];
-            assert_eq!(c.source.node, node0.info.id());
-            assert_eq!(c.source.crumbs, [0]);
-            assert_eq!(c.destination.node, node1.info.id());
-            assert_eq!(c.destination.crumbs, [1]);
+            assert_eq!(c.source.node,        node0.info.id());
+            assert_eq!(c.source.crumbs,      SplitCrumbs::new_span(vec![0]));
+            assert_eq!(c.destination.node,   node1.info.id());
+            assert_eq!(c.destination.crumbs, SplitCrumbs::new_span(vec![1]));
 
             let c = &connections.connections[1];
             assert_eq!(c.source.node, node0.info.id());
-            assert_eq!(c.source.crumbs, [2]);
+            assert_eq!(c.source.crumbs, SplitCrumbs::new_span(vec![2]));
             assert_eq!(c.destination.node, node2.info.id());
-            assert_eq!(c.destination.crumbs, [2,1]);
+            assert_eq!(c.destination.crumbs, SplitCrumbs::new_span(vec![2,1]));
         })
     }
 
@@ -824,11 +842,11 @@ main =
             let connection_to_add = Connection {
                 source : Endpoint {
                     node : node0.info.id(),
-                    crumbs : vec![0],
+                    crumbs : SplitCrumbs::new_span(vec![0]),
                 },
                 destination : Endpoint {
                     node : node1.info.id(),
-                    crumbs : vec![2],
+                    crumbs : SplitCrumbs::new_span(vec![2]),
                 }
             };
             graph.connect(&connection_to_add);
@@ -837,11 +855,11 @@ main =
             let connection_to_add = Connection {
                 source : Endpoint {
                     node : node0.info.id(),
-                    crumbs : vec![0],
+                    crumbs : SplitCrumbs::new_span(vec![0]),
                 },
                 destination : Endpoint {
                     node : node2.info.id(),
-                    crumbs : vec![2,0], // `2` in `1,2,3`
+                    crumbs : SplitCrumbs::new_span(vec![2,0]), // `2` in `1,2,3`
                 }
             };
             graph.connect(&connection_to_add);
@@ -864,16 +882,41 @@ main =
             let connection_to_add = Connection {
                 source : Endpoint {
                     node : node0.info.id(),
-                    crumbs : vec![],
+                    crumbs : SplitCrumbs::new_span(vec![]),
                 },
                 destination : Endpoint {
                     node : node1.info.id(),
-                    crumbs : vec![1], // `_` in `print _`
+                    crumbs : SplitCrumbs::new_span(vec![1]), // `_` in `print _`
                 }
             };
             graph.connect(&connection_to_add).unwrap();
 
             println!("=================================\n{}",graph.graph_definition_info().unwrap().ast.repr());
         })
+    }
+
+    #[test]
+    fn suggested_names() {
+        let parser = Parser::new_or_panic();
+        let cases = [
+            ("a+b",           "sum"),
+            ("a-b",           "difference"),
+            ("a*b",           "product"),
+            ("a/b",           "quotient"),
+            ("read 'foo.csv'","read"),
+            ("Read 'foo.csv'","read"),
+            ("574",           "number"),
+            ("'Hello'",       "text"),
+            ("'Hello",        "text"),
+            ("\"Hello\"",     "text"),
+            ("\"Hello",       "text"),
+        ];
+
+        for (code,expected_name) in &cases {
+            let ast = parser.parse_line(*code).unwrap();
+            let node = NodeInfo::from_line_ast(&ast).unwrap();
+            let name = Handle::variable_name_base_for(&node);
+            assert_eq!(&name,expected_name);
+        }
     }
 }

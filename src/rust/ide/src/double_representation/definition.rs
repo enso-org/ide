@@ -165,6 +165,7 @@ impl DefinitionName {
             None => {
                 let name = match ast.shape() {
                     ast::Shape::Var         (var)   => Some(&var.name),
+                    ast::Shape::Cons        (var)   => Some(&var.name),
                     ast::Shape::Opr         (opr)   => Some(&opr.name),
                     ast::Shape::SectionSides(sides) => ast::identifier::name(&sides.opr),
                     // Shape::Cons is intentionally omitted.
