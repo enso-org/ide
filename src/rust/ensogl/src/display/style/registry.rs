@@ -1,6 +1,8 @@
 //! This module defines a cascading style sheet registry and related style management utilities.
 
 use crate::prelude::*;
+
+use crate::control::callback;
 use crate::data::HashMapTree;
 use crate::data::Index;
 use crate::data::OptVec;
@@ -26,31 +28,43 @@ pub use super::path::Path;
 /// (`binding`). Moreover, each query keeps list of all sheets which use this query in their
 /// expressions (`usages`). A query is considered unused and can be safely removed from the graph
 /// if no sheets use it in their expressions and it is not referred by an external, user code
-/// (`external`).
+/// (`external_count`).
 #[derive(Debug)]
 pub struct Query {
-    path     : Path,
-    index    : Index<Query>,
-    matches  : Vec<Index<Sheet>>,
-    binding  : Option<Index<Sheet>>,
-    usages   : HashSet<Index<Sheet>>,
-    external : bool,
+    path           : Path,
+    index          : Index<Query>,
+    matches        : Vec<Index<Sheet>>,
+    binding        : Option<Index<Sheet>>,
+    usages         : HashSet<Index<Sheet>>,
+    external_count : usize,
 }
 
 impl Query {
     /// Constructor.
     pub fn new(path:Path,index:Index<Query>) -> Self {
-        let matches  = default();
-        let binding  = default();
-        let usages   = default();
-        let external = false;
-        Self {path,index,matches,binding,usages,external}
+        let matches        = default();
+        let binding        = default();
+        let usages         = default();
+        let external_count = default();
+        Self {path,index,matches,binding,usages,external_count}
     }
 
     /// Checks whether the variable is being used. Please note that all external variables are
     /// considered to be used.
     pub fn is_unused(&self) -> bool {
-        !self.external && self.usages.is_empty()
+        self.external_count == 0 && self.usages.is_empty()
+    }
+
+    pub fn is_external(&self) -> bool {
+        self.external_count > 0
+    }
+
+    fn inc_external_count(&mut self) {
+        self.external_count += 1;
+    }
+
+    fn dec_external_count(&mut self) {
+        self.external_count -= 1;
     }
 }
 
@@ -245,36 +259,69 @@ use types::*;
 
 
 
-// =======================
-// === CascadingSheets ===
-// =======================
 
 
 
-#[derive(Debug)]
-pub struct RefData {
-    sheets   : CascadingSheets,
-    query_id : Index<Query>
-}
+// ===========
+// === Var ===
+// ===========
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Var {
-    rc : Rc<RefData>
+    rc : Rc<VarData>
+}
+
+#[derive(Debug)]
+pub struct VarData {
+    sheets    : CascadingSheets,
+    query_id  : Index<Query>,
+    callbacks : callback::SharedRegistryMut,
+}
+
+pub trait VarChangeCallback = 'static + FnMut();
+
+impl VarData {
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut) -> Self
+    where R:Into<CascadingSheets> {
+        let sheets = sheets.into();
+        sheets.rc.borrow_mut().queries[query_id].inc_external_count();
+        Self {sheets,query_id,callbacks}
+    }
+
+    pub fn on_change<F:VarChangeCallback>(&self, callback:F) -> callback::Handle {
+        self.callbacks.add(callback)
+    }
+}
+
+impl Drop for VarData {
+    fn drop(&mut self) {
+        self.sheets.callbacks.borrow_mut().remove(&self.query_id);
+        let sheets_data = &mut *self.sheets.rc.borrow_mut();
+        sheets_data.queries[self.query_id].dec_external_count();
+        sheets_data.drop_query_if_unused(self.query_id);
+    }
 }
 
 impl Var {
-    pub fn new<R>(sheets:R, query_id:Index<Query>) -> Self
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut) -> Self
         where R:Into<CascadingSheets> {
-        let sheets = sheets.into();
-        let data   = RefData {sheets,query_id};
-        let rc     = Rc::new(data);
+        let rc = Rc::new(VarData::new(sheets,query_id,callbacks));
         Self {rc}
     }
 }
 
+
+
+
+
+// =======================
+// === CascadingSheets ===
+// =======================
+
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct CascadingSheets {
-    rc : Rc<RefCell<CascadingSheetsData>>
+    rc        : Rc<RefCell<CascadingSheetsData>>,
+    callbacks : Rc<RefCell<HashMap<Index<Query>,callback::SharedRegistryMut>>>
 }
 
 impl CascadingSheets {
@@ -283,32 +330,25 @@ impl CascadingSheets {
     }
 
     pub fn var<P>(&self, path:P) -> Var
-        where P:Into<Path> {
-        let query_id = self.rc.borrow_mut().unmanaged_query(path);
-        Var::new(self,query_id)
+    where P:Into<Path> {
+        let query_id          = self.rc.borrow_mut().unmanaged_query(path);
+        let callback_registry = callback::SharedRegistryMut::default();
+        self.callbacks.borrow_mut().insert(query_id,callback_registry.clone_ref());
+        Var::new(self,query_id,callback_registry)
     }
+
+//    pub fn run_callbacks_for(&self, query_id:Index<Query>) {
+//        if let Some(callbacks) = self.callbacks.borrow().get(&query_id).map(|t| t.clone_ref()) {
+//            callbacks.run_all()
+//        }
+//    }
 }
 
-impl From<&CascadingSheets> for CascadingSheets {
-    fn from(t:&CascadingSheets) -> Self {
-        t.clone_ref()
-    }
-}
 
 
-
-
-
-
-
-
-
-
-
-
-// ====================
+// ===========================
 // === CascadingSheetsData ===
-// ====================
+// ===========================
 
 /// Style sheet registry. Could be named "Cascading Style Sheets" but then the name will be
 /// confusing with CSS used in web development. Defines a set of cascading style sheets. Each
@@ -343,7 +383,8 @@ impl CascadingSheetsData {
 
     /// Access variable by the given path or create new one if missing.
     ///
-    /// Implementation note: under the hood, a `Sheet` for each sub-path will be created. For
+    /// # Implementation Notes
+    /// Under the hood, a `Sheet` for each sub-path will be created. For
     /// example, when creating "panel.button.size" variable, three sheets will be created as well:
     /// "panel.button.size", "button.size", and "size". This way we keep track of all possible
     /// matches and we can create high-performance value binding algorithms.
@@ -712,7 +753,7 @@ impl CascadingSheetsData {
     fn query_map_to_graphviz(&self, dot:&mut String, path:&mut Vec<String>, query_map:&QueryMap) {
         query_map.value.for_each(|query_id| {
             let query       = &self.queries[query_id];
-            let scope     = if query.external { "External" } else { "Internal" };
+            let scope     = if query.is_external() { "External" } else { "Internal" };
             let real_path = path.iter().rev().join(".");
             dot.push_str(&iformat!("query_{query_id} [label=\"{scope} Query({real_path})\"]\n"));
         });
