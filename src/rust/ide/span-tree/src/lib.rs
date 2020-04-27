@@ -50,12 +50,6 @@ use prelude::*;
 // === Crumbs ===
 // ==============
 
-/// Crumb identifies subtree within a node. It is the index of the child node.
-pub type Crumb = usize;
-
-/// Crumbs identifying node's location in the span tree.
-pub type Crumbs = Vec<Crumb>;
-
 /// A possible connection endpoint described by span tree crumbs and ast crumbs.
 ///
 /// In case that endpoint is the span tree node, ast crumbs are empty. Otherwise, they are relative
@@ -63,7 +57,7 @@ pub type Crumbs = Vec<Crumb>;
 #[derive(Clone,Debug,Default,PartialEq,PartialOrd)]
 pub struct SplitCrumbs {
     /// Crumbs to a Span Tree leaf.
-    pub head : Crumbs,
+    pub head : Vec<usize>,
     /// Crumbs for traversing AST corresponding to the span tree leaf.
     /// Might be empty, if the span tree node corresponds to the desired AST node.
     pub tail : ast::Crumbs,
@@ -74,18 +68,19 @@ impl SplitCrumbs {
     (span_crumbs:impl IntoIterator<Item=usize>, ast_crumbs:impl ast::crumbs::IntoCrumbs)
      -> SplitCrumbs {
         SplitCrumbs {
-            head : Crumbs::from_iter(span_crumbs.into_iter()),
+            head : span_crumbs.into_iter().collect(),
             tail : ast_crumbs.into_crumbs(),
         }
     }
 
     pub fn new_span(span_crumbs:impl IntoIterator<Item=usize>) -> SplitCrumbs {
         SplitCrumbs {
-            head : Crumbs::from_iter(span_crumbs.into_iter()),
+            head : span_crumbs.into_iter().collect(),
             tail : default(),
         }
     }
 }
+
 
 
 // ================
@@ -167,7 +162,7 @@ mod test {
         };
 
         let expect_node_mismatch = |ast_crumbs:ast::Crumbs| {
-            let split_crumbs = SplitCrumbs::new(vec![],&ast_crumbs);
+            let split_crumbs = SplitCrumbs::new(vec![],ast_crumbs.iter().cloned());
             test_conversions0(ast_crumbs,split_crumbs)
         };
 

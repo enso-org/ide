@@ -21,7 +21,7 @@ use span_tree::action::{Implementation, Actions, Action};
 use crate::double_representation::node::NodeInfo;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::alias_analysis::{NormalizedName, LocatedName};
-
+use span_tree::node::parent_crumbs;
 
 
 // ==============
@@ -450,16 +450,23 @@ impl Handle {
         let destination_node_inputs = SpanTree::new(destination_ast)?;
         let destination_port = destination_node_inputs.root_ref().traverse_subnode(connection.destination.crumbs.head.clone()).unwrap();
 
-        let placeholder = Ast::var("x");
+        // parent chain
+        let mut parent_port = parent_crumbs(connection.destination.crumbs.head.clone()).map(|cr| destination_node_inputs.root_ref().traverse_subnode(cr).unwrap());
+        while parent_port.as_ref().map_or(false, |p| p.node.kind == span_tree::node::Kind::Chained) {
+            parent_port = parent_port.and_then(|p| parent_crumbs(p.crumbs).map(|cr| destination_node_inputs.root_ref().traverse_subnode(cr).unwrap()));
+        }
+        let ports_after = parent_port.map(|p| p.chain_children_iter().skip_while(|p| p.crumbs != destination_port.crumbs).skip(1));
+        let only_empty_ports_after = ports_after.map_or(true, |mut ps| ps.all(|p| p.node.is_empty()));
+
         let replaced_destination = if connection.destination.crumbs.tail.is_empty() {
-            if destination_port.is_action_available(Action::Erase) {
+            if destination_port.is_action_available(Action::Erase) && only_empty_ports_after {
                 destination_port.erase(destination_ast)
             } else {
-                destination_port.set(destination_ast,placeholder)
+                destination_port.set(destination_ast,Ast::blank())
             }
         } else {
             let crumbs = destination_port.ast_crumbs.iter().chain(connection.destination.crumbs.tail.iter()).cloned().collect_vec();
-            destination_ast.set_traversing(&crumbs,placeholder)
+            destination_ast.set_traversing(&crumbs,Ast::blank())
         }?;
 
         self.set_expression_ast(destination_node.id(),replaced_destination)
@@ -942,19 +949,48 @@ main =
 
     #[wasm_bindgen_test]
     fn disconnect() {
-        let mut test  = GraphControllerFixture::set_up();
-        const PROGRAM:&str = r"main =
-    from = 3 + 4
-    to   = foo from";
-        const EXPECTED:&str = r"main =
-    from = 3 + 4
-    to   = foo x";
-        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
-            let connections = graph.connections().unwrap();
-            let connection = connections.connections.first().unwrap();
+        #[derive(Clone,Debug)]
+        struct Case {
+            dest_node_expr     : &'static str,
+            dest_node_expected : &'static str,
+        }
 
-            graph.disconnect(connection).unwrap();
-            assert_eq!(EXPECTED, graph.graph_definition_info().unwrap().ast.repr());
-        })
+        impl Case {
+            fn run(&self) {
+                let mut test  = GraphControllerFixture::set_up();
+                const MAIN_PREFIX:&str = "main = \n    in = foo\n    ";
+                let main     = format!("{}{}",MAIN_PREFIX,self.dest_node_expr);
+                let expected = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
+                let this     = self.clone();
+
+                test.run_graph_for_main(main,"main",|_,graph| async move {
+                    let connections = graph.connections().unwrap();
+                    let connection  = connections.connections.first().unwrap();
+                    graph.disconnect(connection).unwrap();
+                    let new_main = graph.graph_definition_info().unwrap().ast.repr();
+                    assert_eq!(new_main,expected,"Case {:?}",this);
+                })
+            }
+        }
+
+        let cases = &
+            [ Case {dest_node_expr:"foo in"             , dest_node_expected:"foo _"              }
+            , Case {dest_node_expr:"foo in a"           , dest_node_expected:"foo _ a"            }
+            , Case {dest_node_expr:"foo a in"           , dest_node_expected:"foo a"              }
+            , Case {dest_node_expr:"in + a"             , dest_node_expected:"_ + a"              }
+            , Case {dest_node_expr:"a + in"             , dest_node_expected:"a + _"              }
+            , Case {dest_node_expr:"in + b + c"         , dest_node_expected:"_ + b + c"          }
+            , Case {dest_node_expr:"a + in + c"         , dest_node_expected:"a + _ + c"          }
+            , Case {dest_node_expr:"a + b + in"         , dest_node_expected:"a + b"              }
+            , Case {dest_node_expr:"in , a"             , dest_node_expected:"_ , a"              }
+            , Case {dest_node_expr:"a , in"             , dest_node_expected:"a , _"              }
+            , Case {dest_node_expr:"in , b , c"         , dest_node_expected:"_ , b , c"          }
+            , Case {dest_node_expr:"a , in , c"         , dest_node_expected:"a , _ , c"          }
+            , Case {dest_node_expr:"a , b , in"         , dest_node_expected:"a , b"              }
+            , Case {dest_node_expr:"f\n        bar a in", dest_node_expected: "f\n        bar a _"}
+            ];
+        for case in cases {
+            case.run();
+        }
     }
 }

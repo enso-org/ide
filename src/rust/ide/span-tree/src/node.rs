@@ -14,6 +14,8 @@ use crate::SplitCrumbs;
 // === Helper Types ===
 // ====================
 
+// === Kind ===
+
 /// An enum describing kind of node.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum Kind {
@@ -44,11 +46,21 @@ pub enum Kind {
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum InsertType {BeforeTarget,AfterTarget,Append}
 
+
+// === Crumbs ===
+
+pub type Crumb = usize;
+
 /// A type which identifies some node in SpanTree. This is essentially a iterator over child
 /// indices, so `[4]` means _root's fifth child_, `[4, 2]`means _the third child of root's fifth
 /// child_ and so on.
-pub trait Crumbs = IntoIterator<Item=usize>;
+pub trait Crumbs = IntoIterator<IntoIter:DoubleEndedIterator, Item=usize>;
 
+/// Convert crumbs to crumbs pointing to a parent.
+pub fn parent_crumbs(crumbs:impl Crumbs) -> Option<impl Crumbs> {
+    let mut iter = crumbs.into_iter();
+    iter.next_back().map(|_| iter)
+}
 
 // === Node ===
 

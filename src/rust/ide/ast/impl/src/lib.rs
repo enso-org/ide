@@ -1115,6 +1115,11 @@ impl Ast {
     // TODO smart constructors for other cases
     //  as part of https://github.com/luna/enso/issues/338
 
+    /// Creates Blank ast node (underscore).
+    pub fn blank() -> Ast {
+        Ast::from(Blank{})
+    }
+
     /// Creates an Ast node with Number inside.
     pub fn number(number:i64) -> Ast {
         let number = Number {base:None,int:number.to_string()};
