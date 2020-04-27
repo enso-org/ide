@@ -17,7 +17,7 @@ use crate::notification;
 use ast::crumbs::InfixCrumb;
 use parser::Parser;
 use span_tree::{SpanTree, SplitCrumbs};
-use span_tree::action::Implementation;
+use span_tree::action::{Implementation, Actions, Action};
 use crate::double_representation::node::NodeInfo;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::alias_analysis::{NormalizedName, LocatedName};
@@ -429,20 +429,40 @@ impl Handle {
 
         let destination_node = self.node_info(connection.destination.node)?;
         let destination_ast = destination_node.expression();
-        let destination_node_outputs = SpanTree::new(destination_ast)?;
-        let destination_port = destination_node_outputs.root_ref().traverse_subnode(connection.destination.crumbs.head.clone()).unwrap();
+        let destination_node_inputs = SpanTree::new(destination_ast)?;
+        let destination_port = destination_node_inputs.root_ref().traverse_subnode(connection.destination.crumbs.head.clone()).unwrap();
         let destination_crumbs = &destination_port.ast_crumbs; // destination_node_outputs.convert_to_ast_crumbs(&connection.destination.crumbs).unwrap();
         let destination_identifier = destination_ast.get_traversing(destination_crumbs)?;
 
-        let setter  = destination_port.set_impl().unwrap();
-        let replaced_destination = setter(destination_ast,source_identifier.clone()).unwrap();
-        let new_expression = replaced_destination;// destination_ast.set_traversing(destination_crumbs,replaced_destination).unwrap();
+        let replaced_destination = destination_port.set(destination_ast,source_identifier.clone()).unwrap();
+        let new_expression = replaced_destination;
 
 
         println!("Connecting from {} to {}", source_identifier.repr(), destination_identifier.repr());
         println!("New expression {}: ", new_expression.repr());
 
         self.set_expression_ast(destination_node.id(),new_expression)
+    }
+
+    pub fn disconnect(&self, connection:&Connection) -> FallibleResult<()> {
+        let destination_node = self.node_info(connection.destination.node)?;
+        let destination_ast = destination_node.expression();
+        let destination_node_inputs = SpanTree::new(destination_ast)?;
+        let destination_port = destination_node_inputs.root_ref().traverse_subnode(connection.destination.crumbs.head.clone()).unwrap();
+
+        let placeholder = Ast::var("x");
+        let replaced_destination = if connection.destination.crumbs.tail.is_empty() {
+            if destination_port.is_action_available(Action::Erase) {
+                destination_port.erase(destination_ast)
+            } else {
+                destination_port.set(destination_ast,placeholder)
+            }
+        } else {
+            let crumbs = destination_port.ast_crumbs.iter().chain(connection.destination.crumbs.tail.iter()).collect_vec();
+            destination_ast.set_traversing(crumbs,placeholder)
+        }?;
+
+        self.set_expression_ast(destination_node.id(),replaced_destination)
     }
 
     /// Updates the AST of the definition of this graph.
@@ -918,5 +938,25 @@ main =
             let name = Handle::variable_name_base_for(&node);
             assert_eq!(&name,expected_name);
         }
+    }
+
+    #[wasm_bindgen_test]
+    fn disconnect() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    from = 3 + 4
+    to   = foo from";
+        const EXPECTED:&str = r"
+main =
+    from = 3 + 4
+    to   = foo x";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            let connections = graph.connections().unwrap();
+            let connection = connections.connections.first().unwrap();
+
+            graph.disconnect(connection).unwrap();
+            assert_eq!(EXPECTED, graph.graph_definition_info().unwrap().ast.repr());
+        })
     }
 }
