@@ -11,35 +11,35 @@ pub use super::path::Path;
 
 
 
-// ===========
-// === Var ===
-// ===========
+// =============
+// === Query ===
+// =============
 
-/// Data of a style variable. Variables are associated with a style path like 'panel.button.size'
-/// and are automatically bound to the most specific style sheet as soon as it gets defined. By
-/// most specific, we mean the one with the longest path. For example, the 'panel.button.size' var
-/// will be bound to one of 'panel.button.size', 'button.size', or 'size' if defined, in that order.
+/// Pointer to a sheet. Always bound to the most specific style sheet matching the query. For
+/// example, the query 'panel.button.size' will be bound to 'panel.button.size', 'button.size', or
+/// 'size' in that order.
+///
+/// # Implementation Details
+/// Each query keeps a list of all style sheets which match this query (`matches`). For example,
+/// the query 'panel.button.size' contains three matches - 'panel.button.size', 'button.size', and
+/// 'size'. The longest match with a defined value is considered the best match and is remembered
+/// (`binding`). Moreover, each query keeps list of all sheets which use this query in their
+/// expressions (`usages`). A query is considered unused and can be safely removed from the graph
+/// if no sheets use it in their expressions and it is not referred by an external, user code
+/// (`external`).
 #[derive(Debug)]
-pub struct Var {
-    /// Path of the var.
-    path : Path,
-    /// Index of the var in the style var registry.
-    index : Index<Var>,
-    /// Set of all `Sheet` indexes which are potential matches of this var. For example, for a var
-    /// 'panel.button.size', all of the following sheets will be included here: 'panel.button.size',
-    /// 'button.size', and 'size'.
-    matches : Vec<Index<Sheet>>,
-    /// Index of the most specific `Sheet` from `matches` which has a defined value if any.
-    binding : Option<Index<Sheet>>,
-    /// List of all `Sheet`s which use this var in their expressions.
-    usages : HashSet<Index<Sheet>>,
-    /// Indicates whether the variable is used externally or only for the needs of expressions.
+pub struct Query {
+    path     : Path,
+    index    : Index<Query>,
+    matches  : Vec<Index<Sheet>>,
+    binding  : Option<Index<Sheet>>,
+    usages   : HashSet<Index<Sheet>>,
     external : bool,
 }
 
-impl Var {
+impl Query {
     /// Constructor.
-    pub fn new(path:Path,index:Index<Var>) -> Self {
+    pub fn new(path:Path,index:Index<Query>) -> Self {
         let matches  = default();
         let binding  = default();
         let usages   = default();
@@ -60,25 +60,24 @@ impl Var {
 // === Sheet ===
 // =============
 
-/// A node in the style sheet tree. Style sheets are associated with a style path like
-/// 'panel.button.size' and each node keeps a `Data` value. The value can either be set explicitly,
-/// or computed automatically if the style sheet is defined with a `BoundExpression`. Please note
-/// that although `Sheet` contains a single value, it is in fact a node in a tree defined in
-/// `RegistryData`, so it can be interpreted as a set of hierarchical values instead.
+/// A style sheet tree node. Each sheet is associated with a style path like 'panel.button.size' and
+/// contains a `Data` value. The value can either be set explicitly, or computed automatically if
+/// the sheet is assigned with `Expression`. Please note that although `Sheet` technically contains
+/// a single value, it is a node in a style sheet tree defined in `RegistryData`, and it can be
+/// interpreted as a set of hierarchical values instead.
+///
+/// # Implementation Details
+/// Each sheet keeps list of all queries which match this sheet (`matches`). It also keeps list of
+/// all queries which were bound to this sheet (`bindings`). To learn more about matches and
+/// bindings see the `Query` docs.
 #[derive(Debug)]
 pub struct Sheet {
-    /// Path of the sheet.
-    path : Path,
-    /// Index of the style sheet in the style sheet registry.
-    index : Index<Sheet>,
-    /// Value of this style sheet node. Style sheets without value behave like if they do not exist.
-    value : Option<Data>,
-    /// Expression used to update the value.
-    expr : Option<BoundExpression>,
-    /// Indexes of all `Var`s that are potential matches with this style sheet.
-    matches : HashSet<Index<Var>>,
-    /// Indexes of all `Var`s that are bound (best matches) with this style sheet.
-    bindings : HashSet<Index<Var>>,
+    path     : Path,
+    index    : Index<Sheet>,
+    value    : Option<Data>,
+    expr     : Option<BoundExpression>,
+    matches  : HashSet<Index<Query>>,
+    bindings : HashSet<Index<Query>>,
 }
 
 impl Sheet {
@@ -105,33 +104,11 @@ impl Sheet {
 
 
 
-// =======================
-// === BoundExpression ===
-// =======================
-
-/// Expression of a style sheet bound to specific variable indexes.
-#[derive(Derivative)]
-#[derivative(Clone,Debug)]
-pub struct BoundExpression {
-    /// Indexes of all vars which are used as sources to the function of this expression.
-    args : Vec<Index<Var>>,
-    /// Function used to compute the new value of the style sheet.
-    #[derivative(Debug="ignore")]
-    function : Rc<dyn Fn(&[&Data])->Data>
-}
-
-impl BoundExpression {
-    pub fn new(args:Vec<Index<Var>>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
-        Self {args,function}
-    }
-}
-
-
-
 // ==================
 // === Expression ===
 // ==================
 
+/// Style sheet expression declaration.
 #[derive(Clone)]
 pub struct Expression {
     pub args     : Vec<Path>,
@@ -139,8 +116,9 @@ pub struct Expression {
 }
 
 impl Expression {
+    /// Constructor.
     pub fn new<A,I,F>(args:A, function:F) -> Self
-    where A:IntoIterator<Item=I>, I:Into<Path>, F:'static+Fn(&[&Data])->Data {
+        where A:IntoIterator<Item=I>, I:Into<Path>, F:'static+Fn(&[&Data])->Data {
         let args     = args.into_iter().map(|t|t.into()).collect_vec();
         let function = Rc::new(function);
         Self {args,function}
@@ -161,11 +139,39 @@ impl PartialEq for Expression {
 
 
 
+// =======================
+// === BoundExpression ===
+// =======================
+
+/// Style sheet expression bound to specific queries, being arguments of this expression.
+#[derive(Clone)]
+pub struct BoundExpression {
+    args     : Vec<Index<Query>>,
+    function : Rc<dyn Fn(&[&Data])->Data>
+}
+
+impl BoundExpression {
+    /// Constructor.
+    pub fn new(args:Vec<Index<Query>>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
+        Self {args,function}
+    }
+}
+
+impl Debug for BoundExpression {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"BoundExpression")
+    }
+}
+
+
+
 // =============
 // === Value ===
 // =============
 
+/// A style sheet value declaration.
 #[derive(Clone,Debug,PartialEq)]
+#[allow(missing_docs)]
 pub enum Value {
     Data       (Data),
     Expression (Expression)
@@ -196,16 +202,19 @@ impl Semigroup for Value {
 
 
 
-// =============
-// === Value ===
-// =============
+// ==============
+// === Change ===
+// ==============
 
+/// Defines a change to a style sheet. Style sheets allow bulk-application of changes in order to
+/// optimize the amount of necessary computations under the hood.
 pub struct Change {
     path  : Path,
     value : Option<Value>
 }
 
 impl Change {
+    /// Constructor.
     pub fn new<P>(path:P, value:Option<Value>) -> Self
     where P:Into<Path> {
         let path = path.into();
@@ -224,9 +233,9 @@ impl Change {
 #[allow(missing_docs)]
 mod types {
     use super::*;
-    pub type VarVec   = OptVec<Var,Index<Var>>;
+    pub type VarVec   = OptVec<Query,Index<Query>>;
     pub type SheetVec = OptVec<Sheet,Index<Sheet>>;
-    pub type VarMap   = HashMapTree<String,Option<Index<Var>>>;
+    pub type VarMap   = HashMapTree<String,Option<Index<Query>>>;
     pub type SheetMap = HashMapTree<String,Index<Sheet>>;
 }
 use types::*;
@@ -241,7 +250,7 @@ use types::*;
 /// confusing with CSS used in web development. Defines a set of cascading style sheets. Each
 /// style sheet can be assigned with a value of type `Data` or an expression to compute one. It
 /// also allows creating variables which are automatically bound to the most specific style sheet.
-/// See `Var` and `Sheet` to learn more.
+/// See `Query` and `Sheet` to learn more.
 #[derive(Debug)]
 pub struct RegistryData {
     /// Set of all variables.
@@ -274,7 +283,7 @@ impl RegistryData {
     /// example, when creating "panel.button.size" variable, three sheets will be created as well:
     /// "panel.button.size", "button.size", and "size". This way we keep track of all possible
     /// matches and we can create high-performance value binding algorithms.
-    pub fn unmanaged_var<P:Into<Path>>(&mut self, path:P) -> Index<Var> {
+    pub fn unmanaged_var<P:Into<Path>>(&mut self, path:P) -> Index<Query> {
         let path         = path.into();
         let vars         = &mut self.vars;
         let sheets       = &mut self.sheets;
@@ -289,7 +298,7 @@ impl RegistryData {
         var_matches.reverse();
 
         let var_id       = *var_map_node.value_or_set_with(|| {
-            vars.insert_with_ix(move |ix| Var::new(path,ix))
+            vars.insert_with_ix(move |ix| Query::new(path,ix))
         });
 
         for sheet_id in &var_matches {
@@ -317,7 +326,7 @@ impl RegistryData {
 
 impl RegistryData {
     /// Reads the value of the variable.
-    pub fn var_value(&self, var_id:Index<Var>) -> Option<&Data> {
+    pub fn var_value(&self, var_id:Index<Query>) -> Option<&Data> {
         self.vars.safe_index(var_id).as_ref().and_then(|var| {
             var.binding.and_then(|sheet_id| {
                 self.sheets[sheet_id].value.as_ref()
@@ -363,34 +372,34 @@ impl RegistryData {
 
 impl RegistryData {
     /// Sets the value by the given path. Returns indexes of all affected variables.
-    pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet::<Index<Var>>
+    pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet::<Index<Query>>
     where P:Into<Path>, V:Into<Value> {
         let value = value.into();
         self.apply_change(Change::new(path,Some(value)))
     }
 
     /// Removes the value by the given path. Returns indexes of all affected variables.
-    pub fn unset<P>(&mut self, path:P) -> HashSet::<Index<Var>>
+    pub fn unset<P>(&mut self, path:P) -> HashSet::<Index<Query>>
     where P:Into<Path> {
         self.apply_change(Change::new(path,None))
     }
 
     /// Changes the value by the given path. Providing `None` as the value means that the value
     /// will be removed. Returns indexes of all affected variables.
-    pub fn change<P>(&mut self, path:P, value:Option<Value>) -> HashSet::<Index<Var>>
+    pub fn change<P>(&mut self, path:P, value:Option<Value>) -> HashSet::<Index<Query>>
     where P:Into<Path> {
         self.apply_change(Change::new(path,value))
     }
 
     /// Apply a `Change`. Returns indexes of all affected variables.
-    pub fn apply_change(&mut self, change:Change) -> HashSet::<Index<Var>> {
+    pub fn apply_change(&mut self, change:Change) -> HashSet::<Index<Query>> {
         self.apply_changes(iter::once(change))
     }
 
     /// Apply a set of `Change`s. Returns indexes of all affected variables.
-    pub fn apply_changes<I>(&mut self, changes:I) -> HashSet::<Index<Var>>
+    pub fn apply_changes<I>(&mut self, changes:I) -> HashSet::<Index<Query>>
     where I:IntoIterator<Item=Change> {
-        let mut changed          = HashSet::<Index<Var>>::new();
+        let mut changed          = HashSet::<Index<Query>>::new();
         let mut possible_orphans = Vec::<Index<Sheet>>::new();
         let sheets_iter = changes.into_iter().map(|change| {
             let sheet_id = self.sheet(change.path);
@@ -470,7 +479,7 @@ impl RegistryData {
 impl RegistryData {
     /// Check all potential candidates (sheets) this variable matches to and choose the most
     /// specific one from those which exist (have a value). Returns true if the var was rebound.
-    fn rebind_var(&mut self, var_id:Index<Var>) -> bool {
+    fn rebind_var(&mut self, var_id:Index<Query>) -> bool {
         let mut rebound = false;
         let mut found   = false;
         let var         = &self.vars[var_id];
@@ -493,7 +502,7 @@ impl RegistryData {
         if found { rebound } else { self.unbind_var(var_id) }
     }
 
-    fn drop_var_if_unused(&mut self, var_id:Index<Var>) {
+    fn drop_var_if_unused(&mut self, var_id:Index<Query>) {
         let var_ref = &self.vars[var_id];
         if var_ref.is_unused() {
             if let Some(var) = self.vars.remove(var_id) {
@@ -531,7 +540,7 @@ impl RegistryData {
 
     /// Removes all binding information from var and related style sheets. Returns true if var
     /// needed rebound.
-    fn unbind_var(&mut self, var_id:Index<Var>) -> bool {
+    fn unbind_var(&mut self, var_id:Index<Query>) -> bool {
         let var = &mut self.vars[var_id];
         match var.binding {
             None => false,
@@ -641,7 +650,7 @@ impl RegistryData {
             let var       = &self.vars[var_id];
             let scope     = if var.external { "External" } else { "Internal" };
             let real_path = path.iter().rev().join(".");
-            dot.push_str(&iformat!("var_{var_id} [label=\"{scope} Var({real_path})\"]\n"));
+            dot.push_str(&iformat!("var_{var_id} [label=\"{scope} Query({real_path})\"]\n"));
         });
         for (segment,child) in &var_map.branches {
             path.push(segment.into());
@@ -650,12 +659,12 @@ impl RegistryData {
         }
     }
 
-    fn var_sheet_link<S>(dot:&mut String, var_id:Index<Var>, sheet_id:Index<Sheet>, s:S)
+    fn var_sheet_link<S>(dot:&mut String, var_id:Index<Query>, sheet_id:Index<Sheet>, s:S)
     where S:Into<String> {
         Self::link(dot,"var","sheet",var_id,sheet_id,s)
     }
 
-    fn sheet_var_link<S>(dot:&mut String, sheet_id:Index<Sheet>, var_id:Index<Var>, s:S)
+    fn sheet_var_link<S>(dot:&mut String, sheet_id:Index<Sheet>, var_id:Index<Query>, s:S)
     where S:Into<String> {
         Self::link(dot,"sheet","var",sheet_id,var_id,s)
     }
@@ -683,16 +692,16 @@ impl Default for RegistryData {
 #[derive(Debug)]
 pub struct RefData {
     registry : Registry,
-    var_id   : Index<Var>
+    var_id   : Index<Query>
 }
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct Ref {
+pub struct Var {
     rc : Rc<RefData>
 }
 
-impl Ref {
-    pub fn new<R>(registry:R, var_id:Index<Var>) -> Self
+impl Var {
+    pub fn new<R>(registry:R, var_id:Index<Query>) -> Self
     where R:Into<Registry> {
         let registry = registry.into();
         let data     = RefData {registry,var_id};
@@ -711,10 +720,10 @@ impl Registry {
         default()
     }
 
-    pub fn var<P>(&self, path:P) -> Ref
+    pub fn var<P>(&self, path:P) -> Var
     where P:Into<Path> {
         let var_id = self.rc.borrow_mut().unmanaged_var(path);
-        Ref::new(self,var_id)
+        Var::new(self,var_id)
     }
 }
 
