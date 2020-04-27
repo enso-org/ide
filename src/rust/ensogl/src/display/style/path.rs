@@ -35,6 +35,11 @@ impl Path {
         let rev_segments = t.into_iter().map(|s|s.to_string()).collect();
         Self {rev_segments}
     }
+
+    pub fn empty() -> Self {
+        let rev_segments = default();
+        Self {rev_segments}
+    }
 }
 
 impl From<&str> for Path {

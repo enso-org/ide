@@ -88,6 +88,39 @@ where K : Eq+Hash,
         self.get_node_with(path,default)
     }
 
+    #[inline]
+    pub fn get_node_mut<P,I>(&mut self, segments:P) -> Option<&mut HashMapTree<K,T,S>>
+        where P:IntoIterator<Item=I>, I:Into<K> {
+        segments.into_iter().fold(Some(self),|map,t| {
+            map.and_then(|m| {
+                let key = t.into();
+                m.branches.get_mut(&key)
+            })
+        })
+    }
+
+    #[inline]
+    pub fn get_node2<P,I>(&self, segments:P) -> Option<&HashMapTree<K,T,S>>
+        where P:IntoIterator<Item=I>, I:Into<K> {
+        segments.into_iter().fold(Some(self),|map,t| {
+            map.and_then(|m| {
+                let key = t.into();
+                m.branches.get(&key)
+            })
+        })
+    }
+
+    #[inline]
+    pub fn remove<P,I>(&mut self, segments:P) -> Option<T>
+    where P:IntoIterator<Item=I>, I:Into<K> {
+        let mut segments = segments.into_iter().map(|t|t.into()).collect_vec();
+        segments.pop().and_then(|last| {
+            self.get_node_mut(segments).and_then(|node| {
+                node.branches.remove(&last).map(|branch| branch.value)
+            })
+        })
+    }
+
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
     /// the branch does not exist, uses `cons` to construct it. Returns mutable reference to the
     /// target tree node.
@@ -102,11 +135,29 @@ where K : Eq+Hash,
     /// the `callback` is evaluated. Returns mutable reference to the target tree node.
     #[inline]
     pub fn get_node_traversing_with<P,I,F,M>
-    (&mut self, path:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T,S>
+    (&mut self, segments:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T,S>
     where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T, M:FnMut(&mut HashMapTree<K,T,S>) {
-        path.into_iter().fold(self,|map,t| {
+        segments.into_iter().fold(self,|map,t| {
             let key  = t.into();
             let node = map.branches.entry(key).or_insert_with(|| HashMapTree::from_value(cons()));
+            callback(node);
+            node
+        })
+    }
+
+    #[inline]
+    pub fn get_node_path_traversing_with<P,I,F,M>
+    (&mut self, segments:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T,S>
+    where K : Clone,
+          P : IntoIterator<Item=I>,
+          I : Into<K>,
+          F : FnMut(&[K])->T,
+          M : FnMut(&mut HashMapTree<K,T,S>) {
+        let mut path = Vec::new();
+        segments.into_iter().fold(self,|map,t| {
+            let key  = t.into();
+            path.push(key.clone());
+            let node = map.branches.entry(key).or_insert_with(|| HashMapTree::from_value(cons(&path)));
             callback(node);
             node
         })

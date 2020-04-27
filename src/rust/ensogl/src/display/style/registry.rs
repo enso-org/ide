@@ -21,7 +21,9 @@ pub use super::path::Path;
 /// will be bound to one of 'panel.button.size', 'button.size', or 'size' if defined, in that order.
 #[derive(Debug)]
 pub struct Var {
-    /// Index of the var in the style var map.
+    /// Path of the var.
+    path : Path,
+    /// Index of the var in the style var registry.
     index : Index<Var>,
     /// Set of all `Sheet` indexes which are potential matches of this var. For example, for a var
     /// 'panel.button.size', all of the following sheets will be included here: 'panel.button.size',
@@ -31,15 +33,24 @@ pub struct Var {
     binding : Option<Index<Sheet>>,
     /// List of all `Sheet`s which use this var in their expressions.
     usages : HashSet<Index<Sheet>>,
+    /// Indicates whether the variable is used externally or only for the needs of expressions.
+    external : bool,
 }
 
 impl Var {
     /// Constructor.
-    pub fn new(index:Index<Var>) -> Self {
-        let matches = default();
-        let binding = default();
-        let usages  = default();
-        Self {index,matches,binding,usages}
+    pub fn new(path:Path,index:Index<Var>) -> Self {
+        let matches  = default();
+        let binding  = default();
+        let usages   = default();
+        let external = false;
+        Self {path,index,matches,binding,usages,external}
+    }
+
+    /// Checks whether the variable is being used. Please note that all external variables are
+    /// considered to be used.
+    pub fn is_unused(&self) -> bool {
+        !self.external && self.usages.is_empty()
     }
 }
 
@@ -56,7 +67,9 @@ impl Var {
 /// `RegistryData`, so it can be interpreted as a set of hierarchical values instead.
 #[derive(Debug)]
 pub struct Sheet {
-    /// Index of the style sheet in the style sheet map.
+    /// Path of the sheet.
+    path : Path,
+    /// Index of the style sheet in the style sheet registry.
     index : Index<Sheet>,
     /// Value of this style sheet node. Style sheets without value behave like if they do not exist.
     value : Option<Data>,
@@ -70,12 +83,12 @@ pub struct Sheet {
 
 impl Sheet {
     /// Constructor.
-    pub fn new(index:Index<Sheet>) -> Self {
+    pub fn new(path:Path, index:Index<Sheet>) -> Self {
         let value    = default();
         let expr     = default();
         let matches  = default();
         let bindings = default();
-        Self {index,value,expr,matches,bindings}
+        Self {path,index,value,expr,matches,bindings}
     }
 
     /// Checks whether the style sheet exist. Style sheets without value are considered templates
@@ -83,7 +96,13 @@ impl Sheet {
     pub fn exists(&self) -> bool {
         self.value.is_some()
     }
+
+    /// Checks whether the sheet is being used.
+    pub fn is_unused(&self) -> bool {
+        self.matches.is_empty() && self.value.is_none()
+    }
 }
+
 
 
 // =======================
@@ -209,22 +228,6 @@ mod types {
 }
 use types::*;
 
-trait NewInstance<K> {
-    fn new_instance(&mut self) -> K;
-}
-
-impl NewInstance<Index<Var>> for VarVec {
-    fn new_instance(&mut self) -> Index<Var> {
-        self.insert_with_ix(Var::new)
-    }
-}
-
-impl NewInstance<Index<Sheet>> for SheetVec {
-    fn new_instance(&mut self) -> Index<Sheet> {
-        self.insert_with_ix(Sheet::new)
-    }
-}
-
 
 
 // ====================
@@ -257,7 +260,7 @@ impl RegistryData {
         let vars          = default();
         let mut sheets    = OptVec::<Sheet,Index<Sheet>>::new();
         let var_map       = default();
-        let root_sheet_id = sheets.new_instance();
+        let root_sheet_id = sheets.insert_with_ix(|ix| Sheet::new(Path::empty(),ix));
         let sheet_map     = SheetMap::from_value(root_sheet_id);
         Self {vars,sheets,var_map,sheet_map}
     }
@@ -273,13 +276,19 @@ impl RegistryData {
         let vars         = &mut self.vars;
         let sheets       = &mut self.sheets;
         let var_map_node = self.var_map.get_node(&path.rev_segments);
-        let var_id       = *var_map_node.value_or_set_with(||vars.new_instance());
+
 
         let mut var_matches = Vec::new();
-        self.sheet_map.get_node_traversing_with(&path.rev_segments,||{sheets.new_instance()}, |t| {
+        self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
+            sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
+        }, |t| {
             var_matches.push(t.value)
         });
         var_matches.reverse();
+
+        let var_id       = *var_map_node.value_or_set_with(|| {
+            vars.insert_with_ix(move |ix| Var::new(path,ix))
+        });
 
         for sheet_id in &var_matches {
             self.sheets[*sheet_id].matches.insert(var_id);
@@ -294,7 +303,9 @@ impl RegistryData {
     fn sheet<P:Into<Path>>(&mut self, path:P) -> Index<Sheet> {
         let path   = path.into();
         let sheets = &mut self.sheets;
-        let node   = self.sheet_map.get_node_with(&path.rev_segments,|| sheets.new_instance());
+        let node   = self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
+            sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
+        }, |_| {});
         node.value
     }
 }
@@ -356,7 +367,8 @@ impl RegistryData {
     /// Set or remove a several style sheet values. Returns indexes of all affected variables.
     pub fn change_values<I>(&mut self, changes:I) -> HashSet::<Index<Var>>
     where I:IntoIterator<Item=Change> {
-        let mut changed = HashSet::<Index<Var>>::new();
+        let mut changed          = HashSet::<Index<Var>>::new();
+        let mut possible_orphans = Vec::<Index<Sheet>>::new();
         let sheets_iter = changes.into_iter().map(|change| {
             let sheet_id = self.sheet(change.path);
             let sheet    = &mut self.sheets[sheet_id];
@@ -366,20 +378,23 @@ impl RegistryData {
             if let Some(expr) = opt_expr {
                 for var_id in expr.args {
                     self.vars[var_id].usages.remove(&sheet_id);
+                    self.drop_var_if_unused(var_id);
                 }
             }
 
             // Set new value and rebind variables.
+            let sheet = &mut self.sheets[sheet_id];
             match change.value {
                 None => {
                     let needs_rebind = sheet.value.is_some();
-                    sheet.value      = None;
                     if needs_rebind {
+                        sheet.value = None;
                         for var_id in sheet.bindings.clone() {
                             if self.rebind_var(var_id) {
                                 changed.insert(var_id);
                             }
                         }
+                        possible_orphans.push(sheet_id);
                     }
                 },
                 Some(value) => {
@@ -418,6 +433,10 @@ impl RegistryData {
             self.recompute(sheet_id);
         }
 
+        for sheet_id in possible_orphans {
+            self.drop_sheet_if_unused(sheet_id);
+        }
+
         changed
     }
 }
@@ -450,6 +469,42 @@ impl RegistryData {
         }
         if found { rebound } else { self.unbind_var(var_id) }
     }
+
+    fn drop_var_if_unused(&mut self, var_id:Index<Var>) {
+        let var_ref = &self.vars[var_id];
+        if var_ref.is_unused() {
+            if let Some(var) = self.vars.remove(var_id) {
+                let node = self.var_map.get_node(&var.path.rev_segments);
+                node.value = None;
+                for sheet_id in var.matches {
+                    let sheet = &mut self.sheets[sheet_id];
+                    sheet.matches.remove(&var_id);
+                    sheet.bindings.remove(&var_id);
+                    self.drop_sheet_if_unused(sheet_id);
+                }
+            }
+        }
+    }
+
+    fn drop_sheet_if_unused(&mut self, sheet_id:Index<Sheet>) {
+        let mut segments = self.sheets[sheet_id].path.rev_segments.clone();
+        loop {
+            if segments.is_empty() { break }
+            if let Some(node) = self.sheet_map.get_node2(&segments) {
+                let no_children = node.branches.is_empty();
+                let sheet_id    = node.value;
+                let unused      = self.sheets[sheet_id].is_unused();
+                if no_children && unused {
+                    self.sheets.remove(sheet_id);
+                    self.sheet_map.remove(&segments);
+                    segments.pop();
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
 
     /// Removes all binding information from var and related style sheets. Returns true if var
     /// needed rebound.
@@ -529,8 +584,8 @@ impl RegistryData {
     /// display it in a new browser tab.
     pub fn to_graphviz(&self) -> String {
         let mut dot = String::new();
-        Self::sheet_map_to_graphviz(&mut dot,&self.sheet_map);
-        Self::var_map_to_graphviz(&mut dot,&mut vec![],&self.var_map);
+        self.sheet_map_to_graphviz(&mut dot,&self.sheet_map);
+        self.var_map_to_graphviz(&mut dot,&mut vec![],&self.var_map);
         let s = &mut dot;
         for var in &self.vars {
             for sheet in &var.matches {Self::var_sheet_link(s,var.index,*sheet,"[style=dashed]")}
@@ -547,23 +602,28 @@ impl RegistryData {
         format!("digraph G {{\nnode [shape=box style=rounded]\n{}\n}}",dot)
     }
 
-    fn sheet_map_to_graphviz(dot:&mut String, sheet_map:&SheetMap) {
+    fn sheet_map_to_graphviz(&self, dot:&mut String, sheet_map:&SheetMap) {
         let sheet_id = sheet_map.value;
-        dot.push_str(&iformat!("sheet_{sheet_id}\n"));
+        let sheet    = &self.sheets[sheet_id];
+        let value    = format!("{:?}",sheet.value);
+        dot.push_str(&iformat!("sheet_{sheet_id} [label=\"sheet_{sheet_id}({value})\"]\n"));
+//        dot.push_str(&iformat!("sheet_{sheet_id}\n"));
         for (path,child) in &sheet_map.branches {
             Self::sheet_sheet_link(dot,sheet_id,child.value,iformat!("[label=\"{path}\"]"));
-            Self::sheet_map_to_graphviz(dot,child);
+            self.sheet_map_to_graphviz(dot,child);
         }
     }
 
-    fn var_map_to_graphviz(dot:&mut String, path:&mut Vec<String>, var_map:&VarMap) {
+    fn var_map_to_graphviz(&self, dot:&mut String, path:&mut Vec<String>, var_map:&VarMap) {
         var_map.value.for_each(|var_id| {
+            let var       = &self.vars[var_id];
+            let scope     = if var.external { "External" } else { "Internal" };
             let real_path = path.iter().rev().join(".");
-            dot.push_str(&iformat!("var_{var_id} [label=\"Var({real_path})\"]\n"));
+            dot.push_str(&iformat!("var_{var_id} [label=\"{scope} Var({real_path})\"]\n"));
         });
         for (segment,child) in &var_map.branches {
             path.push(segment.into());
-            Self::var_map_to_graphviz(dot,path,child);
+            self.var_map_to_graphviz(dot,path,child);
             path.pop();
         }
     }
@@ -619,29 +679,25 @@ impl Registry {
 pub fn test() {
     let mut style = RegistryData::new();
 
-    let var_size              = style.unmanaged_var("size");
-    let var_button_size       = style.unmanaged_var("button.size");
-    let var_graph_button_size = style.unmanaged_var("graph.button.size");
-    let _var = style.unmanaged_var("scene.background.color");
-    let _var = style.unmanaged_var("application.text.color");
-    let _var = style.unmanaged_var("application.text.size");
-    let _var = style.unmanaged_var("button.text.size");
-    let _var = style.unmanaged_var("node.text.color");
-    let _var = style.unmanaged_var("node.text.size");
-    let _var = style.unmanaged_var("application.background.color");
-    let _var = style.unmanaged_var("node.background.color");
+//    let var_size              = style.unmanaged_var("size");
+//    let var_button_size       = style.unmanaged_var("button.size");
+//    let var_graph_button_size = style.unmanaged_var("graph.button.size");
 
-    assert!(style.value(var_graph_button_size).is_none());
+//    assert!(style.value(var_graph_button_size).is_none());
     style.set_value("size",data(1.0));
     style.set_expression("graph.button.size",&["button.size"],Rc::new(|args| args[0] + &data(100.0)));
     style.set_expression("button.size",&["size"],Rc::new(|args| args[0] + &data(10.0)));
     style.set_value("button.size",data(3.0));
 
+    println!("-----------");
+//    style.remove_value("graph.button.size");
+
+
     println!("{}",style.to_graphviz());
-    println!("{:?}", style.value(var_graph_button_size));
-    println!("{:?}", style.value(var_button_size));
-    println!("{:?}", style.vars[var_graph_button_size]);
-    println!("{:?}", style.sheets[style.vars[var_graph_button_size].binding.unwrap()]);
+//    println!("{:?}", style.value(var_graph_button_size));
+//    println!("{:?}", style.value(var_button_size));
+//    println!("{:?}", style.vars[var_graph_button_size]);
+//    println!("{:?}", style.sheets[style.vars[var_graph_button_size].binding.unwrap()]);
 }
 
 #[cfg(test)]
