@@ -246,7 +246,6 @@ impl Node {
             })
         });
 
-
         frp::extend! { network
             let selection_ref = selection.clone_ref();
             def _f_select = self.events.select.map(move |_| {

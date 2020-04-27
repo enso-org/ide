@@ -22,9 +22,9 @@ use ensogl::math::geometry::triangle::Triangle;
 
 
 
-// =========================
-// === Connection Shapes ===
-// =========================
+// ========================
+// === Connection Shape ===
+// ========================
 
 mod shape {
     use super::*;
@@ -32,10 +32,9 @@ mod shape {
     ensogl::define_shape_system! {
         (start:Vector2<f32>, end:Vector2<f32>, thickness:f32, glow:f32) {
 
-            let height = Var::<f32>::from("input_start.y - input_end.y");
-            let width  = Var::<f32>::from("input_start.x - input_end.x");
-
-            let is_reverse : Var<f32> = "((((-sign(input_start.y-input_end.y)))))".into();
+            let height     = Var::<f32>::from("input_start.y - input_end.y");
+            let width      = Var::<f32>::from("input_start.x - input_end.x");
+            let is_reverse = Var::<f32>::from("((((-sign(input_start.y-input_end.y)))))");
 
             let angle_inner = Var::<f32>::from(90_f32.to_radians());
             let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,width,angle_inner);
@@ -46,14 +45,18 @@ mod shape {
             let line_color   = Srgba::new(1.00, 0.565, 0.0, 1.0);
             let line_colored = line.fill(line_color);
 
-            let glow          = Line(Var::<f32>::from(15.0) * glow);
-            let glow          = glow.rotate(angle_a);
-            let glow_color    = Srgb::new(1.00, 0.565, 0.0);
-            let glow_gradient = LinearGradient::new()
-                .add(0.0,Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0).into_linear())
-                .add(1.0,Srgba::new(glow_color.red,glow_color.green,glow_color.blue,1.0).into_linear());
-            let glow_color    = SdfSampler::new(glow_gradient).max_distance(15.0).slope(Slope::Exponent(4.0));            let glow_colored = glow.fill(line_color);
-            let glow_colored          = glow.fill(glow_color);
+            let glow           = Line(Var::<f32>::from(15.0) * glow);
+            let glow           = glow.rotate(angle_a);
+            let glow_color     = Srgb::new(1.00, 0.565, 0.0);
+            let gradient_start = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
+            let gradient_end   = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
+            let glow_gradient  = LinearGradient::new()
+                .add(0.0,gradient_start.into_linear())
+                .add(1.0,gradient_end.into_linear());
+            let glow_color     = SdfSampler::new(glow_gradient)
+                .max_distance(15.0)
+                .slope(Slope::Exponent(4.0));
+            let glow_colored   = glow.fill(glow_color);
 
             (glow_colored + line_colored).into()
         }
@@ -93,16 +96,22 @@ impl ShapeViewDefinition for ConnectionView {
         shape.start.set(Vector2::zero());
         shape.end.set(Vector2::zero());
 
-        let bbox = Vector2::new(200.0, 200.0);
-        shape.sprite.size().set(bbox);
-
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
+        shape_system.shape_system.set_alignment(
+            alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
 
         Self {}
     }
 }
 
+/// Connections represent a link between an `InputPort` and an `OutputPort`.
+///
+/// Ports are shown as a connecting line going from one port to the other.
+///
+/// They are created in the IDE by dragging from one port to another. This is currently handled in
+/// the `GraphEditor`, where events are collected and routed to allow dragging from ports,
+/// existence of a partially connected in-creation `Connection`, and finally the connecting of two
+/// ports.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
@@ -110,17 +119,16 @@ pub struct Connection {
     pub data : Rc<ConnectionData>
 }
 
-
 /// Internal data of `Connection`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ConnectionData {
-    start_port       : RefCell<Option<WeakPort<OutputPortView>>>,
+    start_port : RefCell<Option<WeakPort<OutputPortView>>>,
     /// Start of the connection.
-    start       : Cell<Vector3<f32>>,
+    start      : Cell<Vector3<f32>>,
     end_port         : RefCell<Option<WeakPort<InputPortView>>>,
     /// End of the connection.
-    end         : Cell<Vector3<f32>>,
+    end        : Cell<Vector3<f32>>,
 
     pub logger : Logger,
     pub events : Events,
@@ -129,7 +137,6 @@ pub struct ConnectionData {
 }
 
 impl Connection {
-
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { connection_network
@@ -178,9 +185,8 @@ impl Connection {
                     }
                 }));
         }
-        let weak_connection = self.downgrade();
         frp::extend! { network
-            let weak_connection = weak_connection.clone();
+            let weak_connection = self.downgrade();
             def _f_on_port_move = self.data.events.port_move.map(move |_| {
                if let Some(connection) = weak_connection.upgrade(){
                     connection.on_port_position_change()
@@ -198,7 +204,6 @@ impl Connection {
                     connection.set_glow(0.0);
                 }
             });
-
         }
         self
     }
@@ -210,7 +215,7 @@ impl Connection {
         }
     }
 
-    /// Set the connections origin.
+    /// Set the connection's starting port.
     pub fn set_start(&self, port:&OutputPort) {
         let position = port.position_global();
         self.data.start_port.set(port.downgrade());
@@ -226,7 +231,7 @@ impl Connection {
         self.update_sprite();
     }
 
-    /// Set the position where the connections ends.
+    /// Set the connection's end port.
     pub fn set_end(&self, port:&InputPort) {
         let position = port.position_global();
         self.data.end_port.set(port.downgrade());
@@ -243,7 +248,7 @@ impl Connection {
     }
 
     /// Sets the position of the connection start/end that has no port attached yet.
-    pub fn set_open_ends(&self, position: Vector3<f32>){
+    pub fn set_open_ends(&self, position: Vector3<f32>) {
         if self.data.start_port.borrow().is_none(){
             self.set_start_position(position);
         }
@@ -253,12 +258,12 @@ impl Connection {
     }
 
     /// Indicates whether this connection has both a start and an end port.
-    pub fn fully_connected(&self) -> bool{
+    pub fn fully_connected(&self) -> bool {
         self.data.start_port.borrow().is_some() && self.data.end_port.borrow().is_some()
     }
 
     /// Break the link to both start and end port.
-    pub fn clear_ports(&self){
+    pub fn clear_ports(&self) {
         self.data.start_port
             .borrow_mut()
             .take()
@@ -286,7 +291,7 @@ impl Connection {
     }
 
     /// Updates the connection end and start position with the respective port position.
-    pub fn on_port_position_change(&self){
+    pub fn on_port_position_change(&self) {
         self.data.start_port
             .borrow()
             .as_ref()
@@ -303,7 +308,6 @@ impl Connection {
             );
     }
 }
-
 
 impl Default for Connection {
     fn default() -> Self {
@@ -323,8 +327,6 @@ impl AsRef<Connection> for Connection {
     }
 }
 
-
-
 /// Weak version of `Connection`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakConnection{
@@ -333,7 +335,7 @@ pub struct WeakConnection{
 
 impl StrongRef for Connection{
     type WeakRef = WeakConnection;
-    fn downgrade(&self) -> WeakConnection{
+    fn downgrade(&self) -> WeakConnection {
         WeakConnection {data:Rc::downgrade(&self.data)}
     }
 }
@@ -344,4 +346,3 @@ impl WeakRef for WeakConnection {
         self.data.upgrade().map(|data| Connection{data})
     }
 }
-
