@@ -592,24 +592,7 @@ impl application::View for GraphEditor {
            };
 
         }));
-         // === Add Connection ===
-
-        // let acon = active_connection.clone();
-        // def add_connection_at_cursor_pos = inputs.add_connection_at_cursor.map2(&mouse.position,|_,p|{*p});
-        // def add_connection               = inputs.add_connection_at.merge(&add_connection_at_cursor_pos);
-        // def _add_new_connection          = add_connection.map(f!((inputs)(pos) {
-        //
-        //     // println!("SPAWN");
-        //     // let connection = Connection::new();
-        //     // inputs.register_connection(&connection);
-        //     // let start = Vector3::new(pos.x,pos.y,0.0);
-        //     // let end   = Vector3::new(pos.x,pos.y,0.0);
-        //     // connection.set_start_port(start);
-        //     // node.add_child(&connection.data.view.display_object);
-        //     // mem::forget(connection);
-        //     acon.set(connection);
-        //
-        // }));
+         // === Add Connection ==
 
         def _new_connection = inputs.register_connection.map(f!((display_object)(connection) {
             display_object.add_child(connection);
