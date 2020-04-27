@@ -12,7 +12,7 @@ pub use crate::double_representation::graph::Id;
 use crate::double_representation::graph::GraphInfo;
 pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::node;
-// use crate::double_representation::node::NodeInfo;
+use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
 use crate::notification;
 
@@ -20,7 +20,6 @@ use parser::Parser;
 use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::SpanTree;
-use crate::double_representation::node::NodeInfo;
 use ast::crumbs::InfixCrumb;
 
 
@@ -411,6 +410,7 @@ impl Handle {
         Ok(name)
     }
 
+    // TODO[ao] Clean up the code and make it conform the coding guidelines.
     /// Create connection in graph.
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
 
@@ -440,6 +440,7 @@ impl Handle {
         self.set_expression_ast(destination_node.id(),new_expression)
     }
 
+    // TODO[ao] Clean up the code and make it conform the coding guidelines.
     /// Remove the connections from the graph.
     pub fn disconnect(&self, connection:&Connection) -> FallibleResult<()> {
         let destination_node = self.node_info(connection.destination.node)?;
