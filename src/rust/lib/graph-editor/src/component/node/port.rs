@@ -512,10 +512,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.global_position()
     }
 
-    /// Sets the port's position.
-    ///
-    /// Ports exist around an inner circle, and thus the position is given as an angle on that
-    /// circle. To change the radius of the circle use `set_inner_radius`.
+    /// Sets the port's glow.
     pub fn set_glow(&self, glow:f32) {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             t.shape.glow.set(glow);
