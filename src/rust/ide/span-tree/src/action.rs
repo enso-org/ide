@@ -27,7 +27,7 @@ pub struct ActionNotAvailable {
 /// Error returned when tried to do action but SpanTree does not seem to be generated from AST
 /// passed as root.
 #[derive(Copy,Clone,Debug,Fail)]
-#[fail(display="Cannot apply action: ast structure does not match ApanTree.")]
+#[fail(display="Cannot apply action: ast structure does not match SpanTree.")]
 pub struct AstSpanTreeMismatch;
 
 
