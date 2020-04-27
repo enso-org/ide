@@ -158,7 +158,7 @@ impl<'a> Ref<'a> {
         }
     }
 
-    /// Get the node which exaclty matches the given Span:
+    /// Get the node which exactly matches the given Span:
     pub fn find_by_span(self, span:&data::text::Span) -> Option<Ref<'a>> {
         if self.span() == *span {
             Some(self)
