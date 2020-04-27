@@ -96,7 +96,7 @@ impl Manager {
         }
         self.combined = combined;
 
-        self.style.change_values(changes);
+        self.style.apply_changes(changes);
     }
 
     pub fn register<T:Into<Theme>>(&mut self, name:impl Str, theme:T) {

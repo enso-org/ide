@@ -42,24 +42,12 @@ impl Path {
     }
 }
 
-impl From<&str> for Path {
-    fn from(t:&str) -> Self {
-        Self::from_rev_segments(t.rsplit('.'))
-    }
-}
+impl AsRef<Path> for Path { fn as_ref(&self) -> &Path { self } }
 
-impl From<&Path> for Path {
-    fn from(t:&Path) -> Self {
-        t.clone()
-    }
-}
-
-impl<T> From<Vec<T>> for Path
-where T : ToString {
-    fn from(t:Vec<T>) -> Self {
-        Self::from_segments(t.into_iter())
-    }
-}
+impls! {              From<&str>   for Path { |t| Self::from_rev_segments(t.rsplit('.')) } }
+impls! {              From<&&str>  for Path { |t| (*t).into() }}
+impls! {              From<&Path>  for Path { |t| t.clone() }}
+impls! { [T:ToString] From<Vec<T>> for Path { |t| Self::from_segments(t.into_iter()) }}
 
 impl<T> From<&Vec<T>> for Path
 where for<'t> &'t T : ToString {

@@ -139,7 +139,10 @@ pub struct Expression {
 }
 
 impl Expression {
-    pub fn new(args:Vec<Path>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
+    pub fn new<A,I,F>(args:A, function:F) -> Self
+    where A:IntoIterator<Item=I>, I:Into<Path>, F:'static+Fn(&[&Data])->Data {
+        let args     = args.into_iter().map(|t|t.into()).collect_vec();
+        let function = Rc::new(function);
         Self {args,function}
     }
 }
@@ -277,7 +280,6 @@ impl RegistryData {
         let sheets       = &mut self.sheets;
         let var_map_node = self.var_map.get_node(&path.rev_segments);
 
-
         let mut var_matches = Vec::new();
         self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
             sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
@@ -315,12 +317,44 @@ impl RegistryData {
 
 impl RegistryData {
     /// Reads the value of the variable.
-    pub fn value(&self, var_id:Index<Var>) -> Option<&Data> {
+    pub fn var_value(&self, var_id:Index<Var>) -> Option<&Data> {
         self.vars.safe_index(var_id).as_ref().and_then(|var| {
             var.binding.and_then(|sheet_id| {
                 self.sheets[sheet_id].value.as_ref()
             })
         })
+    }
+
+    /// Queries the style sheet for a value of a path like it was a variable. For example,
+    /// querying "button.size" will return the value of "size" if no exact match was found.
+    pub fn query<P>(&self, path:P) -> Option<&Data>
+    where P:Into<Path> {
+        let mut path = path.into();
+        while path.rev_segments.is_empty() {
+            let value = self.value(&path);
+            if value.is_some() { return value }
+        }
+        return None
+    }
+
+    /// Reads the value of the style sheet by the exact path provided. If you want to read a value
+    /// of a variable binding, use `query` instead.
+    pub fn value<P>(&self, path:P) -> Option<&Data>
+    where P:Into<Path> {
+        let path = path.into();
+        let segs = &path.rev_segments;
+        self.sheet_map.get_node2(segs).and_then(|t| self.sheets[t.value].value.as_ref())
+    }
+
+    /// Returns the amount of vars used.
+    pub fn var_count(&self) -> usize {
+        self.vars.len()
+    }
+
+    /// Returns the amount of sheets used not including the root sheet.
+    pub fn sheet_count(&self) -> usize {
+        let root_sheet_count = 1;
+        self.sheets.len() - root_sheet_count
     }
 }
 
@@ -328,44 +362,33 @@ impl RegistryData {
 // === Setters ===
 
 impl RegistryData {
-    /// Set a style sheet value. Please note that it will remove expression assigned to the target
-    /// style sheet if any. Returns indexes of all affected variables.
-    pub fn set_value<P:Into<Path>>(&mut self, path:P, data:Data) -> HashSet::<Index<Var>> {
-        self.set_value_to(path,Some(data))
+    /// Sets the value by the given path. Returns indexes of all affected variables.
+    pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet::<Index<Var>>
+    where P:Into<Path>, V:Into<Value> {
+        let value = value.into();
+        self.apply_change(Change::new(path,Some(value)))
     }
 
-    /// Set a style sheet expression which will be used to automatically compute values whenever any
-    /// of the provided dependencies will change. Returns indexes of all affected variables.
-    pub fn set_expression<P>
-    (&mut self, path:P, args:&[&str], function:Rc<dyn Fn(&[&Data])->Data>)
-    -> HashSet::<Index<Var>>
+    /// Removes the value by the given path. Returns indexes of all affected variables.
+    pub fn unset<P>(&mut self, path:P) -> HashSet::<Index<Var>>
     where P:Into<Path> {
-        let args     = args.iter().map(|t|(*t).into()).collect_vec();
-        let value    = Value::Expression(Expression {args,function});
-        let changes  = vec![Change::new(path,Some(value))];
-        self.change_values(changes)
+        self.apply_change(Change::new(path,None))
     }
 
-    /// Removes a style sheet value. Please note that it will remove expression assigned to the
-    /// target style sheet if any. Returns indexes of all affected variables.
-    pub fn remove_value<P:Into<Path>>(&mut self, path:P) -> HashSet::<Index<Var>> {
-        self.set_value_to(path,None)
-    }
-
-    /// Set or unset a style sheet value. Please note that it will remove expression assigned to the
-    /// target style sheet if any. Returns indexes of all affected variables.
-    pub fn set_value_to<P>(&mut self, path:P, data:Option<Data>) -> HashSet::<Index<Var>>
+    /// Changes the value by the given path. Providing `None` as the value means that the value
+    /// will be removed. Returns indexes of all affected variables.
+    pub fn change<P>(&mut self, path:P, value:Option<Value>) -> HashSet::<Index<Var>>
     where P:Into<Path> {
-        self.change_value(Change::new(path,data.map(Value::Data)))
+        self.apply_change(Change::new(path,value))
     }
 
-    /// Set or remove a single style sheet value. Returns indexes of all affected variables.
-    pub fn change_value(&mut self, change:Change) -> HashSet::<Index<Var>> {
-        self.change_values(iter::once(change))
+    /// Apply a `Change`. Returns indexes of all affected variables.
+    pub fn apply_change(&mut self, change:Change) -> HashSet::<Index<Var>> {
+        self.apply_changes(iter::once(change))
     }
 
-    /// Set or remove a several style sheet values. Returns indexes of all affected variables.
-    pub fn change_values<I>(&mut self, changes:I) -> HashSet::<Index<Var>>
+    /// Apply a set of `Change`s. Returns indexes of all affected variables.
+    pub fn apply_changes<I>(&mut self, changes:I) -> HashSet::<Index<Var>>
     where I:IntoIterator<Item=Change> {
         let mut changed          = HashSet::<Index<Var>>::new();
         let mut possible_orphans = Vec::<Index<Sheet>>::new();
@@ -526,7 +549,7 @@ impl RegistryData {
         let value = sheet.expr.as_ref().and_then(|expr| {
             let mut opt_args : Vec<Option<&Data>> = Vec::new();
             for var_id in &expr.args {
-                opt_args.push(self.value(*var_id));
+                opt_args.push(self.var_value(*var_id));
             }
             let args : Option<Vec<&Data>> = opt_args.into_iter().collect();
             args.map(|v| (expr.function)(&v) )
@@ -607,7 +630,6 @@ impl RegistryData {
         let sheet    = &self.sheets[sheet_id];
         let value    = format!("{:?}",sheet.value);
         dot.push_str(&iformat!("sheet_{sheet_id} [label=\"sheet_{sheet_id}({value})\"]\n"));
-//        dot.push_str(&iformat!("sheet_{sheet_id}\n"));
         for (path,child) in &sheet_map.branches {
             Self::sheet_sheet_link(dot,sheet_id,child.value,iformat!("[label=\"{path}\"]"));
             self.sheet_map_to_graphviz(dot,child);
@@ -658,7 +680,28 @@ impl Default for RegistryData {
 }
 
 
-#[derive(Debug,Default)]
+#[derive(Debug)]
+pub struct RefData {
+    registry : Registry,
+    var_id   : Index<Var>
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Ref {
+    rc : Rc<RefData>
+}
+
+impl Ref {
+    pub fn new<R>(registry:R, var_id:Index<Var>) -> Self
+    where R:Into<Registry> {
+        let registry = registry.into();
+        let data     = RefData {registry,var_id};
+        let rc       = Rc::new(data);
+        Self {rc}
+    }
+}
+
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct Registry {
     rc : Rc<RefCell<RegistryData>>
 }
@@ -666,6 +709,18 @@ pub struct Registry {
 impl Registry {
     pub fn new() -> Self {
         default()
+    }
+
+    pub fn var<P>(&self, path:P) -> Ref
+    where P:Into<Path> {
+        let var_id = self.rc.borrow_mut().unmanaged_var(path);
+        Ref::new(self,var_id)
+    }
+}
+
+impl From<&Registry> for Registry {
+    fn from(t:&Registry) -> Self {
+        t.clone_ref()
     }
 }
 
@@ -684,10 +739,14 @@ pub fn test() {
 //    let var_graph_button_size = style.unmanaged_var("graph.button.size");
 
 //    assert!(style.value(var_graph_button_size).is_none());
-    style.set_value("size",data(1.0));
-    style.set_expression("graph.button.size",&["button.size"],Rc::new(|args| args[0] + &data(100.0)));
-    style.set_expression("button.size",&["size"],Rc::new(|args| args[0] + &data(10.0)));
-    style.set_value("button.size",data(3.0));
+//    style.set("size",data(1.0));
+//    style.set("graph.button.size",Expression::new(&["button.size"], |args| args[0] + &data(100.0)));
+//    style.set("button.size",Expression::new(&["size"], |args| args[0] + &data(10.0)));
+//    style.set("button.size",data(3.0));
+
+    style.set(&["size"],data(1.0));
+    style.set(&["button.size"],data(2.0));
+    style.set(&["circle.radius"],data(3.0));
 
     println!("-----------");
 //    style.remove_value("graph.button.size");
@@ -704,40 +763,91 @@ pub fn test() {
 mod tests {
     use super::*;
 
+    fn assert_var_sheet_count(style:&RegistryData, var_count:usize, sheet_count:usize) {
+        assert_eq!(style.var_count(),var_count);
+        assert_eq!(style.sheet_count(),sheet_count);
+    }
+
+    #[test]
+    pub fn memory_management_for_single_value() {
+        let mut style = RegistryData::new();
+        style.set("size",data(1.0));
+        assert_var_sheet_count(&style,0,1);
+        style.unset("size");
+        assert_var_sheet_count(&style,0,0);
+    }
+
+    #[test]
+    pub fn memory_management_for_multiple_values() {
+        let mut style = RegistryData::new();
+        style.set("size",data(1.0));
+        style.set("button.size",data(2.0));
+        style.set("circle.radius",data(3.0));
+        assert_var_sheet_count(&style,0,4);
+        style.unset("size");
+        assert_var_sheet_count(&style,0,4);
+        style.unset("button.size");
+        assert_var_sheet_count(&style,0,2);
+        style.unset("circle.radius");
+        assert_var_sheet_count(&style,0,0);
+    }
+
+    #[test]
+    pub fn memory_management_for_single_expression() {
+        let mut style = RegistryData::new();
+        style.set("button.size",data(1.0));
+        assert_var_sheet_count(&style,0,2);
+        style.set("circle.radius",Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
+        assert_var_sheet_count(&style,1,4);
+        assert_eq!(style.value("circle.radius"),Some(&data(11.0)));
+        style.unset("button.size");
+        assert_var_sheet_count(&style,1,4);
+        assert_eq!(style.value("circle.radius"),Some(&data(11.0))); // Impossible to update.
+        style.set("button.size",data(2.0));
+        assert_var_sheet_count(&style,1,4);
+        assert_eq!(style.value("circle.radius"),Some(&data(12.0)));
+        style.set("circle.radius",data(3.0));
+        assert_var_sheet_count(&style,0,4);
+        style.unset("button.size");
+        assert_var_sheet_count(&style,0,2);
+        style.unset("circle.radius");
+        assert_var_sheet_count(&style,0,0);
+    }
+
     #[test]
     pub fn simple_var_binding_1() {
         let mut style = RegistryData::new();
-        let var1      = style.unmanaged_var(&["size"]);
-        assert!(style.value(var1).is_none());
-        style.set_value(&["size"],data(1.0));
-        assert_eq!(style.value(var1),Some(&data(1.0)));
+        let var1      = style.unmanaged_var("size");
+        assert!(style.var_value(var1).is_none());
+        style.set("size",data(1.0));
+        assert_eq!(style.var_value(var1),Some(&data(1.0)));
     }
 
     #[test]
     pub fn simple_var_binding_2() {
         let mut style = RegistryData::new();
-        style.set_value(&["size"],data(1.0));
-        let var1 = style.unmanaged_var(&["size"]);
-        assert_eq!(style.value(var1),Some(&data(1.0)));
+        style.set("size",data(1.0));
+        let var1 = style.unmanaged_var("size");
+        assert_eq!(style.var_value(var1),Some(&data(1.0)));
     }
 
     #[test]
     pub fn hierarchical_var_binding() {
         let mut style = RegistryData::new();
         let var1      = style.unmanaged_var("graph.button.size");
-        assert!(style.value(var1).is_none());
-        style.set_value("size",data(1.0));
-        assert_eq!(style.value(var1),Some(&data(1.0)));
-        style.set_value("button.size",data(2.0));
-        assert_eq!(style.value(var1),Some(&data(2.0)));
-        style.set_value("graph.button.size",data(3.0));
-        assert_eq!(style.value(var1),Some(&data(3.0)));
-        style.remove_value("graph.button.size");
-        assert_eq!(style.value(var1),Some(&data(2.0)));
-        style.remove_value("button.size");
-        assert_eq!(style.value(var1),Some(&data(1.0)));
-        style.remove_value("size");
-        assert_eq!(style.value(var1),None);
+        assert!(style.var_value(var1).is_none());
+        style.set("size",data(1.0));
+        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        style.set("button.size",data(2.0));
+        assert_eq!(style.var_value(var1),Some(&data(2.0)));
+        style.set("graph.button.size",data(3.0));
+        assert_eq!(style.var_value(var1),Some(&data(3.0)));
+        style.unset("graph.button.size");
+        assert_eq!(style.var_value(var1),Some(&data(2.0)));
+        style.unset("button.size");
+        assert_eq!(style.var_value(var1),Some(&data(1.0)));
+        style.unset("size");
+        assert_eq!(style.var_value(var1),None);
     }
 
     #[test]
@@ -748,39 +858,27 @@ mod tests {
         let var_button_size       = style.unmanaged_var("button.size");
         let var_graph_button_size = style.unmanaged_var("graph.button.size");
 
-        assert!(style.value(var_graph_button_size).is_none());
-        style.set_value("size",data(1.0));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(1.0)));
-        style.set_expression("graph.button.size",&["button.size"],Rc::new(|args| args[0] + &data(10.0)));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(11.0)));
-        style.set_expression("button.size",&["size"],Rc::new(|args| args[0] + &data(100.0)));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(111.0)));
-        style.set_value("size",data(2.0));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(112.0)));
-        style.set_value("button.size",data(3.0));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(13.0)));
-        style.set_value("button.size",data(4.0));
-        assert_eq!(style.value(var_graph_button_size),Some(&data(14.0)));
+        assert!(style.var_value(var_graph_button_size).is_none());
+        style.set("size",data(1.0));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(1.0)));
+        style.set("graph.button.size",Expression::new(&["button.size"], |args|args[0]+&data(10.0)));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(11.0)));
+        style.set("button.size",Expression::new(&["size"],|args| args[0] + &data(100.0)));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(111.0)));
+        style.set("size",data(2.0));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(112.0)));
+        style.set("button.size",data(3.0));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(13.0)));
+        style.set("button.size",data(4.0));
+        assert_eq!(style.var_value(var_graph_button_size),Some(&data(14.0)));
     }
 
     #[test]
     pub fn expr_circular() {
         let mut style = RegistryData::new();
-
-        let var_a = style.unmanaged_var("a");
-        let var_b = style.unmanaged_var("b");
-
-        style.set_expression("a",&["b"],Rc::new(|args| args[0].clone()));
-        style.set_expression("b",&["a"],Rc::new(|args| args[0].clone()));
-        assert!(style.value(var_a).is_none());
+        style.set("a",Expression::new(&["b"], |args| args[0].clone()));
+        style.set("b",Expression::new(&["a"], |args| args[0].clone()));
+        assert!(style.value("a").is_none());
+        assert!(style.value("b").is_none());
     }
 }
-
-
-
-//todo todo todo
-//
-//1. vary sa tworzone tylko na potrzeby expressionow
-//2. jak expression jest usuwany, vary powinny spawdzac czy sa uzywane pzez inne expresiony i sie usuwac
-//3. po usunieciu vara powinny usuwac sie sheety
-//4. vary powinny miec flage ze sa uzywane przez uzytkownika i jezeli tak, nie usuwac sie dopoki uzytkownik nie przestanie z nich korzystac

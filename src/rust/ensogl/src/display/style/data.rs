@@ -47,7 +47,9 @@ where palette::Alpha<C,T> : Into<color::Lcha> {
 
 // === Impls ===
 
-//impl Eq for Data {}
+//impl PartialEq<&Data> for Data {
+//
+//}
 
 impl Display for Data {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
