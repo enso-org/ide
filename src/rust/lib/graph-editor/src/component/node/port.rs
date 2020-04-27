@@ -115,7 +115,7 @@ mod shape {
     /// angle with the inner ring.
     ///
     fn new_port
-    (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>,shadow:Var<f32>) -> AnyShape {
+    (height:Var<f32>,width:Var<f32>,inner_radius:Var<f32>,is_inwards:Var<f32>,glow:Var<f32>) -> AnyShape {
         let zoom_factor                  = Var::<f32>::from("1.0 / input_zoom");
         let height                       = &height * &zoom_factor;
         let outer_radius      : Var<f32> = &inner_radius + &height;
@@ -191,26 +191,26 @@ mod shape {
         let rotation_angle = Var::<Angle<Radians>>::from(rotation_angle);
         let sculpted_shape = sculpted_shape.rotate(rotation_angle);
 
-        // FIXME needs dynamic sizing.
-        // let shadow_falloff : Var<f32> = "clamp(sin(input_time/200.0))".into();
-        let shadow_size: Var<f32> = shadow * 3.0;
-        let shadow       = sculpted_shape.clone();
-        let shadow       = shadow.scale(shadow_size);
-        let shadow_color = LinearGradient::new()
-            .add(0.0,Srgba::new(0.99,0.69,0.26,0.0).into_linear())
-            .add(1.0,Srgba::new(0.99,0.69,0.26,0.54).into_linear());
-        let shadow_color = SdfSampler::new(shadow_color).max_distance(10.0).slope(Slope::Exponent(4.0));
-        let shadow       = shadow.fill(shadow_color);
-        let shadow       = shadow.translate_y(&center_offset);
+        let glow_size     = Var::<f32>::from(glow * 3.0);
+        let glow          = sculpted_shape.clone();
+        let glow          = glow.scale(&glow_size);
+        let glow_color    = Srgb::new(0.26, 0.69, 0.99);
+        let glow_gradient = LinearGradient::new()
+            .add(0.0,Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0).into_linear())
+            .add(1.0,Srgba::new(glow_color.red,glow_color.green,glow_color.blue,1.0).into_linear());
+        let glow_color    = SdfSampler::new(glow_gradient).max_distance(9.0).slope(Slope::Exponent(4.0));
+        let glow          = glow.fill(glow_color);
+        // Compensate for off-center scaling
+        let glow_offset   =  Var::<Distance<Pixels>>::from(Var::from(2.0) * glow_size);
+        let glow          = glow.translate_y(glow_offset);
 
-        (shadow + sculpted_shape).into()
+        (glow + sculpted_shape).into()
     }
 
     ensogl::define_shape_system! {
-        (height:f32,width:f32,inner_radius:f32,is_inwards:f32,shadow:f32) {
+        (height:f32,width:f32,inner_radius:f32,is_inwards:f32,glow:f32) {
             // FIXME: `is_inwards` should only be 0.0 or 1.0.
-            // shadow = shadow  * 0.9;
-            new_port(height,width,inner_radius,is_inwards,shadow)
+            new_port(height,width,inner_radius,is_inwards,glow)
         }
     }
 
@@ -443,14 +443,14 @@ impl<T:PortShapeViewDefinition> Port<T> {
             let weak_port_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
                  if let Some(port) = weak_port_hover_start.upgrade(){
-                    port.set_shadow(1.0);
+                    port.set_glow(1.0);
 
                 }
             });
             let weak_port_hover_end = self.downgrade();
              def _f_hover_end = self.data.events.hover_end.map(move |_| {
                  if let Some(port) = weak_port_hover_end.upgrade(){
-                    port.set_shadow(0.0);
+                    port.set_glow(0.0);
                 }
             });
 
@@ -484,9 +484,9 @@ impl<T:PortShapeViewDefinition> Port<T> {
     ///
     /// Ports exist around an inner circle, and thus the position is given as an angle on that
     /// circle. To change the radius of the circle use `set_inner_radius`.
-    pub fn set_shadow(&self, shadow:f32) {
+    pub fn set_glow(&self, glow:f32) {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.shadow.set(shadow);
+            t.shape.glow.set(glow);
         }
     }
 
