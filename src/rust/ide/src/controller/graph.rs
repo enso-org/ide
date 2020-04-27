@@ -244,8 +244,8 @@ pub fn name_for_ast(ast:&Ast) -> String {
             }.into()
         }
         _ => {
-            if let Some(infix) = ast::opr::GeneralizedInfix::try_new_root(ast) {
-                name_for_ast(infix.opr.item.ast())
+            if let Some(infix) = ast::opr::GeneralizedInfix::try_new(ast) {
+                name_for_ast(infix.opr.ast())
             } else if let Some(prefix) = ast::prefix::Chain::try_new(ast) {
                 name_for_ast(&prefix.func)
             } else {
@@ -458,8 +458,8 @@ impl Handle {
                 destination_port.set(destination_ast,placeholder)
             }
         } else {
-            let crumbs = destination_port.ast_crumbs.iter().chain(connection.destination.crumbs.tail.iter()).collect_vec();
-            destination_ast.set_traversing(crumbs,placeholder)
+            let crumbs = destination_port.ast_crumbs.iter().chain(connection.destination.crumbs.tail.iter()).cloned().collect_vec();
+            destination_ast.set_traversing(&crumbs,placeholder)
         }?;
 
         self.set_expression_ast(destination_node.id(),replaced_destination)
@@ -943,12 +943,10 @@ main =
     #[wasm_bindgen_test]
     fn disconnect() {
         let mut test  = GraphControllerFixture::set_up();
-        const PROGRAM:&str = r"
-main =
+        const PROGRAM:&str = r"main =
     from = 3 + 4
     to   = foo from";
-        const EXPECTED:&str = r"
-main =
+        const EXPECTED:&str = r"main =
     from = 3 + 4
     to   = foo x";
         test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {

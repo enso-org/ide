@@ -127,11 +127,11 @@ impl SpanTree {
     }
 
     /// Converts `SpanTree` crumbs to `Ast` crumbs.
-    pub fn convert_to_ast_crumbs(&self, crumbs:&SplitCrumbs) -> Option<ast::Crumbs> {
+    pub fn convert_to_ast_crumbs(&self, crumbs:SplitCrumbs) -> Option<ast::Crumbs> {
         let root = self.root_ref();
         let node_ref = root.traverse_subnode(crumbs.head.iter().copied())?;
         let mut ret = node_ref.ast_crumbs;
-        ret.extend(&crumbs.tail);
+        ret.extend(crumbs.tail);
         Some(ret)
     }
 }
@@ -152,7 +152,7 @@ mod test {
 
         let test_conversions0 = |ast_crumbs:ast::Crumbs, crumbs:SplitCrumbs| {
             assert_eq!(tree.convert_from_ast_crumbs(&ast_crumbs), crumbs);
-            assert_eq!(tree.convert_to_ast_crumbs(&crumbs).as_ref(), Some(&ast_crumbs));
+            assert_eq!(tree.convert_to_ast_crumbs(crumbs).as_ref(), Some(&ast_crumbs));
         };
 
         // Tester to be used when the crumb refers to span tree node.
