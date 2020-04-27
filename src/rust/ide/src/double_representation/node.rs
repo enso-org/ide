@@ -3,9 +3,8 @@
 use crate::prelude::*;
 
 use ast::Ast;
-use ast::crumbs::{Crumbable, InfixCrumb};
+use ast::crumbs::Crumbable;
 use ast::known;
-use ast::opr::predefined::ASSIGNMENT;
 /// Node Id is the Ast Id attached to the node's expression.
 pub type Id = ast::Id;
 
@@ -105,8 +104,9 @@ impl NodeInfo {
         }
     }
 
+    /// Set the pattern (left side of assignment) for node. If it is an Expression node, the
+    /// assignment infix will be introduced.
     pub fn set_pattern(&mut self, pattern:Ast) {
-        let id = self.id();
         match self {
             NodeInfo::Binding {infix} => {
                 // Setting infix operand never fails.
@@ -143,6 +143,8 @@ impl ast::HasTokens for NodeInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use ast::opr::predefined::ASSIGNMENT;
 
     fn expect_node(ast:Ast, expression_text:&str, id:Id) {
         let node_info = NodeInfo::from_line_ast(&ast).expect("expected a node");
