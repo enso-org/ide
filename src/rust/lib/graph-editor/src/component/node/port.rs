@@ -250,8 +250,11 @@ mod shape {
 #[allow(missing_docs)]
 pub struct Events {
     pub network            : frp::Network,
+    /// Is emitted if a connection is partially created by dragged from this port.
     pub connection_start   : frp::Source,
+    /// Is emitted if a connection is finished by dropping on this port.
     pub connection_end     : frp::Source,
+    /// Is emitted if the attached connection had a position/shape change.
     pub connection_changed : frp::Source,
     pub hover_start        : frp::Source,
     pub hover_end          : frp::Source,

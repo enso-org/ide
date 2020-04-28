@@ -78,8 +78,6 @@ mod shape {
 #[allow(missing_docs)]
 pub struct Events {
     pub network         : frp::Network,
-    pub port_start_move : frp::Source,
-    pub port_end_move   : frp::Source,
     pub hover_start     : frp::Source,
     pub hover_end       : frp::Source,
 }
@@ -147,8 +145,6 @@ impl Connection {
     pub fn new() -> Self {
         frp::new_network! { connection_network
             def label           = source::<String> ();
-            def port_start_move = source::<()>     ();
-            def port_end_move   = source::<()>     ();
             def hover_start     = source::<()>     ();
             def hover_end       = source::<()>     ();
         }
@@ -157,7 +153,7 @@ impl Connection {
         let end          = Cell::new(Vector3::zero());
         let logger       = Logger::new("connection");
         let view         = Rc::new(component::ShapeView::new(&logger));
-        let events       = Events{network,port_start_move,port_end_move,hover_start,hover_end};
+        let events       = Events{network,hover_start,hover_end};
         let start_port   = RefCell::new(None);
         let end_port     = RefCell::new(None);
 

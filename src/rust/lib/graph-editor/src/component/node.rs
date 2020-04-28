@@ -142,9 +142,6 @@ pub struct Events {
     pub deselect     : frp::Source,
     /// Emitted if a new port was created.
     pub port_created : frp::Source<IOPort>,
-    /// Received if this node's position changes.
-    /// Required for propagation of position updates.
-    pub position_update   : frp::Source,
 
 }
 
@@ -221,12 +218,11 @@ impl Node {
             def select          = source::<()>     ();
             def deselect        = source::<()>     ();
             def port_created    = source::<IOPort> ();
-            def position_update = source::<()> ();
         }
         let network = node_network;
         let logger  = Logger::new("node");
         let view    = component::ShapeView::new(&logger);
-        let events  = Events {network,select,deselect,port_created,position_update};
+        let events  = Events {network,select,deselect,port_created};
         let ports   = Registry::default() ;
         let data    = Rc::new(NodeData {logger,label,events,view,ports});
         Self {data} . init()
