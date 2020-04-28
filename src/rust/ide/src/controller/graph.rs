@@ -162,7 +162,8 @@ impl NodeTrees {
     /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the span-tree
     /// crumbs.
     pub fn get_span_tree_node<'a,'b>
-    (&'a self, ast_crumbs:&'b ast::Crumbs) -> Option<span_tree::node::NodeFoundByAstCrumbs<'a,'b>> {
+    (&'a self, ast_crumbs:&'b [ast::Crumb])
+    -> Option<span_tree::node::NodeFoundByAstCrumbs<'a,'b>> {
         if let Some(outputs) = self.outputs.as_ref() {
             // Node in assignment form. First crumb decides which span tree to use.
             let tree = match ast_crumbs.get(0) {
@@ -373,7 +374,7 @@ impl Handle {
     /// resolution in the code in this graph.
     pub fn used_names(&self) -> FallibleResult<Vec<LocatedName>> {
         let def    = self.graph_definition_info()?;
-        if let Some(block)  = ast::known::Block::try_from(def.body()).ok() {
+        if let Ok(block)  = ast::known::Block::try_from(def.body()) {
             let usage  = double_representation::alias_analysis::analyse_block(&block);
             let mut idents = usage.introduced;
             idents.extend(usage.used.into_iter());
