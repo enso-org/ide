@@ -2,7 +2,11 @@
 use crate::prelude::*;
 
 use crate::frp;
-use crate::component::node::port::{WeakPort, OutputPortView, InputPortView, OutputPort, InputPort};
+use crate::component::node::port::InputPort;
+use crate::component::node::port::InputPortView;
+use crate::component::node::port::OutputPort;
+use crate::component::node::port::OutputPortView;
+use crate::component::node::port::WeakPort;
 
 use enso_prelude::StrongRef;
 use ensogl::data::color::*;
@@ -10,7 +14,8 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
 use ensogl::display::layout::alignment;
-use ensogl::display::object::{ObjectOps, Id};
+use ensogl::display::object::Id;
+use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
@@ -19,8 +24,6 @@ use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use ensogl::math::geometry::triangle::Triangle;
-use std::f32::consts::FRAC_PI_2;
 
 
 // ========================

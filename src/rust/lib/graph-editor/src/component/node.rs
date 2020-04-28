@@ -5,7 +5,7 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::{Registry, Port};
+use crate::component::node::port::Registry;
 use crate::component::node::port::IOPort;
 
 use enso_frp as frp;
@@ -24,9 +24,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
-use nalgebra::Rotation2;
-use wasm_bindgen::__rt::core::f32::consts::{FRAC_2_PI, FRAC_PI_2};
-use ensogl::display::layout::alignment;
+use wasm_bindgen::__rt::core::f32::consts::FRAC_PI_2;
 
 
 /// Icons definitions.

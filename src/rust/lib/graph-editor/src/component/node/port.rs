@@ -6,17 +6,20 @@ use crate::component::node::connection::Connection;
 use crate::frp;
 
 use core::f32::consts::PI;
+use enso_frp::stream::EventEmitter;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
+use ensogl::display::layout::alignment;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display;
-use ensogl::gui::component::{ShapeViewDefinition, animation};
+use ensogl::gui::component::ShapeViewDefinition;
+use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::segment::Segment;
 use ensogl::math::geometry::triangle::Triangle;
@@ -25,9 +28,6 @@ use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Degrees;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
-use nalgebra::Rotation2;
-use enso_frp::stream::EventEmitter;
-use ensogl::display::layout::alignment;
 
 
 // ===========================
