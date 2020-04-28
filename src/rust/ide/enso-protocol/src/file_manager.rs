@@ -1,17 +1,8 @@
 //! Client library for the JSON-RPC-based File Manager service.
 
-#![warn(missing_docs)]
-#![warn(trivial_casts)]
-#![warn(trivial_numeric_casts)]
-#![warn(unused_import_braces)]
-#![warn(unused_qualifications)]
-#![warn(unsafe_code)]
-#![warn(missing_copy_implementations)]
-#![warn(missing_debug_implementations)]
-
 use crate::prelude::*;
 
-use crate::common::UTCDateTime;
+use crate::types::UTCDateTime;
 
 use json_rpc::api::Result;
 use json_rpc::Handler;
