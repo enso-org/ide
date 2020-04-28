@@ -28,7 +28,7 @@ pub trait Semigroup : Clone {
 
     /// Repeat a value n times. Given that this works on a Semigroup it is allowed to fail if you
     /// request 0 or fewer repetitions, and the default definition will do so.
-    fn stimes(&mut self, n:usize) {
+    fn partial_times(&mut self, n:usize) {
         let val = self.clone();
         for _ in 0..n-1 {
             self.concat_mut(&val)
@@ -50,8 +50,8 @@ pub trait SemigroupIm : Clone {
 
     /// Repeat a value n times. Given that this works on a Semigroup it is allowed to fail if you
     /// request 0 or fewer repetitions, and the default definition will do so.
-    fn stimes(&self, n:usize) -> Self where Self:Clone {
-        vec![self].iter().cycle().take(n-1).fold(self.clone(),|l,r| l.concat(r))
+    fn partial_times(&self, n:usize) -> Self where Self:Clone {
+        std::iter::repeat(self).take(n-1).fold(self.clone(),|l,r| l.concat(r))
     }
 }
 
@@ -150,9 +150,9 @@ mod tests {
 
     #[test]
     fn option() {
-        assert_eq!(None::<Vec<usize>>.concat(&None)     ,  None);
-        assert_eq!(Some(vec![1]).concat(&None)          ,  Some(vec![1]));
-        assert_eq!(None.concat(&Some(vec![1]))          ,  Some(vec![1]));
-        assert_eq!(Some(vec![1]).concat(&Some(vec![2])) ,  Some(vec![1,2]));
+        assert_eq!(None::<Vec<usize>>.concat(&None)     , None);
+        assert_eq!(Some(vec![1]).concat(&None)          , Some(vec![1]));
+        assert_eq!(None.concat(&Some(vec![1]))          , Some(vec![1]));
+        assert_eq!(Some(vec![1]).concat(&Some(vec![2])) , Some(vec![1,2]));
     }
 }

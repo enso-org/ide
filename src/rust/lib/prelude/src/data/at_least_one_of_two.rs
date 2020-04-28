@@ -20,8 +20,8 @@ impl<T:PartialEq> AtLeastOneOfTwo<T,T> {
     /// Checks whether the values are equal.
     pub fn same(&self) -> bool {
         match self {
-            Self::Both(t1,t2) => t1==t2,
-            _ => false
+            Self::Both(t1,t2) => t1 == t2,
+            _                 => false
         }
     }
 }
@@ -42,6 +42,14 @@ impl<T1,T2> AtLeastOneOfTwo<T1,T2> {
             Self::Both(_,t2) => Some(t2),
             Self::Second(t2) => Some(t2),
             _                => None
+        }
+    }
+
+    /// Extracts both of the value if exist.
+    pub fn both(&self) -> Option<(&T1,&T2)> {
+        match self {
+            Self::Both(t1,t2) => Some((t1,t2)),
+            _                 => None
         }
     }
 }

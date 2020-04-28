@@ -40,6 +40,7 @@ where K : Eq+Hash,
 
     /// Sets the value at position described by `path`. In case a required sub-branch does not
     /// exist, a default instance will be created.
+    #[inline]
     pub fn set<P,I>(&mut self, path:P, value:T)
     where P:IntoIterator<Item=I>, T:Default, I:Into<K> {
         self.get_or_create_node(path).value = value;
@@ -47,6 +48,7 @@ where K : Eq+Hash,
 
     /// Sets the value at position described by `path`. In case a required sub-branch does not
     /// exist, uses `cons_missing` to create it.
+    #[inline]
     pub fn set_with<P,I,F>(&mut self, path:P, value:T, cons_missing:F)
     where P:IntoIterator<Item=I>, T:Default, I:Into<K>, F:FnMut()->T {
         self.get_or_create_node_with(path,cons_missing).value = value;
@@ -122,6 +124,16 @@ where K : Eq+Hash,
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
+    /// the branch does not exist, uses `cons_missing` provided with the current path to construct
+    /// it. Returns mutable reference to the target tree node.
+    #[inline]
+    pub fn get_or_create_node_path_with<P,I,F>
+    (&mut self, path:P, cons_missing:F) -> &mut HashMapTree<K,T,S>
+    where K:Clone, P:IntoIterator<Item=I>, I:Into<K>, F:FnMut(&[K])->T {
+        self.get_or_create_node_traversing_path_with(path,cons_missing,|_|{})
+    }
+
+    /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
     /// the branch does not exist, uses `cons_missing` to construct it. Moreover, for each traversed
     /// branch the `callback` is evaluated. Returns mutable reference to the target tree node.
     #[inline]
@@ -161,6 +173,7 @@ where K : Eq+Hash,
     }
 
     /// Zips two trees together into a new tree with cloned values.
+    #[inline]
     pub fn zip_clone<T2>
     (&self, other:&HashMapTree<K,T2,S>) -> HashMapTree<K,AtLeastOneOfTwo<T,T2>,S>
     where K:Clone, T:Clone, T2:Clone {
@@ -298,3 +311,11 @@ macro_rules! define_borrow_iterator {
 
 define_borrow_iterator!(Iter iter);
 define_borrow_iterator!(IterMut iter_mut mut);
+
+
+
+// =============
+// === Tests ===
+// =============
+
+// TODO: We should have tests here.

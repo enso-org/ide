@@ -2,7 +2,7 @@
 
 pub mod data;
 pub mod path;
-pub mod sheets;
+pub mod sheet;
 pub mod theme;
 
-pub use sheets::*;
+pub use sheet::*;

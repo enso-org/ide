@@ -5,10 +5,10 @@ use crate::prelude::*;
 use crate::data::HashMapTree;
 use crate::data::color;
 
-use super::sheets::Path;
-use super::sheets::Change;
-use super::sheets::Value;
-use super::sheets as style;
+use super::sheet::Path;
+use super::sheet::Change;
+use super::sheet::Value;
+use super::sheet as style;
 
 
 
@@ -58,7 +58,7 @@ pub struct Manager {
     all      : HashMap<String,Theme>,
     enabled  : Vec<String>,
     combined : Theme,
-    sheets   : style::CascadingSheets,
+    sheets   : style::Sheet,
 }
 
 impl Manager {

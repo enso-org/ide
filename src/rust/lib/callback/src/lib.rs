@@ -156,9 +156,9 @@ impl Registry {
 // === SharedRegistryMut ===
 // =========================
 
-/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
-/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
-/// as well.
+/// Registry gathering callbacks implemented with internal mutability pattern. Each registered
+/// callback is assigned with a handle. Callback and handle lifetimes are strictly connected. As
+/// soon a handle is dropped, the callback is removed as well.
 #[derive(Clone,CloneRef,Default,Derivative)]
 #[derivative(Debug)]
 #[allow(clippy::type_complexity)]
@@ -183,7 +183,7 @@ impl SharedRegistryMut {
     }
 
     /// Fires all registered callbacks and removes the ones which got dropped. The implementation is
-    /// safe. You are allowed to change the registry while a callback is running.
+    /// safe - you are allowed to change the registry while a callback is running.
     pub fn run_all(&self) {
         self.clear_unused_callbacks();
         let callbacks = self.callback_list.borrow().clone();
@@ -201,9 +201,9 @@ impl SharedRegistryMut {
 // === SharedRegistryMut1 ===
 // ==========================
 
-/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
-/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
-/// as well.
+/// Registry gathering callbacks implemented with internal mutability pattern. Each registered
+/// callback is assigned with a handle. Callback and handle lifetimes are strictly connected. As
+/// soon a handle is dropped, the callback is removed as well.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
@@ -230,7 +230,7 @@ impl<T> SharedRegistryMut1<T> {
     }
 
     /// Fires all registered callbacks and removes the ones which got dropped. The implementation is
-    /// safe. You are allowed to change the registry while a callback is running.
+    /// safe - you are allowed to change the registry while a callback is running.
     pub fn run_all(&self, t:&T) {
         self.clear_unused_callbacks();
         let callbacks = self.callback_list.borrow().clone();

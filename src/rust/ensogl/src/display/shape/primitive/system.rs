@@ -110,6 +110,7 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
 }
 
 
+
 // =============
 // === Shape ===
 // =============
@@ -138,7 +139,7 @@ pub type ShapeSystemOf<T> = <T as Shape>::System;
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct StyleWatch {
-    sheets   : style::CascadingSheets,
+    sheet    : style::Sheet,
     vars     : Rc<RefCell<Vec<style::Var>>>,
     handles  : Rc<RefCell<Vec<callback::Handle>>>,
     #[derivative(Debug="ignore")]
@@ -148,12 +149,12 @@ pub struct StyleWatch {
 impl StyleWatch {
     /// Constructor.
     #[allow(trivial_casts)]
-    pub fn new(sheets:&style::CascadingSheets) -> Self {
-        let sheets   = sheets.clone_ref();
+    pub fn new(sheet:&style::Sheet) -> Self {
+        let sheet    = sheet.clone_ref();
         let vars     = default();
         let handles  = default();
         let callback = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
-        Self {sheets,vars,handles,callback}
+        Self {sheet,vars,handles,callback}
     }
 
     /// Resets the state of style manager. Should be used on each new shape definition. It is
@@ -165,7 +166,7 @@ impl StyleWatch {
 
     /// Queries style sheet value for a value.
     pub fn get(&self, path:&str) -> Option<style::Data> {
-        let var      = self.sheets.var(path);
+        let var      = self.sheet.var(path);
         let value    = var.value();
         let callback = self.callback.clone_ref();
         var.on_change(move |_:&Option<style::Data>| (callback.borrow())());
@@ -270,7 +271,6 @@ macro_rules! _define_shape_system {
         }
 
         impl ShapeSystem {
-            /// Initialization.
             fn init_refresh_on_style_change(self) -> Self {
                 let shape_system  = self.shape_system.clone_ref();
                 let style_manager = self.style_manager.clone_ref();

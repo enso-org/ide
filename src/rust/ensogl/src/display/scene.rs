@@ -714,7 +714,7 @@ pub struct SceneData {
     pub callbacks      : Callbacks,
     pub renderer       : Renderer,
     pub views          : Views,
-    pub style_sheet    : style::CascadingSheets,
+    pub style_sheet    : style::Sheet,
 }
 
 impl SceneData {
