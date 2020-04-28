@@ -83,11 +83,19 @@ pub struct IpWithSocket {
     pub port : u16
 }
 
+/// Project name.
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Shrinkwrap)]
+pub struct ProjectName {
+    #[allow(missing_docs)]
+    pub name : String
+}
+
 /// Project information, such as name, its id and last time it was opened.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 pub struct ProjectMetadata {
     /// Project's name.
-    pub name : String,
+    #[serde(flatten)]
+    pub name : ProjectName,
     /// Project's uuid.
     pub id : Uuid,
     /// Last time the project was opened.
@@ -187,23 +195,23 @@ mod mock_client_tests {
     fn list_recent_projects() {
         let mock_client = MockClient::default();
         let project1    = ProjectMetadata {
-            name        : "project1".to_string(),
+            name        : ProjectName { name : "project1".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
         };
         let project2 = ProjectMetadata {
-            name        : "project2".to_string(),
+            name        : ProjectName { name : "project2".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
         };
         let expected_recent_projects = ProjectListResponse { projects : vec![project1,project2] };
         let sample1 = ProjectMetadata {
-            name        : "sample1".to_string(),
+            name        : ProjectName { name : "sample1".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2019-11-23T05:30:12Z").unwrap())
         };
         let sample2 = ProjectMetadata {
-            name        : "sample2".to_string(),
+            name        : ProjectName { name : "sample2".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2019-12-25T00:10:58Z").unwrap())
         };
@@ -303,12 +311,12 @@ mod remote_client_tests {
         let number_of_projects_json = json!({"numberOfProjects":number_of_projects});
         let num_projects_json       = json!({"numProjects":number_of_projects});
         let project1                = ProjectMetadata {
-            name        : "project1".to_string(),
+            name        : ProjectName { name : "project1".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
         };
         let project2 = ProjectMetadata {
-            name        : "project2".to_string(),
+            name        : ProjectName { name : "project2".to_string() },
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
         };
