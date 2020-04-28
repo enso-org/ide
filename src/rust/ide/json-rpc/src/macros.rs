@@ -6,22 +6,22 @@
 // === Helper macro ===
 // ====================
 
-/// Generates parameters maps. e.g.:
-/// `(age:u32)` => `u32`
-/// `(age:u32,height:f32)` => `(u32,f32)`
+/// Take an type list and create a tuple if it has more than one type. e.g.:
+/// `u32` => `u32`
+/// `u32f32` => `(u32,f32)`
 #[macro_export]
 macro_rules! make_param_map {
-    (,$ty:ty) => {
+    ($ty:ty) => {
         $ty
     };
-    (,$($ty:ty),+) => {
+    ($($ty:ty),+) => {
         ($($ty),+)
     }
 }
 
-/// Generates arguments. e.g.:
-/// `(age:u32)` => `age`
-/// `(age:u32,height:f32)` => `(age,height)`
+/// Take an argument list and create a tuple if it has more than one argument. e.g.:
+/// `age` => `age`
+/// `age,height` => `(age,height)`
 #[macro_export]
 macro_rules! make_arg {
     ($name:ident) => {
@@ -137,7 +137,7 @@ macro_rules! make_rpc_methods {
         /// Mock used for tests.
         #[derive(Debug,Default)]
         pub struct MockClient {
-            $($method_result : RefCell<HashMap<make_param_map!($(,$param_ty)+),Result<$result>>>,)*
+            $($method_result : RefCell<HashMap<make_param_map!($($param_ty),+),Result<$result>>>,)*
         }
 
         impl API for MockClient {

@@ -200,6 +200,7 @@ mod tests {
     use super::*;
     use super::FileKind::RegularFile;
 
+    use futures::task::LocalSpawnExt;
     use json_rpc::messages::Message;
     use json_rpc::messages::RequestMessage;
     use json_rpc::test_util::transport::mock::MockTransport;
@@ -208,7 +209,6 @@ mod tests {
     use std::future::Future;
     use utils::test::poll_future_output;
     use utils::test::poll_stream_output;
-    use futures::task::LocalSpawnExt;
 
     struct Fixture {
         transport : MockTransport,
