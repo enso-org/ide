@@ -7,7 +7,6 @@ use crate::SectionLeft;
 use crate::SectionRight;
 use crate::SectionSides;
 use crate::Ast;
-use crate::Shifted;
 use crate::Opr;
 use crate::Shape;
 use crate::assoc::Assoc;
@@ -18,6 +17,7 @@ use crate::crumbs::SectionRightCrumb;
 use crate::crumbs::SectionSidesCrumb;
 use crate::crumbs::Located;
 use crate::known;
+
 use utils::vec::VecExt;
 
 
