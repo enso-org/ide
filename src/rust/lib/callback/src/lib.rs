@@ -197,6 +197,53 @@ impl SharedRegistryMut {
 }
 
 
+// ==========================
+// === SharedRegistryMut1 ===
+// ==========================
+
+/// Registry gathering callbacks. Each registered callback is assigned with a handle. Callback and
+/// handle lifetimes are strictly connected. As soon a handle is dropped, the callback is removed
+/// as well.
+#[derive(CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Debug(bound=""))]
+#[derivative(Default(bound=""))]
+#[allow(clippy::type_complexity)]
+pub struct SharedRegistryMut1<T> {
+    #[derivative(Debug="ignore")]
+    callback_list: Rc<RefCell<Vec<(Guard,Rc<RefCell<dyn CallbackMut1Fn<T>>>)>>>
+}
+
+impl<T> SharedRegistryMut1<T> {
+    /// Adds new callback and returns a new handle for it.
+    pub fn add<F:CallbackMut1Fn<T>>(&self, callback:F) -> Handle {
+        let callback = Rc::new(RefCell::new(callback));
+        let handle   = Handle::new();
+        let guard    = handle.guard();
+        self.callback_list.borrow_mut().push((guard,callback));
+        handle
+    }
+
+    ///Checks whether there are any callbacks registered.
+    pub fn is_empty(&self) -> bool {
+        self.callback_list.borrow().is_empty()
+    }
+
+    /// Fires all registered callbacks and removes the ones which got dropped. The implementation is
+    /// safe. You are allowed to change the registry while a callback is running.
+    pub fn run_all(&self, t:&T) {
+        self.clear_unused_callbacks();
+        let callbacks = self.callback_list.borrow().clone();
+        callbacks.iter().for_each(|(_,callback)| (&mut *callback.borrow_mut())(t));
+    }
+
+    /// Checks all registered callbacks and removes the ones which got dropped.
+    fn clear_unused_callbacks(&self) {
+        self.callback_list.borrow_mut().retain(|(guard,_)| guard.exists());
+    }
+}
+
+
 
 // =================
 // === Registry1 ===
@@ -248,7 +295,7 @@ impl<T> Registry1<T> {
 /// Specialized version of `Registry` for arguments implementing `Copy`. Passing copy-able elements
 /// as values is more performant than by reference.
 #[derive(Derivative)]
-#[derivative(Debug,Default(bound=""))]
+#[derivative(Debug(bound=""),Default(bound=""))]
 pub struct CopyRegistry1<T> {
     #[derivative(Debug="ignore")]
     callback_list: Vec<(Guard,CopyCallbackMut1<T>)>

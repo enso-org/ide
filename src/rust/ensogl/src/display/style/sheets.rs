@@ -183,7 +183,7 @@ impl Debug for BoundExpression {
 // === Value ===
 // =============
 
-/// A style sheet value declaration.
+/// Used to set value of style sheets. Also, used internally by `Change`.
 #[derive(Clone,Debug,PartialEq)]
 #[allow(missing_docs)]
 pub enum Value {
@@ -238,120 +238,11 @@ impl Change {
 
 
 
-// =============
-// === Types ===
-// =============
-
-// === Types ===
-
-#[allow(missing_docs)]
-mod types {
-    use super::*;
-    pub type QueryVec = OptVec<Query,Index<Query>>;
-    pub type SheetVec = OptVec<Sheet,Index<Sheet>>;
-    pub type QueryMap = HashMapTree<String,Option<Index<Query>>>;
-    pub type SheetMap = HashMapTree<String,Index<Sheet>>;
-}
-use types::*;
-
-
-
-
-
-
-
-
-
-// ===========
-// === Var ===
-// ===========
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct Var {
-    rc : Rc<VarData>
-}
-
-#[derive(Debug)]
-pub struct VarData {
-    sheets    : CascadingSheets,
-    query_id  : Index<Query>,
-    callbacks : callback::SharedRegistryMut,
-}
-
-pub trait VarChangeCallback = 'static + FnMut();
-
-impl VarData {
-    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut) -> Self
-    where R:Into<CascadingSheets> {
-        let sheets = sheets.into();
-        sheets.rc.borrow_mut().queries[query_id].inc_external_count();
-        Self {sheets,query_id,callbacks}
-    }
-
-    pub fn on_change<F:VarChangeCallback>(&self, callback:F) -> callback::Handle {
-        self.callbacks.add(callback)
-    }
-}
-
-impl Drop for VarData {
-    fn drop(&mut self) {
-        self.sheets.callbacks.borrow_mut().remove(&self.query_id);
-        let sheets_data = &mut *self.sheets.rc.borrow_mut();
-        sheets_data.queries[self.query_id].dec_external_count();
-        sheets_data.drop_query_if_unused(self.query_id);
-    }
-}
-
-impl Var {
-    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut) -> Self
-        where R:Into<CascadingSheets> {
-        let rc = Rc::new(VarData::new(sheets,query_id,callbacks));
-        Self {rc}
-    }
-}
-
-
-
-
-
-// =======================
-// === CascadingSheets ===
-// =======================
-
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct CascadingSheets {
-    rc        : Rc<RefCell<CascadingSheetsData>>,
-    callbacks : Rc<RefCell<HashMap<Index<Query>,callback::SharedRegistryMut>>>
-}
-
-impl CascadingSheets {
-    pub fn new() -> Self {
-        default()
-    }
-
-    pub fn var<P>(&self, path:P) -> Var
-    where P:Into<Path> {
-        let query_id          = self.rc.borrow_mut().unmanaged_query(path);
-        let callback_registry = callback::SharedRegistryMut::default();
-        self.callbacks.borrow_mut().insert(query_id,callback_registry.clone_ref());
-        Var::new(self,query_id,callback_registry)
-    }
-
-//    pub fn run_callbacks_for(&self, query_id:Index<Query>) {
-//        if let Some(callbacks) = self.callbacks.borrow().get(&query_id).map(|t| t.clone_ref()) {
-//            callbacks.run_all()
-//        }
-//    }
-}
-
-
-
 // ===========================
 // === CascadingSheetsData ===
 // ===========================
 
-/// Style sheet registry. Could be named "Cascading Style Sheets" but then the name will be
-/// confusing with CSS used in web development. Defines a set of cascading style sheets. Each
+/// Style sheet registry. Defines a set of cascading style sheets. Each
 /// style sheet can be assigned with a value of type `Data` or an expression to compute one. It
 /// also allows creating variables which are automatically bound to the most specific style sheet.
 /// See `Query` and `Sheet` to learn more.
@@ -366,6 +257,19 @@ pub struct CascadingSheetsData {
     /// Association of a path like 'button' -> 'size' to a style sheet.
     sheet_map : SheetMap,
 }
+
+
+// === Types ===
+
+#[allow(missing_docs)]
+mod cascading_sheets_types {
+    use super::*;
+    pub type QueryVec = OptVec<Query,Index<Query>>;
+    pub type SheetVec = OptVec<Sheet,Index<Sheet>>;
+    pub type QueryMap = HashMapTree<String,Option<Index<Query>>>;
+    pub type SheetMap = HashMapTree<String,Index<Sheet>>;
+}
+use cascading_sheets_types::*;
 
 
 // === Constructors ===
@@ -795,6 +699,164 @@ impl Default for CascadingSheetsData {
 
 
 
+// ===========
+// === Var ===
+// ===========
+
+#[derive(Clone,CloneRef,Debug,Deref)]
+pub struct Var {
+    rc : Rc<VarData>
+}
+
+#[derive(Debug)]
+pub struct VarData {
+    sheets    : CascadingSheets,
+    query_id  : Index<Query>,
+    callbacks : callback::SharedRegistryMut1<Option<Data>>,
+}
+
+pub trait VarChangeCallback = 'static + FnMut(&Option<Data>);
+
+impl VarData {
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut1<Option<Data>>) -> Self
+    where R:Into<CascadingSheets> {
+        let sheets = sheets.into();
+        sheets.rc.borrow_mut().queries[query_id].inc_external_count();
+        Self {sheets,query_id,callbacks}
+    }
+
+    pub fn on_change<F:VarChangeCallback>(&self, callback:F) -> callback::Handle {
+        self.callbacks.add(callback)
+    }
+
+    pub fn value(&self) -> Option<Data> {
+        self.sheets.rc.borrow().query_value(self.query_id).cloned()
+    }
+}
+
+impl Drop for VarData {
+    fn drop(&mut self) {
+        self.sheets.callbacks.borrow_mut().remove(&self.query_id);
+        let sheets_data = &mut *self.sheets.rc.borrow_mut();
+        sheets_data.queries[self.query_id].dec_external_count();
+        sheets_data.drop_query_if_unused(self.query_id);
+    }
+}
+
+impl Var {
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut1<Option<Data>>) -> Self
+        where R:Into<CascadingSheets> {
+        let rc = Rc::new(VarData::new(sheets,query_id,callbacks));
+        Self {rc}
+    }
+}
+
+
+
+// =======================
+// === CascadingSheets ===
+// =======================
+
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct CascadingSheets {
+    rc        : Rc<RefCell<CascadingSheetsData>>,
+    callbacks : Rc<RefCell<HashMap<Index<Query>,callback::SharedRegistryMut1<Option<Data>>>>>
+}
+
+impl CascadingSheets {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
+
+    /// Creates a new style sheet `Var`.
+    pub fn var<P>(&self, path:P) -> Var
+    where P:Into<Path> {
+        let query_id          = self.rc.borrow_mut().unmanaged_query(path);
+        let callback_registry = callback::SharedRegistryMut1::<Option<Data>>::default();
+        self.callbacks.borrow_mut().insert(query_id,callback_registry.clone_ref());
+        Var::new(self,query_id,callback_registry)
+    }
+
+    /// Sets the value by the given path.
+    pub fn set<P,V>(&self, path:P, value:V)
+    where P:Into<Path>, V:Into<Value> {
+        let value = value.into();
+        self.apply_change(Change::new(path,Some(value)))
+    }
+
+    /// Removes the value by the given path.
+    pub fn unset<P>(&self, path:P)
+    where P:Into<Path> {
+        self.apply_change(Change::new(path,None))
+    }
+
+    /// Changes the value by the given path. Providing `None` as the value means that the value
+    /// will be removed.
+    pub fn change<P>(&self, path:P, value:Option<Value>)
+    where P:Into<Path> {
+        self.apply_change(Change::new(path,value))
+    }
+
+    /// Apply a `Change`.
+    pub fn apply_change(&self, change:Change) {
+        self.apply_changes(iter::once(change))
+    }
+
+    /// Apply a set of `Change`s.
+    pub fn apply_changes<I>(&self, changes:I)
+    where I:IntoIterator<Item=Change> {
+        let changed = self.rc.borrow_mut().apply_changes(changes);
+        for query_id in changed {
+            self.run_callbacks_for(query_id);
+        }
+    }
+
+    /// Queries the style sheet for a value of a path like it was a variable. For example,
+    /// querying "button.size" will return the value of "size" if no exact match was found.
+    pub fn query<P>(&self, path:P) -> Option<Data>
+    where P:Into<Path> {
+        self.rc.borrow().query(path).cloned()
+    }
+
+    /// Reads the value of the style sheet by the exact path provided. If you want to read a value
+    /// of a variable binding, use `query` instead.
+    pub fn value<P>(&self, path:P) -> Option<Data>
+    where P:Into<Path> {
+        self.rc.borrow().value(path).cloned()
+    }
+}
+
+
+// === Private ===
+
+impl CascadingSheets {
+    /// Runs callbacks registered for the given variable id.
+    fn run_callbacks_for(&self, query_id:Index<Query>) {
+        if let Some(callbacks) = self.callbacks.borrow().get(&query_id).map(|t| t.clone_ref()) {
+            // FIXME: The value should not be cloned here.
+            let value = self.rc.borrow().query_value(query_id).cloned();
+            callbacks.run_all(&value)
+        }
+    }
+}
+
+
+// === Debug ===
+
+impl CascadingSheets {
+    /// Returns number of `Query` instances used by the engine.
+    pub fn debug_query_count(&self) -> usize {
+        self.rc.borrow().query_count()
+    }
+
+    /// Returns number of `Sheet` instances used by the engine.
+    pub fn debug_sheet_count(&self) -> usize {
+        self.rc.borrow().sheet_count()
+    }
+}
+
+
 
 
 // =============
@@ -834,55 +896,106 @@ pub fn test() {
 mod tests {
     use super::*;
 
-    fn assert_query_sheet_count(style:&CascadingSheetsData, query_count:usize, sheet_count:usize) {
-        assert_eq!(style.query_count(),query_count);
-        assert_eq!(style.sheet_count(),sheet_count);
+    fn assert_query_sheet_count(style:&CascadingSheets, query_count:usize, sheet_count:usize) {
+        assert_eq!(style.debug_query_count(),query_count);
+        assert_eq!(style.debug_sheet_count(),sheet_count);
     }
 
     #[test]
     pub fn memory_management_for_single_value() {
-        let mut style = CascadingSheetsData::new();
-        style.set("size",data(1.0));
-        assert_query_sheet_count(&style,0,1);
-        style.unset("size");
-        assert_query_sheet_count(&style,0,0);
+        let mut sheet = CascadingSheets::new();
+        sheet.set("size",data(1.0));
+        assert_query_sheet_count(&sheet,0,1);
+        sheet.unset("size");
+        assert_query_sheet_count(&sheet,0,0);
     }
 
     #[test]
     pub fn memory_management_for_multiple_values() {
-        let mut style = CascadingSheetsData::new();
-        style.set("size",data(1.0));
-        style.set("button.size",data(2.0));
-        style.set("circle.radius",data(3.0));
-        assert_query_sheet_count(&style,0,4);
-        style.unset("size");
-        assert_query_sheet_count(&style,0,4);
-        style.unset("button.size");
-        assert_query_sheet_count(&style,0,2);
-        style.unset("circle.radius");
-        assert_query_sheet_count(&style,0,0);
+        let mut sheet = CascadingSheets::new();
+        sheet.set("size",data(1.0));
+        sheet.set("button.size",data(2.0));
+        sheet.set("circle.radius",data(3.0));
+        assert_query_sheet_count(&sheet,0,4);
+        sheet.unset("size");
+        assert_query_sheet_count(&sheet,0,4);
+        sheet.unset("button.size");
+        assert_query_sheet_count(&sheet,0,2);
+        sheet.unset("circle.radius");
+        assert_query_sheet_count(&sheet,0,0);
     }
 
     #[test]
     pub fn memory_management_for_single_expression() {
-        let mut style = CascadingSheetsData::new();
-        style.set("button.size",data(1.0));
-        assert_query_sheet_count(&style,0,2);
-        style.set("circle.radius",Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
-        assert_query_sheet_count(&style,1,4);
-        assert_eq!(style.value("circle.radius"),Some(&data(11.0)));
-        style.unset("button.size");
-        assert_query_sheet_count(&style,1,4);
-        assert_eq!(style.value("circle.radius"),Some(&data(11.0))); // Impossible to update.
-        style.set("button.size",data(2.0));
-        assert_query_sheet_count(&style,1,4);
-        assert_eq!(style.value("circle.radius"),Some(&data(12.0)));
-        style.set("circle.radius",data(3.0));
-        assert_query_sheet_count(&style,0,4);
-        style.unset("button.size");
-        assert_query_sheet_count(&style,0,2);
-        style.unset("circle.radius");
-        assert_query_sheet_count(&style,0,0);
+        let mut sheet = CascadingSheets::new();
+        sheet.set("button.size",data(1.0));
+        assert_query_sheet_count(&sheet,0,2);
+        sheet.set("circle.radius",Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
+        assert_query_sheet_count(&sheet,1,4);
+        assert_eq!(sheet.value("circle.radius"),Some(data(11.0)));
+        sheet.unset("button.size");
+        assert_query_sheet_count(&sheet,1,4);
+        assert_eq!(sheet.value("circle.radius"),Some(data(11.0))); // Impossible to update.
+        sheet.set("button.size",data(2.0));
+        assert_query_sheet_count(&sheet,1,4);
+        assert_eq!(sheet.value("circle.radius"),Some(data(12.0)));
+        sheet.set("circle.radius",data(3.0));
+        assert_query_sheet_count(&sheet,0,4);
+        sheet.unset("button.size");
+        assert_query_sheet_count(&sheet,0,2);
+        sheet.unset("circle.radius");
+        assert_query_sheet_count(&sheet,0,0);
+    }
+
+    #[test]
+    pub fn single_variable() {
+        let mut sheet = CascadingSheets::new();
+        let mut val   = Rc::new(RefCell::new(None));
+        let var       = sheet.var("button.size");
+        let handle    = var.on_change(f!((val)(v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(var.value(),None);
+        sheet.set("size",data(1.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(1.0)));
+        assert_eq!(var.value(),Some(data(1.0)));
+        sheet.set("button.size",data(2.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),Some(data(2.0)));
+        drop(handle);
+        sheet.set("button.size",data(3.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),Some(data(3.0)));
+        sheet.unset("button.size");
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),Some(data(1.0)));
+        drop(var);
+        assert_query_sheet_count(&sheet,0,1);
+        sheet.unset("size");
+        assert_query_sheet_count(&sheet,0,0);
+    }
+
+    #[test]
+    pub fn variable_unbind() {
+        let mut sheet = CascadingSheets::new();
+        let mut val   = Rc::new(RefCell::new(None));
+        let var       = sheet.var("button.size");
+        let handle    = var.on_change(f!((val)(v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(var.value(),None);
+        sheet.set("size",data(1.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(1.0)));
+        assert_eq!(var.value(),Some(data(1.0)));
+        sheet.unset("size");
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),None);
+        assert_eq!(var.value(),None);
+        drop(var);
+        assert_query_sheet_count(&sheet,0,0);
     }
 
     #[test]

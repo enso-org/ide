@@ -2,7 +2,7 @@
 
 pub mod data;
 pub mod path;
-pub mod registry;
+pub mod sheets;
 pub mod theme;
 
-pub use registry::*;
+pub use sheets::*;

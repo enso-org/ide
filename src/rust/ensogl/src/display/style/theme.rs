@@ -6,11 +6,11 @@ use crate::data::HashMapTree;
 use crate::data::color;
 
 use super::data::Data;
-use super::registry::Path;
-use super::registry::Change;
-use super::registry::Value;
-use super::registry::Expression;
-use super::registry as style;
+use super::sheets::Path;
+use super::sheets::Change;
+use super::sheets::Value;
+use super::sheets::Expression;
+use super::sheets as style;
 
 
 
