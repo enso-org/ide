@@ -5,7 +5,7 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::Registry;
+use crate::component::node::port::{Registry, Port};
 use crate::component::node::port::IOPort;
 
 use enso_frp as frp;
@@ -24,6 +24,8 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
+use nalgebra::Rotation2;
+use wasm_bindgen::__rt::core::f32::consts::{FRAC_2_PI, FRAC_PI_2};
 
 
 /// Icons definitions.
@@ -141,6 +143,10 @@ pub struct Events {
     pub deselect     : frp::Source,
     /// Emitted if a new port was created.
     pub port_created : frp::Source<IOPort>,
+    /// Received if this node's position changes.
+    /// Required for propagation of position updates.
+    pub position_update   : frp::Source,
+
 }
 
 
@@ -212,15 +218,16 @@ impl Node {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { node_network
-            def label        = source::<String> ();
-            def select       = source::<()>     ();
-            def deselect     = source::<()>     ();
-            def port_created = source::<IOPort> ();
+            def label           = source::<String> ();
+            def select          = source::<()>     ();
+            def deselect        = source::<()>     ();
+            def port_created    = source::<IOPort> ();
+            def position_update = source::<()> ();
         }
         let network = node_network;
         let logger  = Logger::new("node");
         let view    = component::ShapeView::new(&logger);
-        let events  = Events {network,select,deselect,port_created};
+        let events  = Events {network,select,deselect,port_created,position_update};
         let ports   = Registry::default() ;
         let data    = Rc::new(NodeData {logger,label,events,view,ports});
         Self {data} . init()
@@ -256,6 +263,30 @@ impl Node {
             def _f_deselect = self.events.deselect.map(move |_| {
                 selection_ref.set_target_position(0.0);
             });
+
+            let weak_node = self.downgrade();
+            def _new_port = self.events.port_created.map(f!((network,weak_node)(port) {
+                match port {
+                     IOPort::Output { port } => {
+                         frp::new_bridge_network! { [network,port.data.events.network]
+                               def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
+                                     if let Some(node) = weak_node.upgrade(){
+                                        node.on_connection_update();
+                                     }
+                               }));
+                           }
+                     },
+                     IOPort::Input { port }  => {
+                         frp::new_bridge_network! { [network,port.data.events.network]
+                             def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
+                                 if let Some(node) = weak_node.upgrade(){
+                                    node.on_connection_update();
+                                 }
+                             }));
+                         }
+                     },
+               }
+            }));
         }
 
         self
@@ -278,8 +309,44 @@ impl Node {
     /// Propagate a position update to the ports.
     /// TODO use frp system
     pub fn on_position_update(&self){
+        self.layout_ports();
+        /// Propagate update.
         self.data.ports.on_position_update()
     }
+
+    // TODO: this should be more fine grained and only update the affected ports.
+    pub fn on_connection_update(&self){
+        self.layout_ports()
+    }
+
+    /// Update the position of all ports after this node has moved
+    fn layout_ports(&self){
+        for port in self.data.ports.input.ports.borrow().iter(){
+            if let Some(target) = port.connection_target_position(){
+                let new_pos = self.angle_to_other(target);
+                port.set_position(new_pos.degrees());
+            }
+
+        }
+        for port in self.data.ports.output.ports.borrow().iter(){
+            if let Some(target) = port.connection_target_position(){
+                let new_pos = self.angle_to_other(target);
+                port.set_position(new_pos.degrees());
+            }
+        }
+    }
+
+    /// Compute the port position facing in the direction of a given point.
+    fn angle_to_other(&self, other: Vector3<f32>) -> Angle<Radians> {
+        let source = self.data.view.display_object.global_position();
+        let up     = Vector3::new(1.0,0.0,0.0);
+        let target = source - other;
+        let delta  = up - target;
+        let angle  = ( delta.y ).atan2( delta.x );
+        Angle::<Radians>::from(-angle + FRAC_PI_2)
+    }
+
+
 }
 
 impl Default for Node {

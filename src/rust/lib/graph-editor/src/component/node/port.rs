@@ -25,7 +25,8 @@ use ensogl::math::topology::unit::AngleOps;
 use ensogl::math::topology::unit::Degrees;
 use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
-
+use nalgebra::Rotation2;
+use enso_frp::stream::EventEmitter;
 
 
 // ===========================
@@ -244,11 +245,12 @@ mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network          : frp::Network,
-    pub connection_start : frp::Source,
-    pub connection_end   : frp::Source,
-    pub hover_start      : frp::Source,
-    pub hover_end        : frp::Source,
+    pub network            : frp::Network,
+    pub connection_start   : frp::Source,
+    pub connection_end     : frp::Source,
+    pub connection_changed : frp::Source,
+    pub hover_start        : frp::Source,
+    pub hover_end          : frp::Source,
 }
 
 
@@ -400,6 +402,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
             def label            = source::<String> ();
             def connection_start = source::<()>     ();
             def connection_end   = source::<()>     ();
+            def connection_move  = source::<()>     ();
 
             def hover_start = source::<()>     ();
             def hover_end   = source::<()>     ();
@@ -407,7 +410,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
         let network = port_network;
 
         let spec       = Specification::default();
-        let events     = Events {network,connection_start,connection_end,hover_start,hover_end};
+        let events     = Events {network,connection_start,connection_end, connection_changed: connection_move,hover_start,hover_end};
         let logger     = Logger::new("node");
         let view       = Rc::new(component::ShapeView::new(&logger));
         let connection = RefCell::new(None);
@@ -545,23 +548,18 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Break the link the ports connection, if there is one.
     pub fn unset_connection(&self){
-        if let Some(connection) = self.data.connection.borrow().as_ref() {
-            connection.clear_ports();
-        }
+        // if let Some(connection) = self.data.connection.borrow().as_ref() {
+        //     connection.clear_ports();
+        // }
         self.data.connection.clear()
     }
 
-    /// Updates the linked connections position.
-    fn update_connection_position(&self){
-        if let Some(connection) = self.data.connection.borrow().as_ref() {
-          connection.on_port_position_change();
-        }
+    /// Execute state changes required on global position changes.
+    pub fn on_connection_update(&self){
+      self.data.events.connection_changed.emit_event(&());
     }
 
-    /// Execute state changes required on global position changes.
-    pub fn on_position_update(&self){
-        self.update_connection_position();
-    }
+
 }
 
 impl<T:PortShapeViewDefinition> Default for Port<T> {
@@ -575,8 +573,19 @@ impl InputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_start(&self, connection: Connection){
         self.unset_connection();
-        connection.set_end(self);
+        connection.set_input_port(self);
         self.data.connection.set(connection);
+    }
+
+    /// Execute state changes required on global position changes.
+    pub fn on_position_update(&self){
+        if let Some(connection) = self.data.connection.borrow().as_ref() {
+            connection.on_input_port_position_change();
+        }
+    }
+
+    pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
+        self.data.connection.borrow().as_ref().map(|connection|  connection.output_position())
     }
 }
 
@@ -584,8 +593,19 @@ impl OutputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_end(&self, connection: Connection){
         self.unset_connection();
-        connection.set_start(self);
+        connection.set_output_port(self);
         self.data.connection.set(connection);
+    }
+
+    /// Execute state changes required on global position changes.
+    pub fn on_position_update(&self){
+        if let Some(connection) = self.data.connection.borrow().as_ref() {
+            connection.on_output_port_position_change();
+        }
+    }
+
+    pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
+        self.data.connection.borrow().as_ref().map(|connection|  connection.input_position())
     }
 }
 
@@ -599,7 +619,7 @@ impl OutputPort{
 #[derive(Debug,Default)]
 #[allow(missing_docs)]
 pub struct PortBuffer<T:PortShapeViewDefinition> {
-    ports: RefCell<Vec<Port<T>>>,
+    pub ports: RefCell<Vec<Port<T>>>,
 }
 
 /// Helper type that represents a `PortBuffer` for `InputPorts`.
@@ -615,13 +635,6 @@ impl<T:PortShapeViewDefinition> PortBuffer<T> {
         parent.add_child(&port.data.view.display_object);
         self.ports.borrow_mut().push(port.clone_ref());
         port
-    }
-
-    /// Execute state changes required on global position changes.
-    pub fn on_position_update(&self){
-        for port in self.ports.borrow().iter(){
-            port.on_position_update()
-        }
     }
 
 }
@@ -661,7 +674,7 @@ pub struct Registry {
 impl Registry{
     /// Execute state changes required on global position changes.
     pub fn on_position_update(&self){
-        self.input.on_position_update();
-        self.output.on_position_update();
+        self.input.ports.borrow().iter().for_each(|port| port.on_position_update());
+        self.output.ports.borrow().iter().for_each(|port| port.on_position_update());
     }
 }
