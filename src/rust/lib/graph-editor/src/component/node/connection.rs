@@ -71,7 +71,6 @@ mod shape {
 
 /// Connection events.
 ///
-/// `port_move`   should be emitted TO the `Connection`, so it can update its position and shape.
 /// `hover_start` is emitted FROM the `Connection` when a mouse over event is detected.
 /// `hover_end`   is emitted FROM the `Connection` when a mouse over event ends.
 #[derive(Clone,CloneRef,Debug)]
@@ -110,10 +109,10 @@ type ConnectionShapeView = component::ShapeView<ConnectionView>;
 /// Ports are shown as a connecting line going from one port to the other. The position snd shape
 /// of the `Connection` is defined by the start and end ports.
 ///
-/// Connections can be created in the IDE by dragging from one port to another. This is currently handled in
-/// the `GraphEditor`, where events are collected and routed to allow dragging from ports,
-/// existence of a partially connected in-creation `Connection`, and finally the connecting of two
-/// ports.
+/// Connections can be created in the IDE by dragging from one port to another. This is currently
+/// handled in the `GraphEditor`, where events are collected and routed to allow dragging from
+/// ports, existence of a partially connected in-creation `Connection`, and finally the connecting
+/// of two ports.
 ///
 /// TODO: use two line segments. This reduces emtpy space and allows partial glow.
 #[derive(CloneRef,Debug,Derivative)]
@@ -175,8 +174,7 @@ impl Connection {
     /// Set up the event handling for connections.
     fn init_frp(self) -> Self {
         let weak_connection = self.downgrade();
-
-        let network = &self.data.events.network;
+        let network         = &self.data.events.network;
         frp::extend! { network
                 def _connection_on_over = self.data.view.events.mouse_over.map(f!((weak_connection)(_) {
                     if let Some(connection) = weak_connection.upgrade() {
@@ -191,9 +189,9 @@ impl Connection {
                 }));
         }
 
-        let network = &self.data.view.events.network;
+        let network              = &self.data.view.events.network;
         let weak_connection_fade = self.downgrade();
-        let fade = animation(network,move |value| {
+        let fade                 = animation(network,move |value| {
             weak_connection_fade.upgrade().for_each(|connection| {
                 connection.set_glow(value);
             })
@@ -201,12 +199,12 @@ impl Connection {
 
         frp::extend! { network
             def _f_hover_start = self.data.events.hover_start.map(enclose!((fade) move |_| {
-                    fade.set_position(1.0);
-                    // TODO should be removed once mouse_leave is implemented.
-                    fade.set_target_position(0.0);
+                fade.set_position(1.0);
+                // TODO should be removed once mouse_leave is implemented.
+                fade.set_target_position(0.0);
             }));
              def _f_hover_end = self.data.events.hover_end.map(enclose!((fade) move |_| {
-                    fade.set_target_position(0.0);
+                fade.set_target_position(0.0);
             }));
         }
         self
@@ -245,7 +243,7 @@ impl Connection {
 
     /// Set the connection's starting port.
     ///
-    /// Will also  the shape and position of the `Connection` based on the port's position.
+    /// Will also update the shape and position of the `Connection` based on the port's position.
     pub fn set_input_port(&self, port:&InputPort) {
         let position = port.position_global();
         self.data.input_port.set(port.downgrade());

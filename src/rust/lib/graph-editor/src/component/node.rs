@@ -25,7 +25,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
-use wasm_bindgen::__rt::core::f32::consts::FRAC_PI_2;
+use std::f32::consts::FRAC_PI_2;
 
 
 /// Icons definitions.
@@ -264,23 +264,23 @@ impl Node {
                 match port {
                      port::Type::Output { port } => {
                          frp::new_bridge_network! { [network,port.data.events.network]
-                               def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
-                                     if let Some(node) = weak_node.upgrade(){
-                                        node.on_connection_update();
-                                     }
-                               }));
-                           }
+                             def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
+                                if let Some(node) = weak_node.upgrade(){
+                                    node.on_connection_update();
+                                }
+                             }));
+                          }
                      },
                      port::Type::Input { port }  => {
                          frp::new_bridge_network! { [network,port.data.events.network]
                              def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
-                                 if let Some(node) = weak_node.upgrade(){
+                                if let Some(node) = weak_node.upgrade(){
                                     node.on_connection_update();
-                                 }
+                                }
                              }));
                          }
                      },
-               }
+                }
             }));
         }
 
@@ -310,7 +310,6 @@ impl Node {
     /// Needs to be called when this node has changed its position.
     ///
     /// This is used to propagate the position update to the ports and connections of this node.
-    /// TODO use frp system?
     pub fn on_position_update(&self){
         self.layout_ports();
         // Propagate update.
@@ -323,7 +322,7 @@ impl Node {
         self.layout_ports()
     }
 
-    /// Update the position of all ports after this node has moved
+    /// Update the position of all ports after this node has moved.
     fn layout_ports(&self){
         for port in self.data.ports.input.ports.borrow().iter(){
             if let Some(target) = port.connection_target_position(){

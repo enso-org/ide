@@ -307,7 +307,6 @@ impl ShapeViewDefinition for OutputPortView {
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(
             alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
-
         Self {}
     }
 }
@@ -454,16 +453,14 @@ impl<T:PortShapeViewDefinition> Port<T> {
         let weak_port = self.downgrade();
         let network = &self.data.view.events.network;
         frp::new_bridge_network! { [network,self.data.events.network]
-                let weak_port_mouse_down = weak_port.clone();
-                def _node_on_down_tagged = self.data.view.events.mouse_down.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_down.upgrade() {
+                def _node_on_down_tagged = self.data.view.events.mouse_down.map(f!((weak_port)(_) {
+                    if let Some(port) = weak_port.upgrade() {
                         port.data.events.connection_start.emit(());
                     }
                 }));
 
-                let weak_port_mouse_over = weak_port.clone();
-                def _node_on_over = self.data.view.events.mouse_over.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_over.upgrade() {
+                def _node_on_over = self.data.view.events.mouse_over.map(f!((weak_port)(_) {
+                    if let Some(port) = weak_port.upgrade() {
                         port.data.events.hover_start.emit(());
 
                         // FIXME this is a workaround for the missing mouse up event
@@ -473,9 +470,8 @@ impl<T:PortShapeViewDefinition> Port<T> {
                     }
                 }));
 
-               let weak_port_mouse_leave = weak_port;
-               def _node_on_leave = self.data.view.events.mouse_leave.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_leave.upgrade() {
+               def _node_on_leave = self.data.view.events.mouse_leave.map(f!((weak_port)(_) {
+                    if let Some(port) = weak_port.upgrade() {
                         port.data.events.hover_end.emit(());
                     }
                 }));
@@ -524,6 +520,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
     /// Position where a connection should start/end.
     pub fn connection_position(&self) -> Vector3<f32> {
+        // TODO add a nice offset based on shape sizes
         self.position_global()
     }
 
@@ -575,7 +572,9 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.set_rotation(rotation_vector);
     }
 
-    /// Execute state changes required on global position changes.
+    /// Notify that the linked connection has changed.
+    ///
+    /// Should be called by the connection to initiate a layout update on the parent node.
     pub fn on_connection_update(&self) {
       self.data.events.connection_changed.emit_event(&());
     }
