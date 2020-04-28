@@ -234,6 +234,12 @@ impl Connections {
 // === Utilities ===
 // =================
 
+/// Suggests a variable name for storing results of the given expression.
+///
+/// Name will try to express result of an infix operation (`sum` for `a+b`), kind of literal
+/// (`number` for `5`) and target function name for prefix chain.
+///
+/// The generated name is not unique and might collide with already present identifiers.
 pub fn name_for_ast(ast:&Ast) -> String {
     use ast::*;
     match ast.shape() {
