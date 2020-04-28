@@ -36,11 +36,11 @@ mod shape {
 
     ensogl::define_shape_system! {
          (start:Vector2<f32>, end:Vector2<f32>, thickness:f32, glow:f32) {
+            let zoom_factor  = Var::<f32>::from("(2.0 / input_zoom) - 1.0");
+            let height       = Var::<f32>::from("input_start.y - input_end.y");
+            let width        = Var::<f32>::from("input_start.x - input_end.x");
 
-            let height     = Var::<f32>::from("input_start.y - input_end.y");
-            let width      = Var::<f32>::from("input_start.x - input_end.x");
-
-            let line         = Line(Var::<f32>::from(1.0) + thickness);
+            let line         = Line((Var::<f32>::from(1.0) + thickness) * zoom_factor);
             let line_color   = Srgba::new(1.00, 0.565, 0.0, 1.0);
             let line_colored = line.fill(line_color);
 
