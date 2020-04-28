@@ -283,7 +283,7 @@ fn init_shape(shape:&shape::Shape, direction:Direction) {
 }
 
 /// Shape view for input port.
-#[derive(Debug,Default,Clone,Copy)]
+#[derive(Debug,Default,Clone,CloneRef,Copy)]
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
     type Shape = shape::Shape;
@@ -298,7 +298,7 @@ impl ShapeViewDefinition for InputPortView {
 }
 
 /// Shape view for output port.
-#[derive(Debug,Default,Clone,Copy)]
+#[derive(Debug,Default,Clone,CloneRef,Copy)]
 pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
     type Shape = shape::Shape;
@@ -313,7 +313,7 @@ impl ShapeViewDefinition for OutputPortView {
 }
 
 /// Helper trait that describes a `ShapeViewDefinition` with a port shape.
-pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape> + Clone;
+pub trait PortShapeViewDefinition = ShapeViewDefinition<Shape=shape::Shape> + CloneRef;
 
 /// Port definition.
 ///
