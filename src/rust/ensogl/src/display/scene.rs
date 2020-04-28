@@ -8,8 +8,9 @@ pub use crate::display::symbol::registry::SymbolId;
 use crate::prelude::*;
 use crate::display::traits::*;
 
-use crate::control::callback;
+use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback::DynEvent;
+use crate::control::callback;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
 use crate::data::dirty::traits::*;
@@ -18,6 +19,8 @@ use crate::debug::stats::Stats;
 use crate::display::camera::Camera2d;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
+use crate::display::scene::dom::DomScene;
+use crate::display::style;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::symbol::Symbol;
 use crate::display;
@@ -25,11 +28,9 @@ use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 use crate::system::gpu::types::*;
-use crate::display::scene::dom::DomScene;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-use crate::control::callback::CallbackMut1Fn;
 use std::any::TypeId;
 
 use wasm_bindgen::prelude::Closure;
@@ -592,6 +593,7 @@ pub struct SceneData {
     pub callbacks      : Callbacks,
     pub renderer       : Renderer,
     pub views          : Views,
+    pub style_sheet    : style::CascadingSheets,
 }
 
 impl SceneData {
@@ -629,10 +631,11 @@ impl SceneData {
         let on_zoom        = views.main.camera.add_zoom_update_callback(on_zoom_cb);
         let on_resize      = dom.root.on_resize(on_resize_cb);
         let callbacks      = Callbacks {on_zoom,on_resize};
+        let style_sheet    = default();
 
         uniforms.zoom.set(dom.shape().pixel_ratio());
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables
-             ,stats,uniforms,mouse,callbacks,shapes}
+             ,stats,uniforms,mouse,callbacks,shapes,style_sheet}
     }
 
     pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> callback::Handle {

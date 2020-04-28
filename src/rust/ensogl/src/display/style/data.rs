@@ -132,3 +132,29 @@ define_binary_number_operator!(Mul::mul,|lhs,rhs| format!("Cannot multiply {} by
 define_binary_number_operator!(Div::div,|lhs,rhs| format!("Cannot divide {} by {}.",lhs,rhs));
 define_binary_number_operator!(Add::add,|lhs,rhs| format!("Cannot add {} to {}.",lhs,rhs));
 define_binary_number_operator!(Sub::sub,|lhs,rhs| format!("Cannot subtract {} from {}.",rhs,lhs));
+
+
+
+// ==================
+// === OptionData ===
+// ==================
+
+/// Smart `Data` deconstructors.
+#[allow(missing_docs)]
+pub trait DataMatch {
+    fn invalid (&self) -> Option<&String>;
+    fn number  (&self) -> Option<f32>;
+    fn color   (&self) -> Option<color::Lcha>;
+}
+
+impl DataMatch for Data {
+    fn invalid (&self) -> Option<&String>     {match self { Self::Invalid (t)=>Some(t)  , _=>None }}
+    fn number  (&self) -> Option<f32>         {match self { Self::Number  (t)=>Some(*t) , _=>None }}
+    fn color   (&self) -> Option<color::Lcha> {match self { Self::Color   (t)=>Some(*t) , _=>None }}
+}
+
+impl DataMatch for Option<Data> {
+    fn invalid (&self) -> Option<&String>     {self.as_ref().and_then(|t| t.invalid())}
+    fn number  (&self) -> Option<f32>         {self.as_ref().and_then(|t| t.number())}
+    fn color   (&self) -> Option<color::Lcha> {self.as_ref().and_then(|t| t.color())}
+}
