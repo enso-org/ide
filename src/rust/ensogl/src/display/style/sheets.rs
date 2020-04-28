@@ -17,9 +17,9 @@ pub use super::path::Path;
 // === Query ===
 // =============
 
-/// Pointer to a sheet. Always bound to the most specific style sheet matching the query. For
-/// example, the query 'panel.button.size' will be bound to 'panel.button.size', 'button.size', or
-/// 'size' in that order.
+/// Pointer to a sheet. Always bound to the most specific style sheet matching the query (if such
+/// exists). For example, the query 'panel.button.size' will be bound to 'panel.button.size',
+/// 'button.size', or 'size' in that order.
 ///
 /// # Implementation Details
 /// Each query keeps a list of all style sheets which match this query (`matches`). For example,
@@ -55,14 +55,17 @@ impl Query {
         self.external_count == 0 && self.usages.is_empty()
     }
 
+    /// Checks whether this query is used by one or more external variables.
     pub fn is_external(&self) -> bool {
         self.external_count > 0
     }
 
+    /// Increments the counter of external usages of this query.
     fn inc_external_count(&mut self) {
         self.external_count += 1;
     }
 
+    /// Decrements the counter of external usages of this query.
     fn dec_external_count(&mut self) {
         self.external_count -= 1;
     }
@@ -124,6 +127,7 @@ impl Sheet {
 
 /// Style sheet expression declaration.
 #[derive(Clone)]
+#[allow(missing_docs)]
 pub struct Expression {
     pub args     : Vec<Path>,
     pub function : Rc<dyn Fn(&[&Data])->Data>
@@ -147,7 +151,9 @@ impl Debug for Expression {
 
 impl PartialEq for Expression {
     fn eq(&self, other:&Self) -> bool {
-        (self.args == other.args) && Rc::ptr_eq(&self.function,&other.function)
+        let same_args     = self.args == other.args;
+        let same_function = Rc::ptr_eq(&self.function,&other.function);
+        same_args && same_function
     }
 }
 
@@ -222,6 +228,7 @@ impl Semigroup for Value {
 
 /// Defines a change to a style sheet. Style sheets allow bulk-application of changes in order to
 /// optimize the amount of necessary computations under the hood.
+#[derive(Debug)]
 pub struct Change {
     path  : Path,
     value : Option<Value>
@@ -242,10 +249,7 @@ impl Change {
 // === CascadingSheetsData ===
 // ===========================
 
-/// Style sheet registry. Defines a set of cascading style sheets. Each
-/// style sheet can be assigned with a value of type `Data` or an expression to compute one. It
-/// also allows creating variables which are automatically bound to the most specific style sheet.
-/// See `Query` and `Sheet` to learn more.
+/// Internal data of `CascadingSheets`.
 #[derive(Debug)]
 pub struct CascadingSheetsData {
     /// Set of all variables.
@@ -296,10 +300,10 @@ impl CascadingSheetsData {
         let path         = path.into();
         let queries         = &mut self.queries;
         let sheets       = &mut self.sheets;
-        let query_map_node = self.query_map.get_node(&path.rev_segments);
+        let query_map_node = self.query_map.get_or_create_node(&path.rev_segments);
 
         let mut query_matches = Vec::new();
-        self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
+        self.sheet_map.get_or_create_node_traversing_path_with(&path.rev_segments,|p| {
             sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
         }, |t| {
             query_matches.push(t.value)
@@ -323,7 +327,7 @@ impl CascadingSheetsData {
     fn sheet<P:Into<Path>>(&mut self, path:P) -> Index<Sheet> {
         let path   = path.into();
         let sheets = &mut self.sheets;
-        let node   = self.sheet_map.get_node_path_traversing_with(&path.rev_segments,|p| {
+        let node   = self.sheet_map.get_or_create_node_traversing_path_with(&path.rev_segments,|p| {
             sheets.insert_with_ix(|ix| Sheet::new(Path::from_rev_segments(p),ix))
         }, |_| {});
         node.value
@@ -347,12 +351,12 @@ impl CascadingSheetsData {
     /// querying "button.size" will return the value of "size" if no exact match was found.
     pub fn query<P>(&self, path:P) -> Option<&Data>
     where P:Into<Path> {
-        let mut path = path.into();
+        let path = path.into();
         while path.rev_segments.is_empty() {
             let value = self.value(&path);
             if value.is_some() { return value }
         }
-        return None
+        None
     }
 
     /// Reads the value of the style sheet by the exact path provided. If you want to read a value
@@ -361,7 +365,7 @@ impl CascadingSheetsData {
     where P:Into<Path> {
         let path = path.into();
         let segs = &path.rev_segments;
-        self.sheet_map.get_node2(segs).and_then(|t| self.sheets[t.value].value.as_ref())
+        self.sheet_map.get_node(segs).and_then(|t| self.sheets[t.value].value.as_ref())
     }
 
     /// Returns the amount of queries used.
@@ -515,7 +519,7 @@ impl CascadingSheetsData {
         let query_ref = &self.queries[query_id];
         if query_ref.is_unused() {
             if let Some(query) = self.queries.remove(query_id) {
-                let node = self.query_map.get_node(&query.path.rev_segments);
+                let node = self.query_map.get_or_create_node(&query.path.rev_segments);
                 node.value = None;
                 for sheet_id in query.matches {
                     let sheet = &mut self.sheets[sheet_id];
@@ -531,7 +535,7 @@ impl CascadingSheetsData {
         let mut segments = self.sheets[sheet_id].path.rev_segments.clone();
         loop {
             if segments.is_empty() { break }
-            if let Some(node) = self.sheet_map.get_node2(&segments) {
+            if let Some(node) = self.sheet_map.get_node(&segments) {
                 let no_children = node.branches.is_empty();
                 let sheet_id    = node.value;
                 let unused      = self.sheets[sheet_id].is_unused();
@@ -545,7 +549,6 @@ impl CascadingSheetsData {
             }
         }
     }
-
 
     /// Removes all binding information from var and related style sheets. Returns true if var
     /// needed rebound.
@@ -703,32 +706,40 @@ impl Default for CascadingSheetsData {
 // === Var ===
 // ===========
 
+/// Binding to a style sheet variable. Variable is a `Query` with automatically managed lifetime.
+/// Read `Query` docs to learn more.
 #[derive(Clone,CloneRef,Debug,Deref)]
 pub struct Var {
     rc : Rc<VarData>
 }
 
+/// Internal state of `Var`.
 #[derive(Debug)]
 pub struct VarData {
     sheets    : CascadingSheets,
     query_id  : Index<Query>,
-    callbacks : callback::SharedRegistryMut1<Option<Data>>,
+    callbacks : CallbackRegistry,
 }
 
+/// Type of callback used to notify about `Var` value change.
 pub trait VarChangeCallback = 'static + FnMut(&Option<Data>);
 
 impl VarData {
-    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut1<Option<Data>>) -> Self
+    /// Constructor.
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:CallbackRegistry) -> Self
     where R:Into<CascadingSheets> {
         let sheets = sheets.into();
         sheets.rc.borrow_mut().queries[query_id].inc_external_count();
         Self {sheets,query_id,callbacks}
     }
 
+    /// Adds a new callback used when value changes. Returns handle to the callback. As soon as the
+    /// handle is dropped, the callback is removed.
     pub fn on_change<F:VarChangeCallback>(&self, callback:F) -> callback::Handle {
         self.callbacks.add(callback)
     }
 
+    /// Queries the style sheet for the current value of the var.
     pub fn value(&self) -> Option<Data> {
         self.sheets.rc.borrow().query_value(self.query_id).cloned()
     }
@@ -744,8 +755,9 @@ impl Drop for VarData {
 }
 
 impl Var {
-    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:callback::SharedRegistryMut1<Option<Data>>) -> Self
-        where R:Into<CascadingSheets> {
+    /// Constructor.
+    pub fn new<R>(sheets:R, query_id:Index<Query>, callbacks:CallbackRegistry) -> Self
+    where R:Into<CascadingSheets> {
         let rc = Rc::new(VarData::new(sheets,query_id,callbacks));
         Self {rc}
     }
@@ -757,11 +769,17 @@ impl Var {
 // === CascadingSheets ===
 // =======================
 
+/// Cascading style sheet registry. Each style sheet can be assigned with a value of type `Data` or
+/// an expression to compute one. It also allows creating variables which are automatically bound to
+/// the most specific style sheet. See `Var`, `Query` and `Sheet` to learn more.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct CascadingSheets {
     rc        : Rc<RefCell<CascadingSheetsData>>,
-    callbacks : Rc<RefCell<HashMap<Index<Query>,callback::SharedRegistryMut1<Option<Data>>>>>
+    callbacks : Rc<RefCell<HashMap<Index<Query>,CallbackRegistry>>>
 }
+
+/// Type of callback registry used in `CascadingSheets`.
+pub type CallbackRegistry = callback::SharedRegistryMut1<Option<Data>>;
 
 impl CascadingSheets {
     /// Constructor.

@@ -30,15 +30,13 @@ impl Path {
 
     /// Builds the path from reversed segment iterator. See `from_segments` to learn more.
     pub fn from_rev_segments<T,Item>(t:T) -> Self
-    where T : IntoIterator<Item=Item>,
-          Item : ToString {
-        let rev_segments = t.into_iter().map(|s|s.to_string()).collect();
-        Self {rev_segments}
+    where T:IntoIterator<Item=Item>, Item:ToString {
+        Self { rev_segments : t.into_iter().map(|s|s.to_string()).collect() }
     }
 
+    /// Empty path constructor.
     pub fn empty() -> Self {
-        let rev_segments = default();
-        Self {rev_segments}
+        Self { rev_segments : default() }
     }
 }
 
@@ -52,7 +50,7 @@ impls! { [T:ToString] From<Vec<T>> for Path { |t| Self::from_segments(t.into_ite
 impl<T> From<&Vec<T>> for Path
 where for<'t> &'t T : ToString {
     fn from(t:&Vec<T>) -> Self {
-        Self::from_segments(t.into_iter())
+        Self::from_segments(t.iter())
     }
 }
 

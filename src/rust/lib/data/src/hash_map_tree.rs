@@ -1,43 +1,9 @@
 //! A tree structure build on top of the `HashMap`.
 
 use crate::prelude::*;
+
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
-
-
-#[derive(Debug,Clone,Copy)]
-pub enum AtLeastOneOfTwo<T1,T2> {
-    First(T1),
-    Second(T2),
-    Both(T1,T2)
-}
-
-impl<T:PartialEq> AtLeastOneOfTwo<T,T> {
-    pub fn same(&self) -> bool {
-        match self {
-            Self::Both(t1,t2) => t1==t2,
-            _ => false
-        }
-    }
-}
-
-impl<T1,T2> AtLeastOneOfTwo<T1,T2> {
-    pub fn first(&self) -> Option<&T1> {
-        match self {
-            Self::Both(t1,t2) => Some(t1),
-            Self::First(t1)   => Some(t1),
-            _                 => None
-        }
-    }
-
-    pub fn second(&self) -> Option<&T2> {
-        match self {
-            Self::Both(t1,t2) => Some(t2),
-            Self::Second(t2)  => Some(t2),
-            _                 => None
-        }
-    }
-}
 
 
 
@@ -48,9 +14,9 @@ impl<T1,T2> AtLeastOneOfTwo<T1,T2> {
 /// A tree build on top of the `HashMap`. Each node in the tree can have zero or more branches
 /// accessible by the given key type.
 #[derive(Derivative)]
-#[derivative(Debug   (bound="K:Eq+Hash+Debug , V:Debug    , S:BuildHasher"))]
-#[derivative(Default (bound="K:Eq+Hash       , V:Default  , S:BuildHasher+Default"))]
-#[derivative(Clone   (bound="K:Clone         , V:Clone    , S:Clone"))]
+#[derivative(Debug   (bound="K:Eq+Hash+Debug , V:Debug   , S:BuildHasher"))]
+#[derivative(Default (bound="K:Eq+Hash       , V:Default , S:BuildHasher+Default"))]
+#[derivative(Clone   (bound="K:Clone         , V:Clone   , S:Clone"))]
 pub struct HashMapTree<K,V,S=RandomState> {
     /// Value of the current tree node.
     pub value : V,
@@ -76,32 +42,34 @@ where K : Eq+Hash,
     /// exist, a default instance will be created.
     pub fn set<P,I>(&mut self, path:P, value:T)
     where P:IntoIterator<Item=I>, T:Default, I:Into<K> {
-        self.get_node(path).value = value;
+        self.get_or_create_node(path).value = value;
     }
 
-    /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
-    /// the branch does not exist, a default instance will be created. Returns mutable reference to
-    /// the target tree node.
-    #[inline]
-    pub fn get_node<P,I>(&mut self, path:P) -> &mut HashMapTree<K,T,S>
-        where P:IntoIterator<Item=I>, T:Default, I:Into<K> {
-        self.get_node_with(path,default)
+    /// Sets the value at position described by `path`. In case a required sub-branch does not
+    /// exist, uses `cons_missing` to create it.
+    pub fn set_with<P,I,F>(&mut self, path:P, value:T, cons_missing:F)
+    where P:IntoIterator<Item=I>, T:Default, I:Into<K>, F:FnMut()->T {
+        self.get_or_create_node_with(path,cons_missing).value = value;
     }
 
+    /// Gets a reference to a value at the specified path if the path exists in the tree.
     #[inline]
-    pub fn get_node_mut<P,I>(&mut self, segments:P) -> Option<&mut HashMapTree<K,T,S>>
-        where P:IntoIterator<Item=I>, I:Into<K> {
-        segments.into_iter().fold(Some(self),|map,t| {
-            map.and_then(|m| {
-                let key = t.into();
-                m.branches.get_mut(&key)
-            })
-        })
+    pub fn get<P,I>(&self, segments:P) -> Option<&T>
+    where P:IntoIterator<Item=I>, I:Into<K> {
+        self.get_node(segments).map(|node| &node.value)
     }
 
+    /// Gets a mutable reference to a value at the specified path if the path exists in the tree.
     #[inline]
-    pub fn get_node2<P,I>(&self, segments:P) -> Option<&HashMapTree<K,T,S>>
-        where P:IntoIterator<Item=I>, I:Into<K> {
+    pub fn get_mut<P,I>(&mut self, segments:P) -> Option<&mut T>
+    where P:IntoIterator<Item=I>, I:Into<K> {
+        self.get_node_mut(segments).map(|node| &mut node.value)
+    }
+
+    /// Gets a reference to a node at the specified path if the node exists.
+    #[inline]
+    pub fn get_node<P,I>(&self, segments:P) -> Option<&HashMapTree<K,T,S>>
+    where P:IntoIterator<Item=I>, I:Into<K> {
         segments.into_iter().fold(Some(self),|map,t| {
             map.and_then(|m| {
                 let key = t.into();
@@ -110,6 +78,19 @@ where K : Eq+Hash,
         })
     }
 
+    /// Gets a mutable reference to a node at the specified path if the node exists.
+    #[inline]
+    pub fn get_node_mut<P,I>(&mut self, segments:P) -> Option<&mut HashMapTree<K,T,S>>
+    where P:IntoIterator<Item=I>, I:Into<K> {
+        segments.into_iter().fold(Some(self),|map,t| {
+            map.and_then(|m| {
+                let key = t.into();
+                m.branches.get_mut(&key)
+            })
+        })
+    }
+
+    /// Removes the node at the specified path.
     #[inline]
     pub fn remove<P,I>(&mut self, segments:P) -> Option<T>
     where P:IntoIterator<Item=I>, I:Into<K> {
@@ -122,32 +103,47 @@ where K : Eq+Hash,
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
-    /// the branch does not exist, uses `cons` to construct it. Returns mutable reference to the
-    /// target tree node.
+    /// the branch does not exist, a default instance will be created. Returns mutable reference to
+    /// the target tree node.
     #[inline]
-    pub fn get_node_with<P,I,F>(&mut self, path:P, f:F) -> &mut HashMapTree<K,T,S>
-        where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T {
-        self.get_node_traversing_with(path,f,|_|{})
+    pub fn get_or_create_node<P,I>(&mut self, path:P) -> &mut HashMapTree<K,T,S>
+        where P:IntoIterator<Item=I>, T:Default, I:Into<K> {
+        self.get_or_create_node_with(path,default)
     }
 
     /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
-    /// the branch does not exist, uses `cons` to construct it. Moreover, for each traversed branch
-    /// the `callback` is evaluated. Returns mutable reference to the target tree node.
+    /// the branch does not exist, uses `cons_missing` to construct it. Returns mutable reference to
+    /// the target tree node.
     #[inline]
-    pub fn get_node_traversing_with<P,I,F,M>
-    (&mut self, segments:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T,S>
+    pub fn get_or_create_node_with<P,I,F>
+    (&mut self, path:P, cons_missing:F) -> &mut HashMapTree<K,T,S>
+    where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T {
+        self.get_or_create_node_traversing_with(path,cons_missing,|_|{})
+    }
+
+    /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
+    /// the branch does not exist, uses `cons_missing` to construct it. Moreover, for each traversed
+    /// branch the `callback` is evaluated. Returns mutable reference to the target tree node.
+    #[inline]
+    pub fn get_or_create_node_traversing_with<P,I,F,M>
+    (&mut self, segments:P, mut cons_missing:F, mut callback:M) -> &mut HashMapTree<K,T,S>
     where P:IntoIterator<Item=I>, I:Into<K>, F:FnMut()->T, M:FnMut(&mut HashMapTree<K,T,S>) {
         segments.into_iter().fold(self,|map,t| {
-            let key  = t.into();
-            let node = map.branches.entry(key).or_insert_with(|| HashMapTree::from_value(cons()));
+            let key   = t.into();
+            let entry = map.branches.entry(key);
+            let node  = entry.or_insert_with(|| HashMapTree::from_value(cons_missing()));
             callback(node);
             node
         })
     }
 
+    /// Iterates over keys in `path`. For each key, traverses into the appropriate branch. In case
+    /// the branch does not exist, uses `cons_missing` provided with the current path to construct
+    /// it. Moreover, for each traversed branch the `callback` is evaluated. Returns mutable
+    /// reference to the target tree node.
     #[inline]
-    pub fn get_node_path_traversing_with<P,I,F,M>
-    (&mut self, segments:P, mut cons:F, mut callback:M) -> &mut HashMapTree<K,T,S>
+    pub fn get_or_create_node_traversing_path_with<P,I,F,M>
+    (&mut self, segments:P, mut cons_missing:F, mut callback:M) -> &mut HashMapTree<K,T,S>
     where K : Clone,
           P : IntoIterator<Item=I>,
           I : Into<K>,
@@ -157,12 +153,14 @@ where K : Eq+Hash,
         segments.into_iter().fold(self,|map,t| {
             let key  = t.into();
             path.push(key.clone());
-            let node = map.branches.entry(key).or_insert_with(|| HashMapTree::from_value(cons(&path)));
+            let entry = map.branches.entry(key);
+            let node  = entry.or_insert_with(|| HashMapTree::from_value(cons_missing(&path)));
             callback(node);
             node
         })
     }
 
+    /// Zips two trees together into a new tree with cloned values.
     pub fn zip_clone<T2>
     (&self, other:&HashMapTree<K,T2,S>) -> HashMapTree<K,AtLeastOneOfTwo<T,T2>,S>
     where K:Clone, T:Clone, T2:Clone {
@@ -287,6 +285,12 @@ macro_rules! define_borrow_iterator {
                 let iters = vec![self.branches.$fn_name()];
                 let path  = default();
                 $tp_name {iters,path}
+            }
+        }
+
+        impl<'a,K,V,S> Debug for $tp_name<'a,K,V,S> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f,stringify!($tp_name))
             }
         }
     };

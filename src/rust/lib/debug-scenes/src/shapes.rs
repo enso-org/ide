@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 
 use ensogl::display::style;
-use ensogl::display::style::theme;
+//use ensogl::display::style::theme;
 
 
 #[wasm_bindgen]

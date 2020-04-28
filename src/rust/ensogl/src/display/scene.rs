@@ -665,7 +665,7 @@ impl SceneData {
                 Target::Background => {}
                 Target::Symbol {symbol_id,..} => {
                     let symbol = self.symbols.index(symbol_id as usize);
-//                    symbol.dispatch_event(&DynEvent::new(()));
+                    symbol.dispatch_event(&DynEvent::new(())); // FIXME: currently unused
                     // println!("{:?}",target);
                     // TODO: finish events sending, including OnOver and OnOut.
                 }

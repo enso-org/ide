@@ -30,7 +30,7 @@ pub trait Semigroup : Clone {
     /// request 0 or fewer repetitions, and the default definition will do so.
     fn stimes(&mut self, n:usize) {
         let val = self.clone();
-        for i in 0..n-1 {
+        for _ in 0..n-1 {
             self.concat_mut(&val)
         }
     }
@@ -112,7 +112,7 @@ where K : Eq + Hash + Clone,
             let key = key.clone();
             self.entry(key)
                 .and_modify(|val| val.concat_mut(new_val))
-                .or_insert(new_val.clone());
+                .or_insert_with(|| new_val.clone());
         }
     }
 
@@ -131,7 +131,7 @@ where K : Eq + Hash + Clone,
 
 impl<T:Clone> Semigroup for Vec<T> {
     fn concat_mut(&mut self, other:&Self) {
-        self.extend(other.into_iter().cloned())
+        self.extend(other.iter().cloned())
     }
 
     fn concat_mut_take(&mut self, other:Self) {

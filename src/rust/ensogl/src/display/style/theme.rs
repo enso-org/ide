@@ -1,24 +1,14 @@
+//! Defines `Theme`, a smart style manager on top of style sheets.
 
 use crate::prelude::*;
 
-use crate::data::hash_map_tree::AtLeastOneOfTwo;
 use crate::data::HashMapTree;
 use crate::data::color;
 
-use super::data::Data;
 use super::sheets::Path;
 use super::sheets::Change;
 use super::sheets::Value;
-use super::sheets::Expression;
 use super::sheets as style;
-
-
-
-
-
-
-
-
 
 
 
@@ -26,16 +16,21 @@ use super::sheets as style;
 // === Theme ===
 // =============
 
+/// Smart style manager. Keeps a hierarchical style map. Styles can either be simple values or
+/// expressions. Please note that expressions are not bound in themes and are being bound to
+/// specific style sheet endpoints when theme is enabled in the themes `Manager`.
 #[derive(Clone,Debug,Default)]
 pub struct Theme {
     tree : HashMapTree<String,Option<Value>>
 }
 
 impl Theme {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
+    /// Inserts a new style in the theme.
     pub fn insert<P,E>(&mut self, path:P, entry:E)
     where P:Into<Path>, E:Into<Value> {
         let path  = path.into();
@@ -57,24 +52,32 @@ impl Semigroup for Theme {
 // === Manager ===
 // ===============
 
+/// Theme manager. Allows registering themes by names, enabling, and disabling them.
 #[derive(Debug,Default)]
 pub struct Manager {
     all      : HashMap<String,Theme>,
-    active   : Vec<String>,
+    enabled  : Vec<String>,
     combined : Theme,
-    style    : style::CascadingSheetsData,
+    sheets   : style::CascadingSheets,
 }
 
 impl Manager {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
-    pub fn set_active<N>(&mut self, names:N)
+    /// Returns names of all enabled themes.
+    pub fn enabled(&self) -> &Vec<String> {
+        &self.enabled
+    }
+
+    /// Sets a new set of enabled themes.
+    pub fn set_enabled<N>(&mut self, names:N)
     where N:IntoIterator, N::Item:ToString {
         let mut combined = Theme::new();
-        self.active = names.into_iter().map(|name| name.to_string()).collect();
-        for name in &self.active {
+        self.enabled = names.into_iter().map(|name| name.to_string()).collect();
+        for name in &self.enabled {
             if let Some(theme) = self.all.get(name) {
                 combined.concat_mut(theme);
             }
@@ -95,14 +98,20 @@ impl Manager {
             }
         }
         self.combined = combined;
-
-        self.style.apply_changes(changes);
+        self.sheets.apply_changes(changes);
     }
 
+    /// Registers a new theme.
     pub fn register<T:Into<Theme>>(&mut self, name:impl Str, theme:T) {
         let name  = name.into();
         let theme = theme.into();
         self.all.insert(name,theme);
+    }
+
+    /// Removes the theme from the regitry.
+    pub fn remove(&mut self, name:impl Str) {
+        let name = name.as_ref();
+        self.all.remove(name);
     }
 }
 
@@ -112,6 +121,7 @@ impl Manager {
 // === Test ===
 // ============
 
+/// docs
 pub fn test() {
     let mut registry = Manager::new();
 
@@ -132,7 +142,7 @@ pub fn test() {
     registry.register("theme1",theme1);
     registry.register("theme2",theme2);
 
-    registry.set_active(&["theme1".to_string()]);
+    registry.set_enabled(&["theme1".to_string()]);
     println!("-------------------");
-    registry.set_active(&["theme1","theme2"]);
+    registry.set_enabled(&["theme1","theme2"]);
 }

@@ -19,7 +19,7 @@ pub trait Monoid : Default + Semigroup {
             *self = Default::default()
         } else {
             let val = self.clone();
-            for i in 0..n-1 {
+            for _ in 0..n-1 {
                 self.concat_mut(&val)
             }
         }
