@@ -19,7 +19,7 @@ use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::triangle::Triangle;
-
+use std::f32::consts::FRAC_PI_2;
 
 
 // ========================
@@ -39,19 +39,12 @@ mod shape {
 
             let height     = Var::<f32>::from("input_start.y - input_end.y");
             let width      = Var::<f32>::from("input_start.x - input_end.x");
-            let is_reverse = Var::<f32>::from("((((-sign(input_start.y-input_end.y)))))");
-
-            let angle_inner = Var::<f32>::from(90_f32.to_radians());
-            let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,width,angle_inner);
-            let angle_a     = Var::<Angle<Radians>>::from(is_reverse * triangle.angle_a().clone());
 
             let line         = Line(Var::<f32>::from(1.0) + thickness);
-            let line         = line.rotate(&angle_a);
             let line_color   = Srgba::new(1.00, 0.565, 0.0, 1.0);
             let line_colored = line.fill(line_color);
 
             let glow           = Line(Var::<f32>::from(15.0) * glow);
-            let glow           = glow.rotate(angle_a);
             let glow_color     = Srgb::new(1.00, 0.565, 0.0);
             let gradient_start = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
             let gradient_end   = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
@@ -242,6 +235,7 @@ impl Connection {
 
     /// Helper function to update the `Connection`'s start position.
     fn set_input_position(&self, position:Vector3<f32>) {
+        println!("{:?}", position);
         self.data.start.set(position);
         let start_pos = position - self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -256,6 +250,7 @@ impl Connection {
 
     /// Helper function to update the `Connection`'s end position.
     fn set_output_position(&self, position:Vector3<f32>) {
+        println!("{:?}", position);
         self.data.end.set(position);
         let end_pos = position - self.data.start.get();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -316,7 +311,6 @@ impl Connection {
             .map(|weak_port| weak_port.upgrade().map(| port| port.clear_connection()));
     }
 
-
     /// Return the average between the start and end position.
     fn center(&self) -> Vector3<f32> {
         (self.data.end.get() + self.data.start.get()) * 0.5
@@ -326,7 +320,6 @@ impl Connection {
     fn extent(&self) -> Vector3<f32> {
         (self.data.end.get() - self.data.start.get())
     }
-
 
     /// Helper function to update the sprite in response to start/end point changes.
     ///
@@ -338,11 +331,20 @@ impl Connection {
     fn update_sprite(&self) {
         let center = self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.sprite.size().set(self.extent().xy());
+            let extent = self.extent().xy();
+            let diagonal = (extent.x * extent.x + extent.y * extent.y).sqrt();
+            t.shape.sprite.size().set(Vector2::new(diagonal, 100.0));
         }
         self.data.view.display_object.set_position(Vector3::new(center.x,center.y,0.0));
-    }
 
+        let up     = Vector3::new(1.0,0.0,0.0);
+        let target =  self.output_position() - self.input_position();
+        let delta  = up - target;
+        let angle  = ( delta.y ).atan2( delta.x );
+        // let angle = angle;
+
+        self.data.view.display_object.set_rotation(Vector3::new(0.0,0.0,angle));
+    }
 
     pub fn on_input_port_position_change(&self) {
         self.data.input_port
@@ -359,7 +361,10 @@ impl Connection {
             .as_ref()
             .map(|weak_port| weak_port
                 .upgrade()
-                .map(| port| port.on_connection_update())
+                .map(| port| {
+                    self.set_output_position(port.connection_position());
+                    port.on_connection_update()
+                })
             );
     }
 
@@ -378,7 +383,10 @@ impl Connection {
             .as_ref()
             .map(|weak_port| weak_port
                 .upgrade()
-                .map(| port| port.on_connection_update())
+                .map(| port| {
+                    self.set_input_position(port.connection_position());
+                    port.on_connection_update()
+                })
             );
     }
 }

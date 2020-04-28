@@ -347,7 +347,6 @@ impl Node {
         Angle::<Radians>::from(-angle + FRAC_PI_2)
     }
 
-
 }
 
 impl Default for Node {
