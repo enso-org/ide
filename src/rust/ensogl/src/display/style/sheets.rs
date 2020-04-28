@@ -843,6 +843,12 @@ impl CascadingSheets {
     where P:Into<Path> {
         self.rc.borrow().value(path).cloned()
     }
+
+    /// Visualizes the network in the GraphViz Dot language. Use `visualize` to automatically
+    /// display it in a new browser tab.
+    pub fn to_graphviz(&self) -> String {
+        self.rc.borrow().to_graphviz()
+    }
 }
 
 
