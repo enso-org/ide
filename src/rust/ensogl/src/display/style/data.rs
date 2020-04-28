@@ -135,9 +135,9 @@ define_binary_number_operator!(Sub::sub,|lhs,rhs| format!("Cannot subtract {} fr
 
 
 
-// ==================
-// === OptionData ===
-// ==================
+// =================
+// === DataMatch ===
+// =================
 
 /// Smart `Data` deconstructors.
 #[allow(missing_docs)]

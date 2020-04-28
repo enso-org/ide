@@ -16,7 +16,7 @@ use crate::display::scene::Scene;
 use crate::display::style;
 use crate::system::gpu::types::*;
 use crate::system::gpu::data::buffer::item::Storable;
-use enso_prelude::CloneRef;
+
 
 
 // ===================
@@ -281,11 +281,11 @@ macro_rules! _define_shape_system {
             }
 
             /// The canvas shape definition.
-            pub fn shape_def(__style_manager__:&$crate::display::shape::StyleWatch) -> AnyShape {
+            pub fn shape_def(__style_watch__:&$crate::display::shape::StyleWatch) -> AnyShape {
                 use $crate::display::style::data::DataMatch; // Operations styles.
                 $(
-                    __style_manager__.reset();
-                    let $style = __style_manager__;
+                    __style_watch__.reset();
+                    let $style = __style_watch__;
                     let $gpu_param : Var<$gpu_param_type> =
                         concat!("input_",stringify!($gpu_param)).into();
                     // Silencing warnings about not used shader input variables.

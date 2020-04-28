@@ -126,8 +126,7 @@ where K : Eq + Hash + Clone,
 }
 
 
-
-// === HashMap ===
+// === Vec ===
 
 impl<T:Clone> Semigroup for Vec<T> {
     fn concat_mut(&mut self, other:&Self) {

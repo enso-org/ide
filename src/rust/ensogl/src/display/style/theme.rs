@@ -121,7 +121,7 @@ impl Manager {
 // === Test ===
 // ============
 
-/// docs
+/// Test interactive usage. To be removed in the future.
 pub fn test() {
     let mut registry = Manager::new();
 

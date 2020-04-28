@@ -887,35 +887,6 @@ impl CascadingSheets {
 // === Tests ===
 // =============
 
-/// Interactive testing utility. To be removed in the future.
-pub fn test() {
-    let mut style = CascadingSheetsData::new();
-
-//    let var_size              = style.unmanaged_query("size");
-//    let var_button_size       = style.unmanaged_query("button.size");
-//    let var_graph_button_size = style.unmanaged_query("graph.button.size");
-
-//    assert!(style.value(var_graph_button_size).is_none());
-//    style.set("size",data(1.0));
-//    style.set("graph.button.size",Expression::new(&["button.size"], |args| args[0] + &data(100.0)));
-//    style.set("button.size",Expression::new(&["size"], |args| args[0] + &data(10.0)));
-//    style.set("button.size",data(3.0));
-
-    style.set(&["size"],data(1.0));
-    style.set(&["button.size"],data(2.0));
-    style.set(&["circle.radius"],data(3.0));
-
-    println!("-----------");
-//    style.remove_value("graph.button.size");
-
-
-    println!("{}",style.to_graphviz());
-//    println!("{:?}", style.value(var_graph_button_size));
-//    println!("{:?}", style.value(var_button_size));
-//    println!("{:?}", style.queries[var_graph_button_size]);
-//    println!("{:?}", style.sheets[style.queries[var_graph_button_size].binding.unwrap()]);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

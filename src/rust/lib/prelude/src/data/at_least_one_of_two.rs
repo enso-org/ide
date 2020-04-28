@@ -1,6 +1,11 @@
 //! Definition of `AtLeastOneOfTwo`.
 
 
+
+// =======================
+// === AtLeastOneOfTwo ===
+// =======================
+
 /// A struct similar to `Option` and `Either`. It can contain the first value, or the second value,
 /// or both of them at the same time.
 #[derive(Debug,Clone,Copy)]
