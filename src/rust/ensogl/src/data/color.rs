@@ -84,9 +84,9 @@ where [Color:Copy + RefInto<Glsl>] {
 
 
 
-// ========================
+// ==================
 // === SdfSampler ===
-// ========================
+// ==================
 
 /// Default start distance of the distance gradient.
 pub const DEFAULT_DISTANCE_GRADIENT_MIN_DISTANCE : f32 = 0.0;
