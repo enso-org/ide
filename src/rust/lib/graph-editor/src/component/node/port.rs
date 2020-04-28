@@ -202,9 +202,6 @@ mod shape {
             .add(1.0,Srgba::new(glow_color.red,glow_color.green,glow_color.blue,1.0).into_linear());
         let glow_color    = SdfSampler::new(glow_gradient).max_distance(9.0).slope(Slope::Exponent(4.0));
         let glow          = glow.fill(glow_color);
-        // Compensate for off-center scaling
-        let glow_offset   =  Var::<Distance<Pixels>>::from(Var::from(2.0) * glow_size);
-        let glow          = glow.translate_y(glow_offset);
 
         (glow + sculpted_shape).into()
     }
@@ -266,11 +263,11 @@ fn init_shape(shape:&shape::Shape, direction:Direction){
     shape.update_from_spec(&spec);
     match direction{
         Direction::In  => shape.is_inwards.set(1.0),
-        Direction::Out => shape.is_inwards.set(1.0),
+        Direction::Out => shape.is_inwards.set(0.0),
     };
 
     // Add some extra space to the shape can grow when resized.
-    let padding_factor = 2.0;
+    let padding_factor = 2.5;
     let bbox = Vector2::new(padding_factor * shape.height.get(), padding_factor * shape.height.get());
     shape.sprite.size().set(bbox);
 }
