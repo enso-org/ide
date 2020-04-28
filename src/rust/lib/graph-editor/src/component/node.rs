@@ -8,7 +8,6 @@ use crate::prelude::*;
 use crate::component::node::port::Registry;
 use crate::component::node::port::InputPort;
 use crate::component::node::port::OutputPort;
-// pub use crate::component::node::port;
 
 use enso_frp as frp;
 use enso_frp::stream::EventEmitter;

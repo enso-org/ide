@@ -179,13 +179,13 @@ impl Connection {
         let network = &self.data.events.network;
         frp::extend! { network
                 def _connection_on_over = self.data.view.events.mouse_over.map(f!((weak_connection)(_) {
-                    if let Some(connection) = weak_connection.upgrade(){
+                    if let Some(connection) = weak_connection.upgrade() {
                         connection.data.events.hover_start.emit(());
                     }
                 }));
 
                def _connection_on_leave = self.data.view.events.mouse_leave.map(f!((weak_connection)(_) {
-                    if let Some(connection) = weak_connection.upgrade(){
+                    if let Some(connection) = weak_connection.upgrade() {
                         connection.data.events.hover_end.emit(());
                     }
                 }));
@@ -397,11 +397,11 @@ impl AsRef<Connection> for Connection {
 
 /// Weak version of `Connection`.
 #[derive(Clone,CloneRef,Debug)]
-pub struct WeakConnection{
+pub struct WeakConnection {
     data : Weak<ConnectionData>
 }
 
-impl StrongRef for Connection{
+impl StrongRef for Connection {
     type WeakRef = WeakConnection;
     fn downgrade(&self) -> WeakConnection {
         WeakConnection {data:Rc::downgrade(&self.data)}

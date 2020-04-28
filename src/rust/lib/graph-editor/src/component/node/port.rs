@@ -38,7 +38,7 @@ use ensogl::math::topology::unit::Pixels;
 /// Indicates whether a port is inwards facing  or outwards facing.
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug)]
-pub enum Direction{
+pub enum Direction {
     In,
     Out,
 }
@@ -220,15 +220,15 @@ mod shape {
         }
     }
 
-    impl Shape{
+    impl Shape {
         /// Set the shape parameters derived from the `Specification`.
-        pub fn update_from_spec(&self,spec:&Specification){
+        pub fn update_from_spec(&self,spec:&Specification) {
             self.update_parameters(spec.height,spec.inner_radius, spec.width, spec.direction)
         }
 
         /// Set the shape parameters.
         pub fn update_parameters
-        (&self, height:f32, inner_radius:f32, width:Angle<Degrees>, direction:Direction){
+        (&self, height:f32, inner_radius:f32, width:Angle<Degrees>, direction:Direction) {
             self.height.set(height);
             self.inner_radius.set(inner_radius);
             self.width.set(width.value.to_radians());
@@ -268,10 +268,10 @@ pub struct Events {
 // ============
 
 /// Initialise the shape with sensible defaults.
-fn init_shape(shape:&shape::Shape, direction:Direction){
+fn init_shape(shape:&shape::Shape, direction:Direction) {
     let spec  = Specification::default();
     shape.update_from_spec(&spec);
-    match direction{
+    match direction {
         Direction::In  => shape.is_inwards.set(1.0),
         Direction::Out => shape.is_inwards.set(0.0),
     };
@@ -431,7 +431,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
         let view       = Rc::new(component::ShapeView::new(&logger));
         let connection = RefCell::new(None);
 
-        let data   = Rc::new(PortData{
+        let data   = Rc::new(PortData {
             height       : Cell::new(spec.height),
             width        : Cell::new(spec.width),
             inner_radius : Cell::new(spec.inner_radius),
@@ -456,18 +456,18 @@ impl<T:PortShapeViewDefinition> Port<T> {
         frp::new_bridge_network! { [network,self.data.events.network]
                 let weak_port_mouse_down = weak_port.clone();
                 def _node_on_down_tagged = self.data.view.events.mouse_down.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_down.upgrade(){
+                    if let Some(port) = weak_port_mouse_down.upgrade() {
                         port.data.events.connection_start.emit(());
                     }
                 }));
 
                 let weak_port_mouse_over = weak_port.clone();
                 def _node_on_over = self.data.view.events.mouse_over.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_over.upgrade(){
+                    if let Some(port) = weak_port_mouse_over.upgrade() {
                         port.data.events.hover_start.emit(());
 
                         // FIXME this is a workaround for the missing mouse up event
-                        if port.data.connection.borrow().is_none(){
+                        if port.data.connection.borrow().is_none() {
                             port.data.events.connection_end.emit(());
                         }
                     }
@@ -475,7 +475,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
 
                let weak_port_mouse_leave = weak_port;
                def _node_on_leave = self.data.view.events.mouse_leave.map(f_!(() {
-                    if let Some(port) = weak_port_mouse_leave.upgrade(){
+                    if let Some(port) = weak_port_mouse_leave.upgrade() {
                         port.data.events.hover_end.emit(());
                     }
                 }));
@@ -576,7 +576,7 @@ impl<T:PortShapeViewDefinition> Port<T> {
     }
 
     /// Execute state changes required on global position changes.
-    pub fn on_connection_update(&self){
+    pub fn on_connection_update(&self) {
       self.data.events.connection_changed.emit_event(&());
     }
 
@@ -589,8 +589,7 @@ impl<T:PortShapeViewDefinition> Default for Port<T> {
     }
 }
 
-
-impl InputPort{
+impl InputPort {
     /// Link a `Connection` with this port.
     pub fn set_connection_start(&self, connection: Connection){
         self.clear_connection();
@@ -599,19 +598,19 @@ impl InputPort{
     }
 
     /// Execute state changes required on global position changes.
-    pub fn on_position_update(&self){
+    pub fn on_position_update(&self) {
         if let Some(connection) = self.data.connection.borrow().as_ref() {
             connection.on_input_port_position_change();
         }
     }
 
     /// Returns the position of the opposite end of a connection connected to this port.
-    pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
+    pub fn connection_target_position(&self) -> Option<Vector3<f32>> {
         self.data.connection.borrow().as_ref().map(|connection|  connection.output_position())
     }
 
     /// Break the link the ports connection, if there is one.
-    pub fn clear_connection(&self){
+    pub fn clear_connection(&self) {
         let connection = self.data.connection.borrow_mut().take();
         if let Some(connection) = connection{
             connection.clear_output_port();
@@ -619,9 +618,9 @@ impl InputPort{
     }
 }
 
-impl OutputPort{
+impl OutputPort {
     /// Link a `Connection` with this port.
-    pub fn set_connection_end(&self, connection: Connection){
+    pub fn set_connection_end(&self, connection: Connection) {
         self.clear_connection();
         connection.set_output_port(self);
         self.data.connection.set(connection);
@@ -635,14 +634,14 @@ impl OutputPort{
     }
 
     /// Returns the position of the opposite end of a connection connected to this port.
-    pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
+    pub fn connection_target_position(&self) -> Option<Vector3<f32>> {
         self.data.connection.borrow().as_ref().map(|connection|  connection.input_position())
     }
 
     /// Break the link the ports connection, if there is one.
-    pub fn clear_connection(&self){
+    pub fn clear_connection(&self) {
         let connection = self.data.connection.borrow_mut().take();
-        if let Some(connection) = connection{
+        if let Some(connection) = connection {
             connection.clear_input_port();
         }
     }
@@ -712,7 +711,7 @@ pub struct Registry {
 
 impl Registry{
     /// Execute state changes required on global position changes.
-    pub fn on_position_update(&self){
+    pub fn on_position_update(&self) {
         self.input.ports.borrow().iter().for_each(|port| port.on_position_update());
         self.output.ports.borrow().iter().for_each(|port| port.on_position_update());
     }
