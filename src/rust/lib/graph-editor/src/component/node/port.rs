@@ -27,6 +27,7 @@ use ensogl::math::topology::unit::Distance;
 use ensogl::math::topology::unit::Pixels;
 use nalgebra::Rotation2;
 use enso_frp::stream::EventEmitter;
+use ensogl::display::layout::alignment;
 
 
 // ===========================
@@ -279,8 +280,12 @@ fn init_shape(shape:&shape::Shape, direction:Direction){
 pub struct InputPortView {}
 impl ShapeViewDefinition for InputPortView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
+    fn new(shape:&Self::Shape, _scene:&Scene,shape_registry:&ShapeRegistry) -> Self {
         init_shape(shape, Direction::In);
+        let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
+        shape_system.shape_system.set_alignment(
+            alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
+
         Self {}
     }
 }
@@ -290,8 +295,12 @@ impl ShapeViewDefinition for InputPortView {
 pub struct OutputPortView {}
 impl ShapeViewDefinition for OutputPortView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene,_shape_registry:&ShapeRegistry) -> Self {
+    fn new(shape:&Self::Shape, _scene:&Scene,shape_registry:&ShapeRegistry) -> Self {
         init_shape(shape, Direction::Out);
+        let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
+        shape_system.shape_system.set_alignment(
+            alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
+
         Self {}
     }
 }
@@ -551,14 +560,6 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.set_rotation(rotation_vector);
     }
 
-    /// Break the link the ports connection, if there is one.
-    pub fn unset_connection(&self){
-        // if let Some(connection) = self.data.connection.borrow().as_ref() {
-        //     connection.clear_ports();
-        // }
-        self.data.connection.clear()
-    }
-
     /// Execute state changes required on global position changes.
     pub fn on_connection_update(&self){
       self.data.events.connection_changed.emit_event(&());
@@ -577,7 +578,7 @@ impl<T:PortShapeViewDefinition> Default for Port<T> {
 impl InputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_start(&self, connection: Connection){
-        self.unset_connection();
+        self.clear_connection();
         connection.set_input_port(self);
         self.data.connection.set(connection);
     }
@@ -593,12 +594,20 @@ impl InputPort{
     pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
         self.data.connection.borrow().as_ref().map(|connection|  connection.output_position())
     }
+
+    /// Break the link the ports connection, if there is one.
+    pub fn clear_connection(&self){
+        let connection = self.data.connection.borrow_mut().take();
+        if let Some(connection) = connection{
+            connection.clear_output_port();
+        }
+    }
 }
 
 impl OutputPort{
     /// Link a `Connection` with this port.
     pub fn set_connection_end(&self, connection: Connection){
-        self.unset_connection();
+        self.clear_connection();
         connection.set_output_port(self);
         self.data.connection.set(connection);
     }
@@ -613,6 +622,14 @@ impl OutputPort{
     /// Returns the position of the opposite end of a connection connected to this port.
     pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
         self.data.connection.borrow().as_ref().map(|connection|  connection.input_position())
+    }
+
+    /// Break the link the ports connection, if there is one.
+    pub fn clear_connection(&self){
+        let connection = self.data.connection.borrow_mut().take();
+        if let Some(connection) = connection{
+            connection.clear_input_port();
+        }
     }
 }
 

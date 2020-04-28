@@ -414,7 +414,8 @@ impl application::View for GraphEditor {
             // Clean up active connection
             if let Some(connection) = active_connection.borrow_mut().take()  {
                 if !connection.fully_connected(){
-                    connection.clear_ports();
+                    connection.clear_input_port();
+                    connection.clear_output_port();
                 }
             };
         }));

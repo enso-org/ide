@@ -173,6 +173,14 @@ impl Connection {
         Self {data} . init() .init_frp()
     }
 
+    /// Create a new connection between the two ports.
+    pub fn with_ports(input_port: &InputPort, output_port: &OutputPort) -> Self {
+        let connection = Connection::new();
+        connection.set_input_port(input_port);
+        connection.set_output_port(output_port);
+        connection
+    }
+
     fn init(self) -> Self {
         self
     }
@@ -294,16 +302,18 @@ impl Connection {
         self.data.input_port.borrow().is_some() && self.data.output_port.borrow().is_some()
     }
 
-    /// Break the links to both start and end port.
-    pub fn clear_ports(&self) {
+    pub fn clear_input_port(&self) {
         self.data.input_port
             .borrow_mut()
             .take()
-            .map(|weak_port| weak_port.upgrade().map(| port| port.unset_connection()));
+            .map(|weak_port| weak_port.upgrade().map(| port| port.clear_connection()));
+    }
+
+    pub fn clear_output_port(&self) {
         self.data.output_port
             .borrow_mut()
             .take()
-            .map(|weak_port| weak_port.upgrade().map(| port| port.unset_connection()));
+            .map(|weak_port| weak_port.upgrade().map(| port| port.clear_connection()));
     }
 
 

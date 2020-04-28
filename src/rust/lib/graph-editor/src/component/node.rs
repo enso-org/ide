@@ -26,6 +26,7 @@ use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
 use nalgebra::Rotation2;
 use wasm_bindgen::__rt::core::f32::consts::{FRAC_2_PI, FRAC_PI_2};
+use ensogl::display::layout::alignment;
 
 
 /// Icons definitions.
