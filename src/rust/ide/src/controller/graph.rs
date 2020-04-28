@@ -166,7 +166,7 @@ impl NodeTrees {
         if let Some(outputs) = self.outputs.as_ref() {
             // Node in assignment form. First crumb decides which span tree to use.
             let tree = match ast_crumbs.get(0) {
-                Some(ast::crumbs::Crumb::Infix(InfixCrumb::LeftOperand)) => outputs,
+                Some(ast::crumbs::Crumb::Infix(InfixCrumb::LeftOperand))  => outputs,
                 Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => &self.inputs,
                 _ => return None,
             };
@@ -212,9 +212,9 @@ impl Connections {
         let tree = self.trees.get(&endpoint.node)?;
         let span_tree_node = tree.get_span_tree_node(&endpoint.crumbs)?;
         Some(Endpoint{
-            node           : endpoint.node,
-            port: span_tree_node.node.crumbs,
-            var_crumbs     : span_tree_node.ast_crumbs.into(),
+            node       : endpoint.node,
+            port       : span_tree_node.node.crumbs,
+            var_crumbs : span_tree_node.ast_crumbs.into(),
         })
     }
 
@@ -379,6 +379,7 @@ impl Handle {
             idents.extend(usage.used.into_iter());
             Ok(idents)
         } else {
+            // TODO[mwu] Even if definition is not a block, it still may use name from outside.
             Ok(vec![])
         }
     }
@@ -395,11 +396,7 @@ impl Handle {
             let candidate              = NormalizedName::new(iformat!("{base_name}{i}"));
             let available              = !unavailable.contains(&candidate);
             available.and_option_from(|| Some(candidate.deref().clone()))
-        });
-        let name = name.unwrap_or_else(|| {
-            let u = uuid::Uuid::new_v4();
-            iformat!("var_{u.to_simple()}")
-        });
+        }).unwrap(); // It always return a value.
         Ok(ast::known::Var::new(ast::Var {name}, None))
     }
 
