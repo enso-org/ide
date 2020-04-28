@@ -5,7 +5,8 @@
 /// ```rust,compile_fail
 /// make_rpc_method!{
 ///     trait API {
-///         #[MethodInput=CallMePleaseInput,camelCase=callMePlease,result=call_me_please_result,set_result=set_call_me_please_result]
+///         #[MethodInput=CallMePleaseInput,camelCase=callMePlease,result=call_me_please_result,
+///         set_result=set_call_me_please_result]
 ///         fn call_me_please(&self, my_number_is:String) -> ();
 ///     }
 /// }

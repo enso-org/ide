@@ -69,7 +69,7 @@ pub enum Notification {
 pub struct FilesystemEvent {
     /// Path of the file that the event is about.
     pub path : Path,
-    /// What kind of event is it.
+    #[allow(missing_docs)]
     pub kind : FilesystemEventKind
 }
 
@@ -184,8 +184,7 @@ trait API {
     #[MethodInput=DeleteWatchInput,rpc_name="file/deleteWatch",result=delete_watch_result,
     set_result=set_delete_watch_result]
     fn delete_watch(&self, watch_id:Uuid) -> ();
-}
-}
+}}
 
 
 
@@ -214,7 +213,7 @@ mod tests {
         executor  : futures::executor::LocalPool,
     }
 
-    fn setup_fm() -> Fixture {
+    fn setup_file_manager() -> Fixture {
         let transport = MockTransport::new();
         let client    = Client::new(transport.clone());
         let executor  = futures::executor::LocalPool::new();
@@ -224,18 +223,18 @@ mod tests {
 
     #[test]
     fn test_notification() {
-        let mut fixture = setup_fm();
+        let mut fixture = setup_file_manager();
         let mut events  = Box::pin(fixture.client.events());
         assert!(poll_stream_output(&mut events).is_none());
 
         let expected_notification = FilesystemEvent {
-            path : Path::new("./Main.luna"),
+            path : Path::new("./Main.txt"),
             kind : FilesystemEventKind::Modified,
         };
         let notification_text = r#"{
             "jsonrpc": "2.0",
             "method": "filesystemEvent",
-            "params": {"path" : "./Main.luna", "kind" : "Modified"}
+            "params": {"path" : "./Main.txt", "kind" : "Modified"}
         }"#;
         fixture.transport.mock_peer_message_text(notification_text);
         assert!(poll_stream_output(&mut events).is_none());
@@ -250,12 +249,12 @@ mod tests {
         }
     }
 
-    /// Tests making a request using file manager:
-    /// * creates FM client and uses `make_request` to make a request
-    /// * checks that request is made for `expected_method`
-    /// * checks that request input is `expected_input`
-    /// * mocks receiving a response from server with `result`
-    /// * checks that FM-returned Future yields `expected_output`
+    /// This function tests making a request using file manager. It
+    /// * creates FM client and uses `make_request` to make a request,
+    /// * checks that request is made for `expected_method`,
+    /// * checks that request input is `expected_input`,
+    /// * mocks receiving a response from server with `result` and
+    /// * checks that FM-returned Future yields `expected_output`.
     fn test_request<Fun, Fut, T>
     ( make_request:Fun
     , expected_method:&str
@@ -265,8 +264,8 @@ mod tests {
     where Fun : FnOnce(&mut Client) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
-        let mut fixture = setup_fm();
-        let mut fut     = Box::pin(make_request(&mut fixture.client));
+        let mut fixture        = setup_file_manager();
+        let mut request_future = Box::pin(make_request(&mut fixture.client));
 
         let request = fixture.transport.expect_message::<RequestMessage<Value>>();
         assert_eq!(request.method, expected_method);
@@ -275,18 +274,18 @@ mod tests {
         let response = Message::new_success(request.id, result);
         fixture.transport.mock_peer_message(response);
         fixture.executor.run_until_stalled();
-        let output = poll_future_output(&mut fut).unwrap().unwrap();
+        let output = poll_future_output(&mut request_future).unwrap().unwrap();
         assert_eq!(output, expected_output);
     }
 
     #[test]
     fn test_requests() {
-        let main                = Path::new("./Main.luna");
-        let target              = Path::new("./Target.luna");
-        let path_main           = json!({"path" : "./Main.luna"});
+        let main                = Path::new("./Main.txt");
+        let target              = Path::new("./Target.txt");
+        let path_main           = json!({"path" : "./Main.txt"});
         let from_main_to_target = json!({
-            "from" : "./Main.luna",
-            "to"   : "./Target.luna"
+            "from" : "./Main.txt",
+            "to"   : "./Target.txt"
         });
         let true_json = json!(true);
         let unit_json = json!(null);
@@ -316,8 +315,8 @@ mod tests {
             true_json,
             true);
 
-        let list_response_json  = json!([          "Bar.luna",           "Foo.luna" ]);
-        let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
+        let list_response_json  = json!([          "Bar.txt",           "Foo.txt" ]);
+        let list_response_value = vec!  [Path::new("Bar.txt"),Path::new("Foo.txt")];
         test_request(
             |client| client.list(main.clone()),
             "file/list",
@@ -375,7 +374,7 @@ mod tests {
         test_request(
             |client| client.write(main.clone(), "Hello world!".into()),
             "file/write",
-            json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
+            json!({"path" : "./Main.txt", "contents" : "Hello world!"}),
             unit_json.clone(),
             ());
 
