@@ -17,6 +17,7 @@ use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewDefinition;
+use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::geometry::triangle::Triangle;
 use std::f32::consts::FRAC_PI_2;
@@ -31,7 +32,7 @@ mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-         (start:Vector2<f32>, end:Vector2<f32>, thickness:f32, glow:f32) {
+         (thickness:f32, glow:f32) {
             let zoom_factor  = Var::<f32>::from("(2.0 / input_zoom) - 1.0");
             let height       = Var::<f32>::from("input_start.y - input_end.y");
             let width        = Var::<f32>::from("input_start.x - input_end.x");
@@ -199,22 +200,30 @@ impl Connection {
                     }
                 }));
         }
+
+        let weak_connection_fade = self.downgrade();
+        let fade = animation(network,move |value| {
+            weak_connection_fade.upgrade().for_each(|connection| {
+                connection.set_glow(value);
+            })
+        });
+
         frp::extend! { network
             let weak_connection = self.downgrade();
             let weak_connection_hover_start = self.downgrade();
-            def _f_hover_start = self.data.events.hover_start.map(move |_| {
+            def _f_hover_start = self.data.events.hover_start.map(enclose!((fade) move |_| {
                  if let Some(connection) = weak_connection_hover_start.upgrade(){
-                    println!("HOVER");
-                    connection.set_glow(1.0);
+                    fade.set_position(1.0);
+                    /// TODO should be removed once mouse_leave is implemented.
+                    fade.set_target_position(0.0);
                 }
-            });
+            }));
             let weak_connection_hover_end = self.downgrade();
-             def _f_hover_end = self.data.events.hover_end.map(move |_| {
+             def _f_hover_end = self.data.events.hover_end.map(enclose!((fade) move |_| {
                  if let Some(connection) = weak_connection_hover_end.upgrade(){
-                    println!("UNHOVER");
-                    connection.set_glow(0.0);
+                    fade.set_target_position(0.0);
                 }
-            });
+            }));
         }
         self
     }
@@ -236,10 +245,6 @@ impl Connection {
     fn set_input_position(&self, position:Vector3<f32>) {
         println!("{:?}", position);
         self.data.start.set(position);
-        let start_pos = position - self.center();
-        if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.start.set(start_pos.xy());
-        }
         self.update_sprite();
     }
 
@@ -251,10 +256,6 @@ impl Connection {
     fn set_output_position(&self, position:Vector3<f32>) {
         println!("{:?}", position);
         self.data.end.set(position);
-        let end_pos = position - self.data.start.get();
-        if let Some(t) = self.data.view.data.borrow().as_ref() {
-            t.shape.end.set(end_pos.xy());
-        }
         self.update_sprite();
     }
 

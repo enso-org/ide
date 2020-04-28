@@ -16,7 +16,7 @@ use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display;
-use ensogl::gui::component::ShapeViewDefinition;
+use ensogl::gui::component::{ShapeViewDefinition, animation};
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::segment::Segment;
 use ensogl::math::geometry::triangle::Triangle;
@@ -471,14 +471,22 @@ impl<T:PortShapeViewDefinition> Port<T> {
                 }));
         }
 
+        let weak_port = self.downgrade();
+        let fade_glow = animation(network,move |value| {
+            weak_port.upgrade().for_each(|port| {
+                port.set_glow(value);
+            })
+        });
+
         frp::extend! { network
             let weak_port_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
                  if let Some(port) = weak_port_hover_start.upgrade(){
                     port.set_glow(1.0);
-
+                    fade_glow.set_target_position(0.0);
                 }
             });
+
             let weak_port_hover_end = self.downgrade();
              def _f_hover_end = self.data.events.hover_end.map(move |_| {
                  if let Some(port) = weak_port_hover_end.upgrade(){
