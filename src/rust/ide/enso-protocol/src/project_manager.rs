@@ -6,8 +6,6 @@ use crate::types::UTCDateTime;
 use json_rpc::api::Result;
 use json_rpc::Handler;
 use json_rpc::make_rpc_methods;
-use json_rpc::make_param_map;
-use json_rpc::make_arg;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
