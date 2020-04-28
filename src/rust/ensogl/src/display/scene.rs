@@ -39,7 +39,7 @@ use web_sys::HtmlElement;
 use enso_frp as frp;
 
 
-
+// FIXME: Please remember about the alignment!
 pub trait MouseTarget : Debug + 'static {
     fn mouse_down(&self) -> Option<enso_frp::Source> { None }
     fn mouse_over(&self) -> Option<enso_frp::Source> { None }

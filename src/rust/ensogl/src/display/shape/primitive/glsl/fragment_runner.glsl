@@ -13,7 +13,7 @@ float alpha      = shape.color.color.raw.a;
 
 uvec3 chunks = encode(input_symbol_id,input_instance_id);
 
-float alpha_no_aa = alpha > 0.0 ? 1.0 : 0.0;
+float alpha_no_aa = alpha > 0.0 ? 1.0 : 0.0; // FIXME: why it was changed? I don't like this change TBH.
 
 output_id = vec4(as_float_u8(chunks.x),as_float_u8(chunks.y),as_float_u8(chunks.z),alpha_no_aa);
 output_id.r *= alpha_no_aa;

@@ -6,7 +6,7 @@ pub mod connection;
 use crate::prelude::*;
 
 use crate::component::node::port::Registry;
-use crate::component::node::port::InputPort;
+use crate::component::node::port::InputPort; //FIXME this naming is bad. We name everything to be used in qualified fashion. This should be `port::Input` instead.
 use crate::component::node::port::OutputPort;
 
 use enso_frp as frp;
@@ -25,7 +25,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::FRAC_PI_2; // FIXME: do not import consts. Import `std::f32` and use it in qualified form. Btw, `f32` should be exported by prelude if its not.
 
 
 /// Icons definitions.
@@ -217,7 +217,8 @@ impl Node {
             def label           = source::<String> ();
             def select          = source::<()>     ();
             def deselect        = source::<()>     ();
-            def port_created    = source::<port::Type> ();
+            def port_created    = source::<port::Type> (); // FIXME: Alignment - please fix alignment in the whole code diff.
+            // FIXME: I don't like that FRP event `port_created` gives us information only about port type. It should provide us with the pointer to the new port instead (of course weak ptr).
         }
         let network = node_network;
         let logger  = Logger::new("node");
@@ -260,13 +261,21 @@ impl Node {
             });
 
             let weak_node = self.downgrade();
+            // FIXME: I dont like the complexity of this FRP network. First, you get event from
+            // port_created, which gets the new port, then you create a bridge network between this node
+            // and network of the port which listens to `connection_changed` event on the port (WOW this is complex).
+            // Then, you call an ordinary function which does layouting of the ports and then after they are layouted
+            // there are some magic events flowing here and there from outside fo this FRP network.
+            // Basically, everything should be just computed by FRP. Going out of FRP shoudl be very, very rare,
+            // and should never be used to update positions or anything visually - every position ,animation etc needs
+            // to be coded in FRP.
             def _new_port = self.events.port_created.map(f!((network,weak_node)(port) {
                 match port {
                      port::Type::Output { port } => {
                          frp::new_bridge_network! { [network,port.data.events.network]
-                             def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
+                             def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) { // FIXME: A lot of lines are too long
                                 if let Some(node) = weak_node.upgrade(){
-                                    node.on_connection_update();
+                                    node.on_connection_update(); // FIXME - all such things should be FRP networks.
                                 }
                              }));
                           }
@@ -316,12 +325,14 @@ impl Node {
         self.data.ports.on_position_update()
     }
 
+    // FIXME: This should be part of FRP netwrok instead.
     /// Needs to be called when one of the attached connections has changed.
     // TODO: this should be more fine grained and only update the affected ports.
     pub fn on_connection_update(&self){
         self.layout_ports()
     }
 
+    // FIXME: this should be FRP netwrok computing the port positions, not a function.
     /// Update the position of all ports after this node has moved.
     fn layout_ports(&self){
         for port in self.data.ports.input.ports.borrow().iter(){
@@ -339,9 +350,10 @@ impl Node {
         }
     }
 
+    // FIXME: I dont think that this should be a function in node. It is not responsibility of a node to compute position diff between itself and other node. Such function doies not "belong" to node.
     /// Compute the port position facing in the direction of a given point.
     fn angle_to_other(&self, other: Vector3<f32>) -> Angle<Radians> {
-        let source = self.data.view.display_object.global_position();
+        let source = self.data.view.display_object.global_position(); // FIXME: never use display object explicitly. This thing is equal to `self.position()`.
         let right = Vector3::new(1.0, 0.0, 0.0);
         let target = source - other;
         let delta  = right - target;

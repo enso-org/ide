@@ -169,6 +169,7 @@ impl Cursor {
         })
     }
 
+    // FIXME: Why you need this? You should get position from FRP network not from cursor. Probably the movement which is not synchronious is because of using suchfunctions and doing callback hell instead of using FRP for everything.
     /// Position getter.
     pub fn position(&self) -> Option<Vector2<f32>> {
         self.view.data.borrow().as_ref().map(|view| {

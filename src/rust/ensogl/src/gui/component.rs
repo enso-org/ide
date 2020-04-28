@@ -26,7 +26,7 @@ pub struct ShapeViewEvents {
     pub network     : frp::Network,
     pub mouse_down  : frp::Source,
     pub mouse_over  : frp::Source,
-    pub mouse_leave : frp::Source,
+    pub mouse_leave : frp::Source, // FIXME: Inconsistent naming. Either use over + out, or enter + leave. (former preferred)
 
 }
 
