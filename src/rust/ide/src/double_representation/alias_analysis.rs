@@ -173,7 +173,7 @@ impl AliasAnalyzer {
     /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
     fn in_location_of<T,F,R>(&mut self, located_item:&Located<T>, f:F) -> R
         where F:FnOnce(&mut Self) -> R {
-        self.in_location(located_item.crumbs.iter().copied(), f)
+        self.in_location(located_item.crumbs.iter().cloned(), f)
     }
 
     /// Obtains a mutable reference to the current scope.
@@ -212,10 +212,10 @@ impl AliasAnalyzer {
     }
 
     /// If the given located AST-like entity is an identifier, records its occurrence.
-    fn store_if_name<T>(&mut self, kind:OccurrenceKind, located:&Located<T>) -> bool
-    where for<'a> &'a T : Into<&'a Ast> {
-        let ast = (&located.item).into();
-        self.in_location_of(located, |this| this.try_recording_identifier(kind, ast))
+    fn store_if_name<'a,T>(&mut self, kind:OccurrenceKind, located:Located<T>) -> bool
+    where T : Into<&'a Ast> + 'a + Copy {
+        let ast = located.item.into();
+        self.in_location_of(&located, |this| this.try_recording_identifier(kind, ast))
     }
 
     /// Processes the given AST, while crumb is temporarily pushed to the current location.
@@ -258,11 +258,11 @@ impl AliasAnalyzer {
             if let Some(infix_chain) = ast::opr::Chain::try_new(ast) {
                 // Infix always acts as pattern-match in left-side.
                 for operand in infix_chain.enumerate_operands() {
-                    self.process_located_ast(&*operand)
+                    self.process_located_ast(&operand.map(|operand| &operand.arg))
                 }
                 for operator in infix_chain.enumerate_operators() {
                     // Operators in infix positions are treated as constructors, i.e. they are used.
-                    self.store_if_name(OccurrenceKind::Used, operator);
+                    self.store_if_name(OccurrenceKind::Used,operator);
                 }
             } else if let Some(prefix_chain) = ast::prefix::Chain::try_new(ast) {
                 // Arguments introduce names, we ignore function name.
