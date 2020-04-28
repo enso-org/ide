@@ -480,10 +480,7 @@ impl<T> Atan2 for Var<T>
     fn atan2(&self, other:Self) -> Self {
         match (self, &other) {
             (Var::Static(lhs), Var::Static(rhs)) => Var::Static(lhs.atan2(*rhs)),
-            _ => {
-                    let code = format!("atan({},{})",self.glsl(),other.glsl());
-                    Var::Dynamic(code.into())
-            }
+            _ => Var::Dynamic(format!("atan({},{})",self.glsl(),other.glsl()).into()),
         }
     }
 }

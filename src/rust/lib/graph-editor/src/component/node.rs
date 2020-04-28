@@ -6,7 +6,7 @@ pub mod connection;
 use crate::prelude::*;
 
 use crate::component::node::port::{Registry, InputPort, OutputPort};
-use crate::component::node::port::IOPort;
+use crate::component::node::port::IoPort;
 
 use enso_frp as frp;
 use enso_frp::stream::EventEmitter;
@@ -140,8 +140,7 @@ pub struct Events {
     pub network      : frp::Network,
     pub select       : frp::Source,
     pub deselect     : frp::Source,
-    /// Emitted if a new port was created.
-    pub port_created : frp::Source<IOPort>,
+    pub port_created : frp::Source<IoPort>,
 
 }
 
@@ -217,7 +216,7 @@ impl Node {
             def label           = source::<String> ();
             def select          = source::<()>     ();
             def deselect        = source::<()>     ();
-            def port_created    = source::<IOPort> ();
+            def port_created    = source::<IoPort> ();
         }
         let network = node_network;
         let logger  = Logger::new("node");
@@ -262,7 +261,7 @@ impl Node {
             let weak_node = self.downgrade();
             def _new_port = self.events.port_created.map(f!((network,weak_node)(port) {
                 match port {
-                     IOPort::Output { port } => {
+                     IoPort::Output { port } => {
                          frp::new_bridge_network! { [network,port.data.events.network]
                                def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
                                      if let Some(node) = weak_node.upgrade(){
@@ -271,7 +270,7 @@ impl Node {
                                }));
                            }
                      },
-                     IOPort::Input { port }  => {
+                     IoPort::Input { port }  => {
                          frp::new_bridge_network! { [network,port.data.events.network]
                              def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
                                  if let Some(node) = weak_node.upgrade(){
@@ -293,7 +292,7 @@ impl Node {
     pub fn add_input_port(&self) -> InputPort {
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Input{port:input_port.clone_ref()});
+        self.data.events.port_created.emit_event(&IoPort::Input{port:input_port.clone_ref()});
         input_port
     }
 
@@ -303,7 +302,7 @@ impl Node {
     pub fn add_output_port(&self) -> OutputPort {
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Output{port:output_port.clone_ref()});
+        self.data.events.port_created.emit_event(&IoPort::Output{port:output_port.clone_ref()});
         output_port
     }
 

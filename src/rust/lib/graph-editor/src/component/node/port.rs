@@ -370,18 +370,18 @@ pub type OutputPort = Port<OutputPortView>;
 /// Enum over all possible port types.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub enum IOPort{
+pub enum IoPort {
     Input  { port: InputPort  },
     Output { port: OutputPort },
 }
 
-impl Default for IOPort{
+impl Default for IoPort {
     fn default() -> Self {
-        IOPort:: Input  { port: default() }
+        IoPort:: Input  { port: default() }
     }
 }
 
-impl AsRef<IOPort> for IOPort {
+impl AsRef<IoPort> for IoPort {
     fn as_ref(&self) -> &Self {
         self
     }

@@ -50,7 +50,7 @@ use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-use crate::component::node::port::IOPort;
+use crate::component::node::port::IoPort;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -191,7 +191,7 @@ pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                     : Commands,
     register_node                : frp::Source<Node>,
-    register_port                : frp::Source<IOPort>,
+    register_port                : frp::Source<IoPort>,
     register_connection          : frp::Source<Connection>,
     pub add_connection_at        : frp::Source<Position>,
     pub add_node_at              : frp::Source<Position>,
@@ -218,7 +218,7 @@ impl FrpInputs {
     fn register_node<T: AsRef<Node>>(&self, arg: T) {
         self.register_node.emit(arg.as_ref());
     }
-    fn register_port<T: AsRef<IOPort>>(&self, arg: T) {
+    fn register_port<T: AsRef<IoPort>>(&self, arg: T) {
         self.register_port.emit(arg.as_ref());
     }
     fn register_connection<T: AsRef<Connection>>(&self, arg: T) {
@@ -555,7 +555,7 @@ impl application::View for GraphEditor {
         let acon = active_connection.clone();
         def _new_port = inputs.register_port.map(f!((network,inputs,active_connection)(port) {
             match port {
-                 IOPort::Output { port } => {
+                 IoPort::Output { port } => {
                         let acon = acon.clone();
 
                        frp::new_bridge_network! { [network,port.data.events.network]
@@ -573,7 +573,7 @@ impl application::View for GraphEditor {
                        }));
                        }
                  },
-                 IOPort::Input { port }  => {
+                 IoPort::Input { port }  => {
                        let acon = acon.clone();
                        frp::new_bridge_network! { [network,port.data.events.network]
                        def _on_connection_start = port.data.events.connection_start.map(f!((inputs,port,acon)(_) {

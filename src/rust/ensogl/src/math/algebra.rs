@@ -285,9 +285,9 @@ impl Acos for f32 {
     }
 }
 
-// ===============
+// =============
 // === Atan2 ===
-// ===============
+// =============
 
 /// Types from which atan2 can be calculated
 pub trait Atan2 {

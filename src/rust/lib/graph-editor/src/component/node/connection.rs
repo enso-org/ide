@@ -175,23 +175,23 @@ impl Connection {
     /// Set up the event handling for connections.
     fn init_frp(self) -> Self {
         let weak_connection = self.downgrade();
-        let network = &self.data.view.events.network;
-        frp::new_bridge_network! { [network,self.data.events.network]
-                let weak_connection_on_hover = weak_connection.clone();
-                def _connection_on_over = self.data.view.events.mouse_over.map(f_!(() {
-                    if let Some(connection) = weak_connection_on_hover.upgrade(){
+
+        let network = &self.data.events.network;
+        frp::extend! { network
+                def _connection_on_over = self.data.view.events.mouse_over.map(f!((weak_connection)(_) {
+                    if let Some(connection) = weak_connection.upgrade(){
                         connection.data.events.hover_start.emit(());
                     }
                 }));
 
-               let weak_connection_mouse_leave = weak_connection;
-               def _connection_on_leave = self.data.view.events.mouse_leave.map(f_!(() {
-                    if let Some(connection) = weak_connection_mouse_leave.upgrade(){
+               def _connection_on_leave = self.data.view.events.mouse_leave.map(f!((weak_connection)(_) {
+                    if let Some(connection) = weak_connection.upgrade(){
                         connection.data.events.hover_end.emit(());
                     }
                 }));
         }
 
+        let network = &self.data.view.events.network;
         let weak_connection_fade = self.downgrade();
         let fade = animation(network,move |value| {
             weak_connection_fade.upgrade().for_each(|connection| {

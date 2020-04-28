@@ -46,9 +46,11 @@ impl MouseTarget for ShapeViewEvents {
     fn mouse_down(&self) -> Option<frp::Source> {
         Some(self.mouse_down.clone_ref())
     }
+
     fn mouse_over(&self) -> Option<frp::Source> {
         Some(self.mouse_over.clone_ref())
     }
+
     fn mouse_leave(&self) -> Option<frp::Source> {
         Some(self.mouse_leave.clone_ref())
     }
