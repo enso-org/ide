@@ -5,7 +5,7 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::Registry;
+use crate::component::node::port::{Registry, InputPort, OutputPort};
 use crate::component::node::port::IOPort;
 
 use enso_frp as frp;
@@ -292,20 +292,28 @@ impl Node {
     }
 
     /// Create an `InputPort` on this node.
-    pub fn add_input_port(&self){
+    ///
+    /// FRP note: emits a `port_created` event.
+    pub fn add_input_port(&self) -> InputPort {
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Input{port:input_port});
+        self.data.events.port_created.emit_event(&IOPort::Input{port:input_port.clone_ref()});
+        input_port
     }
 
     /// Create an `OutputNode` on this node.
-    pub fn add_output_port(&self){
+    ///
+    /// FRP note: emits a `port_created` event.
+    pub fn add_output_port(&self) -> OutputPort {
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IOPort::Output{port:output_port});
+        self.data.events.port_created.emit_event(&IOPort::Output{port:output_port.clone_ref()});
+        output_port
     }
 
-    /// Propagate a position update to the ports.
+    /// Needs to be called when this node has changed its position.
+    ///
+    /// This is used to propagate the position update to the ports and connections of this node.
     /// TODO use frp system?
     pub fn on_position_update(&self){
         self.layout_ports();
@@ -313,6 +321,7 @@ impl Node {
         self.data.ports.on_position_update()
     }
 
+    /// Needs to be called when one of the attached connections has changed.
     // TODO: this should be more fine grained and only update the affected ports.
     pub fn on_connection_update(&self){
         self.layout_ports()
@@ -338,9 +347,9 @@ impl Node {
     /// Compute the port position facing in the direction of a given point.
     fn angle_to_other(&self, other: Vector3<f32>) -> Angle<Radians> {
         let source = self.data.view.display_object.global_position();
-        let up     = Vector3::new(1.0,0.0,0.0);
+        let right = Vector3::new(1.0, 0.0, 0.0);
         let target = source - other;
-        let delta  = up - target;
+        let delta  = right - target;
         let angle  = ( delta.y ).atan2( delta.x );
         Angle::<Radians>::from(-angle + FRAC_PI_2)
     }

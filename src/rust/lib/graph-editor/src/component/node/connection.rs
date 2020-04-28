@@ -14,7 +14,6 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
 use ensogl::display::layout::alignment;
-use ensogl::display::object::Id;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
@@ -37,8 +36,6 @@ mod shape {
     ensogl::define_shape_system! {
          (thickness:f32, glow:f32) {
             let zoom_factor  = Var::<f32>::from("(2.0 / input_zoom) - 1.0");
-            let height       = Var::<f32>::from("input_start.y - input_end.y");
-            let width        = Var::<f32>::from("input_start.x - input_end.x");
 
             let line_thickness = (Var::<f32>::from(1.0) + thickness) * zoom_factor;
             let line           = Line(&line_thickness);
@@ -168,7 +165,7 @@ impl Connection {
             input_port: start_port,start,
             output_port: end_port,end,label,events,view,logger };
         let data         = Rc::new(data);
-        Self {data} . init() .init_frp()
+        Self {data} . init_frp()
     }
 
     /// Create a new connection between the two ports.
@@ -179,16 +176,7 @@ impl Connection {
         connection
     }
 
-    fn init(self) -> Self {
-        self
-    }
-
     /// Set up the event handling for connections.
-    ///
-    /// Specifically:
-    /// * translates mouse events in hover events.
-    /// * sets up actions on port movement
-    /// * sets up actions on hover events
     fn init_frp(self) -> Self {
         let weak_connection = self.downgrade();
         let network = &self.data.view.events.network;
@@ -216,20 +204,13 @@ impl Connection {
         });
 
         frp::extend! { network
-            let weak_connection = self.downgrade();
-            let weak_connection_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(enclose!((fade) move |_| {
-                 if let Some(connection) = weak_connection_hover_start.upgrade(){
                     fade.set_position(1.0);
-                    /// TODO should be removed once mouse_leave is implemented.
+                    // TODO should be removed once mouse_leave is implemented.
                     fade.set_target_position(0.0);
-                }
             }));
-            let weak_connection_hover_end = self.downgrade();
              def _f_hover_end = self.data.events.hover_end.map(enclose!((fade) move |_| {
-                 if let Some(connection) = weak_connection_hover_end.upgrade(){
                     fade.set_target_position(0.0);
-                }
             }));
         }
         self
@@ -244,24 +225,24 @@ impl Connection {
         }
     }
 
+    /// Returns the position of the input end of the connection.
     pub fn input_position(&self) -> Vector3<f32> {
         self.data.start.get()
     }
 
-    /// Helper function to update the `Connection`'s start position.
+    /// Helper function to update the input position and update the shape.
     fn set_input_position(&self, position:Vector3<f32>) {
-        println!("{:?}", position);
         self.data.start.set(position);
         self.update_sprite();
     }
 
+    /// Returns the position of the output end of the connection.
     pub fn output_position(&self) -> Vector3<f32> {
         self.data.end.get()
     }
 
-    /// Helper function to update the `Connection`'s end position.
+    /// Helper function to update the output position and update the shape.
     fn set_output_position(&self, position:Vector3<f32>) {
-        println!("{:?}", position);
         self.data.end.set(position);
         self.update_sprite();
     }
@@ -299,11 +280,12 @@ impl Connection {
         }
     }
 
-    /// Indicates whether this connection has both a start and an end port.
+    /// Indicates whether this connection has both a start and an end port attached.
     pub fn fully_connected(&self) -> bool {
         self.data.input_port.borrow().is_some() && self.data.output_port.borrow().is_some()
     }
 
+    /// Remove the port and inform the port that the connection was severed.
     pub fn clear_input_port(&self) {
         self.data.input_port
             .borrow_mut()
@@ -311,6 +293,7 @@ impl Connection {
             .map(|weak_port| weak_port.upgrade().map(| port| port.clear_connection()));
     }
 
+    /// Remove the port and inform the port that the connection was severed.
     pub fn clear_output_port(&self) {
         self.data.output_port
             .borrow_mut()
@@ -330,11 +313,8 @@ impl Connection {
 
     /// Helper function to update the sprite in response to start/end point changes.
     ///
-    /// Ensures the sprite is centered between the start and end point, and large enough to
-    /// encompass both. That allows us to draw a diagonal line from start to end.
-    ///
-    /// Note that this is somewhat wasteful at the moment: we have a mostly empty square sprite to
-    /// render a line. But later on this might be filled by a curve, which requires this space.
+    /// Ensures the sprite is centered between the start and end point and correctly rotated so
+    /// start and end point match up.
     fn update_sprite(&self) {
         let center = self.center();
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -352,6 +332,8 @@ impl Connection {
         self.data.view.display_object.set_rotation(Vector3::new(0.0,0.0,angle));
     }
 
+    /// Needs to be called when the input port's position has changed to propagate the layout
+    /// update to the output port.
     pub fn on_input_port_position_change(&self) {
         self.data.input_port
             .borrow()
@@ -374,6 +356,8 @@ impl Connection {
             );
     }
 
+    /// Needs to be called when the output port's position has changed to propagate the layout
+    /// update to the input port.
     pub fn on_output_port_position_change(&self) {
         self.data.output_port
             .borrow()
@@ -433,16 +417,4 @@ impl WeakRef for WeakConnection {
     fn upgrade(&self) -> Option<Connection> {
         self.data.upgrade().map(|data| Connection{data})
     }
-}
-
-
-
-
-// ==============
-// === Events ===
-// ==============
-
-struct Registry {
-    active_connection : Rc<RefCell<Option<Connection>>>,
-    connections: Rc<RefCell<HashMap<Id,Connection>>>
 }
