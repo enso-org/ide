@@ -204,7 +204,7 @@ mod shape {
         let glow_color    = SdfSampler::new(glow_gradient).max_distance(9.0).slope(Slope::Exponent(4.0));
         let glow          = glow.fill(glow_color);
 
-        /// Add an almost invisible area extend input area.
+        // Add an almost invisible area extend input area.
         let touch_extension_radius =  Var::<Distance<Pixels>>::from(height * Var::from(2.0));
         let touch_extension        = Circle(touch_extension_radius);
         let touch_extension        = touch_extension.fill(Srgba::new(1.0,1.0,1.0,0.001).into_linear());

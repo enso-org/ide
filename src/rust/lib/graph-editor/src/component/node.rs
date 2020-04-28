@@ -306,10 +306,10 @@ impl Node {
     }
 
     /// Propagate a position update to the ports.
-    /// TODO use frp system
+    /// TODO use frp system?
     pub fn on_position_update(&self){
         self.layout_ports();
-        /// Propagate update.
+        // Propagate update.
         self.data.ports.on_position_update()
     }
 
