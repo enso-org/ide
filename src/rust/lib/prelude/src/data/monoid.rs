@@ -54,8 +54,11 @@ mod tests {
 
     #[test]
     fn option() {
-        assert_eq!(vec![1,2].times(0) , vec![]);
-        assert_eq!(vec![1,2].times(1) , vec![1,2]);
-        assert_eq!(vec![1,2].times(3) , vec![1,2,1,2,1,2]);
+        let vec_nop         : Vec<usize> = vec![];
+        let vec_1_2         : Vec<usize> = vec![1,2];
+        let vec_1_2_times_3 : Vec<usize> = vec![1,2,1,2,1,2];
+        assert_eq!(vec_1_2.times(0) , vec_nop);
+        assert_eq!(vec_1_2.times(1) , vec_1_2);
+        assert_eq!(vec_1_2.times(3) , vec_1_2_times_3);
     }
 }
