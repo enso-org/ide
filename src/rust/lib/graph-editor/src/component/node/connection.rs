@@ -26,11 +26,7 @@ use std::f32::consts::FRAC_PI_2;
 // === Connection Shape ===
 // ========================
 
-/// Defines a shape based ona a starting point and an end point. Supports a glow effect.
-///
-/// At the moment this is implemented as a simple line that is rotated and translated to match
-/// up with the start and end point.
-/// FIXME make this nicer. For example, use splines.
+/// Defines connection shape with glow effect. At the moment this is implemented as a simple line.
 mod shape {
     use super::*;
 
@@ -40,19 +36,20 @@ mod shape {
             let height       = Var::<f32>::from("input_start.y - input_end.y");
             let width        = Var::<f32>::from("input_start.x - input_end.x");
 
-            let line         = Line((Var::<f32>::from(1.0) + thickness) * zoom_factor);
-            let line_color   = Srgba::new(1.00, 0.565, 0.0, 1.0);
-            let line_colored = line.fill(line_color);
+            let line_thickness = (Var::<f32>::from(1.0) + thickness) * zoom_factor;
+            let line           = Line(&line_thickness);
+            let line_color     = Srgba::new(1.00, 0.565, 0.0, 1.0);
+            let line_colored   = line.fill(line_color);
 
-            let glow           = Line(Var::<f32>::from(15.0) * glow);
+            let glow           = Line(Var::<f32>::from(75.0) * &line_thickness * glow);
             let glow_color     = Srgb::new(1.00, 0.565, 0.0);
             let gradient_start = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
-            let gradient_end   = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.0);
+            let gradient_end   = Srgba::new(glow_color.red,glow_color.green,glow_color.blue,0.65);
             let glow_gradient  = LinearGradient::new()
                 .add(0.0,gradient_start.into_linear())
                 .add(1.0,gradient_end.into_linear());
             let glow_color     = SdfSampler::new(glow_gradient)
-                .max_distance(15.0)
+                .max_distance(100.0)
                 .slope(Slope::Exponent(4.0));
             let glow_colored   = glow.fill(glow_color);
 
@@ -207,12 +204,14 @@ impl Connection {
             let weak_connection_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
                  if let Some(connection) = weak_connection_hover_start.upgrade(){
+                    println!("HOVER");
                     connection.set_glow(1.0);
                 }
             });
             let weak_connection_hover_end = self.downgrade();
              def _f_hover_end = self.data.events.hover_end.map(move |_| {
                  if let Some(connection) = weak_connection_hover_end.upgrade(){
+                    println!("UNHOVER");
                     connection.set_glow(0.0);
                 }
             });
@@ -333,7 +332,7 @@ impl Connection {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
             let extent = self.extent().xy();
             let diagonal = (extent.x * extent.x + extent.y * extent.y).sqrt();
-            t.shape.sprite.size().set(Vector2::new(diagonal, 100.0));
+            t.shape.sprite.size().set(Vector2::new(diagonal, 200.0));
         }
         self.data.view.display_object.set_position(Vector3::new(center.x,center.y,0.0));
 
@@ -341,7 +340,6 @@ impl Connection {
         let target =  self.output_position() - self.input_position();
         let delta  = up - target;
         let angle  = ( delta.y ).atan2( delta.x );
-        // let angle = angle;
 
         self.data.view.display_object.set_rotation(Vector3::new(0.0,0.0,angle));
     }
