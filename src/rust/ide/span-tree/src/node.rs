@@ -118,7 +118,7 @@ pub struct Ref<'a> {
 }
 
 /// A result of `get_subnode_by_ast_crumbs`
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct NodeFoundByAstCrumbs<'a,'b> {
     /// A node being a result of the lookup.
     pub node       : Ref<'a>,
@@ -161,20 +161,20 @@ impl<'a> Ref<'a> {
     }
 
     /// Get the sub-node (child, or further descendant) identified by `crumbs`.
-    pub fn get_subnode(self, crumbs:impl IntoIterator<Item=Crumb>) -> Option<Ref<'a>> {
+    pub fn get_descendant(self, crumbs:impl IntoIterator<Item=Crumb>) -> Option<Ref<'a>> {
         let mut iter = crumbs.into_iter();
         match iter.next() {
-            Some(index) => self.child(index).and_then(|child| child.get_subnode(iter)),
+            Some(index) => self.child(index).and_then(|child| child.get_descendant(iter)),
             None        => Some(self)
         }
     }
 
     /// Get the sub-node by AST crumbs.
     ///
-    /// The returned node will be node associated with AST node located by given `ast_crumbs`, or
-    /// a leaf whose associated AST _contains_ node located by `ast_crumbs` - in that case returned
+    /// The returned node will be node having corresponding AST node located by given `ast_crumbs`,
+    /// or a leaf whose AST _contains_ node located by `ast_crumbs` - in that case returned
     /// structure will have non-empty `ast_crumbs` field.
-    pub fn get_subnode_by_ast_crumbs<'b>
+    pub fn get_descendant_by_ast_crumbs<'b>
     (self, ast_crumbs:&'b [ast::Crumb]) -> Option<NodeFoundByAstCrumbs<'a,'b>> {
         if self.node.children.is_empty() || ast_crumbs.is_empty() {
             let node                 = self;
@@ -184,7 +184,7 @@ impl<'a> Ref<'a> {
             let next = self.children_iter().find(|child| ast_crumbs.starts_with(&child.ast_crumbs));
             next.and_then(|child| {
                 let ast_subcrumbs = &ast_crumbs[child.ast_crumbs.len()..];
-                child.get_subnode_by_ast_crumbs(ast_subcrumbs)
+                child.get_descendant_by_ast_crumbs(ast_subcrumbs)
             })
         }
     }
@@ -232,10 +232,10 @@ mod test {
             .build();
 
         let root         = tree.root_ref();
-        let child1       = root.clone().get_subnode(vec![0]).unwrap();
-        let child2       = root.clone().get_subnode(vec![2]).unwrap();
-        let grand_child1 = root.clone().get_subnode(vec![2, 0]).unwrap();
-        let grand_child2 = child2.clone().get_subnode(vec![1]).unwrap();
+        let child1       = root.clone().get_descendant(vec![0]).unwrap();
+        let child2       = root.clone().get_descendant(vec![2]).unwrap();
+        let grand_child1 = root.clone().get_descendant(vec![2, 0]).unwrap();
+        let grand_child2 = child2.clone().get_descendant(vec![1]).unwrap();
 
         // Span begin.
         assert_eq!(root.span_begin.value        , 0);
@@ -266,11 +266,11 @@ mod test {
         assert_eq!(grand_child2.ast_crumbs, [RightOperand.into(),Operator.into()]   );
 
         // Not existing nodes
-        assert!(root.clone().get_subnode(vec![3]).is_none());
-        assert!(root.clone().get_subnode(vec![1, 0]).is_none());
-        assert!(root.clone().get_subnode(vec![2, 1, 0]).is_none());
-        assert!(root.clone().get_subnode(vec![2, 5]).is_none());
-        assert!(root.get_subnode(vec![2, 5, 0]).is_none());
+        assert!(root.clone().get_descendant(vec![3]).is_none());
+        assert!(root.clone().get_descendant(vec![1, 0]).is_none());
+        assert!(root.clone().get_descendant(vec![2, 1, 0]).is_none());
+        assert!(root.clone().get_descendant(vec![2, 5]).is_none());
+        assert!(root.get_descendant(vec![2, 5, 0]).is_none());
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod test {
 
         for case in cases {
             let (crumbs,expected_crumbs,expected_remaining_ast_crumbs) = case;
-            let result = root.clone().get_subnode_by_ast_crumbs(&crumbs).unwrap();
+            let result = root.clone().get_descendant_by_ast_crumbs(&crumbs).unwrap();
             assert_eq!(result.node.crumbs.as_slice(), *expected_crumbs);
             assert_eq!(result.ast_crumbs, expected_remaining_ast_crumbs.as_slice());
         }

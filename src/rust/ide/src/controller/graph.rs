@@ -95,7 +95,7 @@ impl NewNodeInfo {
 // ===================
 
 /// Identifier for ports.
-pub type PortId = Vec<span_tree::node::Crumb>;
+pub type Port = Vec<span_tree::node::Crumb>;
 
 
 // === Endpoint
@@ -105,10 +105,10 @@ pub type PortId = Vec<span_tree::node::Crumb>;
 #[derive(Clone,Debug)]
 pub struct Endpoint {
     pub node : double_representation::node::Id,
-    pub port : PortId,
-    /// Crumbs which locate the Var in the `span_tree_node` ast node.
+    pub port : Port,
+    /// Crumbs which locate the Var in the `port` ast node.
     ///
-    /// In normal case this is an empty crumb (which means that the whole span of `span_tree_node` is the
+    /// In normal case this is an empty crumb (which means that the whole span of `port` is the
     /// mentioned Var. However, span tree does not covers all the possible ast of node expression
     /// (e.g. it does not decompose Blocks), but still we want to pass information about connection
     /// to such port and be able to remove it.
@@ -117,7 +117,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Create endpoint with empty `var_crumbs`.
-    pub fn new(node:double_representation::node::Id, port:PortId) -> Self {
+    pub fn new(node:double_representation::node::Id, port: Port) -> Self {
         let var_crumbs = default();
         Endpoint{node,port,var_crumbs}
     }
@@ -159,22 +159,21 @@ impl NodeTrees {
         Some(NodeTrees {inputs,outputs})
     }
 
-    /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the span-tree
-    /// crumbs.
-    pub fn get_span_tree_node<'a,'b>
-    (&'a self, ast_crumbs:&'b [ast::Crumb])
+    /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the
+    /// appriopriate span-tree node reference.
+    pub fn get_span_tree_node<'a,'b>(&'a self, ast_crumbs:&'b [ast::Crumb])
     -> Option<span_tree::node::NodeFoundByAstCrumbs<'a,'b>> {
         if let Some(outputs) = self.outputs.as_ref() {
             // Node in assignment form. First crumb decides which span tree to use.
             let tree = match ast_crumbs.get(0) {
-                Some(ast::crumbs::Crumb::Infix(InfixCrumb::LeftOperand))  => outputs,
-                Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => &self.inputs,
-                _ => return None,
+                Some(ast::crumbs::Crumb::Infix(InfixCrumb::LeftOperand))  => Some(outputs),
+                Some(ast::crumbs::Crumb::Infix(InfixCrumb::RightOperand)) => Some(&self.inputs),
+                _ => None,
             };
-            tree.root_ref().get_subnode_by_ast_crumbs(&ast_crumbs[1..])
+            tree.and_then(|tree| tree.root_ref().get_descendant_by_ast_crumbs(&ast_crumbs[1..]))
         } else {
             // Expression node - there is only inputs span tree.
-            self.inputs.root_ref().get_subnode_by_ast_crumbs(ast_crumbs)
+            self.inputs.root_ref().get_descendant_by_ast_crumbs(ast_crumbs)
         }
     }
 }
@@ -427,7 +426,7 @@ impl Handle {
         };
         let source_node_outputs = SpanTree::new(source_ast)?;
         let source_crumbs = connection.source.port.iter().copied();
-        let source_port = source_node_outputs.root_ref().get_subnode(source_crumbs).expect("failed locate crumb");
+        let source_port = source_node_outputs.root_ref().get_descendant(source_crumbs).expect("failed locate crumb");
 
         let source_crumbs = &source_port.ast_crumbs;
         let source_identifier = source_ast.get_traversing(source_crumbs)?;
@@ -436,7 +435,7 @@ impl Handle {
         let destination_node = self.node_info(connection.destination.node)?;
         let destination_ast = destination_node.expression();
         let destination_node_inputs = SpanTree::new(destination_ast)?;
-        let destination_port = destination_node_inputs.root_ref().get_subnode(connection.destination.port.iter().copied()).unwrap();
+        let destination_port = destination_node_inputs.root_ref().get_descendant(connection.destination.port.iter().copied()).unwrap();
 
         let replaced_destination = destination_port.set(destination_ast,source_identifier.clone()).unwrap();
         let new_expression = replaced_destination;
@@ -450,12 +449,12 @@ impl Handle {
         let destination_node = self.node_info(connection.destination.node)?;
         let destination_ast = destination_node.expression();
         let destination_node_inputs = SpanTree::new(destination_ast)?;
-        let destination_port = destination_node_inputs.root_ref().get_subnode(connection.destination.port.iter().copied()).unwrap();
+        let destination_port = destination_node_inputs.root_ref().get_descendant(connection.destination.port.iter().copied()).unwrap();
 
         // parent chain
-        let mut parent_port = span_tree::node::parent_crumbs(&connection.destination.port).map(|cr| destination_node_inputs.root_ref().get_subnode(cr.iter().copied()).unwrap());
+        let mut parent_port = span_tree::node::parent_crumbs(&connection.destination.port).map(|cr| destination_node_inputs.root_ref().get_descendant(cr.iter().copied()).unwrap());
         while parent_port.as_ref().map_or(false, |p| p.node.kind == span_tree::node::Kind::Chained) {
-            parent_port = parent_port.and_then(|p| span_tree::node::parent_crumbs(&p.crumbs).map(|cr| destination_node_inputs.root_ref().get_subnode(cr.iter().copied()).unwrap()));
+            parent_port = parent_port.and_then(|p| span_tree::node::parent_crumbs(&p.crumbs).map(|cr| destination_node_inputs.root_ref().get_descendant(cr.iter().copied()).unwrap()));
         }
         let ports_after = parent_port.map(|p| p.chain_children_iter().skip_while(|p| p.crumbs != destination_port.crumbs).skip(1));
         let only_empty_ports_after = ports_after.map_or(true, |mut ps| ps.all(|p| p.node.is_empty()));
