@@ -9,7 +9,7 @@ use crate::node::Kind;
 use ast::Ast;
 use ast::Shifted;
 use ast::crumbs::*;
-
+use ast::opr::ArgWithOffset;
 
 
 /// ==============
@@ -113,24 +113,24 @@ impl<'a> Implementation for node::Ref<'a> {
             Kind::Empty(ins_type)  => Some(Box::new(move |root,new| {
                 use node::InsertType::*;
                 let ast      = root.get_traversing(&self.ast_crumbs)?;
-                let item     = Shifted {wrapped:new, off:DEFAULT_OFFSET};
                 let new_ast  = if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
+                    let item       = ArgWithOffset {arg:new, offset:DEFAULT_OFFSET};
                     let has_target = infix.target.is_some();
                     let has_arg    = infix.args.last().unwrap().operand.is_some();
                     let last_elem  = infix.args.last_mut().unwrap();
                     let last_arg   = &mut last_elem.operand;
                     last_elem.offset = DEFAULT_OFFSET;
                     match ins_type {
-                        BeforeTarget if has_target => infix.push_front_operand(item),
-                        AfterTarget  if has_target => infix.insert_operand(1,item),
-                        BeforeTarget               |
-                        AfterTarget                => infix.target = Some(item),
-                        Append       if has_arg    => infix.push_operand(item),
-                        Append                     => *last_arg = Some(item),
+                        BeforeTarget               if has_target => infix.push_front_operand(item),
+                        AfterTarget                if has_target => infix.insert_operand(1,item),
+                        BeforeTarget | AfterTarget               => infix.target = Some(item),
+                        Append                     if has_arg    => infix.push_operand(item),
+                        Append                                   => *last_arg = Some(item),
                     };
                     infix.into_ast()
                 } else {
                     let mut prefix = ast::prefix::Chain::new_non_strict(ast);
+                    let item       = Shifted{wrapped:new, off:DEFAULT_OFFSET};
                     match ins_type {
                         BeforeTarget => prefix.args.insert(0,item),
                         AfterTarget  => prefix.args.insert(1,item),

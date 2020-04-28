@@ -154,10 +154,10 @@ impl DefinitionName {
         let accessor_chain = opr::Chain::try_new_of(ast,opr::predefined::ACCESS);
         let (extended_target,name) = match accessor_chain {
             Some(accessor_chain) => {
-                let mut args = vec![ast::identifier::name(&*accessor_chain.target?)?.clone()];
+                let mut args = vec![ast::identifier::name(&accessor_chain.target?.arg)?.clone()];
                 for arg in accessor_chain.args.iter() {
                     let arg_ast = arg.operand.as_ref()?;
-                    args.push(ast::identifier::name(&*arg_ast)?.clone())
+                    args.push(ast::identifier::name(&arg_ast.arg)?.clone())
                 }
                 let name = args.pop()?;
                 (args,name)

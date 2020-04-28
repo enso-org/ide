@@ -122,8 +122,9 @@ impl SpanTreeGenerator for ast::opr::Chain {
         // (target and two arguments).
         let removable       = self.args.len() >= 2;
         let node_and_offset = match &self.target {
-            Some(sast) => sast.generate_node(node::Kind::Target {removable}).map(|n| (n,sast.off)),
-            None       => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
+            Some(target) =>
+                target.arg.generate_node(node::Kind::Target {removable}).map(|n| (n,target.offset)),
+            None => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
         };
 
         // In this fold we pass last generated node and offset after it, wrapped in Result.
@@ -146,10 +147,10 @@ impl SpanTreeGenerator for ast::opr::Chain {
             if has_target { gen.generate_empty_node(InsertType::AfterTarget); }
             gen.spacing(off);
             gen.generate_ast_node(opr_ast,node::Kind::Operation)?;
-            if let Some(sast) = &elem.operand {
+            if let Some(operand) = &elem.operand {
                 let arg_crumbs = elem.crumb_to_operand(has_left);
-                let arg_ast    = Located::new(arg_crumbs,sast.wrapped.clone_ref());
-                gen.spacing(sast.off);
+                let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
+                gen.spacing(operand.offset);
                 gen.generate_ast_node(arg_ast,node::Kind::Argument {removable})?;
             }
             gen.generate_empty_node(InsertType::Append);

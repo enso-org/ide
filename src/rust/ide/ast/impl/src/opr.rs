@@ -7,7 +7,6 @@ use crate::SectionLeft;
 use crate::SectionRight;
 use crate::SectionSides;
 use crate::Ast;
-use crate::Shifted;
 use crate::Shape;
 use crate::assoc::Assoc;
 use crate::crumbs::Crumb;
@@ -74,16 +73,25 @@ pub fn is_assignment(ast:&Ast) -> bool {
 // === Chain-related types ===
 // ===========================
 
+/// A structure which keeps argument's AST with information about offset between it and an operator.
+/// We cannot use `Shifted` because `Shifted` assumes that offset is always before ast it contains,
+/// what is not a case here.
+#[allow(missing_docs)]
+#[derive(Clone,Debug)]
+pub struct ArgWithOffset<T> {
+    pub arg    : T,
+    pub offset : usize,
+}
+
 /// Infix operator operand. Optional, as we deal with Section* nodes as well.
-pub type Operand = Option<Shifted<Ast>>;
+pub type Operand = Option<ArgWithOffset<Ast>>;
 
 /// Infix operator standing between (optional) operands.
 pub type Operator = known::Opr;
 
 /// Creates `Operand` from `ast` with offset between it and operator.
-pub fn make_operand(ast:Ast, off:usize) -> Operand {
-    let wrapped = ast;
-    Some(Shifted{wrapped,off})
+pub fn make_operand(arg:Ast, offset:usize) -> Operand {
+    Some(ArgWithOffset{arg,offset})
 }
 
 /// Creates `Operator` from `ast`.
@@ -169,21 +177,21 @@ impl GeneralizedInfix {
     pub fn into_ast(self) -> Ast {
         match (self.left,self.right) {
             (Some(left),Some(right)) => Infix{
-                larg : left.wrapped,
-                loff : left.off,
+                larg : left.arg,
+                loff : left.offset,
                 opr  : self.opr.into(),
-                roff : right.off,
-                rarg : right.wrapped,
+                roff : right.offset,
+                rarg : right.arg,
             }.into(),
             (Some(left),None) => SectionLeft {
-                arg : left.wrapped,
-                off : left.off,
+                arg : left.arg,
+                off : left.offset,
                 opr : self.opr.into(),
             }.into(),
             (None,Some(right)) => SectionRight {
                 opr : self.opr.into(),
-                off : right.off,
-                arg : right.wrapped,
+                off : right.offset,
+                arg : right.arg,
             }.into(),
             (None,None) => SectionSides {
                 opr : self.opr.into()
@@ -231,13 +239,13 @@ impl GeneralizedInfix {
             operand  : self.argument_operand(),
         };
 
-        let target_subtree_infix = target.clone().and_then(|sast| {
-            let off = sast.off;
-            GeneralizedInfix::try_new(&sast.wrapped).map(|wrapped| Shifted{wrapped,off})
+        let target_subtree_infix = target.clone().and_then(|arg| {
+            let offset = arg.offset;
+            GeneralizedInfix::try_new(&arg.arg).map(|arg| ArgWithOffset{arg,offset})
         });
         let mut target_subtree_flat = match target_subtree_infix {
-            Some(target_infix) if target_infix.name() == self.name() =>
-                target_infix.flatten_with_offset(target_infix.off),
+            Some(target_infix) if target_infix.arg.name() == self.name() =>
+                target_infix.arg.flatten_with_offset(target_infix.offset),
             _ => Chain { target, args:Vec::new(), operator:self.opr.clone() },
         };
 
@@ -287,16 +295,23 @@ impl Chain {
 
     /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands<'a>(&'a self) -> impl Iterator<Item=Located<&'a Shifted<Ast>>> + 'a {
-        let this_crumbs = self.args.iter().rev().map(ChainElement::crumb_to_previous).collect_vec();
-        let this        = self.target.as_ref().map(|opr| Located::new(this_crumbs,opr));
-        let args        = self.args.iter().enumerate().map(move |(i,elem)| elem.operand.as_ref().map(|opr| {
-            let to_infix   = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
-            let has_target = self.target.is_some() || i > 0;
-            let crumbs     = to_infix.chain(elem.crumb_to_operand(has_target)).collect_vec();
-            Located::new(crumbs,opr)
-        }));
-        std::iter::once(this).chain(args).flatten()
+    pub fn enumerate_operands<'a>
+    (&'a self) -> impl Iterator<Item=Located<&'a ArgWithOffset<Ast>>> + 'a {
+        let rev_args      = self.args.iter().rev();
+        let target_crumbs = rev_args.map(ChainElement::crumb_to_previous).collect_vec();
+        let target        = self.target.as_ref();
+        let loc_target    = target.map(|opr| Located::new(target_crumbs,opr)).into_iter();
+        let args          = self.args.iter().enumerate();
+        let loc_args      = args.filter_map(move |(i,elem)| {
+            elem.operand.as_ref().map(|operand| {
+                let latter_args = self.args.iter().skip(i+1);
+                let to_infix    = latter_args.rev().map(ChainElement::crumb_to_previous);
+                let has_target  = self.target.is_some() || i > 0;
+                let crumbs      = to_infix.chain(elem.crumb_to_operand(has_target)).collect_vec();
+                Located::new(crumbs,operand)
+            })
+        });
+        loc_target.chain(loc_args)
     }
 
     /// Iterates over all operator's AST in this chain, starting from target side.
@@ -315,11 +330,12 @@ impl Chain {
     ///
     /// Indexing does not skip `None` operands. Function panics, if get index greater than operands
     /// count.
-    pub fn insert_operand(&mut self, at_index:usize, operand:Shifted<Ast>) {
-        let offset      = operand.off;
-        let mut operand = Some(operand);
-        let operator    = self.operator.clone_ref();
-        if at_index == 0 {
+    pub fn insert_operand(&mut self, at_index:usize, operand:ArgWithOffset<Ast>) {
+        let offset        = operand.offset;
+        let mut operand   = Some(operand);
+        let operator      = self.operator.clone_ref();
+        let before_target = at_index == 0;
+        if before_target {
             std::mem::swap(&mut operand, &mut self.target);
             self.args.insert(0,ChainElement{operator,operand,offset})
         } else {
@@ -328,14 +344,14 @@ impl Chain {
     }
 
     /// Add operand as a new last argument.
-    pub fn push_operand(&mut self, operand:Shifted<Ast>) {
+    pub fn push_operand(&mut self, operand:ArgWithOffset<Ast>) {
         let last_index = self.args.len() + 1;
         self.insert_operand(last_index,operand)
     }
 
     /// Add operand at the front of the chain, actually making it a new target (see docs for
     /// `insert_operand`.
-    pub fn push_front_operand(&mut self, operand:Shifted<Ast>) {
+    pub fn push_front_operand(&mut self, operand:ArgWithOffset<Ast>) {
         self.insert_operand(0,operand)
     }
 
@@ -350,16 +366,16 @@ impl Chain {
     /// ast node. Does nothing if there are no more operands than target.
     pub fn fold_arg(&mut self) {
         if let Some(element) = self.args.pop_front() {
-            let target    = std::mem::take(&mut self.target);
-            let operator  = element.operator;
-            let argument  = element.operand;
-            let operands  = MarkedOperands{target,argument};
-            let new_infix = GeneralizedInfix::new_from_operands(operands,operator);
-            let new_shifted = Shifted {
-                wrapped : new_infix.into_ast(),
-                off     : element.offset,
+            let target          = std::mem::take(&mut self.target);
+            let operator        = element.operator;
+            let argument        = element.operand;
+            let operands        = MarkedOperands{target,argument};
+            let new_infix       = GeneralizedInfix::new_from_operands(operands,operator);
+            let new_with_offset = ArgWithOffset {
+                arg    : new_infix.into_ast(),
+                offset : element.offset,
             };
-            self.target = Some(new_shifted)
+            self.target = Some(new_with_offset)
         }
     }
 
@@ -374,7 +390,7 @@ impl Chain {
         // TODO[ao] the only case when target is none is when chain have None target and empty
         // arguments list. Such Chain cannot be generated from Ast, but someone could think that
         // this is still a valid chain. To consider returning error here.
-        self.target.unwrap().wrapped
+        self.target.unwrap().arg
     }
 }
 
@@ -443,13 +459,13 @@ mod tests {
     use super::*;
 
     fn expect_at(operand:&Operand, expected_ast:&Ast) {
-        assert_eq!(&operand.as_ref().unwrap().wrapped,expected_ast);
+        assert_eq!(&operand.as_ref().unwrap().arg,expected_ast);
     }
 
     fn test_enumerating(chain:&Chain, root_ast:&Ast, expected_asts:&[&Ast]) {
         assert_eq!(chain.enumerate_operands().count(), expected_asts.len());
         for (elem,expected) in chain.enumerate_operands().zip(expected_asts) {
-            assert_eq!(elem.item.wrapped,**expected);
+            assert_eq!(elem.item.arg,**expected);
             let ast = root_ast.get_traversing(&elem.crumbs).unwrap();
             assert_eq!(ast,*expected);
         }
