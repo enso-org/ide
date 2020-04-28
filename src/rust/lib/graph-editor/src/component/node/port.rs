@@ -7,19 +7,20 @@ use crate::frp;
 
 use core::f32::consts::PI;
 use enso_frp::stream::EventEmitter;
+use enso_prelude::CloneRef;
 use ensogl::data::color::*;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
-use ensogl::display::Scene;
 use ensogl::display::layout::alignment;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::ShapeRegistry;
+use ensogl::display::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display::symbol::geometry::Sprite;
 use ensogl::display;
-use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component::animation;
+use ensogl::gui::component::ShapeViewDefinition;
 use ensogl::gui::component;
 use ensogl::math::geometry::circle::segment::Segment;
 use ensogl::math::geometry::triangle::Triangle;
@@ -370,18 +371,18 @@ pub type OutputPort = Port<OutputPortView>;
 /// Enum over all possible port types.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub enum IoPort {
+pub enum Type {
     Input  { port: InputPort  },
     Output { port: OutputPort },
 }
 
-impl Default for IoPort {
+impl Default for Type {
     fn default() -> Self {
-        IoPort:: Input  { port: default() }
+        Type:: Input  { port: default() }
     }
 }
 
-impl AsRef<IoPort> for IoPort {
+impl AsRef<Type> for Type {
     fn as_ref(&self) -> &Self {
         self
     }

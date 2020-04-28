@@ -5,8 +5,10 @@ pub mod connection;
 
 use crate::prelude::*;
 
-use crate::component::node::port::{Registry, InputPort, OutputPort};
-use crate::component::node::port::IoPort;
+use crate::component::node::port::Registry;
+use crate::component::node::port::InputPort;
+use crate::component::node::port::OutputPort;
+// pub use crate::component::node::port;
 
 use enso_frp as frp;
 use enso_frp::stream::EventEmitter;
@@ -140,7 +142,7 @@ pub struct Events {
     pub network      : frp::Network,
     pub select       : frp::Source,
     pub deselect     : frp::Source,
-    pub port_created : frp::Source<IoPort>,
+    pub port_created : frp::Source<port::Type>,
 
 }
 
@@ -216,7 +218,7 @@ impl Node {
             def label           = source::<String> ();
             def select          = source::<()>     ();
             def deselect        = source::<()>     ();
-            def port_created    = source::<IoPort> ();
+            def port_created    = source::<port::Type> ();
         }
         let network = node_network;
         let logger  = Logger::new("node");
@@ -261,7 +263,7 @@ impl Node {
             let weak_node = self.downgrade();
             def _new_port = self.events.port_created.map(f!((network,weak_node)(port) {
                 match port {
-                     IoPort::Output { port } => {
+                     port::Type::Output { port } => {
                          frp::new_bridge_network! { [network,port.data.events.network]
                                def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
                                      if let Some(node) = weak_node.upgrade(){
@@ -270,7 +272,7 @@ impl Node {
                                }));
                            }
                      },
-                     IoPort::Input { port }  => {
+                     port::Type::Input { port }  => {
                          frp::new_bridge_network! { [network,port.data.events.network]
                              def _on_connection_update = port.data.events.connection_changed.map(f!((weak_node)(_) {
                                  if let Some(node) = weak_node.upgrade(){
@@ -292,7 +294,7 @@ impl Node {
     pub fn add_input_port(&self) -> InputPort {
         let input_port = self.data.ports.input.create(&self);
         input_port.set_position(90.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IoPort::Input{port:input_port.clone_ref()});
+        self.data.events.port_created.emit_event(&port::Type::Input{port:input_port.clone_ref()});
         input_port
     }
 
@@ -302,7 +304,7 @@ impl Node {
     pub fn add_output_port(&self) -> OutputPort {
         let output_port = self.data.ports.output.create(&self);
         output_port.set_position(270.0_f32.degrees());
-        self.data.events.port_created.emit_event(&IoPort::Output{port:output_port.clone_ref()});
+        self.data.events.port_created.emit_event(&port::Type::Output{port:output_port.clone_ref()});
         output_port
     }
 
