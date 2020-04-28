@@ -498,6 +498,11 @@ impl<T:PortShapeViewDefinition> Port<T> {
         self.data.view.display_object.global_position()
     }
 
+    /// Position where a connection should start/end.
+    pub fn connection_position(&self) -> Vector3<f32> {
+        self.position_global()
+    }
+
     /// Sets the port's glow.
     pub fn set_glow(&self, glow:f32) {
         if let Some(t) = self.data.view.data.borrow().as_ref() {
@@ -584,6 +589,7 @@ impl InputPort{
         }
     }
 
+    /// Returns the position of the opposite end of a connection connected to this port.
     pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
         self.data.connection.borrow().as_ref().map(|connection|  connection.output_position())
     }
@@ -604,6 +610,7 @@ impl OutputPort{
         }
     }
 
+    /// Returns the position of the opposite end of a connection connected to this port.
     pub fn connection_target_position(&self) -> Option<Vector3<f32>>{
         self.data.connection.borrow().as_ref().map(|connection|  connection.input_position())
     }

@@ -106,7 +106,6 @@ impl ShapeViewDefinition for ConnectionView {
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(
             alignment::HorizontalAlignment::Center,alignment::VerticalAlignment::Center);
-
         Self {}
     }
 }
@@ -169,8 +168,7 @@ impl Connection {
 
         let data         = ConnectionData {
             input_port: start_port,start,
-            output_port: end_port,end,label,events,view,
-                                            logger };
+            output_port: end_port,end,label,events,view,logger };
         let data         = Rc::new(data);
         Self {data} . init() .init_frp()
     }
@@ -205,17 +203,6 @@ impl Connection {
         }
         frp::extend! { network
             let weak_connection = self.downgrade();
-            // def _f_on_port_move = self.data.events.port_start_move.map(move |_| {
-            //    if let Some(connection) = weak_connection.upgrade(){
-            //         connection.on_port_start_position_change()
-            //     }
-            // });
-            // let weak_connection = self.downgrade();
-            // def _f_on_port_move = self.data.events.port_end_move.map(move |_| {
-            //    if let Some(connection) = weak_connection.upgrade(){
-            //         connection.on_port_end_position_change()
-            //     }
-            // });
             let weak_connection_hover_start = self.downgrade();
             def _f_hover_start = self.data.events.hover_start.map(move |_| {
                  if let Some(connection) = weak_connection_hover_start.upgrade(){
@@ -294,9 +281,11 @@ impl Connection {
     pub fn set_open_ends(&self, position: Vector3<f32>) {
         if self.data.input_port.borrow().is_none(){
             self.set_input_position(position);
+            self.on_input_port_position_change()
         }
         if self.data.output_port.borrow().is_none(){
             self.set_output_position(position);
+            self.on_output_port_position_change()
         }
     }
 
@@ -352,7 +341,7 @@ impl Connection {
             .map(|weak_port| weak_port
                 .upgrade()
                 .map(| port| {
-                    self.set_input_position(port.position_global())
+                    self.set_input_position(port.connection_position())
                 })
             );
         self.data.output_port
@@ -371,7 +360,7 @@ impl Connection {
             .map(|weak_port| weak_port
                 .upgrade()
                 .map(| port| {
-                    self.set_output_position(port.position_global())
+                    self.set_output_position(port.connection_position())
                 })
             );
         self.data.input_port
