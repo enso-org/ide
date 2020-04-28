@@ -54,7 +54,11 @@ mod shape {
                 .slope(Slope::Exponent(4.0));
             let glow_colored   = glow.fill(glow_color);
 
-            (glow_colored + line_colored).into()
+            /// Add an almost invisible area extend input area.
+            let touch_extension        = Line(Var::<f32>::from(2.0) * &line_thickness);
+            let touch_extension        = touch_extension.fill(Srgba::new(1.0,1.0,1.0,0.001).into_linear());
+
+            (touch_extension + glow_colored + line_colored).into()
         }
     }
 }

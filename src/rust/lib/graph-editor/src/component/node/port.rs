@@ -141,7 +141,8 @@ mod shape {
         // the inner circle and the desired height. From width and height, which have a 90 degree
         // angle between them, we can compute the angle of the shape.
         let angle_inner = Var::from(90_f32.to_radians());
-        let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(height,shape_width,angle_inner);
+        let triangle    = Triangle::<Var<f32>>::from_sides_and_angle(
+            height.clone(),shape_width,angle_inner);
 
         let corner_angle = Var::<Angle<Radians>>::from(triangle.angle_b().clone());
         let base_shape   = Plane().cut_angle(corner_angle);
@@ -203,7 +204,12 @@ mod shape {
         let glow_color    = SdfSampler::new(glow_gradient).max_distance(9.0).slope(Slope::Exponent(4.0));
         let glow          = glow.fill(glow_color);
 
-        (glow + sculpted_shape).into()
+        /// Add an almost invisible area extend input area.
+        let touch_extension_radius =  Var::<Distance<Pixels>>::from(height * Var::from(2.0));
+        let touch_extension        = Circle(touch_extension_radius);
+        let touch_extension        = touch_extension.fill(Srgba::new(1.0,1.0,1.0,0.001).into_linear());
+
+        (touch_extension + glow + sculpted_shape).into()
     }
 
     ensogl::define_shape_system! {
