@@ -137,7 +137,7 @@ impl<'a> IdentifierValidator<'a> {
     /// Marks given identifier as checked.
     pub fn validate_identifier(&mut self, name:&NormalizedName) {
         let err  = iformat!("{self.name}: unexpected identifier `{name}` validated");
-        let used = self.validations.get_mut(&name).expect(&err);
+        let used = self.validations.get_mut(name).expect(&err);
         *used = HasBeenValidated::Yes;
     }
 
@@ -148,7 +148,7 @@ impl<'a> IdentifierValidator<'a> {
             self.validate_identifier(&identifier.item);
 
             let crumbs     = &identifier.crumbs;
-            let ast_result = self.node.ast().get_traversing(&crumbs);
+            let ast_result = self.node.ast().get_traversing(crumbs);
             let ast        = ast_result.expect("failed to retrieve ast from crumb");
             let name_err   = || iformat!("Failed to use AST {ast.repr()} as an identifier name");
             let name       = NormalizedName::try_from_ast(ast).expect(&name_err());
