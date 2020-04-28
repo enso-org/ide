@@ -181,10 +181,15 @@ impl<'a> Ref<'a> {
             let remaining_ast_crumbs = ast_crumbs;
             Some(NodeFoundByAstCrumbs{node, ast_crumbs: remaining_ast_crumbs })
         } else {
-            let next = self.children_iter().find(|child| ast_crumbs.starts_with(&child.ast_crumbs));
-            next.and_then(|child| {
+            let mut children = self.node.children.iter();
+            // Please be advised, that the `ch.ast_crumhs` is not a field of Ref, but Child, and
+            // therefore have different meaning!
+            let next = children.find_position(|ch| {
+                !ch.ast_crumbs.is_empty() && ast_crumbs.starts_with(&ch.ast_crumbs)
+            });
+            next.and_then(|(id,child)| {
                 let ast_subcrumbs = &ast_crumbs[child.ast_crumbs.len()..];
-                child.get_descendant_by_ast_crumbs(ast_subcrumbs)
+                self.child(id).unwrap().get_descendant_by_ast_crumbs(ast_subcrumbs)
             })
         }
     }
@@ -215,6 +220,7 @@ mod test {
     use crate::node::Kind::*;
 
     use ast::crumbs;
+    use crate::node::InsertType;
 
     #[test]
     fn node_lookup() {
@@ -282,6 +288,7 @@ mod test {
         let removable = false;
         let tree      = TreeBuilder::new(7)
             .add_leaf (0,1,Target{removable},vec![LeftOperand])
+            .add_empty_child(1,InsertType::AfterTarget)
             .add_leaf (1,1,Operation,vec![Operator])
             .add_child(2,5,Argument{removable},vec![RightOperand])
                 .add_leaf(0,3,Operation,vec![Func])
@@ -292,10 +299,10 @@ mod test {
         let root  = tree.root_ref();
         let cases:&[(ast::Crumbs,&[usize],ast::Crumbs)] = &
             [ (crumbs![LeftOperand]              ,&[0]  ,crumbs![])
-            , (crumbs![RightOperand]             ,&[2]  ,crumbs![])
-            , (crumbs![RightOperand,Func]        ,&[2,0],crumbs![])
-            , (crumbs![RightOperand,Arg]         ,&[2,1],crumbs![])
-            , (crumbs![RightOperand,Arg,HeadLine],&[2,1],crumbs![HeadLine])
+            , (crumbs![RightOperand]             ,&[3]  ,crumbs![])
+            , (crumbs![RightOperand,Func]        ,&[3,0],crumbs![])
+            , (crumbs![RightOperand,Arg]         ,&[3,1],crumbs![])
+            , (crumbs![RightOperand,Arg,HeadLine],&[3,1],crumbs![HeadLine])
             ];
 
         for case in cases {
