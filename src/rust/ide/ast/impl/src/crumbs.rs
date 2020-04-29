@@ -324,8 +324,8 @@ pub enum SegmentMatchCrumb {
 #[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub struct AmbiguousCrumb {
-    index : usize,
-    field : AmbiguousSegmentCrumb,
+    pub index : usize,
+    pub field : AmbiguousSegmentCrumb,
 }
 
 #[allow(missing_docs)]
@@ -368,7 +368,10 @@ macro_rules! impl_crumbs {
             fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
                 match (self,crumb) {
                     $((Shape::$id(shape),Crumb::$id(crumb)) => shape.get(crumb),)*
-                    _ => Err(MismatchedCrumbType.into())
+                    _ => {
+                        println!("Mismatch between crumb={:?} when accessing AST {}", crumb, self.repr());
+                        Err(MismatchedCrumbType.into())
+                    }
                 }
             }
 
@@ -454,6 +457,12 @@ pub trait Crumbable {
             (crumb,child)
         });
         Box::new(iter)
+    }
+
+    /// Returns child Ast subtree while keeping knowledge of its location.
+    fn get_located(&self, crumb:Self::Crumb) -> FallibleResult<Located<&Ast>> {
+        let child = self.get(&crumb)?;
+        Ok(Located::new(crumb,child))
     }
 }
 
