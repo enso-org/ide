@@ -325,22 +325,22 @@ impl AliasAnalyzer {
     }
 
     fn process_definition(&mut self, definition:&DefinitionInfo) {
-        // If AST looks like definition, we disregard its arguments and body, as they cannot
-        // form connection in the analyzed graph. However, we need to record the name, because
-        // it may shadow identifier from parent scope.
-        let name = NormalizedName::new(&definition.name.name.item);
-        // FIXME [mwu]
-        //  The location recorded for the identifier with the definition name will not be valid.
-        //  Currently this doesn't really break anything, as we only care what names are used
-        //  (and not where are they exactly defined), however this should be fixed for correctness.
-        self.record_identifier(OccurrenceKind::Introduced,name);
+        // Handle the definition name.
+        self.in_location(definition.name.crumbs.clone(), |this|
+            // We take the base name (ignoring extension components) and mark it as introduced.
+            this.in_location(definition.name.name.crumbs.clone(), |this| {
+                let name = NormalizedName::new(&definition.name.name.item);
+                this.record_identifier(OccurrenceKind::Introduced,name);
+            })
+        );
+
 
         // The scoping for definitions is not entirely clean (should each argument introduce a new
         // subscope?) but we do not really care that much. Mostly we are just interested in knowing
         // what identifiers are taken in / introduced into the parent scope.
         // What happens in the definition body, stays in the definition body.
         self.in_new_scope(|this| {
-            // Args are patterns.
+            // Args are just patterns.
             this.in_context(Context::Pattern,|this| {
                 for arg in &definition.args {
                     this.process_located_ast(arg)
@@ -425,7 +425,7 @@ mod tests {
         run_case(parser,case)
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
         let test_cases = [
@@ -475,9 +475,9 @@ mod tests {
             // "a ->",  // TODO [mwu] restore (and implement) when parser is able to parse this
 
             // === Definition ===
-            "«foo» a b c = foo a »d«",
+            "«foo» a b c = »foo« a »d«",
             "«foo» a b c = d -> a d",
-            "«foo» a (»Point« x y) c = foo a x »d«",
+            "«foo» a (»Point« x y) c = »foo« a x »d«",
         ];
         for case in &test_cases {
             run_markdown_case(&parser,case)

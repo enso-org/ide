@@ -1286,6 +1286,12 @@ impl<T> Located<T> {
         Located::new(self.crumbs, f(self.item))
     }
 
+    /// Descends into a child described from `item` by given function.
+    pub fn entered<U>(&self, f:impl FnOnce(&T) -> Located<U>) -> Located<U> {
+        let child = f(&self.item);
+        self.descendant(child.crumbs,child.item)
+    }
+
     /// Takes crumbs relative to self and item that will be wrapped.
     pub fn descendant<U>(&self, crumbs:impl IntoCrumbs, child:U) -> Located<U> {
         let crumbs_so_far = self.crumbs.iter().cloned();
@@ -1299,6 +1305,14 @@ impl<T> Located<T> {
         let mut ret = self.map(|_| item);
         ret.crumbs.extend(crumbs);
         ret
+    }
+}
+
+impl<T> Located<Option<T>> {
+    /// Propagates Option from the stored value onto self.
+    pub fn into_opt(self) -> Option<Located<T>> {
+        let Located {item,crumbs} = self;
+        item.map(|item| Located {crumbs,item})
     }
 }
 
