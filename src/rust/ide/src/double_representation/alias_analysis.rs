@@ -291,7 +291,7 @@ impl AliasAnalyzer {
                 }
             } else if let Some(prefix_chain) = ast::prefix::Chain::try_new(ast) {
                 // Constructor we match against is used. Its arguments introduce names.
-                if let Ok(_) = ast::known::Cons::try_from(&prefix_chain.func) {
+                if ast::known::Cons::try_from(&prefix_chain.func).is_ok() {
                     self.store_if_name(OccurrenceKind::Used,prefix_chain.located_func());
                 }
 
@@ -331,7 +331,10 @@ impl AliasAnalyzer {
         // form connection in the analyzed graph. However, we need to record the name, because
         // it may shadow identifier from parent scope.
         let name = NormalizedName::new(&definition.name.name);
-        // FIXME location
+        // FIXME [mwu]
+        //  The location recorded for the identifier with the definition name will not be valid.
+        //  Currently this doesn't really break anything, as we only care what names are used
+        //  (and not where are they exactly defined), however this should be fixed for correctness.
         self.record_identifier(OccurrenceKind::Introduced,name);
 
         // The scoping for definitions is not entirely clean (should each argument introduce a new
@@ -345,7 +348,7 @@ impl AliasAnalyzer {
                     this.process_located_ast(arg)
                 }
             });
-            this.process_subtree_at(InfixCrumb::RightOperand,&definition.body());
+            this.process_located_ast(&definition.body());
         });
     }
 
@@ -424,7 +427,7 @@ mod tests {
         run_case(parser,case)
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
         let test_cases = [
@@ -470,11 +473,12 @@ mod tests {
             "(»foo«",
             "if »a«",
             "case »a«",
-            // "->»a«",  // TODO [mwu] restore (and implement) when parser is able to parse this
-            // "a ->",   // TODO [mwu] restore (and implement) when parser is able to parse this
+            // "->»a«", // TODO [mwu] restore (and implement) when parser is able to parse this
+            // "a ->",  // TODO [mwu] restore (and implement) when parser is able to parse this
 
             // === Definition ===
             "«foo» a b c = foo a »d«",
+            "«foo» a b c = d -> a d",
             "«foo» a (»Point« x y) c = foo a x »d«",
         ];
         for case in &test_cases {

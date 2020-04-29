@@ -294,7 +294,7 @@ impl DefinitionInfo {
         // If this is an operator, we have SectionRight with (if any prefix in arguments).
         let lhs  = prefix::Chain::new_non_strict(&infix.larg);
         let name = DefinitionName::from_ast(&lhs.func)?;
-        let args = lhs.enumerate_args().into_iter().map(|located_ast| {
+        let args = lhs.enumerate_args().map(|located_ast| {
             // We already in the left side of assignment, so we need to prepend this crumb.
             let left   = std::iter::once(ast::crumbs::Crumb::from(InfixCrumb::LeftOperand));
             let crumbs = left.chain(located_ast.crumbs);

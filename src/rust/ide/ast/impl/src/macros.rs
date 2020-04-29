@@ -32,7 +32,7 @@ pub fn as_lambda_match(ast:&Ast) -> Option<known::Match> {
 }
 
 /// Describes the given Ast as lambda, if this is a matched `->` builtin macro.
-pub fn as_lambda<'a>(ast:&'a Ast) -> Option<LambdaInfo<'a>> {
+pub fn as_lambda(ast:&Ast) -> Option<LambdaInfo> {
     let _              = as_lambda_match(ast)?;
     let mut child_iter = ast.iter_subcrumbs();
     let arg            = ast.get_located(child_iter.next()?).ok()?;
