@@ -93,14 +93,16 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
         let events      = self.events.clone_ref();
         self.display_object.set_on_show_with(move |scene| {
             let shape_registry: &ShapeRegistry = &scene.shapes;
-            let events = events.clone_ref();
             weak_data.upgrade().for_each(|self_data| {
                 weak_parent.upgrade().for_each(|parent| {
                     let shape = shape_registry.new_instance::<T::Shape>();
                     parent.add_child(&shape);
-                    let symbol_id   = shape.sprite().symbol_id();
-                    let instance_id = *shape.sprite().instance_id;
-                    shape_registry.insert_mouse_target(symbol_id,instance_id,events);
+                    for sprite in shape.sprites() {
+                        let events      = events.clone_ref();
+                        let symbol_id   = sprite.symbol_id();
+                        let instance_id = *sprite.instance_id;
+                        shape_registry.insert_mouse_target(symbol_id,instance_id,events);
+                    }
                     let data = T::new(&shape,scene,shape_registry);
                     let data = ShapeViewData {data,shape};
                     *self_data.borrow_mut() = Some(data);
@@ -115,9 +117,11 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
             let shape_registry: &ShapeRegistry = &scene.shapes;
             weak_data.upgrade().for_each(|data| {
                 data.borrow().for_each_ref(|data| {
-                    let symbol_id   = data.shape.sprite().symbol_id();
-                    let instance_id = *data.shape.sprite().instance_id;
-                    shape_registry.remove_mouse_target(symbol_id,instance_id);
+                    for sprite in data.shape.sprites() {
+                        let symbol_id   = sprite.symbol_id();
+                        let instance_id = *sprite.instance_id;
+                        shape_registry.remove_mouse_target(symbol_id,instance_id);
+                    }
                 });
                 *data.borrow_mut() = None;
             });

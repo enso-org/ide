@@ -21,6 +21,9 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
 use ensogl::math::topology::unit::AngleOps;
+use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::glyph::system::GlyphSystem;
+
 
 
 /// Icons definitions.
@@ -131,6 +134,74 @@ pub mod shape {
         }
     }
 }
+
+
+//pub mod label {
+//    use super::*;
+//
+//    #[derive(Clone, Debug)]
+//    #[allow(missing_docs)]
+//    pub struct Shape {
+//        pub   sprite: Sprite,
+//
+//    }
+//    impl ensogl::display::shape::system::Shape for Shape {
+//        type System = ShapeSystem;
+//        fn sprites(&self) -> Vec<&Sprite> {
+//            vec![]
+//        }
+//    }
+//    impl display::Object for Shape {
+//        fn display_object(&self) -> &display::object::Instance {
+////            self.sprite.display_object()
+//            todo!()
+//        }
+//    }
+//    #[derive(Clone, CloneRef, Debug)]
+//    #[allow(missing_docs)]
+//    pub struct ShapeSystem {
+//        pub glyph_system: GlyphSystem,
+//        style_manager: ensogl::display::shape::StyleWatch,
+//
+//    }
+//    impl ensogl::display::shape::ShapeSystemInstance for ShapeSystem {
+//        type Shape = Shape;
+//
+//        fn new(scene: &Scene) -> Self {
+//            let style_manager = ensogl::display::shape::StyleWatch::new(&scene.style_sheet);
+////            let shape_system = ensogl::display::shape::ShapeSystem::new(scene, &Self::shape_def(&style_manager));
+//            let mut fonts        = FontRegistry::new();
+//            let font             = fonts.get_or_load_embedded_font("DejaVuSans").unwrap();
+//            let mut glyph_system = GlyphSystem::new(scene,font);
+//
+//            Self { glyph_system, style_manager }.init_refresh_on_style_change()
+//        }
+//
+//        fn new_instance(&self) -> Self::Shape {
+//            let sprite = self.shape_system.new_instance();
+//            let id = sprite.instance_id;
+//
+//            Shape { sprite }
+//        }
+//    }
+//    impl ShapeSystem {
+//        fn init_refresh_on_style_change(self) -> Self {
+//            let shape_system = self.shape_system.clone_ref();
+//            let style_manager = self.style_manager.clone_ref();
+//            self.style_manager.set_on_style_change(move || {
+//                shape_system.set_shape(&Self::shape_def(&style_manager));
+//            });
+//            self
+//        }
+//
+//
+//        pub fn shape_def(__style_watch__: &ensogl::display::shape::StyleWatch) -> AnyShape {
+//            use ensogl::display::style::data::DataMatch;
+//
+//            Circle(10.px()).fill(Srgb::new(0.97,0.96,0.95)).into()
+//        }
+//    }
+//}
 
 
 

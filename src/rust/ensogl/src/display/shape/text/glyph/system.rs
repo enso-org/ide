@@ -10,6 +10,7 @@ use crate::display::shape::text::glyph::msdf::MsdfTexture;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::display::world::*;
+use crate::display::scene::Scene;
 use crate::system::gpu::texture::*;
 use crate::system::gpu::types::*;
 use crate::display::object::traits::*;
@@ -154,7 +155,7 @@ impl Line {
 /// ===================
 
 /// A system for displaying glyphs.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct GlyphSystem {
     context          : Context,
     sprite_system    : SpriteSystem,
@@ -166,12 +167,13 @@ pub struct GlyphSystem {
 
 impl GlyphSystem {
     /// Constructor.
-    pub fn new(world:&World, font:FontHandle) -> Self {
+    pub fn new<S>(scene:&S, font:FontHandle) -> Self
+    where for<'t> &'t S : Into<&'t Scene> {
         let msdf_width    = MsdfTexture::WIDTH as f32;
         let msdf_height   = MsdfTexture::ONE_GLYPH_HEIGHT as f32;
-        let scene         = world.scene();
+        let scene         = scene.into();
         let context       = scene.context.clone_ref();
-        let sprite_system = SpriteSystem::new(world);
+        let sprite_system = SpriteSystem::new(scene);
         let symbol        = sprite_system.symbol();
         let texture       = Texture::<GpuOnly,Rgb,u8>::new(&context,(0,0));
         let mesh          = symbol.surface();

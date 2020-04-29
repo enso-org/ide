@@ -120,8 +120,8 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
 pub trait Shape : display::Object + Debug + Sized {
     /// The shape system instance this shape belongs to.
     type System : ShapeSystemInstance<Shape=Self>;
-    /// Accessor for the underlying sprite object.
-    fn sprite(&self) -> &Sprite;
+    /// Accessor for the underlying sprites.
+    fn sprites(&self) -> Vec<&Sprite>;
 }
 
 /// Accessor for the `Shape::System` associated type.
@@ -223,8 +223,8 @@ macro_rules! _define_shape_system {
 
         impl $crate::display::shape::system::Shape for Shape {
             type System = ShapeSystem;
-            fn sprite(&self) -> &Sprite {
-                &self.sprite
+            fn sprites(&self) -> Vec<&Sprite> {
+                vec![&self.sprite]
             }
         }
 
