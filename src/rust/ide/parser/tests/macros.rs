@@ -1,8 +1,12 @@
 use parser::prelude::*;
 
 use parser::Parser;
+use wasm_bindgen_test::wasm_bindgen_test;
+use wasm_bindgen_test::wasm_bindgen_test_configure;
 
-#[test]
+wasm_bindgen_test_configure!(run_in_browser);
+
+#[wasm_bindgen_test]
 fn recognizing_lambdas() {
     let parser = Parser::new_or_panic();
 
@@ -13,8 +17,6 @@ fn recognizing_lambdas() {
         assert_eq!(lambda.body.repr(), body);
         assert_eq!(*lambda.arg, ast.get_traversing(&lambda.arg.crumbs).unwrap());
         assert_eq!(*lambda.body, ast.get_traversing(&lambda.body.crumbs).unwrap());
-        // assert_eq!(lambda.repr(),code);
-        // lambda_arg(&lambda);
     };
     let expect_not_lambda = |code:&str| {
         let ast = parser.parse_line(code).unwrap();
