@@ -372,16 +372,22 @@ impl Handle {
     /// Introducing identifier not included on this list should have no side-effects on the name
     /// resolution in the code in this graph.
     pub fn used_names(&self) -> FallibleResult<Vec<LocatedName>> {
-        let def    = self.graph_definition_info()?;
-        if let Ok(block) = ast::known::Block::try_from(*def.body()) {
-            let usage  = double_representation::alias_analysis::analyse_block(&block);
-            let mut idents = usage.introduced;
-            idents.extend(usage.used.into_iter());
-            Ok(idents)
-        } else {
-            // TODO[mwu] Even if definition is not a block, it still may use name from outside.
-            Ok(vec![])
-        }
+        use double_representation::alias_analysis;
+        let def   = self.graph_definition_info()?;
+        let body  = def.body();
+        let usage = match body.shape() {
+            ast::Shape::Block(block) => alias_analysis::analyse_block(&block),
+            _ => {
+                if let Some(node) = NodeInfo::from_line_ast(&body) {
+                    alias_analysis::analyse_node(&node)
+                } else {
+                    // Generally speaking - impossible. But if there is no node in the definition
+                    // body, then there is nothing that could use any symbols, so nothing is used.
+                    default()
+                }
+            }
+        };
+        Ok(usage.all_identifiers())
     }
 
     /// Suggests a variable name for storing results of the given node. Name will get a number
@@ -416,7 +422,6 @@ impl Handle {
     // TODO[ao] Clean up the code and make it conform the coding guidelines.
     /// Create connection in graph.
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
-
         let source_node = self.node_info(connection.source.node)?;
         let source_ast = if let Some(pat) = source_node.pattern() {
             pat
@@ -724,6 +729,17 @@ main =
         })
     }
 
+    #[test]
+    fn graph_controller_used_names_in_inline_def() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"main = foo";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            let expected_name = LocatedName::new_root(NormalizedName::new("foo"));
+            let used_names    = graph.used_names().unwrap();
+            assert_eq!(used_names, vec![expected_name]);
+        })
+    }
+
     #[wasm_bindgen_test]
     fn graph_controller_nested_definition() {
         let mut test  = GraphControllerFixture::set_up();
@@ -922,17 +938,21 @@ main =
     }
 
 
-    #[wasm_bindgen_test]
+    #[test]
     fn graph_controller_create_connection_introducing_var() {
         let mut test  = GraphControllerFixture::set_up();
         const PROGRAM:&str = r"main =
     calculate
     print _
-    calculate1 = calculate2";
+    calculate1 = calculate2
+    calculate3 calculate5 = calculate5 calculate4";
+        // Note: we expect that name `calculate5` will be introduced. There is no conflict with a
+        // function argument, as it just shadows outer variable.
         const EXPECTED:&str = r"main =
-    calculate3 = calculate
-    print calculate3
-    calculate1 = calculate2";
+    calculate5 = calculate
+    print calculate5
+    calculate1 = calculate2
+    calculate3 calculate5 = calculate5 calculate4";
         test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
             assert!(graph.connections().unwrap().connections.is_empty());
             let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
