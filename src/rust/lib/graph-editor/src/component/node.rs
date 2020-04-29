@@ -5,12 +5,15 @@ pub mod port;
 use crate::prelude::*;
 
 use crate::component::node::port::Registry;
+use crate::component::visualisation::Visualisation;
+use crate::component::visualisation;
 
 use enso_frp;
 use enso_frp as frp;
 use ensogl::data::color::*;
 use ensogl::data::color::Srgba;
 use ensogl::display::Attribute;
+use ensogl::display::DomSymbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -134,9 +137,10 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network    : frp::Network,
-    pub select     : frp::Source,
-    pub deselect   : frp::Source,
+    pub network                : frp::Network,
+    pub select                 : frp::Source,
+    pub deselect               : frp::Source,
+    pub set_visualisation      : frp::Source<Option<Rc<DomSymbol>>>,
 }
 
 
@@ -198,11 +202,12 @@ impl component::ShapeViewDefinition for NodeView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct NodeData {
-    pub logger : Logger,
-    pub label  : frp::Source<String>,
-    pub events : Events,
-    pub view   : component::ShapeView<NodeView>,
-    pub ports  : Registry,
+    pub logger        : Logger,
+    pub label         : frp::Source<String>,
+    pub events        : Events,
+    pub view          : component::ShapeView<NodeView>,
+    pub ports         : Registry,
+    pub visualisation : Visualisation
 }
 
 impl Node {
@@ -212,19 +217,22 @@ impl Node {
             def label    = source::<String> ();
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
+            def set_visualisation = source::<visualisation::Content> ();
         }
-        let network = node_network;
-        let logger  = Logger::new("node");
-        let view    = component::ShapeView::new(&logger);
-        let events  = Events {network,select,deselect};
-        let ports   = Registry::default() ;
-        let data    = Rc::new(NodeData {logger,label,events,view,ports});
+        let network       = node_network;
+        let logger        = Logger::new("node");
+        let view          = component::ShapeView::new(&logger);
+        let events        = Events {network,select,deselect,set_visualisation};
+        let ports         = Registry::default() ;
+        let visualisation = Visualisation::default();
+        let data          = Rc::new(NodeData {logger,label,events,view,ports,visualisation});
         Self {data} . init()
     }
 
     fn init(self) -> Self {
-        let network = &self.data.events.network;
+        self.add_child(&self.data.visualisation);
 
+        let network = &self.data.events.network;
 
         // FIXME: This is needed now because frp leaks memory.
         let weak_view_data = Rc::downgrade(&self.view.data);
@@ -253,6 +261,13 @@ impl Node {
             let selection_ref = selection.clone_ref();
             def _f_deselect = self.events.deselect.map(move |_| {
                 selection_ref.set_target_position(0.0);
+            });
+
+            let weak_node = self.downgrade();
+            def _f_set_vis = self.events.set_visualisation.map(move |content| {
+                if let Some(node) = weak_node.upgrade() {
+                    node.visualisation.data.events.update_content.emit(content)
+                }
             });
         }
 

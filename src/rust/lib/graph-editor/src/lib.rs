@@ -33,24 +33,22 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
-use ensogl::application;
-use ensogl::prelude::*;
-use ensogl::traits::*;
-
 use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
+use crate::component::visualisation::Visualisation;
+
 use enso_frp as frp;
-use enso_frp::io::keyboard;
 use enso_frp::Position;
+use enso_frp::io::keyboard;
+use ensogl::application;
 use ensogl::display::object::Id;
 use ensogl::display::world::*;
 use ensogl::display;
+use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
-use nalgebra::Vector2;
-
-
+use ensogl::traits::*;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -488,15 +486,25 @@ impl application::View for GraphEditor {
             });
         }));
 
-        def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
+        def _new_node = inputs.register_node.map(f!((network,nodes,scene,touch,display_object)(node) {
             let weak_node = node.downgrade();
             frp::new_bridge_network! { [network,node.view.events.network]
                 def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
                     touch.nodes.down.emit(Some(weak_node.clone_ref()))
                 }));
             }
+
             display_object.add_child(node);
+
+            let dummy_content = Visualisation::default_content();
+
+            let dom_layer = scene.dom.layers.front.clone_ref();
+            dom_layer.manage(&dummy_content);
+            node.events.set_visualisation.emit(Some(Rc::new(dummy_content)));
+            // node.visualisation.as_ref().unwrap().register_content(node, &dom_layer);
+
             nodes.set.insert(node.clone_ref());
+
         }));
 
 
