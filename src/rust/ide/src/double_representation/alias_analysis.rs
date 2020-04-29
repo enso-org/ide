@@ -235,7 +235,7 @@ impl AliasAnalyzer {
         self.in_location_of(&located_ast, |this| this.process_ast(located_ast.item.borrow()))
     }
 
-    /// Processes subtrees of the given AST denoted by given crumb sequence items.
+    /// Processes subtrees of the given AST denoted by given crumbs
     pub fn process_given_subtrees<C>(&mut self, ast:&C, crumbs:impl Iterator<Item=C::Crumb>)
     where C        : Crumbable,
           C::Crumb : Into<Crumb> {
@@ -460,6 +460,7 @@ mod tests {
             "a -> A -> a",
             "a -> a -> A",
             "x»,«y -> »B«",
+            "x»,«y -> y",
             "x »,« »Y« -> _",
             "(»foo«)",
             "(«foo») = (»bar«)",
