@@ -219,10 +219,7 @@ impl SpanTreeGenerator for ast::Match<Ast> {
         let mut gen   = ChildGenerator::default();
         if let Some(pat) = &self.pfx {
             for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
-                let located_ast = Located {
-                    crumbs : crumbs![ast::crumbs::MatchCrumb::Pfx{val:crumbs}],
-                    item   : ast.wrapped,
-                };
+                let located_ast = Located::new(ast::crumbs::MatchCrumb::Pfx {val:crumbs},ast.wrapped);
                 gen.generate_ast_node(located_ast,children_kind)?;
                 gen.spacing(ast.off);
             }
