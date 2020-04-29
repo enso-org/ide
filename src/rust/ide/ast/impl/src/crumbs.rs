@@ -368,10 +368,7 @@ macro_rules! impl_crumbs {
             fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
                 match (self,crumb) {
                     $((Shape::$id(shape),Crumb::$id(crumb)) => shape.get(crumb),)*
-                    _ => {
-                        println!("Mismatch between crumb={:?} when accessing AST {}", crumb, self.repr());
-                        Err(MismatchedCrumbType.into())
-                    }
+                    _ => Err(MismatchedCrumbType.into())
                 }
             }
 
