@@ -181,6 +181,7 @@ r#"<svg>
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
         let content = self.data.content.borrow();
+        /// TODO do something more sensible toi hide the content.
         if let Some(ref content) = content.deref() {
             let dom_element = content.dom();
             if visible {
