@@ -483,8 +483,8 @@ mod test {
         let tree = ast.generate_tree().unwrap();
         let removable = false;
 
-        let if_then_else_cr = vec![Seq { right: false }, Or, Build];
-        let parens_cr       = vec![Seq { right: false }, Or, Or, Build];
+        let if_then_else_cr = crumbs![Seq { right: false }, Or, Build];
+        let parens_cr       = crumbs![Seq { right: false }, Or, Or, Build];
         let segment_body_crumbs = |index:usize, pattern_crumb:&Vec<PatternMatchCrumb>| {
             let val = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_crumb.clone()};
             vec![ast::crumbs::MatchCrumb::Segs {val,index}]
