@@ -324,8 +324,8 @@ pub enum SegmentMatchCrumb {
 #[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub struct AmbiguousCrumb {
-    index : usize,
-    field : AmbiguousSegmentCrumb,
+    pub index : usize,
+    pub field : AmbiguousSegmentCrumb,
 }
 
 #[allow(missing_docs)]

@@ -1,15 +1,18 @@
 //! A module containing code related to SpanTree generation.
+pub mod macros;
 
 use crate::prelude::*;
 
 use crate::node;
-use crate::node::{InsertType, Kind};
+use crate::node::InsertType;
 use crate::Node;
 use crate::SpanTree;
 
-use ast::{Ast, Shifted, MacroPatternMatch};
+use ast::{Ast, MacroMatchSegment, MacroAmbiguousSegment};
 use ast::assoc::Assoc;
-use ast::crumbs::{Located, PatternMatchCrumb, MatchCrumb, SegmentMatchCrumb};
+use ast::crumbs;
+use ast::crumbs::Located;
+// use ast::crumbs::MatchCrumb, SegmentMatchCrumb, AmbiguousCrumb, AmbiguousSegmentCrumb};
 use ast::HasLength;
 use ast::opr::GeneralizedInfix;
 use data::text::Size;
@@ -101,10 +104,12 @@ impl SpanTreeGenerator for Ast {
             infix.flatten().generate_node(kind)
         } else {
             match self.shape() {
-                ast::Shape::Prefix {..} =>
+                ast::Shape::Prefix(_) =>
                     ast::prefix::Chain::try_new(self).unwrap().generate_node(kind),
-                // ast::Shape::Match(ast) =>
-                //     ast.generate_node(kind),
+                ast::Shape::Match(ast) =>
+                    ast.generate_node(kind),
+                ast::Shape::Ambiguous(ast) =>
+                    ast.generate_node(kind),
                 _  => Ok(Node {kind,
                     size     : Size::new(self.len()),
                     children : default(),
@@ -123,8 +128,9 @@ impl SpanTreeGenerator for ast::opr::Chain {
         // (target and two arguments).
         let removable       = self.args.len() >= 2;
         let node_and_offset = match &self.target {
-            Some(sast) => sast.generate_node(node::Kind::Target {removable}).map(|n| (n,sast.off)),
-            None       => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
+            Some(target) =>
+                target.arg.generate_node(node::Kind::Target {removable}).map(|n| (n,target.offset)),
+            None => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
         };
 
         // In this fold we pass last generated node and offset after it, wrapped in Result.
@@ -147,10 +153,11 @@ impl SpanTreeGenerator for ast::opr::Chain {
             if has_target { gen.generate_empty_node(InsertType::AfterTarget); }
             gen.spacing(off);
             gen.generate_ast_node(opr_ast,node::Kind::Operation)?;
-            if let Some(sast) = &elem.operand {
+            if let Some(operand) = &elem.operand {
                 let arg_crumbs = elem.crumb_to_operand(has_left);
-                let arg_ast    = Located::new(arg_crumbs,sast.wrapped.clone_ref());
-                gen.spacing(sast.off);
+                let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
+                gen.spacing(operand.offset);
+
                 gen.generate_ast_node(arg_ast,node::Kind::Argument {removable})?;
             }
             gen.generate_empty_node(InsertType::Append);
@@ -203,111 +210,88 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 }
 
 
-// === Macros ===
-
-struct MacroChild {
-    crumbs: Vec<PatternMatchCrumb>,
-    offset: Size,
-    ast: Ast,
-}
-
-/// Helper function that returns children for MacroPatternMatch.
-fn pattern_children(pat:&MacroPatternMatch<Shifted<Ast>>) -> Vec<MacroChild> {
-    use ast::MacroPatternMatchRaw::*;
-    use ast::crumbs::PatternMatchCrumb;
-
-    let mut patterns = vec![(vec![],pat)];
-    let mut children = vec![];
-    let mut offset   = Size{value:0};
-    let mut finish   = |ast,crumbs,crumb| {
-        crumbs.push(crumb);
-        offset += ast.off;
-        let child = MacroChild{crumbs,offset,ast};
-        offset += ast.wrapped.len();
-        children.push(child);
-    };
-    while let Some((mut crumb,pattern)) = patterns.pop() {
-        match pattern.deref() {
-            Begin(_)   => (),
-            End(_)     => (),
-            Nothing(_) => (),
-            Build(pat)   => finish(pat.elem,crumb,PatternMatchCrumb::Build),
-            Err(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Err),
-            Tok(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Tok),
-            Blank(pat)   => finish(pat.elem,crumb,PatternMatchCrumb::Blank),
-            Var(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Var),
-            Cons(pat)    => finish(pat.elem,crumb,PatternMatchCrumb::Cons),
-            Opr(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Opr),
-            Mod(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Mod),
-            Num(pat)     => finish(pat.elem,crumb,PatternMatchCrumb::Num),
-            Text(pat)    => finish(pat.elem,crumb,PatternMatchCrumb::Text),
-            Block(pat)   => finish(pat.elem,crumb,PatternMatchCrumb::Block),
-            Macro(pat)   => finish(pat.elem,crumb,PatternMatchCrumb::Macro),
-            Invalid(pat) => finish(pat.elem,crumb,PatternMatchCrumb::Invalid),
-            Except(pat) => {
-                crumb.push(PatternMatchCrumb::Except);
-                patterns.push((crumb,&pat.elem))
-            },
-            Tag(pat) => {
-                crumb.push(PatternMatchCrumb::Tag);
-                patterns.push((crumb,&pat.elem))
-            },
-            Cls(pat) => {
-                crumb.push(PatternMatchCrumb::Cls);
-                patterns.push((crumb,&pat.elem))
-            },
-            Or(pat) => {
-                crumb.push(PatternMatchCrumb::Or);
-                patterns.push((crumb,&pat.elem));
-            }
-            Seq(pat) => {
-                let mut crumb1 = crumb.clone();
-                let mut crumb2 = crumb.clone();
-                crumb1.push(PatternMatchCrumb::Seq{right:false});
-                crumb2.push(PatternMatchCrumb::Seq{right:true});
-                patterns.push((crumb2,&pat.elem.1));
-                patterns.push((crumb1,&pat.elem.0));
-            },
-            Many(pat) => {
-                for (index,pat) in pat.elem.iter().enumerate().rev() {
-                    let mut new_crumb = crumb.clone();
-                    new_crumb.push(PatternMatchCrumb::Many{index});
-                    patterns.push((new_crumb,pat));
-                }
-            }
-        }
-    }
-    children
-}
+// === Match ===
 
 impl SpanTreeGenerator for ast::Match<Ast> {
-    fn generate_node(&self, kind:Kind) -> FallibleResult<Node> {
-        let mut children = vec![];
+    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+        let removable     = false;
+        let children_kind = node::Kind::Argument {removable};
+        let mut gen   = ChildGenerator::default();
         if let Some(pat) = &self.pfx {
-            for MacroChild{crumbs,offset,ast} in pattern_children(&pat) {
-                let ast_crumbs = vec![MatchCrumb::Pfx{val:crumbs}.into()];
-                let node       = ast.generate_node(Kind::Macro)?;
-                children.push(node::Child{node,offset,ast_crumbs});
+            for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
+                let located_ast = Located {
+                    crumbs : crumbs![ast::crumbs::MatchCrumb::Pfx{val:crumbs}],
+                    item   : ast.wrapped,
+                };
+                gen.generate_ast_node(located_ast,children_kind)?;
+                gen.spacing(ast.off);
             }
         }
-        let mut off = children.last().map(|c|c.offset).unwrap_or_default();
-        for (index,seg) in self.segs.iter_shifted().enumerate() {
-            let ast_crumbs = vec![MatchCrumb::Segs{index,val:SegmentMatchCrumb::Head}.into()];
-            let node       = seg.wrapped.head.generate_node(Kind::Macro)?;
-            let offset     = off + seg.off;
-            children.push(node::Child{node,offset,ast_crumbs});
-            for MacroChild{crumbs,offset,ast} in pattern_children(&seg.body) {
-                let seg_crumb  = SegmentMatchCrumb::Body{val:crumbs};
-                let ast_crumbs = vec![MatchCrumb::Segs{index,val:seg_crumb}.into()];
-                let node       = ast.generate_node(Kind::Macro)?;
-                let offset     = off + seg.off + offset;
-                children.push(node::Child{node,offset,ast_crumbs});
-            }
+        let first_segment_index = 0;
+        generate_children_from_segment(&mut gen,first_segment_index,&self.segs.head)?;
+        for (index,segment) in self.segs.tail.iter().enumerate() {
+            gen.spacing(segment.off);
+            generate_children_from_segment(&mut gen,index+1,&segment.wrapped)?;
         }
-        Ok(Node{kind,size:default(),children})
+        Ok(Node {kind,
+            size     : gen.current_offset,
+            children : gen.children,
+        })
     }
 }
 
+fn generate_children_from_segment
+(gen:&mut ChildGenerator, index:usize, segment:&MacroMatchSegment<Ast>) -> FallibleResult<()> {
+    let removable     = false;
+    let children_kind = node::Kind::Argument {removable};
+    gen.spacing(segment.head.len());
+    for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&segment.body) {
+        gen.spacing(ast.off);
+        let segment_crumb = ast::crumbs::SegmentMatchCrumb::Body {val:crumbs};
+        let located_ast = Located {
+            crumbs : crumbs![ast::crumbs::MatchCrumb::Segs{val:segment_crumb, index}],
+            item   : ast.wrapped,
+        };
+        gen.generate_ast_node(located_ast,children_kind)?;
+    }
+    Ok(())
+}
+
+
+// === Ambiguous ==
+
+impl SpanTreeGenerator for ast::Ambiguous<Ast> {
+    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+        let mut gen             = ChildGenerator::default();
+        let first_segment_index = 0;
+        generate_children_from_abiguous_segment(&mut gen,first_segment_index,&self.segs.head)?;
+        for (index,segment) in self.segs.tail.iter().enumerate() {
+            gen.spacing(segment.off);
+            generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped)?;
+        }
+        Ok(Node{kind,
+            size     : gen.current_offset,
+            children : gen.children,
+        })
+    }
+}
+
+fn generate_children_from_abiguous_segment
+(gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>) -> FallibleResult<()> {
+    let removable     = false;
+    let children_kind = node::Kind::Argument {removable};
+    gen.spacing(segment.head.len());
+    if let Some(sast) = &segment.body {
+        gen.spacing(sast.off);
+        let field       = ast::crumbs::AmbiguousSegmentCrumb::Body;
+        let located_ast = Located {
+            crumbs : crumbs![ast::crumbs::AmbiguousCrumb{index,field}],
+            item   : sast.clone_ref()
+        };
+        gen.generate_ast_node(located_ast,children_kind)?;
+    }
+    Ok(())
+}
 
 
 // ============
@@ -322,7 +306,10 @@ mod test {
     use crate::node::Kind::*;
     use crate::node::InsertType::*;
 
+    use ast::crumbs::AmbiguousCrumb;
+    use ast::crumbs::AmbiguousSegmentCrumb;
     use ast::crumbs::InfixCrumb;
+    use ast::crumbs::PatternMatchCrumb;
     use ast::crumbs::PrefixCrumb;
     use ast::crumbs::SectionLeftCrumb;
     use ast::crumbs::SectionRightCrumb;
@@ -482,6 +469,60 @@ mod test {
                 .add_leaf(1,1,Operation,vec![SectionLeftCrumb::Opr])
                 .add_empty_child(2,BeforeTarget)
                 .done()
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_from_matched_macros() {
+        use PatternMatchCrumb::*;
+
+        let parser = Parser::new_or_panic();
+        let ast = parser.parse_line("if foo then (a + b) x else ()").unwrap();
+        let tree = ast.generate_tree().unwrap();
+        let removable = false;
+
+        let if_then_else_cr = vec![Seq { right: false }, Or, Build];
+        let parens_cr       = vec![Seq { right: false }, Or, Or, Build];
+        let segment_body_crumbs = |index:usize, pattern_crumb:&Vec<PatternMatchCrumb>| {
+            let val = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_crumb.clone()};
+            vec![ast::crumbs::MatchCrumb::Segs {val,index}]
+        };
+
+        let expected = TreeBuilder::new(29)
+            .add_leaf(3,3,Argument {removable},segment_body_crumbs(0,&if_then_else_cr))
+            .add_child(12,9,Argument {removable},segment_body_crumbs(1,&if_then_else_cr))
+                .add_child(0,7,Operation,vec![PrefixCrumb::Func])
+                    .add_child(1,5,Argument {removable},segment_body_crumbs(0,&parens_cr))
+                        .add_empty_child(0,BeforeTarget)
+                        .add_leaf(0,1,Target {removable}, vec![InfixCrumb::LeftOperand])
+                        .add_empty_child(1,AfterTarget)
+                        .add_leaf(2,1,Operation,vec![InfixCrumb::Operator])
+                        .add_leaf(4,1,Argument {removable},vec![InfixCrumb::RightOperand])
+                        .add_empty_child(5,Append)
+                        .done()
+                    .done()
+                .add_empty_child(8,BeforeTarget)
+                .add_leaf(8,1,Target {removable},vec![PrefixCrumb::Arg])
+                .add_empty_child(9,Append)
+                .done()
+            .add_leaf(27,2,Argument {removable},segment_body_crumbs(2,&if_then_else_cr))
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_from_ambiguous_macros() {
+        let parser    = Parser::new_or_panic();
+        let ast       = parser.parse_line("(4").unwrap();
+        let tree      = ast.generate_tree().unwrap();
+        let removable = false;
+        let crumb     = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
+
+        let expected = TreeBuilder::new(2)
+            .add_leaf(1,1,Argument {removable},vec![crumb])
             .build();
 
         assert_eq!(expected,tree);
