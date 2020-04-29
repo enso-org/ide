@@ -101,32 +101,24 @@ pub mod shape {
             let border_size   = border_size_f.px();
 
             let node = Circle(&node_radius);
+            let node = node.fill(Srgb::new(0.97,0.96,0.95));
 
-            let width  = 200.0.px();
-            let height = 28.0.px();
-            let radius = &height / 2.0;
-            let shape  = Rect((&width,&height)).corners_radius(radius);
-            let shape  = shape.fill(Srgb::new(0.97,0.96,0.95));
-
-            let shadow_size   = 14.px();
-            let shadow_width  = &width  + &shadow_size * 2.0;
-            let shadow_height = &height + &shadow_size * 2.0;
-            let shadow_radius = &shadow_height / 2.0;
-            let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
-            let shadow_color  = LinearGradient::new()
+            let shadow       = Circle(&node_radius + &border_size);
+            let shadow_color = LinearGradient::new()
                 .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,Srgba::new(0.0,0.0,0.0,0.10).into_linear());
-            let shadow_color  = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
-            let shadow        = shadow.fill(shadow_color);
+                .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
+            let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
+            let shadow       = shadow.fill(shadow_color);
 
-            let select_size   = 8.px();
-            let select_width  = &width  - 2.px() + &select_size * 2.0 * &selection;
-            let select_height = &height - 2.px() + &select_size * 2.0 * &selection;
-            let select_radius = &select_height / 2.0;
-            let select        = Rect((select_width,select_height)).corners_radius(select_radius);
-            let select        = select.fill(Srgba::new(0.22,0.83,0.54,1.0));
+            let selection_ring = Circle(&node_radius - 1.px() + &border_size * selection);
+            let selection_ring = selection_ring.fill(Srgba::new(0.22,0.83,0.54,1.0));
 
-            let out = select + shadow + shape;
+            let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
+            let loader        = ring_angle(&node_radius, &border_size, &loader_angle);
+            let loader        = loader.rotate(loader_angle / 2.0);
+            let loader        = loader.rotate("Radians(input_time/200.0)");
+            let icon          = icons::history();
+            let out           = loader + selection_ring + shadow + node + icon;
             out.into()
         }
     }
@@ -197,7 +189,7 @@ pub struct NodeView {}
 impl component::ShapeViewDefinition for NodeView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.sprite.size().set(Vector2::new(400.0,200.0));
+        shape.sprite.size().set(Vector2::new(200.0,200.0));
         Self {}
     }
 }
@@ -264,11 +256,11 @@ impl Node {
             });
         }
 
-//        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-//        let input_port = self.data.ports.input.create(&self);
-//        input_port.set_position(90.0_f32.degrees());
-//        let output_port = self.data.ports.output.create(&self);
-//        output_port.set_position(270.0_f32.degrees());
+        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
+        let input_port = self.data.ports.input.create(&self);
+        input_port.set_position(90.0_f32.degrees());
+        let output_port = self.data.ports.output.create(&self);
+        output_port.set_position(270.0_f32.degrees());
 
         self
     }

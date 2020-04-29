@@ -435,8 +435,8 @@ impl application::View for GraphEditor {
             let node = Node::new();
             inputs.register_node(&node);
             node.mod_position(|t| {
-                t.x += pos.x;
-                t.y += pos.y;
+                t.x = pos.x;
+                t.y = pos.y;
             });
         }));
 
@@ -493,6 +493,9 @@ impl application::View for GraphEditor {
         let status = FrpStatus {is_active,is_empty};
 
         let node_release = touch.nodes.up;
+
+        inputs.add_node_at.emit(Position::new(200.0,100.0));
+
         let frp = GraphEditorFrp {network,inputs,status,node_release};
 
         Self {logger,frp,nodes,display_object}
