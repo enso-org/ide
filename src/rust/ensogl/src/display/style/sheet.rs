@@ -123,21 +123,18 @@ impl SheetNode {
 // === Expression ===
 // ==================
 
-/// The internal `Expression` function type.
-pub trait ExpressionFn = Fn(&[&Data])->Data;
-
 /// Style sheet expression declaration.
 #[derive(Clone)]
 #[allow(missing_docs)]
 pub struct Expression {
     pub args     : Vec<Path>,
-    pub function : Rc<dyn ExpressionFn>
+    pub function : Rc<dyn Fn(&[&Data])->Data>
 }
 
 impl Expression {
     /// Constructor.
     pub fn new<A,I,F>(args:A, function:F) -> Self
-    where A:IntoIterator<Item=I>, I:Into<Path>, F:'static+ExpressionFn {
+    where A:IntoIterator<Item=I>, I:Into<Path>, F:'static+Fn(&[&Data])->Data {
         let args     = args.into_iter().map(|t|t.into()).collect_vec();
         let function = Rc::new(function);
         Self {args,function}
@@ -168,12 +165,12 @@ impl PartialEq for Expression {
 #[derive(Clone)]
 pub struct BoundExpression {
     args     : Vec<Index<Query>>,
-    function : Rc<dyn ExpressionFn>
+    function : Rc<dyn Fn(&[&Data])->Data>
 }
 
 impl BoundExpression {
     /// Constructor.
-    pub fn new(args:Vec<Index<Query>>, function:Rc<dyn ExpressionFn>) -> Self {
+    pub fn new(args:Vec<Index<Query>>, function:Rc<dyn Fn(&[&Data])->Data>) -> Self {
         Self {args,function}
     }
 }
@@ -997,7 +994,7 @@ mod tests {
     #[test]
     pub fn simple_query_binding_1() {
         let mut style = SheetData::new();
-        let query1      = style.unmanaged_query("size");
+        let query1    = style.unmanaged_query("size");
         assert!(style.query_value(query1).is_none());
         style.set("size",data(1.0));
         assert_eq!(style.query_value(query1),Some(&data(1.0)));
