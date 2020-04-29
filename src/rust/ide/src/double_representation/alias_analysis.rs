@@ -255,8 +255,6 @@ impl AliasAnalyzer {
         }
     }
 
-
-
     /// Processes the given AST, along with its subtree.
     ///
     /// This is the primary function that is recursively being called as the AST is being traversed.
@@ -330,7 +328,7 @@ impl AliasAnalyzer {
         // If AST looks like definition, we disregard its arguments and body, as they cannot
         // form connection in the analyzed graph. However, we need to record the name, because
         // it may shadow identifier from parent scope.
-        let name = NormalizedName::new(&definition.name.name);
+        let name = NormalizedName::new(&definition.name.name.item);
         // FIXME [mwu]
         //  The location recorded for the identifier with the definition name will not be valid.
         //  Currently this doesn't really break anything, as we only care what names are used
@@ -427,7 +425,7 @@ mod tests {
         run_case(parser,case)
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn test_alias_analysis() {
         let parser = parser::Parser::new_or_panic();
         let test_cases = [
