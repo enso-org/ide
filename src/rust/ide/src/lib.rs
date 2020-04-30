@@ -6,6 +6,7 @@
 #![feature(cell_update)]
 #![feature(drain_filter)]
 #![feature(option_result_contains)]
+#![feature(result_cloned)]
 #![feature(trait_alias)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]

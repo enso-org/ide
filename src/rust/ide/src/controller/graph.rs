@@ -102,7 +102,7 @@ impl NewNodeInfo {
 // ===================
 
 /// Identifier for ports.
-pub type Port = Vec<span_tree::node::Crumb>;
+pub type PortId = Vec<span_tree::node::Crumb>;
 
 /// Reference to the port (i.e. the span tree node).
 pub type PortRef<'a> = span_tree::node::Ref<'a>;
@@ -115,7 +115,7 @@ pub type PortRef<'a> = span_tree::node::Ref<'a>;
 #[derive(Clone,Debug)]
 pub struct Endpoint {
     pub node : double_representation::node::Id,
-    pub port : Port,
+    pub port : PortId,
     /// Crumbs which locate the Var in the `port` ast node.
     ///
     /// In normal case this is an empty crumb (which means that the whole span of `port` is the
@@ -127,7 +127,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Create endpoint with empty `var_crumbs`.
-    pub fn new(node:double_representation::node::Id, port: Port) -> Self {
+    pub fn new(node:double_representation::node::Id, port: PortId) -> Self {
         let var_crumbs = default();
         Endpoint{node,port,var_crumbs}
     }
@@ -304,7 +304,7 @@ pub struct EndpointInfo {
 
 impl EndpointInfo {
     /// Construct information about endpoint. Ast must be the node's expression or pattern.
-    fn new(endpoint:&Endpoint, ast:&Ast) -> FallibleResult<EndpointInfo> {
+    pub fn new(endpoint:&Endpoint, ast:&Ast) -> FallibleResult<EndpointInfo> {
         Ok(EndpointInfo {
             endpoint  : endpoint.clone(),
             ast       : ast.clone(),
@@ -313,18 +313,18 @@ impl EndpointInfo {
     }
 
     /// Obtains a reference to the port (span tree node) of this endpoint.
-    fn port(&self) -> FallibleResult<span_tree::node::Ref> {
-        self.span_tree.get(&self.endpoint.port)
+    pub fn port(&self) -> FallibleResult<span_tree::node::Ref> {
+        self.span_tree.get_node(&self.endpoint.port)
     }
 
     /// Obtain reference to the parent of the port identified by given crumbs slice.
-    fn parent_port_of(&self, crumbs:&[span_tree::node::Crumb]) -> Option<PortRef> {
+    pub fn parent_port_of(&self, crumbs:&[span_tree::node::Crumb]) -> Option<PortRef> {
         let parent_crumbs = span_tree::node::parent_crumbs(crumbs);
-        parent_crumbs.and_then(|cr| self.span_tree.get(cr.iter()).ok())
+        parent_crumbs.and_then(|cr| self.span_tree.get_node(cr.iter()).ok())
     }
 
     /// Iterates over sibling ports located after this endpoint in its chain.
-    fn chained_ports_after<'a>(&'a self) -> impl Iterator<Item = PortRef> + 'a {
+    pub fn chained_ports_after<'a>(&'a self) -> impl Iterator<Item = PortRef> + 'a {
         let parent_port = self.parent_chain_port();
         let ports_after = parent_port.map(move |parent_port|
             parent_port.chain_children_iter().skip_while(move |port|
@@ -336,7 +336,7 @@ impl EndpointInfo {
 
     /// Obtains parent port. If this port is part of chain, the parent port will be the parent of
     /// the whole chain.
-    fn parent_chain_port(&self) -> Option<PortRef> {
+    pub fn parent_chain_port(&self) -> Option<PortRef> {
         // TODO [mwu]
         //  Unpleasant. Likely there should be something in span tree that allows obtaining
         //  sequence of nodes between root and given crumb. Or sth.
@@ -348,12 +348,12 @@ impl EndpointInfo {
     }
 
     /// Ast being the exact endpoint target. Might be more granular than a span tree port.
-    fn target_ast(&self) -> FallibleResult<&Ast> {
+    pub fn target_ast(&self) -> FallibleResult<&Ast> {
         self.ast.get_traversing(&self.full_ast_crumbs()?)
     }
 
     /// Full sequence of Ast crumbs identifying endpoint target.
-    fn full_ast_crumbs(&self) -> FallibleResult<ast::Crumbs> {
+    pub fn full_ast_crumbs(&self) -> FallibleResult<ast::Crumbs> {
         let port = self.port()?;
         let mut crumbs = port.ast_crumbs;
         crumbs.extend(self.endpoint.var_crumbs.iter().cloned());
@@ -361,17 +361,17 @@ impl EndpointInfo {
     }
 
     /// Sets AST at the given port. Returns new root Ast.
-    fn set(&self, ast_to_set:Ast) -> FallibleResult<Ast> {
+    pub fn set(&self, ast_to_set:Ast) -> FallibleResult<Ast> {
         self.port()?.set(&self.ast,ast_to_set)
     }
 
     /// Sets AST at the endpoint target. Returns new root Ast. Does not use span tree logic.
-    fn set_ast(&self, ast_to_set:Ast) -> FallibleResult<Ast> {
+    pub fn set_ast(&self, ast_to_set:Ast) -> FallibleResult<Ast> {
         self.ast.set_traversing(&self.full_ast_crumbs()?,ast_to_set)
     }
 
     /// Erases given port. Returns new root Ast.
-    fn erase(&self) -> FallibleResult<Ast> {
+    pub fn erase(&self) -> FallibleResult<Ast> {
         self.port()?.erase(&self.ast)
     }
 }
@@ -530,25 +530,35 @@ impl Handle {
     }
 
     /// Obtains information about connection's source endpoint.
-    ///
-    /// Will edit node's pattern to generate endpoint if the node wasn't in the assignment form.
-    pub fn obtain_source_info(&self, connection:&Connection) -> FallibleResult<EndpointInfo> {
+    pub fn source_info(&self, connection:&Connection) -> FallibleResult<EndpointInfo> {
         let source_node = self.node_info(connection.source.node)?;
         if let Some(pat) = source_node.pattern() {
             EndpointInfo::new(&connection.source,pat)
-        } else if connection.source.port.is_empty() {
-            // Introducing variable, if we are connecting from the node's root port.
-            self.introduce_name_on(connection.source.node)?;
-            self.obtain_source_info(connection)
         } else {
             // For subports we would not have any idea what pattern to introduce. So we fail.
             Err(NoPatternOnNode {node : connection.source.node}.into())
         }
     }
 
+    /// If the node has no pattern, introduces a new pattern with a single variable name.
+    pub fn introduce_pattern_if_missing(&self, node:node::Id) -> FallibleResult<Ast> {
+        let source_node = self.node_info(node)?;
+        if let Some(pat) = source_node.pattern() {
+            Ok(pat.clone())
+        } else {
+            self.introduce_name_on(node).map(|var| var.into())
+        }
+    }
+
     /// Create connection in graph.
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
-        let source_info              = self.obtain_source_info(connection)?;
+        if connection.source.port.is_empty() {
+            // If we create connection from node's expression root, we are able to introduce missing
+            // pattern with a new variable.
+            self.introduce_pattern_if_missing(connection.source.node)?;
+        }
+
+        let source_info              = self.source_info(connection)?;
         let destination_info         = self.destination_info(connection)?;
         let source_identifier        = source_info.target_ast()?.clone();
         let updated_target_node_expr = destination_info.set(source_identifier)?;
