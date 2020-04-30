@@ -354,7 +354,7 @@ impl EndpointInfo {
 
     /// Full sequence of Ast crumbs identifying endpoint target.
     pub fn full_ast_crumbs(&self) -> FallibleResult<ast::Crumbs> {
-        let port = self.port()?;
+        let port       = self.port()?;
         let mut crumbs = port.ast_crumbs;
         crumbs.extend(self.endpoint.var_crumbs.iter().cloned());
         Ok(crumbs)
