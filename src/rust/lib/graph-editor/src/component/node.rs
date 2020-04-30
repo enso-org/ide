@@ -183,7 +183,6 @@ impl WeakKey for WeakNode {
     }
 }
 
-
 /// Shape view for Node.
 #[derive(Debug,Clone,Copy)]
 pub struct NodeView {}
