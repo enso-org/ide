@@ -68,7 +68,6 @@ defined, a JSON visualization is used by default. Next to the visualization
 view, there is a menu to change the visualization type - it lists all
 visualization types that match the current data type.
 
-
 ### Active Visualizations
 When visualizations are displayed on the stage, they are not active by default,
 which means, they do not capture keyboard shortcuts. Visualization can be made
@@ -78,6 +77,7 @@ elements should be slightly dimmed, or the visualization should get a selection
 border (to be decided). Active visualizations capture all keyboard shortcuts,
 but the "space" button presses. Fullscreen visualizations are considered active
 by default.
+
 
 ## HTML and Native Visualizations
 There are two main types of visualizations - Html and Native. The later uses the
