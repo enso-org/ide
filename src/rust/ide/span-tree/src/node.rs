@@ -49,7 +49,7 @@ pub enum InsertType {BeforeTarget,AfterTarget,Append}
 // === Errors ===
 
 #[allow(missing_docs)]
-#[fail(display = "The crumb `{}` is invalid, only {} children present. Context is: {:?}.", crumb,count,context)]
+#[fail(display = "The crumb `{}` is invalid, only {} children present. Traversed crumbs: {:?}.", crumb,count,context)]
 #[derive(Debug,Fail,Clone)]
 pub struct InvalidCrumb {
     /// Crumb that was attempted.
