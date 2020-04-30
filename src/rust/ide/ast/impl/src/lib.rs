@@ -16,6 +16,8 @@ pub mod internal;
 #[warn(missing_docs)]
 pub mod known;
 #[warn(missing_docs)]
+pub mod macros;
+#[warn(missing_docs)]
 pub mod opr;
 #[warn(missing_docs)]
 pub mod prefix;
@@ -37,6 +39,7 @@ pub mod prelude {
 
 use crate::prelude::*;
 
+pub use crumbs::Crumb;
 pub use crumbs::Crumbs;
 
 use ast_macros::*;
@@ -89,7 +92,7 @@ pub struct WrongEnum {pub expected_con:String}
 // === Tree ===
 // ============
 
-/// A tree structure where each node may store value of `K` and has arbitrary
+/// A tree structure where each node may store value of `V` and has arbitrary
 /// number of children nodes, each marked with a single `K`.
 ///
 /// It is used to describe ambiguous macro match.
@@ -1113,6 +1116,11 @@ impl Module<Ast> {
 impl Ast {
     // TODO smart constructors for other cases
     //  as part of https://github.com/luna/enso/issues/338
+
+    /// Creates Blank ast node (underscore).
+    pub fn blank() -> Ast {
+        Ast::from(Blank{})
+    }
 
     /// Creates an Ast node with Number inside.
     pub fn number(number:i64) -> Ast {
