@@ -9,21 +9,23 @@ use ensogl::display::object::class::ObjectOps;
 use ensogl::display;
 use ensogl::system::web;
 use web::StyleSetter;
-use ensogl::display::object::WeakObjectOps;
 
 
-// ==============================
-// === Types of Visualisation ===
-// ==============================
+// ============================================
+// === Wrapper for Visualisation Input Data ===
+// ============================================
 
+/// Wrapper for data that can be consumed by a visualisation.
+/// TODO replace with better typed data wrapper.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub enum Data {
-    // TODO use proper JSON representation
     JSON { content : String },
     Empty,
 }
 
 impl Data {
+    /// Render the data as JSON.
     pub fn as_json(&self) -> String {
         match &self {
             Data::JSON { content } => content.clone(),
@@ -38,25 +40,26 @@ impl Default for Data{
     }
 }
 
-// TODO create proper abstraction for the visualisation
-pub struct DummyVis {
 
-}
+
+// =============================================
+// === Internal Visualisation Representation ===
+// =============================================
 
 /// Content that can be used in a visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub enum Content {
-    DomSymbol { content : Rc<DomSymbol>  },
-    Node      { content : Rc<display::object::Instance> },
+pub enum Visualization {
+    Html   { content : Rc<DomSymbol>                 },
+    Native { content : Rc<display::object::Instance> },
     Empty,
 }
 
-impl Content {
-    pub fn set_data(&self, data: Data){
+impl Visualization {
+    /// Update the visualisation with the given data.
+    pub fn update_data(&self, data:Data){
         match &self {
-            Content::DomSymbol { content } => { ;
-                content.dom().dataset().set("input", &data.as_json());
+            Visualization::Html { content } => {
                 content.dom().set_inner_html(
                     &format!(r#"
 <svg>
@@ -64,27 +67,27 @@ impl Content {
 </svg>
 "#, data.as_json()));
             },
-            Content::Node { .. } => {},
-            Content::Empty => {},
+            Visualization::Native { .. } => {},
+            Visualization::Empty => {},
         }
     }
 }
 
-impl Default for Content{
+impl Default for Visualization {
     fn default() -> Self {
-        Content::Empty
+        Visualization::Empty
     }
 }
 
-impl From<DomSymbol> for Content {
+impl From<DomSymbol> for Visualization {
     fn from(symbol: DomSymbol) -> Self {
-        Content::DomSymbol { content : Rc::new(symbol) }
+        Visualization::Html { content : Rc::new(symbol) }
     }
 }
 
-impl From<Rc<DomSymbol>> for Content {
+impl From<Rc<DomSymbol>> for Visualization {
     fn from(symbol: Rc<DomSymbol>) -> Self {
-        Content::DomSymbol { content : symbol }
+        Visualization::Html { content : symbol }
     }
 }
 
@@ -102,18 +105,18 @@ pub struct Events {
     pub show              : frp::Source,
     pub hide              : frp::Source,
     pub toggle_visibility : frp::Source,
-    pub update_content    : frp::Source<Content>,
+    pub update_content    : frp::Source<Visualization>,
     pub update_data       : frp::Source<Data>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def show              = source::<()>      ();
-            def hide              = source::<()>      ();
-            def toggle_visibility = source::<()>      ();
-            def update_content    = source::<Content> ();
-            def update_data       = source::<Data>    ();
+            def show              = source::<()>            ();
+            def hide              = source::<()>            ();
+            def toggle_visibility = source::<()>            ();
+            def update_content    = source::<Visualization> ();
+            def update_data       = source::<Data>          ();
         };
         let network = visualization_events;
         Self {network,show,hide,update_content,toggle_visibility,update_data}
@@ -122,27 +125,27 @@ impl Default for Events {
 
 
 
-// ======================
-// === Visualizations ===
-// ======================
+// ================================
+// === Visualizations Container ===
+// ================================
 
-/// Visualization definition.
+/// Container that wraps a `Visualisation` for rendering and interaction in the gui.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Visualization {
-    pub data : Rc<VisualizationData>
+pub struct Container {
+    pub data : Rc<ContainerData>
 }
 
 /// Weak version of `Visualization`.
 #[derive(Clone,CloneRef,Debug)]
-pub struct WeakVisualization {
-    data : Weak<VisualizationData>
+pub struct WeakContainer {
+    data : Weak<ContainerData>
 }
 
-/// Internal data of a `Visualization`.
+/// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct VisualizationData {
+pub struct ContainerData {
     pub logger : Logger,
     pub events : Events,
 
@@ -151,23 +154,23 @@ pub struct VisualizationData {
     position   : Cell<Vector3<f32>>,
     visible    : Cell<bool>,
 
-    content   : RefCell<Content>,
+    content   : RefCell<Visualization>,
 }
 
-impl Visualization {
+impl Container {
     /// Constructor.
     pub fn new() -> Self {
 
         let logger   = Logger::new("visualization");
         let events   = Events::default();
         // TODO replace with actual content;
-        let content  = RefCell::new(Content::default());
+        let content  = RefCell::new(Visualization::default());
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let visible  = Cell::new(true);
         let node     = display::object::Instance::new(&logger);
 
-        let data     = VisualizationData{logger,events,content,size,position,visible,node};
+        let data     = ContainerData {logger,events,content,size,position,visible,node};
         let data     = Rc::new(data);
         Self {data} . init_frp()
     }
@@ -211,30 +214,30 @@ r#"<svg>
         let position   = self.data.position.get();
 
         match self.data.content.borrow().deref() {
-            Content::DomSymbol { content } => {
+            Visualization::Html { content } => {
                 content.set_size(size);
                 content.set_position(position);
             },
-            Content::Node { content  } => {
+            Visualization::Native { content  } => {
                 // TODO ensure correct size
                 // content.display_object().rc.set_scale(size);
                 content.display_object().rc.set_position(position);
             },
-            Content::Empty => {},
+            Visualization::Empty => {},
         }
     }
 
     /// Get the visualization content.
-    pub fn content(&self) -> Content {
+    pub fn content(&self) -> Visualization {
         self.data.content.borrow().clone()
     }
 
     /// Set the visualization content.
-    pub fn set_content(&self, content: Content) {
+    pub fn set_content(&self, content: Visualization) {
         match &content {
-            Content::DomSymbol { content } => self.display_object().add_child(content.as_ref()),
-            Content::Node { content }      => self.display_object().add_child(content.as_ref()),
-            Content::Empty => {},
+            Visualization::Html { content } => self.display_object().add_child(content.as_ref()),
+            Visualization::Native { content }      => self.display_object().add_child(content.as_ref()),
+            Visualization::Empty => {},
         }
         self.data.content.replace(content);
         self.set_content_properties();
@@ -279,7 +282,6 @@ r#"<svg>
                 }
             });
         }
-
         self
     }
 
@@ -287,13 +289,13 @@ r#"<svg>
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
         match (self.data.content.borrow().deref(),visible)  {
-            (Content::DomSymbol { content }, true)  => content.dom().set_style_or_panic("visibility","visible"),
-            (Content::DomSymbol { content }, false) => content.dom().set_style_or_panic("visibility","hidden"),
+            (Visualization::Html { content }, true)  => content.dom().set_style_or_panic("visibility", "visible"),
+            (Visualization::Html { content }, false) => content.dom().set_style_or_panic("visibility", "hidden"),
             // TODO investigate why this is not working.
-            (Content::Node      { content }, true)  => content.display_object().rc.show(),
-            (Content::Node      { content }, false) => content.display_object().rc.hide(),
+            (Visualization::Native { content }, true)  => content.display_object().rc.show(),
+            (Visualization::Native { content }, false) => content.display_object().rc.hide(),
 
-            (&Content::Empty,_)   => {}
+            (&Visualization::Empty,_)   => {}
         }
     }
 
@@ -302,33 +304,34 @@ r#"<svg>
         self.set_visibility(!self.data.visible.get())
     }
 
+    /// Update the data in the inner visualisation.
     pub fn set_data(&self, data: Data) {
-        self.data.content.borrow().set_data(data)
+        self.data.content.borrow().update_data(data)
     }
 
 }
 
-impl Default for Visualization {
+impl Default for Container {
     fn default() -> Self {
-        Visualization::new()
+        Container::new()
     }
 }
 
-impl StrongRef for Visualization {
-    type WeakRef = WeakVisualization;
-    fn downgrade(&self) -> WeakVisualization {
-        WeakVisualization {data:Rc::downgrade(&self.data)}
+impl StrongRef for Container {
+    type WeakRef = WeakContainer;
+    fn downgrade(&self) -> WeakContainer {
+        WeakContainer {data:Rc::downgrade(&self.data)}
     }
 }
 
-impl WeakRef for WeakVisualization{
-    type StrongRef = Visualization;
-    fn upgrade(&self) -> Option<Visualization> {
-        self.data.upgrade().map(|data| Visualization{data})
+impl WeakRef for WeakContainer {
+    type StrongRef = Container;
+    fn upgrade(&self) -> Option<Container> {
+        self.data.upgrade().map(|data| Container {data})
     }
 }
 
-impl Object for Visualization {
+impl Object for Container {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.node
     }
