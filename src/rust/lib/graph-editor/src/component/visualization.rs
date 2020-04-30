@@ -52,21 +52,23 @@ impl From<Rc<DomSymbol>> for Content {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network        : frp::Network,
-    pub show           : frp::Source,
-    pub hide           : frp::Source,
-    pub update_content : frp::Source<Content>,
+    pub network           : frp::Network,
+    pub show              : frp::Source,
+    pub hide              : frp::Source,
+    pub toggle_visibility : frp::Source,
+    pub update_content    : frp::Source<Content>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def show           = source::<()> ();
-            def hide           = source::<()> ();
-            def update_content = source::<Content> ();
+            def show              = source::<()> ();
+            def hide              = source::<()> ();
+            def toggle_visibility = source::<()> ();
+            def update_content    = source::<Content> ();
         };
         let network = visualization_events;
-        Self {network,show,hide,update_content}
+        Self {network,show,hide,update_content,toggle_visibility}
     }
 }
 
@@ -199,14 +201,21 @@ r#"<svg>
             });
 
             let weak_vis = self.downgrade();
-            def _f_hide= self.data.events.hide.map(move |_| {
+            def _f_hide = self.data.events.hide.map(move |_| {
                 if let Some(vis) = weak_vis.upgrade() {
                     vis.set_visibility(false)
                }
             });
 
             let weak_vis = self.downgrade();
-            def _f_hide= self.data.events.update_content.map(move |content| {
+            def _f_toggle = self.data.events.hide.map(move |_| {
+                if let Some(vis) = weak_vis.upgrade() {
+                    vis.toggle_visibility()
+               }
+            });
+
+            let weak_vis = self.downgrade();
+            def _f_hide = self.data.events.update_content.map(move |content| {
                 if let Some(vis) = weak_vis.upgrade() {
                     vis.set_content(content.clone());
                 }
@@ -220,15 +229,21 @@ r#"<svg>
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
         match (self.data.content.borrow().deref(),visible)  {
-            (Content::DomSymbol { content }, true)  => content.display_object().rc.show(),
-            (Content::DomSymbol { content }, false) => content.display_object().rc.hide(),
-
+            (Content::DomSymbol { content }, true)  => content.dom().set_style_or_panic("visibility","visible"),
+            (Content::DomSymbol { content }, false) => content.dom().set_style_or_panic("visibility","hidden"),
+            // TODO investigate why this is not working.
             (Content::Node      { content }, true)  => content.display_object().rc.show(),
             (Content::Node      { content }, false) => content.display_object().rc.hide(),
 
             (&Content::Empty,_)   => {}
         }
     }
+
+    /// Toggle visibility.
+    pub fn toggle_visibility(&self) {
+        self.set_visibility(!self.data.visible.get())
+    }
+
 }
 
 impl Default for Visualization {

@@ -199,17 +199,21 @@ ensogl::def_command_api! { Commands
     remove_selected_nodes,
     /// Remove all nodes from the graph.
     remove_all_nodes,
+    /// Toggle the visibility of the selected visualisations
+    toggle_visualization_visibility,
 }
 
 
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node_at_cursor    = source();
-            def remove_selected_nodes = source();
-            def remove_all_nodes      = source();
+            def add_node_at_cursor              = source();
+            def remove_selected_nodes           = source();
+            def remove_all_nodes                = source();
+            def toggle_visualization_visibility = source();
         }
-        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes}
+        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,
+              toggle_visualization_visibility}
     }
 }
 
@@ -272,6 +276,9 @@ impl FrpInputs {
     }
     pub fn remove_all_nodes(&self) {
         self.remove_all_nodes.emit(());
+    }
+    pub fn toggle_visualization_visibility(&self) {
+        self.toggle_visualization_visibility.emit(());
     }
 }
 
@@ -390,8 +397,10 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(&[Key::Character("n".into())] , "add_node_at_cursor")
-             , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
+        vec! [
+        Self::self_shortcut(&[Key::Character("n".into())]     , "add_node_at_cursor")
+      , Self::self_shortcut(&[Key::Backspace]                 , "remove_selected_nodes")
+      , Self::self_shortcut(&[Key::Character(" ".into())] , "toggle_visualization_visibility")
         ]
     }
 }
@@ -507,6 +516,13 @@ impl application::View for GraphEditor {
 
             nodes.set.insert(node.clone_ref());
 
+        }));
+
+
+        // === Toggle Visualization Visibility ===
+
+        def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
+            nodes.selected.for_each(|node| node.visualization.toggle_visibility());
         }));
 
 
