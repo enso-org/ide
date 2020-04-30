@@ -136,55 +136,65 @@ pub mod shape {
 }
 
 
-//pub mod label {
-//    use super::*;
-//
-//    #[derive(Clone, Debug)]
-//    #[allow(missing_docs)]
-//    pub struct Shape {
-//        pub   sprite: Sprite,
-//
-//    }
-//    impl ensogl::display::shape::system::Shape for Shape {
-//        type System = ShapeSystem;
-//        fn sprites(&self) -> Vec<&Sprite> {
-//            vec![]
-//        }
-//    }
-//    impl display::Object for Shape {
-//        fn display_object(&self) -> &display::object::Instance {
-////            self.sprite.display_object()
-//            todo!()
-//        }
-//    }
-//    #[derive(Clone, CloneRef, Debug)]
-//    #[allow(missing_docs)]
-//    pub struct ShapeSystem {
-//        pub glyph_system: GlyphSystem,
-//        style_manager: ensogl::display::shape::StyleWatch,
-//
-//    }
-//    impl ensogl::display::shape::ShapeSystemInstance for ShapeSystem {
-//        type Shape = Shape;
-//
-//        fn new(scene: &Scene) -> Self {
-//            let style_manager = ensogl::display::shape::StyleWatch::new(&scene.style_sheet);
-////            let shape_system = ensogl::display::shape::ShapeSystem::new(scene, &Self::shape_def(&style_manager));
-//            let mut fonts        = FontRegistry::new();
-//            let font             = fonts.get_or_load_embedded_font("DejaVuSans").unwrap();
-//            let mut glyph_system = GlyphSystem::new(scene,font);
-//
-//            Self { glyph_system, style_manager }.init_refresh_on_style_change()
-//        }
-//
-//        fn new_instance(&self) -> Self::Shape {
-//            let sprite = self.shape_system.new_instance();
-//            let id = sprite.instance_id;
-//
-//            Shape { sprite }
-//        }
-//    }
-//    impl ShapeSystem {
+pub mod label {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    #[allow(missing_docs)]
+    pub struct Shape {
+        pub line : Rc<RefCell<ensogl::display::shape::text::glyph::system::Line>>,
+        pub obj  : display::object::Instance,
+
+    }
+    impl ensogl::display::shape::system::Shape for Shape {
+        type System = ShapeSystem;
+        fn sprites(&self) -> Vec<&Sprite> {
+            vec![]
+        }
+    }
+    impl display::Object for Shape {
+        fn display_object(&self) -> &display::object::Instance {
+            &self.obj
+        }
+    }
+    #[derive(Clone, CloneRef, Debug)]
+    #[allow(missing_docs)]
+    pub struct ShapeSystem {
+        pub fonts : Rc<FontRegistry>,
+        pub glyph_system: GlyphSystem,
+        style_manager: ensogl::display::shape::StyleWatch,
+
+    }
+    impl ensogl::display::shape::ShapeSystemInstance for ShapeSystem {
+        type Shape = Shape;
+
+        fn new(scene: &Scene) -> Self {
+            let style_manager = ensogl::display::shape::StyleWatch::new(&scene.style_sheet);
+//            let shape_system = ensogl::display::shape::ShapeSystem::new(scene, &Self::shape_def(&style_manager));
+            let mut fonts        = FontRegistry::new();
+            let font             = fonts.get_or_load_embedded_font("DejaVuSans").unwrap();
+            let mut glyph_system = GlyphSystem::new(scene,font);
+            let fonts = Rc::new(fonts);
+
+            Self { fonts, glyph_system, style_manager } // .init_refresh_on_style_change()
+        }
+
+        fn new_instance(&self) -> Self::Shape {
+            let line_position = Vector2::new(0.0,0.0);
+            let color         = Vector4::new(0.0, 0.8, 0.0, 1.0);
+            let text          = "Follow the white rabbit ...";
+            let height        = 32.0;
+            let line          = self.glyph_system.new_line(line_position,height,text,color);
+            let obj = display::object::Instance::new(Logger::new("test"));
+            for glyph in &line.glyphs {
+                obj.add_child(glyph.display_object())
+            }
+            let line          = Rc::new(RefCell::new(line));
+
+            Shape { line,obj }
+        }
+    }
+    impl ShapeSystem {
 //        fn init_refresh_on_style_change(self) -> Self {
 //            let shape_system = self.shape_system.clone_ref();
 //            let style_manager = self.style_manager.clone_ref();
@@ -193,15 +203,15 @@ pub mod shape {
 //            });
 //            self
 //        }
-//
-//
+
+
 //        pub fn shape_def(__style_watch__: &ensogl::display::shape::StyleWatch) -> AnyShape {
 //            use ensogl::display::style::data::DataMatch;
 //
 //            Circle(10.px()).fill(Srgb::new(0.97,0.96,0.95)).into()
 //        }
-//    }
-//}
+    }
+}
 
 
 
@@ -273,13 +283,25 @@ impl component::ShapeViewDefinition for NodeView {
     }
 }
 
+/// Shape view for Node.
+#[derive(Debug,Clone,Copy)]
+pub struct LabelView {}
+impl component::ShapeViewDefinition for LabelView {
+    type Shape = label::Shape;
+    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
+        Self {}
+    }
+}
+
 /// Internal data of `Node`
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct NodeData {
+    pub object : display::object::Instance,
     pub logger : Logger,
     pub label  : frp::Source<String>,
     pub events : Events,
+    pub label_view : component::ShapeView<LabelView>,
     pub view   : component::ShapeView<NodeView>,
     pub ports  : Registry,
 }
@@ -295,9 +317,13 @@ impl Node {
         let network = node_network;
         let logger  = Logger::new("node");
         let view    = component::ShapeView::new(&logger);
+        let label_view    = component::ShapeView::new(&logger);
         let events  = Events {network,select,deselect};
         let ports   = Registry::default() ;
-        let data    = Rc::new(NodeData {logger,label,events,view,ports});
+        let object  = display::object::Instance::new(&logger);
+        object.add_child(&view.display_object);
+        // object.add_child(&label_view.display_object);
+        let data    = Rc::new(NodeData {object,logger,label,events,view,label_view,ports});
         Self {data} . init()
     }
 
@@ -367,7 +393,7 @@ impl WeakRef for WeakNode {
 
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
-        &self.view.display_object
+        &self.object
     }
 }
 

@@ -80,7 +80,7 @@ impl Glyph {
 /// buffer space). Therefore there is a cap for line length. See also `GlyphSystem::new_empty_line`.
 #[derive(Debug)]
 pub struct Line {
-    glyphs         : Vec<Glyph>,
+    pub glyphs         : Vec<Glyph>,
     baseline_start : Vector2<f32>,
     base_color     : Vector4<f32>,
     height         : f32,
@@ -191,7 +191,7 @@ impl GlyphSystem {
 
     /// Create new glyph. In the returned glyph the further parameters (position, bbox, character)
     /// may be set.
-    pub fn new_glyph(&mut self) -> Glyph {
+    pub fn new_glyph(&self) -> Glyph {
         let context         = self.context.clone();
         let sprite          = self.sprite_system.new_instance();
         let instance_id     = sprite.instance_id;
@@ -210,7 +210,7 @@ impl GlyphSystem {
     ///
     /// For details, see also `Line` structure documentation.
     pub fn new_empty_line
-    (&mut self, baseline_start:Vector2<f32>, height:f32, length:usize, color:Vector4<f32>)
+    (&self, baseline_start:Vector2<f32>, height:f32, length:usize, color:Vector4<f32>)
     -> Line {
         let glyphs     = (0..length).map(|_| self.new_glyph()).collect();
         let base_color = color;
@@ -222,7 +222,7 @@ impl GlyphSystem {
     ///
     /// For details, see also `Line` structure documentation.
     pub fn new_line
-    (&mut self, baseline_start:Vector2<f32>, height:f32, text:&str, color:Vector4<f32>)
+    (&self, baseline_start:Vector2<f32>, height:f32, text:&str, color:Vector4<f32>)
     -> Line {
         let length   = text.chars().count();
         let mut line = self.new_empty_line(baseline_start,height,length,color);
