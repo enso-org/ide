@@ -245,7 +245,6 @@ impl<Notification> Handler<Notification> {
         self.insert_ongoing_request(message.payload.id, sender);
 
         let serialized_message = serde_json::to_string(&message).unwrap();
-        println!("{}", serialized_message);
         if self.send_text_message(serialized_message).is_err() {
             // If message cannot be send, future ret must be cancelled.
             self.remove_ongoing_request(id);
