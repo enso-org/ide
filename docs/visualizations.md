@@ -3,20 +3,21 @@
 ## Purpose of visualizations
 Visualizations have two main purposes:
 
-- Display results of computations. Each node can be assigned with a
-  visualization (displayed next to the node). After a node computes its new
-  value, the visualization shows it in an understandable way to the user.
+- **Display results of nodes**  
+  Each node can be assigned with one or more visualization. After a node
+  computes its new value, the visualization shows it in an understandable way to
+  the user. Please note that a single node can be assigned with multiple
+  visualizations at the same time. For example, a node might want to display a
+  map of locations and their list at the same time next to each other.
 
-- Control the computations. Think about visualizations as a separate component,
-  just as nodes, with their own input and output ports. Whenever new data
-  appears on the input port, the visualization displays it. However, when the
-  input port is not connected, the visualization behaves like a data-producing
-  widget. For example, a map visualization can display locations encoded in its
-  input data. It can also allow us to interactively pick new locations with the
-  mouse when no input is connected and sends the manually selected locations to
-  the output port. Similarly, the histogram can be used to manually draw a
-  histogram with the mouse to set data on the next nodes. A number visualization
-  is, at the same time, a slider. Image visualizations can behave like an image
+- **Provide interactive way to generate new data**  
+  In a widget mode (described in detail later), visualizations provide users
+  with an interactive GUI to define data. For example, a map visualization can
+  both display locations, as wekk as allow the user to pick locations by cliking
+  with a mouse. Similarly, the histogram can both display a list of numbers, and
+  can be manually draw with the mouse producing such a list. Several numbers can
+  be visualized as a table of sliders, which can also be used to interactively
+  generate a table of numbers. Image visualizations can behave like an image
   editor, etc.
 
 
@@ -24,57 +25,58 @@ Visualizations have two main purposes:
 Visualizations can be displayed in the following ways:
 
 - **Attached to nodes**  
-  Their input and output ports are not visible in this form. They are used only
-  to display the result of the attached node. Whenever you move the node, the
-  visualization moves as well. The visualization can be shown this way by
-  selecting nodes by tapping the "space" button.
+  In this mode, visualizations display the most recent result of the node. They
+  behave like an integrated part of the node. Whenever you move the node, the
+  visualization moves as well. This mode can be toggled by tapping the spacebar.
 
 - **Fullscreen**  
-  Similar to the previous mode, but the visualization occupies the full IDE
-  visual space. This form can be triggered on a recently selected node (even if
-  many nodes are selected, we remember the last selected one) by either pressing
-  space and keeping it pressed for longer than approx 0.5 s, or by tapping space
-  twice. In the former case, the visualization stops being fullscreen whenever
-  we release space, in the later, whenever we press space again.
+  Visualization attached to node can grow (animate) to ocupy full IDE visual
+  space. This mode can be triggered on the recently selected node (in case many
+  nodes are selected, the last selected node will be used) by either pressing
+  keeping the spacebar pressed for longer than approx 0.5s, or by tapping it
+  twice. In the former case, the visualization shrinks to each original form
+  whenever we release space, in the later, whenever we press space again.
 
 - **Detached**  
-   This form is used to build dashboards and reports. You can detach a
-   visualization and place it anywhere you want (we might introduce a special
-   place where you can put such visualizations). Think about building a PDF-like
-   report for your supervisor - you want to describe your research there and
-   place some visualizations and widgets (like sliders, which are a
-   visualization as well) inside the text for an interactive experience. Please
-   note that a single node can be assigned with multiple visualizations at the
-   same time. For example, a node might want to display a map of locations and
-   their list at the same time next to each other.
+  Visualizations attached to nodes can be detached, scaled, and placed freely
+  across the visual canvas (we might introduce a special place where you can put
+  such visualizations). This is useful when defining dashboards or reports. We
+  also plan to provide a notebook-like experience where you can write text mixed
+  with visualizations (including widgets for an interactive experience). 
 
 - **Widgets**  
-  This form behaves just like a node on the stage, but it does not have an
-  expression - it is only the visualization. It has input and output ports.
-  Whenever the input port is connected, it behaves like in the attached mode -
-  it displays the results it gets on the input and passes them to the output
-  port. When the input port is not connected, the visualization behaves like a
-  widget, allowing you to produce data to the nodes connected to its output
-  port.
+  In this mode visualizations behave like nodes but do not display expressions.
+  They have one input and one output port. If the input port is connected, the
+  visualization displays its value and passes its to the output port. In case it
+  is not connected, the visualization becomes an interactive widget allowing the
+  user to specify data. For example, a map visualization will allow the user to
+  manually pick locations. After each change, the new locations will be sent to
+  the output port. Under the hood, widgets are represented as nodes and their
+  code lines are assigned with a dedicated "visualization" metadata. 
+  Visualizations generate expressions always in the form of `name = data`, where
+  data is a hardcoded data produced from the visualization. For example, when
+  user clicks the map to define locations, the data could be a string literal
+  containing locations encoded in JSON.
+
 
 ### Choosing a Visualization Type.
 When a new data is provided to a visualization, the visualization registry
 searches for all visualizations that match it (see visualization registry to
 learn more). For example, when a data of type `[Int]` (list of ints) is
-produced, all visualizations which map `[Int]`, `[a]`, or a will be found. Each
-type can be associated with a default visualization. For example, `[Int]` might
-define that its default visualization is a plot. If no default visualization is
-defined, a JSON visualization is used by default. Next to the visualization
-view, there is a menu to change the visualization type - it lists all
-visualization types that match the current data type.
+produced, all visualizations which matches `[Int]`, like `[Int]`, `[a]`, or `a`
+will be found. Each type can be associated with a default visualization. For
+example, `[Int]` might define that its default visualization is a plot. If no
+default visualization is defined, a JSON visualization is used. Each
+visualization has a drop-down menu allowinh the user switching to another
+visualization type.
 
 ### Active Visualizations
 When visualizations are displayed on the stage, they are not active by default,
-which means, they do not capture keyboard shortcuts. Visualization can be made
-active after a user clicks on it. Visualizations are deactivated by clicking in
-the background of the node editor. When a visualization is active, all other
+which means, they do not capture keyboard shortcuts. Visualization becomes
+active when user clicks it. Visualizations are deactivated by clicking in the
+background of the node editor. When a visualization is active, all other
 elements should be slightly dimmed, or the visualization should get a selection
-border (to be decided). Active visualizations capture all keyboard shortcuts,
+border (to be defined). Active visualizations capture all keyboard shortcuts,
 but the space bar presses. Fullscreen visualizations are considered active by
 default.
 
