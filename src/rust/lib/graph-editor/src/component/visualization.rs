@@ -11,13 +11,42 @@ use ensogl::system::web;
 use web::StyleSetter;
 
 
+// ==============================
+// === Types of Visualisation ===
+// ==============================
+
+/// Content that can be used in a visualization.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub enum Content {
+    DomSymbol { content : Rc<DomSymbol>  },
+    Node      { content : Rc<display::object::Instance> },
+    Empty,
+}
+
+impl Default for Content{
+    fn default() -> Self {
+        Content::Empty
+    }
+}
+
+impl From<DomSymbol> for Content {
+    fn from(symbol: DomSymbol) -> Self {
+        Content::DomSymbol { content : Rc::new(symbol) }
+    }
+}
+
+impl From<Rc<DomSymbol>> for Content {
+    fn from(symbol: Rc<DomSymbol>) -> Self {
+        Content::DomSymbol { content : symbol }
+    }
+}
+
+
+
 // ============================
 // === Visualization Events ===
 // ============================
-
-/// Content that can be used in a visualisation.
-/// TODO extend to enum over different content types.
-pub type Content = Option<Rc<DomSymbol>>;
 
 /// Visualization events.
 #[derive(Clone,CloneRef,Debug)]
@@ -26,7 +55,7 @@ pub struct Events {
     pub network        : frp::Network,
     pub show           : frp::Source,
     pub hide           : frp::Source,
-    pub update_content : frp::Source<Option<Rc<DomSymbol>>>,
+    pub update_content : frp::Source<Content>,
 }
 
 impl Default for Events {
@@ -82,7 +111,7 @@ impl Visualization {
         let logger   = Logger::new("visualization");
         let events   = Events::default();
         // TODO replace with actual content;
-        let content  = RefCell::new(None);
+        let content  = RefCell::new(Content::default());
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let visible  = Cell::new(true);
@@ -128,10 +157,18 @@ r#"<svg>
         let size       = self.data.size.get();
         let position   = self.data.position.get();
 
-        if let Some(object) = self.data.content.borrow().as_ref() {
-            object.set_size(size);
-            object.set_position(position);
-        };
+        match self.data.content.borrow().deref() {
+            Content::DomSymbol { content } => {
+                content.set_size(size);
+                content.set_position(position);
+            },
+            Content::Node { content  } => {
+                // TODO ensure correct size
+                // content.display_object().rc.set_scale(size);
+                content.display_object().rc.set_position(position);
+            },
+            Content::Empty => {},
+        }
     }
 
     /// Get the visualization content.
@@ -141,8 +178,10 @@ r#"<svg>
 
     /// Set the visualization content.
     pub fn set_content(&self, content: Content) {
-        if let Some(content) = content.as_ref(){
-            self.display_object().add_child(content.as_ref());
+        match &content {
+            Content::DomSymbol { content } => self.display_object().add_child(content.as_ref()),
+            Content::Node { content }      => self.display_object().add_child(content.as_ref()),
+            Content::Empty => {},
         }
         self.data.content.replace(content);
         self.set_content_properties();
@@ -180,15 +219,14 @@ r#"<svg>
     /// Toggle visibility on or off.
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
-        let content = self.data.content.borrow();
-        // TODO do something more sensible to hide the content.
-        if let Some(ref content) = content.deref() {
-            let dom_element = content.dom();
-            if visible {
-                dom_element.set_style_or_panic("visibility", "hidden");
-            } else {
-                dom_element.set_style_or_panic("visibility", "visible");
-            }
+        match (self.data.content.borrow().deref(),visible)  {
+            (Content::DomSymbol { content }, true)  => content.display_object().rc.show(),
+            (Content::DomSymbol { content }, false) => content.display_object().rc.hide(),
+
+            (Content::Node      { content }, true)  => content.display_object().rc.show(),
+            (Content::Node      { content }, false) => content.display_object().rc.hide(),
+
+            (&Content::Empty,_)   => {}
         }
     }
 }

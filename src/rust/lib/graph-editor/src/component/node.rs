@@ -13,7 +13,6 @@ use enso_frp as frp;
 use ensogl::data::color::*;
 use ensogl::data::color::Srgba;
 use ensogl::display::Attribute;
-use ensogl::display::DomSymbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -140,7 +139,7 @@ pub struct Events {
     pub network                : frp::Network,
     pub select                 : frp::Source,
     pub deselect               : frp::Source,
-    pub set_visualisation      : frp::Source<Option<Rc<DomSymbol>>>,
+    pub set_visualization      : frp::Source<visualization::Content>,
 }
 
 
